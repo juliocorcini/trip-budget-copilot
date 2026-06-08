@@ -1,0 +1,166 @@
+---
+alwaysApply: true
+---
+# Software Engineering Guidelines
+
+## 1. Core Principles
+
+These principles guide all decisions. When in doubt, follow them in order.
+
+1. Consistency over preference
+2. Simplicity over cleverness
+3. Reuse over duplication (when it does not introduce unnecessary complexity)
+4. Data-driven over conditional logic
+5. Clear structure over speed
+
+---
+
+## 2. Architecture & Structure
+
+### 2.1 Separation of Responsibilities
+
+- Business logic must not be mixed with infrastructure (DB, API, UI)
+- Always isolate logic into dedicated functions, methods, or classes
+- Avoid placing decision logic in controllers or transport layers
+
+### 2.2 Orchestration Pattern
+
+- Use **orchestrators** to coordinate smaller functions and methods
+- Orchestrators should call smaller, focused units and not contain heavy logic themselves
+- It is acceptable to have orchestrators calling other orchestrators
+
+### 2.3 Avoid Tight Coupling
+
+- Avoid creating unnecessary dependencies between modules
+- Prefer composition over direct dependency
+- If a dependency is required, isolate it through an adapter
+
+### 2.4 Sub-Orchestrators (Reusable Flows)
+
+- When multiple orchestrators reuse the same sequence of functions, evaluate grouping them into a **sub-orchestrator**
+- Sub-orchestrators must represent a clear responsibility and remain composable
+
+### 2.5 Data Fetching & Execution Strategy
+
+- Always prioritize executing database logic in a **single call** when possible
+- If multiple independent calls are required, execute them **simultaneously** (Promise.all or equivalent)
+- Never execute independent operations sequentially without reason
+- Performance takes priority over strict layering or reuse
+
+---
+
+## 3. Coding Guidelines
+
+### 3.1 Reuse First
+
+- Before creating new code, always check if similar logic already exists
+- If reuse introduces additional complexity or affects multiple areas, explain the trade-offs and ask for confirmation
+- Prefer reuse when it keeps the system simple and consistent
+
+### 3.2 Function & Method Design
+
+- Functions must be small and focused on a single responsibility
+- Prefer composition of small units over large ones
+
+### 3.3 Inputs & Outputs
+
+- Keep inputs and outputs minimal and explicit
+- Avoid optional arguments when possible; prefer extending interfaces
+
+### 3.4 Variables & Mutations
+
+- Always declare variables before mutating them
+- Avoid inline mutations that make debugging difficult
+
+### 3.5 Data-Driven Approach
+
+- Avoid conditionals controlling business logic when possible
+- Prefer: data structures, mappings, polymorphism
+
+### 3.6 Abstraction Discipline
+
+- If a use case calls an abstract function, encapsulate that call in a dedicated function
+- Do not expose raw abstractions directly in business logic
+
+---
+
+## 4. Code Hygiene
+
+### 4.1 Cleanup
+
+- When removing or changing code: remove unused requests, clean unused variables, keep memory usage clean
+
+### 4.2 Versioning
+
+- Bump version numbers when meaningful changes are made
+
+---
+
+## 5. What We Avoid
+
+- Large functions or methods
+- Repeated code
+- Optional arguments (when avoidable)
+- Business logic in the wrong layer
+- Direct database access without abstraction
+- Creating new patterns without necessity
+- Overuse of conditionals for business logic
+
+---
+
+## 6. Decision & Communication Rules
+
+### 6.1 No Assumptions
+
+- If the scope is unclear, always ask before proceeding
+
+### 6.2 High-Impact Changes Require Confirmation
+
+Before proceeding, **stop and ask** if the change may:
+- Introduce new abstractions or shared logic
+- Affect multiple parts of the system
+- Change existing structure or patterns
+- Introduce new dependencies
+
+### 6.3 Scope Control
+
+- Only implement what is requested
+- Do not expand scope beyond the task
+
+### 6.4 Consistency First
+
+- Prefer extending existing structures over creating new ones
+
+---
+
+## 7. Paradigm & Design Approach
+
+- Follow the existing paradigm and patterns used in the codebase
+- Consider the most appropriate paradigm based on the problem
+- Before applying a different paradigm, explain why and ask for confirmation
+- Avoid mixing paradigms within the same scope without clear justification
+
+---
+
+## 8. Execution, Diffs, and Verification (AI-assisted work)
+
+### 8.1 Disambiguation before implementation
+
+- When more than one reasonable reading of the request exists, name the options—do not pick silently
+- State explicit assumptions; confirm before coding if an assumption could change behavior
+
+### 8.2 Surgical edits and change hygiene
+
+- Prefer diffs where each changed line traces to the task
+- Do not refactor or "improve" adjacent code unless required to complete the task
+- Match existing local style even when it differs from your default
+- Remove imports/variables your change made unused; do not treat pre-existing debt as in scope
+
+### 8.3 Minimal new surface area
+
+- Avoid new shared modules or generalized APIs for a one-off unless confirmed
+
+### 8.4 Goal-driven verification
+
+- Where useful, phrase work as checkable outcomes
+- For multi-step work, a short plan with a verify note per step reduces rework

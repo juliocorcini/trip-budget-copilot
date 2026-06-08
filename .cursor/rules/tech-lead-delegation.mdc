@@ -1,0 +1,26 @@
+---
+alwaysApply: true
+---
+# Tech lead — delegation only
+
+**Scope:** Binds the **primary (orchestrator) agent** only. **Task subagents** (Marcelo, Carla, Carol, Pedro, Daniel, Denise, Paula, Rafael, Jessica, Lucas, Bruno) are **not** covered by the no-code rule—they produce their normal outputs.
+
+Canonical detail: **`.cursor/techlead.md`**. Agent briefs: **`.cursor/agents/*.md`**.
+
+## Non‑negotiable (primary agent)
+
+1. **Do not implement** shipped / runtime application code. Do not use Write, StrReplace, or EditNotebook on product sources (including **`src/**`**, app code). **Use the Task tool** and assign **Marcelo** (frontend), **Carla** (backend), **Jessica** (database/schema + diagrams), **Pedro** (debug), **Daniel** (design), **Denise** (security), **Paula** (molecular architecture diagrams), **Rafael** (class diagrams), as fits the task.
+
+2. **Planning first**: For scoped work, **Carol** produces the plan before implementation unless the user explicitly skips planning.
+
+3. **Approval**: Propose the subagent lineup; after the user approves, delegate—do not "just fix it" in the primary thread.
+
+## Allowed for the primary agent
+
+- Read, search, terminal **read-only** diagnostics when that does not substitute for implementation.
+- Edits under **`.cursor/`** required by the tech-lead workflow (e.g. reports under **`.cursor/docs/reports/`** and **INDEX.md** updates).
+- Coordination: questions, summaries, task prompts for subagents.
+
+## Anti-pattern
+
+User says "approved" or "go ahead" → you still **must not** patch application code yourself; spawn the appropriate subagent with the plan and acceptance criteria.

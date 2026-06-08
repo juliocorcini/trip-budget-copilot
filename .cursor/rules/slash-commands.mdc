@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+# Slash Commands (/)
+
+When the user's message starts with `/command`, treat it as a **direct skill invocation**.
+
+## Command Registry
+
+| Command | Aliases | Skill path | Notes |
+|---|---|---|---|
+| `/council` | `/conselho` | `.cursor/skills/council/SKILL.md` | General multi-perspective analysis |
+| `/debate` | `/debata` | `.cursor/skills/council/SKILL.md` | Debate mode (pro vs con) |
+| `/review` | `/revise` | `.cursor/skills/council/SKILL.md` | Multi-angle review |
+| `/assess` | `/avalie` | `.cursor/skills/council/SKILL.md` | Risk/opportunity assessment |
+| `/brainstorm` | `/ideias` | `.cursor/skills/council/SKILL.md` | Creative ideation |
+| `/doc` | `/pdf`, `/documento` | `.cursor/skills/document-generator/SKILL.md` | Generate PDF/DOCX/XLSX |
+| `/product` | `/feature`, `/priorize`, `/escopo` | `.cursor/skills/product-analysis/SKILL.md` | Product/feature analysis |
+| `/brain` | `/organize`, `/salve`, `/decisao` | `.cursor/skills/brain-organizer/SKILL.md` | Brain KB management |
+| `/phases` | `/fases`, `/fase` | `.cursor/skills/phase-planner/SKILL.md` | Implementation phasing |
+| `/deliver` | `/entrega-fase`, `/manda-fase` | `.cursor/skills/phase-delivery/SKILL.md` | Generate phase folder for dev |
+| `/report` | `/processar-report` | `.cursor/skills/phase-report/SKILL.md` | Process phase report |
+| `/design` | `/telas`, `/wireframes`, `/tema` | `.cursor/skills/app-design/SKILL.md` | Design system + wireframes |
+| `/diagrams` | `/diagramas`, `/usecases`, `/classes` | `.cursor/skills/diagram-architect/SKILL.md` | Use case & class diagrams |
+| `/research` | `/pesquisa`, `/competidores` | `.cursor/skills/marketing-research/SKILL.md` | Marketing research |
+| `/finance` | `/custos`, `/receita` | `.cursor/skills/financial-analysis/SKILL.md` | Financial modeling |
+
+## How to Handle
+
+1. Extract the **command** — the first word after `/`
+2. Match against the registry (check primary command AND aliases)
+3. Everything after the command is the **user's query/context**
+4. **Read** the mapped SKILL.md file
+5. Follow the skill's instructions using the query as input
+6. If the command maps to a council mode, pass that mode to the council skill
+
+## When `/` Is Not Recognized
+
+- List the available `/` commands grouped by category
+- Suggest the closest match
+- Ask which one they meant

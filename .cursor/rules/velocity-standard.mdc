@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+# Development Velocity Standard
+
+## Three Velocity Tiers
+
+### Tier 1 — Developer Solo (no AI)
+- **Factor**: Original estimate × 1.2–1.5
+- Not used here — included only as baseline reference
+
+### Tier 2 — Developer + AI (unstructured)
+- **Factor**: Original estimate × 1.0
+
+### Tier 3 — Structured Delivery (DEFAULT)
+- **Factor**: Original estimate ÷ 3.0 (conservative) to ÷ 3.3 (measured)
+- **THIS IS THE DEFAULT for all project timelines**
+
+## Why Tier 3 Works — Required Conditions
+
+1. **Complete Project Brain** — Product spec, decision log, technical direction documented BEFORE development
+2. **Per-Phase Delivery Packages** — Scope document, milestones, acceptance criteria, AI execution brief
+3. **Full Schema Designed Upfront** — All database entities created early to prevent costly migrations
+4. **Milestone-Based Audit Cycles** — Implement → Audit → Fix → Re-audit → Pass per milestone
+5. **Knowledge Base as Constitution** — AI agents must follow it
+6. **Wireframes + Shared Elements Registry** — Visual reference for every screen
+7. **Council for Key Decisions** — Multi-perspective analysis for strategic decisions
+8. **Phase Ordering Discipline** — One phase at a time
+9. **AI Model Strategy** — Strong model for implementation; weaker for mechanical tasks
+10. **Product Lead Active** — Reviewing reports, updating brain, preparing next packages
+
+## Quick Reference
+
+| Estimated Hours | Tier 3 Actual | Work Days |
+|:---:|:----:|:---:|
+| 30h | ~10h | 1-1.5 |
+| 50h | ~17h | 2 |
+| 75h | ~25h | 3 |
+| 100h | ~33h | 3.5-4 |
+| 150h | ~50h | 5-6 |
+| 200h | ~67h | 7-8 |

@@ -1,0 +1,21 @@
+---
+alwaysApply: true
+---
+# App Design — Auto-Trigger
+
+When the user asks about creating screens, wireframes, visual design, themes, or design systems for TripPilot, read and follow `.cursor/skills/app-design/SKILL.md`.
+
+## Trigger Patterns
+
+- "crie as telas", "monte as telas", "gere os wireframes"
+- "design do app", "visual do app", "tema do app"
+- "como vai ficar o app", "crie o design system"
+- "gere HTML das telas", "monte os HTMLs"
+- "quero ver as telas", "me mostra como vai ficar"
+- Any request involving creating visual mockups, wireframes, or design tokens
+
+## Do NOT trigger for
+
+- CSS fixes in existing code (that's normal coding)
+- Questions about how the design skill works (just explain)
+- Requests to review existing implementation code visually

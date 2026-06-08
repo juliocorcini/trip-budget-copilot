@@ -1,0 +1,23 @@
+---
+description: "Routes test-related requests to the Tech Lead automatically."
+alwaysApply: true
+---
+
+# Test routing
+
+When the user asks to **create**, **implement**, **run**, **execute**, or **update** tests — or mentions test-related terms like "unit test", "integration test", "E2E", "test suite", "Jest", "Vitest", "Playwright", or agent names **Lucas** / **Bruno** — you MUST follow one of the two procedures below.
+
+## When the user asks to RUN or EXECUTE tests
+
+1. **Read** `.cursor/techlead.md` in full.
+2. **Read** `.cursor/agents/bruno.md` in full.
+3. **Read** `.cursor/rules/test-agents-guidelines.mdc`.
+4. **Follow Bruno's instructions exactly** — confirm which tests to run, execute the tests, interpret results, and report.
+5. **NEVER run test commands yourself.** Only Bruno executes tests.
+
+## When the user asks to CREATE or IMPLEMENT tests
+
+1. **Read** `.cursor/techlead.md` in full.
+2. **Follow the "Creating new tests" workflow** defined in `techlead.md`.
+3. **Read the agent definition** (`.cursor/agents/lucas.md`, `.cursor/agents/bruno.md`) before acting as each agent.
+4. **NEVER write test code yourself.** Only Lucas creates tests.

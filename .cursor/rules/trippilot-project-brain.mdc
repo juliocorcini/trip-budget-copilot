@@ -1,0 +1,33 @@
+---
+alwaysApply: true
+---
+# TripPilot Project Brain
+
+TripPilot is a travel budget planning app that helps users plan trip budgets, track expenses, manage itineraries, and optimize spending across destinations. Julio is the Product Lead and developer.
+
+## Before answering about TripPilot, read the relevant files in TripPilot/brain/:
+
+- `TripPilot/brain/README.md` — Entry point with truth policy and file index
+- `TripPilot/brain/product-spec.md` — Features, rules, scope
+- `TripPilot/brain/decision-log.md` — All decisions with status
+- `TripPilot/brain/technical-direction.md` — Stack, database, auth, infra
+- `TripPilot/brain/implementation-phases.md` — Phases ordered by importance
+- `TripPilot/brain/project-status.md` — Current status, pending tasks, next steps
+- `TripPilot/brain/competitive-landscape.md` — Competitor analysis
+- `TripPilot/brain/meetings-log.md` — Meeting decisions and action items
+
+## Critical rules — NEVER contradict these:
+
+- Brain files are the SINGLE SOURCE OF TRUTH for product decisions
+- If a decision is not in decision-log.md, it has NOT been made
+- The AI must READ brain files before answering product questions
+- Code output must always be in English (variable names, comments, etc.)
+- Documents follow the language of the request
+
+## Council Integration
+
+When questions involve trade-offs, comparisons, or strategic choices about TripPilot, auto-invoke the council skill per auto-council.mdc.
+
+## Phase Delivery
+
+When Julio asks to generate phase packages, read `.cursor/skills/phase-delivery/SKILL.md` and follow it.

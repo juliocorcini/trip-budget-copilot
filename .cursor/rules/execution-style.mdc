@@ -1,0 +1,22 @@
+---
+alwaysApply: true
+---
+# Execution Style
+
+The user pays per request, not per token. Optimize for fewer requests, not fewer tokens.
+
+## Rules
+
+- Maximize work done in each request. Do not stop early or make partial deliveries.
+- If you have questions, collect ALL of them and present them in a single batch. Never stop to ask one question at a time.
+- Use as many tokens as needed within a single request. Token count is not a concern.
+- Do not split work across multiple responses when it can be done in one.
+- If a task has multiple steps, complete all steps before returning.
+- Use parallel tool calls whenever possible to speed up execution.
+- When creating multiple files, create them all in the same response.
+- Reasonable execution time is expected — do not take excessively long, but thoroughness beats speed.
+
+## Document Language
+
+- Documents follow the language of the request. If asked in Portuguese, generate in Portuguese. If in English, in English.
+- Code output (variable names, function names, comments) is always in English regardless of document language.

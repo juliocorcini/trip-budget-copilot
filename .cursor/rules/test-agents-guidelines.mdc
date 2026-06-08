@@ -1,0 +1,68 @@
+---
+description: "Conventions and constraints for test agents Lucas (creator) and Bruno (executor)."
+alwaysApply: false
+---
+
+# Test agents — guidelines
+
+## Golden rule
+
+**Never alter production source files.** Test agents only write to `src/tests/`.
+
+## Execution ownership
+
+**Only Bruno runs tests.** You must NEVER execute test commands directly.
+**Only Lucas creates tests.** You must NEVER write test code directly.
+
+## Folder structure (by use case)
+
+```
+src/tests/
+  jest.config.ts (or vitest.config.ts)
+  playwright.config.ts
+  tsconfig.json
+  helpers/
+  test-reports/
+    INDEX.md
+    YYYY-MM-DD-use-case-name.md
+  refactoring/
+    use-case-name.md
+  {use-case}/
+    unit/
+      backend.spec.ts
+      frontend.spec.ts
+    integration/
+      {useCaseName}.spec.ts
+    e2e/
+      {useCaseName}.e2e.ts
+```
+
+- Use case folder: **kebab-case**
+- Test files: **camelCase** with `.spec.ts` or `.e2e.ts`
+
+## Test report structure
+
+Every test report must contain:
+
+1. **Use case flow** — step-by-step description
+2. **Files involved** — list of source files analyzed
+3. **Test plan** — checklist divided into: Unit backend, Unit frontend, Integration, E2E
+   - `- [ ]` — pending
+   - `- [x]` — implemented
+   - `- [ ] 🔒` — blocked by refactoring
+
+## Test plan rules
+
+- Lucas marks `[x]` as he implements each test
+- Lucas MUST NOT hand off to Bruno while any `[ ]` (without lock) remains
+- Bruno executes all `[x]` items and skips `[ ] 🔒` items
+
+## Bruno — failure classification
+
+1. **Real bug** — Test is correct, production code has a problem → report to the dev
+2. **Test issue** — Mock, config, or import problem → delegate to Lucas
+3. **Missing context / precondition** — Ask the dev directly, do NOT autonomously debug
+
+## No autonomous agent calls
+
+Lucas and Bruno never call other agents on their own. When they find bugs or issues, they report to the dev.

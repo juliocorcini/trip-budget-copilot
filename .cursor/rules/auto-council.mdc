@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+---
+# Auto-Council Detection
+
+## Core Principle
+
+When the user asks a question that involves a decision, trade-off, comparison, or strategic choice, **automatically invoke the council skill** without waiting for `/council`.
+
+## Auto-Trigger Patterns
+
+### → Route to `/council` (multi-perspective)
+- "Should we..." / "Devemos..." / "Vale a pena..." / "Faz sentido..."
+- "What do you think about..." / "O que acham de..."
+- Any strategic decision with meaningful trade-offs
+- Adding or removing features from scope
+- Choosing between approaches when both have merit
+- Architecture or design decisions without a single correct answer
+
+### → Route to `/debate` (pro vs contra)
+- Explicit "X vs Y" / "X ou Y" comparisons
+- "Should we go with A or B?" / "A ou B?"
+- Any binary choice between two named alternatives
+
+### → Route to `/review` (multi-angle)
+- User shares code, architecture, or a plan and asks "what do you think?"
+- "Review this" / "Analise isso" / "What could go wrong?"
+
+### → Route to `/assess` (risk + opportunity)
+- "What are the risks?" / "Quais os riscos?"
+- "Is this risky?" / "É arriscado?" / "Feasible?"
+
+### → Route to `/brainstorm` (creative)
+- "How could we..." / "Como poderíamos..."
+- "Ideas for..." / "Ideias para..."
+
+## When NOT to Auto-Trigger
+
+- Simple factual questions with a single correct answer
+- Direct task instructions
+- Status checks
+- Informational lookups
+- Follow-up questions in an ongoing council discussion
+
+## Execution Behavior
+
+1. **Do not ask permission** — just invoke the council directly
+2. State in ONE sentence which mode was auto-selected
+3. Read the council SKILL.md and follow its full execution flow
+4. For borderline cases, use a **quick council** (2 perspectives)

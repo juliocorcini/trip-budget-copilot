@@ -1,0 +1,57 @@
+---
+alwaysApply: true
+---
+# Phase Delivery Hardening Standard
+
+When generating phase delivery packages (START-HERE.md) for developers, ALWAYS include these safety mechanisms:
+
+## 1. Single Session — No Session Restart
+
+Phases run in ONE chat session to minimize request consumption. Use in-session Context Refresh to maintain quality.
+
+## 2. Gate Checkpoint Protocol
+
+Every phase with 6+ milestones MUST be organized in gates (max 5-6 milestones per gate). Between gates:
+- Full test suite must pass with 0 failures
+- Both backend and frontend must build without errors
+- Golden path smoke test (3 core flows) must pass
+- ALL prior gate ACs must be re-verified (cumulative)
+- Changed files must be reviewed for scope creep
+- dev-log.md must be updated with gate status
+- Context Refresh must be executed
+
+## 3. In-Session Context Refresh
+
+At every gate boundary, the AI MUST:
+1. Re-read `project-rules.md` using the Read tool
+2. Re-read the NEXT gate's scope section
+3. Re-read `dev-log.md`
+4. Output the NON-NEGOTIABLES block
+5. Output CURRENT STATE (5 lines: gate, commit, tests, risks, scope)
+
+## 4. Mid-Gate Refresh (every 3 milestones)
+
+After every 3rd milestone within a gate, do a lightweight refresh:
+1. Re-read critical rules from project-rules.md
+2. Re-read dev-log.md Current State
+3. Output NON-NEGOTIABLES block
+
+## 5. NON-NEGOTIABLES Block
+
+Every START-HERE.md must begin with a 5-7 bullet NON-NEGOTIABLES block. This block is REPEATED before each gate section to survive context pressure.
+
+## 6. Per-Milestone Self-Check (5-point)
+
+Before every milestone commit, the AI must:
+1. List satisfied AC IDs from scope doc
+2. Name 3 earlier ACs at regression risk and verify them
+3. Run tests — confirm no NEW failures
+4. Flag any files modified outside milestone scope
+5. Add dev-log.md entry
+
+## 7. dev-log.md
+
+Every phase generates a running dev-log.md with:
+- Current state (active gate, last milestone, test count, build status)
+- Per-milestone entries (what was done, tests, regression risks)
+- Per-gate summaries (test counts, AC status, problems)
