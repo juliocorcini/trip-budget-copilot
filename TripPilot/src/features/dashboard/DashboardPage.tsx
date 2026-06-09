@@ -110,8 +110,12 @@ export function DashboardPage() {
   const hasPendingExpenses = pendingShared.length > 0;
   const pendingImpactCents = pendingShared.reduce((sum, tx) => sum + tx.amountCents, 0);
 
-  const personalPool = pools.find((p) => p.name?.toLowerCase().includes('pessoal') || p.name?.toLowerCase().includes('shopping'));
-  const personalSummary = personalPool ? createPoolSummary(personalPool, filterTransactionsByPool(transactions, personalPool.id)) : null;
+  // Global pools (e.g. personal shopping) are detected by scope, not by name (GAP-017).
+  const globalPools = pools.filter((p) => p.scope === 'global' && p.deletedAt === null);
+  const globalPoolSummaries = globalPools.map((pool) => ({
+    pool,
+    summary: createPoolSummary(pool, filterTransactionsByPool(transactions, pool.id)),
+  }));
 
   const progressPercent = fts && fts.totalBudgetCents > 0
     ? Math.round((fts.totalSpentCents / fts.totalBudgetCents) * 100)
@@ -333,9 +337,9 @@ export function DashboardPage() {
         </button>
       )}
 
-      {/* PERSONAL SHOPPING */}
-      {personalSummary && personalPool && (
-        <div className="mx-5 mt-5 p-4 rounded-2xl bg-surface-container">
+      {/* GLOBAL POOLS (personal shopping etc. — by scope, GAP-017) */}
+      {globalPoolSummaries.map(({ pool, summary }) => (
+        <div key={pool.id} className="mx-5 mt-5 p-4 rounded-2xl bg-surface-container">
           <div className="flex items-center gap-3 mb-3">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -343,20 +347,20 @@ export function DashboardPage() {
             >
               <Icon name="shopping_bag" size={18} className="text-primary" />
             </div>
-            <p className="text-sm font-bold text-on-surface">{t('dashboard.personal_shopping')}</p>
+            <p className="text-sm font-bold text-on-surface">{pool.name}</p>
           </div>
           <div className="flex items-end justify-between">
             <div>
               <p className="text-[32px] font-extrabold tracking-tight leading-none tabular text-on-surface">
-                {formatMoney(personalSummary.remainingCents, personalPool.currency)}
+                {formatMoney(summary.remainingCents, pool.currency)}
               </p>
               <p className="text-[11px] font-semibold mt-1 text-on-surface-dim">{t('dashboard.remaining')}</p>
             </div>
             <div className="text-right">
               <p className="text-xs font-semibold text-on-surface-faint">
                 {t('dashboard.used_of', {
-                  used: formatMoney(personalSummary.spentCents, personalPool.currency),
-                  total: formatMoney(personalSummary.totalCents, personalPool.currency),
+                  used: formatMoney(summary.spentCents, pool.currency),
+                  total: formatMoney(summary.totalCents, pool.currency),
                 })}
               </p>
               <div
@@ -366,7 +370,7 @@ export function DashboardPage() {
                 <div
                   className="h-full rounded-full"
                   style={{
-                    width: `${Math.min(100, personalSummary.percentUsed)}%`,
+                    width: `${Math.min(100, summary.percentUsed)}%`,
                     background: 'var(--primary)',
                   }}
                 />
@@ -374,7 +378,7 @@ export function DashboardPage() {
             </div>
           </div>
         </div>
-      )}
+      ))}
 
       {/* AMIGO SINCERO */}
       {amigoInsight?.hasInsight && barProfile && (

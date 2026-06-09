@@ -6,6 +6,9 @@ import {
   createPoolSummary,
   getBudgetHealthStatus,
   generateAmigoSinceroInsight,
+  getAvailablePoolsForPhase,
+  createEnvelope,
+  createBudgetPoolPhaseLink,
 } from '@/domain/budget';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Envelope } from '@/domain/types/envelope';
@@ -184,5 +187,84 @@ describe('generateAmigoSinceroInsight', () => {
     );
     expect(insight.reserveStatus).toBe('affected');
     expect(insight.category).toBe('market');
+  });
+});
+
+describe('getAvailablePoolsForPhase (DEC-039/040)', () => {
+  const mkPool = (id: string, scope: 'linked_phases' | 'global'): BudgetPool => ({
+    ...pool,
+    id,
+    scope,
+  });
+  const mkLink = (id: string, poolId: string, phaseId: string): BudgetPoolPhaseLink => ({
+    ...baseMeta,
+    id,
+    budgetPoolId: poolId,
+    phaseId,
+    futureFloorCents: null,
+  });
+
+  it('filters operational pools by phase link and always includes globals', () => {
+    const pools = [mkPool('p1', 'linked_phases'), mkPool('p2', 'linked_phases'), mkPool('pg', 'global')];
+    const links = [mkLink('l1', 'p1', 'phase-1'), mkLink('l2', 'p2', 'phase-2')];
+
+    const result = getAvailablePoolsForPhase(pools, links, 'phase-1');
+    expect(result.operational.map((p) => p.id)).toEqual(['p1']);
+    expect(result.global.map((p) => p.id)).toEqual(['pg']);
+  });
+
+  it('auto-selects only when there is exactly one operational pool', () => {
+    const pools = [mkPool('p1', 'linked_phases'), mkPool('pg', 'global')];
+    const links = [mkLink('l1', 'p1', 'phase-1')];
+
+    expect(getAvailablePoolsForPhase(pools, links, 'phase-1').autoSelectedPoolId).toBe('p1');
+    // global-only phases require a conscious choice
+    expect(getAvailablePoolsForPhase(pools, links, 'phase-2').autoSelectedPoolId).toBeNull();
+  });
+
+  it('never auto-selects with two operational pools linked to the phase', () => {
+    const pools = [mkPool('p1', 'linked_phases'), mkPool('p2', 'linked_phases')];
+    const links = [mkLink('l1', 'p1', 'phase-1'), mkLink('l2', 'p2', 'phase-1')];
+
+    const result = getAvailablePoolsForPhase(pools, links, 'phase-1');
+    expect(result.operational).toHaveLength(2);
+    expect(result.autoSelectedPoolId).toBeNull();
+  });
+
+  it('ignores soft-deleted links and pools', () => {
+    const pools = [mkPool('p1', 'linked_phases'), { ...mkPool('p2', 'global'), deletedAt: '2026-01-02T00:00:00.000Z' }];
+    const links = [{ ...mkLink('l1', 'p1', 'phase-1'), deletedAt: '2026-01-02T00:00:00.000Z' }];
+
+    const result = getAvailablePoolsForPhase(pools, links, 'phase-1');
+    expect(result.operational).toHaveLength(0);
+    expect(result.global).toHaveLength(0);
+  });
+});
+
+describe('createBudgetPoolPhaseLink with future floor (DEC-016)', () => {
+  it('persists the manual future floor on the link', () => {
+    const link = createBudgetPoolPhaseLink('pool-1', 'phase-2', 15000);
+    expect(link.futureFloorCents).toBe(15000);
+    expect(calculateFutureFloor([link], 'phase-1')).toBe(15000);
+  });
+
+  it('defaults to null floor', () => {
+    expect(createBudgetPoolPhaseLink('pool-1', 'phase-2').futureFloorCents).toBeNull();
+  });
+});
+
+describe('createEnvelope (DEC-042)', () => {
+  it('creates an allocation envelope with sync metadata', () => {
+    const envelope = createEnvelope({
+      budgetPoolId: 'pool-1',
+      kind: 'allocation',
+      name: 'Presentes',
+      amountCents: 8000,
+    });
+    expect(envelope.budgetPoolId).toBe('pool-1');
+    expect(envelope.kind).toBe('allocation');
+    expect(envelope.amountCents).toBe(8000);
+    expect(envelope.deletedAt).toBeNull();
+    expect(envelope.revision).toBe(1);
   });
 });

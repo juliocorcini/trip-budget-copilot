@@ -2,25 +2,39 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { createPoolSummary, createBudgetPool, createBudgetPoolPhaseLink } from '@/domain/budget';
+import { createPoolSummary, createBudgetPool, createBudgetPoolPhaseLink, createEnvelope } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { formatMoney } from '@/domain/money';
 import { sortPhasesByOrder } from '@/domain/dates';
-import { budgetPoolRepository, budgetPoolPhaseLinkRepository } from '@/data/repositories';
+import { budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
 import type { BudgetPoolScope } from '@/domain/types/common';
+
+function parseEurosToCents(value: string): number | null {
+  const parsed = parseFloat(value.replace(',', '.'));
+  if (Number.isNaN(parsed) || parsed < 0) return null;
+  return Math.round(parsed * 100);
+}
 
 export function FundsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, links, transactions, loading, reload } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, loading, reload } = useAppData();
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [scope, setScope] = useState<BudgetPoolScope>('linked_phases');
   const [selectedPhaseIds, setSelectedPhaseIds] = useState<string[]>([]);
+  const [phaseFloors, setPhaseFloors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  // Per-pool detail panel (future floors + envelopes — GAP-008/009)
+  const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null);
+  const [floorDrafts, setFloorDrafts] = useState<Record<string, string>>({});
+  const [envelopeDrafts, setEnvelopeDrafts] = useState<Record<string, string>>({});
+  const [newEnvelopeName, setNewEnvelopeName] = useState('');
+  const [newEnvelopeAmount, setNewEnvelopeAmount] = useState('');
 
   if (loading || !trip) {
     return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
@@ -41,6 +55,64 @@ export function FundsPage() {
     setAmount('');
     setScope('linked_phases');
     setSelectedPhaseIds([]);
+    setPhaseFloors({});
+  };
+
+  const toggleExpanded = (poolId: string) => {
+    setExpandedPoolId((prev) => (prev === poolId ? null : poolId));
+    setNewEnvelopeName('');
+    setNewEnvelopeAmount('');
+  };
+
+  const handleSaveFloor = async (linkId: string) => {
+    const link = links.find((l) => l.id === linkId);
+    if (!link) return;
+    const cents = parseEurosToCents(floorDrafts[linkId] ?? '');
+    await budgetPoolPhaseLinkRepository.update({
+      ...link,
+      futureFloorCents: cents !== null && cents > 0 ? cents : null,
+    });
+    setFloorDrafts((prev) => {
+      const next = { ...prev };
+      delete next[linkId];
+      return next;
+    });
+    await reload();
+  };
+
+  const handleSaveEnvelopeAmount = async (envelopeId: string) => {
+    const envelope = envelopes.find((e) => e.id === envelopeId);
+    if (!envelope) return;
+    const cents = parseEurosToCents(envelopeDrafts[envelopeId] ?? '');
+    if (cents === null) return;
+    await envelopeRepository.update({ ...envelope, amountCents: cents });
+    setEnvelopeDrafts((prev) => {
+      const next = { ...prev };
+      delete next[envelopeId];
+      return next;
+    });
+    await reload();
+  };
+
+  const handleAddEnvelope = async (poolId: string) => {
+    const cents = parseEurosToCents(newEnvelopeAmount);
+    if (!newEnvelopeName.trim() || cents === null || cents <= 0) return;
+    await envelopeRepository.create(
+      createEnvelope({
+        budgetPoolId: poolId,
+        kind: 'allocation',
+        name: newEnvelopeName.trim(),
+        amountCents: cents,
+      }),
+    );
+    setNewEnvelopeName('');
+    setNewEnvelopeAmount('');
+    await reload();
+  };
+
+  const handleDeleteEnvelope = async (envelopeId: string) => {
+    await envelopeRepository.delete(envelopeId);
+    await reload();
   };
 
   const parsedAmount = parseFloat(amount.replace(',', '.'));
@@ -64,9 +136,12 @@ export function FundsPage() {
       await budgetPoolRepository.create(pool);
       if (scope === 'linked_phases') {
         await Promise.all(
-          selectedPhaseIds.map((phaseId) =>
-            budgetPoolPhaseLinkRepository.create(createBudgetPoolPhaseLink(pool.id, phaseId)),
-          ),
+          selectedPhaseIds.map((phaseId) => {
+            const floorCents = parseEurosToCents(phaseFloors[phaseId] ?? '');
+            return budgetPoolPhaseLinkRepository.create(
+              createBudgetPoolPhaseLink(pool.id, phaseId, floorCents !== null && floorCents > 0 ? floorCents : null),
+            );
+          }),
         );
       }
       await reload();
@@ -95,43 +170,193 @@ export function FundsPage() {
       <div className="flex flex-col gap-2">
         {pools.map((pool) => {
           const summary = createPoolSummary(pool, filterTransactionsByPool(transactions, pool.id));
-          const linkedNames = links
-            .filter((l) => l.budgetPoolId === pool.id && l.deletedAt === null)
+          const poolLinks = links.filter((l) => l.budgetPoolId === pool.id && l.deletedAt === null);
+          const linkedNames = poolLinks
             .map((l) => phaseNameById.get(l.phaseId))
             .filter((n): n is string => !!n);
+          const poolEnvelopes = envelopes.filter(
+            (e) => e.budgetPoolId === pool.id && e.deletedAt === null,
+          );
+          const isExpanded = expandedPoolId === pool.id;
 
           return (
             <div key={pool.id} className="bg-surface-container rounded-xl p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-bold text-on-surface">{pool.name}</p>
-                  <p className="text-xs text-on-surface-faint mt-0.5">
-                    {pool.scope === 'global'
-                      ? t('funds.scope_global')
-                      : linkedNames.length > 0
-                        ? `${t('funds.linked_phases')}: ${linkedNames.join(', ')}`
-                        : t('funds.no_linked_phases')}
-                  </p>
+              <button onClick={() => toggleExpanded(pool.id)} className="w-full text-left btn-press">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-bold text-on-surface">{pool.name}</p>
+                    <p className="text-xs text-on-surface-faint mt-0.5">
+                      {pool.scope === 'global'
+                        ? t('funds.scope_global')
+                        : linkedNames.length > 0
+                          ? `${t('funds.linked_phases')}: ${linkedNames.join(', ')}`
+                          : t('funds.no_linked_phases')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-extrabold tabular text-success">
+                      {formatMoney(summary.remainingCents, pool.currency)}
+                    </p>
+                    <Icon
+                      name={isExpanded ? 'expand_less' : 'expand_more'}
+                      size={18}
+                      className="text-on-surface-faint"
+                    />
+                  </div>
                 </div>
-                <p className="text-sm font-extrabold tabular text-success">
-                  {formatMoney(summary.remainingCents, pool.currency)}
-                </p>
-              </div>
-              <div
-                className="w-full h-1.5 rounded-full overflow-hidden mt-3"
-                style={{ background: 'var(--surface-container-high)' }}
-              >
                 <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(100, summary.percentUsed)}%`,
-                    background: 'var(--primary)',
-                  }}
-                />
-              </div>
-              <p className="text-xs text-on-surface-faint mt-1.5">
-                {formatMoney(summary.spentCents, pool.currency)} / {formatMoney(summary.totalCents, pool.currency)}
-              </p>
+                  className="w-full h-1.5 rounded-full overflow-hidden mt-3"
+                  style={{ background: 'var(--surface-container-high)' }}
+                >
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, summary.percentUsed)}%`,
+                      background: 'var(--primary)',
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-on-surface-faint mt-1.5">
+                  {formatMoney(summary.spentCents, pool.currency)} / {formatMoney(summary.totalCents, pool.currency)}
+                </p>
+              </button>
+
+              {isExpanded && (
+                <div className="mt-4 pt-4 flex flex-col gap-4" style={{ borderTop: '1px solid var(--surface-container-high)' }}>
+                  {/* Future floors per phase (DEC-016 / GAP-008) */}
+                  {poolLinks.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-on-surface-dim mb-2">
+                        {t('funds.future_floors_title')}
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        {poolLinks.map((link) => {
+                          const draft =
+                            floorDrafts[link.id] ??
+                            (link.futureFloorCents !== null ? (link.futureFloorCents / 100).toString() : '');
+                          const isDirty = floorDrafts[link.id] !== undefined;
+                          return (
+                            <div key={link.id} className="flex items-center gap-2">
+                              <span className="text-xs text-on-surface-dim flex-1 truncate">
+                                {phaseNameById.get(link.phaseId) ?? '—'}
+                              </span>
+                              <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
+                                <span className="text-on-surface-faint text-xs">{pool.currency}</span>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.01"
+                                  value={draft}
+                                  onChange={(e) =>
+                                    setFloorDrafts((prev) => ({ ...prev, [link.id]: e.target.value }))
+                                  }
+                                  placeholder="0,00"
+                                  className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                                />
+                              </div>
+                              <button
+                                onClick={() => handleSaveFloor(link.id)}
+                                disabled={!isDirty}
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold btn-press bg-primary text-on-surface disabled:opacity-30"
+                              >
+                                {t('common.save')}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-on-surface-faint mt-1.5">{t('funds.future_floor_hint')}</p>
+                    </div>
+                  )}
+
+                  {/* Envelopes (DEC-042 / GAP-009) */}
+                  <div>
+                    <p className="text-xs font-semibold text-on-surface-dim mb-2">
+                      {t('funds.envelopes_title')}
+                    </p>
+                    {poolEnvelopes.length === 0 && (
+                      <p className="text-xs text-on-surface-faint mb-2">{t('funds.no_envelopes')}</p>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      {poolEnvelopes.map((envelope) => {
+                        const draft = envelopeDrafts[envelope.id] ?? (envelope.amountCents / 100).toString();
+                        const isDirty = envelopeDrafts[envelope.id] !== undefined;
+                        return (
+                          <div key={envelope.id} className="flex items-center gap-2">
+                            <span className="text-xs text-on-surface-dim flex-1 truncate flex items-center gap-1">
+                              {envelope.kind === 'protected_reserve' && (
+                                <Icon name="lock" size={12} className="text-on-surface-faint" />
+                              )}
+                              {envelope.name}
+                            </span>
+                            <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
+                              <span className="text-on-surface-faint text-xs">{pool.currency}</span>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                value={draft}
+                                onChange={(e) =>
+                                  setEnvelopeDrafts((prev) => ({ ...prev, [envelope.id]: e.target.value }))
+                                }
+                                placeholder="0,00"
+                                className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                              />
+                            </div>
+                            <button
+                              onClick={() => handleSaveEnvelopeAmount(envelope.id)}
+                              disabled={!isDirty}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold btn-press bg-primary text-on-surface disabled:opacity-30"
+                            >
+                              {t('common.save')}
+                            </button>
+                            {envelope.kind === 'allocation' && (
+                              <button
+                                onClick={() => handleDeleteEnvelope(envelope.id)}
+                                className="p-1.5 btn-press"
+                                aria-label={t('common.delete')}
+                              >
+                                <Icon name="delete" size={16} className="text-danger" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={newEnvelopeName}
+                        onChange={(e) => setNewEnvelopeName(e.target.value)}
+                        placeholder={t('funds.new_envelope_name')}
+                        className="bg-surface-high text-on-surface text-xs rounded-lg px-3 py-1.5 outline-none flex-1 min-w-0"
+                      />
+                      <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-24">
+                        <span className="text-on-surface-faint text-xs">{pool.currency}</span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          value={newEnvelopeAmount}
+                          onChange={(e) => setNewEnvelopeAmount(e.target.value)}
+                          placeholder="0,00"
+                          className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleAddEnvelope(pool.id)}
+                        disabled={
+                          !newEnvelopeName.trim() ||
+                          (parseEurosToCents(newEnvelopeAmount) ?? 0) <= 0
+                        }
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold btn-press bg-primary text-on-surface disabled:opacity-30"
+                      >
+                        {t('common.add')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -203,6 +428,37 @@ export function FundsPage() {
                   </button>
                 ))}
               </div>
+              {selectedPhaseIds.length > 0 && (
+                <div className="mt-3">
+                  <label className="text-xs text-on-surface-faint mb-1 block">
+                    {t('funds.reserve_for_phase')}
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    {sortedPhases
+                      .filter((phase) => selectedPhaseIds.includes(phase.id))
+                      .map((phase) => (
+                        <div key={phase.id} className="flex items-center gap-2">
+                          <span className="text-xs text-on-surface-dim flex-1 truncate">{phase.name}</span>
+                          <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
+                            <span className="text-on-surface-faint text-xs">{trip.baseCurrency}</span>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              value={phaseFloors[phase.id] ?? ''}
+                              onChange={(e) =>
+                                setPhaseFloors((prev) => ({ ...prev, [phase.id]: e.target.value }))
+                              }
+                              placeholder="0,00"
+                              className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                  <p className="text-[10px] text-on-surface-faint mt-1.5">{t('funds.future_floor_hint')}</p>
+                </div>
+              )}
             </div>
           )}
           <div className="flex gap-2">

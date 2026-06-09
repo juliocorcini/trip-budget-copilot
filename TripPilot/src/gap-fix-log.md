@@ -1,12 +1,12 @@
 # Gap Fix Log — TripPilot
 
 ## Current State
-- **Gate ativo**: 3
-- **Gap ativo**: GAP-003
-- **Gaps resolvidos**: 9/36
-- **Testes**: 121 passing (baseline 105 + 16 novos)
+- **Gate ativo**: 5
+- **Gap ativo**: GAP-013
+- **Gaps resolvidos**: 18/36
+- **Testes**: 138 passing (baseline 105 + 33 novos)
 - **Build/Typecheck**: clean
-- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6
+- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 (ver git log)
 - **Nota git**: usar `bash -c 'git commit ...'` (git local não suporta --trailer)
 
 ## Por gate
@@ -33,18 +33,19 @@
 - [x] Orquestrador endOutingSession (db.transaction atômico) + 3 testes; registerExpense + 1 teste; deriveSessionLimits + 3 testes
 
 ### Gate 3 — Dados seguros
-- [ ] GAP-003 — backup com 21 tabelas + versionamento
-- [ ] GAP-004 — merge por revision
-- [ ] GAP-029 — Zod no import
-- [ ] GAP-021 — CSV 17 campos + avançado
-- [ ] Teste round-trip
+- [x] GAP-003 — BackupData com 21 tabelas; BACKUP_VERSION=2; buildFullBackup exporta inclusive soft-deleted; v1 importa com tabelas ausentes = [] — backup.ts, backup-orchestrators.ts
+- [x] GAP-004 — importBackup merge por revision/updatedAt via mergeBackupData; .catch(()=>{}) eliminado; tudo numa db.transaction — backup-orchestrators.ts, BackupPage.tsx
+- [x] GAP-029 — backupFileSchema (Zod) valida antes de gravar; erro claro via Toast; zero gravação parcial — schemas.ts, backup.ts
+- [x] GAP-021 — CSV 19 colunas base (+Hora, Viagem, Caixa/Sessão, Quem pagou, Custo pessoal, Valor compartilhado, Observações, Moeda, Valor base) + modo avançado (+ID, Status, Criado/Atualizado, Dispositivo) — csv-export.ts, BackupPage.tsx
+- [x] Testes: round-trip por tabela, merge revision (3), zod reject/normalize (2), csv (3) — 10 novos
 
 ### Gate 4 — Orçamento completo
-- [ ] GAP-018 — pools filtrados por fase
-- [ ] GAP-017 — personal shopping por scope
-- [ ] GAP-008 — future floor manual
-- [ ] GAP-009 — gestão de envelopes
-- [ ] GAP-019 — edge cases DEC-053 (a)(b)(c)
+- [x] GAP-018 — getAvailablePoolsForPhase (DEC-039/040): pools por link de fase + globais (ícone "public"); auto-select só com 1 operacional; empty-state com CTA "Criar fundo" → /funds — budget.ts, QuickAddPage.tsx
+- [x] GAP-017 — global pools por `scope === 'global'` (não mais por nome); múltiplos globais listados como cards — DashboardPage.tsx
+- [x] GAP-008 — future floor manual (D-I): campo "Reservar para esta fase" na criação de fundo + edição por link no painel expandido do fundo; linha informativa no Planner; dashboard já reflete via calculateFutureFloor — FundsPage.tsx, PlannerPage.tsx, budget.ts
+- [x] GAP-009 — envelopes (DEC-042): painel expandido por fundo com edição da reserva protegida, CRUD de envelopes allocation (criar/editar valor/soft delete) via createEnvelope — FundsPage.tsx, budget.ts
+- [x] GAP-019 — edge cases DEC-053 confirmatórios: (a) sheet "orçamento zerado" no QuickAdd quando freeToSpend ≤ 0; (b) sheet over-max na sessão com memória de 15 min (overMaxConfirmedAt); (c) sheet manter/mover/dividir ao registrar com sessão cruzando fase — QuickAddPage.tsx, OutingPage.tsx
+- [x] Testes: getAvailablePoolsForPhase (4), futureFloor no link (2), createEnvelope (1) — 7 novos (futureFloor no freeToSpend já coberto)
 
 ### Gate 5 — UX e estado vivo
 - [ ] GAP-013 — settings vivos (useLiveQuery)

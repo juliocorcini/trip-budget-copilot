@@ -11,6 +11,8 @@ export {
   generateAmigoSinceroInsight,
   createBudgetPool,
   createBudgetPoolPhaseLink,
+  getAvailablePoolsForPhase,
+  createEnvelope,
 } from './budget';
 export type {
   FreeToSpendResult,
@@ -18,4 +20,6 @@ export type {
   SavingsResult,
   AmigoSinceroInsight,
   CreateBudgetPoolInput,
+  AvailablePools,
+  CreateEnvelopeInput,
 } from './budget';

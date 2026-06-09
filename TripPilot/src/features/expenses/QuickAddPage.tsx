@@ -7,9 +7,12 @@ import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting'
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { findActivePhase } from '@/domain/dates';
 import { toCents, formatMoney } from '@/domain/money';
+import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
+import { filterTransactionsByPool } from '@/domain/transactions';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 import type { ShareType } from '@/domain/types/common';
 
 const CATEGORY_KEYS = [
@@ -28,7 +31,8 @@ export function QuickAddPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, wallets, participants, settings, reload } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, wallets, participants, settings, reload } =
+    useAppData();
 
   const initialCategory = searchParams.get('cat') ?? 'other';
   const txType = searchParams.get('type') ?? 'expense';
@@ -49,6 +53,7 @@ export function QuickAddPage() {
   const [paidById, setPaidById] = useState<string | null>(null);
   const [splitMode, setSplitMode] = useState<ShareType>('equal');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
+  const [showZeroBudgetConfirm, setShowZeroBudgetConfirm] = useState(false);
 
   const activePhase = findActivePhase(phases);
   const currentPhase = activePhase ?? phases[0] ?? null;
@@ -74,7 +79,29 @@ export function QuickAddPage() {
         : null;
 
   const effectiveWalletId = walletId ?? defaultWallet?.id ?? null;
-  const effectivePoolId = poolId || pools[0]?.id || '';
+
+  // DEC-039/040: only pools linked to the active phase + global pools are
+  // selectable; auto-select happens only with exactly one operational pool.
+  const availablePools = currentPhase
+    ? getAvailablePoolsForPhase(pools, links, currentPhase.id)
+    : { operational: [], global: [], autoSelectedPoolId: null };
+  const selectablePools = [...availablePools.operational, ...availablePools.global];
+  const effectivePoolId =
+    poolId && selectablePools.some((p) => p.id === poolId)
+      ? poolId
+      : (availablePools.autoSelectedPoolId ?? '');
+
+  const selectedPool = selectablePools.find((p) => p.id === effectivePoolId) ?? null;
+  const selectedPoolFreeToSpendCents =
+    selectedPool && currentPhase
+      ? calculateFreeToSpend(
+          selectedPool,
+          envelopes.filter((e) => e.budgetPoolId === selectedPool.id),
+          filterTransactionsByPool(transactions, selectedPool.id),
+          links.filter((l) => l.budgetPoolId === selectedPool.id),
+          currentPhase.id,
+        ).freeToSpendCents
+      : null;
 
   const owner = participants.find((p) => p.isOwner) ?? null;
   const effectivePaidById = paidById ?? owner?.id ?? null;
@@ -123,6 +150,18 @@ export function QuickAddPage() {
     if (!trip || !currentPhase || !amount) return;
     if (!isTransferLike && !effectivePoolId) return;
     if (!canSaveTransferLike) return;
+
+    // DEC-053(a): zero/negative budget never blocks — it asks for confirmation.
+    if (
+      !isTransferLike &&
+      !showZeroBudgetConfirm &&
+      selectedPoolFreeToSpendCents !== null &&
+      selectedPoolFreeToSpendCents <= 0
+    ) {
+      setShowZeroBudgetConfirm(true);
+      return;
+    }
+    setShowZeroBudgetConfirm(false);
 
     setSaving(true);
     try {
@@ -264,19 +303,51 @@ export function QuickAddPage() {
       {!isTransferLike && (
       <div className="bg-surface-container rounded-xl p-4">
         <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>
-        <div className="flex gap-2 flex-wrap">
-          {pools.map((pool) => (
+        {selectablePools.length === 0 ? (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-xs text-on-surface-dim">{t('expenses.no_pool_for_phase')}</p>
             <button
-              key={pool.id}
-              onClick={() => setPoolId(pool.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
-              }`}
+              onClick={() => navigate('/funds')}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold btn-press"
+              style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
             >
-              {pool.name}
+              {t('funds.add')}
             </button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="flex gap-2 flex-wrap">
+            {availablePools.operational.map((pool) => (
+              <button
+                key={pool.id}
+                onClick={() => setPoolId(pool.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                  effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                {pool.name}
+              </button>
+            ))}
+            {availablePools.global.map((pool) => (
+              <button
+                key={pool.id}
+                onClick={() => setPoolId(pool.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1 ${
+                  effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                <Icon
+                  name="public"
+                  size={12}
+                  className={effectivePoolId === pool.id ? 'text-on-surface' : 'text-on-surface-faint'}
+                />
+                {pool.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {selectablePools.length > 0 && !effectivePoolId && (
+          <p className="text-[10px] text-on-surface-faint mt-2">{t('expenses.choose_pool_hint')}</p>
+        )}
       </div>
       )}
 
@@ -522,12 +593,47 @@ export function QuickAddPage() {
         </button>
         <button
           onClick={handleSave}
-          disabled={!amount || parseFloat(amount) <= 0 || saving || !canSaveTransferLike}
+          disabled={
+            !amount ||
+            parseFloat(amount) <= 0 ||
+            saving ||
+            !canSaveTransferLike ||
+            (!isTransferLike && !effectivePoolId)
+          }
           className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
         >
           {saving ? t('common.loading') : t('common.save')}
         </button>
       </div>
+
+      <BottomSheet
+        open={showZeroBudgetConfirm}
+        onClose={() => setShowZeroBudgetConfirm(false)}
+        title={t('expenses.zero_budget_title')}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-on-surface-dim">
+            {t('expenses.zero_budget_body', {
+              amount: formatMoney(selectedPoolFreeToSpendCents ?? 0, trip.baseCurrency),
+            })}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowZeroBudgetConfirm(false)}
+              className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-warning/20 text-warning ring-1 ring-warning font-semibold text-sm btn-press disabled:opacity-40"
+            >
+              {t('expenses.zero_budget_confirm')}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }

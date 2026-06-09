@@ -81,6 +81,12 @@ const ALERT_VIBRATION: Record<OutingAlert['type'], number[]> = {
   critical: [300, 100, 300, 100, 300],
 };
 
+// DEC-053(b): over-max confirmation is remembered for 15 minutes.
+const OVER_MAX_REMEMBER_MS = 15 * 60 * 1000;
+
+type PhaseChoice = 'keep' | 'move' | 'split';
+type PendingPhaseAction = (txPhaseId: string, sess: Session) => Promise<void>;
+
 export function OutingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -94,6 +100,14 @@ export function OutingPage() {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [configuringProfile, setConfiguringProfile] = useState<ActivityProfile | null>(null);
   const [reviewing, setReviewing] = useState(false);
+
+  // DEC-053(b)/(c) confirmatory gates
+  const [pendingOverMaxAdd, setPendingOverMaxAdd] = useState<{
+    amountCents: number;
+    txPhaseId: string;
+  } | null>(null);
+  const [pendingPhaseAction, setPendingPhaseAction] = useState<PendingPhaseAction | null>(null);
+  const [phaseChoice, setPhaseChoice] = useState<PhaseChoice | null>(null);
 
   const currentPhase = resolveActivePhase(phases);
   const defaultPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0] ?? null;
@@ -189,61 +203,123 @@ export function OutingPage() {
     setSession(updated);
   };
 
-  const persistSessionItem = async (tx: Transaction, txsAfter: Transaction[]) => {
-    if (!session) return;
+  const persistSessionItem = async (tx: Transaction, txsAfter: Transaction[], sess: Session) => {
     const newCount = itemCount + 1;
-    const item = createSessionItem(session.id, tx.id, newCount);
+    const item = createSessionItem(sess.id, tx.id, newCount);
     await db.sessionItems.add(item);
     setSessionTxs(txsAfter);
     setItemCount(newCount);
-    await fireProgressiveAlerts(session, calculateSessionTotal(txsAfter));
+    await fireProgressiveAlerts(sess, calculateSessionTotal(txsAfter));
   };
 
-  const addSessionExpense = async (amountCents: number, description: string) => {
-    if (!session || !trip || !currentPhase) return;
-    const sessionProfile = profiles.find((p) => p.id === session.activityProfileId);
+  const addSessionExpense = async (
+    amountCents: number,
+    description: string,
+    sess: Session,
+    txPhaseId: string,
+  ) => {
+    if (!trip) return;
+    const sessionProfile = profiles.find((p) => p.id === sess.activityProfileId);
     const tx = createExpenseTransaction({
       tripId: trip.id,
-      phaseId: currentPhase.id,
-      budgetPoolId: session.budgetPoolId,
+      phaseId: txPhaseId,
+      budgetPoolId: sess.budgetPoolId,
       walletId: null,
       amountCents,
       currency: trip.baseCurrency,
       category: sessionProfile?.category ?? 'other',
       description,
-      sessionId: session.id,
-      activityProfileId: session.activityProfileId,
+      sessionId: sess.id,
+      activityProfileId: sess.activityProfileId,
     });
     await transactionRepository.create(tx);
-    await persistSessionItem(tx, [...sessionTxs, tx]);
+    await persistSessionItem(tx, [...sessionTxs, tx], sess);
+  };
+
+  // DEC-053(c): a session crossing a phase boundary asks once where new
+  // expenses should land (keep / move / split). Confirmatory, never blocking.
+  const resolveTxPhaseId = (sess: Session): string =>
+    phaseChoice === 'keep' ? sess.phaseId : (currentPhase?.id ?? sess.phaseId);
+
+  const runWithPhaseGate = (action: PendingPhaseAction): boolean => {
+    if (session && currentPhase && currentPhase.id !== session.phaseId && phaseChoice === null) {
+      setPendingPhaseAction(() => action);
+      return true;
+    }
+    return false;
+  };
+
+  const handlePhaseChoice = async (choice: PhaseChoice) => {
+    if (!session || !currentPhase) return;
+    let sess = session;
+    if (choice === 'move') {
+      sess = await sessionRepository.update({ ...session, phaseId: currentPhase.id });
+      setSession(sess);
+    }
+    setPhaseChoice(choice);
+    const action = pendingPhaseAction;
+    setPendingPhaseAction(null);
+    if (action) {
+      const txPhaseId = choice === 'keep' ? sess.phaseId : currentPhase.id;
+      await action(txPhaseId, sess);
+    }
+  };
+
+  // DEC-053(b): quick-add above max asks for confirmation, remembered 15 min.
+  const doQuickAdd = async (amountCents: number, sess: Session, txPhaseId: string) => {
+    const newTotalCents = calculateSessionTotal(sessionTxs) + amountCents;
+    const confirmedRecently =
+      sess.overMaxConfirmedAt !== null &&
+      Date.now() - new Date(sess.overMaxConfirmedAt).getTime() < OVER_MAX_REMEMBER_MS;
+    if (sess.maxCents !== null && sess.maxCents > 0 && newTotalCents > sess.maxCents && !confirmedRecently) {
+      setPendingOverMaxAdd({ amountCents, txPhaseId });
+      return;
+    }
+    await addSessionExpense(amountCents, sess.name, sess, txPhaseId);
   };
 
   const handleQuickAdd = async (amountCents: number) => {
     if (!session) return;
-    await addSessionExpense(amountCents, session.name);
+    if (runWithPhaseGate((txPhaseId, sess) => doQuickAdd(amountCents, sess, txPhaseId))) return;
+    await doQuickAdd(amountCents, session, resolveTxPhaseId(session));
+  };
+
+  const handleConfirmOverMax = async () => {
+    if (!session || !pendingOverMaxAdd) return;
+    const updated = await sessionRepository.update({
+      ...session,
+      overMaxConfirmedAt: new Date().toISOString(),
+    });
+    setSession(updated);
+    const pending = pendingOverMaxAdd;
+    setPendingOverMaxAdd(null);
+    await addSessionExpense(pending.amountCents, updated.name, updated, pending.txPhaseId);
   };
 
   // DEC-046: reported total creates an adjustment for the DIFFERENCE,
   // never replacing logged items.
   const handleRegisterTotal = async (diffCents: number) => {
-    await addSessionExpense(diffCents, t('outing.total_adjustment_desc'));
+    if (!session) return;
+    const description = t('outing.total_adjustment_desc');
+    if (runWithPhaseGate((txPhaseId, sess) => addSessionExpense(diffCents, description, sess, txPhaseId))) return;
+    await addSessionExpense(diffCents, description, session, resolveTxPhaseId(session));
   };
 
   // GAP-012 (DEC-047): shared expense inside the session.
-  const handleSplitAdd = async (input: SessionSplitInput) => {
-    if (!session || !trip || !currentPhase || !owner) return;
-    const sessionProfile = profiles.find((p) => p.id === session.activityProfileId);
+  const doSplitAdd = async (input: SessionSplitInput, sess: Session, txPhaseId: string) => {
+    if (!trip || !owner) return;
+    const sessionProfile = profiles.find((p) => p.id === sess.activityProfileId);
     const tx = createExpenseTransaction({
       tripId: trip.id,
-      phaseId: currentPhase.id,
-      budgetPoolId: session.budgetPoolId,
+      phaseId: txPhaseId,
+      budgetPoolId: sess.budgetPoolId,
       walletId: null,
       amountCents: input.amountCents,
       currency: trip.baseCurrency,
       category: sessionProfile?.category ?? 'other',
-      description: session.name,
-      sessionId: session.id,
-      activityProfileId: session.activityProfileId,
+      description: sess.name,
+      sessionId: sess.id,
+      activityProfileId: sess.activityProfileId,
       isShared: true,
       paidByParticipantId: input.paidByParticipantId,
     });
@@ -258,7 +334,13 @@ export function OutingPage() {
     tx.personalCostCents = calculatePersonalCost(shares, owner.id);
     if (tx.paidByParticipantId !== owner.id) tx.walletId = null;
     await registerExpense({ transaction: tx, shares });
-    await persistSessionItem(tx, [...sessionTxs, tx]);
+    await persistSessionItem(tx, [...sessionTxs, tx], sess);
+  };
+
+  const handleSplitAdd = async (input: SessionSplitInput) => {
+    if (!session) return;
+    if (runWithPhaseGate((txPhaseId, sess) => doSplitAdd(input, sess, txPhaseId))) return;
+    await doSplitAdd(input, session, resolveTxPhaseId(session));
   };
 
   // GAP-002 (DEC-049): ending opens the review instead of completing directly.
@@ -403,21 +485,84 @@ export function OutingPage() {
     sessionProfile?.iconName ?? getCategoryIcon(sessionProfile?.category ?? null);
   const sessionCategory = sessionProfile?.category ?? 'other';
 
-  return <ActiveSession
-    session={session}
-    sessionTxs={sessionTxs}
-    trip={trip}
-    elapsed={elapsed}
-    sessionIcon={sessionIcon}
-    sessionCategory={sessionCategory}
-    participants={participants}
-    owner={owner}
-    onQuickAdd={handleQuickAdd}
-    onRegisterTotal={handleRegisterTotal}
-    onSplitAdd={handleSplitAdd}
-    onEnd={() => setReviewing(true)}
-    onBack={() => navigate(-1)}
-  />;
+  return (
+    <>
+      <ActiveSession
+        session={session}
+        sessionTxs={sessionTxs}
+        trip={trip}
+        elapsed={elapsed}
+        sessionIcon={sessionIcon}
+        sessionCategory={sessionCategory}
+        participants={participants}
+        owner={owner}
+        onQuickAdd={handleQuickAdd}
+        onRegisterTotal={handleRegisterTotal}
+        onSplitAdd={handleSplitAdd}
+        onEnd={() => setReviewing(true)}
+        onBack={() => navigate(-1)}
+      />
+
+      {/* DEC-053(b): over-max confirmation */}
+      <BottomSheet
+        open={pendingOverMaxAdd !== null}
+        onClose={() => setPendingOverMaxAdd(null)}
+        title={t('outing.over_max_title')}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-on-surface-dim">
+            {t('outing.over_max_body', {
+              max: formatCurrency(session.maxCents ?? 0, trip.baseCurrency),
+            })}
+          </p>
+          <p className="text-xs text-on-surface-faint">{t('outing.over_max_remember_hint')}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPendingOverMaxAdd(null)}
+              className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleConfirmOverMax}
+              className="flex-1 py-2.5 rounded-xl bg-warning/20 text-warning ring-1 ring-warning font-semibold text-sm btn-press"
+            >
+              {t('outing.over_max_confirm')}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* DEC-053(c): phase boundary choice */}
+      <BottomSheet
+        open={pendingPhaseAction !== null}
+        onClose={() => setPendingPhaseAction(null)}
+        title={t('outing.phase_change_title')}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-on-surface-dim">{t('outing.phase_change_body')}</p>
+          <button
+            onClick={() => handlePhaseChoice('keep')}
+            className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface font-medium text-sm btn-press"
+          >
+            {t('outing.phase_keep')}
+          </button>
+          <button
+            onClick={() => handlePhaseChoice('move')}
+            className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface font-medium text-sm btn-press"
+          >
+            {t('outing.phase_move')}
+          </button>
+          <button
+            onClick={() => handlePhaseChoice('split')}
+            className="w-full py-2.5 rounded-xl bg-primary text-on-surface font-semibold text-sm btn-press"
+          >
+            {t('outing.phase_split')}
+          </button>
+        </div>
+      </BottomSheet>
+    </>
+  );
 }
 
 /* ──────────────────────── SESSION START CONFIG (GAP-015) ──────────────────────── */

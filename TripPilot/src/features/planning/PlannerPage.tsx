@@ -547,26 +547,37 @@ export function PlannerPage() {
       )}
 
       {/* ── BUDGET SUMMARY ── */}
-      <div className="mt-4 p-4 rounded-2xl flex justify-between items-center bg-surface-container">
-        <div>
-          <p className="text-xs font-bold text-on-surface-dim">
-            {t('planner.free_margin')}
-          </p>
-          <p className="text-2xl font-extrabold tabular text-on-surface">
-            {displayMargin.integer}
-            <span className="text-sm text-on-surface-dim">
-              {displayMargin.decimal}
-            </span>
-          </p>
+      <div className="mt-4 p-4 rounded-2xl bg-surface-container">
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-xs font-bold text-on-surface-dim">
+              {t('planner.free_margin')}
+            </p>
+            <p className="text-2xl font-extrabold tabular text-on-surface">
+              {displayMargin.integer}
+              <span className="text-sm text-on-surface-dim">
+                {displayMargin.decimal}
+              </span>
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-on-surface-dim">
+              {t('planner.allocated')}
+            </p>
+            <p className="text-lg font-bold tabular text-on-surface-dim">
+              {fmtFull(currentAllocatedCents, currency)}
+            </p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs font-bold text-on-surface-dim">
-            {t('planner.allocated')}
+        {/* Future floor as informative constraint (DEC-016 / GAP-008) */}
+        {(fts?.futureFloorCents ?? 0) > 0 && (
+          <p className="text-[11px] font-semibold text-on-surface-faint mt-2 flex items-center gap-1">
+            <Icon name="lock" size={12} className="text-on-surface-faint" />
+            {t('planner.future_floor_constraint', {
+              amount: fmtFull(fts!.futureFloorCents, currency),
+            })}
           </p>
-          <p className="text-lg font-bold tabular text-on-surface-dim">
-            {fmtFull(currentAllocatedCents, currency)}
-          </p>
-        </div>
+        )}
       </div>
 
       {/* ── PROFILE CARDS ── */}

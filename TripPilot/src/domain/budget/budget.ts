@@ -221,11 +221,64 @@ export function createBudgetPool(input: CreateBudgetPoolInput): BudgetPool {
 export function createBudgetPoolPhaseLink(
   budgetPoolId: string,
   phaseId: string,
+  futureFloorCents: number | null = null,
 ): BudgetPoolPhaseLink {
   return {
     ...createSyncMetadata(),
     budgetPoolId,
     phaseId,
-    futureFloorCents: null,
+    futureFloorCents,
+  };
+}
+
+/**
+ * DEC-039/040: pools available for an expense in a phase = operational pools
+ * linked to that phase + global pools (which require a conscious choice).
+ */
+export interface AvailablePools {
+  operational: BudgetPool[];
+  global: BudgetPool[];
+  /** Auto-selected only when there is exactly ONE operational pool (DEC-040). */
+  autoSelectedPoolId: string | null;
+}
+
+export function getAvailablePoolsForPhase(
+  pools: BudgetPool[],
+  links: BudgetPoolPhaseLink[],
+  phaseId: string,
+): AvailablePools {
+  const linkedPoolIds = new Set(
+    links
+      .filter((l) => l.deletedAt === null && l.phaseId === phaseId)
+      .map((l) => l.budgetPoolId),
+  );
+  const active = pools.filter((p) => p.deletedAt === null);
+  const operational = active.filter(
+    (p) => p.scope === 'linked_phases' && linkedPoolIds.has(p.id),
+  );
+  const global = active.filter((p) => p.scope === 'global');
+
+  return {
+    operational,
+    global,
+    autoSelectedPoolId: operational.length === 1 ? operational[0]!.id : null,
+  };
+}
+
+export interface CreateEnvelopeInput {
+  budgetPoolId: string;
+  kind: 'protected_reserve' | 'allocation';
+  name: string;
+  amountCents: number;
+}
+
+export function createEnvelope(input: CreateEnvelopeInput): Envelope {
+  return {
+    ...createSyncMetadata(),
+    budgetPoolId: input.budgetPoolId,
+    kind: input.kind,
+    name: input.name,
+    amountCents: input.amountCents,
+    notes: null,
   };
 }
