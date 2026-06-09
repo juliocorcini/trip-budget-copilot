@@ -1,9 +1,13 @@
 # TripPilot — Complete Database Schema
 
-> Last updated: 2026-06-08
-> Status: Final schema before implementation
+> Last updated: 2026-06-09
+> Status: Implemented. Dexie schema **v2** in `src/data/db/schema.ts` carries the compound
+> indexes specified here (`[tripId+order]`, `[tripId+date]`, `[budgetPoolId+phaseId]`,
+> `[budgetPoolId+kind]`, `[phaseId+budgetPoolId]`, `[phaseId+type]`, `[phaseId+category]`,
+> `[budgetPoolId+type]`), and `db.on('populate')` seeds appSettings + the current device
+> (GAP-031). The implemented v1 (without compound indexes) is preserved for upgrades.
 > Storage: IndexedDB via Dexie (local-first)
-> Decisions incorporated: DEC-001 through DEC-060
+> Decisions incorporated: DEC-001 through DEC-070
 
 ---
 

@@ -8,6 +8,9 @@ import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { ParticipantShare } from '@/domain/types/participant-share';
+import type { Session, SessionItem } from '@/domain/types/session';
+import type { Settlement } from '@/domain/types/settlement';
 
 interface DemoData {
   trip: Trip;
@@ -19,6 +22,10 @@ interface DemoData {
   wallets: Wallet[];
   transactions: Transaction[];
   profiles: ActivityProfile[];
+  shares: ParticipantShare[];
+  sessions: Session[];
+  sessionItems: SessionItem[];
+  settlements: Settlement[];
 }
 
 function meta(deviceId: string, overrides?: { id?: string }) {
@@ -211,12 +218,14 @@ export function generateDemoData(deviceId: string): DemoData {
     'Uber aeroporto',
   ];
 
+  // GAP-035 (DEC-038): the demo showcases split, debts and outing sessions.
+  const sharedIndexes = new Set([2, 5]);
   const transactions: Transaction[] = [];
   for (let i = 0; i < 10; i++) {
     const daysAgo = 13 - i;
     const txDate = dayOffset(now, -daysAgo);
     const amount = [350, 1200, 2500, 280, 1500, 900, 450, 350, 800, 1500][i]!;
-    const isSharedTx = i === 2;
+    const isSharedTx = sharedIndexes.has(i);
     transactions.push({
       ...meta(deviceId),
       tripId,
@@ -246,11 +255,130 @@ export function generateDemoData(deviceId: string): DemoData {
     });
   }
 
+  // Equal split for each shared expense: owner + friend, friend's half unpaid.
+  const shares: ParticipantShare[] = transactions
+    .filter((tx) => tx.isShared)
+    .flatMap((tx) => {
+      const half = Math.round(tx.amountCents / 2);
+      return [
+        {
+          ...meta(deviceId),
+          transactionId: tx.id,
+          participantId: ownerId,
+          shareAmountCents: tx.amountCents - half,
+          shareType: 'equal' as const,
+          isPaid: true,
+          notes: null,
+        },
+        {
+          ...meta(deviceId),
+          transactionId: tx.id,
+          participantId: friendId,
+          shareAmountCents: half,
+          shareType: 'equal' as const,
+          isPaid: false,
+          notes: null,
+        },
+      ];
+    });
+
+  const barProfileId = uuidv4();
   const profiles: ActivityProfile[] = [
-    { ...meta(deviceId), tripId, name: 'Bar', category: 'bar', iconName: 'local_bar', color: '#C75B39', typicalValueCents: 1500, safeValueCents: 2000, confidence: 'medium', dataPointCount: 3, expectedFrequencyPerPhase: 5, isCustom: false, defaultTargetCents: 1500, defaultCeilingCents: 2500, defaultMaxCents: 3500, defaultAvgDrinkPriceCents: 350, quickAddValuesCents: null, notes: null },
+    { ...meta(deviceId, { id: barProfileId }), tripId, name: 'Bar', category: 'bar', iconName: 'local_bar', color: '#C75B39', typicalValueCents: 1500, safeValueCents: 2000, confidence: 'medium', dataPointCount: 3, expectedFrequencyPerPhase: 5, isCustom: false, defaultTargetCents: 1500, defaultCeilingCents: 2500, defaultMaxCents: 3500, defaultAvgDrinkPriceCents: 350, quickAddValuesCents: null, notes: null },
     { ...meta(deviceId), tripId, name: 'Restaurante', category: 'restaurant', iconName: 'restaurant', color: '#D4A843', typicalValueCents: 1200, safeValueCents: 1800, confidence: 'medium', dataPointCount: 2, expectedFrequencyPerPhase: 4, isCustom: false, defaultTargetCents: null, defaultCeilingCents: null, defaultMaxCents: null, defaultAvgDrinkPriceCents: null, quickAddValuesCents: null, notes: null },
     { ...meta(deviceId), tripId, name: 'Mercado', category: 'market', iconName: 'shopping_cart', color: '#6B8F71', typicalValueCents: 2500, safeValueCents: 3500, confidence: 'low', dataPointCount: 1, expectedFrequencyPerPhase: 3, isCustom: false, defaultTargetCents: null, defaultCeilingCents: null, defaultMaxCents: null, defaultAvgDrinkPriceCents: null, quickAddValuesCents: null, notes: null },
   ];
 
-  return { trip, phases, pools, links, envelopes, participants, wallets, transactions, profiles };
+  // One completed bar session with three quick-add items (4 days ago).
+  const sessionId = uuidv4();
+  const sessionDay = dayOffset(now, -4);
+  const sessionAmounts = [700, 700, 1000];
+  const sessionTransactions: Transaction[] = sessionAmounts.map((amount, i) => ({
+    ...meta(deviceId),
+    tripId,
+    phaseId: phase1Id,
+    budgetPoolId: pool1Id,
+    walletId: wallet2Id,
+    sessionId,
+    type: 'expense' as const,
+    amountCents: amount,
+    personalCostCents: amount,
+    currency: 'EUR',
+    baseCurrencyAmountCents: amount,
+    exchangeRate: null,
+    category: 'bar',
+    description: `Rodada ${i + 1}`,
+    date: `${sessionDay}T${String(21 + i).padStart(2, '0')}:00:00.000Z`,
+    isShared: false,
+    paidByParticipantId: null,
+    activityProfileId: barProfileId,
+    isSpecialOccasion: false,
+    excludeFromLearning: false,
+    sourceWalletId: null,
+    targetWalletId: null,
+    settlementId: null,
+    adjustmentReason: null,
+    notes: null,
+  }));
+  transactions.push(...sessionTransactions);
+
+  const sessions: Session[] = [
+    {
+      ...meta(deviceId, { id: sessionId }),
+      tripId,
+      phaseId: phase1Id,
+      budgetPoolId: pool1Id,
+      activityProfileId: barProfileId,
+      status: 'completed',
+      name: 'Noite no bar — Plaza Mayor',
+      targetCents: 1500,
+      ceilingCents: 2500,
+      maxCents: 3500,
+      startedAt: `${sessionDay}T20:30:00.000Z`,
+      endedAt: `${sessionDay}T23:45:00.000Z`,
+      quickAddValuesCents: [300, 500, 700, 1000, 1500],
+      avgDrinkPriceCents: 350,
+      firedAlertPercents: [50, 75],
+      overMaxConfirmedAt: null,
+      notes: null,
+    },
+  ];
+
+  const sessionItems: SessionItem[] = sessionTransactions.map((tx, i) => ({
+    ...meta(deviceId),
+    sessionId,
+    transactionId: tx.id,
+    order: i,
+  }));
+
+  // Ana already settled part of her debt — keeps a visible pending balance.
+  const settlements: Settlement[] = [
+    {
+      ...meta(deviceId),
+      tripId,
+      debtorParticipantId: friendId,
+      creditorParticipantId: ownerId,
+      amountCents: 600,
+      currency: 'EUR',
+      settledAt: `${dayOffset(now, -2)}T18:00:00.000Z`,
+      linkedTransactionId: null,
+      notes: null,
+    },
+  ];
+
+  return {
+    trip,
+    phases,
+    pools,
+    links,
+    envelopes,
+    participants,
+    wallets,
+    transactions,
+    profiles,
+    shares,
+    sessions,
+    sessionItems,
+    settlements,
+  };
 }

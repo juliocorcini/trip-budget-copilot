@@ -9,7 +9,9 @@ import {
   scaleSharesToTotal,
   calculateParticipantBalances,
   findPendingSharedTransactions,
+  suggestSimplifiedSettlements,
 } from '@/domain/splitting';
+import type { DebtEntry } from '@/domain/splitting';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Participant } from '@/domain/types/participant';
@@ -235,6 +237,70 @@ describe('scaleSharesToTotal', () => {
     const scaled = scaleSharesToTotal(shares, 9000);
     expect(scaled[0]!.shareAmountCents).toBe(6000);
     expect(scaled[1]!.shareAmountCents).toBe(3000);
+  });
+});
+
+describe('suggestSimplifiedSettlements (GAP-032)', () => {
+  const debt = (
+    debtorId: string,
+    creditorId: string,
+    amountCents: number,
+  ): DebtEntry => ({
+    debtorId,
+    debtorName: debtorId.toUpperCase(),
+    creditorId,
+    creditorName: creditorId.toUpperCase(),
+    amountCents,
+  });
+
+  it('collapses a chain A→B→C into a single transfer A→C', () => {
+    // A owes B €10 and B owes C €10 → A pays C €10 directly.
+    const result = suggestSimplifiedSettlements([
+      debt('a', 'b', 1000),
+      debt('b', 'c', 1000),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ debtorId: 'a', creditorId: 'c', amountCents: 1000 });
+  });
+
+  it('reduces crossed debts among 3 participants', () => {
+    // A owes B €30, B owes C €20, C owes A €10.
+    // Net: A -20, B +10, C +10 → 2 transfers instead of 3.
+    const result = suggestSimplifiedSettlements([
+      debt('a', 'b', 3000),
+      debt('b', 'c', 2000),
+      debt('c', 'a', 1000),
+    ]);
+    expect(result).toHaveLength(2);
+    const total = result.reduce((sum, d) => sum + d.amountCents, 0);
+    expect(total).toBe(2000);
+    expect(result.every((d) => d.debtorId === 'a')).toBe(true);
+  });
+
+  it('keeps a single debt unchanged', () => {
+    const result = suggestSimplifiedSettlements([debt('a', 'b', 500)]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ debtorId: 'a', creditorId: 'b', amountCents: 500 });
+  });
+
+  it('preserves the total amount owed across simplification', () => {
+    const debts = [
+      debt('a', 'b', 1700),
+      debt('b', 'c', 900),
+      debt('c', 'd', 400),
+      debt('d', 'a', 250),
+    ];
+    const result = suggestSimplifiedSettlements(debts);
+    const netOut = new Map<string, number>();
+    for (const d of debts) {
+      netOut.set(d.debtorId, (netOut.get(d.debtorId) ?? 0) + d.amountCents);
+      netOut.set(d.creditorId, (netOut.get(d.creditorId) ?? 0) - d.amountCents);
+    }
+    for (const r of result) {
+      netOut.set(r.debtorId, (netOut.get(r.debtorId) ?? 0) - r.amountCents);
+      netOut.set(r.creditorId, (netOut.get(r.creditorId) ?? 0) + r.amountCents);
+    }
+    for (const value of netOut.values()) expect(value).toBe(0);
   });
 });
 

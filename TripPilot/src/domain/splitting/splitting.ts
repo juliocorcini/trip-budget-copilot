@@ -188,8 +188,53 @@ export function createSettlement(
   };
 }
 
+/**
+ * Reduce a set of pairwise debts to the minimum number of transfers (GAP-032).
+ * Computes the net balance per participant, then greedily matches the largest
+ * debtor with the largest creditor until every balance is zero.
+ */
 export function suggestSimplifiedSettlements(debts: DebtEntry[]): DebtEntry[] {
-  return debts.filter((d) => d.amountCents > 0);
+  const balances = new Map<string, { name: string; cents: number }>();
+  const ensure = (id: string, name: string) => {
+    if (!balances.has(id)) balances.set(id, { name, cents: 0 });
+    return balances.get(id)!;
+  };
+
+  for (const debt of debts) {
+    if (debt.amountCents <= 0) continue;
+    ensure(debt.debtorId, debt.debtorName).cents -= debt.amountCents;
+    ensure(debt.creditorId, debt.creditorName).cents += debt.amountCents;
+  }
+
+  const debtors = [...balances.entries()]
+    .filter(([, b]) => b.cents < 0)
+    .map(([id, b]) => ({ id, name: b.name, cents: -b.cents }))
+    .sort((a, b) => b.cents - a.cents);
+  const creditors = [...balances.entries()]
+    .filter(([, b]) => b.cents > 0)
+    .map(([id, b]) => ({ id, name: b.name, cents: b.cents }))
+    .sort((a, b) => b.cents - a.cents);
+
+  const result: DebtEntry[] = [];
+  let di = 0;
+  let ci = 0;
+  while (di < debtors.length && ci < creditors.length) {
+    const debtor = debtors[di]!;
+    const creditor = creditors[ci]!;
+    const amount = Math.min(debtor.cents, creditor.cents);
+    result.push({
+      debtorId: debtor.id,
+      debtorName: debtor.name,
+      creditorId: creditor.id,
+      creditorName: creditor.name,
+      amountCents: amount,
+    });
+    debtor.cents -= amount;
+    creditor.cents -= amount;
+    if (debtor.cents === 0) di++;
+    if (creditor.cents === 0) ci++;
+  }
+  return result;
 }
 
 export function createParticipant(

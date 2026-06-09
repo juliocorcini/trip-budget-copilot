@@ -1,9 +1,16 @@
 # TripPilot — Domain Functions Reference: Delivery 1
 
-> Version: 1.0 | Date: 2026-06-08
+> Version: 1.1 | Date: 2026-06-09 (updated after the gap-fix session)
 > Purpose: Exhaustive reference of every pure TypeScript function the domain layer needs for D1.
 > Audience: Implementation agents (Carla, Marcelo) and the tech lead.
 > Status: Planning document — no production code.
+
+> **Implementation note (DEC-067, 2026-06-09)**: the orchestrator layer was implemented
+> **partially**. `src/domain/orchestrators/` contains `registerExpense` (atomic tx+shares),
+> `endOutingSession`, `withdrawCash`, `transferBetweenWallets`, `reconcileWallet` and the
+> backup orchestrators (`buildFullBackup`, `importBackup`) — all with unit tests. Pages not
+> touched by the gap-fix session still call repositories directly; migrating them is
+> registered as technical debt in `project-status.md`.
 
 ---
 

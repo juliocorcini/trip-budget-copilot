@@ -418,6 +418,12 @@
     "owner_tag": "Eu",
     "pending_debts": "Dívidas pendentes",
     "settle": "Liquidar",
+    "settle_confirm_title": "Confirmar acerto",
+    "settle_confirm_body": "{{debtor}} deve {{amount}} a {{creditor}}. Você pode liquidar o valor total ou registrar um acerto parcial.",
+    "settle_amount_label": "Valor do acerto (€)",
+    "settle_partial_hint": "Acerto parcial — restarão {{remaining}} em aberto.",
+    "simplify_debts": "Simplificar dívidas — reduzir para {{count}} transferências",
+    "show_original_debts": "Ver dívidas originais",
     "all_settled": "Tudo acertado! Sem dívidas pendentes.",
     "settlements_done": "Liquidações realizadas",
     "add_participant": "Adicionar participante",
@@ -426,6 +432,9 @@
     "balance_owes": "Deve {{amount}}",
     "balance_owed": "Recebe {{amount}}",
     "balance_zero": "Em dia"
+  },
+  "pwa": {
+    "offline_ready": "Pronto para uso offline"
   },
   "common": {
     "save": "Salvar",

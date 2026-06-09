@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -22,4 +22,15 @@ export const SCHEMA_V1: Record<string, string> = {
   alertRules: 'id, tripId, alertType, isEnabled, deletedAt',
   appSettings: 'id',
   devices: 'id, deletedAt',
+};
+
+// V2 adds the compound indexes specified in database-schema.md (GAP-031).
+export const SCHEMA_V2: Record<string, string> = {
+  ...SCHEMA_V1,
+  phases: `${SCHEMA_V1.phases}, [tripId+order]`,
+  budgetPoolPhaseLinks: `${SCHEMA_V1.budgetPoolPhaseLinks}, [budgetPoolId+phaseId]`,
+  envelopes: `${SCHEMA_V1.envelopes}, [budgetPoolId+kind]`,
+  scenarioPlans: `${SCHEMA_V1.scenarioPlans}, [phaseId+budgetPoolId]`,
+  transactions: `${SCHEMA_V1.transactions}, [phaseId+type], [phaseId+category], [budgetPoolId+type], [tripId+date]`,
+  futurePhaseReservePolicies: `${SCHEMA_V1.futurePhaseReservePolicies}, [budgetPoolId+phaseId]`,
 };

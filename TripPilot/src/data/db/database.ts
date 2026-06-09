@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
-import { SCHEMA_V1, SCHEMA_VERSION } from './schema';
+import { SCHEMA_V1, SCHEMA_V2 } from './schema';
+import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import type { Trip } from '@/domain/types/trip';
 import type { Phase } from '@/domain/types/phase';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -45,7 +46,14 @@ export class TripPilotDB extends Dexie {
 
   constructor() {
     super('TripPilotDB');
-    this.version(SCHEMA_VERSION).stores(SCHEMA_V1);
+    this.version(1).stores(SCHEMA_V1);
+    this.version(2).stores(SCHEMA_V2);
+
+    // GAP-031: seed settings + current device on first open (fresh DBs only).
+    this.on('populate', (tx) => {
+      tx.table('appSettings').add(createDefaultAppSettings());
+      tx.table('devices').add(createCurrentDevice());
+    });
   }
 }
 

@@ -6,15 +6,17 @@ import {
   createSettlement,
   createParticipant,
   calculateParticipantBalances,
+  suggestSimplifiedSettlements,
 } from '@/domain/splitting';
-import type { DebtSummary } from '@/domain/splitting';
+import type { DebtSummary, DebtEntry } from '@/domain/splitting';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
-import { formatMoney } from '@/domain/money';
+import { formatMoney, toCents } from '@/domain/money';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
 import { participantRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
@@ -48,10 +50,34 @@ export function SharedExpensesPage() {
     load();
   }, [trip, transactions, participants]);
 
-  const handleSettle = async (debtorId: string, creditorId: string, amountCents: number) => {
-    if (!trip) return;
-    const settlement = createSettlement(trip.id, debtorId, creditorId, amountCents, trip.baseCurrency);
+  // GAP-032: settle goes through a confirmation sheet with optional partial amount.
+  const [settleTarget, setSettleTarget] = useState<DebtEntry | null>(null);
+  const [settleAmount, setSettleAmount] = useState('');
+  const [showSimplified, setShowSimplified] = useState(false);
+
+  const openSettleSheet = (debt: DebtEntry) => {
+    setSettleTarget(debt);
+    setSettleAmount((debt.amountCents / 100).toFixed(2));
+  };
+
+  const settleAmountCents = (() => {
+    const parsed = Number(settleAmount.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return toCents(parsed);
+  })();
+
+  const handleConfirmSettle = async () => {
+    if (!trip || !settleTarget || settleAmountCents === null) return;
+    const amountCents = Math.min(settleAmountCents, settleTarget.amountCents);
+    const settlement = createSettlement(
+      trip.id,
+      settleTarget.debtorId,
+      settleTarget.creditorId,
+      amountCents,
+      trip.baseCurrency,
+    );
     await settlementRepository.create(settlement);
+    setSettleTarget(null);
     await reload();
   };
 
@@ -170,33 +196,113 @@ export function SharedExpensesPage() {
         )}
       </div>
 
-      {debtSummary && debtSummary.debts.length > 0 && (
-        <div>
-          <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-            {t('shared.pending_debts')}
-          </p>
-          {debtSummary.debts.map((debt, i) => (
-            <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <p className="text-sm text-on-surface">
-                    {debt.debtorName} → {debt.creditorName}
-                  </p>
-                  <p className="text-xs text-on-surface-faint">
-                    {formatMoney(debt.amountCents, trip.baseCurrency)}
-                  </p>
+      {debtSummary && debtSummary.debts.length > 0 && (() => {
+        const simplified = suggestSimplifiedSettlements(debtSummary.debts);
+        const involvedIds = new Set(
+          debtSummary.debts.flatMap((d) => [d.debtorId, d.creditorId]),
+        );
+        const canSimplify = involvedIds.size >= 3 && simplified.length < debtSummary.debts.length;
+        const visibleDebts = showSimplified && canSimplify ? simplified : debtSummary.debts;
+
+        return (
+          <div>
+            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
+              {t('shared.pending_debts')}
+            </p>
+
+            {canSimplify && (
+              <button
+                onClick={() => setShowSimplified((v) => !v)}
+                className="w-full mb-2 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
+                style={{ background: '#C75B3918', border: '1px dashed #C75B3940' }}
+              >
+                <Icon name="merge" size={16} className="text-primary" />
+                <p className="text-xs font-semibold text-primary flex-1">
+                  {showSimplified
+                    ? t('shared.show_original_debts')
+                    : t('shared.simplify_debts', { count: simplified.length })}
+                </p>
+              </button>
+            )}
+
+            {visibleDebts.map((debt, i) => (
+              <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-sm text-on-surface">
+                      {debt.debtorName} → {debt.creditorName}
+                    </p>
+                    <p className="text-xs text-on-surface-faint">
+                      {formatMoney(debt.amountCents, trip.baseCurrency)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => openSettleSheet(debt)}
+                    className="px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium btn-press"
+                  >
+                    {t('shared.settle')}
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleSettle(debt.debtorId, debt.creditorId, debt.amountCents)}
-                  className="px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium btn-press"
-                >
-                  {t('shared.settle')}
-                </button>
               </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* GAP-032: settle confirmation with partial amount */}
+      <BottomSheet
+        open={settleTarget !== null}
+        onClose={() => setSettleTarget(null)}
+        title={t('shared.settle_confirm_title')}
+      >
+        {settleTarget && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-on-surface-dim">
+              {t('shared.settle_confirm_body', {
+                debtor: settleTarget.debtorName,
+                creditor: settleTarget.creditorName,
+                amount: formatMoney(settleTarget.amountCents, trip.baseCurrency),
+              })}
+            </p>
+            <div>
+              <label className="text-xs text-on-surface-faint mb-1 block">
+                {t('shared.settle_amount_label')}
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={settleAmount}
+                onChange={(e) => setSettleAmount(e.target.value)}
+                className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full tabular"
+              />
+              {settleAmountCents !== null && settleAmountCents < settleTarget.amountCents && (
+                <p className="text-[10px] text-on-surface-faint mt-1">
+                  {t('shared.settle_partial_hint', {
+                    remaining: formatMoney(settleTarget.amountCents - settleAmountCents, trip.baseCurrency),
+                  })}
+                </p>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setSettleTarget(null)}
+                className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleConfirmSettle}
+                disabled={settleAmountCents === null}
+                className="flex-1 py-2.5 rounded-xl bg-success/20 text-success font-medium text-sm btn-press disabled:opacity-40"
+              >
+                {t('shared.settle')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
 
       {debtSummary && debtSummary.debts.length === 0 && (
         <div className="bg-surface-container rounded-xl p-6 text-center">

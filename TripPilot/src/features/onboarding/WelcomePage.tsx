@@ -24,6 +24,10 @@ export function WelcomePage() {
     await db.wallets.bulkAdd(demo.wallets);
     await db.transactions.bulkAdd(demo.transactions);
     await db.activityProfiles.bulkAdd(demo.profiles);
+    await db.participantShares.bulkAdd(demo.shares);
+    await db.sessions.bulkAdd(demo.sessions);
+    await db.sessionItems.bulkAdd(demo.sessionItems);
+    await db.settlements.bulkAdd(demo.settlements);
 
     await appSettingsRepository.update({
       activeTrip: demo.trip.id,

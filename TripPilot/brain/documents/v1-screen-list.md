@@ -30,7 +30,7 @@
 | 12 | Shared Expenses | `/shared` | App Shell | Shared expense list, pending confirmations, debt summary |
 | 13 | Debt Settlement | `/shared/debts` | App Shell | Who owes whom, simplified settlement, mark as paid |
 | 14 | Wallets | `/wallets` | App Shell | Wallet list, balances, cash reconciliation |
-| 15 | Reports | `/reports` | App Shell | Spending by category, timeline, profile performance, savings equivalence |
+| 15 | Reports | `/reports` | App Shell | Spending by category, timeline, profile performance, savings equivalence — **D3+ only (DEC-064): not present in V1, no placeholder in the "Mais" menu** |
 | 16 | Settings | `/settings` | App Shell | Alert tone, preferences, about |
 | 17 | Backup & Data | `/settings/backup` | App Shell | JSON export/import, CSV export, backup status, last backup date |
 | 18 | Trip Editor | `/trip/edit` | App Shell | Edit trip, phases, budget pools, envelopes |

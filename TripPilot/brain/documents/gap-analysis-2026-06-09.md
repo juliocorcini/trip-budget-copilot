@@ -1,5 +1,7 @@
 # TripPilot — Gap Analysis Completa
 
+> **Status: RESOLVIDO em 2026-06-09** — os 36 gaps foram corrigidos na sessão de gap-fixes (ver `src/gap-fix-log.md`). Decisões das ambiguidades registradas como DEC-061..DEC-070 no decision-log.
+
 > Data: 2026-06-09 | Deploy auditado: https://trippilot.pages.dev | Commit: `dd5c404`
 > Build: ✅ | Typecheck: ✅ (0 erros) | Testes: 105/105 passando (12 suites)
 > Método: 5 passes independentes (feature, decisão, tela, jornada, transversal) + 7 rounds de verificação até 2 rounds consecutivos com zero achados novos.

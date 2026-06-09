@@ -435,6 +435,76 @@
 - **Rationale**: Most users have one active phase. Don't add an extra tap for the common case
 - **Alternatives**: Always show trip overview first (extra tap), always show last viewed phase (confusing after phase change)
 
+### DEC-061 — Backup Reminder Default: 7 Days (was D-A)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: Backup reminder default is 7 days, as DEC-057 specified. The code default of 3 days was a divergence and was corrected
+- **Rationale**: Truth Policy — DEC wins over code
+- **Alternatives**: Keep 3 days (would require amending DEC-057)
+
+### DEC-062 — Quick-Add Defaults: €3/5/7/10/15 (was D-B)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: Default quick-add values are [300, 500, 700, 1000, 1500] cents, defined once in the outing domain (`DEFAULT_QUICK_ADD_VALUES_CENTS`) and consumed by the settings repository and OutingPage. Divergent fallbacks eliminated
+- **Rationale**: DEC-045 wins over code; single source of truth
+- **Alternatives**: Keep code values €3/5/10/15/20 (violates DEC-045)
+
+### DEC-063 — Pending Shared Criterion (was D-C)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: A shared transaction is "pending confirmation" when at least one third-party `participantShare` is not yet covered by settlements (FIFO coverage of the participant's total debt). Fully settled → disappears from the dashboard card (DEC-056)
+- **Rationale**: Only verifiable criterion with the current local-first model
+- **Alternatives**: isPaid flag per share (ignores settlements), manual confirmation (extra friction)
+
+### DEC-064 — "Mais" Menu: About Without Reports (was D-D)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: "Mais" gets a dedicated "Sobre" item (version, backup link) under Aplicativo. "Relatórios" is NOT added — it is D3+ scope. This amends the screen list in DEC-059
+- **Rationale**: implementation-phases.md wins over v1-screen-list.md
+- **Alternatives**: Add a stub Reports entry (dead UI)
+
+### DEC-065 — en/es Fully Translated (was D-E)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: `en.json` and `es.json` mirror 100% of pt-BR keys and are fully translated (not just structured). Settings offers 3 working languages
+- **Rationale**: AI translation cost is trivial; eliminates the silent fallback
+- **Alternatives**: Structure-only with pt-BR fallback (original DEC-054 plan, misleading UI)
+
+### DEC-066 — Shared Settings State via Dexie liveQuery (was D-F)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: App-wide live settings (theme/language/alert tone) use `useLiveQuery` from dexie-react-hooks (`useLiveSettings` hook in AppShell). No Zustand, no extra Context layer
+- **Rationale**: Idiomatic for Dexie, zero new layers; removes the need for zustand
+- **Alternatives**: Zustand store (new dependency surface), React Context (manual invalidation)
+
+### DEC-067 — Partial Orchestrator Layer (was D-H)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: Orchestrators created only for the flows touched in the gap-fix session: `registerExpense` (atomic tx+shares), `endOutingSession`, `withdrawCash`, `transferBetweenWallets`, `reconcileWallet`, plus backup orchestrators — all in `src/domain/orchestrators/` with tests. Full refactor of untouched pages is registered as technical debt
+- **Rationale**: Fixes the real risk (orphan shares) without an out-of-scope refactor
+- **Alternatives**: Full refactor (too large), no orchestrators (atomicity risk remains)
+
+### DEC-068 — Remove Unused Dependencies (was D-G)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: `zustand` and `react-hook-form` removed from package.json (zero imports in src/). `@capacitor/core` stays per DEC-017 ("later")
+- **Rationale**: Hygiene §4.1 of the engineering guidelines
+- **Alternatives**: Keep them installed (dead weight)
+
+### DEC-069 — Future Floor: Manual Only in V1 (was D-I)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: Future floor is a manual field (`futureFloorCents` on the pool↔phase link) editable in Funds. The automatic calculation from DEC-016 is deferred to D3+ and registered as debt
+- **Rationale**: Matches the audit's own scoping; manual floor already fixes the dashboard line
+- **Alternatives**: Automatic calculation now (D3+ scope creep)
+
+### DEC-070 — Backup Reminder Banner via lastBackupDate (was D-J)
+- **Date**: 2026-06-09
+- **Status**: APPROVED
+- **Decision**: `lastBackupDate` persists on every export. Dashboard shows a discreet banner (tap → backup page) when `today - lastBackupDate > backupReminderDays`, or when no backup was ever made and data exists. Logic in `isBackupReminderDue` (domain/backup)
+- **Rationale**: Only way the reminder toggle stops being decorative
+- **Alternatives**: Notifications API (overkill for local-first V1)
+
 ---
 
 *New decisions will be added as the project progresses.*

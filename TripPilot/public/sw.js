@@ -1,13 +1,32 @@
-const CACHE_NAME = 'trippilot-v1';
+const CACHE_NAME = 'trippilot-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
 ];
 
+// GAP-036: precache the hashed build assets referenced by index.html so the
+// app shell works offline right after install (no build plugin required).
+async function precacheBuildAssets(cache) {
+  try {
+    const response = await fetch('/index.html', { cache: 'no-cache' });
+    if (!response.ok) return;
+    const html = await response.text();
+    const assetUrls = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+    if (assetUrls.length > 0) {
+      await cache.addAll(assetUrls);
+    }
+  } catch {
+    // Offline during install — runtime caching will fill the gap later.
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await cache.addAll(STATIC_ASSETS);
+      await precacheBuildAssets(cache);
+    })
   );
   self.skipWaiting();
 });

@@ -1,12 +1,12 @@
 # Gap Fix Log — TripPilot
 
 ## Current State
-- **Gate ativo**: 7
-- **Gap ativo**: GAP-031
-- **Gaps resolvidos**: 29/36
-- **Testes**: 146 passing (baseline 105 + 41 novos)
+- **Gate ativo**: 8
+- **Gap ativo**: verificação final + deploy
+- **Gaps resolvidos**: 36/36
+- **Testes**: 156 passing (baseline 105 + 51 novos)
 - **Build/Typecheck**: clean
-- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 4f4e756 · Gate 5 8b9f8b9 · Gate 6 (ver git log)
+- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 4f4e756 · Gate 5 8b9f8b9 · Gate 6 f9cc287 · Gate 7 (ver git log)
 - **Nota git**: usar `bash -c 'git commit ...'` (git local não suporta --trailer)
 
 ## Por gate
@@ -64,30 +64,30 @@
 - [x] Testes: isBackupReminderDue (4) — 4 novos
 
 ### Gate 7 — Infra + brain
-- [ ] GAP-031 — índices compostos + populate
-- [ ] GAP-032 — settle parcial + simplificação
-- [ ] GAP-033 — en/es completos
-- [ ] GAP-035 — demo com shared/sessão/settlement
-- [ ] GAP-036 — indicador offline
-- [ ] GAP-030 — orquestradores parciais (D-H)
-- [ ] GAP-034 — deps sem uso removidas
-- [ ] Brain atualizado (project-status, decision-log D-A..D-J, contradições, gap-analysis status, version bump)
+- [x] GAP-031 — Dexie v2 com índices compostos ([tripId+order], [tripId+date], [budgetPoolId+phaseId], [budgetPoolId+kind], [phaseId+budgetPoolId], [phaseId+type], [phaseId+category], [budgetPoolId+type]) + db.on('populate') seedando appSettings e device — schema.ts, database.ts, seed.ts (novo), app-settings-repository.ts
+- [x] GAP-032 — settle via BottomSheet com confirmação e valor parcial (clamp no total da dívida, hint do restante); suggestSimplifiedSettlements implementado de verdade (net balance + matching guloso); card "Simplificar dívidas" quando 3+ envolvidos e redução real — splitting.ts, SharedExpensesPage.tsx + 4 testes
+- [x] GAP-033 — en.json e es.json com 100% das 401 chaves do pt-BR, traduzidos (paridade verificada por script); os 3 idiomas funcionam na Settings — en.json, es.json
+- [x] GAP-035 — demo ganhou: 2 gastos shared com participantShares (metade da Ana não paga), 1 sessão bar completed com 3 itens + sessionItems, 1 settlement parcial de €6 — demo-data.ts, WelcomePage.tsx
+- [x] GAP-036 — toast "Pronto para uso offline" na primeira ativação do SW (DEC-053d); precache melhorado: SW parseia index.html no install e cacheia os assets hasheados do build (sem plugin) — pwa.ts, sw.js (cache v2)
+- [x] GAP-030 — orquestradores em src/domain/orchestrators/ (registerExpense, endOutingSession, withdrawCash, transferBetweenWallets, reconcileWallet, buildFullBackup, importBackup) com testes; +6 testes wallet-orchestrators; refactor restante anotado como débito (DEC-067)
+- [x] GAP-034 — zustand + react-hook-form removidos do package.json (0 imports); @capacitor/core mantido (DEC-017)
+- [x] Brain atualizado: project-status.md reescrito (D1–D6 + gap-fix, débitos registrados); decision-log DEC-061..070 (= D-A..D-J); contradições corrigidas (domain-functions nota DEC-067, database-schema v2, v1-screen-list Reports D3+, gap-analysis com banner RESOLVIDO); version bump 0.1.0 → 0.2.0
 
 ### Gate 8 — Verificação final + deploy
 - [ ] Re-auditoria 36/36
 - [ ] Deploy
 
 ## Decisões aplicadas
-- [x] D-A backup reminder 7 dias (aplicada no código; registro no brain = Gate 7)
-- [x] D-B quick-add €3/5/7/10/15 (aplicada no código; registro no brain = Gate 7)
-- [x] D-C pendência = share de terceiro sem settlement (aplicada; registro = Gate 7)
-- [x] D-D sem Relatórios; com Sobre (aplicada; registro = Gate 7)
-- [ ] D-E en/es traduzidos
-- [x] D-F useLiveQuery para settings (aplicada no Gate 5)
-- [ ] D-G remover deps sem uso
-- [ ] D-H orquestradores parciais
-- [x] D-I future floor manual apenas (aplicada no Gate 4)
-- [x] D-J lastBackupDate + banner reminder (aplicada no Gate 6)
+- [x] D-A backup reminder 7 dias (DEC-061)
+- [x] D-B quick-add €3/5/7/10/15 (DEC-062)
+- [x] D-C pendência = share de terceiro sem settlement (DEC-063)
+- [x] D-D sem Relatórios; com Sobre (DEC-064)
+- [x] D-E en/es traduzidos (DEC-065)
+- [x] D-F useLiveQuery para settings (DEC-066)
+- [x] D-G remover deps sem uso (DEC-068)
+- [x] D-H orquestradores parciais (DEC-067)
+- [x] D-I future floor manual apenas (DEC-069)
+- [x] D-J lastBackupDate + banner reminder (DEC-070)
 
 ## Problemas extras encontrados (NÃO corrigir — só anotar)
 - (vazio)
