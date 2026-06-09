@@ -231,6 +231,36 @@ export function scaleSharesToTotal(
   });
 }
 
+/**
+ * GAP-016 (decision D-C): a shared expense is "pending" while at least one
+ * third-party share is not covered by settlements. Once the debtor↔creditor
+ * pair has no outstanding debt left, the expense disappears from the card.
+ */
+export function findPendingSharedTransactions(
+  transactions: Transaction[],
+  shares: ParticipantShare[],
+  participants: Participant[],
+  settlements: Settlement[],
+  ownerId: string,
+): Transaction[] {
+  const { debts } = calculateDebts(transactions, shares, participants, settlements, ownerId);
+  if (debts.length === 0) return [];
+
+  const owingPairs = new Set(debts.map((d) => `${d.debtorId}->${d.creditorId}`));
+
+  return transactions.filter((tx) => {
+    if (!tx.isShared || tx.type !== 'expense' || tx.deletedAt !== null) return false;
+    const payerId = tx.paidByParticipantId ?? ownerId;
+    return shares.some(
+      (s) =>
+        s.transactionId === tx.id &&
+        s.deletedAt === null &&
+        s.participantId !== payerId &&
+        owingPairs.has(`${s.participantId}->${payerId}`),
+    );
+  });
+}
+
 /** Net balance per participant: positive = is owed money, negative = owes money. */
 export function calculateParticipantBalances(debts: DebtEntry[]): Map<string, number> {
   const balances = new Map<string, number>();

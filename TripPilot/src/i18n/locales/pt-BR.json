@@ -33,6 +33,8 @@
     "no_expenses_desc": "Toque no + para registrar seu primeiro gasto.",
     "day_counter": "Dia {{current}} · até {{end}}",
     "occasion_bar": "noites de bar",
+    "occasion_remaining": "{{name}} restantes",
+    "occasion_done": "{{count}} feitas",
     "occasion_market": "idas ao mercado",
     "occasion_restaurant": "restaurantes",
     "pending_expenses": "{{count}} gastos pendentes de confirmação",
@@ -91,7 +93,8 @@
     "personal_cost": "Custo pessoal",
     "shared_with": "Dividido com",
     "paid_by": "Pago por {{name}}",
-    "delete_confirm": "Excluir este gasto?",
+    "delete_confirm": "Excluir este gasto? Essa ação pode ser desfeita pelo backup.",
+    "delete_title": "Excluir gasto",
     "not_found": "Gasto não encontrado"
   },
   "categories": {

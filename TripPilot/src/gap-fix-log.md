@@ -1,12 +1,12 @@
 # Gap Fix Log — TripPilot
 
 ## Current State
-- **Gate ativo**: 5
-- **Gap ativo**: GAP-013
-- **Gaps resolvidos**: 18/36
-- **Testes**: 138 passing (baseline 105 + 33 novos)
+- **Gate ativo**: 6
+- **Gap ativo**: GAP-026
+- **Gaps resolvidos**: 24/36
+- **Testes**: 142 passing (baseline 105 + 37 novos)
 - **Build/Typecheck**: clean
-- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 (ver git log)
+- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 4f4e756 · Gate 5 (ver git log)
 - **Nota git**: usar `bash -c 'git commit ...'` (git local não suporta --trailer)
 
 ## Por gate
@@ -48,12 +48,12 @@
 - [x] Testes: getAvailablePoolsForPhase (4), futureFloor no link (2), createEnvelope (1) — 7 novos (futureFloor no freeToSpend já coberto)
 
 ### Gate 5 — UX e estado vivo
-- [ ] GAP-013 — settings vivos (useLiveQuery)
-- [ ] GAP-014 — idioma restaurado no boot
-- [ ] GAP-016 — pendência real (D-C)
-- [ ] GAP-020 — contadores = previsão
-- [ ] GAP-024 — navegação do header
-- [ ] GAP-025 — zero diálogos nativos
+- [x] GAP-013 — useLiveSettings (dexie liveQuery, D-F): AppShell aplica tema E idioma ao vivo, sem refresh — useLiveSettings.ts, AppShell.tsx
+- [x] GAP-014 — i18n.changeLanguage(settings.language) no boot (main.tsx) + live no AppShell — main.tsx, AppShell.tsx
+- [x] GAP-016 — findPendingSharedTransactions (D-C): pendente = share de terceiro com dívida não coberta por settlement; card some quando vazio; tap → /shared — splitting.ts, DashboardPage.tsx + 4 testes
+- [x] GAP-020 — calculateOccasionForecasts ligado ao ScenarioPlan ativo da fase: contadores mostram "X restantes" (primário) + "Y feitas" (secundário); fallback para contagem quando sem plano — DashboardPage.tsx
+- [x] GAP-024 — header: nome da fase → /trip; sino → /shared (DEC-060) — DashboardPage.tsx
+- [x] GAP-025 — window.confirm do delete substituído por BottomSheet; rg "alert(|prompt(|window.confirm" src/ → 0 (só comentário) — ExpenseDetailPage.tsx
 
 ### Gate 6 — Polish de fluxo
 - [ ] GAP-026 — carteiras no onboarding

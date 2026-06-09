@@ -8,6 +8,7 @@ import {
   createParticipant,
   scaleSharesToTotal,
   calculateParticipantBalances,
+  findPendingSharedTransactions,
 } from '@/domain/splitting';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
@@ -123,6 +124,56 @@ describe('calculateDebts', () => {
     ];
     const result = calculateDebts([tx], shares, participants, settlements, 'julio');
     expect(result.debts[0]!.amountCents).toBe(1000);
+  });
+});
+
+describe('findPendingSharedTransactions (GAP-016, decision D-C)', () => {
+  const participants: Participant[] = [
+    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null },
+    { ...meta, id: 'ana', tripId: 'trip-1', name: 'Ana', nickname: null, isOwner: false, email: null, linkedUserAccountId: null },
+  ];
+
+  const sharedTx: Transaction = {
+    ...meta, id: 'tx-1', tripId: 'trip-1', phaseId: 'ph-1',
+    budgetPoolId: 'pool-1', walletId: null, sessionId: null,
+    type: 'expense', amountCents: 6000, personalCostCents: 3000,
+    currency: 'EUR', baseCurrencyAmountCents: 6000, exchangeRate: null,
+    category: 'market', description: 'Mercadona', date: '2026-07-01T00:00:00.000Z',
+    isShared: true, paidByParticipantId: 'julio',
+    activityProfileId: null, isSpecialOccasion: false, excludeFromLearning: false,
+    sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
+  };
+
+  const shares: ParticipantShare[] = [
+    { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
+    { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
+  ];
+
+  it('marks a shared expense pending while the third-party share is unsettled', () => {
+    const pending = findPendingSharedTransactions([sharedTx], shares, participants, [], 'julio');
+    expect(pending.map((tx) => tx.id)).toEqual(['tx-1']);
+  });
+
+  it('removes the expense from pending once the debt is fully settled', () => {
+    const settlements = [
+      { ...meta, id: 'set-1', tripId: 'trip-1', debtorParticipantId: 'ana', creditorParticipantId: 'julio', amountCents: 3000, currency: 'EUR', settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null },
+    ];
+    const pending = findPendingSharedTransactions([sharedTx], shares, participants, settlements, 'julio');
+    expect(pending).toHaveLength(0);
+  });
+
+  it('keeps the expense pending while the settlement is only partial', () => {
+    const settlements = [
+      { ...meta, id: 'set-1', tripId: 'trip-1', debtorParticipantId: 'ana', creditorParticipantId: 'julio', amountCents: 1000, currency: 'EUR', settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null },
+    ];
+    const pending = findPendingSharedTransactions([sharedTx], shares, participants, settlements, 'julio');
+    expect(pending).toHaveLength(1);
+  });
+
+  it('ignores non-shared expenses', () => {
+    const personalTx = { ...sharedTx, id: 'tx-2', isShared: false, paidByParticipantId: null };
+    const pending = findPendingSharedTransactions([personalTx], [], participants, [], 'julio');
+    expect(pending).toHaveLength(0);
   });
 });
 

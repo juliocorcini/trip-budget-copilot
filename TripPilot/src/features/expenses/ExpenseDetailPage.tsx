@@ -8,6 +8,7 @@ import { formatDate } from '@/domain/dates';
 import { transactionRepository, participantShareRepository } from '@/data/repositories';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 
@@ -34,6 +35,7 @@ export function ExpenseDetailPage() {
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [editAmount, setEditAmount] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -131,9 +133,9 @@ export function ExpenseDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(t('expenses.delete_confirm'))) return;
     await transactionRepository.delete(tx.id);
     await Promise.all(shares.map((s) => participantShareRepository.delete(s.id)));
+    setShowDeleteConfirm(false);
     await reload();
     navigate('/expenses', { replace: true });
   };
@@ -233,7 +235,7 @@ export function ExpenseDetailPage() {
 
           <div className="flex gap-3">
             <button
-              onClick={handleDelete}
+              onClick={() => setShowDeleteConfirm(true)}
               className="flex-1 py-3 rounded-xl font-medium btn-press"
               style={{ background: '#D9404015', color: 'var(--error)' }}
             >
@@ -370,6 +372,32 @@ export function ExpenseDetailPage() {
           </div>
         </>
       )}
+
+      {/* GAP-025: design-system confirmation instead of window.confirm */}
+      <BottomSheet
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={t('expenses.delete_title')}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-on-surface-dim">{t('expenses.delete_confirm')}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleDelete}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm btn-press"
+              style={{ background: '#D9404015', color: 'var(--error)', border: '1px solid #D9404040' }}
+            >
+              {t('common.delete')}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }

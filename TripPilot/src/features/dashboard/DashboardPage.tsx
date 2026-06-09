@@ -10,7 +10,15 @@ import { Icon } from '@/components/Icon';
 import { useNavigate } from 'react-router';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
-import { transactionRepository } from '@/data/repositories';
+import {
+  transactionRepository,
+  participantShareRepository,
+  settlementRepository,
+  scenarioPlanRepository,
+  scenarioAllocationItemRepository,
+} from '@/data/repositories';
+import { findPendingSharedTransactions } from '@/domain/splitting';
+import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
@@ -42,12 +50,14 @@ function formatElapsed(startedAt: string): string {
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { trip, phases, pools, links, envelopes, transactions, loading, settings } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, participants, loading, settings } = useAppData();
   const navigate = useNavigate();
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+  const [pendingShared, setPendingShared] = useState<Transaction[]>([]);
+  const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
 
   useEffect(() => {
     if (!trip) return;
@@ -68,6 +78,55 @@ export function DashboardPage() {
     };
     load();
   }, [trip, transactions]);
+
+  // GAP-016 (D-C): pending = shared expenses with third-party shares not
+  // covered by settlements yet.
+  useEffect(() => {
+    if (!trip) return;
+    const owner = participants.find((p) => p.isOwner);
+    if (!owner) {
+      setPendingShared([]);
+      return;
+    }
+    const load = async () => {
+      const sharedTxIds = transactions
+        .filter((tx) => tx.isShared && tx.deletedAt === null)
+        .map((tx) => tx.id);
+      const [shares, settlements] = await Promise.all([
+        participantShareRepository.getAllForTrip(sharedTxIds),
+        settlementRepository.getByTripId(trip.id),
+      ]);
+      setPendingShared(
+        findPendingSharedTransactions(transactions, shares, participants, settlements, owner.id),
+      );
+    };
+    load();
+  }, [trip, transactions, participants]);
+
+  // GAP-020 (DEC-006/043): counters show the forecast ("X remaining") from
+  // the active scenario plan of the current phase.
+  useEffect(() => {
+    if (!trip || profiles.length === 0) {
+      setForecasts([]);
+      return;
+    }
+    const phase = resolveActivePhase(phases);
+    const pool = pools.find((p) => p.scope === 'linked_phases');
+    if (!phase || !pool) {
+      setForecasts([]);
+      return;
+    }
+    const load = async () => {
+      const plan = await scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, phase.id, pool.id);
+      if (!plan) {
+        setForecasts([]);
+        return;
+      }
+      const allocations = await scenarioAllocationItemRepository.getByPlanId(plan.id);
+      setForecasts(calculateOccasionForecasts(profiles, allocations, transactions));
+    };
+    load();
+  }, [trip, phases, pools, profiles, transactions]);
 
   if (loading) {
     return (
@@ -104,9 +163,6 @@ export function DashboardPage() {
   const restaurantCount = categoryGroups['restaurant']?.length ?? 0;
   const hasOccasionData = barCount > 0 || marketCount > 0 || restaurantCount > 0;
 
-  const pendingShared = transactions.filter(
-    (tx) => tx.isShared && tx.deletedAt === null && tx.type === 'expense',
-  );
   const hasPendingExpenses = pendingShared.length > 0;
   const pendingImpactCents = pendingShared.reduce((sum, tx) => sum + tx.amountCents, 0);
 
@@ -159,7 +215,8 @@ export function DashboardPage() {
       {/* HEADER */}
       {activePhase && dayNum !== null && (
         <div className="px-5 pt-6 pb-1 flex justify-between items-center">
-          <div>
+          {/* DEC-060 (GAP-024): phase name navigates to the trip overview */}
+          <button onClick={() => navigate('/trip')} className="text-left btn-press">
             <p
               className="text-[11px] tracking-[0.15em] uppercase font-bold"
               style={{ color: '#C75B39aa' }}
@@ -172,8 +229,9 @@ export function DashboardPage() {
             <h1 className="text-xl font-extrabold tracking-tight mt-1 text-on-surface">
               {activePhase.name || trip.name}
             </h1>
-          </div>
-          <div className="relative">
+          </button>
+          {/* DEC-060 (GAP-024): notification bell navigates to shared expenses */}
+          <button onClick={() => navigate('/shared')} className="relative btn-press">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center"
               style={{ background: 'var(--surface-container)' }}
@@ -186,7 +244,7 @@ export function DashboardPage() {
                 style={{ background: 'var(--primary)' }}
               />
             )}
-          </div>
+          </button>
         </div>
       )}
 
@@ -274,8 +332,25 @@ export function DashboardPage() {
         </button>
       )}
 
-      {/* OCCASION COUNTERS */}
-      {hasOccasionData && (
+      {/* OCCASION COUNTERS — forecast first (GAP-020), done-count fallback */}
+      {forecasts.length > 0 ? (
+        <div className="mx-5 mt-4 grid grid-cols-3 gap-3">
+          {forecasts.slice(0, 3).map((forecast) => {
+            const profile = profiles.find((p) => p.id === forecast.profileId);
+            return (
+              <OccasionCounter
+                key={forecast.profileId}
+                icon={profile?.iconName ?? getCategoryIcon(profile?.category ?? 'other')}
+                count={forecast.remaining}
+                label={t('dashboard.occasion_remaining', { name: forecast.profileName })}
+                sublabel={t('dashboard.occasion_done', { count: forecast.spent })}
+                iconBg="#C75B3918"
+                iconColor="var(--primary)"
+              />
+            );
+          })}
+        </div>
+      ) : hasOccasionData ? (
         <div className="mx-5 mt-4 grid grid-cols-3 gap-3">
           <OccasionCounter
             icon="local_bar"
@@ -299,7 +374,7 @@ export function DashboardPage() {
             iconColor="var(--warning)"
           />
         </div>
-      )}
+      ) : null}
 
       {/* SAVINGS CARD */}
       {savings.hasSavings && (
@@ -483,12 +558,14 @@ function OccasionCounter({
   icon,
   count,
   label,
+  sublabel,
   iconBg,
   iconColor,
 }: {
   icon: string;
   count: number;
   label: string;
+  sublabel?: string;
   iconBg: string;
   iconColor: string;
 }) {
@@ -502,6 +579,7 @@ function OccasionCounter({
       </div>
       <p className="text-xl font-extrabold tabular text-on-surface">{count}</p>
       <p className="text-[10px] font-bold text-on-surface-dim">{label}</p>
+      {sublabel && <p className="text-[9px] font-semibold text-on-surface-faint mt-0.5">{sublabel}</p>}
     </div>
   );
 }
