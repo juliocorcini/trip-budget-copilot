@@ -62,7 +62,7 @@ export function SharedExpensesPage() {
             <Icon name="person" size={20} className="text-on-surface-dim" />
             <div>
               <p className="text-sm text-on-surface">{p.name}</p>
-              {p.isOwner && <p className="text-xs text-primary">Eu</p>}
+              {p.isOwner && <p className="text-xs text-primary">{t('shared.owner_tag')}</p>}
             </div>
           </div>
         ))}
@@ -71,7 +71,7 @@ export function SharedExpensesPage() {
       {debtSummary && debtSummary.debts.length > 0 && (
         <div>
           <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-            Dívidas pendentes
+            {t('shared.pending_debts')}
           </p>
           {debtSummary.debts.map((debt, i) => (
             <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
@@ -88,7 +88,7 @@ export function SharedExpensesPage() {
                   onClick={() => handleSettle(debt.debtorId, debt.creditorId, debt.amountCents)}
                   className="px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium btn-press"
                 >
-                  Liquidar
+                  {t('shared.settle')}
                 </button>
               </div>
             </div>
@@ -99,14 +99,14 @@ export function SharedExpensesPage() {
       {debtSummary && debtSummary.debts.length === 0 && (
         <div className="bg-surface-container rounded-xl p-6 text-center">
           <Icon name="handshake" size={32} className="text-success mx-auto mb-2" />
-          <p className="text-sm text-on-surface-dim">Tudo acertado! Sem dívidas pendentes.</p>
+          <p className="text-sm text-on-surface-dim">{t('shared.all_settled')}</p>
         </div>
       )}
 
       {settlements.length > 0 && (
         <div>
           <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-            Liquidações realizadas
+            {t('shared.settlements_done')}
           </p>
           {settlements.map((s) => (
             <div key={s.id} className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center justify-between">

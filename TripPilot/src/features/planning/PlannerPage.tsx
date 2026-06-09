@@ -648,8 +648,18 @@ export function PlannerPage() {
                 >
                   {t('planner.apply_recommendation')}
                 </button>
-                <button className="btn-press py-3 px-4 rounded-xl font-bold text-xs bg-surface-high text-on-surface-dim">
-                  {t('planner.other_options')}
+                <button
+                  onClick={() => setStates((prev) => {
+                    const next = { ...prev };
+                    for (const p of profiles) {
+                      const s = next[p.id];
+                      if (s) next[p.id] = { ...s, count: s.baselineCount };
+                    }
+                    return next;
+                  })}
+                  className="btn-press py-3 px-4 rounded-xl font-bold text-xs bg-surface-high text-on-surface-dim"
+                >
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>

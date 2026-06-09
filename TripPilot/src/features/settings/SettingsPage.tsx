@@ -1,17 +1,38 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
-import { appSettingsRepository } from '@/data/repositories';
+import { appSettingsRepository, walletRepository } from '@/data/repositories';
+import { fromCents, toCents } from '@/domain/money';
 import type { AlertTone, ThemePreference } from '@/domain/types/common';
 
+const LANGUAGE_OPTIONS = [
+  { key: 'pt-BR', label: 'Português (BR)' },
+  { key: 'en', label: 'English' },
+  { key: 'es', label: 'Español' },
+];
+
 export function SettingsPage() {
-  const { t } = useTranslation();
-  const { settings, reload } = useAppData();
+  const { t, i18n } = useTranslation();
+  const { settings, wallets, trip, reload } = useAppData();
+  const [quickAddInput, setQuickAddInput] = useState('');
 
   if (!settings) return null;
 
   const updateSetting = async (partial: Record<string, unknown>) => {
     await appSettingsRepository.update(partial);
     await reload();
+  };
+
+  const handleLanguageChange = async (lang: string) => {
+    await i18n.changeLanguage(lang);
+    await updateSetting({ language: lang });
+  };
+
+  const handlePersistentStorage = async () => {
+    if (navigator.storage?.persist) {
+      const granted = await navigator.storage.persist();
+      await updateSetting({ persistentStorageGranted: granted });
+    }
   };
 
   const toneOptions: { key: AlertTone; labelKey: string }[] = [
@@ -25,6 +46,10 @@ export function SettingsPage() {
     { key: 'light', labelKey: 'settings.theme_light' },
     { key: 'system', labelKey: 'settings.theme_system' },
   ];
+
+  const quickAddDisplay = settings.quickAddDefaultValuesCents
+    .map((c) => fromCents(c).toFixed(2))
+    .join(', ');
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
@@ -62,6 +87,22 @@ export function SettingsPage() {
         </div>
       </Section>
 
+      <Section title={t('settings.language')}>
+        <div className="flex gap-2">
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => handleLanguageChange(opt.key)}
+              className={`flex-1 py-2 rounded-xl text-xs font-medium btn-press ${
+                settings.language === opt.key ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
       <Section title={t('settings.vibration')}>
         <ToggleRow
           label={t('settings.vibration')}
@@ -90,6 +131,99 @@ export function SettingsPage() {
             </select>
           </div>
         )}
+      </Section>
+
+      <Section title={t('settings.device_name')}>
+        <input
+          type="text"
+          value={settings.deviceName}
+          onChange={(e) => updateSetting({ deviceName: e.target.value })}
+          className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+        />
+      </Section>
+
+      <Section title={t('settings.default_wallet')}>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={async () => {
+              if (!trip) return;
+              await walletRepository.clearDefaults(trip.id);
+              await reload();
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+              !wallets.some((w) => w.isDefault) ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+            }`}
+          >
+            {t('settings.no_default_wallet')}
+          </button>
+          {wallets.map((w) => (
+            <button
+              key={w.id}
+              onClick={async () => {
+                if (!trip) return;
+                await walletRepository.clearDefaults(trip.id);
+                await walletRepository.update({ ...w, isDefault: true });
+                await reload();
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                w.isDefault ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {w.name}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title={t('settings.quick_add_defaults')}>
+        <p className="text-xs text-on-surface-faint mb-2">{quickAddDisplay}</p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={quickAddInput}
+            onChange={(e) => setQuickAddInput(e.target.value)}
+            placeholder="3, 5, 7, 10, 15"
+            className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none flex-1"
+          />
+          <button
+            onClick={() => {
+              const values = quickAddInput
+                .split(',')
+                .map((v) => toCents(parseFloat(v.trim())))
+                .filter((v) => v > 0);
+              if (values.length > 0) {
+                updateSetting({ quickAddDefaultValuesCents: values });
+                setQuickAddInput('');
+              }
+            }}
+            className="px-3 py-2 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
+          >
+            {t('common.save')}
+          </button>
+        </div>
+      </Section>
+
+      <Section title={t('settings.persistent_storage')}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-on-surface">
+            {settings.persistentStorageGranted
+              ? t('settings.storage_granted')
+              : t('settings.storage_not_granted')}
+          </span>
+          {!settings.persistentStorageGranted && (
+            <button
+              onClick={handlePersistentStorage}
+              className="px-3 py-1.5 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
+            >
+              {t('settings.request_storage')}
+            </button>
+          )}
+        </div>
+      </Section>
+
+      <Section title={t('settings.about')}>
+        <p className="text-sm text-on-surface">TripPilot v1.0</p>
+        <p className="text-xs text-on-surface-faint mt-1">{t('settings.about_desc')}</p>
       </Section>
     </div>
   );

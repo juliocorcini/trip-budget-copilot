@@ -65,7 +65,7 @@ export function OnboardingPage() {
       <Field label={t('onboarding.protected_reserve')} type="number" value={protectedReserve} onChange={setProtectedReserve} placeholder="0.00" />
     </StepCard>,
     <StepCard key="owner">
-      <Field label="Seu nome" value={ownerName} onChange={setOwnerName} placeholder="Eu" />
+      <Field label={t('onboarding.owner_name')} value={ownerName} onChange={setOwnerName} placeholder="Eu" />
     </StepCard>,
   ];
 

@@ -430,9 +430,9 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, onQuickAdd, onEnd, 
             >
               {t('outing.recent_expenses')}
             </p>
-            <button className="text-[10px] font-bold btn-press" style={{ color: 'var(--primary)' }}>
-              {t('common.view_all')}
-            </button>
+            <span className="text-[10px] font-bold" style={{ color: 'var(--primary)' }}>
+              {sessionTxs.length} {t('expenses.title').toLowerCase()}
+            </span>
           </div>
           <div className="space-y-2">
             {recentTxs.map((tx) => (
@@ -520,6 +520,13 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, onQuickAdd, onEnd, 
             </button>
           ))}
           <button
+            onClick={() => {
+              const input = prompt(t('outing.other_amount'));
+              if (input) {
+                const cents = Math.round(parseFloat(input.replace(',', '.')) * 100);
+                if (cents > 0) onQuickAdd(cents);
+              }
+            }}
             className="btn-press quick-btn rounded-xl font-semibold text-sm"
             style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
           >

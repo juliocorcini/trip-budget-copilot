@@ -10,7 +10,7 @@ import { toCents, formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 
 export function SimulatorPage() {
-  useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { trip, phases, pools, links, envelopes, transactions } = useAppData();
 
@@ -47,12 +47,12 @@ export function SimulatorPage() {
         <button onClick={() => navigate(-1)} className="btn-press p-1">
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
-        <h1 className="text-heading font-bold text-on-surface">Simulador</h1>
+        <h1 className="text-heading font-bold text-on-surface">{t('simulator.title')}</h1>
       </div>
 
       {fts && (
         <div className="bg-surface-container rounded-xl p-4">
-          <p className="text-xs text-on-surface-faint">Disponível agora</p>
+          <p className="text-xs text-on-surface-faint">{t('simulator.available')}</p>
           <p className="text-lg font-bold tabular text-on-surface">
             {formatMoney(fts.freeToSpendCents, trip.baseCurrency)}
           </p>
@@ -60,7 +60,7 @@ export function SimulatorPage() {
       )}
 
       <div className="bg-surface-container rounded-2xl p-5">
-        <label className="text-xs text-on-surface-faint mb-1 block">Quanto quer gastar?</label>
+        <label className="text-xs text-on-surface-faint mb-1 block">{t('simulator.how_much')}</label>
         <div className="flex items-baseline gap-1">
           <span className="text-on-surface-dim text-lg">{trip.baseCurrency}</span>
           <input
@@ -84,16 +84,13 @@ export function SimulatorPage() {
             className={`mx-auto mb-2 ${result.canSpend ? 'text-success' : 'text-error'}`}
           />
           <p className={`text-lg font-bold ${riskColors[result.risk]}`}>
-            {result.risk === 'low' ? 'Tranquilo!' :
-             result.risk === 'medium' ? 'Dá, mas pense.' :
-             result.risk === 'high' ? 'Arriscado.' :
-             'Estoura o orçamento.'}
+            {t(`simulator.risk_${result.risk}`)}
           </p>
           <p className="text-sm text-on-surface-dim mt-2">
-            Depois: {formatMoney(Math.max(0, result.freeAfterCents), trip.baseCurrency)} restantes
+            {t('simulator.after', { amount: formatMoney(Math.max(0, result.freeAfterCents), trip.baseCurrency) })}
           </p>
           <p className="text-xs text-on-surface-faint mt-1">
-            {result.percentOfRemaining}% do disponível
+            {t('simulator.percent_used', { percent: result.percentOfRemaining })}
           </p>
         </div>
       )}

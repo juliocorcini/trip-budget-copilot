@@ -12,11 +12,8 @@ const SECTIONS: { titleKey: string; items: MenuItem[] }[] = [
   {
     titleKey: 'more.section_trip',
     items: [
-      { icon: 'map', labelKey: 'more.overview', path: '/trip' },
-      { icon: 'timeline', labelKey: 'more.edit_phases', path: '/trip/edit' },
       { icon: 'account_balance_wallet', labelKey: 'more.funds', path: '/planner' },
       { icon: 'groups', labelKey: 'more.participants', path: '/shared' },
-      { icon: 'credit_card', labelKey: 'more.wallets', path: '/wallets' },
     ],
   },
   {

@@ -81,6 +81,13 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col pb-6">
+      {/* DEMO BANNER */}
+      {settings.isDemo && (
+        <div className="mx-5 mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
+          <p className="text-xs font-semibold text-warning">{t('demo.banner')}</p>
+        </div>
+      )}
+
       {/* HEADER */}
       {activePhase && dayNum !== null && (
         <div className="px-5 pt-6 pb-1 flex justify-between items-center">

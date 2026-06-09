@@ -132,6 +132,7 @@
     "alert_tone_direto": "Direto",
     "currency": "Moeda padrão",
     "default_wallet": "Carteira padrão",
+    "no_default_wallet": "Nenhuma",
     "vibration": "Vibração em alertas",
     "backup_reminder": "Lembrete de backup",
     "backup_days": "Dias para lembrar",
@@ -142,7 +143,12 @@
     "language": "Idioma",
     "device_name": "Nome do dispositivo",
     "persistent_storage": "Armazenamento persistente",
-    "about": "Sobre"
+    "storage_granted": "Armazenamento persistente ativado",
+    "storage_not_granted": "Dados podem ser removidos pelo navegador",
+    "request_storage": "Ativar",
+    "quick_add_defaults": "Valores rápidos padrão",
+    "about": "Sobre",
+    "about_desc": "Seu copiloto de orçamento de viagem"
   },
   "backup": {
     "title": "Backup e dados",
@@ -191,6 +197,7 @@
     "currency": "Moeda",
     "amount": "Valor disponível",
     "protected_reserve": "Reserva protegida (opcional)",
+    "owner_name": "Seu nome",
     "next": "Próximo",
     "finish": "Começar"
   },
@@ -219,6 +226,24 @@
     "next_drink_message": "Ainda cabe sem afetar suas próximas saídas.",
     "other_amount": "Outro",
     "register_total": "Registrar total atual"
+  },
+  "simulator": {
+    "title": "Simulador",
+    "available": "Disponível agora",
+    "how_much": "Quanto quer gastar?",
+    "risk_low": "Tranquilo!",
+    "risk_medium": "Dá, mas pense.",
+    "risk_high": "Arriscado.",
+    "risk_critical": "Estoura o orçamento.",
+    "after": "Depois: {{amount}} restantes",
+    "percent_used": "{{percent}}% do disponível"
+  },
+  "shared": {
+    "owner_tag": "Eu",
+    "pending_debts": "Dívidas pendentes",
+    "settle": "Liquidar",
+    "all_settled": "Tudo acertado! Sem dívidas pendentes.",
+    "settlements_done": "Liquidações realizadas"
   },
   "common": {
     "save": "Salvar",

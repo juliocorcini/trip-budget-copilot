@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { findActivePhase } from '@/domain/dates';
@@ -23,11 +23,13 @@ const CATEGORIES = [
 export function QuickAddPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { trip, phases, pools, wallets, settings, reload } = useAppData();
 
+  const initialCategory = searchParams.get('cat') ?? 'other';
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('other');
+  const [category, setCategory] = useState(initialCategory);
   const [walletId, setWalletId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string>('');
   const [saving, setSaving] = useState(false);
