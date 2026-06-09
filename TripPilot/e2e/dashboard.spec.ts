@@ -18,7 +18,7 @@ test.describe('Dashboard', () => {
   });
 
   test('should show budget pools with progress bars', async ({ page }) => {
-    const pools = page.locator('.bg-surface-container .h-1\\.5');
+    const pools = page.locator('.bg-surface-container .h-2');
     await expect(pools.first()).toBeVisible();
   });
 

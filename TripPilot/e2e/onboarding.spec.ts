@@ -36,6 +36,9 @@ test.describe('Onboarding flow', () => {
     const amountInput = page.locator('input[type="number"]').first();
     await amountInput.fill('3000');
 
+    // Steps: trip → budget → owner → wallets (GAP-026 / DEC-051).
+    await nextButton.click();
+    await page.waitForTimeout(500);
     await nextButton.click();
     await page.waitForTimeout(500);
 

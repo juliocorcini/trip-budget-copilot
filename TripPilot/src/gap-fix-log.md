@@ -1,13 +1,14 @@
 # Gap Fix Log — TripPilot
 
 ## Current State
-- **Gate ativo**: 8
-- **Gap ativo**: verificação final + deploy
+- **Status**: ✅ CONCLUÍDO — 36/36 gaps resolvidos, deploy no ar
 - **Gaps resolvidos**: 36/36
-- **Testes**: 156 passing (baseline 105 + 51 novos)
+- **Testes**: 156 unit passing (baseline 105 + 51 novos) + 22/22 e2e (Playwright/chromium)
 - **Build/Typecheck**: clean
-- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 4f4e756 · Gate 5 8b9f8b9 · Gate 6 f9cc287 · Gate 7 (ver git log)
+- **Deploy**: https://a0bc40ce.trippilot.pages.dev (alias https://master.trippilot.pages.dev) — v0.2.0
+- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 4f4e756 · Gate 5 8b9f8b9 · Gate 6 f9cc287 · Gate 7 a6d66c2 · Gate 8 (ver git log)
 - **Nota git**: usar `bash -c 'git commit ...'` (git local não suporta --trailer)
+- **Nota node**: wrangler/playwright exigem Node 22 → `export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`
 
 ## Por gate
 
@@ -74,8 +75,13 @@
 - [x] Brain atualizado: project-status.md reescrito (D1–D6 + gap-fix, débitos registrados); decision-log DEC-061..070 (= D-A..D-J); contradições corrigidas (domain-functions nota DEC-067, database-schema v2, v1-screen-list Reports D3+, gap-analysis com banner RESOLVIDO); version bump 0.1.0 → 0.2.0
 
 ### Gate 8 — Verificação final + deploy
-- [ ] Re-auditoria 36/36
-- [ ] Deploy
+- [x] Re-auditoria 36/36 — cada "DONE quando" confirmado no código via grep dirigido (não de memória)
+- [x] rg "alert(|prompt(|window.confirm" src/ → 0 (só 1 comentário e 1 linha do log)
+- [x] i18n: 401 chaves, paridade pt-BR/en/es = 0 diffs; todas as 311 chaves usadas existem
+- [x] Unit: 156/156 ✅ · Typecheck: 0 erros ✅ · Build: clean ✅
+- [x] Playwright: 22/22 ✅ (Node 22; 3 specs desatualizados corrigidos: FAB no nav = 5 botões, progress bar h-2, passo de carteiras no onboarding)
+- [x] Golden paths verificados via re-auditoria: onboarding→dashboard (com carteiras), registrar gasto (pools filtrados + zero-budget sheet), saída início→revisão→fim (limites, alertas, split, aprendizado), backup export→import (21 tabelas, merge, zod), saque (transfer banco→cash, orçamento intocado), tema ao vivo (useLiveSettings)
+- [x] Deploy: npx wrangler pages deploy dist → https://a0bc40ce.trippilot.pages.dev
 
 ## Decisões aplicadas
 - [x] D-A backup reminder 7 dias (DEC-061)

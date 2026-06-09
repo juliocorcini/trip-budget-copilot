@@ -12,11 +12,11 @@ test.describe('App navigation', () => {
     await loadDemoData(page);
   });
 
-  test('should have bottom navigation with 4 tabs', async ({ page }) => {
+  test('should have bottom navigation with 4 tabs plus central FAB', async ({ page }) => {
     const nav = page.locator('nav');
     await expect(nav).toBeVisible();
     const links = nav.locator('a, button');
-    await expect(links).toHaveCount(4);
+    await expect(links).toHaveCount(5);
   });
 
   test('should navigate to planner', async ({ page }) => {
