@@ -2,68 +2,70 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { createBackup, parseBackupFile, analyzeImport, generateBackupFilename } from '@/domain/backup';
-import { transactionsToCsvRows, rowsToCsv, downloadFile } from '@/domain/backup';
-import { appSettingsRepository, tripRepository, phaseRepository, budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository, transactionRepository, walletRepository, participantRepository, participantShareRepository, activityProfileRepository } from '@/data/repositories';
+import {
+  parseBackupFileSafe,
+  analyzeImport,
+  generateBackupFilename,
+  transactionsToCsvRows,
+  rowsToCsv,
+  downloadFile,
+} from '@/domain/backup';
+import { buildFullBackup, importBackup } from '@/domain/orchestrators';
+import { appSettingsRepository } from '@/data/repositories';
+import { sessionRepository } from '@/data/repositories/session-repository';
 import type { BackupData, ImportAnalysis } from '@/domain/backup';
 import { formatDate } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
+import { showToast } from '@/components/Toast';
 
 export function BackupPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, envelopes, transactions, wallets, participants, settings, reload } = useAppData();
+  const { trip, phases, pools, transactions, wallets, participants, settings, reload } = useAppData();
   const csvAutoTriggered = useRef(false);
   const [importAnalysis, setImportAnalysis] = useState<ImportAnalysis | null>(null);
   const [importData, setImportData] = useState<BackupData | null>(null);
   const [mergeMode, setMergeMode] = useState<'merge' | 'replace'>('merge');
+  const [csvAdvanced, setCsvAdvanced] = useState(false);
+
+  const exportCsv = async (advanced: boolean) => {
+    if (!trip) return;
+    const sessions = await sessionRepository.getByTripId(trip.id);
+    const rows = transactionsToCsvRows({
+      transactions,
+      pools,
+      wallets,
+      phases,
+      trips: [trip],
+      sessions,
+      participants,
+      currency: trip.baseCurrency,
+      advanced,
+    });
+    const csv = rowsToCsv(rows, advanced);
+    downloadFile(
+      csv,
+      `trippilot-expenses-${new Date().toISOString().slice(0, 10)}.csv`,
+      'text/csv;charset=utf-8',
+    );
+  };
 
   useEffect(() => {
     if (searchParams.get('csv') === 'true' && trip && !csvAutoTriggered.current) {
       csvAutoTriggered.current = true;
-      const rows = transactionsToCsvRows(transactions, pools, wallets, phases, trip.baseCurrency);
-      const csv = rowsToCsv(rows);
-      downloadFile(csv, `trippilot-expenses-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
+      exportCsv(false);
     }
-  }, [searchParams, trip, transactions, pools, wallets, phases]);
-
-  const buildLocalBackup = async (): Promise<BackupData | null> => {
-    if (!settings) return null;
-    const txIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
-    const [shares, profiles] = await Promise.all([
-      participantShareRepository.getAllForTrip(txIds),
-      trip ? activityProfileRepository.getByTripId(trip.id) : Promise.resolve([]),
-    ]);
-    return createBackup({
-      deviceId: settings.deviceName,
-      appSettings: settings,
-      trips: trip ? [trip] : [],
-      phases,
-      budgetPools: pools,
-      budgetPoolPhaseLinks: links,
-      envelopes,
-      participants,
-      wallets,
-      transactions,
-      participantShares: shares,
-      activityProfiles: profiles,
-    });
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, trip]);
 
   const handleExport = async () => {
-    const data = await buildLocalBackup();
-    if (!data) return;
+    if (!settings) return;
+    const data = await buildFullBackup(settings);
     const json = JSON.stringify(data, null, 2);
     downloadFile(json, generateBackupFilename(), 'application/json');
+    // D-J: persist last backup date so the dashboard reminder works.
     await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
     await reload();
-  };
-
-  const handleCsvExport = () => {
-    if (!trip) return;
-    const rows = transactionsToCsvRows(transactions, pools, wallets, phases, trip.baseCurrency);
-    const csv = rowsToCsv(rows);
-    downloadFile(csv, `trippilot-expenses-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,45 +73,24 @@ export function BackupPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async () => {
-      const parsed = parseBackupFile(reader.result as string);
-      if (!parsed || !settings) return;
-      setImportData(parsed);
-      const localBackup = await buildLocalBackup();
-      if (!localBackup) return;
-      setImportAnalysis(analyzeImport(localBackup, parsed));
+      const parsed = parseBackupFileSafe(reader.result as string);
+      if (!parsed.data) {
+        showToast(t('backup.invalid_file', { error: parsed.error ?? '' }), 'danger');
+        return;
+      }
+      if (!settings) return;
+      setImportData(parsed.data);
+      const localBackup = await buildFullBackup(settings);
+      setImportAnalysis(analyzeImport(localBackup, parsed.data));
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleImport = async () => {
     if (!importData) return;
-    if (mergeMode === 'replace') {
-      await Promise.all([
-        tripRepository.clear(), phaseRepository.clear(), budgetPoolRepository.clear(),
-        budgetPoolPhaseLinkRepository.clear(), envelopeRepository.clear(),
-        transactionRepository.clear(), walletRepository.clear(), participantRepository.clear(),
-        participantShareRepository.clear(), activityProfileRepository.clear(),
-      ]);
-    }
-
-    for (const t of importData.trips) await tripRepository.create(t).catch(() => {});
-    for (const p of importData.phases) await phaseRepository.create(p).catch(() => {});
-    for (const p of importData.budgetPools) await budgetPoolRepository.create(p).catch(() => {});
-    for (const l of importData.budgetPoolPhaseLinks) await budgetPoolPhaseLinkRepository.create(l).catch(() => {});
-    for (const e of importData.envelopes) await envelopeRepository.create(e).catch(() => {});
-    for (const tx of importData.transactions) await transactionRepository.create(tx).catch(() => {});
-    for (const w of importData.wallets) await walletRepository.create(w).catch(() => {});
-    for (const p of importData.participants) await participantRepository.create(p).catch(() => {});
-    for (const s of importData.participantShares ?? []) await participantShareRepository.create(s).catch(() => {});
-    for (const a of importData.activityProfiles ?? []) await activityProfileRepository.create(a).catch(() => {});
-
-    if (importData.appSettings.activeTrip) {
-      await appSettingsRepository.update({
-        activeTrip: importData.appSettings.activeTrip,
-        onboardingCompleted: true,
-      });
-    }
-
+    await importBackup(importData, mergeMode);
+    showToast(t('backup.import_done'), 'success');
     setImportAnalysis(null);
     setImportData(null);
     await reload();
@@ -132,12 +113,29 @@ export function BackupPage() {
         </div>
       </button>
 
-      <button onClick={handleCsvExport} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left">
-        <Icon name="table_chart" size={24} className="text-success" />
-        <div>
-          <p className="text-sm font-medium text-on-surface">{t('backup.export_csv')}</p>
-        </div>
-      </button>
+      <div className="bg-surface-container rounded-xl p-4">
+        <button onClick={() => exportCsv(csvAdvanced)} className="flex items-center gap-3 btn-press text-left w-full">
+          <Icon name="table_chart" size={24} className="text-success" />
+          <div>
+            <p className="text-sm font-medium text-on-surface">{t('backup.export_csv')}</p>
+          </div>
+        </button>
+        <button
+          onClick={() => setCsvAdvanced((v) => !v)}
+          className="w-full flex items-center justify-between mt-3 btn-press"
+        >
+          <span className="text-xs text-on-surface-dim">{t('backup.csv_advanced')}</span>
+          <span
+            className="w-10 h-6 rounded-full relative transition-colors"
+            style={{ background: csvAdvanced ? 'var(--primary)' : 'var(--surface-high)' }}
+          >
+            <span
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
+              style={{ left: csvAdvanced ? '18px' : '2px' }}
+            />
+          </span>
+        </button>
+      </div>
 
       <label className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press cursor-pointer">
         <Icon name="cloud_download" size={24} className="text-warning" />

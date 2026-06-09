@@ -3,12 +3,20 @@ export {
   analyzeImport,
   mergeBackupData,
   parseBackupFile,
+  parseBackupFileSafe,
   generateBackupFilename,
   BACKUP_VERSION,
+  BACKUP_TABLE_KEYS,
 } from './backup';
-export type { BackupData, ImportAnalysis } from './backup';
+export type {
+  BackupData,
+  BackupTableKey,
+  ImportAnalysis,
+  ParseBackupResult,
+} from './backup';
 export {
   transactionsToCsvRows,
   rowsToCsv,
   downloadFile,
 } from './csv-export';
+export type { CsvExportContext } from './csv-export';

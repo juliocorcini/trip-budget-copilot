@@ -96,6 +96,41 @@ export const transactionSchema = syncMetadataSchema.extend({
   notes: z.string().nullable(),
 });
 
+/**
+ * Backup file validation (GAP-029). Core entities are validated against
+ * their full schemas; remaining tables are validated structurally via
+ * SyncMetadata. `.passthrough()` keeps unknown fields so newer-format
+ * backups survive a round-trip through an older app version.
+ */
+const syncedRecordSchema = syncMetadataSchema.passthrough();
+
+export const backupFileSchema = z.object({
+  version: z.number().int().positive(),
+  exportedAt: z.string().min(1),
+  deviceId: z.string().min(1),
+  appSettings: z.object({ id: z.string().min(1) }).passthrough(),
+  trips: z.array(tripSchema.passthrough()).default([]),
+  phases: z.array(phaseSchema.passthrough()).default([]),
+  budgetPools: z.array(budgetPoolSchema.passthrough()).default([]),
+  budgetPoolPhaseLinks: z.array(budgetPoolPhaseLinkSchema.passthrough()).default([]),
+  envelopes: z.array(envelopeSchema.passthrough()).default([]),
+  participants: z.array(participantSchema.passthrough()).default([]),
+  wallets: z.array(walletSchema.passthrough()).default([]),
+  transactions: z.array(transactionSchema.passthrough()).default([]),
+  participantShares: z.array(syncedRecordSchema).default([]),
+  activityProfiles: z.array(syncedRecordSchema).default([]),
+  sessions: z.array(syncedRecordSchema).default([]),
+  sessionItems: z.array(syncedRecordSchema).default([]),
+  settlements: z.array(syncedRecordSchema).default([]),
+  scenarioPlans: z.array(syncedRecordSchema).default([]),
+  scenarioAllocationItems: z.array(syncedRecordSchema).default([]),
+  plannedOccurrences: z.array(syncedRecordSchema).default([]),
+  forecastSnapshots: z.array(syncedRecordSchema).default([]),
+  futurePhaseReservePolicies: z.array(syncedRecordSchema).default([]),
+  alertRules: z.array(syncedRecordSchema).default([]),
+  devices: z.array(syncedRecordSchema).default([]),
+});
+
 export const createTripInputSchema = z.object({
   name: z.string().min(1).max(100),
   baseCurrency: z.string().length(3),

@@ -8,8 +8,17 @@ import type { Wallet } from '@/domain/types/wallet';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { Session, SessionItem } from '@/domain/types/session';
+import type { Settlement } from '@/domain/types/settlement';
+import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
+import type { ForecastSnapshot } from '@/domain/types/forecast-snapshot';
+import type { FuturePhaseReservePolicy } from '@/domain/types/future-phase-reserve-policy';
+import type { AlertRule } from '@/domain/types/alert-rule';
+import type { Device } from '@/domain/types/device';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { SyncMetadata } from '@/domain/types/common';
+import { backupFileSchema } from '@/domain/validation/schemas';
 
 export interface BackupData {
   version: number;
@@ -26,9 +35,48 @@ export interface BackupData {
   transactions: Transaction[];
   participantShares: ParticipantShare[];
   activityProfiles: ActivityProfile[];
+  sessions: Session[];
+  sessionItems: SessionItem[];
+  settlements: Settlement[];
+  scenarioPlans: ScenarioPlan[];
+  scenarioAllocationItems: ScenarioAllocationItem[];
+  plannedOccurrences: PlannedOccurrence[];
+  forecastSnapshots: ForecastSnapshot[];
+  futurePhaseReservePolicies: FuturePhaseReservePolicy[];
+  alertRules: AlertRule[];
+  devices: Device[];
 }
 
-export const BACKUP_VERSION = 1;
+/** v2: full 21-table coverage (GAP-003). v1 files import with missing tables as empty. */
+export const BACKUP_VERSION = 2;
+
+export type BackupTableKey = keyof Omit<
+  BackupData,
+  'version' | 'exportedAt' | 'deviceId' | 'appSettings'
+>;
+
+export const BACKUP_TABLE_KEYS: BackupTableKey[] = [
+  'trips',
+  'phases',
+  'budgetPools',
+  'budgetPoolPhaseLinks',
+  'envelopes',
+  'participants',
+  'wallets',
+  'transactions',
+  'participantShares',
+  'activityProfiles',
+  'sessions',
+  'sessionItems',
+  'settlements',
+  'scenarioPlans',
+  'scenarioAllocationItems',
+  'plannedOccurrences',
+  'forecastSnapshots',
+  'futurePhaseReservePolicies',
+  'alertRules',
+  'devices',
+];
 
 export function createBackup(data: Omit<BackupData, 'version' | 'exportedAt'>): BackupData {
   return {
@@ -53,15 +101,9 @@ export function analyzeImport(
   let updatedRecords = 0;
   let conflicts = 0;
 
-  const tables: (keyof Omit<BackupData, 'version' | 'exportedAt' | 'deviceId' | 'appSettings'>)[] = [
-    'trips', 'phases', 'budgetPools', 'budgetPoolPhaseLinks',
-    'envelopes', 'participants', 'wallets', 'transactions',
-    'participantShares', 'activityProfiles',
-  ];
-
-  for (const table of tables) {
-    const localItems = local[table] as SyncMetadata[];
-    const incomingItems = incoming[table] as SyncMetadata[];
+  for (const table of BACKUP_TABLE_KEYS) {
+    const localItems = (local[table] ?? []) as SyncMetadata[];
+    const incomingItems = (incoming[table] ?? []) as SyncMetadata[];
     const localMap = new Map(localItems.map((i) => [i.id, i]));
 
     for (const item of incomingItems) {
@@ -109,14 +151,37 @@ export function mergeBackupData<T extends SyncMetadata>(
   return Array.from(merged.values());
 }
 
-export function parseBackupFile(jsonString: string): BackupData | null {
+export interface ParseBackupResult {
+  data: BackupData | null;
+  error: string | null;
+}
+
+/**
+ * GAP-029: validates the file against the Zod schemas before anything is
+ * written. Malformed files yield a clear error and zero partial writes.
+ * v1 files (missing tables) are normalized with empty arrays.
+ */
+export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
+  let raw: unknown;
   try {
-    const data = JSON.parse(jsonString) as BackupData;
-    if (!data.version || !data.exportedAt) return null;
-    return data;
+    raw = JSON.parse(jsonString);
   } catch {
-    return null;
+    return { data: null, error: 'invalid_json' };
   }
+
+  const result = backupFileSchema.safeParse(raw);
+  if (!result.success) {
+    const first = result.error.issues[0];
+    return {
+      data: null,
+      error: first ? `${first.path.join('.')}: ${first.message}` : 'invalid_schema',
+    };
+  }
+  return { data: result.data as unknown as BackupData, error: null };
+}
+
+export function parseBackupFile(jsonString: string): BackupData | null {
+  return parseBackupFileSafe(jsonString).data;
 }
 
 export function generateBackupFilename(): string {

@@ -1,12 +1,12 @@
 # Gap Fix Log — TripPilot
 
 ## Current State
-- **Gate ativo**: 2
-- **Gap ativo**: GAP-015 (após M2.0 — primitivos já criados no Gate 1)
-- **Gaps resolvidos**: 4/36
-- **Testes**: 114 passing (baseline 105 + 9 novos)
+- **Gate ativo**: 3
+- **Gap ativo**: GAP-003
+- **Gaps resolvidos**: 9/36
+- **Testes**: 121 passing (baseline 105 + 16 novos)
 - **Build/Typecheck**: clean
-- **Commit Gate 1**: b8259f8
+- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6
 - **Nota git**: usar `bash -c 'git commit ...'` (git local não suporta --trailer)
 
 ## Por gate
@@ -25,12 +25,12 @@
 
 ### Gate 2 — Outing Mode
 - [x] M2.0 — primitivos BottomSheet + Toast (antecipados no Gate 1, ToastHost no main.tsx)
-- [ ] GAP-015 — configuração de limites no início da sessão
-- [ ] GAP-005 — alertas progressivos + vibração
-- [ ] GAP-012 — split dentro da sessão
-- [ ] GAP-002 — revisão de encerramento
-- [ ] GAP-007 — motor de aprendizado ligado
-- [ ] Orquestrador endOutingSession + teste
+- [x] GAP-015 — SessionStartConfigForm (nome, 3 limites, avg drink, quick values editáveis) + deriveSessionLimits fallback €5 — OutingPage.tsx, outing.ts
+- [x] GAP-005 — getProgressiveAlerts ligado ao quick-add; toast por tom (amigo_sincero/calmo/direto); navigator.vibrate; firedAlertPercents na Session (1x por marco) — OutingPage.tsx, session.ts
+- [x] GAP-012 — split na sessão via BottomSheet; buildSharesWithPayer extraído p/ domain/splitting (reusado no QuickAdd); calculateSessionTotal usa personalCostCents — OutingPage.tsx, splitting.ts, outing.ts
+- [x] GAP-002 — SessionReview: total, itens editáveis, carteira em lote, diferença de caixa opcional, típica/especial + excludeFromLearning, CTA confirmar — OutingPage.tsx
+- [x] GAP-007 — updateProfileFromTransaction chamado no endOutingSession (itens não-excluídos, personalCost p/ shared); especial NÃO atualiza — outing-orchestrators.ts
+- [x] Orquestrador endOutingSession (db.transaction atômico) + 3 testes; registerExpense + 1 teste; deriveSessionLimits + 3 testes
 
 ### Gate 3 — Dados seguros
 - [ ] GAP-003 — backup com 21 tabelas + versionamento

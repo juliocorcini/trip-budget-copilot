@@ -38,12 +38,22 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
   transactions: [],
   participantShares: [],
   activityProfiles: [],
+  sessions: [],
+  sessionItems: [],
+  settlements: [],
+  scenarioPlans: [],
+  scenarioAllocationItems: [],
+  plannedOccurrences: [],
+  forecastSnapshots: [],
+  futurePhaseReservePolicies: [],
+  alertRules: [],
+  devices: [],
 });
 
 describe('createBackup', () => {
   it('adds version and export date', () => {
     const backup = createBackup(emptyBackup());
-    expect(backup.version).toBe(1);
+    expect(backup.version).toBe(2);
     expect(backup.exportedAt).toBeTruthy();
   });
 });
@@ -53,7 +63,7 @@ describe('analyzeImport', () => {
     const local = createBackup(emptyBackup());
     const incoming = createBackup({
       ...emptyBackup('dev-2'),
-      trips: [{ id: 'trip-1', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', deletedAt: null, revision: 1, sourceDeviceId: 'dev-2', name: 'Test', baseCurrency: 'EUR', startDate: '2026-01-01', endDate: '2026-01-31', status: 'active', notes: null }],
+      trips: [{ id: '4f9c20de-9e94-4f0b-8a3e-111111111111', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', deletedAt: null, revision: 1, sourceDeviceId: '4f9c20de-9e94-4f0b-8a3e-222222222222', name: 'Test', baseCurrency: 'EUR', startDate: '2026-01-01', endDate: '2026-01-31', status: 'active', notes: null }],
     });
     const analysis = analyzeImport(local, incoming);
     expect(analysis.newRecords).toBe(1);
@@ -91,7 +101,7 @@ describe('parseBackupFile', () => {
     const backup = createBackup(emptyBackup());
     const result = parseBackupFile(JSON.stringify(backup));
     expect(result).not.toBeNull();
-    expect(result!.version).toBe(1);
+    expect(result!.version).toBe(2);
   });
 
   it('returns null for invalid JSON', () => {
@@ -100,6 +110,33 @@ describe('parseBackupFile', () => {
 
   it('returns null for missing version', () => {
     expect(parseBackupFile('{"exportedAt":"2026"}')).toBeNull();
+  });
+
+  it('normalizes v1 files: missing tables become empty arrays (GAP-003)', () => {
+    const v1 = {
+      version: 1,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      deviceId: 'dev-1',
+      appSettings: { id: 'app-settings' },
+      trips: [],
+      phases: [],
+    };
+    const result = parseBackupFile(JSON.stringify(v1));
+    expect(result).not.toBeNull();
+    expect(result!.sessions).toEqual([]);
+    expect(result!.settlements).toEqual([]);
+    expect(result!.devices).toEqual([]);
+  });
+
+  it('rejects structurally invalid records with a clear error (GAP-029)', () => {
+    const malformed = {
+      version: 2,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      deviceId: 'dev-1',
+      appSettings: { id: 'app-settings' },
+      transactions: [{ id: 'not-a-uuid', amountCents: 'oops' }],
+    };
+    expect(parseBackupFile(JSON.stringify(malformed))).toBeNull();
   });
 });
 
