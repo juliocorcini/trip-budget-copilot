@@ -109,6 +109,7 @@ export function createAdjustmentTransaction(
   amountCents: number,
   currency: string,
   reason: string,
+  category: TransactionCategory = 'reconciliation',
 ): Transaction {
   return {
     ...createSyncMetadata(),
@@ -123,7 +124,7 @@ export function createAdjustmentTransaction(
     currency,
     baseCurrencyAmountCents: amountCents,
     exchangeRate: null,
-    category: 'reconciliation' as TransactionCategory,
+    category,
     description: reason,
     date: new Date().toISOString(),
     isShared: false,

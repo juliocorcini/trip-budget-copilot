@@ -7,6 +7,7 @@ import {
   createSessionItem,
   calculateSessionTotal,
   calculateNextDrinkImpact,
+  calculateReportedTotalDiff,
   endSession as endSessionDomain,
 } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
@@ -20,6 +21,8 @@ import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { db } from '@/data/db/database';
@@ -93,7 +96,7 @@ export function OutingPage() {
 
   const handleStartSession = async (profile: ActivityProfile) => {
     if (!trip || !currentPhase || !defaultPool) {
-      alert(t('outing.start_error'));
+      showToast(t('outing.start_error'), 'danger');
       return;
     }
     const quickAdd =
@@ -120,7 +123,7 @@ export function OutingPage() {
     await handleStartSession(profile);
   };
 
-  const handleQuickAdd = async (amountCents: number) => {
+  const addSessionExpense = async (amountCents: number, description: string) => {
     if (!session || !trip || !currentPhase) return;
     const sessionProfile = profiles.find((p) => p.id === session.activityProfileId);
     const tx = createExpenseTransaction({
@@ -131,7 +134,7 @@ export function OutingPage() {
       amountCents,
       currency: trip.baseCurrency,
       category: sessionProfile?.category ?? 'other',
-      description: session.name,
+      description,
       sessionId: session.id,
       activityProfileId: session.activityProfileId,
     });
@@ -141,6 +144,17 @@ export function OutingPage() {
     await db.sessionItems.add(item);
     setSessionTxs((prev) => [...prev, tx]);
     setItemCount(newCount);
+  };
+
+  const handleQuickAdd = async (amountCents: number) => {
+    if (!session) return;
+    await addSessionExpense(amountCents, session.name);
+  };
+
+  // DEC-046: reported total creates an adjustment for the DIFFERENCE,
+  // never replacing logged items.
+  const handleRegisterTotal = async (diffCents: number) => {
+    await addSessionExpense(diffCents, t('outing.total_adjustment_desc'));
   };
 
   const handleEndSession = async () => {
@@ -240,6 +254,7 @@ export function OutingPage() {
     sessionIcon={sessionIcon}
     sessionCategory={sessionCategory}
     onQuickAdd={handleQuickAdd}
+    onRegisterTotal={handleRegisterTotal}
     onEnd={handleEndSession}
     onBack={() => navigate(-1)}
   />;
@@ -253,13 +268,24 @@ interface ActiveSessionProps {
   sessionIcon: string;
   sessionCategory: string;
   onQuickAdd: (cents: number) => void;
+  onRegisterTotal: (diffCents: number) => void;
   onEnd: () => void;
   onBack: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, onQuickAdd, onEnd, onBack }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, onQuickAdd, onRegisterTotal, onEnd, onBack }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
+
+  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | null>(null);
+  const [sheetAmount, setSheetAmount] = useState('');
+  const [negativeConfirmed, setNegativeConfirmed] = useState(false);
+
+  const closeSheet = () => {
+    setActiveSheet(null);
+    setSheetAmount('');
+    setNegativeConfirmed(false);
+  };
 
   const totalSpent = useMemo(() => calculateSessionTotal(sessionTxs), [sessionTxs]);
   const targetCents = session.targetCents ?? 0;
@@ -582,13 +608,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
             </button>
           ))}
           <button
-            onClick={() => {
-              const input = prompt(t('outing.other_amount'));
-              if (input) {
-                const cents = Math.round(parseFloat(input.replace(',', '.')) * 100);
-                if (cents > 0) onQuickAdd(cents);
-              }
-            }}
+            onClick={() => setActiveSheet('other')}
             className="btn-press quick-btn rounded-xl font-semibold text-sm"
             style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
           >
@@ -596,13 +616,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
           </button>
         </div>
         <button
-          onClick={() => {
-            const input = prompt(t('outing.register_total'));
-            if (input) {
-              const cents = Math.round(parseFloat(input.replace(',', '.')) * 100);
-              if (cents > 0) onQuickAdd(cents);
-            }
-          }}
+          onClick={() => setActiveSheet('total')}
           className="btn-press w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
           style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
         >
@@ -610,6 +624,133 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
           {t('outing.register_total')}
         </button>
       </div>
+
+      {/* "Other amount" sheet (replaces native prompt — GAP-025) */}
+      <BottomSheet
+        open={activeSheet === 'other'}
+        onClose={closeSheet}
+        title={t('outing.other_amount')}
+      >
+        <SheetAmountInput
+          currency={currency}
+          value={sheetAmount}
+          onChange={setSheetAmount}
+        />
+        <button
+          onClick={() => {
+            const cents = Math.round(parseFloat(sheetAmount.replace(',', '.')) * 100);
+            if (cents > 0) {
+              onQuickAdd(cents);
+              closeSheet();
+            }
+          }}
+          disabled={!sheetAmount || parseFloat(sheetAmount.replace(',', '.')) <= 0}
+          className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40 mt-3"
+        >
+          {t('common.add')}
+        </button>
+      </BottomSheet>
+
+      {/* "Register current total" sheet — DEC-046: adjustment by difference */}
+      <BottomSheet
+        open={activeSheet === 'total'}
+        onClose={closeSheet}
+        title={t('outing.register_total')}
+      >
+        <p className="text-xs text-on-surface-dim mb-3">
+          {t('outing.items_total', { amount: formatCurrencyFull(totalSpent, currency) })}
+        </p>
+        <SheetAmountInput
+          currency={currency}
+          value={sheetAmount}
+          onChange={(v) => {
+            setSheetAmount(v);
+            setNegativeConfirmed(false);
+          }}
+          placeholder={t('outing.informed_total')}
+        />
+        {(() => {
+          const informedCents = sheetAmount
+            ? Math.round(parseFloat(sheetAmount.replace(',', '.')) * 100)
+            : null;
+          if (informedCents === null || informedCents < 0 || Number.isNaN(informedCents)) return null;
+          const result = calculateReportedTotalDiff(informedCents, totalSpent);
+
+          if (!result.needsAdjustment) {
+            return <p className="text-xs font-semibold text-success mt-3">{t('outing.total_matches')}</p>;
+          }
+          return (
+            <>
+              <p
+                className={`text-xs font-semibold mt-3 ${result.isNegative ? 'text-warning' : 'text-on-surface-dim'}`}
+              >
+                {result.isNegative
+                  ? t('outing.adjustment_negative_warn', {
+                      amount: formatCurrencyFull(result.diffCents, currency),
+                    })
+                  : t('outing.adjustment_preview', {
+                      amount: formatCurrencyFull(result.diffCents, currency),
+                    })}
+              </p>
+              {result.isNegative && (
+                <button
+                  onClick={() => setNegativeConfirmed((v) => !v)}
+                  className="flex items-center gap-2 mt-2 btn-press"
+                >
+                  <span
+                    className="w-4 h-4 rounded flex items-center justify-center"
+                    style={{
+                      background: negativeConfirmed ? 'var(--warning)' : 'var(--surface-high)',
+                    }}
+                  >
+                    {negativeConfirmed && (
+                      <Icon name="check" size={12} style={{ color: 'var(--surface-deep)' }} />
+                    )}
+                  </span>
+                  <span className="text-xs text-on-surface-dim">
+                    {t('outing.adjustment_negative_confirm')}
+                  </span>
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  onRegisterTotal(result.diffCents);
+                  closeSheet();
+                }}
+                disabled={result.isNegative && !negativeConfirmed}
+                className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40 mt-3"
+              >
+                {t('outing.create_total_adjustment')}
+              </button>
+            </>
+          );
+        })()}
+      </BottomSheet>
+    </div>
+  );
+}
+
+interface SheetAmountInputProps {
+  currency: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+function SheetAmountInput({ currency, value, onChange, placeholder }: SheetAmountInputProps) {
+  return (
+    <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-2.5">
+      <span className="text-on-surface-faint text-sm">{currency}</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        step="0.01"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? '0,00'}
+        className="bg-transparent text-lg font-bold text-on-surface tabular outline-none w-full"
+        autoFocus
+      />
     </div>
   );
 }

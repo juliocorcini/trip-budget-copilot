@@ -113,6 +113,28 @@ export function calculateNextDrinkImpact(
   };
 }
 
+export interface ReportedTotalResult {
+  diffCents: number;
+  needsAdjustment: boolean;
+  isNegative: boolean;
+}
+
+/**
+ * DEC-046: when the user reports the session total, keep every logged item
+ * and create an adjustment for the difference — never replace history.
+ */
+export function calculateReportedTotalDiff(
+  reportedTotalCents: number,
+  currentTotalCents: number,
+): ReportedTotalResult {
+  const diffCents = reportedTotalCents - currentTotalCents;
+  return {
+    diffCents,
+    needsAdjustment: diffCents !== 0,
+    isNegative: diffCents < 0,
+  };
+}
+
 export function endSession(session: Session): Session {
   return {
     ...session,

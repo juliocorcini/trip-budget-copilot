@@ -10,7 +10,7 @@ import {
 } from '@/domain/splitting';
 import { findActivePhase } from '@/domain/dates';
 import { toCents, formatMoney } from '@/domain/money';
-import { transactionRepository, participantShareRepository } from '@/data/repositories';
+import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import type { ShareType } from '@/domain/types/common';
@@ -37,12 +37,11 @@ export function QuickAddPage() {
   const txType = searchParams.get('type') ?? 'expense';
   const isTransfer = txType === 'transfer';
   const isWithdrawal = txType === 'withdrawal';
+  const isTransferLike = isTransfer || isWithdrawal;
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState(
-    isTransfer ? 'other' : isWithdrawal ? 'cash_adjustment' : initialCategory,
-  );
+  const [category, setCategory] = useState(initialCategory);
   const [walletId, setWalletId] = useState<string | null>(null);
   const [targetWalletId, setTargetWalletId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string>('');
@@ -58,12 +57,31 @@ export function QuickAddPage() {
   const currentPhase = activePhase ?? phases[0] ?? null;
   const defaultWallet = wallets.find((w) => w.isDefault);
 
+  // Withdrawal pulls from a non-cash wallet into a cash wallet (Core Rule 3).
+  const defaultSourceWallet = isWithdrawal
+    ? (wallets.find((w) => w.isDefault && w.walletType !== 'cash') ??
+       wallets.find((w) => w.walletType !== 'cash') ??
+       defaultWallet)
+    : defaultWallet;
+  const effectiveSourceWalletId = walletId ?? defaultSourceWallet?.id ?? null;
+
+  const cashWallets = wallets.filter((w) => w.walletType === 'cash');
+  const targetCandidates = (isWithdrawal && cashWallets.length > 0 ? cashWallets : wallets).filter(
+    (w) => w.id !== effectiveSourceWalletId,
+  );
+  const effectiveTargetWalletId =
+    targetWalletId && targetCandidates.some((w) => w.id === targetWalletId)
+      ? targetWalletId
+      : targetCandidates.length === 1
+        ? targetCandidates[0]!.id
+        : null;
+
   const effectiveWalletId = walletId ?? defaultWallet?.id ?? null;
   const effectivePoolId = poolId || pools[0]?.id || '';
 
   const owner = participants.find((p) => p.isOwner) ?? null;
   const effectivePaidById = paidById ?? owner?.id ?? null;
-  const canSplit = !isTransfer && !isWithdrawal && participants.length > 1;
+  const canSplit = !isTransferLike && participants.length > 1;
 
   const toggleShared = () => {
     setIsShared((prev) => {
@@ -98,18 +116,39 @@ export function QuickAddPage() {
           })()
       : null;
 
+  const canSaveTransferLike =
+    !isTransferLike ||
+    (effectiveSourceWalletId !== null &&
+      effectiveTargetWalletId !== null &&
+      effectiveSourceWalletId !== effectiveTargetWalletId);
+
   const handleSave = async () => {
-    if (!trip || !currentPhase || !effectivePoolId || !amount) return;
+    if (!trip || !currentPhase || !amount) return;
+    if (!isTransferLike && !effectivePoolId) return;
+    if (!canSaveTransferLike) return;
 
     setSaving(true);
     try {
       const amountCents = toCents(parseFloat(amount));
-      const txType2 = isTransfer ? 'transfer' as const : isWithdrawal ? 'adjustment' as const : 'expense' as const;
-      const defaultDesc = isTransfer
-        ? t('fab.register_transfer')
-        : isWithdrawal
-          ? t('fab.register_withdrawal')
-          : t(`categories.${category}` as never);
+
+      // Transfers and withdrawals move money between wallets and never touch
+      // the budget (budgetPoolId/personalCostCents = null — Core Rule 3).
+      if (isTransferLike) {
+        const input = {
+          tripId: trip.id,
+          phaseId: currentPhase.id,
+          sourceWalletId: effectiveSourceWalletId!,
+          targetWalletId: effectiveTargetWalletId!,
+          amountCents,
+          currency: trip.baseCurrency,
+          description:
+            description || (isWithdrawal ? t('fab.register_withdrawal') : t('fab.register_transfer')),
+        };
+        await (isWithdrawal ? withdrawCash(input) : transferBetweenWallets(input));
+        await reload();
+        navigate('/dashboard');
+        return;
+      }
 
       const splitActive =
         canSplit && isShared && selectedParticipantIds.length >= 2 && effectivePaidById !== null;
@@ -124,14 +163,12 @@ export function QuickAddPage() {
         amountCents,
         currency: trip.baseCurrency,
         category,
-        description: description || defaultDesc,
-        type: txType2,
+        description: description || t(`categories.${category}` as never),
         isShared: splitActive,
         paidByParticipantId: splitActive ? effectivePaidById : undefined,
-        sourceWalletId: isTransfer ? effectiveWalletId : undefined,
-        targetWalletId: isTransfer ? targetWalletId : undefined,
       });
 
+      let finalShares: ReturnType<typeof createEqualShares> = [];
       if (splitActive) {
         const shares =
           splitMode === 'equal'
@@ -155,16 +192,13 @@ export function QuickAddPage() {
                 return createCustomShares(tx.id, custom);
               })();
 
-        const finalShares = shares.map((s) =>
+        finalShares = shares.map((s) =>
           s.participantId === effectivePaidById ? { ...s, isPaid: true } : s,
         );
         tx.personalCostCents = owner ? calculatePersonalCost(finalShares, owner.id) : null;
-
-        await transactionRepository.create(tx);
-        await participantShareRepository.bulkCreate(finalShares);
-      } else {
-        await transactionRepository.create(tx);
       }
+
+      await registerExpense({ transaction: tx, shares: finalShares });
 
       await reload();
       navigate('/dashboard');
@@ -204,6 +238,7 @@ export function QuickAddPage() {
         </div>
       </div>
 
+      {!isTransferLike && (
       <div>
         <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.category')}</label>
         <div className="grid grid-cols-5 gap-2">
@@ -221,6 +256,7 @@ export function QuickAddPage() {
           ))}
         </div>
       </div>
+      )}
 
       <div className="bg-surface-container rounded-xl p-4">
         <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.description')}</label>
@@ -228,11 +264,18 @@ export function QuickAddPage() {
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={t(`categories.${category}` as never)}
+          placeholder={
+            isWithdrawal
+              ? t('fab.register_withdrawal')
+              : isTransfer
+                ? t('fab.register_transfer')
+                : t(`categories.${category}` as never)
+          }
           className="bg-transparent text-sm text-on-surface outline-none w-full"
         />
       </div>
 
+      {!isTransferLike && (
       <div className="bg-surface-container rounded-xl p-4">
         <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>
         <div className="flex gap-2 flex-wrap">
@@ -249,7 +292,9 @@ export function QuickAddPage() {
           ))}
         </div>
       </div>
+      )}
 
+      {!isTransferLike && (
       <div className="bg-surface-container rounded-xl p-4">
         <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.wallet')}</label>
         <div className="flex gap-2 flex-wrap">
@@ -274,6 +319,7 @@ export function QuickAddPage() {
           ))}
         </div>
       </div>
+      )}
 
       {/* ── SHARED EXPENSE (split) ── */}
       {canSplit && (
@@ -413,29 +459,63 @@ export function QuickAddPage() {
         </div>
       )}
 
-      {!isTransfer && !isWithdrawal && participants.length <= 1 && (
+      {!isTransferLike && participants.length <= 1 && (
         <p className="text-xs text-on-surface-faint px-1">
           {t('expenses.no_participants_hint')}
         </p>
       )}
 
-      {isTransfer && (
-        <div className="bg-surface-container rounded-xl p-4">
-          <label className="text-xs text-on-surface-faint mb-2 block">{t('fab.register_transfer_desc')}</label>
-          <div className="flex gap-2 flex-wrap">
-            {wallets.filter((w) => w.id !== effectiveWalletId).map((wallet) => (
-              <button
-                key={wallet.id}
-                onClick={() => setTargetWalletId(wallet.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                  targetWalletId === wallet.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
-                }`}
-              >
-                {wallet.name}
-              </button>
-            ))}
+      {isTransferLike && (
+        <>
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-2 block">
+              {t('expenses.source_wallet')}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {wallets.map((wallet) => (
+                <button
+                  key={wallet.id}
+                  onClick={() => setWalletId(wallet.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    effectiveSourceWalletId === wallet.id
+                      ? 'bg-primary text-on-surface'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {wallet.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-2 block">
+              {t('expenses.target_wallet')}
+            </label>
+            {targetCandidates.length === 0 ? (
+              <p className="text-xs text-warning">{t('expenses.no_target_wallet')}</p>
+            ) : (
+              <div className="flex gap-2 flex-wrap">
+                {targetCandidates.map((wallet) => (
+                  <button
+                    key={wallet.id}
+                    onClick={() => setTargetWalletId(wallet.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                      effectiveTargetWalletId === wallet.id
+                        ? 'bg-primary text-on-surface'
+                        : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {wallet.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-on-surface-faint mt-2">
+              {t('expenses.transfer_no_budget_hint')}
+            </p>
+          </div>
+        </>
       )}
 
       {amount && parseFloat(amount) > 0 && (
@@ -456,7 +536,7 @@ export function QuickAddPage() {
         </button>
         <button
           onClick={handleSave}
-          disabled={!amount || parseFloat(amount) <= 0 || saving}
+          disabled={!amount || parseFloat(amount) <= 0 || saving || !canSaveTransferLike}
           className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
         >
           {saving ? t('common.loading') : t('common.save')}

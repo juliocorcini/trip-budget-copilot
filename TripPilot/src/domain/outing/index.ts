@@ -5,6 +5,7 @@ export {
   getSessionPercentUsed,
   getProgressiveAlerts,
   calculateNextDrinkImpact,
+  calculateReportedTotalDiff,
   endSession,
 } from './outing';
-export type { OutingAlert } from './outing';
+export type { OutingAlert, ReportedTotalResult } from './outing';

@@ -3,24 +3,33 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { calculateWalletBalance, calculateCashReconciliation } from '@/domain/wallets';
+import { findActivePhase } from '@/domain/dates';
 import { formatMoney, toCents } from '@/domain/money';
+import { reconcileWallet } from '@/domain/orchestrators';
 import { walletRepository } from '@/data/repositories';
 import { createSyncMetadata } from '@/utils/entity-factory';
+import { getCategoryIcon } from '@/utils/category-icons';
 import type { Wallet } from '@/domain/types/wallet';
-import type { WalletType } from '@/domain/types/common';
+import type { WalletType, TransactionCategory } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
+
+const ADJUSTMENT_CATEGORIES = ['bar', 'restaurant', 'market', 'transport', 'entertainment', 'other'] as const;
 
 export function WalletsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, wallets, transactions, loading, reload } = useAppData();
+  const { trip, phases, pools, wallets, transactions, loading, reload } = useAppData();
 
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<WalletType>('cash');
   const [newBalance, setNewBalance] = useState('');
-  const [reconcileWallet, setReconcileWallet] = useState<Wallet | null>(null);
+  const [reconcilingWallet, setReconcilingWallet] = useState<Wallet | null>(null);
   const [countedBalance, setCountedBalance] = useState('');
+  const [adjustmentCategory, setAdjustmentCategory] = useState<TransactionCategory>('other');
+  const [adjustmentReason, setAdjustmentReason] = useState('');
 
   const handleSetDefault = async (wallet: Wallet) => {
     if (!trip) return;
@@ -48,18 +57,48 @@ export function WalletsPage() {
     await reload();
   };
 
-  const handleReconcile = async () => {
-    if (!reconcileWallet || !countedBalance) return;
-    const balance = calculateWalletBalance(reconcileWallet, transactions);
-    const counted = toCents(parseFloat(countedBalance.replace(',', '.')));
-    const result = calculateCashReconciliation(balance.currentBalanceCents, counted);
-    if (result.needsAdjustment) {
-      alert(t('wallets.difference', { amount: formatMoney(result.differenceCents, reconcileWallet.currency) }));
-    } else {
-      alert(t('wallets.reconcile_match'));
-    }
-    setReconcileWallet(null);
+  const expectedCents = reconcilingWallet
+    ? calculateWalletBalance(reconcilingWallet, transactions).currentBalanceCents
+    : 0;
+  const countedCents = countedBalance ? toCents(parseFloat(countedBalance.replace(',', '.'))) : null;
+  const reconcileResult =
+    countedCents !== null ? calculateCashReconciliation(expectedCents, countedCents) : null;
+  const isMissingCash = reconcileResult !== null && reconcileResult.differenceCents < 0;
+
+  const closeReconcileSheet = () => {
+    setReconcilingWallet(null);
     setCountedBalance('');
+    setAdjustmentCategory('other');
+    setAdjustmentReason('');
+  };
+
+  const handleReconcile = async () => {
+    if (!trip || !reconcilingWallet || countedCents === null || !reconcileResult) return;
+
+    if (!reconcileResult.needsAdjustment) {
+      showToast(t('wallets.reconcile_match'), 'success');
+      closeReconcileSheet();
+      return;
+    }
+
+    const activePhase = findActivePhase(phases) ?? phases[0];
+    const operationalPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
+    if (!activePhase || !operationalPool) return;
+
+    await reconcileWallet({
+      tripId: trip.id,
+      phaseId: activePhase.id,
+      budgetPoolId: operationalPool.id,
+      walletId: reconcilingWallet.id,
+      expectedBalanceCents: expectedCents,
+      countedBalanceCents: countedCents,
+      currency: reconcilingWallet.currency,
+      reason: adjustmentReason.trim() || t('wallets.adjustment_default_reason'),
+      category: isMissingCash ? adjustmentCategory : 'reconciliation',
+    });
+    showToast(t('wallets.adjustment_created'), 'success');
+    closeReconcileSheet();
+    await reload();
   };
 
   if (loading) {
@@ -164,7 +203,7 @@ export function WalletsPage() {
                   </button>
                 )}
                 <button
-                  onClick={() => setReconcileWallet(wallet)}
+                  onClick={() => setReconcilingWallet(wallet)}
                   className="flex-1 py-2 rounded-lg bg-surface-high text-on-surface-dim text-xs font-semibold btn-press"
                 >
                   {t('wallets.reconcile')}
@@ -175,36 +214,91 @@ export function WalletsPage() {
         })}
       </div>
 
-      {reconcileWallet && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setReconcileWallet(null)}>
-          <div className="absolute inset-0 bg-black/60" />
-          <div
-            className="relative w-full max-w-[430px] bg-surface-container rounded-t-2xl p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm font-bold text-on-surface mb-3">{t('wallets.reconcile')}: {reconcileWallet.name}</p>
-            <p className="text-xs text-on-surface-dim mb-2">
-              {t('wallets.expected_balance')}: {formatMoney(
-                calculateWalletBalance(reconcileWallet, transactions).currentBalanceCents,
-                reconcileWallet.currency,
-              )}
+      <BottomSheet
+        open={reconcilingWallet !== null}
+        onClose={closeReconcileSheet}
+        title={reconcilingWallet ? `${t('wallets.reconcile')}: ${reconcilingWallet.name}` : undefined}
+      >
+        {reconcilingWallet && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-on-surface-dim">
+              {t('wallets.expected_balance')}:{' '}
+              <span className="font-bold tabular text-on-surface">
+                {formatMoney(expectedCents, reconcilingWallet.currency)}
+              </span>
             </p>
             <input
               type="number"
+              inputMode="decimal"
+              step="0.01"
               value={countedBalance}
               onChange={(e) => setCountedBalance(e.target.value)}
               placeholder={t('wallets.counted_balance')}
-              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full mb-3"
+              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+              autoFocus
             />
+
+            {reconcileResult && reconcileResult.needsAdjustment && (
+              <>
+                <p className={`text-xs font-semibold ${isMissingCash ? 'text-error' : 'text-success'}`}>
+                  {t(isMissingCash ? 'wallets.diff_missing' : 'wallets.diff_surplus', {
+                    amount: formatMoney(Math.abs(reconcileResult.differenceCents), reconcilingWallet.currency),
+                  })}
+                </p>
+
+                {isMissingCash ? (
+                  <div>
+                    <label className="text-xs text-on-surface-faint mb-2 block">
+                      {t('wallets.adjustment_category')}
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {ADJUSTMENT_CATEGORIES.map((key) => (
+                        <button
+                          key={key}
+                          onClick={() => setAdjustmentCategory(key)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1 ${
+                            adjustmentCategory === key
+                              ? 'bg-primary text-on-surface'
+                              : 'bg-surface-high text-on-surface-dim'
+                          }`}
+                        >
+                          <Icon name={getCategoryIcon(key)} size={14} />
+                          {t(`categories.${key}` as never)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs text-on-surface-faint mb-1 block">
+                      {t('wallets.adjustment_reason')}
+                    </label>
+                    <input
+                      type="text"
+                      value={adjustmentReason}
+                      onChange={(e) => setAdjustmentReason(e.target.value)}
+                      placeholder={t('wallets.adjustment_default_reason')}
+                      className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {reconcileResult && !reconcileResult.needsAdjustment && (
+              <p className="text-xs font-semibold text-success">{t('wallets.reconcile_match')}</p>
+            )}
+
             <button
               onClick={handleReconcile}
-              className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press"
+              disabled={countedCents === null}
+              className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
             >
-              {t('common.confirm')}
+              {reconcileResult?.needsAdjustment ? t('wallets.create_adjustment') : t('common.confirm')}
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </BottomSheet>
     </div>
   );
 }
