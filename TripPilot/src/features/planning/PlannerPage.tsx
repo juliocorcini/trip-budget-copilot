@@ -1,13 +1,27 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
-import { findActivePhase } from '@/domain/dates';
+import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { fromCents, sumCents } from '@/domain/money';
-import { activityProfileRepository } from '@/data/repositories';
+import {
+  createScenarioPlan,
+  createAllocationItem,
+  calculateOverAllocationCents,
+} from '@/domain/planning';
+import { createCustomActivityProfile } from '@/domain/profiles';
+import {
+  activityProfileRepository,
+  scenarioPlanRepository,
+  scenarioAllocationItemRepository,
+} from '@/data/repositories';
+import { getCategoryIcon } from '@/utils/category-icons';
+import { Icon } from '@/components/Icon';
+import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
-import type { AllocationPriority } from '@/domain/types/common';
+import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
+import type { AllocationPriority, ScenarioPreset } from '@/domain/types/common';
 
 /* ── types ── */
 
@@ -109,6 +123,8 @@ function getPresetMultiplier(category: string, preset: string): number {
   }
 }
 
+const PERSIST_DEBOUNCE_MS = 500;
+
 /* ── component ── */
 
 export function PlannerPage() {
@@ -117,55 +133,190 @@ export function PlannerPage() {
     useAppData();
 
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+  const [profilesLoaded, setProfilesLoaded] = useState(false);
   const [states, setStates] = useState<Record<string, ProfileState>>({});
-  const [activePreset, setActivePreset] = useState('equilibrado');
+  const [activePreset, setActivePreset] = useState<ScenarioPreset>('equilibrado');
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [ready, setReady] = useState(false);
 
-  const activePhase = useMemo(() => findActivePhase(phases), [phases]);
-  const primaryPool =
-    pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
-  const currency = primaryPool?.currency ?? trip?.baseCurrency ?? 'EUR';
+  const profilesRef = useRef<ActivityProfile[]>([]);
+  const statesRef = useRef<Record<string, ProfileState>>({});
+  const presetRef = useRef<ScenarioPreset>('equilibrado');
+  const planRef = useRef<ScenarioPlan | null>(null);
+  const itemsRef = useRef<Map<string, ScenarioAllocationItem>>(new Map());
+  const hydratedRef = useRef(false);
+
+  profilesRef.current = profiles;
+  statesRef.current = states;
+  presetRef.current = activePreset;
+
+  /* ── phase selection (ISSUE-02: multi-phase support) ── */
+
+  const sortedPhases = useMemo(() => sortPhasesByOrder(phases), [phases]);
+
+  useEffect(() => {
+    if (selectedPhaseId || phases.length === 0) return;
+    const active = resolveActivePhase(phases);
+    setSelectedPhaseId(active?.id ?? sortedPhases[0]?.id ?? null);
+  }, [phases, sortedPhases, selectedPhaseId]);
+
+  const selectedPhase = useMemo(
+    () => phases.find((p) => p.id === selectedPhaseId) ?? null,
+    [phases, selectedPhaseId],
+  );
+
+  /* ── pool resolution: each phase uses its own linked fund (DEC-007/DEC-040) ── */
+
+  const phasePool = useMemo(() => {
+    if (!selectedPhase) return undefined;
+    const linkedIds = new Set(
+      links
+        .filter((l) => l.phaseId === selectedPhase.id && l.deletedAt === null)
+        .map((l) => l.budgetPoolId),
+    );
+    return (
+      pools.find((p) => linkedIds.has(p.id)) ??
+      pools.find((p) => p.scope === 'linked_phases') ??
+      pools[0]
+    );
+  }, [selectedPhase, links, pools]);
+
+  const currency = phasePool?.currency ?? trip?.baseCurrency ?? 'EUR';
+
+  /* ── profile loading ── */
 
   useEffect(() => {
     if (!trip) return;
     activityProfileRepository.getByTripId(trip.id).then((profs) => {
       setProfiles(profs);
+      setProfilesLoaded(true);
+    });
+  }, [trip]);
+
+  /* ── scenario hydration (ISSUE-04: load persisted state) ── */
+
+  useEffect(() => {
+    if (!trip || !selectedPhase || !phasePool || !profilesLoaded) return;
+    let cancelled = false;
+    hydratedRef.current = false;
+    setReady(false);
+
+    (async () => {
+      const plan = await scenarioPlanRepository.getActiveByPhaseAndPool(
+        trip.id,
+        selectedPhase.id,
+        phasePool.id,
+      );
+      const items = plan
+        ? await scenarioAllocationItemRepository.getByPlanId(plan.id)
+        : [];
+      if (cancelled) return;
+
+      planRef.current = plan ?? null;
+      itemsRef.current = new Map(items.map((i) => [i.activityProfileId, i]));
+
       const init: Record<string, ProfileState> = {};
-      for (const p of profs) {
-        const base = p.expectedFrequencyPerPhase ?? 3;
+      for (const p of profilesRef.current) {
+        const item = itemsRef.current.get(p.id);
+        const base = item?.quantity ?? p.expectedFrequencyPerPhase ?? 3;
         init[p.id] = {
           count: base,
-          isLocked: getPriority(p.category) === 'essential',
+          isLocked: item?.isLocked ?? getPriority(p.category) === 'essential',
           baselineCount: base,
         };
       }
+      if (plan) setActivePreset(plan.preset);
       setStates(init);
+      hydratedRef.current = true;
       setReady(true);
-    });
-  }, [trip]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trip, selectedPhase, phasePool, profilesLoaded]);
+
+  /* ── scenario persistence (ISSUE-04: debounced auto-save) ── */
+
+  const persist = useCallback(async () => {
+    if (!trip || !selectedPhase || !phasePool) return;
+
+    let plan = planRef.current;
+    if (!plan) {
+      plan = createScenarioPlan({
+        tripId: trip.id,
+        phaseId: selectedPhase.id,
+        budgetPoolId: phasePool.id,
+        name: selectedPhase.name,
+        preset: presetRef.current,
+      });
+      await scenarioPlanRepository.create(plan);
+      planRef.current = plan;
+    } else if (plan.preset !== presetRef.current) {
+      plan = await scenarioPlanRepository.update({
+        ...plan,
+        preset: presetRef.current,
+      });
+      planRef.current = plan;
+    }
+
+    for (const profile of profilesRef.current) {
+      const s = statesRef.current[profile.id];
+      if (!s) continue;
+      const existing = itemsRef.current.get(profile.id);
+      if (existing) {
+        if (existing.quantity !== s.count || existing.isLocked !== s.isLocked) {
+          const updated = await scenarioAllocationItemRepository.update({
+            ...existing,
+            quantity: s.count,
+            isLocked: s.isLocked,
+          });
+          itemsRef.current.set(profile.id, updated);
+        }
+      } else {
+        const item = createAllocationItem({
+          scenarioPlanId: plan.id,
+          activityProfileId: profile.id,
+          quantity: s.count,
+          estimatedUnitCostCents: profile.typicalValueCents,
+          isLocked: s.isLocked,
+          priority: getPriority(profile.category),
+        });
+        await scenarioAllocationItemRepository.create(item);
+        itemsRef.current.set(profile.id, item);
+      }
+    }
+  }, [trip, selectedPhase, phasePool]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const timer = setTimeout(() => {
+      persist();
+    }, PERSIST_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [states, activePreset, persist]);
 
   /* ── budget math ── */
 
   const poolTxs = useMemo(
     () =>
-      primaryPool
-        ? filterTransactionsByPool(transactions, primaryPool.id)
-        : [],
-    [primaryPool, transactions],
+      phasePool ? filterTransactionsByPool(transactions, phasePool.id) : [],
+    [phasePool, transactions],
   );
 
   const fts = useMemo(
     () =>
-      primaryPool && activePhase
+      phasePool && selectedPhase
         ? calculateFreeToSpend(
-            primaryPool,
-            envelopes.filter((e) => e.budgetPoolId === primaryPool.id),
+            phasePool,
+            envelopes.filter((e) => e.budgetPoolId === phasePool.id),
             poolTxs,
             links,
-            activePhase.id,
+            selectedPhase.id,
           )
         : null,
-    [primaryPool, activePhase, envelopes, poolTxs, links],
+    [phasePool, selectedPhase, envelopes, poolTxs, links],
   );
 
   const availableCents = fts?.freeToSpendCents ?? 0;
@@ -197,6 +348,13 @@ export function PlannerPage() {
   const marginForExtrasCents = Math.max(
     0,
     Math.min(freeMarginCents, extraCostCents),
+  );
+
+  /* ── over-allocation warning (ISSUE-05) ── */
+
+  const overAllocationCents = calculateOverAllocationCents(
+    currentAllocatedCents,
+    availableCents,
   );
 
   const modifiedProfiles = useMemo(
@@ -277,7 +435,7 @@ export function PlannerPage() {
   }, []);
 
   const applyPreset = useCallback(
-    (preset: string) => {
+    (preset: ScenarioPreset) => {
       setActivePreset(preset);
       setStates((prev) => {
         const next = { ...prev };
@@ -306,6 +464,28 @@ export function PlannerPage() {
     });
   }, [recommendation]);
 
+  /* ── custom category creation (ISSUE-06) ── */
+
+  const handleAddCategory = useCallback(
+    async (data: ProfileFormData) => {
+      if (!trip) return;
+      const profile = createCustomActivityProfile({
+        tripId: trip.id,
+        name: data.name,
+        iconName: data.iconName,
+        typicalValueCents: data.typicalValueCents,
+      });
+      await activityProfileRepository.create(profile);
+      setProfiles((prev) => [...prev, profile]);
+      setStates((prev) => ({
+        ...prev,
+        [profile.id]: { count: 1, isLocked: false, baselineCount: 1 },
+      }));
+      setShowAddForm(false);
+    },
+    [trip],
+  );
+
   /* ── loading ── */
 
   if (loading || !trip || !ready) {
@@ -316,7 +496,7 @@ export function PlannerPage() {
     );
   }
 
-  const phaseName = activePhase?.name ?? phases[0]?.name ?? '';
+  const phaseName = selectedPhase?.name ?? phases[0]?.name ?? '';
   const displayMargin = splitMoney(Math.max(0, freeMarginCents), currency);
 
   return (
@@ -341,6 +521,30 @@ export function PlannerPage() {
           {t('planner.mode_manual')}
         </span>
       </div>
+
+      {/* ── PHASE SELECTOR (multi-phase trips) ── */}
+      {sortedPhases.length > 1 && (
+        <div className="mt-3">
+          <p className="text-[10px] tracking-[0.12em] uppercase font-bold text-on-surface-faint mb-1.5">
+            {t('planner.select_phase')}
+          </p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {sortedPhases.map((phase) => (
+              <button
+                key={phase.id}
+                onClick={() => setSelectedPhaseId(phase.id)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press ${
+                  phase.id === selectedPhaseId
+                    ? 'bg-primary text-on-surface'
+                    : 'bg-surface-container text-on-surface-dim'
+                }`}
+              >
+                {phase.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── BUDGET SUMMARY ── */}
       <div className="mt-4 p-4 rounded-2xl flex justify-between items-center bg-surface-container">
@@ -398,7 +602,7 @@ export function PlannerPage() {
                       className="material-symbols-outlined text-base"
                       style={{ color: cVar }}
                     >
-                      {profile.iconName ?? 'category'}
+                      {profile.iconName ?? getCategoryIcon(profile.category)}
                     </span>
                   </div>
                   <p className="text-sm font-bold text-on-surface">
@@ -497,6 +701,41 @@ export function PlannerPage() {
           );
         })}
       </div>
+
+      {/* ── ADD CUSTOM CATEGORY (ISSUE-06) ── */}
+      <div className="mt-3">
+        {showAddForm ? (
+          <ProfileForm
+            currency={currency}
+            onSave={handleAddCategory}
+            onCancel={() => setShowAddForm(false)}
+          />
+        ) : (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="w-full py-2.5 rounded-xl flex items-center justify-center gap-1.5 btn-press text-xs font-bold"
+            style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+          >
+            <Icon name="add" size={14} className="text-on-surface-dim" />
+            {t('planner.add_category')}
+          </button>
+        )}
+      </div>
+
+      {/* ── OVER-ALLOCATION WARNING (ISSUE-05) ── */}
+      {overAllocationCents > 0 && (
+        <div
+          className="mt-4 p-4 rounded-2xl flex items-start gap-3"
+          style={{ background: '#D4A84312', border: '1px solid #D4A84325' }}
+        >
+          <Icon name="warning" size={20} className="text-warning mt-0.5" />
+          <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--warning)' }}>
+            {t('planner.over_allocation_warning', {
+              amount: fmtFull(overAllocationCents, currency),
+            })}
+          </p>
+        </div>
+      )}
 
       {/* ── DEFICIT + RECOMMENDATION ── */}
       {hasDeficit && modifiedProfiles.length > 0 && (

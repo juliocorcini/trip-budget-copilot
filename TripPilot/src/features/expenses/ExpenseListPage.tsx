@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { formatMoney, sumCents } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
@@ -10,6 +11,7 @@ type FilterCategory = string | null;
 
 export function ExpenseListPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { trip, transactions, pools, wallets, loading } = useAppData();
   const [filterCategory, setFilterCategory] = useState<FilterCategory>(null);
   const [filterWalletNull, setFilterWalletNull] = useState(false);
@@ -82,7 +84,11 @@ export function ExpenseListPage() {
       ) : (
         <div className="flex flex-col gap-1">
           {expenses.map((tx) => (
-            <div key={tx.id} className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between">
+            <button
+              key={tx.id}
+              onClick={() => navigate(`/expenses/${tx.id}`)}
+              className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full"
+            >
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-on-surface truncate">{tx.description}</p>
                 <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
@@ -100,15 +106,18 @@ export function ExpenseListPage() {
                   <p className="text-xs text-warning mt-0.5">{t('expenses.wallet_not_set')}</p>
                 )}
               </div>
-              <div className="text-right ml-3">
-                <p className="text-sm font-semibold tabular text-on-surface">
-                  {formatMoney(tx.amountCents, tx.currency)}
-                </p>
-                {tx.walletId && (
-                  <p className="text-xs text-on-surface-faint">{walletMap.get(tx.walletId) ?? ''}</p>
-                )}
+              <div className="text-right ml-3 flex items-center gap-2">
+                <div>
+                  <p className="text-sm font-semibold tabular text-on-surface">
+                    {formatMoney(tx.amountCents, tx.currency)}
+                  </p>
+                  {tx.walletId && (
+                    <p className="text-xs text-on-surface-faint">{walletMap.get(tx.walletId) ?? ''}</p>
+                  )}
+                </div>
+                <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

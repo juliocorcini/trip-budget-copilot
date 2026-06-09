@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { createOnboardingEntities } from '@/domain/onboarding';
+import { createDefaultActivityProfiles } from '@/domain/profiles';
 import { toCents } from '@/domain/money';
 import { db } from '@/data/db/database';
 import { appSettingsRepository } from '@/data/repositories';
@@ -42,6 +43,7 @@ export function OnboardingPage() {
     await db.budgetPoolPhaseLinks.add(entities.link);
     if (entities.reserve) await db.envelopes.add(entities.reserve);
     await db.participants.add(entities.owner);
+    await db.activityProfiles.bulkAdd(createDefaultActivityProfiles(entities.trip.id));
 
     await appSettingsRepository.update({
       activeTrip: entities.trip.id,

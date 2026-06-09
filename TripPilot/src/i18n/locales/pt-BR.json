@@ -44,8 +44,13 @@
     "amigo_sincero": "Amigo sincero",
     "amigo_before": "ANTES",
     "amigo_after": "DEPOIS",
+    "amigo_outings": "saídas",
     "amigo_reserve": "RESERVA",
-    "amigo_see_impact": "Ver impacto completo"
+    "amigo_reserve_intact": "Intacta",
+    "amigo_reserve_affected": "Afetada",
+    "amigo_message": "Com os gastos recentes, suas saídas de {{type}} caíram de {{before}} para {{after}}.",
+    "amigo_see_impact": "Ver impacto completo",
+    "session_drinks_left": "{{count}} bebidas até o teto"
   },
   "expenses": {
     "title": "Gastos",
@@ -60,7 +65,25 @@
     "cancel": "Cancelar",
     "filter_no_wallet": "Somente gastos sem carteira",
     "unassigned_wallet_warning": "Você possui {{count}} gastos sem carteira informada.",
-    "review_now": "Revisar agora"
+    "review_now": "Revisar agora",
+    "shared_toggle": "Gasto compartilhado",
+    "who_paid": "Quem pagou?",
+    "participants_label": "Participantes",
+    "split_mode": "Divisão",
+    "split_equal": "Igual",
+    "split_custom": "Personalizada",
+    "your_share": "Sua parte: {{amount}}",
+    "split_remaining": "Falta distribuir: {{amount}}",
+    "split_remainder_to_payer": "A diferença será atribuída a quem pagou.",
+    "no_participants_hint": "Adicione participantes em Mais → Participantes e dívidas.",
+    "detail_title": "Detalhe do gasto",
+    "date": "Data",
+    "financial_flow": "Fluxo financeiro",
+    "personal_cost": "Custo pessoal",
+    "shared_with": "Dividido com",
+    "paid_by": "Pago por {{name}}",
+    "delete_confirm": "Excluir este gasto?",
+    "not_found": "Gasto não encontrado"
   },
   "categories": {
     "bar": "Bar",
@@ -87,11 +110,30 @@
     "default": "Padrão",
     "set_default": "Definir como padrão",
     "balance": "Saldo",
+    "empty": "Nenhuma carteira cadastrada",
     "reconcile": "Reconciliar",
+    "reconcile_match": "Saldo confere com o esperado",
     "expected_balance": "Saldo esperado",
     "counted_balance": "Saldo contado",
-    "difference": "Diferença",
+    "difference": "Diferença: {{amount}}",
     "register_adjustment": "Registrar diferença como gasto não rastreado?"
+  },
+  "trip": {
+    "overview_title": "Visão geral",
+    "edit_title": "Editar viagem",
+    "edit_trip": "Editar viagem e fases",
+    "total_budget": "Orçamento total",
+    "total_spent": "Total gasto",
+    "phases_timeline": "Linha do tempo das fases",
+    "phase_active": "Fase atual",
+    "phase_nearest": "Fase mais próxima",
+    "phase_spent": "{{amount}} gastos nesta fase",
+    "funds": "Fundos",
+    "add_phase": "Adicionar fase",
+    "new_phase": "Nova fase",
+    "remove_phase": "Remover",
+    "phase_fund": "Fundo associado (opcional)",
+    "phase_fund_none": "Nenhum"
   },
   "planner": {
     "title": "Planejador",
@@ -122,7 +164,32 @@
     "other_options": "Outras opções",
     "preset_economico": "Econômico",
     "preset_equilibrado": "Equilibrado",
-    "preset_mais_social": "Mais social"
+    "preset_mais_social": "Mais social",
+    "select_phase": "Fase",
+    "add_category": "Adicionar categoria",
+    "over_allocation_warning": "Alocação excede a margem livre em {{amount}}. Reduza algum item ou aumente o fundo."
+  },
+  "funds": {
+    "title": "Fundos",
+    "add": "Adicionar fundo",
+    "name": "Nome do fundo",
+    "amount": "Valor total",
+    "scope": "Escopo",
+    "scope_linked": "Vinculado a fases",
+    "scope_global": "Global (viagem inteira)",
+    "linked_phases": "Fases vinculadas",
+    "no_linked_phases": "Sem fases vinculadas",
+    "empty": "Nenhum fundo cadastrado"
+  },
+  "profiles": {
+    "title": "Perfis de atividade",
+    "add": "Adicionar perfil",
+    "name": "Nome",
+    "icon": "Ícone",
+    "typical_value": "Valor típico",
+    "custom_tag": "Personalizado",
+    "per_phase": "{{count}}x por fase",
+    "empty": "Nenhum perfil cadastrado"
   },
   "settings": {
     "title": "Configurações",
@@ -225,7 +292,10 @@
     "next_drink_label": "Próxima bebida {{amount}}",
     "next_drink_message": "Ainda cabe sem afetar suas próximas saídas.",
     "other_amount": "Outro",
-    "register_total": "Registrar total atual"
+    "register_total": "Registrar total atual",
+    "start_error": "Não foi possível iniciar a saída. Verifique se há fase e fundo ativos.",
+    "custom_type": "Personalizado",
+    "custom_type_desc": "Crie um tipo de saída com nome e ícone próprios"
   },
   "simulator": {
     "title": "Simulador",
@@ -243,10 +313,17 @@
     "pending_debts": "Dívidas pendentes",
     "settle": "Liquidar",
     "all_settled": "Tudo acertado! Sem dívidas pendentes.",
-    "settlements_done": "Liquidações realizadas"
+    "settlements_done": "Liquidações realizadas",
+    "add_participant": "Adicionar participante",
+    "participant_name": "Nome",
+    "participant_nickname": "Apelido (opcional)",
+    "balance_owes": "Deve {{amount}}",
+    "balance_owed": "Recebe {{amount}}",
+    "balance_zero": "Em dia"
   },
   "common": {
     "save": "Salvar",
+    "add": "Adicionar",
     "cancel": "Cancelar",
     "delete": "Excluir",
     "edit": "Editar",

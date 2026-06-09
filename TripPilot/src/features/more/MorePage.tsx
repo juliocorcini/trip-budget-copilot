@@ -12,8 +12,12 @@ const SECTIONS: { titleKey: string; items: MenuItem[] }[] = [
   {
     titleKey: 'more.section_trip',
     items: [
-      { icon: 'account_balance_wallet', labelKey: 'more.funds', path: '/planner' },
+      { icon: 'map', labelKey: 'more.overview', path: '/trip' },
+      { icon: 'timeline', labelKey: 'more.edit_phases', path: '/trip/edit' },
+      { icon: 'account_balance_wallet', labelKey: 'more.funds', path: '/funds' },
+      { icon: 'tune', labelKey: 'more.profiles', path: '/profiles' },
       { icon: 'groups', labelKey: 'more.participants', path: '/shared' },
+      { icon: 'credit_card', labelKey: 'more.wallets', path: '/wallets' },
     ],
   },
   {
@@ -47,7 +51,7 @@ export function MorePage() {
           <div className="bg-surface-container rounded-xl overflow-hidden">
             {section.items.map((item, i) => (
               <button
-                key={item.path}
+                key={`${item.path}-${item.labelKey}`}
                 onClick={() => navigate(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 btn-press text-left ${
                   i < section.items.length - 1 ? 'border-b border-on-surface-mute' : ''

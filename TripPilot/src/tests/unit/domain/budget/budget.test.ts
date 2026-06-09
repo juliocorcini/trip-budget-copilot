@@ -5,6 +5,7 @@ import {
   calculateFutureFloor,
   createPoolSummary,
   getBudgetHealthStatus,
+  generateAmigoSinceroInsight,
 } from '@/domain/budget';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Envelope } from '@/domain/types/envelope';
@@ -63,6 +64,17 @@ describe('calculatePoolSpent', () => {
   it('sums expense and adjustment transactions', () => {
     const txs = [mkTx('t1', 5000), mkTx('t2', 3200)];
     expect(calculatePoolSpent(txs)).toBe(8200);
+  });
+
+  it('uses personal cost for shared expenses (financial flow vs personal cost)', () => {
+    // €60 market split among 3 → financial flow 6000, personal cost 2000
+    const sharedTx = { ...mkTx('t1', 6000), isShared: true, personalCostCents: 2000 };
+    expect(calculatePoolSpent([sharedTx])).toBe(2000);
+  });
+
+  it('falls back to amount when personal cost is null', () => {
+    const tx = { ...mkTx('t1', 5000), personalCostCents: null };
+    expect(calculatePoolSpent([tx])).toBe(5000);
   });
 
   it('ignores deleted transactions', () => {
@@ -138,5 +150,39 @@ describe('getBudgetHealthStatus', () => {
     expect(getBudgetHealthStatus(50)).toBe('healthy');
     expect(getBudgetHealthStatus(75)).toBe('warning');
     expect(getBudgetHealthStatus(95)).toBe('critical');
+  });
+});
+
+describe('generateAmigoSinceroInsight', () => {
+  it('includes the profile category for type-specific messages', () => {
+    // free €100, bar night €30: 3 before, recent spend €40 → 2 after
+    const insight = generateAmigoSinceroInsight(
+      10000,
+      0,
+      { typicalValueCents: 3000, category: 'bar' },
+      4000,
+    );
+    expect(insight.hasInsight).toBe(true);
+    expect(insight.beforeCount).toBe(3);
+    expect(insight.afterCount).toBe(2);
+    expect(insight.category).toBe('bar');
+    expect(insight.reserveStatus).toBe('intact');
+  });
+
+  it('returns no insight without a profile', () => {
+    const insight = generateAmigoSinceroInsight(10000, 0, null, 4000);
+    expect(insight.hasInsight).toBe(false);
+    expect(insight.category).toBe('other');
+  });
+
+  it('flags reserve as affected when spend exceeds free margin', () => {
+    const insight = generateAmigoSinceroInsight(
+      5000,
+      2000,
+      { typicalValueCents: 2500, category: 'market' },
+      6000,
+    );
+    expect(insight.reserveStatus).toBe('affected');
+    expect(insight.category).toBe('market');
   });
 });

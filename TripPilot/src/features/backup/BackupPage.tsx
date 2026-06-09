@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { createBackup, parseBackupFile, analyzeImport, generateBackupFilename } from '@/domain/backup';
 import { transactionsToCsvRows, rowsToCsv, downloadFile } from '@/domain/backup';
-import { appSettingsRepository, tripRepository, phaseRepository, budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository, transactionRepository, walletRepository, participantRepository } from '@/data/repositories';
+import { appSettingsRepository, tripRepository, phaseRepository, budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository, transactionRepository, walletRepository, participantRepository, participantShareRepository, activityProfileRepository } from '@/data/repositories';
 import type { BackupData, ImportAnalysis } from '@/domain/backup';
 import { formatDate } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
@@ -27,9 +27,14 @@ export function BackupPage() {
     }
   }, [searchParams, trip, transactions, pools, wallets, phases]);
 
-  const handleExport = async () => {
-    if (!settings) return;
-    const data = createBackup({
+  const buildLocalBackup = async (): Promise<BackupData | null> => {
+    if (!settings) return null;
+    const txIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
+    const [shares, profiles] = await Promise.all([
+      participantShareRepository.getAllForTrip(txIds),
+      trip ? activityProfileRepository.getByTripId(trip.id) : Promise.resolve([]),
+    ]);
+    return createBackup({
       deviceId: settings.deviceName,
       appSettings: settings,
       trips: trip ? [trip] : [],
@@ -40,9 +45,14 @@ export function BackupPage() {
       participants,
       wallets,
       transactions,
-      participantShares: [],
-      activityProfiles: [],
+      participantShares: shares,
+      activityProfiles: profiles,
     });
+  };
+
+  const handleExport = async () => {
+    const data = await buildLocalBackup();
+    if (!data) return;
     const json = JSON.stringify(data, null, 2);
     downloadFile(json, generateBackupFilename(), 'application/json');
     await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
@@ -60,18 +70,12 @@ export function BackupPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const parsed = parseBackupFile(reader.result as string);
       if (!parsed || !settings) return;
       setImportData(parsed);
-      const localBackup = createBackup({
-        deviceId: settings.deviceName,
-        appSettings: settings,
-        trips: trip ? [trip] : [],
-        phases, budgetPools: pools, budgetPoolPhaseLinks: links,
-        envelopes, participants, wallets, transactions,
-        participantShares: [], activityProfiles: [],
-      });
+      const localBackup = await buildLocalBackup();
+      if (!localBackup) return;
       setImportAnalysis(analyzeImport(localBackup, parsed));
     };
     reader.readAsText(file);
@@ -84,6 +88,7 @@ export function BackupPage() {
         tripRepository.clear(), phaseRepository.clear(), budgetPoolRepository.clear(),
         budgetPoolPhaseLinkRepository.clear(), envelopeRepository.clear(),
         transactionRepository.clear(), walletRepository.clear(), participantRepository.clear(),
+        participantShareRepository.clear(), activityProfileRepository.clear(),
       ]);
     }
 
@@ -95,6 +100,8 @@ export function BackupPage() {
     for (const tx of importData.transactions) await transactionRepository.create(tx).catch(() => {});
     for (const w of importData.wallets) await walletRepository.create(w).catch(() => {});
     for (const p of importData.participants) await participantRepository.create(p).catch(() => {});
+    for (const s of importData.participantShares ?? []) await participantShareRepository.create(s).catch(() => {});
+    for (const a of importData.activityProfiles ?? []) await activityProfileRepository.create(a).catch(() => {});
 
     if (importData.appSettings.activeTrip) {
       await appSettingsRepository.update({

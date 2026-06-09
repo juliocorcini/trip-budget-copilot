@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
-import { calculateDebts } from '@/domain/splitting';
+import {
+  calculateDebts,
+  createSettlement,
+  createParticipant,
+  calculateParticipantBalances,
+} from '@/domain/splitting';
 import type { DebtSummary } from '@/domain/splitting';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
 import { formatMoney } from '@/domain/money';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
-import { createSettlement } from '@/domain/splitting';
+import { participantRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
 
 export function SharedExpensesPage() {
@@ -17,6 +22,11 @@ export function SharedExpensesPage() {
   const [, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newNickname, setNewNickname] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!trip) return;
@@ -45,7 +55,28 @@ export function SharedExpensesPage() {
     await reload();
   };
 
+  const handleAddParticipant = async () => {
+    if (!trip || !newName.trim()) return;
+    setSaving(true);
+    try {
+      const participant = createParticipant(
+        trip.id,
+        newName.trim(),
+        newNickname.trim() || null,
+      );
+      await participantRepository.create(participant);
+      await reload();
+      setNewName('');
+      setNewNickname('');
+      setShowForm(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!trip) return null;
+
+  const balances = debtSummary ? calculateParticipantBalances(debtSummary.debts) : new Map<string, number>();
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
@@ -57,15 +88,86 @@ export function SharedExpensesPage() {
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
           {t('more.participants')}
         </p>
-        {participants.map((p) => (
-          <div key={p.id} className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center gap-3">
-            <Icon name="person" size={20} className="text-on-surface-dim" />
+        {participants.map((p) => {
+          const balance = balances.get(p.id) ?? 0;
+          return (
+            <div key={p.id} className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center gap-3">
+              <Icon name="person" size={20} className="text-on-surface-dim" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-on-surface truncate">
+                  {p.name}
+                  {p.nickname && (
+                    <span className="text-on-surface-faint"> · {p.nickname}</span>
+                  )}
+                </p>
+                {p.isOwner && <p className="text-xs text-primary">{t('shared.owner_tag')}</p>}
+              </div>
+              <p
+                className={`text-xs font-semibold tabular shrink-0 ${
+                  balance < 0 ? 'text-error' : balance > 0 ? 'text-success' : 'text-on-surface-faint'
+                }`}
+              >
+                {balance < 0
+                  ? t('shared.balance_owes', { amount: formatMoney(Math.abs(balance), trip.baseCurrency) })
+                  : balance > 0
+                    ? t('shared.balance_owed', { amount: formatMoney(balance, trip.baseCurrency) })
+                    : t('shared.balance_zero')}
+              </p>
+            </div>
+          );
+        })}
+
+        {showForm ? (
+          <div className="bg-surface-container rounded-xl p-4 mt-2 flex flex-col gap-3">
             <div>
-              <p className="text-sm text-on-surface">{p.name}</p>
-              {p.isOwner && <p className="text-xs text-primary">{t('shared.owner_tag')}</p>}
+              <label className="text-xs text-on-surface-faint mb-1 block">
+                {t('shared.participant_name')}
+              </label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs text-on-surface-faint mb-1 block">
+                {t('shared.participant_nickname')}
+              </label>
+              <input
+                type="text"
+                value={newNickname}
+                onChange={(e) => setNewNickname(e.target.value)}
+                className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowForm(false)}
+                className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleAddParticipant}
+                disabled={!newName.trim() || saving}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-on-surface font-medium text-sm btn-press disabled:opacity-40"
+              >
+                {saving ? t('common.loading') : t('common.add')}
+              </button>
             </div>
           </div>
-        ))}
+        ) : (
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full py-3 mt-2 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
+            style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
+          >
+            <Icon name="person_add" size={18} className="text-primary" />
+            {t('shared.add_participant')}
+          </button>
+        )}
       </div>
 
       {debtSummary && debtSummary.debts.length > 0 && (

@@ -10,8 +10,9 @@ import {
   endSession as endSessionDomain,
 } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
-import { findActivePhase } from '@/domain/dates';
+import { resolveActivePhase } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
+import { createCustomActivityProfile } from '@/domain/profiles';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { transactionRepository } from '@/data/repositories';
@@ -19,6 +20,8 @@ import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import { Icon } from '@/components/Icon';
+import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
+import { getCategoryIcon } from '@/utils/category-icons';
 import { db } from '@/data/db/database';
 
 function formatElapsed(startedAt: string): string {
@@ -51,15 +54,17 @@ function formatCurrencyFull(cents: number, currency: string): string {
 export function OutingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, settings, reload } = useAppData();
+  const { trip, phases, pools, settings, reload: reloadAppData } = useAppData();
 
   const [session, setSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   const [itemCount, setItemCount] = useState(0);
   const [elapsed, setElapsed] = useState('');
+  const [showCustomForm, setShowCustomForm] = useState(false);
 
-  const activePhase = findActivePhase(phases);
+  const currentPhase = resolveActivePhase(phases);
+  const defaultPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0] ?? null;
 
   useEffect(() => {
     if (!trip) return;
@@ -75,7 +80,7 @@ export function OutingPage() {
       setProfiles(profs);
     };
     load();
-  }, [trip]);
+  }, [trip, phases]);
 
   useEffect(() => {
     if (!session) return;
@@ -87,29 +92,48 @@ export function OutingPage() {
   }, [session]);
 
   const handleStartSession = async (profile: ActivityProfile) => {
-    if (!trip || !activePhase || !pools[0]) return;
+    if (!trip || !currentPhase || !defaultPool) {
+      alert(t('outing.start_error'));
+      return;
+    }
     const quickAdd =
       profile.quickAddValuesCents ??
       settings?.quickAddDefaultValuesCents ?? [300, 500, 700, 1000, 1500];
-    const sess = createSession(trip.id, activePhase.id, pools[0].id, profile, quickAdd);
+    const sess = createSession(trip.id, currentPhase.id, defaultPool.id, profile, quickAdd);
     await sessionRepository.create(sess);
     setSession(sess);
     setSessionTxs([]);
     setItemCount(0);
   };
 
+  const handleStartCustomSession = async (data: ProfileFormData) => {
+    if (!trip) return;
+    const profile = createCustomActivityProfile({
+      tripId: trip.id,
+      name: data.name,
+      iconName: data.iconName,
+      typicalValueCents: data.typicalValueCents,
+    });
+    await activityProfileRepository.create(profile);
+    setProfiles((prev) => [...prev, profile]);
+    setShowCustomForm(false);
+    await handleStartSession(profile);
+  };
+
   const handleQuickAdd = async (amountCents: number) => {
-    if (!session || !trip || !activePhase) return;
+    if (!session || !trip || !currentPhase) return;
+    const sessionProfile = profiles.find((p) => p.id === session.activityProfileId);
     const tx = createExpenseTransaction({
       tripId: trip.id,
-      phaseId: activePhase.id,
+      phaseId: currentPhase.id,
       budgetPoolId: session.budgetPoolId,
       walletId: null,
       amountCents,
       currency: trip.baseCurrency,
-      category: 'bar',
+      category: sessionProfile?.category ?? 'other',
       description: session.name,
       sessionId: session.id,
+      activityProfileId: session.activityProfileId,
     });
     await transactionRepository.create(tx);
     const newCount = itemCount + 1;
@@ -125,7 +149,7 @@ export function OutingPage() {
     await sessionRepository.update(ended);
     setSession(null);
     setSessionTxs([]);
-    await reload();
+    await reloadAppData();
     navigate('/dashboard');
   };
 
@@ -154,7 +178,11 @@ export function OutingPage() {
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{ background: profile.color ?? 'var(--primary-subtle)' }}
             >
-              <Icon name={profile.iconName ?? 'local_bar'} size={22} className="text-on-surface" />
+              <Icon
+                name={profile.iconName ?? getCategoryIcon(profile.category)}
+                size={22}
+                className="text-on-surface"
+              />
             </div>
             <div>
               <p className="text-sm font-semibold text-on-surface">{profile.name}</p>
@@ -165,6 +193,31 @@ export function OutingPage() {
           </button>
         ))}
 
+        {showCustomForm ? (
+          <ProfileForm
+            currency={trip.baseCurrency}
+            onSave={handleStartCustomSession}
+            onCancel={() => setShowCustomForm(false)}
+          />
+        ) : (
+          <button
+            onClick={() => setShowCustomForm(true)}
+            className="rounded-xl p-4 flex items-center gap-3 btn-press text-left"
+            style={{ background: '#C75B3910', border: '1px dashed #C75B3940' }}
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: '#C75B3918' }}
+            >
+              <Icon name="add" size={22} className="text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-on-surface">{t('outing.custom_type')}</p>
+              <p className="text-xs text-on-surface-faint">{t('outing.custom_type_desc')}</p>
+            </div>
+          </button>
+        )}
+
         {profiles.length === 0 && (
           <p className="text-sm text-on-surface-faint text-center py-8">
             {t('outing.no_profiles')}
@@ -174,11 +227,18 @@ export function OutingPage() {
     );
   }
 
+  const sessionProfile = profiles.find((p) => p.id === session.activityProfileId) ?? null;
+  const sessionIcon =
+    sessionProfile?.iconName ?? getCategoryIcon(sessionProfile?.category ?? null);
+  const sessionCategory = sessionProfile?.category ?? 'other';
+
   return <ActiveSession
     session={session}
     sessionTxs={sessionTxs}
     trip={trip}
     elapsed={elapsed}
+    sessionIcon={sessionIcon}
+    sessionCategory={sessionCategory}
     onQuickAdd={handleQuickAdd}
     onEnd={handleEndSession}
     onBack={() => navigate(-1)}
@@ -190,12 +250,14 @@ interface ActiveSessionProps {
   sessionTxs: Transaction[];
   trip: { baseCurrency: string };
   elapsed: string;
+  sessionIcon: string;
+  sessionCategory: string;
   onQuickAdd: (cents: number) => void;
   onEnd: () => void;
   onBack: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, onQuickAdd, onEnd, onBack }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, onQuickAdd, onEnd, onBack }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -332,7 +394,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, onQuickAdd, onEnd, 
                   className="w-7 h-7 rounded-full flex items-center justify-center"
                   style={{ background: '#C75B3920', color: 'var(--primary)' }}
                 >
-                  <Icon name="local_bar" size={13} filled />
+                  <Icon name={sessionIcon} size={13} filled />
                 </div>
               );
             }
@@ -343,7 +405,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, onQuickAdd, onEnd, 
                 className={`${isPulsing ? 'seg-pulse ' : ''}w-7 h-7 rounded-full flex items-center justify-center`}
                 style={{ background: '#C75B3920', color: 'var(--primary)' }}
               >
-                <Icon name="local_bar" size={13} filled />
+                <Icon name={sessionIcon} size={13} filled />
               </div>
             );
           })}
@@ -443,7 +505,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, onQuickAdd, onEnd, 
                     style={{ background: 'var(--primary)' }}
                   />
                   <span className="text-xs font-semibold" style={{ color: 'var(--on-surface-dim)' }}>
-                    {tx.description || t('categories.bar')}
+                    {tx.description || t(`categories.${sessionCategory}` as never)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">

@@ -1,0 +1,386 @@
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router';
+import { useAppData } from '@/hooks/useAppData';
+import { calculatePersonalCost, scaleSharesToTotal } from '@/domain/splitting';
+import { formatMoney, fromCents, toCents } from '@/domain/money';
+import { formatDate } from '@/domain/dates';
+import { transactionRepository, participantShareRepository } from '@/data/repositories';
+import { getCategoryIcon } from '@/utils/category-icons';
+import { Icon } from '@/components/Icon';
+import type { Transaction } from '@/domain/types/transaction';
+import type { ParticipantShare } from '@/domain/types/participant-share';
+
+const CATEGORY_KEYS = [
+  'bar',
+  'restaurant',
+  'market',
+  'transport',
+  'outing',
+  'entertainment',
+  'health',
+  'accommodation',
+  'other',
+] as const;
+
+export function ExpenseDetailPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const { trip, pools, wallets, participants, loading, reload } = useAppData();
+
+  const [tx, setTx] = useState<Transaction | null>(null);
+  const [txLoading, setTxLoading] = useState(true);
+  const [shares, setShares] = useState<ParticipantShare[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCategory, setEditCategory] = useState('other');
+  const [editPoolId, setEditPoolId] = useState<string | null>(null);
+  const [editWalletId, setEditWalletId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState('');
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      const found = await transactionRepository.getById(id);
+      const txShares = found ? await participantShareRepository.getByTransactionId(found.id) : [];
+      if (cancelled) return;
+      setTx(found ?? null);
+      setShares(txShares);
+      setTxLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (loading || txLoading) {
+    return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
+  }
+
+  if (!trip || !tx) {
+    return (
+      <div className="flex flex-col gap-4 pb-4 pt-2">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="btn-press p-1">
+            <Icon name="arrow_back" size={24} className="text-on-surface" />
+          </button>
+          <h1 className="text-heading font-bold text-on-surface">{t('expenses.detail_title')}</h1>
+        </div>
+        <p className="text-sm text-on-surface-dim text-center py-8">{t('expenses.not_found')}</p>
+      </div>
+    );
+  }
+
+  const pool = pools.find((p) => p.id === tx.budgetPoolId) ?? null;
+  const wallet = wallets.find((w) => w.id === tx.walletId) ?? null;
+  const participantById = new Map(participants.map((p) => [p.id, p]));
+  const payer = tx.paidByParticipantId ? participantById.get(tx.paidByParticipantId) : null;
+  const owner = participants.find((p) => p.isOwner) ?? null;
+
+  const startEdit = () => {
+    setEditAmount(fromCents(tx.amountCents).toFixed(2));
+    setEditDescription(tx.description);
+    setEditCategory(tx.category ?? 'other');
+    setEditPoolId(tx.budgetPoolId);
+    setEditWalletId(tx.walletId);
+    setEditDate(tx.date.slice(0, 10));
+    setEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    const parsed = parseFloat(editAmount.replace(',', '.'));
+    if (Number.isNaN(parsed) || parsed <= 0) return;
+    setSaving(true);
+    try {
+      const newAmountCents = toCents(parsed);
+      const timePart = tx.date.length > 10 ? tx.date.slice(10) : 'T12:00:00.000Z';
+      let newPersonalCost = tx.personalCostCents;
+      let newShares = shares;
+
+      if (tx.isShared && shares.length > 0 && newAmountCents !== tx.amountCents) {
+        newShares = scaleSharesToTotal(shares, newAmountCents);
+        await Promise.all(newShares.map((s) => participantShareRepository.update(s)));
+        newPersonalCost = owner ? calculatePersonalCost(newShares, owner.id) : null;
+      } else if (!tx.isShared) {
+        newPersonalCost = newAmountCents;
+      }
+
+      const updated = await transactionRepository.update({
+        ...tx,
+        amountCents: newAmountCents,
+        baseCurrencyAmountCents: newAmountCents,
+        personalCostCents: newPersonalCost,
+        description: editDescription.trim() || tx.description,
+        category: editCategory,
+        budgetPoolId: editPoolId,
+        walletId: editWalletId,
+        date: `${editDate}${timePart}`,
+      });
+      setTx(updated);
+      setShares(newShares);
+      setEditing(false);
+      await reload();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(t('expenses.delete_confirm'))) return;
+    await transactionRepository.delete(tx.id);
+    await Promise.all(shares.map((s) => participantShareRepository.delete(s.id)));
+    await reload();
+    navigate('/expenses', { replace: true });
+  };
+
+  return (
+    <div className="flex flex-col gap-4 pb-4 pt-2">
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="btn-press p-1">
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
+        </button>
+        <h1 className="text-heading font-bold text-on-surface">{t('expenses.detail_title')}</h1>
+      </div>
+
+      {!editing ? (
+        <>
+          <div className="bg-surface-container rounded-2xl p-5 text-center">
+            <div
+              className="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2"
+              style={{ background: '#C75B3918' }}
+            >
+              <Icon name={getCategoryIcon(tx.category)} size={24} className="text-primary" />
+            </div>
+            <p className="text-[32px] font-extrabold tabular text-on-surface leading-none">
+              {formatMoney(tx.amountCents, tx.currency)}
+            </p>
+            <p className="text-sm text-on-surface-dim mt-2">{tx.description}</p>
+          </div>
+
+          <div className="bg-surface-container rounded-xl divide-y divide-on-surface-mute">
+            <DetailRow
+              label={t('expenses.category')}
+              value={tx.category ? t(`categories.${tx.category}` as never) : '—'}
+            />
+            <DetailRow label={t('expenses.date')} value={formatDate(tx.date.slice(0, 10))} />
+            <DetailRow label={t('expenses.fund')} value={pool?.name ?? '—'} />
+            <DetailRow
+              label={t('expenses.wallet')}
+              value={wallet?.name ?? t('expenses.wallet_not_set')}
+              warning={!wallet}
+            />
+            {tx.isShared && (
+              <>
+                <DetailRow
+                  label={t('expenses.financial_flow')}
+                  value={formatMoney(tx.amountCents, tx.currency)}
+                />
+                <DetailRow
+                  label={t('expenses.personal_cost')}
+                  value={formatMoney(tx.personalCostCents ?? tx.amountCents, tx.currency)}
+                />
+              </>
+            )}
+          </div>
+
+          {tx.isShared && shares.length > 0 && (
+            <div>
+              <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
+                {t('expenses.shared_with')}
+              </p>
+              <div className="bg-surface-container rounded-xl divide-y divide-on-surface-mute">
+                {shares.map((share) => {
+                  const participant = participantById.get(share.participantId);
+                  const isPayer = share.participantId === tx.paidByParticipantId;
+                  return (
+                    <div key={share.id} className="px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon name="person" size={18} className="text-on-surface-dim" />
+                        <span className="text-sm text-on-surface">
+                          {participant?.isOwner
+                            ? t('shared.owner_tag')
+                            : (participant?.nickname ?? participant?.name ?? '—')}
+                        </span>
+                        {isPayer && payer && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-success/15 text-success">
+                            {t('expenses.paid_by', {
+                              name: payer.isOwner ? t('shared.owner_tag') : payer.name,
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm font-semibold tabular text-on-surface">
+                        {formatMoney(share.shareAmountCents, tx.currency)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {tx.notes && (
+            <div className="bg-surface-container rounded-xl p-4">
+              <p className="text-xs text-on-surface-faint mb-1">{t('expenses.description')}</p>
+              <p className="text-sm text-on-surface">{tx.notes}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleDelete}
+              className="flex-1 py-3 rounded-xl font-medium btn-press"
+              style={{ background: '#D9404015', color: 'var(--error)' }}
+            >
+              {t('common.delete')}
+            </button>
+            <button
+              onClick={startEdit}
+              className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press"
+            >
+              {t('common.edit')}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="bg-surface-container rounded-2xl p-5">
+            <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.amount')}</label>
+            <div className="flex items-baseline gap-1">
+              <span className="text-on-surface-dim text-lg">{tx.currency}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                className="bg-transparent text-display font-bold text-on-surface tabular outline-none w-full"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.description')}</label>
+            <input
+              type="text"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              className="bg-transparent text-sm text-on-surface outline-none w-full"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.category')}</label>
+            <div className="grid grid-cols-5 gap-2">
+              {CATEGORY_KEYS.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setEditCategory(key)}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-xl btn-press transition-colors ${
+                    editCategory === key ? 'bg-primary/20 ring-1 ring-primary' : 'bg-surface-container'
+                  }`}
+                >
+                  <Icon
+                    name={getCategoryIcon(key)}
+                    size={20}
+                    className={editCategory === key ? 'text-primary' : 'text-on-surface-dim'}
+                  />
+                  <span className="text-[10px] text-on-surface-faint">
+                    {t(`categories.${key}` as never)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.date')}</label>
+            <input
+              type="date"
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+            />
+          </div>
+
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>
+            <div className="flex gap-2 flex-wrap">
+              {pools.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setEditPoolId(p.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    editPoolId === p.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.wallet')}</label>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setEditWalletId(null)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                  editWalletId === null
+                    ? 'bg-warning/20 text-warning ring-1 ring-warning'
+                    : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                {t('expenses.wallet_not_set')}
+              </button>
+              {wallets.map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => setEditWalletId(w.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    editWalletId === w.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {w.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setEditing(false)}
+              className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim font-medium btn-press"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={saving}
+              className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
+            >
+              {saving ? t('common.loading') : t('common.save')}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
+  return (
+    <div className="px-4 py-3 flex items-center justify-between">
+      <span className="text-xs text-on-surface-faint">{label}</span>
+      <span className={`text-sm font-medium ${warning ? 'text-warning' : 'text-on-surface'}`}>
+        {value}
+      </span>
+    </div>
+  );
+}

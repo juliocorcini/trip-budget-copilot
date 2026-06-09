@@ -12,10 +12,14 @@ export interface CreateExpenseInput {
   category: string;
   description: string;
   date?: string;
+  type?: TransactionType;
   isShared?: boolean;
+  personalCostCents?: number | null;
   paidByParticipantId?: string | null;
   activityProfileId?: string | null;
   sessionId?: string | null;
+  sourceWalletId?: string | null;
+  targetWalletId?: string | null;
   notes?: string | null;
 }
 
@@ -28,9 +32,14 @@ export function createExpenseTransaction(input: CreateExpenseInput): Transaction
     budgetPoolId: input.budgetPoolId,
     walletId: input.walletId,
     sessionId: input.sessionId ?? null,
-    type: 'expense' as TransactionType,
+    type: input.type ?? 'expense',
     amountCents: input.amountCents,
-    personalCostCents: input.isShared ? null : input.amountCents,
+    personalCostCents:
+      input.personalCostCents !== undefined
+        ? input.personalCostCents
+        : input.isShared
+          ? null
+          : input.amountCents,
     currency: input.currency,
     baseCurrencyAmountCents: input.amountCents,
     exchangeRate: null,
@@ -42,8 +51,8 @@ export function createExpenseTransaction(input: CreateExpenseInput): Transaction
     activityProfileId: input.activityProfileId ?? null,
     isSpecialOccasion: false,
     excludeFromLearning: false,
-    sourceWalletId: null,
-    targetWalletId: null,
+    sourceWalletId: input.sourceWalletId ?? null,
+    targetWalletId: input.targetWalletId ?? null,
     settlementId: null,
     adjustmentReason: null,
     notes: input.notes ?? null,

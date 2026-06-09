@@ -2,7 +2,9 @@ import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
 import type { Envelope } from '@/domain/types/envelope';
 import type { Transaction } from '@/domain/types/transaction';
+import type { BudgetPoolScope } from '@/domain/types/common';
 import { sumCents } from '@/domain/money';
+import { createSyncMetadata } from '@/utils/entity-factory';
 
 export interface FreeToSpendResult {
   freeToSpendCents: number;
@@ -49,6 +51,10 @@ export function calculateFreeToSpend(
   };
 }
 
+/**
+ * Budget impact uses the personal cost when available (shared expenses):
+ * the financial flow (amountCents) may include other participants' shares.
+ */
 export function calculatePoolSpent(transactions: Transaction[]): number {
   return sumCents(
     transactions
@@ -57,7 +63,7 @@ export function calculatePoolSpent(transactions: Transaction[]): number {
           t.deletedAt === null &&
           (t.type === 'expense' || t.type === 'adjustment'),
       )
-      .map((t) => t.amountCents),
+      .map((t) => t.personalCostCents ?? t.amountCents),
   );
 }
 
@@ -130,4 +136,96 @@ export function getBudgetHealthStatus(
   if (percentUsed >= 90) return 'critical';
   if (percentUsed >= 70) return 'warning';
   return 'healthy';
+}
+
+export interface SavingsResult {
+  savedCents: number;
+  percentOfBarNight: number;
+  hasSavings: boolean;
+}
+
+export function calculateSavings(
+  transactions: Transaction[],
+  barProfile: { typicalValueCents: number; expectedFrequencyPerPhase: number | null } | null,
+  daysElapsed: number,
+): SavingsResult {
+  if (!barProfile || daysElapsed <= 0) return { savedCents: 0, percentOfBarNight: 0, hasSavings: false };
+
+  const barTxs = transactions.filter(
+    (t) => t.category === 'bar' && t.type === 'expense' && t.deletedAt === null,
+  );
+  const actualBarSpent = sumCents(barTxs.map((t) => t.amountCents));
+  const expectedBarSpent = barTxs.length * barProfile.typicalValueCents;
+
+  const savedCents = Math.max(0, expectedBarSpent - actualBarSpent);
+  const percentOfBarNight = barProfile.typicalValueCents > 0
+    ? Math.round((savedCents / barProfile.typicalValueCents) * 100)
+    : 0;
+
+  return { savedCents, percentOfBarNight, hasSavings: savedCents > 0 };
+}
+
+export interface AmigoSinceroInsight {
+  hasInsight: boolean;
+  beforeCount: number;
+  afterCount: number;
+  category: string;
+  reserveStatus: 'intact' | 'affected';
+}
+
+export function generateAmigoSinceroInsight(
+  freeToSpendCents: number,
+  _protectedReserveCents: number,
+  profile: { typicalValueCents: number; category: string } | null,
+  recentSpendCents: number,
+): AmigoSinceroInsight {
+  if (!profile || profile.typicalValueCents <= 0) {
+    return { hasInsight: false, beforeCount: 0, afterCount: 0, category: 'other', reserveStatus: 'intact' };
+  }
+
+  const beforeCount = Math.floor(freeToSpendCents / profile.typicalValueCents);
+  const afterCount = Math.floor(
+    Math.max(0, freeToSpendCents - recentSpendCents) / profile.typicalValueCents,
+  );
+  const reserveAffected = freeToSpendCents - recentSpendCents < 0;
+
+  return {
+    hasInsight: beforeCount !== afterCount && beforeCount > 0,
+    beforeCount,
+    afterCount,
+    category: profile.category,
+    reserveStatus: reserveAffected ? 'affected' : 'intact',
+  };
+}
+
+export interface CreateBudgetPoolInput {
+  tripId: string;
+  name: string;
+  scope: BudgetPoolScope;
+  totalAmountCents: number;
+  currency: string;
+}
+
+export function createBudgetPool(input: CreateBudgetPoolInput): BudgetPool {
+  return {
+    ...createSyncMetadata(),
+    tripId: input.tripId,
+    name: input.name,
+    scope: input.scope,
+    totalAmountCents: input.totalAmountCents,
+    currency: input.currency,
+    notes: null,
+  };
+}
+
+export function createBudgetPoolPhaseLink(
+  budgetPoolId: string,
+  phaseId: string,
+): BudgetPoolPhaseLink {
+  return {
+    ...createSyncMetadata(),
+    budgetPoolId,
+    phaseId,
+    futureFloorCents: null,
+  };
 }

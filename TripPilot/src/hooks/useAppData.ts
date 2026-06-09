@@ -9,6 +9,7 @@ import type { Wallet } from '@/domain/types/wallet';
 import type { Participant } from '@/domain/types/participant';
 import type { AppSettings } from '@/domain/types/app-settings';
 import { tripRepository, phaseRepository, budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository, transactionRepository, walletRepository, participantRepository, appSettingsRepository } from '@/data/repositories';
+import { repairDemoTripIfNeeded } from '@/data/demo-repair';
 
 interface AppData {
   settings: AppSettings | null;
@@ -40,9 +41,11 @@ export function useAppData(): AppData {
     setLoading(true);
     try {
       const s = await appSettingsRepository.get();
-      setSettings(s);
+      await repairDemoTripIfNeeded(s);
+      const refreshedSettings = await appSettingsRepository.get();
+      setSettings(refreshedSettings);
 
-      if (!s.activeTrip) {
+      if (!refreshedSettings.activeTrip) {
         setTrip(null);
         setPhases([]);
         setPools([]);
@@ -55,12 +58,12 @@ export function useAppData(): AppData {
       }
 
       const [t, ph, po, tx, wa, pa] = await Promise.all([
-        tripRepository.getById(s.activeTrip),
-        phaseRepository.getByTripId(s.activeTrip),
-        budgetPoolRepository.getByTripId(s.activeTrip),
-        transactionRepository.getByTripId(s.activeTrip),
-        walletRepository.getByTripId(s.activeTrip),
-        participantRepository.getByTripId(s.activeTrip),
+        tripRepository.getById(refreshedSettings.activeTrip),
+        phaseRepository.getByTripId(refreshedSettings.activeTrip),
+        budgetPoolRepository.getByTripId(refreshedSettings.activeTrip),
+        transactionRepository.getByTripId(refreshedSettings.activeTrip),
+        walletRepository.getByTripId(refreshedSettings.activeTrip),
+        participantRepository.getByTripId(refreshedSettings.activeTrip),
       ]);
 
       setTrip(t ?? null);

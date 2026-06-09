@@ -3,60 +3,169 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { createExpenseTransaction } from '@/domain/transactions';
+import {
+  createEqualShares,
+  createCustomShares,
+  calculatePersonalCost,
+} from '@/domain/splitting';
 import { findActivePhase } from '@/domain/dates';
 import { toCents, formatMoney } from '@/domain/money';
-import { transactionRepository } from '@/data/repositories';
+import { transactionRepository, participantShareRepository } from '@/data/repositories';
+import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import type { ShareType } from '@/domain/types/common';
 
-const CATEGORIES = [
-  { key: 'bar', icon: 'local_bar' },
-  { key: 'restaurant', icon: 'restaurant' },
-  { key: 'market', icon: 'shopping_cart' },
-  { key: 'transport', icon: 'directions_bus' },
-  { key: 'outing', icon: 'hiking' },
-  { key: 'entertainment', icon: 'movie' },
-  { key: 'health', icon: 'healing' },
-  { key: 'accommodation', icon: 'hotel' },
-  { key: 'other', icon: 'more_horiz' },
-];
+const CATEGORY_KEYS = [
+  'bar',
+  'restaurant',
+  'market',
+  'transport',
+  'outing',
+  'entertainment',
+  'health',
+  'accommodation',
+  'other',
+] as const;
 
 export function QuickAddPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, wallets, settings, reload } = useAppData();
+  const { trip, phases, pools, wallets, participants, settings, reload } = useAppData();
 
   const initialCategory = searchParams.get('cat') ?? 'other';
+  const txType = searchParams.get('type') ?? 'expense';
+  const isTransfer = txType === 'transfer';
+  const isWithdrawal = txType === 'withdrawal';
+
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState(initialCategory);
+  const [category, setCategory] = useState(
+    isTransfer ? 'other' : isWithdrawal ? 'cash_adjustment' : initialCategory,
+  );
   const [walletId, setWalletId] = useState<string | null>(null);
+  const [targetWalletId, setTargetWalletId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
+  const [isShared, setIsShared] = useState(false);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [paidById, setPaidById] = useState<string | null>(null);
+  const [splitMode, setSplitMode] = useState<ShareType>('equal');
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
+
   const activePhase = findActivePhase(phases);
+  const currentPhase = activePhase ?? phases[0] ?? null;
   const defaultWallet = wallets.find((w) => w.isDefault);
 
   const effectiveWalletId = walletId ?? defaultWallet?.id ?? null;
   const effectivePoolId = poolId || pools[0]?.id || '';
 
+  const owner = participants.find((p) => p.isOwner) ?? null;
+  const effectivePaidById = paidById ?? owner?.id ?? null;
+  const canSplit = !isTransfer && !isWithdrawal && participants.length > 1;
+
+  const toggleShared = () => {
+    setIsShared((prev) => {
+      const next = !prev;
+      if (next && selectedParticipantIds.length === 0) {
+        setSelectedParticipantIds(participants.map((p) => p.id));
+      }
+      return next;
+    });
+  };
+
+  const toggleParticipant = (id: string) => {
+    setSelectedParticipantIds((prev) =>
+      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
+    );
+  };
+
+  const amountCentsPreview = amount ? toCents(parseFloat(amount) || 0) : 0;
+  const customSumCents = selectedParticipantIds.reduce((sum, pid) => {
+    const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
+    return sum + (Number.isNaN(value) ? 0 : Math.round(value * 100));
+  }, 0);
+  const customRemainingCents = amountCentsPreview - customSumCents;
+
+  const previewShareCents =
+    isShared && selectedParticipantIds.length > 0 && owner && selectedParticipantIds.includes(owner.id)
+      ? splitMode === 'equal'
+        ? Math.round(amountCentsPreview / selectedParticipantIds.length)
+        : (() => {
+            const value = parseFloat((customAmounts[owner.id] ?? '').replace(',', '.'));
+            return Number.isNaN(value) ? 0 : Math.round(value * 100);
+          })()
+      : null;
+
   const handleSave = async () => {
-    if (!trip || !activePhase || !effectivePoolId || !amount) return;
+    if (!trip || !currentPhase || !effectivePoolId || !amount) return;
 
     setSaving(true);
     try {
       const amountCents = toCents(parseFloat(amount));
+      const txType2 = isTransfer ? 'transfer' as const : isWithdrawal ? 'adjustment' as const : 'expense' as const;
+      const defaultDesc = isTransfer
+        ? t('fab.register_transfer')
+        : isWithdrawal
+          ? t('fab.register_withdrawal')
+          : t(`categories.${category}` as never);
+
+      const splitActive =
+        canSplit && isShared && selectedParticipantIds.length >= 2 && effectivePaidById !== null;
+      const ownerPaid = !splitActive || effectivePaidById === owner?.id;
+
       const tx = createExpenseTransaction({
         tripId: trip.id,
-        phaseId: activePhase.id,
+        phaseId: currentPhase.id,
         budgetPoolId: effectivePoolId,
-        walletId: effectiveWalletId,
+        // When someone else paid, no money left the user's wallets.
+        walletId: ownerPaid ? effectiveWalletId : null,
         amountCents,
         currency: trip.baseCurrency,
         category,
-        description: description || t(`categories.${category}` as never),
+        description: description || defaultDesc,
+        type: txType2,
+        isShared: splitActive,
+        paidByParticipantId: splitActive ? effectivePaidById : undefined,
+        sourceWalletId: isTransfer ? effectiveWalletId : undefined,
+        targetWalletId: isTransfer ? targetWalletId : undefined,
       });
-      await transactionRepository.create(tx);
+
+      if (splitActive) {
+        const shares =
+          splitMode === 'equal'
+            ? createEqualShares(tx.id, selectedParticipantIds, amountCents)
+            : (() => {
+                const custom = selectedParticipantIds.map((pid) => {
+                  const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
+                  return {
+                    participantId: pid,
+                    amountCents: Number.isNaN(value) ? 0 : Math.round(value * 100),
+                  };
+                });
+                // Any unallocated remainder is absorbed by the payer.
+                const sum = custom.reduce((acc, s) => acc + s.amountCents, 0);
+                const diff = amountCents - sum;
+                if (diff !== 0) {
+                  const payerShare =
+                    custom.find((s) => s.participantId === effectivePaidById) ?? custom[0]!;
+                  payerShare.amountCents += diff;
+                }
+                return createCustomShares(tx.id, custom);
+              })();
+
+        const finalShares = shares.map((s) =>
+          s.participantId === effectivePaidById ? { ...s, isPaid: true } : s,
+        );
+        tx.personalCostCents = owner ? calculatePersonalCost(finalShares, owner.id) : null;
+
+        await transactionRepository.create(tx);
+        await participantShareRepository.bulkCreate(finalShares);
+      } else {
+        await transactionRepository.create(tx);
+      }
+
       await reload();
       navigate('/dashboard');
     } finally {
@@ -72,7 +181,9 @@ export function QuickAddPage() {
         <button onClick={() => navigate(-1)} className="btn-press p-1">
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
-        <h1 className="text-heading font-bold text-on-surface">{t('expenses.add')}</h1>
+        <h1 className="text-heading font-bold text-on-surface">
+          {isTransfer ? t('fab.register_transfer') : isWithdrawal ? t('fab.register_withdrawal') : t('expenses.add')}
+        </h1>
         <div className="w-8" />
       </div>
 
@@ -96,16 +207,16 @@ export function QuickAddPage() {
       <div>
         <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.category')}</label>
         <div className="grid grid-cols-5 gap-2">
-          {CATEGORIES.map((cat) => (
+          {CATEGORY_KEYS.map((key) => (
             <button
-              key={cat.key}
-              onClick={() => setCategory(cat.key)}
+              key={key}
+              onClick={() => setCategory(key)}
               className={`flex flex-col items-center gap-1 p-2 rounded-xl btn-press transition-colors ${
-                category === cat.key ? 'bg-primary/20 ring-1 ring-primary' : 'bg-surface-container'
+                category === key ? 'bg-primary/20 ring-1 ring-primary' : 'bg-surface-container'
               }`}
             >
-              <Icon name={cat.icon} size={20} className={category === cat.key ? 'text-primary' : 'text-on-surface-dim'} />
-              <span className="text-[10px] text-on-surface-faint">{t(`categories.${cat.key}` as never)}</span>
+              <Icon name={getCategoryIcon(key)} size={20} className={category === key ? 'text-primary' : 'text-on-surface-dim'} />
+              <span className="text-[10px] text-on-surface-faint">{t(`categories.${key}` as never)}</span>
             </button>
           ))}
         </div>
@@ -163,6 +274,169 @@ export function QuickAddPage() {
           ))}
         </div>
       </div>
+
+      {/* ── SHARED EXPENSE (split) ── */}
+      {canSplit && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <button
+            onClick={toggleShared}
+            className="w-full flex items-center justify-between btn-press"
+          >
+            <span className="text-sm text-on-surface font-medium flex items-center gap-2">
+              <Icon name="group" size={18} className="text-on-surface-dim" />
+              {t('expenses.shared_toggle')}
+            </span>
+            <span
+              className="w-10 h-6 rounded-full relative transition-colors"
+              style={{ background: isShared ? 'var(--primary)' : 'var(--surface-high)' }}
+            >
+              <span
+                className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
+                style={{ left: isShared ? '18px' : '2px' }}
+              />
+            </span>
+          </button>
+
+          {isShared && (
+            <div className="mt-4 flex flex-col gap-3">
+              <div>
+                <label className="text-xs text-on-surface-faint mb-2 block">
+                  {t('expenses.participants_label')}
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {participants.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => toggleParticipant(p.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                        selectedParticipantIds.includes(p.id)
+                          ? 'bg-primary text-on-surface'
+                          : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {p.nickname ?? p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-on-surface-faint mb-2 block">
+                  {t('expenses.who_paid')}
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {participants.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setPaidById(p.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                        effectivePaidById === p.id
+                          ? 'bg-primary text-on-surface'
+                          : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-on-surface-faint mb-2 block">
+                  {t('expenses.split_mode')}
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSplitMode('equal')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                      splitMode === 'equal' ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {t('expenses.split_equal')}
+                  </button>
+                  <button
+                    onClick={() => setSplitMode('custom')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                      splitMode === 'custom' ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {t('expenses.split_custom')}
+                  </button>
+                </div>
+              </div>
+
+              {splitMode === 'custom' && (
+                <div className="flex flex-col gap-2">
+                  {participants
+                    .filter((p) => selectedParticipantIds.includes(p.id))
+                    .map((p) => (
+                      <div key={p.id} className="flex items-center gap-2">
+                        <span className="text-xs text-on-surface-dim flex-1 truncate">
+                          {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
+                        </span>
+                        <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
+                          <span className="text-on-surface-faint text-xs">{trip.baseCurrency}</span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            value={customAmounts[p.id] ?? ''}
+                            onChange={(e) =>
+                              setCustomAmounts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                            }
+                            placeholder="0,00"
+                            className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  {customRemainingCents !== 0 && amountCentsPreview > 0 && (
+                    <p className="text-xs text-warning">
+                      {t('expenses.split_remaining', {
+                        amount: formatMoney(customRemainingCents, trip.baseCurrency),
+                      })}{' '}
+                      {t('expenses.split_remainder_to_payer')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {previewShareCents !== null && amountCentsPreview > 0 && (
+                <p className="text-xs font-semibold text-success">
+                  {t('expenses.your_share', {
+                    amount: formatMoney(previewShareCents, trip.baseCurrency),
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isTransfer && !isWithdrawal && participants.length <= 1 && (
+        <p className="text-xs text-on-surface-faint px-1">
+          {t('expenses.no_participants_hint')}
+        </p>
+      )}
+
+      {isTransfer && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <label className="text-xs text-on-surface-faint mb-2 block">{t('fab.register_transfer_desc')}</label>
+          <div className="flex gap-2 flex-wrap">
+            {wallets.filter((w) => w.id !== effectiveWalletId).map((wallet) => (
+              <button
+                key={wallet.id}
+                onClick={() => setTargetWalletId(wallet.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                  targetWalletId === wallet.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                {wallet.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {amount && parseFloat(amount) > 0 && (
         <div className="bg-surface-high rounded-xl p-3 text-center">

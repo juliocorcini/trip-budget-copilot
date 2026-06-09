@@ -14,6 +14,23 @@ export function findActivePhase(phases: Phase[], referenceDate: Date = new Date(
   );
 }
 
+export function resolveActivePhase(phases: Phase[], referenceDate: Date = new Date()): Phase | null {
+  const current = findActivePhase(phases, referenceDate);
+  if (current) return current;
+
+  const sorted = sortPhasesByOrder(phases.filter((p) => p.deletedAt === null));
+  if (sorted.length === 0) return null;
+
+  const refTime = referenceDate.getTime();
+  const pastPhases = sorted.filter((p) => parseISO(p.endDate).getTime() < refTime);
+  if (pastPhases.length > 0) return pastPhases[pastPhases.length - 1]!;
+
+  const futurePhases = sorted.filter((p) => parseISO(p.startDate).getTime() > refTime);
+  if (futurePhases.length > 0) return futurePhases[0]!;
+
+  return sorted[0]!;
+}
+
 export function getDayNumber(phaseStartDate: string, referenceDate: Date = new Date()): number {
   const start = parseISO(phaseStartDate);
   return differenceInCalendarDays(referenceDate, start) + 1;

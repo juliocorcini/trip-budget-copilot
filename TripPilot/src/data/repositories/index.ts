@@ -11,3 +11,5 @@ export { participantShareRepository } from './participant-share-repository';
 export { settlementRepository } from './settlement-repository';
 export { sessionRepository } from './session-repository';
 export { activityProfileRepository } from './activity-profile-repository';
+export { scenarioPlanRepository } from './scenario-plan-repository';
+export { scenarioAllocationItemRepository } from './scenario-allocation-item-repository';

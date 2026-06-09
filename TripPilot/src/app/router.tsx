@@ -14,6 +14,12 @@ const OnboardingPage = lazy(() => import('@/features/onboarding/OnboardingPage')
 const SharedExpensesPage = lazy(() => import('@/features/shared/SharedExpensesPage').then(m => ({ default: m.SharedExpensesPage })));
 const OutingPage = lazy(() => import('@/features/outing/OutingPage').then(m => ({ default: m.OutingPage })));
 const SimulatorPage = lazy(() => import('@/features/simulator/SimulatorPage').then(m => ({ default: m.SimulatorPage })));
+const TripOverviewPage = lazy(() => import('@/features/trip/TripOverviewPage').then(m => ({ default: m.TripOverviewPage })));
+const TripEditPage = lazy(() => import('@/features/trip/TripEditPage').then(m => ({ default: m.TripEditPage })));
+const WalletsPage = lazy(() => import('@/features/wallets/WalletsPage').then(m => ({ default: m.WalletsPage })));
+const FundsPage = lazy(() => import('@/features/funds/FundsPage').then(m => ({ default: m.FundsPage })));
+const ProfilesPage = lazy(() => import('@/features/profiles/ProfilesPage').then(m => ({ default: m.ProfilesPage })));
+const ExpenseDetailPage = lazy(() => import('@/features/expenses/ExpenseDetailPage').then(m => ({ default: m.ExpenseDetailPage })));
 
 function LoadingFallback() {
   return (
@@ -37,11 +43,17 @@ export const router = createBrowserRouter([
     children: [
       { path: '/dashboard', element: <LazyRoute><DashboardPage /></LazyRoute> },
       { path: '/expenses', element: <LazyRoute><ExpenseListPage /></LazyRoute> },
+      { path: '/expenses/:id', element: <LazyRoute><ExpenseDetailPage /></LazyRoute> },
       { path: '/planner', element: <LazyRoute><PlannerPage /></LazyRoute> },
       { path: '/more', element: <LazyRoute><MorePage /></LazyRoute> },
       { path: '/settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
       { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
       { path: '/shared', element: <LazyRoute><SharedExpensesPage /></LazyRoute> },
+      { path: '/trip', element: <LazyRoute><TripOverviewPage /></LazyRoute> },
+      { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },
+      { path: '/wallets', element: <LazyRoute><WalletsPage /></LazyRoute> },
+      { path: '/funds', element: <LazyRoute><FundsPage /></LazyRoute> },
+      { path: '/profiles', element: <LazyRoute><ProfilesPage /></LazyRoute> },
     ],
   },
   { path: '/', element: <LazyRoute><WelcomePage /></LazyRoute> },

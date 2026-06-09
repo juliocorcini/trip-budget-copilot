@@ -33,6 +33,12 @@ function meta(deviceId: string, overrides?: { id?: string }) {
   };
 }
 
+function dayOffset(base: Date, days: number): string {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export function generateDemoData(deviceId: string): DemoData {
   const tripId = uuidv4();
   const phase1Id = uuidv4();
@@ -44,13 +50,19 @@ export function generateDemoData(deviceId: string): DemoData {
   const ownerId = uuidv4();
   const friendId = uuidv4();
 
+  const now = new Date();
+  const tripStart = dayOffset(now, -13);
+  const phase1End = dayOffset(now, 10);
+  const phase2Start = dayOffset(now, 11);
+  const tripEnd = dayOffset(now, 33);
+
   const trip: Trip = {
     ...meta(deviceId),
     id: tripId,
     name: 'Eurotrip Espanha 2026',
     baseCurrency: 'EUR',
-    startDate: '2026-07-01',
-    endDate: '2026-08-15',
+    startDate: tripStart,
+    endDate: tripEnd,
     status: 'active',
     notes: null,
   };
@@ -60,9 +72,9 @@ export function generateDemoData(deviceId: string): DemoData {
       ...meta(deviceId),
       id: phase1Id,
       tripId,
-      name: 'Burgos',
-      startDate: '2026-07-01',
-      endDate: '2026-07-23',
+      name: 'Burgos antes da eurotrip',
+      startDate: tripStart,
+      endDate: phase1End,
       order: 0,
       notes: null,
     },
@@ -71,8 +83,8 @@ export function generateDemoData(deviceId: string): DemoData {
       id: phase2Id,
       tripId,
       name: 'Madrid',
-      startDate: '2026-07-24',
-      endDate: '2026-08-15',
+      startDate: phase2Start,
+      endDate: tripEnd,
       order: 1,
       notes: null,
     },
@@ -201,26 +213,28 @@ export function generateDemoData(deviceId: string): DemoData {
 
   const transactions: Transaction[] = [];
   for (let i = 0; i < 10; i++) {
-    const day = 1 + i;
+    const daysAgo = 13 - i;
+    const txDate = dayOffset(now, -daysAgo);
     const amount = [350, 1200, 2500, 280, 1500, 900, 450, 350, 800, 1500][i]!;
+    const isSharedTx = i === 2;
     transactions.push({
       ...meta(deviceId),
       tripId,
       phaseId: phase1Id,
-      budgetPoolId: pool1Id,
+      budgetPoolId: i === 7 ? pool2Id : pool1Id,
       walletId: i % 3 === 0 ? wallet2Id : wallet1Id,
       sessionId: null,
       type: 'expense',
       amountCents: amount,
-      personalCostCents: amount,
+      personalCostCents: isSharedTx ? Math.round(amount / 2) : amount,
       currency: 'EUR',
       baseCurrencyAmountCents: amount,
       exchangeRate: null,
       category: categories[i % categories.length]!,
       description: descriptions[i]!,
-      date: `2026-07-${String(day).padStart(2, '0')}T${String(10 + i).padStart(2, '0')}:00:00.000Z`,
-      isShared: false,
-      paidByParticipantId: null,
+      date: `${txDate}T${String(10 + i).padStart(2, '0')}:00:00.000Z`,
+      isShared: isSharedTx,
+      paidByParticipantId: isSharedTx ? ownerId : null,
       activityProfileId: null,
       isSpecialOccasion: false,
       excludeFromLearning: false,

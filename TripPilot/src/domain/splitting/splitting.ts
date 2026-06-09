@@ -153,3 +153,52 @@ export function createSettlement(
 export function suggestSimplifiedSettlements(debts: DebtEntry[]): DebtEntry[] {
   return debts.filter((d) => d.amountCents > 0);
 }
+
+export function createParticipant(
+  tripId: string,
+  name: string,
+  nickname: string | null,
+): Participant {
+  return {
+    ...createSyncMetadata(),
+    tripId,
+    name,
+    nickname,
+    isOwner: false,
+    email: null,
+    linkedUserAccountId: null,
+  };
+}
+
+/**
+ * Rescale shares proportionally to a new transaction total.
+ * The last share absorbs rounding so the sum always matches the total.
+ */
+export function scaleSharesToTotal(
+  shares: ParticipantShare[],
+  newTotalCents: number,
+): ParticipantShare[] {
+  if (shares.length === 0) return shares;
+  const oldTotal = sumCents(shares.map((s) => s.shareAmountCents));
+  if (oldTotal === 0) return shares;
+
+  let allocated = 0;
+  return shares.map((share, i) => {
+    const isLast = i === shares.length - 1;
+    const amount = isLast
+      ? newTotalCents - allocated
+      : Math.round((share.shareAmountCents / oldTotal) * newTotalCents);
+    allocated += amount;
+    return { ...share, shareAmountCents: amount };
+  });
+}
+
+/** Net balance per participant: positive = is owed money, negative = owes money. */
+export function calculateParticipantBalances(debts: DebtEntry[]): Map<string, number> {
+  const balances = new Map<string, number>();
+  for (const debt of debts) {
+    balances.set(debt.debtorId, (balances.get(debt.debtorId) ?? 0) - debt.amountCents);
+    balances.set(debt.creditorId, (balances.get(debt.creditorId) ?? 0) + debt.amountCents);
+  }
+  return balances;
+}

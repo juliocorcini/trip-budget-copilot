@@ -1,11 +1,19 @@
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
-import { findActivePhase, getDayNumber, formatDate } from '@/domain/dates';
-import { calculateFreeToSpend, createPoolSummary } from '@/domain/budget';
+import { resolveActivePhase, getDayNumber, formatDate } from '@/domain/dates';
+import { calculateFreeToSpend, createPoolSummary, calculateSavings, generateAmigoSinceroInsight } from '@/domain/budget';
 import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory } from '@/domain/transactions';
-import { formatMoney, fromCents } from '@/domain/money';
+import { formatMoney, fromCents, sumCents } from '@/domain/money';
+import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { useNavigate } from 'react-router';
+import { sessionRepository } from '@/data/repositories/session-repository';
+import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
+import { transactionRepository } from '@/data/repositories';
+import type { Session } from '@/domain/types/session';
+import type { Transaction } from '@/domain/types/transaction';
+import type { ActivityProfile } from '@/domain/types/activity-profile';
 
 function splitMoneyDisplay(cents: number, currency: string): { symbol: string; integer: string; decimal: string } {
   const value = fromCents(cents);
@@ -23,10 +31,43 @@ function splitMoneyDisplay(cents: number, currency: string): { symbol: string; i
   };
 }
 
+function formatElapsed(startedAt: string): string {
+  const ms = Date.now() - new Date(startedAt).getTime();
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}min`;
+  return `${h}h ${String(m).padStart(2, '0')}min`;
+}
+
 export function DashboardPage() {
   const { t } = useTranslation();
   const { trip, phases, pools, links, envelopes, transactions, loading, settings } = useAppData();
   const navigate = useNavigate();
+
+  const [activeSession, setActiveSession] = useState<Session | null>(null);
+  const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
+  const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+
+  useEffect(() => {
+    if (!trip) return;
+    const load = async () => {
+      const [sess, profs] = await Promise.all([
+        sessionRepository.getActive(trip.id),
+        activityProfileRepository.getByTripId(trip.id),
+      ]);
+      setProfiles(profs);
+      if (sess) {
+        setActiveSession(sess);
+        const txs = await transactionRepository.getBySessionId(sess.id);
+        setSessionTxs(txs);
+      } else {
+        setActiveSession(null);
+        setSessionTxs([]);
+      }
+    };
+    load();
+  }, [trip, transactions]);
 
   if (loading) {
     return (
@@ -41,7 +82,7 @@ export function DashboardPage() {
     return null;
   }
 
-  const activePhase = findActivePhase(phases);
+  const activePhase = resolveActivePhase(phases);
   const dayNum = activePhase ? getDayNumber(activePhase.startDate) : null;
   const recent = getRecentTransactions(transactions, 5);
 
@@ -77,7 +118,30 @@ export function DashboardPage() {
     : 0;
 
   const heroMoney = fts ? splitMoneyDisplay(fts.freeToSpendCents, trip.baseCurrency) : null;
-  const remainingFundCents = fts ? fts.totalBudgetCents - fts.totalSpentCents : 0;
+
+  const barProfile = profiles.find((p) => p.category === 'bar');
+  const daysElapsed = activePhase ? getDayNumber(activePhase.startDate) : 0;
+  const savings = calculateSavings(transactions, barProfile ?? null, daysElapsed);
+
+  const recentBarSpent = sumCents(
+    transactions
+      .filter((t) => t.category === 'bar' && t.type === 'expense' && t.deletedAt === null)
+      .slice(-3)
+      .map((t) => t.amountCents),
+  );
+  const amigoInsight = fts && barProfile
+    ? generateAmigoSinceroInsight(fts.freeToSpendCents, fts.protectedReserveCents, barProfile, recentBarSpent)
+    : null;
+
+  const sessionTotalCents = sumCents(sessionTxs.filter((t) => t.deletedAt === null).map((t) => t.amountCents));
+  const sessionDrinksLeft = activeSession?.ceilingCents && activeSession?.avgDrinkPriceCents
+    ? Math.floor(Math.max(0, (activeSession.ceilingCents - sessionTotalCents)) / activeSession.avgDrinkPriceCents)
+    : null;
+
+  const sessionProfile = activeSession
+    ? profiles.find((p) => p.id === activeSession.activityProfileId) ?? null
+    : null;
+  const sessionIcon = sessionProfile?.iconName ?? getCategoryIcon(sessionProfile?.category ?? 'bar');
 
   return (
     <div className="flex flex-col pb-6">
@@ -153,7 +217,7 @@ export function DashboardPage() {
             <div className="flex justify-between">
               <span className="text-xs font-semibold text-on-surface-dim">{t('dashboard.fund_balance')}</span>
               <span className="text-xs font-bold tabular text-on-surface-dim">
-                {formatMoney(remainingFundCents, trip.baseCurrency)}
+                {formatMoney(fts.totalBudgetCents - fts.totalSpentCents, trip.baseCurrency)}
               </span>
             </div>
             <div className="flex justify-between">
@@ -170,6 +234,40 @@ export function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ACTIVE OUTING CARD */}
+      {activeSession && (
+        <button
+          onClick={() => navigate('/outings/active')}
+          className="mx-5 mt-4 p-4 rounded-2xl flex items-center gap-4 btn-press text-left"
+          style={{ background: 'var(--surface-deep)', border: '1px solid #C75B3925' }}
+        >
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: '#C75B3925' }}
+          >
+            <Icon name={sessionIcon} size={24} filled className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-primary">
+              {t('dashboard.active_outing')} · {formatElapsed(activeSession.startedAt)}
+            </p>
+            <p className="text-base font-extrabold mt-0.5 text-on-surface truncate">
+              {activeSession.name}
+            </p>
+            <p className="text-xs font-semibold mt-0.5 text-on-surface-dim">
+              {t('dashboard.active_outing_spent', { amount: formatMoney(sessionTotalCents, trip.baseCurrency) })}
+              {sessionDrinksLeft !== null && ` · ${t('dashboard.session_drinks_left', { count: sessionDrinksLeft })}`}
+            </p>
+          </div>
+          <span
+            className="px-3 py-2 rounded-xl text-xs font-bold flex-shrink-0"
+            style={{ background: 'var(--primary)', color: 'var(--surface)' }}
+          >
+            {t('dashboard.active_outing_open')}
+          </span>
+        </button>
       )}
 
       {/* OCCASION COUNTERS */}
@@ -196,6 +294,22 @@ export function DashboardPage() {
             iconBg="#D4A84318"
             iconColor="var(--warning)"
           />
+        </div>
+      )}
+
+      {/* SAVINGS CARD */}
+      {savings.hasSavings && (
+        <div
+          className="mx-5 mt-3 p-3.5 rounded-2xl flex items-center gap-3"
+          style={{ background: '#6B8F7112', border: '1px solid #6B8F7118' }}
+        >
+          <Icon name="trending_up" className="text-success" />
+          <p className="text-sm font-semibold text-success">
+            {t('dashboard.savings_message', {
+              amount: formatMoney(savings.savedCents, trip.baseCurrency),
+              percent: savings.percentOfBarNight,
+            })}
+          </p>
         </div>
       )}
 
@@ -257,6 +371,60 @@ export function DashboardPage() {
                   }}
                 />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AMIGO SINCERO */}
+      {amigoInsight?.hasInsight && barProfile && (
+        <div
+          className="mx-5 mt-5 p-4 rounded-2xl"
+          style={{ background: '#C75B3910', border: '1px solid #C75B3918' }}
+        >
+          <div className="flex items-start gap-3">
+            <Icon name="chat_bubble" className="text-primary mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs font-bold text-primary">{t('dashboard.amigo_sincero')}</p>
+              <p className="text-[13px] mt-1.5 leading-snug font-semibold text-on-surface">
+                {t('dashboard.amigo_message', {
+                  type: t(`categories.${amigoInsight.category}` as never).toLowerCase(),
+                  before: amigoInsight.beforeCount,
+                  after: amigoInsight.afterCount,
+                })}
+              </p>
+              <div className="flex items-center gap-4 mt-3">
+                <div>
+                  <p className="text-[10px] font-bold text-on-surface-faint">{t('dashboard.amigo_before')}</p>
+                  <p className="text-sm font-extrabold tabular text-on-surface">
+                    {amigoInsight.beforeCount} {t('dashboard.amigo_outings')}
+                  </p>
+                </div>
+                <Icon name="arrow_forward" size={14} className="text-on-surface-faint" />
+                <div>
+                  <p className="text-[10px] font-bold text-on-surface-faint">{t('dashboard.amigo_after')}</p>
+                  <p className="text-sm font-extrabold tabular text-warning">
+                    {amigoInsight.afterCount} {t('dashboard.amigo_outings')}
+                  </p>
+                </div>
+                <div className="ml-auto">
+                  <p className="text-[10px] font-bold text-on-surface-faint">{t('dashboard.amigo_reserve')}</p>
+                  <p className={`text-sm font-bold ${amigoInsight.reserveStatus === 'intact' ? 'text-success' : 'text-error'}`}>
+                    {amigoInsight.reserveStatus === 'intact' ? t('dashboard.amigo_reserve_intact') : t('dashboard.amigo_reserve_affected')}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  navigate(
+                    `/simulator?amount=${fromCents(recentBarSpent).toFixed(2)}&source=amigoSincero`,
+                  )
+                }
+                className="btn-press mt-3 px-4 py-2 rounded-lg text-xs font-bold"
+                style={{ background: '#C75B3918', color: 'var(--primary)' }}
+              >
+                {t('dashboard.amigo_see_impact')}
+              </button>
             </div>
           </div>
         </div>

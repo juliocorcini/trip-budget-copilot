@@ -1,5 +1,6 @@
 export {
   findActivePhase,
+  resolveActivePhase,
   getDayNumber,
   getDaysRemaining,
   getTotalDays,

@@ -52,6 +52,26 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+[data-theme='light'] {
+  --surface: #F5F0EB;
+  --surface-container: #FFFFFF;
+  --surface-container-high: #EDE8E0;
+  --surface-deep: #EFEBE5;
+
+  --primary: #C75B39;
+  --primary-dim: #C75B39b3;
+  --primary-subtle: #C75B3918;
+
+  --on-surface: #1A2028;
+  --on-surface-dim: #1A2028b3;
+  --on-surface-faint: #1A202870;
+  --on-surface-mute: #1A202835;
+
+  --success: #4A7050;
+  --warning: #B38B2D;
+  --error: #C23030;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

@@ -5,6 +5,9 @@ import {
   calculatePersonalCost,
   calculateDebts,
   createSettlement,
+  createParticipant,
+  scaleSharesToTotal,
+  calculateParticipantBalances,
 } from '@/domain/splitting';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
@@ -130,5 +133,72 @@ describe('createSettlement', () => {
     expect(s.creditorParticipantId).toBe('julio');
     expect(s.amountCents).toBe(3000);
     expect(s.settledAt).toBeTruthy();
+  });
+});
+
+describe('createParticipant', () => {
+  it('creates a non-owner participant with name and nickname', () => {
+    const p = createParticipant('trip-1', 'Ana Silva', 'Aninha');
+    expect(p.tripId).toBe('trip-1');
+    expect(p.name).toBe('Ana Silva');
+    expect(p.nickname).toBe('Aninha');
+    expect(p.isOwner).toBe(false);
+    expect(p.deletedAt).toBeNull();
+  });
+
+  it('accepts null nickname', () => {
+    const p = createParticipant('trip-1', 'Ana', null);
+    expect(p.nickname).toBeNull();
+  });
+});
+
+describe('scaleSharesToTotal', () => {
+  const mkShare = (id: string, participantId: string, amount: number): ParticipantShare => ({
+    ...meta,
+    id,
+    transactionId: 'tx-1',
+    participantId,
+    shareAmountCents: amount,
+    shareType: 'equal',
+    isPaid: false,
+    notes: null,
+  });
+
+  it('scales shares proportionally when total changes', () => {
+    const shares = [mkShare('s1', 'p1', 2000), mkShare('s2', 'p2', 2000), mkShare('s3', 'p3', 2000)];
+    const scaled = scaleSharesToTotal(shares, 9000);
+    expect(scaled[0]!.shareAmountCents).toBe(3000);
+    expect(scaled[1]!.shareAmountCents).toBe(3000);
+    expect(scaled[2]!.shareAmountCents).toBe(3000);
+  });
+
+  it('keeps the sum exact, last share absorbs rounding', () => {
+    const shares = [mkShare('s1', 'p1', 3333), mkShare('s2', 'p2', 3333), mkShare('s3', 'p3', 3334)];
+    const scaled = scaleSharesToTotal(shares, 5000);
+    expect(scaled.reduce((sum, s) => sum + s.shareAmountCents, 0)).toBe(5000);
+  });
+
+  it('preserves proportions for uneven shares', () => {
+    // p1 had 2/3, p2 had 1/3 of €60 → scaling to €90 keeps the ratio
+    const shares = [mkShare('s1', 'p1', 4000), mkShare('s2', 'p2', 2000)];
+    const scaled = scaleSharesToTotal(shares, 9000);
+    expect(scaled[0]!.shareAmountCents).toBe(6000);
+    expect(scaled[1]!.shareAmountCents).toBe(3000);
+  });
+});
+
+describe('calculateParticipantBalances', () => {
+  it('computes net balances from debts', () => {
+    const balances = calculateParticipantBalances([
+      { debtorId: 'ana', debtorName: 'Ana', creditorId: 'julio', creditorName: 'Julio', amountCents: 3000 },
+      { debtorId: 'leo', debtorName: 'Leo', creditorId: 'julio', creditorName: 'Julio', amountCents: 1500 },
+    ]);
+    expect(balances.get('julio')).toBe(4500);
+    expect(balances.get('ana')).toBe(-3000);
+    expect(balances.get('leo')).toBe(-1500);
+  });
+
+  it('returns empty map when there are no debts', () => {
+    expect(calculateParticipantBalances([]).size).toBe(0);
   });
 });

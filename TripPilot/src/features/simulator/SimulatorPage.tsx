@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { findActivePhase } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
@@ -12,9 +12,16 @@ import { Icon } from '@/components/Icon';
 export function SimulatorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { trip, phases, pools, links, envelopes, transactions } = useAppData();
 
-  const [amount, setAmount] = useState('');
+  // Pre-filled when arriving from the Amigo Sincero card (DEC-050).
+  const [amount, setAmount] = useState(() => {
+    const prefill = searchParams.get('amount');
+    if (!prefill) return '';
+    const parsed = parseFloat(prefill);
+    return Number.isNaN(parsed) || parsed <= 0 ? '' : String(parsed);
+  });
 
   const activePhase = findActivePhase(phases);
   const primaryPool = pools.find((p) => p.scope === 'linked_phases');
