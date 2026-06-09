@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { createBackup, parseBackupFile, analyzeImport, generateBackupFilename } from '@/domain/backup';
 import { transactionsToCsvRows, rowsToCsv, downloadFile } from '@/domain/backup';
@@ -10,10 +11,21 @@ import { Icon } from '@/components/Icon';
 
 export function BackupPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { trip, phases, pools, links, envelopes, transactions, wallets, participants, settings, reload } = useAppData();
+  const csvAutoTriggered = useRef(false);
   const [importAnalysis, setImportAnalysis] = useState<ImportAnalysis | null>(null);
   const [importData, setImportData] = useState<BackupData | null>(null);
   const [mergeMode, setMergeMode] = useState<'merge' | 'replace'>('merge');
+
+  useEffect(() => {
+    if (searchParams.get('csv') === 'true' && trip && !csvAutoTriggered.current) {
+      csvAutoTriggered.current = true;
+      const rows = transactionsToCsvRows(transactions, pools, wallets, phases, trip.baseCurrency);
+      const csv = rowsToCsv(rows);
+      downloadFile(csv, `trippilot-expenses-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
+    }
+  }, [searchParams, trip, transactions, pools, wallets, phases]);
 
   const handleExport = async () => {
     if (!settings) return;

@@ -15,13 +15,17 @@ const SharedExpensesPage = lazy(() => import('@/features/shared/SharedExpensesPa
 const OutingPage = lazy(() => import('@/features/outing/OutingPage').then(m => ({ default: m.OutingPage })));
 const SimulatorPage = lazy(() => import('@/features/simulator/SimulatorPage').then(m => ({ default: m.SimulatorPage })));
 
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-surface-base">
+      <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  );
+}
+
 function LazyRoute({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-screen bg-surface-base">
-        <div className="animate-pulse text-on-surface-muted text-sm">Carregando...</div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingFallback />}>
       {children}
     </Suspense>
   );

@@ -17,7 +17,7 @@ export function OnboardingPage() {
   const [phaseName, setPhaseName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [currency] = useState('EUR');
+  const [currency, setCurrency] = useState('EUR');
   const [totalAmount, setTotalAmount] = useState('');
   const [protectedReserve, setProtectedReserve] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -58,6 +58,7 @@ export function OnboardingPage() {
       <Field label={t('onboarding.trip_name')} value={tripName} onChange={setTripName} autoFocus />
       <Field label={t('onboarding.start_date')} type="date" value={startDate} onChange={setStartDate} />
       <Field label={t('onboarding.end_date')} type="date" value={endDate} onChange={setEndDate} />
+      <CurrencySelect label={t('onboarding.currency')} value={currency} onChange={setCurrency} />
     </StepCard>,
     <StepCard key="budget">
       <Field label={t('onboarding.phase_name')} value={phaseName} onChange={setPhaseName} placeholder={tripName} />
@@ -65,7 +66,7 @@ export function OnboardingPage() {
       <Field label={t('onboarding.protected_reserve')} type="number" value={protectedReserve} onChange={setProtectedReserve} placeholder="0.00" />
     </StepCard>,
     <StepCard key="owner">
-      <Field label={t('onboarding.owner_name')} value={ownerName} onChange={setOwnerName} placeholder="Eu" />
+      <Field label={t('onboarding.owner_name')} value={ownerName} onChange={setOwnerName} placeholder={t('shared.owner_tag')} />
     </StepCard>,
   ];
 
@@ -132,6 +133,30 @@ function Field({
         autoFocus={autoFocus}
         className="bg-transparent text-sm text-on-surface outline-none w-full"
       />
+    </div>
+  );
+}
+
+const CURRENCIES = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'];
+
+function CurrencySelect({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="bg-surface-container rounded-xl p-4">
+      <label className="text-xs text-on-surface-faint block mb-2">{label}</label>
+      <div className="flex flex-wrap gap-2">
+        {CURRENCIES.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(c)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+              value === c ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

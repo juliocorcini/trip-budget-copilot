@@ -49,24 +49,6 @@ const FAB_ACTIONS: FabAction[] = [
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
   },
-  {
-    icon: 'swap_horiz',
-    labelKey: 'fab.register_transfer',
-    descKey: 'fab.register_transfer_desc',
-    path: '/quick-add?type=transfer',
-    itemBg: 'var(--surface-container)',
-    iconBg: '#D4A84318',
-    iconColorClass: 'text-warning',
-  },
-  {
-    icon: 'local_atm',
-    labelKey: 'fab.register_withdrawal',
-    descKey: 'fab.register_withdrawal_desc',
-    path: '/quick-add?type=withdrawal',
-    itemBg: 'var(--surface-container)',
-    iconBg: '#D4A84318',
-    iconColorClass: 'text-warning',
-  },
 ];
 
 interface FABMenuProps {

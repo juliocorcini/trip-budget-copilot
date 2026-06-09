@@ -12,6 +12,7 @@ i18n.use(initReactI18next).init({
   },
   lng: 'pt-BR',
   fallbackLng: 'pt-BR',
+  returnEmptyString: false,
   interpolation: { escapeValue: false },
 });
 

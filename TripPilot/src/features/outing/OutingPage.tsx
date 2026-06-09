@@ -534,6 +534,13 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, onQuickAdd, onEnd, 
           </button>
         </div>
         <button
+          onClick={() => {
+            const input = prompt(t('outing.register_total'));
+            if (input) {
+              const cents = Math.round(parseFloat(input.replace(',', '.')) * 100);
+              if (cents > 0) onQuickAdd(cents);
+            }
+          }}
           className="btn-press w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
           style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
         >

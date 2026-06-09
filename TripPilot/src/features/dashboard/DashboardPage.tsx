@@ -201,8 +201,9 @@ export function DashboardPage() {
 
       {/* PENDING EXPENSES */}
       {hasPendingExpenses && (
-        <div
-          className="mx-5 mt-4 p-4 rounded-2xl flex items-center gap-3"
+        <button
+          onClick={() => navigate('/shared')}
+          className="mx-5 mt-4 p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
           style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}
         >
           <Icon name="group" className="text-warning" />
@@ -215,7 +216,7 @@ export function DashboardPage() {
             </p>
           </div>
           <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
-        </div>
+        </button>
       )}
 
       {/* PERSONAL SHOPPING */}

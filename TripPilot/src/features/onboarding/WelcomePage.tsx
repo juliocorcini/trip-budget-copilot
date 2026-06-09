@@ -51,19 +51,12 @@ export function WelcomePage() {
           {t('onboarding.create_trip')}
         </button>
 
-        <label className="w-full py-4 rounded-2xl bg-surface-container text-on-surface font-medium text-sm text-center btn-press cursor-pointer block">
+        <button
+          onClick={() => navigate('/settings/backup')}
+          className="w-full py-4 rounded-2xl bg-surface-container text-on-surface font-medium text-sm btn-press"
+        >
           {t('onboarding.import_backup')}
-          <input
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              navigate('/settings/backup');
-            }}
-          />
-        </label>
+        </button>
 
         <button
           onClick={handleDemo}
