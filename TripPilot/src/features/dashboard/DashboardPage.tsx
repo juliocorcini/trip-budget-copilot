@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
 import { findActivePhase, getDayNumber, formatDate } from '@/domain/dates';
-import { calculateFreeToSpend, createPoolSummary, getBudgetHealthStatus } from '@/domain/budget';
-import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory, filterTransactionsByCategory } from '@/domain/transactions';
+import { calculateFreeToSpend, createPoolSummary } from '@/domain/budget';
+import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory } from '@/domain/transactions';
 import { formatMoney, fromCents } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { useNavigate } from 'react-router';

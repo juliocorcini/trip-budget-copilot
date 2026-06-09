@@ -1,79 +1,690 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
-import { formatMoney } from '@/domain/money';
-import { createPoolSummary } from '@/domain/budget';
+import { findActivePhase } from '@/domain/dates';
+import { calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
-import { Icon } from '@/components/Icon';
+import { fromCents, sumCents } from '@/domain/money';
+import { activityProfileRepository } from '@/data/repositories';
+import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { AllocationPriority } from '@/domain/types/common';
+
+/* ── types ── */
+
+interface ProfileState {
+  count: number;
+  isLocked: boolean;
+  baselineCount: number;
+}
+
+interface RecommendationChange {
+  profileId: string;
+  name: string;
+  from: number;
+  to: number;
+}
+
+interface Recommendation {
+  title: string;
+  description: string;
+  changes: RecommendationChange[];
+  remainingMarginCents: number;
+}
+
+/* ── helpers ── */
+
+const PRIORITY_BY_CATEGORY: Record<string, AllocationPriority> = {
+  market: 'essential',
+  accommodation: 'essential',
+  health: 'essential',
+  communication: 'essential',
+  outing: 'planned',
+  transport: 'planned',
+  bar: 'optional',
+  restaurant: 'optional',
+  festival: 'optional',
+  entertainment: 'optional',
+};
+
+function getPriority(category: string): AllocationPriority {
+  return PRIORITY_BY_CATEGORY[category] ?? 'optional';
+}
+
+const COLOR_VAR: Record<string, string> = {
+  '#6B8F71': 'var(--success)',
+  '#C75B39': 'var(--primary)',
+  '#D4A843': 'var(--warning)',
+  '#D94040': 'var(--error)',
+};
+
+function colorVar(hex: string | null): string {
+  if (!hex) return 'var(--on-surface-dim)';
+  return COLOR_VAR[hex] ?? hex;
+}
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  EUR: '€',
+  USD: '$',
+  BRL: 'R$',
+  GBP: '£',
+};
+
+function sym(currency: string): string {
+  return CURRENCY_SYMBOL[currency] ?? currency;
+}
+
+function splitMoney(
+  cents: number,
+  currency: string,
+): { integer: string; decimal: string } {
+  const value = fromCents(cents);
+  const abs = Math.abs(value);
+  const intPart = Math.floor(abs);
+  const decPart = Math.round((abs - intPart) * 100);
+  return {
+    integer: `${value < 0 ? '-' : ''}${sym(currency)}${intPart}`,
+    decimal: `,${decPart.toString().padStart(2, '0')}`,
+  };
+}
+
+function fmtFull(cents: number, currency: string): string {
+  const { integer, decimal } = splitMoney(cents, currency);
+  return `${integer}${decimal}`;
+}
+
+function fmtCompact(cents: number, currency: string): string {
+  const value = Math.abs(Math.round(fromCents(cents)));
+  return `${sym(currency)}${value}`;
+}
+
+function getPresetMultiplier(category: string, preset: string): number {
+  const priority = getPriority(category);
+  switch (preset) {
+    case 'economico':
+      return priority === 'essential' ? 1 : 0.6;
+    case 'mais_social':
+      return priority === 'optional' ? 1.5 : 1;
+    default:
+      return 1;
+  }
+}
+
+/* ── component ── */
 
 export function PlannerPage() {
   const { t } = useTranslation();
-  const { trip, pools, transactions, envelopes, phases, loading } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, loading } =
+    useAppData();
 
-  if (loading || !trip) return <p className="p-4 text-on-surface-dim">{t('common.loading')}</p>;
+  const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+  const [states, setStates] = useState<Record<string, ProfileState>>({});
+  const [activePreset, setActivePreset] = useState('equilibrado');
+  const [ready, setReady] = useState(false);
+
+  const activePhase = useMemo(() => findActivePhase(phases), [phases]);
+  const primaryPool =
+    pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
+  const currency = primaryPool?.currency ?? trip?.baseCurrency ?? 'EUR';
+
+  useEffect(() => {
+    if (!trip) return;
+    activityProfileRepository.getByTripId(trip.id).then((profs) => {
+      setProfiles(profs);
+      const init: Record<string, ProfileState> = {};
+      for (const p of profs) {
+        const base = p.expectedFrequencyPerPhase ?? 3;
+        init[p.id] = {
+          count: base,
+          isLocked: getPriority(p.category) === 'essential',
+          baselineCount: base,
+        };
+      }
+      setStates(init);
+      setReady(true);
+    });
+  }, [trip]);
+
+  /* ── budget math ── */
+
+  const poolTxs = useMemo(
+    () =>
+      primaryPool
+        ? filterTransactionsByPool(transactions, primaryPool.id)
+        : [],
+    [primaryPool, transactions],
+  );
+
+  const fts = useMemo(
+    () =>
+      primaryPool && activePhase
+        ? calculateFreeToSpend(
+            primaryPool,
+            envelopes.filter((e) => e.budgetPoolId === primaryPool.id),
+            poolTxs,
+            links,
+            activePhase.id,
+          )
+        : null,
+    [primaryPool, activePhase, envelopes, poolTxs, links],
+  );
+
+  const availableCents = fts?.freeToSpendCents ?? 0;
+
+  const baselineAllocatedCents = useMemo(
+    () =>
+      sumCents(
+        profiles.map(
+          (p) => (states[p.id]?.baselineCount ?? 0) * p.typicalValueCents,
+        ),
+      ),
+    [profiles, states],
+  );
+
+  const currentAllocatedCents = useMemo(
+    () =>
+      sumCents(
+        profiles.map(
+          (p) => (states[p.id]?.count ?? 0) * p.typicalValueCents,
+        ),
+      ),
+    [profiles, states],
+  );
+
+  const freeMarginCents = availableCents - baselineAllocatedCents;
+  const extraCostCents = currentAllocatedCents - baselineAllocatedCents;
+  const deficitCents = Math.max(0, extraCostCents - Math.max(0, freeMarginCents));
+  const hasDeficit = deficitCents > 0;
+  const marginForExtrasCents = Math.max(
+    0,
+    Math.min(freeMarginCents, extraCostCents),
+  );
+
+  const modifiedProfiles = useMemo(
+    () =>
+      profiles.filter((p) => {
+        const s = states[p.id];
+        return s && s.count !== s.baselineCount;
+      }),
+    [profiles, states],
+  );
+
+  /* ── recommendation ── */
+
+  const recommendation = useMemo((): Recommendation | null => {
+    if (!hasDeficit) return null;
+
+    const modifiedIds = new Set(modifiedProfiles.map((p) => p.id));
+    const reducible = profiles
+      .filter((p) => {
+        const s = states[p.id];
+        if (!s || s.isLocked || s.count === 0) return false;
+        if (modifiedIds.has(p.id)) return false;
+        return getPriority(p.category) !== 'essential';
+      })
+      .sort((a, b) => b.typicalValueCents - a.typicalValueCents);
+
+    const changes: RecommendationChange[] = [];
+    let saved = 0;
+
+    for (const profile of reducible) {
+      if (saved >= deficitCents) break;
+      const s = states[profile.id]!;
+      const needed = Math.ceil(
+        (deficitCents - saved) / profile.typicalValueCents,
+      );
+      const actual = Math.min(needed, s.count);
+      if (actual > 0) {
+        changes.push({
+          profileId: profile.id,
+          name: profile.name,
+          from: s.count,
+          to: s.count - actual,
+        });
+        saved += actual * profile.typicalValueCents;
+      }
+    }
+
+    if (changes.length === 0) return null;
+
+    const parts = changes.map(
+      (c) => `${c.from - c.to} ${c.name.toLowerCase()}`,
+    );
+
+    return {
+      title: `${t('planner.reduce')} ${parts.join(` ${t('planner.and_conjunction')} `)}`,
+      description: t('planner.recommendation_desc'),
+      changes,
+      remainingMarginCents: saved - deficitCents,
+    };
+  }, [hasDeficit, deficitCents, profiles, states, modifiedProfiles, t]);
+
+  /* ── handlers ── */
+
+  const updateCount = useCallback((id: string, delta: number) => {
+    setStates((prev) => {
+      const s = prev[id];
+      if (!s) return prev;
+      return { ...prev, [id]: { ...s, count: Math.max(0, s.count + delta) } };
+    });
+  }, []);
+
+  const toggleLock = useCallback((id: string) => {
+    setStates((prev) => {
+      const s = prev[id];
+      if (!s) return prev;
+      return { ...prev, [id]: { ...s, isLocked: !s.isLocked } };
+    });
+  }, []);
+
+  const applyPreset = useCallback(
+    (preset: string) => {
+      setActivePreset(preset);
+      setStates((prev) => {
+        const next = { ...prev };
+        for (const p of profiles) {
+          const s = next[p.id];
+          if (!s || s.isLocked) continue;
+          const base = p.expectedFrequencyPerPhase ?? 3;
+          const count = Math.max(1, Math.round(base * getPresetMultiplier(p.category, preset)));
+          next[p.id] = { ...s, count, baselineCount: count };
+        }
+        return next;
+      });
+    },
+    [profiles],
+  );
+
+  const applyRecommendation = useCallback(() => {
+    if (!recommendation) return;
+    setStates((prev) => {
+      const next = { ...prev };
+      for (const c of recommendation.changes) {
+        const s = next[c.profileId];
+        if (s) next[c.profileId] = { ...s, count: c.to, baselineCount: c.to };
+      }
+      return next;
+    });
+  }, [recommendation]);
+
+  /* ── loading ── */
+
+  if (loading || !trip || !ready) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-on-surface-dim">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  const phaseName = activePhase?.name ?? phases[0]?.name ?? '';
+  const displayMargin = splitMoney(Math.max(0, freeMarginCents), currency);
 
   return (
-    <div className="flex flex-col gap-4 pb-4 pt-2">
-      <h1 className="text-heading font-bold text-on-surface">{t('planner.title')}</h1>
+    <div className="flex flex-col pb-4">
+      {/* ── HEADER ── */}
+      <div className="pt-6 pb-1 flex justify-between items-center">
+        <div>
+          <p
+            className="text-[11px] tracking-[0.15em] uppercase font-bold"
+            style={{ color: '#C75B39aa' }}
+          >
+            {t('planner.title')}
+          </p>
+          <h1 className="text-xl font-extrabold tracking-tight mt-1 text-on-surface">
+            {t('planner.scenarios_of', { phase: phaseName })}
+          </h1>
+        </div>
+        <span
+          className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
+          style={{ background: '#6B8F7118', color: 'var(--success)' }}
+        >
+          {t('planner.mode_manual')}
+        </span>
+      </div>
 
-      <div>
-        <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-          {t('planner.funds')}
-        </p>
-        {pools.map((pool) => {
-          const poolTxs = filterTransactionsByPool(transactions, pool.id);
-          const summary = createPoolSummary(pool, poolTxs);
-          const poolEnvelopes = envelopes.filter((e) => e.budgetPoolId === pool.id);
-          const reserve = poolEnvelopes.find((e) => e.kind === 'protected_reserve');
+      {/* ── BUDGET SUMMARY ── */}
+      <div className="mt-4 p-4 rounded-2xl flex justify-between items-center bg-surface-container">
+        <div>
+          <p className="text-xs font-bold text-on-surface-dim">
+            {t('planner.free_margin')}
+          </p>
+          <p className="text-2xl font-extrabold tabular text-on-surface">
+            {displayMargin.integer}
+            <span className="text-sm text-on-surface-dim">
+              {displayMargin.decimal}
+            </span>
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-bold text-on-surface-dim">
+            {t('planner.allocated')}
+          </p>
+          <p className="text-lg font-bold tabular text-on-surface-dim">
+            {fmtFull(currentAllocatedCents, currency)}
+          </p>
+        </div>
+      </div>
+
+      {/* ── PROFILE CARDS ── */}
+      <div className="mt-4 space-y-3">
+        {profiles.map((profile) => {
+          const s = states[profile.id];
+          if (!s) return null;
+
+          const priority = getPriority(profile.category);
+          const isModified = s.count !== s.baselineCount;
+          const cVar = colorVar(profile.color);
+          const cHex = profile.color ?? '#EDE8E0';
+          const total = s.count * profile.typicalValueCents;
 
           return (
-            <div key={pool.id} className="bg-surface-container rounded-xl p-4 mb-2">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-on-surface">{pool.name}</p>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-surface-high text-on-surface-faint">
-                  {pool.scope === 'global' ? 'Global' : 'Fases'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <p className="text-on-surface-faint">{t('dashboard.fund_balance')}</p>
-                  <p className="font-semibold tabular text-on-surface">{formatMoney(summary.remainingCents, pool.currency)}</p>
-                </div>
-                {reserve && (
-                  <div>
-                    <p className="text-on-surface-faint">{t('planner.protected_reserve')}</p>
-                    <p className="font-semibold tabular text-on-surface">{formatMoney(reserve.amountCents, pool.currency)}</p>
+            <div
+              key={profile.id}
+              className="p-4 rounded-2xl bg-surface-container"
+              style={
+                isModified
+                  ? { border: '1px solid #D4A84325' }
+                  : undefined
+              }
+            >
+              {/* header row */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ background: `${cHex}18` }}
+                  >
+                    <span
+                      className="material-symbols-outlined text-base"
+                      style={{ color: cVar }}
+                    >
+                      {profile.iconName ?? 'category'}
+                    </span>
                   </div>
-                )}
+                  <p className="text-sm font-bold text-on-surface">
+                    {profile.name}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {isModified && (
+                    <span
+                      className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                      style={{
+                        background: '#D4A84318',
+                        color: 'var(--warning)',
+                      }}
+                    >
+                      {t('planner.modified')}
+                    </span>
+                  )}
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                    style={{
+                      background:
+                        priority === 'essential'
+                          ? `${cHex}20`
+                          : '#EDE8E015',
+                      color:
+                        priority === 'essential'
+                          ? cVar
+                          : 'var(--on-surface-dim)',
+                    }}
+                  >
+                    {priority === 'essential'
+                      ? t('planner.essential')
+                      : priority === 'planned'
+                        ? t('planner.planned')
+                        : t('planner.optional')}
+                  </span>
+                  <button
+                    className="btn-press"
+                    onClick={() => toggleLock(profile.id)}
+                  >
+                    <span
+                      className="material-symbols-outlined text-sm"
+                      style={{ color: 'var(--on-surface-faint)' }}
+                    >
+                      {s.isLocked ? 'lock' : 'lock_open'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              {poolEnvelopes.filter((e) => e.kind === 'allocation').length > 0 && (
-                <div className="mt-3 pt-3 border-t border-on-surface-mute">
-                  {poolEnvelopes.filter((e) => e.kind === 'allocation').map((env) => (
-                    <div key={env.id} className="flex justify-between py-1">
-                      <span className="text-xs text-on-surface-dim">{env.name}</span>
-                      <span className="text-xs font-semibold tabular text-on-surface">{formatMoney(env.amountCents, pool.currency)}</span>
-                    </div>
-                  ))}
+              {/* controls row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    className="btn-press w-8 h-8 rounded-lg flex items-center justify-center bg-surface-high"
+                    onClick={() => updateCount(profile.id, -1)}
+                    disabled={s.count === 0}
+                  >
+                    <span className="material-symbols-outlined text-base text-on-surface-dim">
+                      remove
+                    </span>
+                  </button>
+                  <span
+                    className="text-2xl font-extrabold tabular w-8 text-center"
+                    style={{
+                      color: isModified
+                        ? 'var(--warning)'
+                        : 'var(--on-surface)',
+                    }}
+                  >
+                    {s.count}
+                  </span>
+                  <button
+                    className="btn-press w-8 h-8 rounded-lg flex items-center justify-center bg-surface-high"
+                    onClick={() => updateCount(profile.id, 1)}
+                  >
+                    <span className="material-symbols-outlined text-base text-on-surface-dim">
+                      add
+                    </span>
+                  </button>
                 </div>
-              )}
+                <p
+                  className="text-sm font-bold tabular"
+                  style={{
+                    color: isModified
+                      ? 'var(--warning)'
+                      : 'var(--on-surface-dim)',
+                  }}
+                >
+                  {fmtCompact(total, currency)}
+                </p>
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div>
-        <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-          {t('planner.phases')}
-        </p>
-        {phases.map((phase) => (
-          <div key={phase.id} className="bg-surface-container rounded-xl p-4 mb-2 flex items-center gap-3">
-            <Icon name="calendar_today" size={20} className="text-on-surface-dim" />
-            <div>
-              <p className="text-sm font-medium text-on-surface">{phase.name}</p>
-              <p className="text-xs text-on-surface-faint">{phase.startDate} → {phase.endDate}</p>
+      {/* ── DEFICIT + RECOMMENDATION ── */}
+      {hasDeficit && modifiedProfiles.length > 0 && (
+        <div
+          className="mt-5 p-5 rounded-2xl"
+          style={{ background: '#D4A84310', border: '1px solid #D4A84320' }}
+        >
+          <div className="flex items-start gap-3 mb-4">
+            <span
+              className="material-symbols-outlined mt-0.5"
+              style={{ color: 'var(--warning)' }}
+            >
+              warning
+            </span>
+            <div className="flex-1">
+              <p
+                className="text-sm font-bold"
+                style={{ color: 'var(--warning)' }}
+              >
+                {t('planner.added_count', {
+                  count: modifiedProfiles.reduce((sum, p) => {
+                    const ms = states[p.id];
+                    return (
+                      sum +
+                      Math.max(0, (ms?.count ?? 0) - (ms?.baselineCount ?? 0))
+                    );
+                  }, 0),
+                  name: modifiedProfiles[0]?.name.toLowerCase() ?? '',
+                })}
+              </p>
+
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <div
+                  className="p-2 rounded-lg text-center"
+                  style={{ background: '#EDE8E006' }}
+                >
+                  <p
+                    className="text-[9px] font-bold"
+                    style={{ color: 'var(--on-surface-faint)' }}
+                  >
+                    {t('planner.cost_label')}
+                  </p>
+                  <p
+                    className="text-sm font-extrabold tabular"
+                    style={{ color: 'var(--warning)' }}
+                  >
+                    {fmtCompact(extraCostCents, currency)}
+                  </p>
+                </div>
+                <div
+                  className="p-2 rounded-lg text-center"
+                  style={{ background: '#EDE8E006' }}
+                >
+                  <p
+                    className="text-[9px] font-bold"
+                    style={{ color: 'var(--on-surface-faint)' }}
+                  >
+                    {t('planner.margin_label')}
+                  </p>
+                  <p className="text-sm font-extrabold tabular text-on-surface-dim">
+                    {fmtCompact(marginForExtrasCents, currency)}
+                  </p>
+                </div>
+                <div
+                  className="p-2 rounded-lg text-center"
+                  style={{ background: '#D9404008' }}
+                >
+                  <p
+                    className="text-[9px] font-bold"
+                    style={{ color: 'var(--on-surface-faint)' }}
+                  >
+                    {t('planner.missing_label')}
+                  </p>
+                  <p
+                    className="text-sm font-extrabold tabular"
+                    style={{ color: 'var(--error)' }}
+                  >
+                    {fmtCompact(deficitCents, currency)}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-        ))}
+
+          {recommendation && (
+            <div className="p-4 rounded-xl bg-surface-container">
+              <p
+                className="text-[10px] tracking-[0.12em] uppercase font-bold mb-2"
+                style={{ color: 'var(--success)' }}
+              >
+                {t('planner.recommendation')}
+              </p>
+              <p className="text-sm font-bold mb-2 text-on-surface">
+                {recommendation.title}
+              </p>
+              <p className="text-xs leading-relaxed font-medium text-on-surface-dim">
+                {recommendation.description}
+              </p>
+
+              <div
+                className="mt-3 gap-2"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${Math.min(recommendation.changes.length, 3)}, 1fr)`,
+                }}
+              >
+                {recommendation.changes.map((c) => (
+                  <div
+                    key={c.profileId}
+                    className="p-2 rounded-lg"
+                    style={{ background: '#EDE8E006' }}
+                  >
+                    <p
+                      className="text-[9px] font-bold uppercase"
+                      style={{ color: 'var(--on-surface-faint)' }}
+                    >
+                      {c.name}
+                    </p>
+                    <p className="text-xs font-bold">
+                      <span style={{ color: 'var(--on-surface-faint)' }}>
+                        {c.from} →
+                      </span>{' '}
+                      <span className="text-on-surface">{c.to}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <p
+                className="text-xs font-bold mt-2"
+                style={{ color: 'var(--success)' }}
+              >
+                {t('planner.remaining_margin', {
+                  amount: fmtCompact(
+                    recommendation.remainingMarginCents,
+                    currency,
+                  ),
+                })}
+              </p>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  className="btn-press flex-1 py-3 rounded-xl font-bold text-xs"
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'var(--surface)',
+                  }}
+                  onClick={applyRecommendation}
+                >
+                  {t('planner.apply_recommendation')}
+                </button>
+                <button className="btn-press py-3 px-4 rounded-xl font-bold text-xs bg-surface-high text-on-surface-dim">
+                  {t('planner.other_options')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PRESET BUTTONS ── */}
+      <div className="mt-4 flex gap-2">
+        {(['economico', 'equilibrado', 'mais_social'] as const).map(
+          (preset) => {
+            const isActive = activePreset === preset;
+            return (
+              <button
+                key={preset}
+                className="btn-press flex-1 py-2.5 rounded-xl text-xs font-bold"
+                style={
+                  isActive
+                    ? {
+                        background: '#C75B3918',
+                        color: 'var(--primary)',
+                        border: '1px solid #C75B3925',
+                      }
+                    : {
+                        background: 'var(--surface-container)',
+                        color: 'var(--on-surface-dim)',
+                      }
+                }
+                onClick={() => applyPreset(preset)}
+              >
+                {t(`planner.preset_${preset}`)}
+              </button>
+            );
+          },
+        )}
       </div>
     </div>
   );

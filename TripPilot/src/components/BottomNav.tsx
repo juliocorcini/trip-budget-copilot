@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { Icon } from './Icon';
+import { FABMenu } from './FAB';
 
 interface NavItem {
   path: string;
@@ -8,45 +10,83 @@ interface NavItem {
   labelKey: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', icon: 'home', labelKey: 'nav.dashboard' },
+const LEFT_NAV: NavItem[] = [
+  { path: '/dashboard', icon: 'dashboard', labelKey: 'nav.dashboard' },
   { path: '/expenses', icon: 'receipt_long', labelKey: 'nav.expenses' },
-  { path: '/planner', icon: 'event_note', labelKey: 'nav.plan' },
+];
+
+const RIGHT_NAV: NavItem[] = [
+  { path: '/planner', icon: 'tune', labelKey: 'nav.plan' },
   { path: '/more', icon: 'more_horiz', labelKey: 'nav.more' },
 ];
 
 export function BottomNav() {
+  const [isFabOpen, setIsFabOpen] = useState(false);
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 
+  const renderNavItem = (item: NavItem) => {
+    const isActive = location.pathname.startsWith(item.path);
+    return (
+      <button
+        key={item.path}
+        onClick={() => navigate(item.path)}
+        className="flex flex-col items-center gap-0.5 py-1 px-2 btn-press"
+      >
+        <Icon
+          name={item.icon}
+          size={22}
+          filled={isActive}
+          className={isActive ? 'text-primary' : 'text-on-surface-faint'}
+        />
+        <span
+          className={`text-[10px] ${
+            isActive ? 'font-bold text-primary' : 'font-semibold text-on-surface-faint'
+          }`}
+        >
+          {t(item.labelKey)}
+        </span>
+      </button>
+    );
+  };
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 glass border-t border-on-surface-mute"
-      style={{ background: 'rgba(15,20,25,0.85)' }}>
-      <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
-        {NAV_ITEMS.map((item) => {
-          const isActive = location.pathname.startsWith(item.path);
-          return (
+    <>
+      <FABMenu isOpen={isFabOpen} onClose={() => setIsFabOpen(false)} />
+
+      <nav
+        className={`fixed bottom-0 left-0 right-0 ${isFabOpen ? 'z-[60]' : 'z-40'} glass border-t`}
+        style={{ background: '#0F1419e6', borderColor: '#EDE8E008' }}
+      >
+        <div className="max-w-[430px] mx-auto flex justify-around items-center px-3 py-1.5">
+          {LEFT_NAV.map(renderNavItem)}
+
+          <div className="flex flex-col items-center px-2 -mt-3">
             <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className="flex flex-col items-center gap-0.5 py-1 px-3 btn-press"
+              onClick={() => setIsFabOpen((prev) => !prev)}
+              className="btn-press w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{
+                background: 'var(--primary)',
+                boxShadow: '0 4px 20px #C75B3940',
+              }}
+              aria-label={t('fab.quick_actions')}
             >
-              <Icon
-                name={item.icon}
-                size={24}
-                filled={isActive}
-                className={isActive ? 'text-primary' : 'text-on-surface-dim'}
-              />
               <span
-                className={`text-[10px] font-medium ${isActive ? 'text-primary' : 'text-on-surface-faint'}`}
+                className="material-symbols-outlined text-2xl"
+                style={{
+                  color: 'var(--surface)',
+                  fontVariationSettings: "'wght' 600",
+                }}
               >
-                {t(item.labelKey)}
+                {isFabOpen ? 'close' : 'add'}
               </span>
             </button>
-          );
-        })}
-      </div>
-    </nav>
+          </div>
+
+          {RIGHT_NAV.map(renderNavItem)}
+        </div>
+      </nav>
+    </>
   );
 }

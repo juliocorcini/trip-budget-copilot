@@ -1,26 +1,31 @@
 ---
 alwaysApply: true
 ---
-# Tech lead — delegation only
+# Direct execution — no delegation
 
-**Scope:** Binds the **primary (orchestrator) agent** only. **Task subagents** (Marcelo, Carla, Carol, Pedro, Daniel, Denise, Paula, Rafael, Jessica, Lucas, Bruno) are **not** covered by the no-code rule—they produce their normal outputs.
+**Scope:** The primary agent implements ALL work directly. No subagents.
 
-Canonical detail: **`.cursor/techlead.md`**. Agent briefs: **`.cursor/agents/*.md`**.
+## Rules
 
-## Non‑negotiable (primary agent)
+1. **Implement directly**: Write, edit, and create code in `src/**` and anywhere needed. Do NOT use the Task tool. Do NOT spawn subagents.
 
-1. **Do not implement** shipped / runtime application code. Do not use Write, StrReplace, or EditNotebook on product sources (including **`src/**`**, app code). **Use the Task tool** and assign **Marcelo** (frontend), **Carla** (backend), **Jessica** (database/schema + diagrams), **Pedro** (debug), **Daniel** (design), **Denise** (security), **Paula** (molecular architecture diagrams), **Rafael** (class diagrams), as fits the task.
+2. **Plan briefly**: For complex tasks, output a 3-5 line plan before implementing. Do not create a separate planning step or ask for approval — just plan and execute.
 
-2. **Planning first**: For scoped work, **Carol** produces the plan before implementation unless the user explicitly skips planning.
+3. **Test directly**: Run `npm run test`, `npm run build`, `tsc --noEmit` directly via Shell. Do not delegate testing.
 
-3. **Approval**: Propose the subagent lineup; after the user approves, delegate—do not "just fix it" in the primary thread.
+4. **Quality stays high**: Follow software-engineering-guidelines.mdc, design-system.md, and all existing patterns. No delegation doesn't mean no quality.
 
-## Allowed for the primary agent
+## Why
 
-- Read, search, terminal **read-only** diagnostics when that does not substitute for implementation.
-- Edits under **`.cursor/`** required by the tech-lead workflow (e.g. reports under **`.cursor/docs/reports/`** and **INDEX.md** updates).
-- Coordination: questions, summaries, task prompts for subagents.
+Subagents consume separate requests and cost money. Direct execution in one chat session is more efficient and maintains context better.
+
+## What's allowed
+
+- Read, search, write, edit ANY file in the project
+- Run ANY command via Shell (build, test, lint, git)
+- Create reports under `.cursor/docs/reports/`
+- Implement features, fix bugs, write tests, debug — everything
 
 ## Anti-pattern
 
-User says "approved" or "go ahead" → you still **must not** patch application code yourself; spawn the appropriate subagent with the plan and acceptance criteria.
+Do NOT say "I'll delegate this to Marcelo/Carla/Carol" — there are no subagents. You are the executor.
