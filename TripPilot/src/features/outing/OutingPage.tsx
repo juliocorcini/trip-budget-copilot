@@ -10,6 +10,8 @@ import {
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,
   getProgressiveAlerts,
+  DEFAULT_QUICK_ADD_VALUES_CENTS,
+  findHighlightedQuickValueIndex,
 } from '@/domain/outing';
 import type { SessionLimits, OutingAlert } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
@@ -343,6 +345,13 @@ export function OutingPage() {
     await doSplitAdd(input, session, resolveTxPhaseId(session));
   };
 
+  // DEC-045 (GAP-028): quick-add values editable mid-session.
+  const handleUpdateQuickValues = async (valuesCents: number[]) => {
+    if (!session) return;
+    const updated = await sessionRepository.update({ ...session, quickAddValuesCents: valuesCents });
+    setSession(updated);
+  };
+
   // GAP-002 (DEC-049): ending opens the review instead of completing directly.
   const handleConfirmEnd = async (review: SessionReviewResult) => {
     if (!session || !trip || !currentPhase) return;
@@ -499,6 +508,7 @@ export function OutingPage() {
         onQuickAdd={handleQuickAdd}
         onRegisterTotal={handleRegisterTotal}
         onSplitAdd={handleSplitAdd}
+        onUpdateQuickValues={handleUpdateQuickValues}
         onEnd={() => setReviewing(true)}
         onBack={() => navigate(-1)}
       />
@@ -956,17 +966,19 @@ interface ActiveSessionProps {
   onQuickAdd: (cents: number) => void;
   onRegisterTotal: (diffCents: number) => void;
   onSplitAdd: (input: SessionSplitInput) => void;
+  onUpdateQuickValues: (valuesCents: number[]) => void;
   onEnd: () => void;
   onBack: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onEnd, onBack }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
-  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | null>(null);
+  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | null>(null);
   const [sheetAmount, setSheetAmount] = useState('');
   const [negativeConfirmed, setNegativeConfirmed] = useState(false);
+  const [editValuesDraft, setEditValuesDraft] = useState<string[]>([]);
 
   const [splitParticipantIds, setSplitParticipantIds] = useState<string[]>([]);
   const [splitPaidById, setSplitPaidById] = useState<string | null>(null);
@@ -987,6 +999,19 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
     setSplitPaidById(owner?.id ?? null);
     setSplitMode('equal');
     setActiveSheet('split');
+  };
+
+  // DEC-045 (GAP-028): quick-add values stay editable during the session.
+  const openEditValuesSheet = () => {
+    setEditValuesDraft(quickValues.map((v) => String(fromCents(v))));
+    setActiveSheet('editValues');
+  };
+
+  const handleSaveQuickValues = () => {
+    const parsed = editValuesDraft.map(parseAmountToCents);
+    if (parsed.some((v) => v <= 0)) return;
+    onUpdateQuickValues(parsed);
+    closeSheet();
   };
 
   const totalSpent = useMemo(() => calculateSessionTotal(sessionTxs), [sessionTxs]);
@@ -1028,9 +1053,12 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
 
   const comfortColor = totalSpent <= targetCents ? 'var(--success)' : 'var(--primary)';
 
+  // DEC-045 (GAP-028): session values with the single domain default as
+  // fallback; highlight follows the avg drink price.
   const quickValues = session.quickAddValuesCents.length >= 5
     ? session.quickAddValuesCents.slice(0, 5)
-    : [300, 500, 700, 1000, 1500];
+    : DEFAULT_QUICK_ADD_VALUES_CENTS;
+  const highlightIndex = findHighlightedQuickValueIndex(quickValues, session.avgDrinkPriceCents);
 
   const recentTxs = sessionTxs.slice().reverse().slice(0, 4);
 
@@ -1278,43 +1306,38 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
       {/* 10. SPACER */}
       <div className="flex-1 min-h-[4px]" />
 
-      {/* 11. QUICK-ADD BUTTONS */}
+      {/* 11. QUICK-ADD BUTTONS (highlight = closest to avg drink, DEC-045) */}
       <div className="px-5 pb-3">
-        <div className="grid grid-cols-3 gap-2.5 mb-2.5">
-          {quickValues.slice(0, 2).map((val) => (
-            <button
-              key={val}
-              onClick={() => onQuickAdd(val)}
-              className="btn-press quick-btn rounded-xl font-bold text-lg tabular"
-              style={{ background: 'var(--surface-container)', color: 'var(--on-surface)' }}
-            >
-              +{formatCurrency(val, currency)}
-            </button>
-          ))}
-          {quickValues[2] && (
-            <button
-              onClick={() => onQuickAdd(quickValues[2]!)}
-              className="btn-press quick-btn rounded-xl font-bold text-lg tabular"
-              style={{
-                background: '#C75B3918',
-                color: 'var(--primary)',
-                border: '1px solid #C75B3925',
-              }}
-            >
-              +{formatCurrency(quickValues[2], currency)}
-            </button>
-          )}
+        <div className="flex justify-end mb-1.5">
+          <button
+            onClick={openEditValuesSheet}
+            className="btn-press flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold"
+            style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+          >
+            <Icon name="tune" size={12} className="text-on-surface-faint" />
+            {t('outing.edit_quick_values')}
+          </button>
         </div>
         <div className="grid grid-cols-3 gap-2.5 mb-2.5">
-          {quickValues.slice(3, 5).map((val) => (
-            <button
-              key={val}
-              onClick={() => onQuickAdd(val)}
-              className="btn-press quick-btn rounded-xl font-bold text-lg tabular"
-              style={{ background: 'var(--surface-container)', color: 'var(--on-surface)' }}
-            >
-              +{formatCurrency(val, currency)}
-            </button>
+          {quickValues.slice(0, 3).map((val, i) => (
+            <QuickAddButton
+              key={`${val}-${i}`}
+              valueCents={val}
+              currency={currency}
+              highlighted={i === highlightIndex}
+              onAdd={onQuickAdd}
+            />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2.5 mb-2.5">
+          {quickValues.slice(3, 5).map((val, i) => (
+            <QuickAddButton
+              key={`${val}-${i + 3}`}
+              valueCents={val}
+              currency={currency}
+              highlighted={i + 3 === highlightIndex}
+              onAdd={onQuickAdd}
+            />
           ))}
           <button
             onClick={() => setActiveSheet('other')}
@@ -1566,7 +1589,67 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
           </button>
         </div>
       </BottomSheet>
+
+      {/* Edit quick-add values during the session (DEC-045 / GAP-028) */}
+      <BottomSheet
+        open={activeSheet === 'editValues'}
+        onClose={closeSheet}
+        title={t('outing.edit_quick_values')}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-5 gap-2">
+            {editValuesDraft.map((value, i) => (
+              <div key={i} className="flex items-baseline gap-1 bg-surface-high rounded-lg px-2 py-2">
+                <span className="text-on-surface-faint text-[10px]">{currency}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={value}
+                  onChange={(e) =>
+                    setEditValuesDraft((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
+                  }
+                  className="bg-transparent text-xs font-bold text-on-surface tabular outline-none w-full"
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={handleSaveQuickValues}
+            disabled={editValuesDraft.map(parseAmountToCents).some((v) => v <= 0)}
+            className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
+          >
+            {t('common.save')}
+          </button>
+        </div>
+      </BottomSheet>
     </div>
+  );
+}
+
+function QuickAddButton({
+  valueCents,
+  currency,
+  highlighted,
+  onAdd,
+}: {
+  valueCents: number;
+  currency: string;
+  highlighted: boolean;
+  onAdd: (cents: number) => void;
+}) {
+  return (
+    <button
+      onClick={() => onAdd(valueCents)}
+      className="btn-press quick-btn rounded-xl font-bold text-lg tabular"
+      style={
+        highlighted
+          ? { background: '#C75B3918', color: 'var(--primary)', border: '1px solid #C75B3925' }
+          : { background: 'var(--surface-container)', color: 'var(--on-surface)' }
+      }
+    >
+      +{formatCurrency(valueCents, currency)}
+    </button>
   );
 }
 

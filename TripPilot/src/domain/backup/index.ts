@@ -5,6 +5,7 @@ export {
   parseBackupFile,
   parseBackupFileSafe,
   generateBackupFilename,
+  isBackupReminderDue,
   BACKUP_VERSION,
   BACKUP_TABLE_KEYS,
 } from './backup';

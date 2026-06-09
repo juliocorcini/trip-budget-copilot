@@ -5,6 +5,7 @@ import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
 import type { Envelope } from '@/domain/types/envelope';
 import type { Participant } from '@/domain/types/participant';
+import type { Wallet } from '@/domain/types/wallet';
 
 interface OnboardingInput {
   tripName: string;
@@ -16,6 +17,10 @@ interface OnboardingInput {
   protectedReserveCents: number;
   ownerName: string;
   deviceId: string;
+  /** DEC-051: editable default credit card wallet name. */
+  defaultWalletName: string;
+  /** DEC-051: optional cash wallet name; null skips creation. */
+  cashWalletName: string | null;
 }
 
 interface OnboardingResult {
@@ -25,6 +30,7 @@ interface OnboardingResult {
   link: BudgetPoolPhaseLink;
   reserve: Envelope | null;
   owner: Participant;
+  wallets: Wallet[];
 }
 
 export function createOnboardingEntities(input: OnboardingInput): OnboardingResult {
@@ -96,5 +102,32 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
     linkedUserAccountId: null,
   };
 
-  return { trip, phase, pool, link, reserve, owner };
+  // DEC-051 (GAP-026): every trip starts with a default credit card wallet
+  // (editable) plus an optional cash wallet.
+  const wallets: Wallet[] = [
+    {
+      ...m, id: uuidv4(),
+      tripId,
+      name: input.defaultWalletName,
+      walletType: 'credit_card',
+      currency: input.currency,
+      initialBalanceCents: 0,
+      isDefault: true,
+      notes: null,
+    },
+  ];
+  if (input.cashWalletName !== null && input.cashWalletName.trim().length > 0) {
+    wallets.push({
+      ...m, id: uuidv4(),
+      tripId,
+      name: input.cashWalletName.trim(),
+      walletType: 'cash',
+      currency: input.currency,
+      initialBalanceCents: 0,
+      isDefault: false,
+      notes: null,
+    });
+  }
+
+  return { trip, phase, pool, link, reserve, owner, wallets };
 }

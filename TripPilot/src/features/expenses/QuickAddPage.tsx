@@ -46,6 +46,8 @@ export function QuickAddPage() {
   const [walletId, setWalletId] = useState<string | null>(null);
   const [targetWalletId, setTargetWalletId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string>('');
+  // GAP-027: optional retroactive date/time (empty = now)
+  const [customDate, setCustomDate] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [isShared, setIsShared] = useState(false);
@@ -200,6 +202,7 @@ export function QuickAddPage() {
         currency: trip.baseCurrency,
         category,
         description: description || t(`categories.${category}` as never),
+        date: customDate ? new Date(customDate).toISOString() : undefined,
         isShared: splitActive,
         paidByParticipantId: splitActive ? effectivePaidById : undefined,
       });
@@ -299,6 +302,19 @@ export function QuickAddPage() {
           className="bg-transparent text-sm text-on-surface outline-none w-full"
         />
       </div>
+
+      {!isTransferLike && (
+      <div className="bg-surface-container rounded-xl p-4">
+        <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.date_time')}</label>
+        <input
+          type="datetime-local"
+          value={customDate}
+          onChange={(e) => setCustomDate(e.target.value)}
+          className="bg-transparent text-sm text-on-surface outline-none w-full"
+        />
+        <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.date_time_hint')}</p>
+      </div>
+      )}
 
       {!isTransferLike && (
       <div className="bg-surface-container rounded-xl p-4">

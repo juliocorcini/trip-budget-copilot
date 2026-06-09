@@ -20,6 +20,7 @@ const WalletsPage = lazy(() => import('@/features/wallets/WalletsPage').then(m =
 const FundsPage = lazy(() => import('@/features/funds/FundsPage').then(m => ({ default: m.FundsPage })));
 const ProfilesPage = lazy(() => import('@/features/profiles/ProfilesPage').then(m => ({ default: m.ProfilesPage })));
 const ExpenseDetailPage = lazy(() => import('@/features/expenses/ExpenseDetailPage').then(m => ({ default: m.ExpenseDetailPage })));
+const AboutPage = lazy(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
 
 function LoadingFallback() {
   return (
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: '/wallets', element: <LazyRoute><WalletsPage /></LazyRoute> },
       { path: '/funds', element: <LazyRoute><FundsPage /></LazyRoute> },
       { path: '/profiles', element: <LazyRoute><ProfilesPage /></LazyRoute> },
+      { path: '/about', element: <LazyRoute><AboutPage /></LazyRoute> },
     ],
   },
   { path: '/', element: <LazyRoute><WelcomePage /></LazyRoute> },

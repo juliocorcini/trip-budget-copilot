@@ -31,6 +31,8 @@ const SECTIONS: { titleKey: string; items: MenuItem[] }[] = [
     titleKey: 'more.section_app',
     items: [
       { icon: 'settings', labelKey: 'more.settings', path: '/settings' },
+      // DEC-059 (decision D-D): About entry; Reports stays out of D1/D2 scope.
+      { icon: 'info', labelKey: 'more.about', path: '/about' },
     ],
   },
 ];

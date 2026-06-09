@@ -184,6 +184,22 @@ export function parseBackupFile(jsonString: string): BackupData | null {
   return parseBackupFileSafe(jsonString).data;
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * DEC-057 (decision D-J): the backup reminder fires when the last export is
+ * older than the configured interval (a never-backed-up app counts as due).
+ */
+export function isBackupReminderDue(
+  settings: Pick<AppSettings, 'backupReminderEnabled' | 'backupReminderDays' | 'lastBackupDate'>,
+  nowMs: number,
+): boolean {
+  if (!settings.backupReminderEnabled) return false;
+  if (settings.lastBackupDate === null) return true;
+  const elapsedDays = (nowMs - new Date(settings.lastBackupDate).getTime()) / MS_PER_DAY;
+  return elapsedDays > settings.backupReminderDays;
+}
+
 export function generateBackupFilename(): string {
   const now = new Date();
   const date = now.toISOString().slice(0, 10);

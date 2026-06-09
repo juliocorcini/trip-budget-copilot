@@ -1,4 +1,5 @@
 import { db } from '@/data/db/database';
+import { DEFAULT_QUICK_ADD_VALUES_CENTS } from '@/domain/outing';
 import type { AppSettings } from '@/domain/types/app-settings';
 
 const DEFAULT_SETTINGS_ID = 'app-settings';
@@ -12,13 +13,14 @@ const DEFAULT_SETTINGS: AppSettings = {
   language: 'pt-BR',
   vibrationEnabled: true,
   backupReminderEnabled: true,
-  backupReminderDays: 3,
+  // DEC-057 (decision D-A): reminder default is 7 days.
+  backupReminderDays: 7,
   lastBackupDate: null,
   deviceName: 'Meu dispositivo',
   persistentStorageGranted: false,
   isDemo: false,
   onboardingCompleted: false,
-  quickAddDefaultValuesCents: [300, 500, 1000, 1500, 2000],
+  quickAddDefaultValuesCents: DEFAULT_QUICK_ADD_VALUES_CENTS,
 };
 
 class AppSettingsRepository {

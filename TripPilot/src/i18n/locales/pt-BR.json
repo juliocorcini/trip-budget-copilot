@@ -35,6 +35,8 @@
     "occasion_bar": "noites de bar",
     "occasion_remaining": "{{name}} restantes",
     "occasion_done": "{{count}} feitas",
+    "backup_reminder": "Seu último backup tem mais de {{days}} dias. Toque para exportar.",
+    "backup_reminder_never": "Você ainda não fez backup dos seus dados. Toque para exportar.",
     "occasion_market": "idas ao mercado",
     "occasion_restaurant": "restaurantes",
     "pending_expenses": "{{count}} gastos pendentes de confirmação",
@@ -67,6 +69,8 @@
     "no_target_wallet": "Crie uma segunda carteira para transferir",
     "transfer_no_budget_hint": "Movimentações entre carteiras não afetam o orçamento.",
     "no_pool_for_phase": "Nenhum fundo disponível para a fase atual.",
+    "date_time": "Data e hora (opcional)",
+    "date_time_hint": "Deixe vazio para usar agora.",
     "choose_pool_hint": "Escolha um fundo para registrar o gasto.",
     "zero_budget_title": "Orçamento zerado",
     "zero_budget_body": "O livre para usar deste fundo está em {{amount}}. Registrar mesmo assim?",
@@ -280,6 +284,13 @@
     "settings": "Configurações",
     "about": "Sobre"
   },
+  "about": {
+    "title": "Sobre",
+    "version": "Versão {{version}}",
+    "description": "Copiloto de orçamento de viagem. Planeje, registre e acompanhe seus gastos por fase, fundo e ocasião.",
+    "backup_link": "Backup e exportação de dados",
+    "local_first": "Seus dados ficam apenas neste dispositivo. Faça backups regulares para não perder nada."
+  },
   "onboarding": {
     "welcome_title": "TripPilot",
     "welcome_subtitle": "Seu copiloto de orçamento de viagem",
@@ -295,7 +306,13 @@
     "protected_reserve": "Reserva protegida (opcional)",
     "owner_name": "Seu nome",
     "next": "Próximo",
-    "finish": "Começar"
+    "finish": "Começar",
+    "wallets_hint": "Como você vai pagar na viagem? Dá para editar e adicionar mais carteiras depois.",
+    "default_wallet_label": "Carteira principal",
+    "default_wallet_name": "Cartão de crédito",
+    "add_cash_wallet": "Adicionar carteira de dinheiro",
+    "cash_wallet_label": "Nome da carteira de dinheiro",
+    "cash_wallet_name": "Dinheiro"
   },
   "demo": {
     "banner": "Você está usando dados de demonstração.",
@@ -323,6 +340,7 @@
     "other_amount": "Outro",
     "register_total": "Registrar total atual",
     "total_adjustment_desc": "Ajuste para total informado",
+    "edit_quick_values": "Editar valores",
     "over_max_title": "Acima do máximo",
     "over_max_body": "Este gasto leva a sessão acima do máximo de {{max}}. Registrar mesmo assim?",
     "over_max_confirm": "Registrar mesmo assim",

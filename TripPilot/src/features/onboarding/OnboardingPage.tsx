@@ -22,6 +22,10 @@ export function OnboardingPage() {
   const [totalAmount, setTotalAmount] = useState('');
   const [protectedReserve, setProtectedReserve] = useState('');
   const [ownerName, setOwnerName] = useState('');
+  // DEC-051 (GAP-026): default wallet (editable) + optional cash wallet
+  const [walletName, setWalletName] = useState(() => t('onboarding.default_wallet_name'));
+  const [addCashWallet, setAddCashWallet] = useState(false);
+  const [cashWalletName, setCashWalletName] = useState(() => t('onboarding.cash_wallet_name'));
 
   const handleFinish = async () => {
     const deviceId = crypto.randomUUID();
@@ -35,6 +39,8 @@ export function OnboardingPage() {
       protectedReserveCents: toCents(parseFloat(protectedReserve) || 0),
       ownerName: ownerName || 'Eu',
       deviceId,
+      defaultWalletName: walletName.trim() || t('onboarding.default_wallet_name'),
+      cashWalletName: addCashWallet ? cashWalletName : null,
     });
 
     await db.trips.add(entities.trip);
@@ -43,6 +49,7 @@ export function OnboardingPage() {
     await db.budgetPoolPhaseLinks.add(entities.link);
     if (entities.reserve) await db.envelopes.add(entities.reserve);
     await db.participants.add(entities.owner);
+    await db.wallets.bulkAdd(entities.wallets);
     await db.activityProfiles.bulkAdd(createDefaultActivityProfiles(entities.trip.id));
 
     await appSettingsRepository.update({
@@ -69,6 +76,37 @@ export function OnboardingPage() {
     </StepCard>,
     <StepCard key="owner">
       <Field label={t('onboarding.owner_name')} value={ownerName} onChange={setOwnerName} placeholder={t('shared.owner_tag')} />
+    </StepCard>,
+    <StepCard key="wallets">
+      <p className="text-xs text-on-surface-dim px-1">{t('onboarding.wallets_hint')}</p>
+      <Field
+        label={t('onboarding.default_wallet_label')}
+        value={walletName}
+        onChange={setWalletName}
+      />
+      <button
+        type="button"
+        onClick={() => setAddCashWallet((prev) => !prev)}
+        className="bg-surface-container rounded-xl p-4 flex items-center justify-between btn-press"
+      >
+        <span className="text-sm text-on-surface font-medium">{t('onboarding.add_cash_wallet')}</span>
+        <span
+          className="w-10 h-6 rounded-full relative transition-colors"
+          style={{ background: addCashWallet ? 'var(--primary)' : 'var(--surface-high)' }}
+        >
+          <span
+            className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
+            style={{ left: addCashWallet ? '18px' : '2px' }}
+          />
+        </span>
+      </button>
+      {addCashWallet && (
+        <Field
+          label={t('onboarding.cash_wallet_label')}
+          value={cashWalletName}
+          onChange={setCashWalletName}
+        />
+      )}
     </StepCard>,
   ];
 

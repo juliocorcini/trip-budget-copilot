@@ -18,6 +18,31 @@ export interface SessionLimits {
   avgDrinkPriceCents: number | null;
 }
 
+/** DEC-045 (decision D-B): single source for quick-add defaults — €3/5/7/10/15. */
+export const DEFAULT_QUICK_ADD_VALUES_CENTS = [300, 500, 700, 1000, 1500];
+
+/**
+ * DEC-045: the quick-add button closest to the session's average drink price
+ * gets the visual highlight. Falls back to the middle button.
+ */
+export function findHighlightedQuickValueIndex(
+  quickValuesCents: number[],
+  avgDrinkPriceCents: number | null,
+): number {
+  const fallback = Math.min(2, Math.max(0, quickValuesCents.length - 1));
+  if (avgDrinkPriceCents === null || avgDrinkPriceCents <= 0) return fallback;
+  let bestIndex = fallback;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  quickValuesCents.forEach((value, index) => {
+    const distance = Math.abs(value - avgDrinkPriceCents);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
+
 const LIMIT_STEP_CENTS = 500;
 
 function roundToStep(cents: number): number {

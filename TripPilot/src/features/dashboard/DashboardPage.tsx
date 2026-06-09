@@ -19,6 +19,7 @@ import {
 } from '@/data/repositories';
 import { findPendingSharedTransactions } from '@/domain/splitting';
 import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
+import { isBackupReminderDue } from '@/domain/backup';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
@@ -210,6 +211,23 @@ export function DashboardPage() {
         <div className="mx-5 mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
           <p className="text-xs font-semibold text-warning">{t('demo.banner')}</p>
         </div>
+      )}
+
+      {/* BACKUP REMINDER (DEC-057 / decision D-J) — discreet, tap → backup */}
+      {isBackupReminderDue(settings, Date.now()) && transactions.length > 0 && (
+        <button
+          onClick={() => navigate('/settings/backup')}
+          className="mx-5 mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
+          style={{ background: 'var(--surface-container)', border: '1px solid #EDE8E010' }}
+        >
+          <Icon name="cloud_upload" size={16} className="text-on-surface-dim" />
+          <p className="text-xs font-semibold text-on-surface-dim flex-1">
+            {settings.lastBackupDate
+              ? t('dashboard.backup_reminder', { days: settings.backupReminderDays })
+              : t('dashboard.backup_reminder_never')}
+          </p>
+          <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
+        </button>
       )}
 
       {/* HEADER */}

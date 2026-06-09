@@ -5,6 +5,7 @@ import {
   mergeBackupData,
   parseBackupFile,
   generateBackupFilename,
+  isBackupReminderDue,
 } from '@/domain/backup';
 import type { BackupData } from '@/domain/backup';
 import type { SyncMetadata } from '@/domain/types/common';
@@ -137,6 +138,27 @@ describe('parseBackupFile', () => {
       transactions: [{ id: 'not-a-uuid', amountCents: 'oops' }],
     };
     expect(parseBackupFile(JSON.stringify(malformed))).toBeNull();
+  });
+});
+
+describe('isBackupReminderDue', () => {
+  const now = new Date('2026-06-09T12:00:00Z').getTime();
+  const base = { backupReminderEnabled: true, backupReminderDays: 7 };
+
+  it('is not due when reminders are disabled', () => {
+    expect(isBackupReminderDue({ ...base, backupReminderEnabled: false, lastBackupDate: null }, now)).toBe(false);
+  });
+
+  it('is due when no backup was ever made', () => {
+    expect(isBackupReminderDue({ ...base, lastBackupDate: null }, now)).toBe(true);
+  });
+
+  it('is due when the last backup is older than the interval', () => {
+    expect(isBackupReminderDue({ ...base, lastBackupDate: '2026-05-30T12:00:00Z' }, now)).toBe(true);
+  });
+
+  it('is not due when the last backup is within the interval', () => {
+    expect(isBackupReminderDue({ ...base, lastBackupDate: '2026-06-05T12:00:00Z' }, now)).toBe(false);
   });
 });
 

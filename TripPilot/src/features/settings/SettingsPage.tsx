@@ -11,6 +11,8 @@ const LANGUAGE_OPTIONS = [
   { key: 'es', label: 'Español' },
 ];
 
+const CURRENCY_OPTIONS = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'];
+
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { settings, wallets, trip, reload } = useAppData();
@@ -103,6 +105,23 @@ export function SettingsPage() {
         </div>
       </Section>
 
+      {/* DEC-057 (GAP-022): default currency */}
+      <Section title={t('settings.currency')}>
+        <div className="flex gap-2 flex-wrap">
+          {CURRENCY_OPTIONS.map((c) => (
+            <button
+              key={c}
+              onClick={() => updateSetting({ defaultCurrency: c })}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                settings.defaultCurrency === c ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </Section>
+
       <Section title={t('settings.vibration')}>
         <ToggleRow
           label={t('settings.vibration')}
@@ -125,7 +144,7 @@ export function SettingsPage() {
               onChange={(e) => updateSetting({ backupReminderDays: Number(e.target.value) })}
               className="bg-surface-high text-on-surface text-xs rounded-lg px-2 py-1 outline-none"
             >
-              {[1, 2, 3, 5, 7].map((d) => (
+              {[1, 2, 3, 5, 7, 14].map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>

@@ -1,12 +1,12 @@
 # Gap Fix Log — TripPilot
 
 ## Current State
-- **Gate ativo**: 6
-- **Gap ativo**: GAP-026
-- **Gaps resolvidos**: 24/36
-- **Testes**: 142 passing (baseline 105 + 37 novos)
+- **Gate ativo**: 7
+- **Gap ativo**: GAP-031
+- **Gaps resolvidos**: 29/36
+- **Testes**: 146 passing (baseline 105 + 41 novos)
 - **Build/Typecheck**: clean
-- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 4f4e756 · Gate 5 (ver git log)
+- **Commits**: Gate 1 b8259f8 · Gate 2 d395af6 · Gate 3 fa460e1 · Gate 4 4f4e756 · Gate 5 8b9f8b9 · Gate 6 (ver git log)
 - **Nota git**: usar `bash -c 'git commit ...'` (git local não suporta --trailer)
 
 ## Por gate
@@ -56,11 +56,12 @@
 - [x] GAP-025 — window.confirm do delete substituído por BottomSheet; rg "alert(|prompt(|window.confirm" src/ → 0 (só comentário) — ExpenseDetailPage.tsx
 
 ### Gate 6 — Polish de fluxo
-- [ ] GAP-026 — carteiras no onboarding
-- [ ] GAP-027 — data/hora no QuickAdd
-- [ ] GAP-028 — quick-add values alinhados
-- [ ] GAP-022 — settings completo
-- [ ] GAP-023 — "Mais" com Sobre
+- [x] GAP-026 — carteiras no onboarding (DEC-051): passo de carteiras com "Cartão de crédito" editável (default wallet) + cash opcional; createOnboardingEntities estendido — onboarding.ts, OnboardingPage.tsx
+- [x] GAP-027 — campo datetime-local opcional (default agora) no QuickAdd; permite gasto retroativo — QuickAddPage.tsx
+- [x] GAP-028 — DEFAULT_QUICK_ADD_VALUES_CENTS [300,500,700,1000,1500] no domain (D-B); fallback divergente da OutingPage eliminado; highlight via findHighlightedQuickValueIndex (mais próximo do avg drink); editáveis no start config (GAP-015) E durante a sessão via sheet — outing.ts, app-settings-repository.ts, OutingPage.tsx
+- [x] GAP-022 — settings completo (D-A, D-J): moeda padrão (chips 8 moedas); reminder default 7 dias + opção 14 na lista; lastBackupDate já persistido no export (verificado); banner discreto no dashboard via isBackupReminderDue → /settings/backup; vibração confirmada funcional (OutingPage L197) — SettingsPage.tsx, app-settings-repository.ts, backup.ts, DashboardPage.tsx
+- [x] GAP-023 — "Mais" com Sobre (D-D): item "Sobre" na seção Aplicativo → /about (AboutPage: versão via APP_VERSION, link backup, nota local-first); Relatórios NÃO adicionado — MorePage.tsx, AboutPage.tsx, router.tsx, app-version.ts
+- [x] Testes: isBackupReminderDue (4) — 4 novos
 
 ### Gate 7 — Infra + brain
 - [ ] GAP-031 — índices compostos + populate
@@ -77,16 +78,16 @@
 - [ ] Deploy
 
 ## Decisões aplicadas
-- [ ] D-A backup reminder 7 dias
-- [ ] D-B quick-add €3/5/7/10/15
-- [ ] D-C pendência = share de terceiro sem settlement
-- [ ] D-D sem Relatórios; com Sobre
+- [x] D-A backup reminder 7 dias (aplicada no código; registro no brain = Gate 7)
+- [x] D-B quick-add €3/5/7/10/15 (aplicada no código; registro no brain = Gate 7)
+- [x] D-C pendência = share de terceiro sem settlement (aplicada; registro = Gate 7)
+- [x] D-D sem Relatórios; com Sobre (aplicada; registro = Gate 7)
 - [ ] D-E en/es traduzidos
-- [ ] D-F useLiveQuery para settings
+- [x] D-F useLiveQuery para settings (aplicada no Gate 5)
 - [ ] D-G remover deps sem uso
 - [ ] D-H orquestradores parciais
-- [ ] D-I future floor manual apenas
-- [ ] D-J lastBackupDate + banner reminder
+- [x] D-I future floor manual apenas (aplicada no Gate 4)
+- [x] D-J lastBackupDate + banner reminder (aplicada no Gate 6)
 
 ## Problemas extras encontrados (NÃO corrigir — só anotar)
 - (vazio)
