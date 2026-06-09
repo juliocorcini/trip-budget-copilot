@@ -15,13 +15,20 @@
 | File | Purpose | When to read |
 |------|---------|--------------|
 | `product-spec.md` | V1 features, rules, scope boundaries | Any product question |
-| `decision-log.md` | All decisions with status (approved/pending/superseded) | Before making new decisions |
-| `technical-direction.md` | Stack, database, auth, infra, deployment | Any technical question |
-| `implementation-phases.md` | Phases ordered by priority, V1/V2 cut lines | Planning, scheduling |
+| `decision-log.md` | All 21 decisions with status (approved/pending/superseded) | Before making new decisions |
+| `technical-direction.md` | Stack (locked), database, architecture, deployment | Any technical question |
+| `implementation-phases.md` | 6 deliveries with acceptance criteria and estimates | Planning, scheduling |
 | `project-status.md` | Current status, pending tasks, next steps | Status checks, standups |
-| `competitive-landscape.md` | Competitor analysis, differentiation | Marketing, positioning |
+| `competitive-landscape.md` | TravelSpend analysis, feature gap matrix, positioning | Marketing, positioning |
 | `meetings-log.md` | Chronological log of meetings, decisions, action items | History, accountability |
-| `research/` | Subfolder for research outputs | Deep dives on specific topics |
+| `research/` | Research outputs and raw source material | Deep dives on specific topics |
+
+## Research Files
+
+| File | Topic |
+|------|-------|
+| `research/base.txt` | Raw product definition conversation (source material) |
+| `research/2026-06-08-product-definition-session.md` | Structured summary of all findings and decisions |
 
 ## How to Update
 
@@ -36,3 +43,4 @@
 - Files: `kebab-case.md`
 - Research: `research/YYYY-MM-DD-topic-name.md`
 - Decisions: `DEC-NNN` format in decision-log.md
+- Meetings: `MTG-YYYY-MM-DD` format in meetings-log.md

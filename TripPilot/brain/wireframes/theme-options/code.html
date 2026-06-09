@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TripPilot — Theme Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Albert+Sans:wght@300;400;500;600;700;800&family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    @font-face { font-family: 'Geist'; src: url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Regular.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: 'Geist'; src: url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Medium.woff2') format('woff2'); font-weight: 500; }
+    @font-face { font-family: 'Geist'; src: url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-SemiBold.woff2') format('woff2'); font-weight: 600; }
+    @font-face { font-family: 'Geist'; src: url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Bold.woff2') format('woff2'); font-weight: 700; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    .tab-active { border-bottom: 2px solid; opacity: 1; }
+    .tab-inactive { opacity: 0.5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #08080c; }
+    .theme-panel { display: none; }
+    .theme-panel.active { display: block; }
+    .glass { backdrop-filter: blur(24px) saturate(150%); -webkit-backdrop-filter: blur(24px) saturate(150%); }
+    .drink-seg { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease-out; }
+    .drink-seg.full { opacity: 1; }
+    .drink-seg.empty { opacity: 0.15; }
+    .drink-seg.pulse { animation: pulse-glow 1.5s infinite; }
+    @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 0 0 currentColor; } 50% { box-shadow: 0 0 12px 4px currentColor; } }
+    .btn-press:active { transform: scale(0.97); }
+    .quick-btn { min-height: 56px; min-width: 64px; font-variant-numeric: tabular-nums; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            geist: ['Geist', 'system-ui', 'sans-serif'],
+            manrope: ['Manrope', 'system-ui', 'sans-serif'],
+            albert: ['Albert Sans', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+    function showTheme(id) {
+      document.querySelectorAll('.theme-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.theme-tab').forEach(t => { t.classList.remove('tab-active'); t.classList.add('tab-inactive'); });
+      document.getElementById(id).classList.add('active');
+      document.getElementById('tab-'+id).classList.remove('tab-inactive');
+      document.getElementById('tab-'+id).classList.add('tab-active');
+    }
+  </script>
+</head>
+<body class="min-h-screen">
+
+  <!-- Tab Selector -->
+  <div class="sticky top-0 z-50 glass bg-[#08080c]/80 border-b border-white/5">
+    <div class="max-w-[430px] mx-auto flex">
+      <button id="tab-theme-a" class="theme-tab tab-active flex-1 py-4 text-sm font-medium text-amber-400 border-amber-400 text-center cursor-pointer" onclick="showTheme('theme-a')">
+        A · Golden Cockpit
+      </button>
+      <button id="tab-theme-b" class="theme-tab tab-inactive flex-1 py-4 text-sm font-medium text-[#C75B39] border-[#C75B39] text-center cursor-pointer" onclick="showTheme('theme-b')">
+        B · Mediterranean
+      </button>
+      <button id="tab-theme-c" class="theme-tab tab-inactive flex-1 py-4 text-sm font-medium text-[#D4A843] border-[#D4A843] text-center cursor-pointer" onclick="showTheme('theme-c')">
+        C · Night Pilot
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- THEME A: Golden Cockpit                     -->
+  <!-- Amber accent · Geist font · Cockpit gauges  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="theme-a" class="theme-panel active font-geist">
+    <div class="max-w-[430px] mx-auto min-h-screen" style="background: #121218;">
+
+      <!-- A: Status Bar -->
+      <div class="px-5 pt-6 pb-2 flex justify-between items-center">
+        <div>
+          <p class="text-[11px] tracking-widest uppercase" style="color: #E8A84980;">Burgos · Dia 14</p>
+          <h1 class="text-[22px] font-bold tracking-tight" style="color: #F5F0E8;">Fase Dashboard</h1>
+        </div>
+        <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background: #1C1C24;">
+          <span class="material-symbols-outlined text-xl" style="color: #E8A849;">notifications</span>
+        </div>
+      </div>
+
+      <!-- A: Budget Health Card -->
+      <div class="mx-5 mt-4 p-5 rounded-2xl" style="background: #1C1C24;">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <p class="text-xs font-medium" style="color: #E8A84990;">Saldo operacional</p>
+            <p class="text-[36px] font-bold tracking-tight leading-none mt-1 font-mono" style="color: #F5F0E8; font-variant-numeric: tabular-nums;">€487<span class="text-lg">.20</span></p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs" style="color: #F5F0E850;">de €660</p>
+            <p class="text-sm font-semibold mt-1" style="color: #6B8F71;">73.8%</p>
+          </div>
+        </div>
+        <!-- Budget bar with zones -->
+        <div class="w-full h-2 rounded-full overflow-hidden" style="background: #2A2A35;">
+          <div class="h-full rounded-full" style="width: 26.2%; background: linear-gradient(90deg, #6B8F71, #E8A849);"></div>
+        </div>
+        <div class="flex justify-between mt-2">
+          <span class="text-[10px]" style="color: #6B8F71;">Gasto: €172.80</span>
+          <span class="text-[10px]" style="color: #E8A84970;">Reserva protegida: €100</span>
+        </div>
+      </div>
+
+      <!-- A: Occasion Counters -->
+      <div class="mx-5 mt-4 grid grid-cols-3 gap-3">
+        <div class="p-3 rounded-xl text-center" style="background: #1C1C24;">
+          <span class="material-symbols-outlined text-lg" style="color: #E8A849;">local_bar</span>
+          <p class="text-xl font-bold mt-1" style="color: #F5F0E8;">4</p>
+          <p class="text-[10px]" style="color: #F5F0E850;">bar nights</p>
+        </div>
+        <div class="p-3 rounded-xl text-center" style="background: #1C1C24;">
+          <span class="material-symbols-outlined text-lg" style="color: #6B8F71;">shopping_cart</span>
+          <p class="text-xl font-bold mt-1" style="color: #F5F0E8;">5</p>
+          <p class="text-[10px]" style="color: #F5F0E850;">markets</p>
+        </div>
+        <div class="p-3 rounded-xl text-center" style="background: #1C1C24;">
+          <span class="material-symbols-outlined text-lg" style="color: #C75B39;">restaurant</span>
+          <p class="text-xl font-bold mt-1" style="color: #F5F0E8;">2</p>
+          <p class="text-[10px]" style="color: #F5F0E850;">restaurants</p>
+        </div>
+      </div>
+
+      <!-- A: Savings Message -->
+      <div class="mx-5 mt-4 p-4 rounded-xl flex items-center gap-3" style="background: #6B8F7115; border: 1px solid #6B8F7120;">
+        <span class="material-symbols-outlined" style="color: #6B8F71;">trending_up</span>
+        <p class="text-sm" style="color: #6B8F71;">Você economizou €24 — 73% de uma noite no bar!</p>
+      </div>
+
+      <!-- A: Alert Tone Preview -->
+      <div class="mx-5 mt-4 p-4 rounded-xl" style="background: #E8A84912; border: 1px solid #E8A84920;">
+        <div class="flex items-start gap-3">
+          <span class="material-symbols-outlined mt-0.5" style="color: #E8A849;">info</span>
+          <div>
+            <p class="text-sm font-medium" style="color: #E8A849;">Amigo sincero</p>
+            <p class="text-xs mt-1" style="color: #F5F0E880;">Essa compra ainda cabe, mas reduzirá suas saídas de três para duas.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- A: Quick Add FAB -->
+      <div class="fixed bottom-20 right-6 z-40" style="max-width: 430px;">
+        <button class="btn-press w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-900/30" style="background: #E8A849;">
+          <span class="material-symbols-outlined text-2xl" style="color: #121218; font-variation-settings: 'wght' 600;">add</span>
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="mx-5 my-6 border-t" style="border-color: #F5F0E808;"></div>
+
+      <!-- A: Outing Mode Preview -->
+      <div class="mx-5 mb-4">
+        <p class="text-xs tracking-widest uppercase mb-3" style="color: #E8A84960;">Outing Mode · Cockpit View</p>
+      </div>
+
+      <div class="mx-5 p-5 rounded-2xl" style="background: #0E0E14; border: 1px solid #E8A84915;">
+        <!-- Outing header -->
+        <div class="flex justify-between items-center mb-5">
+          <div>
+            <p class="text-[10px] tracking-widest uppercase" style="color: #E8A84960;">Bar em Burgos</p>
+            <p class="text-sm font-medium" style="color: #F5F0E880;">Ativo · 1h 23min</p>
+          </div>
+          <button class="btn-press px-3 py-1.5 rounded-lg text-xs font-medium" style="background: #C75B3930; color: #C75B39;">Encerrar</button>
+        </div>
+
+        <!-- Central number -->
+        <div class="text-center mb-4">
+          <p class="text-[48px] font-bold tracking-tight leading-none font-mono" style="color: #F5F0E8; font-variant-numeric: tabular-nums;">€21</p>
+          <p class="text-sm mt-1" style="color: #F5F0E850;">gasto pessoal</p>
+        </div>
+
+        <!-- Drink segments (cockpit style) -->
+        <div class="flex justify-center gap-2 mb-4">
+          <div class="drink-seg empty" style="background: #E8A84920; color: #E8A849;">
+            <span class="material-symbols-outlined text-sm">local_bar</span>
+          </div>
+          <div class="drink-seg empty" style="background: #E8A84920; color: #E8A849;">
+            <span class="material-symbols-outlined text-sm">local_bar</span>
+          </div>
+          <div class="drink-seg empty" style="background: #E8A84920; color: #E8A849;">
+            <span class="material-symbols-outlined text-sm">local_bar</span>
+          </div>
+          <div class="drink-seg full" style="background: #E8A84940; color: #E8A849;">
+            <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">local_bar</span>
+          </div>
+          <div class="drink-seg full pulse" style="background: #E8A84940; color: #E8A849;">
+            <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">local_bar</span>
+          </div>
+        </div>
+        <p class="text-center text-xs mb-5" style="color: #E8A84990;">2 drinks até o teto seguro</p>
+
+        <!-- Three limits gauge -->
+        <div class="flex items-center gap-2 mb-5 px-2">
+          <div class="flex-1 h-1.5 rounded-full overflow-hidden" style="background: #2A2A35;">
+            <div class="h-full rounded-full relative" style="width: 60%; background: linear-gradient(90deg, #6B8F71, #E8A849);">
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-between px-2 mb-5">
+          <span class="text-[9px] font-medium" style="color: #6B8F71;">Meta €25</span>
+          <span class="text-[9px] font-medium" style="color: #E8A849;">Teto €35</span>
+          <span class="text-[9px] font-medium" style="color: #C75B39;">Max €48</span>
+        </div>
+
+        <!-- Quick add buttons -->
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <button class="btn-press quick-btn rounded-xl font-semibold text-base" style="background: #1C1C24; color: #F5F0E8;">+€3</button>
+          <button class="btn-press quick-btn rounded-xl font-semibold text-base" style="background: #1C1C24; color: #F5F0E8;">+€5</button>
+          <button class="btn-press quick-btn rounded-xl font-semibold text-base" style="background: #E8A84925; color: #E8A849; border: 1px solid #E8A84930;">+€7</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="btn-press quick-btn rounded-xl font-semibold text-base" style="background: #1C1C24; color: #F5F0E8;">+€10</button>
+          <button class="btn-press quick-btn rounded-xl font-semibold text-base" style="background: #1C1C24; color: #F5F0E8;">+€15</button>
+          <button class="btn-press quick-btn rounded-xl font-medium text-xs" style="background: #1C1C24; color: #F5F0E860;">Outro</button>
+        </div>
+
+        <!-- Next drink -->
+        <div class="mt-4 p-3 rounded-xl" style="background: #E8A84910;">
+          <p class="text-xs" style="color: #E8A84990;">
+            <span class="font-medium" style="color: #E8A849;">Próxima bebida €7:</span> Ainda cabe sem afetar suas próximas saídas.
+          </p>
+        </div>
+      </div>
+
+      <!-- A: Buttons & Inputs Preview -->
+      <div class="mx-5 mt-6 mb-4">
+        <p class="text-xs tracking-widest uppercase mb-3" style="color: #E8A84960;">Components</p>
+      </div>
+
+      <div class="mx-5 space-y-3 mb-6">
+        <button class="btn-press w-full py-3.5 rounded-xl font-semibold text-sm" style="background: #E8A849; color: #121218;">Registrar gasto</button>
+        <button class="btn-press w-full py-3.5 rounded-xl font-semibold text-sm" style="background: #1C1C24; color: #F5F0E8;">Começar saída</button>
+        <button class="btn-press w-full py-3.5 rounded-xl font-semibold text-sm border" style="background: transparent; color: #E8A849; border-color: #E8A84930;">Ver cenários</button>
+      </div>
+
+      <div class="mx-5 space-y-3 mb-6">
+        <div>
+          <label class="text-xs font-medium mb-1.5 block" style="color: #F5F0E860;">Valor</label>
+          <input type="text" value="€ 42.50" class="w-full py-3 px-4 rounded-xl text-sm font-medium" style="background: #1C1C24; color: #F5F0E8; border: 1px solid #F5F0E810; outline: none;" />
+        </div>
+        <div>
+          <label class="text-xs font-medium mb-1.5 block" style="color: #F5F0E860;">Categoria</label>
+          <div class="w-full py-3 px-4 rounded-xl text-sm flex justify-between items-center" style="background: #1C1C24; color: #F5F0E880; border: 1px solid #F5F0E810;">
+            <span>Restaurante</span>
+            <span class="material-symbols-outlined text-base" style="color: #F5F0E840;">expand_more</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- A: Toast -->
+      <div class="mx-5 mb-6 p-4 rounded-xl glass flex items-center gap-3" style="background: #1C1C24cc;">
+        <span class="material-symbols-outlined" style="color: #6B8F71;">check_circle</span>
+        <p class="text-sm" style="color: #F5F0E8;">Gasto registrado · €42.50 restaurante</p>
+      </div>
+
+      <!-- A: Bottom Nav -->
+      <div class="sticky bottom-0 glass border-t px-5 py-2" style="background: #121218e6; border-color: #F5F0E808;">
+        <div class="flex justify-around">
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #E8A849; font-variation-settings: 'FILL' 1;">dashboard</span>
+            <span class="text-[10px] font-medium" style="color: #E8A849;">Início</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #F5F0E840;">receipt_long</span>
+            <span class="text-[10px]" style="color: #F5F0E840;">Gastos</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center -mt-4" style="background: #E8A849;">
+              <span class="material-symbols-outlined text-2xl" style="color: #121218; font-variation-settings: 'wght' 600;">add</span>
+            </div>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #F5F0E840;">tune</span>
+            <span class="text-[10px]" style="color: #F5F0E840;">Planejar</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #F5F0E840;">more_horiz</span>
+            <span class="text-[10px]" style="color: #F5F0E840;">Mais</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-4"></div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- THEME B: Mediterranean Copilot              -->
+  <!-- Terracotta accent · Manrope font · Organic  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="theme-b" class="theme-panel font-manrope">
+    <div class="max-w-[430px] mx-auto min-h-screen" style="background: #0F1419;">
+
+      <!-- B: Status Bar -->
+      <div class="px-5 pt-6 pb-2 flex justify-between items-center">
+        <div>
+          <p class="text-[11px] tracking-widest uppercase" style="color: #C75B3980;">Burgos · Dia 14</p>
+          <h1 class="text-[22px] font-extrabold tracking-tight" style="color: #EDE8E0;">Fase Dashboard</h1>
+        </div>
+        <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background: #1A2028;">
+          <span class="material-symbols-outlined text-xl" style="color: #C75B39;">notifications</span>
+        </div>
+      </div>
+
+      <!-- B: Budget Health Card -->
+      <div class="mx-5 mt-4 p-5 rounded-2xl" style="background: #1A2028;">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <p class="text-xs font-semibold" style="color: #C75B3980;">Saldo operacional</p>
+            <p class="text-[36px] font-extrabold tracking-tight leading-none mt-1" style="color: #EDE8E0; font-variant-numeric: tabular-nums;">€487<span class="text-lg font-bold">.20</span></p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs" style="color: #EDE8E050;">de €660</p>
+            <p class="text-sm font-bold mt-1" style="color: #6B8F71;">73.8%</p>
+          </div>
+        </div>
+        <div class="w-full h-2.5 rounded-full overflow-hidden" style="background: #2A3038;">
+          <div class="h-full rounded-full" style="width: 26.2%; background: linear-gradient(90deg, #6B8F71, #C75B39);"></div>
+        </div>
+        <div class="flex justify-between mt-2">
+          <span class="text-[10px]" style="color: #6B8F71;">Gasto: €172.80</span>
+          <span class="text-[10px]" style="color: #C75B3960;">Reserva: €100</span>
+        </div>
+      </div>
+
+      <!-- B: Occasion Counters (rounded style) -->
+      <div class="mx-5 mt-4 grid grid-cols-3 gap-3">
+        <div class="p-4 rounded-2xl text-center" style="background: #1A2028;">
+          <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2" style="background: #C75B3920;">
+            <span class="material-symbols-outlined" style="color: #C75B39;">local_bar</span>
+          </div>
+          <p class="text-xl font-extrabold" style="color: #EDE8E0;">4</p>
+          <p class="text-[10px] font-medium" style="color: #EDE8E050;">bar nights</p>
+        </div>
+        <div class="p-4 rounded-2xl text-center" style="background: #1A2028;">
+          <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2" style="background: #6B8F7120;">
+            <span class="material-symbols-outlined" style="color: #6B8F71;">shopping_cart</span>
+          </div>
+          <p class="text-xl font-extrabold" style="color: #EDE8E0;">5</p>
+          <p class="text-[10px] font-medium" style="color: #EDE8E050;">markets</p>
+        </div>
+        <div class="p-4 rounded-2xl text-center" style="background: #1A2028;">
+          <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2" style="background: #D4A84320;">
+            <span class="material-symbols-outlined" style="color: #D4A843;">restaurant</span>
+          </div>
+          <p class="text-xl font-extrabold" style="color: #EDE8E0;">2</p>
+          <p class="text-[10px] font-medium" style="color: #EDE8E050;">restaurants</p>
+        </div>
+      </div>
+
+      <!-- B: Savings Message -->
+      <div class="mx-5 mt-4 p-4 rounded-2xl flex items-center gap-3" style="background: #6B8F7112; border: 1px solid #6B8F7118;">
+        <span class="material-symbols-outlined" style="color: #6B8F71;">trending_up</span>
+        <p class="text-sm font-medium" style="color: #6B8F71;">Você economizou €24 — 73% de uma noite no bar!</p>
+      </div>
+
+      <div class="mx-5 my-6 border-t" style="border-color: #EDE8E006;"></div>
+
+      <!-- B: Outing Mode Preview -->
+      <div class="mx-5 mb-4">
+        <p class="text-xs tracking-widest uppercase mb-3" style="color: #C75B3950;">Outing Mode · Mediterranean</p>
+      </div>
+
+      <div class="mx-5 p-5 rounded-2xl" style="background: #0A0F14; border: 1px solid #C75B3912;">
+        <div class="flex justify-between items-center mb-5">
+          <div>
+            <p class="text-[10px] tracking-widest uppercase" style="color: #C75B3960;">Bar em Burgos</p>
+            <p class="text-sm font-semibold" style="color: #EDE8E080;">Ativo · 1h 23min</p>
+          </div>
+          <button class="btn-press px-3 py-1.5 rounded-xl text-xs font-semibold" style="background: #C75B3925; color: #C75B39;">Encerrar</button>
+        </div>
+
+        <div class="text-center mb-5">
+          <p class="text-[52px] font-extrabold tracking-tight leading-none" style="color: #EDE8E0; font-variant-numeric: tabular-nums;">€21</p>
+          <p class="text-sm mt-1 font-medium" style="color: #EDE8E040;">gasto pessoal</p>
+        </div>
+
+        <!-- Arc-style progress (simplified as segmented bar with rounded ends) -->
+        <div class="flex justify-center gap-1.5 mb-2">
+          <div class="h-2 rounded-full" style="width: 40px; background: #6B8F71;"></div>
+          <div class="h-2 rounded-full" style="width: 40px; background: #6B8F71;"></div>
+          <div class="h-2 rounded-full" style="width: 40px; background: #6B8F71;"></div>
+          <div class="h-2 rounded-full" style="width: 40px; background: #C75B39;"></div>
+          <div class="h-2 rounded-full" style="width: 40px; background: #C75B3930;"></div>
+        </div>
+        <div class="flex justify-between mb-5 px-1">
+          <span class="text-[9px] font-semibold" style="color: #6B8F71;">€25</span>
+          <span class="text-[9px] font-semibold" style="color: #C75B39;">€35</span>
+          <span class="text-[9px] font-semibold" style="color: #C75B3960;">€48</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2.5 mb-3">
+          <button class="btn-press quick-btn rounded-2xl font-bold text-base" style="background: #1A2028; color: #EDE8E0;">+€3</button>
+          <button class="btn-press quick-btn rounded-2xl font-bold text-base" style="background: #1A2028; color: #EDE8E0;">+€5</button>
+          <button class="btn-press quick-btn rounded-2xl font-bold text-base" style="background: #C75B3920; color: #C75B39; border: 1px solid #C75B3925;">+€7</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2.5">
+          <button class="btn-press quick-btn rounded-2xl font-bold text-base" style="background: #1A2028; color: #EDE8E0;">+€10</button>
+          <button class="btn-press quick-btn rounded-2xl font-bold text-base" style="background: #1A2028; color: #EDE8E0;">+€15</button>
+          <button class="btn-press quick-btn rounded-2xl font-medium text-xs" style="background: #1A2028; color: #EDE8E050;">Outro</button>
+        </div>
+
+        <div class="mt-4 p-3 rounded-xl" style="background: #C75B390d;">
+          <p class="text-xs" style="color: #C75B3990;">
+            <span class="font-semibold" style="color: #C75B39;">Próxima bebida €7:</span> Ainda cabe sem afetar suas próximas saídas.
+          </p>
+        </div>
+      </div>
+
+      <!-- B: Components -->
+      <div class="mx-5 mt-6 mb-4">
+        <p class="text-xs tracking-widest uppercase mb-3" style="color: #C75B3950;">Components</p>
+      </div>
+
+      <div class="mx-5 space-y-3 mb-6">
+        <button class="btn-press w-full py-3.5 rounded-2xl font-bold text-sm" style="background: #C75B39; color: #0F1419;">Registrar gasto</button>
+        <button class="btn-press w-full py-3.5 rounded-2xl font-bold text-sm" style="background: #1A2028; color: #EDE8E0;">Começar saída</button>
+        <button class="btn-press w-full py-3.5 rounded-2xl font-bold text-sm border" style="background: transparent; color: #C75B39; border-color: #C75B3925;">Ver cenários</button>
+      </div>
+
+      <div class="mx-5 space-y-3 mb-6">
+        <div>
+          <label class="text-xs font-semibold mb-1.5 block" style="color: #EDE8E060;">Valor</label>
+          <input type="text" value="€ 42.50" class="w-full py-3 px-4 rounded-xl text-sm font-semibold" style="background: #1A2028; color: #EDE8E0; border: 1px solid #EDE8E008; outline: none;" />
+        </div>
+      </div>
+
+      <!-- B: Toast -->
+      <div class="mx-5 mb-6 p-4 rounded-2xl glass flex items-center gap-3" style="background: #1A2028cc;">
+        <span class="material-symbols-outlined" style="color: #6B8F71;">check_circle</span>
+        <p class="text-sm font-medium" style="color: #EDE8E0;">Gasto registrado · €42.50 restaurante</p>
+      </div>
+
+      <!-- B: Bottom Nav -->
+      <div class="sticky bottom-0 glass border-t px-5 py-2" style="background: #0F1419e6; border-color: #EDE8E006;">
+        <div class="flex justify-around">
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #C75B39; font-variation-settings: 'FILL' 1;">dashboard</span>
+            <span class="text-[10px] font-semibold" style="color: #C75B39;">Início</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #EDE8E030;">receipt_long</span>
+            <span class="text-[10px]" style="color: #EDE8E030;">Gastos</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center -mt-4" style="background: #C75B39;">
+              <span class="material-symbols-outlined text-2xl" style="color: #0F1419; font-variation-settings: 'wght' 600;">add</span>
+            </div>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #EDE8E030;">tune</span>
+            <span class="text-[10px]" style="color: #EDE8E030;">Planejar</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #EDE8E030;">more_horiz</span>
+            <span class="text-[10px]" style="color: #EDE8E030;">Mais</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-4"></div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- THEME C: Night Pilot                        -->
+  <!-- Dual accent (Gold + Teal) · Albert Sans     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="theme-c" class="theme-panel font-albert">
+    <div class="max-w-[430px] mx-auto min-h-screen" style="background: #0A0E14;">
+
+      <!-- C: Status Bar -->
+      <div class="px-5 pt-6 pb-2 flex justify-between items-center">
+        <div>
+          <p class="text-[11px] tracking-widest uppercase font-semibold" style="color: #2D8B8B90;">Burgos · Dia 14</p>
+          <h1 class="text-[22px] font-bold tracking-tight" style="color: #E8E4DC;">Fase Dashboard</h1>
+        </div>
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #141920;">
+          <span class="material-symbols-outlined text-xl" style="color: #D4A843;">notifications</span>
+        </div>
+      </div>
+
+      <!-- C: Budget Health Card -->
+      <div class="mx-5 mt-4 p-5 rounded-xl" style="background: #141920;">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <p class="text-xs font-semibold tracking-wide" style="color: #D4A84380;">Saldo operacional</p>
+            <p class="text-[36px] font-bold tracking-tight leading-none mt-1" style="color: #E8E4DC; font-variant-numeric: tabular-nums;">€487<span class="text-lg">.20</span></p>
+          </div>
+          <div class="px-2.5 py-1 rounded-lg" style="background: #6B8F7118;">
+            <p class="text-sm font-bold" style="color: #6B8F71;">73.8%</p>
+          </div>
+        </div>
+        <div class="w-full h-1.5 rounded-full overflow-hidden" style="background: #1E2530;">
+          <div class="h-full rounded-full" style="width: 26.2%; background: #2D8B8B;"></div>
+        </div>
+        <div class="flex justify-between mt-2.5">
+          <span class="text-[10px] font-medium" style="color: #2D8B8B;">Gasto: €172.80</span>
+          <span class="text-[10px]" style="color: #D4A84350;">Reserva: €100</span>
+        </div>
+      </div>
+
+      <!-- C: Occasion Counters (compact horizontal) -->
+      <div class="mx-5 mt-4 p-4 rounded-xl flex justify-between" style="background: #141920;">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-base" style="color: #D4A843;">local_bar</span>
+          <span class="text-lg font-bold" style="color: #E8E4DC;">4</span>
+          <span class="text-[10px]" style="color: #E8E4DC30;">bars</span>
+        </div>
+        <div class="w-px" style="background: #E8E4DC10;"></div>
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-base" style="color: #6B8F71;">shopping_cart</span>
+          <span class="text-lg font-bold" style="color: #E8E4DC;">5</span>
+          <span class="text-[10px]" style="color: #E8E4DC30;">mkts</span>
+        </div>
+        <div class="w-px" style="background: #E8E4DC10;"></div>
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-base" style="color: #2D8B8B;">restaurant</span>
+          <span class="text-lg font-bold" style="color: #E8E4DC;">2</span>
+          <span class="text-[10px]" style="color: #E8E4DC30;">rest</span>
+        </div>
+      </div>
+
+      <!-- C: Savings -->
+      <div class="mx-5 mt-3 p-3 rounded-xl flex items-center gap-3" style="background: #6B8F710d;">
+        <span class="material-symbols-outlined text-base" style="color: #6B8F71;">trending_up</span>
+        <p class="text-xs font-medium" style="color: #6B8F71;">€24 economizados — 73% de uma noite no bar</p>
+      </div>
+
+      <div class="mx-5 my-6 border-t" style="border-color: #E8E4DC05;"></div>
+
+      <!-- C: Outing Mode Preview -->
+      <div class="mx-5 mb-4">
+        <p class="text-xs tracking-widest uppercase font-semibold mb-3" style="color: #2D8B8B50;">Outing Mode · Night Pilot</p>
+      </div>
+
+      <div class="mx-5 p-5 rounded-xl" style="background: #080C10; border: 1px solid #D4A84310;">
+        <div class="flex justify-between items-center mb-5">
+          <div>
+            <p class="text-[10px] tracking-widest uppercase font-semibold" style="color: #D4A84350;">Bar em Burgos</p>
+            <p class="text-sm font-medium" style="color: #E8E4DC60;">1h 23min</p>
+          </div>
+          <button class="btn-press px-3 py-1.5 rounded-lg text-xs font-semibold" style="background: #C75B3920; color: #C75B39;">Encerrar</button>
+        </div>
+
+        <div class="text-center mb-4">
+          <p class="text-[52px] font-bold tracking-tighter leading-none" style="color: #D4A843; font-variant-numeric: tabular-nums;">€21</p>
+          <p class="text-xs mt-2 font-medium" style="color: #E8E4DC35;">de €35 teto seguro</p>
+        </div>
+
+        <!-- Segmented linear gauge -->
+        <div class="flex gap-1 mb-1 px-1">
+          <div class="flex-1 h-3 rounded-sm" style="background: #6B8F71;"></div>
+          <div class="flex-1 h-3 rounded-sm" style="background: #6B8F71;"></div>
+          <div class="flex-1 h-3 rounded-sm" style="background: #6B8F71;"></div>
+          <div class="flex-1 h-3 rounded-sm" style="background: #D4A843;"></div>
+          <div class="flex-1 h-3 rounded-sm" style="background: #D4A84330;"></div>
+          <div class="flex-1 h-3 rounded-sm" style="background: #C75B3920;"></div>
+          <div class="flex-1 h-3 rounded-sm" style="background: #C75B3910;"></div>
+        </div>
+        <div class="flex justify-between mb-5 px-1">
+          <span class="text-[8px] font-semibold" style="color: #6B8F71;">META</span>
+          <span class="text-[8px] font-semibold" style="color: #D4A843;">TETO</span>
+          <span class="text-[8px] font-semibold" style="color: #C75B3960;">MAX</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-2">
+          <button class="btn-press quick-btn rounded-xl font-bold text-base" style="background: #141920; color: #E8E4DC;">+€3</button>
+          <button class="btn-press quick-btn rounded-xl font-bold text-base" style="background: #141920; color: #E8E4DC;">+€5</button>
+          <button class="btn-press quick-btn rounded-xl font-bold text-base" style="background: #D4A84318; color: #D4A843; border: 1px solid #D4A84320;">+€7</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="btn-press quick-btn rounded-xl font-bold text-base" style="background: #141920; color: #E8E4DC;">+€10</button>
+          <button class="btn-press quick-btn rounded-xl font-bold text-base" style="background: #141920; color: #E8E4DC;">+€15</button>
+          <button class="btn-press quick-btn rounded-xl font-medium text-xs" style="background: #141920; color: #E8E4DC40;">Outro</button>
+        </div>
+
+        <div class="mt-4 p-3 rounded-lg flex items-center gap-2" style="background: #2D8B8B0d;">
+          <span class="material-symbols-outlined text-sm" style="color: #2D8B8B;">info</span>
+          <p class="text-xs" style="color: #2D8B8B90;">Próxima bebida €7 — cabe sem afetar próximas saídas</p>
+        </div>
+      </div>
+
+      <!-- C: Components -->
+      <div class="mx-5 mt-6 mb-4">
+        <p class="text-xs tracking-widest uppercase font-semibold mb-3" style="color: #2D8B8B50;">Components</p>
+      </div>
+
+      <div class="mx-5 space-y-3 mb-6">
+        <button class="btn-press w-full py-3.5 rounded-xl font-bold text-sm" style="background: #D4A843; color: #0A0E14;">Registrar gasto</button>
+        <button class="btn-press w-full py-3.5 rounded-xl font-bold text-sm" style="background: #141920; color: #E8E4DC;">Começar saída</button>
+        <button class="btn-press w-full py-3.5 rounded-xl font-bold text-sm" style="background: transparent; color: #2D8B8B; border: 1px solid #2D8B8B25;">Ver cenários</button>
+      </div>
+
+      <div class="mx-5 space-y-3 mb-6">
+        <div>
+          <label class="text-xs font-semibold mb-1.5 block" style="color: #E8E4DC50;">Valor</label>
+          <input type="text" value="€ 42.50" class="w-full py-3 px-4 rounded-xl text-sm font-medium" style="background: #141920; color: #E8E4DC; border: 1px solid #E8E4DC08; outline: none;" />
+        </div>
+      </div>
+
+      <!-- C: Toast -->
+      <div class="mx-5 mb-6 p-4 rounded-xl glass flex items-center gap-3" style="background: #141920cc;">
+        <span class="material-symbols-outlined" style="color: #6B8F71;">check_circle</span>
+        <p class="text-sm font-medium" style="color: #E8E4DC;">Gasto registrado · €42.50</p>
+      </div>
+
+      <!-- C: Bottom Nav -->
+      <div class="sticky bottom-0 glass border-t px-5 py-2" style="background: #0A0E14e6; border-color: #E8E4DC06;">
+        <div class="flex justify-around">
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #D4A843; font-variation-settings: 'FILL' 1;">dashboard</span>
+            <span class="text-[10px] font-semibold" style="color: #D4A843;">Início</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #E8E4DC25;">receipt_long</span>
+            <span class="text-[10px]" style="color: #E8E4DC25;">Gastos</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center -mt-3" style="background: linear-gradient(135deg, #D4A843, #2D8B8B);">
+              <span class="material-symbols-outlined text-xl" style="color: #0A0E14; font-variation-settings: 'wght' 600;">add</span>
+            </div>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #E8E4DC25;">tune</span>
+            <span class="text-[10px]" style="color: #E8E4DC25;">Planejar</span>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 py-1">
+            <span class="material-symbols-outlined text-xl" style="color: #E8E4DC25;">more_horiz</span>
+            <span class="text-[10px]" style="color: #E8E4DC25;">Mais</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-4"></div>
+    </div>
+  </div>
+
+</body>
+</html>

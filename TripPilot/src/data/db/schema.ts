@@ -1,0 +1,25 @@
+export const SCHEMA_VERSION = 1;
+
+export const SCHEMA_V1: Record<string, string> = {
+  trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
+  phases: 'id, tripId, name, startDate, endDate, order, deletedAt',
+  budgetPools: 'id, tripId, name, scope, currency, deletedAt',
+  budgetPoolPhaseLinks: 'id, budgetPoolId, phaseId, deletedAt',
+  envelopes: 'id, budgetPoolId, kind, deletedAt',
+  activityProfiles: 'id, tripId, category, isCustom, deletedAt',
+  scenarioPlans: 'id, tripId, phaseId, budgetPoolId, isActive, deletedAt',
+  scenarioAllocationItems: 'id, scenarioPlanId, activityProfileId, deletedAt',
+  plannedOccurrences: 'id, tripId, phaseId, activityProfileId, budgetPoolId, plannedDate, deletedAt',
+  participants: 'id, tripId, isOwner, deletedAt',
+  wallets: 'id, tripId, walletType, isDefault, deletedAt',
+  transactions: 'id, tripId, phaseId, budgetPoolId, walletId, sessionId, type, category, date, isShared, paidByParticipantId, deletedAt',
+  participantShares: 'id, transactionId, participantId, deletedAt',
+  sessions: 'id, tripId, phaseId, budgetPoolId, activityProfileId, status, deletedAt',
+  sessionItems: 'id, sessionId, transactionId, deletedAt',
+  settlements: 'id, tripId, debtorParticipantId, creditorParticipantId, deletedAt',
+  forecastSnapshots: 'id, tripId, phaseId, snapshotDate, deletedAt',
+  futurePhaseReservePolicies: 'id, budgetPoolId, phaseId, deletedAt',
+  alertRules: 'id, tripId, alertType, isEnabled, deletedAt',
+  appSettings: 'id',
+  devices: 'id, deletedAt',
+};

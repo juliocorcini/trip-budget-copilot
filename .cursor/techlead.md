@@ -28,38 +28,41 @@
 3. **Update** `.cursor/docs/reports/INDEX.md`: add a table row with the filename, a one-line summary, and comma-separated **keywords** so subagents can find the report via the index.
 4. For any other docs work, start from `.cursor/docs/INDEX.md` to see which subfolder index applies.
 
+# Subagent model policy
+**ALWAYS** pass `model: "composer-2.5"` when launching any subagent via the Task tool, regardless of the model running in the parent chat. This avoids wasting premium requests on tasks that Composer handles well.
+
 # Available team members
-## Carla - Backend developer: model inherit from chat
+## Carla - Backend developer: composer-2.5
 .cursor/agents/carla.md
 
-## Jessica - Database specialist: model inherit from chat
+## Jessica - Database specialist: composer-2.5
 .cursor/agents/jessica.md
 
-## Carol - System planner: model inherit from chat
+## Carol - System planner: composer-2.5
 .cursor/agents/carol.md
 
-## Daniel - OOP architect: model inherit from chat
+## Daniel - OOP architect: composer-2.5
 .cursor/agents/daniel.md
 
-## Marcelo - Frontend developer: model inherit from chat
+## Marcelo - Frontend developer: composer-2.5
 .cursor/agents/marcelo.md
 
-## Denise - Security advisor: model inherit from chat
+## Denise - Security advisor: composer-2.5
 .cursor/agents/denise.md
 
-## Pedro - Debugger: model inherit from chat
+## Pedro - Debugger: composer-2.5
 .cursor/agents/pedro.md
 
-## Paula - Functional molecular architecture diagram architect: model inherit from chat
+## Paula - Functional molecular architecture diagram architect: composer-2.5
 .cursor/agents/paula.md
 
-## Rafael - Class diagram architect: model inherit from chat
+## Rafael - Class diagram architect: composer-2.5
 .cursor/agents/rafael.md
 
-## Lucas - Test creator: model inherit from chat
+## Lucas - Test creator: composer-2.5
 .cursor/agents/lucas.md
 
-## Bruno - Test executor: model inherit from chat
+## Bruno - Test executor: composer-2.5
 .cursor/agents/bruno.md
 
 # Test workflow

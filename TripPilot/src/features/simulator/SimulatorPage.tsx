@@ -1,0 +1,102 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
+import { useAppData } from '@/hooks/useAppData';
+import { findActivePhase } from '@/domain/dates';
+import { calculateFreeToSpend } from '@/domain/budget';
+import { filterTransactionsByPool } from '@/domain/transactions';
+import { simulateSpend } from '@/domain/forecasting';
+import { toCents, formatMoney } from '@/domain/money';
+import { Icon } from '@/components/Icon';
+
+export function SimulatorPage() {
+  useTranslation();
+  const navigate = useNavigate();
+  const { trip, phases, pools, links, envelopes, transactions } = useAppData();
+
+  const [amount, setAmount] = useState('');
+
+  const activePhase = findActivePhase(phases);
+  const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+
+  const fts = primaryPool && activePhase
+    ? calculateFreeToSpend(
+        primaryPool,
+        envelopes.filter((e) => e.budgetPoolId === primaryPool.id),
+        filterTransactionsByPool(transactions, primaryPool.id),
+        links.filter((l) => l.budgetPoolId === primaryPool.id),
+        activePhase.id,
+      )
+    : null;
+
+  const amountCents = amount ? toCents(parseFloat(amount) || 0) : 0;
+  const result = fts && amountCents > 0 ? simulateSpend(fts.freeToSpendCents, amountCents) : null;
+
+  if (!trip) return null;
+
+  const riskColors = {
+    low: 'text-success',
+    medium: 'text-warning',
+    high: 'text-error',
+    critical: 'text-error',
+  };
+
+  return (
+    <div className="flex flex-col gap-4 pb-4 pt-2 min-h-screen">
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="btn-press p-1">
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
+        </button>
+        <h1 className="text-heading font-bold text-on-surface">Simulador</h1>
+      </div>
+
+      {fts && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <p className="text-xs text-on-surface-faint">Disponível agora</p>
+          <p className="text-lg font-bold tabular text-on-surface">
+            {formatMoney(fts.freeToSpendCents, trip.baseCurrency)}
+          </p>
+        </div>
+      )}
+
+      <div className="bg-surface-container rounded-2xl p-5">
+        <label className="text-xs text-on-surface-faint mb-1 block">Quanto quer gastar?</label>
+        <div className="flex items-baseline gap-1">
+          <span className="text-on-surface-dim text-lg">{trip.baseCurrency}</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0,00"
+            className="bg-transparent text-display font-bold text-on-surface tabular outline-none w-full"
+            autoFocus
+          />
+        </div>
+      </div>
+
+      {result && (
+        <div className="bg-surface-container rounded-xl p-5 text-center">
+          <Icon
+            name={result.canSpend ? 'check_circle' : 'cancel'}
+            size={48}
+            className={`mx-auto mb-2 ${result.canSpend ? 'text-success' : 'text-error'}`}
+          />
+          <p className={`text-lg font-bold ${riskColors[result.risk]}`}>
+            {result.risk === 'low' ? 'Tranquilo!' :
+             result.risk === 'medium' ? 'Dá, mas pense.' :
+             result.risk === 'high' ? 'Arriscado.' :
+             'Estoura o orçamento.'}
+          </p>
+          <p className="text-sm text-on-surface-dim mt-2">
+            Depois: {formatMoney(Math.max(0, result.freeAfterCents), trip.baseCurrency)} restantes
+          </p>
+          <p className="text-xs text-on-surface-faint mt-1">
+            {result.percentOfRemaining}% do disponível
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

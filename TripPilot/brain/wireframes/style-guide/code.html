@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TripPilot — Style Guide Interno</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: 'Manrope', system-ui, sans-serif; background: #08080c; }
+    .glass { backdrop-filter: blur(24px) saturate(150%); -webkit-backdrop-filter: blur(24px) saturate(150%); }
+    .btn-press:active { transform: scale(0.97); }
+    .btn-press { transition: transform 100ms cubic-bezier(0.23, 1, 0.32, 1); cursor: pointer; border: none; }
+    :root {
+      --bg: #0F1419;
+      --card: #1A2028;
+      --card-hi: #242C36;
+      --deep: #0A0F14;
+      --pri: #C75B39;
+      --text: #EDE8E0;
+      --dim: #EDE8E0b3;
+      --faint: #EDE8E070;
+      --mute: #EDE8E035;
+      --ok: #6B8F71;
+      --warn: #D4A843;
+      --err: #D94040;
+    }
+  </style>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: {
+      sans: ['Manrope','system-ui','sans-serif'], mono: ['JetBrains Mono','monospace']
+    }}}}
+  </script>
+</head>
+<body>
+
+<div class="max-w-[430px] mx-auto" style="background:var(--bg);min-height:100vh;padding-bottom:40px;">
+
+  <div class="px-5 pt-8 pb-2">
+    <p class="text-[10px] tracking-[0.2em] uppercase font-bold" style="color:#C75B3999;">Style guide interno</p>
+    <h1 class="text-2xl font-extrabold mt-1" style="color:var(--text);">TripPilot Components</h1>
+    <p class="text-sm font-medium mt-2" style="color:var(--dim);">Referência visual para desenvolvimento. Não é uma tela do app.</p>
+  </div>
+
+  <!-- Colors -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Paleta</p>
+    <div class="grid grid-cols-5 gap-3">
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5" style="background:var(--pri);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Primary</p><p class="text-[8px] font-mono" style="color:var(--faint);">#C75B39</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5" style="background:var(--ok);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Success</p><p class="text-[8px] font-mono" style="color:var(--faint);">#6B8F71</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5" style="background:var(--warn);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Warning</p><p class="text-[8px] font-mono" style="color:var(--faint);">#D4A843</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5" style="background:var(--err);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Error</p><p class="text-[8px] font-mono" style="color:var(--faint);">#D94040</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5" style="background:var(--text);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Text</p><p class="text-[8px] font-mono" style="color:var(--faint);">#EDE8E0</p></div>
+    </div>
+    <div class="grid grid-cols-5 gap-3 mt-3">
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5 border" style="background:var(--bg);border-color:var(--mute);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">BG</p><p class="text-[8px] font-mono" style="color:var(--faint);">#0F1419</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5 border" style="background:var(--card);border-color:var(--mute);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Card</p><p class="text-[8px] font-mono" style="color:var(--faint);">#1A2028</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5 border" style="background:var(--card-hi);border-color:var(--mute);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Card Hi</p><p class="text-[8px] font-mono" style="color:var(--faint);">#242C36</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5 border" style="background:var(--deep);border-color:var(--mute);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Deep</p><p class="text-[8px] font-mono" style="color:var(--faint);">#0A0F14</p></div>
+      <div class="text-center"><div class="w-full aspect-square rounded-xl mb-1.5" style="background:#08080c;border:1px solid var(--mute);"></div><p class="text-[9px] font-bold" style="color:var(--dim);">Body</p><p class="text-[8px] font-mono" style="color:var(--faint);">#08080c</p></div>
+    </div>
+  </div>
+
+  <!-- Typography -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Tipografia</p>
+    <div class="space-y-2">
+      <div class="flex items-baseline gap-3"><p class="text-[44px] font-extrabold" style="color:var(--text);">€217</p><p class="text-[9px] font-mono" style="color:var(--faint);">44px/800 hero</p></div>
+      <div class="flex items-baseline gap-3"><p class="text-[60px] font-extrabold leading-none tracking-tighter" style="color:var(--text);">€21</p><p class="text-[9px] font-mono" style="color:var(--faint);">60px/800 outing</p></div>
+      <div class="flex items-baseline gap-3"><p class="text-2xl font-extrabold" style="color:var(--text);">€66</p><p class="text-[9px] font-mono" style="color:var(--faint);">24px/800 accent</p></div>
+      <div class="flex items-baseline gap-3"><p class="text-xl font-extrabold" style="color:var(--text);">Título de tela</p><p class="text-[9px] font-mono" style="color:var(--faint);">20px/800</p></div>
+      <div class="flex items-baseline gap-3"><p class="text-sm font-bold" style="color:var(--text);">Card title</p><p class="text-[9px] font-mono" style="color:var(--faint);">14px/700</p></div>
+      <div class="flex items-baseline gap-3"><p class="text-xs font-semibold" style="color:var(--dim);">Secondary text</p><p class="text-[9px] font-mono" style="color:var(--faint);">12px/600 dim</p></div>
+      <div class="flex items-baseline gap-3"><p class="text-[11px] font-semibold" style="color:var(--dim);">Subtitle</p><p class="text-[9px] font-mono" style="color:var(--faint);">11px/600 dim</p></div>
+      <div class="flex items-baseline gap-3"><p class="text-[10px] font-bold tracking-[0.15em] uppercase" style="color:var(--faint);">Section label</p><p class="text-[9px] font-mono" style="color:var(--faint);">10px/700 faint</p></div>
+    </div>
+  </div>
+
+  <!-- Text contrast -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Contraste de texto</p>
+    <div class="p-4 rounded-2xl space-y-2" style="background:var(--card);">
+      <p class="text-sm font-bold" style="color:var(--text);">100% — Texto primário #EDE8E0</p>
+      <p class="text-sm font-semibold" style="color:var(--dim);">70% — Texto secundário #EDE8E0b3</p>
+      <p class="text-sm font-semibold" style="color:var(--faint);">44% — Texto terciário #EDE8E070</p>
+      <p class="text-sm font-semibold" style="color:var(--mute);">21% — Divisores / mute #EDE8E035</p>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Botões</p>
+    <div class="space-y-3">
+      <button class="btn-press w-full py-3.5 rounded-xl font-bold text-sm" style="background:var(--pri);color:var(--bg);">Primary — Aplicar recomendação</button>
+      <button class="btn-press w-full py-3 rounded-xl font-bold text-xs" style="background:var(--card-hi);color:var(--dim);">Secondary — Outras opções</button>
+      <button class="btn-press w-full py-2.5 rounded-xl font-bold text-xs" style="background:#C75B3918;color:var(--pri);">Ghost — Ver impacto completo</button>
+      <button class="btn-press px-3 py-2 rounded-xl text-xs font-bold" style="background:#D9404015;color:var(--err);">Destructive — Encerrar</button>
+    </div>
+  </div>
+
+  <!-- Quick-add buttons -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Quick-add (saída ativa)</p>
+    <div class="grid grid-cols-3 gap-2.5">
+      <button class="btn-press rounded-xl py-4 font-bold text-lg" style="background:var(--card);color:var(--text);min-height:56px;">+€3</button>
+      <button class="btn-press rounded-xl py-4 font-bold text-lg" style="background:var(--card);color:var(--text);min-height:56px;">+€5</button>
+      <button class="btn-press rounded-xl py-4 font-bold text-lg" style="background:#C75B3918;color:var(--pri);border:1px solid #C75B3920;min-height:56px;">+€7</button>
+    </div>
+  </div>
+
+  <!-- State chips -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Chips de estado (planejador)</p>
+    <div class="flex flex-wrap gap-2">
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#6B8F7118;color:var(--ok);">Essencial</span>
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#EDE8E010;color:var(--dim);">Planejado</span>
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#EDE8E010;color:var(--dim);">Opcional</span>
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#D4A84320;color:var(--warn);">Alterado</span>
+    </div>
+    <div class="flex flex-wrap gap-3 mt-3">
+      <div class="flex items-center gap-1"><span class="material-symbols-outlined text-sm" style="color:var(--faint);">lock</span><span class="text-[10px] font-bold" style="color:var(--faint);">Travado</span></div>
+      <div class="flex items-center gap-1"><span class="material-symbols-outlined text-sm" style="color:var(--faint);">lock_open</span><span class="text-[10px] font-bold" style="color:var(--faint);">Ajustável</span></div>
+    </div>
+  </div>
+
+  <!-- Status badges -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Badges de status</p>
+    <div class="flex flex-wrap gap-2">
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#6B8F7118;color:var(--ok);">Confortável</span>
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#D4A84318;color:var(--warn);">Atenção</span>
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#D9404018;color:var(--err);">Evitar</span>
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#C75B3918;color:var(--pri);">Pendente</span>
+      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" style="background:#EDE8E010;color:var(--dim);">Confirmado</span>
+    </div>
+  </div>
+
+  <!-- Cards -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Cards</p>
+    <div class="space-y-3">
+      <div class="p-4 rounded-2xl" style="background:var(--card);">
+        <p class="text-sm font-bold" style="color:var(--text);">Card padrão</p>
+        <p class="text-xs font-semibold mt-1" style="color:var(--dim);">Fundo --card, borda arredondada 16px</p>
+      </div>
+      <div class="p-4 rounded-2xl" style="background:#6B8F7112;border:1px solid #6B8F7118;">
+        <p class="text-sm font-bold" style="color:var(--ok);">Card de sucesso</p>
+        <p class="text-xs font-semibold mt-1" style="color:var(--dim);">Economia / status positivo</p>
+      </div>
+      <div class="p-4 rounded-2xl" style="background:#D4A84312;border:1px solid #D4A84320;">
+        <p class="text-sm font-bold" style="color:var(--warn);">Card de atenção</p>
+        <p class="text-xs font-semibold mt-1" style="color:var(--dim);">Pendências / alertas</p>
+      </div>
+      <div class="p-4 rounded-2xl" style="background:#C75B3910;border:1px solid #C75B3915;">
+        <p class="text-sm font-bold" style="color:var(--pri);">Card contextual</p>
+        <p class="text-xs font-semibold mt-1" style="color:var(--dim);">Amigo sincero / insights</p>
+      </div>
+      <div class="p-4 rounded-2xl" style="background:var(--deep);border:1px solid #C75B3925;">
+        <p class="text-sm font-bold" style="color:var(--text);">Card de saída ativa</p>
+        <p class="text-xs font-semibold mt-1" style="color:var(--dim);">Fundo --deep com borda terracota</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form elements -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Campos de entrada</p>
+    <div class="space-y-3">
+      <div>
+        <label class="text-[10px] font-bold tracking-wide uppercase block mb-1.5" style="color:var(--dim);">Descrição</label>
+        <input type="text" placeholder="Ex: Cerveja no bar" class="w-full py-3 px-4 rounded-xl text-sm font-medium outline-none" style="background:var(--card);color:var(--text);border:1px solid var(--mute);">
+      </div>
+      <div>
+        <label class="text-[10px] font-bold tracking-wide uppercase block mb-1.5" style="color:var(--dim);">Valor (€)</label>
+        <input type="text" value="7,00" class="w-full py-3 px-4 rounded-xl text-sm font-bold outline-none" style="background:var(--card);color:var(--text);border:1px solid var(--mute);">
+      </div>
+    </div>
+  </div>
+
+  <!-- Lists -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Listas</p>
+    <div class="p-4 rounded-2xl space-y-3" style="background:var(--card);">
+      <div class="flex items-center justify-between pb-3" style="border-bottom:1px solid var(--mute);">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined" style="color:var(--pri);">local_bar</span>
+          <div><p class="text-sm font-bold" style="color:var(--text);">Cerveja</p><p class="text-[11px] font-semibold" style="color:var(--dim);">Bar em Burgos · 22h14</p></div>
+        </div>
+        <p class="text-sm font-bold" style="color:var(--text);">€7,00</p>
+      </div>
+      <div class="flex items-center justify-between pb-3" style="border-bottom:1px solid var(--mute);">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined" style="color:var(--ok);">shopping_cart</span>
+          <div><p class="text-sm font-bold" style="color:var(--text);">Supermercado</p><p class="text-[11px] font-semibold" style="color:var(--dim);">Mercadona · 15h30</p></div>
+        </div>
+        <p class="text-sm font-bold" style="color:var(--text);">€23,50</p>
+      </div>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined" style="color:var(--warn);">restaurant</span>
+          <div><p class="text-sm font-bold" style="color:var(--text);">Almoço</p><p class="text-[11px] font-semibold" style="color:var(--dim);">Restaurante · 13h00</p></div>
+        </div>
+        <p class="text-sm font-bold" style="color:var(--text);">€12,00</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast / snackbar -->
+  <div class="px-5 mt-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Toasts</p>
+    <div class="space-y-2">
+      <div class="p-3 rounded-xl flex items-center gap-3" style="background:#6B8F7118;">
+        <span class="material-symbols-outlined text-lg" style="color:var(--ok);">check_circle</span>
+        <p class="text-xs font-bold" style="color:var(--ok);">Gasto registrado com sucesso</p>
+      </div>
+      <div class="p-3 rounded-xl flex items-center gap-3" style="background:#D4A84318;">
+        <span class="material-symbols-outlined text-lg" style="color:var(--warn);">info</span>
+        <p class="text-xs font-bold" style="color:var(--warn);">Você ultrapassou a meta desta saída</p>
+      </div>
+      <div class="p-3 rounded-xl flex items-center gap-3" style="background:#D9404018;">
+        <span class="material-symbols-outlined text-lg" style="color:var(--err);">error</span>
+        <p class="text-xs font-bold" style="color:var(--err);">Erro ao salvar — tente novamente</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="px-5 mt-8 mb-8">
+    <p class="text-[10px] tracking-[0.15em] uppercase font-bold mb-4" style="color:var(--faint);">Estado vazio</p>
+    <div class="p-8 rounded-2xl text-center" style="background:var(--card);">
+      <span class="material-symbols-outlined text-4xl" style="color:var(--faint);">receipt_long</span>
+      <p class="text-sm font-bold mt-3" style="color:var(--dim);">Nenhum gasto registrado</p>
+      <p class="text-xs font-medium mt-1" style="color:var(--faint);">Toque no + para registrar seu primeiro gasto.</p>
+      <button class="btn-press mt-4 px-6 py-2.5 rounded-xl font-bold text-xs" style="background:var(--pri);color:var(--bg);">Registrar gasto</button>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
