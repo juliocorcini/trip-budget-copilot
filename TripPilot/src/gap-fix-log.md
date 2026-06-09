@@ -1,11 +1,13 @@
 # Gap Fix Log — TripPilot
 
 ## Current State
-- **Gate ativo**: 1
-- **Gap ativo**: GAP-001
-- **Gaps resolvidos**: 0/36
-- **Testes**: 105 passing (baseline 105)
+- **Gate ativo**: 2
+- **Gap ativo**: GAP-015 (após M2.0 — primitivos já criados no Gate 1)
+- **Gaps resolvidos**: 4/36
+- **Testes**: 114 passing (baseline 105 + 9 novos)
 - **Build/Typecheck**: clean
+- **Commit Gate 1**: b8259f8
+- **Nota git**: usar `bash -c 'git commit ...'` (git local não suporta --trailer)
 
 ## Por gate
 
@@ -14,14 +16,15 @@
 - [x] State file criado
 
 ### Gate 1 — Integridade financeira
-- [ ] GAP-001 — saque como transferência banco→cash
-- [ ] GAP-010 — transferência via createTransferTransaction
-- [ ] GAP-011 — reconciliação de caixa cria ajuste
-- [ ] GAP-006 — "Registrar total atual" = ajuste pela diferença
-- [ ] Testes novos: transactions.test.ts (4 fluxos)
+- [x] GAP-001 — saque = createTransferTransaction banco→cash — arquivos: QuickAddPage.tsx, wallet-orchestrators.ts — teste: transactions.test.ts
+- [x] GAP-010 — transferência via createTransferTransaction, origem≠destino validado, pool/categoria removidos — QuickAddPage.tsx
+- [x] GAP-011 — reconciliação cria ajuste via reconcileWallet (sheet com diff, categoria p/ negativo, justificativa p/ positivo) — WalletsPage.tsx
+- [x] GAP-006 — "Registrar total atual" cria ajuste pela DIFERENÇA via calculateReportedTotalDiff; negativo exige confirmação — OutingPage.tsx
+- [x] Testes novos: transactions.test.ts (9 testes: expense, transfer/withdrawal, adjustment ±, total diff)
+- [x] Extra do gate: orquestradores wallet+expense criados (D-H); registerExpense atômico via db.transaction
 
 ### Gate 2 — Outing Mode
-- [ ] M2.0 — primitivos BottomSheet + Toast
+- [x] M2.0 — primitivos BottomSheet + Toast (antecipados no Gate 1, ToastHost no main.tsx)
 - [ ] GAP-015 — configuração de limites no início da sessão
 - [ ] GAP-005 — alertas progressivos + vibração
 - [ ] GAP-012 — split dentro da sessão

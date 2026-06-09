@@ -37,6 +37,7 @@ const session: Session = {
   targetCents: 1500, ceilingCents: 2500, maxCents: 3500,
   startedAt: '2026-07-01T21:00:00.000Z', endedAt: null,
   quickAddValuesCents: [300, 500, 700], avgDrinkPriceCents: 500,
+  firedAlertPercents: [], overMaxConfirmedAt: null,
   notes: null,
 };
 

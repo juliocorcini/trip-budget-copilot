@@ -1,5 +1,6 @@
 export {
   createSession,
+  deriveSessionLimits,
   createSessionItem,
   calculateSessionTotal,
   getSessionPercentUsed,
@@ -8,4 +9,9 @@ export {
   calculateReportedTotalDiff,
   endSession,
 } from './outing';
-export type { OutingAlert, ReportedTotalResult } from './outing';
+export type {
+  OutingAlert,
+  ReportedTotalResult,
+  SessionLimits,
+  CreateSessionInput,
+} from './outing';

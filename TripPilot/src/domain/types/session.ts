@@ -14,6 +14,10 @@ export interface Session extends SyncMetadata {
   endedAt: string | null;
   quickAddValuesCents: number[];
   avgDrinkPriceCents: number | null;
+  /** Alert milestones (50/75/90/100) already fired — never repeat (DEC-048). */
+  firedAlertPercents: number[];
+  /** Timestamp of the last over-max confirmation (DEC-053b, 15min window). */
+  overMaxConfirmedAt: string | null;
   notes: string | null;
 }
 

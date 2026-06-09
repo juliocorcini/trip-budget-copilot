@@ -11,28 +11,79 @@ export interface OutingAlert {
   message: string;
 }
 
-export function createSession(
-  tripId: string,
-  phaseId: string,
-  poolId: string,
-  profile: ActivityProfile,
-  quickAddValues: number[],
-): Session {
+export interface SessionLimits {
+  targetCents: number;
+  ceilingCents: number;
+  maxCents: number;
+  avgDrinkPriceCents: number | null;
+}
+
+const LIMIT_STEP_CENTS = 500;
+
+function roundToStep(cents: number): number {
+  return Math.max(LIMIT_STEP_CENTS, Math.round(cents / LIMIT_STEP_CENTS) * LIMIT_STEP_CENTS);
+}
+
+/**
+ * DEC-010/044: every session needs three valid limits. Profiles without
+ * explicit defaults derive them from learned values (safe value as the
+ * comfort target), rounded to €5 steps, always ordered target < ceiling < max.
+ */
+export function deriveSessionLimits(profile: ActivityProfile): SessionLimits {
+  if (
+    profile.defaultTargetCents !== null &&
+    profile.defaultCeilingCents !== null &&
+    profile.defaultMaxCents !== null
+  ) {
+    return {
+      targetCents: profile.defaultTargetCents,
+      ceilingCents: profile.defaultCeilingCents,
+      maxCents: profile.defaultMaxCents,
+      avgDrinkPriceCents: profile.defaultAvgDrinkPriceCents,
+    };
+  }
+
+  const baseCents = profile.safeValueCents > 0 ? profile.safeValueCents : profile.typicalValueCents;
+  const targetCents = roundToStep(baseCents);
+  const ceilingCents = Math.max(roundToStep(targetCents * 1.25), targetCents + LIMIT_STEP_CENTS);
+  const maxCents = Math.max(roundToStep(targetCents * 1.5), ceilingCents + LIMIT_STEP_CENTS);
+
+  return {
+    targetCents,
+    ceilingCents,
+    maxCents,
+    avgDrinkPriceCents: profile.defaultAvgDrinkPriceCents,
+  };
+}
+
+export interface CreateSessionInput {
+  tripId: string;
+  phaseId: string;
+  budgetPoolId: string;
+  activityProfileId: string;
+  name: string;
+  limits: SessionLimits;
+  quickAddValuesCents: number[];
+}
+
+export function createSession(input: CreateSessionInput): Session {
   return {
     ...createSyncMetadata(),
-    tripId,
-    phaseId,
-    budgetPoolId: poolId,
-    activityProfileId: profile.id,
+    tripId: input.tripId,
+    phaseId: input.phaseId,
+    budgetPoolId: input.budgetPoolId,
+    activityProfileId: input.activityProfileId,
     status: 'active',
-    name: profile.name,
-    targetCents: profile.defaultTargetCents,
-    ceilingCents: profile.defaultCeilingCents,
-    maxCents: profile.defaultMaxCents,
+    name: input.name,
+    targetCents: input.limits.targetCents,
+    ceilingCents: input.limits.ceilingCents,
+    maxCents: input.limits.maxCents,
     startedAt: new Date().toISOString(),
     endedAt: null,
-    quickAddValuesCents: quickAddValues,
-    avgDrinkPriceCents: profile.defaultAvgDrinkPriceCents,
+    quickAddValuesCents: input.quickAddValuesCents,
+    avgDrinkPriceCents: input.limits.avgDrinkPriceCents,
+    firedAlertPercents: [],
+    overMaxConfirmedAt: null,
     notes: null,
   };
 }
@@ -50,11 +101,15 @@ export function createSessionItem(
   };
 }
 
+/**
+ * Personal session total: shared items count only the user's part
+ * (personalCostCents) — DEC-047.
+ */
 export function calculateSessionTotal(transactions: Transaction[]): number {
   return sumCents(
     transactions
       .filter((t) => t.deletedAt === null && t.type === 'expense')
-      .map((t) => t.amountCents),
+      .map((t) => t.personalCostCents ?? t.amountCents),
   );
 }
 

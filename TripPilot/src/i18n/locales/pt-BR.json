@@ -314,7 +314,49 @@
     "create_total_adjustment": "Criar ajuste",
     "start_error": "Não foi possível iniciar a saída. Verifique se há fase e fundo ativos.",
     "custom_type": "Personalizado",
-    "custom_type_desc": "Crie um tipo de saída com nome e ícone próprios"
+    "custom_type_desc": "Crie um tipo de saída com nome e ícone próprios",
+    "config_title": "Configurar saída",
+    "config_name": "Nome da saída",
+    "config_limits": "Limites da saída",
+    "config_avg_drink": "Preço médio da bebida (opcional)",
+    "config_quick_values": "Valores rápidos",
+    "config_invalid": "Os limites devem crescer: meta ≤ teto ≤ máximo",
+    "start_session": "Iniciar saída",
+    "split_action": "Dividir gasto",
+    "session_ended": "Saída encerrada",
+    "review_title": "Revisão da saída",
+    "review_total": "Total da saída",
+    "review_items": "Itens",
+    "review_no_items": "Nenhum item registrado",
+    "review_wallet": "Carteira dos gastos",
+    "review_wallet_hint": "Aplicada aos itens que ainda estão sem carteira",
+    "review_cash_check": "Conferir total (opcional)",
+    "review_classification": "Classificação",
+    "review_typical": "Saída típica",
+    "review_special": "Ocasião especial",
+    "review_special_hint": "Ocasiões especiais não atualizam os valores típicos do perfil",
+    "review_exclude_learning": "Não usar no aprendizado",
+    "review_confirm": "Confirmar e encerrar saída",
+    "alerts": {
+      "amigo_sincero": {
+        "halfway": "Metade do teto já foi. Tá no ritmo que você queria?",
+        "three_quarters": "75% do teto. Bora maneirar nas próximas rodadas?",
+        "almost_limit": "90% do teto — a próxima rodada provavelmente estoura.",
+        "at_limit": "Teto atingido. Daqui pra frente você está usando o orçamento das próximas saídas."
+      },
+      "calmo": {
+        "halfway": "Você usou metade do seu teto para hoje.",
+        "three_quarters": "75% do teto utilizado.",
+        "almost_limit": "Quase no teto: 90% utilizado.",
+        "at_limit": "Você atingiu o teto planejado para esta saída."
+      },
+      "direto": {
+        "halfway": "50% do teto.",
+        "three_quarters": "75% do teto.",
+        "almost_limit": "90% do teto.",
+        "at_limit": "Teto estourado."
+      }
+    }
   },
   "simulator": {
     "title": "Simulador",

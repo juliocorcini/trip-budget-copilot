@@ -1,6 +1,7 @@
 export {
   createEqualShares,
   createCustomShares,
+  buildSharesWithPayer,
   calculatePersonalCost,
   calculateDebts,
   createSettlement,
@@ -9,4 +10,4 @@ export {
   scaleSharesToTotal,
   calculateParticipantBalances,
 } from './splitting';
-export type { DebtEntry, DebtSummary } from './splitting';
+export type { DebtEntry, DebtSummary, BuildSharesInput } from './splitting';

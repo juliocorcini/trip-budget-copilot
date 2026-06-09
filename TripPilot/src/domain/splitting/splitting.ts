@@ -50,6 +50,44 @@ export function createCustomShares(
   }));
 }
 
+export interface BuildSharesInput {
+  transactionId: string;
+  amountCents: number;
+  participantIds: string[];
+  paidByParticipantId: string;
+  shareType: 'equal' | 'custom';
+  /** Required for custom splits: participantId → share in cents. */
+  customAmountsCents: Record<string, number>;
+}
+
+/**
+ * Builds the final share set for a shared expense: equal or custom split,
+ * unallocated remainder absorbed by the payer, payer marked as paid.
+ */
+export function buildSharesWithPayer(input: BuildSharesInput): ParticipantShare[] {
+  const shares =
+    input.shareType === 'equal'
+      ? createEqualShares(input.transactionId, input.participantIds, input.amountCents)
+      : (() => {
+          const custom = input.participantIds.map((pid) => ({
+            participantId: pid,
+            amountCents: input.customAmountsCents[pid] ?? 0,
+          }));
+          const sum = sumCents(custom.map((s) => s.amountCents));
+          const diff = input.amountCents - sum;
+          if (diff !== 0) {
+            const payerShare =
+              custom.find((s) => s.participantId === input.paidByParticipantId) ?? custom[0]!;
+            payerShare.amountCents += diff;
+          }
+          return createCustomShares(input.transactionId, custom);
+        })();
+
+  return shares.map((s) =>
+    s.participantId === input.paidByParticipantId ? { ...s, isPaid: true } : s,
+  );
+}
+
 export function calculatePersonalCost(
   shares: ParticipantShare[],
   ownerId: string,

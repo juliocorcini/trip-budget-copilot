@@ -4,25 +4,33 @@ import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   createSession,
+  deriveSessionLimits,
   createSessionItem,
   calculateSessionTotal,
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,
-  endSession as endSessionDomain,
+  getProgressiveAlerts,
 } from '@/domain/outing';
+import type { SessionLimits, OutingAlert } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
+import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
 import { resolveActivePhase } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
 import { createCustomActivityProfile } from '@/domain/profiles';
+import { registerExpense, endOutingSession } from '@/domain/orchestrators';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { transactionRepository } from '@/data/repositories';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { AppSettings } from '@/domain/types/app-settings';
+import type { Participant } from '@/domain/types/participant';
+import type { Wallet } from '@/domain/types/wallet';
+import type { ShareType } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
-import { showToast } from '@/components/Toast';
+import { showToast, type ToastVariant } from '@/components/Toast';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { db } from '@/data/db/database';
@@ -54,10 +62,29 @@ function formatCurrencyFull(cents: number, currency: string): string {
   return `${symbol}${value.toFixed(2).replace('.', ',')}`;
 }
 
+function parseAmountToCents(value: string): number {
+  const parsed = parseFloat(value.replace(',', '.'));
+  return Number.isNaN(parsed) ? 0 : Math.round(parsed * 100);
+}
+
+const ALERT_VARIANT: Record<OutingAlert['type'], ToastVariant> = {
+  info: 'info',
+  warning: 'warning',
+  danger: 'danger',
+  critical: 'danger',
+};
+
+const ALERT_VIBRATION: Record<OutingAlert['type'], number[]> = {
+  info: [80],
+  warning: [120, 60, 120],
+  danger: [200, 80, 200],
+  critical: [300, 100, 300, 100, 300],
+};
+
 export function OutingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, settings, reload: reloadAppData } = useAppData();
+  const { trip, phases, pools, wallets, participants, settings, reload: reloadAppData } = useAppData();
 
   const [session, setSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
@@ -65,9 +92,12 @@ export function OutingPage() {
   const [itemCount, setItemCount] = useState(0);
   const [elapsed, setElapsed] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
+  const [configuringProfile, setConfiguringProfile] = useState<ActivityProfile | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const currentPhase = resolveActivePhase(phases);
   const defaultPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0] ?? null;
+  const owner = participants.find((p) => p.isOwner) ?? null;
 
   useEffect(() => {
     if (!trip) return;
@@ -94,16 +124,28 @@ export function OutingPage() {
     return () => clearInterval(interval);
   }, [session]);
 
-  const handleStartSession = async (profile: ActivityProfile) => {
+  // GAP-015: profile selection opens an editable confirmation step.
+  const handleChooseProfile = (profile: ActivityProfile) => {
     if (!trip || !currentPhase || !defaultPool) {
       showToast(t('outing.start_error'), 'danger');
       return;
     }
-    const quickAdd =
-      profile.quickAddValuesCents ??
-      settings?.quickAddDefaultValuesCents ?? [300, 500, 700, 1000, 1500];
-    const sess = createSession(trip.id, currentPhase.id, defaultPool.id, profile, quickAdd);
+    setConfiguringProfile(profile);
+  };
+
+  const handleStartConfigured = async (config: SessionStartConfig) => {
+    if (!trip || !currentPhase || !defaultPool || !configuringProfile) return;
+    const sess = createSession({
+      tripId: trip.id,
+      phaseId: currentPhase.id,
+      budgetPoolId: defaultPool.id,
+      activityProfileId: configuringProfile.id,
+      name: config.name,
+      limits: config.limits,
+      quickAddValuesCents: config.quickAddValuesCents,
+    });
     await sessionRepository.create(sess);
+    setConfiguringProfile(null);
     setSession(sess);
     setSessionTxs([]);
     setItemCount(0);
@@ -120,7 +162,41 @@ export function OutingPage() {
     await activityProfileRepository.create(profile);
     setProfiles((prev) => [...prev, profile]);
     setShowCustomForm(false);
-    await handleStartSession(profile);
+    handleChooseProfile(profile);
+  };
+
+  // GAP-005 (DEC-048): fire each milestone once, honoring tone + vibration.
+  const fireProgressiveAlerts = async (currentSession: Session, newTotalCents: number) => {
+    if (!settings) return;
+    const fired = currentSession.firedAlertPercents ?? [];
+    const alerts = getProgressiveAlerts(newTotalCents, currentSession, settings.alertTone);
+    const newAlerts = alerts.filter((a) => !fired.includes(a.percent));
+    if (newAlerts.length === 0) return;
+
+    const topAlert = newAlerts[newAlerts.length - 1]!;
+    showToast(
+      t(`outing.alerts.${settings.alertTone}.${topAlert.message}` as never),
+      ALERT_VARIANT[topAlert.type],
+    );
+    if (settings.vibrationEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(ALERT_VIBRATION[topAlert.type]);
+    }
+
+    const updated = await sessionRepository.update({
+      ...currentSession,
+      firedAlertPercents: [...fired, ...newAlerts.map((a) => a.percent)],
+    });
+    setSession(updated);
+  };
+
+  const persistSessionItem = async (tx: Transaction, txsAfter: Transaction[]) => {
+    if (!session) return;
+    const newCount = itemCount + 1;
+    const item = createSessionItem(session.id, tx.id, newCount);
+    await db.sessionItems.add(item);
+    setSessionTxs(txsAfter);
+    setItemCount(newCount);
+    await fireProgressiveAlerts(session, calculateSessionTotal(txsAfter));
   };
 
   const addSessionExpense = async (amountCents: number, description: string) => {
@@ -139,11 +215,7 @@ export function OutingPage() {
       activityProfileId: session.activityProfileId,
     });
     await transactionRepository.create(tx);
-    const newCount = itemCount + 1;
-    const item = createSessionItem(session.id, tx.id, newCount);
-    await db.sessionItems.add(item);
-    setSessionTxs((prev) => [...prev, tx]);
-    setItemCount(newCount);
+    await persistSessionItem(tx, [...sessionTxs, tx]);
   };
 
   const handleQuickAdd = async (amountCents: number) => {
@@ -157,10 +229,71 @@ export function OutingPage() {
     await addSessionExpense(diffCents, t('outing.total_adjustment_desc'));
   };
 
-  const handleEndSession = async () => {
-    if (!session) return;
-    const ended = endSessionDomain(session);
-    await sessionRepository.update(ended);
+  // GAP-012 (DEC-047): shared expense inside the session.
+  const handleSplitAdd = async (input: SessionSplitInput) => {
+    if (!session || !trip || !currentPhase || !owner) return;
+    const sessionProfile = profiles.find((p) => p.id === session.activityProfileId);
+    const tx = createExpenseTransaction({
+      tripId: trip.id,
+      phaseId: currentPhase.id,
+      budgetPoolId: session.budgetPoolId,
+      walletId: null,
+      amountCents: input.amountCents,
+      currency: trip.baseCurrency,
+      category: sessionProfile?.category ?? 'other',
+      description: session.name,
+      sessionId: session.id,
+      activityProfileId: session.activityProfileId,
+      isShared: true,
+      paidByParticipantId: input.paidByParticipantId,
+    });
+    const shares = buildSharesWithPayer({
+      transactionId: tx.id,
+      amountCents: input.amountCents,
+      participantIds: input.participantIds,
+      paidByParticipantId: input.paidByParticipantId,
+      shareType: input.shareType,
+      customAmountsCents: input.customAmountsCents,
+    });
+    tx.personalCostCents = calculatePersonalCost(shares, owner.id);
+    if (tx.paidByParticipantId !== owner.id) tx.walletId = null;
+    await registerExpense({ transaction: tx, shares });
+    await persistSessionItem(tx, [...sessionTxs, tx]);
+  };
+
+  // GAP-002 (DEC-049): ending opens the review instead of completing directly.
+  const handleConfirmEnd = async (review: SessionReviewResult) => {
+    if (!session || !trip || !currentPhase) return;
+    const sessionProfile = profiles.find((p) => p.id === session.activityProfileId) ?? null;
+
+    let totalAdjustment: Transaction | null = null;
+    if (review.totalAdjustmentCents !== null && review.totalAdjustmentCents !== 0) {
+      totalAdjustment = createExpenseTransaction({
+        tripId: trip.id,
+        phaseId: currentPhase.id,
+        budgetPoolId: session.budgetPoolId,
+        walletId: review.walletId,
+        amountCents: review.totalAdjustmentCents,
+        currency: trip.baseCurrency,
+        category: sessionProfile?.category ?? 'other',
+        description: t('outing.total_adjustment_desc'),
+        sessionId: session.id,
+        activityProfileId: session.activityProfileId,
+      });
+    }
+
+    await endOutingSession({
+      session,
+      transactions: review.transactions,
+      walletId: review.walletId,
+      isSpecialOccasion: review.isSpecialOccasion,
+      excludeFromLearning: review.excludeFromLearning,
+      totalAdjustment,
+      profile: sessionProfile,
+    });
+
+    showToast(t('outing.session_ended'), 'success');
+    setReviewing(false);
     setSession(null);
     setSessionTxs([]);
     await reloadAppData();
@@ -169,7 +302,31 @@ export function OutingPage() {
 
   if (!trip || !settings) return null;
 
+  if (session && reviewing) {
+    return (
+      <SessionReview
+        session={session}
+        sessionTxs={sessionTxs}
+        currency={trip.baseCurrency}
+        wallets={wallets}
+        onCancel={() => setReviewing(false)}
+        onConfirm={handleConfirmEnd}
+      />
+    );
+  }
+
   if (!session) {
+    if (configuringProfile) {
+      return (
+        <SessionStartConfigForm
+          profile={configuringProfile}
+          currency={trip.baseCurrency}
+          settings={settings}
+          onCancel={() => setConfiguringProfile(null)}
+          onStart={handleStartConfigured}
+        />
+      );
+    }
     return (
       <div className="flex flex-col gap-4 pb-4 pt-2 min-h-screen">
         <div className="flex items-center gap-3 pt-2">
@@ -185,7 +342,7 @@ export function OutingPage() {
         {profiles.map((profile) => (
           <button
             key={profile.id}
-            onClick={() => handleStartSession(profile)}
+            onClick={() => handleChooseProfile(profile)}
             className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left"
           >
             <div
@@ -253,11 +410,393 @@ export function OutingPage() {
     elapsed={elapsed}
     sessionIcon={sessionIcon}
     sessionCategory={sessionCategory}
+    participants={participants}
+    owner={owner}
     onQuickAdd={handleQuickAdd}
     onRegisterTotal={handleRegisterTotal}
-    onEnd={handleEndSession}
+    onSplitAdd={handleSplitAdd}
+    onEnd={() => setReviewing(true)}
     onBack={() => navigate(-1)}
   />;
+}
+
+/* ──────────────────────── SESSION START CONFIG (GAP-015) ──────────────────────── */
+
+interface SessionStartConfig {
+  name: string;
+  limits: SessionLimits;
+  quickAddValuesCents: number[];
+}
+
+interface SessionStartConfigFormProps {
+  profile: ActivityProfile;
+  currency: string;
+  settings: AppSettings;
+  onCancel: () => void;
+  onStart: (config: SessionStartConfig) => void;
+}
+
+function SessionStartConfigForm({ profile, currency, settings, onCancel, onStart }: SessionStartConfigFormProps) {
+  const { t } = useTranslation();
+  const derived = useMemo(() => deriveSessionLimits(profile), [profile]);
+  const initialQuickAdd =
+    profile.quickAddValuesCents ?? settings.quickAddDefaultValuesCents;
+
+  const [name, setName] = useState(profile.name);
+  const [target, setTarget] = useState(String(fromCents(derived.targetCents)));
+  const [ceiling, setCeiling] = useState(String(fromCents(derived.ceilingCents)));
+  const [max, setMax] = useState(String(fromCents(derived.maxCents)));
+  const [avgDrink, setAvgDrink] = useState(
+    derived.avgDrinkPriceCents !== null ? String(fromCents(derived.avgDrinkPriceCents)) : '',
+  );
+  const [quickValues, setQuickValues] = useState<string[]>(
+    initialQuickAdd.map((v) => String(fromCents(v))),
+  );
+
+  const targetCents = parseAmountToCents(target);
+  const ceilingCents = parseAmountToCents(ceiling);
+  const maxCents = parseAmountToCents(max);
+  const limitsValid = targetCents > 0 && ceilingCents >= targetCents && maxCents >= ceilingCents;
+
+  const handleStart = () => {
+    if (!limitsValid || !name.trim()) return;
+    onStart({
+      name: name.trim(),
+      limits: {
+        targetCents,
+        ceilingCents,
+        maxCents,
+        avgDrinkPriceCents: avgDrink ? parseAmountToCents(avgDrink) : null,
+      },
+      quickAddValuesCents: quickValues
+        .map(parseAmountToCents)
+        .filter((v) => v > 0),
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-4 pb-4 pt-2">
+      <div className="flex items-center gap-3 pt-2">
+        <button onClick={onCancel} className="btn-press p-1">
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
+        </button>
+        <h1 className="text-heading font-bold text-on-surface">{t('outing.config_title')}</h1>
+      </div>
+
+      <div className="bg-surface-container rounded-xl p-4">
+        <label className="text-xs text-on-surface-faint mb-1 block">{t('outing.config_name')}</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="bg-transparent text-sm font-semibold text-on-surface outline-none w-full"
+        />
+      </div>
+
+      <div className="bg-surface-container rounded-xl p-4">
+        <p className="text-xs text-on-surface-faint mb-3">{t('outing.config_limits')}</p>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: t('outing.limit_target'), value: target, set: setTarget, color: 'var(--success)' },
+            { label: t('outing.limit_ceiling'), value: ceiling, set: setCeiling, color: 'var(--primary)' },
+            { label: t('outing.limit_max'), value: max, set: setMax, color: 'var(--error)' },
+          ].map((field) => (
+            <div key={field.label} className="bg-surface-high rounded-lg p-2.5">
+              <p className="text-[9px] font-bold mb-1" style={{ color: field.color }}>
+                {field.label}
+              </p>
+              <div className="flex items-baseline gap-0.5">
+                <span className="text-on-surface-faint text-[10px]">{currency}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={field.value}
+                  onChange={(e) => field.set(e.target.value)}
+                  className="bg-transparent text-sm font-bold text-on-surface tabular outline-none w-full"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        {!limitsValid && (
+          <p className="text-xs text-warning mt-2">{t('outing.config_invalid')}</p>
+        )}
+      </div>
+
+      <div className="bg-surface-container rounded-xl p-4">
+        <label className="text-xs text-on-surface-faint mb-1 block">{t('outing.config_avg_drink')}</label>
+        <div className="flex items-baseline gap-1">
+          <span className="text-on-surface-faint text-xs">{currency}</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={avgDrink}
+            onChange={(e) => setAvgDrink(e.target.value)}
+            placeholder="—"
+            className="bg-transparent text-sm font-bold text-on-surface tabular outline-none w-full"
+          />
+        </div>
+      </div>
+
+      <div className="bg-surface-container rounded-xl p-4">
+        <p className="text-xs text-on-surface-faint mb-2">{t('outing.config_quick_values')}</p>
+        <div className="grid grid-cols-5 gap-2">
+          {quickValues.map((value, i) => (
+            <div key={i} className="bg-surface-high rounded-lg px-2 py-1.5 flex items-baseline gap-0.5">
+              <span className="text-on-surface-faint text-[10px]">{currency}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={value}
+                onChange={(e) =>
+                  setQuickValues((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
+                }
+                className="bg-transparent text-xs font-bold text-on-surface tabular outline-none w-full"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={handleStart}
+        disabled={!limitsValid || !name.trim()}
+        className="w-full py-3.5 rounded-xl bg-primary text-on-surface font-bold btn-press disabled:opacity-40"
+      >
+        {t('outing.start_session')}
+      </button>
+    </div>
+  );
+}
+
+/* ──────────────────────── END-OF-SESSION REVIEW (GAP-002 / DEC-049) ──────────────────────── */
+
+interface SessionReviewResult {
+  transactions: Transaction[];
+  walletId: string | null;
+  isSpecialOccasion: boolean;
+  excludeFromLearning: boolean;
+  totalAdjustmentCents: number | null;
+}
+
+interface SessionReviewProps {
+  session: Session;
+  sessionTxs: Transaction[];
+  currency: string;
+  wallets: Wallet[];
+  onCancel: () => void;
+  onConfirm: (result: SessionReviewResult) => void;
+}
+
+function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onConfirm }: SessionReviewProps) {
+  const { t } = useTranslation();
+  const [amounts, setAmounts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(sessionTxs.map((tx) => [tx.id, String(fromCents(tx.amountCents))])),
+  );
+  const [walletId, setWalletId] = useState<string | null>(
+    wallets.find((w) => w.isDefault)?.id ?? null,
+  );
+  const [isSpecial, setIsSpecial] = useState(false);
+  const [excludeLearning, setExcludeLearning] = useState(false);
+  const [reportedTotal, setReportedTotal] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const finalTxs = useMemo(
+    () =>
+      sessionTxs.map((tx) => {
+        const cents = parseAmountToCents(amounts[tx.id] ?? '');
+        if (cents <= 0 || cents === tx.amountCents) return tx;
+        // Shared items keep their personal cost; only simple items rescale it.
+        const personalCostCents = tx.isShared ? tx.personalCostCents : cents;
+        return { ...tx, amountCents: cents, baseCurrencyAmountCents: cents, personalCostCents };
+      }),
+    [sessionTxs, amounts],
+  );
+
+  const total = calculateSessionTotal(finalTxs);
+  const reportedCents = reportedTotal ? parseAmountToCents(reportedTotal) : null;
+  const totalDiff =
+    reportedCents !== null && reportedCents >= 0
+      ? calculateReportedTotalDiff(reportedCents, total)
+      : null;
+
+  const handleConfirm = () => {
+    if (saving) return;
+    setSaving(true);
+    onConfirm({
+      transactions: finalTxs,
+      walletId,
+      isSpecialOccasion: isSpecial,
+      excludeFromLearning: excludeLearning,
+      totalAdjustmentCents: totalDiff?.needsAdjustment ? totalDiff.diffCents : null,
+    });
+  };
+
+  return (
+    <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-6 px-5 pt-2 min-h-screen">
+      <div className="flex items-center gap-3 pt-2">
+        <button onClick={onCancel} className="btn-press p-1">
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
+        </button>
+        <h1 className="text-heading font-bold text-on-surface">{t('outing.review_title')}</h1>
+      </div>
+
+      <div className="bg-surface-container rounded-2xl p-5 text-center">
+        <p className="text-xs text-on-surface-faint">{t('outing.review_total')}</p>
+        <p className="text-display font-extrabold tabular text-on-surface mt-1">
+          {formatCurrencyFull(total, currency)}
+        </p>
+        <p className="text-xs text-on-surface-faint mt-1">{session.name}</p>
+      </div>
+
+      {/* Items (editable) */}
+      <div className="bg-surface-container rounded-xl p-4">
+        <p className="text-xs text-on-surface-faint mb-3">
+          {t('outing.review_items')} ({sessionTxs.length})
+        </p>
+        <div className="flex flex-col gap-2">
+          {sessionTxs.map((tx) => (
+            <div key={tx.id} className="flex items-center gap-2">
+              <span className="text-xs text-on-surface-dim flex-1 truncate">
+                {tx.description}
+                {tx.isShared && (
+                  <Icon name="group" size={12} className="text-on-surface-faint ml-1 align-middle" />
+                )}
+              </span>
+              <span className="text-[10px] text-on-surface-faint tabular">{formatTime(tx.date)}</span>
+              <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-2.5 py-1.5 w-24">
+                <span className="text-on-surface-faint text-[10px]">{currency}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={amounts[tx.id] ?? ''}
+                  onChange={(e) =>
+                    setAmounts((prev) => ({ ...prev, [tx.id]: e.target.value }))
+                  }
+                  className="bg-transparent text-xs font-bold text-on-surface tabular outline-none w-full"
+                />
+              </div>
+            </div>
+          ))}
+          {sessionTxs.length === 0 && (
+            <p className="text-xs text-on-surface-faint">{t('outing.review_no_items')}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Batch wallet assignment */}
+      <div className="bg-surface-container rounded-xl p-4">
+        <p className="text-xs text-on-surface-faint mb-1">{t('outing.review_wallet')}</p>
+        <p className="text-[10px] text-on-surface-faint mb-2">{t('outing.review_wallet_hint')}</p>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setWalletId(null)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+              walletId === null
+                ? 'bg-warning/20 text-warning ring-1 ring-warning'
+                : 'bg-surface-high text-on-surface-dim'
+            }`}
+          >
+            {t('expenses.wallet_not_set')}
+          </button>
+          {wallets.map((wallet) => (
+            <button
+              key={wallet.id}
+              onClick={() => setWalletId(wallet.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                walletId === wallet.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {wallet.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Optional cash check (DEC-046 reuse) */}
+      <div className="bg-surface-container rounded-xl p-4">
+        <p className="text-xs text-on-surface-faint mb-2">{t('outing.review_cash_check')}</p>
+        <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-2">
+          <span className="text-on-surface-faint text-xs">{currency}</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            value={reportedTotal}
+            onChange={(e) => setReportedTotal(e.target.value)}
+            placeholder={t('outing.informed_total')}
+            className="bg-transparent text-sm font-bold text-on-surface tabular outline-none w-full"
+          />
+        </div>
+        {totalDiff?.needsAdjustment && (
+          <p className={`text-xs font-semibold mt-2 ${totalDiff.isNegative ? 'text-warning' : 'text-on-surface-dim'}`}>
+            {t('outing.adjustment_preview', {
+              amount: formatCurrencyFull(totalDiff.diffCents, currency),
+            })}
+          </p>
+        )}
+      </div>
+
+      {/* Classification (DEC-049) */}
+      <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
+        <p className="text-xs text-on-surface-faint">{t('outing.review_classification')}</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsSpecial(false)}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+              !isSpecial ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+            }`}
+          >
+            {t('outing.review_typical')}
+          </button>
+          <button
+            onClick={() => setIsSpecial(true)}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+              isSpecial ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+            }`}
+          >
+            {t('outing.review_special')}
+          </button>
+        </div>
+        {isSpecial && (
+          <p className="text-[10px] text-on-surface-faint">{t('outing.review_special_hint')}</p>
+        )}
+        <button
+          onClick={() => setExcludeLearning((v) => !v)}
+          className="flex items-center gap-2 btn-press"
+        >
+          <span
+            className="w-4 h-4 rounded flex items-center justify-center"
+            style={{ background: excludeLearning ? 'var(--primary)' : 'var(--surface-high)' }}
+          >
+            {excludeLearning && (
+              <Icon name="check" size={12} style={{ color: 'var(--surface-deep)' }} />
+            )}
+          </span>
+          <span className="text-xs text-on-surface-dim">{t('outing.review_exclude_learning')}</span>
+        </button>
+      </div>
+
+      <button
+        onClick={handleConfirm}
+        disabled={saving}
+        className="w-full py-3.5 rounded-xl bg-primary text-on-surface font-bold btn-press disabled:opacity-40"
+      >
+        {saving ? t('common.loading') : t('outing.review_confirm')}
+      </button>
+    </div>
+  );
+}
+
+/* ──────────────────────── ACTIVE SESSION ──────────────────────── */
+
+interface SessionSplitInput {
+  amountCents: number;
+  participantIds: string[];
+  paidByParticipantId: string;
+  shareType: ShareType;
+  customAmountsCents: Record<string, number>;
 }
 
 interface ActiveSessionProps {
@@ -267,24 +806,42 @@ interface ActiveSessionProps {
   elapsed: string;
   sessionIcon: string;
   sessionCategory: string;
+  participants: Participant[];
+  owner: Participant | null;
   onQuickAdd: (cents: number) => void;
   onRegisterTotal: (diffCents: number) => void;
+  onSplitAdd: (input: SessionSplitInput) => void;
   onEnd: () => void;
   onBack: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, onQuickAdd, onRegisterTotal, onEnd, onBack }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onEnd, onBack }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
-  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | null>(null);
+  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | null>(null);
   const [sheetAmount, setSheetAmount] = useState('');
   const [negativeConfirmed, setNegativeConfirmed] = useState(false);
+
+  const [splitParticipantIds, setSplitParticipantIds] = useState<string[]>([]);
+  const [splitPaidById, setSplitPaidById] = useState<string | null>(null);
+  const [splitMode, setSplitMode] = useState<ShareType>('equal');
+  const [splitCustomAmounts, setSplitCustomAmounts] = useState<Record<string, string>>({});
+
+  const canSplit = participants.length > 1 && owner !== null;
 
   const closeSheet = () => {
     setActiveSheet(null);
     setSheetAmount('');
     setNegativeConfirmed(false);
+    setSplitCustomAmounts({});
+  };
+
+  const openSplitSheet = () => {
+    setSplitParticipantIds(participants.map((p) => p.id));
+    setSplitPaidById(owner?.id ?? null);
+    setSplitMode('equal');
+    setActiveSheet('split');
   };
 
   const totalSpent = useMemo(() => calculateSessionTotal(sessionTxs), [sessionTxs]);
@@ -331,6 +888,10 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
     : [300, 500, 700, 1000, 1500];
 
   const recentTxs = sessionTxs.slice().reverse().slice(0, 4);
+
+  const splitAmountCents = parseAmountToCents(sheetAmount);
+  const canConfirmSplit =
+    splitAmountCents > 0 && splitParticipantIds.length >= 2 && splitPaidById !== null;
 
   return (
     <div
@@ -532,6 +1093,9 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
                   />
                   <span className="text-xs font-semibold" style={{ color: 'var(--on-surface-dim)' }}>
                     {tx.description || t(`categories.${sessionCategory}` as never)}
+                    {tx.isShared && (
+                      <Icon name="group" size={11} className="text-on-surface-faint ml-1 align-middle" />
+                    )}
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -545,7 +1109,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
                     className="text-xs font-bold tabular"
                     style={{ color: 'var(--on-surface)' }}
                   >
-                    {formatCurrencyFull(tx.amountCents, tx.currency)}
+                    {formatCurrencyFull(tx.personalCostCents ?? tx.amountCents, tx.currency)}
                   </span>
                 </div>
               </div>
@@ -615,14 +1179,26 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
             {t('outing.other_amount')}
           </button>
         </div>
-        <button
-          onClick={() => setActiveSheet('total')}
-          className="btn-press w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
-          style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
-        >
-          <Icon name="edit_note" size={16} className="text-on-surface-faint" />
-          {t('outing.register_total')}
-        </button>
+        <div className="flex gap-2.5">
+          <button
+            onClick={() => setActiveSheet('total')}
+            className="btn-press flex-1 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+            style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+          >
+            <Icon name="edit_note" size={16} className="text-on-surface-faint" />
+            {t('outing.register_total')}
+          </button>
+          {canSplit && (
+            <button
+              onClick={openSplitSheet}
+              className="btn-press flex-1 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+              style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+            >
+              <Icon name="group" size={16} className="text-on-surface-faint" />
+              {t('outing.split_action')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* "Other amount" sheet (replaces native prompt — GAP-025) */}
@@ -638,13 +1214,13 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
         />
         <button
           onClick={() => {
-            const cents = Math.round(parseFloat(sheetAmount.replace(',', '.')) * 100);
+            const cents = parseAmountToCents(sheetAmount);
             if (cents > 0) {
               onQuickAdd(cents);
               closeSheet();
             }
           }}
-          disabled={!sheetAmount || parseFloat(sheetAmount.replace(',', '.')) <= 0}
+          disabled={parseAmountToCents(sheetAmount) <= 0}
           className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40 mt-3"
         >
           {t('common.add')}
@@ -670,10 +1246,8 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
           placeholder={t('outing.informed_total')}
         />
         {(() => {
-          const informedCents = sheetAmount
-            ? Math.round(parseFloat(sheetAmount.replace(',', '.')) * 100)
-            : null;
-          if (informedCents === null || informedCents < 0 || Number.isNaN(informedCents)) return null;
+          const informedCents = sheetAmount ? parseAmountToCents(sheetAmount) : null;
+          if (informedCents === null || informedCents < 0) return null;
           const result = calculateReportedTotalDiff(informedCents, totalSpent);
 
           if (!result.needsAdjustment) {
@@ -726,6 +1300,127 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
           );
         })()}
       </BottomSheet>
+
+      {/* Split sheet (GAP-012 / DEC-047) */}
+      <BottomSheet
+        open={activeSheet === 'split'}
+        onClose={closeSheet}
+        title={t('outing.split_action')}
+      >
+        <div className="flex flex-col gap-3">
+          <SheetAmountInput currency={currency} value={sheetAmount} onChange={setSheetAmount} />
+
+          <div>
+            <label className="text-xs text-on-surface-faint mb-2 block">
+              {t('expenses.participants_label')}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {participants.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() =>
+                    setSplitParticipantIds((prev) =>
+                      prev.includes(p.id) ? prev.filter((pid) => pid !== p.id) : [...prev, p.id],
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    splitParticipantIds.includes(p.id)
+                      ? 'bg-primary text-on-surface'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.who_paid')}</label>
+            <div className="flex gap-2 flex-wrap">
+              {participants.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSplitPaidById(p.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    splitPaidById === p.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.split_mode')}</label>
+            <div className="flex gap-2">
+              {(['equal', 'custom'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setSplitMode(mode)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                    splitMode === mode ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {t(mode === 'equal' ? 'expenses.split_equal' : 'expenses.split_custom')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {splitMode === 'custom' && (
+            <div className="flex flex-col gap-2">
+              {participants
+                .filter((p) => splitParticipantIds.includes(p.id))
+                .map((p) => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <span className="text-xs text-on-surface-dim flex-1 truncate">
+                      {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
+                    </span>
+                    <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
+                      <span className="text-on-surface-faint text-xs">{currency}</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        value={splitCustomAmounts[p.id] ?? ''}
+                        onChange={(e) =>
+                          setSplitCustomAmounts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                        }
+                        placeholder="0,00"
+                        className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                      />
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              if (!canConfirmSplit || !splitPaidById) return;
+              onSplitAdd({
+                amountCents: splitAmountCents,
+                participantIds: splitParticipantIds,
+                paidByParticipantId: splitPaidById,
+                shareType: splitMode,
+                customAmountsCents: Object.fromEntries(
+                  splitParticipantIds.map((pid) => [
+                    pid,
+                    parseAmountToCents(splitCustomAmounts[pid] ?? ''),
+                  ]),
+                ),
+              });
+              closeSheet();
+            }}
+            disabled={!canConfirmSplit}
+            className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
+          >
+            {t('common.add')}
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
@@ -748,8 +1443,8 @@ function SheetAmountInput({ currency, value, onChange, placeholder }: SheetAmoun
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? '0,00'}
-        className="bg-transparent text-lg font-bold text-on-surface tabular outline-none w-full"
         autoFocus
+        className="bg-transparent text-lg font-bold text-on-surface tabular outline-none w-full"
       />
     </div>
   );

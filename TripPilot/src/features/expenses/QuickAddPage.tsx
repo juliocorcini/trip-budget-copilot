@@ -3,11 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { createExpenseTransaction } from '@/domain/transactions';
-import {
-  createEqualShares,
-  createCustomShares,
-  calculatePersonalCost,
-} from '@/domain/splitting';
+import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
+import type { ParticipantShare } from '@/domain/types/participant-share';
 import { findActivePhase } from '@/domain/dates';
 import { toCents, formatMoney } from '@/domain/money';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
@@ -168,33 +165,22 @@ export function QuickAddPage() {
         paidByParticipantId: splitActive ? effectivePaidById : undefined,
       });
 
-      let finalShares: ReturnType<typeof createEqualShares> = [];
+      let finalShares: ParticipantShare[] = [];
       if (splitActive) {
-        const shares =
-          splitMode === 'equal'
-            ? createEqualShares(tx.id, selectedParticipantIds, amountCents)
-            : (() => {
-                const custom = selectedParticipantIds.map((pid) => {
-                  const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
-                  return {
-                    participantId: pid,
-                    amountCents: Number.isNaN(value) ? 0 : Math.round(value * 100),
-                  };
-                });
-                // Any unallocated remainder is absorbed by the payer.
-                const sum = custom.reduce((acc, s) => acc + s.amountCents, 0);
-                const diff = amountCents - sum;
-                if (diff !== 0) {
-                  const payerShare =
-                    custom.find((s) => s.participantId === effectivePaidById) ?? custom[0]!;
-                  payerShare.amountCents += diff;
-                }
-                return createCustomShares(tx.id, custom);
-              })();
-
-        finalShares = shares.map((s) =>
-          s.participantId === effectivePaidById ? { ...s, isPaid: true } : s,
+        const customAmountsCents = Object.fromEntries(
+          selectedParticipantIds.map((pid) => {
+            const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
+            return [pid, Number.isNaN(value) ? 0 : Math.round(value * 100)];
+          }),
         );
+        finalShares = buildSharesWithPayer({
+          transactionId: tx.id,
+          amountCents,
+          participantIds: selectedParticipantIds,
+          paidByParticipantId: effectivePaidById!,
+          shareType: splitMode,
+          customAmountsCents,
+        });
         tx.personalCostCents = owner ? calculatePersonalCost(finalShares, owner.id) : null;
       }
 
