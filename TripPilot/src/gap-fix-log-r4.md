@@ -2,9 +2,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 4 — UI + migration
-- **Progress**: 6/14
-- **Tests**: 289 unit green (264 baseline + 25 sync) · typecheck clean
+- **Active gate**: GATE 6 — final verification + deploy
+- **Progress**: 13/14
+- **Tests**: 299 unit green (264 baseline + 35 sync/migration) · typecheck + build clean
 - **Risks**: manual 2-QR mode depends on compressed SDP fitting the QR limit — verify on real devices
 
 ## GATE 0 — Baseline + brain ✅
@@ -35,18 +35,26 @@
 - [x] P2P-06 — WebRTC transport + connection orchestrator (8s relay fallback decided by host)
       + manual 2-QR signaling + SyncSession protocol runner (tested with FakeChannel pair)
 
-## GATE 4 — UI + migration
+## GATE 4 — UI + migration ✅
 
-- [ ] P2P-07 — QrCodeDisplay + QrScanner
-- [ ] P2P-08 — SyncTransferFlow + /sync route
-- [ ] P2P-09 — Device migration (Backup page + Welcome)
+- [x] P2P-07 — QrCodeDisplay (white card, quiet zone) + QrScanner (getUserMedia + jsQR,
+      stream cleanup, permission-denied message)
+- [x] P2P-08 — SyncTransferFlow state machine (send/receive, online QR session,
+      offline 2-QR stepper, progress bar, recoverable errors) + /sync route
+- [x] P2P-09 — Device migration: BackupPage send/receive cards + Welcome
+      "Receive from another device"; receiver reuses existing import preview;
+      lastBackupDate updated on successful send
 
-## GATE 5 — Pairing + mirrored statements
+## GATE 5 — Pairing + mirrored statements ✅
 
-- [ ] P2P-10 — Dexie v4 + types + backup v4 + repositories
-- [ ] P2P-11 — QR pairing (add + retroactive link)
-- [ ] P2P-12 — Send statement (owner → mirror)
-- [ ] P2P-13 — Receive statement + confirm/reject + response queue
+- [x] P2P-10 — Dexie v4 (peerLinks, mirroredStatements) + types + backup v4
+      (normalizeBackupToV4) + repositories; migration tests on fake-indexeddb
+- [x] P2P-11 — "My QR" + "Add by QR" in /shared + retroactive "Connect by QR"
+      in the statement sheet + link badge; typing a name untouched
+- [x] P2P-12 — "Send statement to [name]" (session QR; single-QR offline option
+      when payload fits); responses applied on the same session via applyPeerResponses
+- [x] P2P-13 — "Received from other devices" section + sheet with confirm/reject,
+      timestamp always visible, pendingResponses queue + flush (owner-mirror-cycle test)
 
 ## GATE 6 — Final
 

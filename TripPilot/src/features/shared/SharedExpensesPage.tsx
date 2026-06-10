@@ -22,11 +22,30 @@ import { settlementRepository } from '@/data/repositories/settlement-repository'
 import { participantRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
+import { QrCodeDisplay } from '@/components/QrCodeDisplay';
+import { QrScanner } from '@/components/QrScanner';
+import {
+  buildIdentityQrPayload,
+  encodeQrPayload,
+  decodeQrPayload,
+  fitsInSingleQr,
+  buildStatementPayload,
+} from '@/domain/sync';
+import { getInstallationId } from '@/utils/entity-factory';
+import {
+  pairParticipantFromIdentity,
+  linkParticipantToIdentity,
+  applyPeerResponses,
+} from '@/domain/orchestrators';
+import { waitForResponses } from '@/data/sync';
+import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
+import { MirroredStatementsSection } from './MirroredStatementsSection';
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, transactions, participants, reload } = useAppData();
+  const { trip, transactions, participants, settings, reload } = useAppData();
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
@@ -62,6 +81,70 @@ export function SharedExpensesPage() {
   const [showSimplified, setShowSimplified] = useState(false);
   // DEC-102 (R-25): tap on a participant opens their itemized statement.
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
+  // R4 P2P (DEC-105/106): pairing + statement sending sheets.
+  const [showMyQr, setShowMyQr] = useState(false);
+  const [showQrAdd, setShowQrAdd] = useState(false);
+  const [linkTarget, setLinkTarget] = useState<Participant | null>(null);
+  const [sendTarget, setSendTarget] = useState<Participant | null>(null);
+  const [statementQrText, setStatementQrText] = useState<string | null>(null);
+
+  const ownerParticipant = participants.find((p) => p.isOwner);
+  const myIdentityQr = encodeQrPayload(
+    buildIdentityQrPayload({
+      actorId: getInstallationId(),
+      displayName: ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot',
+    }),
+  );
+
+  const handlePairScan = async (text: string) => {
+    if (!trip) return;
+    const decoded = decodeQrPayload(text);
+    if (!decoded || decoded.kind !== 'identity') return;
+    setShowQrAdd(false);
+    const result = await pairParticipantFromIdentity(decoded, trip.id);
+    if (result.status === 'already_paired') {
+      showToast(t('sync.already_connected'), 'info');
+    } else {
+      showToast(t('sync.pairing_done', { name: result.participant.name }), 'success');
+    }
+    await reload();
+  };
+
+  const handleLinkScan = async (text: string) => {
+    if (!trip || !linkTarget) return;
+    const decoded = decodeQrPayload(text);
+    if (!decoded || decoded.kind !== 'identity') return;
+    const target = linkTarget;
+    setLinkTarget(null);
+    const result = await linkParticipantToIdentity(target.id, decoded, trip.id);
+    if (!result) return;
+    if (result.status === 'already_paired' && result.participant.id !== target.id) {
+      showToast(t('sync.already_connected'), 'info');
+    } else {
+      showToast(t('sync.linked_done', { name: result.participant.name }), 'success');
+    }
+    await reload();
+  };
+
+  const buildStatementForParticipant = (participant: Participant) => {
+    const owner = participants.find((p) => p.isOwner);
+    if (!owner || !trip) return null;
+    const statement = buildParticipantStatement(
+      participant.id,
+      transactions,
+      shares,
+      participants,
+      settlements,
+      owner.id,
+    );
+    return buildStatementPayload({
+      owner: { actorId: getInstallationId(), displayName: owner.name },
+      participant,
+      statement,
+      shares,
+      currency: trip.baseCurrency,
+    });
+  };
 
   const openSettleSheet = (debt: DebtEntry) => {
     setSettleTarget(debt);
@@ -114,9 +197,19 @@ export function SharedExpensesPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
-      <h1 className="text-heading font-bold text-on-surface">
-        {t('more.participants')}
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-heading font-bold text-on-surface">
+          {t('more.participants')}
+        </h1>
+        {/* DEC-105: my identity QR — the other person scans it to pair */}
+        <button
+          onClick={() => setShowMyQr(true)}
+          className="px-3 py-1.5 rounded-xl bg-surface-container flex items-center gap-1.5 btn-press"
+        >
+          <Icon name="qr_code_2" size={16} className="text-primary" />
+          <span className="text-xs font-medium text-on-surface">{t('sync.my_qr')}</span>
+        </button>
+      </div>
 
       <div>
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
@@ -133,10 +226,14 @@ export function SharedExpensesPage() {
             >
               <Icon name="person" size={20} className="text-on-surface-dim" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-on-surface truncate">
+                <p className="text-sm text-on-surface truncate flex items-center gap-1.5">
                   {p.name}
                   {p.nickname && (
                     <span className="text-on-surface-faint"> · {p.nickname}</span>
+                  )}
+                  {/* DEC-105: paired badge */}
+                  {p.linkedActorId && (
+                    <Icon name="link" size={14} className="text-primary shrink-0" />
                   )}
                 </p>
                 {p.isOwner && <p className="text-xs text-primary">{t('shared.owner_tag')}</p>}
@@ -199,16 +296,30 @@ export function SharedExpensesPage() {
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-full py-3 mt-2 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
-            style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
-          >
-            <Icon name="person_add" size={18} className="text-primary" />
-            {t('shared.add_participant')}
-          </button>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
+              style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
+            >
+              <Icon name="person_add" size={18} className="text-primary" />
+              {t('shared.add_participant')}
+            </button>
+            {/* DEC-105: pairing is an optional upgrade — typing a name stays default */}
+            <button
+              onClick={() => setShowQrAdd(true)}
+              className="py-3 px-4 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
+              style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
+            >
+              <Icon name="qr_code_scanner" size={18} className="text-primary" />
+              {t('sync.add_by_qr')}
+            </button>
+          </div>
         )}
       </div>
+
+      {/* DEC-106 (P2P-13): statements received from paired owner devices */}
+      <MirroredStatementsSection />
 
       {/* DEC-071 (FIELD-03): shared expenses with per-share confirmation status */}
       {(() => {
@@ -489,9 +600,156 @@ export function SharedExpensesPage() {
                   </div>
                 </div>
               )}
+
+              {/* R4 P2P: retroactive pairing + statement push (DEC-105/106) */}
+              {!statementTarget.isOwner && statementTarget.linkedActorId === null && (
+                <button
+                  onClick={() => {
+                    setLinkTarget(statementTarget);
+                    setStatementTarget(null);
+                  }}
+                  className="w-full py-3 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
+                  style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
+                >
+                  <Icon name="link" size={18} className="text-primary" />
+                  {t('sync.connect_by_qr')}
+                </button>
+              )}
+              {!statementTarget.isOwner && statementTarget.linkedActorId !== null && (
+                <button
+                  onClick={() => {
+                    setSendTarget(statementTarget);
+                    setStatementTarget(null);
+                    setStatementQrText(null);
+                  }}
+                  className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold text-sm flex items-center justify-center gap-2 btn-press"
+                >
+                  <Icon name="send" size={18} />
+                  {t('sync.send_statement', {
+                    name: statementTarget.nickname ?? statementTarget.name,
+                  })}
+                </button>
+              )}
             </div>
           );
         })()}
+      </BottomSheet>
+
+      {/* DEC-105: my identity QR */}
+      <BottomSheet open={showMyQr} onClose={() => setShowMyQr(false)} title={t('sync.my_qr')}>
+        <div className="flex flex-col gap-3">
+          <QrCodeDisplay value={myIdentityQr} />
+          <p className="text-xs text-on-surface-dim text-center">{t('sync.my_qr_hint')}</p>
+        </div>
+      </BottomSheet>
+
+      {/* DEC-105: add participant by scanning their identity QR */}
+      <BottomSheet open={showQrAdd} onClose={() => setShowQrAdd(false)} title={t('sync.add_by_qr')}>
+        {showQrAdd && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-on-surface-dim">{t('sync.scan_hint')}</p>
+            <QrScanner onScan={handlePairScan} />
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* DEC-105: retroactive link of an existing participant */}
+      <BottomSheet
+        open={linkTarget !== null}
+        onClose={() => setLinkTarget(null)}
+        title={t('sync.connect_by_qr')}
+      >
+        {linkTarget && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-on-surface-dim">{t('sync.scan_hint')}</p>
+            <QrScanner onScan={handleLinkScan} />
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* DEC-106 (P2P-12): send statement to the paired device */}
+      <BottomSheet
+        open={sendTarget !== null}
+        onClose={() => {
+          setSendTarget(null);
+          setStatementQrText(null);
+        }}
+        title={
+          sendTarget
+            ? t('sync.send_statement', { name: sendTarget.nickname ?? sendTarget.name })
+            : ''
+        }
+      >
+        {sendTarget && statementQrText && (
+          <div className="flex flex-col gap-3">
+            <QrCodeDisplay value={statementQrText} />
+            <p className="text-xs text-on-surface-dim text-center">{t('sync.scan_hint')}</p>
+            <button
+              onClick={() => {
+                setSendTarget(null);
+                setStatementQrText(null);
+              }}
+              className="w-full py-3 rounded-xl bg-primary text-on-surface text-sm font-medium btn-press"
+            >
+              {t('common.close')}
+            </button>
+          </div>
+        )}
+        {sendTarget && !statementQrText && (
+          <div className="flex flex-col gap-3">
+            <SyncTransferFlow
+              mode="send"
+              purpose="statement"
+              actorName={ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot'}
+              buildPayload={async () => {
+                const payload = buildStatementForParticipant(sendTarget);
+                if (!payload) throw new Error('statement_unavailable');
+                return { kind: 'statement', payload };
+              }}
+              onSent={async (session) => {
+                // The mirror flushes its queued answers on this same session.
+                try {
+                  const items = await waitForResponses(session, 30_000);
+                  session.send({ t: 'ack', ok: true, error: null });
+                  if (items.length > 0) {
+                    const applied = await applyPeerResponses(sendTarget.id, items);
+                    if (applied > 0) {
+                      showToast(
+                        t('sync.responses_applied', {
+                          count: applied,
+                          name: sendTarget.nickname ?? sendTarget.name,
+                        }),
+                        'success',
+                      );
+                    }
+                  }
+                } catch {
+                  // Peer sent no responses — statement still delivered.
+                }
+                await reload();
+              }}
+              onDone={() => {
+                setSendTarget(null);
+                showToast(t('sync.statement_sent'), 'success');
+              }}
+              onCancel={() => setSendTarget(null)}
+            />
+            {(() => {
+              const payload = buildStatementForParticipant(sendTarget);
+              if (!payload) return null;
+              const encoded = encodeQrPayload({ v: 1, kind: 'statement', data: payload });
+              if (!fitsInSingleQr(encoded)) return null;
+              return (
+                <button
+                  onClick={() => setStatementQrText(encoded)}
+                  className="text-xs text-primary btn-press mx-auto"
+                >
+                  {t('sync.show_as_qr')}
+                </button>
+              );
+            })()}
+          </div>
+        )}
       </BottomSheet>
 
       {debtSummary && debtSummary.debts.length === 0 && (

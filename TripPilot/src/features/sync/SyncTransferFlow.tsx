@@ -4,7 +4,7 @@ import { Icon } from '@/components/Icon';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
 import { QrScanner } from '@/components/QrScanner';
 import { decodeQrPayload } from '@/domain/sync';
-import type { SyncPurpose, SyncPayloadKind, HelloMessage } from '@/domain/sync';
+import type { SyncPurpose, SyncPayloadKind, HelloMessage, StatementQrPayload } from '@/domain/sync';
 import { getInstallationId } from '@/utils/entity-factory';
 import { APP_VERSION } from '@/utils/app-version';
 import {
@@ -38,6 +38,8 @@ interface SyncTransferFlowProps {
   onPayloadReceived?: (result: SyncFlowResult) => Promise<void>;
   /** Sender: runs after the peer acked (same live session — e.g. wait for responses). */
   onSent?: (session: SyncSession) => Promise<void>;
+  /** Receiver: handles a single-QR offline statement scan (DEC-103 level 1). */
+  onStatementQr?: (payload: StatementQrPayload) => Promise<void>;
   onDone: () => void;
   onCancel: () => void;
 }
@@ -67,6 +69,7 @@ export function SyncTransferFlow({
   buildPayload,
   onPayloadReceived,
   onSent,
+  onStatementQr,
   onDone,
   onCancel,
 }: SyncTransferFlowProps) {
@@ -229,6 +232,14 @@ export function SyncTransferFlow({
           fail('sync.error_connection');
         }
       })();
+      return;
+    }
+
+    if (mode === 'receive' && decoded.kind === 'statement' && onStatementQr) {
+      setFlow({ step: 'finalizing' });
+      onStatementQr(decoded)
+        .then(() => setFlow({ step: 'done' }))
+        .catch(() => fail('sync.error_transfer'));
       return;
     }
 

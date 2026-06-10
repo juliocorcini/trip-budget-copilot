@@ -787,6 +787,7 @@
     "reject": "Rejeitar",
     "responses_applied": "{{count}} resposta(s) de {{name}} aplicadas",
     "responses_queued": "Salvo — vai ser enviado na próxima sincronização",
-    "statement_sent": "Extrato enviado"
+    "statement_sent": "Extrato enviado",
+    "show_as_qr": "Mostrar como QR code (offline)"
   }
 }

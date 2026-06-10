@@ -787,6 +787,7 @@
     "reject": "Reject",
     "responses_applied": "{{count}} answer(s) from {{name}} applied",
     "responses_queued": "Saved — it will be sent on the next sync",
-    "statement_sent": "Statement sent"
+    "statement_sent": "Statement sent",
+    "show_as_qr": "Show as a QR code (offline)"
   }
 }

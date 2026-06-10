@@ -6,7 +6,9 @@ import { analyzeImport } from '@/domain/backup';
 import type { BackupData, ImportAnalysis } from '@/domain/backup';
 import { buildFullBackup, importBackup } from '@/domain/orchestrators';
 import { parseMigrationPayload, parseStatementPayload } from '@/domain/sync';
-import { storeMirroredStatement } from '@/domain/orchestrators/sync-orchestrators';
+import type { StatementQrPayload } from '@/domain/sync';
+import { storeMirroredStatement, markResponsesSent } from '@/domain/orchestrators/sync-orchestrators';
+import { sendResponses } from '@/data/sync';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { SyncTransferFlow } from './SyncTransferFlow';
@@ -28,7 +30,7 @@ export function SyncReceivePage() {
 
   const actorName = settings?.deviceName ?? 'TripPilot';
 
-  const handleReceived = async ({ kind, payload }: SyncFlowResult) => {
+  const handleReceived = async ({ kind, payload, session }: SyncFlowResult) => {
     if (kind === 'backup') {
       const migration = parseMigrationPayload(payload);
       if (!migration) throw new Error('invalid_backup_payload');
@@ -39,9 +41,31 @@ export function SyncReceivePage() {
     }
     const statement = parseStatementPayload(payload);
     if (!statement) throw new Error('invalid_statement_payload');
-    await storeMirroredStatement(statement);
+    const stored = await storeMirroredStatement(statement);
+
+    // Flush queued confirm/reject answers on the same live session (P2P-13).
+    // An empty list still unblocks the owner, who is waiting for responses.
+    sendResponses(session, stored.pendingResponses);
+    if (stored.pendingResponses.length > 0) {
+      try {
+        const ack = await session.expect('ack', 15_000);
+        if (ack.ok) {
+          await markResponsesSent(stored.id, stored.pendingResponses.map((r) => r.shareId));
+        }
+      } catch {
+        // Owner went away before acking — responses stay queued for next time.
+      }
+    }
+
     await reload();
     showToast(t('sync.statement_received', { name: statement.owner.name }), 'success');
+  };
+
+  /** Single-QR offline statement (DEC-103 level 1): store, answers queue for later. */
+  const handleStatementQr = async (qr: StatementQrPayload) => {
+    await storeMirroredStatement(qr.data);
+    await reload();
+    showToast(t('sync.statement_received', { name: qr.data.owner.name }), 'success');
   };
 
   const handleImport = async () => {
@@ -115,6 +139,7 @@ export function SyncReceivePage() {
         purpose="migration"
         actorName={actorName}
         onPayloadReceived={handleReceived}
+        onStatementQr={handleStatementQr}
         onDone={() => setFlowKey((k) => k + 1)}
         onCancel={() => navigate(-1)}
       />
