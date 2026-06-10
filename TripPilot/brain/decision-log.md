@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-09
+> Last updated: 2026-06-10
 
 ## Format
 
@@ -596,6 +596,139 @@
 - **Decision**: Theme + language applied at root level (all routes, including those outside the AppShell); the 12 hardcoded dark colors → tokens; dynamic `theme-color` meta via JS per theme
 - **Rationale**: BottomNav invisible in light theme (hardcoded dark) + routes outside the shell never applied `data-theme`
 - **Extends**: DEC-066, DEC-022 · **Design**: gap-analysis-r2 §3 FIELD-12 / §4 GAP-R2-002/003
+
+### DEC-084 — Fixed Headers on All Screens
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Header + key controls stay fixed at the top on Dashboard (date range + phase name + bell), Expenses (header + filter bar) and Planner (header + phase selector + summary + over-budget warning); only content scrolls. Single technical pattern (sticky/fixed + scroll container) with solid theme background and subtle elevation on scroll
+- **Rationale**: "Quando eu rolo a página, o header deveria continuar sempre fixo em cima — dá um ar mais profissional"
+- **Design**: gap-fix-r3 R-01
+
+### DEC-085 — Compact Standardized Margins
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Single page side-padding token (~16px) applied to ALL pages; dashboard loses its extra margin; all dashboard cards share the same width/margin aligned with the carousel; carousel counter cards get identical fixed height (2-line name space)
+- **Rationale**: "Todas as páginas estão com margens laterais muito grandes — a de início é a pior"; uneven card heights look broken
+- **Design**: gap-fix-r3 R-02/R-03
+
+### DEC-086 — Invisible Horizontal Scrollbars
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Scroll behavior kept, scrollbar visuals removed (CSS utility with `scrollbar-width: none` + `::-webkit-scrollbar`) on the Expenses filter bar, counters carousel and any other horizontal scroller
+- **Rationale**: Visible horizontal scrollbars scream "web page", not app
+- **Design**: gap-fix-r3 R-04
+
+### DEC-087 — Pull-to-Refresh Disabled in PWA
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: `overscroll-behavior-y: none` to eliminate the browser reload gesture in the installed app (standalone display-mode)
+- **Rationale**: "Se eu puxo a tela para baixo aparece o ícone de recarregar do navegador — mostra que é uma página web"
+- **Design**: gap-fix-r3 R-05
+
+### DEC-088 — Subtractive "Free to Use Today"
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: "Free to use today" = today's allowance (fixed at day start, computed WITHOUT today's spending) − amount spent today. The recalculated daily average becomes a secondary metric with an explicit name
+- **Rationale**: "Se eu gasto €2, deveria sobrar €4" — the recalculated average barely moves and breaks the promise of the title
+- **Design**: gap-fix-r3 R-06
+
+### DEC-089 — Remove "Reserved for [next phase]" from Hero
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Remove the future-floor line from the dashboard hero; each phase now has its own fund, nothing from the current phase rolls to the next. Future floor mechanics stay intact and visible in Funds/Planner
+- **Rationale**: Line is a leftover from the single-fund era and confuses the current per-phase model
+- **Design**: gap-fix-r3 R-07
+
+### DEC-090 — Notifications Center
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Bell → `/notifications` screen with notifications DERIVED from existing data (pending share confirmations, today's event, overdue backup, long-running outing, phase over-budget); each with icon, text and destination; badge = active notification count; pretty empty state. Bell never points to /shared again
+- **Rationale**: "Clico no sino e vai para participantes e dívidas — não faz sentido nenhum"
+- **Design**: gap-fix-r3 R-08
+
+### DEC-091 — Insights: Swipe Navigates, Tap Details
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Insight carousel switches by horizontal swipe (scroll-snap, dots kept); tap opens the content of THAT insight: projection/rhythm → calculation detail sheet; debt → /shared; next event → event editor; outing cost → /expenses?tab=outings
+- **Rationale**: "O usuário vai querer clicar em tudo — tem que levar para algum lugar"
+- **Design**: gap-fix-r3 R-09
+
+### DEC-092 — Contextual Savings Card Copy
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Savings copy references the specific last outing explicitly with reference values ("Na sua última saída de [perfil], você gastou €X — €Y abaixo do seu normal (€Z)"); shown only with a recent closed outing AND reliable typical value
+- **Rationale**: Percentage without base reads as trip-wide savings when it is event-specific
+- **Design**: gap-fix-r3 R-10
+
+### DEC-093 — Honest Friend v2 Based on the Plan
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Honest Friend compares against the PLANNED occasions (ScenarioPlan allocations), projects the date the reserve starts being used; positive reinforcement when within plan; honest fallback without a plan. "Ver impacto completo" opens an Impact Detail screen (planned vs spent, projection, reserve risk date, CTA to Planner) — never the simulator
+- **Rationale**: "Suas saídas de bar caíram de 197 para 195 — eu nunca teria 195 saídas de bar!"
+- **Design**: gap-fix-r3 R-11
+
+### DEC-094 — Multi-Metric Simulator
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Simulation result shows 3 perspectives: % of available + remainder; equivalence in days of daily allowance; impact on planned occasions. Verdict (ok/attention/risk) takes the worst of the three
+- **Rationale**: "'Posso gastar?' é diferente de 'tenho dinheiro?' — €20 são 4 dias do meu orçamento diário"
+- **Design**: gap-fix-r3 R-12
+
+### DEC-095 — Expense Subcategory Taxonomy per Outing Type
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Data-driven catalog (`expense-taxonomy.ts`) with subcategories per outing/profile type (bar → drink, beer, food...; market → proteins, pasta...), each with i18n label, icon and typical value in cents; options ordered by proximity to the typed amount; new non-indexed `subcategoryId` field on Transaction (no Dexie v4)
+- **Rationale**: "Estou numa saída de BAR e ele me pergunta se o gasto é 'bar, restaurante, transporte' — isso é tipo de SAÍDA, não tipo de GASTO!"
+- **Design**: gap-fix-r3 R-13
+
+### DEC-096 — Stepper ≥10s + Category in Split + 2 Levels for Events
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Enrich stepper auto-dismiss raised from 3s to 10s with any interaction resetting the timer; session split flow gains the subcategory step; single-event sessions ask in 2 levels (context → subcategory of that context)
+- **Rationale**: "Ele some muito rápido — não consegui clicar"; split and events left expenses without any item info
+- **Design**: gap-fix-r3 R-14/R-16/R-17
+
+### DEC-097 — Session Items Show the Subcategory
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Active-session history and outing detail show WHAT was bought (subcategory icon + name), never the session/outing type repeated; uncategorized items show value + "tap to detail" reopening the stepper
+- **Rationale**: "Aparece 'restaurante, restaurante, restaurante' — eu JÁ SEI que estou no restaurante!"
+- **Design**: gap-fix-r3 R-15/R-18
+
+### DEC-098 — Planner: Live Free Margin + Top Alert
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Free margin recalculates on EVERY allocation tap; when over budget it shows the NEGATIVE value in error color (not 0) and an emphatic over-budget banner moves into the fixed header block, visible without scrolling. Reduction recommendation card stays where it is
+- **Rationale**: "Estourei o valor e olhando o topo está tudo normal — o aviso está escondido lá embaixo"
+- **Design**: gap-fix-r3 R-19/R-20
+
+### DEC-099 — Category Menu in Planner + Editable Profiles
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Tap on a category name in Planner opens a BottomSheet menu: edit profile typical value, remove from this phase, classification. ProfilesPage gains edit (name, icon, typical, safe) and remove (soft delete with in-use safety rule)
+- **Rationale**: "O transporte está €8 — um transporte pode ser €1!"; "não consigo TIRAR uma categoria do planejador"
+- **Design**: gap-fix-r3 R-21/R-24
+
+### DEC-100 — Per-Phase Classification + Lock with Real Effect
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Essential/planned/optional classification lives PER PHASE (phaseProfileSettings); essential is never suggested for reduction, optional is the first candidate; locked item is ignored by presets and "apply recommendation" with visual feedback
+- **Rationale**: "Mercado é essencial em Burgos mas NÃO na eurotrip"; "o cadeado não faz NADA"
+- **Design**: gap-fix-r3 R-22
+
+### DEC-101 — Planner Event Opens the Event Editor
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Tap on an event in Planner opens the occurrence edit sheet directly (not Trip Edit at the top); same destination reused by the "next event" insight and the day card
+- **Rationale**: "Cliquei em Veneza e ele abriu o Editar Viagem lá no topo"
+- **Design**: gap-fix-r3 R-23
+
+### DEC-102 — Debt Statement per Participant
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio R3 audio review)
+- **Decision**: Tap on a participant in /shared expands the statement: every share composing the balance (expense description/subcategory, date, share value, payer, status) plus applied settlements
+- **Rationale**: "Eu clico na Débora e ele deveria mostrar exatamente DE ONDE veio o €1,12"
+- **Design**: gap-fix-r3 R-25
 
 ---
 
