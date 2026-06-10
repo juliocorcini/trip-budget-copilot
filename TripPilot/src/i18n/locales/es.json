@@ -260,7 +260,13 @@
     "add_category": "Agregar categoría",
     "over_allocation_warning": "La asignación excede el margen libre en {{amount}}. Reduce algún ítem o aumenta el fondo.",
     "phase_events_label": "Eventos:",
-    "sub_destination_spent": "{{spent}} de {{budget}}"
+    "sub_destination_spent": "{{spent}} de {{budget}}",
+    "locked_feedback": "Elemento bloqueado. Desbloquea el candado para cambiarlo.",
+    "value_updated": "Valor típico actualizado",
+    "removed_from_phase": "{{name}} eliminado de esta fase",
+    "menu_typical_value": "Valor típico",
+    "menu_classification": "Clasificación en esta fase",
+    "menu_remove_from_phase": "Eliminar de esta fase"
   },
   "funds": {
     "title": "Fondos",
@@ -297,7 +303,12 @@
     "typical_value": "Valor típico",
     "custom_tag": "Personalizado",
     "per_phase": "{{count}}x por fase",
-    "empty": "Ningún perfil registrado"
+    "empty": "Ningún perfil registrado",
+    "safe_value": "Valor seguro",
+    "updated": "Perfil actualizado",
+    "remove": "Eliminar perfil",
+    "removed": "{{name}} eliminado",
+    "in_use_disabled": "{{name}} tiene gastos registrados — se deshabilitó de las fases en lugar de eliminarse"
   },
   "settings": {
     "title": "Configuración",

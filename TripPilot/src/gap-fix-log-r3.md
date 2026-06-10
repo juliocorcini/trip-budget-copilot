@@ -1,9 +1,9 @@
 # Gap Fix Log R3 — TripPilot
 
 ## Current State
-- **Gate ativo**: Gate 5 (Planner overhaul)
-- **Requisito ativo**: R-19
-- **Itens resolvidos**: 18/26
+- **Gate ativo**: Gate 6 (Dívidas + cliques)
+- **Requisito ativo**: R-25
+- **Itens resolvidos**: 24/26
 - **Testes**: 257 unit (+29) + 29 e2e
 - **Build/Typecheck**: clean
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`; NUNCA criar Dexie v4 sem necessidade real de índice
@@ -44,12 +44,13 @@
 - Checkpoint Gate 4: typecheck ✅ · 257 unit ✅ · build ✅ · 29 e2e ✅ · i18n ×3 paridade (666 chaves)
 
 ### Gate 5 — Planner overhaul (R-19..24)
-- [ ] R-19 — Margem livre ao vivo
-- [ ] R-20 — Alerta over-budget no topo + negativo
-- [ ] R-21 — Menu de categoria
-- [ ] R-22 — Classificação por fase + cadeado real
-- [ ] R-23 — Evento abre edição do evento
-- [ ] R-24 — Perfis: editar e remover
+- [x] R-19 — Root cause: resumo exibia `freeMarginCents` (available − BASELINE alocado), que ignora +/− até "déficit". Novo `liveMarginCents = availableCents − currentAllocatedCents` no resumo (sticky) — cada tap atualiza na hora; `freeMarginCents` mantido só p/ lógica de déficit/recomendação
+- [x] R-20 — Margem negativa NÃO clampada (era `Math.max(0, …)`), exibida em `--error`; banner de over-allocation movido p/ DENTRO do sticky header (primeira coisa visível, ícone error + borda vermelha), versão antiga no meio da página removida
+- [x] R-21 — Tap no nome/ícone da categoria → BottomSheet com: editar valor típico (atualiza ActivityProfile + `estimatedUnitCostCents` da alocação da fase), classificação da fase (3 botões), remover da fase (PhaseProfileSetting isEnabled=false + delete da alocação — transporte €8→€1 e remover agora possíveis)
+- [x] R-22 — `priority` agora vive no `ProfileState` (hidratada do `ScenarioAllocationItem.priority`, persistida no item → POR FASE); badge/recomendação/preset usam a do estado (não mais `getPriority(category)` global); cadeado com efeito real: `updateCount` bloqueado com toast, preset já pulava, controles dimmed + ícone na cor do perfil quando travado
+- [x] R-23 — Linha única de eventos do Planner virou lista de botões individuais → `/trip/edit?occurrence=id` (sheet do evento abre direto via deep link do R-09); card do dia no Dashboard idem (título tappável)
+- [x] R-24 — ProfileForm ganhou modo edição (`initial` + campo valor seguro + label Salvar); ProfilesPage: tap no perfil → form de edição (nome, ícone, típico, seguro) + botão remover; remoção segura: com gastos registrados → desabilita em todas as fases (PhaseProfileSetting) + toast warning; sem uso → soft delete
+- Checkpoint Gate 5: typecheck ✅ · 257 unit ✅ · build ✅ · 29 e2e ✅ · i18n ×3 paridade (677 chaves)
 
 ### Gate 6 — Dívidas + cliques (R-25..26)
 - [ ] R-25 — Extrato por participante

@@ -567,7 +567,11 @@ export function DashboardPage() {
           className="mt-4 p-4 rounded-2xl"
           style={{ background: 'var(--surface-deep)', border: '1px solid var(--border-faint)' }}
         >
-          <div className="flex items-center gap-2.5">
+          {/* DEC-101 (R-23): tapping the event opens ITS edit sheet */}
+          <button
+            className="flex items-center gap-2.5 w-full text-left btn-press"
+            onClick={() => navigate(`/trip/edit?occurrence=${occ.id}`)}
+          >
             <Icon
               name={occ.kind === 'sub_destination' ? 'location_on' : 'celebration'}
               size={20}
@@ -584,7 +588,7 @@ export function DashboardPage() {
                 })}
               </span>
             )}
-          </div>
+          </button>
           <div className="flex gap-2 mt-3">
             <button
               onClick={() => navigate(`/outings/new?occurrence=${occ.id}`)}

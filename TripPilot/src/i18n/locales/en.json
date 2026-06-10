@@ -260,7 +260,13 @@
     "add_category": "Add category",
     "over_allocation_warning": "Allocation exceeds the free margin by {{amount}}. Reduce an item or increase the fund.",
     "phase_events_label": "Events:",
-    "sub_destination_spent": "{{spent}} of {{budget}}"
+    "sub_destination_spent": "{{spent}} of {{budget}}",
+    "locked_feedback": "Item locked. Unlock the padlock to change it.",
+    "value_updated": "Typical value updated",
+    "removed_from_phase": "{{name}} removed from this phase",
+    "menu_typical_value": "Typical value",
+    "menu_classification": "Classification in this phase",
+    "menu_remove_from_phase": "Remove from this phase"
   },
   "funds": {
     "title": "Funds",
@@ -297,7 +303,12 @@
     "typical_value": "Typical value",
     "custom_tag": "Custom",
     "per_phase": "{{count}}x per phase",
-    "empty": "No profiles registered"
+    "empty": "No profiles registered",
+    "safe_value": "Safe value",
+    "updated": "Profile updated",
+    "remove": "Remove profile",
+    "removed": "{{name}} removed",
+    "in_use_disabled": "{{name}} has recorded expenses — it was disabled in phases instead of removed"
   },
   "settings": {
     "title": "Settings",

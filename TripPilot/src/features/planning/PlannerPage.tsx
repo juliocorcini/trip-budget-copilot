@@ -12,7 +12,11 @@ import {
   createAllocationItem,
   calculateOverAllocationCents,
 } from '@/domain/planning';
-import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
+import {
+  createCustomActivityProfile,
+  isProfileEnabledInPhase,
+  createPhaseProfileSetting,
+} from '@/domain/profiles';
 import { sumSpentInOccurrenceInterval } from '@/domain/planning';
 import { createProfileEnabledInPhase } from '@/domain/orchestrators';
 import {
@@ -23,6 +27,8 @@ import {
 } from '@/data/repositories';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
@@ -35,6 +41,8 @@ interface ProfileState {
   count: number;
   isLocked: boolean;
   baselineCount: number;
+  /** DEC-100 (R-22): classification lives PER PHASE on the allocation item. */
+  priority: AllocationPriority;
 }
 
 interface RecommendationChange {
@@ -117,8 +125,7 @@ function fmtCompact(cents: number, currency: string): string {
   return `${sym(currency)}${value}`;
 }
 
-function getPresetMultiplier(category: string, preset: string): number {
-  const priority = getPriority(category);
+function getPresetMultiplier(priority: AllocationPriority, preset: string): number {
   switch (preset) {
     case 'economico':
       return priority === 'essential' ? 1 : 0.6;
@@ -148,6 +155,10 @@ export function PlannerPage() {
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [ready, setReady] = useState(false);
+  // DEC-099 (R-21): tap on a category opens its menu (edit value, remove
+  // from phase, classification).
+  const [menuProfile, setMenuProfile] = useState<ActivityProfile | null>(null);
+  const [menuValueDraft, setMenuValueDraft] = useState('');
 
   const profilesRef = useRef<ActivityProfile[]>([]);
   const enabledProfilesRef = useRef<ActivityProfile[]>([]);
@@ -249,6 +260,9 @@ export function PlannerPage() {
           count: base,
           isLocked: item?.isLocked ?? getPriority(p.category) === 'essential',
           baselineCount: base,
+          // DEC-100 (R-22): per-phase classification — the persisted item
+          // wins; the category mapping only seeds new items.
+          priority: item?.priority ?? getPriority(p.category),
         };
       }
       if (plan) setActivePreset(plan.preset);
@@ -291,11 +305,16 @@ export function PlannerPage() {
       if (!s) continue;
       const existing = itemsRef.current.get(profile.id);
       if (existing) {
-        if (existing.quantity !== s.count || existing.isLocked !== s.isLocked) {
+        if (
+          existing.quantity !== s.count ||
+          existing.isLocked !== s.isLocked ||
+          existing.priority !== s.priority
+        ) {
           const updated = await scenarioAllocationItemRepository.update({
             ...existing,
             quantity: s.count,
             isLocked: s.isLocked,
+            priority: s.priority,
           });
           itemsRef.current.set(profile.id, updated);
         }
@@ -306,7 +325,7 @@ export function PlannerPage() {
           quantity: s.count,
           estimatedUnitCostCents: profile.typicalValueCents,
           isLocked: s.isLocked,
-          priority: getPriority(profile.category),
+          priority: s.priority,
         });
         await scenarioAllocationItemRepository.create(item);
         itemsRef.current.set(profile.id, item);
@@ -368,6 +387,10 @@ export function PlannerPage() {
   );
 
   const freeMarginCents = availableCents - baselineAllocatedCents;
+  // DEC-098 (R-19/R-20): the HEADER margin is live — fund − reserves −
+  // CURRENT allocation, recalculated on every [-]/[+] tap, and it goes
+  // negative when over-allocated (never clamped to 0).
+  const liveMarginCents = availableCents - currentAllocatedCents;
   const extraCostCents = currentAllocatedCents - baselineAllocatedCents;
   const deficitCents = Math.max(0, extraCostCents - Math.max(0, freeMarginCents));
   const hasDeficit = deficitCents > 0;
@@ -398,14 +421,26 @@ export function PlannerPage() {
     if (!hasDeficit) return null;
 
     const modifiedIds = new Set(modifiedProfiles.map((p) => p.id));
+    // DEC-100 (R-22): essential is NEVER suggested for reduction; optional
+    // items are the first candidates; locked items are untouchable.
+    const priorityRank: Record<AllocationPriority, number> = {
+      optional: 0,
+      planned: 1,
+      essential: 2,
+    };
     const reducible = enabledProfiles
       .filter((p) => {
         const s = states[p.id];
         if (!s || s.isLocked || s.count === 0) return false;
         if (modifiedIds.has(p.id)) return false;
-        return getPriority(p.category) !== 'essential';
+        return s.priority !== 'essential';
       })
-      .sort((a, b) => b.typicalValueCents - a.typicalValueCents);
+      .sort((a, b) => {
+        const rankDiff =
+          priorityRank[states[a.id]!.priority] - priorityRank[states[b.id]!.priority];
+        if (rankDiff !== 0) return rankDiff;
+        return b.typicalValueCents - a.typicalValueCents;
+      });
 
     const changes: RecommendationChange[] = [];
     let saved = 0;
@@ -444,13 +479,21 @@ export function PlannerPage() {
 
   /* ── handlers ── */
 
-  const updateCount = useCallback((id: string, delta: number) => {
-    setStates((prev) => {
-      const s = prev[id];
-      if (!s) return prev;
-      return { ...prev, [id]: { ...s, count: Math.max(0, s.count + delta) } };
-    });
-  }, []);
+  const updateCount = useCallback(
+    (id: string, delta: number) => {
+      // DEC-100 (R-22): a locked quantity is untouchable — give feedback.
+      if (statesRef.current[id]?.isLocked) {
+        showToast(t('planner.locked_feedback'), 'warning');
+        return;
+      }
+      setStates((prev) => {
+        const s = prev[id];
+        if (!s) return prev;
+        return { ...prev, [id]: { ...s, count: Math.max(0, s.count + delta) } };
+      });
+    },
+    [t],
+  );
 
   const toggleLock = useCallback((id: string) => {
     setStates((prev) => {
@@ -467,9 +510,10 @@ export function PlannerPage() {
         const next = { ...prev };
         for (const p of enabledProfiles) {
           const s = next[p.id];
+          // DEC-100 (R-22): locked items are ignored by presets.
           if (!s || s.isLocked) continue;
           const base = p.expectedFrequencyPerPhase ?? 3;
-          const count = Math.max(1, Math.round(base * getPresetMultiplier(p.category, preset)));
+          const count = Math.max(1, Math.round(base * getPresetMultiplier(s.priority, preset)));
           next[p.id] = { ...s, count, baselineCount: count };
         }
         return next;
@@ -490,6 +534,80 @@ export function PlannerPage() {
     });
   }, [recommendation]);
 
+  /* ── category menu (DEC-099 / R-21) ── */
+
+  const openCategoryMenu = useCallback((profile: ActivityProfile) => {
+    setMenuProfile(profile);
+    setMenuValueDraft(String(fromCents(profile.typicalValueCents)));
+  }, []);
+
+  // Edit typical value: updates the ActivityProfile (e.g. transport €8 → €1)
+  // and keeps the phase allocation's unit cost in sync.
+  const handleSaveTypicalValue = useCallback(async () => {
+    if (!menuProfile) return;
+    const parsed = parseFloat(menuValueDraft.replace(',', '.'));
+    if (Number.isNaN(parsed) || parsed <= 0) return;
+    const typicalValueCents = Math.round(parsed * 100);
+    const updated = await activityProfileRepository.update({
+      ...menuProfile,
+      typicalValueCents,
+    });
+    setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    const item = itemsRef.current.get(updated.id);
+    if (item) {
+      const updatedItem = await scenarioAllocationItemRepository.update({
+        ...item,
+        estimatedUnitCostCents: typicalValueCents,
+      });
+      itemsRef.current.set(updated.id, updatedItem);
+    }
+    setMenuProfile(null);
+    showToast(t('planner.value_updated'), 'success');
+  }, [menuProfile, menuValueDraft, t]);
+
+  // Remove from THIS phase only: explicit disable + drop the allocation.
+  const handleRemoveFromPhase = useCallback(async () => {
+    if (!menuProfile || !selectedPhase) return;
+    const existing = await phaseProfileSettingRepository.getByPhaseAndProfile(
+      selectedPhase.id,
+      menuProfile.id,
+    );
+    if (existing) {
+      await phaseProfileSettingRepository.update({ ...existing, isEnabled: false });
+    } else {
+      await phaseProfileSettingRepository.create(
+        createPhaseProfileSetting(selectedPhase.id, menuProfile.id, false),
+      );
+    }
+    const item = itemsRef.current.get(menuProfile.id);
+    if (item) {
+      await scenarioAllocationItemRepository.delete(item.id);
+      itemsRef.current.delete(menuProfile.id);
+    }
+    const settings = await phaseProfileSettingRepository.getByPhaseId(selectedPhase.id);
+    setPhaseSettings(settings);
+    setStates((prev) => {
+      const next = { ...prev };
+      delete next[menuProfile.id];
+      return next;
+    });
+    setMenuProfile(null);
+    showToast(t('planner.removed_from_phase', { name: menuProfile.name }), 'success');
+  }, [menuProfile, selectedPhase, t]);
+
+  // DEC-100 (R-22): per-phase classification, edited from the menu.
+  const handleSetPriority = useCallback(
+    (priority: AllocationPriority) => {
+      if (!menuProfile) return;
+      setStates((prev) => {
+        const s = prev[menuProfile.id];
+        if (!s) return prev;
+        return { ...prev, [menuProfile.id]: { ...s, priority } };
+      });
+    },
+    [menuProfile],
+  );
+
   /* ── custom category creation (ISSUE-06) ── */
 
   const handleAddCategory = useCallback(
@@ -508,7 +626,12 @@ export function PlannerPage() {
       setProfiles((prev) => [...prev, profile]);
       setStates((prev) => ({
         ...prev,
-        [profile.id]: { count: 1, isLocked: false, baselineCount: 1 },
+        [profile.id]: {
+          count: 1,
+          isLocked: false,
+          baselineCount: 1,
+          priority: getPriority(profile.category),
+        },
       }));
       setShowAddForm(false);
     },
@@ -526,7 +649,9 @@ export function PlannerPage() {
   }
 
   const phaseName = selectedPhase?.name ?? phases[0]?.name ?? '';
-  const displayMargin = splitMoney(Math.max(0, freeMarginCents), currency);
+  // DEC-098 (R-20): never clamp — the negative is the information.
+  const displayMargin = splitMoney(liveMarginCents, currency);
+  const isOverBudget = liveMarginCents < 0;
 
   return (
     <div className="flex flex-col pb-4">
@@ -577,16 +702,22 @@ export function PlannerPage() {
         </div>
       )}
 
-      {/* ── BUDGET SUMMARY ── */}
+      {/* ── BUDGET SUMMARY (DEC-098: live margin, negative when over) ── */}
       <div className="mt-4 p-4 rounded-2xl bg-surface-container">
         <div className="flex justify-between items-center">
           <div>
             <p className="text-xs font-bold text-on-surface-dim">
               {t('planner.free_margin')}
             </p>
-            <p className="text-2xl font-extrabold tabular text-on-surface">
+            <p
+              className="text-2xl font-extrabold tabular"
+              style={{ color: isOverBudget ? 'var(--error)' : 'var(--on-surface)' }}
+            >
               {displayMargin.integer}
-              <span className="text-sm text-on-surface-dim">
+              <span
+                className="text-sm"
+                style={{ color: isOverBudget ? 'var(--error)' : 'var(--on-surface-dim)' }}
+              >
                 {displayMargin.decimal}
               </span>
             </p>
@@ -610,6 +741,22 @@ export function PlannerPage() {
           </p>
         )}
       </div>
+
+      {/* ── DEC-098 (R-20): over-budget is the FIRST thing on screen —
+          emphatic, inside the fixed header, visible without scrolling ── */}
+      {overAllocationCents > 0 && (
+        <div
+          className="mt-2 p-3 rounded-xl flex items-center gap-2.5"
+          style={{ background: '#D9404015', border: '1px solid #D9404030' }}
+        >
+          <Icon name="error" size={18} className="text-error shrink-0" />
+          <p className="text-xs font-bold leading-snug" style={{ color: 'var(--error)' }}>
+            {t('planner.over_allocation_warning', {
+              amount: fmtFull(overAllocationCents, currency),
+            })}
+          </p>
+        </div>
+      )}
       </div>
       {/* ── end of sticky header block ── */}
 
@@ -625,39 +772,41 @@ export function PlannerPage() {
                 (new Date(o.endDate).getTime() - new Date(o.plannedDate).getTime()) / 86400000,
               ) + 1
             : 1;
+        // DEC-101 (R-23): each event opens ITS edit sheet via deep link.
         return (
-          <button
-            onClick={() => navigate('/trip/edit')}
-            className="mt-3 p-3 rounded-xl bg-surface-container text-left btn-press w-full"
-          >
-            {events.length > 0 && (
-              <p className="text-[11px] font-semibold text-on-surface-dim flex items-center gap-1.5 flex-wrap">
-                <Icon name="celebration" size={13} className="text-primary" />
-                {t('planner.phase_events_label')}{' '}
-                {events
-                  .map(
-                    (o) =>
-                      `${o.name}${eventDays(o) > 1 ? ` (${eventDays(o)}d)` : ''} ${fmtFull(
-                        o.reservedCents ?? o.estimatedCostCents,
-                        currency,
-                      )}`,
-                  )
-                  .join(' · ')}
-              </p>
-            )}
-            {subDestinations.map((o) => (
-              <p
+          <div className="mt-3 p-3 rounded-xl bg-surface-container space-y-1">
+            {events.map((o) => (
+              <button
                 key={o.id}
-                className="text-[11px] font-semibold text-on-surface-dim flex items-center gap-1.5 mt-1"
+                onClick={() => navigate(`/trip/edit?occurrence=${o.id}`)}
+                className="w-full text-left btn-press flex items-center gap-1.5"
               >
-                <Icon name="location_on" size={13} className="text-primary" />
-                {o.name}: {t('planner.sub_destination_spent', {
-                  spent: fmtFull(sumSpentInOccurrenceInterval(o, transactions), currency),
-                  budget: fmtFull(o.estimatedCostCents, currency),
-                })}
-              </p>
+                <Icon name="celebration" size={13} className="text-primary shrink-0" />
+                <span className="text-[11px] font-semibold text-on-surface-dim flex-1">
+                  {o.name}
+                  {eventDays(o) > 1 ? ` (${eventDays(o)}d)` : ''}{' '}
+                  {fmtFull(o.reservedCents ?? o.estimatedCostCents, currency)}
+                </span>
+                <Icon name="chevron_right" size={14} className="text-on-surface-faint shrink-0" />
+              </button>
             ))}
-          </button>
+            {subDestinations.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => navigate(`/trip/edit?occurrence=${o.id}`)}
+                className="w-full text-left btn-press flex items-center gap-1.5"
+              >
+                <Icon name="location_on" size={13} className="text-primary shrink-0" />
+                <span className="text-[11px] font-semibold text-on-surface-dim flex-1">
+                  {o.name}: {t('planner.sub_destination_spent', {
+                    spent: fmtFull(sumSpentInOccurrenceInterval(o, transactions), currency),
+                    budget: fmtFull(o.estimatedCostCents, currency),
+                  })}
+                </span>
+                <Icon name="chevron_right" size={14} className="text-on-surface-faint shrink-0" />
+              </button>
+            ))}
+          </div>
         );
       })()}
 
@@ -667,7 +816,9 @@ export function PlannerPage() {
           const s = states[profile.id];
           if (!s) return null;
 
-          const priority = getPriority(profile.category);
+          // DEC-100 (R-22): classification comes from the PHASE state, not
+          // from the global category default.
+          const priority = s.priority;
           const isModified = s.count !== s.baselineCount;
           const cVar = colorVar(profile.color);
           // Theme-aware tint: custom hex colors get alpha; no color → token (DEC-083).
@@ -685,9 +836,12 @@ export function PlannerPage() {
                   : undefined
               }
             >
-              {/* header row */}
+              {/* header row — tap opens the category menu (DEC-099 / R-21) */}
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
+                <button
+                  className="flex items-center gap-2.5 btn-press text-left"
+                  onClick={() => openCategoryMenu(profile)}
+                >
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center"
                     style={{ background: tintBg }}
@@ -702,7 +856,8 @@ export function PlannerPage() {
                   <p className="text-sm font-bold text-on-surface">
                     {profile.name}
                   </p>
-                </div>
+                  <Icon name="more_horiz" size={14} className="text-on-surface-faint" />
+                </button>
 
                 <div className="flex items-center gap-1.5">
                   {isModified && (
@@ -735,13 +890,17 @@ export function PlannerPage() {
                         ? t('planner.planned')
                         : t('planner.optional')}
                   </span>
+                  {/* DEC-100 (R-22): lock with real effect — highlighted when active */}
                   <button
                     className="btn-press"
                     onClick={() => toggleLock(profile.id)}
+                    aria-pressed={s.isLocked}
                   >
                     <span
                       className="material-symbols-outlined text-sm"
-                      style={{ color: 'var(--on-surface-faint)' }}
+                      style={{
+                        color: s.isLocked ? cVar : 'var(--on-surface-faint)',
+                      }}
                     >
                       {s.isLocked ? 'lock' : 'lock_open'}
                     </span>
@@ -749,8 +908,11 @@ export function PlannerPage() {
                 </div>
               </div>
 
-              {/* controls row */}
-              <div className="flex items-center justify-between">
+              {/* controls row — dimmed when locked (DEC-100 / R-22) */}
+              <div
+                className="flex items-center justify-between"
+                style={s.isLocked ? { opacity: 0.45 } : undefined}
+              >
                 <div className="flex items-center gap-3">
                   <button
                     className="btn-press w-8 h-8 rounded-lg flex items-center justify-center bg-surface-high"
@@ -815,21 +977,6 @@ export function PlannerPage() {
           </button>
         )}
       </div>
-
-      {/* ── OVER-ALLOCATION WARNING (ISSUE-05) ── */}
-      {overAllocationCents > 0 && (
-        <div
-          className="mt-4 p-4 rounded-2xl flex items-start gap-3"
-          style={{ background: '#D4A84312', border: '1px solid #D4A84325' }}
-        >
-          <Icon name="warning" size={20} className="text-warning mt-0.5" />
-          <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--warning)' }}>
-            {t('planner.over_allocation_warning', {
-              amount: fmtFull(overAllocationCents, currency),
-            })}
-          </p>
-        </div>
-      )}
 
       {/* ── DEFICIT + RECOMMENDATION ── */}
       {hasDeficit && modifiedProfiles.length > 0 && (
@@ -1029,6 +1176,83 @@ export function PlannerPage() {
           },
         )}
       </div>
+
+      {/* ── CATEGORY MENU (DEC-099 / R-21 + DEC-100 / R-22) ── */}
+      <BottomSheet
+        open={menuProfile !== null}
+        onClose={() => setMenuProfile(null)}
+        title={menuProfile?.name ?? ''}
+      >
+        {menuProfile && (
+          <div className="space-y-4 pb-2">
+            {/* edit typical value */}
+            <div>
+              <p className="text-[10px] tracking-[0.12em] uppercase font-bold text-on-surface-faint mb-1.5">
+                {t('planner.menu_typical_value')}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={menuValueDraft}
+                  onChange={(e) => setMenuValueDraft(e.target.value)}
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-surface-high text-sm font-bold tabular text-on-surface outline-none"
+                />
+                <button
+                  className="btn-press px-4 rounded-xl text-xs font-bold"
+                  style={{ background: 'var(--primary)', color: 'var(--surface)' }}
+                  onClick={handleSaveTypicalValue}
+                >
+                  {t('common.save')}
+                </button>
+              </div>
+            </div>
+
+            {/* per-phase classification (DEC-100 / R-22) */}
+            <div>
+              <p className="text-[10px] tracking-[0.12em] uppercase font-bold text-on-surface-faint mb-1.5">
+                {t('planner.menu_classification')}
+              </p>
+              <div className="flex gap-2">
+                {(['essential', 'planned', 'optional'] as const).map((p) => {
+                  const active = states[menuProfile.id]?.priority === p;
+                  return (
+                    <button
+                      key={p}
+                      className="btn-press flex-1 py-2.5 rounded-xl text-xs font-bold"
+                      style={
+                        active
+                          ? {
+                              background: '#C75B3918',
+                              color: 'var(--primary)',
+                              border: '1px solid #C75B3925',
+                            }
+                          : {
+                              background: 'var(--surface-high)',
+                              color: 'var(--on-surface-dim)',
+                            }
+                      }
+                      onClick={() => handleSetPriority(p)}
+                    >
+                      {t(`planner.${p}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* remove from this phase */}
+            <button
+              className="btn-press w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+              style={{ background: '#D9404012', color: 'var(--error)' }}
+              onClick={handleRemoveFromPhase}
+            >
+              <Icon name="delete" size={14} className="text-error" />
+              {t('planner.menu_remove_from_phase')}
+            </button>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }

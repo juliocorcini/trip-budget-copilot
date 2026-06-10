@@ -260,7 +260,13 @@
     "add_category": "Adicionar categoria",
     "over_allocation_warning": "Alocação excede a margem livre em {{amount}}. Reduza algum item ou aumente o fundo.",
     "phase_events_label": "Eventos:",
-    "sub_destination_spent": "{{spent}} de {{budget}}"
+    "sub_destination_spent": "{{spent}} de {{budget}}",
+    "locked_feedback": "Item travado. Destrave o cadeado para alterar.",
+    "value_updated": "Valor típico atualizado",
+    "removed_from_phase": "{{name}} removido desta fase",
+    "menu_typical_value": "Valor típico",
+    "menu_classification": "Classificação nesta fase",
+    "menu_remove_from_phase": "Remover desta fase"
   },
   "funds": {
     "title": "Fundos",
@@ -297,7 +303,12 @@
     "typical_value": "Valor típico",
     "custom_tag": "Personalizado",
     "per_phase": "{{count}}x por fase",
-    "empty": "Nenhum perfil cadastrado"
+    "empty": "Nenhum perfil cadastrado",
+    "safe_value": "Valor seguro",
+    "updated": "Perfil atualizado",
+    "remove": "Remover perfil",
+    "removed": "{{name}} removido",
+    "in_use_disabled": "{{name}} tem gastos registrados — foi desabilitado das fases em vez de removido"
   },
   "settings": {
     "title": "Configurações",
