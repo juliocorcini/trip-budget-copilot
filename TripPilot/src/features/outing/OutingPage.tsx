@@ -18,11 +18,12 @@ import { createExpenseTransaction } from '@/domain/transactions';
 import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
 import { resolveActivePhase } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
-import { createCustomActivityProfile } from '@/domain/profiles';
-import { registerExpense, endOutingSession } from '@/domain/orchestrators';
+import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
+import { registerExpense, endOutingSession, createProfileEnabledInPhase } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
+import { phaseProfileSettingRepository } from '@/data/repositories/phase-profile-setting-repository';
 import { transactionRepository } from '@/data/repositories';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -98,6 +99,8 @@ export function OutingPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+  // null = no active phase → no filtering (permissive default).
+  const [enabledProfileIds, setEnabledProfileIds] = useState<Set<string> | null>(null);
   const [itemCount, setItemCount] = useState(0);
   const [elapsed, setElapsed] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -113,6 +116,9 @@ export function OutingPage() {
   const [phaseChoice, setPhaseChoice] = useState<PhaseChoice | null>(null);
 
   const currentPhase = resolveActivePhase(phases);
+  // DEC-074: the start picker only offers profiles enabled in the active phase.
+  const startableProfiles =
+    enabledProfileIds === null ? profiles : profiles.filter((p) => enabledProfileIds.has(p.id));
   const defaultPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0] ?? null;
   const owner = participants.find((p) => p.isOwner) ?? null;
 
@@ -128,6 +134,20 @@ export function OutingPage() {
       }
       const profs = await activityProfileRepository.getByTripId(trip.id);
       setProfiles(profs);
+      // DEC-074: the start screen only offers profiles enabled in the active phase.
+      const phase = resolveActivePhase(phases);
+      if (phase) {
+        const phaseSettings = await phaseProfileSettingRepository.getByPhaseId(phase.id);
+        setEnabledProfileIds(
+          new Set(
+            profs
+              .filter((p) => isProfileEnabledInPhase(phaseSettings, phase.id, p.id))
+              .map((p) => p.id),
+          ),
+        );
+      } else {
+        setEnabledProfileIds(null);
+      }
     };
     load();
   }, [trip, phases]);
@@ -176,7 +196,12 @@ export function OutingPage() {
       iconName: data.iconName,
       typicalValueCents: data.typicalValueCents,
     });
-    await activityProfileRepository.create(profile);
+    // DEC-074: a profile created mid-flow is enabled in the current phase.
+    if (currentPhase) {
+      await createProfileEnabledInPhase({ profile, phaseId: currentPhase.id });
+    } else {
+      await activityProfileRepository.create(profile);
+    }
     setProfiles((prev) => [...prev, profile]);
     setShowCustomForm(false);
     handleChooseProfile(profile);
@@ -433,7 +458,7 @@ export function OutingPage() {
         </div>
 
         <p className="text-sm text-on-surface-dim px-1">{t('outing.choose_type')}</p>
-        {profiles.map((profile) => (
+        {startableProfiles.map((profile) => (
           <button
             key={profile.id}
             onClick={() => handleChooseProfile(profile)}
@@ -483,7 +508,7 @@ export function OutingPage() {
           </button>
         )}
 
-        {profiles.length === 0 && (
+        {startableProfiles.length === 0 && (
           <p className="text-sm text-on-surface-faint text-center py-8">
             {t('outing.no_profiles')}
           </p>

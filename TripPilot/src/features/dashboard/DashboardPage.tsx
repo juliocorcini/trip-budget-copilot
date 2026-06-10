@@ -15,7 +15,10 @@ import {
   participantShareRepository,
   scenarioPlanRepository,
   scenarioAllocationItemRepository,
+  phaseProfileSettingRepository,
 } from '@/data/repositories';
+import { isProfileEnabledInPhase } from '@/domain/profiles';
+import { calculateFreeToSpendPerDay } from '@/domain/phases';
 import { findPendingConfirmationShares, type PendingShareEntry } from '@/domain/splitting';
 import { resolveShareConfirmation } from '@/domain/orchestrators';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -135,13 +138,20 @@ export function DashboardPage() {
       return;
     }
     const load = async () => {
-      const plan = await scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, phase.id, pool.id);
+      const [plan, settings] = await Promise.all([
+        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, phase.id, pool.id),
+        phaseProfileSettingRepository.getByPhaseId(phase.id),
+      ]);
       if (!plan) {
         setForecasts([]);
         return;
       }
       const allocations = await scenarioAllocationItemRepository.getByPlanId(plan.id);
-      setForecasts(calculateOccasionForecasts(profiles, allocations, transactions, phase.id));
+      // DEC-074 (FIELD-01): counters only show profiles enabled in this phase.
+      const enabledProfiles = profiles.filter((p) =>
+        isProfileEnabledInPhase(settings, phase.id, p.id),
+      );
+      setForecasts(calculateOccasionForecasts(enabledProfiles, allocations, transactions, phase.id));
     };
     load();
   }, [trip, phases, pools, profiles, transactions]);
@@ -197,6 +207,12 @@ export function DashboardPage() {
     : 0;
 
   const heroMoney = fts ? splitMoneyDisplay(fts.freeToSpendCents, trip.baseCurrency) : null;
+
+  // DEC-075 (FIELD-02): weighted free-to-spend for today + peak microcopy.
+  const perDay =
+    fts && activePhase
+      ? calculateFreeToSpendPerDay(fts.freeToSpendCents, activePhase, new Date().toISOString())
+      : null;
 
   const barProfile = profiles.find((p) => p.category === 'bar');
   const daysElapsed = activePhase ? getDayNumber(activePhase.startDate) : 0;
@@ -299,6 +315,19 @@ export function DashboardPage() {
             {heroMoney.integer}
             <span className="text-xl font-bold text-on-surface-dim">{heroMoney.decimal}</span>
           </p>
+          {perDay && perDay.perDayCents > 0 && (
+            <p
+              className={`text-xs font-bold mt-1.5 ${perDay.isPeakDay ? 'text-warning' : 'text-on-surface-dim'}`}
+            >
+              {perDay.isPeakDay
+                ? t('dashboard.peak_day_free', {
+                    amount: formatMoney(perDay.perDayCents, trip.baseCurrency),
+                  })
+                : t('dashboard.free_per_day', {
+                    amount: formatMoney(perDay.perDayCents, trip.baseCurrency),
+                  })}
+            </p>
+          )}
           <div
             className="w-full h-2 rounded-full overflow-hidden mt-4"
             style={{ background: 'var(--surface-container-high)' }}

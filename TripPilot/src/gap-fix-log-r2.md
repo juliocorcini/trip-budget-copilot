@@ -1,9 +1,9 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 5 | **Item ativo**: DEC-074 (FIELD-01)
-- **Itens resolvidos**: 12/23 (+ infra v3 pronta)
-- **Testes**: 177 unit (baseline 156) + 22 e2e (baseline 22)
+- **Gate ativo**: 6 | **Item ativo**: DEC-072/073 (FIELD-05)
+- **Itens resolvidos**: 14/23 (+ infra v3 pronta)
+- **Testes**: 188 unit (baseline 156) + 22 e2e (baseline 22)
 - **Build/Typecheck**: clean
 - **Migração Dexie v3**: FEITA (Gate 3) — NUNCA criar v4/v5
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`
@@ -43,8 +43,9 @@
 - i18n: 27 chaves novas ×3 (confirmação, status, CRUD de fundo/fase); chave morta `dashboard.pending_expenses` removida ×3 — paridade 431
 
 ### Gate 5 — Fase rica
-- [ ] DEC-074 / FIELD-01 — atividades por fase + catálogo 17 presets
-- [ ] DEC-075 / FIELD-02 — ritmo + dias de pico
+- [x] DEC-074 / FIELD-01 — catálogo data-driven `profile-presets.ts` (16 presets + "+ Outro" = 17 opções; id, category, icon, valores típicos EUR, `findProfileForPreset` por categoria, `createProfileFromPreset`); repository `phaseProfileSettingRepository` (índice composto); orchestrators `createProfileEnabledInPhase` (profile+setting atômico) e `setProfileEnabledInPhase` (upsert toggle); TripEditPage: grade de chips por fase (perfis da viagem com toggle + presets restantes + "+ Outro" custom via sheet); Planner hidrata/persiste SÓ habilitados (mata contaminação FIELD-04 no Planner); contadores do dashboard e seletor de início de saída (OutingPage) respeitam habilitados; perfil custom criado em sessão nasce habilitado na fase ativa — testes: catálogo (16 únicos, cents inteiros), match por categoria, default permissivo
+- [x] DEC-075 / FIELD-02 — `phases/rhythm.ts`: `isPeakDay`, `getDaySpendingWeight` (pico=1.5; normal: intense=1.2/moderate=0.8/relaxed=0.6/null=1.0), `calculateEffectiveSpendingDays`, `calculateFreeToSpendPerDay` ponderado pelos dias restantes; TripEditPage: preset de ritmo (3 botões) + seletor S T Q Q S S D (`aria-pressed`); hero do dashboard mostra "livre por dia" ponderado + microcopy de dia de pico — testes: cenário da Mira (fds [5,6] pico + semana moderada → sábado > terça), relaxed 0.6, fase encerrada = 0
+- i18n: 16 nomes de preset + atividades/ritmo/pico/dashboard ×3 — paridade mantida
 
 ### Gate 6 — Eventos planejados
 - [ ] DEC-072 + DEC-073 / FIELD-05 — occurrences UI, reservas, card do dia, one-off

@@ -54,7 +54,9 @@
     "amigo_message": "With recent spending, your {{type}} outings dropped from {{before}} to {{after}}.",
     "amigo_see_impact": "See full impact",
     "session_drinks_left": "{{count}} drinks until the ceiling",
-    "pending_confirmation": "{{count}} splits awaiting confirmation"
+    "pending_confirmation": "{{count}} splits awaiting confirmation",
+    "free_per_day": "Free to spend today: {{amount}}",
+    "peak_day_free": "Today is a peak day — free up to {{amount}}"
   },
   "expenses": {
     "title": "Expenses",
@@ -163,7 +165,21 @@
     "delete_phase_last_blocked": "The last phase of the trip cannot be deleted.",
     "phase_deleted": "Phase deleted",
     "move_phase_up": "Move phase up",
-    "move_phase_down": "Move phase down"
+    "move_phase_down": "Move phase down",
+    "phase_activities_title": "What will this phase have?",
+    "add_custom_activity": "Other",
+    "phase_rhythm_title": "Phase rhythm",
+    "rhythm_intense": "Intense",
+    "rhythm_moderate": "Moderate",
+    "rhythm_relaxed": "Relaxed",
+    "peak_days_label": "Peak days",
+    "weekday_0": "S",
+    "weekday_1": "M",
+    "weekday_2": "T",
+    "weekday_3": "W",
+    "weekday_4": "T",
+    "weekday_5": "F",
+    "weekday_6": "S"
   },
   "planner": {
     "title": "Planner",
@@ -481,5 +497,23 @@
     "loading": "Loading...",
     "error": "Error",
     "success": "Success"
+  },
+  "profile_presets": {
+    "restaurants": "Restaurants",
+    "bar": "Bar",
+    "market": "Groceries",
+    "transport": "Transport",
+    "accommodation": "Accommodation",
+    "cafe_bakery": "Café & bakery",
+    "tours": "Tours & sightseeing",
+    "museums": "Museums & attractions",
+    "nightlife": "Nightlife",
+    "beach": "Beach",
+    "shopping": "Shopping & souvenirs",
+    "festivals": "Festivals & events",
+    "sports": "Sports & adventure",
+    "laundry": "Laundry",
+    "internet_sim": "Internet & SIM",
+    "pharmacy": "Pharmacy & health"
   }
 }

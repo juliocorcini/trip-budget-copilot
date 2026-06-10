@@ -11,13 +11,35 @@ import {
   phaseRepository,
   budgetPoolPhaseLinkRepository,
   transactionRepository,
+  activityProfileRepository,
+  phaseProfileSettingRepository,
 } from '@/data/repositories';
 import { sessionRepository } from '@/data/repositories/session-repository';
-import { deletePhase, swapPhaseOrder } from '@/domain/orchestrators';
+import {
+  deletePhase,
+  swapPhaseOrder,
+  createProfileEnabledInPhase,
+  setProfileEnabledInPhase,
+} from '@/domain/orchestrators';
+import {
+  ACTIVITY_PROFILE_PRESETS,
+  findProfileForPreset,
+  createProfileFromPreset,
+  createCustomActivityProfile,
+  isProfileEnabledInPhase,
+} from '@/domain/profiles';
+import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
-import type { Phase } from '@/domain/types/phase';
+import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
+import type { Phase, PhaseRhythmPreset } from '@/domain/types/phase';
+import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
+
+/** Display order Mon..Sun mapped to JS getDay() indices. */
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
+const RHYTHM_PRESETS: PhaseRhythmPreset[] = ['intense', 'moderate', 'relaxed'];
 
 interface NewPhaseDraft {
   tempId: string;
@@ -35,7 +57,14 @@ export function TripEditPage() {
   const [tripName, setTripName] = useState('');
   const [tripStart, setTripStart] = useState('');
   const [tripEnd, setTripEnd] = useState('');
-  const [phaseEdits, setPhaseEdits] = useState<Record<string, { name: string; startDate: string; endDate: string }>>({});
+  const [phaseEdits, setPhaseEdits] = useState<
+    Record<string, { name: string; startDate: string; endDate: string; rhythmPreset: PhaseRhythmPreset | null; peakDays: number[] | null }>
+  >({});
+
+  // DEC-074 (FIELD-01): per-phase activities — profiles + settings + presets.
+  const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+  const [phaseSettings, setPhaseSettings] = useState<PhaseProfileSetting[]>([]);
+  const [customProfilePhaseId, setCustomProfilePhaseId] = useState<string | null>(null);
   const [newPhases, setNewPhases] = useState<NewPhaseDraft[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -52,11 +81,33 @@ export function TripEditPage() {
     setTripName(trip.name);
     setTripStart(trip.startDate);
     setTripEnd(trip.endDate);
-    const edits: Record<string, { name: string; startDate: string; endDate: string }> = {};
+    const edits: typeof phaseEdits = {};
     for (const phase of phases) {
-      edits[phase.id] = { name: phase.name, startDate: phase.startDate, endDate: phase.endDate };
+      edits[phase.id] = {
+        name: phase.name,
+        startDate: phase.startDate,
+        endDate: phase.endDate,
+        rhythmPreset: phase.rhythmPreset,
+        peakDays: phase.peakDays,
+      };
     }
     setPhaseEdits(edits);
+  }, [trip, phases]);
+
+  // DEC-074: load trip profiles + phase settings for the activity chips.
+  const reloadActivities = async () => {
+    if (!trip) return;
+    const [profs, settingsByPhase] = await Promise.all([
+      activityProfileRepository.getByTripId(trip.id),
+      Promise.all(phases.map((p) => phaseProfileSettingRepository.getByPhaseId(p.id))),
+    ]);
+    setProfiles(profs);
+    setPhaseSettings(settingsByPhase.flat());
+  };
+
+  useEffect(() => {
+    reloadActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip, phases]);
 
   const updatePhase = (phaseId: string, field: 'name' | 'startDate' | 'endDate', value: string) => {
@@ -64,6 +115,62 @@ export function TripEditPage() {
       ...prev,
       [phaseId]: { ...prev[phaseId]!, [field]: value },
     }));
+  };
+
+  // DEC-075 (FIELD-02): rhythm preset + peak days, saved with the phase.
+  const updateRhythm = (phaseId: string, preset: PhaseRhythmPreset | null) => {
+    setPhaseEdits((prev) => ({
+      ...prev,
+      [phaseId]: {
+        ...prev[phaseId]!,
+        rhythmPreset: prev[phaseId]!.rhythmPreset === preset ? null : preset,
+      },
+    }));
+  };
+
+  const togglePeakDay = (phaseId: string, day: number) => {
+    setPhaseEdits((prev) => {
+      const current = prev[phaseId]!.peakDays ?? [];
+      const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
+      return {
+        ...prev,
+        [phaseId]: { ...prev[phaseId]!, peakDays: next.length > 0 ? next.sort() : null },
+      };
+    });
+  };
+
+  // DEC-074: tap on an activity chip — toggle existing profile or create from preset.
+  const handleToggleProfile = async (phaseId: string, profile: ActivityProfile) => {
+    const enabled = isProfileEnabledInPhase(phaseSettings, phaseId, profile.id);
+    await setProfileEnabledInPhase(phaseId, profile.id, !enabled);
+    await reloadActivities();
+  };
+
+  const handleEnablePreset = async (
+    phaseId: string,
+    preset: (typeof ACTIVITY_PROFILE_PRESETS)[number],
+  ) => {
+    if (!trip) return;
+    const profile = createProfileFromPreset(
+      trip.id,
+      preset,
+      t(`profile_presets.${preset.id}` as never),
+    );
+    await createProfileEnabledInPhase({ profile, phaseId });
+    await reloadActivities();
+  };
+
+  const handleCreateCustomProfile = async (data: ProfileFormData) => {
+    if (!trip || !customProfilePhaseId) return;
+    const profile = createCustomActivityProfile({
+      tripId: trip.id,
+      name: data.name,
+      iconName: data.iconName,
+      typicalValueCents: data.typicalValueCents,
+    });
+    await createProfileEnabledInPhase({ profile, phaseId: customProfilePhaseId });
+    setCustomProfilePhaseId(null);
+    await reloadActivities();
   };
 
   const addNewPhase = () => {
@@ -149,6 +256,8 @@ export function TripEditPage() {
             name: edit.name.trim() || phase.name,
             startDate: edit.startDate,
             endDate: edit.endDate,
+            rhythmPreset: edit.rhythmPreset,
+            peakDays: edit.peakDays,
           });
         }),
       );
@@ -286,6 +395,93 @@ export function TripEditPage() {
                     />
                   </div>
                 </div>
+
+                {/* DEC-074 (FIELD-01): activities available in this phase */}
+                <label className="text-xs text-on-surface-faint mt-2">
+                  {t('trip.phase_activities_title')}
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {profiles.map((profile) => {
+                    const enabled = isProfileEnabledInPhase(phaseSettings, phase.id, profile.id);
+                    return (
+                      <button
+                        key={profile.id}
+                        onClick={() => handleToggleProfile(phase.id, profile)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1.5 ${
+                          enabled ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-faint'
+                        }`}
+                      >
+                        <Icon
+                          name={profile.iconName ?? getCategoryIcon(profile.category)}
+                          size={14}
+                          className={enabled ? 'text-on-surface' : 'text-on-surface-faint'}
+                        />
+                        {profile.name}
+                      </button>
+                    );
+                  })}
+                  {ACTIVITY_PROFILE_PRESETS.filter(
+                    (preset) => !findProfileForPreset(profiles, preset),
+                  ).map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => handleEnablePreset(phase.id, preset)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1.5 bg-surface-high text-on-surface-dim"
+                      style={{ border: '1px dashed var(--border-subtle)' }}
+                    >
+                      <Icon name={preset.iconName} size={14} className="text-on-surface-dim" />
+                      {t(`profile_presets.${preset.id}` as never)}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCustomProfilePhaseId(phase.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold btn-press flex items-center gap-1 text-primary"
+                    style={{ background: 'var(--primary-subtle)', border: '1px dashed var(--primary-dim)' }}
+                  >
+                    <Icon name="add" size={14} className="text-primary" />
+                    {t('trip.add_custom_activity')}
+                  </button>
+                </div>
+
+                {/* DEC-075 (FIELD-02): phase rhythm + peak days */}
+                <label className="text-xs text-on-surface-faint mt-2">
+                  {t('trip.phase_rhythm_title')}
+                </label>
+                <div className="flex gap-2">
+                  {RHYTHM_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => updateRhythm(phase.id, preset)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                        edit.rhythmPreset === preset
+                          ? 'bg-primary text-on-surface'
+                          : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {t(`trip.rhythm_${preset}` as never)}
+                    </button>
+                  ))}
+                </div>
+                <label className="text-xs text-on-surface-faint mt-1">
+                  {t('trip.peak_days_label')}
+                </label>
+                <div className="flex gap-1.5">
+                  {WEEKDAY_ORDER.map((day) => {
+                    const selected = (edit.peakDays ?? []).includes(day);
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => togglePeakDay(phase.id, day)}
+                        className={`w-9 h-9 rounded-lg text-xs font-bold btn-press ${
+                          selected ? 'bg-warning/20 text-warning ring-1 ring-warning' : 'bg-surface-high text-on-surface-dim'
+                        }`}
+                        aria-pressed={selected}
+                      >
+                        {t(`trip.weekday_${day}` as never)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
@@ -394,6 +590,19 @@ export function TripEditPage() {
           {saving ? t('common.loading') : t('common.save')}
         </button>
       </div>
+
+      {/* DEC-074: "+ Other" — custom activity profile enabled in the phase */}
+      <BottomSheet
+        open={customProfilePhaseId !== null}
+        onClose={() => setCustomProfilePhaseId(null)}
+        title={t('trip.add_custom_activity')}
+      >
+        <ProfileForm
+          currency={trip.baseCurrency}
+          onSave={handleCreateCustomProfile}
+          onCancel={() => setCustomProfilePhaseId(null)}
+        />
+      </BottomSheet>
 
       {/* DEC-080: delete phase sheet — blocked with data or last phase */}
       <BottomSheet

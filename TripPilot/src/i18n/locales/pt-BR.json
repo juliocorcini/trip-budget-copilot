@@ -54,7 +54,9 @@
     "amigo_message": "Com os gastos recentes, suas saídas de {{type}} caíram de {{before}} para {{after}}.",
     "amigo_see_impact": "Ver impacto completo",
     "session_drinks_left": "{{count}} bebidas até o teto",
-    "pending_confirmation": "{{count}} divisões aguardando confirmação"
+    "pending_confirmation": "{{count}} divisões aguardando confirmação",
+    "free_per_day": "Livre para usar hoje: {{amount}}",
+    "peak_day_free": "Hoje é dia de pico — livre até {{amount}}"
   },
   "expenses": {
     "title": "Gastos",
@@ -163,7 +165,21 @@
     "delete_phase_last_blocked": "Não é possível apagar a última fase da viagem.",
     "phase_deleted": "Fase apagada",
     "move_phase_up": "Mover fase para cima",
-    "move_phase_down": "Mover fase para baixo"
+    "move_phase_down": "Mover fase para baixo",
+    "phase_activities_title": "O que vai ter nessa fase?",
+    "add_custom_activity": "Outro",
+    "phase_rhythm_title": "Ritmo da fase",
+    "rhythm_intense": "Intensa",
+    "rhythm_moderate": "Moderada",
+    "rhythm_relaxed": "Tranquila",
+    "peak_days_label": "Dias de pico",
+    "weekday_0": "D",
+    "weekday_1": "S",
+    "weekday_2": "T",
+    "weekday_3": "Q",
+    "weekday_4": "Q",
+    "weekday_5": "S",
+    "weekday_6": "S"
   },
   "planner": {
     "title": "Planejador",
@@ -481,5 +497,23 @@
     "loading": "Carregando...",
     "error": "Erro",
     "success": "Sucesso"
+  },
+  "profile_presets": {
+    "restaurants": "Restaurantes",
+    "bar": "Bar",
+    "market": "Mercado",
+    "transport": "Transporte",
+    "accommodation": "Hospedagem",
+    "cafe_bakery": "Café & padaria",
+    "tours": "Passeios & tours",
+    "museums": "Museus & atrações",
+    "nightlife": "Vida noturna",
+    "beach": "Praia",
+    "shopping": "Compras & souvenirs",
+    "festivals": "Festivais & eventos",
+    "sports": "Esportes & aventura",
+    "laundry": "Lavanderia",
+    "internet_sim": "Internet & SIM",
+    "pharmacy": "Farmácia & saúde"
   }
 }

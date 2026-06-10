@@ -10,16 +10,19 @@ import {
   createAllocationItem,
   calculateOverAllocationCents,
 } from '@/domain/planning';
-import { createCustomActivityProfile } from '@/domain/profiles';
+import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
+import { createProfileEnabledInPhase } from '@/domain/orchestrators';
 import {
   activityProfileRepository,
   scenarioPlanRepository,
   scenarioAllocationItemRepository,
+  phaseProfileSettingRepository,
 } from '@/data/repositories';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
 import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
 import type { AllocationPriority, ScenarioPreset } from '@/domain/types/common';
 
@@ -134,6 +137,7 @@ export function PlannerPage() {
 
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   const [profilesLoaded, setProfilesLoaded] = useState(false);
+  const [phaseSettings, setPhaseSettings] = useState<PhaseProfileSetting[]>([]);
   const [states, setStates] = useState<Record<string, ProfileState>>({});
   const [activePreset, setActivePreset] = useState<ScenarioPreset>('equilibrado');
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
@@ -141,6 +145,7 @@ export function PlannerPage() {
   const [ready, setReady] = useState(false);
 
   const profilesRef = useRef<ActivityProfile[]>([]);
+  const enabledProfilesRef = useRef<ActivityProfile[]>([]);
   const statesRef = useRef<Record<string, ProfileState>>({});
   const presetRef = useRef<ScenarioPreset>('equilibrado');
   const planRef = useRef<ScenarioPlan | null>(null);
@@ -194,6 +199,16 @@ export function PlannerPage() {
     });
   }, [trip]);
 
+  // DEC-074: the Planner only sees profiles enabled in the selected phase.
+  const enabledProfiles = useMemo(
+    () =>
+      selectedPhase
+        ? profiles.filter((p) => isProfileEnabledInPhase(phaseSettings, selectedPhase.id, p.id))
+        : profiles,
+    [profiles, phaseSettings, selectedPhase],
+  );
+  enabledProfilesRef.current = enabledProfiles;
+
   /* ── scenario hydration (ISSUE-04: load persisted state) ── */
 
   useEffect(() => {
@@ -203,11 +218,10 @@ export function PlannerPage() {
     setReady(false);
 
     (async () => {
-      const plan = await scenarioPlanRepository.getActiveByPhaseAndPool(
-        trip.id,
-        selectedPhase.id,
-        phasePool.id,
-      );
+      const [plan, settings] = await Promise.all([
+        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, selectedPhase.id, phasePool.id),
+        phaseProfileSettingRepository.getByPhaseId(selectedPhase.id),
+      ]);
       const items = plan
         ? await scenarioAllocationItemRepository.getByPlanId(plan.id)
         : [];
@@ -215,9 +229,15 @@ export function PlannerPage() {
 
       planRef.current = plan ?? null;
       itemsRef.current = new Map(items.map((i) => [i.activityProfileId, i]));
+      setPhaseSettings(settings);
 
+      // DEC-074 (FIELD-01): only profiles enabled in this phase are hydrated
+      // and persisted — disabled profiles never seed allocations again.
+      const enabled = profilesRef.current.filter((p) =>
+        isProfileEnabledInPhase(settings, selectedPhase.id, p.id),
+      );
       const init: Record<string, ProfileState> = {};
-      for (const p of profilesRef.current) {
+      for (const p of enabled) {
         const item = itemsRef.current.get(p.id);
         const base = item?.quantity ?? p.expectedFrequencyPerPhase ?? 3;
         init[p.id] = {
@@ -261,7 +281,7 @@ export function PlannerPage() {
       planRef.current = plan;
     }
 
-    for (const profile of profilesRef.current) {
+    for (const profile of enabledProfilesRef.current) {
       const s = statesRef.current[profile.id];
       if (!s) continue;
       const existing = itemsRef.current.get(profile.id);
@@ -324,21 +344,21 @@ export function PlannerPage() {
   const baselineAllocatedCents = useMemo(
     () =>
       sumCents(
-        profiles.map(
+        enabledProfiles.map(
           (p) => (states[p.id]?.baselineCount ?? 0) * p.typicalValueCents,
         ),
       ),
-    [profiles, states],
+    [enabledProfiles, states],
   );
 
   const currentAllocatedCents = useMemo(
     () =>
       sumCents(
-        profiles.map(
+        enabledProfiles.map(
           (p) => (states[p.id]?.count ?? 0) * p.typicalValueCents,
         ),
       ),
-    [profiles, states],
+    [enabledProfiles, states],
   );
 
   const freeMarginCents = availableCents - baselineAllocatedCents;
@@ -359,11 +379,11 @@ export function PlannerPage() {
 
   const modifiedProfiles = useMemo(
     () =>
-      profiles.filter((p) => {
+      enabledProfiles.filter((p) => {
         const s = states[p.id];
         return s && s.count !== s.baselineCount;
       }),
-    [profiles, states],
+    [enabledProfiles, states],
   );
 
   /* ── recommendation ── */
@@ -372,7 +392,7 @@ export function PlannerPage() {
     if (!hasDeficit) return null;
 
     const modifiedIds = new Set(modifiedProfiles.map((p) => p.id));
-    const reducible = profiles
+    const reducible = enabledProfiles
       .filter((p) => {
         const s = states[p.id];
         if (!s || s.isLocked || s.count === 0) return false;
@@ -414,7 +434,7 @@ export function PlannerPage() {
       changes,
       remainingMarginCents: saved - deficitCents,
     };
-  }, [hasDeficit, deficitCents, profiles, states, modifiedProfiles, t]);
+  }, [hasDeficit, deficitCents, enabledProfiles, states, modifiedProfiles, t]);
 
   /* ── handlers ── */
 
@@ -439,7 +459,7 @@ export function PlannerPage() {
       setActivePreset(preset);
       setStates((prev) => {
         const next = { ...prev };
-        for (const p of profiles) {
+        for (const p of enabledProfiles) {
           const s = next[p.id];
           if (!s || s.isLocked) continue;
           const base = p.expectedFrequencyPerPhase ?? 3;
@@ -449,7 +469,7 @@ export function PlannerPage() {
         return next;
       });
     },
-    [profiles],
+    [enabledProfiles],
   );
 
   const applyRecommendation = useCallback(() => {
@@ -468,14 +488,17 @@ export function PlannerPage() {
 
   const handleAddCategory = useCallback(
     async (data: ProfileFormData) => {
-      if (!trip) return;
+      if (!trip || !selectedPhase) return;
       const profile = createCustomActivityProfile({
         tripId: trip.id,
         name: data.name,
         iconName: data.iconName,
         typicalValueCents: data.typicalValueCents,
       });
-      await activityProfileRepository.create(profile);
+      // DEC-074: the new profile is explicitly enabled in the current phase.
+      await createProfileEnabledInPhase({ profile, phaseId: selectedPhase.id });
+      const settings = await phaseProfileSettingRepository.getByPhaseId(selectedPhase.id);
+      setPhaseSettings(settings);
       setProfiles((prev) => [...prev, profile]);
       setStates((prev) => ({
         ...prev,
@@ -483,7 +506,7 @@ export function PlannerPage() {
       }));
       setShowAddForm(false);
     },
-    [trip],
+    [trip, selectedPhase],
   );
 
   /* ── loading ── */
@@ -582,7 +605,7 @@ export function PlannerPage() {
 
       {/* ── PROFILE CARDS ── */}
       <div className="mt-4 space-y-3">
-        {profiles.map((profile) => {
+        {enabledProfiles.map((profile) => {
           const s = states[profile.id];
           if (!s) return null;
 
@@ -903,7 +926,7 @@ export function PlannerPage() {
                 <button
                   onClick={() => setStates((prev) => {
                     const next = { ...prev };
-                    for (const p of profiles) {
+                    for (const p of enabledProfiles) {
                       const s = next[p.id];
                       if (s) next[p.id] = { ...s, count: s.baselineCount };
                     }
