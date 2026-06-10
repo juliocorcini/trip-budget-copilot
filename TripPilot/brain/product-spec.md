@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-06-10 (R3 session — features 19–24 added)
+> Last updated: 2026-06-10 (R4 session — feature 25 device-to-device sync added)
 
 ## What is TripPilot?
 
@@ -188,11 +188,30 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
   (expense, date, share value, who paid, status) + settlements applied
 - Net from confirmed lines matches the debts engine
 
+### 25. Device-to-Device Sync (R4 — DEC-103..108)
+- User-initiated session channel between two phones: WebRTC DataChannel, E2E encrypted
+  (AES-GCM; key travels in the QR, never reaches the server)
+- Signaling via minimal Cloudflare Worker + Durable Object (`worker/`, free tier) — rooms
+  with 6-char codes, ~10 min expiry, relays opaque messages only (DEC-107)
+- Fallbacks: encrypted relay over the same WebSocket when P2P fails; two-QR manual
+  signaling offline (same Wi-Fi/hotspot); single-QR payload when compressed data ≤ ~1.2 KB
+- **Device migration** (DEC-104): "Receber de outro aparelho" on Welcome + send/receive on
+  Backup page; full backup travels the channel; receiver uses the existing import preview
+- **QR pairing** (DEC-105): identity QR `{ actorId, displayName }` registers/links a
+  Participant (`linkedActorId`); typing a name remains the default path
+- **Mirrored debt statements** (DEC-106): owner device keeps financial truth; the peer
+  receives a read-only statement and confirms/rejects pending lines on their own phone;
+  responses update `ParticipantShare.confirmationStatus` on the owner (queued if offline)
+- New tables (Dexie v4): `peerLinks`, `mirroredStatements`; backup format v4
+- V2+ deferrals (DEC-108): real-time table split, group multi-device merge, live shared
+  outing sessions, settlement handshake, animated multi-QR
+
 ## V1 — Explicitly NOT in Scope
 
 - Login / user accounts / authentication
-- Remote database or backend
-- Automatic sync between devices
+- Remote database or backend (the DEC-107 signaling Worker relays opaque bytes only —
+  it stores nothing and never sees plaintext)
+- Automatic background sync between devices (R4 sync is user-initiated, session-based)
 - Bank integration (Wise API, etc.)
 - PDF/receipt import
 - AI/LLM features inside the app

@@ -1,6 +1,6 @@
 # TripPilot — Technical Direction
 
-> Last updated: 2026-06-08
+> Last updated: 2026-06-10 (R4 — P2P sync channel + signaling Worker)
 
 ## Stack (LOCKED — DEC-003)
 
@@ -97,12 +97,35 @@ React + Vite → Build → Cloudflare Pages (static)
 
 No server, no monthly cost, no remote database.
 
+## P2P Sync Layer (R4 — DEC-103..108)
+
+```
+Phone A (PWA)  ──QR (room code + E2E key)──▶  Phone B (PWA)
+      │                                            │
+      └────── wss://trippilot-sync Worker ─────────┘   ← signaling only
+                  (Durable Object room)
+      ◀═══════ WebRTC DataChannel (DTLS) ═══════▶      ← payload path
+        fallback: AES-GCM ciphertext relayed
+        through the same WebSocket room
+```
+
+- `worker/` — `trippilot-sync` Worker + `SyncRoom` Durable Object (SQLite class, free
+  tier). Creates 6-char rooms, relays opaque messages between exactly 2 peers, expires
+  via alarm. Deployed with `npx wrangler deploy` from `worker/`
+- App layers: `src/domain/sync/` (pure protocol: envelopes, chunking, SHA-256 checksum,
+  QR codec with CompressionStream + base64url, statement payloads) and `src/data/sync/`
+  (WebRTC transport, signaling client, AES-GCM crypto, connection orchestrator)
+- QR libs: `qrcode` (generation), `jsqr` (camera decode via getUserMedia)
+- Dexie v4: `peerLinks`, `mirroredStatements`; `Participant.linkedActorId` (non-indexed)
+- Backup format v4 (includes the new tables; v1–v3 files normalize on import)
+
 ## Future Expansion Path
 
 1. **Capacitor** → Same React codebase → APK with local notifications (DEC-017)
 2. **Cloudflare Functions** → API endpoints when backend is needed
 3. **Supabase/D1** → Remote DB for multi-user sync
 4. **Multi-currency** → Data model already supports it (DEC-021)
+5. **P2P V2** → group merge, real-time split, settlement handshake (DEC-108 deferrals)
 
 ## Testing Strategy (from Delivery 1)
 

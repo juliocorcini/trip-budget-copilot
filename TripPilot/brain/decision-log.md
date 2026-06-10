@@ -730,6 +730,48 @@
 - **Rationale**: "Eu clico na Débora e ele deveria mostrar exatamente DE ONDE veio o €1,12"
 - **Design**: gap-fix-r3 R-25
 
+### DEC-103 — Device-to-Device Sync Channel (R4)
+- **Date**: 2026-06-10
+- **Status**: APPROVED (Julio: council session on P2P sync — "registre no brain e implemente")
+- **Decision**: TripPilot gains a user-initiated, session-based device-to-device channel: WebRTC DataChannel between two phones, with signaling via a minimal Cloudflare Worker + Durable Object (free tier). All payloads are end-to-end encrypted (AES-GCM 256; the key travels inside the QR code and never reaches the server). Fallback chain: (a) encrypted relay through the same signaling WebSocket when direct P2P fails; (b) two-QR manual signaling for offline use on a shared Wi-Fi/hotspot; (c) single-QR payload transfer when the compressed payload fits one scannable QR (~1.2 KB)
+- **Rationale**: Council (4 perspectives) converged: the data model was sync-ready since D1 (SyncMetadata, Device, DEC-018/056) and the highest-value flows (device migration, debt statements) need no backend and no accounts. Sessions are explicit user actions — the V1 exclusion "no AUTOMATIC background sync" still stands
+- **Alternatives**: Web Bluetooth (unsupported on iOS Safari), backend with accounts (violates local-first), QR-only animated transfer (poor UX for 182 KB, kept out per DEC-108)
+
+### DEC-104 — Device Migration via Direct Transfer
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: "Receber de outro aparelho" on the Welcome screen and send/receive options on the Backup page. The full backup (BackupData JSON) travels over the DEC-103 channel; the receiver goes through the existing import preview (analysis + merge/replace choice). The JSON file export/import (DEC-013) remains as manual fallback
+- **Rationale**: Highest-value, lowest-risk use case (council consensus): one-directional, no merge semantics beyond what import already does
+- **Alternatives**: Cloud backup (needs backend), file-only transfer (friction was the original complaint)
+
+### DEC-105 — Actor Identity Without Accounts
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: Each install's identity (actorId) is the existing per-install device id (`trippilot_device_id`). The identity QR carries `{ actorId, displayName }`. Scanning it registers a Participant with the new non-indexed field `Participant.linkedActorId`. Typing a name stays the default path; pairing is an optional upgrade and can be done retroactively on an existing participant
+- **Rationale**: Executes DEC-018/DEC-056 without accounts or login; no Dexie migration needed for the field
+- **Alternatives**: UserAccount entity now (overkill), email-based identity (privacy + friction)
+
+### DEC-106 — Owner/Mirror Debt Model (no bidirectional merge of money)
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: Financial truth for a shared expense lives ONLY on the owner device (who registered it). Peers receive a read-only mirrored statement (new `mirroredStatements` table, one per peer actor) and can confirm/reject pending lines on their own phone; those responses flow back and update `ParticipantShare.confirmationStatus` on the owner device (DEC-071 semantics). Responses produced while disconnected are queued inside the mirrored statement and flushed on the next session. New Dexie v4: `peerLinks` + `mirroredStatements` tables; backup format v4 includes both
+- **Rationale**: Critic's HIGH risk: last-write-wins merge silently rewrites money. Owner/mirror keeps the engine single-device while giving the peer real visibility and real actions
+- **Alternatives**: CRDT/event-log bidirectional sync (distributed-system complexity, V2+ at most)
+
+### DEC-107 — Signaling Worker Scope
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: The `trippilot-sync` Worker only creates short-lived rooms (6-char codes, ~10 min expiry via DO alarm) and relays opaque messages between exactly 2 WebSocket peers. It never stores payloads, never sees plaintext (E2E key stays in the QR), has no database beyond the in-room state, and lives in `worker/` inside the repo
+- **Rationale**: Keeps the "no backend" promise honest: the Worker is a introduction service, not a data service. Free tier covers it (~10 small messages per pairing)
+- **Alternatives**: TURN server (cost/complexity; encrypted relay over the same WebSocket covers the failure case), third-party signaling (new dependency surface)
+
+### DEC-108 — P2P V2 Deferrals
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: Explicitly deferred to V2+: real-time table split (each person confirming at the table), group trips with multi-device merge, live shared outing sessions, settlement handshake (simultaneous settlement records on both devices), animated multi-QR transfer
+- **Rationale**: Council ranking — each needs either bidirectional merge maturity or has niche value; shipping the owner/mirror foundation first de-risks all of them
+- **Alternatives**: Big-bang group sync (rejected: HIGH risk of becoming a regret feature)
+
 ---
 
 *New decisions will be added as the project progresses.*

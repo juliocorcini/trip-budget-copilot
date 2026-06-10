@@ -1,6 +1,6 @@
 # TripPilot — Meetings Log
 
-> Last updated: 2026-06-08
+> Last updated: 2026-06-10
 
 ## Format
 
@@ -45,6 +45,29 @@
 - [ ] Create private seed JSON for Julio — @Julio (after Delivery 1)
 
 **Source material**: `research/base.txt` (raw conversation), `research/2026-06-08-product-definition-session.md` (structured summary)
+
+---
+
+### MTG-2026-06-10 — P2P Sync Council Session (R4)
+
+- **Date**: 2026-06-10
+- **Participants**: Julio (Product Lead) + Council (Strategist, Architect, Critic, User Advocate)
+- **Topic**: Adding QR pairing + device-to-device sync (debts, backup migration) without a backend
+
+**What happened**:
+1. Julio researched transfer options for a backend-less PWA (Bluetooth ruled out on iOS; QR + WebRTC + minimal Cloudflare signaling chosen)
+2. Council (4 perspectives) analyzed strategy, architecture, risks, and UX
+3. Consensus: device migration first; pairing as optional upgrade; never bidirectional merge of money (owner/mirror model reusing DEC-071 confirmations)
+4. Defined fallback chain: WebRTC → encrypted relay → two-QR offline → single-QR payload
+5. Scoped V2 deferrals (group merge, real-time split, settlement handshake)
+
+**Decisions made**: DEC-103..DEC-108 (see [decision-log.md](decision-log.md))
+
+**Action Items**:
+- [x] Register decisions in brain — @AI
+- [ ] Implementation plan `documents/p2p-sync-implementation-prompt.md` — @AI
+- [ ] Implement R4 gates + tests + deploy v0.5.0 — @AI
+- [ ] Field-test pairing/migration between Julio's iPhone-Android pair — @Julio
 
 ---
 
