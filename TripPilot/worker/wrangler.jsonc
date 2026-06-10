@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trippilot-sync",
+  "account_id": "e146e88b34b2694243b1d74cee8de743",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "observability": {
+    "enabled": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SYNC_ROOM",
+        "class_name": "SyncRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SyncRoom"]
+    }
+  ]
+}
