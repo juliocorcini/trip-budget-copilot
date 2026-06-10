@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-10 (R3 session)
+> Last updated: 2026-06-10 (R4 session)
 
 ## Current Phase
 
-**Implementation — D1–D6 + gap-fix R1 + R2 + R3 implemented, v0.4.0 deployed** ✅
+**Implementation — D1–D6 + gap-fix R1 + R2 + R3 + P2P sync R4 implemented, v0.5.0 deployed** ✅
 
 ## Status Summary
 
@@ -14,18 +14,19 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 102 decisions (DEC-001 to DEC-102); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 108 decisions (DEC-001 to DEC-108); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
-| Data model | ✅ DONE | 22 entities; Dexie schema **v3** (phaseProfileSettings, share confirmation, rich occurrences) |
+| Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
 | Design system | ✅ DONE | Theme v4; BottomSheet/Toast primitives; zero native dialogs; zero hardcoded colors (tokens only) |
 | Implementation D1–D6 | ✅ DONE | All deliveries implemented and deployed to Cloudflare Pages |
 | Gap analysis R1 2026-06-09 | ✅ RESOLVED | 36/36 gaps fixed (see `src/gap-fix-log.md`) |
 | Gap analysis R2 2026-06-09 | ✅ RESOLVED | 23/23 items fixed: 7 field bugs + 9 R2 gaps + 7 planning features (see `src/gap-fix-log-r2.md`) |
 | Field review R3 2026-06-10 | ✅ RESOLVED | 26/26 requirements implemented in 7 gates (see `src/gap-fix-log-r3.md`) |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (683 keys) |
-| Tests | ✅ DONE | 264 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.4.0 on Cloudflare Pages; SW network-first + update toast |
+| P2P sync R4 2026-06-10 | ✅ DONE | 14/14 requirements in 7 gates (see `src/gap-fix-log-r4.md`); DEC-103..108 |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (729 keys) |
+| Tests | ✅ DONE | 299 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.5.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
@@ -67,6 +68,29 @@ All 26 requirements from Julio's field review were resolved in a 7-gate session
 - **Debt statement (DEC-102)**: participant tap → itemized breakdown matching the debts engine
 - **Clickability sweep (R-26)**: all 22 screens audited; orphan cards now navigate
 
+## P2P Sync Session R4 (2026-06-10)
+
+All 14 requirements from the P2P council session (DEC-103..108, MTG-2026-06-10)
+were implemented in 7 gates (full log in `src/gap-fix-log-r4.md`). Highlights:
+
+- **Sync domain (pure TS)**: actor identity QR, wire protocol (manifest/chunk/ack
+  with deflate + CRC32, 12 KB chunks), QR codec (`TPSYNC1:` envelope, 1.6 K char
+  budget), statement + migration payloads
+- **Worker `trippilot-sync` (DEC-107)**: ephemeral 2-peer rooms (Durable Object,
+  SQLite class), opaque relay, 10-min alarm expiry, zero storage — deployed at
+  `https://trippilot-sync.trippilot.workers.dev`
+- **Transports (DEC-103)**: AES-GCM 256 E2E (key only in the QR), WebRTC DataChannel
+  with automatic encrypted-relay fallback after 8 s, offline two-QR manual signaling
+- **Device migration (DEC-104)**: BackupPage "send/receive to another device" +
+  Welcome "receive from another device"; reuses backup pipeline + import preview
+- **Pairing (DEC-105)**: "My QR" + "Add by QR" + retroactive "Connect by QR" +
+  link badge; typing a name remains the default path
+- **Mirrored debts (DEC-106)**: owner sends read-only statement; mirror confirms/
+  rejects lines; responses flow back on the same session or queue offline and flush
+  next time; financial truth never merges bidirectionally
+- **Data**: Dexie v4 (peerLinks, mirroredStatements), backup v4 with v1-v3 import
+  normalization; 35 new unit tests (299 total)
+
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
@@ -78,9 +102,11 @@ All 26 requirements from Julio's field review were resolved in a 7-gate session
 
 ## Next Steps
 
-1. Julio field-tests v0.4.0 on the next trip (taxonomy + planner menu + notifications + statement)
+1. Julio field-tests v0.5.0 with two real devices (iPhone + Android): pairing,
+   statement push + confirmations, device migration, offline 2-QR mode
 2. Real-data seed (julio-europa-2026) when trip data is ready
 3. D3+ features per `implementation-phases.md` (reports, automatic future floor)
+4. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
 
 ## Blockers
 
@@ -90,4 +116,4 @@ All 26 requirements from Julio's field review were resolved in a 7-gate session
 
 All decisions documented in [decision-log.md](decision-log.md). R2 session added
 DEC-071..DEC-083 (approved 2026-06-09); R3 session added DEC-084..DEC-102
-(approved 2026-06-10).
+(approved 2026-06-10); R4 session added DEC-103..DEC-108 (approved 2026-06-10).

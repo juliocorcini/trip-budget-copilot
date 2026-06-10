@@ -2,10 +2,11 @@
 
 ## Current State
 
-- **Active gate**: GATE 6 — final verification + deploy
-- **Progress**: 13/14
-- **Tests**: 299 unit green (264 baseline + 35 sync/migration) · typecheck + build clean
-- **Risks**: manual 2-QR mode depends on compressed SDP fitting the QR limit — verify on real devices
+- **Active gate**: COMPLETE — 14/14
+- **Progress**: 14/14
+- **Tests**: 299 unit + 29 e2e green · typecheck + build clean · v0.5.0 deployed
+- **Risks**: manual 2-QR mode depends on compressed SDP fitting the QR limit — verify on real devices;
+  migration/pairing flows need a real two-device smoke (iPhone + Android) by Julio
 
 ## GATE 0 — Baseline + brain ✅
 
@@ -56,9 +57,14 @@
 - [x] P2P-13 — "Received from other devices" section + sheet with confirm/reject,
       timestamp always visible, pendingResponses queue + flush (owner-mirror-cycle test)
 
-## GATE 6 — Final
+## GATE 6 — Final ✅
 
-- [ ] P2P-14 — verification, version 0.5.0, deploys, smokes
+- [x] P2P-14 — verification, version 0.5.0, deploys, smokes
+      - 299 unit + 29 e2e green (quick-add + shared-confirm e2e re-verified — regression clean)
+      - i18n parity ×3 verified by script (45 sync keys each, 729 total)
+      - Worker deployed + smoked: POST /rooms → code; WS relay between 2 clients OK
+      - App v0.5.0 deployed: https://master.trippilot.pages.dev (https://59d79b51.trippilot.pages.dev)
+      - brain/project-status.md updated (R4 section, numbers, next steps)
 
 ## Extras found (not fixed)
 
