@@ -43,13 +43,6 @@
     "active_outing_spent": "{{amount}} spent",
     "active_outing_open": "Open",
     "amigo_sincero": "Honest friend",
-    "amigo_before": "BEFORE",
-    "amigo_after": "AFTER",
-    "amigo_outings": "outings",
-    "amigo_reserve": "RESERVE",
-    "amigo_reserve_intact": "Intact",
-    "amigo_reserve_affected": "Affected",
-    "amigo_message": "With recent spending, your {{type}} outings dropped from {{before}} to {{after}}.",
     "amigo_see_impact": "See full impact",
     "session_drinks_left": "{{count}} drinks until the ceiling",
     "pending_confirmation": "{{count}} splits awaiting confirmation",
@@ -87,7 +80,11 @@
     "detail_planned_daily": "Planned daily average",
     "detail_rhythm_explainer": "The real average divides phase spending by elapsed days; the planned one divides the phase budget by the total days.",
     "detail_streak_days": "Days without spending",
-    "detail_streak_explainer": "We count consecutive days with no expense recorded in the phase, ending today."
+    "detail_streak_explainer": "We count consecutive days with no expense recorded in the phase, ending today.",
+    "amigo_over_pace": "You planned {{planned}} {{type}} this month. At the current pace, only {{fit}} of the {{remaining}} left fit the plan.",
+    "amigo_on_plan": "Your {{type}} spending is on plan: {{done}} of {{planned}} occasions used.",
+    "amigo_no_plan": "This {{type}} expense used {{percent}}% of what is left free. There is no plan for this category.",
+    "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}."
   },
   "expenses": {
     "title": "Expenses",
@@ -505,12 +502,18 @@
     "title": "Simulator",
     "available": "Available now",
     "how_much": "How much do you want to spend?",
-    "risk_low": "No worries!",
-    "risk_medium": "Doable, but think about it.",
-    "risk_high": "Risky.",
-    "risk_critical": "It blows the budget.",
-    "after": "After: {{amount}} remaining",
-    "percent_used": "{{percent}}% of available"
+    "verdict_ok": "All good!",
+    "verdict_attention": "Doable, but think it over.",
+    "verdict_risk": "Risky.",
+    "exceeded": "It blows the budget.",
+    "metric_total_label": "Of the total",
+    "metric_total_text": "{{after}} would remain free ({{percent}}% of available used)",
+    "metric_daily_label": "Of the day-to-day",
+    "metric_daily_days": "{{amount}} equals {{days}} days of your daily free amount ({{daily}}/day)",
+    "metric_daily_none": "No daily free amount calculated for today",
+    "metric_plan_label": "Of the plan",
+    "metric_plan_item": "≈ {{count}} fewer {{name}}",
+    "metric_plan_none": "No planned occasion would be affected"
   },
   "shared": {
     "owner_tag": "Me",
@@ -591,5 +594,17 @@
     "backup_due": "Backup overdue — tap to export your data",
     "long_outing": "The outing \"{{name}}\" has been active for {{hours}}h — forgot to end it?",
     "phase_over_budget": "The phase went over budget by {{amount}}"
+  },
+  "impact": {
+    "title": "Full impact",
+    "trigger": "Expense that triggered the alert",
+    "planned_vs_actual": "Planned vs. spent",
+    "no_plan_data": "No active plan for this phase.",
+    "occasions_done": "{{done}} of {{planned}} occasions",
+    "of_budget": "of {{budget}}",
+    "projection": "Projection until end of phase",
+    "reserve_risk_date": "At the current pace, the reserve starts being used on {{date}}.",
+    "reserve_safe": "Reserve intact at the current pace.",
+    "adjust_plan": "Adjust plan in the Planner"
   }
 }

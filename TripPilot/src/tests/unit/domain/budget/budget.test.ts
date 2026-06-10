@@ -6,7 +6,6 @@ import {
   calculateFutureFloor,
   createPoolSummary,
   getBudgetHealthStatus,
-  generateAmigoSinceroInsight,
   getAvailablePoolsForPhase,
   createEnvelope,
   createBudgetPoolPhaseLink,
@@ -198,40 +197,6 @@ describe('getBudgetHealthStatus', () => {
     expect(getBudgetHealthStatus(50)).toBe('healthy');
     expect(getBudgetHealthStatus(75)).toBe('warning');
     expect(getBudgetHealthStatus(95)).toBe('critical');
-  });
-});
-
-describe('generateAmigoSinceroInsight', () => {
-  it('includes the profile category for type-specific messages', () => {
-    // free €100, bar night €30: 3 before, recent spend €40 → 2 after
-    const insight = generateAmigoSinceroInsight(
-      10000,
-      0,
-      { typicalValueCents: 3000, category: 'bar' },
-      4000,
-    );
-    expect(insight.hasInsight).toBe(true);
-    expect(insight.beforeCount).toBe(3);
-    expect(insight.afterCount).toBe(2);
-    expect(insight.category).toBe('bar');
-    expect(insight.reserveStatus).toBe('intact');
-  });
-
-  it('returns no insight without a profile', () => {
-    const insight = generateAmigoSinceroInsight(10000, 0, null, 4000);
-    expect(insight.hasInsight).toBe(false);
-    expect(insight.category).toBe('other');
-  });
-
-  it('flags reserve as affected when spend exceeds free margin', () => {
-    const insight = generateAmigoSinceroInsight(
-      5000,
-      2000,
-      { typicalValueCents: 2500, category: 'market' },
-      6000,
-    );
-    expect(insight.reserveStatus).toBe('affected');
-    expect(insight.category).toBe('market');
   });
 });
 

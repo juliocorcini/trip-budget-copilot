@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { resolveActivePhase, getDayNumber, getTotalDays, formatDate, localDateString } from '@/domain/dates';
-import { calculateFreeToSpend, createPoolSummary, calculateLastOutingSavings, generateAmigoSinceroInsight } from '@/domain/budget';
+import { calculateFreeToSpend, createPoolSummary, calculateLastOutingSavings, buildHonestFriendV2 } from '@/domain/budget';
 import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory, calculateSpentOnDate } from '@/domain/transactions';
 import { formatMoney, fromCents, sumCents } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -437,20 +437,46 @@ export function DashboardPage() {
       ? calculateTodayFreeBudget(fts.freeToSpendCents, todaySpentCents, activePhase, todayIso)
       : null;
 
-  const barProfile = profiles.find((p) => p.category === 'bar');
   // DEC-092 (R-10): savings refer to the LAST closed outing, with the typical
   // value as an explicit reference — never a trip-wide claim.
   const savings = calculateLastOutingSavings(completedSessions, transactions, profiles, Date.now());
 
-  const recentBarSpent = sumCents(
-    transactions
-      .filter((t) => t.category === 'bar' && t.type === 'expense' && t.deletedAt === null)
-      .slice(-3)
-      .map((t) => t.amountCents),
-  );
-  const amigoInsight = fts && barProfile
-    ? generateAmigoSinceroInsight(fts.freeToSpendCents, fts.protectedReserveCents, barProfile, recentBarSpent)
+  // DEC-093 (R-11): Honest Friend v2 — based on the PLAN of the category of
+  // the most recent profiled expense, never on balance ÷ typical cost.
+  const recentProfileTx =
+    [...phaseTxsForInsights]
+      .filter((tx) => tx.type === 'expense' && tx.activityProfileId !== null)
+      .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  const amigoProfile = recentProfileTx
+    ? profiles.find((p) => p.id === recentProfileTx.activityProfileId) ?? null
     : null;
+  const amigoForecast = amigoProfile
+    ? forecasts.find((f) => f.profileId === amigoProfile.id) ?? null
+    : null;
+  const phaseSpentCents = calculatePoolSpent(phaseTxsForInsights);
+  const amigoV2 =
+    activePhase && fts && amigoProfile && recentProfileTx
+      ? buildHonestFriendV2({
+          profileId: amigoProfile.id,
+          profileName: amigoProfile.name,
+          typicalValueCents: amigoProfile.typicalValueCents,
+          plannedQuantity: amigoForecast?.totalPlanned ?? 0,
+          doneQuantity: amigoForecast?.spent ?? 0,
+          categorySpentCents: sumCents(
+            phaseTxsForInsights
+              .filter(
+                (tx) => tx.activityProfileId === amigoProfile.id && tx.type === 'expense',
+              )
+              .map((tx) => tx.personalCostCents ?? tx.amountCents),
+          ),
+          recentSpendCents: recentProfileTx.personalCostCents ?? recentProfileTx.amountCents,
+          freeToSpendCents: fts.freeToSpendCents,
+          phaseSpentCents,
+          phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
+          todayDate: todayIso,
+          phase: activePhase,
+        })
+      : ({ kind: 'none' } as const);
 
   const sessionTotalCents = sumCents(sessionTxs.filter((t) => t.deletedAt === null).map((t) => t.amountCents));
   const sessionDrinksLeft = activeSession?.ceilingCents && activeSession?.avgDrinkPriceCents
@@ -859,8 +885,10 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* §7 pos. 8 — AMIGO SINCERO */}
-      {amigoInsight?.hasInsight && barProfile && (
+      {/* §7 pos. 8 — AMIGO SINCERO v2 (DEC-093 / R-11): plan-based, never
+          balance ÷ typical. "Ver impacto completo" opens the detail — NOT
+          the simulator. */}
+      {amigoV2.kind !== 'none' && (
         <div
           className="mt-5 p-4 rounded-2xl"
           style={{ background: '#C75B3910', border: '1px solid #C75B3918' }}
@@ -870,39 +898,34 @@ export function DashboardPage() {
             <div className="flex-1">
               <p className="text-xs font-bold text-primary">{t('dashboard.amigo_sincero')}</p>
               <p className="text-[13px] mt-1.5 leading-snug font-semibold text-on-surface">
-                {t('dashboard.amigo_message', {
-                  type: t(`categories.${amigoInsight.category}` as never).toLowerCase(),
-                  before: amigoInsight.beforeCount,
-                  after: amigoInsight.afterCount,
-                })}
+                {amigoV2.kind === 'over_pace' &&
+                  t('dashboard.amigo_over_pace', {
+                    planned: amigoV2.plannedQuantity,
+                    type: amigoV2.profileName.toLowerCase(),
+                    fit: amigoV2.fitCount,
+                    remaining: amigoV2.remainingPlanned,
+                  })}
+                {amigoV2.kind === 'on_plan' &&
+                  t('dashboard.amigo_on_plan', {
+                    type: amigoV2.profileName.toLowerCase(),
+                    done: amigoV2.doneQuantity,
+                    planned: amigoV2.plannedQuantity,
+                  })}
+                {amigoV2.kind === 'no_plan' &&
+                  t('dashboard.amigo_no_plan', {
+                    type: amigoV2.profileName.toLowerCase(),
+                    percent: amigoV2.impactPercent,
+                  })}
               </p>
-              <div className="flex items-center gap-4 mt-3">
-                <div>
-                  <p className="text-[10px] font-bold text-on-surface-faint">{t('dashboard.amigo_before')}</p>
-                  <p className="text-sm font-extrabold tabular text-on-surface">
-                    {amigoInsight.beforeCount} {t('dashboard.amigo_outings')}
-                  </p>
-                </div>
-                <Icon name="arrow_forward" size={14} className="text-on-surface-faint" />
-                <div>
-                  <p className="text-[10px] font-bold text-on-surface-faint">{t('dashboard.amigo_after')}</p>
-                  <p className="text-sm font-extrabold tabular text-warning">
-                    {amigoInsight.afterCount} {t('dashboard.amigo_outings')}
-                  </p>
-                </div>
-                <div className="ml-auto">
-                  <p className="text-[10px] font-bold text-on-surface-faint">{t('dashboard.amigo_reserve')}</p>
-                  <p className={`text-sm font-bold ${amigoInsight.reserveStatus === 'intact' ? 'text-success' : 'text-error'}`}>
-                    {amigoInsight.reserveStatus === 'intact' ? t('dashboard.amigo_reserve_intact') : t('dashboard.amigo_reserve_affected')}
-                  </p>
-                </div>
-              </div>
+              {amigoV2.kind === 'over_pace' && amigoV2.reserveStartDate && (
+                <p className="text-xs font-bold text-warning mt-2">
+                  {t('dashboard.amigo_reserve_date', {
+                    date: formatDate(amigoV2.reserveStartDate, "d 'de' MMMM"),
+                  })}
+                </p>
+              )}
               <button
-                onClick={() =>
-                  navigate(
-                    `/simulator?amount=${fromCents(recentBarSpent).toFixed(2)}&source=amigoSincero`,
-                  )
-                }
+                onClick={() => navigate('/impact')}
                 className="btn-press mt-3 px-4 py-2 rounded-lg text-xs font-bold"
                 style={{ background: '#C75B3918', color: 'var(--primary)' }}
               >

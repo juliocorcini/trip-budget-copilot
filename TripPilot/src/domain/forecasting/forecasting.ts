@@ -147,6 +147,107 @@ export function simulateSpend(
   return { canSpend, risk, freeAfterCents, percentOfRemaining, message };
 }
 
+/* ──────────── DEC-094 (R-12): multi-metric simulation ──────────── */
+
+export type SimulatorVerdict = 'ok' | 'attention' | 'risk';
+
+export interface PlanImpact {
+  profileId: string;
+  profileName: string;
+  /** Planned occasions this spend is equivalent to ("≈ 2 bar nights"). */
+  occasionsLost: number;
+}
+
+export interface MultiMetricSimulation {
+  /** Perspective 1 — of the total available (existing math). */
+  total: SimulatorResult;
+  /** Perspective 2 — equivalence in days of the daily allowance. */
+  allowanceDays: number | null;
+  dailyAllowanceCents: number | null;
+  /** Perspective 3 — which planned occasions shrink. */
+  planImpacts: PlanImpact[];
+  /** The WORST of the three perspectives sets the tone. */
+  verdict: SimulatorVerdict;
+}
+
+const VERDICT_RANK: Record<SimulatorVerdict, number> = { ok: 0, attention: 1, risk: 2 };
+
+function totalVerdict(result: SimulatorResult): SimulatorVerdict {
+  if (result.risk === 'low') return 'ok';
+  if (result.risk === 'medium') return 'attention';
+  return 'risk';
+}
+
+function allowanceVerdict(days: number | null): SimulatorVerdict {
+  if (days === null || days <= 1) return 'ok';
+  if (days <= 3) return 'attention';
+  return 'risk';
+}
+
+function planVerdict(impacts: PlanImpact[]): SimulatorVerdict {
+  const lost = impacts.reduce((sum, i) => sum + i.occasionsLost, 0);
+  if (lost === 0) return 'ok';
+  if (lost === 1) return 'attention';
+  return 'risk';
+}
+
+export interface SimulateMultiMetricInput {
+  amountCents: number;
+  freeToSpendCents: number;
+  /** Today's allowance from the R-06 engine (null when unavailable). */
+  todayAllowanceCents: number | null;
+  /** Planned occasions still remaining, with their typical cost. */
+  remainingOccasions: Array<{
+    profileId: string;
+    profileName: string;
+    remaining: number;
+    typicalValueCents: number;
+  }>;
+}
+
+/**
+ * "'Posso gastar?' é diferente de 'tenho dinheiro?'" — €20 with a €5/day
+ * allowance is 4 days of budget even when it is only 4% of the total.
+ */
+export function simulateSpendMultiMetric(
+  input: SimulateMultiMetricInput,
+): MultiMetricSimulation {
+  const total = simulateSpend(input.freeToSpendCents, input.amountCents);
+
+  const allowanceDays =
+    input.todayAllowanceCents !== null && input.todayAllowanceCents > 0
+      ? Math.round((input.amountCents / input.todayAllowanceCents) * 10) / 10
+      : null;
+
+  const planImpacts: PlanImpact[] = input.remainingOccasions
+    .filter((o) => o.remaining > 0 && o.typicalValueCents > 0)
+    .map((o) => ({
+      profileId: o.profileId,
+      profileName: o.profileName,
+      occasionsLost: Math.min(o.remaining, Math.floor(input.amountCents / o.typicalValueCents)),
+    }))
+    .filter((i) => i.occasionsLost > 0)
+    .sort((a, b) => b.occasionsLost - a.occasionsLost)
+    .slice(0, 2);
+
+  const verdicts: SimulatorVerdict[] = [
+    totalVerdict(total),
+    allowanceVerdict(allowanceDays),
+    planVerdict(planImpacts),
+  ];
+  const verdict = verdicts.reduce((worst, v) =>
+    VERDICT_RANK[v] > VERDICT_RANK[worst] ? v : worst,
+  );
+
+  return {
+    total,
+    allowanceDays,
+    dailyAllowanceCents: input.todayAllowanceCents,
+    planImpacts,
+    verdict,
+  };
+}
+
 export function calculateScenarioCost(items: ScenarioAllocationItem[]): number {
   return sumCents(
     items

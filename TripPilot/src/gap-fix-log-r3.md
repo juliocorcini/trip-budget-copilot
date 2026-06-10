@@ -1,10 +1,10 @@
 # Gap Fix Log R3 — TripPilot
 
 ## Current State
-- **Gate ativo**: Gate 3 (Amigo Sincero v2 + simulador)
-- **Requisito ativo**: R-11
-- **Itens resolvidos**: 10/26
-- **Testes**: 246 unit (+18) + 29 e2e
+- **Gate ativo**: Gate 4 (taxonomia de subcategorias)
+- **Requisito ativo**: R-13
+- **Itens resolvidos**: 12/26
+- **Testes**: 255 unit (+27) + 29 e2e
 - **Build/Typecheck**: clean
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`; NUNCA criar Dexie v4 sem necessidade real de índice
 
@@ -30,8 +30,9 @@
 - [x] R-10 — `calculateLastOutingSavings` (budget.ts): última saída encerrada ≤7d com perfil de typical confiável; copy nova `savings_last_outing` cita a saída, o gasto, a economia E a referência (€Z normal); % sem base eliminado. 5 testes
 
 ### Gate 3 — Amigo Sincero v2 + simulador (R-11..12)
-- [ ] R-11 — Amigo Sincero baseado no plano + ImpactDetail
-- [ ] R-12 — Simulador multi-métrica
+- [x] R-11 — Root cause: `generateAmigoSinceroInsight` fazia saldo ÷ typical (sem plano). Novo `domain/budget/honest-friend.ts`: `buildHonestFriendV2` compara plano da categoria do último gasto perfilado (planejado vs feito vs quantos ainda cabem no livre) → kinds `on_plan`/`over_pace`/`no_plan`; `projectReserveStartDate` projeta a data em que a reserva começa a ser usada no ritmo atual. Card do Dashboard reescrito (3 mensagens por kind + data de reserva); "Ver impacto completo" → nova rota `/impact` (`ImpactDetailPage`: gasto-gatilho, planejado vs gasto por categoria, projeção fim de fase, risco de reserva, CTA Planner) — NÃO abre mais o simulador. `generateAmigoSinceroInsight` + `calculateSavings` (deprecadas) removidas com seus testes. 7 testes novos
+- [x] R-12 — `simulateSpendMultiMetric` (forecasting.ts): 3 perspectivas — total (simulateSpend reaproveitado), dia a dia (valor ÷ allowance de hoje do motor R-06 = dias equivalentes) e plano (ocasiões planejadas restantes que deixam de caber); veredito = pior das 3 (`ok`/`attention`/`risk`). SimulatorPage reescrita: veredito + 3 cards de métrica; chaves `risk_*`/`after`/`percent_used` substituídas por `verdict_*`/`exceeded`/`metric_*`. 9 testes (cenário Julio incluso)
+- Checkpoint Gate 3: typecheck ✅ · 255 unit ✅ · build ✅ · 29 e2e ✅ · i18n ×3 paridade (550 chaves)
 
 ### Gate 4 — Taxonomia (R-13..18)
 - [ ] R-13 — Catálogo de subcategorias por tipo

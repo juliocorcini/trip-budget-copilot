@@ -169,33 +169,6 @@ export function getBudgetHealthStatus(
   return 'healthy';
 }
 
-export interface SavingsResult {
-  savedCents: number;
-  percentOfBarNight: number;
-  hasSavings: boolean;
-}
-
-export function calculateSavings(
-  transactions: Transaction[],
-  barProfile: { typicalValueCents: number; expectedFrequencyPerPhase: number | null } | null,
-  daysElapsed: number,
-): SavingsResult {
-  if (!barProfile || daysElapsed <= 0) return { savedCents: 0, percentOfBarNight: 0, hasSavings: false };
-
-  const barTxs = transactions.filter(
-    (t) => t.category === 'bar' && t.type === 'expense' && t.deletedAt === null,
-  );
-  const actualBarSpent = sumCents(barTxs.map((t) => t.amountCents));
-  const expectedBarSpent = barTxs.length * barProfile.typicalValueCents;
-
-  const savedCents = Math.max(0, expectedBarSpent - actualBarSpent);
-  const percentOfBarNight = barProfile.typicalValueCents > 0
-    ? Math.round((savedCents / barProfile.typicalValueCents) * 100)
-    : 0;
-
-  return { savedCents, percentOfBarNight, hasSavings: savedCents > 0 };
-}
-
 /* ──────────────── DEC-092 (R-10): contextual last-outing savings ──────────────── */
 
 /** Only outings closed within this window count as "recent". */
@@ -256,39 +229,6 @@ export function calculateLastOutingSavings(
     spentCents,
     savedCents,
     typicalCents: profile.typicalValueCents,
-  };
-}
-
-export interface AmigoSinceroInsight {
-  hasInsight: boolean;
-  beforeCount: number;
-  afterCount: number;
-  category: string;
-  reserveStatus: 'intact' | 'affected';
-}
-
-export function generateAmigoSinceroInsight(
-  freeToSpendCents: number,
-  _protectedReserveCents: number,
-  profile: { typicalValueCents: number; category: string } | null,
-  recentSpendCents: number,
-): AmigoSinceroInsight {
-  if (!profile || profile.typicalValueCents <= 0) {
-    return { hasInsight: false, beforeCount: 0, afterCount: 0, category: 'other', reserveStatus: 'intact' };
-  }
-
-  const beforeCount = Math.floor(freeToSpendCents / profile.typicalValueCents);
-  const afterCount = Math.floor(
-    Math.max(0, freeToSpendCents - recentSpendCents) / profile.typicalValueCents,
-  );
-  const reserveAffected = freeToSpendCents - recentSpendCents < 0;
-
-  return {
-    hasInsight: beforeCount !== afterCount && beforeCount > 0,
-    beforeCount,
-    afterCount,
-    category: profile.category,
-    reserveStatus: reserveAffected ? 'affected' : 'intact',
   };
 }
 

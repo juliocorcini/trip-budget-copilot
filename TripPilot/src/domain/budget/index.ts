@@ -8,21 +8,19 @@ export {
   calculateTotalBudget,
   calculateTotalSpent,
   getBudgetHealthStatus,
-  calculateSavings,
   calculateLastOutingSavings,
   RECENT_OUTING_WINDOW_MS,
-  generateAmigoSinceroInsight,
   createBudgetPool,
   createBudgetPoolPhaseLink,
   getAvailablePoolsForPhase,
   createEnvelope,
 } from './budget';
+export { buildHonestFriendV2, projectReserveStartDate } from './honest-friend';
+export type { HonestFriendV2, HonestFriendV2Input } from './honest-friend';
 export type {
   FreeToSpendResult,
   PoolSummary,
-  SavingsResult,
   LastOutingSavings,
-  AmigoSinceroInsight,
   CreateBudgetPoolInput,
   AvailablePools,
   CreateEnvelopeInput,

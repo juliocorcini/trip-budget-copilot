@@ -43,13 +43,6 @@
     "active_outing_spent": "{{amount}} gastos",
     "active_outing_open": "Abrir",
     "amigo_sincero": "Amigo sincero",
-    "amigo_before": "ANTES",
-    "amigo_after": "DEPOIS",
-    "amigo_outings": "saídas",
-    "amigo_reserve": "RESERVA",
-    "amigo_reserve_intact": "Intacta",
-    "amigo_reserve_affected": "Afetada",
-    "amigo_message": "Com os gastos recentes, suas saídas de {{type}} caíram de {{before}} para {{after}}.",
     "amigo_see_impact": "Ver impacto completo",
     "session_drinks_left": "{{count}} bebidas até o teto",
     "pending_confirmation": "{{count}} divisões aguardando confirmação",
@@ -87,7 +80,11 @@
     "detail_planned_daily": "Média diária planejada",
     "detail_rhythm_explainer": "A média real divide o gasto da fase pelos dias decorridos; a planejada divide o orçamento da fase pelo total de dias.",
     "detail_streak_days": "Dias sem gastar",
-    "detail_streak_explainer": "Contamos os dias consecutivos sem nenhum gasto registrado na fase, terminando hoje."
+    "detail_streak_explainer": "Contamos os dias consecutivos sem nenhum gasto registrado na fase, terminando hoje.",
+    "amigo_over_pace": "Você planejou {{planned}} {{type}} este mês. No ritmo atual, cabem só {{fit}} dos {{remaining}} que faltam dentro do plano.",
+    "amigo_on_plan": "Seus gastos com {{type}} estão dentro do plano: {{done}} de {{planned}} ocasiões usadas.",
+    "amigo_no_plan": "Esse gasto com {{type}} usou {{percent}}% do que sobra livre. Não há plano para essa categoria.",
+    "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}."
   },
   "expenses": {
     "title": "Gastos",
@@ -505,12 +502,18 @@
     "title": "Simulador",
     "available": "Disponível agora",
     "how_much": "Quanto quer gastar?",
-    "risk_low": "Tranquilo!",
-    "risk_medium": "Dá, mas pense.",
-    "risk_high": "Arriscado.",
-    "risk_critical": "Estoura o orçamento.",
-    "after": "Depois: {{amount}} restantes",
-    "percent_used": "{{percent}}% do disponível"
+    "verdict_ok": "Tranquilo!",
+    "verdict_attention": "Dá, mas pense.",
+    "verdict_risk": "Arriscado.",
+    "exceeded": "Estoura o orçamento.",
+    "metric_total_label": "Do total",
+    "metric_total_text": "Sobrariam {{after}} livres ({{percent}}% do disponível usado)",
+    "metric_daily_label": "Do dia a dia",
+    "metric_daily_days": "{{amount}} equivale a {{days}} dias do seu livre diário ({{daily}}/dia)",
+    "metric_daily_none": "Sem livre diário calculado para hoje",
+    "metric_plan_label": "Do plano",
+    "metric_plan_item": "≈ {{count}} {{name}} a menos",
+    "metric_plan_none": "Nenhuma ocasião planejada seria afetada"
   },
   "shared": {
     "owner_tag": "Eu",
@@ -591,5 +594,17 @@
     "backup_due": "Backup atrasado — toque para exportar seus dados",
     "long_outing": "A saída \"{{name}}\" está ativa há {{hours}}h — esqueceu de encerrar?",
     "phase_over_budget": "A fase estourou o orçamento em {{amount}}"
+  },
+  "impact": {
+    "title": "Impacto completo",
+    "trigger": "Gasto que gerou o alerta",
+    "planned_vs_actual": "Planejado vs. gasto",
+    "no_plan_data": "Sem plano ativo para esta fase.",
+    "occasions_done": "{{done}} de {{planned}} ocasiões",
+    "of_budget": "de {{budget}}",
+    "projection": "Projeção até o fim da fase",
+    "reserve_risk_date": "No ritmo atual, a reserva começa a ser usada em {{date}}.",
+    "reserve_safe": "Reserva intacta no ritmo atual.",
+    "adjust_plan": "Ajustar plano no Planner"
   }
 }

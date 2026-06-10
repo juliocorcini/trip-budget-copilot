@@ -3,6 +3,7 @@ export {
   calculateOccasionForecasts,
   orderForecastsByUsage,
   simulateSpend,
+  simulateSpendMultiMetric,
   calculateScenarioCost,
 } from './forecasting';
 export type {
@@ -10,4 +11,8 @@ export type {
   OccasionForecast,
   SimulatorResult,
   SimulatorRisk,
+  SimulatorVerdict,
+  PlanImpact,
+  MultiMetricSimulation,
+  SimulateMultiMetricInput,
 } from './forecasting';

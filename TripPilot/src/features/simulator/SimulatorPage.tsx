@@ -1,13 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { findActivePhase } from '@/domain/dates';
+import { findActivePhase, localDateString } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
-import { filterTransactionsByPool } from '@/domain/transactions';
-import { simulateSpend } from '@/domain/forecasting';
+import { filterTransactionsByPool, calculateSpentOnDate } from '@/domain/transactions';
+import { calculateTodayFreeBudget } from '@/domain/phases';
+import {
+  simulateSpendMultiMetric,
+  calculateOccasionForecasts,
+  type SimulatorVerdict,
+} from '@/domain/forecasting';
+import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { toCents, formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
+import {
+  activityProfileRepository,
+  scenarioPlanRepository,
+  scenarioAllocationItemRepository,
+  phaseProfileSettingRepository,
+} from '@/data/repositories';
+
+interface RemainingOccasion {
+  profileId: string;
+  profileName: string;
+  remaining: number;
+  typicalValueCents: number;
+}
+
+const VERDICT_STYLE: Record<SimulatorVerdict, { icon: string; className: string }> = {
+  ok: { icon: 'check_circle', className: 'text-success' },
+  attention: { icon: 'error', className: 'text-warning' },
+  risk: { icon: 'warning', className: 'text-error' },
+};
 
 export function SimulatorPage() {
   const { t } = useTranslation();
@@ -15,16 +40,57 @@ export function SimulatorPage() {
   const [searchParams] = useSearchParams();
   const { trip, phases, pools, links, envelopes, transactions, occurrences } = useAppData();
 
-  // Pre-filled when arriving from the Amigo Sincero card (DEC-050).
   const [amount, setAmount] = useState(() => {
     const prefill = searchParams.get('amount');
     if (!prefill) return '';
     const parsed = parseFloat(prefill);
     return Number.isNaN(parsed) || parsed <= 0 ? '' : String(parsed);
   });
+  const [remainingOccasions, setRemainingOccasions] = useState<RemainingOccasion[]>([]);
 
   const activePhase = findActivePhase(phases);
   const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+
+  // DEC-094 (R-12): the plan perspective needs the remaining planned occasions.
+  useEffect(() => {
+    if (!trip || !activePhase || !primaryPool) return;
+    let cancelled = false;
+    const load = async () => {
+      const [profiles, plan, settings] = await Promise.all([
+        activityProfileRepository.getByTripId(trip.id),
+        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, activePhase.id, primaryPool.id),
+        phaseProfileSettingRepository.getByPhaseId(activePhase.id),
+      ]);
+      const allocations = plan
+        ? await scenarioAllocationItemRepository.getByPlanId(plan.id)
+        : [];
+      if (cancelled) return;
+      const enabled = profiles.filter((p) =>
+        isProfileEnabledInPhase(settings, activePhase.id, p.id),
+      );
+      const forecasts = calculateOccasionForecasts(
+        enabled,
+        allocations,
+        transactions,
+        activePhase.id,
+      );
+      setRemainingOccasions(
+        forecasts
+          .filter((f) => f.remaining > 0)
+          .map((f) => ({
+            profileId: f.profileId,
+            profileName: f.profileName,
+            remaining: f.remaining,
+            typicalValueCents:
+              enabled.find((p) => p.id === f.profileId)?.typicalValueCents ?? 0,
+          })),
+      );
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [trip, activePhase, primaryPool, transactions]);
 
   const fts = primaryPool && activePhase
     ? calculateFreeToSpend(
@@ -37,20 +103,38 @@ export function SimulatorPage() {
       )
     : null;
 
+  // DEC-088/DEC-094: the day perspective uses today's allowance (R-06 engine).
+  const todayIso = localDateString(new Date());
+  const todayBudget =
+    fts && activePhase
+      ? calculateTodayFreeBudget(
+          fts.freeToSpendCents,
+          primaryPool
+            ? calculateSpentOnDate(filterTransactionsByPool(transactions, primaryPool.id), todayIso)
+            : 0,
+          activePhase,
+          todayIso,
+        )
+      : null;
+
   const amountCents = amount ? toCents(parseFloat(amount) || 0) : 0;
-  const result = fts && amountCents > 0 ? simulateSpend(fts.freeToSpendCents, amountCents) : null;
+  const result =
+    fts && amountCents > 0
+      ? simulateSpendMultiMetric({
+          amountCents,
+          freeToSpendCents: fts.freeToSpendCents,
+          todayAllowanceCents:
+            todayBudget && todayBudget.todayAllowanceCents > 0
+              ? todayBudget.todayAllowanceCents
+              : null,
+          remainingOccasions,
+        })
+      : null;
 
   if (!trip) return null;
 
-  const riskColors = {
-    low: 'text-success',
-    medium: 'text-warning',
-    high: 'text-error',
-    critical: 'text-error',
-  };
-
   return (
-    <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 pt-2 min-h-screen px-5">
+    <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 pt-2 min-h-screen px-[var(--page-padding-x)]">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
@@ -85,23 +169,103 @@ export function SimulatorPage() {
       </div>
 
       {result && (
-        <div className="bg-surface-container rounded-xl p-5 text-center">
-          <Icon
-            name={result.canSpend ? 'check_circle' : 'cancel'}
-            size={48}
-            className={`mx-auto mb-2 ${result.canSpend ? 'text-success' : 'text-error'}`}
+        <>
+          {/* Verdict — the worst of the 3 perspectives sets the tone */}
+          <div className="bg-surface-container rounded-xl p-5 text-center">
+            <Icon
+              name={result.total.canSpend ? VERDICT_STYLE[result.verdict].icon : 'cancel'}
+              size={48}
+              className={`mx-auto mb-2 ${
+                result.total.canSpend ? VERDICT_STYLE[result.verdict].className : 'text-error'
+              }`}
+            />
+            <p
+              className={`text-lg font-bold ${
+                result.total.canSpend ? VERDICT_STYLE[result.verdict].className : 'text-error'
+              }`}
+            >
+              {result.total.canSpend
+                ? t(`simulator.verdict_${result.verdict}`)
+                : t('simulator.exceeded')}
+            </p>
+          </div>
+
+          {/* Perspective 1 — of the total */}
+          <MetricCard
+            icon="account_balance_wallet"
+            label={t('simulator.metric_total_label')}
+            text={t('simulator.metric_total_text', {
+              after: formatMoney(Math.max(0, result.total.freeAfterCents), trip.baseCurrency),
+              percent: result.total.percentOfRemaining,
+            })}
           />
-          <p className={`text-lg font-bold ${riskColors[result.risk]}`}>
-            {t(`simulator.risk_${result.risk}`)}
-          </p>
-          <p className="text-sm text-on-surface-dim mt-2">
-            {t('simulator.after', { amount: formatMoney(Math.max(0, result.freeAfterCents), trip.baseCurrency) })}
-          </p>
-          <p className="text-xs text-on-surface-faint mt-1">
-            {t('simulator.percent_used', { percent: result.percentOfRemaining })}
-          </p>
-        </div>
+
+          {/* Perspective 2 — of the day-to-day */}
+          <MetricCard
+            icon="today"
+            label={t('simulator.metric_daily_label')}
+            text={
+              result.allowanceDays !== null && result.dailyAllowanceCents !== null
+                ? t('simulator.metric_daily_days', {
+                    amount: formatMoney(amountCents, trip.baseCurrency),
+                    days: result.allowanceDays,
+                    daily: formatMoney(result.dailyAllowanceCents, trip.baseCurrency),
+                  })
+                : t('simulator.metric_daily_none')
+            }
+            highlight={result.allowanceDays !== null && result.allowanceDays > 3}
+          />
+
+          {/* Perspective 3 — of the plan */}
+          <MetricCard
+            icon="event_note"
+            label={t('simulator.metric_plan_label')}
+            text={
+              result.planImpacts.length > 0
+                ? result.planImpacts
+                    .map((impact) =>
+                      t('simulator.metric_plan_item', {
+                        count: impact.occasionsLost,
+                        name: impact.profileName.toLowerCase(),
+                      }),
+                    )
+                    .join(' · ')
+                : t('simulator.metric_plan_none')
+            }
+            highlight={result.planImpacts.reduce((sum, i) => sum + i.occasionsLost, 0) >= 2}
+          />
+        </>
       )}
+    </div>
+  );
+}
+
+function MetricCard({
+  icon,
+  label,
+  text,
+  highlight,
+}: {
+  icon: string;
+  label: string;
+  text: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="bg-surface-container rounded-xl p-4 flex items-start gap-3">
+      <Icon name={icon} size={18} className={highlight ? 'text-warning' : 'text-primary'} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+          {label}
+        </p>
+        <p
+          className={`text-[13px] font-semibold leading-snug mt-1 ${
+            highlight ? 'text-warning' : 'text-on-surface'
+          }`}
+        >
+          {text}
+        </p>
+      </div>
     </div>
   );
 }

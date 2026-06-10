@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   updateProfileFromTransaction,
   simulateSpend,
+  simulateSpendMultiMetric,
   calculateScenarioCost,
   calculateOccasionForecasts,
 } from '@/domain/forecasting';
@@ -72,6 +73,62 @@ describe('simulateSpend', () => {
   it('returns medium risk for moderate spend', () => {
     const result = simulateSpend(10000, 3000);
     expect(result.risk).toBe('medium');
+  });
+});
+
+describe('simulateSpendMultiMetric (DEC-094 / R-12)', () => {
+  it('Julio scenario: €20 is only 4% of total BUT 4 days of a €5/day allowance → risk', () => {
+    const result = simulateSpendMultiMetric({
+      amountCents: 2_000,
+      freeToSpendCents: 54_500, // "sobra €525, 4% do disponível"
+      todayAllowanceCents: 500,
+      remainingOccasions: [],
+    });
+    expect(result.total.risk).toBe('low'); // perspective 1 alone says "fine"
+    expect(result.allowanceDays).toBe(4); // perspective 2: 4 days of budget
+    expect(result.verdict).toBe('risk'); // the worst perspective wins
+  });
+
+  it('plan perspective: €20 ≈ 2 bar nights of €9 (capped at remaining)', () => {
+    const result = simulateSpendMultiMetric({
+      amountCents: 2_000,
+      freeToSpendCents: 100_000,
+      todayAllowanceCents: 5_000,
+      remainingOccasions: [
+        { profileId: 'bar', profileName: 'Bar', remaining: 6, typicalValueCents: 900 },
+        { profileId: 'museum', profileName: 'Museu', remaining: 1, typicalValueCents: 1_500 },
+      ],
+    });
+    const bar = result.planImpacts.find((i) => i.profileId === 'bar')!;
+    expect(bar.occasionsLost).toBe(2);
+    const museum = result.planImpacts.find((i) => i.profileId === 'museum')!;
+    expect(museum.occasionsLost).toBe(1);
+    expect(result.verdict).toBe('risk'); // 3 occasions lost in total
+  });
+
+  it('small spend on every perspective → ok', () => {
+    const result = simulateSpendMultiMetric({
+      amountCents: 300,
+      freeToSpendCents: 50_000,
+      todayAllowanceCents: 500,
+      remainingOccasions: [
+        { profileId: 'bar', profileName: 'Bar', remaining: 6, typicalValueCents: 900 },
+      ],
+    });
+    expect(result.allowanceDays).toBe(0.6);
+    expect(result.planImpacts).toEqual([]);
+    expect(result.verdict).toBe('ok');
+  });
+
+  it('without allowance data the day perspective stays neutral', () => {
+    const result = simulateSpendMultiMetric({
+      amountCents: 2_000,
+      freeToSpendCents: 50_000,
+      todayAllowanceCents: null,
+      remainingOccasions: [],
+    });
+    expect(result.allowanceDays).toBeNull();
+    expect(result.verdict).toBe('ok');
   });
 });
 
