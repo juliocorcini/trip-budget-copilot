@@ -23,6 +23,7 @@ const FundsPage = lazy(() => import('@/features/funds/FundsPage').then(m => ({ d
 const ProfilesPage = lazy(() => import('@/features/profiles/ProfilesPage').then(m => ({ default: m.ProfilesPage })));
 const ExpenseDetailPage = lazy(() => import('@/features/expenses/ExpenseDetailPage').then(m => ({ default: m.ExpenseDetailPage })));
 const AboutPage = lazy(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
+const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 
 function LoadingFallback() {
   return (
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
           { path: '/funds', element: <LazyRoute><FundsPage /></LazyRoute> },
           { path: '/profiles', element: <LazyRoute><ProfilesPage /></LazyRoute> },
           { path: '/about', element: <LazyRoute><AboutPage /></LazyRoute> },
+          { path: '/notifications', element: <LazyRoute><NotificationsPage /></LazyRoute> },
         ],
       },
       { path: '/', element: <LazyRoute><WelcomePage /></LazyRoute> },

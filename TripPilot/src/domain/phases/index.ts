@@ -5,5 +5,6 @@ export {
   getDaySpendingWeight,
   calculateEffectiveSpendingDays,
   calculateFreeToSpendPerDay,
+  calculateTodayFreeBudget,
 } from './rhythm';
-export type { FreeToSpendPerDay } from './rhythm';
+export type { FreeToSpendPerDay, TodayFreeBudget } from './rhythm';

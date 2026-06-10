@@ -96,7 +96,17 @@ function buildPhaseProjection(input: BuildInsightsInput): DashboardInsight | nul
   return {
     kind: 'phase_projection',
     tone: diffCents > 0 ? 'warning' : 'positive',
-    values: { projectedCents, diffCents: Math.abs(diffCents), over: diffCents > 0 ? 1 : 0 },
+    values: {
+      projectedCents,
+      diffCents: Math.abs(diffCents),
+      over: diffCents > 0 ? 1 : 0,
+      // DEC-091 (R-09): extra values feeding the "how we got here" detail.
+      spentCents,
+      budgetCents: input.phaseBudgetCents,
+      perDayCents: Math.round(perEffectiveDayCents),
+      daysElapsed: elapsed,
+      daysRemaining: Math.round(remainingEffective),
+    },
   };
 }
 
@@ -200,6 +210,8 @@ function buildNextEvent(input: BuildInsightsInput): DashboardInsight | null {
       days: daysUntil,
       reservedCents: next.reservedCents ?? 0,
       hasReserve: next.reservedCents !== null && next.reservedCents > 0 ? 1 : 0,
+      // DEC-091 (R-09): tap opens THIS event's editor.
+      occurrenceId: next.id,
     },
   };
 }

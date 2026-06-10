@@ -4,6 +4,7 @@ import {
   getDaySpendingWeight,
   calculateEffectiveSpendingDays,
   calculateFreeToSpendPerDay,
+  calculateTodayFreeBudget,
 } from '@/domain/phases';
 import type { Phase, PhaseRhythmPreset } from '@/domain/types/phase';
 
@@ -78,5 +79,57 @@ describe('phase rhythm (DEC-075 / FIELD-02)', () => {
   it('returns 0 effective days after the phase ends', () => {
     const phase = mkPhase('moderate', [5, 6]);
     expect(calculateEffectiveSpendingDays(phase, '2026-06-15')).toBe(0);
+  });
+});
+
+describe('calculateTodayFreeBudget (DEC-088 / R-06)', () => {
+  it('Julio scenario: €6,00 allowance − €2,00 spent = €4,00 free today', () => {
+    // Uniform 7-day phase starting today: allowance = start-of-day free / 7.
+    const phase = mkPhase(null, null);
+    // Start of day: €42 free → allowance €6/day. After spending €2 the
+    // CURRENT free-to-spend is €40 and today's spending is €2.
+    const result = calculateTodayFreeBudget(4_000, 200, phase, '2026-06-08');
+
+    expect(result.todayAllowanceCents).toBe(600); // (4000+200)/7
+    expect(result.todaySpentCents).toBe(200);
+    expect(result.freeTodayCents).toBe(400); // 6,00 − 2,00 = 4,00 — NOT 5,99
+  });
+
+  it('registering an expense drops "free today" by EXACTLY its value', () => {
+    const phase = mkPhase(null, null);
+    const before = calculateTodayFreeBudget(4_200, 0, phase, '2026-06-08');
+    const after = calculateTodayFreeBudget(4_200 - 200, 200, phase, '2026-06-08');
+
+    expect(before.freeTodayCents - after.freeTodayCents).toBe(200);
+    expect(before.todayAllowanceCents).toBe(after.todayAllowanceCents);
+  });
+
+  it('overspending the allowance goes negative (not clamped to 0)', () => {
+    const phase = mkPhase(null, null);
+    const result = calculateTodayFreeBudget(3_400, 800, phase, '2026-06-08');
+    expect(result.todayAllowanceCents).toBe(600);
+    expect(result.freeTodayCents).toBe(-200);
+  });
+
+  it('peak day weighting applies to the day-start budget', () => {
+    const phase = mkPhase('moderate', [5, 6]);
+    // Saturday 2026-06-13: remaining Sat(1.5)+Sun(0.8)=2.3 effective days.
+    const result = calculateTodayFreeBudget(6_700, 200, phase, '2026-06-13');
+    expect(result.isPeakDay).toBe(true);
+    expect(result.todayAllowanceCents).toBe(Math.round((6_900 * 1.5) / 2.3));
+    expect(result.freeTodayCents).toBe(result.todayAllowanceCents - 200);
+  });
+
+  it('secondary metric: recalculated daily average until phase end', () => {
+    const phase = mkPhase(null, null);
+    const result = calculateTodayFreeBudget(3_500, 200, phase, '2026-06-08');
+    expect(result.avgDailyUntilEndCents).toBe(500); // 3500/7 — the OLD metric
+  });
+
+  it('phase ended → allowance equals whatever is left', () => {
+    const phase = mkPhase(null, null);
+    const result = calculateTodayFreeBudget(1_000, 0, phase, '2026-06-15');
+    expect(result.todayAllowanceCents).toBe(1_000);
+    expect(result.freeTodayCents).toBe(1_000);
   });
 });

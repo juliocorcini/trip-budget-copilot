@@ -187,6 +187,24 @@ export function getRecentTransactions(
     .slice(0, limit);
 }
 
+/**
+ * DEC-088 (R-06): budget impact of a single local day ("YYYY-MM-DD") —
+ * personal cost when available, same rule as calculatePoolSpent.
+ */
+export function calculateSpentOnDate(
+  transactions: Transaction[],
+  dateIso: string,
+): number {
+  return transactions
+    .filter(
+      (t) =>
+        t.deletedAt === null &&
+        (t.type === 'expense' || t.type === 'adjustment') &&
+        t.date.slice(0, 10) === dateIso,
+    )
+    .reduce((sum, t) => sum + (t.personalCostCents ?? t.amountCents), 0);
+}
+
 export function groupTransactionsByCategory(
   transactions: Transaction[],
 ): Record<string, Transaction[]> {

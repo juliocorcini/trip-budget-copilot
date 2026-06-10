@@ -23,7 +23,6 @@
   "dashboard": {
     "free_to_spend": "Libre para gastar hasta {{date}}",
     "fund_balance": "Saldo restante del fondo",
-    "reserved_future": "Reservado para agosto",
     "protected_reserve": "Reserva protegida",
     "personal_shopping": "Compras personales",
     "remaining": "restantes",
@@ -40,7 +39,6 @@
     "occasion_market": "idas al supermercado",
     "occasion_restaurant": "restaurantes",
     "pending_impact": "Impacto provisional: {{amount}}",
-    "savings_message": "Preservaste {{amount}} — ¡{{percent}}% de una noche típica de bar!",
     "active_outing": "Salida activa",
     "active_outing_spent": "{{amount}} gastados",
     "active_outing_open": "Abrir",
@@ -72,7 +70,24 @@
     "event_today": "Hoy: {{name}}",
     "event_reserved": "reservado {{amount}}",
     "event_start_now": "Empezar ahora",
-    "event_postpone": "Aplazar"
+    "event_postpone": "Aplazar",
+    "avg_daily_until_end": "Promedio diario hasta el fin de la fase: {{amount}}",
+    "savings_last_outing": "En tu última salida de {{profile}} gastaste {{spent}} — {{saved}} por debajo de lo habitual ({{typical}})",
+    "insight_detail_title": "Cómo llegué a esto",
+    "detail_spent_so_far": "Gastado hasta ahora",
+    "detail_days_elapsed": "Días transcurridos",
+    "detail_daily_pace": "Ritmo por día",
+    "detail_days_remaining": "Días restantes",
+    "detail_projected_total": "Total proyectado",
+    "detail_phase_budget": "Presupuesto de la fase",
+    "detail_over_by": "Por encima del plan en",
+    "detail_under_by": "Por debajo del plan en",
+    "detail_projection_explainer": "La proyección multiplica tu ritmo medio por día (ponderado por el ritmo de la fase) por los días restantes y lo suma a lo ya gastado.",
+    "detail_real_daily": "Promedio diario real",
+    "detail_planned_daily": "Promedio diario planificado",
+    "detail_rhythm_explainer": "El promedio real divide el gasto de la fase entre los días transcurridos; el planificado divide el presupuesto entre el total de días.",
+    "detail_streak_days": "Días sin gastar",
+    "detail_streak_explainer": "Contamos los días consecutivos sin ningún gasto registrado en la fase, terminando hoy."
   },
   "expenses": {
     "title": "Gastos",
@@ -566,5 +581,15 @@
     "laundry": "Lavandería",
     "internet_sim": "Internet y SIM",
     "pharmacy": "Farmacia y salud"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "empty_desc": "Todo al día por aquí.",
+    "pending_share": "{{count}} divisiones esperando tu confirmación · impacto de {{amount}}",
+    "event_today": "Hoy: {{name}} — toca para empezar",
+    "backup_due": "Copia de seguridad atrasada — toca para exportar tus datos",
+    "long_outing": "La salida \"{{name}}\" lleva activa {{hours}}h — ¿olvidaste cerrarla?",
+    "phase_over_budget": "La fase superó el presupuesto en {{amount}}"
   }
 }

@@ -8,5 +8,6 @@ export {
   filterTransactionsByDateRange,
   getRecentTransactions,
   groupTransactionsByCategory,
+  calculateSpentOnDate,
 } from './transactions';
 export type { CreateExpenseInput, CreateTransferInput } from './transactions';

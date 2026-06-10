@@ -11,3 +11,10 @@ export type {
   BuildInsightsInput,
   CreateForecastSnapshotInput,
 } from './insights';
+export { buildNotifications, LONG_OUTING_THRESHOLD_MS } from './notifications';
+export type {
+  AppNotification,
+  AppNotificationKind,
+  AppNotificationTone,
+  BuildNotificationsInput,
+} from './notifications';

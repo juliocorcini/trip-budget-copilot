@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { resolveActivePhase, getDayNumber, getTotalDays, formatDate, localDateString } from '@/domain/dates';
-import { calculateFreeToSpend, createPoolSummary, calculateSavings, generateAmigoSinceroInsight } from '@/domain/budget';
-import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory } from '@/domain/transactions';
+import { calculateFreeToSpend, createPoolSummary, calculateLastOutingSavings, generateAmigoSinceroInsight } from '@/domain/budget';
+import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory, calculateSpentOnDate } from '@/domain/transactions';
 import { formatMoney, fromCents, sumCents } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
+import { useNotifications } from '@/hooks/useNotifications';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import {
@@ -20,7 +21,7 @@ import {
   plannedOccurrenceRepository,
 } from '@/data/repositories';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
-import { calculateFreeToSpendPerDay } from '@/domain/phases';
+import { calculateTodayFreeBudget } from '@/domain/phases';
 import { calculatePoolSpent } from '@/domain/budget';
 import { isOccurrenceActiveToday, postponeOccurrence } from '@/domain/planning';
 import {
@@ -136,6 +137,9 @@ export function DashboardPage() {
   const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, loading, settings, reload } = useAppData();
   const navigate = useNavigate();
   const scrolled = useScrolled();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // DEC-090 (R-08): bell badge = active derived notifications.
+  const { notifications } = useNotifications();
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
@@ -147,9 +151,11 @@ export function DashboardPage() {
   const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
   const [shareDrafts, setShareDrafts] = useState<Record<string, string>>({});
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
-  // DEC-077 (FIELD-07): rotating insight + DEC-076 carousel page.
+  // DEC-091 (R-09): swipe carousel of insights + tap-to-detail sheet.
   const [insightIndex, setInsightIndex] = useState(0);
+  const [detailInsight, setDetailInsight] = useState<DashboardInsight | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
+  const insightScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!trip) return;
@@ -198,6 +204,14 @@ export function DashboardPage() {
   }, [trip, transactions, participants]);
 
   const owner = participants.find((p) => p.isOwner) ?? null;
+
+  // DEC-090 (R-08): the notifications center deep-links into the confirm sheet.
+  useEffect(() => {
+    if (searchParams.get('confirmShares') && pendingShares.length > 0) {
+      setConfirmSheetOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, pendingShares]);
 
   const handleResolveShare = async (shareId: string, status: 'confirmed' | 'rejected') => {
     if (!owner) return;
@@ -382,8 +396,23 @@ export function DashboardPage() {
           occurrences,
         })
       : [];
-  const currentInsight: DashboardInsight | null =
-    insights.length > 0 ? insights[Math.min(insightIndex, insights.length - 1)]! : null;
+  // DEC-091 (R-09): tap opens the CONTENT of each insight — calculation
+  // detail for projections, the right screen for the others.
+  const handleInsightTap = (insight: DashboardInsight) => {
+    switch (insight.kind) {
+      case 'avg_outing_cost':
+        navigate('/expenses?tab=outings');
+        return;
+      case 'participant_balance':
+        navigate('/shared');
+        return;
+      case 'next_event':
+        navigate(`/trip/edit?occurrence=${insight.values.occurrenceId}`);
+        return;
+      default:
+        setDetailInsight(insight);
+    }
+  };
 
   // Global pools (e.g. personal shopping) are detected by scope, not by name (GAP-017).
   const globalPools = pools.filter((p) => p.scope === 'global' && p.deletedAt === null);
@@ -398,15 +427,20 @@ export function DashboardPage() {
 
   const heroMoney = fts ? splitMoneyDisplay(fts.freeToSpendCents, trip.baseCurrency) : null;
 
-  // DEC-075 (FIELD-02): weighted free-to-spend for today + peak microcopy.
-  const perDay =
+  // DEC-088 (R-06): subtractive "free to use today" — allowance fixed at day
+  // start minus what was spent today. Spending €2 drops the number by €2.
+  const todaySpentCents = primaryPool
+    ? calculateSpentOnDate(filterTransactionsByPool(transactions, primaryPool.id), todayIso)
+    : 0;
+  const todayBudget =
     fts && activePhase
-      ? calculateFreeToSpendPerDay(fts.freeToSpendCents, activePhase, localDateString(new Date()))
+      ? calculateTodayFreeBudget(fts.freeToSpendCents, todaySpentCents, activePhase, todayIso)
       : null;
 
   const barProfile = profiles.find((p) => p.category === 'bar');
-  const daysElapsed = activePhase ? getDayNumber(activePhase.startDate) : 0;
-  const savings = calculateSavings(transactions, barProfile ?? null, daysElapsed);
+  // DEC-092 (R-10): savings refer to the LAST closed outing, with the typical
+  // value as an explicit reference — never a trip-wide claim.
+  const savings = calculateLastOutingSavings(completedSessions, transactions, profiles, Date.now());
 
   const recentBarSpent = sumCents(
     transactions
@@ -474,11 +508,11 @@ export function DashboardPage() {
               {activePhase.name || trip.name}
             </h1>
           </button>
-          {/* DEC-060 (GAP-024): notification bell navigates to shared expenses */}
+          {/* DEC-090 (R-08): bell opens the notifications center — never /shared */}
           <button
-            onClick={() => navigate('/shared')}
+            onClick={() => navigate('/notifications')}
             className="relative btn-press"
-            aria-label={t('more.participants')}
+            aria-label={t('notifications.title')}
           >
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center"
@@ -486,11 +520,15 @@ export function DashboardPage() {
             >
               <Icon name="notifications" size={20} className="text-primary" />
             </div>
-            {hasPendingExpenses && (
+            {notifications.length > 0 && (
               <div
-                className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full"
+                className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center"
                 style={{ background: 'var(--primary)' }}
-              />
+              >
+                <span className="text-[9px] font-extrabold" style={{ color: 'var(--surface)' }}>
+                  {notifications.length}
+                </span>
+              </div>
             )}
           </button>
         </div>
@@ -587,18 +625,32 @@ export function DashboardPage() {
             {heroMoney.integer}
             <span className="text-xl font-bold text-on-surface-dim">{heroMoney.decimal}</span>
           </p>
-          {perDay && perDay.perDayCents > 0 && (
-            <p
-              className={`text-xs font-bold mt-1.5 ${perDay.isPeakDay ? 'text-warning' : 'text-on-surface-dim'}`}
-            >
-              {perDay.isPeakDay
-                ? t('dashboard.peak_day_free', {
-                    amount: formatMoney(perDay.perDayCents, trip.baseCurrency),
-                  })
-                : t('dashboard.free_per_day', {
-                    amount: formatMoney(perDay.perDayCents, trip.baseCurrency),
-                  })}
-            </p>
+          {todayBudget && todayBudget.todayAllowanceCents > 0 && (
+            <>
+              <p
+                className={`text-xs font-bold mt-1.5 ${
+                  todayBudget.freeTodayCents < 0
+                    ? 'text-error'
+                    : todayBudget.isPeakDay
+                      ? 'text-warning'
+                      : 'text-on-surface-dim'
+                }`}
+              >
+                {todayBudget.isPeakDay
+                  ? t('dashboard.peak_day_free', {
+                      amount: formatMoney(todayBudget.freeTodayCents, trip.baseCurrency),
+                    })
+                  : t('dashboard.free_per_day', {
+                      amount: formatMoney(todayBudget.freeTodayCents, trip.baseCurrency),
+                    })}
+              </p>
+              {/* DEC-088: the recalculated average becomes a secondary, named metric */}
+              <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
+                {t('dashboard.avg_daily_until_end', {
+                  amount: formatMoney(todayBudget.avgDailyUntilEndCents, trip.baseCurrency),
+                })}
+              </p>
+            </>
           )}
           <div
             className="w-full h-2 rounded-full overflow-hidden mt-4"
@@ -619,12 +671,8 @@ export function DashboardPage() {
                 {formatMoney(fts.totalBudgetCents - fts.totalSpentCents, trip.baseCurrency)}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-xs font-semibold text-on-surface-dim">{t('dashboard.reserved_future')}</span>
-              <span className="text-xs font-bold tabular" style={{ color: '#D4A843bb' }}>
-                {formatMoney(fts.futureFloorCents, trip.baseCurrency)}
-              </span>
-            </div>
+            {/* DEC-089 (R-07): "Reservado para [próx. fase]" removed from the hero —
+                each phase has its own fund; future floor stays in Funds/Planner. */}
             <div className="flex justify-between">
               <span className="text-xs font-semibold text-on-surface-dim">{t('dashboard.protected_reserve')}</span>
               <span className="text-xs font-bold tabular text-on-surface-faint">
@@ -721,40 +769,59 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      {/* §7 pos. 7 — ROTATING INSIGHT (DEC-077 / FIELD-07) */}
-      {currentInsight && (
-        <div className="mt-4 p-4 rounded-2xl bg-surface-container">
-          <button
-            onClick={() => setInsightIndex((insightIndex + 1) % insights.length)}
-            className="w-full text-left btn-press flex items-start gap-3"
-            aria-label={t('dashboard.insights_title')}
+      {/* §7 pos. 7 — INSIGHTS (DEC-091 / R-09): swipe switches, tap details */}
+      {insights.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-surface-container pb-1">
+          <div
+            ref={insightScrollRef}
+            className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory"
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              if (el.clientWidth === 0) return;
+              const idx = Math.round(el.scrollLeft / el.clientWidth);
+              if (idx !== insightIndex) setInsightIndex(idx);
+            }}
           >
-            <Icon
-              name={INSIGHT_ICONS[currentInsight.kind]}
-              size={18}
-              className={
-                currentInsight.tone === 'positive'
-                  ? 'text-success'
-                  : currentInsight.tone === 'warning'
-                    ? 'text-warning'
-                    : 'text-primary'
-              }
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
-                {t('dashboard.insights_title')}
-              </p>
-              <p className="text-[13px] font-semibold leading-snug mt-1 text-on-surface">
-                {formatInsightText(currentInsight, t, trip.baseCurrency)}
-              </p>
-            </div>
-          </button>
+            {insights.map((insight) => (
+              <button
+                key={insight.kind}
+                onClick={() => handleInsightTap(insight)}
+                className="w-full shrink-0 snap-center p-4 text-left btn-press flex items-start gap-3"
+              >
+                <Icon
+                  name={INSIGHT_ICONS[insight.kind]}
+                  size={18}
+                  className={
+                    insight.tone === 'positive'
+                      ? 'text-success'
+                      : insight.tone === 'warning'
+                        ? 'text-warning'
+                        : 'text-primary'
+                  }
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                    {t('dashboard.insights_title')}
+                  </p>
+                  <p className="text-[13px] font-semibold leading-snug mt-1 text-on-surface">
+                    {formatInsightText(insight, t, trip.baseCurrency)}
+                  </p>
+                </div>
+                <Icon name="chevron_right" size={14} className="text-on-surface-faint mt-1" />
+              </button>
+            ))}
+          </div>
           {insights.length > 1 && (
-            <div className="flex justify-center gap-1.5 mt-3">
+            <div className="flex justify-center gap-1.5 pb-2">
               {insights.map((insight, i) => (
                 <button
                   key={insight.kind}
-                  onClick={() => setInsightIndex(i)}
+                  onClick={() =>
+                    insightScrollRef.current?.scrollTo({
+                      left: i * insightScrollRef.current.clientWidth,
+                      behavior: 'smooth',
+                    })
+                  }
                   aria-label={`${t('dashboard.insights_title')} ${i + 1}`}
                   className="p-1 btn-press"
                 >
@@ -774,7 +841,7 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* SAVINGS CARD */}
+      {/* SAVINGS CARD — DEC-092 (R-10): cites the specific outing + reference */}
       {savings.hasSavings && (
         <div
           className="mt-3 p-3.5 rounded-2xl flex items-center gap-3"
@@ -782,9 +849,11 @@ export function DashboardPage() {
         >
           <Icon name="trending_up" className="text-success" />
           <p className="text-sm font-semibold text-success">
-            {t('dashboard.savings_message', {
-              amount: formatMoney(savings.savedCents, trip.baseCurrency),
-              percent: savings.percentOfBarNight,
+            {t('dashboard.savings_last_outing', {
+              profile: savings.profileName.toLowerCase(),
+              spent: formatMoney(savings.spentCents, trip.baseCurrency),
+              saved: formatMoney(savings.savedCents, trip.baseCurrency),
+              typical: formatMoney(savings.typicalCents, trip.baseCurrency),
             })}
           </p>
         </div>
@@ -925,6 +994,17 @@ export function DashboardPage() {
         </div>
       </BottomSheet>
 
+      {/* DEC-091 (R-09): "how we got here" — open calculation of the insight */}
+      <BottomSheet
+        open={detailInsight !== null}
+        onClose={() => setDetailInsight(null)}
+        title={t('dashboard.insight_detail_title')}
+      >
+        {detailInsight && (
+          <InsightDetail insight={detailInsight} currency={trip.baseCurrency} />
+        )}
+      </BottomSheet>
+
       {/* GLOBAL POOLS (personal shopping etc. — by scope, GAP-017) */}
       {globalPoolSummaries.map(({ pool, summary }) => (
         <div key={pool.id} className="mt-5 p-4 rounded-2xl bg-surface-container">
@@ -1017,6 +1097,86 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ──────────────── DEC-091 (R-09): insight calculation detail ──────────────── */
+
+function DetailRow({ label, value, accent }: { label: string; value: string; accent?: 'warning' | 'success' }) {
+  return (
+    <div className="flex justify-between items-center py-2 border-b" style={{ borderColor: 'var(--border-hairline)' }}>
+      <span className="text-xs font-semibold text-on-surface-dim">{label}</span>
+      <span
+        className={`text-sm font-bold tabular ${
+          accent === 'warning' ? 'text-warning' : accent === 'success' ? 'text-success' : 'text-on-surface'
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function InsightDetail({ insight, currency }: { insight: DashboardInsight; currency: string }) {
+  const { t } = useTranslation();
+  const v = insight.values;
+
+  if (insight.kind === 'phase_projection') {
+    const over = (v.over as number) === 1;
+    return (
+      <div className="flex flex-col">
+        <p className="text-[13px] font-semibold leading-snug text-on-surface mb-2">
+          {formatInsightText(insight, t, currency)}
+        </p>
+        <DetailRow label={t('dashboard.detail_spent_so_far')} value={formatMoney(v.spentCents as number, currency)} />
+        <DetailRow label={t('dashboard.detail_days_elapsed')} value={String(v.daysElapsed)} />
+        <DetailRow label={t('dashboard.detail_daily_pace')} value={formatMoney(v.perDayCents as number, currency)} />
+        <DetailRow label={t('dashboard.detail_days_remaining')} value={String(v.daysRemaining)} />
+        <DetailRow label={t('dashboard.detail_projected_total')} value={formatMoney(v.projectedCents as number, currency)} />
+        <DetailRow label={t('dashboard.detail_phase_budget')} value={formatMoney(v.budgetCents as number, currency)} />
+        <DetailRow
+          label={t(over ? 'dashboard.detail_over_by' : 'dashboard.detail_under_by')}
+          value={formatMoney(v.diffCents as number, currency)}
+          accent={over ? 'warning' : 'success'}
+        />
+        <p className="text-[11px] text-on-surface-faint mt-3 leading-relaxed">
+          {t('dashboard.detail_projection_explainer')}
+        </p>
+      </div>
+    );
+  }
+
+  if (insight.kind === 'rhythm_compare') {
+    const over = (v.over as number) === 1;
+    return (
+      <div className="flex flex-col">
+        <p className="text-[13px] font-semibold leading-snug text-on-surface mb-2">
+          {formatInsightText(insight, t, currency)}
+        </p>
+        <DetailRow
+          label={t('dashboard.detail_real_daily')}
+          value={formatMoney(v.realDailyCents as number, currency)}
+          accent={over ? 'warning' : 'success'}
+        />
+        <DetailRow label={t('dashboard.detail_planned_daily')} value={formatMoney(v.plannedDailyCents as number, currency)} />
+        <p className="text-[11px] text-on-surface-faint mt-3 leading-relaxed">
+          {t('dashboard.detail_rhythm_explainer')}
+        </p>
+      </div>
+    );
+  }
+
+  // no_spend_streak
+  return (
+    <div className="flex flex-col">
+      <p className="text-[13px] font-semibold leading-snug text-on-surface mb-2">
+        {formatInsightText(insight, t, currency)}
+      </p>
+      <DetailRow label={t('dashboard.detail_streak_days')} value={String(v.days)} accent="success" />
+      <p className="text-[11px] text-on-surface-faint mt-3 leading-relaxed">
+        {t('dashboard.detail_streak_explainer')}
+      </p>
     </div>
   );
 }

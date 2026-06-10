@@ -196,6 +196,69 @@ export function calculateSavings(
   return { savedCents, percentOfBarNight, hasSavings: savedCents > 0 };
 }
 
+/* ──────────────── DEC-092 (R-10): contextual last-outing savings ──────────────── */
+
+/** Only outings closed within this window count as "recent". */
+export const RECENT_OUTING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface LastOutingSavings {
+  hasSavings: boolean;
+  profileName: string;
+  spentCents: number;
+  savedCents: number;
+  typicalCents: number;
+}
+
+const NO_LAST_OUTING_SAVINGS: LastOutingSavings = {
+  hasSavings: false,
+  profileName: '',
+  spentCents: 0,
+  savedCents: 0,
+  typicalCents: 0,
+};
+
+/**
+ * "Na sua última saída de [perfil], você gastou €X — €Y abaixo do seu normal
+ * (€Z)". Requires a RECENT closed outing with a profile whose typical value
+ * is reliable (> 0); the saving is event-specific, never trip-wide.
+ */
+export function calculateLastOutingSavings(
+  completedSessions: Array<{
+    id: string;
+    name: string;
+    activityProfileId: string | null;
+    endedAt: string | null;
+  }>,
+  transactions: Transaction[],
+  profiles: Array<{ id: string; name: string; typicalValueCents: number }>,
+  nowMs: number,
+): LastOutingSavings {
+  const last = completedSessions
+    .filter((s) => s.endedAt !== null && s.activityProfileId !== null)
+    .sort((a, b) => (b.endedAt ?? '').localeCompare(a.endedAt ?? ''))[0];
+  if (!last) return NO_LAST_OUTING_SAVINGS;
+
+  const endedMs = new Date(last.endedAt!).getTime();
+  if (nowMs - endedMs > RECENT_OUTING_WINDOW_MS) return NO_LAST_OUTING_SAVINGS;
+
+  const profile = profiles.find((p) => p.id === last.activityProfileId);
+  if (!profile || profile.typicalValueCents <= 0) return NO_LAST_OUTING_SAVINGS;
+
+  const spentCents = calculatePoolSpent(
+    transactions.filter((tx) => tx.sessionId === last.id),
+  );
+  const savedCents = profile.typicalValueCents - spentCents;
+  if (spentCents <= 0 || savedCents <= 0) return NO_LAST_OUTING_SAVINGS;
+
+  return {
+    hasSavings: true,
+    profileName: profile.name,
+    spentCents,
+    savedCents,
+    typicalCents: profile.typicalValueCents,
+  };
+}
+
 export interface AmigoSinceroInsight {
   hasInsight: boolean;
   beforeCount: number;

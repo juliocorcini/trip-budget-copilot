@@ -23,7 +23,6 @@
   "dashboard": {
     "free_to_spend": "Free to spend until {{date}}",
     "fund_balance": "Remaining fund balance",
-    "reserved_future": "Reserved for August",
     "protected_reserve": "Protected reserve",
     "personal_shopping": "Personal shopping",
     "remaining": "remaining",
@@ -40,7 +39,6 @@
     "occasion_market": "grocery runs",
     "occasion_restaurant": "restaurants",
     "pending_impact": "Provisional impact: {{amount}}",
-    "savings_message": "You preserved {{amount}} — {{percent}}% of a typical bar night!",
     "active_outing": "Active outing",
     "active_outing_spent": "{{amount}} spent",
     "active_outing_open": "Open",
@@ -72,7 +70,24 @@
     "event_today": "Today: {{name}}",
     "event_reserved": "reserved {{amount}}",
     "event_start_now": "Start now",
-    "event_postpone": "Postpone"
+    "event_postpone": "Postpone",
+    "avg_daily_until_end": "Daily average until phase end: {{amount}}",
+    "savings_last_outing": "On your last {{profile}} outing you spent {{spent}} — {{saved}} below your usual ({{typical}})",
+    "insight_detail_title": "How we got here",
+    "detail_spent_so_far": "Spent so far",
+    "detail_days_elapsed": "Days elapsed",
+    "detail_daily_pace": "Pace per day",
+    "detail_days_remaining": "Days remaining",
+    "detail_projected_total": "Projected total",
+    "detail_phase_budget": "Phase budget",
+    "detail_over_by": "Over plan by",
+    "detail_under_by": "Under plan by",
+    "detail_projection_explainer": "The projection multiplies your average daily pace (weighted by the phase rhythm) by the remaining days and adds what you already spent.",
+    "detail_real_daily": "Real daily average",
+    "detail_planned_daily": "Planned daily average",
+    "detail_rhythm_explainer": "The real average divides phase spending by elapsed days; the planned one divides the phase budget by the total days.",
+    "detail_streak_days": "Days without spending",
+    "detail_streak_explainer": "We count consecutive days with no expense recorded in the phase, ending today."
   },
   "expenses": {
     "title": "Expenses",
@@ -566,5 +581,15 @@
     "laundry": "Laundry",
     "internet_sim": "Internet & SIM",
     "pharmacy": "Pharmacy & health"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "empty_desc": "All caught up here.",
+    "pending_share": "{{count}} splits awaiting your confirmation · {{amount}} impact",
+    "event_today": "Today: {{name}} — tap to start",
+    "backup_due": "Backup overdue — tap to export your data",
+    "long_outing": "The outing \"{{name}}\" has been active for {{hours}}h — forgot to end it?",
+    "phase_over_budget": "The phase went over budget by {{amount}}"
   }
 }

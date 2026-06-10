@@ -10,6 +10,8 @@ import {
   getAvailablePoolsForPhase,
   createEnvelope,
   createBudgetPoolPhaseLink,
+  calculateLastOutingSavings,
+  RECENT_OUTING_WINDOW_MS,
 } from '@/domain/budget';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Envelope } from '@/domain/types/envelope';
@@ -230,6 +232,87 @@ describe('generateAmigoSinceroInsight', () => {
     );
     expect(insight.reserveStatus).toBe('affected');
     expect(insight.category).toBe('market');
+  });
+});
+
+describe('calculateLastOutingSavings (DEC-092 / R-10)', () => {
+  const NOW_MS = new Date('2026-06-10T22:00:00.000Z').getTime();
+  const barProfile = { id: 'prof-bar', name: 'Bar', typicalValueCents: 300 };
+
+  const mkSession = (id: string, endedAt: string | null, profileId: string | null = 'prof-bar') => ({
+    id,
+    name: 'Noite no bar',
+    activityProfileId: profileId,
+    endedAt,
+  });
+
+  const mkSessionTx = (id: string, sessionId: string, amount: number): Transaction => ({
+    ...mkTx(id, amount),
+    sessionId,
+  });
+
+  it('Julio scenario: spent €1 on a €3 typical bar night → saved €2 with reference', () => {
+    const result = calculateLastOutingSavings(
+      [mkSession('s1', '2026-06-10T01:00:00.000Z')],
+      [mkSessionTx('t1', 's1', 100)],
+      [barProfile],
+      NOW_MS,
+    );
+    expect(result.hasSavings).toBe(true);
+    expect(result.profileName).toBe('Bar');
+    expect(result.spentCents).toBe(100);
+    expect(result.savedCents).toBe(200);
+    expect(result.typicalCents).toBe(300); // explicit reference value
+  });
+
+  it('uses the MOST RECENT closed outing, not an older cheaper one', () => {
+    const result = calculateLastOutingSavings(
+      [mkSession('old', '2026-06-08T01:00:00.000Z'), mkSession('new', '2026-06-10T01:00:00.000Z')],
+      [mkSessionTx('t1', 'old', 50), mkSessionTx('t2', 'new', 250)],
+      [barProfile],
+      NOW_MS,
+    );
+    expect(result.spentCents).toBe(250);
+    expect(result.savedCents).toBe(50);
+  });
+
+  it('no savings when the outing cost the typical value or more', () => {
+    const result = calculateLastOutingSavings(
+      [mkSession('s1', '2026-06-10T01:00:00.000Z')],
+      [mkSessionTx('t1', 's1', 350)],
+      [barProfile],
+      NOW_MS,
+    );
+    expect(result.hasSavings).toBe(false);
+  });
+
+  it('stale outings (older than the recent window) do not show the card', () => {
+    const staleEnd = new Date(NOW_MS - RECENT_OUTING_WINDOW_MS - 1).toISOString();
+    const result = calculateLastOutingSavings(
+      [mkSession('s1', staleEnd)],
+      [mkSessionTx('t1', 's1', 100)],
+      [barProfile],
+      NOW_MS,
+    );
+    expect(result.hasSavings).toBe(false);
+  });
+
+  it('unreliable typical (0) or one-off sessions never produce the card', () => {
+    const zeroTypical = calculateLastOutingSavings(
+      [mkSession('s1', '2026-06-10T01:00:00.000Z')],
+      [mkSessionTx('t1', 's1', 100)],
+      [{ ...barProfile, typicalValueCents: 0 }],
+      NOW_MS,
+    );
+    expect(zeroTypical.hasSavings).toBe(false);
+
+    const oneOff = calculateLastOutingSavings(
+      [mkSession('s1', '2026-06-10T01:00:00.000Z', null)],
+      [mkSessionTx('t1', 's1', 100)],
+      [barProfile],
+      NOW_MS,
+    );
+    expect(oneOff.hasSavings).toBe(false);
   });
 });
 

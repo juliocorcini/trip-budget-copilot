@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import { useAppData } from '@/hooks/useAppData';
 import { sortPhasesByOrder } from '@/domain/dates';
@@ -56,6 +56,7 @@ interface NewPhaseDraft {
 export function TripEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { trip, phases, pools, links, occurrences, loading, reload } = useAppData();
 
   const [tripName, setTripName] = useState('');
@@ -243,6 +244,21 @@ export function TripEditPage() {
       setDeletingPhase(false);
     }
   };
+
+  // DEC-091/DEC-101 (R-09/R-23): deep link ?occurrence=<id> opens that
+  // event's editor directly — used by the insight tap and the Planner.
+  const occurrenceParamHandled = useRef(false);
+  useEffect(() => {
+    if (occurrenceParamHandled.current || loading) return;
+    const occurrenceId = searchParams.get('occurrence');
+    if (!occurrenceId) return;
+    const occurrence = occurrences.find((o) => o.id === occurrenceId && o.deletedAt === null);
+    if (!occurrence) return;
+    occurrenceParamHandled.current = true;
+    openEventSheet(occurrence.phaseId, occurrence);
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, occurrences, searchParams]);
 
   // DEC-072: planned events CRUD (soft delete via repository).
   const openEventSheet = (phaseId: string, occurrence: PlannedOccurrence | null) => {

@@ -1,0 +1,118 @@
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useScrolled } from '@/hooks/useScrolled';
+import { useAppData } from '@/hooks/useAppData';
+import { formatMoney } from '@/domain/money';
+import { Icon } from '@/components/Icon';
+import type { AppNotification, AppNotificationKind } from '@/domain/insights';
+
+/** DEC-090 (R-08): icon + tone per notification kind — data-driven. */
+const NOTIFICATION_ICONS: Record<AppNotificationKind, string> = {
+  pending_share: 'group',
+  event_today: 'celebration',
+  backup_due: 'cloud_upload',
+  long_outing: 'schedule',
+  phase_over_budget: 'error',
+};
+
+const TONE_CLASS: Record<AppNotification['tone'], string> = {
+  neutral: 'text-primary',
+  warning: 'text-warning',
+  error: 'text-error',
+};
+
+function notificationText(
+  notification: AppNotification,
+  t: (key: string, options?: Record<string, string | number>) => string,
+  currency: string,
+): string {
+  const v = notification.values;
+  switch (notification.kind) {
+    case 'pending_share':
+      return t('notifications.pending_share', {
+        count: v.count as number,
+        amount: formatMoney(v.impactCents as number, currency),
+      });
+    case 'event_today':
+      return t('notifications.event_today', { name: v.name as string });
+    case 'backup_due':
+      return t('notifications.backup_due');
+    case 'long_outing':
+      return t('notifications.long_outing', {
+        name: v.name as string,
+        hours: v.hours as number,
+      });
+    case 'phase_over_budget':
+      return t('notifications.phase_over_budget', {
+        amount: formatMoney(v.overCents as number, currency),
+      });
+  }
+}
+
+export function NotificationsPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const scrolled = useScrolled();
+  const { trip } = useAppData();
+  const { notifications, ready } = useNotifications();
+
+  const currency = trip?.baseCurrency ?? 'EUR';
+
+  return (
+    <div className="flex flex-col pb-6">
+      <div
+        className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-4 pb-3 flex items-center gap-3`}
+      >
+        <button
+          onClick={() => navigate(-1)}
+          className="w-10 h-10 rounded-full flex items-center justify-center btn-press bg-surface-container"
+          aria-label={t('common.back')}
+        >
+          <Icon name="arrow_back" size={20} className="text-on-surface" />
+        </button>
+        <h1 className="text-xl font-extrabold tracking-tight text-on-surface">
+          {t('notifications.title')}
+        </h1>
+      </div>
+
+      {ready && notifications.length === 0 && (
+        <div className="mt-16 flex flex-col items-center text-center px-6">
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{ background: 'var(--surface-container)' }}
+          >
+            <Icon name="notifications_off" size={28} className="text-on-surface-mute" />
+          </div>
+          <p className="text-sm font-bold text-on-surface">{t('notifications.empty')}</p>
+          <p className="text-xs text-on-surface-faint mt-1">{t('notifications.empty_desc')}</p>
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-col gap-2">
+        {notifications.map((notification) => (
+          <button
+            key={notification.id}
+            onClick={() => navigate(notification.destination)}
+            className="bg-surface-container rounded-2xl p-4 flex items-center gap-3 btn-press text-left w-full"
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: 'var(--surface-container-high)' }}
+            >
+              <Icon
+                name={NOTIFICATION_ICONS[notification.kind]}
+                size={20}
+                className={TONE_CLASS[notification.tone]}
+              />
+            </div>
+            <p className="text-[13px] font-semibold leading-snug text-on-surface flex-1">
+              {notificationText(notification, t, currency)}
+            </p>
+            <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

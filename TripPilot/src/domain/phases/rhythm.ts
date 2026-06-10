@@ -56,6 +56,60 @@ export interface FreeToSpendPerDay {
   isPeakDay: boolean;
 }
 
+export interface TodayFreeBudget {
+  /** Allowance fixed at day start — computed WITHOUT today's spending. */
+  todayAllowanceCents: number;
+  todaySpentCents: number;
+  /** "Free to use today" = allowance − spent today. Negative when overspent. */
+  freeTodayCents: number;
+  /** Secondary metric: recalculated daily average until the phase end. */
+  avgDailyUntilEndCents: number;
+  isPeakDay: boolean;
+}
+
+/**
+ * DEC-088 (R-06): subtractive "free to use today". The day's allowance is the
+ * weighted share of the budget as it was at the START of the day (today's
+ * spending added back), so registering a €2 expense drops the number by
+ * exactly €2 — not by €2 ÷ remaining days.
+ */
+export function calculateTodayFreeBudget(
+  freeToSpendCents: number,
+  todaySpentCents: number,
+  phase: Phase,
+  todayIso: string,
+): TodayFreeBudget {
+  const peak = isPeakDay(phase, todayIso);
+  const effectiveDays = calculateEffectiveSpendingDays(phase, todayIso);
+  const startOfDayFreeCents = freeToSpendCents + todaySpentCents;
+
+  if (effectiveDays <= 0 || startOfDayFreeCents <= 0) {
+    return {
+      todayAllowanceCents: Math.max(0, startOfDayFreeCents),
+      todaySpentCents,
+      freeTodayCents: Math.max(0, startOfDayFreeCents) - todaySpentCents,
+      avgDailyUntilEndCents: Math.max(0, freeToSpendCents),
+      isPeakDay: peak,
+    };
+  }
+
+  const todayWeight = getDaySpendingWeight(phase, todayIso);
+  const todayAllowanceCents = Math.round(
+    (startOfDayFreeCents * todayWeight) / effectiveDays,
+  );
+
+  return {
+    todayAllowanceCents,
+    todaySpentCents,
+    freeTodayCents: todayAllowanceCents - todaySpentCents,
+    avgDailyUntilEndCents: Math.max(
+      0,
+      Math.round((freeToSpendCents * todayWeight) / effectiveDays),
+    ),
+    isPeakDay: peak,
+  };
+}
+
 /**
  * Weighted free-to-spend for a given day: the day's share of the remaining
  * budget is proportional to its weight ("today is a peak day — free up to €X").

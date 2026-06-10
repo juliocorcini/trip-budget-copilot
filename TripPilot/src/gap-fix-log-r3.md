@@ -1,10 +1,10 @@
 # Gap Fix Log R3 — TripPilot
 
 ## Current State
-- **Gate ativo**: Gate 2 (dashboard certo)
-- **Requisito ativo**: R-06
-- **Itens resolvidos**: 5/26
-- **Testes**: 228 unit + 29 e2e (baseline preservada)
+- **Gate ativo**: Gate 3 (Amigo Sincero v2 + simulador)
+- **Requisito ativo**: R-11
+- **Itens resolvidos**: 10/26
+- **Testes**: 246 unit (+18) + 29 e2e
 - **Build/Typecheck**: clean
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`; NUNCA criar Dexie v4 sem necessidade real de índice
 
@@ -23,11 +23,11 @@
 - [x] R-05 — `@media (display-mode: standalone) { html, body { overscroll-behavior-y: none } }` em globals.css — PWA instalado sem pull-to-refresh, browser preservado
 
 ### Gate 2 — Dashboard certo (R-06..10)
-- [ ] R-06 — "Livre para usar hoje" subtrativo
-- [ ] R-07 — Remover "Reservado para [próx. fase]" do hero
-- [ ] R-08 — Sino → Central de notificações
-- [ ] R-09 — Insights: swipe navega, tap detalha
-- [ ] R-10 — Card de economia contextual
+- [x] R-06 — Root cause confirmado: `calculateFreeToSpendPerDay(fts.freeToSpendCents …)` recalculava a média após cada gasto. Novo `calculateTodayFreeBudget` (rhythm.ts): allowance fixada no início do dia (FTS + gastos de hoje, ponderada por ritmo) − `calculateSpentOnDate` (novo, transactions.ts) = livre hoje (pode ficar negativo, exibido em cor de erro); média recalculada virou linha secundária `avg_daily_until_end`. 6 testes (cenário 6,00−2,00=4,00 incluso)
+- [x] R-07 — Origem da linha: chave i18n `dashboard.reserved_future` ("Reservado para agosto" HARDCODED no copy!) exibindo `fts.futureFloorCents`. Linha removida do hero + chave removida ×3; mecânica de future floor intacta (budget.ts não tocado; Fundos/Planner continuam exibindo)
+- [x] R-08 — `domain/insights/notifications.ts` (builder puro, 5 tipos derivados: shares pendentes→sheet de confirmação via `?confirmShares=1`, evento de hoje→iniciar sessão, backup vencido→/settings/backup, saída ≥8h→/outings/active, fase estourada→/planner) + hook `useNotifications` compartilhado + `NotificationsPage` (rota /notifications, empty state) + sino → /notifications com badge numérico. 7 testes
+- [x] R-09 — Carrossel scroll-snap (mesma técnica do carrossel de counters), swipe troca, dots navegam; tap por tipo: projeção/ritmo/streak → BottomSheet "Como cheguei nisso" com o cálculo aberto (builder ganhou spentCents/budgetCents/perDayCents/daysElapsed/daysRemaining); dívida → /shared; custo por saída → /expenses?tab=outings; próximo evento → /trip/edit?occurrence=id (TripEditPage abre a sheet do evento direto — base do R-23)
+- [x] R-10 — `calculateLastOutingSavings` (budget.ts): última saída encerrada ≤7d com perfil de typical confiável; copy nova `savings_last_outing` cita a saída, o gasto, a economia E a referência (€Z normal); % sem base eliminado. 5 testes
 
 ### Gate 3 — Amigo Sincero v2 + simulador (R-11..12)
 - [ ] R-11 — Amigo Sincero baseado no plano + ImpactDetail
