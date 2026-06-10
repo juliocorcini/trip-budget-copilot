@@ -137,6 +137,9 @@ export const backupFileSchema = z.object({
   futurePhaseReservePolicies: z.array(syncedRecordSchema).default([]),
   alertRules: z.array(syncedRecordSchema).default([]),
   devices: z.array(syncedRecordSchema).default([]),
+  // v4 (R4): pairing tables — default keeps v1-v3 backups importable.
+  peerLinks: z.array(syncedRecordSchema).default([]),
+  mirroredStatements: z.array(syncedRecordSchema).default([]),
 });
 
 export const createTripInputSchema = z.object({

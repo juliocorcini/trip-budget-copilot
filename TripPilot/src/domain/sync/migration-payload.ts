@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { backupFileSchema } from '@/domain/validation/schemas';
-import { normalizeBackupToV3 } from '@/domain/backup';
+import { normalizeBackupToV4 } from '@/domain/backup';
 import type { BackupData } from '@/domain/backup';
 
 /**
@@ -30,6 +30,6 @@ export function parseMigrationPayload(raw: unknown): MigrationPayload | null {
   return {
     v: 1,
     kind: 'backup',
-    data: normalizeBackupToV3(result.data.data as unknown as BackupData),
+    data: normalizeBackupToV4(result.data.data as unknown as BackupData),
   };
 }

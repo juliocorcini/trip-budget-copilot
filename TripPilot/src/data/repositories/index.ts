@@ -16,3 +16,5 @@ export { scenarioAllocationItemRepository } from './scenario-allocation-item-rep
 export { phaseProfileSettingRepository } from './phase-profile-setting-repository';
 export { plannedOccurrenceRepository } from './planned-occurrence-repository';
 export { forecastSnapshotRepository } from './forecast-snapshot-repository';
+export { peerLinkRepository } from './peer-link-repository';
+export { mirroredStatementRepository } from './mirrored-statement-repository';

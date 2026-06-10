@@ -63,6 +63,13 @@ export function WelcomePage() {
         </button>
 
         <button
+          onClick={() => navigate('/sync')}
+          className="w-full py-4 rounded-2xl bg-surface-container text-on-surface font-medium text-sm btn-press"
+        >
+          {t('onboarding.receive_from_device')}
+        </button>
+
+        <button
           onClick={handleDemo}
           className="w-full py-4 rounded-2xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
         >

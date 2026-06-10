@@ -18,6 +18,8 @@ import type { FuturePhaseReservePolicy } from '@/domain/types/future-phase-reser
 import type { AlertRule } from '@/domain/types/alert-rule';
 import type { Device } from '@/domain/types/device';
 import type { AppSettings } from '@/domain/types/app-settings';
+import type { PeerLink } from '@/domain/types/peer-link';
+import type { MirroredStatement } from '@/domain/types/mirrored-statement';
 import type { SyncMetadata } from '@/domain/types/common';
 import { backupFileSchema } from '@/domain/validation/schemas';
 
@@ -47,14 +49,16 @@ export interface BackupData {
   futurePhaseReservePolicies: FuturePhaseReservePolicy[];
   alertRules: AlertRule[];
   devices: Device[];
+  peerLinks: PeerLink[];
+  mirroredStatements: MirroredStatement[];
 }
 
 /**
- * v3 (R2): adds phaseProfileSettings + the v3 fields (confirmationStatus,
- * rhythm, occurrence extensions). v1/v2 files import with missing tables as
- * empty and missing fields normalized to the migration defaults.
+ * v4 (R4): adds peerLinks + mirroredStatements + Participant.linkedActorId.
+ * v1-v3 files import with missing tables as empty and missing fields
+ * normalized to the migration defaults.
  */
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 
 export type BackupTableKey = keyof Omit<
   BackupData,
@@ -83,6 +87,8 @@ export const BACKUP_TABLE_KEYS: BackupTableKey[] = [
   'futurePhaseReservePolicies',
   'alertRules',
   'devices',
+  'peerLinks',
+  'mirroredStatements',
 ];
 
 export function createBackup(data: Omit<BackupData, 'version' | 'exportedAt'>): BackupData {
@@ -191,6 +197,23 @@ export function normalizeBackupToV3(data: BackupData): BackupData {
 }
 
 /**
+ * Normalizes pre-v4 backup records — same defaults as the Dexie v4
+ * upgrade(): new pairing tables empty, participants unlinked.
+ */
+export function normalizeBackupToV4(data: BackupData): BackupData {
+  const v3 = normalizeBackupToV3(data);
+  return {
+    ...v3,
+    participants: v3.participants.map((p) => ({
+      ...p,
+      linkedActorId: p.linkedActorId ?? null,
+    })),
+    peerLinks: v3.peerLinks ?? [],
+    mirroredStatements: v3.mirroredStatements ?? [],
+  };
+}
+
+/**
  * GAP-029: validates the file against the Zod schemas before anything is
  * written. Malformed files yield a clear error and zero partial writes.
  * v1 files (missing tables) are normalized with empty arrays; v2 files get
@@ -212,7 +235,7 @@ export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
       error: first ? `${first.path.join('.')}: ${first.message}` : 'invalid_schema',
     };
   }
-  return { data: normalizeBackupToV3(result.data as unknown as BackupData), error: null };
+  return { data: normalizeBackupToV4(result.data as unknown as BackupData), error: null };
 }
 
 export function parseBackupFile(jsonString: string): BackupData | null {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router';
+import { useSearchParams, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   parseBackupFileSafe,
@@ -17,9 +17,13 @@ import type { BackupData, ImportAnalysis } from '@/domain/backup';
 import { formatDate } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
+import { BottomSheet } from '@/components/BottomSheet';
+import { buildMigrationPayload } from '@/domain/sync';
+import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 
 export function BackupPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { trip, phases, pools, transactions, wallets, participants, settings, reload } = useAppData();
   const csvAutoTriggered = useRef(false);
@@ -27,6 +31,7 @@ export function BackupPage() {
   const [importData, setImportData] = useState<BackupData | null>(null);
   const [mergeMode, setMergeMode] = useState<'merge' | 'replace'>('merge');
   const [csvAdvanced, setCsvAdvanced] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
 
   const exportCsv = async (advanced: boolean) => {
     if (!trip) return;
@@ -149,6 +154,50 @@ export function BackupPage() {
         </div>
         <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
       </label>
+
+      {/* DEC-104: device-to-device migration over the P2P channel */}
+      <button
+        onClick={() => setSendOpen(true)}
+        className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left"
+      >
+        <Icon name="phonelink_ring" size={24} className="text-primary" />
+        <div>
+          <p className="text-sm font-medium text-on-surface">{t('sync.send_to_device')}</p>
+          <p className="text-xs text-on-surface-faint">{t('sync.send_to_device_desc')}</p>
+        </div>
+      </button>
+
+      <button
+        onClick={() => navigate('/sync')}
+        className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left"
+      >
+        <Icon name="qr_code_scanner" size={24} className="text-success" />
+        <div>
+          <p className="text-sm font-medium text-on-surface">{t('sync.receive_from_device')}</p>
+          <p className="text-xs text-on-surface-faint">{t('sync.receive_from_device_desc')}</p>
+        </div>
+      </button>
+
+      <BottomSheet open={sendOpen} onClose={() => setSendOpen(false)} title={t('sync.send_to_device')}>
+        {sendOpen && settings && (
+          <SyncTransferFlow
+            mode="send"
+            purpose="migration"
+            actorName={settings.deviceName}
+            buildPayload={async () => {
+              const backup = await buildFullBackup(settings);
+              return { kind: 'backup', payload: buildMigrationPayload(backup) };
+            }}
+            onSent={async () => {
+              // Receiving device now holds a full copy — counts as a backup.
+              await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
+              await reload();
+            }}
+            onDone={() => setSendOpen(false)}
+            onCancel={() => setSendOpen(false)}
+          />
+        )}
+      </BottomSheet>
 
       {importAnalysis && (
         <div className="bg-surface-container rounded-xl p-4">

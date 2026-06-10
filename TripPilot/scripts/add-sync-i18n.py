@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""One-shot: add R4 sync i18n keys to the three locales (paridade x3)."""
+import json
+from collections import OrderedDict
+
+SYNC = {
+    "en": {
+        "send_to_device": "Send to another device",
+        "send_to_device_desc": "Direct encrypted transfer, phone to phone",
+        "receive_from_device": "Receive from another device",
+        "receive_from_device_desc": "Scan the QR shown on the other phone",
+        "receive_title": "Receive data",
+        "preparing": "Getting things ready…",
+        "show_qr_hint": "Show this QR to the other phone",
+        "waiting_peer": "Waiting for the other phone…",
+        "scan_hint": "Point the camera at the QR on the other phone",
+        "offline_mode": "No internet? Use offline mode",
+        "manual_step1": "Show this QR to the other phone",
+        "manual_step2": "Now scan the QR on the other phone",
+        "manual_scan_answer": "Scan the reply QR",
+        "manual_show_answer": "Show this QR back to the first phone",
+        "connecting": "Connecting…",
+        "sending": "Sending…",
+        "receiving": "Receiving…",
+        "finalizing": "Wrapping up…",
+        "done": "All set!",
+        "retry": "Try again",
+        "error_transfer": "The transfer didn't finish. Keep the phones close and try again.",
+        "error_connection": "Couldn't connect the phones. Check the internet or try offline mode.",
+        "error_qr_too_large": "This connection doesn't fit in a QR code. Use the online mode instead.",
+        "camera_denied": "Camera access was denied. Allow the camera in your browser settings to scan.",
+        "camera_unavailable": "Couldn't access the camera on this device.",
+        "statement_received": "Statement from {{name}} received",
+        "my_qr": "My QR",
+        "my_qr_hint": "Ask the other person to scan this on their TripPilot",
+        "add_by_qr": "Add by QR",
+        "connect_by_qr": "Connect by QR",
+        "already_connected": "This person is already connected",
+        "paired": "Connected",
+        "pairing_done": "{{name}} added and connected",
+        "linked_done": "{{name}} is now connected",
+        "send_statement": "Send statement to {{name}}",
+        "received_statements": "Received from other devices",
+        "received_at": "Updated {{date}}",
+        "net_you_owe": "You owe {{amount}}",
+        "net_owes_you": "Owes you {{amount}}",
+        "net_settled": "All settled",
+        "reject": "Reject",
+        "responses_applied": "{{count}} answer(s) from {{name}} applied",
+        "responses_queued": "Saved — it will be sent on the next sync",
+        "statement_sent": "Statement sent",
+    },
+    "pt-BR": {
+        "send_to_device": "Enviar para outro aparelho",
+        "send_to_device_desc": "Transferência direta e criptografada, celular a celular",
+        "receive_from_device": "Receber de outro aparelho",
+        "receive_from_device_desc": "Escaneie o QR mostrado no outro celular",
+        "receive_title": "Receber dados",
+        "preparing": "Preparando tudo…",
+        "show_qr_hint": "Mostre este QR para o outro celular",
+        "waiting_peer": "Esperando o outro celular…",
+        "scan_hint": "Aponte a câmera para o QR do outro celular",
+        "offline_mode": "Sem internet? Use o modo offline",
+        "manual_step1": "Mostre este QR para o outro celular",
+        "manual_step2": "Agora escaneie o QR do outro celular",
+        "manual_scan_answer": "Escanear QR de resposta",
+        "manual_show_answer": "Mostre este QR de volta para o primeiro celular",
+        "connecting": "Conectando…",
+        "sending": "Enviando…",
+        "receiving": "Recebendo…",
+        "finalizing": "Finalizando…",
+        "done": "Tudo certo!",
+        "retry": "Tentar de novo",
+        "error_transfer": "A transferência não terminou. Deixe os celulares perto e tente de novo.",
+        "error_connection": "Não consegui conectar os celulares. Confira a internet ou tente o modo offline.",
+        "error_qr_too_large": "Essa conexão não cabe em um QR code. Use o modo online.",
+        "camera_denied": "O acesso à câmera foi negado. Libere a câmera nas configurações do navegador para escanear.",
+        "camera_unavailable": "Não consegui acessar a câmera deste aparelho.",
+        "statement_received": "Extrato de {{name}} recebido",
+        "my_qr": "Meu QR",
+        "my_qr_hint": "Peça para a outra pessoa escanear este código no TripPilot dela",
+        "add_by_qr": "Adicionar por QR",
+        "connect_by_qr": "Conectar por QR",
+        "already_connected": "Essa pessoa já está conectada",
+        "paired": "Conectado",
+        "pairing_done": "{{name}} foi adicionado e conectado",
+        "linked_done": "{{name}} agora está conectado",
+        "send_statement": "Enviar extrato para {{name}}",
+        "received_statements": "Recebidos de outros aparelhos",
+        "received_at": "Atualizado {{date}}",
+        "net_you_owe": "Você deve {{amount}}",
+        "net_owes_you": "Te deve {{amount}}",
+        "net_settled": "Tudo quitado",
+        "reject": "Rejeitar",
+        "responses_applied": "{{count}} resposta(s) de {{name}} aplicadas",
+        "responses_queued": "Salvo — vai ser enviado na próxima sincronização",
+        "statement_sent": "Extrato enviado",
+    },
+    "es": {
+        "send_to_device": "Enviar a otro dispositivo",
+        "send_to_device_desc": "Transferencia directa y cifrada, móvil a móvil",
+        "receive_from_device": "Recibir de otro dispositivo",
+        "receive_from_device_desc": "Escanea el QR que muestra el otro móvil",
+        "receive_title": "Recibir datos",
+        "preparing": "Preparando todo…",
+        "show_qr_hint": "Muestra este QR al otro móvil",
+        "waiting_peer": "Esperando al otro móvil…",
+        "scan_hint": "Apunta la cámara al QR del otro móvil",
+        "offline_mode": "¿Sin internet? Usa el modo offline",
+        "manual_step1": "Muestra este QR al otro móvil",
+        "manual_step2": "Ahora escanea el QR del otro móvil",
+        "manual_scan_answer": "Escanear QR de respuesta",
+        "manual_show_answer": "Muestra este QR de vuelta al primer móvil",
+        "connecting": "Conectando…",
+        "sending": "Enviando…",
+        "receiving": "Recibiendo…",
+        "finalizing": "Terminando…",
+        "done": "¡Todo listo!",
+        "retry": "Intentar de nuevo",
+        "error_transfer": "La transferencia no terminó. Mantén los móviles cerca e inténtalo de nuevo.",
+        "error_connection": "No pude conectar los móviles. Revisa la internet o prueba el modo offline.",
+        "error_qr_too_large": "Esta conexión no cabe en un código QR. Usa el modo online.",
+        "camera_denied": "Se denegó el acceso a la cámara. Permite la cámara en los ajustes del navegador para escanear.",
+        "camera_unavailable": "No pude acceder a la cámara de este dispositivo.",
+        "statement_received": "Extracto de {{name}} recibido",
+        "my_qr": "Mi QR",
+        "my_qr_hint": "Pide a la otra persona que escanee este código en su TripPilot",
+        "add_by_qr": "Añadir por QR",
+        "connect_by_qr": "Conectar por QR",
+        "already_connected": "Esta persona ya está conectada",
+        "paired": "Conectado",
+        "pairing_done": "{{name}} fue añadido y conectado",
+        "linked_done": "{{name}} ahora está conectado",
+        "send_statement": "Enviar extracto a {{name}}",
+        "received_statements": "Recibidos de otros dispositivos",
+        "received_at": "Actualizado {{date}}",
+        "net_you_owe": "Debes {{amount}}",
+        "net_owes_you": "Te debe {{amount}}",
+        "net_settled": "Todo saldado",
+        "reject": "Rechazar",
+        "responses_applied": "{{count}} respuesta(s) de {{name}} aplicadas",
+        "responses_queued": "Guardado — se enviará en la próxima sincronización",
+        "statement_sent": "Extracto enviado",
+    },
+}
+
+ONBOARDING_KEY = {
+    "en": "Receive from another device",
+    "pt-BR": "Receber de outro aparelho",
+    "es": "Recibir de otro dispositivo",
+}
+
+for locale in ["en", "pt-BR", "es"]:
+    path = f"src/i18n/locales/{locale}.json"
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f, object_pairs_hook=OrderedDict)
+
+    data["sync"] = SYNC[locale]
+    onboarding = data["onboarding"]
+    if "receive_from_device" not in onboarding:
+        new_onboarding = OrderedDict()
+        for key, value in onboarding.items():
+            new_onboarding[key] = value
+            if key == "import_backup":
+                new_onboarding["receive_from_device"] = ONBOARDING_KEY[locale]
+        data["onboarding"] = new_onboarding
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    print(f"{locale}: sync keys = {len(SYNC[locale])}")

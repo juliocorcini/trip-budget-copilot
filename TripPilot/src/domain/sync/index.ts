@@ -4,3 +4,4 @@ export * from './protocol';
 export * from './qr-codec';
 export * from './statement-payload';
 export * from './migration-payload';
+export * from './mirrored';

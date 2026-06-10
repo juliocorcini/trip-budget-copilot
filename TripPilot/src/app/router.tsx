@@ -25,6 +25,7 @@ const ExpenseDetailPage = lazy(() => import('@/features/expenses/ExpenseDetailPa
 const AboutPage = lazy(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
 const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const ImpactDetailPage = lazy(() => import('@/features/dashboard/ImpactDetailPage').then(m => ({ default: m.ImpactDetailPage })));
+const SyncReceivePage = lazy(() => import('@/features/sync/SyncReceivePage').then(m => ({ default: m.SyncReceivePage })));
 
 function LoadingFallback() {
   return (
@@ -75,6 +76,7 @@ export const router = createBrowserRouter([
       { path: '/outings/new', element: <LazyRoute><OutingPage /></LazyRoute> },
       { path: '/outings/active', element: <LazyRoute><OutingPage /></LazyRoute> },
       { path: '/simulator', element: <LazyRoute><SimulatorPage /></LazyRoute> },
+      { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
     ],
   },
 ]);

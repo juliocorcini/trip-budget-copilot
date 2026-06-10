@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -45,4 +45,13 @@ export const SCHEMA_V3: Record<string, string> = {
   ...SCHEMA_V2,
   phaseProfileSettings: 'id, phaseId, activityProfileId, deletedAt, [phaseId+activityProfileId]',
   plannedOccurrences: `${SCHEMA_V1.plannedOccurrences}, [phaseId+plannedDate]`,
+};
+
+// V4 (R4 P2P sync — DEC-105/106): peer pairing + mirrored statements.
+// Participant.linkedActorId is NOT indexed, so it needs no schema string —
+// the upgrade() callback fills the default.
+export const SCHEMA_V4: Record<string, string> = {
+  ...SCHEMA_V3,
+  peerLinks: 'id, actorId, participantId, deletedAt',
+  mirroredStatements: 'id, peerActorId, deletedAt',
 };

@@ -32,3 +32,12 @@ export type {
   DeletePoolResult,
   DeletePhaseResult,
 } from './crud-orchestrators';
+export {
+  pairParticipantFromIdentity,
+  linkParticipantToIdentity,
+  storeMirroredStatement,
+  answerMirroredStatementLine,
+  markResponsesSent,
+  applyPeerResponses,
+} from './sync-orchestrators';
+export type { PairResult } from './sync-orchestrators';

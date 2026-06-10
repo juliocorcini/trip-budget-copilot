@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from './schema';
+import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import type { Trip } from '@/domain/types/trip';
 import type { Phase } from '@/domain/types/phase';
@@ -21,6 +21,8 @@ import type { FuturePhaseReservePolicy } from '@/domain/types/future-phase-reser
 import type { AlertRule } from '@/domain/types/alert-rule';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { Device } from '@/domain/types/device';
+import type { PeerLink } from '@/domain/types/peer-link';
+import type { MirroredStatement } from '@/domain/types/mirrored-statement';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -45,6 +47,8 @@ export class TripPilotDB extends Dexie {
   alertRules!: EntityTable<AlertRule, 'id'>;
   appSettings!: EntityTable<AppSettings, 'id'>;
   devices!: EntityTable<Device, 'id'>;
+  peerLinks!: EntityTable<PeerLink, 'id'>;
+  mirroredStatements!: EntityTable<MirroredStatement, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -69,6 +73,16 @@ export class TripPilotDB extends Dexie {
           if (occ.kind === undefined) occ.kind = 'event';
           if (occ.reservedCents === undefined) occ.reservedCents = null;
           if (occ.linkedSessionId === undefined) occ.linkedSessionId = null;
+        });
+      });
+
+    // R4 P2P sync (DEC-105/106): new pairing tables; existing participants
+    // get the unlinked default.
+    this.version(4)
+      .stores(SCHEMA_V4)
+      .upgrade(async (tx) => {
+        await tx.table('participants').toCollection().modify((participant) => {
+          if (participant.linkedActorId === undefined) participant.linkedActorId = null;
         });
       });
 
