@@ -1,55 +1,61 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-09
+> Last updated: 2026-06-09 (R2 session)
 
 ## Current Phase
 
-**Implementation — D1–D6 implemented + full gap-fix session** ✅
+**Implementation — D1–D6 + gap-fix R1 + gap-fix R2 implemented, v0.3.0 deployed** ✅
 
 ## Status Summary
 
 | Area | Status | Notes |
 |------|--------|-------|
 | Project structure | ✅ DONE | Cursor workspace with Director + Febracorp methodology |
-| Product spec | ✅ DONE | Full MVP specification with 17 core rules |
+| Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 70 decisions approved (DEC-001 to DEC-070) |
+| Decision log | ✅ DONE | 83 decisions (DEC-001 to DEC-083); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
-| Data model | ✅ DONE | 21 entities implemented; Dexie schema v2 with compound indexes |
-| Domain rules | ✅ DONE | Occasion-based forecasting, three-limit system, learning engine wired |
-| Pre-implementation Q&A | ✅ DONE | 35 questions answered, all ambiguities resolved |
-| Design system | ✅ DONE | Theme v4 approved (9.3/10); BottomSheet/Toast primitives, zero native dialogs |
+| Data model | ✅ DONE | 22 entities; Dexie schema **v3** (phaseProfileSettings, share confirmation, rich occurrences) |
+| Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
+| Design system | ✅ DONE | Theme v4; BottomSheet/Toast primitives; zero native dialogs; zero hardcoded colors (tokens only) |
 | Implementation D1–D6 | ✅ DONE | All deliveries implemented and deployed to Cloudflare Pages |
-| Gap analysis 2026-06-09 | ✅ RESOLVED | 36/36 gaps fixed in the gap-fix session (see `src/gap-fix-log.md`) |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (400+ keys) |
-| Tests | ✅ DONE | 156 unit tests passing (baseline was 105) |
+| Gap analysis R1 2026-06-09 | ✅ RESOLVED | 36/36 gaps fixed (see `src/gap-fix-log.md`) |
+| Gap analysis R2 2026-06-09 | ✅ RESOLVED | 23/23 items fixed: 7 field bugs + 9 R2 gaps + 7 planning features (see `src/gap-fix-log-r2.md`) |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (503 keys) |
+| Tests | ✅ DONE | 228 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.3.0 on Cloudflare Pages; SW network-first + update toast |
 
-## Gap-Fix Session (2026-06-09)
+## Gap-Fix Session R2 (2026-06-09)
 
-All 36 gaps from `documents/gap-analysis-2026-06-09.md` were resolved in a single
-8-gate session. Highlights:
+All 23 items from `documents/gap-analysis-r2-2026-06-09.md` were resolved in a
+9-gate session (full log in `src/gap-fix-log-r2.md`). Highlights:
 
-- **Financial integrity**: withdrawal/transfer via `createTransferTransaction` (never touch budget), cash reconciliation creates adjustments (DEC-052), session "register total" reconciles by difference (DEC-046)
-- **Outing Mode complete**: session limit configuration (DEC-010/045), progressive alerts + vibration (DEC-048), in-session split (DEC-047), end-of-session review with batch wallet + learning engine (DEC-049, DEC-006)
-- **Data safety**: backup covers all 21 tables (versioned format v2), revision-based merge, Zod validation on import, 19-column CSV + advanced mode (DEC-058)
-- **Budget complete**: phase-filtered pools (DEC-039/040), global pools by scope, manual future floor (DEC-016 partial — see debts), envelope management (DEC-042), confirmatory edge cases (DEC-053)
-- **Live UX**: settings via `useLiveQuery` (theme/language live), real pending-shared criterion, forecast counters, header navigation (DEC-060)
-- **Flow polish**: onboarding wallets (DEC-051), retroactive date in quick-add, aligned quick-add defaults (DEC-045), full settings + backup reminder banner (DEC-057), About page (DEC-059)
-- **Infra**: Dexie schema v2 (compound indexes + populate), debt simplification + partial settlements, en/es translated, demo with shared/session/settlement (DEC-038), offline-ready indicator (DEC-053d), orchestrator layer (partial — DEC-067), unused deps removed
+- **Distribution fixed (GAP-R2-001 / DEC-082)**: SW now network-first for navigation with cache fallback; persistent "new version" toast triggers skipWaiting + reload — deploys finally reach users
+- **Light theme everywhere (DEC-083)**: 12 hardcoded colors replaced by tokens; `data-theme` + language applied at router root (covers /quick-add, /outings/*, /simulator); dynamic meta theme-color
+- **Mobile feel (DEC-081)**: global user-select none (inputs preserved), transparent tap-highlight, touch-action manipulation
+- **Dexie v3 unified migration**: share `confirmationStatus`, new `phaseProfileSettings` table, `Phase.rhythmPreset/peakDays`, rich `PlannedOccurrence` (endDate, kind, reservedCents, linkedSessionId); backup v3 with v2 import
+- **Share confirmation (DEC-071)**: third-party shares born pending; debts count only confirmed; dashboard card with confirm/reject/adjust sheet (Julio's sister scenario covered by tests)
+- **Fund/phase CRUD (DEC-080)**: edit/delete with safety rules (reassign or block), soft-delete cascades via orchestrators
+- **Per-phase activities (DEC-074)**: 16-preset catalog + custom; `phaseProfileSettings` drives Planner/counters/outing start; kills cross-phase contamination
+- **Phase rhythm (DEC-075)**: intensity presets + peak days; weighted free-to-spend per day with peak microcopy
+- **Planned events (DEC-072/073)**: events/sub-destinations per phase with reserves deducting from free-to-spend until confirmed; dashboard day card (start now / postpone); one-off sessions create occurrences, not profiles
+- **Rich outing (DEC-078/079)**: post-add enrichment stepper (category → payer → split, skippable, never blocks logging); outing history tab + read-only review
+- **Final dashboard (DEC-076/077)**: counters carousel ordered by usage; rotating insights (6 V1 builders with significance rules) persisting daily `forecastSnapshots`; exact 11-position layout
+- **Quality**: aria-labels across icon buttons; 7 new e2e tests (29 total); timezone bug fixed (UTC vs local date on day card)
 
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
 |------|--------|-------|
-| Full orchestrator refactor of untouched pages | DEC-067 (D-H) | Orchestrators exist for expense/outing/wallet/backup flows; remaining pages still call repositories directly |
+| Full orchestrator refactor of untouched pages | DEC-067 (D-H) | Orchestrators exist for expense/outing/wallet/backup/share/CRUD flows; some older pages still call repositories directly |
 | Automatic future floor calculation | DEC-069 (D-I) | Manual floor per phase link implemented; automatic calculation is D3+ |
 | SW precache via build plugin | GAP-036 | Current approach parses index.html at install; a Workbox/Vite plugin would be more robust |
-| E2E (Playwright) in CI | DEC-054 | Unit suite at 156 tests; e2e requires browser install in CI |
+| E2E (Playwright) in CI | DEC-054 | 29 e2e tests run locally; CI requires browser install |
 
 ## Next Steps
 
-1. Julio smoke-tests the deployed version (golden paths)
+1. Julio field-tests v0.3.0 on the next trip (events + rhythm + confirmation flows)
 2. Real-data seed (julio-europa-2026) when trip data is ready
 3. D3+ features per `implementation-phases.md` (reports, automatic future floor)
 
@@ -59,5 +65,5 @@ All 36 gaps from `documents/gap-analysis-2026-06-09.md` were resolved in a singl
 
 ## Key Decisions Reference
 
-All decisions documented in [decision-log.md](decision-log.md). Gap-fix session added
-DEC-061..DEC-070 (resolutions of the ambiguities found by the 2026-06-09 audit).
+All decisions documented in [decision-log.md](decision-log.md). R2 session added
+DEC-071..DEC-083 (all approved 2026-06-09).

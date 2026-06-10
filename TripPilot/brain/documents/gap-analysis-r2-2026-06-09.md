@@ -1,5 +1,7 @@
 # TripPilot — Gap Analysis R2 (pós-uso real)
 
+> **Status: RESOLVIDO em 2026-06-09 — 23/23 itens implementados e deployados em v0.3.0. Ver `src/gap-fix-log-r2.md`.**
+
 > **Data**: 2026-06-09 · **Baseline**: 156/156 testes unitários verdes · typecheck limpo · build OK (v0.2.0)
 > **Referências**: `gap-analysis-2026-06-09.md` (R1, 36 gaps) · `src/gap-fix-log.md` (fixes + DEC-061..070)
 > **Fonte nova**: 14 achados de campo de uma viagem real do Julio

@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-06-08
+> Last updated: 2026-06-09 (R2 session — features 13–18 added)
 
 ## What is TripPilot?
 
@@ -98,9 +98,52 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
 ### 12. PWA Features
 - Installable on home screen
 - Offline-first (all data in IndexedDB)
-- Request persistent storage
-- Safe update notifications
+- Request persistent storage (automatic after onboarding and first expense)
+- Network-first service worker with cache fallback + persistent "new version" toast (DEC-082)
 - Shortcuts: /quick_add, /outings/new, /outings/active
+
+### 13. Shared Expense Confirmation (R2 — DEC-071)
+- Third-party shares are born `pending`; the payer's own share is `confirmed`
+- Debts count ONLY confirmed shares; rejecting a share returns the value to the payer's personal cost
+- Dashboard card shows pending count; tap opens a confirm/reject/adjust sheet per expense
+- Card disappears when everything is confirmed (independent of netting/settlement)
+
+### 14. Per-Phase Activities (R2 — DEC-074)
+- "O que vai ter nessa fase?" — chip grid in phase editing with a 16-preset catalog
+  (Restaurantes, Bar, Mercado, Transporte, Hospedagem, Café & padaria, Passeios & tours,
+  Museus & atrações, Vida noturna, Praia, Compras & souvenirs, Festivais & eventos,
+  Esportes & aventura, Lavanderia, Internet & SIM, Farmácia & saúde) + "+ Outro" (custom)
+- Selecting a preset creates the ActivityProfile on demand + an enabled `phaseProfileSettings` row
+- Planner, dashboard counters, and outing start respect enabled profiles only
+- Absence of a setting row = enabled (permissive default)
+
+### 15. Phase Rhythm & Peak Days (R2 — DEC-075)
+- Rhythm presets per phase: Intensa / Moderada / Tranquila (+ custom)
+- Peak-day selector (weekdays); peak weight 1.5×, calm days per preset
+- Free-to-spend per day is weighted by effective spending days
+- "Hoje é dia de pico" microcopy on the hero
+
+### 16. Planned Events & Sub-destinations (R2 — DEC-072/073)
+- Events per phase: name, date or interval, estimated cost, optional reserve, kind (event/sub-destination)
+- `reservedCents` deducts from freeToSpend until the occurrence is confirmed or linked to a session
+- Dashboard day card when an event is active today: "Iniciar agora" (pre-configured session,
+  ceiling = reserve) or "Adiar" (+1 day)
+- Ending a linked session confirms the occurrence; real spending takes over from the reserve
+- One-off sessions ("É um evento único?") create a PlannedOccurrence, never a recurring profile
+- Planner shows an informative events line per phase; sub-destinations track spent-so-far by date interval
+
+### 17. Rich Outing & History (R2 — DEC-078/079)
+- Post-add enrichment stepper after each quick-add (transaction already saved — logging never blocks):
+  "O que foi?" → "Quem pagou?" → "Dividiu?" — each step 1 tap, skippable, auto-dismisses in 3s
+- Outing history: Gastos | Saídas tabs in the expense list; read-only review per completed session
+- "Histórico de saídas" shortcut in the More menu
+
+### 18. Final Dashboard (R2 — DEC-076/077)
+- Occasion counters in a CSS scroll-snap carousel (3 visible, dots if more), ordered by usage
+- Rotating "Insights" block (max 4/day, significance rules): phase projection, real vs planned
+  rhythm, no-spend streak, average outing cost, participant balance, next event
+- Daily insight calculations persisted in `forecastSnapshots`
+- Fixed 11-position layout (gap-analysis-r2 §7)
 
 ## V1 — Explicitly NOT in Scope
 

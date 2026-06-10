@@ -1,13 +1,19 @@
 # TripPilot — Complete Database Schema
 
-> Last updated: 2026-06-09
-> Status: Implemented. Dexie schema **v2** in `src/data/db/schema.ts` carries the compound
+> Last updated: 2026-06-09 (R2 session)
+> Status: Implemented. Dexie schema **v3** in `src/data/db/schema.ts`. v2 added the compound
 > indexes specified here (`[tripId+order]`, `[tripId+date]`, `[budgetPoolId+phaseId]`,
 > `[budgetPoolId+kind]`, `[phaseId+budgetPoolId]`, `[phaseId+type]`, `[phaseId+category]`,
-> `[budgetPoolId+type]`), and `db.on('populate')` seeds appSettings + the current device
-> (GAP-031). The implemented v1 (without compound indexes) is preserved for upgrades.
+> `[budgetPoolId+type]`) plus `db.on('populate')` seeding (GAP-031). **v3 (R2, single
+> unified migration)** added: `ParticipantShare.confirmationStatus` (DEC-071), the new
+> `phaseProfileSettings` table with `[phaseId+activityProfileId]` (DEC-074),
+> `Phase.rhythmPreset`/`Phase.peakDays` (DEC-075), and the extended `PlannedOccurrence`
+> (`endDate`, `kind`, `reservedCents`, `linkedSessionId`, nullable `activityProfileId`)
+> with `[phaseId+plannedDate]` (DEC-072). The `upgrade()` callback backfills permissive
+> defaults — existing data keeps identical behavior. Backup format is **v3**
+> (`phaseProfileSettings` included; v2 imports normalized with migration defaults).
 > Storage: IndexedDB via Dexie (local-first)
-> Decisions incorporated: DEC-001 through DEC-070
+> Decisions incorporated: DEC-001 through DEC-083
 
 ---
 
@@ -523,6 +529,8 @@ interface Trip extends SyncMetadata {
 ### 2.3 Phase
 
 ```typescript
+type PhaseRhythmPreset = 'intense' | 'moderate' | 'relaxed' | 'custom';
+
 interface Phase extends SyncMetadata {
   tripId: string;
   name: string;
@@ -532,6 +540,10 @@ interface Phase extends SyncMetadata {
   endDate: string;
   /** Display order within the trip (0-based) */
   order: number;
+  /** DEC-075 (v3): spending rhythm preset. Null = uniform (pre-R2 behavior) */
+  rhythmPreset: PhaseRhythmPreset | null;
+  /** DEC-075 (v3): peak weekdays (0=Sunday..6=Saturday). Null = no peak days */
+  peakDays: number[] | null;
   notes: string | null;
 }
 ```
@@ -728,22 +740,53 @@ interface ScenarioAllocationItem extends SyncMetadata {
  * Distinct from ScenarioAllocationItem which is an aggregate count (DEC-043).
  * Links to the actual Transaction once the event happens.
  */
+type OccurrenceKind = 'event' | 'sub_destination';
+
 interface PlannedOccurrence extends SyncMetadata {
   tripId: string;
   phaseId: string;
-  activityProfileId: string;
+  /** DEC-072 (v3): nullable — one-off events have no recurring profile (DEC-073) */
+  activityProfileId: string | null;
   budgetPoolId: string;
   /** Descriptive name: "Passeio para Valladolid" */
   name: string;
   /** ISO 8601 date (YYYY-MM-DD) or null if date not yet decided */
   plannedDate: string | null;
+  /** DEC-072 (v3): end of the date interval ("Praia, 2d"). Null = single day */
+  endDate: string | null;
+  /** DEC-072 (v3): "event" (party, tour) | "sub_destination" (eurotrip city) */
+  kind: OccurrenceKind;
   /** Estimated cost, in cents */
   estimatedCostCents: number;
+  /**
+   * DEC-072 (v3): amount reserved upfront, in cents. Deducted from
+   * freeToSpend until the occurrence is confirmed or linked to a session —
+   * then the real spending takes over. Null = no reserve.
+   */
+  reservedCents: number | null;
+  /** DEC-072 (v3): session started from the day card / one-off flow */
+  linkedSessionId: string | null;
   /** True if this occurrence is a firm commitment (not tentative) */
   isConfirmed: boolean;
   /** Set when the actual expense is recorded, linking plan to reality */
   linkedTransactionId: string | null;
   notes: string | null;
+}
+```
+
+### 2.10b PhaseProfileSetting (v3 — DEC-074)
+
+```typescript
+/**
+ * Per-phase enablement of an activity profile ("o que vai ter nessa fase?").
+ * ABSENCE of a row = enabled (permissive default — migration never changes
+ * old data behavior). Planner hydration, dashboard counters, and outing
+ * start respect this setting.
+ */
+interface PhaseProfileSetting extends SyncMetadata {
+  phaseId: string;
+  activityProfileId: string;
+  isEnabled: boolean;
 }
 ```
 
@@ -925,6 +968,8 @@ interface Transaction extends SyncMetadata {
  * The sum of all ParticipantShare.shareCents for a transaction
  * should equal the Transaction.amountCents.
  */
+type ShareConfirmationStatus = 'pending' | 'confirmed' | 'rejected';
+
 interface ParticipantShare extends SyncMetadata {
   transactionId: string;
   participantId: string;
@@ -932,6 +977,13 @@ interface ParticipantShare extends SyncMetadata {
   shareCents: number;
   /** "equal" = auto-calculated even split | "custom" = user-defined amount */
   shareType: ShareType;
+  /**
+   * DEC-071 (v3): payer's own share is born "confirmed"; third-party shares
+   * are born "pending". Debts count ONLY confirmed shares; "rejected"
+   * returns the value to the payer's personal cost. Migration backfills
+   * 'confirmed' on pre-v3 shares.
+   */
+  confirmationStatus: ShareConfirmationStatus;
   /** True when the participant has settled this debt */
   isPaid: boolean;
   notes: string | null;
@@ -1285,7 +1337,10 @@ const SCHEMA_V1: Record<string, string> = {
     'id, scenarioPlanId, activityProfileId',
 
   plannedOccurrences:
-    'id, tripId, phaseId, activityProfileId, plannedDate',
+    'id, tripId, phaseId, activityProfileId, plannedDate, [phaseId+plannedDate]', // [phaseId+plannedDate] added in v3 (DEC-072)
+
+  phaseProfileSettings: // v3 (DEC-074)
+    'id, phaseId, activityProfileId, [phaseId+activityProfileId]',
 
   participants:
     'id, tripId',
@@ -1961,8 +2016,9 @@ interface SharedExpenseConfirmation extends SyncMetadata {
 | 19 | AlertRule | `alertRules` | 3–10 |
 | 20 | AppSettings | `appSettings` | 1 |
 | 21 | Device | `devices` | 1–3 |
-| | **Total** | **21 tables** | **~120–1050 records** |
+| 22 | PhaseProfileSetting (v3) | `phaseProfileSettings` | 0–40 |
+| | **Total** | **22 tables** | **~120–1100 records** |
 
 ---
 
-*This schema incorporates all 60 approved decisions (DEC-001 through DEC-060) and is ready for Delivery 1 implementation. All types are valid TypeScript. Dexie configuration is production-ready.*
+*This schema incorporates all 83 approved decisions (DEC-001 through DEC-083). Dexie v3 is implemented in `src/data/db/schema.ts` with a single unified upgrade callback; backup format v3 imports v2 files via normalization.*

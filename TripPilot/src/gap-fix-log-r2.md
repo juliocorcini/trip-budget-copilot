@@ -1,7 +1,7 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 9 | **Item ativo**: brain + verificação final + deploy v0.3.0
+- **Gate ativo**: CONCLUÍDO (9/9) | **Sessão R2 encerrada** — v0.3.0 no ar
 - **Itens resolvidos**: 23/23
 - **Testes**: 228 unit (baseline 156) + 29 e2e (baseline 22)
 - **Build/Typecheck**: clean
@@ -66,7 +66,13 @@
 - [x] Cores hardcoded residuais dos Gates 5/6 (`#C75B39xx` em OutingPage/TripEditPage) → `var(--primary-subtle)`/`var(--primary-dim)`
 
 ### Gate 9 — Brain + verificação + deploy v0.3.0
-- [ ] Brain + re-verificação 23/23 + deploy
+- [x] Brain: project-status.md (R2 resolvida, números), gap-analysis-r2 marcado "RESOLVIDO", database-schema.md (Dexie v3: tabela nova, campos, índices, backup v3), product-spec.md (features 13–18: confirmação de shares, atividades/fase, ritmo, eventos, outing rico+histórico, dashboard final)
+- [x] package.json + app-version.ts → 0.3.0; SW CACHE_NAME → trippilot-v4
+- [x] Verificação final: 228 unit ✅ · typecheck ✅ · build ✅ · 29 e2e ✅
+- [x] Re-verificação 23/23 NO CÓDIGO (rg por marcador): FIELD-03..14 ✅ GAP-R2-001..009 ✅ DEC-071..083 ✅ — única exceção documentada: hex do `theme-color` meta em RootLayout.tsx (espelho deliberado de tokens.css, meta tag não lê CSS var)
+- [x] Smokes do Julio: (a) 2×€20 cruzado → teste unit splitting + e2e shared-confirm; (b) Parral → teste unit ciclo completo + e2e events; (c) tema claro raiz → RootLayout + e2e; (d) fds da Mira → testes rhythm
+- [x] 0 cores hardcoded dark · 0 diálogos nativos · i18n 514×3 em paridade
+- [x] Deploy: https://master.trippilot.pages.dev (v0.3.0)
 
 ## Problemas extras encontrados (NÃO corrigir — anotar)
 - (vazio)
