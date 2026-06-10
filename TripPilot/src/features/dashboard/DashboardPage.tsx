@@ -1033,8 +1033,13 @@ export function DashboardPage() {
       </BottomSheet>
 
       {/* GLOBAL POOLS (personal shopping etc. — by scope, GAP-017) */}
+      {/* R-26: pool cards lead to the funds screen */}
       {globalPoolSummaries.map(({ pool, summary }) => (
-        <div key={pool.id} className="mt-5 p-4 rounded-2xl bg-surface-container">
+        <button
+          key={pool.id}
+          onClick={() => navigate('/funds')}
+          className="mt-5 p-4 rounded-2xl bg-surface-container w-full text-left btn-press"
+        >
           <div className="flex items-center gap-3 mb-3">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -1072,7 +1077,7 @@ export function DashboardPage() {
               </div>
             </div>
           </div>
-        </div>
+        </button>
       ))}
 
       {/* §7 pos. 10 — RECENT EXPENSES */}

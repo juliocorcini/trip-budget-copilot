@@ -1,9 +1,9 @@
 # Gap Fix Log R3 — TripPilot
 
 ## Current State
-- **Gate ativo**: Gate 6 (Dívidas + cliques)
-- **Requisito ativo**: R-25
-- **Itens resolvidos**: 24/26
+- **Gate ativo**: Gate 7 (Brain + verificação + deploy)
+- **Requisito ativo**: —
+- **Itens resolvidos**: 26/26
 - **Testes**: 257 unit (+29) + 29 e2e
 - **Build/Typecheck**: clean
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`; NUNCA criar Dexie v4 sem necessidade real de índice
@@ -53,8 +53,9 @@
 - Checkpoint Gate 5: typecheck ✅ · 257 unit ✅ · build ✅ · 29 e2e ✅ · i18n ×3 paridade (677 chaves)
 
 ### Gate 6 — Dívidas + cliques (R-25..26)
-- [ ] R-25 — Extrato por participante
-- [ ] R-26 — Varredura de cliques
+- [x] R-25 — `buildParticipantStatement` (splitting.ts): rastreia o saldo item a item — toda share não-rejeitada que move o saldo da pessoa (`owes` p/ pagador, `is_owed` quando ela pagou), com descrição/subcategoria/data/valor/status + liquidações aplicadas; `netCents` (só confirmadas + settlements) bate com `calculateDebts`. Tap no participante em /shared → BottomSheet com saldo, linhas (label = subcategoria > descrição > categoria, badge de status, quem pagou) e liquidações. 7 testes (cenário €1,12 da Débora incluso: 0,75+0,37 rastreáveis)
+- [x] R-26 — Varredura completa (lista abaixo): TODO `<button>` tem onClick em 22 páginas (42/42 no Outing, 24/24 no TripEdit etc.); órfãos corrigidos: TripOverview fases→/trip/edit e fundos→/funds, /shared gasto compartilhado→/expenses/:id, Dashboard pool global→/funds
+- Checkpoint Gate 6: typecheck ✅ · 264 unit ✅ · build ✅ · 29 e2e ✅ · i18n ×3 paridade (683 chaves)
 
 ### Gate 7 — Brain + verificação + deploy
 - [ ] Brain atualizado (decision-log, project-status, product-spec, database-schema)
@@ -66,4 +67,28 @@
 - (nenhum ainda)
 
 ## Varredura de cliques (R-26)
-- (preencher no Gate 6)
+
+Critério: todo elemento com cara de interativo tem destino/ação; informativos não têm affordance falsa (sem btn-press/chevron). Botões/onClick auditados por página (contagem `<button>` = contagem `onClick`).
+
+| Tela | Elementos verificados | Destino/ação |
+|---|---|---|
+| Dashboard | sino → /notifications · counters (4) → planner/expenses · carrossel insights → sheet de cálculo ou navegação por tipo · card do dia (título→edição do evento R-23, iniciar→/outings/new, adiar) · saída ativa → /outings/active · Amigo Sincero "Ver impacto" → /impact · pool global → /funds (corrigido) · recentes → /expenses/:id · "ver tudo" → /expenses · hero/savings = informativos sem affordance |
+| Gastos | tabs/chips filtram · linha de gasto → /expenses/:id · saída → /outings/:id/review |
+| Planejar | seletor de fases · resumo sticky (informativo) · eventos → /trip/edit?occurrence=id (corrigido R-23) · nome da categoria → menu R-21 · ± · cadeado · presets · recomendação aplicar/cancelar · add categoria |
+| Saída (Outing) | 42 botões com onClick (quick add, stepper contexto/subcategoria/pagador/split, item sem subcategoria → re-detalhar R-15, encerrar/cancelar) |
+| Review de saída | botão concluir; itens informativos |
+| Simulador | voltar; cards de métrica informativos |
+| /impact | voltar · CTA → /planner |
+| Notificações | voltar · cada notificação → destino próprio (builder R-08) |
+| /shared | participante → extrato R-25 (novo) · gasto compartilhado → /expenses/:id (corrigido) · simplificar · settle → sheet · add participante |
+| Viagem (overview) | fase → /trip/edit (corrigido) · fundo → /funds (corrigido) · editar viagem |
+| Editar viagem | 24 botões (fases, eventos, occurrence deep link R-09/R-23) |
+| Fundos | 18 botões (expand, editar, envelopes, vincular fases) |
+| Carteiras | definir padrão · reconciliar → sheet |
+| Perfis | perfil → form de edição R-24 (corrigido) · add · remover |
+| Quick add | 18 botões (valores, categorias, carteira, salvar) |
+| Mais | todos os itens de menu navegam (7+2+2) |
+| Config | tom/tema/idioma/moeda/lembrete/carteira/quick-values |
+| Backup | export/import (label de file input com affordance legítima) · CSV |
+| Onboarding/Welcome | 5+3 botões de fluxo |
+| Sobre | voltar · link |

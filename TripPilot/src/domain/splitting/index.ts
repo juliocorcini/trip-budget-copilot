@@ -11,5 +11,14 @@ export {
   calculateParticipantBalances,
   findPendingConfirmationShares,
   calculateOwnerPersonalCost,
+  buildParticipantStatement,
 } from './splitting';
-export type { DebtEntry, DebtSummary, BuildSharesInput, PendingShareEntry } from './splitting';
+export type {
+  DebtEntry,
+  DebtSummary,
+  BuildSharesInput,
+  PendingShareEntry,
+  StatementLine,
+  StatementLineKind,
+  ParticipantStatement,
+} from './splitting';

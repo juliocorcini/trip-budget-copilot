@@ -11,6 +11,7 @@ import {
   findPendingConfirmationShares,
   calculateOwnerPersonalCost,
   suggestSimplifiedSettlements,
+  buildParticipantStatement,
 } from '@/domain/splitting';
 import type { DebtEntry } from '@/domain/splitting';
 import type { Transaction } from '@/domain/types/transaction';
@@ -394,5 +395,117 @@ describe('calculateParticipantBalances', () => {
 
   it('returns empty map when there are no debts', () => {
     expect(calculateParticipantBalances([]).size).toBe(0);
+  });
+});
+
+describe('buildParticipantStatement (DEC-102 / R-25)', () => {
+  const participants: Participant[] = [
+    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null },
+    { ...meta, id: 'debora', tripId: 'trip-1', name: 'Débora', nickname: 'Deb', isOwner: false, email: null, linkedUserAccountId: null },
+  ];
+
+  const mkTx = (id: string, amountCents: number, description: string, date: string, payerId: string | null = 'julio'): Transaction => ({
+    ...meta, id, tripId: 'trip-1', phaseId: 'ph-1',
+    budgetPoolId: 'pool-1', walletId: null, sessionId: null,
+    type: 'expense', amountCents, personalCostCents: null,
+    currency: 'EUR', baseCurrencyAmountCents: amountCents, exchangeRate: null,
+    category: 'bar', subcategoryId: 'bar_drink', description, date,
+    isShared: true, paidByParticipantId: payerId,
+    activityProfileId: null, isSpecialOccasion: false, excludeFromLearning: false,
+    sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
+  });
+
+  const mkShare = (id: string, txId: string, participantId: string, amountCents: number, status: ParticipantShare['confirmationStatus'] = 'confirmed'): ParticipantShare => ({
+    ...meta, id, transactionId: txId, participantId, shareAmountCents: amountCents, shareType: 'equal', isPaid: false, confirmationStatus: status, notes: null,
+  });
+
+  // The exact field report: "Débora deve €1,12 — de onde veio?"
+  it('traces a €1.12 debt item by item', () => {
+    const tx1 = mkTx('tx-1', 150, 'Cerveja', '2026-07-01T20:00:00.000Z');
+    const tx2 = mkTx('tx-2', 74, 'Água', '2026-07-02T12:00:00.000Z');
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 75),
+      mkShare('s2', 'tx-1', 'debora', 75),
+      mkShare('s3', 'tx-2', 'julio', 37),
+      mkShare('s4', 'tx-2', 'debora', 37),
+    ];
+    const statement = buildParticipantStatement('debora', [tx1, tx2], shares, participants, [], 'julio');
+    expect(statement.lines).toHaveLength(2);
+    expect(statement.lines.every((l) => l.kind === 'owes')).toBe(true);
+    // 75 + 37 = 112 cents = the €1.12 from the report, fully traceable.
+    expect(statement.netCents).toBe(-112);
+    expect(statement.lines[0]!.counterpartyName).toBe('Julio');
+    expect(statement.lines[0]!.subcategoryId).toBe('bar_drink');
+  });
+
+  it('matches calculateDebts balance for the same inputs', () => {
+    const tx1 = mkTx('tx-1', 6000, 'Mercado', '2026-07-01T00:00:00.000Z');
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 3000),
+      mkShare('s2', 'tx-1', 'debora', 3000),
+    ];
+    const debts = calculateDebts([tx1], shares, participants, [], 'julio');
+    const balances = calculateParticipantBalances(debts.debts);
+    const statement = buildParticipantStatement('debora', [tx1], shares, participants, [], 'julio');
+    expect(statement.netCents).toBe(balances.get('debora'));
+  });
+
+  it('shows credit lines when the participant paid for others', () => {
+    const tx = mkTx('tx-1', 4000, 'Jantar', '2026-07-03T00:00:00.000Z', 'debora');
+    const shares = [
+      mkShare('s1', 'tx-1', 'debora', 2000),
+      mkShare('s2', 'tx-1', 'julio', 2000),
+    ];
+    const statement = buildParticipantStatement('debora', [tx], shares, participants, [], 'julio');
+    expect(statement.lines).toHaveLength(1);
+    expect(statement.lines[0]!.kind).toBe('is_owed');
+    expect(statement.lines[0]!.counterpartyId).toBe('julio');
+    expect(statement.netCents).toBe(2000);
+  });
+
+  it('includes pending lines for context but excludes them from the net', () => {
+    const tx = mkTx('tx-1', 2000, 'Bar', '2026-07-04T00:00:00.000Z');
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 1000),
+      mkShare('s2', 'tx-1', 'debora', 1000, 'pending'),
+    ];
+    const statement = buildParticipantStatement('debora', [tx], shares, participants, [], 'julio');
+    expect(statement.lines).toHaveLength(1);
+    expect(statement.lines[0]!.confirmationStatus).toBe('pending');
+    expect(statement.netCents).toBe(0);
+  });
+
+  it('excludes rejected shares entirely', () => {
+    const tx = mkTx('tx-1', 2000, 'Bar', '2026-07-04T00:00:00.000Z');
+    const shares = [mkShare('s1', 'tx-1', 'debora', 1000, 'rejected')];
+    const statement = buildParticipantStatement('debora', [tx], shares, participants, [], 'julio');
+    expect(statement.lines).toHaveLength(0);
+    expect(statement.netCents).toBe(0);
+  });
+
+  it('applies settlements to the net and lists them', () => {
+    const tx = mkTx('tx-1', 6000, 'Mercado', '2026-07-01T00:00:00.000Z');
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 3000),
+      mkShare('s2', 'tx-1', 'debora', 3000),
+    ];
+    const settlements = [
+      { ...meta, id: 'set-1', tripId: 'trip-1', debtorParticipantId: 'debora', creditorParticipantId: 'julio', amountCents: 2000, currency: 'EUR', settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null },
+    ];
+    const statement = buildParticipantStatement('debora', [tx], shares, participants, settlements, 'julio');
+    expect(statement.settlements).toHaveLength(1);
+    expect(statement.netCents).toBe(-1000);
+  });
+
+  it('sorts lines by date, newest first', () => {
+    const tx1 = mkTx('tx-1', 1000, 'Antigo', '2026-07-01T00:00:00.000Z');
+    const tx2 = mkTx('tx-2', 1000, 'Novo', '2026-07-05T00:00:00.000Z');
+    const shares = [
+      mkShare('s1', 'tx-1', 'debora', 500),
+      mkShare('s2', 'tx-2', 'debora', 500),
+    ];
+    const statement = buildParticipantStatement('debora', [tx1, tx2], shares, participants, [], 'julio');
+    expect(statement.lines[0]!.description).toBe('Novo');
+    expect(statement.lines[1]!.description).toBe('Antigo');
   });
 });

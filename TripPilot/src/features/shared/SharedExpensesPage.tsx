@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   calculateDebts,
@@ -7,11 +8,15 @@ import {
   createParticipant,
   calculateParticipantBalances,
   suggestSimplifiedSettlements,
+  buildParticipantStatement,
 } from '@/domain/splitting';
 import type { DebtSummary, DebtEntry } from '@/domain/splitting';
+import { findSubcategory } from '@/domain/outing';
+import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
 import { formatMoney, toCents } from '@/domain/money';
+import { formatShortDate } from '@/domain/dates';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
 import { participantRepository } from '@/data/repositories';
@@ -20,6 +25,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { trip, transactions, participants, reload } = useAppData();
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -54,6 +60,8 @@ export function SharedExpensesPage() {
   const [settleTarget, setSettleTarget] = useState<DebtEntry | null>(null);
   const [settleAmount, setSettleAmount] = useState('');
   const [showSimplified, setShowSimplified] = useState(false);
+  // DEC-102 (R-25): tap on a participant opens their itemized statement.
+  const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
 
   const openSettleSheet = (debt: DebtEntry) => {
     setSettleTarget(debt);
@@ -117,7 +125,12 @@ export function SharedExpensesPage() {
         {participants.map((p) => {
           const balance = balances.get(p.id) ?? 0;
           return (
-            <div key={p.id} className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center gap-3">
+            // DEC-102 (R-25): tap opens the itemized statement for this person.
+            <button
+              key={p.id}
+              onClick={() => setStatementTarget(p)}
+              className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center gap-3 w-full text-left btn-press"
+            >
               <Icon name="person" size={20} className="text-on-surface-dim" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-on-surface truncate">
@@ -139,7 +152,8 @@ export function SharedExpensesPage() {
                     ? t('shared.balance_owed', { amount: formatMoney(balance, trip.baseCurrency) })
                     : t('shared.balance_zero')}
               </p>
-            </div>
+              <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
+            </button>
           );
         })}
 
@@ -218,7 +232,12 @@ export function SharedExpensesPage() {
                 (s) => s.transactionId === tx.id && s.deletedAt === null,
               );
               return (
-                <div key={tx.id} className="bg-surface-container rounded-xl p-4 mb-2">
+                // R-26: the shared expense card leads to the expense detail.
+                <button
+                  key={tx.id}
+                  onClick={() => navigate(`/expenses/${tx.id}`)}
+                  className="bg-surface-container rounded-xl p-4 mb-2 w-full text-left btn-press"
+                >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-on-surface truncate">{tx.description}</p>
                     <p className="text-sm font-semibold tabular text-on-surface shrink-0">
@@ -240,7 +259,7 @@ export function SharedExpensesPage() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -353,6 +372,126 @@ export function SharedExpensesPage() {
             </div>
           </div>
         )}
+      </BottomSheet>
+
+      {/* DEC-102 (R-25): itemized statement — where each cent came from */}
+      <BottomSheet
+        open={statementTarget !== null}
+        onClose={() => setStatementTarget(null)}
+        title={statementTarget?.nickname ?? statementTarget?.name ?? ''}
+      >
+        {statementTarget && (() => {
+          const owner = participants.find((p) => p.isOwner);
+          if (!owner) return null;
+          const statement = buildParticipantStatement(
+            statementTarget.id,
+            transactions,
+            shares,
+            participants,
+            settlements,
+            owner.id,
+          );
+          const statusStyle: Record<string, string> = {
+            pending: 'bg-warning/15 text-warning',
+            confirmed: 'bg-success/20 text-success',
+            rejected: 'bg-error/15 text-error',
+          };
+          const lineLabel = (line: (typeof statement.lines)[number]): string => {
+            const sub = findSubcategory(line.subcategoryId);
+            if (sub) return t(sub.labelKey as never);
+            if (line.description) return line.description;
+            if (line.category) return t(`categories.${line.category}` as never);
+            return t('shared.statement_unnamed');
+          };
+          return (
+            <div className="flex flex-col gap-3">
+              <p
+                className={`text-lg font-extrabold tabular ${
+                  statement.netCents < 0
+                    ? 'text-error'
+                    : statement.netCents > 0
+                      ? 'text-success'
+                      : 'text-on-surface-dim'
+                }`}
+              >
+                {statement.netCents < 0
+                  ? t('shared.balance_owes', {
+                      amount: formatMoney(Math.abs(statement.netCents), trip.baseCurrency),
+                    })
+                  : statement.netCents > 0
+                    ? t('shared.balance_owed', {
+                        amount: formatMoney(statement.netCents, trip.baseCurrency),
+                      })
+                    : t('shared.balance_zero')}
+              </p>
+
+              {statement.lines.length === 0 && statement.settlements.length === 0 && (
+                <p className="text-sm text-on-surface-dim">{t('shared.statement_empty')}</p>
+              )}
+
+              {statement.lines.length > 0 && (
+                <div className="flex flex-col gap-1.5 max-h-[40vh] overflow-y-auto no-scrollbar">
+                  {statement.lines.map((line, i) => (
+                    <div key={i} className="bg-surface-high rounded-xl px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-bold text-on-surface truncate">
+                          {lineLabel(line)}
+                        </p>
+                        <p
+                          className={`text-xs font-bold tabular shrink-0 ${
+                            line.kind === 'owes' ? 'text-error' : 'text-success'
+                          }`}
+                        >
+                          {line.kind === 'owes' ? '−' : '+'}
+                          {formatMoney(line.amountCents, trip.baseCurrency)}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <p className="text-[10px] text-on-surface-faint truncate">
+                          {formatShortDate(line.occurredAt)} ·{' '}
+                          {line.kind === 'owes'
+                            ? t('shared.statement_paid_by', { name: line.counterpartyName })
+                            : t('shared.statement_owes_you', { name: line.counterpartyName })}
+                        </p>
+                        <span
+                          className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${statusStyle[line.confirmationStatus]}`}
+                        >
+                          {t(`shared.status_${line.confirmationStatus}` as never)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {statement.settlements.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
+                    {t('shared.settlements_done')}
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {statement.settlements.map((s) => (
+                      <div
+                        key={s.id}
+                        className="bg-surface-high rounded-xl px-3 py-2 flex items-center justify-between"
+                      >
+                        <p className="text-[10px] text-on-surface-faint">
+                          {formatShortDate(s.settledAt)} ·{' '}
+                          {s.debtorParticipantId === statementTarget.id
+                            ? t('shared.statement_settled_out')
+                            : t('shared.statement_settled_in')}
+                        </p>
+                        <p className="text-xs font-bold tabular text-success">
+                          {formatMoney(s.amountCents, s.currency)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </BottomSheet>
 
       {debtSummary && debtSummary.debts.length === 0 && (

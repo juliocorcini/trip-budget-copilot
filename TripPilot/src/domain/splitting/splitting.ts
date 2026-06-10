@@ -344,6 +344,120 @@ export function calculateOwnerPersonalCost(
   return ownShare.shareAmountCents;
 }
 
+/* ── DEC-102 (R-25): per-participant statement ───────────────────────── */
+
+export type StatementLineKind = 'owes' | 'is_owed';
+
+export interface StatementLine {
+  kind: StatementLineKind;
+  transactionId: string;
+  description: string | null;
+  category: string | null;
+  subcategoryId: string | null;
+  occurredAt: string;
+  /** The participant's slice of this expense (always positive). */
+  amountCents: number;
+  /** The other side of the line: payer (owes) or debtor (is_owed). */
+  counterpartyId: string;
+  counterpartyName: string;
+  confirmationStatus: ParticipantShare['confirmationStatus'];
+}
+
+export interface ParticipantStatement {
+  participantId: string;
+  lines: StatementLine[];
+  /** Settlements involving the participant, applied to the net. */
+  settlements: Settlement[];
+  /** Net balance from CONFIRMED lines + settlements: negative = owes. */
+  netCents: number;
+}
+
+/**
+ * DEC-102 (R-25): traces a participant's balance item by item — every share
+ * that moves their balance (what they owe payers, what others owe them) plus
+ * the settlements already applied. The net from confirmed lines matches
+ * `calculateDebts`' balance for the same inputs.
+ */
+export function buildParticipantStatement(
+  participantId: string,
+  transactions: Transaction[],
+  shares: ParticipantShare[],
+  participants: Participant[],
+  settlements: Settlement[],
+  ownerId: string,
+): ParticipantStatement {
+  const nameById = new Map(participants.map((p) => [p.id, p.nickname ?? p.name]));
+  const lines: StatementLine[] = [];
+
+  const sharedTxs = transactions.filter(
+    (t) => t.isShared && t.type === 'expense' && t.deletedAt === null,
+  );
+
+  for (const tx of sharedTxs) {
+    const payerId = tx.paidByParticipantId ?? ownerId;
+    const txShares = shares.filter(
+      (s) =>
+        s.transactionId === tx.id &&
+        s.deletedAt === null &&
+        s.confirmationStatus !== 'rejected',
+    );
+
+    for (const share of txShares) {
+      if (share.participantId === payerId) continue;
+      const base = {
+        transactionId: tx.id,
+        description: tx.description,
+        category: tx.category,
+        subcategoryId: tx.subcategoryId,
+        occurredAt: tx.date,
+        amountCents: share.shareAmountCents,
+        confirmationStatus: share.confirmationStatus,
+      };
+      if (share.participantId === participantId) {
+        lines.push({
+          ...base,
+          kind: 'owes',
+          counterpartyId: payerId,
+          counterpartyName: nameById.get(payerId) ?? payerId,
+        });
+      } else if (payerId === participantId) {
+        lines.push({
+          ...base,
+          kind: 'is_owed',
+          counterpartyId: share.participantId,
+          counterpartyName: nameById.get(share.participantId) ?? share.participantId,
+        });
+      }
+    }
+  }
+
+  lines.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+
+  const ownSettlements = settlements.filter(
+    (s) =>
+      s.deletedAt === null &&
+      (s.debtorParticipantId === participantId || s.creditorParticipantId === participantId),
+  );
+
+  const confirmedNet = sumCents(
+    lines
+      .filter((l) => l.confirmationStatus === 'confirmed')
+      .map((l) => (l.kind === 'owes' ? -l.amountCents : l.amountCents)),
+  );
+  const settlementNet = sumCents(
+    ownSettlements.map((s) =>
+      s.debtorParticipantId === participantId ? s.amountCents : -s.amountCents,
+    ),
+  );
+
+  return {
+    participantId,
+    lines,
+    settlements: ownSettlements,
+    netCents: confirmedNet + settlementNet,
+  };
+}
+
 /** Net balance per participant: positive = is owed money, negative = owes money. */
 export function calculateParticipantBalances(debts: DebtEntry[]): Map<string, number> {
   const balances = new Map<string, number>();

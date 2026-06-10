@@ -69,9 +69,11 @@ export function TripOverviewPage() {
               .reduce((sum, tx) => sum + tx.amountCents, 0);
 
             return (
-              <div
+              // R-26: phase cards lead to the phase editor.
+              <button
                 key={phase.id}
-                className="bg-surface-container rounded-xl p-4"
+                onClick={() => navigate('/trip/edit')}
+                className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
                 style={isCurrent ? { border: '1px solid #C75B3925' } : undefined}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -95,7 +97,7 @@ export function TripOverviewPage() {
                 <p className="text-xs font-semibold text-on-surface-dim mt-3">
                   {t('trip.phase_spent', { amount: formatMoney(phaseSpent, trip.baseCurrency) })}
                 </p>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -109,7 +111,12 @@ export function TripOverviewPage() {
           {pools.map((pool) => {
             const summary = createPoolSummary(pool, filterTransactionsByPool(transactions, pool.id));
             return (
-              <div key={pool.id} className="bg-surface-container rounded-xl p-4 flex justify-between items-center">
+              // R-26: fund cards lead to the funds screen.
+              <button
+                key={pool.id}
+                onClick={() => navigate('/funds')}
+                className="bg-surface-container rounded-xl p-4 flex justify-between items-center w-full text-left btn-press"
+              >
                 <div>
                   <p className="text-sm font-bold text-on-surface">{pool.name}</p>
                   <p className="text-xs text-on-surface-faint mt-0.5">
@@ -119,7 +126,7 @@ export function TripOverviewPage() {
                 <p className="text-sm font-extrabold tabular text-success">
                   {formatMoney(summary.remainingCents, pool.currency)}
                 </p>
-              </div>
+              </button>
             );
           })}
         </div>
