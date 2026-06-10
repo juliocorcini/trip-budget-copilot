@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trippilot-v2';
+const CACHE_NAME = 'trippilot-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -28,7 +28,14 @@ self.addEventListener('install', (event) => {
       await precacheBuildAssets(cache);
     })
   );
-  self.skipWaiting();
+  // DEC-082: no automatic skipWaiting — the page shows an update toast and
+  // the user decides when to activate the new version (SKIP_WAITING message).
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -42,20 +49,43 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+function isNavigationRequest(request) {
+  return request.mode === 'navigate' || new URL(request.url).pathname === '/index.html';
+}
+
+// DEC-082 (GAP-R2-001): navigation/index.html is network-first so a new deploy
+// reaches the user on the next load; hashed assets stay cache-first (immutable).
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request) || await cache.match('/index.html');
+    return cached || Response.error();
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, response.clone());
+  }
+  return response;
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-
-      return cached || fetchPromise;
-    })
-  );
+  if (isNavigationRequest(event.request)) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+  event.respondWith(cacheFirst(event.request));
 });

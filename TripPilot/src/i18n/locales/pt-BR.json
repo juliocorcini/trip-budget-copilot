@@ -434,7 +434,8 @@
     "balance_zero": "Em dia"
   },
   "pwa": {
-    "offline_ready": "Pronto para uso offline"
+    "offline_ready": "Pronto para uso offline",
+    "update_available": "Nova versão disponível — toque para atualizar"
   },
   "common": {
     "save": "Salvar",

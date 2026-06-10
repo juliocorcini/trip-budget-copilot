@@ -57,7 +57,7 @@ export function BottomNav() {
 
       <nav
         className={`fixed bottom-0 left-0 right-0 ${isFabOpen ? 'z-[60]' : 'z-40'} glass border-t`}
-        style={{ background: '#0F1419e6', borderColor: '#EDE8E008' }}
+        style={{ background: 'var(--nav-bar)', borderColor: 'var(--border-hairline)' }}
       >
         <div className="max-w-[430px] mx-auto flex justify-around items-center px-3 py-1.5">
           {LEFT_NAV.map(renderNavItem)}

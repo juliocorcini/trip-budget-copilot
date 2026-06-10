@@ -87,7 +87,7 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
 
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
-      <div className="absolute inset-0" style={{ background: '#0A0F14f0' }} />
+      <div className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
 
       <div className="relative flex flex-col justify-end min-h-screen pb-[88px]">
         <div className="px-5 pb-5 space-y-2">

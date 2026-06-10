@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-08
+> Last updated: 2026-06-09
 
 ## Format
 
@@ -143,10 +143,11 @@
 
 ### DEC-019 — Shared Expense Provisional Impact
 - **Date**: 2026-06-08
-- **Status**: APPROVED
+- **Status**: APPROVED — implemented via DEC-071 (2026-06-09)
 - **Decision**: Shared expenses from others affect budget provisionally before confirmation, with clear visual indication
 - **Rationale**: Better to over-reserve than be surprised. But must be transparent
 - **Alternatives**: Only after confirmation (user loses real-time awareness)
+- **Note (2026-06-09)**: the confirmation state never existed in the model until R2; DEC-071 adds `ParticipantShare.confirmationStatus` and the confirmation flow, finally implementing this decision
 
 ### DEC-020 — Money in Cents
 - **Date**: 2026-06-08
@@ -451,7 +452,7 @@
 
 ### DEC-063 — Pending Shared Criterion (was D-C)
 - **Date**: 2026-06-09
-- **Status**: APPROVED
+- **Status**: SUPERSEDED by DEC-071 (2026-06-09)
 - **Decision**: A shared transaction is "pending confirmation" when at least one third-party `participantShare` is not yet covered by settlements (FIFO coverage of the participant's total debt). Fully settled → disappears from the dashboard card (DEC-056)
 - **Rationale**: Only verifiable criterion with the current local-first model
 - **Alternatives**: isPaid flag per share (ignores settlements), manual confirmation (extra friction)
@@ -504,6 +505,97 @@
 - **Decision**: `lastBackupDate` persists on every export. Dashboard shows a discreet banner (tap → backup page) when `today - lastBackupDate > backupReminderDays`, or when no backup was ever made and data exists. Logic in `isBackupReminderDue` (domain/backup)
 - **Rationale**: Only way the reminder toggle stops being decorative
 - **Alternatives**: Notifications API (overkill for local-first V1)
+
+### DEC-071 — Explicit Confirmation of Shared Expenses
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo" — gap-analysis-r2 §6)
+- **Decision**: `ParticipantShare.confirmationStatus: 'pending' | 'confirmed' | 'rejected'` (Dexie v3, default `'confirmed'` for existing data). Creator's share is born `confirmed`; third-party shares born `pending`. `calculateDebts` only consolidates confirmed shares; rejected shares return the value to the payer's personal cost. Dashboard card = third-party pending shares with tap → confirm/reject/adjust sheet; card disappears when all confirmed, regardless of netting/settlement
+- **Rationale**: The user understands "pending confirmation" as an action expected from them; the derived-from-debt proxy (DEC-063) offered no action. Finally implements DEC-019
+- **Supersedes**: DEC-063 · **Implements**: DEC-019 · **Design**: gap-analysis-r2 §3 FIELD-03
+
+### DEC-072 — Planned Events via Extended PlannedOccurrence
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: Extend `PlannedOccurrence` (Dexie v3): `+endDate: string|null` (multi-day), `+kind: 'event'|'sub_destination'`, `+reservedCents: number|null`, `+linkedSessionId: string|null`; `activityProfileId` becomes nullable. Index `[phaseId+plannedDate]`. UI: "Eventos desta fase" in phase editing + informative line in Planner + day card on dashboard with "Iniciar agora"/"Adiar". `reservedCents` deducts from freeToSpend until the occurrence is confirmed/linked to a session — then the real spending takes over
+- **Rationale**: The table existed since DEC-043 with zero UI; extending 5 fields covers 1-day events, multi-day and sub-destinations with one UI
+- **Reactivates**: DEC-043 · **Design**: gap-analysis-r2 §5 FIELD-05
+
+### DEC-073 — One-Off Session Does Not Create a Recurring Profile
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: The custom session flow asks "is this a one-off event?" → YES creates a PlannedOccurrence linked to the session (no ActivityProfile); NO keeps the current custom profile flow. `createCustomActivityProfile` is only reachable via Profiles/Planner/onboarding
+- **Rationale**: One-off event ≠ recurring profile — root cause of the Parral contamination (FIELD-04)
+- **Affects**: DEC-037 · **Fixes**: FIELD-04 · **Design**: gap-analysis-r2 §5 FIELD-05
+
+### DEC-074 — Activities Enabled Per Phase
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo" + pediu catálogo maior de presets populares de viagem)
+- **Decision**: New table `phaseProfileSettings` (SyncMetadata + phaseId + activityProfileId + isEnabled), index `[phaseId+activityProfileId]`; absence of row = enabled (permissive default). Chips in phase editing (preset catalog of popular travel activities + existing trip profiles + "+ Outro"); Planner hydrates/persists only enabled profiles; counters and QuickAdd respect enabled
+- **Rationale**: Each phase has its own activity "menu"; structurally kills the FIELD-04 Planner contamination
+- **Affects**: DEC-015 · **Design**: gap-analysis-r2 §5 FIELD-01 + Julio's catalog adjustment
+
+### DEC-075 — Phase Rhythm + Peak Days
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: `Phase.rhythmPreset: 'intense'|'moderate'|'relaxed'|'custom'|null` + `Phase.peakDays: number[]|null` (0-6; null = uniform, current behavior). Domain: `calculateEffectiveSpendingDays` weights remaining days (peak=1.5, normal=1.0, calm per preset); `freeToSpendPerDay` weighted; "today is a peak day" microcopy in hero
+- **Rationale**: Real trips have rhythm; "effective days" feeds forecasting with a single concept
+- **Extends**: DEC-006 · **Design**: gap-analysis-r2 §5 FIELD-02
+
+### DEC-076 — Counters Carousel Ordered by Usage
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: Horizontal scroll-snap carousel (pure CSS), 3 visible, dots if >3; all profiles enabled in the phase, ordered: with spending in phase (desc by transaction count) → planned without usage; no usage at all → 3 most planned. Cards clickable → filtered expense list
+- **Rationale**: Fixed bar/market/restaurant counters hide other profiles
+- **Extends**: DEC-055 · **Design**: gap-analysis-r2 §5 FIELD-06
+
+### DEC-077 — Dashboard Insights V1
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: Rotating "Insights" block (1 card at a time, dots, max 4/day) with 6 V1 cards: end-of-phase projection (uses effective days), real vs planned rhythm, days without spending, average cost per outing, balance with participants, next event. Significance rules (e.g. projection only with ≥3 days of data); daily calculation persisted in `forecastSnapshots`
+- **Rationale**: Model data should become insight without polluting the dashboard
+- **Reactivates**: forecastSnapshots · **Design**: gap-analysis-r2 §5 FIELD-07
+
+### DEC-078 — Quick Post-Value Categorization
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: Optional inline stepper after session quick-add (transaction saved BEFORE any question): "what was it?" (category icons) → "who paid?" → "split?"; each step 1 tap = record and advance; skip or 3s without interaction = dismiss. Updates category/paidByParticipantId/shares via `buildSharesWithPayer`; shares follow DEC-071
+- **Rationale**: Registration stays 1 tap (DEC-053); enrichment is optional and instantaneous
+- **Reinforces**: DEC-053 · **Design**: gap-analysis-r2 §5 FIELD-08
+
+### DEC-079 — Outing History
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: "Saídas" tab inside Expenses (segmented control) + shortcut in "Mais"; list with name/date/duration/total/item count/profile badge; detail at `/outings/:id/review` reusing the end-of-session review screen in read-only mode
+- **Rationale**: Outings ARE grouped expenses; users look for them in Expenses
+- **Design**: gap-analysis-r2 §5 FIELD-09
+
+### DEC-080 — Fund/Phase Edit-Delete Policy
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: Soft delete everywhere. Fund: editable name/value; delete only without active transactions — with transactions, offer reassignment to another pool or block with explanation; cascade soft delete to links/envelopes/policies. Phase: delete only without transactions/sessions — with data, block with explanation; reorder remaining phases; never delete the last phase. All via BottomSheet confirmation
+- **Rationale**: CRUD was intentionally incomplete; safety rules prevent orphan data
+- **Design**: gap-analysis-r2 §3 FIELD-11
+
+### DEC-081 — Global Mobile Feel
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: `user-select: none` global with inputs/textarea/contenteditable preserved; `-webkit-tap-highlight-color: transparent`; `touch-action: manipulation` on interactive elements
+- **Rationale**: Browser text-selection defaults break the native-app feel
+- **Design**: gap-analysis-r2 §3 FIELD-10
+
+### DEC-082 — Visible Version Updates
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: Service worker becomes network-first with offline fallback for navigation/`index.html` (hashed assets stay cache-first); persistent toast "Nova versão disponível — toque para atualizar" triggering `skipWaiting` + reload when a new SW is waiting
+- **Rationale**: Cache-first index.html + silent update trapped users on old bundles — root cause of FIELD-03/FIELD-12a field reports
+- **Extends**: DEC-053d / GAP-036 · **Design**: gap-analysis-r2 §4 GAP-R2-001
+
+### DEC-083 — Complete Light Theme
+- **Date**: 2026-06-09
+- **Status**: APPROVED (Julio: "ok, eu confirmo")
+- **Decision**: Theme + language applied at root level (all routes, including those outside the AppShell); the 12 hardcoded dark colors → tokens; dynamic `theme-color` meta via JS per theme
+- **Rationale**: BottomNav invisible in light theme (hardcoded dark) + routes outside the shell never applied `data-theme`
+- **Extends**: DEC-066, DEC-022 · **Design**: gap-analysis-r2 §3 FIELD-12 / §4 GAP-R2-002/003
 
 ---
 

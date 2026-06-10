@@ -589,7 +589,9 @@ export function PlannerPage() {
           const priority = getPriority(profile.category);
           const isModified = s.count !== s.baselineCount;
           const cVar = colorVar(profile.color);
-          const cHex = profile.color ?? '#EDE8E0';
+          // Theme-aware tint: custom hex colors get alpha; no color → token (DEC-083).
+          const tintBg = profile.color ? `${profile.color}18` : 'var(--highlight-soft)';
+          const tintBadge = profile.color ? `${profile.color}20` : 'var(--highlight-soft)';
           const total = s.count * profile.typicalValueCents;
 
           return (
@@ -607,7 +609,7 @@ export function PlannerPage() {
                 <div className="flex items-center gap-2.5">
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ background: `${cHex}18` }}
+                    style={{ background: tintBg }}
                   >
                     <span
                       className="material-symbols-outlined text-base"
@@ -638,8 +640,8 @@ export function PlannerPage() {
                     style={{
                       background:
                         priority === 'essential'
-                          ? `${cHex}20`
-                          : '#EDE8E015',
+                          ? tintBadge
+                          : 'var(--highlight-soft)',
                       color:
                         priority === 'essential'
                           ? cVar
@@ -781,7 +783,7 @@ export function PlannerPage() {
               <div className="mt-2 grid grid-cols-3 gap-2">
                 <div
                   className="p-2 rounded-lg text-center"
-                  style={{ background: '#EDE8E006' }}
+                  style={{ background: 'var(--highlight-faint)' }}
                 >
                   <p
                     className="text-[9px] font-bold"
@@ -798,7 +800,7 @@ export function PlannerPage() {
                 </div>
                 <div
                   className="p-2 rounded-lg text-center"
-                  style={{ background: '#EDE8E006' }}
+                  style={{ background: 'var(--highlight-faint)' }}
                 >
                   <p
                     className="text-[9px] font-bold"
@@ -857,7 +859,7 @@ export function PlannerPage() {
                   <div
                     key={c.profileId}
                     className="p-2 rounded-lg"
-                    style={{ background: '#EDE8E006' }}
+                    style={{ background: 'var(--highlight-faint)' }}
                   >
                     <p
                       className="text-[9px] font-bold uppercase"

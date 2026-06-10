@@ -218,7 +218,7 @@ export function DashboardPage() {
         <button
           onClick={() => navigate('/settings/backup')}
           className="mx-5 mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
-          style={{ background: 'var(--surface-container)', border: '1px solid #EDE8E010' }}
+          style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
         >
           <Icon name="cloud_upload" size={16} className="text-on-surface-dim" />
           <p className="text-xs font-semibold text-on-surface-dim flex-1">

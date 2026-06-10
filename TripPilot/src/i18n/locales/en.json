@@ -434,7 +434,8 @@
     "balance_zero": "Even"
   },
   "pwa": {
-    "offline_ready": "Ready for offline use"
+    "offline_ready": "Ready for offline use",
+    "update_available": "New version available — tap to update"
   },
   "common": {
     "save": "Save",

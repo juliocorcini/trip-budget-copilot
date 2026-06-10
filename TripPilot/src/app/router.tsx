@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { AppShell } from './AppShell';
+import { RootLayout } from './RootLayout';
 
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const ExpenseListPage = lazy(() => import('@/features/expenses/ExpenseListPage').then(m => ({ default: m.ExpenseListPage })));
@@ -40,29 +41,34 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 
 export const router = createBrowserRouter([
   {
-    element: <AppShell />,
+    element: <RootLayout />,
     children: [
-      { path: '/dashboard', element: <LazyRoute><DashboardPage /></LazyRoute> },
-      { path: '/expenses', element: <LazyRoute><ExpenseListPage /></LazyRoute> },
-      { path: '/expenses/:id', element: <LazyRoute><ExpenseDetailPage /></LazyRoute> },
-      { path: '/planner', element: <LazyRoute><PlannerPage /></LazyRoute> },
-      { path: '/more', element: <LazyRoute><MorePage /></LazyRoute> },
-      { path: '/settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
-      { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
-      { path: '/shared', element: <LazyRoute><SharedExpensesPage /></LazyRoute> },
-      { path: '/trip', element: <LazyRoute><TripOverviewPage /></LazyRoute> },
-      { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },
-      { path: '/wallets', element: <LazyRoute><WalletsPage /></LazyRoute> },
-      { path: '/funds', element: <LazyRoute><FundsPage /></LazyRoute> },
-      { path: '/profiles', element: <LazyRoute><ProfilesPage /></LazyRoute> },
-      { path: '/about', element: <LazyRoute><AboutPage /></LazyRoute> },
+      {
+        element: <AppShell />,
+        children: [
+          { path: '/dashboard', element: <LazyRoute><DashboardPage /></LazyRoute> },
+          { path: '/expenses', element: <LazyRoute><ExpenseListPage /></LazyRoute> },
+          { path: '/expenses/:id', element: <LazyRoute><ExpenseDetailPage /></LazyRoute> },
+          { path: '/planner', element: <LazyRoute><PlannerPage /></LazyRoute> },
+          { path: '/more', element: <LazyRoute><MorePage /></LazyRoute> },
+          { path: '/settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
+          { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
+          { path: '/shared', element: <LazyRoute><SharedExpensesPage /></LazyRoute> },
+          { path: '/trip', element: <LazyRoute><TripOverviewPage /></LazyRoute> },
+          { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },
+          { path: '/wallets', element: <LazyRoute><WalletsPage /></LazyRoute> },
+          { path: '/funds', element: <LazyRoute><FundsPage /></LazyRoute> },
+          { path: '/profiles', element: <LazyRoute><ProfilesPage /></LazyRoute> },
+          { path: '/about', element: <LazyRoute><AboutPage /></LazyRoute> },
+        ],
+      },
+      { path: '/', element: <LazyRoute><WelcomePage /></LazyRoute> },
+      { path: '/welcome', element: <LazyRoute><WelcomePage /></LazyRoute> },
+      { path: '/onboarding', element: <LazyRoute><OnboardingPage /></LazyRoute> },
+      { path: '/quick-add', element: <LazyRoute><QuickAddPage /></LazyRoute> },
+      { path: '/outings/new', element: <LazyRoute><OutingPage /></LazyRoute> },
+      { path: '/outings/active', element: <LazyRoute><OutingPage /></LazyRoute> },
+      { path: '/simulator', element: <LazyRoute><SimulatorPage /></LazyRoute> },
     ],
   },
-  { path: '/', element: <LazyRoute><WelcomePage /></LazyRoute> },
-  { path: '/welcome', element: <LazyRoute><WelcomePage /></LazyRoute> },
-  { path: '/onboarding', element: <LazyRoute><OnboardingPage /></LazyRoute> },
-  { path: '/quick-add', element: <LazyRoute><QuickAddPage /></LazyRoute> },
-  { path: '/outings/new', element: <LazyRoute><OutingPage /></LazyRoute> },
-  { path: '/outings/active', element: <LazyRoute><OutingPage /></LazyRoute> },
-  { path: '/simulator', element: <LazyRoute><SimulatorPage /></LazyRoute> },
 ]);

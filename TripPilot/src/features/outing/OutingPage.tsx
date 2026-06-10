@@ -1077,7 +1077,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
           <button
             onClick={onBack}
             className="btn-press w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: '#EDE8E00a' }}
+            style={{ background: 'var(--highlight-subtle)' }}
           >
             <Icon name="arrow_back" size={18} className="text-on-surface-dim" />
           </button>
@@ -1188,7 +1188,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
               style={{
                 background: 'var(--on-surface)',
                 borderColor: 'var(--surface-deep)',
-                boxShadow: '0 0 6px #EDE8E060',
+                boxShadow: '0 0 6px var(--glow)',
               }}
             />
             <div className="absolute -bottom-[14px] left-1/2 -translate-x-1/2 whitespace-nowrap">
@@ -1244,7 +1244,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
 
       {/* 8. SESSION HISTORY */}
       {recentTxs.length > 0 && (
-        <div className="mx-5 p-3 rounded-xl mb-2.5" style={{ background: '#EDE8E006' }}>
+        <div className="mx-5 p-3 rounded-xl mb-2.5" style={{ background: 'var(--highlight-faint)' }}>
           <div className="flex items-center justify-between mb-2">
             <p
               className="text-[10px] font-bold tracking-[0.1em] uppercase"

@@ -434,7 +434,8 @@
     "balance_zero": "Al día"
   },
   "pwa": {
-    "offline_ready": "Listo para uso sin conexión"
+    "offline_ready": "Listo para uso sin conexión",
+    "update_available": "Nueva versión disponible — toca para actualizar"
   },
   "common": {
     "save": "Guardar",

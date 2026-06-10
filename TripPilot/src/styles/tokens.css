@@ -21,6 +21,17 @@
   --warning: #D4A843;
   --error: #D94040;
 
+  /* ── Translucent layers (theme-aware, DEC-083) ── */
+  --nav-bar: #0F1419e6;
+  --scrim: #0A0F14f0;
+  --border-subtle: #EDE8E020;
+  --border-faint: #EDE8E010;
+  --border-hairline: #EDE8E008;
+  --highlight-soft: #EDE8E015;
+  --highlight-subtle: #EDE8E00a;
+  --highlight-faint: #EDE8E006;
+  --glow: #EDE8E060;
+
   /* ── Spacing ── */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -70,6 +81,16 @@
   --success: #4A7050;
   --warning: #B38B2D;
   --error: #C23030;
+
+  --nav-bar: #F5F0EBe6;
+  --scrim: #F5F0EBf0;
+  --border-subtle: #1A202820;
+  --border-faint: #1A202810;
+  --border-hairline: #1A202808;
+  --highlight-soft: #1A202815;
+  --highlight-subtle: #1A20280a;
+  --highlight-faint: #1A202806;
+  --glow: #1A202860;
 }
 
 * {
@@ -84,6 +105,23 @@ body {
   color: var(--on-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* DEC-081: native-app feel — no accidental text selection / tap flash */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+[contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
 }
 
 .tabular {
