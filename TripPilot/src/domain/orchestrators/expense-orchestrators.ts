@@ -1,4 +1,5 @@
 import { db } from '@/data/db/database';
+import { markUpdated } from '@/utils/entity-factory';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 
@@ -19,4 +20,27 @@ export async function registerExpense(input: RegisterExpenseInput): Promise<Tran
     }
   });
   return input.transaction;
+}
+
+export interface EnrichTransactionSharesInput {
+  transaction: Transaction;
+  shares: ParticipantShare[];
+}
+
+/**
+ * Post-add enrichment (DEC-078): updates an ALREADY-SAVED transaction with
+ * payer/split data and inserts its shares atomically. Shares follow DEC-071
+ * (built upstream via buildSharesWithPayer: payer confirmed, others pending).
+ */
+export async function enrichTransactionShares(
+  input: EnrichTransactionSharesInput,
+): Promise<Transaction> {
+  const updated = markUpdated(input.transaction);
+  await db.transaction('rw', [db.transactions, db.participantShares], async () => {
+    await db.transactions.put(updated);
+    if (input.shares.length > 0) {
+      await db.participantShares.bulkAdd(input.shares);
+    }
+  });
+  return updated;
 }

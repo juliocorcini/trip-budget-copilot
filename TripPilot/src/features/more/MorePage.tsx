@@ -18,6 +18,8 @@ const SECTIONS: { titleKey: string; items: MenuItem[] }[] = [
       { icon: 'tune', labelKey: 'more.profiles', path: '/profiles' },
       { icon: 'groups', labelKey: 'more.participants', path: '/shared' },
       { icon: 'credit_card', labelKey: 'more.wallets', path: '/wallets' },
+      // DEC-079: secondary shortcut — same route as the Expenses tab.
+      { icon: 'history', labelKey: 'more.outing_history', path: '/expenses?tab=outings' },
     ],
   },
   {

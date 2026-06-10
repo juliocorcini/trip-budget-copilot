@@ -15,6 +15,16 @@ class SessionRepository extends BaseRepository<Session> {
       .toArray();
   }
 
+  /** Completed sessions, newest first (DEC-079 / FIELD-09 outing history). */
+  async getCompleted(tripId: string): Promise<Session[]> {
+    const sessions = await this.table
+      .where('tripId')
+      .equals(tripId)
+      .filter((s) => s.deletedAt === null && s.status === 'completed' && s.endedAt !== null)
+      .toArray();
+    return sessions.sort((a, b) => (b.endedAt ?? '').localeCompare(a.endedAt ?? ''));
+  }
+
   async getActive(tripId: string): Promise<Session | undefined> {
     const sessions = await this.table
       .where('tripId')

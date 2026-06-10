@@ -10,6 +10,7 @@ export {
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,
   endSession,
+  formatSessionDuration,
 } from './outing';
 export type {
   OutingAlert,
@@ -17,3 +18,8 @@ export type {
   SessionLimits,
   CreateSessionInput,
 } from './outing';
+export {
+  ENRICH_AUTO_DISMISS_MS,
+  getEnrichmentCategories,
+} from './enrichment';
+export type { EnrichStep } from './enrichment';

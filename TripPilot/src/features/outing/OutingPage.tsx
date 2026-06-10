@@ -12,8 +12,10 @@ import {
   getProgressiveAlerts,
   DEFAULT_QUICK_ADD_VALUES_CENTS,
   findHighlightedQuickValueIndex,
+  ENRICH_AUTO_DISMISS_MS,
+  getEnrichmentCategories,
 } from '@/domain/outing';
-import type { SessionLimits, OutingAlert } from '@/domain/outing';
+import type { SessionLimits, OutingAlert, EnrichStep } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
 import { resolveActivePhase } from '@/domain/dates';
@@ -22,6 +24,7 @@ import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/p
 import { createPlannedOccurrence } from '@/domain/planning';
 import {
   registerExpense,
+  enrichTransactionShares,
   endOutingSession,
   createProfileEnabledInPhase,
   startSessionForOccurrence,
@@ -99,6 +102,14 @@ const OVER_MAX_REMEMBER_MS = 15 * 60 * 1000;
 type PhaseChoice = 'keep' | 'move' | 'split';
 type PendingPhaseAction = (txPhaseId: string, sess: Session) => Promise<void>;
 
+// DEC-078: enrichment target — the transaction is already persisted.
+interface EnrichTarget {
+  txId: string;
+  amountCents: number;
+  step: EnrichStep;
+  paidById: string | null;
+}
+
 export function OutingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -120,6 +131,8 @@ export function OutingPage() {
   const [showOneOffQuestion, setShowOneOffQuestion] = useState(false);
   const [configuringOneOff, setConfiguringOneOff] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  // DEC-078 (FIELD-08): post-add enrichment stepper — tx already saved.
+  const [enrich, setEnrich] = useState<EnrichTarget | null>(null);
 
   // DEC-053(b)/(c) confirmatory gates
   const [pendingOverMaxAdd, setPendingOverMaxAdd] = useState<{
@@ -319,8 +332,8 @@ export function OutingPage() {
     description: string,
     sess: Session,
     txPhaseId: string,
-  ) => {
-    if (!trip) return;
+  ): Promise<Transaction | null> => {
+    if (!trip) return null;
     const sessionProfile = profiles.find((p) => p.id === sess.activityProfileId);
     const tx = createExpenseTransaction({
       tripId: trip.id,
@@ -336,6 +349,7 @@ export function OutingPage() {
     });
     await transactionRepository.create(tx);
     await persistSessionItem(tx, [...sessionTxs, tx], sess);
+    return tx;
   };
 
   // DEC-053(c): a session crossing a phase boundary asks once where new
@@ -377,7 +391,9 @@ export function OutingPage() {
       setPendingOverMaxAdd({ amountCents, txPhaseId });
       return;
     }
-    await addSessionExpense(amountCents, sess.name, sess, txPhaseId);
+    const tx = await addSessionExpense(amountCents, sess.name, sess, txPhaseId);
+    // DEC-078: the stepper only enriches — the expense above is already saved.
+    if (tx) setEnrich({ txId: tx.id, amountCents, step: 'category', paidById: null });
   };
 
   const handleQuickAdd = async (amountCents: number) => {
@@ -395,7 +411,78 @@ export function OutingPage() {
     setSession(updated);
     const pending = pendingOverMaxAdd;
     setPendingOverMaxAdd(null);
-    await addSessionExpense(pending.amountCents, updated.name, updated, pending.txPhaseId);
+    const tx = await addSessionExpense(pending.amountCents, updated.name, updated, pending.txPhaseId);
+    if (tx) setEnrich({ txId: tx.id, amountCents: pending.amountCents, step: 'category', paidById: null });
+  };
+
+  // DEC-078: 3s without interaction dismisses the stepper; every step
+  // change produces a new state object, which resets the timer.
+  useEffect(() => {
+    if (enrich === null) return;
+    const timer = window.setTimeout(() => setEnrich(null), ENRICH_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timer);
+  }, [enrich]);
+
+  const otherParticipants = participants.filter((p) => !p.isOwner);
+
+  const replaceSessionTx = (updated: Transaction) => {
+    setSessionTxs((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+  };
+
+  const handleEnrichCategory = async (category: string) => {
+    if (!enrich) return;
+    const tx = await transactionRepository.getById(enrich.txId);
+    if (tx) {
+      const updated = await transactionRepository.update({ ...tx, category });
+      replaceSessionTx(updated);
+    }
+    if (otherParticipants.length > 0) {
+      setEnrich({ ...enrich, step: 'payer' });
+    } else {
+      setEnrich(null);
+    }
+  };
+
+  const handleEnrichPayer = (participantId: string) => {
+    if (!enrich || !owner) return;
+    // "Me" is already the default payer of a simple expense — nothing to change.
+    if (participantId === owner.id) {
+      setEnrich(null);
+      return;
+    }
+    setEnrich({ ...enrich, step: 'split', paidById: participantId });
+  };
+
+  const handleEnrichSplit = async (didSplit: boolean) => {
+    if (!enrich || !owner || enrich.paidById === null) {
+      setEnrich(null);
+      return;
+    }
+    const tx = await transactionRepository.getById(enrich.txId);
+    if (tx) {
+      const participantIds = didSplit ? [owner.id, enrich.paidById] : [enrich.paidById];
+      const shares = buildSharesWithPayer({
+        transactionId: tx.id,
+        amountCents: tx.amountCents,
+        participantIds,
+        paidByParticipantId: enrich.paidById,
+        shareType: 'equal',
+        customAmountsCents: {},
+      });
+      const updated = await enrichTransactionShares({
+        transaction: {
+          ...tx,
+          isShared: true,
+          paidByParticipantId: enrich.paidById,
+          // Someone else paid → it never left one of MY wallets.
+          walletId: null,
+          personalCostCents: calculatePersonalCost(shares, owner.id),
+        },
+        shares,
+      });
+      replaceSessionTx(updated);
+    }
+    setEnrich(null);
   };
 
   // DEC-046: reported total creates an adjustment for the DIFFERENCE,
@@ -403,7 +490,7 @@ export function OutingPage() {
   const handleRegisterTotal = async (diffCents: number) => {
     if (!session) return;
     const description = t('outing.total_adjustment_desc');
-    if (runWithPhaseGate((txPhaseId, sess) => addSessionExpense(diffCents, description, sess, txPhaseId))) return;
+    if (runWithPhaseGate(async (txPhaseId, sess) => { await addSessionExpense(diffCents, description, sess, txPhaseId); })) return;
     await addSessionExpense(diffCents, description, session, resolveTxPhaseId(session));
   };
 
@@ -686,6 +773,21 @@ export function OutingPage() {
         onUpdateQuickValues={handleUpdateQuickValues}
         onEnd={() => setReviewing(true)}
         onBack={() => navigate(-1)}
+        enrichStepper={
+          enrich && (
+            <EnrichStepper
+              enrich={enrich}
+              currency={trip.baseCurrency}
+              categories={getEnrichmentCategories(sessionProfile?.category ?? null)}
+              owner={owner}
+              otherParticipants={otherParticipants}
+              onCategory={handleEnrichCategory}
+              onPayer={handleEnrichPayer}
+              onSplit={handleEnrichSplit}
+              onSkip={() => setEnrich(null)}
+            />
+          )
+        }
       />
 
       {/* DEC-053(b): over-max confirmation */}
@@ -893,6 +995,117 @@ function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCen
       >
         {t('outing.start_session')}
       </button>
+    </div>
+  );
+}
+
+/* ──────────────────────── POST-ADD ENRICHMENT STEPPER (DEC-078 / FIELD-08) ──────────────────────── */
+
+interface EnrichStepperProps {
+  enrich: EnrichTarget;
+  currency: string;
+  categories: string[];
+  owner: Participant | null;
+  otherParticipants: Participant[];
+  onCategory: (category: string) => void;
+  onPayer: (participantId: string) => void;
+  onSplit: (didSplit: boolean) => void;
+  onSkip: () => void;
+}
+
+const ENRICH_QUESTION_KEY: Record<EnrichStep, string> = {
+  category: 'outing.enrich_what',
+  payer: 'outing.enrich_who_paid',
+  split: 'outing.enrich_split',
+};
+
+function EnrichStepper({ enrich, currency, categories, owner, otherParticipants, onCategory, onPayer, onSplit, onSkip }: EnrichStepperProps) {
+  const { t } = useTranslation();
+
+  const chipStyle = {
+    background: 'var(--surface-high)',
+    color: 'var(--on-surface-dim)',
+  };
+
+  return (
+    <div
+      className="mx-5 mb-2.5 p-3 rounded-xl"
+      style={{ background: 'var(--surface-container)', border: '1px solid var(--highlight-subtle)' }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-bold" style={{ color: 'var(--success)' }}>
+          {t('outing.enrich_saved', { amount: formatCurrency(enrich.amountCents, currency) })}
+        </p>
+        <button
+          onClick={onSkip}
+          aria-label={t('outing.enrich_skip')}
+          className="btn-press text-[10px] font-bold px-2 py-0.5 rounded-lg"
+          style={{ color: 'var(--on-surface-faint)' }}
+        >
+          {t('outing.enrich_skip')}
+        </button>
+      </div>
+      <p className="text-xs font-bold mb-2" style={{ color: 'var(--on-surface)' }}>
+        {t(ENRICH_QUESTION_KEY[enrich.step] as never)}
+      </p>
+
+      {enrich.step === 'category' && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => onCategory(cat)}
+              className="btn-press shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-xl"
+              style={chipStyle}
+            >
+              <Icon name={getCategoryIcon(cat)} size={18} className="text-on-surface-dim" />
+              <span className="text-[10px] font-semibold">{t(`categories.${cat}` as never)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {enrich.step === 'payer' && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {owner && (
+            <button
+              onClick={() => onPayer(owner.id)}
+              className="btn-press shrink-0 px-4 py-2 rounded-xl text-xs font-semibold"
+              style={chipStyle}
+            >
+              {t('outing.enrich_me')}
+            </button>
+          )}
+          {otherParticipants.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => onPayer(p.id)}
+              className="btn-press shrink-0 px-4 py-2 rounded-xl text-xs font-semibold"
+              style={chipStyle}
+            >
+              {p.nickname ?? p.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {enrich.step === 'split' && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => onSplit(false)}
+            className="btn-press flex-1 py-2 rounded-xl text-xs font-semibold"
+            style={chipStyle}
+          >
+            {t('outing.enrich_split_no')}
+          </button>
+          <button
+            onClick={() => onSplit(true)}
+            className="btn-press flex-1 py-2 rounded-xl text-xs font-semibold bg-primary text-on-surface"
+          >
+            {t('outing.enrich_split_half')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1142,9 +1355,11 @@ interface ActiveSessionProps {
   onUpdateQuickValues: (valuesCents: number[]) => void;
   onEnd: () => void;
   onBack: () => void;
+  /** Post-add enrichment stepper slot (DEC-078) — rendered above quick-add. */
+  enrichStepper: React.ReactNode;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, enrichStepper }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -1478,6 +1693,9 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
 
       {/* 10. SPACER */}
       <div className="flex-1 min-h-[4px]" />
+
+      {/* 10b. POST-ADD ENRICHMENT STEPPER (DEC-078) */}
+      {enrichStepper}
 
       {/* 11. QUICK-ADD BUTTONS (highlight = closest to avg drink, DEC-045) */}
       <div className="px-5 pb-3">

@@ -1,9 +1,9 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 7 | **Item ativo**: DEC-078 (FIELD-08)
-- **Itens resolvidos**: 16/23 (+ infra v3 pronta)
-- **Testes**: 202 unit (baseline 156) + 22 e2e (baseline 22)
+- **Gate ativo**: 8 | **Item ativo**: DEC-076 (FIELD-06)
+- **Itens resolvidos**: 18/23 (+ infra v3 pronta)
+- **Testes**: 216 unit (baseline 156) + 22 e2e (baseline 22)
 - **Build/Typecheck**: clean
 - **Migração Dexie v3**: FEITA (Gate 3) — NUNCA criar v4/v5
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`
@@ -53,8 +53,8 @@
 - i18n: 22 chaves novas ×3 (eventos na fase, card do dia, planner, one-off) — paridade 485
 
 ### Gate 7 — Outing rico + histórico
-- [ ] DEC-078 / FIELD-08 — stepper pós-valor
-- [ ] DEC-079 / FIELD-09 — histórico de saídas
+- [x] DEC-078 / FIELD-08 — stepper pós-valor: `domain/outing/enrichment.ts` (catálogo data-driven de categorias por perfil da sessão + `ENRICH_AUTO_DISMISS_MS=3000`); orchestrator `enrichTransactionShares` (tx update + shares bulkAdd atômico, revision++); OutingPage: após quick-add (tx JÁ salva, inclusive via "outro valor" e over-max) aparece `EnrichStepper` inline acima dos botões — "O que foi?" (ícones por perfil) → "Quem pagou?" (Eu/participantes; só com 2+ participantes) → "Dividiu?" (Não/Meio a meio); cada tap grava e avança; "pular" ou 3s sem interação some (timer reseta a cada passo); pagador terceiro sem split → `personalCostCents=0` + share integral confirmado do pagador; meio a meio → `buildSharesWithPayer` (DEC-071: pagador confirmed, criador pending) + walletId=null; "Registrar total" (ajuste) NÃO dispara o stepper — testes: 3 de orchestrator (cenário irmã 50/50, no-split custo 0, category-only revision++) + 4 de catálogo
+- [x] DEC-079 / FIELD-09 — histórico de saídas: `sessionRepository.getCompleted(tripId)` (completed, não-deletadas, desc por endedAt); `formatSessionDuration` no domínio ("3h12"/"45min"); ExpenseListPage: segmented control Gastos|Saídas (`?tab=outings`) com lista (ícone+nome, data · duração · nº itens, badge do perfil ou "Evento único", total Σ personalCost); rota nova `/outings/:id/review` → `OutingReviewPage` read-only (layout da revisão GAP-002: total, itens com categoria/horário/share, limites vs total final, carteiras usadas); atalho "Histórico de saídas" no Mais → `/expenses?tab=outings` — testes: 2 de repository + 5 de duração
 
 ### Gate 8 — Dashboard final
 - [ ] DEC-076 / FIELD-06 — carrossel

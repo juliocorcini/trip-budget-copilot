@@ -223,3 +223,18 @@ export function endSession(session: Session): Session {
     endedAt: new Date().toISOString(),
   };
 }
+
+/**
+ * Compact duration of a completed session for the outing history
+ * (DEC-079 / FIELD-09): "3h12" / "45min". Null endedAt → empty string.
+ */
+export function formatSessionDuration(startedAt: string, endedAt: string | null): string {
+  if (endedAt === null) return '';
+  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+  if (ms <= 0) return '0min';
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}min`;
+  return `${h}h${String(m).padStart(2, '0')}`;
+}
