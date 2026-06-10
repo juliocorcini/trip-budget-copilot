@@ -85,8 +85,6 @@ function createDefaultProfiles(tripId: string): ActivityProfile[] {
 export async function repairDemoTripIfNeeded(settings: AppSettings): Promise<void> {
   if (!settings.activeTrip) return;
 
-  // Always repair stale phase dates and missing profiles for the active trip.
-
   const tripId = settings.activeTrip;
   const [trip, phases, profiles] = await Promise.all([
     tripRepository.getById(tripId),
@@ -96,7 +94,9 @@ export async function repairDemoTripIfNeeded(settings: AppSettings): Promise<voi
 
   if (!trip || phases.length === 0) return;
 
-  if (!findActivePhase(phases)) {
+  // DEC-111: rewriting dates is ONLY valid for the demo trip. A real trip
+  // outside its date range (future or finished) is user truth — never touch.
+  if (settings.isDemo && !findActivePhase(phases)) {
     const now = new Date();
     const tripStart = dayOffset(now, -13);
     const phase1End = dayOffset(now, 10);

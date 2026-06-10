@@ -198,9 +198,15 @@ export function SharedExpensesPage() {
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
       <div className="flex items-center justify-between">
-        <h1 className="text-heading font-bold text-on-surface">
-          {t('more.participants')}
-        </h1>
+        {/* R5-08: same back-button header pattern as the other "More" subpages. */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
+            <Icon name="arrow_back" size={24} className="text-on-surface" />
+          </button>
+          <h1 className="text-heading font-bold text-on-surface">
+            {t('more.participants')}
+          </h1>
+        </div>
         {/* DEC-105: my identity QR — the other person scans it to pair */}
         <button
           onClick={() => setShowMyQr(true)}

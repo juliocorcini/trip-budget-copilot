@@ -14,6 +14,7 @@ import { requestPersistentStorage } from '@/utils/pwa';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
 import type { ShareType } from '@/domain/types/common';
 
 const CATEGORY_KEYS = [
@@ -32,7 +33,7 @@ export function QuickAddPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, settings, reload } =
+  const { trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, settings, error, reload, retry } =
     useAppData();
 
   const initialCategory = searchParams.get('cat') ?? 'other';
@@ -239,6 +240,9 @@ export function QuickAddPage() {
       setSaving(false);
     }
   };
+
+  // DEC-109: failed DB read shows recovery instead of silently rendering nothing.
+  if (error) return <DataErrorScreen onRetry={retry} />;
 
   if (!trip || !settings?.onboardingCompleted) return null;
 

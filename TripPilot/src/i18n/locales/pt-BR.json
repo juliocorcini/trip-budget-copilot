@@ -84,7 +84,8 @@
     "amigo_over_pace": "Você planejou {{planned}} {{type}} este mês. No ritmo atual, cabem só {{fit}} dos {{remaining}} que faltam dentro do plano.",
     "amigo_on_plan": "Seus gastos com {{type}} estão dentro do plano: {{done}} de {{planned}} ocasiões usadas.",
     "amigo_no_plan": "Esse gasto com {{type}} usou {{percent}}% do que sobra livre. Não há plano para essa categoria.",
-    "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}."
+    "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}.",
+    "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações."
   },
   "expenses": {
     "title": "Gastos",
@@ -242,7 +243,6 @@
     "optional": "Opcional",
     "modified": "Alterado",
     "planned": "Planejado",
-    "added_count": "Você adicionou {{count}} {{name}}",
     "cost_label": "CUSTO",
     "margin_label": "MARGEM",
     "missing_label": "FALTAM",
@@ -266,7 +266,8 @@
     "removed_from_phase": "{{name}} removido desta fase",
     "menu_typical_value": "Valor típico",
     "menu_classification": "Classificação nesta fase",
-    "menu_remove_from_phase": "Remover desta fase"
+    "menu_remove_from_phase": "Remover desta fase",
+    "added_breakdown": "Você adicionou {{items}}"
   },
   "funds": {
     "title": "Fundos",
@@ -354,7 +355,8 @@
     "import_preview": "Resumo da importação",
     "new_records": "Novos registros",
     "updated_records": "Atualizados",
-    "conflicts": "Conflitos"
+    "conflicts": "Conflitos",
+    "operation_failed": "A operação falhou. Nada foi alterado — tente novamente."
   },
   "more": {
     "title": "Mais",
@@ -403,7 +405,10 @@
     "default_wallet_name": "Cartão de crédito",
     "add_cash_wallet": "Adicionar carteira de dinheiro",
     "cash_wallet_label": "Nome da carteira de dinheiro",
-    "cash_wallet_name": "Dinheiro"
+    "cash_wallet_name": "Dinheiro",
+    "phase_details_hint": "A primeira fase começa com as datas da viagem — ajuste se ela cobrir só uma parte.",
+    "phase_start_date": "Início da fase",
+    "phase_end_date": "Fim da fase"
   },
   "demo": {
     "banner": "Você está usando dados de demonstração.",
@@ -789,5 +794,10 @@
     "responses_queued": "Salvo — vai ser enviado na próxima sincronização",
     "statement_sent": "Extrato enviado",
     "show_as_qr": "Mostrar como QR code (offline)"
+  },
+  "data_error": {
+    "title": "Não foi possível carregar seus dados",
+    "body": "Seus dados NÃO foram apagados — o banco local apenas não respondeu. Feche outras abas do app e tente de novo.",
+    "retry": "Tentar novamente"
   }
 }

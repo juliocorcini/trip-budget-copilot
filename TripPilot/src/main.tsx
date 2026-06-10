@@ -4,12 +4,16 @@ import { RouterProvider } from 'react-router';
 import { router } from './app/router';
 import { ToastHost } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { registerServiceWorker } from './utils/pwa';
+import { registerServiceWorker, requestPersistentStorage } from './utils/pwa';
 import { appSettingsRepository } from './data/repositories';
 import i18n from './i18n';
 import './styles/globals.css';
 
 registerServiceWorker();
+
+// DEC-111 (R5-03): ask for durable storage as early as possible — without it
+// the OS may evict IndexedDB and the user genuinely loses everything.
+requestPersistentStorage();
 
 // GAP-014: restore the persisted language on boot (before most screens mount).
 appSettingsRepository.get().then((settings) => {

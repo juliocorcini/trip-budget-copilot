@@ -31,6 +31,7 @@ import {
 } from '@/domain/splitting';
 import { resolveShareConfirmation } from '@/domain/orchestrators';
 import { BottomSheet } from '@/components/BottomSheet';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
 import {
   calculateOccasionForecasts,
   orderForecastsByUsage,
@@ -134,7 +135,7 @@ function formatElapsed(startedAt: string): string {
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, loading, settings, reload } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, loading, error, settings, reload, retry } = useAppData();
   const navigate = useNavigate();
   const scrolled = useScrolled();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -156,6 +157,16 @@ export function DashboardPage() {
   const [detailInsight, setDetailInsight] = useState<DashboardInsight | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
   const insightScrollRef = useRef<HTMLDivElement>(null);
+  // R5-03: warn when the OS may evict IndexedDB (storage not persistent).
+  const [storageNotPersisted, setStorageNotPersisted] = useState(false);
+
+  useEffect(() => {
+    if (navigator.storage?.persisted) {
+      navigator.storage.persisted().then((persisted) => {
+        setStorageNotPersisted(!persisted);
+      }).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (!trip) return;
@@ -330,6 +341,11 @@ export function DashboardPage() {
     );
   }
 
+  // DEC-109: a failed DB read is NOT "no data" — show recovery, never welcome.
+  if (error) {
+    return <DataErrorScreen onRetry={retry} />;
+  }
+
   if (!trip || !settings?.onboardingCompleted) {
     navigate('/welcome');
     return null;
@@ -495,6 +511,21 @@ export function DashboardPage() {
         <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
           <p className="text-xs font-semibold text-warning">{t('demo.banner')}</p>
         </div>
+      )}
+
+      {/* STORAGE NOT PERSISTENT (R5-03): eviction risk warning, tap → settings */}
+      {storageNotPersisted && (
+        <button
+          onClick={() => navigate('/settings')}
+          className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
+          style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
+        >
+          <Icon name="warning" size={16} className="text-warning" />
+          <p className="text-xs font-semibold text-on-surface-dim flex-1">
+            {t('dashboard.storage_not_persisted')}
+          </p>
+          <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
+        </button>
       )}
 
       {/* BACKUP REMINDER (DEC-057 / decision D-J) — discreet, tap → backup */}

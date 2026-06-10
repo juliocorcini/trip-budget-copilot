@@ -9,6 +9,7 @@ import {
   calculateSessionTotal,
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,
+  calculateGaugePosition,
   getProgressiveAlerts,
   DEFAULT_QUICK_ADD_VALUES_CENTS,
   findHighlightedQuickValueIndex,
@@ -1513,7 +1514,8 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   const remainingComfort = Math.max(0, targetCents - totalSpent);
   const drinksRemaining = avgDrink > 0 ? Math.floor(remainingComfort / avgDrink) : 0;
 
-  const gaugePercent = maxCents > 0 ? Math.min(100, (totalSpent / maxCents) * 100) : 0;
+  // DEC-113 (R5-09): piecewise mapping onto the fixed visual segments.
+  const gaugePercent = calculateGaugePosition(totalSpent, targetCents, ceilingCents, maxCents);
 
   const drinkImpact = avgDrink > 0
     ? calculateNextDrinkImpact(totalSpent, avgDrink, ceilingCents || null)
@@ -1661,8 +1663,27 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
           })}
         </div>
 
-        {/* 5. SEGMENTED GAUGE */}
-        <div className="relative mb-1.5">
+        {/* 5. SEGMENTED GAUGE — DEC-113 (R5-09): piecewise dot + value pill */}
+        <div className="relative mb-1.5 pt-6">
+          {/* Value pill above the dot, clamped so it never overflows the bar */}
+          <div
+            className="absolute top-0 whitespace-nowrap"
+            style={{
+              left: `${gaugePercent}%`,
+              transform: `translateX(${gaugePercent < 8 ? '0%' : gaugePercent > 92 ? '-100%' : '-50%'})`,
+            }}
+          >
+            <span
+              className="px-2 py-0.5 rounded-full text-[9px] font-bold tabular inline-block"
+              style={{
+                background: 'var(--surface-high)',
+                color: 'var(--on-surface)',
+                border: '1px solid var(--border-faint)',
+              }}
+            >
+              {formatCurrency(totalSpent, currency)}
+            </span>
+          </div>
           <div className="flex gap-[2px] h-3 rounded-md overflow-hidden">
             <div className="flex-[3] rounded-l-md" style={{ background: 'var(--success)' }} />
             <div className="flex-[2]" style={{ background: 'var(--primary)' }} />
@@ -1670,23 +1691,14 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
             <div className="flex-[1] rounded-r-md" style={{ background: '#D9404030' }} />
           </div>
           <div
-            className="absolute top-[-4px]"
-            style={{ left: `calc(${gaugePercent}% - 6px)` }}
-          >
-            <div
-              className="w-3 h-3 rounded-full border-2"
-              style={{
-                background: 'var(--on-surface)',
-                borderColor: 'var(--surface-deep)',
-                boxShadow: '0 0 6px var(--glow)',
-              }}
-            />
-            <div className="absolute -bottom-[14px] left-1/2 -translate-x-1/2 whitespace-nowrap">
-              <span className="text-[8px] font-bold" style={{ color: 'var(--on-surface)' }}>
-                {formatCurrency(totalSpent, currency)}
-              </span>
-            </div>
-          </div>
+            className="absolute bottom-[-2px] w-4 h-4 rounded-full border-2"
+            style={{
+              left: `clamp(0px, calc(${gaugePercent}% - 8px), calc(100% - 16px))`,
+              background: 'var(--on-surface)',
+              borderColor: 'var(--surface-deep)',
+              boxShadow: '0 0 6px var(--glow)',
+            }}
+          />
         </div>
 
         {/* 6. THREE-LIMIT LABELS */}

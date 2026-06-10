@@ -772,6 +772,41 @@
 - **Rationale**: Council ranking — each needs either bidirectional merge maturity or has niche value; shipping the owner/mirror foundation first de-risks all of them
 - **Alternatives**: Big-bang group sync (rejected: HIGH risk of becoming a regret feature)
 
+### DEC-109 — DB Failure Never Becomes Onboarding
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: `useAppData` gains an explicit error state (catch + 10s watchdog). On failure the app shows a recovery screen ("your data was NOT deleted" + retry that reopens Dexie) and NEVER redirects to /welcome. Welcome redirect only happens when the load SUCCEEDED and `onboardingCompleted === false`
+- **Rationale**: R5 field test: an IndexedDB hang/failure (known WebKit issue in standalone PWAs after share-sheet/backgrounding) made the app look wiped — data was still on disk. Treating read failure as "empty state" invites destructive re-onboarding/imports
+- **Alternatives**: Silent retry loop (hides the problem), auto-clearing the DB (destructive)
+
+### DEC-110 — iOS-Safe File Export via Web Share
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: File export prefers `navigator.share({ files })` when supported; fallback is a blob anchor with `target="_blank"` and `URL.revokeObjectURL` deferred by 10s. All export/import button handlers get try/catch + danger toast + busy state. The current page is never navigated to a blob URL
+- **Rationale**: R5: JSON export froze the standalone PWA — iOS ignores `a.download`, navigates the webview to a blob URL that was already revoked synchronously
+- **Alternatives**: File System Access API (no iOS support), data: URLs (size limits)
+
+### DEC-111 — Demo Repair Restricted to Demo Trips
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: `repairDemoTripIfNeeded` only rewrites trip/phase dates when `settings.isDemo === true`. Recreating missing activity profiles remains allowed for any trip
+- **Rationale**: The repair ran for ANY active trip with no currently-active phase (future or finished trips), silently rewriting real user dates around "today" — data corruption
+- **Alternatives**: Keep behavior with a confirmation dialog (still wrong: real dates are user truth)
+
+### DEC-112 — Planner Deficit Warning Derived from State, Not Session
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: The recommendation card ("reduce X and Y") renders whenever a deficit exists, including after re-entering the Planner (when session baselines equal persisted counts, the deficit is `-liveMarginCents`). The "you added N" headline stays conditioned on session additions, itemized per category
+- **Rationale**: R5: the guidance disappeared after navigating away because the block required `modifiedProfiles.length > 0` — but the plan was still over budget
+- **Alternatives**: Persisting session baselines (complex, wrong concept)
+
+### DEC-113 — Outing Gauge Piecewise Mapping
+- **Date**: 2026-06-10
+- **Status**: APPROVED
+- **Decision**: The spending dot position maps piecewise onto the fixed visual segments: spent∈[0,target]→[0,42.86%], (target,ceiling]→(42.86,71.43%], (ceiling,max]→(71.43,100%], >max→100%. Pure domain function with degenerate-case handling; marker redesigned as a clamped value pill above the dot
+- **Rationale**: R5: segments have fixed 3:2:1:1 widths but the dot used linear spent/max — 40 of 35/45/55 landed visually past the 45 threshold
+- **Alternatives**: Proportional segment widths (breaks the deliberate visual rhythm of the bar)
+
 ---
 
 *New decisions will be added as the project progresses.*

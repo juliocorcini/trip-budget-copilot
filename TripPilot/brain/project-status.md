@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-10 (R4 session)
+> Last updated: 2026-06-10 (R5 session)
 
 ## Current Phase
 
-**Implementation — D1–D6 + gap-fix R1 + R2 + R3 + P2P sync R4 implemented, v0.5.0 deployed** ✅
+**Implementation — D1–D6 + gap-fix R1..R3 + P2P sync R4 + reliability R5 implemented, v0.5.1 deployed** ✅
 
 ## Status Summary
 
@@ -14,7 +14,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 108 decisions (DEC-001 to DEC-108); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 113 decisions (DEC-001 to DEC-113); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -24,9 +24,10 @@
 | Gap analysis R2 2026-06-09 | ✅ RESOLVED | 23/23 items fixed: 7 field bugs + 9 R2 gaps + 7 planning features (see `src/gap-fix-log-r2.md`) |
 | Field review R3 2026-06-10 | ✅ RESOLVED | 26/26 requirements implemented in 7 gates (see `src/gap-fix-log-r3.md`) |
 | P2P sync R4 2026-06-10 | ✅ DONE | 14/14 requirements in 7 gates (see `src/gap-fix-log-r4.md`); DEC-103..108 |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (729 keys) |
-| Tests | ✅ DONE | 299 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.5.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
+| Reliability R5 2026-06-10 | ✅ DONE | 9/9 requirements in 4 gates (see `src/gap-fix-log-r5.md`); DEC-109..113 |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (737 keys) |
+| Tests | ✅ DONE | 317 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.5.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
@@ -91,6 +92,35 @@ were implemented in 7 gates (full log in `src/gap-fix-log-r4.md`). Highlights:
 - **Data**: Dexie v4 (peerLinks, mirroredStatements), backup v4 with v1-v3 import
   normalization; 35 new unit tests (299 total)
 
+## Reliability Session R5 (2026-06-10)
+
+All 9 requirements from Julio's v0.4/v0.5 field test were resolved in 4 gates
+(full log in `src/gap-fix-log-r5.md`). The reported "total data loss" was
+diagnosed as: IndexedDB failures being treated as empty state (redirect to
+welcome) + an iOS-unsafe blob export that froze the standalone PWA. Highlights:
+
+- **DB failure ≠ empty data (DEC-109)**: `useAppData` error state + 10 s
+  watchdog; `DataErrorScreen` ("your data was NOT deleted" + retry that reopens
+  Dexie); welcome redirect only after a SUCCESSFUL load; auto-retry on
+  visibilitychange
+- **iOS-safe export (DEC-110)**: `navigator.share({files})` first, fallback
+  anchor `target=_blank` with 10 s deferred `revokeObjectURL`; try/catch +
+  busy state on all backup handlers
+- **Storage durability (R5-03)**: `requestPersistentStorage()` at boot +
+  dashboard banner when not persisted; `repairDemoTripIfNeeded` date rewrite
+  gated to `isDemo` (DEC-111 — it was corrupting real future/finished trips)
+- **Onboarding keyboard (R5-04)**: `interactive-widget=resizes-content` +
+  `useKeyboardInset` (visualViewport) + 100dvh layout — footer buttons stay
+  above the keyboard
+- **Onboarding details (R5-05)**: dedicated phase step (dates validated in trip
+  range, rhythm preset, peak days)
+- **Planner (DEC-112)**: itemized "you added 16 transporte, 5 mercado e 2 café"
+  headline (was mislabeling the total); deficit = `-liveMargin` so the
+  recommendation card survives leaving/re-entering the Planner
+- **Outing gauge (DEC-113)**: piecewise `calculateGaugePosition` (spent 40 of
+  35/45/55 now lands between meta and teto) + clamped value-pill marker
+- **Tests**: +18 unit (317 total), e2e updated for the 5-step onboarding
+
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
@@ -102,11 +132,14 @@ were implemented in 7 gates (full log in `src/gap-fix-log-r4.md`). Highlights:
 
 ## Next Steps
 
-1. Julio field-tests v0.5.0 with two real devices (iPhone + Android): pairing,
+1. Julio re-tests v0.5.1 in the field: backup export/import on iPhone (share
+   sheet flow), data resilience after backgrounding, onboarding keyboard,
+   planner messages, outing gauge
+2. Field-test P2P sync with two real devices (iPhone + Android): pairing,
    statement push + confirmations, device migration, offline 2-QR mode
-2. Real-data seed (julio-europa-2026) when trip data is ready
-3. D3+ features per `implementation-phases.md` (reports, automatic future floor)
-4. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
+3. Real-data seed (julio-europa-2026) when trip data is ready
+4. D3+ features per `implementation-phases.md` (reports, automatic future floor)
+5. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
 
 ## Blockers
 
@@ -116,4 +149,5 @@ were implemented in 7 gates (full log in `src/gap-fix-log-r4.md`). Highlights:
 
 All decisions documented in [decision-log.md](decision-log.md). R2 session added
 DEC-071..DEC-083 (approved 2026-06-09); R3 session added DEC-084..DEC-102
-(approved 2026-06-10); R4 session added DEC-103..DEC-108 (approved 2026-06-10).
+(approved 2026-06-10); R4 session added DEC-103..DEC-108 (approved 2026-06-10);
+R5 session added DEC-109..DEC-113 (approved 2026-06-10).

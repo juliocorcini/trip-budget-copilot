@@ -11,6 +11,8 @@ import {
   createScenarioPlan,
   createAllocationItem,
   calculateOverAllocationCents,
+  listSessionAdditions,
+  formatAdditionsList,
 } from '@/domain/planning';
 import {
   createCustomActivityProfile,
@@ -392,7 +394,10 @@ export function PlannerPage() {
   // negative when over-allocated (never clamped to 0).
   const liveMarginCents = availableCents - currentAllocatedCents;
   const extraCostCents = currentAllocatedCents - baselineAllocatedCents;
-  const deficitCents = Math.max(0, extraCostCents - Math.max(0, freeMarginCents));
+  // DEC-112 (R5-07): deficit derives from total over-allocation, not from
+  // session deltas — after re-entering the Planner (baseline == count) the
+  // plan can still be over budget and the guidance must persist.
+  const deficitCents = Math.max(0, -liveMarginCents);
   const hasDeficit = deficitCents > 0;
   const marginForExtrasCents = Math.max(
     0,
@@ -413,6 +418,12 @@ export function PlannerPage() {
         return s && s.count !== s.baselineCount;
       }),
     [enabledProfiles, states],
+  );
+
+  // R5-06: per-category additions for the deficit headline.
+  const sessionAdditions = useMemo(
+    () => listSessionAdditions(modifiedProfiles, states),
+    [modifiedProfiles, states],
   );
 
   /* ── recommendation ── */
@@ -979,11 +990,14 @@ export function PlannerPage() {
       </div>
 
       {/* ── DEFICIT + RECOMMENDATION ── */}
-      {hasDeficit && modifiedProfiles.length > 0 && (
+      {/* DEC-112 (R5-07): the block renders for ANY deficit — the session
+          headline is optional, the recommendation must survive re-entry. */}
+      {hasDeficit && (
         <div
           className="mt-5 p-5 rounded-2xl"
           style={{ background: '#D4A84310', border: '1px solid #D4A84320' }}
         >
+          {sessionAdditions.length > 0 && (
           <div className="flex items-start gap-3 mb-4">
             <span
               className="material-symbols-outlined mt-0.5"
@@ -996,15 +1010,12 @@ export function PlannerPage() {
                 className="text-sm font-bold"
                 style={{ color: 'var(--warning)' }}
               >
-                {t('planner.added_count', {
-                  count: modifiedProfiles.reduce((sum, p) => {
-                    const ms = states[p.id];
-                    return (
-                      sum +
-                      Math.max(0, (ms?.count ?? 0) - (ms?.baselineCount ?? 0))
-                    );
-                  }, 0),
-                  name: modifiedProfiles[0]?.name.toLowerCase() ?? '',
+                {/* R5-06: itemized per category — never a single mislabeled total */}
+                {t('planner.added_breakdown', {
+                  items: formatAdditionsList(
+                    sessionAdditions,
+                    t('planner.and_conjunction'),
+                  ),
                 })}
               </p>
 
@@ -1060,6 +1071,7 @@ export function PlannerPage() {
               </div>
             </div>
           </div>
+          )}
 
           {recommendation && (
             <div className="p-4 rounded-xl bg-surface-container">

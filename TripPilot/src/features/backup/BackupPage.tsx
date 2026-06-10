@@ -32,32 +32,43 @@ export function BackupPage() {
   const [mergeMode, setMergeMode] = useState<'merge' | 'replace'>('merge');
   const [csvAdvanced, setCsvAdvanced] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  // DEC-110: every async backup action gets a busy flag + error toast — a
+  // failure can never leave the app in a stuck state.
+  const [busy, setBusy] = useState(false);
 
   const exportCsv = async (advanced: boolean) => {
-    if (!trip) return;
-    const sharedTxIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
-    const [sessions, shares] = await Promise.all([
-      sessionRepository.getByTripId(trip.id),
-      participantShareRepository.getAllForTrip(sharedTxIds),
-    ]);
-    const rows = transactionsToCsvRows({
-      transactions,
-      pools,
-      wallets,
-      phases,
-      trips: [trip],
-      sessions,
-      participants,
-      shares,
-      currency: trip.baseCurrency,
-      advanced,
-    });
-    const csv = rowsToCsv(rows, advanced);
-    downloadFile(
-      csv,
-      `trippilot-expenses-${new Date().toISOString().slice(0, 10)}.csv`,
-      'text/csv;charset=utf-8',
-    );
+    if (!trip || busy) return;
+    setBusy(true);
+    try {
+      const sharedTxIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
+      const [sessions, shares] = await Promise.all([
+        sessionRepository.getByTripId(trip.id),
+        participantShareRepository.getAllForTrip(sharedTxIds),
+      ]);
+      const rows = transactionsToCsvRows({
+        transactions,
+        pools,
+        wallets,
+        phases,
+        trips: [trip],
+        sessions,
+        participants,
+        shares,
+        currency: trip.baseCurrency,
+        advanced,
+      });
+      const csv = rowsToCsv(rows, advanced);
+      await downloadFile(
+        csv,
+        `trippilot-expenses-${new Date().toISOString().slice(0, 10)}.csv`,
+        'text/csv;charset=utf-8',
+      );
+    } catch (err) {
+      console.error('[backup] CSV export failed:', err);
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -69,13 +80,21 @@ export function BackupPage() {
   }, [searchParams, trip]);
 
   const handleExport = async () => {
-    if (!settings) return;
-    const data = await buildFullBackup(settings);
-    const json = JSON.stringify(data, null, 2);
-    downloadFile(json, generateBackupFilename(), 'application/json');
-    // D-J: persist last backup date so the dashboard reminder works.
-    await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
-    await reload();
+    if (!settings || busy) return;
+    setBusy(true);
+    try {
+      const data = await buildFullBackup(settings);
+      const json = JSON.stringify(data, null, 2);
+      await downloadFile(json, generateBackupFilename(), 'application/json');
+      // D-J: persist last backup date so the dashboard reminder works.
+      await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
+      await reload();
+    } catch (err) {
+      console.error('[backup] JSON export failed:', err);
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,17 +117,31 @@ export function BackupPage() {
   };
 
   const handleImport = async () => {
-    if (!importData) return;
-    await importBackup(importData, mergeMode);
-    showToast(t('backup.import_done'), 'success');
-    setImportAnalysis(null);
-    setImportData(null);
-    await reload();
+    if (!importData || busy) return;
+    setBusy(true);
+    try {
+      await importBackup(importData, mergeMode);
+      showToast(t('backup.import_done'), 'success');
+      setImportAnalysis(null);
+      setImportData(null);
+      await reload();
+    } catch (err) {
+      console.error('[backup] import failed:', err);
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
-      <h1 className="text-heading font-bold text-on-surface">{t('backup.title')}</h1>
+      {/* R5-08: same back-button header pattern as the other "More" subpages. */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
+        </button>
+        <h1 className="text-heading font-bold text-on-surface">{t('backup.title')}</h1>
+      </div>
 
       {settings?.lastBackupDate && (
         <p className="text-xs text-on-surface-faint">
@@ -116,7 +149,7 @@ export function BackupPage() {
         </p>
       )}
 
-      <button onClick={handleExport} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left">
+      <button onClick={handleExport} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40">
         <Icon name="cloud_upload" size={24} className="text-primary" />
         <div>
           <p className="text-sm font-medium text-on-surface">{t('backup.export_json')}</p>
@@ -225,9 +258,10 @@ export function BackupPage() {
 
           <button
             onClick={handleImport}
-            className="w-full mt-3 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press"
+            disabled={busy}
+            className="w-full mt-3 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
           >
-            {t('common.confirm')}
+            {busy ? t('common.loading') : t('common.confirm')}
           </button>
         </div>
       )}

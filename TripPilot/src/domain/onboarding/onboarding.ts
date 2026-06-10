@@ -21,6 +21,12 @@ interface OnboardingInput {
   defaultWalletName: string;
   /** DEC-051: optional cash wallet name; null skips creation. */
   cashWalletName: string | null;
+  /** R5-05: phase dates default to the trip dates when null. */
+  phaseStartDate: string | null;
+  phaseEndDate: string | null;
+  /** R5-05: same semantics as the phase editor — null = uniform. */
+  rhythmPreset: Phase['rhythmPreset'];
+  peakDays: number[] | null;
 }
 
 interface OnboardingResult {
@@ -60,11 +66,11 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
     ...m, id: phaseId,
     tripId,
     name: input.phaseName,
-    startDate: input.startDate,
-    endDate: input.endDate,
+    startDate: input.phaseStartDate ?? input.startDate,
+    endDate: input.phaseEndDate ?? input.endDate,
     order: 0,
-    rhythmPreset: null,
-    peakDays: null,
+    rhythmPreset: input.rhythmPreset,
+    peakDays: input.peakDays,
     notes: null,
   };
 

@@ -84,7 +84,8 @@
     "amigo_over_pace": "Planeaste {{planned}} {{type}} este mes. Al ritmo actual, solo caben {{fit}} de los {{remaining}} que faltan dentro del plan.",
     "amigo_on_plan": "Tus gastos en {{type}} van según el plan: {{done}} de {{planned}} ocasiones usadas.",
     "amigo_no_plan": "Este gasto en {{type}} usó el {{percent}}% de lo que queda libre. No hay plan para esta categoría.",
-    "amigo_reserve_date": "A este ritmo, la reserva empieza a usarse el {{date}}."
+    "amigo_reserve_date": "A este ritmo, la reserva empieza a usarse el {{date}}.",
+    "storage_not_persisted": "El sistema puede borrar tus datos. Activa el almacenamiento protegido en Configuración."
   },
   "expenses": {
     "title": "Gastos",
@@ -242,7 +243,6 @@
     "optional": "Opcional",
     "modified": "Modificado",
     "planned": "Planificado",
-    "added_count": "Agregaste {{count}} {{name}}",
     "cost_label": "COSTO",
     "margin_label": "MARGEN",
     "missing_label": "FALTAN",
@@ -266,7 +266,8 @@
     "removed_from_phase": "{{name}} eliminado de esta fase",
     "menu_typical_value": "Valor típico",
     "menu_classification": "Clasificación en esta fase",
-    "menu_remove_from_phase": "Eliminar de esta fase"
+    "menu_remove_from_phase": "Eliminar de esta fase",
+    "added_breakdown": "Agregaste {{items}}"
   },
   "funds": {
     "title": "Fondos",
@@ -354,7 +355,8 @@
     "import_preview": "Resumen de la importación",
     "new_records": "Registros nuevos",
     "updated_records": "Actualizados",
-    "conflicts": "Conflictos"
+    "conflicts": "Conflictos",
+    "operation_failed": "La operación falló. No se cambió nada — inténtalo de nuevo."
   },
   "more": {
     "title": "Más",
@@ -403,7 +405,10 @@
     "default_wallet_name": "Tarjeta de crédito",
     "add_cash_wallet": "Agregar billetera de efectivo",
     "cash_wallet_label": "Nombre de la billetera de efectivo",
-    "cash_wallet_name": "Efectivo"
+    "cash_wallet_name": "Efectivo",
+    "phase_details_hint": "La primera fase comienza con las fechas del viaje — ajústala si cubre solo una parte.",
+    "phase_start_date": "Inicio de la fase",
+    "phase_end_date": "Fin de la fase"
   },
   "demo": {
     "banner": "Estás usando datos de demostración.",
@@ -789,5 +794,10 @@
     "responses_queued": "Guardado — se enviará en la próxima sincronización",
     "statement_sent": "Extracto enviado",
     "show_as_qr": "Mostrar como código QR (offline)"
+  },
+  "data_error": {
+    "title": "No se pudieron cargar tus datos",
+    "body": "Tus datos NO fueron borrados — la base local simplemente no respondió. Cierra otras pestañas de la app e inténtalo de nuevo.",
+    "retry": "Intentar de nuevo"
   }
 }

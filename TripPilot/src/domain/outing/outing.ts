@@ -147,6 +147,47 @@ export function getSessionPercentUsed(
   return Math.round((totalSpentCents / limitCents) * 100);
 }
 
+// DEC-113 (R5-09): the gauge bar segments have FIXED visual widths
+// (flex 3:2:1:1 → green ends at 42.86%, primary at 71.43%, then amber/red
+// up to 100%). The dot must be mapped piecewise onto those visual ranges —
+// a linear spent/max position puts e.g. 40 of target 35 / ceiling 45 /
+// max 55 past the 45 mark on screen.
+const GAUGE_TARGET_END = 300 / 7; // 42.857% — end of the green segment
+const GAUGE_CEILING_END = 500 / 7; // 71.428% — end of the primary segment
+
+export function calculateGaugePosition(
+  spentCents: number,
+  targetCents: number,
+  ceilingCents: number,
+  maxCents: number,
+): number {
+  if (spentCents <= 0) return 0;
+  if (maxCents <= 0) return 0;
+  if (spentCents >= maxCents) return 100;
+
+  const mapSegment = (
+    value: number,
+    fromStart: number,
+    fromEnd: number,
+    toStart: number,
+    toEnd: number,
+  ): number => {
+    const span = fromEnd - fromStart;
+    if (span <= 0) return toEnd;
+    return toStart + ((value - fromStart) / span) * (toEnd - toStart);
+  };
+
+  if (targetCents > 0 && spentCents <= targetCents) {
+    return mapSegment(spentCents, 0, targetCents, 0, GAUGE_TARGET_END);
+  }
+  if (ceilingCents > targetCents && spentCents <= ceilingCents) {
+    return mapSegment(spentCents, targetCents, ceilingCents, GAUGE_TARGET_END, GAUGE_CEILING_END);
+  }
+  // Beyond the ceiling (or degenerate thresholds): amber + red zone.
+  const zoneStart = Math.max(targetCents, ceilingCents);
+  return mapSegment(spentCents, zoneStart, maxCents, GAUGE_CEILING_END, 100);
+}
+
 export function getProgressiveAlerts(
   totalSpentCents: number,
   session: Session,

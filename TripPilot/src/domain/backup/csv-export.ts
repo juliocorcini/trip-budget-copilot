@@ -159,14 +159,37 @@ function escapeCsv(value: string): string {
   return value;
 }
 
-export function downloadFile(content: string, filename: string, mimeType: string): void {
+// DEC-110: iOS standalone PWAs ignore `a.download` and navigate the webview
+// to the blob URL — revoking it synchronously used to brick the app. Prefer
+// the native share sheet on mobile; fall back to an anchor that opens a new
+// context and only revoke after the navigation had time to complete.
+export async function downloadFile(content: string, filename: string, mimeType: string): Promise<void> {
   const blob = new Blob([content], { type: mimeType });
+
+  if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+    const file = new File([blob], filename, { type: mimeType });
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      } catch (err) {
+        // User cancelled the share sheet — not an error, nothing to download.
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        // Any other failure falls through to the anchor path.
+      }
+    }
+  }
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.target = '_blank';
+  a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Deferred revoke: browsers without `download` support need the blob URL
+  // alive while the new tab/viewer loads it.
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }

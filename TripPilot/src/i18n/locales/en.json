@@ -84,7 +84,8 @@
     "amigo_over_pace": "You planned {{planned}} {{type}} this month. At the current pace, only {{fit}} of the {{remaining}} left fit the plan.",
     "amigo_on_plan": "Your {{type}} spending is on plan: {{done}} of {{planned}} occasions used.",
     "amigo_no_plan": "This {{type}} expense used {{percent}}% of what is left free. There is no plan for this category.",
-    "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}."
+    "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}.",
+    "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings."
   },
   "expenses": {
     "title": "Expenses",
@@ -242,7 +243,6 @@
     "optional": "Optional",
     "modified": "Modified",
     "planned": "Planned",
-    "added_count": "You added {{count}} {{name}}",
     "cost_label": "COST",
     "margin_label": "MARGIN",
     "missing_label": "MISSING",
@@ -266,7 +266,8 @@
     "removed_from_phase": "{{name}} removed from this phase",
     "menu_typical_value": "Typical value",
     "menu_classification": "Classification in this phase",
-    "menu_remove_from_phase": "Remove from this phase"
+    "menu_remove_from_phase": "Remove from this phase",
+    "added_breakdown": "You added {{items}}"
   },
   "funds": {
     "title": "Funds",
@@ -354,7 +355,8 @@
     "import_preview": "Import summary",
     "new_records": "New records",
     "updated_records": "Updated",
-    "conflicts": "Conflicts"
+    "conflicts": "Conflicts",
+    "operation_failed": "The operation failed. Nothing was changed — try again."
   },
   "more": {
     "title": "More",
@@ -403,7 +405,10 @@
     "default_wallet_name": "Credit card",
     "add_cash_wallet": "Add a cash wallet",
     "cash_wallet_label": "Cash wallet name",
-    "cash_wallet_name": "Cash"
+    "cash_wallet_name": "Cash",
+    "phase_details_hint": "The first phase starts with the trip dates — adjust if it covers only part of the trip.",
+    "phase_start_date": "Phase start",
+    "phase_end_date": "Phase end"
   },
   "demo": {
     "banner": "You are using demo data.",
@@ -789,5 +794,10 @@
     "responses_queued": "Saved — it will be sent on the next sync",
     "statement_sent": "Statement sent",
     "show_as_qr": "Show as a QR code (offline)"
+  },
+  "data_error": {
+    "title": "Could not load your data",
+    "body": "Your data was NOT deleted — the local database just failed to respond. Close other tabs of the app and try again.",
+    "retry": "Try again"
   }
 }

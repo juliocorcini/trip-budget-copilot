@@ -6,6 +6,7 @@ export {
   createSessionItem,
   calculateSessionTotal,
   getSessionPercentUsed,
+  calculateGaugePosition,
   getProgressiveAlerts,
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,

@@ -32,11 +32,15 @@ test.describe('Onboarding flow', () => {
     const nextButton = page.getByRole('button', { name: /próximo|next/i });
     await nextButton.click();
 
+    // R5-05: phase details step (dates prefilled, rhythm optional) — skip.
+    await page.waitForTimeout(500);
+    await nextButton.click();
+
     await page.waitForTimeout(500);
     const amountInput = page.locator('input[type="number"]').first();
     await amountInput.fill('3000');
 
-    // Steps: trip → budget → owner → wallets (GAP-026 / DEC-051).
+    // Steps: trip → phase → budget → owner → wallets (R5-05 / DEC-051).
     await nextButton.click();
     await page.waitForTimeout(500);
     await nextButton.click();

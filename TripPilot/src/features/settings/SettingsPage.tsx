@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository } from '@/data/repositories';
 import { fromCents, toCents } from '@/domain/money';
+import { Icon } from '@/components/Icon';
 import type { AlertTone, ThemePreference } from '@/domain/types/common';
 
 const LANGUAGE_OPTIONS = [
@@ -15,6 +17,7 @@ const CURRENCY_OPTIONS = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { settings, wallets, trip, reload } = useAppData();
   const [quickAddInput, setQuickAddInput] = useState('');
 
@@ -55,7 +58,13 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
-      <h1 className="text-heading font-bold text-on-surface">{t('settings.title')}</h1>
+      {/* R5-08: same back-button header pattern as the other "More" subpages. */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
+        </button>
+        <h1 className="text-heading font-bold text-on-surface">{t('settings.title')}</h1>
+      </div>
 
       <Section title={t('settings.alert_tone')}>
         <div className="flex gap-2">
