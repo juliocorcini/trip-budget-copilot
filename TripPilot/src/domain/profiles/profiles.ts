@@ -1,4 +1,5 @@
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
 export interface CreateCustomProfileInput {
@@ -80,6 +81,38 @@ export function createDefaultActivityProfiles(tripId: string): ActivityProfile[]
     quickAddValuesCents: null,
     notes: null,
   }));
+}
+
+/** DEC-074: explicit enable/disable of a profile in a phase (absence = enabled). */
+export function createPhaseProfileSetting(
+  phaseId: string,
+  activityProfileId: string,
+  isEnabled: boolean,
+): PhaseProfileSetting {
+  return {
+    ...createSyncMetadata(),
+    phaseId,
+    activityProfileId,
+    isEnabled,
+  };
+}
+
+/**
+ * DEC-074: a profile is enabled in a phase unless an explicit setting
+ * disables it (permissive default — no migration of existing data needed).
+ */
+export function isProfileEnabledInPhase(
+  settings: PhaseProfileSetting[],
+  phaseId: string,
+  activityProfileId: string,
+): boolean {
+  const setting = settings.find(
+    (s) =>
+      s.phaseId === phaseId &&
+      s.activityProfileId === activityProfileId &&
+      s.deletedAt === null,
+  );
+  return setting?.isEnabled ?? true;
 }
 
 export function createCustomActivityProfile(input: CreateCustomProfileInput): ActivityProfile {

@@ -83,6 +83,8 @@ export function generateDemoData(deviceId: string): DemoData {
       startDate: tripStart,
       endDate: phase1End,
       order: 0,
+      rhythmPreset: null,
+      peakDays: null,
       notes: null,
     },
     {
@@ -93,6 +95,8 @@ export function generateDemoData(deviceId: string): DemoData {
       startDate: phase2Start,
       endDate: tripEnd,
       order: 1,
+      rhythmPreset: null,
+      peakDays: null,
       notes: null,
     },
   ];
@@ -268,6 +272,7 @@ export function generateDemoData(deviceId: string): DemoData {
           shareAmountCents: tx.amountCents - half,
           shareType: 'equal' as const,
           isPaid: true,
+          confirmationStatus: 'confirmed' as const,
           notes: null,
         },
         {
@@ -277,6 +282,7 @@ export function generateDemoData(deviceId: string): DemoData {
           shareAmountCents: half,
           shareType: 'equal' as const,
           isPaid: false,
+          confirmationStatus: 'pending' as const,
           notes: null,
         },
       ];

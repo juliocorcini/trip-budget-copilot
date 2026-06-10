@@ -12,6 +12,7 @@ import type { Session, SessionItem } from '@/domain/types/session';
 import type { Settlement } from '@/domain/types/settlement';
 import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
+import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
 import type { ForecastSnapshot } from '@/domain/types/forecast-snapshot';
 import type { FuturePhaseReservePolicy } from '@/domain/types/future-phase-reserve-policy';
 import type { AlertRule } from '@/domain/types/alert-rule';
@@ -41,14 +42,19 @@ export interface BackupData {
   scenarioPlans: ScenarioPlan[];
   scenarioAllocationItems: ScenarioAllocationItem[];
   plannedOccurrences: PlannedOccurrence[];
+  phaseProfileSettings: PhaseProfileSetting[];
   forecastSnapshots: ForecastSnapshot[];
   futurePhaseReservePolicies: FuturePhaseReservePolicy[];
   alertRules: AlertRule[];
   devices: Device[];
 }
 
-/** v2: full 21-table coverage (GAP-003). v1 files import with missing tables as empty. */
-export const BACKUP_VERSION = 2;
+/**
+ * v3 (R2): adds phaseProfileSettings + the v3 fields (confirmationStatus,
+ * rhythm, occurrence extensions). v1/v2 files import with missing tables as
+ * empty and missing fields normalized to the migration defaults.
+ */
+export const BACKUP_VERSION = 3;
 
 export type BackupTableKey = keyof Omit<
   BackupData,
@@ -72,6 +78,7 @@ export const BACKUP_TABLE_KEYS: BackupTableKey[] = [
   'scenarioPlans',
   'scenarioAllocationItems',
   'plannedOccurrences',
+  'phaseProfileSettings',
   'forecastSnapshots',
   'futurePhaseReservePolicies',
   'alertRules',
@@ -157,9 +164,37 @@ export interface ParseBackupResult {
 }
 
 /**
+ * Normalizes pre-v3 backup records to the v3 shape — same defaults as the
+ * Dexie v3 upgrade(), so importing an old file never changes behavior.
+ */
+export function normalizeBackupToV3(data: BackupData): BackupData {
+  return {
+    ...data,
+    participantShares: data.participantShares.map((s) => ({
+      ...s,
+      confirmationStatus: s.confirmationStatus ?? ('confirmed' as const),
+    })),
+    phases: data.phases.map((p) => ({
+      ...p,
+      rhythmPreset: p.rhythmPreset ?? null,
+      peakDays: p.peakDays ?? null,
+    })),
+    plannedOccurrences: data.plannedOccurrences.map((o) => ({
+      ...o,
+      endDate: o.endDate ?? null,
+      kind: o.kind ?? ('event' as const),
+      reservedCents: o.reservedCents ?? null,
+      linkedSessionId: o.linkedSessionId ?? null,
+    })),
+    phaseProfileSettings: data.phaseProfileSettings ?? [],
+  };
+}
+
+/**
  * GAP-029: validates the file against the Zod schemas before anything is
  * written. Malformed files yield a clear error and zero partial writes.
- * v1 files (missing tables) are normalized with empty arrays.
+ * v1 files (missing tables) are normalized with empty arrays; v2 files get
+ * the v3 field defaults (normalizeBackupToV3).
  */
 export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
   let raw: unknown;
@@ -177,7 +212,7 @@ export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
       error: first ? `${first.path.join('.')}: ${first.message}` : 'invalid_schema',
     };
   }
-  return { data: result.data as unknown as BackupData, error: null };
+  return { data: normalizeBackupToV3(result.data as unknown as BackupData), error: null };
 }
 
 export function parseBackupFile(jsonString: string): BackupData | null {

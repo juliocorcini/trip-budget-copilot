@@ -24,6 +24,9 @@ export const phaseSchema = syncMetadataSchema.extend({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   order: z.number().int().min(0),
+  // DEC-075 (v3): defaults keep v2 backups importable (uniform rhythm).
+  rhythmPreset: z.enum(['intense', 'moderate', 'relaxed', 'custom']).nullable().default(null),
+  peakDays: z.array(z.number().int().min(0).max(6)).nullable().default(null),
   notes: z.string().nullable(),
 });
 
@@ -125,6 +128,7 @@ export const backupFileSchema = z.object({
   scenarioPlans: z.array(syncedRecordSchema).default([]),
   scenarioAllocationItems: z.array(syncedRecordSchema).default([]),
   plannedOccurrences: z.array(syncedRecordSchema).default([]),
+  phaseProfileSettings: z.array(syncedRecordSchema).default([]),
   forecastSnapshots: z.array(syncedRecordSchema).default([]),
   futurePhaseReservePolicies: z.array(syncedRecordSchema).default([]),
   alertRules: z.array(syncedRecordSchema).default([]),

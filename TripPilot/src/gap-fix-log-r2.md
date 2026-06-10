@@ -1,11 +1,11 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 3 | **Item ativo**: migração Dexie v3
-- **Itens resolvidos**: 10/23 (+FIELD-13, FIELD-14, GAP-R2-004, 005, 006, 007)
-- **Testes**: 157 unit (baseline 156) + 22 e2e (baseline 22)
+- **Gate ativo**: 4 | **Item ativo**: DEC-071 (FIELD-03)
+- **Itens resolvidos**: 10/23 (+ infra v3 pronta)
+- **Testes**: 161 unit (baseline 156) + 22 e2e (baseline 22)
 - **Build/Typecheck**: clean
-- **Migração Dexie v3**: pendente (Gate 3)
+- **Migração Dexie v3**: FEITA (Gate 3) — NUNCA criar v4/v5
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`
 
 ## Por gate
@@ -30,8 +30,12 @@
 - [x] GAP-R2-005 — `requestPersistentStorage()` idempotente (checa `persisted()`) chamado após onboarding (OnboardingPage), 1º gasto (QuickAddPage) e quick-add de sessão (OutingPage); status manual continua em Settings
 
 ### Gate 3 — Migração Dexie v3 unificada
-- [ ] confirmationStatus + phaseProfileSettings + Phase.rhythm + PlannedOccurrence estendida + índices
-- [ ] Types + factories + Zod + backup v3 + testes de migração
+- [x] `SCHEMA_V3`: tabela `phaseProfileSettings` (índice `[phaseId+activityProfileId]`) + `plannedOccurrences` com `[phaseId+plannedDate]`; `version(3).upgrade()` popula: shares→`confirmationStatus:'confirmed'`, phases→`rhythmPreset/peakDays:null`, occurrences→`endDate/kind('event')/reservedCents/linkedSessionId` defaults
+- [x] Types: `ShareConfirmationStatus`, `PhaseRhythmPreset`, `OccurrenceKind`, `PhaseProfileSetting` (novo arquivo); `activityProfileId` nullable em PlannedOccurrence
+- [x] Factories: shares nascem `pending` + payer `confirmed` (buildSharesWithPayer, DEC-071); `createPhase` com rhythm null; `createPlannedOccurrence` + `isOccurrenceActiveToday` (planning/occurrences.ts); `createPhaseProfileSetting` + `isProfileEnabledInPhase` (profiles)
+- [x] Zod: phaseSchema com rhythmPreset/peakDays defaults; phaseProfileSettings no backupFileSchema
+- [x] Backup v3: `BACKUP_VERSION=3`, tabela nova nas 21+1 keys, `normalizeBackupToV3` aplicado no parse (import de v2 = defaults da migração); CSV avançado ganhou coluna "Confirmação do rateio" (+shares no contexto)
+- [x] Testes: migração v2→v3 real (fake-indexeddb, TripPilotDB parametrizado por nome), índice composto da tabela nova, normalização v2→v3, round-trip v3 — 161 unit verdes
 
 ### Gate 4 — Shares confirmáveis + CRUD
 - [ ] DEC-071 / FIELD-03 — confirmação de shares

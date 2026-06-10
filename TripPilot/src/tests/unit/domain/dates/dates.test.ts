@@ -19,8 +19,8 @@ const baseMeta = {
 };
 
 const phases: Phase[] = [
-  { ...baseMeta, id: 'p1', tripId: 'trip-1', name: 'Phase 1', startDate: '2026-07-01', endDate: '2026-07-15', order: 0, notes: null },
-  { ...baseMeta, id: 'p2', tripId: 'trip-1', name: 'Phase 2', startDate: '2026-07-16', endDate: '2026-07-31', order: 1, notes: null },
+  { ...baseMeta, id: 'p1', tripId: 'trip-1', name: 'Phase 1', startDate: '2026-07-01', endDate: '2026-07-15', order: 0, rhythmPreset: null, peakDays: null, notes: null },
+  { ...baseMeta, id: 'p2', tripId: 'trip-1', name: 'Phase 2', startDate: '2026-07-16', endDate: '2026-07-31', order: 1, rhythmPreset: null, peakDays: null, notes: null },
 ];
 
 describe('findActivePhase', () => {

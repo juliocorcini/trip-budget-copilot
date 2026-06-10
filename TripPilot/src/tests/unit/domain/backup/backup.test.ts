@@ -45,6 +45,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
   scenarioPlans: [],
   scenarioAllocationItems: [],
   plannedOccurrences: [],
+  phaseProfileSettings: [],
   forecastSnapshots: [],
   futurePhaseReservePolicies: [],
   alertRules: [],
@@ -54,8 +55,47 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
 describe('createBackup', () => {
   it('adds version and export date', () => {
     const backup = createBackup(emptyBackup());
-    expect(backup.version).toBe(2);
+    expect(backup.version).toBe(3);
     expect(backup.exportedAt).toBeTruthy();
+  });
+});
+
+describe('backup v2 → v3 import (normalizeBackupToV3)', () => {
+  const meta = {
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    deletedAt: null,
+    revision: 1,
+    sourceDeviceId: '4f9c20de-9e94-4f0b-8a3e-222222222222',
+  };
+
+  it('fills v3 defaults on a v2 file (missing fields and table)', () => {
+    const v2File = {
+      ...createBackup(emptyBackup()),
+      version: 2,
+      phases: [{ ...meta, id: '4f9c20de-9e94-4f0b-8a3e-333333333333', tripId: '4f9c20de-9e94-4f0b-8a3e-111111111111', name: 'Burgos', startDate: '2026-06-01', endDate: '2026-06-10', order: 0, notes: null }],
+      participantShares: [{ ...meta, id: '4f9c20de-9e94-4f0b-8a3e-444444444444', transactionId: 't', participantId: 'p', shareAmountCents: 2000, shareType: 'equal', isPaid: false, notes: null }],
+    } as unknown as BackupData;
+    // Simulate a real v2 file: the table did not exist back then.
+    delete (v2File as unknown as Record<string, unknown>).phaseProfileSettings;
+
+    const parsed = parseBackupFile(JSON.stringify(v2File));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.phaseProfileSettings).toEqual([]);
+    expect(parsed!.phases[0]!.rhythmPreset).toBeNull();
+    expect(parsed!.phases[0]!.peakDays).toBeNull();
+    expect(parsed!.participantShares[0]!.confirmationStatus).toBe('confirmed');
+  });
+
+  it('keeps v3 fields untouched on a v3 file round-trip', () => {
+    const v3File = {
+      ...createBackup(emptyBackup()),
+      participantShares: [{ ...meta, id: '4f9c20de-9e94-4f0b-8a3e-555555555555', transactionId: 't', participantId: 'p', shareAmountCents: 2000, shareType: 'equal', isPaid: false, confirmationStatus: 'pending', notes: null }],
+    } as unknown as BackupData;
+
+    const parsed = parseBackupFile(JSON.stringify(v3File));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.participantShares[0]!.confirmationStatus).toBe('pending');
   });
 });
 
@@ -102,7 +142,7 @@ describe('parseBackupFile', () => {
     const backup = createBackup(emptyBackup());
     const result = parseBackupFile(JSON.stringify(backup));
     expect(result).not.toBeNull();
-    expect(result!.version).toBe(2);
+    expect(result!.version).toBe(3);
   });
 
   it('returns null for invalid JSON', () => {

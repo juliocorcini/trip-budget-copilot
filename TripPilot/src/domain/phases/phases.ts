@@ -17,6 +17,8 @@ export function createPhase(input: CreatePhaseInput): Phase {
     startDate: input.startDate,
     endDate: input.endDate,
     order: input.order,
+    rhythmPreset: null,
+    peakDays: null,
     notes: null,
   };
 }

@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -33,4 +33,16 @@ export const SCHEMA_V2: Record<string, string> = {
   scenarioPlans: `${SCHEMA_V1.scenarioPlans}, [phaseId+budgetPoolId]`,
   transactions: `${SCHEMA_V1.transactions}, [phaseId+type], [phaseId+category], [budgetPoolId+type], [tripId+date]`,
   futurePhaseReservePolicies: `${SCHEMA_V1.futurePhaseReservePolicies}, [budgetPoolId+phaseId]`,
+};
+
+// V3 (R2 unified migration — DEC-071/072/074/075):
+// - new phaseProfileSettings table (activities enabled per phase)
+// - plannedOccurrences indexed by [phaseId+plannedDate] (day card query)
+// Non-indexed fields (confirmationStatus, rhythmPreset, peakDays, endDate,
+// kind, reservedCents, linkedSessionId) require no schema string changes —
+// the upgrade() callback populates their defaults.
+export const SCHEMA_V3: Record<string, string> = {
+  ...SCHEMA_V2,
+  phaseProfileSettings: 'id, phaseId, activityProfileId, deletedAt, [phaseId+activityProfileId]',
+  plannedOccurrences: `${SCHEMA_V1.plannedOccurrences}, [phaseId+plannedDate]`,
 };

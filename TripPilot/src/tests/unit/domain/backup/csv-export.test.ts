@@ -27,6 +27,8 @@ const phase: Phase = {
   startDate: '2026-07-01',
   endDate: '2026-07-10',
   order: 0,
+  rhythmPreset: null,
+  peakDays: null,
   notes: null,
 };
 
@@ -106,6 +108,7 @@ function buildContext(advanced: boolean): CsvExportContext {
     trips: [trip],
     sessions: [session],
     participants: [payer],
+    shares: [],
     currency: 'EUR',
     advanced,
   };

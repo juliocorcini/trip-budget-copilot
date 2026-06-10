@@ -18,6 +18,8 @@ const mkPhase = (id: string, order: number, deletedAt: string | null = null): Ph
   startDate: '2026-06-01',
   endDate: '2026-06-10',
   order,
+  rhythmPreset: null,
+  peakDays: null,
   notes: null,
   deletedAt,
 });

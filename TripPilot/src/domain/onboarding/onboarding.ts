@@ -63,6 +63,8 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
     startDate: input.startDate,
     endDate: input.endDate,
     order: 0,
+    rhythmPreset: null,
+    peakDays: null,
     notes: null,
   };
 

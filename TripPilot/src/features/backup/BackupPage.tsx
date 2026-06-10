@@ -11,7 +11,7 @@ import {
   downloadFile,
 } from '@/domain/backup';
 import { buildFullBackup, importBackup } from '@/domain/orchestrators';
-import { appSettingsRepository } from '@/data/repositories';
+import { appSettingsRepository, participantShareRepository } from '@/data/repositories';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import type { BackupData, ImportAnalysis } from '@/domain/backup';
 import { formatDate } from '@/domain/dates';
@@ -30,7 +30,11 @@ export function BackupPage() {
 
   const exportCsv = async (advanced: boolean) => {
     if (!trip) return;
-    const sessions = await sessionRepository.getByTripId(trip.id);
+    const sharedTxIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
+    const [sessions, shares] = await Promise.all([
+      sessionRepository.getByTripId(trip.id),
+      participantShareRepository.getAllForTrip(sharedTxIds),
+    ]);
     const rows = transactionsToCsvRows({
       transactions,
       pools,
@@ -39,6 +43,7 @@ export function BackupPage() {
       trips: [trip],
       sessions,
       participants,
+      shares,
       currency: trip.baseCurrency,
       advanced,
     });

@@ -4,6 +4,7 @@ export {
   mergeBackupData,
   parseBackupFile,
   parseBackupFileSafe,
+  normalizeBackupToV3,
   generateBackupFilename,
   isBackupReminderDue,
   BACKUP_VERSION,

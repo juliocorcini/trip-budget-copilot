@@ -31,6 +31,7 @@ export function createEqualShares(
     shareAmountCents: amounts[i]!,
     shareType: 'equal' as const,
     isPaid: false,
+    confirmationStatus: 'pending' as const,
     notes: null,
   }));
 }
@@ -46,6 +47,7 @@ export function createCustomShares(
     shareAmountCents: s.amountCents,
     shareType: 'custom' as const,
     isPaid: false,
+    confirmationStatus: 'pending' as const,
     notes: null,
   }));
 }
@@ -83,8 +85,11 @@ export function buildSharesWithPayer(input: BuildSharesInput): ParticipantShare[
           return createCustomShares(input.transactionId, custom);
         })();
 
+  // DEC-071: the creator/payer's share is born confirmed; third parties pending.
   return shares.map((s) =>
-    s.participantId === input.paidByParticipantId ? { ...s, isPaid: true } : s,
+    s.participantId === input.paidByParticipantId
+      ? { ...s, isPaid: true, confirmationStatus: 'confirmed' as const }
+      : s,
   );
 }
 

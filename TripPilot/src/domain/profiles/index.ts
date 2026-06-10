@@ -1,2 +1,7 @@
-export { createCustomActivityProfile, createDefaultActivityProfiles } from './profiles';
+export {
+  createCustomActivityProfile,
+  createDefaultActivityProfiles,
+  createPhaseProfileSetting,
+  isProfileEnabledInPhase,
+} from './profiles';
 export type { CreateCustomProfileInput } from './profiles';

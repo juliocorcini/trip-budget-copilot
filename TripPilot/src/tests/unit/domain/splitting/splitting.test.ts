@@ -64,15 +64,15 @@ describe('createCustomShares', () => {
 describe('calculatePersonalCost', () => {
   it('returns owner share amount', () => {
     const shares: ParticipantShare[] = [
-      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'owner', shareAmountCents: 2000, shareType: 'equal', isPaid: false, notes: null },
-      { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'friend', shareAmountCents: 2000, shareType: 'equal', isPaid: false, notes: null },
+      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'owner', shareAmountCents: 2000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
+      { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'friend', shareAmountCents: 2000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
     ];
     expect(calculatePersonalCost(shares, 'owner')).toBe(2000);
   });
 
   it('returns 0 when owner not in shares', () => {
     const shares: ParticipantShare[] = [
-      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'other', shareAmountCents: 1000, shareType: 'equal', isPaid: false, notes: null },
+      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'other', shareAmountCents: 1000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
     ];
     expect(calculatePersonalCost(shares, 'owner')).toBe(0);
   });
@@ -96,8 +96,8 @@ describe('calculateDebts', () => {
       sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
     };
     const shares: ParticipantShare[] = [
-      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
-      { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
+      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
+      { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
     ];
     const result = calculateDebts([tx], shares, participants, [], 'julio');
     expect(result.debts).toHaveLength(1);
@@ -118,8 +118,8 @@ describe('calculateDebts', () => {
       sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
     };
     const shares: ParticipantShare[] = [
-      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
-      { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
+      { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
+      { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
     ];
     const settlements = [
       { ...meta, id: 'set-1', tripId: 'trip-1', debtorParticipantId: 'ana', creditorParticipantId: 'julio', amountCents: 2000, currency: 'EUR', settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null },
@@ -147,8 +147,8 @@ describe('findPendingSharedTransactions (GAP-016, decision D-C)', () => {
   };
 
   const shares: ParticipantShare[] = [
-    { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
-    { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, notes: null },
+    { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
+    { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
   ];
 
   it('marks a shared expense pending while the third-party share is unsettled', () => {
@@ -213,6 +213,7 @@ describe('scaleSharesToTotal', () => {
     participantId,
     shareAmountCents: amount,
     shareType: 'equal',
+    confirmationStatus: 'confirmed',
     isPaid: false,
     notes: null,
   });

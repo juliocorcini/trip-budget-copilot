@@ -5,6 +5,7 @@ import type { Phase } from '@/domain/types/phase';
 import type { Trip } from '@/domain/types/trip';
 import type { Session } from '@/domain/types/session';
 import type { Participant } from '@/domain/types/participant';
+import type { ParticipantShare } from '@/domain/types/participant-share';
 import { fromCents, formatMoney } from '@/domain/money';
 
 export interface CsvExportContext {
@@ -15,6 +16,8 @@ export interface CsvExportContext {
   trips: Trip[];
   sessions: Session[];
   participants: Participant[];
+  /** DEC-071 (v3): share confirmation summary in the advanced column. */
+  shares: ParticipantShare[];
   currency: string;
   /** DEC-058 advanced mode: adds ID, status, timestamps and device columns. */
   advanced: boolean;
@@ -46,6 +49,7 @@ interface CsvRow {
   createdAt: string;
   updatedAt: string;
   device: string;
+  shareConfirmation: string;
 }
 
 const BASE_HEADERS = [
@@ -55,7 +59,7 @@ const BASE_HEADERS = [
   'Custo pessoal', 'Valor compartilhado', 'Observações',
 ];
 
-const ADVANCED_HEADERS = ['ID', 'Status', 'Criado em', 'Atualizado em', 'Dispositivo'];
+const ADVANCED_HEADERS = ['ID', 'Status', 'Criado em', 'Atualizado em', 'Dispositivo', 'Confirmação do rateio'];
 
 function baseColumns(row: CsvRow): string[] {
   return [
@@ -68,7 +72,19 @@ function baseColumns(row: CsvRow): string[] {
 }
 
 function advancedColumns(row: CsvRow): string[] {
-  return [row.id, row.status, row.createdAt, row.updatedAt, row.device];
+  return [row.id, row.status, row.createdAt, row.updatedAt, row.device, row.shareConfirmation];
+}
+
+function summarizeShareConfirmation(shares: ParticipantShare[]): string {
+  const active = shares.filter((s) => s.deletedAt === null);
+  if (active.length === 0) return '';
+  const counts = { confirmed: 0, pending: 0, rejected: 0 };
+  for (const s of active) counts[s.confirmationStatus]++;
+  const parts: string[] = [];
+  if (counts.confirmed > 0) parts.push(`${counts.confirmed} confirmado(s)`);
+  if (counts.pending > 0) parts.push(`${counts.pending} pendente(s)`);
+  if (counts.rejected > 0) parts.push(`${counts.rejected} rejeitado(s)`);
+  return parts.join(' / ');
 }
 
 export function transactionsToCsvRows(context: CsvExportContext): CsvRow[] {
@@ -78,6 +94,12 @@ export function transactionsToCsvRows(context: CsvExportContext): CsvRow[] {
   const tripMap = new Map(context.trips.map((t) => [t.id, t.name]));
   const sessionMap = new Map(context.sessions.map((s) => [s.id, s.name]));
   const participantMap = new Map(context.participants.map((p) => [p.id, p.name]));
+  const sharesByTx = new Map<string, ParticipantShare[]>();
+  for (const share of context.shares) {
+    const list = sharesByTx.get(share.transactionId) ?? [];
+    list.push(share);
+    sharesByTx.set(share.transactionId, list);
+  }
 
   return context.transactions
     .filter((t) => context.advanced || t.deletedAt === null)
@@ -111,6 +133,7 @@ export function transactionsToCsvRows(context: CsvExportContext): CsvRow[] {
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
         device: t.sourceDeviceId,
+        shareConfirmation: t.isShared ? summarizeShareConfirmation(sharesByTx.get(t.id) ?? []) : '',
       };
     });
 }
