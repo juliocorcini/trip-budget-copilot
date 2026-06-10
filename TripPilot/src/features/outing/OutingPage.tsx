@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   createSession,
@@ -19,16 +19,24 @@ import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting'
 import { resolveActivePhase } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
 import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
-import { registerExpense, endOutingSession, createProfileEnabledInPhase } from '@/domain/orchestrators';
+import { createPlannedOccurrence } from '@/domain/planning';
+import {
+  registerExpense,
+  endOutingSession,
+  createProfileEnabledInPhase,
+  startSessionForOccurrence,
+  startOneOffEventSession,
+} from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { phaseProfileSettingRepository } from '@/data/repositories/phase-profile-setting-repository';
+import { plannedOccurrenceRepository } from '@/data/repositories/planned-occurrence-repository';
 import { transactionRepository } from '@/data/repositories';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
-import type { AppSettings } from '@/domain/types/app-settings';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { ShareType } from '@/domain/types/common';
@@ -94,6 +102,7 @@ type PendingPhaseAction = (txPhaseId: string, sess: Session) => Promise<void>;
 export function OutingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { trip, phases, pools, wallets, participants, settings, reload: reloadAppData } = useAppData();
 
   const [session, setSession] = useState<Session | null>(null);
@@ -105,6 +114,11 @@ export function OutingPage() {
   const [elapsed, setElapsed] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [configuringProfile, setConfiguringProfile] = useState<ActivityProfile | null>(null);
+  // DEC-072 (M6.3): pre-configured start coming from the day card.
+  const [configuringOccurrence, setConfiguringOccurrence] = useState<PlannedOccurrence | null>(null);
+  // DEC-073 (M6.5): custom flow asks "is this a one-off event?" first.
+  const [showOneOffQuestion, setShowOneOffQuestion] = useState(false);
+  const [configuringOneOff, setConfiguringOneOff] = useState(false);
   const [reviewing, setReviewing] = useState(false);
 
   // DEC-053(b)/(c) confirmatory gates
@@ -148,9 +162,17 @@ export function OutingPage() {
       } else {
         setEnabledProfileIds(null);
       }
+      // DEC-072 (M6.3): /outings/new?occurrence=<id> pre-configures the start.
+      const occurrenceId = searchParams.get('occurrence');
+      if (occurrenceId && !active) {
+        const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
+        if (occurrence && !occurrence.isConfirmed && occurrence.linkedSessionId === null) {
+          setConfiguringOccurrence(occurrence);
+        }
+      }
     };
     load();
-  }, [trip, phases]);
+  }, [trip, phases, searchParams]);
 
   useEffect(() => {
     if (!session) return;
@@ -183,6 +205,58 @@ export function OutingPage() {
     });
     await sessionRepository.create(sess);
     setConfiguringProfile(null);
+    setSession(sess);
+    setSessionTxs([]);
+    setItemCount(0);
+  };
+
+  // DEC-072 (M6.3): start the session linked to the day-card occurrence —
+  // the link is recorded atomically and the reserve stops deducting.
+  const handleStartForOccurrence = async (config: SessionStartConfig) => {
+    if (!trip || !currentPhase || !defaultPool || !configuringOccurrence) return;
+    const sess = createSession({
+      tripId: trip.id,
+      phaseId: currentPhase.id,
+      budgetPoolId: defaultPool.id,
+      activityProfileId: null,
+      name: config.name,
+      limits: config.limits,
+      quickAddValuesCents: config.quickAddValuesCents,
+    });
+    await startSessionForOccurrence({ session: sess, occurrenceId: configuringOccurrence.id });
+    setConfiguringOccurrence(null);
+    setSession(sess);
+    setSessionTxs([]);
+    setItemCount(0);
+  };
+
+  // DEC-073 (M6.5 / FIELD-04): one-off event creates a linked occurrence,
+  // never an ActivityProfile — no Planner/Profiles contamination.
+  const handleStartOneOff = async (config: SessionStartConfig) => {
+    if (!trip || !currentPhase || !defaultPool) return;
+    const sess = createSession({
+      tripId: trip.id,
+      phaseId: currentPhase.id,
+      budgetPoolId: defaultPool.id,
+      activityProfileId: null,
+      name: config.name,
+      limits: config.limits,
+      quickAddValuesCents: config.quickAddValuesCents,
+    });
+    const occurrence = createPlannedOccurrence({
+      tripId: trip.id,
+      phaseId: currentPhase.id,
+      budgetPoolId: defaultPool.id,
+      name: config.name,
+      plannedDate: new Date().toISOString().slice(0, 10),
+      endDate: null,
+      kind: 'event',
+      estimatedCostCents: config.limits.ceilingCents,
+      reservedCents: null,
+      activityProfileId: null,
+    });
+    await startOneOffEventSession({ session: sess, occurrence });
+    setConfiguringOneOff(false);
     setSession(sess);
     setSessionTxs([]);
     setItemCount(0);
@@ -436,13 +510,57 @@ export function OutingPage() {
 
   if (!session) {
     if (configuringProfile) {
+      const derived = deriveSessionLimits(configuringProfile);
       return (
         <SessionStartConfigForm
-          profile={configuringProfile}
+          initialName={configuringProfile.name}
+          initialLimits={derived}
+          initialQuickAddCents={
+            configuringProfile.quickAddValuesCents ?? settings.quickAddDefaultValuesCents
+          }
           currency={trip.baseCurrency}
-          settings={settings}
           onCancel={() => setConfiguringProfile(null)}
           onStart={handleStartConfigured}
+        />
+      );
+    }
+    if (configuringOccurrence) {
+      // DEC-072: ceiling = reserved money; estimated cost is the fallback.
+      const baseCents =
+        configuringOccurrence.reservedCents ??
+        (configuringOccurrence.estimatedCostCents > 0
+          ? configuringOccurrence.estimatedCostCents
+          : 4000);
+      return (
+        <SessionStartConfigForm
+          initialName={configuringOccurrence.name}
+          initialLimits={{
+            targetCents: Math.round(baseCents * 0.8),
+            ceilingCents: baseCents,
+            maxCents: Math.round(baseCents * 1.3),
+            avgDrinkPriceCents: null,
+          }}
+          initialQuickAddCents={settings.quickAddDefaultValuesCents}
+          currency={trip.baseCurrency}
+          onCancel={() => setConfiguringOccurrence(null)}
+          onStart={handleStartForOccurrence}
+        />
+      );
+    }
+    if (configuringOneOff) {
+      return (
+        <SessionStartConfigForm
+          initialName=""
+          initialLimits={{
+            targetCents: 3000,
+            ceilingCents: 4000,
+            maxCents: 5000,
+            avgDrinkPriceCents: null,
+          }}
+          initialQuickAddCents={settings.quickAddDefaultValuesCents}
+          currency={trip.baseCurrency}
+          onCancel={() => setConfiguringOneOff(false)}
+          onStart={handleStartOneOff}
         />
       );
     }
@@ -491,7 +609,7 @@ export function OutingPage() {
           />
         ) : (
           <button
-            onClick={() => setShowCustomForm(true)}
+            onClick={() => setShowOneOffQuestion(true)}
             className="rounded-xl p-4 flex items-center gap-3 btn-press text-left"
             style={{ background: '#C75B3910', border: '1px dashed #C75B3940' }}
           >
@@ -513,6 +631,35 @@ export function OutingPage() {
             {t('outing.no_profiles')}
           </p>
         )}
+
+        {/* DEC-073 (M6.5): one-off event ≠ recurring profile */}
+        <BottomSheet
+          open={showOneOffQuestion}
+          onClose={() => setShowOneOffQuestion(false)}
+          title={t('outing.one_off_question')}
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-on-surface-dim">{t('outing.one_off_hint')}</p>
+            <button
+              onClick={() => {
+                setShowOneOffQuestion(false);
+                setConfiguringOneOff(true);
+              }}
+              className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold text-sm btn-press"
+            >
+              {t('outing.one_off_yes')}
+            </button>
+            <button
+              onClick={() => {
+                setShowOneOffQuestion(false);
+                setShowCustomForm(true);
+              }}
+              className="w-full py-3 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+            >
+              {t('outing.one_off_no')}
+            </button>
+          </div>
+        </BottomSheet>
       </div>
     );
   }
@@ -612,28 +759,26 @@ interface SessionStartConfig {
 }
 
 interface SessionStartConfigFormProps {
-  profile: ActivityProfile;
+  initialName: string;
+  initialLimits: SessionLimits;
+  initialQuickAddCents: number[];
   currency: string;
-  settings: AppSettings;
   onCancel: () => void;
   onStart: (config: SessionStartConfig) => void;
 }
 
-function SessionStartConfigForm({ profile, currency, settings, onCancel, onStart }: SessionStartConfigFormProps) {
+function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCents, currency, onCancel, onStart }: SessionStartConfigFormProps) {
   const { t } = useTranslation();
-  const derived = useMemo(() => deriveSessionLimits(profile), [profile]);
-  const initialQuickAdd =
-    profile.quickAddValuesCents ?? settings.quickAddDefaultValuesCents;
 
-  const [name, setName] = useState(profile.name);
-  const [target, setTarget] = useState(String(fromCents(derived.targetCents)));
-  const [ceiling, setCeiling] = useState(String(fromCents(derived.ceilingCents)));
-  const [max, setMax] = useState(String(fromCents(derived.maxCents)));
+  const [name, setName] = useState(initialName);
+  const [target, setTarget] = useState(String(fromCents(initialLimits.targetCents)));
+  const [ceiling, setCeiling] = useState(String(fromCents(initialLimits.ceilingCents)));
+  const [max, setMax] = useState(String(fromCents(initialLimits.maxCents)));
   const [avgDrink, setAvgDrink] = useState(
-    derived.avgDrinkPriceCents !== null ? String(fromCents(derived.avgDrinkPriceCents)) : '',
+    initialLimits.avgDrinkPriceCents !== null ? String(fromCents(initialLimits.avgDrinkPriceCents)) : '',
   );
   const [quickValues, setQuickValues] = useState<string[]>(
-    initialQuickAdd.map((v) => String(fromCents(v))),
+    initialQuickAddCents.map((v) => String(fromCents(v))),
   );
 
   const targetCents = parseAmountToCents(target);

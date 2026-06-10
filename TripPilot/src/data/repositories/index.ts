@@ -14,3 +14,4 @@ export { activityProfileRepository } from './activity-profile-repository';
 export { scenarioPlanRepository } from './scenario-plan-repository';
 export { scenarioAllocationItemRepository } from './scenario-allocation-item-repository';
 export { phaseProfileSettingRepository } from './phase-profile-setting-repository';
+export { plannedOccurrenceRepository } from './planned-occurrence-repository';

@@ -1,5 +1,6 @@
 export {
   calculateFreeToSpend,
+  calculateEventReserves,
   calculatePoolSpent,
   calculateFutureFloor,
   calculatePoolRemaining,

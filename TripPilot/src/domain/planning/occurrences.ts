@@ -47,3 +47,40 @@ export function isOccurrenceActiveToday(occ: PlannedOccurrence, todayIso: string
   const today = todayIso.slice(0, 10);
   return start <= today && today <= end;
 }
+
+/** DEC-072: "Adiar" pushes the whole date interval one day forward. */
+export function postponeOccurrence(occ: PlannedOccurrence): PlannedOccurrence {
+  const shiftDay = (isoDate: string): string => {
+    const date = new Date(`${isoDate.slice(0, 10)}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + 1);
+    return date.toISOString().slice(0, 10);
+  };
+  return {
+    ...occ,
+    plannedDate: occ.plannedDate ? shiftDay(occ.plannedDate) : null,
+    endDate: occ.endDate ? shiftDay(occ.endDate) : null,
+  };
+}
+
+/**
+ * DEC-072 (sub-destinations): real spending of a city = transactions of the
+ * phase whose date falls inside the occurrence interval.
+ */
+export function sumSpentInOccurrenceInterval(
+  occ: PlannedOccurrence,
+  transactions: { date: string; phaseId: string; deletedAt: string | null; type: string; personalCostCents: number | null; amountCents: number }[],
+): number {
+  if (occ.plannedDate === null) return 0;
+  const start = occ.plannedDate.slice(0, 10);
+  const end = (occ.endDate ?? occ.plannedDate).slice(0, 10);
+  return transactions
+    .filter(
+      (t) =>
+        t.deletedAt === null &&
+        t.phaseId === occ.phaseId &&
+        (t.type === 'expense' || t.type === 'adjustment') &&
+        t.date.slice(0, 10) >= start &&
+        t.date.slice(0, 10) <= end,
+    )
+    .reduce((sum, t) => sum + (t.personalCostCents ?? t.amountCents), 0);
+}

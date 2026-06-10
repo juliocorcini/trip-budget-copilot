@@ -85,7 +85,8 @@ export interface CreateSessionInput {
   tripId: string;
   phaseId: string;
   budgetPoolId: string;
-  activityProfileId: string;
+  /** Null for one-off event sessions (DEC-073). */
+  activityProfileId: string | null;
   name: string;
   limits: SessionLimits;
   quickAddValuesCents: number[];

@@ -16,9 +16,11 @@ import {
   scenarioPlanRepository,
   scenarioAllocationItemRepository,
   phaseProfileSettingRepository,
+  plannedOccurrenceRepository,
 } from '@/data/repositories';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { calculateFreeToSpendPerDay } from '@/domain/phases';
+import { isOccurrenceActiveToday, postponeOccurrence } from '@/domain/planning';
 import { findPendingConfirmationShares, type PendingShareEntry } from '@/domain/splitting';
 import { resolveShareConfirmation } from '@/domain/orchestrators';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -55,7 +57,7 @@ function formatElapsed(startedAt: string): string {
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { trip, phases, pools, links, envelopes, transactions, participants, loading, settings, reload } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, loading, settings, reload } = useAppData();
   const navigate = useNavigate();
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
@@ -124,6 +126,14 @@ export function DashboardPage() {
     await reload();
   };
 
+  // DEC-072 (M6.3): "Postpone" pushes the event's date interval +1 day.
+  const handlePostponeEvent = async (occurrenceId: string) => {
+    const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
+    if (!occurrence) return;
+    await plannedOccurrenceRepository.update(postponeOccurrence(occurrence));
+    await reload();
+  };
+
   // GAP-020 (DEC-006/043): counters show the forecast ("X remaining") from
   // the active scenario plan of the current phase.
   useEffect(() => {
@@ -182,6 +192,7 @@ export function DashboardPage() {
         filterTransactionsByPool(transactions, primaryPool.id),
         links.filter((l) => l.budgetPoolId === primaryPool.id),
         activePhase.id,
+        occurrences,
       )
     : null;
 
@@ -190,6 +201,14 @@ export function DashboardPage() {
   const marketCount = categoryGroups['market']?.length ?? 0;
   const restaurantCount = categoryGroups['restaurant']?.length ?? 0;
   const hasOccasionData = barCount > 0 || marketCount > 0 || restaurantCount > 0;
+
+  // DEC-072 (M6.3): today's planned events of the active phase (day card).
+  const todayIso = new Date().toISOString();
+  const todayEvents = activePhase
+    ? occurrences.filter(
+        (o) => o.phaseId === activePhase.id && isOccurrenceActiveToday(o, todayIso),
+      )
+    : [];
 
   const hasPendingExpenses = pendingShares.length > 0;
   const pendingImpactCents = pendingShares.reduce((sum, entry) => sum + entry.share.shareAmountCents, 0);
@@ -359,6 +378,17 @@ export function DashboardPage() {
                 {formatMoney(fts.protectedReserveCents, trip.baseCurrency)}
               </span>
             </div>
+            {/* DEC-072: active event reserves deduct from freeToSpend */}
+            {fts.eventReservesCents > 0 && (
+              <div className="flex justify-between">
+                <span className="text-xs font-semibold text-on-surface-dim">
+                  {t('dashboard.reserved_events')}
+                </span>
+                <span className="text-xs font-bold tabular" style={{ color: 'var(--primary-dim)' }}>
+                  {formatMoney(fts.eventReservesCents, trip.baseCurrency)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -396,6 +426,48 @@ export function DashboardPage() {
           </span>
         </button>
       )}
+
+      {/* DEC-072 (M6.3): DAY CARD — today's planned events without a session */}
+      {todayEvents.map((occ) => (
+        <div
+          key={occ.id}
+          className="mx-5 mt-4 p-4 rounded-2xl"
+          style={{ background: 'var(--surface-deep)', border: '1px solid var(--border-faint)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <Icon
+              name={occ.kind === 'sub_destination' ? 'location_on' : 'celebration'}
+              size={20}
+              filled
+              className="text-primary"
+            />
+            <p className="text-sm font-extrabold text-on-surface flex-1 truncate">
+              {t('dashboard.event_today', { name: occ.name })}
+            </p>
+            {occ.reservedCents !== null && (
+              <span className="text-xs font-bold tabular text-on-surface-dim">
+                {t('dashboard.event_reserved', {
+                  amount: formatMoney(occ.reservedCents, trip.baseCurrency),
+                })}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={() => navigate(`/outings/new?occurrence=${occ.id}`)}
+              className="flex-1 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
+            >
+              {t('dashboard.event_start_now')}
+            </button>
+            <button
+              onClick={() => handlePostponeEvent(occ.id)}
+              className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press"
+            >
+              {t('dashboard.event_postpone')}
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* OCCASION COUNTERS — forecast first (GAP-020), done-count fallback */}
       {forecasts.length > 0 ? (

@@ -4,7 +4,8 @@ export interface Session extends SyncMetadata {
   tripId: string;
   phaseId: string;
   budgetPoolId: string;
-  activityProfileId: string;
+  /** Null for one-off event sessions (DEC-073): no recurring profile involved. */
+  activityProfileId: string | null;
   status: SessionStatus;
   name: string;
   targetCents: number | null;

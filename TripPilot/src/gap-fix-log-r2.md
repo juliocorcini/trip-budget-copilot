@@ -1,9 +1,9 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 6 | **Item ativo**: DEC-072/073 (FIELD-05)
-- **Itens resolvidos**: 14/23 (+ infra v3 pronta)
-- **Testes**: 188 unit (baseline 156) + 22 e2e (baseline 22)
+- **Gate ativo**: 7 | **Item ativo**: DEC-078 (FIELD-08)
+- **Itens resolvidos**: 16/23 (+ infra v3 pronta)
+- **Testes**: 202 unit (baseline 156) + 22 e2e (baseline 22)
 - **Build/Typecheck**: clean
 - **Migração Dexie v3**: FEITA (Gate 3) — NUNCA criar v4/v5
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`
@@ -48,7 +48,9 @@
 - i18n: 16 nomes de preset + atividades/ritmo/pico/dashboard ×3 — paridade mantida
 
 ### Gate 6 — Eventos planejados
-- [ ] DEC-072 + DEC-073 / FIELD-05 — occurrences UI, reservas, card do dia, one-off
+- [x] DEC-072 / FIELD-05 — domínio: `calculateEventReserves` (deduz `reservedCents` de occurrences não-confirmadas/não-ligadas no `calculateFreeToSpend`, 6º parâmetro `occurrences` em todos os call sites via `useAppData().occurrences`), `postponeOccurrence` (+1 dia no intervalo todo), `sumSpentInOccurrenceInterval` (gasto por sub-destino); repository `plannedOccurrenceRepository`; TripEditPage: seção "Eventos desta fase" por fase (lista + sheet criar/editar com nome/data/intervalo/estimado/reserva/tipo, apagar soft, check verde quando confirmado); Dashboard: card do dia (`plannedDate<=hoje<=endDate` sem sessão) com [Iniciar agora]→`/outings/new?occurrence=id` e [Adiar]→+1d; hero ganha linha "Reservado p/ eventos"; OutingPage: pré-config da sessão do evento (nome, teto=reservedCents, `linkedSessionId` gravado via `startSessionForOccurrence`); `endOutingSession` confirma a occurrence ligada (`isConfirmed`+`linkedTransactionId`) e a reserva para de deduzir; Planner: linha informativa "Eventos: ..." (link p/ edição) + sub-destinos com gasto-até-agora
+- [x] DEC-073 / FIELD-04 — fluxo custom de sessão pergunta "É um evento único?" (BottomSheet): SIM → `startOneOffEventSession` cria PlannedOccurrence ligada SEM ActivityProfile (Session.activityProfileId agora nullable); NÃO → fluxo atual de perfil custom; `SessionStartConfigForm` generalizado (initialName/initialLimits/initialQuickAddCents) p/ perfil, evento do card e one-off — testes: ciclo Parral completo (reserva 5000 deduz → link para sessão para de deduzir → encerrar confirma occurrence) + one-off cria zero profiles + reservas no budget (6 casos) + occurrences domain (10 casos)
+- i18n: 22 chaves novas ×3 (eventos na fase, card do dia, planner, one-off) — paridade 485
 
 ### Gate 7 — Outing rico + histórico
 - [ ] DEC-078 / FIELD-08 — stepper pós-valor

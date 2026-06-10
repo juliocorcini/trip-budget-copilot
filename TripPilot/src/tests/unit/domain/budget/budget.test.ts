@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateFreeToSpend,
+  calculateEventReserves,
   calculatePoolSpent,
   calculateFutureFloor,
   createPoolSummary,
@@ -14,6 +15,7 @@ import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Envelope } from '@/domain/types/envelope';
 import type { Transaction } from '@/domain/types/transaction';
 import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 
 const baseMeta = {
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -108,7 +110,7 @@ describe('calculateFreeToSpend', () => {
       { ...baseMeta, id: 'l2', budgetPoolId: 'pool-1', phaseId: 'phase-2', futureFloorCents: 20000 },
     ];
 
-    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1');
+    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1', []);
     // 150000 - 43250 - 15000 - 20000 = 71750
     expect(result.freeToSpendCents).toBe(71750);
     expect(result.totalBudgetCents).toBe(150000);
@@ -122,8 +124,49 @@ describe('calculateFreeToSpend', () => {
     const txs = [mkTx('t1', 200000)];
     const links: BudgetPoolPhaseLink[] = [];
 
-    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1');
+    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1', []);
     expect(result.freeToSpendCents).toBe(0);
+  });
+
+  it('deducts reserves of unconfirmed planned events in the phase (DEC-072)', () => {
+    const occurrence = (overrides: Partial<PlannedOccurrence>): PlannedOccurrence => ({
+      ...baseMeta,
+      id: 'o1',
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      activityProfileId: null,
+      budgetPoolId: 'pool-1',
+      name: 'Parral',
+      plannedDate: '2026-06-12',
+      endDate: null,
+      kind: 'event',
+      estimatedCostCents: 5000,
+      reservedCents: 5000,
+      isConfirmed: false,
+      linkedTransactionId: null,
+      linkedSessionId: null,
+      notes: null,
+      ...overrides,
+    });
+
+    const occurrences = [
+      occurrence({ id: 'o1' }), // active reserve → deducts
+      occurrence({ id: 'o2', isConfirmed: true }), // confirmed → real spending takes over
+      occurrence({ id: 'o3', linkedSessionId: 's1' }), // session running → stops deducting
+      occurrence({ id: 'o4', phaseId: 'phase-2' }), // other phase → ignored
+      occurrence({ id: 'o5', budgetPoolId: 'pool-2' }), // other pool → ignored here
+      occurrence({ id: 'o6', reservedCents: null }), // no reserve → nothing to deduct
+    ];
+
+    const result = calculateFreeToSpend(pool, [], [], [], 'phase-1', occurrences);
+    expect(result.eventReservesCents).toBe(5000);
+    expect(result.freeToSpendCents).toBe(150000 - 5000);
+  });
+});
+
+describe('calculateEventReserves', () => {
+  it('returns 0 when there are no active reserves', () => {
+    expect(calculateEventReserves([], 'phase-1')).toBe(0);
   });
 });
 

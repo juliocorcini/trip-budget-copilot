@@ -13,7 +13,7 @@ export function SimulatorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, envelopes, transactions } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, occurrences } = useAppData();
 
   // Pre-filled when arriving from the Amigo Sincero card (DEC-050).
   const [amount, setAmount] = useState(() => {
@@ -33,6 +33,7 @@ export function SimulatorPage() {
         filterTransactionsByPool(transactions, primaryPool.id),
         links.filter((l) => l.budgetPoolId === primaryPool.id),
         activePhase.id,
+        occurrences,
       )
     : null;
 

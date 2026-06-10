@@ -5,6 +5,7 @@ import { markUpdated } from '@/utils/entity-factory';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 
 export interface EndOutingSessionInput {
   session: Session;
@@ -62,7 +63,7 @@ export async function endOutingSession(
 
   await db.transaction(
     'rw',
-    [db.transactions, db.sessions, db.activityProfiles],
+    [db.transactions, db.sessions, db.activityProfiles, db.plannedOccurrences],
     async () => {
       await db.transactions.bulkPut(finalTransactions);
       if (input.totalAdjustment) {
@@ -77,8 +78,66 @@ export async function endOutingSession(
         await db.activityProfiles.put(updatedProfile);
       }
       await db.sessions.put(completedSession);
+
+      // DEC-072 (M6.4): a session linked to a planned event confirms the
+      // occurrence — its reserve stops deducting and real spending takes over.
+      const occurrence = await db.plannedOccurrences
+        .filter((o) => o.linkedSessionId === input.session.id && o.deletedAt === null)
+        .first();
+      if (occurrence && !occurrence.isConfirmed) {
+        await db.plannedOccurrences.put(
+          markUpdated({
+            ...occurrence,
+            isConfirmed: true,
+            linkedTransactionId: finalTransactions[0]?.id ?? null,
+          }),
+        );
+      }
     },
   );
 
   return { session: completedSession, updatedProfile };
+}
+
+export interface StartSessionForOccurrenceInput {
+  session: Session;
+  occurrenceId: string;
+}
+
+/**
+ * DEC-072 (M6.3): "Start now" on the day card creates the outing session and
+ * links the occurrence atomically — the link stops the reserve deduction.
+ */
+export async function startSessionForOccurrence(
+  input: StartSessionForOccurrenceInput,
+): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.plannedOccurrences], async () => {
+    await db.sessions.add(input.session);
+    const occurrence = await db.plannedOccurrences.get(input.occurrenceId);
+    if (occurrence && occurrence.deletedAt === null) {
+      await db.plannedOccurrences.put(
+        markUpdated({ ...occurrence, linkedSessionId: input.session.id }),
+      );
+    }
+  });
+}
+
+export interface StartOneOffEventSessionInput {
+  session: Session;
+  /** Freshly built (not yet persisted) occurrence for the one-off event. */
+  occurrence: PlannedOccurrence;
+}
+
+/**
+ * DEC-073 (M6.5 / FIELD-04): a one-off custom session creates a linked
+ * PlannedOccurrence instead of an ActivityProfile — no Planner/Profiles
+ * contamination.
+ */
+export async function startOneOffEventSession(
+  input: StartOneOffEventSessionInput,
+): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.plannedOccurrences], async () => {
+    await db.sessions.add(input.session);
+    await db.plannedOccurrences.add({ ...input.occurrence, linkedSessionId: input.session.id });
+  });
 }

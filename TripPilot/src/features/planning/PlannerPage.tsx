@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
@@ -11,6 +12,7 @@ import {
   calculateOverAllocationCents,
 } from '@/domain/planning';
 import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
+import { sumSpentInOccurrenceInterval } from '@/domain/planning';
 import { createProfileEnabledInPhase } from '@/domain/orchestrators';
 import {
   activityProfileRepository,
@@ -132,7 +134,8 @@ const PERSIST_DEBOUNCE_MS = 500;
 
 export function PlannerPage() {
   const { t } = useTranslation();
-  const { trip, phases, pools, links, envelopes, transactions, loading } =
+  const navigate = useNavigate();
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, loading } =
     useAppData();
 
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
@@ -334,9 +337,10 @@ export function PlannerPage() {
             poolTxs,
             links,
             selectedPhase.id,
+            occurrences,
           )
         : null,
-    [phasePool, selectedPhase, envelopes, poolTxs, links],
+    [phasePool, selectedPhase, envelopes, poolTxs, links, occurrences],
   );
 
   const availableCents = fts?.freeToSpendCents ?? 0;
@@ -602,6 +606,54 @@ export function PlannerPage() {
           </p>
         )}
       </div>
+
+      {/* ── DEC-072 (M6.6): planned events of the phase — informative, no sliders ── */}
+      {selectedPhase && (() => {
+        const phaseEvents = occurrences.filter((o) => o.phaseId === selectedPhase.id);
+        if (phaseEvents.length === 0) return null;
+        const events = phaseEvents.filter((o) => o.kind === 'event');
+        const subDestinations = phaseEvents.filter((o) => o.kind === 'sub_destination');
+        const eventDays = (o: (typeof phaseEvents)[number]): number =>
+          o.plannedDate && o.endDate
+            ? Math.round(
+                (new Date(o.endDate).getTime() - new Date(o.plannedDate).getTime()) / 86400000,
+              ) + 1
+            : 1;
+        return (
+          <button
+            onClick={() => navigate('/trip/edit')}
+            className="mt-3 p-3 rounded-xl bg-surface-container text-left btn-press w-full"
+          >
+            {events.length > 0 && (
+              <p className="text-[11px] font-semibold text-on-surface-dim flex items-center gap-1.5 flex-wrap">
+                <Icon name="celebration" size={13} className="text-primary" />
+                {t('planner.phase_events_label')}{' '}
+                {events
+                  .map(
+                    (o) =>
+                      `${o.name}${eventDays(o) > 1 ? ` (${eventDays(o)}d)` : ''} ${fmtFull(
+                        o.reservedCents ?? o.estimatedCostCents,
+                        currency,
+                      )}`,
+                  )
+                  .join(' · ')}
+              </p>
+            )}
+            {subDestinations.map((o) => (
+              <p
+                key={o.id}
+                className="text-[11px] font-semibold text-on-surface-dim flex items-center gap-1.5 mt-1"
+              >
+                <Icon name="location_on" size={13} className="text-primary" />
+                {o.name}: {t('planner.sub_destination_spent', {
+                  spent: fmtFull(sumSpentInOccurrenceInterval(o, transactions), currency),
+                  budget: fmtFull(o.estimatedCostCents, currency),
+                })}
+              </p>
+            ))}
+          </button>
+        );
+      })()}
 
       {/* ── PROFILE CARDS ── */}
       <div className="mt-4 space-y-3">

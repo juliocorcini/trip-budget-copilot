@@ -7,5 +7,7 @@ export type { CreateScenarioPlanInput, CreateAllocationItemInput } from './plann
 export {
   createPlannedOccurrence,
   isOccurrenceActiveToday,
+  postponeOccurrence,
+  sumSpentInOccurrenceInterval,
 } from './occurrences';
 export type { CreatePlannedOccurrenceInput } from './occurrences';

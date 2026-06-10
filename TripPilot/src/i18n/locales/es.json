@@ -56,7 +56,12 @@
     "session_drinks_left": "{{count}} bebidas hasta el tope",
     "pending_confirmation": "{{count}} divisiones esperando confirmación",
     "free_per_day": "Libre para usar hoy: {{amount}}",
-    "peak_day_free": "Hoy es día de pico — libre hasta {{amount}}"
+    "peak_day_free": "Hoy es día de pico — libre hasta {{amount}}",
+    "reserved_events": "Reservado p/ eventos",
+    "event_today": "Hoy: {{name}}",
+    "event_reserved": "reservado {{amount}}",
+    "event_start_now": "Empezar ahora",
+    "event_postpone": "Aplazar"
   },
   "expenses": {
     "title": "Gastos",
@@ -179,7 +184,18 @@
     "weekday_3": "X",
     "weekday_4": "J",
     "weekday_5": "V",
-    "weekday_6": "S"
+    "weekday_6": "S",
+    "phase_events_title": "Eventos de esta fase",
+    "add_event": "Evento",
+    "edit_event": "Editar evento",
+    "event_name": "Nombre del evento",
+    "event_kind_event": "Evento",
+    "event_kind_sub_destination": "Sub-destino",
+    "event_estimated": "Costo estimado",
+    "event_reserved": "Reservar",
+    "event_reserved_hint": "El monto reservado se deduce del libre-para-usar hasta que el evento ocurra.",
+    "event_reserved_badge": "reservado {{amount}}",
+    "event_end_date": "Fin (opcional)"
   },
   "planner": {
     "title": "Planificador",
@@ -214,7 +230,9 @@
     "preset_mais_social": "Más social",
     "select_phase": "Fase",
     "add_category": "Agregar categoría",
-    "over_allocation_warning": "La asignación excede el margen libre en {{amount}}. Reduce algún ítem o aumenta el fondo."
+    "over_allocation_warning": "La asignación excede el margen libre en {{amount}}. Reduce algún ítem o aumenta el fondo.",
+    "phase_events_label": "Eventos:",
+    "sub_destination_spent": "{{spent}} de {{budget}}"
   },
   "funds": {
     "title": "Fondos",
@@ -392,6 +410,10 @@
     "start_error": "No se pudo iniciar la salida. Verifica que haya fase y fondo activos.",
     "custom_type": "Personalizado",
     "custom_type_desc": "Crea un tipo de salida con nombre e ícono propios",
+    "one_off_question": "¿Es un evento único?",
+    "one_off_hint": "Los eventos únicos (fiesta, show, paseo especial) no se vuelven perfiles recurrentes — quedan registrados como eventos de la fase.",
+    "one_off_yes": "Sí, es un evento único",
+    "one_off_no": "No, se repetirá durante el viaje",
     "config_title": "Configurar salida",
     "config_name": "Nombre de la salida",
     "config_limits": "Límites de la salida",

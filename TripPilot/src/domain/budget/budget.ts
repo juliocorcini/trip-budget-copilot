@@ -2,6 +2,7 @@ import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
 import type { Envelope } from '@/domain/types/envelope';
 import type { Transaction } from '@/domain/types/transaction';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { BudgetPoolScope } from '@/domain/types/common';
 import { sumCents } from '@/domain/money';
 import { createSyncMetadata } from '@/utils/entity-factory';
@@ -12,7 +13,29 @@ export interface FreeToSpendResult {
   totalSpentCents: number;
   protectedReserveCents: number;
   futureFloorCents: number;
+  eventReservesCents: number;
   allocationsCents: number;
+}
+
+/**
+ * DEC-072: money reserved for planned events deducts from freeToSpend until
+ * the occurrence is confirmed or linked to a session — then the real spending
+ * takes over (Anchor Rule 10).
+ */
+export function calculateEventReserves(
+  occurrences: PlannedOccurrence[],
+  phaseId: string,
+): number {
+  return occurrences
+    .filter(
+      (o) =>
+        o.deletedAt === null &&
+        o.phaseId === phaseId &&
+        !o.isConfirmed &&
+        o.linkedSessionId === null &&
+        o.reservedCents !== null,
+    )
+    .reduce((sum, o) => sum + (o.reservedCents ?? 0), 0);
 }
 
 export function calculateFreeToSpend(
@@ -21,6 +44,7 @@ export function calculateFreeToSpend(
   transactions: Transaction[],
   phaseLinks: BudgetPoolPhaseLink[],
   currentPhaseId: string,
+  occurrences: PlannedOccurrence[],
 ): FreeToSpendResult {
   const totalBudgetCents = pool.totalAmountCents;
 
@@ -36,9 +60,15 @@ export function calculateFreeToSpend(
 
   const futureFloorCents = calculateFutureFloor(phaseLinks, currentPhaseId);
 
+  // DEC-072: only reserves of occurrences charged to THIS pool deduct here.
+  const eventReservesCents = calculateEventReserves(
+    occurrences.filter((o) => o.budgetPoolId === pool.id),
+    currentPhaseId,
+  );
+
   const freeToSpendCents = Math.max(
     0,
-    totalBudgetCents - totalSpentCents - protectedReserveCents - futureFloorCents,
+    totalBudgetCents - totalSpentCents - protectedReserveCents - futureFloorCents - eventReservesCents,
   );
 
   return {
@@ -47,6 +77,7 @@ export function calculateFreeToSpend(
     totalSpentCents,
     protectedReserveCents,
     futureFloorCents,
+    eventReservesCents,
     allocationsCents,
   };
 }
