@@ -15,3 +15,4 @@ export { scenarioPlanRepository } from './scenario-plan-repository';
 export { scenarioAllocationItemRepository } from './scenario-allocation-item-repository';
 export { phaseProfileSettingRepository } from './phase-profile-setting-repository';
 export { plannedOccurrenceRepository } from './planned-occurrence-repository';
+export { forecastSnapshotRepository } from './forecast-snapshot-repository';

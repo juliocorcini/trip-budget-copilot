@@ -389,7 +389,7 @@ export function TripEditPage() {
   return (
     <div className="flex flex-col gap-5 pb-4 pt-2">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="btn-press p-1">
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('trip.edit_title')}</h1>
@@ -640,7 +640,7 @@ export function TripEditPage() {
             <div
               key={draft.tempId}
               className="bg-surface-container rounded-xl p-4 flex flex-col gap-2"
-              style={{ border: '1px dashed #C75B3940' }}
+              style={{ border: '1px dashed var(--primary-dim)' }}
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold text-primary uppercase tracking-wider">

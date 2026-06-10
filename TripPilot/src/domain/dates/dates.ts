@@ -45,6 +45,11 @@ export function getTotalDays(startDate: string, endDate: string): number {
   return differenceInCalendarDays(parseISO(endDate), parseISO(startDate)) + 1;
 }
 
+/** Local-timezone YYYY-MM-DD. Never use toISOString() for "today": it is UTC. */
+export function localDateString(date: Date = new Date()): string {
+  return format(date, 'yyyy-MM-dd');
+}
+
 export function formatDate(isoDate: string, pattern: string = 'dd/MM/yyyy'): string {
   return format(parseISO(isoDate), pattern, { locale: ptBR });
 }

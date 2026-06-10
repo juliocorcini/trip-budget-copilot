@@ -47,7 +47,7 @@ export function ProfilesPage() {
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="btn-press p-1">
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('profiles.title')}</h1>

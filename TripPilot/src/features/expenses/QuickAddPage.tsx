@@ -245,7 +245,7 @@ export function QuickAddPage() {
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 px-5">
       <div className="flex items-center justify-between pt-2">
-        <button onClick={() => navigate(-1)} className="btn-press p-1">
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface">

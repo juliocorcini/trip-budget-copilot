@@ -18,7 +18,7 @@ import {
 import type { SessionLimits, OutingAlert, EnrichStep } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
-import { resolveActivePhase } from '@/domain/dates';
+import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
 import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
 import { createPlannedOccurrence } from '@/domain/planning';
@@ -261,7 +261,7 @@ export function OutingPage() {
       phaseId: currentPhase.id,
       budgetPoolId: defaultPool.id,
       name: config.name,
-      plannedDate: new Date().toISOString().slice(0, 10),
+      plannedDate: localDateString(new Date()),
       endDate: null,
       kind: 'event',
       estimatedCostCents: config.limits.ceilingCents,
@@ -654,7 +654,7 @@ export function OutingPage() {
     return (
       <div className="flex flex-col gap-4 pb-4 pt-2 min-h-screen">
         <div className="flex items-center gap-3 pt-2">
-          <button onClick={() => navigate(-1)} className="btn-press p-1">
+          <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
             <Icon name="arrow_back" size={24} className="text-on-surface" />
           </button>
           <h1 className="text-heading font-bold text-on-surface">
@@ -698,11 +698,11 @@ export function OutingPage() {
           <button
             onClick={() => setShowOneOffQuestion(true)}
             className="rounded-xl p-4 flex items-center gap-3 btn-press text-left"
-            style={{ background: '#C75B3910', border: '1px dashed #C75B3940' }}
+            style={{ background: 'var(--primary-subtle)', border: '1px dashed var(--primary-dim)' }}
           >
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: '#C75B3918' }}
+              style={{ background: 'var(--primary-subtle)' }}
             >
               <Icon name="add" size={22} className="text-primary" />
             </div>

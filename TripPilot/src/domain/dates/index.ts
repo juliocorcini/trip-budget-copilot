@@ -4,6 +4,7 @@ export {
   getDayNumber,
   getDaysRemaining,
   getTotalDays,
+  localDateString,
   formatDate,
   formatShortDate,
   isDateInRange,

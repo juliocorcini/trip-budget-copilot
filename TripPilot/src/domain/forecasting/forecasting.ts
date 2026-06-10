@@ -84,7 +84,22 @@ export function calculateOccasionForecasts(
         estimatedRemainingCostCents,
       };
     })
-    .filter((f) => f.totalPlanned > 0);
+    // DEC-076: profiles with usage appear even without a plan allocation.
+    .filter((f) => f.totalPlanned > 0 || f.spent > 0);
+}
+
+/**
+ * DEC-076 (FIELD-06): carousel ordering — profiles with spending in the
+ * phase first (desc by usage), then planned-but-unused ones in plan order.
+ * With no usage at all, the most planned come first (previous behavior).
+ */
+export function orderForecastsByUsage(forecasts: OccasionForecast[]): OccasionForecast[] {
+  const used = forecasts.filter((f) => f.spent > 0).sort((a, b) => b.spent - a.spent);
+  if (used.length === 0) {
+    return [...forecasts].sort((a, b) => b.totalPlanned - a.totalPlanned);
+  }
+  const unused = forecasts.filter((f) => f.spent === 0);
+  return [...used, ...unused];
 }
 
 export type SimulatorRisk = 'low' | 'medium' | 'high' | 'critical';

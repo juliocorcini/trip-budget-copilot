@@ -1,6 +1,7 @@
 export {
   updateProfileFromTransaction,
   calculateOccasionForecasts,
+  orderForecastsByUsage,
   simulateSpend,
   calculateScenarioCost,
 } from './forecasting';

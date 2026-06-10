@@ -1,9 +1,9 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 8 | **Item ativo**: DEC-076 (FIELD-06)
-- **Itens resolvidos**: 18/23 (+ infra v3 pronta)
-- **Testes**: 216 unit (baseline 156) + 22 e2e (baseline 22)
+- **Gate ativo**: 9 | **Item ativo**: brain + verificação final + deploy v0.3.0
+- **Itens resolvidos**: 23/23
+- **Testes**: 228 unit (baseline 156) + 29 e2e (baseline 22)
 - **Build/Typecheck**: clean
 - **Migração Dexie v3**: FEITA (Gate 3) — NUNCA criar v4/v5
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`
@@ -57,9 +57,13 @@
 - [x] DEC-079 / FIELD-09 — histórico de saídas: `sessionRepository.getCompleted(tripId)` (completed, não-deletadas, desc por endedAt); `formatSessionDuration` no domínio ("3h12"/"45min"); ExpenseListPage: segmented control Gastos|Saídas (`?tab=outings`) com lista (ícone+nome, data · duração · nº itens, badge do perfil ou "Evento único", total Σ personalCost); rota nova `/outings/:id/review` → `OutingReviewPage` read-only (layout da revisão GAP-002: total, itens com categoria/horário/share, limites vs total final, carteiras usadas); atalho "Histórico de saídas" no Mais → `/expenses?tab=outings` — testes: 2 de repository + 5 de duração
 
 ### Gate 8 — Dashboard final
-- [ ] DEC-076 / FIELD-06 — carrossel
-- [ ] DEC-077 / FIELD-07 — insights
-- [ ] Montagem §7 + GAP-R2-008 aria + GAP-R2-009 e2e
+- [x] DEC-076 / FIELD-06 — carrossel de contadores: `calculateOccasionForecasts` agora inclui perfis usados sem plano (`spent>0`); `orderForecastsByUsage` (com gasto desc → planejados sem uso); DashboardPage: scroll-snap horizontal CSS puro (3 visíveis, `snap-x snap-mandatory`, dots se >3 com scroll programático), cards clicáveis (Gate 2) — testes de ordenação
+- [x] DEC-077 / FIELD-07 — insights rotativos: `domain/insights/insights.ts` com 6 builders V1 (projeção fim de fase via dias efetivos do Gate 5 — hoje conta como decorrido, restante começa amanhã; ritmo real vs plano; dias sem gasto; custo médio por saída; saldo com participantes; próximo evento) + regras de significância (projeção ≥3 dias, streak ≥2, saída ≥2, saldo ≠0) + cap `MAX_INSIGHTS_PER_DAY=4`; `createForecastSnapshot` (confiança por dias decorridos) persistido 1×/dia em `forecastSnapshots` via `forecastSnapshotRepository.getByPhaseAndDate` — a tabela ganhou uso; UI: 1 card por vez, tap avança, dots — 14 testes (insights + snapshot + ordenação)
+- [x] M8.4 — montagem §7: ordem exata das 11 posições (banner demo → backup nudge → day card → saída ativa → hero → carrossel → insights → amigo sincero → pendências → fundos globais → recentes) com regras de visibilidade
+- [x] GAP-R2-008 — aria: sino do dashboard, BottomSheet (`role=dialog`, `aria-modal`, scrim vira button com label), botões voltar ×10 páginas (`aria-label={t('common.back')}`), dots do carrossel/insights com labels
+- [x] GAP-R2-009 — 5 specs e2e novos (7 testes): `outing-flow` (iniciar→quick-add→stepper→encerrar→histórico), `planner` (margem livre + perfis), `shared-confirm` (card pendente→confirmar→some + liquidar dívida), `backup` (export JSON→import merge round-trip), `events` (criar evento hoje→card do dia) — 29 e2e verdes
+- [x] BUGFIX timezone (achado pelo e2e): `toISOString()` é UTC → à noite (UTC-3) o card do dia nunca aparecia e one-off ganhava data de amanhã; novo `localDateString()` em `domain/dates` usado no day card, freeToSpendPerDay e one-off occurrence
+- [x] Cores hardcoded residuais dos Gates 5/6 (`#C75B39xx` em OutingPage/TripEditPage) → `var(--primary-subtle)`/`var(--primary-dim)`
 
 ### Gate 9 — Brain + verificação + deploy v0.3.0
 - [ ] Brain + re-verificação 23/23 + deploy
