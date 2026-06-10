@@ -32,6 +32,9 @@
   --highlight-faint: #EDE8E006;
   --glow: #EDE8E060;
 
+  /* ── Layout (DEC-085: single page side padding for ALL pages) ── */
+  --page-padding-x: 16px;
+
   /* ── Spacing ── */
   --space-xs: 4px;
   --space-sm: 8px;

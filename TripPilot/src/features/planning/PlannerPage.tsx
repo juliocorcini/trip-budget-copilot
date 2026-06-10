@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { useScrolled } from '@/hooks/useScrolled';
 import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
@@ -135,6 +136,7 @@ const PERSIST_DEBOUNCE_MS = 500;
 export function PlannerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const scrolled = useScrolled();
   const { trip, phases, pools, links, envelopes, transactions, occurrences, loading } =
     useAppData();
 
@@ -528,6 +530,8 @@ export function PlannerPage() {
 
   return (
     <div className="flex flex-col pb-4">
+      {/* ── DEC-084 (R-01): header + phase selector + summary fixed at the top ── */}
+      <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pb-3`}>
       {/* ── HEADER ── */}
       <div className="pt-6 pb-1 flex justify-between items-center">
         <div>
@@ -606,6 +610,8 @@ export function PlannerPage() {
           </p>
         )}
       </div>
+      </div>
+      {/* ── end of sticky header block ── */}
 
       {/* ── DEC-072 (M6.6): planned events of the phase — informative, no sliders ── */}
       {selectedPhase && (() => {

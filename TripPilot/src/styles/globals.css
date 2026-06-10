@@ -4,6 +4,14 @@
 @tailwind utilities;
 
 @layer utilities {
+  /* DEC-086 (R-04): keep horizontal scroll, hide the scrollbar visuals. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .seg-pulse {
     animation: seg-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
@@ -14,5 +22,32 @@
   .quick-btn {
     min-height: 56px;
     min-width: 64px;
+  }
+}
+
+/* DEC-084 (R-01): single sticky-header pattern — solid theme background,
+   full-bleed across the page padding, subtle elevation once scrolled. */
+.page-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--surface);
+  margin-left: calc(var(--page-padding-x) * -1);
+  margin-right: calc(var(--page-padding-x) * -1);
+  padding-left: var(--page-padding-x);
+  padding-right: var(--page-padding-x);
+  transition: box-shadow 200ms var(--ease-out), border-color 200ms var(--ease-out);
+  border-bottom: 1px solid transparent;
+}
+.page-sticky-header.is-scrolled {
+  border-bottom-color: var(--border-faint);
+  box-shadow: 0 4px 16px -8px var(--scrim);
+}
+
+/* DEC-087 (R-05): no pull-to-refresh in the installed PWA — browser keeps it. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: none;
   }
 }

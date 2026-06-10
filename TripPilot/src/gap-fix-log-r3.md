@@ -1,11 +1,11 @@
 # Gap Fix Log R3 — TripPilot
 
 ## Current State
-- **Gate ativo**: Gate 1 (app feel)
-- **Requisito ativo**: R-01
-- **Itens resolvidos**: 0/26
-- **Testes**: 228 unit (baseline) + e2e baseline em verificação
-- **Build/Typecheck**: clean (baseline sobre commit 0bc779c, v0.3.0)
+- **Gate ativo**: Gate 2 (dashboard certo)
+- **Requisito ativo**: R-06
+- **Itens resolvidos**: 5/26
+- **Testes**: 228 unit + 29 e2e (baseline preservada)
+- **Build/Typecheck**: clean
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`; NUNCA criar Dexie v4 sem necessidade real de índice
 
 ## Por gate
@@ -16,11 +16,11 @@
 - [x] DEC-084..102 registradas como APPROVED no decision-log (Last updated 2026-06-10)
 
 ### Gate 1 — App feel (R-01..05)
-- [ ] R-01 — Headers fixos (Dashboard, Gastos, Planejar)
-- [ ] R-02 — Margens compactas padronizadas (token `--page-padding-x`)
-- [ ] R-03 — Cards do carrossel com mesma altura
-- [ ] R-04 — Scrollbars horizontais invisíveis
-- [ ] R-05 — Pull-to-refresh desativado no PWA
+- [x] R-01 — Headers fixos: padrão único `.page-sticky-header` (sticky, fundo `--surface`, full-bleed, elevação `.is-scrolled` via hook `useScrolled`) aplicado a Dashboard (header dia+fase+sino), Gastos (título+tabs+chips de filtro) e Planner (header+seletor de fases+resumo) — z-30, abaixo de nav/sheets
+- [x] R-02 — Token `--page-padding-x: 16px` em tokens.css; AppShell main usa o token; Dashboard perdeu TODOS os `mx-5` (cards alinhados à mesma margem); carrossel full-bleed (`-mx`/`px` com o token)
+- [x] R-03 — OccasionCounter com altura determinística: nome reserva 2 linhas (`min-h-[26px] line-clamp-2`), sublabel reserva `min-h-[12px]`, wrapper `flex` estica os cards
+- [x] R-04 — Root cause: classe `no-scrollbar` usada em 5 lugares mas NUNCA definida. Definida em globals.css (`scrollbar-width:none` + `::-webkit-scrollbar{display:none}`) — corrige filtros de Gastos, carrossel, seletor de fases do Planner e 2 scrollers do OutingPage de uma vez
+- [x] R-05 — `@media (display-mode: standalone) { html, body { overscroll-behavior-y: none } }` em globals.css — PWA instalado sem pull-to-refresh, browser preservado
 
 ### Gate 2 — Dashboard certo (R-06..10)
 - [ ] R-06 — "Livre para usar hoje" subtrativo

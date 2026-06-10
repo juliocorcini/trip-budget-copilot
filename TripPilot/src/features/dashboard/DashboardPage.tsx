@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
+import { useScrolled } from '@/hooks/useScrolled';
 import { resolveActivePhase, getDayNumber, getTotalDays, formatDate, localDateString } from '@/domain/dates';
 import { calculateFreeToSpend, createPoolSummary, calculateSavings, generateAmigoSinceroInsight } from '@/domain/budget';
 import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory } from '@/domain/transactions';
@@ -134,6 +135,7 @@ export function DashboardPage() {
   const { t } = useTranslation();
   const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, loading, settings, reload } = useAppData();
   const navigate = useNavigate();
+  const scrolled = useScrolled();
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
@@ -430,7 +432,7 @@ export function DashboardPage() {
     <div className="flex flex-col pb-6">
       {/* DEMO BANNER */}
       {settings.isDemo && (
-        <div className="mx-5 mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
+        <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
           <p className="text-xs font-semibold text-warning">{t('demo.banner')}</p>
         </div>
       )}
@@ -439,7 +441,7 @@ export function DashboardPage() {
       {isBackupReminderDue(settings, Date.now()) && transactions.length > 0 && (
         <button
           onClick={() => navigate('/settings/backup')}
-          className="mx-5 mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
+          className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
           style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
         >
           <Icon name="cloud_upload" size={16} className="text-on-surface-dim" />
@@ -452,9 +454,11 @@ export function DashboardPage() {
         </button>
       )}
 
-      {/* HEADER */}
+      {/* HEADER — DEC-084 (R-01): fixed at the top, content scrolls beneath */}
       {activePhase && dayNum !== null && (
-        <div className="px-5 pt-6 pb-1 flex justify-between items-center">
+        <div
+          className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-6 pb-2 flex justify-between items-center`}
+        >
           {/* DEC-060 (GAP-024): phase name navigates to the trip overview */}
           <button onClick={() => navigate('/trip')} className="text-left btn-press">
             <p
@@ -496,7 +500,7 @@ export function DashboardPage() {
       {todayEvents.map((occ) => (
         <div
           key={occ.id}
-          className="mx-5 mt-4 p-4 rounded-2xl"
+          className="mt-4 p-4 rounded-2xl"
           style={{ background: 'var(--surface-deep)', border: '1px solid var(--border-faint)' }}
         >
           <div className="flex items-center gap-2.5">
@@ -538,7 +542,7 @@ export function DashboardPage() {
       {activeSession && (
         <button
           onClick={() => navigate('/outings/active')}
-          className="mx-5 mt-4 p-4 rounded-2xl flex items-center gap-4 btn-press text-left"
+          className="mt-4 p-4 rounded-2xl flex items-center gap-4 btn-press text-left"
           style={{ background: 'var(--surface-deep)', border: '1px solid #C75B3925' }}
         >
           <div
@@ -570,7 +574,7 @@ export function DashboardPage() {
 
       {/* §7 pos. 5 — HERO CARD */}
       {fts && heroMoney && (
-        <div className="mx-5 mt-5 p-5 rounded-2xl bg-surface-container">
+        <div className="mt-5 p-5 rounded-2xl bg-surface-container">
           <p
             className="text-xs font-bold"
             style={{ color: '#C75B39aa' }}
@@ -647,7 +651,7 @@ export function DashboardPage() {
         <div className="mt-4">
           {/* DEC-076: pure-CSS scroll-snap carousel, ~3 visible, all enabled profiles */}
           <div
-            className="flex gap-3 overflow-x-auto no-scrollbar px-5 snap-x snap-mandatory"
+            className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] snap-x snap-mandatory"
             onScroll={(e) => {
               const el = e.currentTarget;
               const pageCount = Math.ceil(forecasts.length / 3);
@@ -660,7 +664,7 @@ export function DashboardPage() {
             {forecasts.map((forecast) => {
               const profile = profiles.find((p) => p.id === forecast.profileId);
               return (
-                <div key={forecast.profileId} className="snap-start shrink-0 w-[30%] min-w-[104px]">
+                <div key={forecast.profileId} className="snap-start shrink-0 w-[30%] min-w-[104px] flex">
                   <OccasionCounter
                     icon={profile?.iconName ?? getCategoryIcon(profile?.category ?? 'other')}
                     count={forecast.remaining}
@@ -689,7 +693,7 @@ export function DashboardPage() {
           )}
         </div>
       ) : hasOccasionData ? (
-        <div className="mx-5 mt-4 grid grid-cols-3 gap-3">
+        <div className="mt-4 grid grid-cols-3 gap-3">
           <OccasionCounter
             icon="local_bar"
             count={barCount}
@@ -719,7 +723,7 @@ export function DashboardPage() {
 
       {/* §7 pos. 7 — ROTATING INSIGHT (DEC-077 / FIELD-07) */}
       {currentInsight && (
-        <div className="mx-5 mt-4 p-4 rounded-2xl bg-surface-container">
+        <div className="mt-4 p-4 rounded-2xl bg-surface-container">
           <button
             onClick={() => setInsightIndex((insightIndex + 1) % insights.length)}
             className="w-full text-left btn-press flex items-start gap-3"
@@ -773,7 +777,7 @@ export function DashboardPage() {
       {/* SAVINGS CARD */}
       {savings.hasSavings && (
         <div
-          className="mx-5 mt-3 p-3.5 rounded-2xl flex items-center gap-3"
+          className="mt-3 p-3.5 rounded-2xl flex items-center gap-3"
           style={{ background: '#6B8F7112', border: '1px solid #6B8F7118' }}
         >
           <Icon name="trending_up" className="text-success" />
@@ -789,7 +793,7 @@ export function DashboardPage() {
       {/* §7 pos. 8 — AMIGO SINCERO */}
       {amigoInsight?.hasInsight && barProfile && (
         <div
-          className="mx-5 mt-5 p-4 rounded-2xl"
+          className="mt-5 p-4 rounded-2xl"
           style={{ background: '#C75B3910', border: '1px solid #C75B3918' }}
         >
           <div className="flex items-start gap-3">
@@ -844,7 +848,7 @@ export function DashboardPage() {
       {hasPendingExpenses && (
         <button
           onClick={() => setConfirmSheetOpen(true)}
-          className="mx-5 mt-4 p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
+          className="mt-4 p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
           style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}
         >
           <Icon name="group" className="text-warning" />
@@ -923,7 +927,7 @@ export function DashboardPage() {
 
       {/* GLOBAL POOLS (personal shopping etc. — by scope, GAP-017) */}
       {globalPoolSummaries.map(({ pool, summary }) => (
-        <div key={pool.id} className="mx-5 mt-5 p-4 rounded-2xl bg-surface-container">
+        <div key={pool.id} className="mt-5 p-4 rounded-2xl bg-surface-container">
           <div className="flex items-center gap-3 mb-3">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -966,7 +970,7 @@ export function DashboardPage() {
 
       {/* §7 pos. 10 — RECENT EXPENSES */}
       {recent.length > 0 && (
-        <div className="mx-5 mt-5">
+        <div className="mt-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-on-surface">
               {t('dashboard.recent_expenses')}
@@ -1005,7 +1009,7 @@ export function DashboardPage() {
       )}
 
       {recent.length === 0 && (
-        <div className="mx-5 mt-5">
+        <div className="mt-5">
           <div className="bg-surface-container rounded-xl p-6 text-center">
             <Icon name="receipt_long" size={32} className="text-on-surface-mute mx-auto mb-2" />
             <p className="text-sm text-on-surface-dim">{t('dashboard.no_expenses')}</p>
@@ -1035,17 +1039,25 @@ function OccasionCounter({
   iconColor: string;
   onClick: () => void;
 }) {
+  // DEC-085 (R-03): identical card height — 2-line space reserved for the name.
   return (
-    <button onClick={onClick} className="p-3.5 rounded-2xl text-center bg-surface-container btn-press">
+    <button
+      onClick={onClick}
+      className="p-3.5 rounded-2xl text-center bg-surface-container btn-press w-full h-full flex flex-col items-center"
+    >
       <div
-        className="w-9 h-9 mx-auto rounded-full flex items-center justify-center mb-1.5"
+        className="w-9 h-9 rounded-full flex items-center justify-center mb-1.5 shrink-0"
         style={{ background: iconBg }}
       >
         <Icon name={icon} size={18} style={{ color: iconColor }} />
       </div>
       <p className="text-xl font-extrabold tabular text-on-surface">{count}</p>
-      <p className="text-[10px] font-bold text-on-surface-dim">{label}</p>
-      {sublabel && <p className="text-[9px] font-semibold text-on-surface-faint mt-0.5">{sublabel}</p>}
+      <p className="text-[10px] font-bold text-on-surface-dim leading-[13px] min-h-[26px] line-clamp-2 flex items-center justify-center">
+        {label}
+      </p>
+      <p className="text-[9px] font-semibold text-on-surface-faint mt-0.5 min-h-[12px]">
+        {sublabel ?? ''}
+      </p>
     </button>
   );
 }

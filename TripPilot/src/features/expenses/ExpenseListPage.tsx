@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { useScrolled } from '@/hooks/useScrolled';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { formatMoney, sumCents } from '@/domain/money';
@@ -30,6 +31,7 @@ export function ExpenseListPage() {
   // DEC-079 (FIELD-09): outings ARE grouped expenses — they live in this screen.
   const [tab, setTab] = useState<ListTab>(searchParams.get('tab') === 'outings' ? 'outings' : 'expenses');
   const [completedSessions, setCompletedSessions] = useState<Session[]>([]);
+  const scrolled = useScrolled();
 
   useEffect(() => {
     if (!trip) return;
@@ -60,33 +62,68 @@ export function ExpenseListPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <div className="flex items-center justify-between pt-2">
-        <h1 className="text-heading font-bold text-on-surface">{t('expenses.title')}</h1>
-        {tab === 'expenses' && (
-          <p className="text-sm font-semibold tabular text-on-surface">
-            {formatMoney(totalCents, trip.baseCurrency)}
-          </p>
-        )}
-      </div>
+      {/* DEC-084 (R-01): header + tabs + filter bar fixed — only the list scrolls */}
+      <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-2 pb-2 flex flex-col gap-4`}>
+        <div className="flex items-center justify-between">
+          <h1 className="text-heading font-bold text-on-surface">{t('expenses.title')}</h1>
+          {tab === 'expenses' && (
+            <p className="text-sm font-semibold tabular text-on-surface">
+              {formatMoney(totalCents, trip.baseCurrency)}
+            </p>
+          )}
+        </div>
 
-      {/* DEC-079: segmented control Expenses | Outings */}
-      <div className="flex bg-surface-container rounded-xl p-1">
-        <button
-          onClick={() => setTab('expenses')}
-          className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
-            tab === 'expenses' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
-          }`}
-        >
-          {t('expenses.tab_expenses')}
-        </button>
-        <button
-          onClick={() => setTab('outings')}
-          className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
-            tab === 'outings' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
-          }`}
-        >
-          {t('expenses.tab_outings')}
-        </button>
+        {/* DEC-079: segmented control Expenses | Outings */}
+        <div className="flex bg-surface-container rounded-xl p-1">
+          <button
+            onClick={() => setTab('expenses')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
+              tab === 'expenses' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
+            }`}
+          >
+            {t('expenses.tab_expenses')}
+          </button>
+          <button
+            onClick={() => setTab('outings')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
+              tab === 'outings' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
+            }`}
+          >
+            {t('expenses.tab_outings')}
+          </button>
+        </div>
+
+        {tab === 'expenses' && (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <FilterChip
+              label={t('expenses.title')}
+              active={!filterCategory && !filterProfileId && !filterWalletNull}
+              onClick={() => { setFilterCategory(null); setFilterProfileId(null); setFilterWalletNull(false); }}
+            />
+            {filterProfile && (
+              <FilterChip
+                label={filterProfile.name}
+                active
+                onClick={() => setFilterProfileId(null)}
+              />
+            )}
+            {filterWalletNull && (
+              <FilterChip
+                label={t('expenses.filter_no_wallet')}
+                active
+                onClick={() => setFilterWalletNull(false)}
+              />
+            )}
+            {categories.map((cat) => (
+              <FilterChip
+                key={cat}
+                label={t(`categories.${cat}` as never)}
+                active={filterCategory === cat}
+                onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {tab === 'outings' ? (
@@ -110,36 +147,6 @@ export function ExpenseListPage() {
           <p className="text-xs text-warning/70 mt-0.5">{t('expenses.review_now')}</p>
         </button>
       )}
-
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-        <FilterChip
-          label={t('expenses.title')}
-          active={!filterCategory && !filterProfileId && !filterWalletNull}
-          onClick={() => { setFilterCategory(null); setFilterProfileId(null); setFilterWalletNull(false); }}
-        />
-        {filterProfile && (
-          <FilterChip
-            label={filterProfile.name}
-            active
-            onClick={() => setFilterProfileId(null)}
-          />
-        )}
-        {filterWalletNull && (
-          <FilterChip
-            label={t('expenses.filter_no_wallet')}
-            active
-            onClick={() => setFilterWalletNull(false)}
-          />
-        )}
-        {categories.map((cat) => (
-          <FilterChip
-            key={cat}
-            label={t(`categories.${cat}` as never)}
-            active={filterCategory === cat}
-            onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
-          />
-        ))}
-      </div>
 
       {expenses.length === 0 ? (
         <div className="bg-surface-container rounded-xl p-6 text-center">
