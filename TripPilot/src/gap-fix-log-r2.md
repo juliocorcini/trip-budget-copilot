@@ -1,9 +1,9 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 4 | **Item ativo**: DEC-071 (FIELD-03)
-- **Itens resolvidos**: 10/23 (+ infra v3 pronta)
-- **Testes**: 161 unit (baseline 156) + 22 e2e (baseline 22)
+- **Gate ativo**: 5 | **Item ativo**: DEC-074 (FIELD-01)
+- **Itens resolvidos**: 12/23 (+ infra v3 pronta)
+- **Testes**: 177 unit (baseline 156) + 22 e2e (baseline 22)
 - **Build/Typecheck**: clean
 - **Migração Dexie v3**: FEITA (Gate 3) — NUNCA criar v4/v5
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`
@@ -38,8 +38,9 @@
 - [x] Testes: migração v2→v3 real (fake-indexeddb, TripPilotDB parametrizado por nome), índice composto da tabela nova, normalização v2→v3, round-trip v3 — 161 unit verdes
 
 ### Gate 4 — Shares confirmáveis + CRUD
-- [ ] DEC-071 / FIELD-03 — confirmação de shares
-- [ ] DEC-080 / FIELD-11 — editar/apagar fundos e fases
+- [x] DEC-071 / FIELD-03 — `calculateDebts` só considera shares `confirmed`; `findPendingConfirmationShares` (shares de terceiros pending; substitui `findPendingSharedTransactions`/DEC-063); `calculateOwnerPersonalCost` (rejected devolve ao pagador); orchestrator `resolveShareConfirmation` (share+tx atômico, ajuste de valor opcional); card do dashboard conta shares pendentes e abre sheet confirmar/rejeitar/ajustar; SharedExpensesPage lista gastos compartilhados com badge de status por share — testes: cenário exato da irmã (2×€20 cruzados → 2 pendentes, dívidas zeradas antes e depois de confirmar) + 5 de personal cost + 3 de orchestrator
+- [x] DEC-080 / FIELD-11 — orchestrators `deleteBudgetPool` (bloqueia ou reatribui txs; cascata soft em links/envelopes/policies), `deletePhase` (bloqueia com dados ou última fase; cascata em links/plans/items/settings/occurrences; compacta `order`), `swapPhaseOrder`; FundsPage: editar nome/valor + sheet de exclusão com reatribuição; TripEditPage: setas reordenar + sheet de exclusão com bloqueios explicados — 7 testes de orchestrator
+- i18n: 27 chaves novas ×3 (confirmação, status, CRUD de fundo/fase); chave morta `dashboard.pending_expenses` removida ×3 — paridade 431
 
 ### Gate 5 — Fase rica
 - [ ] DEC-074 / FIELD-01 — atividades por fase + catálogo 17 presets

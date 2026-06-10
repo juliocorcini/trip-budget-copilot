@@ -7,7 +7,10 @@ import { filterTransactionsByPool } from '@/domain/transactions';
 import { formatMoney } from '@/domain/money';
 import { sortPhasesByOrder } from '@/domain/dates';
 import { budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository } from '@/data/repositories';
+import { deleteBudgetPool } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
 import type { BudgetPoolScope } from '@/domain/types/common';
 
 function parseEurosToCents(value: string): number | null {
@@ -36,6 +39,12 @@ export function FundsPage() {
   const [newEnvelopeName, setNewEnvelopeName] = useState('');
   const [newEnvelopeAmount, setNewEnvelopeAmount] = useState('');
 
+  // DEC-080 (FIELD-11): edit name/value + delete with reassignment.
+  const [editPoolName, setEditPoolName] = useState('');
+  const [editPoolAmount, setEditPoolAmount] = useState('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   if (loading || !trip) {
     return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
   }
@@ -62,6 +71,37 @@ export function FundsPage() {
     setExpandedPoolId((prev) => (prev === poolId ? null : poolId));
     setNewEnvelopeName('');
     setNewEnvelopeAmount('');
+    const pool = pools.find((p) => p.id === poolId);
+    setEditPoolName(pool?.name ?? '');
+    setEditPoolAmount(pool ? (pool.totalAmountCents / 100).toString() : '');
+  };
+
+  const handleSavePoolEdit = async (poolId: string) => {
+    const pool = pools.find((p) => p.id === poolId);
+    if (!pool) return;
+    const cents = parseEurosToCents(editPoolAmount);
+    await budgetPoolRepository.update({
+      ...pool,
+      name: editPoolName.trim() || pool.name,
+      totalAmountCents: cents !== null && cents > 0 ? cents : pool.totalAmountCents,
+    });
+    await reload();
+    showToast(t('funds.updated'), 'success');
+  };
+
+  const handleDeletePool = async (poolId: string, reassignToPoolId: string | null) => {
+    setDeleting(true);
+    try {
+      const result = await deleteBudgetPool({ poolId, reassignToPoolId });
+      if (result.ok) {
+        setDeleteTargetId(null);
+        setExpandedPoolId(null);
+        await reload();
+        showToast(t('funds.deleted'), 'success');
+      }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSaveFloor = async (linkId: string) => {
@@ -223,6 +263,49 @@ export function FundsPage() {
 
               {isExpanded && (
                 <div className="mt-4 pt-4 flex flex-col gap-4" style={{ borderTop: '1px solid var(--surface-container-high)' }}>
+                  {/* Edit name/value + delete (DEC-080 / FIELD-11) */}
+                  <div>
+                    <p className="text-xs font-semibold text-on-surface-dim mb-2">
+                      {t('funds.edit_title')}
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={editPoolName}
+                        onChange={(e) => setEditPoolName(e.target.value)}
+                        placeholder={t('funds.name')}
+                        className="bg-surface-high text-on-surface text-xs rounded-lg px-3 py-2 outline-none w-full"
+                      />
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-2 flex-1">
+                          <span className="text-on-surface-faint text-xs">{pool.currency}</span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            value={editPoolAmount}
+                            onChange={(e) => setEditPoolAmount(e.target.value)}
+                            placeholder="0,00"
+                            className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleSavePoolEdit(pool.id)}
+                          className="px-3 py-2 rounded-lg text-xs font-semibold btn-press bg-primary text-on-surface"
+                        >
+                          {t('common.save')}
+                        </button>
+                        <button
+                          onClick={() => setDeleteTargetId(pool.id)}
+                          className="p-2 btn-press rounded-lg bg-error/10"
+                          aria-label={t('funds.delete_fund')}
+                        >
+                          <Icon name="delete" size={16} className="text-error" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Future floors per phase (DEC-016 / GAP-008) */}
                   {poolLinks.length > 0 && (
                     <div>
@@ -487,6 +570,78 @@ export function FundsPage() {
           {t('funds.add')}
         </button>
       )}
+
+      {/* DEC-080: delete fund sheet — reassign transactions or confirm */}
+      <BottomSheet
+        open={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        title={t('funds.delete_confirm_title')}
+      >
+        {(() => {
+          const target = pools.find((p) => p.id === deleteTargetId);
+          if (!target) return null;
+          const activeTxCount = filterTransactionsByPool(transactions, target.id).length;
+          const otherPools = pools.filter((p) => p.id !== target.id);
+
+          if (activeTxCount === 0) {
+            return (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs text-on-surface-dim">
+                  {t('funds.delete_confirm_body', { name: target.name })}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDeleteTargetId(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    onClick={() => handleDeletePool(target.id, null)}
+                    disabled={deleting}
+                    className="flex-1 py-2.5 rounded-xl bg-error/15 text-error font-medium text-sm btn-press disabled:opacity-40"
+                  >
+                    {t('common.delete')}
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-on-surface-dim">
+                {t('funds.delete_has_transactions', { count: activeTxCount, name: target.name })}
+              </p>
+              {otherPools.length > 0 ? (
+                <>
+                  <p className="text-xs font-semibold text-on-surface-dim">{t('funds.reassign_to')}</p>
+                  <div className="flex flex-col gap-2">
+                    {otherPools.map((pool) => (
+                      <button
+                        key={pool.id}
+                        onClick={() => handleDeletePool(target.id, pool.id)}
+                        disabled={deleting}
+                        className="w-full py-2.5 px-3 rounded-xl bg-surface-high text-on-surface text-sm font-medium btn-press text-left disabled:opacity-40"
+                      >
+                        {pool.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-on-surface-faint">{t('funds.delete_blocked_no_target')}</p>
+              )}
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          );
+        })()}
+      </BottomSheet>
     </div>
   );
 }

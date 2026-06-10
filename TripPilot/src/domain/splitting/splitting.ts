@@ -117,8 +117,13 @@ export function calculateDebts(
 
   for (const tx of sharedTxs) {
     const payerId = tx.paidByParticipantId ?? ownerId;
+    // DEC-071: only confirmed shares consolidate into debts. Pending shares
+    // wait for confirmation; rejected shares return to the payer's own cost.
     const txShares = shares.filter(
-      (s) => s.transactionId === tx.id && s.deletedAt === null,
+      (s) =>
+        s.transactionId === tx.id &&
+        s.deletedAt === null &&
+        s.confirmationStatus === 'confirmed',
     );
 
     for (const share of txShares) {
@@ -281,34 +286,62 @@ export function scaleSharesToTotal(
   });
 }
 
+export interface PendingShareEntry {
+  share: ParticipantShare;
+  transaction: Transaction;
+}
+
 /**
- * GAP-016 (decision D-C): a shared expense is "pending" while at least one
- * third-party share is not covered by settlements. Once the debtor↔creditor
- * pair has no outstanding debt left, the expense disappears from the card.
+ * DEC-071 (supersedes DEC-063/GAP-016): the dashboard card counts third-party
+ * shares awaiting confirmation. It disappears when every share is confirmed —
+ * regardless of netting or settlements.
  */
-export function findPendingSharedTransactions(
+export function findPendingConfirmationShares(
   transactions: Transaction[],
   shares: ParticipantShare[],
-  participants: Participant[],
-  settlements: Settlement[],
   ownerId: string,
-): Transaction[] {
-  const { debts } = calculateDebts(transactions, shares, participants, settlements, ownerId);
-  if (debts.length === 0) return [];
+): PendingShareEntry[] {
+  const txById = new Map(
+    transactions
+      .filter((tx) => tx.isShared && tx.type === 'expense' && tx.deletedAt === null)
+      .map((tx) => [tx.id, tx]),
+  );
 
-  const owingPairs = new Set(debts.map((d) => `${d.debtorId}->${d.creditorId}`));
+  return shares
+    .filter((s) => s.deletedAt === null && s.confirmationStatus === 'pending')
+    .flatMap((share) => {
+      const transaction = txById.get(share.transactionId);
+      if (!transaction) return [];
+      const payerId = transaction.paidByParticipantId ?? ownerId;
+      if (share.participantId === payerId) return [];
+      return [{ share, transaction }];
+    });
+}
 
-  return transactions.filter((tx) => {
-    if (!tx.isShared || tx.type !== 'expense' || tx.deletedAt !== null) return false;
-    const payerId = tx.paidByParticipantId ?? ownerId;
-    return shares.some(
-      (s) =>
-        s.transactionId === tx.id &&
-        s.deletedAt === null &&
-        s.participantId !== payerId &&
-        owingPairs.has(`${s.participantId}->${payerId}`),
+/**
+ * DEC-071: the owner's effective personal cost on a shared expense.
+ * - Owner paid: total minus third-party shares that were not rejected
+ *   (a rejected share returns its value to the payer's personal cost).
+ * - Someone else paid: the owner's own non-rejected share.
+ */
+export function calculateOwnerPersonalCost(
+  transaction: Transaction,
+  txShares: ParticipantShare[],
+  ownerId: string,
+): number {
+  const payerId = transaction.paidByParticipantId ?? ownerId;
+  const active = txShares.filter((s) => s.deletedAt === null);
+
+  if (payerId === ownerId) {
+    const thirdPartyKept = active.filter(
+      (s) => s.participantId !== ownerId && s.confirmationStatus !== 'rejected',
     );
-  });
+    return transaction.amountCents - sumCents(thirdPartyKept.map((s) => s.shareAmountCents));
+  }
+
+  const ownShare = active.find((s) => s.participantId === ownerId);
+  if (!ownShare || ownShare.confirmationStatus === 'rejected') return 0;
+  return ownShare.shareAmountCents;
 }
 
 /** Net balance per participant: positive = is owed money, negative = owes money. */

@@ -8,7 +8,8 @@ import {
   createParticipant,
   scaleSharesToTotal,
   calculateParticipantBalances,
-  findPendingSharedTransactions,
+  findPendingConfirmationShares,
+  calculateOwnerPersonalCost,
   suggestSimplifiedSettlements,
 } from '@/domain/splitting';
 import type { DebtEntry } from '@/domain/splitting';
@@ -129,53 +130,128 @@ describe('calculateDebts', () => {
   });
 });
 
-describe('findPendingSharedTransactions (GAP-016, decision D-C)', () => {
+describe('share confirmation (DEC-071 / FIELD-03)', () => {
   const participants: Participant[] = [
     { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null },
-    { ...meta, id: 'ana', tripId: 'trip-1', name: 'Ana', nickname: null, isOwner: false, email: null, linkedUserAccountId: null },
+    { ...meta, id: 'sis', tripId: 'trip-1', name: 'Irmã', nickname: null, isOwner: false, email: null, linkedUserAccountId: null },
   ];
 
-  const sharedTx: Transaction = {
+  const baseTx: Transaction = {
     ...meta, id: 'tx-1', tripId: 'trip-1', phaseId: 'ph-1',
     budgetPoolId: 'pool-1', walletId: null, sessionId: null,
-    type: 'expense', amountCents: 6000, personalCostCents: 3000,
-    currency: 'EUR', baseCurrencyAmountCents: 6000, exchangeRate: null,
-    category: 'market', description: 'Mercadona', date: '2026-07-01T00:00:00.000Z',
+    type: 'expense', amountCents: 4000, personalCostCents: 2000,
+    currency: 'EUR', baseCurrencyAmountCents: 4000, exchangeRate: null,
+    category: 'market', description: 'Mercado 1', date: '2026-07-01T00:00:00.000Z',
     isShared: true, paidByParticipantId: 'julio',
     activityProfileId: null, isSpecialOccasion: false, excludeFromLearning: false,
     sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
   };
 
-  const shares: ParticipantShare[] = [
-    { ...meta, id: 's1', transactionId: 'tx-1', participantId: 'julio', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
-    { ...meta, id: 's2', transactionId: 'tx-1', participantId: 'ana', shareAmountCents: 3000, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
-  ];
+  function mkShare(id: string, txId: string, participantId: string, status: ParticipantShare['confirmationStatus']): ParticipantShare {
+    return { ...meta, id, transactionId: txId, participantId, shareAmountCents: 2000, shareType: 'equal', isPaid: false, confirmationStatus: status, notes: null };
+  }
 
-  it('marks a shared expense pending while the third-party share is unsettled', () => {
-    const pending = findPendingSharedTransactions([sharedTx], shares, participants, [], 'julio');
-    expect(pending.map((tx) => tx.id)).toEqual(['tx-1']);
+  // The exact field report: two €40 markets, each paid by one sibling and
+  // split 50/50 — crossed €20 debts that net out.
+  const tx1 = baseTx;
+  const tx2: Transaction = { ...baseTx, id: 'tx-2', description: 'Mercado 2', paidByParticipantId: 'sis' };
+
+  it('sister scenario: pending shares do not consolidate into debts', () => {
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 'confirmed'),
+      mkShare('s2', 'tx-1', 'sis', 'pending'),
+      mkShare('s3', 'tx-2', 'sis', 'confirmed'),
+      mkShare('s4', 'tx-2', 'julio', 'pending'),
+    ];
+    const result = calculateDebts([tx1, tx2], shares, participants, [], 'julio');
+    expect(result.debts).toHaveLength(0);
+
+    const pending = findPendingConfirmationShares([tx1, tx2], shares, 'julio');
+    expect(pending).toHaveLength(2);
+    expect(pending.map((p) => p.share.id).sort()).toEqual(['s2', 's4']);
   });
 
-  it('removes the expense from pending once the debt is fully settled', () => {
-    const settlements = [
-      { ...meta, id: 'set-1', tripId: 'trip-1', debtorParticipantId: 'ana', creditorParticipantId: 'julio', amountCents: 3000, currency: 'EUR', settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null },
+  it('sister scenario: confirming both crossed shares keeps debts netted at zero', () => {
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 'confirmed'),
+      mkShare('s2', 'tx-1', 'sis', 'confirmed'),
+      mkShare('s3', 'tx-2', 'sis', 'confirmed'),
+      mkShare('s4', 'tx-2', 'julio', 'confirmed'),
     ];
-    const pending = findPendingSharedTransactions([sharedTx], shares, participants, settlements, 'julio');
-    expect(pending).toHaveLength(0);
+    // 2×€20 crossed debts net out — the card disappears, debts stay zero.
+    const result = calculateDebts([tx1, tx2], shares, participants, [], 'julio');
+    expect(result.debts).toHaveLength(0);
+    expect(findPendingConfirmationShares([tx1, tx2], shares, 'julio')).toHaveLength(0);
   });
 
-  it('keeps the expense pending while the settlement is only partial', () => {
-    const settlements = [
-      { ...meta, id: 'set-1', tripId: 'trip-1', debtorParticipantId: 'ana', creditorParticipantId: 'julio', amountCents: 1000, currency: 'EUR', settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null },
+  it('counts only third-party pending shares (payer share never pends)', () => {
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 'pending'),
+      mkShare('s2', 'tx-1', 'sis', 'pending'),
     ];
-    const pending = findPendingSharedTransactions([sharedTx], shares, participants, settlements, 'julio');
+    const pending = findPendingConfirmationShares([tx1], shares, 'julio');
     expect(pending).toHaveLength(1);
+    expect(pending[0]!.share.id).toBe('s2');
   });
 
-  it('ignores non-shared expenses', () => {
-    const personalTx = { ...sharedTx, id: 'tx-2', isShared: false, paidByParticipantId: null };
-    const pending = findPendingSharedTransactions([personalTx], [], participants, [], 'julio');
-    expect(pending).toHaveLength(0);
+  it('rejected shares do not enter debts', () => {
+    const shares = [
+      mkShare('s1', 'tx-1', 'julio', 'confirmed'),
+      mkShare('s2', 'tx-1', 'sis', 'rejected'),
+    ];
+    const result = calculateDebts([tx1], shares, participants, [], 'julio');
+    expect(result.debts).toHaveLength(0);
+  });
+
+  it('ignores non-shared and deleted transactions', () => {
+    const personalTx = { ...baseTx, id: 'tx-3', isShared: false };
+    const deletedTx = { ...baseTx, id: 'tx-4', deletedAt: '2026-07-02T00:00:00.000Z' };
+    const shares = [mkShare('s1', 'tx-3', 'sis', 'pending'), mkShare('s2', 'tx-4', 'sis', 'pending')];
+    expect(findPendingConfirmationShares([personalTx, deletedTx], shares, 'julio')).toHaveLength(0);
+  });
+});
+
+describe('calculateOwnerPersonalCost (DEC-071)', () => {
+  const tx: Transaction = {
+    ...meta, id: 'tx-1', tripId: 'trip-1', phaseId: 'ph-1',
+    budgetPoolId: 'pool-1', walletId: null, sessionId: null,
+    type: 'expense', amountCents: 4000, personalCostCents: 2000,
+    currency: 'EUR', baseCurrencyAmountCents: 4000, exchangeRate: null,
+    category: 'market', description: 'Mercado', date: '2026-07-01T00:00:00.000Z',
+    isShared: true, paidByParticipantId: 'julio',
+    activityProfileId: null, isSpecialOccasion: false, excludeFromLearning: false,
+    sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
+  };
+
+  function mkShare(id: string, participantId: string, cents: number, status: ParticipantShare['confirmationStatus']): ParticipantShare {
+    return { ...meta, id, transactionId: 'tx-1', participantId, shareAmountCents: cents, shareType: 'equal', isPaid: false, confirmationStatus: status, notes: null };
+  }
+
+  it('owner paid: pending/confirmed third-party shares reduce the personal cost', () => {
+    const shares = [mkShare('s1', 'julio', 2000, 'confirmed'), mkShare('s2', 'sis', 2000, 'pending')];
+    expect(calculateOwnerPersonalCost(tx, shares, 'julio')).toBe(2000);
+  });
+
+  it('owner paid: a rejected share returns its value to the payer (€40 - rejected €20 = €40)', () => {
+    const shares = [mkShare('s1', 'julio', 2000, 'confirmed'), mkShare('s2', 'sis', 2000, 'rejected')];
+    expect(calculateOwnerPersonalCost(tx, shares, 'julio')).toBe(4000);
+  });
+
+  it('owner paid: adjusted confirmed share shifts the difference to the payer', () => {
+    const shares = [mkShare('s1', 'julio', 2000, 'confirmed'), mkShare('s2', 'sis', 1500, 'confirmed')];
+    expect(calculateOwnerPersonalCost(tx, shares, 'julio')).toBe(2500);
+  });
+
+  it('someone else paid: owner cost is their own non-rejected share', () => {
+    const paidBySis = { ...tx, paidByParticipantId: 'sis' };
+    const shares = [mkShare('s1', 'sis', 2000, 'confirmed'), mkShare('s2', 'julio', 2000, 'pending')];
+    expect(calculateOwnerPersonalCost(paidBySis, shares, 'julio')).toBe(2000);
+  });
+
+  it('someone else paid: a rejected own share zeroes the owner cost', () => {
+    const paidBySis = { ...tx, paidByParticipantId: 'sis' };
+    const shares = [mkShare('s1', 'sis', 2000, 'confirmed'), mkShare('s2', 'julio', 2000, 'rejected')];
+    expect(calculateOwnerPersonalCost(paidBySis, shares, 'julio')).toBe(0);
   });
 });
 

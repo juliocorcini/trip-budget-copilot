@@ -39,7 +39,6 @@
     "backup_reminder_never": "You haven't backed up your data yet. Tap to export.",
     "occasion_market": "grocery runs",
     "occasion_restaurant": "restaurants",
-    "pending_expenses": "{{count}} expenses pending confirmation",
     "pending_impact": "Provisional impact: {{amount}}",
     "savings_message": "You preserved {{amount}} — {{percent}}% of a typical bar night!",
     "active_outing": "Active outing",
@@ -54,7 +53,8 @@
     "amigo_reserve_affected": "Affected",
     "amigo_message": "With recent spending, your {{type}} outings dropped from {{before}} to {{after}}.",
     "amigo_see_impact": "See full impact",
-    "session_drinks_left": "{{count}} drinks until the ceiling"
+    "session_drinks_left": "{{count}} drinks until the ceiling",
+    "pending_confirmation": "{{count}} splits awaiting confirmation"
   },
   "expenses": {
     "title": "Expenses",
@@ -156,7 +156,14 @@
     "new_phase": "New phase",
     "remove_phase": "Remove",
     "phase_fund": "Linked fund (optional)",
-    "phase_fund_none": "None"
+    "phase_fund_none": "None",
+    "delete_phase": "Delete phase",
+    "delete_phase_confirm": "The phase \"{{name}}\" will be deleted.",
+    "delete_phase_blocked": "This phase has {{count}} records (expenses or outings). Move or delete them first.",
+    "delete_phase_last_blocked": "The last phase of the trip cannot be deleted.",
+    "phase_deleted": "Phase deleted",
+    "move_phase_up": "Move phase up",
+    "move_phase_down": "Move phase down"
   },
   "planner": {
     "title": "Planner",
@@ -209,7 +216,16 @@
     "future_floor_hint": "Amounts reserved for future phases come out of today's free-to-spend.",
     "envelopes_title": "Envelopes",
     "no_envelopes": "No envelopes in this fund.",
-    "new_envelope_name": "Envelope name"
+    "new_envelope_name": "Envelope name",
+    "edit_title": "Edit fund",
+    "updated": "Fund updated",
+    "deleted": "Fund deleted",
+    "delete_fund": "Delete fund",
+    "delete_confirm_title": "Delete fund?",
+    "delete_confirm_body": "The fund \"{{name}}\" will be deleted. This can be undone by restoring a backup.",
+    "delete_has_transactions": "The fund \"{{name}}\" has {{count}} active expenses. Pick another fund to receive them before deleting.",
+    "reassign_to": "Reassign expenses to:",
+    "delete_blocked_no_target": "There is no other fund to receive the expenses. Create a fund or delete the expenses first."
   },
   "profiles": {
     "title": "Activity profiles",
@@ -431,7 +447,17 @@
     "participant_nickname": "Nickname (optional)",
     "balance_owes": "Owes {{amount}}",
     "balance_owed": "Receives {{amount}}",
-    "balance_zero": "Even"
+    "balance_zero": "Even",
+    "shared_expenses_title": "Shared expenses",
+    "confirm_sheet_title": "Confirm splits",
+    "confirm_share_of": "{{name}}'s share · total {{total}}",
+    "confirm": "Confirm",
+    "reject": "Reject",
+    "adjust_value": "Adjust value",
+    "confirm_all_done": "All confirmed!",
+    "status_pending": "Pending",
+    "status_confirmed": "Confirmed",
+    "status_rejected": "Rejected"
   },
   "pwa": {
     "offline_ready": "Ready for offline use",

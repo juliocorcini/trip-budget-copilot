@@ -9,6 +9,7 @@ export {
   createParticipant,
   scaleSharesToTotal,
   calculateParticipantBalances,
-  findPendingSharedTransactions,
+  findPendingConfirmationShares,
+  calculateOwnerPersonalCost,
 } from './splitting';
-export type { DebtEntry, DebtSummary, BuildSharesInput } from './splitting';
+export type { DebtEntry, DebtSummary, BuildSharesInput, PendingShareEntry } from './splitting';

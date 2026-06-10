@@ -13,11 +13,12 @@ import { activityProfileRepository } from '@/data/repositories/activity-profile-
 import {
   transactionRepository,
   participantShareRepository,
-  settlementRepository,
   scenarioPlanRepository,
   scenarioAllocationItemRepository,
 } from '@/data/repositories';
-import { findPendingSharedTransactions } from '@/domain/splitting';
+import { findPendingConfirmationShares, type PendingShareEntry } from '@/domain/splitting';
+import { resolveShareConfirmation } from '@/domain/orchestrators';
+import { BottomSheet } from '@/components/BottomSheet';
 import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
 import { isBackupReminderDue } from '@/domain/backup';
 import type { Session } from '@/domain/types/session';
@@ -51,13 +52,15 @@ function formatElapsed(startedAt: string): string {
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { trip, phases, pools, links, envelopes, transactions, participants, loading, settings } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, participants, loading, settings, reload } = useAppData();
   const navigate = useNavigate();
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
-  const [pendingShared, setPendingShared] = useState<Transaction[]>([]);
+  const [pendingShares, setPendingShares] = useState<PendingShareEntry[]>([]);
+  const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
+  const [shareDrafts, setShareDrafts] = useState<Record<string, string>>({});
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
 
   useEffect(() => {
@@ -80,29 +83,43 @@ export function DashboardPage() {
     load();
   }, [trip, transactions]);
 
-  // GAP-016 (D-C): pending = shared expenses with third-party shares not
-  // covered by settlements yet.
+  // DEC-071 (FIELD-03): pending = third-party shares awaiting confirmation.
+  // The card disappears once every share is confirmed, regardless of netting.
   useEffect(() => {
     if (!trip) return;
     const owner = participants.find((p) => p.isOwner);
     if (!owner) {
-      setPendingShared([]);
+      setPendingShares([]);
       return;
     }
     const load = async () => {
       const sharedTxIds = transactions
         .filter((tx) => tx.isShared && tx.deletedAt === null)
         .map((tx) => tx.id);
-      const [shares, settlements] = await Promise.all([
-        participantShareRepository.getAllForTrip(sharedTxIds),
-        settlementRepository.getByTripId(trip.id),
-      ]);
-      setPendingShared(
-        findPendingSharedTransactions(transactions, shares, participants, settlements, owner.id),
-      );
+      const shares = await participantShareRepository.getAllForTrip(sharedTxIds);
+      setPendingShares(findPendingConfirmationShares(transactions, shares, owner.id));
     };
     load();
   }, [trip, transactions, participants]);
+
+  const owner = participants.find((p) => p.isOwner) ?? null;
+
+  const handleResolveShare = async (shareId: string, status: 'confirmed' | 'rejected') => {
+    if (!owner) return;
+    const draft = shareDrafts[shareId];
+    const parsed = draft !== undefined ? Number(draft.replace(',', '.')) : NaN;
+    const adjustedAmountCents =
+      status === 'confirmed' && Number.isFinite(parsed) && parsed > 0
+        ? Math.round(parsed * 100)
+        : null;
+    await resolveShareConfirmation({ shareId, status, adjustedAmountCents, ownerId: owner.id });
+    setShareDrafts((prev) => {
+      const next = { ...prev };
+      delete next[shareId];
+      return next;
+    });
+    await reload();
+  };
 
   // GAP-020 (DEC-006/043): counters show the forecast ("X remaining") from
   // the active scenario plan of the current phase.
@@ -164,8 +181,9 @@ export function DashboardPage() {
   const restaurantCount = categoryGroups['restaurant']?.length ?? 0;
   const hasOccasionData = barCount > 0 || marketCount > 0 || restaurantCount > 0;
 
-  const hasPendingExpenses = pendingShared.length > 0;
-  const pendingImpactCents = pendingShared.reduce((sum, tx) => sum + tx.amountCents, 0);
+  const hasPendingExpenses = pendingShares.length > 0;
+  const pendingImpactCents = pendingShares.reduce((sum, entry) => sum + entry.share.shareAmountCents, 0);
+  const participantNameById = new Map(participants.map((p) => [p.id, p.nickname ?? p.name]));
 
   // Global pools (e.g. personal shopping) are detected by scope, not by name (GAP-017).
   const globalPools = pools.filter((p) => p.scope === 'global' && p.deletedAt === null);
@@ -414,17 +432,17 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* PENDING EXPENSES */}
+      {/* PENDING SHARE CONFIRMATIONS (DEC-071 / FIELD-03) */}
       {hasPendingExpenses && (
         <button
-          onClick={() => navigate('/shared')}
+          onClick={() => setConfirmSheetOpen(true)}
           className="mx-5 mt-4 p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
           style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}
         >
           <Icon name="group" className="text-warning" />
           <div className="flex-1">
             <p className="text-sm font-bold text-warning">
-              {t('dashboard.pending_expenses', { count: pendingShared.length })}
+              {t('dashboard.pending_confirmation', { count: pendingShares.length })}
             </p>
             <p className="text-xs font-semibold mt-0.5" style={{ color: '#D4A843aa' }}>
               {t('dashboard.pending_impact', { amount: formatMoney(pendingImpactCents, trip.baseCurrency) })}
@@ -433,6 +451,67 @@ export function DashboardPage() {
           <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
         </button>
       )}
+
+      {/* Confirmation sheet: confirm / reject / adjust value per share */}
+      <BottomSheet
+        open={confirmSheetOpen}
+        onClose={() => setConfirmSheetOpen(false)}
+        title={t('shared.confirm_sheet_title')}
+      >
+        <div className="flex flex-col gap-3">
+          {pendingShares.length === 0 && (
+            <p className="text-sm text-on-surface-dim text-center py-4">
+              {t('shared.confirm_all_done')}
+            </p>
+          )}
+          {pendingShares.map(({ share, transaction }) => {
+            const draft = shareDrafts[share.id] ?? (share.shareAmountCents / 100).toFixed(2);
+            return (
+              <div key={share.id} className="bg-surface-high rounded-xl p-3.5 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-on-surface truncate">{transaction.description}</p>
+                    <p className="text-xs text-on-surface-faint mt-0.5">
+                      {t('shared.confirm_share_of', {
+                        name: participantNameById.get(share.participantId) ?? '—',
+                        total: formatMoney(transaction.amountCents, transaction.currency),
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-baseline gap-1 bg-surface-container rounded-lg px-3 py-2 flex-1">
+                    <span className="text-on-surface-faint text-xs">{transaction.currency}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      value={draft}
+                      onChange={(e) =>
+                        setShareDrafts((prev) => ({ ...prev, [share.id]: e.target.value }))
+                      }
+                      className="bg-transparent text-sm text-on-surface tabular outline-none w-full"
+                      aria-label={t('shared.adjust_value')}
+                    />
+                  </div>
+                  <button
+                    onClick={() => handleResolveShare(share.id, 'rejected')}
+                    className="px-3 py-2 rounded-lg text-xs font-bold btn-press bg-error/15 text-error"
+                  >
+                    {t('shared.reject')}
+                  </button>
+                  <button
+                    onClick={() => handleResolveShare(share.id, 'confirmed')}
+                    className="px-3 py-2 rounded-lg text-xs font-bold btn-press bg-success/20 text-success"
+                  >
+                    {t('shared.confirm')}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </BottomSheet>
 
       {/* GLOBAL POOLS (personal shopping etc. — by scope, GAP-017) */}
       {globalPoolSummaries.map(({ pool, summary }) => (

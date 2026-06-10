@@ -39,7 +39,6 @@
     "backup_reminder_never": "Aún no has hecho copia de seguridad de tus datos. Toca para exportar.",
     "occasion_market": "idas al supermercado",
     "occasion_restaurant": "restaurantes",
-    "pending_expenses": "{{count}} gastos pendientes de confirmación",
     "pending_impact": "Impacto provisional: {{amount}}",
     "savings_message": "Preservaste {{amount}} — ¡{{percent}}% de una noche típica de bar!",
     "active_outing": "Salida activa",
@@ -54,7 +53,8 @@
     "amigo_reserve_affected": "Afectada",
     "amigo_message": "Con los gastos recientes, tus salidas de {{type}} bajaron de {{before}} a {{after}}.",
     "amigo_see_impact": "Ver impacto completo",
-    "session_drinks_left": "{{count}} bebidas hasta el tope"
+    "session_drinks_left": "{{count}} bebidas hasta el tope",
+    "pending_confirmation": "{{count}} divisiones esperando confirmación"
   },
   "expenses": {
     "title": "Gastos",
@@ -156,7 +156,14 @@
     "new_phase": "Nueva fase",
     "remove_phase": "Quitar",
     "phase_fund": "Fondo asociado (opcional)",
-    "phase_fund_none": "Ninguno"
+    "phase_fund_none": "Ninguno",
+    "delete_phase": "Eliminar fase",
+    "delete_phase_confirm": "La fase \"{{name}}\" será eliminada.",
+    "delete_phase_blocked": "Esta fase tiene {{count}} registros (gastos o salidas). Muévelos o elimínalos primero.",
+    "delete_phase_last_blocked": "No se puede eliminar la última fase del viaje.",
+    "phase_deleted": "Fase eliminada",
+    "move_phase_up": "Mover fase hacia arriba",
+    "move_phase_down": "Mover fase hacia abajo"
   },
   "planner": {
     "title": "Planificador",
@@ -209,7 +216,16 @@
     "future_floor_hint": "Los importes reservados para fases futuras salen del libre para gastar de hoy.",
     "envelopes_title": "Sobres",
     "no_envelopes": "Ningún sobre en este fondo.",
-    "new_envelope_name": "Nombre del sobre"
+    "new_envelope_name": "Nombre del sobre",
+    "edit_title": "Editar fondo",
+    "updated": "Fondo actualizado",
+    "deleted": "Fondo eliminado",
+    "delete_fund": "Eliminar fondo",
+    "delete_confirm_title": "¿Eliminar fondo?",
+    "delete_confirm_body": "El fondo \"{{name}}\" será eliminado. Se puede deshacer restaurando una copia de seguridad.",
+    "delete_has_transactions": "El fondo \"{{name}}\" tiene {{count}} gastos activos. Elige otro fondo para recibirlos antes de eliminar.",
+    "reassign_to": "Reasignar gastos a:",
+    "delete_blocked_no_target": "No hay otro fondo para recibir los gastos. Crea un fondo o elimina los gastos primero."
   },
   "profiles": {
     "title": "Perfiles de actividad",
@@ -431,7 +447,17 @@
     "participant_nickname": "Apodo (opcional)",
     "balance_owes": "Debe {{amount}}",
     "balance_owed": "Recibe {{amount}}",
-    "balance_zero": "Al día"
+    "balance_zero": "Al día",
+    "shared_expenses_title": "Gastos compartidos",
+    "confirm_sheet_title": "Confirmar divisiones",
+    "confirm_share_of": "Parte de {{name}} · total {{total}}",
+    "confirm": "Confirmar",
+    "reject": "Rechazar",
+    "adjust_value": "Ajustar valor",
+    "confirm_all_done": "¡Todo confirmado!",
+    "status_pending": "Pendiente",
+    "status_confirmed": "Confirmado",
+    "status_rejected": "Rechazado"
   },
   "pwa": {
     "offline_ready": "Listo para uso sin conexión",

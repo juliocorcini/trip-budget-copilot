@@ -39,7 +39,6 @@
     "backup_reminder_never": "Você ainda não fez backup dos seus dados. Toque para exportar.",
     "occasion_market": "idas ao mercado",
     "occasion_restaurant": "restaurantes",
-    "pending_expenses": "{{count}} gastos pendentes de confirmação",
     "pending_impact": "Impacto provisório: {{amount}}",
     "savings_message": "Você preservou {{amount}} — {{percent}}% de uma noite comum no bar!",
     "active_outing": "Saída ativa",
@@ -54,7 +53,8 @@
     "amigo_reserve_affected": "Afetada",
     "amigo_message": "Com os gastos recentes, suas saídas de {{type}} caíram de {{before}} para {{after}}.",
     "amigo_see_impact": "Ver impacto completo",
-    "session_drinks_left": "{{count}} bebidas até o teto"
+    "session_drinks_left": "{{count}} bebidas até o teto",
+    "pending_confirmation": "{{count}} divisões aguardando confirmação"
   },
   "expenses": {
     "title": "Gastos",
@@ -156,7 +156,14 @@
     "new_phase": "Nova fase",
     "remove_phase": "Remover",
     "phase_fund": "Fundo associado (opcional)",
-    "phase_fund_none": "Nenhum"
+    "phase_fund_none": "Nenhum",
+    "delete_phase": "Apagar fase",
+    "delete_phase_confirm": "A fase \"{{name}}\" será apagada.",
+    "delete_phase_blocked": "Esta fase tem {{count}} registros (gastos ou saídas). Mova ou apague-os primeiro.",
+    "delete_phase_last_blocked": "Não é possível apagar a última fase da viagem.",
+    "phase_deleted": "Fase apagada",
+    "move_phase_up": "Mover fase para cima",
+    "move_phase_down": "Mover fase para baixo"
   },
   "planner": {
     "title": "Planejador",
@@ -209,7 +216,16 @@
     "future_floor_hint": "Valores reservados para fases futuras saem do livre para usar de hoje.",
     "envelopes_title": "Envelopes",
     "no_envelopes": "Nenhum envelope neste fundo.",
-    "new_envelope_name": "Nome do envelope"
+    "new_envelope_name": "Nome do envelope",
+    "edit_title": "Editar fundo",
+    "updated": "Fundo atualizado",
+    "deleted": "Fundo apagado",
+    "delete_fund": "Apagar fundo",
+    "delete_confirm_title": "Apagar fundo?",
+    "delete_confirm_body": "O fundo \"{{name}}\" será apagado. Esta ação pode ser desfeita restaurando um backup.",
+    "delete_has_transactions": "O fundo \"{{name}}\" tem {{count}} gastos ativos. Escolha outro fundo para recebê-los antes de apagar.",
+    "reassign_to": "Reatribuir gastos para:",
+    "delete_blocked_no_target": "Não há outro fundo para receber os gastos. Crie um fundo ou apague os gastos primeiro."
   },
   "profiles": {
     "title": "Perfis de atividade",
@@ -431,7 +447,17 @@
     "participant_nickname": "Apelido (opcional)",
     "balance_owes": "Deve {{amount}}",
     "balance_owed": "Recebe {{amount}}",
-    "balance_zero": "Em dia"
+    "balance_zero": "Em dia",
+    "shared_expenses_title": "Gastos compartilhados",
+    "confirm_sheet_title": "Confirmar divisões",
+    "confirm_share_of": "Parte de {{name}} · total {{total}}",
+    "confirm": "Confirmar",
+    "reject": "Rejeitar",
+    "adjust_value": "Ajustar valor",
+    "confirm_all_done": "Tudo confirmado!",
+    "status_pending": "Pendente",
+    "status_confirmed": "Confirmado",
+    "status_rejected": "Rejeitado"
   },
   "pwa": {
     "offline_ready": "Pronto para uso offline",

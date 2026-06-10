@@ -10,8 +10,14 @@ import {
   tripRepository,
   phaseRepository,
   budgetPoolPhaseLinkRepository,
+  transactionRepository,
 } from '@/data/repositories';
+import { sessionRepository } from '@/data/repositories/session-repository';
+import { deletePhase, swapPhaseOrder } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
+import type { Phase } from '@/domain/types/phase';
 
 interface NewPhaseDraft {
   tempId: string;
@@ -32,6 +38,14 @@ export function TripEditPage() {
   const [phaseEdits, setPhaseEdits] = useState<Record<string, { name: string; startDate: string; endDate: string }>>({});
   const [newPhases, setNewPhases] = useState<NewPhaseDraft[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // DEC-080 (FIELD-11): delete phase with safety rules + reorder.
+  const [phaseDeleteTarget, setPhaseDeleteTarget] = useState<{
+    phase: Phase;
+    txCount: number;
+    sessionCount: number;
+  } | null>(null);
+  const [deletingPhase, setDeletingPhase] = useState(false);
 
   useEffect(() => {
     if (!trip) return;
@@ -75,6 +89,43 @@ export function TripEditPage() {
 
   const removeNewPhase = (tempId: string) => {
     setNewPhases((prev) => prev.filter((p) => p.tempId !== tempId));
+  };
+
+  const openDeletePhaseSheet = async (phase: Phase) => {
+    if (!trip) return;
+    const [txs, sessions] = await Promise.all([
+      transactionRepository.getByPhaseId(phase.id),
+      sessionRepository.getByTripId(trip.id),
+    ]);
+    setPhaseDeleteTarget({
+      phase,
+      txCount: txs.length,
+      sessionCount: sessions.filter((s) => s.phaseId === phase.id).length,
+    });
+  };
+
+  const handleConfirmDeletePhase = async () => {
+    if (!phaseDeleteTarget) return;
+    setDeletingPhase(true);
+    try {
+      const result = await deletePhase(phaseDeleteTarget.phase.id);
+      if (result.ok) {
+        setPhaseDeleteTarget(null);
+        await reload();
+        showToast(t('trip.phase_deleted'), 'success');
+      }
+    } finally {
+      setDeletingPhase(false);
+    }
+  };
+
+  const handleMovePhase = async (phase: Phase, direction: -1 | 1) => {
+    const sorted = sortPhasesByOrder(phases);
+    const index = sorted.findIndex((p) => p.id === phase.id);
+    const neighbor = sorted[index + direction];
+    if (!neighbor) return;
+    await swapPhaseOrder(phase.id, neighbor.id);
+    await reload();
   };
 
   const handleSave = async () => {
@@ -177,11 +228,37 @@ export function TripEditPage() {
           {t('planner.phases')}
         </p>
         <div className="flex flex-col gap-3">
-          {sortPhasesByOrder(phases).map((phase) => {
+          {sortPhasesByOrder(phases).map((phase, index, sorted) => {
             const edit = phaseEdits[phase.id];
             if (!edit) return null;
             return (
               <div key={phase.id} className="bg-surface-container rounded-xl p-4 flex flex-col gap-2">
+                {/* DEC-080: reorder + delete controls */}
+                <div className="flex items-center justify-end gap-1 -mt-1 -mr-1">
+                  <button
+                    onClick={() => handleMovePhase(phase, -1)}
+                    disabled={index === 0}
+                    className="p-1.5 btn-press disabled:opacity-25"
+                    aria-label={t('trip.move_phase_up')}
+                  >
+                    <Icon name="arrow_upward" size={16} className="text-on-surface-dim" />
+                  </button>
+                  <button
+                    onClick={() => handleMovePhase(phase, 1)}
+                    disabled={index === sorted.length - 1}
+                    className="p-1.5 btn-press disabled:opacity-25"
+                    aria-label={t('trip.move_phase_down')}
+                  >
+                    <Icon name="arrow_downward" size={16} className="text-on-surface-dim" />
+                  </button>
+                  <button
+                    onClick={() => openDeletePhaseSheet(phase)}
+                    className="p-1.5 btn-press"
+                    aria-label={t('trip.delete_phase')}
+                  >
+                    <Icon name="delete" size={16} className="text-error" />
+                  </button>
+                </div>
                 <label className="text-xs text-on-surface-faint">{t('onboarding.phase_name')}</label>
                 <input
                   type="text"
@@ -317,6 +394,60 @@ export function TripEditPage() {
           {saving ? t('common.loading') : t('common.save')}
         </button>
       </div>
+
+      {/* DEC-080: delete phase sheet — blocked with data or last phase */}
+      <BottomSheet
+        open={phaseDeleteTarget !== null}
+        onClose={() => setPhaseDeleteTarget(null)}
+        title={t('trip.delete_phase')}
+      >
+        {phaseDeleteTarget && (() => {
+          const { phase, txCount, sessionCount } = phaseDeleteTarget;
+          const isLastPhase = phases.length <= 1;
+          const hasData = txCount > 0 || sessionCount > 0;
+
+          if (isLastPhase || hasData) {
+            return (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs text-on-surface-dim">
+                  {isLastPhase
+                    ? t('trip.delete_phase_last_blocked')
+                    : t('trip.delete_phase_blocked', { count: txCount + sessionCount })}
+                </p>
+                <button
+                  onClick={() => setPhaseDeleteTarget(null)}
+                  className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-on-surface-dim">
+                {t('trip.delete_phase_confirm', { name: phase.name })}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPhaseDeleteTarget(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={handleConfirmDeletePhase}
+                  disabled={deletingPhase}
+                  className="flex-1 py-2.5 rounded-xl bg-error/15 text-error font-medium text-sm btn-press disabled:opacity-40"
+                >
+                  {t('common.delete')}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </BottomSheet>
     </div>
   );
 }

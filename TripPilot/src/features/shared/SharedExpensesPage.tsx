@@ -21,7 +21,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 export function SharedExpensesPage() {
   const { t } = useTranslation();
   const { trip, transactions, participants, reload } = useAppData();
-  const [, setShares] = useState<ParticipantShare[]>([]);
+  const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
 
@@ -195,6 +195,57 @@ export function SharedExpensesPage() {
           </button>
         )}
       </div>
+
+      {/* DEC-071 (FIELD-03): shared expenses with per-share confirmation status */}
+      {(() => {
+        const sharedTxs = transactions.filter(
+          (tx) => tx.isShared && tx.type === 'expense' && tx.deletedAt === null,
+        );
+        if (sharedTxs.length === 0) return null;
+        const nameById = new Map(participants.map((p) => [p.id, p.nickname ?? p.name]));
+        const statusStyle: Record<string, string> = {
+          pending: 'bg-warning/15 text-warning',
+          confirmed: 'bg-success/20 text-success',
+          rejected: 'bg-error/15 text-error',
+        };
+        return (
+          <div>
+            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
+              {t('shared.shared_expenses_title')}
+            </p>
+            {sharedTxs.map((tx) => {
+              const txShares = shares.filter(
+                (s) => s.transactionId === tx.id && s.deletedAt === null,
+              );
+              return (
+                <div key={tx.id} className="bg-surface-container rounded-xl p-4 mb-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-on-surface truncate">{tx.description}</p>
+                    <p className="text-sm font-semibold tabular text-on-surface shrink-0">
+                      {formatMoney(tx.amountCents, tx.currency)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1 mt-2">
+                    {txShares.map((share) => (
+                      <div key={share.id} className="flex items-center justify-between">
+                        <p className="text-xs text-on-surface-dim truncate">
+                          {nameById.get(share.participantId) ?? '—'} ·{' '}
+                          <span className="tabular">{formatMoney(share.shareAmountCents, tx.currency)}</span>
+                        </p>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${statusStyle[share.confirmationStatus]}`}
+                        >
+                          {t(`shared.status_${share.confirmationStatus}` as never)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {debtSummary && debtSummary.debts.length > 0 && (() => {
         const simplified = suggestSimplifiedSettlements(debtSummary.debts);
