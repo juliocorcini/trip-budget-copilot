@@ -7,6 +7,7 @@ import { createDefaultActivityProfiles } from '@/domain/profiles';
 import { toCents } from '@/domain/money';
 import { db } from '@/data/db/database';
 import { appSettingsRepository } from '@/data/repositories';
+import { requestPersistentStorage } from '@/utils/pwa';
 
 export function OnboardingPage() {
   const { t } = useTranslation();
@@ -57,6 +58,9 @@ export function OnboardingPage() {
       onboardingCompleted: true,
       isDemo: false,
     });
+
+    // GAP-R2-005: protect the freshly created trip data from browser eviction.
+    requestPersistentStorage();
 
     await reload();
     navigate('/dashboard');

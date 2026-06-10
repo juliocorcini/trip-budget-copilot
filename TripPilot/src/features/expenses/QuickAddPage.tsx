@@ -10,6 +10,7 @@ import { toCents, formatMoney } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
+import { requestPersistentStorage } from '@/utils/pwa';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -227,6 +228,9 @@ export function QuickAddPage() {
       }
 
       await registerExpense({ transaction: tx, shares: finalShares });
+
+      // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
+      requestPersistentStorage();
 
       await reload();
       navigate('/dashboard');

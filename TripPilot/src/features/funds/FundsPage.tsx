@@ -316,7 +316,7 @@ export function FundsPage() {
                                 className="p-1.5 btn-press"
                                 aria-label={t('common.delete')}
                               >
-                                <Icon name="delete" size={16} className="text-danger" />
+                                <Icon name="delete" size={16} className="text-error" />
                               </button>
                             )}
                           </div>

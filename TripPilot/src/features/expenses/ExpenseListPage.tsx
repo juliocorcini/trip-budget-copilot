@@ -1,26 +1,42 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { formatMoney, sumCents } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { getUnassignedTransactionCount } from '@/domain/wallets';
 import { Icon } from '@/components/Icon';
+import type { ActivityProfile } from '@/domain/types/activity-profile';
 
 type FilterCategory = string | null;
 
 export function ExpenseListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { trip, transactions, pools, wallets, loading } = useAppData();
-  const [filterCategory, setFilterCategory] = useState<FilterCategory>(null);
+  // FIELD-14: the list can arrive pre-filtered by URL (?profile=<id> / ?category=<cat>).
+  const [filterCategory, setFilterCategory] = useState<FilterCategory>(searchParams.get('category'));
+  const [filterProfileId, setFilterProfileId] = useState<string | null>(searchParams.get('profile'));
   const [filterWalletNull, setFilterWalletNull] = useState(false);
+  const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+
+  useEffect(() => {
+    if (!trip) return;
+    activityProfileRepository.getByTripId(trip.id).then(setProfiles);
+  }, [trip]);
 
   if (loading || !trip) return <p className="p-4 text-on-surface-dim">{t('common.loading')}</p>;
+
+  const filterProfile = filterProfileId
+    ? profiles.find((p) => p.id === filterProfileId) ?? null
+    : null;
 
   const expenses = transactions
     .filter((tx) => tx.type === 'expense' && tx.deletedAt === null)
     .filter((tx) => !filterCategory || tx.category === filterCategory)
+    .filter((tx) => !filterProfileId || tx.activityProfileId === filterProfileId)
     .filter((tx) => !filterWalletNull || tx.walletId === null)
     .sort((a, b) => b.date.localeCompare(a.date));
 
@@ -56,9 +72,16 @@ export function ExpenseListPage() {
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         <FilterChip
           label={t('expenses.title')}
-          active={!filterCategory && !filterWalletNull}
-          onClick={() => { setFilterCategory(null); setFilterWalletNull(false); }}
+          active={!filterCategory && !filterProfileId && !filterWalletNull}
+          onClick={() => { setFilterCategory(null); setFilterProfileId(null); setFilterWalletNull(false); }}
         />
+        {filterProfile && (
+          <FilterChip
+            label={filterProfile.name}
+            active
+            onClick={() => setFilterProfileId(null)}
+          />
+        )}
         {filterWalletNull && (
           <FilterChip
             label={t('expenses.filter_no_wallet')}

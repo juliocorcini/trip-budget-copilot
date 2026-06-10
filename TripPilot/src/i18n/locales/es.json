@@ -437,6 +437,11 @@
     "offline_ready": "Listo para uso sin conexión",
     "update_available": "Nueva versión disponible — toca para actualizar"
   },
+  "errors": {
+    "boundary_title": "Algo salió mal",
+    "boundary_message": "Tus datos están seguros en el dispositivo. Recarga la app para continuar.",
+    "boundary_reload": "Recargar"
+  },
   "common": {
     "save": "Guardar",
     "add": "Agregar",

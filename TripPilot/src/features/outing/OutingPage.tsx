@@ -20,6 +20,7 @@ import { resolveActivePhase } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
 import { createCustomActivityProfile } from '@/domain/profiles';
 import { registerExpense, endOutingSession } from '@/domain/orchestrators';
+import { requestPersistentStorage } from '@/utils/pwa';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { transactionRepository } from '@/data/repositories';
@@ -337,6 +338,8 @@ export function OutingPage() {
     if (tx.paidByParticipantId !== owner.id) tx.walletId = null;
     await registerExpense({ transaction: tx, shares });
     await persistSessionItem(tx, [...sessionTxs, tx], sess);
+    // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
+    requestPersistentStorage();
   };
 
   const handleSplitAdd = async (input: SessionSplitInput) => {

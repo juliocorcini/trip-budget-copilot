@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import { router } from './app/router';
 import { ToastHost } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { registerServiceWorker } from './utils/pwa';
 import { appSettingsRepository } from './data/repositories';
 import i18n from './i18n';
@@ -19,7 +20,9 @@ appSettingsRepository.get().then((settings) => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
-    <ToastHost />
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+      <ToastHost />
+    </ErrorBoundary>
   </StrictMode>,
 );

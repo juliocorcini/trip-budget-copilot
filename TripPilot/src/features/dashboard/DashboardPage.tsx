@@ -124,7 +124,7 @@ export function DashboardPage() {
         return;
       }
       const allocations = await scenarioAllocationItemRepository.getByPlanId(plan.id);
-      setForecasts(calculateOccasionForecasts(profiles, allocations, transactions));
+      setForecasts(calculateOccasionForecasts(profiles, allocations, transactions, phase.id));
     };
     load();
   }, [trip, phases, pools, profiles, transactions]);
@@ -364,6 +364,7 @@ export function DashboardPage() {
                 sublabel={t('dashboard.occasion_done', { count: forecast.spent })}
                 iconBg="#C75B3918"
                 iconColor="var(--primary)"
+                onClick={() => navigate(`/expenses?profile=${forecast.profileId}`)}
               />
             );
           })}
@@ -376,6 +377,7 @@ export function DashboardPage() {
             label={t('dashboard.occasion_bar')}
             iconBg="#C75B3918"
             iconColor="var(--primary)"
+            onClick={() => navigate('/expenses?category=bar')}
           />
           <OccasionCounter
             icon="shopping_cart"
@@ -383,6 +385,7 @@ export function DashboardPage() {
             label={t('dashboard.occasion_market')}
             iconBg="#6B8F7118"
             iconColor="var(--success)"
+            onClick={() => navigate('/expenses?category=market')}
           />
           <OccasionCounter
             icon="restaurant"
@@ -390,6 +393,7 @@ export function DashboardPage() {
             label={t('dashboard.occasion_restaurant')}
             iconBg="#D4A84318"
             iconColor="var(--warning)"
+            onClick={() => navigate('/expenses?category=restaurant')}
           />
         </div>
       ) : null}
@@ -542,18 +546,26 @@ export function DashboardPage() {
             </button>
           </div>
           <div className="flex flex-col gap-1">
+            {/* FIELD-13: recent items navigate to the expense detail */}
             {recent.map((tx) => (
-              <div key={tx.id} className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between">
+              <button
+                key={tx.id}
+                onClick={() => navigate(`/expenses/${tx.id}`)}
+                className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full"
+              >
                 <div>
                   <p className="text-sm text-on-surface font-semibold">{tx.description}</p>
                   <p className="text-xs text-on-surface-faint">
                     {tx.category ? t(`categories.${tx.category}` as never) : ''}
                   </p>
                 </div>
-                <p className="text-sm font-bold tabular text-on-surface">
-                  {formatMoney(tx.amountCents, tx.currency)}
-                </p>
-              </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold tabular text-on-surface">
+                    {formatMoney(tx.amountCents, tx.currency)}
+                  </p>
+                  <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
+                </div>
+              </button>
             ))}
           </div>
         </div>
@@ -572,6 +584,7 @@ export function DashboardPage() {
   );
 }
 
+// FIELD-14: counters navigate to the expense list pre-filtered by profile/category.
 function OccasionCounter({
   icon,
   count,
@@ -579,6 +592,7 @@ function OccasionCounter({
   sublabel,
   iconBg,
   iconColor,
+  onClick,
 }: {
   icon: string;
   count: number;
@@ -586,9 +600,10 @@ function OccasionCounter({
   sublabel?: string;
   iconBg: string;
   iconColor: string;
+  onClick: () => void;
 }) {
   return (
-    <div className="p-3.5 rounded-2xl text-center bg-surface-container">
+    <button onClick={onClick} className="p-3.5 rounded-2xl text-center bg-surface-container btn-press">
       <div
         className="w-9 h-9 mx-auto rounded-full flex items-center justify-center mb-1.5"
         style={{ background: iconBg }}
@@ -598,6 +613,6 @@ function OccasionCounter({
       <p className="text-xl font-extrabold tabular text-on-surface">{count}</p>
       <p className="text-[10px] font-bold text-on-surface-dim">{label}</p>
       {sublabel && <p className="text-[9px] font-semibold text-on-surface-faint mt-0.5">{sublabel}</p>}
-    </div>
+    </button>
   );
 }

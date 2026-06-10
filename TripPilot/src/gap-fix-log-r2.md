@@ -1,9 +1,9 @@
 # Gap Fix Log R2 — TripPilot
 
 ## Current State
-- **Gate ativo**: 2 | **Item ativo**: FIELD-13
-- **Itens resolvidos**: 4/23 (GAP-R2-001 · FIELD-12b/GAP-R2-002 · GAP-R2-003 · FIELD-10)
-- **Testes**: 156 unit (baseline 156) + 22 e2e (baseline 22)
+- **Gate ativo**: 3 | **Item ativo**: migração Dexie v3
+- **Itens resolvidos**: 10/23 (+FIELD-13, FIELD-14, GAP-R2-004, 005, 006, 007)
+- **Testes**: 157 unit (baseline 156) + 22 e2e (baseline 22)
 - **Build/Typecheck**: clean
 - **Migração Dexie v3**: pendente (Gate 3)
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`
@@ -22,12 +22,12 @@
 - [x] DEC-081 / FIELD-10 — `user-select:none` global (inputs/textarea/contenteditable preservados), tap-highlight transparente, `touch-action: manipulation` em button/a/[role=button] (`tokens.css`)
 
 ### Gate 2 — Correções rápidas
-- [ ] FIELD-13 — recentes clicáveis
-- [ ] FIELD-14 — counters → /expenses?profile=
-- [ ] GAP-R2-006 — forecasting phase-scoped
-- [ ] GAP-R2-007 — text-danger → text-error
-- [ ] GAP-R2-004 — ErrorBoundary raiz
-- [ ] GAP-R2-005 — persistent storage automático
+- [x] FIELD-13 — gastos recentes do dashboard viram botões → `/expenses/:id` com `btn-press` (DashboardPage)
+- [x] FIELD-14 — `OccasionCounter` com `onClick` obrigatório → `/expenses?profile=<id>` (forecast) ou `?category=` (fallback); `ExpenseListPage` lê `useSearchParams` (profile + category), filtro por `activityProfileId` + chip com nome do perfil
+- [x] GAP-R2-006 — `calculateOccasionForecasts(profiles, allocations, transactions, phaseId)` filtra transações por fase; teste novo "ignores transactions from other phases" (157 unit)
+- [x] GAP-R2-007 — `text-danger` → `text-error` (FundsPage.tsx)
+- [x] GAP-R2-004 — `ErrorBoundary.tsx` raiz (class component, tela do design system, botão recarregar, i18n ×3) envolvendo RouterProvider em main.tsx
+- [x] GAP-R2-005 — `requestPersistentStorage()` idempotente (checa `persisted()`) chamado após onboarding (OnboardingPage), 1º gasto (QuickAddPage) e quick-add de sessão (OutingPage); status manual continua em Settings
 
 ### Gate 3 — Migração Dexie v3 unificada
 - [ ] confirmationStatus + phaseProfileSettings + Phase.rhythm + PlannedOccurrence estendida + índices

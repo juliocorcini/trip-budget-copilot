@@ -437,6 +437,11 @@
     "offline_ready": "Ready for offline use",
     "update_available": "New version available — tap to update"
   },
+  "errors": {
+    "boundary_title": "Something went wrong",
+    "boundary_message": "Your data is safe on this device. Reload the app to continue.",
+    "boundary_reload": "Reload"
+  },
   "common": {
     "save": "Save",
     "add": "Add",

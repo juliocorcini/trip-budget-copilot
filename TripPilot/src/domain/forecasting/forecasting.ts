@@ -48,10 +48,13 @@ export interface OccasionForecast {
   estimatedRemainingCostCents: number;
 }
 
+// GAP-R2-006: forecasts are phase-scoped — allocations come from the phase's
+// active plan and transactions are filtered by phase, so counters never mix phases.
 export function calculateOccasionForecasts(
   profiles: ActivityProfile[],
   allocations: ScenarioAllocationItem[],
   transactions: Transaction[],
+  phaseId: string,
 ): OccasionForecast[] {
   return profiles
     .filter((p) => p.deletedAt === null)
@@ -64,6 +67,7 @@ export function calculateOccasionForecasts(
       const spent = transactions.filter(
         (t) =>
           t.activityProfileId === profile.id &&
+          t.phaseId === phaseId &&
           t.type === 'expense' &&
           t.deletedAt === null,
       ).length;

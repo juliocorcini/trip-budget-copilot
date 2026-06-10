@@ -95,10 +95,24 @@ describe('calculateOccasionForecasts', () => {
       { ...meta, id: 'tx-1', tripId: 'trip-1', phaseId: 'ph-1', budgetPoolId: 'pool-1', walletId: null, sessionId: null, type: 'expense' as const, amountCents: 1500, personalCostCents: 1500, currency: 'EUR', baseCurrencyAmountCents: 1500, exchangeRate: null, category: 'bar', description: 'test', date: '2026-07-01T00:00:00.000Z', isShared: false, paidByParticipantId: null, activityProfileId: 'prof-1', isSpecialOccasion: false, excludeFromLearning: false, sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null },
       { ...meta, id: 'tx-2', tripId: 'trip-1', phaseId: 'ph-1', budgetPoolId: 'pool-1', walletId: null, sessionId: null, type: 'expense' as const, amountCents: 1800, personalCostCents: 1800, currency: 'EUR', baseCurrencyAmountCents: 1800, exchangeRate: null, category: 'bar', description: 'test', date: '2026-07-02T00:00:00.000Z', isShared: false, paidByParticipantId: null, activityProfileId: 'prof-1', isSpecialOccasion: false, excludeFromLearning: false, sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null },
     ];
-    const forecasts = calculateOccasionForecasts(profiles, allocations, txs);
+    const forecasts = calculateOccasionForecasts(profiles, allocations, txs, 'ph-1');
     expect(forecasts).toHaveLength(1);
     expect(forecasts[0]!.remaining).toBe(3);
     expect(forecasts[0]!.spent).toBe(2);
     expect(forecasts[0]!.estimatedRemainingCostCents).toBe(3 * 2000);
+  });
+
+  it('GAP-R2-006: ignores transactions from other phases', () => {
+    const profiles = [baseProfile];
+    const allocations: ScenarioAllocationItem[] = [
+      { ...meta, id: 'a1', scenarioPlanId: 'sp1', activityProfileId: 'prof-1', quantity: 5, estimatedUnitCostCents: 1500, isLocked: false, priority: 'planned', notes: null },
+    ];
+    const txs = [
+      { ...meta, id: 'tx-1', tripId: 'trip-1', phaseId: 'ph-1', budgetPoolId: 'pool-1', walletId: null, sessionId: null, type: 'expense' as const, amountCents: 1500, personalCostCents: 1500, currency: 'EUR', baseCurrencyAmountCents: 1500, exchangeRate: null, category: 'bar', description: 'test', date: '2026-07-01T00:00:00.000Z', isShared: false, paidByParticipantId: null, activityProfileId: 'prof-1', isSpecialOccasion: false, excludeFromLearning: false, sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null },
+      { ...meta, id: 'tx-2', tripId: 'trip-1', phaseId: 'ph-OTHER', budgetPoolId: 'pool-1', walletId: null, sessionId: null, type: 'expense' as const, amountCents: 1800, personalCostCents: 1800, currency: 'EUR', baseCurrencyAmountCents: 1800, exchangeRate: null, category: 'bar', description: 'test', date: '2026-07-02T00:00:00.000Z', isShared: false, paidByParticipantId: null, activityProfileId: 'prof-1', isSpecialOccasion: false, excludeFromLearning: false, sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null },
+    ];
+    const forecasts = calculateOccasionForecasts(profiles, allocations, txs, 'ph-1');
+    expect(forecasts[0]!.spent).toBe(1);
+    expect(forecasts[0]!.remaining).toBe(4);
   });
 });
