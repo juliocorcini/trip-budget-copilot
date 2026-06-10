@@ -38,6 +38,7 @@ describe('createExpenseTransaction', () => {
       amountCents: 4550,
       currency: 'EUR',
       category: 'bar',
+      subcategoryId: null,
       description: 'Drinks',
     });
     expect(tx.type).toBe('expense');
@@ -55,6 +56,7 @@ describe('createExpenseTransaction', () => {
       amountCents: 9000,
       currency: 'EUR',
       category: 'restaurant',
+      subcategoryId: null,
       description: 'Dinner',
       isShared: true,
     });

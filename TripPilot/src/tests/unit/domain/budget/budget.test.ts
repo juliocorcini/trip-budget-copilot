@@ -52,6 +52,7 @@ const mkTx = (id: string, amount: number, type: 'expense' | 'adjustment' = 'expe
   baseCurrencyAmountCents: amount,
   exchangeRate: null,
   category: 'bar',
+  subcategoryId: null,
   description: 'test',
   date: '2026-01-01T00:00:00.000Z',
   isShared: false,

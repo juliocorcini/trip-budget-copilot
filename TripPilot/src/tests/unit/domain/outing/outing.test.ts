@@ -23,7 +23,7 @@ const mkTx = (id: string, amount: number): Transaction => ({
   walletId: null, sessionId: 'sess-1', type: 'expense',
   amountCents: amount, personalCostCents: amount, currency: 'EUR',
   baseCurrencyAmountCents: amount, exchangeRate: null,
-  category: 'bar', description: 'drink', date: '2026-07-01T22:00:00.000Z',
+  category: 'bar', subcategoryId: null, description: 'drink', date: '2026-07-01T22:00:00.000Z',
   isShared: false, paidByParticipantId: null, activityProfileId: null,
   isSpecialOccasion: false, excludeFromLearning: false,
   sourceWalletId: null, targetWalletId: null, settlementId: null,

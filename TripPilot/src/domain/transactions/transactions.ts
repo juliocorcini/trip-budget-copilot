@@ -10,6 +10,7 @@ export interface CreateExpenseInput {
   amountCents: number;
   currency: string;
   category: string;
+  subcategoryId?: string | null;
   description: string;
   date?: string;
   type?: TransactionType;
@@ -44,6 +45,7 @@ export function createExpenseTransaction(input: CreateExpenseInput): Transaction
     baseCurrencyAmountCents: input.amountCents,
     exchangeRate: null,
     category: input.category,
+    subcategoryId: input.subcategoryId ?? null,
     description: input.description,
     date: input.date ?? now,
     isShared: input.isShared ?? false,
@@ -86,6 +88,7 @@ export function createTransferTransaction(input: CreateTransferInput): Transacti
     baseCurrencyAmountCents: input.amountCents,
     exchangeRate: null,
     category: null,
+    subcategoryId: null,
     description: input.description,
     date: input.date ?? now,
     isShared: false,
@@ -125,6 +128,7 @@ export function createAdjustmentTransaction(
     baseCurrencyAmountCents: amountCents,
     exchangeRate: null,
     category,
+    subcategoryId: null,
     description: reason,
     date: new Date().toISOString(),
     isShared: false,

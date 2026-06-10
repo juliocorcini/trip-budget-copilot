@@ -13,6 +13,8 @@ export interface Transaction extends SyncMetadata {
   baseCurrencyAmountCents: number;
   exchangeRate: number | null;
   category: string | null;
+  /** DEC-095 (R-13): expense-taxonomy id (e.g. `bar_drink`). NOT indexed. */
+  subcategoryId: string | null;
   description: string;
   date: string;
   isShared: boolean;

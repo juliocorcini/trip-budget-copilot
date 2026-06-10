@@ -1,10 +1,10 @@
 # Gap Fix Log R3 — TripPilot
 
 ## Current State
-- **Gate ativo**: Gate 4 (taxonomia de subcategorias)
-- **Requisito ativo**: R-13
-- **Itens resolvidos**: 12/26
-- **Testes**: 255 unit (+27) + 29 e2e
+- **Gate ativo**: Gate 5 (Planner overhaul)
+- **Requisito ativo**: R-19
+- **Itens resolvidos**: 18/26
+- **Testes**: 257 unit (+29) + 29 e2e
 - **Build/Typecheck**: clean
 - **Notas de ambiente**: Node 22 p/ wrangler/playwright (`export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`); git via `bash -c 'git commit -F /tmp/commit-msg.txt'`; NUNCA criar Dexie v4 sem necessidade real de índice
 
@@ -35,12 +35,13 @@
 - Checkpoint Gate 3: typecheck ✅ · 255 unit ✅ · build ✅ · 29 e2e ✅ · i18n ×3 paridade (550 chaves)
 
 ### Gate 4 — Taxonomia (R-13..18)
-- [ ] R-13 — Catálogo de subcategorias por tipo
-- [ ] R-14 — Stepper ≥10s
-- [ ] R-15 — Itens da sessão mostram subcategoria
-- [ ] R-16 — Split pergunta o que foi
-- [ ] R-17 — Eventos: 2 níveis
-- [ ] R-18 — Detalhe de saída com itens específicos
+- [x] R-13 — `domain/outing/expense-taxonomy.ts` (data-driven): 17 listas (16 categorias de preset + tickets) + fallback genérico, 4-10 subcategorias cada `{id, labelKey taxonomy.*, icon, typicalCents}`; `sortSubcategoriesByProximity` ordena por |typical−valor| (€3→jogos primeiro, €10→couvert); `findSubcategory` p/ render global. Campo `subcategoryId: string | null` em Transaction (NÃO indexado → Dexie continua v3; type+factories+Zod com `.default(null)` p/ backups antigos+CSV coluna "Subcategoria"). Labels ×3 idiomas (116 chaves/idioma)
+- [x] R-14 — `ENRICH_AUTO_DISMISS_MS` 3000→10000; `onPointerDown`/`onScrollCapture` no stepper fazem bump do state (novo objeto) → timer reseta a cada interação
+- [x] R-15 — Histórico da sessão ativa: item com subcategoria mostra ícone+nome (`taxonomy.*`); sem subcategoria vira botão "Toque para detalhar" que reabre o stepper para AQUELE item (skipPayer)
+- [x] R-16 — `doSplitAdd` abre o stepper (mesmo componente) após salvar o split com `skipPayer: true` — pergunta só O QUE foi (pagador/rateio já definidos)
+- [x] R-17 — Sessões de evento (activityProfileId null): stepper nível 1 = `EVENT_CONTEXTS` (bar/restaurant/market/transport/gifts/entertainment/other, gravado como `category`, labels `categories.*` existentes) → nível 2 = subcategorias do contexto (gravado como `subcategoryId`)
+- [x] R-18 — `formatSessionItemLabel`: subcategoria > descrição própria > categoria — NUNCA o nome da sessão; aplicado no review de fim de sessão e no OutingReviewPage (ícone da subcategoria + linha secundária com o contexto p/ eventos)
+- Checkpoint Gate 4: typecheck ✅ · 257 unit ✅ · build ✅ · 29 e2e ✅ · i18n ×3 paridade (666 chaves)
 
 ### Gate 5 — Planner overhaul (R-19..24)
 - [ ] R-19 — Margem livre ao vivo

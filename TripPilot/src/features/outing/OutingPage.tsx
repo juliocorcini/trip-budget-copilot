@@ -13,9 +13,18 @@ import {
   DEFAULT_QUICK_ADD_VALUES_CENTS,
   findHighlightedQuickValueIndex,
   ENRICH_AUTO_DISMISS_MS,
-  getEnrichmentCategories,
+  getSubcategories,
+  sortSubcategoriesByProximity,
+  findSubcategory,
+  EVENT_CONTEXTS,
 } from '@/domain/outing';
-import type { SessionLimits, OutingAlert, EnrichStep } from '@/domain/outing';
+import type {
+  SessionLimits,
+  OutingAlert,
+  EnrichStep,
+  ExpenseSubcategory,
+  EventContext,
+} from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
@@ -82,6 +91,22 @@ function parseAmountToCents(value: string): number {
   return Number.isNaN(parsed) ? 0 : Math.round(parsed * 100);
 }
 
+/**
+ * DEC-097 (R-18): item label = subcategory when detailed; own description
+ * when it carries information; the category as last resort — NEVER the
+ * session name repeated.
+ */
+function formatSessionItemLabel(
+  tx: Transaction,
+  sessionName: string,
+  t: (key: never) => string,
+): string {
+  const subcategory = findSubcategory(tx.subcategoryId);
+  if (subcategory) return t(subcategory.labelKey as never);
+  if (tx.description !== '' && tx.description !== sessionName) return tx.description;
+  return t(`categories.${tx.category ?? 'other'}` as never);
+}
+
 const ALERT_VARIANT: Record<OutingAlert['type'], ToastVariant> = {
   info: 'info',
   warning: 'warning',
@@ -108,6 +133,10 @@ interface EnrichTarget {
   amountCents: number;
   step: EnrichStep;
   paidById: string | null;
+  /** DEC-096 (R-17): level-2 taxonomy of the chosen event context. */
+  contextTaxonomyKey: string | null;
+  /** True when re-detailing an item or enriching a split — payer is known. */
+  skipPayer: boolean;
 }
 
 export function OutingPage() {
@@ -393,7 +422,7 @@ export function OutingPage() {
     }
     const tx = await addSessionExpense(amountCents, sess.name, sess, txPhaseId);
     // DEC-078: the stepper only enriches — the expense above is already saved.
-    if (tx) setEnrich({ txId: tx.id, amountCents, step: 'category', paidById: null });
+    if (tx) setEnrich(buildEnrichTarget(tx.id, amountCents, sess, false));
   };
 
   const handleQuickAdd = async (amountCents: number) => {
@@ -412,16 +441,37 @@ export function OutingPage() {
     const pending = pendingOverMaxAdd;
     setPendingOverMaxAdd(null);
     const tx = await addSessionExpense(pending.amountCents, updated.name, updated, pending.txPhaseId);
-    if (tx) setEnrich({ txId: tx.id, amountCents: pending.amountCents, step: 'category', paidById: null });
+    if (tx) setEnrich(buildEnrichTarget(tx.id, pending.amountCents, updated, false));
   };
 
-  // DEC-078: 3s without interaction dismisses the stepper; every step
-  // change produces a new state object, which resets the timer.
+  // DEC-095/096: profile sessions ask the subcategory directly; event
+  // sessions (no profile) ask the context first (level 1 → level 2).
+  const buildEnrichTarget = (
+    txId: string,
+    amountCents: number,
+    sess: Session,
+    skipPayer: boolean,
+  ): EnrichTarget => ({
+    txId,
+    amountCents,
+    step: sess.activityProfileId !== null ? 'category' : 'context',
+    paidById: null,
+    contextTaxonomyKey: null,
+    skipPayer,
+  });
+
+  // DEC-096 (R-14): 10s without interaction dismisses the stepper; every
+  // state object change (including touch bumps) resets the timer.
   useEffect(() => {
     if (enrich === null) return;
     const timer = window.setTimeout(() => setEnrich(null), ENRICH_AUTO_DISMISS_MS);
     return () => window.clearTimeout(timer);
   }, [enrich]);
+
+  // DEC-096 (R-14): any touch/scroll on the stepper resets the idle timer.
+  const handleEnrichInteract = () => {
+    setEnrich((current) => (current === null ? null : { ...current }));
+  };
 
   const otherParticipants = participants.filter((p) => !p.isOwner);
 
@@ -429,14 +479,26 @@ export function OutingPage() {
     setSessionTxs((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
   };
 
-  const handleEnrichCategory = async (category: string) => {
+  // DEC-096 (R-17) level 1: the context is stored as the category.
+  const handleEnrichContext = async (context: EventContext) => {
     if (!enrich) return;
     const tx = await transactionRepository.getById(enrich.txId);
     if (tx) {
-      const updated = await transactionRepository.update({ ...tx, category });
+      const updated = await transactionRepository.update({ ...tx, category: context.category });
       replaceSessionTx(updated);
     }
-    if (otherParticipants.length > 0) {
+    setEnrich({ ...enrich, step: 'category', contextTaxonomyKey: context.taxonomyKey });
+  };
+
+  // DEC-095 (R-13): the "what was it" answer is a taxonomy subcategory.
+  const handleEnrichSubcategory = async (subcategory: ExpenseSubcategory) => {
+    if (!enrich) return;
+    const tx = await transactionRepository.getById(enrich.txId);
+    if (tx) {
+      const updated = await transactionRepository.update({ ...tx, subcategoryId: subcategory.id });
+      replaceSessionTx(updated);
+    }
+    if (!enrich.skipPayer && otherParticipants.length > 0) {
       setEnrich({ ...enrich, step: 'payer' });
     } else {
       setEnrich(null);
@@ -524,6 +586,9 @@ export function OutingPage() {
     if (tx.paidByParticipantId !== owner.id) tx.walletId = null;
     await registerExpense({ transaction: tx, shares });
     await persistSessionItem(tx, [...sessionTxs, tx], sess);
+    // DEC-096 (R-16): the split flow also asks WHAT it was — payer and
+    // shares are already set, so the stepper skips those steps.
+    setEnrich(buildEnrichTarget(tx.id, input.amountCents, sess, true));
     // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
     requestPersistentStorage();
   };
@@ -754,7 +819,6 @@ export function OutingPage() {
   const sessionProfile = profiles.find((p) => p.id === session.activityProfileId) ?? null;
   const sessionIcon =
     sessionProfile?.iconName ?? getCategoryIcon(sessionProfile?.category ?? null);
-  const sessionCategory = sessionProfile?.category ?? 'other';
 
   return (
     <>
@@ -764,7 +828,6 @@ export function OutingPage() {
         trip={trip}
         elapsed={elapsed}
         sessionIcon={sessionIcon}
-        sessionCategory={sessionCategory}
         participants={participants}
         owner={owner}
         onQuickAdd={handleQuickAdd}
@@ -773,18 +836,28 @@ export function OutingPage() {
         onUpdateQuickValues={handleUpdateQuickValues}
         onEnd={() => setReviewing(true)}
         onBack={() => navigate(-1)}
+        onDetailItem={(tx) =>
+          setEnrich(
+            buildEnrichTarget(tx.id, tx.personalCostCents ?? tx.amountCents, session, true),
+          )
+        }
         enrichStepper={
           enrich && (
             <EnrichStepper
               enrich={enrich}
               currency={trip.baseCurrency}
-              categories={getEnrichmentCategories(sessionProfile?.category ?? null)}
+              subcategories={sortSubcategoriesByProximity(
+                getSubcategories(enrich.contextTaxonomyKey ?? sessionProfile?.category ?? null),
+                enrich.amountCents,
+              )}
               owner={owner}
               otherParticipants={otherParticipants}
-              onCategory={handleEnrichCategory}
+              onContext={handleEnrichContext}
+              onSubcategory={handleEnrichSubcategory}
               onPayer={handleEnrichPayer}
               onSplit={handleEnrichSplit}
               onSkip={() => setEnrich(null)}
+              onInteract={handleEnrichInteract}
             />
           )
         }
@@ -1004,22 +1077,27 @@ function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCen
 interface EnrichStepperProps {
   enrich: EnrichTarget;
   currency: string;
-  categories: string[];
+  /** DEC-095: already sorted by proximity to the logged amount. */
+  subcategories: ExpenseSubcategory[];
   owner: Participant | null;
   otherParticipants: Participant[];
-  onCategory: (category: string) => void;
+  onContext: (context: EventContext) => void;
+  onSubcategory: (subcategory: ExpenseSubcategory) => void;
   onPayer: (participantId: string) => void;
   onSplit: (didSplit: boolean) => void;
   onSkip: () => void;
+  /** DEC-096 (R-14): any touch/scroll resets the auto-dismiss timer. */
+  onInteract: () => void;
 }
 
 const ENRICH_QUESTION_KEY: Record<EnrichStep, string> = {
+  context: 'outing.enrich_where',
   category: 'outing.enrich_what',
   payer: 'outing.enrich_who_paid',
   split: 'outing.enrich_split',
 };
 
-function EnrichStepper({ enrich, currency, categories, owner, otherParticipants, onCategory, onPayer, onSplit, onSkip }: EnrichStepperProps) {
+function EnrichStepper({ enrich, currency, subcategories, owner, otherParticipants, onContext, onSubcategory, onPayer, onSplit, onSkip, onInteract }: EnrichStepperProps) {
   const { t } = useTranslation();
 
   const chipStyle = {
@@ -1031,6 +1109,8 @@ function EnrichStepper({ enrich, currency, categories, owner, otherParticipants,
     <div
       className="mx-5 mb-2.5 p-3 rounded-xl"
       style={{ background: 'var(--surface-container)', border: '1px solid var(--highlight-subtle)' }}
+      onPointerDown={onInteract}
+      onScrollCapture={onInteract}
     >
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-bold" style={{ color: 'var(--success)' }}>
@@ -1049,17 +1129,37 @@ function EnrichStepper({ enrich, currency, categories, owner, otherParticipants,
         {t(ENRICH_QUESTION_KEY[enrich.step] as never)}
       </p>
 
-      {enrich.step === 'category' && (
+      {/* DEC-096 (R-17) level 1: event context — stored as category */}
+      {enrich.step === 'context' && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {categories.map((cat) => (
+          {EVENT_CONTEXTS.map((context) => (
             <button
-              key={cat}
-              onClick={() => onCategory(cat)}
+              key={context.category}
+              onClick={() => onContext(context)}
               className="btn-press shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-xl"
               style={chipStyle}
             >
-              <Icon name={getCategoryIcon(cat)} size={18} className="text-on-surface-dim" />
-              <span className="text-[10px] font-semibold">{t(`categories.${cat}` as never)}</span>
+              <Icon name={context.icon} size={18} className="text-on-surface-dim" />
+              <span className="text-[10px] font-semibold">
+                {t(`categories.${context.category}` as never)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* DEC-095 (R-13): subcategories of the outing type, closest first */}
+      {enrich.step === 'category' && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {subcategories.map((subcategory) => (
+            <button
+              key={subcategory.id}
+              onClick={() => onSubcategory(subcategory)}
+              className="btn-press shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-xl"
+              style={chipStyle}
+            >
+              <Icon name={subcategory.icon} size={18} className="text-on-surface-dim" />
+              <span className="text-[10px] font-semibold">{t(subcategory.labelKey as never)}</span>
             </button>
           ))}
         </div>
@@ -1199,7 +1299,8 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
           {sessionTxs.map((tx) => (
             <div key={tx.id} className="flex items-center gap-2">
               <span className="text-xs text-on-surface-dim flex-1 truncate">
-                {tx.description}
+                {/* DEC-097 (R-18): show WHAT it was — never the session name */}
+                {formatSessionItemLabel(tx, session.name, t)}
                 {tx.isShared && (
                   <Icon name="group" size={12} className="text-on-surface-faint ml-1 align-middle" />
                 )}
@@ -1346,7 +1447,6 @@ interface ActiveSessionProps {
   trip: { baseCurrency: string };
   elapsed: string;
   sessionIcon: string;
-  sessionCategory: string;
   participants: Participant[];
   owner: Participant | null;
   onQuickAdd: (cents: number) => void;
@@ -1355,11 +1455,13 @@ interface ActiveSessionProps {
   onUpdateQuickValues: (valuesCents: number[]) => void;
   onEnd: () => void;
   onBack: () => void;
+  /** DEC-097 (R-15): re-opens the stepper for an item without subcategory. */
+  onDetailItem: (tx: Transaction) => void;
   /** Post-add enrichment stepper slot (DEC-078) — rendered above quick-add. */
   enrichStepper: React.ReactNode;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessionCategory, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, enrichStepper }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, onDetailItem, enrichStepper }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -1644,37 +1746,64 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, sessio
               {sessionTxs.length} {t('expenses.title').toLowerCase()}
             </span>
           </div>
+          {/* DEC-097 (R-15): the user already knows WHERE they are — items
+              show WHAT was bought; undetailed items re-open the stepper. */}
           <div className="space-y-2">
-            {recentTxs.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ background: 'var(--primary)' }}
-                  />
-                  <span className="text-xs font-semibold" style={{ color: 'var(--on-surface-dim)' }}>
-                    {tx.description || t(`categories.${sessionCategory}` as never)}
-                    {tx.isShared && (
-                      <Icon name="group" size={11} className="text-on-surface-faint ml-1 align-middle" />
+            {recentTxs.map((tx) => {
+              const subcategory = findSubcategory(tx.subcategoryId);
+              const hasOwnLabel = tx.description !== '' && tx.description !== session.name;
+              return (
+                <button
+                  key={tx.id}
+                  onClick={() => {
+                    if (!subcategory) onDetailItem(tx);
+                  }}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {subcategory ? (
+                      <Icon name={subcategory.icon} size={14} className="text-primary shrink-0" />
+                    ) : (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ background: 'var(--primary)' }}
+                      />
                     )}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="text-[10px] font-semibold tabular"
-                    style={{ color: 'var(--on-surface-faint)' }}
-                  >
-                    {formatTime(tx.date)}
-                  </span>
-                  <span
-                    className="text-xs font-bold tabular"
-                    style={{ color: 'var(--on-surface)' }}
-                  >
-                    {formatCurrencyFull(tx.personalCostCents ?? tx.amountCents, tx.currency)}
-                  </span>
-                </div>
-              </div>
-            ))}
+                    <span
+                      className="text-xs font-semibold truncate"
+                      style={{
+                        color: subcategory || hasOwnLabel
+                          ? 'var(--on-surface-dim)'
+                          : 'var(--on-surface-faint)',
+                      }}
+                    >
+                      {subcategory
+                        ? t(subcategory.labelKey as never)
+                        : hasOwnLabel
+                          ? tx.description
+                          : t('outing.tap_to_detail')}
+                      {tx.isShared && (
+                        <Icon name="group" size={11} className="text-on-surface-faint ml-1 align-middle" />
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span
+                      className="text-[10px] font-semibold tabular"
+                      style={{ color: 'var(--on-surface-faint)' }}
+                    >
+                      {formatTime(tx.date)}
+                    </span>
+                    <span
+                      className="text-xs font-bold tabular"
+                      style={{ color: 'var(--on-surface)' }}
+                    >
+                      {formatCurrencyFull(tx.personalCostCents ?? tx.amountCents, tx.currency)}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

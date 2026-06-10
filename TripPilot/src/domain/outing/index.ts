@@ -18,8 +18,13 @@ export type {
   SessionLimits,
   CreateSessionInput,
 } from './outing';
-export {
-  ENRICH_AUTO_DISMISS_MS,
-  getEnrichmentCategories,
-} from './enrichment';
+export { ENRICH_AUTO_DISMISS_MS } from './enrichment';
 export type { EnrichStep } from './enrichment';
+export {
+  getSubcategories,
+  sortSubcategoriesByProximity,
+  findSubcategory,
+  EVENT_CONTEXTS,
+  getSubcategoriesForContext,
+} from './expense-taxonomy';
+export type { ExpenseSubcategory, EventContext } from './expense-taxonomy';

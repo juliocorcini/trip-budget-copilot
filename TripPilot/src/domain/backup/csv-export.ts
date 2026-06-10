@@ -32,6 +32,7 @@ interface CsvRow {
   currency: string;
   baseCurrencyAmount: string;
   category: string;
+  subcategory: string;
   type: string;
   trip: string;
   phase: string;
@@ -54,7 +55,7 @@ interface CsvRow {
 
 const BASE_HEADERS = [
   'Data', 'Hora', 'Descrição', 'Valor', 'Valor Formatado', 'Moeda',
-  'Valor em moeda base', 'Categoria', 'Tipo', 'Viagem', 'Fase', 'Fundo',
+  'Valor em moeda base', 'Categoria', 'Subcategoria', 'Tipo', 'Viagem', 'Fase', 'Fundo',
   'Carteira', 'Caixa/Sessão', 'Compartilhado', 'Quem pagou',
   'Custo pessoal', 'Valor compartilhado', 'Observações',
 ];
@@ -64,7 +65,7 @@ const ADVANCED_HEADERS = ['ID', 'Status', 'Criado em', 'Atualizado em', 'Disposi
 function baseColumns(row: CsvRow): string[] {
   return [
     row.date, row.time, escapeCsv(row.description), row.amount, row.amountFormatted,
-    row.currency, row.baseCurrencyAmount, row.category, row.type,
+    row.currency, row.baseCurrencyAmount, row.category, row.subcategory, row.type,
     escapeCsv(row.trip), escapeCsv(row.phase), escapeCsv(row.fund),
     escapeCsv(row.wallet), escapeCsv(row.session), row.isShared,
     escapeCsv(row.paidBy), row.personalCost, row.sharedAmount, escapeCsv(row.notes),
@@ -116,6 +117,7 @@ export function transactionsToCsvRows(context: CsvExportContext): CsvRow[] {
         currency: t.currency,
         baseCurrencyAmount: fromCents(t.baseCurrencyAmountCents).toFixed(2),
         category: t.category ?? '',
+        subcategory: t.subcategoryId ?? '',
         type: t.type,
         trip: tripMap.get(t.tripId) ?? '',
         phase: phaseMap.get(t.phaseId) ?? '',

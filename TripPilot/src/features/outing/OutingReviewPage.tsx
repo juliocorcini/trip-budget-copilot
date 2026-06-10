@@ -5,7 +5,7 @@ import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { transactionRepository } from '@/data/repositories';
 import { useAppData } from '@/hooks/useAppData';
-import { calculateSessionTotal, formatSessionDuration } from '@/domain/outing';
+import { calculateSessionTotal, formatSessionDuration, findSubcategory } from '@/domain/outing';
 import { formatMoney } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
@@ -120,25 +120,38 @@ export function OutingReviewPage() {
         <p className="text-xs text-on-surface-faint mb-3">
           {t('outing.review_items')} ({sessionTxs.length})
         </p>
+        {/* DEC-097 (R-18): each item shows WHAT was bought (icon + subcategory;
+            context + subcategory for events) — never the session name. */}
         <div className="flex flex-col gap-2.5">
-          {sessionTxs.map((tx) => (
+          {sessionTxs.map((tx) => {
+            const subcategory = findSubcategory(tx.subcategoryId);
+            const hasOwnLabel = tx.description !== '' && tx.description !== session.name;
+            const label = subcategory
+              ? t(subcategory.labelKey as never)
+              : hasOwnLabel
+                ? tx.description
+                : t(`categories.${tx.category ?? 'other'}` as never);
+            // Events (no profile) keep the context as the secondary line.
+            const contextLabel =
+              subcategory && profile === null && tx.category
+                ? t(`categories.${tx.category}` as never)
+                : null;
+            return (
             <div key={tx.id} className="flex items-center gap-2.5">
               <Icon
-                name={getCategoryIcon(tx.category)}
+                name={subcategory?.icon ?? getCategoryIcon(tx.category)}
                 size={16}
                 className="text-on-surface-faint shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-on-surface-dim truncate">
-                  {tx.description}
+                  {label}
                   {tx.isShared && (
                     <Icon name="group" size={12} className="text-on-surface-faint ml-1 align-middle" />
                   )}
                 </p>
-                {tx.category && (
-                  <p className="text-[10px] text-on-surface-faint">
-                    {t(`categories.${tx.category}` as never)}
-                  </p>
+                {contextLabel && (
+                  <p className="text-[10px] text-on-surface-faint">{contextLabel}</p>
                 )}
               </div>
               <span className="text-[10px] text-on-surface-faint tabular">{formatTime(tx.date)}</span>
@@ -146,7 +159,8 @@ export function OutingReviewPage() {
                 {formatMoney(tx.personalCostCents ?? tx.amountCents, tx.currency)}
               </span>
             </div>
-          ))}
+            );
+          })}
           {sessionTxs.length === 0 && (
             <p className="text-xs text-on-surface-faint">{t('outing.review_no_items')}</p>
           )}

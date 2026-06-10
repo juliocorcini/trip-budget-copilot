@@ -92,6 +92,7 @@ function buildContext(advanced: boolean): CsvExportContext {
     amountCents: 9000,
     currency: 'EUR',
     category: 'restaurant',
+    subcategoryId: null,
     description: 'Dinner; with friends',
     date: '2026-07-02T22:30:00.000Z',
     sessionId: session.id,
@@ -115,14 +116,14 @@ function buildContext(advanced: boolean): CsvExportContext {
 }
 
 describe('csv export (GAP-021 / DEC-058)', () => {
-  it('basic mode exposes the 19 base columns with correct values', () => {
+  it('basic mode exposes the 20 base columns with correct values', () => {
     const rows = transactionsToCsvRows(buildContext(false));
     const csv = rowsToCsv(rows, false);
     const [header, line] = csv.split('\n');
 
     expect(header!.split(';')).toEqual([
       'Data', 'Hora', 'Descrição', 'Valor', 'Valor Formatado', 'Moeda',
-      'Valor em moeda base', 'Categoria', 'Tipo', 'Viagem', 'Fase', 'Fundo',
+      'Valor em moeda base', 'Categoria', 'Subcategoria', 'Tipo', 'Viagem', 'Fase', 'Fundo',
       'Carteira', 'Caixa/Sessão', 'Compartilhado', 'Quem pagou',
       'Custo pessoal', 'Valor compartilhado', 'Observações',
     ]);

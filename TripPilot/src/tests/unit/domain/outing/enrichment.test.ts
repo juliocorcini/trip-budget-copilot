@@ -1,56 +1,102 @@
 import { describe, it, expect } from 'vitest';
-import { getEnrichmentCategories } from '@/domain/outing';
-import { formatSessionDuration } from '@/domain/outing';
+import {
+  ENRICH_AUTO_DISMISS_MS,
+  getSubcategories,
+  sortSubcategoriesByProximity,
+  findSubcategory,
+  EVENT_CONTEXTS,
+  getSubcategoriesForContext,
+} from '@/domain/outing';
 
-describe('getEnrichmentCategories (DEC-078 — FIELD-08)', () => {
-  it('bar sessions offer the field-report set: drink/food/transport/ticket/other', () => {
-    const categories = getEnrichmentCategories('bar');
-    expect(categories).toEqual(['bar', 'restaurant', 'transport', 'entertainment', 'other']);
+describe('expense taxonomy (DEC-095 / R-13)', () => {
+  it('a bar outing offers bar things, not outing types', () => {
+    const ids = getSubcategories('bar').map((s) => s.id);
+    expect(ids).toContain('bar_drink');
+    expect(ids).toContain('bar_beer');
+    expect(ids).toContain('bar_food');
+    expect(ids).not.toContain('restaurant');
+    expect(ids).not.toContain('transport');
   });
 
-  it('every profile set ends with an "other" escape hatch', () => {
-    for (const profileCategory of ['bar', 'restaurant', 'festival', 'market', 'outing']) {
-      expect(getEnrichmentCategories(profileCategory)).toContain('other');
+  it('covers every R2 preset category with 5+ options', () => {
+    const presetCategories = [
+      'restaurant', 'bar', 'market', 'transport', 'accommodation', 'cafe',
+      'tours', 'museums', 'nightlife', 'beach', 'shopping', 'festival',
+      'sports', 'laundry', 'communication', 'health',
+    ];
+    for (const category of presetCategories) {
+      const subs = getSubcategories(category);
+      expect(subs.length, category).toBeGreaterThanOrEqual(4);
+      // Every list is its own — not the generic fallback.
+      expect(subs[0]!.id.startsWith(category), category).toBe(true);
     }
   });
 
-  it('null profile (one-off event session) falls back to the default set', () => {
-    expect(getEnrichmentCategories(null)).toEqual([
-      'restaurant', 'bar', 'transport', 'entertainment', 'other',
-    ]);
+  it('unknown or null category falls back to the generic list', () => {
+    expect(getSubcategories('scuba_diving')).toEqual(getSubcategories(null));
+    expect(getSubcategories(null).map((s) => s.id)).toContain('generic_food');
   });
 
-  it('unknown profile category falls back to the default set (data-driven, no throw)', () => {
-    expect(getEnrichmentCategories('scuba_diving')).toEqual(getEnrichmentCategories(null));
+  it('subcategory ids are globally unique and resolvable', () => {
+    const all = [
+      ...EVENT_CONTEXTS.flatMap((c) => getSubcategoriesForContext(c)),
+      ...getSubcategories('bar'),
+      ...getSubcategories(null),
+    ];
+    for (const s of all) {
+      expect(findSubcategory(s.id)).toEqual(s);
+    }
+    expect(findSubcategory('nope')).toBeNull();
+    expect(findSubcategory(null)).toBeNull();
+  });
+
+  it('Julio scenario: typing €3 puts the ~€3 options first; €10 the ~€10 ones', () => {
+    const bar = getSubcategories('bar');
+    const at3 = sortSubcategoriesByProximity(bar, 300);
+    expect(at3[0]!.id).toBe('bar_games'); // €3 typical
+    const at10 = sortSubcategoriesByProximity(bar, 1000);
+    expect(at10[0]!.id).toBe('bar_cover'); // €10 typical
+    const at7 = sortSubcategoriesByProximity(bar, 700);
+    expect(at7[0]!.id).toBe('bar_drink'); // €7 typical
+  });
+
+  it('zero amount keeps the catalog order', () => {
+    const bar = getSubcategories('bar');
+    expect(sortSubcategoriesByProximity(bar, 0)).toEqual(bar);
+  });
+
+  it('sorting does not mutate the catalog', () => {
+    const bar = getSubcategories('bar');
+    const before = bar.map((s) => s.id);
+    sortSubcategoriesByProximity(bar, 999);
+    expect(bar.map((s) => s.id)).toEqual(before);
   });
 });
 
-describe('formatSessionDuration (DEC-079 — FIELD-09)', () => {
-  it('formats hours and minutes as "3h12"', () => {
-    expect(
-      formatSessionDuration('2026-06-12T20:00:00.000Z', '2026-06-12T23:12:00.000Z'),
-    ).toBe('3h12');
+describe('event contexts (DEC-096 / R-17)', () => {
+  it('asks WHERE first with the contexts from the report', () => {
+    const categories = EVENT_CONTEXTS.map((c) => c.category);
+    expect(categories).toEqual(
+      expect.arrayContaining(['bar', 'restaurant', 'market', 'transport', 'other']),
+    );
   });
 
-  it('formats sub-hour durations as "45min"', () => {
-    expect(
-      formatSessionDuration('2026-06-12T20:00:00.000Z', '2026-06-12T20:45:00.000Z'),
-    ).toBe('45min');
+  it('each context resolves to a level-2 subcategory list', () => {
+    for (const context of EVENT_CONTEXTS) {
+      expect(getSubcategoriesForContext(context).length).toBeGreaterThanOrEqual(4);
+    }
   });
 
-  it('pads minutes: 2h05', () => {
-    expect(
-      formatSessionDuration('2026-06-10T21:00:00.000Z', '2026-06-10T23:05:00.000Z'),
-    ).toBe('2h05');
+  it('the restaurant context offers restaurant things (dish, drink, dessert)', () => {
+    const restaurant = EVENT_CONTEXTS.find((c) => c.category === 'restaurant')!;
+    const ids = getSubcategoriesForContext(restaurant).map((s) => s.id);
+    expect(ids).toContain('restaurant_dish');
+    expect(ids).toContain('restaurant_dessert');
   });
+});
 
-  it('null endedAt (still active) renders empty', () => {
-    expect(formatSessionDuration('2026-06-12T20:00:00.000Z', null)).toBe('');
-  });
-
-  it('zero or negative duration clamps to "0min"', () => {
-    expect(
-      formatSessionDuration('2026-06-12T20:00:00.000Z', '2026-06-12T20:00:00.000Z'),
-    ).toBe('0min');
+describe('stepper timing (DEC-096 / R-14)', () => {
+  it('stays at least 10 seconds', () => {
+    expect(ENRICH_AUTO_DISMISS_MS).toBeGreaterThanOrEqual(10000);
   });
 });

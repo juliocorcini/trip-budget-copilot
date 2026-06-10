@@ -33,6 +33,7 @@ function mkTx(amountCents: number, date: string) {
     amountCents,
     currency: 'EUR',
     category: 'bar',
+    subcategoryId: null,
     description: 'expense',
   });
   return { ...tx, date: `${date}T12:00:00.000Z` };
