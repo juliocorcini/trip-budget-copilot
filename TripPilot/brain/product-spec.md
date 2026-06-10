@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-06-09 (R2 session — features 13–18 added)
+> Last updated: 2026-06-10 (R3 session — features 19–24 added)
 
 ## What is TripPilot?
 
@@ -144,6 +144,49 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
   rhythm, no-spend streak, average outing cost, participant balance, next event
 - Daily insight calculations persisted in `forecastSnapshots`
 - Fixed 11-position layout (gap-analysis-r2 §7)
+
+### 19. App Feel (R3 — DEC-084..087)
+- Sticky headers on Dashboard, Expenses, and Planner (single `.page-sticky-header` pattern with scroll elevation)
+- Unified page side padding via `--page-padding-x` token; full-bleed carousels
+- Invisible scrollbars on horizontal scrollers (`no-scrollbar`); no pull-to-refresh in installed PWA
+
+### 20. Subtractive Daily Budget + Notifications Center (R3 — DEC-088/090)
+- "Livre hoje" is fixed at day start and decreases with each expense (can go negative, error color);
+  recalculated average is a secondary line
+- Bell → `/notifications`: pending shares, today's events, overdue backup, long-running session,
+  over-budget phase — each notification navigates to its destination
+
+### 21. Honest Friend v2 + Multi-Metric Simulator (R3 — DEC-092/094)
+- `buildHonestFriendV2` compares the PLAN of the category of the last profiled expense
+  (planned vs done vs how many still fit in the free margin) → on_plan / over_pace / no_plan
+- Projects the date reserves start being consumed at the current pace
+- "Ver impacto completo" → `/impact` detail page (trigger expense, planned vs actual per category,
+  end-of-phase projection, reserve risk) — distinct from the simulator
+- Simulator evaluates 3 metrics (total budget, daily allowance, planned occasions) and returns
+  the WORST verdict (ok / attention / risk)
+
+### 22. Expense Taxonomy (R3 — DEC-095..097)
+- 2-level categorization: category → subcategory (`subcategoryId`, ~110 subcategories across 17 lists)
+- Stepper offers subcategories sorted by typical-value proximity to the amount entered
+- Event sessions: level 1 = context (bar/restaurant/market/...), level 2 = subcategory
+- Stepper auto-dismiss raised to 10s, timer resets on interaction; split flow also enriches;
+  session items without subcategory are tappable to detail later
+- Review labels: subcategory > own description > category — never the session name
+
+### 23. Planner Overhaul (R3 — DEC-098..101)
+- Free margin updates LIVE with each [-]/[+] (negative shown in error color)
+- Over-budget warning is the first thing on screen, inside the sticky header
+- Category menu (tap name): edit typical value, remove from phase, per-phase classification
+  (essential/planned/optional lives on the allocation item — DEC-100)
+- Lock has real effect: blocks +/- with toast feedback, presets skip locked items
+- Planner events and dashboard day card open the event editor via deep link
+- Profiles screen: edit any profile (name, icon, typical, safe); safe removal
+  (in use → disabled in all phases instead of deleted)
+
+### 24. Participant Debt Statement (R3 — DEC-102)
+- Tap a participant in /shared → itemized statement: every share composing the balance
+  (expense, date, share value, who paid, status) + settlements applied
+- Net from confirmed lines matches the debts engine
 
 ## V1 — Explicitly NOT in Scope
 

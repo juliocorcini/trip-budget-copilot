@@ -1,6 +1,6 @@
 # TripPilot — Complete Database Schema
 
-> Last updated: 2026-06-09 (R2 session)
+> Last updated: 2026-06-10 (R3 session)
 > Status: Implemented. Dexie schema **v3** in `src/data/db/schema.ts`. v2 added the compound
 > indexes specified here (`[tripId+order]`, `[tripId+date]`, `[budgetPoolId+phaseId]`,
 > `[budgetPoolId+kind]`, `[phaseId+budgetPoolId]`, `[phaseId+type]`, `[phaseId+category]`,
@@ -724,7 +724,11 @@ interface ScenarioAllocationItem extends SyncMetadata {
   estimatedUnitCostCents: number;
   /** Locked items cannot be reduced by the assisted planner */
   isLocked: boolean;
-  /** "essential" = cannot remove, "planned" = expected, "optional" = nice-to-have */
+  /**
+   * "essential" = cannot remove, "planned" = expected, "optional" = nice-to-have.
+   * DEC-100 (R3): edited per phase via the Planner category menu — the same
+   * profile can be essential in one phase and optional in another.
+   */
   priority: AllocationPriority;
   notes: string | null;
 }
@@ -907,6 +911,12 @@ interface Transaction extends SyncMetadata {
    * Null for transfer and settlement types.
    */
   category: string | null;
+
+  /**
+   * DEC-095 (R3): expense-taxonomy subcategory id (e.g. "bar_drink").
+   * NOT indexed — Dexie schema stays at v3. Defaults to null on old backups.
+   */
+  subcategoryId: string | null;
 
   description: string;
 
