@@ -2,10 +2,10 @@
 
 ## Current State
 
-- **Active gate**: GATE 2 — worker
-- **Progress**: 3/14
-- **Tests**: 281 unit green (264 baseline + 17 sync) · typecheck clean
-- **Risks**: none yet
+- **Active gate**: GATE 4 — UI + migration
+- **Progress**: 6/14
+- **Tests**: 289 unit green (264 baseline + 25 sync) · typecheck clean
+- **Risks**: manual 2-QR mode depends on compressed SDP fitting the QR limit — verify on real devices
 
 ## GATE 0 — Baseline + brain ✅
 
@@ -23,14 +23,17 @@
 - [x] P2P-03 — QR codec (TPSYNC1: envelope) + statement/migration payloads;
       `Participant.linkedActorId` added (non-indexed) across factories/schema/fixtures
 
-## GATE 2 — Worker
+## GATE 2 — Worker ✅
 
-- [ ] P2P-04 — worker/ + SyncRoom DO + deploy
+- [x] P2P-04 — worker/ + SyncRoom DO + deploy
+      (deployed at https://trippilot-sync.trippilot.workers.dev — POST /rooms ok,
+      WS smoke: 2 clients, peer-joined + opaque relay verified)
 
-## GATE 3 — Transports
+## GATE 3 — Transports ✅
 
-- [ ] P2P-05 — crypto + signaling client
-- [ ] P2P-06 — WebRTC + relay fallback + manual 2-QR signaling
+- [x] P2P-05 — crypto (AES-GCM 256, base64url key, unique IV) + signaling client + relay
+- [x] P2P-06 — WebRTC transport + connection orchestrator (8s relay fallback decided by host)
+      + manual 2-QR signaling + SyncSession protocol runner (tested with FakeChannel pair)
 
 ## GATE 4 — UI + migration
 
