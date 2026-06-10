@@ -176,6 +176,7 @@ export function generateDemoData(deviceId: string): DemoData {
       isOwner: true,
       email: null,
       linkedUserAccountId: null,
+      linkedActorId: null,
     },
     {
       ...meta(deviceId),
@@ -186,6 +187,7 @@ export function generateDemoData(deviceId: string): DemoData {
       isOwner: false,
       email: null,
       linkedUserAccountId: null,
+      linkedActorId: null,
     },
   ];
 

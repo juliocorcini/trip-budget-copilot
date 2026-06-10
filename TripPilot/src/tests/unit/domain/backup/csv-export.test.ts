@@ -81,6 +81,7 @@ const payer: Participant = {
   isOwner: false,
   email: null,
   linkedUserAccountId: null,
+  linkedActorId: null,
 };
 
 function buildContext(advanced: boolean): CsvExportContext {

@@ -102,6 +102,7 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
     isOwner: true,
     email: null,
     linkedUserAccountId: null,
+    linkedActorId: null,
   };
 
   // DEC-051 (GAP-026): every trip starts with a default credit card wallet

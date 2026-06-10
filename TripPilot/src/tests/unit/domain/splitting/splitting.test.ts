@@ -82,8 +82,8 @@ describe('calculatePersonalCost', () => {
 
 describe('calculateDebts', () => {
   const participants: Participant[] = [
-    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null },
-    { ...meta, id: 'ana', tripId: 'trip-1', name: 'Ana', nickname: null, isOwner: false, email: null, linkedUserAccountId: null },
+    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'ana', tripId: 'trip-1', name: 'Ana', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
   ];
 
   it('calculates debt when owner paid shared expense', () => {
@@ -133,8 +133,8 @@ describe('calculateDebts', () => {
 
 describe('share confirmation (DEC-071 / FIELD-03)', () => {
   const participants: Participant[] = [
-    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null },
-    { ...meta, id: 'sis', tripId: 'trip-1', name: 'Irmã', nickname: null, isOwner: false, email: null, linkedUserAccountId: null },
+    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'sis', tripId: 'trip-1', name: 'Irmã', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
   ];
 
   const baseTx: Transaction = {
@@ -400,8 +400,8 @@ describe('calculateParticipantBalances', () => {
 
 describe('buildParticipantStatement (DEC-102 / R-25)', () => {
   const participants: Participant[] = [
-    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null },
-    { ...meta, id: 'debora', tripId: 'trip-1', name: 'Débora', nickname: 'Deb', isOwner: false, email: null, linkedUserAccountId: null },
+    { ...meta, id: 'julio', tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'debora', tripId: 'trip-1', name: 'Débora', nickname: 'Deb', isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
   ];
 
   const mkTx = (id: string, amountCents: number, description: string, date: string, payerId: string | null = 'julio'): Transaction => ({

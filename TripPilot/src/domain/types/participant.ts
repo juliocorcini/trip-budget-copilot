@@ -7,4 +7,6 @@ export interface Participant extends SyncMetadata {
   isOwner: boolean;
   email: string | null;
   linkedUserAccountId: string | null;
+  /** DEC-105: actor id of the paired device (QR pairing), null when local-only. */
+  linkedActorId: string | null;
 }

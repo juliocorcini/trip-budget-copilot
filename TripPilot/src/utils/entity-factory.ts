@@ -13,6 +13,15 @@ function getDeviceId(): string {
   return id;
 }
 
+/**
+ * DEC-105: the per-install device id doubles as the actor identity for
+ * QR pairing — stable, account-less, never leaves the device except
+ * inside identity QR codes the user chooses to show.
+ */
+export function getInstallationId(): string {
+  return getDeviceId();
+}
+
 export function createSyncMetadata(overrides?: Partial<SyncMetadata>): SyncMetadata {
   const now = new Date().toISOString();
   return {

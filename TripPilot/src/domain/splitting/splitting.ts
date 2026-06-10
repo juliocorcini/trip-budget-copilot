@@ -260,6 +260,7 @@ export function createParticipant(
     isOwner: false,
     email: null,
     linkedUserAccountId: null,
+    linkedActorId: null,
   };
 }
 

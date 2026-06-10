@@ -60,6 +60,8 @@ export const participantSchema = syncMetadataSchema.extend({
   isOwner: z.boolean(),
   email: z.string().email().nullable(),
   linkedUserAccountId: z.string().uuid().nullable(),
+  // DEC-105 (R4): default keeps pre-v4 backups importable.
+  linkedActorId: z.string().uuid().nullable().default(null),
 });
 
 export const walletSchema = syncMetadataSchema.extend({

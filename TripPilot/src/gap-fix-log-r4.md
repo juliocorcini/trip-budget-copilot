@@ -2,9 +2,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 1 — sync domain
-- **Progress**: 0/14
-- **Baseline**: 264 unit (28 files) green · 29 e2e · build/typecheck clean · v0.4.0
+- **Active gate**: GATE 2 — worker
+- **Progress**: 3/14
+- **Tests**: 281 unit green (264 baseline + 17 sync) · typecheck clean
 - **Risks**: none yet
 
 ## GATE 0 — Baseline + brain ✅
@@ -16,11 +16,12 @@
 - [x] Implementation plan: brain/documents/p2p-sync-implementation-prompt.md
 - [x] Baseline tests: 264/264 green
 
-## GATE 1 — Sync domain
+## GATE 1 — Sync domain ✅
 
-- [ ] P2P-01 — Actor identity (identity.ts + getInstallationId)
-- [ ] P2P-02 — Protocol + chunking (protocol.ts)
-- [ ] P2P-03 — QR codec + statement/migration payloads
+- [x] P2P-01 — Actor identity (identity.ts + getInstallationId in entity-factory)
+- [x] P2P-02 — Protocol + chunking (protocol.ts, encoding.ts: fflate deflate + base64 + CRC32)
+- [x] P2P-03 — QR codec (TPSYNC1: envelope) + statement/migration payloads;
+      `Participant.linkedActorId` added (non-indexed) across factories/schema/fixtures
 
 ## GATE 2 — Worker
 
