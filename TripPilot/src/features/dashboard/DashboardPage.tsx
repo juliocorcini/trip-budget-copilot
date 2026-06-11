@@ -8,6 +8,7 @@ import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCat
 import { formatMoney, fromCents, sumCents } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
+import { getActiveDecimalSeparator } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -64,7 +65,8 @@ function splitMoneyDisplay(cents: number, currency: string): { symbol: string; i
   return {
     symbol,
     integer: `${symbol}${intPart}`,
-    decimal: `,${decPart.toString().padStart(2, '0')}`,
+    // PAR-002 (R6-16): decimal separator follows the active language.
+    decimal: `${getActiveDecimalSeparator()}${decPart.toString().padStart(2, '0')}`,
   };
 }
 

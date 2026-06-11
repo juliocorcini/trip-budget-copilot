@@ -27,6 +27,9 @@ interface OnboardingInput {
   /** R5-05: same semantics as the phase editor — null = uniform. */
   rhythmPreset: Phase['rhythmPreset'];
   peakDays: number[] | null;
+  /** PAR-004 (R6-17): generated names come translated from the UI. */
+  poolName: string;
+  reserveName: string;
 }
 
 interface OnboardingResult {
@@ -77,7 +80,7 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
   const pool: BudgetPool = {
     ...m, id: poolId,
     tripId,
-    name: `Fundo ${input.phaseName}`,
+    name: input.poolName,
     scope: 'linked_phases',
     totalAmountCents: input.totalAmountCents,
     currency: input.currency,
@@ -95,7 +98,7 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
     ...m, id: uuidv4(),
     budgetPoolId: poolId,
     kind: 'protected_reserve',
-    name: 'Reserva protegida',
+    name: input.reserveName,
     amountCents: input.protectedReserveCents,
     notes: null,
   } : null;

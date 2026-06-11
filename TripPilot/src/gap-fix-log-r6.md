@@ -6,9 +6,9 @@
 
 ## Current State
 
-- Active gate: G5 (locale formatting)
-- Last milestone: G4 complete (R6-11..14)
-- Tests: 337 unit / 29 e2e
+- Active gate: G6 (simulator v3)
+- Last milestone: G5 complete (R6-15..18)
+- Tests: 342 unit / 29 e2e
 - Build: OK (typecheck clean)
 - Risks: date projection now local everywhere — watch DashboardPage day card (already local via GAP-R2-007)
 
@@ -19,11 +19,27 @@
 - [x] G2 — P2P sync reliability (R6-06..07)
 - [x] G3 — QR scanner camera switch + zoom (R6-08..10)
 - [x] G4 — UI polish: carousel, gauge, iOS banner, keyboard (R6-11..14)
-- [ ] G5 — Locale formatting (R6-15..18)
+- [x] G5 — Locale formatting (R6-15..18)
 - [ ] G6 — Simulator v3 + learning prior (R6-19..22)
 - [ ] G7 — Housekeeping + validation + deploy (R6-23..25)
 
 ## Milestones
+
+### G5 — Locale formatting (R6-15..18)
+
+- **R6-15 (PAR-001)**: new `domain/locale` bridge (`setActiveLanguage` + date-fns locale +
+  data-driven pattern map pt→en); `formatDate`/`formatShortDate` translate the pt reference
+  patterns ("d 'de' MMMM" → "MMMM d", dd/MM → MM/dd) and use the active date-fns locale.
+  i18n `languageChanged` wired to the bridge in `i18n/index.ts`.
+- **R6-16 (PAR-002)**: `formatMoney` default locale comes from the bridge (88 call sites
+  unchanged); Dashboard `splitMoneyDisplay` decimal separator per language.
+- **R6-17 (PAR-004)**: `createOnboardingEntities` receives `poolName`/`reserveName` translated
+  from the UI; "Fundo X"/"Reserva protegida"/"Eu" hardcodes removed from onboarding path.
+- **R6-18 (PAR-005)**: `wallets.type_*` keys (5 types × 3 languages); creation now offers
+  credit_card and other; list shows the translated type.
+- Tests: +5 (`active-locale.test.ts`). 342 unit ✅, typecheck ✅, build ✅, parity 749/749/749.
+- Regression named: money tests (explicit locale arg unaffected), dates tests (pt-BR default
+  preserved), onboarding flow (names now passed by caller).
 
 ### G4 — UI polish (R6-11..14)
 

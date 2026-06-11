@@ -1,5 +1,5 @@
 import { parseISO, isWithinInterval, differenceInCalendarDays, format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { getActiveDateFnsLocale, translateDatePattern } from '@/domain/locale';
 import type { Phase } from '@/domain/types/phase';
 
 export function findActivePhase(phases: Phase[], referenceDate: Date = new Date()): Phase | null {
@@ -73,12 +73,18 @@ export function moveToLocalDay(isoTimestamp: string, localDay: string): string {
   return new Date(`${localDay}T${time}`).toISOString();
 }
 
+// PAR-001 (R6-15): patterns are written in pt-BR reference form and translated
+// to the active language by the locale bridge ("d 'de' MMMM" → "MMMM d" in EN).
 export function formatDate(isoDate: string, pattern: string = 'dd/MM/yyyy'): string {
-  return format(parseISO(isoDate), pattern, { locale: ptBR });
+  return format(parseISO(isoDate), translateDatePattern(pattern), {
+    locale: getActiveDateFnsLocale(),
+  });
 }
 
 export function formatShortDate(isoDate: string): string {
-  return format(parseISO(isoDate), 'dd/MM', { locale: ptBR });
+  return format(parseISO(isoDate), translateDatePattern('dd/MM'), {
+    locale: getActiveDateFnsLocale(),
+  });
 }
 
 export function isDateInRange(date: Date, startDate: string, endDate: string): boolean {

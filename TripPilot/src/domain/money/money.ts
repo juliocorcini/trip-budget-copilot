@@ -1,3 +1,5 @@
+import { getActiveIntlLocale } from '@/domain/locale';
+
 const CENTS_MULTIPLIER = 100;
 
 export function toCents(value: number): number {
@@ -8,10 +10,12 @@ export function fromCents(cents: number): number {
   return cents / CENTS_MULTIPLIER;
 }
 
+// PAR-002 (R6-16): defaults to the active i18n language via the locale bridge,
+// so the existing call sites follow the user's language without changes.
 export function formatMoney(
   cents: number,
   currency: string,
-  locale: string = 'pt-BR',
+  locale: string = getActiveIntlLocale(),
 ): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',

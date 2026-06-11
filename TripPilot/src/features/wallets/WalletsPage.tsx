@@ -17,6 +17,9 @@ import { showToast } from '@/components/Toast';
 
 const ADJUSTMENT_CATEGORIES = ['bar', 'restaurant', 'market', 'transport', 'entertainment', 'other'] as const;
 
+// PAR-005 (R6-18): full wallet type list for creation, labels via i18n.
+const WALLET_TYPES: WalletType[] = ['cash', 'digital', 'debit_card', 'credit_card', 'other'];
+
 export function WalletsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -137,16 +140,16 @@ export function WalletsPage() {
             placeholder={t('wallets.add')}
             className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
           />
-          <div className="flex gap-2">
-            {(['cash', 'digital', 'debit_card'] as const).map((type) => (
+          <div className="flex gap-2 flex-wrap">
+            {WALLET_TYPES.map((type) => (
               <button
                 key={type}
                 onClick={() => setNewType(type)}
-                className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                className={`px-3 py-2 rounded-lg text-xs font-medium btn-press ${
                   newType === type ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
                 }`}
               >
-                {type}
+                {t(`wallets.type_${type}` as never)}
               </button>
             ))}
           </div>
@@ -188,7 +191,9 @@ export function WalletsPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-on-surface-faint mt-0.5">{wallet.walletType} · {wallet.currency}</p>
+                  <p className="text-xs text-on-surface-faint mt-0.5">
+                    {t(`wallets.type_${wallet.walletType}` as never)} · {wallet.currency}
+                  </p>
                 </div>
                 <p className="text-lg font-extrabold tabular text-on-surface">
                   {formatMoney(balance.currentBalanceCents, wallet.currency)}

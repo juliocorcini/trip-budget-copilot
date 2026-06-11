@@ -175,6 +175,11 @@
     "adjustment_category": "Categoria do ajuste",
     "adjustment_reason": "Justificativa",
     "adjustment_default_reason": "Ajuste de dinheiro físico",
+    "type_cash": "Dinheiro",
+    "type_digital": "Conta digital",
+    "type_debit_card": "Cartão de débito",
+    "type_credit_card": "Cartão de crédito",
+    "type_other": "Outro",
     "adjustment_created": "Ajuste registrado",
     "create_adjustment": "Criar ajuste"
   },
@@ -409,6 +414,9 @@
     "add_cash_wallet": "Adicionar carteira de dinheiro",
     "cash_wallet_label": "Nome da carteira de dinheiro",
     "cash_wallet_name": "Dinheiro",
+    "pool_name": "Fundo {{phase}}",
+    "reserve_name": "Reserva protegida",
+    "default_owner_name": "Eu",
     "phase_details_hint": "A primeira fase começa com as datas da viagem — ajuste se ela cobrir só uma parte.",
     "phase_start_date": "Início da fase",
     "phase_end_date": "Fim da fase"

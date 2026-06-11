@@ -175,6 +175,11 @@
     "adjustment_category": "Adjustment category",
     "adjustment_reason": "Reason",
     "adjustment_default_reason": "Physical cash adjustment",
+    "type_cash": "Cash",
+    "type_digital": "Digital account",
+    "type_debit_card": "Debit card",
+    "type_credit_card": "Credit card",
+    "type_other": "Other",
     "adjustment_created": "Adjustment registered",
     "create_adjustment": "Create adjustment"
   },
@@ -409,6 +414,9 @@
     "add_cash_wallet": "Add a cash wallet",
     "cash_wallet_label": "Cash wallet name",
     "cash_wallet_name": "Cash",
+    "pool_name": "{{phase}} fund",
+    "reserve_name": "Protected reserve",
+    "default_owner_name": "Me",
     "phase_details_hint": "The first phase starts with the trip dates — adjust if it covers only part of the trip.",
     "phase_start_date": "Phase start",
     "phase_end_date": "Phase end"

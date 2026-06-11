@@ -50,7 +50,7 @@ export function OnboardingPage() {
       currency,
       totalAmountCents: toCents(parseFloat(totalAmount) || 0),
       protectedReserveCents: toCents(parseFloat(protectedReserve) || 0),
-      ownerName: ownerName || 'Eu',
+      ownerName: ownerName || t('onboarding.default_owner_name'),
       deviceId,
       defaultWalletName: walletName.trim() || t('onboarding.default_wallet_name'),
       cashWalletName: addCashWallet ? cashWalletName : null,
@@ -58,6 +58,9 @@ export function OnboardingPage() {
       phaseEndDate: phaseEndDate || null,
       rhythmPreset,
       peakDays: rhythmPreset !== null && peakDays.length > 0 ? peakDays : null,
+      // PAR-004 (R6-17): generated names follow the active language.
+      poolName: t('onboarding.pool_name', { phase: phaseName || tripName }),
+      reserveName: t('onboarding.reserve_name'),
     });
 
     await db.trips.add(entities.trip);

@@ -175,6 +175,11 @@
     "adjustment_category": "Categoría del ajuste",
     "adjustment_reason": "Justificación",
     "adjustment_default_reason": "Ajuste de efectivo físico",
+    "type_cash": "Efectivo",
+    "type_digital": "Cuenta digital",
+    "type_debit_card": "Tarjeta de débito",
+    "type_credit_card": "Tarjeta de crédito",
+    "type_other": "Otro",
     "adjustment_created": "Ajuste registrado",
     "create_adjustment": "Crear ajuste"
   },
@@ -409,6 +414,9 @@
     "add_cash_wallet": "Agregar billetera de efectivo",
     "cash_wallet_label": "Nombre de la billetera de efectivo",
     "cash_wallet_name": "Efectivo",
+    "pool_name": "Fondo {{phase}}",
+    "reserve_name": "Reserva protegida",
+    "default_owner_name": "Yo",
     "phase_details_hint": "La primera fase comienza con las fechas del viaje — ajústala si cubre solo una parte.",
     "phase_start_date": "Inicio de la fase",
     "phase_end_date": "Fin de la fase"
