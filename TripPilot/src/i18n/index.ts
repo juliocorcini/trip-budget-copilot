@@ -7,7 +7,11 @@ import es from './locales/es.json';
 
 // PAR-001/002 (R6-15/16): keep the domain locale bridge in sync with i18n so
 // date/number formatters follow the active language.
-i18n.on('languageChanged', setActiveLanguage);
+i18n.on('languageChanged', (language) => {
+  setActiveLanguage(language);
+  // R-03: <html lang> drives CSS hyphenation (hyphens-auto) for long labels.
+  document.documentElement.lang = language;
+});
 
 i18n.use(initReactI18next).init({
   resources: {

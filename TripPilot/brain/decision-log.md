@@ -807,6 +807,76 @@
 - **Rationale**: R5: segments have fixed 3:2:1:1 widths but the dot used linear spent/max — 40 of 35/45/55 landed visually past the 45 threshold
 - **Alternatives**: Proportional segment widths (breaks the deliberate visual rhythm of the bar)
 
+### DEC-114 — Universal Payer Semantics (D-R4-A)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Registering an expense means registering MY COST. "Someone else paid" NEVER means a gift: my personal cost is kept (my share when split, the FULL amount when not split) and a debt to the payer is created; my wallet is not moved. Applies to ALL flows (QuickAdd, outing stepper, outing split, shared expenses). Implemented as a single reusable domain truth-table function
+- **Rationale**: R4 field review: +€15 paid by Ana without splitting reset the outing total to €20 — the app treated it as a gift. The user owes the full €15; the app must remember the debt and keep the personal cost
+- **Alternatives**: Treat as gift (rejected: hides real debt), force manual split for the simple case (rejected: friction)
+
+### DEC-115 — Occasion = Session (D-R4-B)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Occasion counting groups transactions by session: 1 outing/session = 1 occasion of its profile; standalone expenses with a profile/category = 1 occasion each. Never count session items as occasions
+- **Rationale**: R4 field review: Honest Friend showed "bar: 20 of 5 occasions — within plan" while the user had 3 bar outings (9+8+3 items). Users plan "go to the bar 5 times", not "5 bar items"
+- **Alternatives**: Count items (rejected: wrong mental model), time-window clustering (rejected: sessions already exist)
+
+### DEC-116 — Simulator v3 Contextual (D-R4-C)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Simulator asks amount + WHERE the money will be spent (enabled phase profiles + upcoming events + "other"); the engine looks in the right place (category plan occasions, event reservedCents, free/daily allowance) and every output line is a full labeled sentence; the verdict always states the concrete reason ("risky because…", "fine: you reserved for this")
+- **Rationale**: R4 field review: "0 days of your daily free €524.10" and "10 + 2 = 5x transporte" were unreadable; verdicts said "risky" without the risk; without knowing WHERE, the simulator cannot know whether money is already reserved
+- **Alternatives**: Keep context-free simulation (rejected: produces wrong verdicts when money is reserved)
+
+### DEC-117 — Honest Outing Limit Semantics (D-R4-D)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Outing zone colors and copy change AT the target, not near the max. Below target = green/neutral; target→ceiling = orange "you passed the target by €X — this comes out of other things"; ceiling→max = red "compromising the phase budget"; max = strong red + confirmation. "Safe ceiling" naming dropped ("Teto"); no text above the target may invite further spending
+- **Rationale**: R4 field review: "safe ceiling" invited spending up to it; above the target the app still said "you can spend with ease: €0" and "the next €3.50 drink still fits" — encouraging overspending
+- **Alternatives**: Keep yellow until near max (rejected: dishonest), hard block at target (rejected: paternalistic)
+
+### DEC-118 — Long-Press Multi-Select in Lists (D-R4-E)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Reusable selection-mode infrastructure: long-press enters selection, tap toggles items, a bottom action bar offers batch actions (delete via soft delete + single confirmation), X cancels. Applied to the expense list and outing history; other lists as useful
+- **Rationale**: R4 field review: deleting several expenses one by one is painful; standard mobile pattern
+- **Alternatives**: Swipe-to-delete per item (rejected: no batch), checkbox edit mode behind a menu (rejected: hidden)
+
+### DEC-119 — Configurable Dashboard (D-R4-F)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Long-press on a dashboard card opens a sheet: hide card + contextual quick action (data-driven per card type). Persisted in settings as `hiddenDashboardCards: string[]` + `dashboardCardOrder: string[]` (non-indexed, no Dexie bump). Hero and active-outing card are not hideable/movable. A slim "Configure home screen" card appears at the end when cards are hidden (plus a Settings entry); the config screen lists cards in order with ↑↓ reorder and visibility toggles
+- **Rationale**: R4 field review: users want to hide cards they don't use and reorder the home screen; "delete that doesn't delete"
+- **Alternatives**: Drag-and-drop reorder in V1 (rejected: ↑↓ buttons are enough and robust), fixed layout (rejected)
+
+### DEC-120 — Persistent Active-Outing Notification, PWA Best Effort (D-R4-G)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: During an active outing, show a Service Worker notification with a fixed tag (name + current total) and quick-add action buttons (+€3, +€5, "Other" opens the app); button clicks register the expense from the SW (pure domain reused over IndexedDB) and update the notification; a follow-up notification asks the likely subcategory. Permission is requested at first session start with an explanation, never at boot. PWA platform limits are researched and documented; whatever PWA cannot do is registered for the Capacitor package (DEC-017)
+- **Rationale**: R4 field review: "register without opening the app" — Spotify-style live notification with shortcuts
+- **Alternatives**: Wait for Capacitor (rejected: PWA can deliver a useful subset now)
+
+### DEC-121 — Contextual Help Mode (D-R4-H)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Data-driven help registry in the domain (`help-content.ts`): per screen, a list of topics anchored to real UI sections, with i18n title + explanation containing CONCRETE examples. A "?" icon in complex screens' headers opens an overlay over the real screen annotating the actual elements, with next/previous navigation. V1 screens: Funds, Planner, Wallets, Phase/Events editing, Active outing, Backup
+- **Rationale**: R4 field review: "I enter Funds and don't know what each thing is" — help must annotate the real screen with real examples, not abstract definitions
+- **Alternatives**: Static help page (rejected: detached from the UI), first-run tour only (rejected: not on demand)
+
+### DEC-122 — Carousels: One Item per Gesture, Consistent Alignment (D-R4-I)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: All carousels use `scroll-snap-stop: always` (one gesture = one slide) and `scroll-padding` aligned to the page margins so the initial state is identical to the post-snap state (first card aligned, exactly N visible)
+- **Rationale**: R4 field review: first carousel card glued to the left edge showing a 4th icon; a strong insight swipe jumped from slide 1 to 4
+- **Alternatives**: JS-driven carousel (rejected: CSS snap is enough)
+
+### DEC-123 — "Who Paid?" as a First-Level Question (D-R4-J)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: Expense registration asks "Who paid?" (Me / Someone else) as a first-level post-amount question; if someone else: "they paid everything for you" OR "you split it" — without requiring a manual split setup for the simple case. Follows DEC-114 math
+- **Rationale**: R4 field review: the common real-world case "Ana paid for me" needed an artificial split flow
+- **Alternatives**: Keep payer buried inside split UI (rejected: the simple case is the frequent one)
+
 ---
 
 *New decisions will be added as the project progresses.*

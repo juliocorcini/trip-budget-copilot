@@ -295,7 +295,11 @@ export function QuickAddPage() {
               }`}
             >
               <Icon name={getCategoryIcon(key)} size={20} className={category === key ? 'text-primary' : 'text-on-surface-dim'} />
-              <span className="text-[10px] text-on-surface-faint">{t(`categories.${key}` as never)}</span>
+              {/* R-03: long labels (e.g. "Entretenimento") wrap with hyphenation
+                  instead of overflowing the chip — works for any label ×3 languages. */}
+              <span className="w-full text-center text-[10px] leading-tight text-on-surface-faint break-words hyphens-auto line-clamp-2">
+                {t(`categories.${key}` as never)}
+              </span>
             </button>
           ))}
         </div>

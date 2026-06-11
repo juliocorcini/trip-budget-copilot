@@ -786,8 +786,11 @@ export function DashboardPage() {
       {forecasts.length > 0 ? (
         <div className="mt-4">
           {/* DEC-076: pure-CSS scroll-snap carousel, ~3 visible, all enabled profiles */}
+          {/* DEC-122 (R-01): scroll-padding matches the page padding so the rest
+              position of the first card equals the initial render — no glued edge,
+              no 4th card peeking. */}
           <div
-            className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] snap-x snap-mandatory"
+            className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] scroll-pl-[var(--page-padding-x)] scroll-pr-[var(--page-padding-x)] snap-x snap-mandatory"
             onScroll={(e) => {
               const el = e.currentTarget;
               const pageCount = Math.ceil(forecasts.length / 3);
@@ -805,7 +808,8 @@ export function DashboardPage() {
                   key={forecast.profileId}
                   // R6-11 (R-02): exactly 3 cards per page — w-[30%] left a 4th
                   // card peeking and broke the side alignment.
-                  className="snap-start shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
+                  // DEC-122: snap-always — one gesture never skips pages.
+                  className="snap-start snap-always shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
                 >
                   <OccasionCounter
                     icon={profile?.iconName ?? getCategoryIcon(profile?.category ?? 'other')}
@@ -880,7 +884,8 @@ export function DashboardPage() {
               <button
                 key={insight.kind}
                 onClick={() => handleInsightTap(insight)}
-                className="w-full shrink-0 snap-center p-4 text-left btn-press flex items-start gap-3"
+                // DEC-122 (R-02): snap-always — a strong swipe advances exactly one insight.
+                className="w-full shrink-0 snap-center snap-always p-4 text-left btn-press flex items-start gap-3"
               >
                 <Icon
                   name={INSIGHT_ICONS[insight.kind]}

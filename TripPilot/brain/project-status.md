@@ -23,7 +23,7 @@
 | Gap analysis R1 2026-06-09 | ✅ RESOLVED | 36/36 gaps fixed (see `src/gap-fix-log.md`) |
 | Gap analysis R2 2026-06-09 | ✅ RESOLVED | 23/23 items fixed: 7 field bugs + 9 R2 gaps + 7 planning features (see `src/gap-fix-log-r2.md`) |
 | Field review R3 2026-06-10 | ✅ RESOLVED | 26/26 requirements implemented in 7 gates (see `src/gap-fix-log-r3.md`) |
-| P2P sync R4 2026-06-10 | ✅ DONE | 14/14 requirements in 7 gates (see `src/gap-fix-log-r4.md`); DEC-103..108 |
+| P2P sync R4 2026-06-10 | ✅ DONE | 14/14 requirements in 7 gates (see `src/gap-fix-log-r4-p2p-sync.md`); DEC-103..108 |
 | Reliability R5 2026-06-10 | ✅ DONE | 9/9 requirements in 4 gates (see `src/gap-fix-log-r5.md`); DEC-109..113 |
 | Full-fix R6 2026-06-10 | ✅ DONE | 25/25 items in 7 gates: 4 audit bugs + 6 partials + 8 field-test findings + simulator v3 (see `src/gap-fix-log-r6.md`) |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (754 keys) |
@@ -73,7 +73,7 @@ All 26 requirements from Julio's field review were resolved in a 7-gate session
 ## P2P Sync Session R4 (2026-06-10)
 
 All 14 requirements from the P2P council session (DEC-103..108, MTG-2026-06-10)
-were implemented in 7 gates (full log in `src/gap-fix-log-r4.md`). Highlights:
+were implemented in 7 gates (full log in `src/gap-fix-log-r4-p2p-sync.md`). Highlights:
 
 - **Sync domain (pure TS)**: actor identity QR, wire protocol (manifest/chunk/ack
   with deflate + CRC32, 12 KB chunks), QR codec (`TPSYNC1:` envelope, 1.6 K char

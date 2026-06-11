@@ -1,70 +1,61 @@
-# Gap-Fix Log — R4 (P2P Sync)
+# Gap-Fix Log — R4 Field Review (Julio's in-trip audio review)
+
+- **Prompt**: `brain/documents/gap-fix-r4-implementation-prompt.md`
+- **Note**: the previous file at this path (P2P sync round) was preserved as
+  `src/gap-fix-log-r4-p2p-sync.md`. This round's decisions are DEC-114..123
+  (D-R4-A..J — last DEC before this round was DEC-113, not DEC-102 as the
+  prompt estimated).
+- **Node**: `export PATH="$HOME/.nvm/versions/node/v22.22.3/bin:$PATH"`
 
 ## Current State
 
-- **Active gate**: COMPLETE — 14/14
-- **Progress**: 14/14
-- **Tests**: 299 unit + 29 e2e green · typecheck + build clean · v0.5.0 deployed
-- **Risks**: manual 2-QR mode depends on compressed SDP fitting the QR limit — verify on real devices;
-  migration/pairing flows need a real two-device smoke (iPhone + Android) by Julio
+- **Active gate**: GATE 2 (payer math)
+- **Progress**: 3/12 requirements
+- **Tests**: 343 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Build**: v0.6.0
 
-## GATE 0 — Baseline + brain ✅
+## GATE 0 — Baseline + decision-log ✅
+- [x] DEC-114..123 (D-R4-A..J) registered as APPROVED in decision-log.md
+- [x] State file created (old P2P r4 log renamed, references updated)
+- [x] Baseline confirmed: unit ✅ 343 · typecheck ✅ · build ✅ · e2e ✅ 29
 
-- [x] DEC-103..108 registered in decision-log.md
-- [x] product-spec.md feature 25 + scope exclusions amended
-- [x] technical-direction.md P2P layer + deps
-- [x] meetings-log.md MTG-2026-06-10
-- [x] Implementation plan: brain/documents/p2p-sync-implementation-prompt.md
-- [x] Baseline tests: 264/264 green
+## GATE 1 — Visual polish ✅
+- [x] R-01 carousel alignment — `scroll-pl/pr-[var(--page-padding-x)]` on the counters
+      carousel: rest position = initial render (first card aligned, 3 visible)
+- [x] R-02 insights one-per-gesture — `snap-always` on insight slides (and counter cards)
+- [x] R-03 chip label fit — chip labels wrap with `break-words hyphens-auto line-clamp-2`
+      (QuickAdd + ExpenseDetail); `<html lang>` now follows the active language
 
-## GATE 1 — Sync domain ✅
+## GATE 2 — Payer math (CRITICAL)
+- [ ] R-04 "someone else paid" keeps personal cost + creates debt (truth table)
+- [ ] R-05 session reconciliation over personal cost, shares preserved
 
-- [x] P2P-01 — Actor identity (identity.ts + getInstallationId in entity-factory)
-- [x] P2P-02 — Protocol + chunking (protocol.ts, encoding.ts: fflate deflate + base64 + CRC32)
-- [x] P2P-03 — QR codec (TPSYNC1: envelope) + statement/migration payloads;
-      `Participant.linkedActorId` added (non-indexed) across factories/schema/fixtures
+## GATE 3 — Occasions = sessions
+- [ ] R-06 occasion counting groups by session everywhere
 
-## GATE 2 — Worker ✅
+## GATE 4 — Simulator v3
+- [ ] R-07 contextual simulator with labeled explanations + justified verdict
 
-- [x] P2P-04 — worker/ + SyncRoom DO + deploy
-      (deployed at https://trippilot-sync.trippilot.workers.dev — POST /rooms ok,
-      WS smoke: 2 clients, peer-joined + opaque relay verified)
+## GATE 5 — Honest outing limits
+- [ ] R-08 zones/colors/copy change at the target
 
-## GATE 3 — Transports ✅
+## GATE 6 — Long-press
+- [ ] R-09 multi-select in lists (expenses + outing history)
+- [ ] R-10 configurable dashboard (hide, quick action, reorder)
 
-- [x] P2P-05 — crypto (AES-GCM 256, base64url key, unique IV) + signaling client + relay
-- [x] P2P-06 — WebRTC transport + connection orchestrator (8s relay fallback decided by host)
-      + manual 2-QR signaling + SyncSession protocol runner (tested with FakeChannel pair)
+## GATE 7 — PWA outing notification
+- [ ] R-11 persistent notification with quick-add actions (research + best effort)
 
-## GATE 4 — UI + migration ✅
+## GATE 8 — Help mode
+- [ ] R-12 contextual "?" with annotated screens (Funds, Planner, Wallets, Phase/Events, Outing, Backup)
 
-- [x] P2P-07 — QrCodeDisplay (white card, quiet zone) + QrScanner (getUserMedia + jsQR,
-      stream cleanup, permission-denied message)
-- [x] P2P-08 — SyncTransferFlow state machine (send/receive, online QR session,
-      offline 2-QR stepper, progress bar, recoverable errors) + /sync route
-- [x] P2P-09 — Device migration: BackupPage send/receive cards + Welcome
-      "Receive from another device"; receiver reuses existing import preview;
-      lastBackupDate updated on successful send
-
-## GATE 5 — Pairing + mirrored statements ✅
-
-- [x] P2P-10 — Dexie v4 (peerLinks, mirroredStatements) + types + backup v4
-      (normalizeBackupToV4) + repositories; migration tests on fake-indexeddb
-- [x] P2P-11 — "My QR" + "Add by QR" in /shared + retroactive "Connect by QR"
-      in the statement sheet + link badge; typing a name untouched
-- [x] P2P-12 — "Send statement to [name]" (session QR; single-QR offline option
-      when payload fits); responses applied on the same session via applyPeerResponses
-- [x] P2P-13 — "Received from other devices" section + sheet with confirm/reject,
-      timestamp always visible, pendingResponses queue + flush (owner-mirror-cycle test)
-
-## GATE 6 — Final ✅
-
-- [x] P2P-14 — verification, version 0.5.0, deploys, smokes
-      - 299 unit + 29 e2e green (quick-add + shared-confirm e2e re-verified — regression clean)
-      - i18n parity ×3 verified by script (45 sync keys each, 729 total)
-      - Worker deployed + smoked: POST /rooms → code; WS relay between 2 clients OK
-      - App v0.5.0 deployed: https://master.trippilot.pages.dev (https://59d79b51.trippilot.pages.dev)
-      - brain/project-status.md updated (R4 section, numbers, next steps)
+## GATE 9 — Brain + final verification + deploy
+- [ ] Brain updated (decision-log, product-spec, project-status)
+- [ ] Version bump minor → 0.7.0
+- [ ] Full validation: unit + typecheck + build + e2e
+- [ ] R-01..R-12 "DONE quando" table confirmed in code
+- [ ] 6 review smokes
+- [ ] Deploy + URL
 
 ## Extras found (not fixed)
 
