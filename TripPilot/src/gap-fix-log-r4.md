@@ -9,9 +9,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 4 (simulator v3)
-- **Progress**: 6/12 requirements
-- **Tests**: 355 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Active gate**: GATE 5 (honest outing limits)
+- **Progress**: 7/12 requirements
+- **Tests**: 367 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
 - **Build**: v0.6.0
 
 ## GATE 0 — Baseline + decision-log ✅
@@ -45,8 +45,23 @@
       ImpactDetail and Simulator all corrected centrally. New honest-friend kind `over_plan`
       (done > planned ≠ "dentro do plano") + copy ×3. Tests: 9+8+3 items + 2 avulsos = 5.
 
-## GATE 4 — Simulator v3
-- [ ] R-07 contextual simulator with labeled explanations + justified verdict
+## GATE 4 — Simulator v3 ✅
+- [x] R-07 contextual simulator (DEC-116) — new domain module
+      `forecasting/contextual-simulation.ts`: `simulateContextualSpend` asks WHERE
+      (profile / event / other) and returns structured FACTS + verdict WITH reason.
+      Profile with plan → "consome ≈N das M ocasiões"; plan used up → over_plan;
+      event → compares `reservedCents` (covers / short by €X / no reserve);
+      no plan → free margin + daily allowance ("≈N dias do seu livre diário").
+      SimulatorPage rewritten: amount → "Onde você vai gastar?" chips (enabled
+      profiles + unconfirmed phase events + "outro") → verdict card with reason
+      sentence + fact cards. Old metric_*/math_* raw-equation keys REMOVED
+      (the "10 ÷ 2 ≈ 5× transporte" / "0 dias" displays are gone); 28 new
+      simulator keys ×3 (parity 770 keys ✅). CTA register passes profile category.
+      `simulateSpendMultiMetric` kept in domain (tested) but no longer used by UI.
+- New tests: contextual-simulation.test.ts (10) — with plan (1 occasion ok /
+      2.2 attention / whole-plan risk / over_plan), without plan (free + field
+      scenario €20 vs €5.24/day ≈ 3.8 days), event (covers / short / no reserve),
+      large values (exceeds_free wins even with plan target; large_share 60%).
 
 ## GATE 5 — Honest outing limits
 - [ ] R-08 zones/colors/copy change at the target

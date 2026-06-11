@@ -7,13 +7,19 @@ import { calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool, calculateSpentOnDate } from '@/domain/transactions';
 import { calculateTodayFreeBudget } from '@/domain/phases';
 import {
-  simulateSpendMultiMetric,
+  simulateContextualSpend,
   calculateOccasionForecasts,
-  type SimulatorVerdict,
+  type SimulationTarget,
+  type SimulationProfileContext,
+  type SimulationEventContext,
+  type SimulationFact,
+  type ContextualVerdict,
+  type ContextualVerdictTone,
 } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { toCents, fromCents, formatMoney } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
+import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import {
   activityProfileRepository,
@@ -22,14 +28,7 @@ import {
   phaseProfileSettingRepository,
 } from '@/data/repositories';
 
-interface RemainingOccasion {
-  profileId: string;
-  profileName: string;
-  remaining: number;
-  typicalValueCents: number;
-}
-
-const VERDICT_STYLE: Record<SimulatorVerdict, { icon: string; className: string }> = {
+const VERDICT_STYLE: Record<ContextualVerdictTone, { icon: string; className: string }> = {
   ok: { icon: 'check_circle', className: 'text-success' },
   attention: { icon: 'error', className: 'text-warning' },
   risk: { icon: 'warning', className: 'text-error' },
@@ -50,6 +49,10 @@ function formatDays(days: number): string {
   return new Intl.NumberFormat(getActiveIntlLocale(), { maximumFractionDigits: 1 }).format(days);
 }
 
+interface ProfileChip extends SimulationProfileContext {
+  category: string | null;
+}
+
 export function SimulatorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -62,13 +65,16 @@ export function SimulatorPage() {
     const parsed = parseFloat(prefill);
     return Number.isNaN(parsed) || parsed <= 0 ? '' : String(parsed);
   });
-  const [remainingOccasions, setRemainingOccasions] = useState<RemainingOccasion[]>([]);
+  // DEC-116 (R-07): the simulator asks WHERE the money goes.
+  const [target, setTarget] = useState<SimulationTarget | null>(null);
+  const [profileChips, setProfileChips] = useState<ProfileChip[]>([]);
 
   // BUG-002 (R6-02): resolveActivePhase keeps the simulator usable on boundary days.
   const activePhase = resolveActivePhase(phases);
   const primaryPool = pools.find((p) => p.scope === 'linked_phases');
 
-  // DEC-094 (R-12): the plan perspective needs the remaining planned occasions.
+  // DEC-116: the engine needs plan numbers for EVERY enabled profile —
+  // including the ones without an allocation (plannedQuantity 0).
   useEffect(() => {
     if (!trip || !activePhase || !primaryPool) return;
     let cancelled = false;
@@ -91,16 +97,19 @@ export function SimulatorPage() {
         transactions,
         activePhase.id,
       );
-      setRemainingOccasions(
-        forecasts
-          .filter((f) => f.remaining > 0)
-          .map((f) => ({
-            profileId: f.profileId,
-            profileName: f.profileName,
-            remaining: f.remaining,
-            typicalValueCents:
-              enabled.find((p) => p.id === f.profileId)?.typicalValueCents ?? 0,
-          })),
+      setProfileChips(
+        enabled.map((profile) => {
+          const forecast = forecasts.find((f) => f.profileId === profile.id);
+          return {
+            profileId: profile.id,
+            profileName: profile.name,
+            category: profile.category,
+            plannedQuantity: forecast?.totalPlanned ?? 0,
+            doneQuantity: forecast?.spent ?? 0,
+            remaining: forecast?.remaining ?? 0,
+            typicalValueCents: profile.typicalValueCents,
+          };
+        }),
       );
     };
     load();
@@ -108,6 +117,21 @@ export function SimulatorPage() {
       cancelled = true;
     };
   }, [trip, activePhase, primaryPool, transactions]);
+
+  // Upcoming events of the phase (unconfirmed) — they may have reserves.
+  const eventChips: SimulationEventContext[] = occurrences
+    .filter(
+      (o) =>
+        o.deletedAt === null &&
+        activePhase !== null &&
+        o.phaseId === activePhase.id &&
+        !o.isConfirmed,
+    )
+    .map((o) => ({
+      occurrenceId: o.id,
+      name: o.name,
+      reservedCents: o.reservedCents ?? 0,
+    }));
 
   const fts = primaryPool && activePhase
     ? calculateFreeToSpend(
@@ -136,26 +160,44 @@ export function SimulatorPage() {
 
   const amountCents = amount ? toCents(parseFloat(amount) || 0) : 0;
   const result =
-    fts && amountCents > 0
-      ? simulateSpendMultiMetric({
+    fts && amountCents > 0 && target !== null
+      ? simulateContextualSpend({
           amountCents,
+          target,
           freeToSpendCents: fts.freeToSpendCents,
           todayAllowanceCents:
             todayBudget && todayBudget.todayAllowanceCents > 0
               ? todayBudget.todayAllowanceCents
               : null,
-          remainingOccasions,
+          profiles: profileChips,
+          events: eventChips,
         })
       : null;
 
-  // R6-19: expose the derivation behind the plan metric (top impact only).
-  const topPlanImpact = result?.planImpacts[0] ?? null;
-  const topPlanTypical = topPlanImpact
-    ? (remainingOccasions.find((o) => o.profileId === topPlanImpact.profileId)
-        ?.typicalValueCents ?? null)
-    : null;
-
   if (!trip) return null;
+
+  const currency = trip.baseCurrency;
+
+  const isTargetSelected = (candidate: SimulationTarget): boolean => {
+    if (target === null) return false;
+    if (target.kind !== candidate.kind) return false;
+    if (target.kind === 'profile' && candidate.kind === 'profile') {
+      return target.profileId === candidate.profileId;
+    }
+    if (target.kind === 'event' && candidate.kind === 'event') {
+      return target.occurrenceId === candidate.occurrenceId;
+    }
+    return true;
+  };
+
+  const targetProfile =
+    target?.kind === 'profile'
+      ? profileChips.find((p) => p.profileId === target.profileId) ?? null
+      : null;
+
+  const registerHref = targetProfile?.category
+    ? `/quick-add?amount=${encodeURIComponent(amount)}&cat=${encodeURIComponent(targetProfile.category)}`
+    : `/quick-add?amount=${encodeURIComponent(amount)}`;
 
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 pt-2 min-h-screen px-[var(--page-padding-x)]">
@@ -170,7 +212,7 @@ export function SimulatorPage() {
         <div className="bg-surface-container rounded-xl p-4">
           <p className="text-xs text-on-surface-faint">{t('simulator.available')}</p>
           <p className="text-lg font-bold tabular text-on-surface">
-            {formatMoney(fts.freeToSpendCents, trip.baseCurrency)}
+            {formatMoney(fts.freeToSpendCents, currency)}
           </p>
         </div>
       )}
@@ -178,7 +220,7 @@ export function SimulatorPage() {
       <div className="bg-surface-container rounded-2xl p-5">
         <label className="text-xs text-on-surface-faint mb-1 block">{t('simulator.how_much')}</label>
         <div className="flex items-baseline gap-1">
-          <span className="text-on-surface-dim text-lg">{trip.baseCurrency}</span>
+          <span className="text-on-surface-dim text-lg">{currency}</span>
           <input
             type="number"
             inputMode="decimal"
@@ -202,107 +244,93 @@ export function SimulatorPage() {
                   : 'bg-surface-high text-on-surface-dim'
               }`}
             >
-              {formatWholeMoney(cents, trip.baseCurrency)}
+              {formatWholeMoney(cents, currency)}
             </button>
           ))}
         </div>
       </div>
 
-      {result && (
-        <>
-          {/* Verdict — the worst of the 3 perspectives sets the tone */}
-          <div className="bg-surface-container rounded-xl p-5 text-center">
-            <Icon
-              name={result.total.canSpend ? VERDICT_STYLE[result.verdict].icon : 'cancel'}
-              size={48}
-              className={`mx-auto mb-2 ${
-                result.total.canSpend ? VERDICT_STYLE[result.verdict].className : 'text-error'
-              }`}
-            />
-            <p
-              className={`text-lg font-bold ${
-                result.total.canSpend ? VERDICT_STYLE[result.verdict].className : 'text-error'
+      {/* DEC-116: WHERE will you spend? — profiles + events + other */}
+      {amountCents > 0 && (
+        <div className="bg-surface-container rounded-2xl p-5">
+          <label className="text-xs text-on-surface-faint mb-2 block">
+            {t('simulator.where_question')}
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {profileChips.map((profile) => {
+              const candidate: SimulationTarget = { kind: 'profile', profileId: profile.profileId };
+              return (
+                <button
+                  key={profile.profileId}
+                  onClick={() => setTarget(candidate)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium btn-press flex items-center gap-1.5 ${
+                    isTargetSelected(candidate)
+                      ? 'bg-primary text-on-surface'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  <Icon name={getCategoryIcon(profile.category)} size={14} />
+                  {profile.profileName}
+                </button>
+              );
+            })}
+            {eventChips.map((event) => {
+              const candidate: SimulationTarget = { kind: 'event', occurrenceId: event.occurrenceId };
+              return (
+                <button
+                  key={event.occurrenceId}
+                  onClick={() => setTarget(candidate)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium btn-press flex items-center gap-1.5 ${
+                    isTargetSelected(candidate)
+                      ? 'bg-primary text-on-surface'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  <Icon name="event" size={14} />
+                  {event.name}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setTarget({ kind: 'other' })}
+              className={`px-3 py-2 rounded-lg text-xs font-medium btn-press ${
+                isTargetSelected({ kind: 'other' })
+                  ? 'bg-primary text-on-surface'
+                  : 'bg-surface-high text-on-surface-dim'
               }`}
             >
-              {result.total.canSpend
-                ? t(`simulator.verdict_${result.verdict}`)
-                : t('simulator.exceeded')}
+              {t('simulator.target_other')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <>
+          {/* Verdict with the WHY — never a tone without its reason (DEC-116) */}
+          <div className="bg-surface-container rounded-xl p-5 text-center">
+            <Icon
+              name={VERDICT_STYLE[result.verdict.tone].icon}
+              size={48}
+              className={`mx-auto mb-2 ${VERDICT_STYLE[result.verdict.tone].className}`}
+            />
+            <p className={`text-lg font-bold ${VERDICT_STYLE[result.verdict.tone].className}`}>
+              {t(`simulator.verdict_${result.verdict.tone}`)}
+            </p>
+            <p className="text-[13px] font-semibold leading-snug mt-2 text-on-surface">
+              {formatVerdictReason(result.verdict, currency, t)}
             </p>
           </div>
 
-          {/* Perspective 1 — of the total */}
-          <MetricCard
-            icon="account_balance_wallet"
-            label={t('simulator.metric_total_label')}
-            text={t('simulator.metric_total_text', {
-              after: formatMoney(Math.max(0, result.total.freeAfterCents), trip.baseCurrency),
-              percent: result.total.percentOfRemaining,
-            })}
-            math={t('simulator.math_total', {
-              free: formatMoney(fts!.freeToSpendCents, trip.baseCurrency),
-              amount: formatMoney(amountCents, trip.baseCurrency),
-              after: formatMoney(result.total.freeAfterCents, trip.baseCurrency),
-            })}
-          />
-
-          {/* Perspective 2 — of the day-to-day */}
-          <MetricCard
-            icon="today"
-            label={t('simulator.metric_daily_label')}
-            text={
-              result.allowanceDays !== null && result.dailyAllowanceCents !== null
-                ? t('simulator.metric_daily_days', {
-                    amount: formatMoney(amountCents, trip.baseCurrency),
-                    days: result.allowanceDays,
-                    daily: formatMoney(result.dailyAllowanceCents, trip.baseCurrency),
-                  })
-                : t('simulator.metric_daily_none')
-            }
-            math={
-              result.allowanceDays !== null && result.dailyAllowanceCents !== null
-                ? t('simulator.math_daily', {
-                    amount: formatMoney(amountCents, trip.baseCurrency),
-                    daily: formatMoney(result.dailyAllowanceCents, trip.baseCurrency),
-                    days: formatDays(result.allowanceDays),
-                  })
-                : null
-            }
-            highlight={result.allowanceDays !== null && result.allowanceDays > 3}
-          />
-
-          {/* Perspective 3 — of the plan */}
-          <MetricCard
-            icon="event_note"
-            label={t('simulator.metric_plan_label')}
-            text={
-              result.planImpacts.length > 0
-                ? result.planImpacts
-                    .map((impact) =>
-                      t('simulator.metric_plan_item', {
-                        count: impact.occasionsLost,
-                        name: impact.profileName.toLowerCase(),
-                      }),
-                    )
-                    .join(' · ')
-                : t('simulator.metric_plan_none')
-            }
-            math={
-              topPlanImpact && topPlanTypical
-                ? t('simulator.math_plan', {
-                    amount: formatMoney(amountCents, trip.baseCurrency),
-                    typical: formatMoney(topPlanTypical, trip.baseCurrency),
-                    count: topPlanImpact.occasionsLost,
-                    name: topPlanImpact.profileName.toLowerCase(),
-                  })
-                : null
-            }
-            highlight={result.planImpacts.reduce((sum, i) => sum + i.occasionsLost, 0) >= 2}
-          />
+          {/* Facts — every number named and explained */}
+          {result.facts.map((fact, i) => (
+            <FactCard key={`${fact.kind}-${i}`} text={formatFact(fact, currency, t)} />
+          ))}
 
           {/* R6-21: post-verdict CTAs */}
           <div className="flex gap-2">
             <button
-              onClick={() => navigate(`/quick-add?amount=${encodeURIComponent(amount)}`)}
+              onClick={() => navigate(registerHref)}
               className="flex-1 py-3 rounded-xl bg-primary text-on-surface text-sm font-semibold btn-press"
             >
               {t('simulator.cta_register')}
@@ -320,38 +348,109 @@ export function SimulatorPage() {
   );
 }
 
-function MetricCard({
-  icon,
-  label,
-  text,
-  math,
-  highlight,
-}: {
-  icon: string;
-  label: string;
-  text: string;
-  /** R6-19: one-line derivation behind the verdict ("the math"). */
-  math?: string | null;
-  highlight?: boolean;
-}) {
+type TFn = (key: string, params?: Record<string, unknown>) => string;
+
+/** DEC-116: facts → full labeled sentences. Raw equations are banned. */
+function formatFact(fact: SimulationFact, currency: string, t: TFn): string {
+  switch (fact.kind) {
+    case 'free_impact':
+      return t('simulator.fact_free_impact', {
+        free: formatMoney(fact.freeCents, currency),
+        after: formatMoney(fact.afterCents, currency),
+      });
+    case 'exceeds_free':
+      return t('simulator.fact_exceeds_free', {
+        free: formatMoney(fact.freeCents, currency),
+        amount: formatMoney(fact.amountCents, currency),
+        missing: formatMoney(fact.missingCents, currency),
+      });
+    case 'daily_fits':
+      return t('simulator.fact_daily_fits', {
+        allowance: formatMoney(fact.allowanceCents, currency),
+        amount: formatMoney(fact.amountCents, currency),
+      });
+    case 'daily_days':
+      return t('simulator.fact_daily_days', {
+        allowance: formatMoney(fact.allowanceCents, currency),
+        amount: formatMoney(fact.amountCents, currency),
+        days: formatDays(fact.days),
+      });
+    case 'plan_consumption':
+      return t('simulator.fact_plan_consumption', {
+        occasions: formatDays(fact.occasions),
+        remaining: fact.remaining,
+        name: fact.profileName.toLowerCase(),
+        typical: formatMoney(fact.typicalValueCents, currency),
+      });
+    case 'plan_over':
+      return t('simulator.fact_plan_over', {
+        name: fact.profileName.toLowerCase(),
+        done: fact.done,
+        planned: fact.planned,
+      });
+    case 'event_reserve_covers':
+      return t('simulator.fact_event_reserve_covers', {
+        reserved: formatMoney(fact.reservedCents, currency),
+        event: fact.eventName,
+        left: formatMoney(fact.leftCents, currency),
+      });
+    case 'event_reserve_short':
+      return t('simulator.fact_event_reserve_short', {
+        reserved: formatMoney(fact.reservedCents, currency),
+        event: fact.eventName,
+        missing: formatMoney(fact.missingCents, currency),
+      });
+    case 'event_no_reserve':
+      return t('simulator.fact_event_no_reserve', { event: fact.eventName });
+  }
+}
+
+/** DEC-116: the verdict always states its concrete reason. */
+function formatVerdictReason(verdict: ContextualVerdict, currency: string, t: TFn): string {
+  switch (verdict.reason) {
+    case 'reserve_covers':
+      return t('simulator.reason_reserve_covers', { event: verdict.eventName });
+    case 'fits_plan':
+      return t('simulator.reason_fits_plan', {
+        remaining: verdict.remaining,
+        name: verdict.profileName.toLowerCase(),
+      });
+    case 'fits_free':
+      return t('simulator.reason_fits_free');
+    case 'consumes_occasions':
+      return t('simulator.reason_consumes_occasions', {
+        occasions: formatDays(verdict.occasions),
+        name: verdict.profileName.toLowerCase(),
+      });
+    case 'reserve_short':
+      return t('simulator.reason_reserve_short', {
+        event: verdict.eventName,
+        missing: formatMoney(verdict.missingCents, currency),
+      });
+    case 'many_days':
+      return t('simulator.reason_many_days', { days: formatDays(verdict.days) });
+    case 'large_share':
+      return t('simulator.reason_large_share', { percent: verdict.percent });
+    case 'consumes_whole_plan':
+      return t('simulator.reason_consumes_whole_plan', {
+        name: verdict.profileName.toLowerCase(),
+      });
+    case 'over_plan':
+      return t('simulator.reason_over_plan', { name: verdict.profileName.toLowerCase() });
+    case 'exceeds_free':
+      return t('simulator.reason_exceeds_free', {
+        missing: formatMoney(verdict.missingCents, currency),
+      });
+  }
+}
+
+function FactCard({ text }: { text: string }) {
   return (
     <div className="bg-surface-container rounded-xl p-4 flex items-start gap-3">
-      <Icon name={icon} size={18} className={highlight ? 'text-warning' : 'text-primary'} />
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
-          {label}
-        </p>
-        <p
-          className={`text-[13px] font-semibold leading-snug mt-1 ${
-            highlight ? 'text-warning' : 'text-on-surface'
-          }`}
-        >
-          {text}
-        </p>
-        {math && (
-          <p className="text-[11px] tabular text-on-surface-faint mt-1">{math}</p>
-        )}
-      </div>
+      <Icon name="info" size={18} className="text-primary" />
+      <p className="text-[13px] font-semibold leading-snug text-on-surface flex-1 min-w-0">
+        {text}
+      </p>
     </div>
   );
 }

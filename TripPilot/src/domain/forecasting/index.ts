@@ -17,3 +17,14 @@ export type {
   MultiMetricSimulation,
   SimulateMultiMetricInput,
 } from './forecasting';
+export { simulateContextualSpend } from './contextual-simulation';
+export type {
+  SimulationTarget,
+  SimulationProfileContext,
+  SimulationEventContext,
+  ContextualSimulationInput,
+  ContextualSimulation,
+  ContextualVerdict,
+  ContextualVerdictTone,
+  SimulationFact,
+} from './contextual-simulation';
