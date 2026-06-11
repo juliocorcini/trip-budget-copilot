@@ -1,6 +1,9 @@
 # TripPilot — Implementation Phases
 
-> Last updated: 2026-06-08
+> Last updated: 2026-06-10 (R6 housekeeping)
+> Delivery status: D1–D5 DELIVERED (v0.6.0 on Cloudflare Pages). D6 (Native Layer) not started.
+> Implementation notes: D1 shipped without Zustand — removed in favor of `useAppData` + repositories (DEC-068).
+> D5 shipped with a custom service worker (network-first + update toast) instead of Workbox (DEC-082).
 
 ## Phase Strategy
 
@@ -176,11 +179,11 @@ Six deliveries, ordered by user value. Each builds on the previous. The first de
 
 | Delivery | Raw Hours | Tier 3 | Status |
 |----------|:---------:|:------:|--------|
-| 1 — Foundation | 40h | ~13h | NOT STARTED |
-| 2 — Splitting | 25h | ~8h | NOT STARTED |
-| 3 — Forecasting | 35h | ~12h | NOT STARTED |
-| 4 — Outing Mode | 20h | ~7h | NOT STARTED |
-| 5 — Production PWA | 15h | ~5h | NOT STARTED |
+| 1 — Foundation | 40h | ~13h | ✅ DELIVERED (no Zustand — DEC-068) |
+| 2 — Splitting | 25h | ~8h | ✅ DELIVERED |
+| 3 — Forecasting | 35h | ~12h | ✅ DELIVERED |
+| 4 — Outing Mode | 20h | ~7h | ✅ DELIVERED |
+| 5 — Production PWA | 15h | ~5h | ✅ DELIVERED (custom SW — DEC-082) |
 | 6 — Native Layer | 15h | ~5h | NOT STARTED |
 | **Total** | **150h** | **~50h** | — |
 

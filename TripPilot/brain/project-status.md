@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-10 (R5 session)
+> Last updated: 2026-06-10 (R6 session)
 
 ## Current Phase
 
-**Implementation — D1–D6 + gap-fix R1..R3 + P2P sync R4 + reliability R5 implemented, v0.5.1 deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 implemented, v0.6.0 deployed** ✅
 
 ## Status Summary
 
@@ -25,9 +25,10 @@
 | Field review R3 2026-06-10 | ✅ RESOLVED | 26/26 requirements implemented in 7 gates (see `src/gap-fix-log-r3.md`) |
 | P2P sync R4 2026-06-10 | ✅ DONE | 14/14 requirements in 7 gates (see `src/gap-fix-log-r4.md`); DEC-103..108 |
 | Reliability R5 2026-06-10 | ✅ DONE | 9/9 requirements in 4 gates (see `src/gap-fix-log-r5.md`); DEC-109..113 |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (737 keys) |
-| Tests | ✅ DONE | 317 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.5.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
+| Full-fix R6 2026-06-10 | ✅ DONE | 25/25 items in 7 gates: 4 audit bugs + 6 partials + 8 field-test findings + simulator v3 (see `src/gap-fix-log-r6.md`) |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (754 keys) |
+| Tests | ✅ DONE | 343 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.6.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
@@ -121,6 +122,37 @@ welcome) + an iOS-unsafe blob export that froze the standalone PWA. Highlights:
   35/45/55 now lands between meta and teto) + clamped value-pill marker
 - **Tests**: +18 unit (317 total), e2e updated for the 5-step onboarding
 
+## Full-Fix Session R6 (2026-06-10)
+
+All 25 items from the full-coverage audit (`documents/full-coverage-audit-2026-06-10.md`)
+plus Julio's field-test findings (`documents/field-test-checklist-r3-r5.md`) were resolved
+in a 7-gate session (full log in `src/gap-fix-log-r6.md`, prompt in
+`documents/r6-full-fix-prompt.md`). Highlights:
+
+- **Timezone bugs killed (BUG-001/002, PAR-006)**: every "which day was this?" projection
+  now goes through `localDayOf` (UTC instants no longer shift evening expenses to the next
+  day); phase end dates fully inclusive; `resolveActivePhase` replaces `phases[0]` fallbacks
+- **Debts engine (BUG-003)**: multi-creditor allocation respects remaining credits
+- **Shared edit (BUG-004)**: editing a shared expense re-applies DEC-071 rejected-share math
+- **P2P sync reliable on the 1st attempt (P2P-09/12/13)**: sender consumes the receiver's
+  hello symmetrically (was erroring on EVERY successful send) + channels buffer messages
+  arriving before the app listens (was silently dropping the first attempt)
+- **QR scanner (P2P-06/07)**: camera switch button (remembers choice) + zoom chips —
+  unblocks the offline 2-QR mode on multi-lens iPhones
+- **Dashboard carousel (R-02)**: exactly 3 cards per page + mediterranean per-category colors
+- **Outing gauge (R5-09)**: labels/ticks anchored at the real 3:2:1:1 segment boundaries
+- **Honest iOS persistence (R5-03)**: install-to-home-screen guidance instead of the
+  impossible "enable" CTA; installed PWA no longer alarmed
+- **Keyboard viewport (R5-04)**: forced restore on keyboard close
+- **Locale formatting (PAR-001/002/004/005)**: dates/numbers/onboarding names/wallet types
+  follow the active language via a domain locale bridge
+- **Simulator v3 (R-12)**: each metric shows its math, quick chips, post-verdict CTAs;
+  learning prior keeps the preset estimate (PAR-003a)
+- **Tests**: +26 unit (343 total)
+
+R7 candidate (deferred, product decision): per-category simulation weighting when the
+category plan is already blown.
+
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
@@ -132,14 +164,15 @@ welcome) + an iOS-unsafe blob export that froze the standalone PWA. Highlights:
 
 ## Next Steps
 
-1. Julio re-tests v0.5.1 in the field: backup export/import on iPhone (share
-   sheet flow), data resilience after backgrounding, onboarding keyboard,
-   planner messages, outing gauge
-2. Field-test P2P sync with two real devices (iPhone + Android): pairing,
-   statement push + confirmations, device migration, offline 2-QR mode
-3. Real-data seed (julio-europa-2026) when trip data is ready
-4. D3+ features per `implementation-phases.md` (reports, automatic future floor)
-5. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
+1. Julio re-tests v0.6.0 in the field — the 8 R6-fixed findings: P2P sync first-attempt
+   + sender success, statement responses in-session, offline 2-QR with camera switch,
+   camera permission denied, carousel alignment/colors, gauge labels, iOS persistence
+   guidance, keyboard viewport restore, simulator v3
+2. Real-data seed (julio-europa-2026) when trip data is ready
+3. D6 / V2 features per `implementation-phases.md` (native layer, reports, automatic
+   future floor)
+4. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
+5. R7 candidate: per-category simulation weighting (product decision pending)
 
 ## Blockers
 

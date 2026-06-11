@@ -6,10 +6,10 @@
 
 ## Current State
 
-- Active gate: G7 (housekeeping + deploy)
-- Last milestone: G6 complete (R6-19..22)
-- Tests: 343 unit / 29 e2e
-- Build: OK (typecheck clean)
+- **ROUND COMPLETE** — all 25 items R6-01..R6-25 closed, v0.6.0 deployed
+- Tests: 343 unit ✅ / 29 e2e ✅ / typecheck ✅ / build ✅
+- Deploy: https://master.trippilot.pages.dev (https://4eb3ccc8.trippilot.pages.dev)
+- R7 candidate (product decision pending): per-category simulation weighting
 - Risks: date projection now local everywhere — watch DashboardPage day card (already local via GAP-R2-007)
 
 ## Gates
@@ -21,9 +21,21 @@
 - [x] G4 — UI polish: carousel, gauge, iOS banner, keyboard (R6-11..14)
 - [x] G5 — Locale formatting (R6-15..18)
 - [x] G6 — Simulator v3 + learning prior (R6-19..22)
-- [ ] G7 — Housekeeping + validation + deploy (R6-23..25)
+- [x] G7 — Housekeeping + validation + deploy (R6-23..25)
 
 ## Milestones
+
+### G7 — Housekeeping + validation + deploy (R6-23..25)
+
+- **R6-23**: brain housekeeping — `implementation-phases.md` (D1–D5 DELIVERED, D1 no-Zustand
+  DEC-068 note, D5 custom-SW DEC-082 note), `README.md` (113 decisions), `database-schema.md`
+  (Dexie v4 / 24 entities / DEC-113), `project-status.md` (R6 session + v0.6.0),
+  `field-test-checklist-r3-r5.md` (8 achados marcados "CORRIGIDO NA R6 — retestar").
+- **R6-24**: version bump 0.5.1 → **0.6.0** (package.json + app-version.ts). Full validation
+  under Node 22: typecheck ✅ · 343 unit ✅ · build ✅ · 29 Playwright e2e ✅.
+- **R6-25**: deployed `dist` to Cloudflare Pages — https://master.trippilot.pages.dev
+  (deployment https://4eb3ccc8.trippilot.pages.dev). Worker `trippilot-sync` untouched
+  this round (no redeploy needed).
 
 ### G6 — Simulator v3 + learning prior (R6-19..22)
 

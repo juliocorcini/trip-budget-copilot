@@ -1,7 +1,10 @@
 # TripPilot — Complete Database Schema
 
-> Last updated: 2026-06-10 (R3 session)
-> Status: Implemented. Dexie schema **v3** in `src/data/db/schema.ts`. v2 added the compound
+> Last updated: 2026-06-10 (R6 housekeeping)
+> Status: Implemented. Dexie schema **v4** in `src/data/db/schema.ts` — **24 entities**.
+> **v4 (R4 P2P sync)** added `peerLinks` and `mirroredStatements` tables plus
+> `Participant.linkedActorId` (DEC-105/106); backup format is **v4** with v1–v3
+> import normalization. v2 added the compound
 > indexes specified here (`[tripId+order]`, `[tripId+date]`, `[budgetPoolId+phaseId]`,
 > `[budgetPoolId+kind]`, `[phaseId+budgetPoolId]`, `[phaseId+type]`, `[phaseId+category]`,
 > `[budgetPoolId+type]`) plus `db.on('populate')` seeding (GAP-031). **v3 (R2, single
@@ -10,10 +13,9 @@
 > `Phase.rhythmPreset`/`Phase.peakDays` (DEC-075), and the extended `PlannedOccurrence`
 > (`endDate`, `kind`, `reservedCents`, `linkedSessionId`, nullable `activityProfileId`)
 > with `[phaseId+plannedDate]` (DEC-072). The `upgrade()` callback backfills permissive
-> defaults — existing data keeps identical behavior. Backup format is **v3**
-> (`phaseProfileSettings` included; v2 imports normalized with migration defaults).
+> defaults — existing data keeps identical behavior.
 > Storage: IndexedDB via Dexie (local-first)
-> Decisions incorporated: DEC-001 through DEC-083
+> Decisions incorporated: DEC-001 through DEC-113
 
 ---
 

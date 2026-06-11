@@ -15,7 +15,7 @@
 | File | Purpose | When to read |
 |------|---------|--------------|
 | `product-spec.md` | V1 features, rules, scope boundaries | Any product question |
-| `decision-log.md` | All 21 decisions with status (approved/pending/superseded) | Before making new decisions |
+| `decision-log.md` | All 113 decisions with status (approved/pending/superseded) | Before making new decisions |
 | `technical-direction.md` | Stack (locked), database, architecture, deployment | Any technical question |
 | `implementation-phases.md` | 6 deliveries with acceptance criteria and estimates | Planning, scheduling |
 | `project-status.md` | Current status, pending tasks, next steps | Status checks, standups |

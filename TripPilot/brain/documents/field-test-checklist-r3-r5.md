@@ -1,7 +1,10 @@
 # Checklist de Teste de Campo — R3 + R4 + R5
 
-**App:** [https://master.trippilot.pages.dev](https://master.trippilot.pages.dev) · **Versão atual:** v0.5.1
+**App:** [https://master.trippilot.pages.dev](https://master.trippilot.pages.dev) · **Versão atual:** v0.6.0
 **Cobertura:** Gap-Fix R3 (26 itens, v0.4.0) · R4 P2P Sync (14 itens, v0.5.0) · R5 Confiabilidade (9 itens, v0.5.1)
+
+> **Atualização R6 (v0.6.0):** todos os 8 achados desta rodada foram corrigidos —
+> itens marcados com **[CORRIGIDO NA R6 — retestar]** abaixo. Detalhes em `src/gap-fix-log-r6.md`.
 
 > Como usar: teste na ordem das seções (montei por tela/fluxo, não por rodada).
 > Marque `[x]` quando passar. Anote problemas no final, na seção "Achados".
@@ -11,7 +14,7 @@
 ## 1. Visual e "feel" geral (R3: R-01..05)
 
 - [x] **Headers fixos** — Dashboard, Gastos e Planejar: ao rolar, o topo da página (título/tabs/filtros) fica fixo e ganha uma sombra sutil. Nada "some" ao rolar. *(R-01)*
-- [ ] **Margens alinhadas** — Em todas as páginas, cards e listas compartilham a mesma margem lateral (nada desalinhado em relação ao resto). *(R-02) Não: o card que tem scroll herizontal que mostra os usos de perfis na tela inicial não esta alinhado doas lados, deveria estar com 3 cards alinhados na tela e os outros cards aparecerem quando rolar.. e esses icones antes eram de varias cores mediterraneas como o app, agora ficou tudo vermelho..*  
+- [ ] **Margens alinhadas** — Em todas as páginas, cards e listas compartilham a mesma margem lateral (nada desalinhado em relação ao resto). *(R-02) Não: o card que tem scroll herizontal que mostra os usos de perfis na tela inicial não esta alinhado doas lados, deveria estar com 3 cards alinhados na tela e os outros cards aparecerem quando rolar.. e esses icones antes eram de varias cores mediterraneas como o app, agora ficou tudo vermelho..* **[CORRIGIDO NA R6 — retestar: 3 cards exatos por página + cores por categoria]**  
 
 - [x] **Counters com mesma altura** — No Dashboard, os cards do carrossel de contadores têm todos a mesma altura, mesmo com nomes de 1 ou 2 linhas. *(R-03)*
 - [x] **Sem barras de scroll visíveis** — Filtros de Gastos, carrossel do Dashboard, seletor de fases do Planner: nenhuma scrollbar horizontal aparece. *(R-04)*
@@ -29,7 +32,7 @@
 
 - [x] **Amigo Sincero baseado em plano** — O card compara o gasto com o PLANO da categoria (dentro do plano / acima do ritmo / sem plano) e projeta quando a reserva começa a ser usada. Nunca mostra absurdos tipo "197 saídas". *(R-11)*
 - [x] **"Ver impacto completo" → /impact** — Abre página com gasto-gatilho, planejado vs gasto por categoria, projeção de fim de fase e risco de reserva (não abre mais o simulador). *(R-11)*
-- [x] **Simulador com 3 métricas** — Simular um gasto mostra 3 perspectivas (impacto no total, em dias de allowance, no plano) e o veredito é o PIOR dos 3 (ok/atenção/risco). *(R-12) Ainda não esta 100% bom pode melhorar.*
+- [x] **Simulador com 3 métricas** — Simular um gasto mostra 3 perspectivas (impacto no total, em dias de allowance, no plano) e o veredito é o PIOR dos 3 (ok/atenção/risco). *(R-12) Ainda não esta 100% bom pode melhorar.* **[CORRIGIDO NA R6 — retestar: cada métrica mostra a conta, chips €5/€10/€20, CTAs "registrar esse gasto" e "ver no planner"]**
 
 ## 4. Taxonomia de gastos em saídas (R3: R-13..18)
 
@@ -59,34 +62,34 @@
 
 ## 7. Gauge da saída (R5-09)
 
-- [ ] **Dot proporcional ao orçamento** — Na saída ativa com orçamento (ex.: €40): gastou €35 → dot ANTES do marcador de limite; €45 → logo depois; €55 → perto do fim, com pill de valor legível. O dot nunca "cola" errado no início/fim. *(R5-09) eu entendi o problema que eu estava vendo aqui, por exemplo, uma meta de 15 aparece no começo da barra verde, meta de 15, mas a meta real de 15 é no fim direito da barra, isso nao confunde tanto mas quando chega no teto seguro, que é 25 euros, o valor que fala que o teto é 15 euros, fica contralizado na tela, enquanto a barra ambar fica um pouco fora de centro para a direita, ai as coisas não se conversam, teto seguro deveria estar acomapnhando sua cor, ou ver uma forma visual de dar para entender que o valor dele é no fim quando ja esta trocando para o amarelo..*
+- [ ] **Dot proporcional ao orçamento** — Na saída ativa com orçamento (ex.: €40): gastou €35 → dot ANTES do marcador de limite; €45 → logo depois; €55 → perto do fim, com pill de valor legível. O dot nunca "cola" errado no início/fim. *(R5-09) eu entendi o problema que eu estava vendo aqui, por exemplo, uma meta de 15 aparece no começo da barra verde, meta de 15, mas a meta real de 15 é no fim direito da barra, isso nao confunde tanto mas quando chega no teto seguro, que é 25 euros, o valor que fala que o teto é 15 euros, fica contralizado na tela, enquanto a barra ambar fica um pouco fora de centro para a direita, ai as coisas não se conversam, teto seguro deveria estar acomapnhando sua cor, ou ver uma forma visual de dar para entender que o valor dele é no fim quando ja esta trocando para o amarelo..* **[CORRIGIDO NA R6 — retestar: rótulos ancorados nas fronteiras reais (43%/71%/86%) + ticks coloridos na barra]**
 
 ## 8. Sync P2P entre celulares (R4) — precisa de 2 dispositivos
 
 > Preparo: iPhone + Android, ambos com o app aberto (idealmente instalado como PWA).
 > Teste com internet primeiro; depois os modos offline.
 
-- [ ] **Migração de dispositivo (online)** — Backup → "Enviar para outro dispositivo" no celular antigo → QR; novo celular: Welcome → "Receber de outro dispositivo" (ou Backup → Receber) → escaneia → preview de import → confirmar. Dados completos chegam. *(P2P-09) de primeira deu erro nos dois celulares, de segunda o celular que estava mandando deu erro, mas no celular que estava recebendo os dados chegaram sim, então um com erro e outro sem.. sempre assim, na segunda conexão ele envia mas ainda da erro no que esta enviando..*  
+- [ ] **Migração de dispositivo (online)** — Backup → "Enviar para outro dispositivo" no celular antigo → QR; novo celular: Welcome → "Receber de outro dispositivo" (ou Backup → Receber) → escaneia → preview de import → confirmar. Dados completos chegam. *(P2P-09) de primeira deu erro nos dois celulares, de segunda o celular que estava mandando deu erro, mas no celular que estava recebendo os dados chegaram sim, então um com erro e outro sem.. sempre assim, na segunda conexão ele envia mas ainda da erro no que esta enviando..* **[CORRIGIDO NA R6 — retestar: hello simétrico (erro do remetente) + buffer do canal (falha da 1ª tentativa)]**  
 
 - [x] **Pareamento de pessoa por QR** — /shared → "Meu QR" num celular; no outro, "Adicionar por QR" → a pessoa entra cadastrada e com badge de vínculo. *(P2P-11)*
 - [x] **Vincular pessoa existente** — Participante já criado por nome → extrato → "Conectar por QR" → vincula sem duplicar. *(P2P-11)*
-- [ ] **Enviar extrato** — "Enviar extrato para [nome]" → outro celular recebe em "Recebidos de outros dispositivos" → sheet com confirmar/rejeitar por item, timestamp visível. *(P2P-12/13) mesma coisa só funciona da segunda vez e o que manda ainda da erro..*
-- [ ] **Respostas voltam na mesma sessão** — Confirmações/rejeições do outro lado são aplicadas no remetente ainda na sessão (ou na próxima conexão, via fila). *(P2P-12/13)*
+- [ ] **Enviar extrato** — "Enviar extrato para [nome]" → outro celular recebe em "Recebidos de outros dispositivos" → sheet com confirmar/rejeitar por item, timestamp visível. *(P2P-12/13) mesma coisa só funciona da segunda vez e o que manda ainda da erro..* **[CORRIGIDO NA R6 — retestar: mesma causa raiz do P2P-09]**
+- [ ] **Respostas voltam na mesma sessão** — Confirmações/rejeições do outro lado são aplicadas no remetente ainda na sessão (ou na próxima conexão, via fila). *(P2P-12/13)* **[CORRIGIDO NA R6 — retestar: o remetente não quebra mais antes das respostas chegarem]**
 - [x] **Fallback de relay** — Em redes que bloqueiam P2P direto (ex.: 4G + Wi-Fi distintos), a transferência ainda completa (relay cifrado via Worker após ~8s). Verifique apenas que funciona — a troca é transparente. *(P2P-05/06)*
-- [ ] **Modo offline 2-QR** — Sem internet, mesmos Wi-Fi/hotspot: fluxo manual de 2 QRs (A mostra, B lê, B mostra, A lê) conecta e transfere. *(P2P-06) não consegui testar pois não da para escolher qual camera quer usar para ler o QR e de acordo com o tamanho do qr precisava de outra camera..*
-- [ ] **Câmera: permissão negada** — Negar permissão da câmera mostra mensagem clara (não tela travada). *(P2P-07)*
+- [ ] **Modo offline 2-QR** — Sem internet, mesmos Wi-Fi/hotspot: fluxo manual de 2 QRs (A mostra, B lê, B mostra, A lê) conecta e transfere. *(P2P-06) não consegui testar pois não da para escolher qual camera quer usar para ler o QR e de acordo com o tamanho do qr precisava de outra camera..* **[CORRIGIDO NA R6 — retestar: botão de trocar câmera (lembra a última) + chips de zoom 1×/2×/3×]**
+- [ ] **Câmera: permissão negada** — Negar permissão da câmera mostra mensagem clara (não tela travada). *(P2P-07)* **[Testável agora na R6 — negar a permissão ao testar a troca de câmera]**
 
 ## 9. Confiabilidade de dados (R5-01..03) — os críticos do iOS
 
 - [x] **Erro de carga tem tela de recuperação** — Se a base falhar ao abrir (difícil de forçar; no iOS às vezes ao reabrir o PWA após dias), aparece tela de erro com "Tentar novamente" — nunca redirect para welcome (que parecia "dados apagados") nem loading infinito (watchdog de 10s). *(R5-01)*
 - [x] **Export no iPhone não trava o app** — Backup → Exportar no iOS abre o share sheet nativo (salvar em Arquivos etc.); o app segue utilizável depois; botão mostra estado ocupado durante o processo. *(R5-02)*
-- [ ] **Aviso de armazenamento não persistente** — Se o navegador não conceder armazenamento persistente, o Dashboard mostra banner discreto sugerindo backup. *(R5-03) Está mostrando mas no iphone quando tenta ativar essa opção no iphone parece que nunca ativa, estou usando o safari.*
+- [ ] **Aviso de armazenamento não persistente** — Se o navegador não conceder armazenamento persistente, o Dashboard mostra banner discreto sugerindo backup. *(R5-03) Está mostrando mas no iphone quando tenta ativar essa opção no iphone parece que nunca ativa, estou usando o safari.* **[CORRIGIDO NA R6 — retestar: no iOS Safari o banner agora orienta "instale na tela inicial" (o botão ativar era impossível no Safari); instalado como PWA não alarma]**
 - [x] **Datas reais intactas** — Viagem real (não-demo) NUNCA tem as datas reescritas ao abrir o app (a auto-reparação só roda na viagem demo). *(R5-03)*
 - [x] **Sair e voltar não perde dados** — Use o app, feche completamente, reabra (inclusive dias depois no iOS): dados continuam. *(R5-01/03)*
 
 ## 10. Onboarding (R5-04..05)
 
-- [ ] **Teclado não cobre o conteúdo** — No iPhone, com teclado aberto no onboarding, o campo focado e o botão de avançar permanecem visíveis (a tela se ajusta). *(R5-04) funcionou pela metade parece que quando abre o teclado ele sobre o viewport mesmo, ams quando fecha o teclado ele não volta o viewport..*
+- [ ] **Teclado não cobre o conteúdo** — No iPhone, com teclado aberto no onboarding, o campo focado e o botão de avançar permanecem visíveis (a tela se ajusta). *(R5-04) funcionou pela metade parece que quando abre o teclado ele sobre o viewport mesmo, ams quando fecha o teclado ele não volta o viewport..* **[CORRIGIDO NA R6 — retestar: viewport forçado de volta ao fechar o teclado]**
 - [x] **Etapa de detalhes da fase** — O onboarding tem etapa dedicada da fase: datas (validadas dentro do range da viagem), preset de ritmo e dias de pico — e tudo isso chega correto na viagem criada. *(R5-05)*
 
 ---
