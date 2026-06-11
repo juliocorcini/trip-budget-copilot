@@ -23,6 +23,9 @@ export function createDefaultAppSettings(): AppSettings {
     isDemo: false,
     onboardingCompleted: false,
     quickAddDefaultValuesCents: DEFAULT_QUICK_ADD_VALUES_CENTS,
+    // DEC-119 (R-10): configurable home screen defaults.
+    hiddenDashboardCards: [],
+    dashboardCardOrder: [],
   };
 }
 

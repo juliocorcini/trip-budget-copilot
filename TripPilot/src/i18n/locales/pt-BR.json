@@ -87,7 +87,31 @@
     "amigo_no_plan": "Esse gasto com {{type}} usou {{percent}}% do que sobra livre. Não há plano para essa categoria.",
     "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}.",
     "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações.",
-    "storage_install_ios": "Instale o TripPilot na tela inicial para proteger seus dados (Compartilhar → Adicionar à Tela de Início)."
+    "storage_install_ios": "Instale o TripPilot na tela inicial para proteger seus dados (Compartilhar → Adicionar à Tela de Início).",
+    "hidden_cards_entry": "{{count}} card(s) escondido(s) · Configurar tela inicial",
+    "hide_card": "Esconder card",
+    "configure_home": "Configurar tela inicial",
+    "configure_home_entry": "Ordem e visibilidade dos cards",
+    "configure_home_hint": "Use as setas para mudar a ordem dos cards; o olho esconde ou mostra. Os cards fixos são as âncoras do app.",
+    "card_locked": "Fixo",
+    "card_move_up": "Mover para cima",
+    "card_move_down": "Mover para baixo",
+    "card_show": "Mostrar card",
+    "card_today_events": "Eventos de hoje",
+    "card_active_outing": "Saída ativa",
+    "card_hero": "Livre para gastar",
+    "card_occasion_counters": "Contadores de ocasiões",
+    "card_insights": "Insights",
+    "card_amigo_sincero": "Amigo Sincero",
+    "card_pending_shares": "Confirmações pendentes",
+    "card_funds_summary": "Fundos globais",
+    "card_recent_expenses": "Últimos gastos",
+    "card_action_create_event": "Criar evento",
+    "card_action_start_outing": "Iniciar saída",
+    "card_action_see_impact": "Ver impacto",
+    "card_action_open_shared": "Abrir gastos divididos",
+    "card_action_open_funds": "Abrir fundos",
+    "card_action_register_expense": "Registrar gasto"
   },
   "expenses": {
     "title": "Gastos",
@@ -838,5 +862,20 @@
     "title": "Não foi possível carregar seus dados",
     "body": "Seus dados NÃO foram apagados — o banco local apenas não respondeu. Feche outras abas do app e tente de novo.",
     "retry": "Tentar novamente"
+  },
+  "selection": {
+    "count": "{{count}} selecionados",
+    "action_delete": "Excluir",
+    "action_move_pool": "Mover de fundo",
+    "action_category": "Categoria",
+    "delete_title": "Excluir selecionados",
+    "delete_expenses_body": "Os {{count}} gastos selecionados serão excluídos e saem de todos os totais.",
+    "delete_outings_body": "As {{count}} saídas selecionadas serão excluídas junto com todos os gastos delas.",
+    "delete_confirm": "Excluir {{count}}",
+    "move_pool_title": "Mover para qual fundo?",
+    "category_title": "Trocar categoria",
+    "deleted_toast": "Excluídos ✓",
+    "moved_toast": "Movidos de fundo ✓",
+    "category_toast": "Categoria atualizada ✓"
   }
 }

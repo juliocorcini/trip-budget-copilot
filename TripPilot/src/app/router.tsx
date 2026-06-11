@@ -10,6 +10,7 @@ const PlannerPage = lazy(() => import('@/features/planning/PlannerPage').then(m 
 const MorePage = lazy(() => import('@/features/more/MorePage').then(m => ({ default: m.MorePage })));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const BackupPage = lazy(() => import('@/features/backup/BackupPage').then(m => ({ default: m.BackupPage })));
+const DashboardConfigPage = lazy(() => import('@/features/settings/DashboardConfigPage').then(m => ({ default: m.DashboardConfigPage })));
 const WelcomePage = lazy(() => import('@/features/onboarding/WelcomePage').then(m => ({ default: m.WelcomePage })));
 const OnboardingPage = lazy(() => import('@/features/onboarding/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 const SharedExpensesPage = lazy(() => import('@/features/shared/SharedExpensesPage').then(m => ({ default: m.SharedExpensesPage })));
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
           { path: '/more', element: <LazyRoute><MorePage /></LazyRoute> },
           { path: '/settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
           { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
+          { path: '/settings/dashboard', element: <LazyRoute><DashboardConfigPage /></LazyRoute> },
           { path: '/shared', element: <LazyRoute><SharedExpensesPage /></LazyRoute> },
           { path: '/trip', element: <LazyRoute><TripOverviewPage /></LazyRoute> },
           { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },

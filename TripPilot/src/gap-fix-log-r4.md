@@ -9,9 +9,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 6 (long-press: lists + home screen)
-- **Progress**: 8/12 requirements
-- **Tests**: 377 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Active gate**: GATE 7 (PWA outing notification)
+- **Progress**: 10/12 requirements
+- **Tests**: 390 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
 - **Build**: v0.6.0
 
 ## GATE 0 — Baseline + decision-log ✅
@@ -80,9 +80,25 @@
       coerência R-04) e "bebidas até a META" (era teto).
 - New tests: outing.test.ts reescrito p/ zonas (6 alerts + 4 zone + 3 next-drink).
 
-## GATE 6 — Long-press
-- [ ] R-09 multi-select in lists (expenses + outing history)
-- [ ] R-10 configurable dashboard (hide, quick action, reorder)
+## GATE 6 — Long-press ✅
+- [x] R-09 (DEC-118) multi-select in lists — new `useLongPress` hook (pointer events,
+      500ms, move-cancel, synthetic-click suppression via onClickCapture) +
+      `useMultiSelect` built on top. ExpenseListPage: long-press enters selection
+      mode (tab "Gastos" e "Saídas"), tap toggles, `SelectionBar` fixed at bottom.
+      Batch actions via new `batch-orchestrators.ts` (Dexie tx, soft delete):
+      delete / move pool / change category (expenses); delete with cascade
+      items+txs+shares (outings). Confirm sheets + toasts; selection cleared on
+      tab change.
+- [x] R-10 (DEC-119) configurable dashboard — `domain/dashboard/dashboard-cards.ts`
+      catalog: 9 cards, anchors fixed (active_outing, hero), 7 movable with
+      quickAction. AppSettings + `hiddenDashboardCards`/`dashboardCardOrder`
+      (repo backfills old records). DashboardPage renders by resolved sequence;
+      long-press on a card → sheet (quick action / hide / configure home);
+      hidden cards → thin "N cards ocultos" entry. New page
+      /settings/dashboard (DashboardConfigPage): reorder ↑↓ + show/hide,
+      locked anchors marked. Settings entry "Personalizar" added. i18n ×3
+      (selection.* + dashboard.* novos, parity ✅).
+- New tests: dashboard-cards.test.ts (9) + batch-orchestrators.test.ts (4).
 
 ## GATE 7 — PWA outing notification
 - [ ] R-11 persistent notification with quick-add actions (research + best effort)

@@ -19,6 +19,12 @@ export type {
 } from './outing-orchestrators';
 export { buildFullBackup, importBackup } from './backup-orchestrators';
 export type { ImportMode } from './backup-orchestrators';
+export {
+  softDeleteTransactionsBatch,
+  moveTransactionsToPoolBatch,
+  changeTransactionsCategoryBatch,
+  softDeleteOutingSessionsBatch,
+} from './batch-orchestrators';
 export { resolveShareConfirmation } from './share-orchestrators';
 export type { ResolveShareInput } from './share-orchestrators';
 export { deleteBudgetPool, deletePhase, swapPhaseOrder } from './crud-orchestrators';

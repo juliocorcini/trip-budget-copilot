@@ -16,4 +16,7 @@ export interface AppSettings {
   isDemo: boolean;
   onboardingCompleted: boolean;
   quickAddDefaultValuesCents: number[];
+  /** DEC-119 (R-10): configurable home screen (non-indexed — no migration). */
+  hiddenDashboardCards: string[];
+  dashboardCardOrder: string[];
 }

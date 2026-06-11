@@ -28,6 +28,8 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     isDemo: false,
     onboardingCompleted: false,
     quickAddDefaultValuesCents: [300, 500, 1000],
+    hiddenDashboardCards: [],
+    dashboardCardOrder: [],
   },
   trips: [],
   phases: [],

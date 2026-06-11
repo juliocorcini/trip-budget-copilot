@@ -140,6 +140,17 @@ export function SettingsPage() {
         />
       </Section>
 
+      {/* DEC-119 (R-10): home screen card order + visibility */}
+      <Section title={t('dashboard.configure_home')}>
+        <button
+          onClick={() => navigate('/settings/dashboard')}
+          className="w-full flex items-center justify-between btn-press"
+        >
+          <span className="text-sm text-on-surface">{t('dashboard.configure_home_entry')}</span>
+          <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+        </button>
+      </Section>
+
       <Section title={t('settings.backup_reminder')}>
         <ToggleRow
           label={t('settings.backup_reminder')}

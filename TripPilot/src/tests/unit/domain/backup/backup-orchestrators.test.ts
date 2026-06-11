@@ -24,6 +24,8 @@ const settings: AppSettings = {
   isDemo: false,
   onboardingCompleted: true,
   quickAddDefaultValuesCents: [300, 500, 700, 1000, 1500],
+  hiddenDashboardCards: [],
+  dashboardCardOrder: [],
 };
 
 const mkTrip = (): Trip => ({

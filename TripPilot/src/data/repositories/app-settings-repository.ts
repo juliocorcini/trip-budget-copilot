@@ -11,7 +11,13 @@ class AppSettingsRepository {
       await db.appSettings.add(defaults);
       return defaults;
     }
-    return settings;
+    // DEC-119 (R-10): records created before the dashboard-config fields
+    // existed are backfilled in memory (non-indexed — no migration needed).
+    return {
+      ...settings,
+      hiddenDashboardCards: settings.hiddenDashboardCards ?? [],
+      dashboardCardOrder: settings.dashboardCardOrder ?? [],
+    };
   }
 
   async update(partial: Partial<AppSettings>): Promise<AppSettings> {

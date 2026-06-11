@@ -87,7 +87,31 @@
     "amigo_no_plan": "This {{type}} expense used {{percent}}% of what is left free. There is no plan for this category.",
     "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}.",
     "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings.",
-    "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen)."
+    "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen).",
+    "hidden_cards_entry": "{{count}} hidden card(s) · Configure home screen",
+    "hide_card": "Hide card",
+    "configure_home": "Configure home screen",
+    "configure_home_entry": "Card order and visibility",
+    "configure_home_hint": "Use the arrows to reorder the cards; the eye hides or shows them. Locked cards are the app anchors.",
+    "card_locked": "Locked",
+    "card_move_up": "Move up",
+    "card_move_down": "Move down",
+    "card_show": "Show card",
+    "card_today_events": "Today's events",
+    "card_active_outing": "Active outing",
+    "card_hero": "Free to spend",
+    "card_occasion_counters": "Occasion counters",
+    "card_insights": "Insights",
+    "card_amigo_sincero": "Honest Friend",
+    "card_pending_shares": "Pending confirmations",
+    "card_funds_summary": "Global funds",
+    "card_recent_expenses": "Recent expenses",
+    "card_action_create_event": "Create event",
+    "card_action_start_outing": "Start outing",
+    "card_action_see_impact": "See impact",
+    "card_action_open_shared": "Open shared expenses",
+    "card_action_open_funds": "Open funds",
+    "card_action_register_expense": "Register expense"
   },
   "expenses": {
     "title": "Expenses",
@@ -838,5 +862,20 @@
     "title": "Could not load your data",
     "body": "Your data was NOT deleted — the local database just failed to respond. Close other tabs of the app and try again.",
     "retry": "Try again"
+  },
+  "selection": {
+    "count": "{{count}} selected",
+    "action_delete": "Delete",
+    "action_move_pool": "Move fund",
+    "action_category": "Category",
+    "delete_title": "Delete selected",
+    "delete_expenses_body": "The {{count}} selected expenses will be deleted and leave every total.",
+    "delete_outings_body": "The {{count}} selected outings will be deleted along with all their expenses.",
+    "delete_confirm": "Delete {{count}}",
+    "move_pool_title": "Move to which fund?",
+    "category_title": "Change category",
+    "deleted_toast": "Deleted ✓",
+    "moved_toast": "Fund updated ✓",
+    "category_toast": "Category updated ✓"
   }
 }

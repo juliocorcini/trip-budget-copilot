@@ -87,7 +87,31 @@
     "amigo_no_plan": "Este gasto en {{type}} usó el {{percent}}% de lo que queda libre. No hay plan para esta categoría.",
     "amigo_reserve_date": "A este ritmo, la reserva empieza a usarse el {{date}}.",
     "storage_not_persisted": "El sistema puede borrar tus datos. Activa el almacenamiento protegido en Configuración.",
-    "storage_install_ios": "Instala TripPilot en la pantalla de inicio para proteger tus datos (Compartir → Añadir a pantalla de inicio)."
+    "storage_install_ios": "Instala TripPilot en la pantalla de inicio para proteger tus datos (Compartir → Añadir a pantalla de inicio).",
+    "hidden_cards_entry": "{{count}} card(s) oculto(s) · Configurar pantalla de inicio",
+    "hide_card": "Ocultar card",
+    "configure_home": "Configurar pantalla de inicio",
+    "configure_home_entry": "Orden y visibilidad de los cards",
+    "configure_home_hint": "Usa las flechas para reordenar los cards; el ojo los oculta o muestra. Los cards fijos son las anclas de la app.",
+    "card_locked": "Fijo",
+    "card_move_up": "Mover hacia arriba",
+    "card_move_down": "Mover hacia abajo",
+    "card_show": "Mostrar card",
+    "card_today_events": "Eventos de hoy",
+    "card_active_outing": "Salida activa",
+    "card_hero": "Libre para gastar",
+    "card_occasion_counters": "Contadores de ocasiones",
+    "card_insights": "Insights",
+    "card_amigo_sincero": "Amigo Sincero",
+    "card_pending_shares": "Confirmaciones pendientes",
+    "card_funds_summary": "Fondos globales",
+    "card_recent_expenses": "Últimos gastos",
+    "card_action_create_event": "Crear evento",
+    "card_action_start_outing": "Iniciar salida",
+    "card_action_see_impact": "Ver impacto",
+    "card_action_open_shared": "Abrir gastos divididos",
+    "card_action_open_funds": "Abrir fondos",
+    "card_action_register_expense": "Registrar gasto"
   },
   "expenses": {
     "title": "Gastos",
@@ -838,5 +862,20 @@
     "title": "No se pudieron cargar tus datos",
     "body": "Tus datos NO fueron borrados — la base local simplemente no respondió. Cierra otras pestañas de la app e inténtalo de nuevo.",
     "retry": "Intentar de nuevo"
+  },
+  "selection": {
+    "count": "{{count}} seleccionados",
+    "action_delete": "Eliminar",
+    "action_move_pool": "Mover de fondo",
+    "action_category": "Categoría",
+    "delete_title": "Eliminar seleccionados",
+    "delete_expenses_body": "Los {{count}} gastos seleccionados se eliminarán y salen de todos los totales.",
+    "delete_outings_body": "Las {{count}} salidas seleccionadas se eliminarán junto con todos sus gastos.",
+    "delete_confirm": "Eliminar {{count}}",
+    "move_pool_title": "¿Mover a qué fondo?",
+    "category_title": "Cambiar categoría",
+    "deleted_toast": "Eliminados ✓",
+    "moved_toast": "Fondo actualizado ✓",
+    "category_toast": "Categoría actualizada ✓"
   }
 }
