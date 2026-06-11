@@ -148,26 +148,30 @@ export function calculateDebts(
   const participantMap = new Map(participants.map((p) => [p.id, p]));
   const debts: DebtEntry[] = [];
 
-  for (const [pid, balance] of balances) {
-    if (balance < 0) {
-      const creditors = [...balances.entries()]
-        .filter(([, b]) => b > 0)
-        .sort((a, b) => b[1] - a[1]);
+  // BUG-003 (R6-03): allocate against MUTABLE remaining credits so no creditor
+  // is ever assigned more than their net balance across multiple debtors.
+  const creditors = [...balances.entries()]
+    .filter(([, b]) => b > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, b]) => ({ id, remainingCents: b }));
 
-      let remaining = Math.abs(balance);
-      for (const [creditorId, creditorBalance] of creditors) {
-        if (remaining <= 0) break;
-        const amount = Math.min(remaining, creditorBalance);
-        if (amount > 0) {
-          debts.push({
-            debtorId: pid,
-            debtorName: participantMap.get(pid)?.name ?? pid,
-            creditorId,
-            creditorName: participantMap.get(creditorId)?.name ?? creditorId,
-            amountCents: amount,
-          });
-          remaining -= amount;
-        }
+  for (const [pid, balance] of balances) {
+    if (balance >= 0) continue;
+
+    let remaining = Math.abs(balance);
+    for (const creditor of creditors) {
+      if (remaining <= 0) break;
+      const amount = Math.min(remaining, creditor.remainingCents);
+      if (amount > 0) {
+        debts.push({
+          debtorId: pid,
+          debtorName: participantMap.get(pid)?.name ?? pid,
+          creditorId: creditor.id,
+          creditorName: participantMap.get(creditor.id)?.name ?? creditor.id,
+          amountCents: amount,
+        });
+        remaining -= amount;
+        creditor.remainingCents -= amount;
       }
     }
   }

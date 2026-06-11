@@ -6,7 +6,7 @@ import type { ConfidenceLevel } from '@/domain/types/common';
 import type { DebtEntry } from '@/domain/splitting';
 import { calculateEffectiveSpendingDays } from '@/domain/phases';
 import { calculatePoolSpent } from '@/domain/budget';
-import { getTotalDays } from '@/domain/dates';
+import { getTotalDays, localDayOf } from '@/domain/dates';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
 /**
@@ -135,7 +135,7 @@ function buildNoSpendStreak(input: BuildInsightsInput): DashboardInsight | null 
   const spendDates = new Set(
     input.phaseTransactions
       .filter((tx) => tx.deletedAt === null && tx.type === 'expense')
-      .map((tx) => tx.date.slice(0, 10)),
+      .map((tx) => localDayOf(tx.date)),
   );
   if (spendDates.size === 0) return null;
 

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
-import { resolveActivePhase, formatDate, localDateString, formatShortDate } from '@/domain/dates';
+import { resolveActivePhase, formatDate, localDateString, formatShortDate, localDayOf } from '@/domain/dates';
 import { calculateFreeToSpend, calculatePoolSpent, projectReserveStartDate } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { calculateEffectiveSpendingDays } from '@/domain/phases';
@@ -156,7 +156,7 @@ export function ImpactDetailPage() {
             <div>
               <p className="text-sm font-bold text-on-surface">{triggerTx.description}</p>
               <p className="text-xs text-on-surface-faint mt-0.5">
-                {formatShortDate(triggerTx.date.slice(0, 10))}
+                {formatShortDate(localDayOf(triggerTx.date))}
               </p>
             </div>
             <p className="text-base font-extrabold tabular text-on-surface">

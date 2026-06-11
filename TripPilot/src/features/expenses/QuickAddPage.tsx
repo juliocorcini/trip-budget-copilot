@@ -5,7 +5,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
 import type { ParticipantShare } from '@/domain/types/participant-share';
-import { findActivePhase } from '@/domain/dates';
+import { resolveActivePhase } from '@/domain/dates';
 import { toCents, formatMoney } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
@@ -59,8 +59,9 @@ export function QuickAddPage() {
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [showZeroBudgetConfirm, setShowZeroBudgetConfirm] = useState(false);
 
-  const activePhase = findActivePhase(phases);
-  const currentPhase = activePhase ?? phases[0] ?? null;
+  // BUG-002 (R6-02): never fall back to phases[0] — resolveActivePhase picks
+  // the nearest phase (current, else last past, else first future).
+  const currentPhase = resolveActivePhase(phases);
   const defaultWallet = wallets.find((w) => w.isDefault);
 
   // Withdrawal pulls from a non-cash wallet into a cash wallet (Core Rule 3).

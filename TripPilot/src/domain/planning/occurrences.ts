@@ -1,5 +1,6 @@
 import type { PlannedOccurrence, OccurrenceKind } from '@/domain/types/planned-occurrence';
 import { createSyncMetadata } from '@/utils/entity-factory';
+import { localDayOf } from '@/domain/dates';
 
 export interface CreatePlannedOccurrenceInput {
   tripId: string;
@@ -79,8 +80,9 @@ export function sumSpentInOccurrenceInterval(
         t.deletedAt === null &&
         t.phaseId === occ.phaseId &&
         (t.type === 'expense' || t.type === 'adjustment') &&
-        t.date.slice(0, 10) >= start &&
-        t.date.slice(0, 10) <= end,
+        // BUG-001 (R6-01): project the UTC instant onto the local day.
+        localDayOf(t.date) >= start &&
+        localDayOf(t.date) <= end,
     )
     .reduce((sum, t) => sum + (t.personalCostCents ?? t.amountCents), 0);
 }

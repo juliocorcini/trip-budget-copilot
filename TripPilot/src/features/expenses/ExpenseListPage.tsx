@@ -6,7 +6,7 @@ import { useScrolled } from '@/hooks/useScrolled';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { formatMoney, sumCents } from '@/domain/money';
-import { formatShortDate } from '@/domain/dates';
+import { formatShortDate, localDayOf } from '@/domain/dates';
 import { getUnassignedTransactionCount } from '@/domain/wallets';
 import { calculateSessionTotal, formatSessionDuration } from '@/domain/outing';
 import { Icon } from '@/components/Icon';
@@ -166,7 +166,7 @@ export function ExpenseListPage() {
                 <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
                   <span>{tx.category ? t(`categories.${tx.category}` as never) : ''}</span>
                   <span>·</span>
-                  <span>{formatShortDate(tx.date.slice(0, 10))}</span>
+                  <span>{formatShortDate(localDayOf(tx.date))}</span>
                   {tx.budgetPoolId && (
                     <>
                       <span>·</span>
@@ -245,7 +245,7 @@ function OutingHistoryList({ sessions, transactions, profiles, currency, onOpen 
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-on-surface truncate">{session.name}</p>
                 <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
-                  <span>{formatShortDate((session.endedAt ?? session.startedAt).slice(0, 10))}</span>
+                  <span>{formatShortDate(localDayOf(session.endedAt ?? session.startedAt))}</span>
                   <span>·</span>
                   <span>{formatSessionDuration(session.startedAt, session.endedAt)}</span>
                   <span>·</span>

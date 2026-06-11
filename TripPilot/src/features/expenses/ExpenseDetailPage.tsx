@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { calculatePersonalCost, scaleSharesToTotal } from '@/domain/splitting';
+import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
 import { formatMoney, fromCents, toCents } from '@/domain/money';
-import { formatDate } from '@/domain/dates';
+import { formatDate, localDayOf, moveToLocalDay } from '@/domain/dates';
 import { transactionRepository, participantShareRepository } from '@/data/repositories';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
@@ -90,7 +90,7 @@ export function ExpenseDetailPage() {
     setEditCategory(tx.category ?? 'other');
     setEditPoolId(tx.budgetPoolId);
     setEditWalletId(tx.walletId);
-    setEditDate(tx.date.slice(0, 10));
+    setEditDate(localDayOf(tx.date));
     setEditing(true);
   };
 
@@ -100,14 +100,19 @@ export function ExpenseDetailPage() {
     setSaving(true);
     try {
       const newAmountCents = toCents(parsed);
-      const timePart = tx.date.length > 10 ? tx.date.slice(10) : 'T12:00:00.000Z';
+      // BUG-001 (R6-01): keep the local wall-clock time on the chosen local day.
+      const newDate = moveToLocalDay(tx.date, editDate);
       let newPersonalCost = tx.personalCostCents;
       let newShares = shares;
 
       if (tx.isShared && shares.length > 0 && newAmountCents !== tx.amountCents) {
         newShares = scaleSharesToTotal(shares, newAmountCents);
         await Promise.all(newShares.map((s) => participantShareRepository.update(s)));
-        newPersonalCost = owner ? calculatePersonalCost(newShares, owner.id) : null;
+        // BUG-004 (R6-04, DEC-071): rejected shares return to the payer —
+        // the owner's cost is NOT simply their own share.
+        newPersonalCost = owner
+          ? calculateOwnerPersonalCost({ ...tx, amountCents: newAmountCents }, newShares, owner.id)
+          : null;
       } else if (!tx.isShared) {
         newPersonalCost = newAmountCents;
       }
@@ -121,7 +126,7 @@ export function ExpenseDetailPage() {
         category: editCategory,
         budgetPoolId: editPoolId,
         walletId: editWalletId,
-        date: `${editDate}${timePart}`,
+        date: newDate,
       });
       setTx(updated);
       setShares(newShares);
@@ -169,7 +174,7 @@ export function ExpenseDetailPage() {
               label={t('expenses.category')}
               value={tx.category ? t(`categories.${tx.category}` as never) : '—'}
             />
-            <DetailRow label={t('expenses.date')} value={formatDate(tx.date.slice(0, 10))} />
+            <DetailRow label={t('expenses.date')} value={formatDate(localDayOf(tx.date))} />
             <DetailRow label={t('expenses.fund')} value={pool?.name ?? '—'} />
             <DetailRow
               label={t('expenses.wallet')}

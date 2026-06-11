@@ -1,6 +1,7 @@
 import type { Transaction } from '@/domain/types/transaction';
 import type { TransactionType, TransactionCategory } from '@/domain/types/common';
 import { createSyncMetadata } from '@/utils/entity-factory';
+import { localDayOf } from '@/domain/dates';
 
 export interface CreateExpenseInput {
   tripId: string;
@@ -204,7 +205,7 @@ export function calculateSpentOnDate(
       (t) =>
         t.deletedAt === null &&
         (t.type === 'expense' || t.type === 'adjustment') &&
-        t.date.slice(0, 10) === dateIso,
+        localDayOf(t.date) === dateIso,
     )
     .reduce((sum, t) => sum + (t.personalCostCents ?? t.amountCents), 0);
 }

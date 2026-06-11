@@ -129,8 +129,12 @@ describe('csv export (GAP-021 / DEC-058)', () => {
       'Custo pessoal', 'Valor compartilhado', 'Observações',
     ]);
 
-    expect(line).toContain('2026-07-02');
-    expect(line).toContain('22:30');
+    // BUG-001 (R6-01): the CSV now exports the LOCAL day/time of the instant.
+    const txInstant = new Date('2026-07-02T22:30:00.000Z');
+    const localDay = `${txInstant.getFullYear()}-${String(txInstant.getMonth() + 1).padStart(2, '0')}-${String(txInstant.getDate()).padStart(2, '0')}`;
+    const localTime = `${String(txInstant.getHours()).padStart(2, '0')}:${String(txInstant.getMinutes()).padStart(2, '0')}`;
+    expect(line).toContain(localDay);
+    expect(line).toContain(localTime);
     expect(line).toContain('"Dinner; with friends"');
     expect(line).toContain('90.00');
     expect(line).toContain('Euro trip');

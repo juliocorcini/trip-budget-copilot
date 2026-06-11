@@ -19,6 +19,12 @@ function parseLocalDate(isoDate: string): Date {
   return new Date(`${isoDate.slice(0, 10)}T12:00:00`);
 }
 
+function toLocalIsoDay(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export function isPeakDay(phase: Phase, isoDate: string): boolean {
   if (!phase.peakDays || phase.peakDays.length === 0) return false;
   return phase.peakDays.includes(parseLocalDate(isoDate).getDay());
@@ -45,7 +51,8 @@ export function calculateEffectiveSpendingDays(phase: Phase, fromDateIso: string
   let total = 0;
   const cursor = new Date(start);
   while (cursor <= end) {
-    total += getDaySpendingWeight(phase, cursor.toISOString());
+    // PAR-006 (R6-05): local day, not toISOString() — UTC+13/14 shifted the weekday.
+    total += getDaySpendingWeight(phase, toLocalIsoDay(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return total;

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { calculateWalletBalance, calculateCashReconciliation } from '@/domain/wallets';
-import { findActivePhase } from '@/domain/dates';
+import { resolveActivePhase } from '@/domain/dates';
 import { formatMoney, toCents } from '@/domain/money';
 import { reconcileWallet } from '@/domain/orchestrators';
 import { walletRepository } from '@/data/repositories';
@@ -81,7 +81,8 @@ export function WalletsPage() {
       return;
     }
 
-    const activePhase = findActivePhase(phases) ?? phases[0];
+    // BUG-002 (R6-02): resolveActivePhase instead of the phases[0] fallback.
+    const activePhase = resolveActivePhase(phases);
     const operationalPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
     if (!activePhase || !operationalPool) return;
 

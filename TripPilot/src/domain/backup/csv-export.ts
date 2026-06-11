@@ -7,6 +7,7 @@ import type { Session } from '@/domain/types/session';
 import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { fromCents, formatMoney } from '@/domain/money';
+import { localDayOf, localClockTime } from '@/domain/dates';
 
 export interface CsvExportContext {
   transactions: Transaction[];
@@ -109,8 +110,9 @@ export function transactionsToCsvRows(context: CsvExportContext): CsvRow[] {
       const sharedAmountCents =
         t.isShared && t.personalCostCents !== null ? t.amountCents - t.personalCostCents : 0;
       return {
-        date: t.date.slice(0, 10),
-        time: t.date.slice(11, 16),
+        // BUG-001 (R6-01): export the local day/time, not the UTC slice.
+        date: localDayOf(t.date),
+        time: localClockTime(t.date),
         description: t.description,
         amount: fromCents(t.amountCents).toFixed(2),
         amountFormatted: formatMoney(t.amountCents, context.currency),

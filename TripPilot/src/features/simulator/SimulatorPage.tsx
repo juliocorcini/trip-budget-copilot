@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { findActivePhase, localDateString } from '@/domain/dates';
+import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool, calculateSpentOnDate } from '@/domain/transactions';
 import { calculateTodayFreeBudget } from '@/domain/phases';
@@ -48,7 +48,8 @@ export function SimulatorPage() {
   });
   const [remainingOccasions, setRemainingOccasions] = useState<RemainingOccasion[]>([]);
 
-  const activePhase = findActivePhase(phases);
+  // BUG-002 (R6-02): resolveActivePhase keeps the simulator usable on boundary days.
+  const activePhase = resolveActivePhase(phases);
   const primaryPool = pools.find((p) => p.scope === 'linked_phases');
 
   // DEC-094 (R-12): the plan perspective needs the remaining planned occasions.

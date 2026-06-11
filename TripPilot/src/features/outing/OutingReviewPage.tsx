@@ -7,7 +7,7 @@ import { transactionRepository } from '@/data/repositories';
 import { useAppData } from '@/hooks/useAppData';
 import { calculateSessionTotal, formatSessionDuration, findSubcategory } from '@/domain/outing';
 import { formatMoney } from '@/domain/money';
-import { formatShortDate } from '@/domain/dates';
+import { formatShortDate, localDayOf } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
 import { getCategoryIcon } from '@/utils/category-icons';
 import type { Session } from '@/domain/types/session';
@@ -104,7 +104,7 @@ export function OutingReviewPage() {
         </p>
         <p className="text-xs text-on-surface-faint mt-1">{session.name}</p>
         <div className="flex justify-center gap-2 text-xs text-on-surface-faint mt-2">
-          <span>{formatShortDate((session.endedAt ?? session.startedAt).slice(0, 10))}</span>
+          <span>{formatShortDate(localDayOf(session.endedAt ?? session.startedAt))}</span>
           <span>·</span>
           <span>{formatSessionDuration(session.startedAt, session.endedAt)}</span>
           <span>·</span>
