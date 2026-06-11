@@ -190,35 +190,86 @@ export function calculateGaugePosition(
   return mapSegment(spentCents, zoneStart, maxCents, GAUGE_CEILING_END, 100);
 }
 
+/**
+ * DEC-117 (R-08): honest outing zones. The TARGET is the goal of the night —
+ * the conversation changes the moment it is crossed, not near the max.
+ */
+export type OutingZone = 'under_target' | 'over_target' | 'over_ceiling' | 'over_max';
+
+export function getOutingZone(
+  totalSpentCents: number,
+  targetCents: number,
+  ceilingCents: number,
+  maxCents: number,
+): OutingZone {
+  if (maxCents > 0 && totalSpentCents > maxCents) return 'over_max';
+  if (ceilingCents > 0 && totalSpentCents > ceilingCents) return 'over_ceiling';
+  if (targetCents > 0 && totalSpentCents > targetCents) return 'over_target';
+  return 'under_target';
+}
+
+/**
+ * DEC-048 + DEC-117 (R-08): progressive alerts re-anchored on the zones.
+ * Milestones: half of the TARGET, crossing the target, crossing the ceiling,
+ * reaching the max. `percent` is the stable id stored in firedAlertPercents
+ * (50 = half target, 100 = over target, 150 = over ceiling, 200 = at max).
+ */
 export function getProgressiveAlerts(
   totalSpentCents: number,
   session: Session,
   _alertTone: AlertTone = 'amigo_sincero',
 ): OutingAlert[] {
   const alerts: OutingAlert[] = [];
-  const limit = session.ceilingCents ?? session.targetCents;
-  if (!limit) return alerts;
+  const targetCents = session.targetCents ?? 0;
+  const ceilingCents = session.ceilingCents ?? 0;
+  const maxCents = session.maxCents ?? 0;
+  if (targetCents <= 0) return alerts;
 
-  const percent = getSessionPercentUsed(totalSpentCents, limit);
-
-  const thresholds: { pct: number; type: OutingAlert['type']; msgKey: string }[] = [
-    { pct: 50, type: 'info', msgKey: 'halfway' },
-    { pct: 75, type: 'warning', msgKey: 'three_quarters' },
-    { pct: 90, type: 'danger', msgKey: 'almost_limit' },
-    { pct: 100, type: 'critical', msgKey: 'at_limit' },
+  const milestones: { id: number; reached: boolean; type: OutingAlert['type']; msgKey: string }[] = [
+    { id: 50, reached: totalSpentCents >= targetCents / 2, type: 'info', msgKey: 'halfway' },
+    { id: 100, reached: totalSpentCents > targetCents, type: 'warning', msgKey: 'over_target' },
+    {
+      id: 150,
+      reached: ceilingCents > 0 && totalSpentCents > ceilingCents,
+      type: 'danger',
+      msgKey: 'over_ceiling',
+    },
+    {
+      id: 200,
+      reached: maxCents > 0 && totalSpentCents >= maxCents,
+      type: 'critical',
+      msgKey: 'at_max',
+    },
   ];
 
-  for (const threshold of thresholds) {
-    if (percent >= threshold.pct) {
+  for (const milestone of milestones) {
+    if (milestone.reached) {
       alerts.push({
-        percent: threshold.pct,
-        type: threshold.type,
-        message: threshold.msgKey,
+        percent: milestone.id,
+        type: milestone.type,
+        message: milestone.msgKey,
       });
     }
   }
 
   return alerts;
+}
+
+/**
+ * DEC-117 (R-08): the "next drink" hint is anchored on the TARGET. The
+ * inviting copy ("still fits without affecting other outings") may ONLY
+ * appear while the next drink stays inside the target.
+ */
+export type NextDrinkMessageKind = 'fits_target' | 'crosses_target' | 'over_target';
+
+export function getNextDrinkMessageKind(
+  totalSpentCents: number,
+  drinkPriceCents: number,
+  targetCents: number,
+): NextDrinkMessageKind {
+  if (targetCents > 0 && totalSpentCents > targetCents) return 'over_target';
+  if (targetCents > 0 && totalSpentCents + drinkPriceCents > targetCents) return 'crosses_target';
+  return 'fits_target';
 }
 
 export function calculateNextDrinkImpact(

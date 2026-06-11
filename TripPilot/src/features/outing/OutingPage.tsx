@@ -7,7 +7,8 @@ import {
   deriveSessionLimits,
   createSessionItem,
   calculateSessionTotal,
-  calculateNextDrinkImpact,
+  getOutingZone,
+  getNextDrinkMessageKind,
   calculateReportedTotalDiff,
   calculateGaugePosition,
   GAUGE_TARGET_END,
@@ -24,6 +25,7 @@ import {
 import type {
   SessionLimits,
   OutingAlert,
+  OutingZone,
   EnrichStep,
   ExpenseSubcategory,
   EventContext,
@@ -1526,33 +1528,27 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   // DEC-113 (R5-09): piecewise mapping onto the fixed visual segments.
   const gaugePercent = calculateGaugePosition(totalSpent, targetCents, ceilingCents, maxCents);
 
-  const drinkImpact = avgDrink > 0
-    ? calculateNextDrinkImpact(totalSpent, avgDrink, ceilingCents || null)
-    : null;
-
   const totalDrinksSegments = avgDrink > 0 ? Math.ceil(targetCents / avgDrink) : 5;
   const filledDrinks = avgDrink > 0 ? Math.floor(totalSpent / avgDrink) : 0;
   const currentDrink = totalSpent > 0 && totalSpent < targetCents ? 1 : 0;
 
-  const zoneLabel = totalSpent <= targetCents
-    ? t('outing.zone_on_target')
-    : totalSpent <= ceilingCents
-      ? t('outing.zone_above_target')
-      : t('outing.zone_over_ceiling');
+  // DEC-117 (R-08): honest zones — color AND speech change AT the target.
+  const zone = getOutingZone(totalSpent, targetCents, ceilingCents, maxCents);
+  const ZONE_STYLE: Record<OutingZone, { labelKey: string; color: string; bg: string }> = {
+    under_target: { labelKey: 'outing.zone_on_target', color: 'var(--success)', bg: '#6B8F7118' },
+    over_target: { labelKey: 'outing.zone_above_target', color: 'var(--warning)', bg: '#D4A84318' },
+    over_ceiling: { labelKey: 'outing.zone_over_ceiling', color: 'var(--error)', bg: '#D9404018' },
+    over_max: { labelKey: 'outing.zone_over_max', color: 'var(--error)', bg: '#D9404028' },
+  };
+  const zoneStyle = ZONE_STYLE[zone];
+  const overTargetCents = Math.max(0, totalSpent - targetCents);
+  const overCeilingCents = Math.max(0, totalSpent - ceilingCents);
+  const overMaxCents = Math.max(0, totalSpent - maxCents);
 
-  const zoneColor = totalSpent <= targetCents
-    ? 'var(--success)'
-    : totalSpent <= ceilingCents
-      ? 'var(--primary)'
-      : 'var(--error)';
-
-  const zoneBg = totalSpent <= targetCents
-    ? '#6B8F7118'
-    : totalSpent <= ceilingCents
-      ? '#C75B3918'
-      : '#D9404018';
-
-  const comfortColor = totalSpent <= targetCents ? 'var(--success)' : 'var(--primary)';
+  // DEC-117: the inviting "next drink fits" hint is anchored on the TARGET.
+  const nextDrinkKind = avgDrink > 0
+    ? getNextDrinkMessageKind(totalSpent, avgDrink, targetCents)
+    : null;
 
   // DEC-045 (GAP-028): session values with the single domain default as
   // fallback; highlight follows the avg drink price.
@@ -1621,12 +1617,19 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         </p>
       </div>
 
-      {/* 3. COMFORT ZONE LABEL */}
-      <div className="text-center pb-2">
-        <p className="text-sm font-bold" style={{ color: comfortColor }}>
-          {t('outing.comfort_remaining', { amount: formatCurrency(remainingComfort, currency) })}
+      {/* 3. ZONE STATUS LABEL — DEC-117 (R-08): the speech changes AT the target */}
+      <div className="text-center pb-2 px-5">
+        <p className="text-sm font-bold" style={{ color: zoneStyle.color }}>
+          {zone === 'under_target' &&
+            t('outing.comfort_remaining', { amount: formatCurrency(remainingComfort, currency) })}
+          {zone === 'over_target' &&
+            t('outing.over_target_status', { over: formatCurrency(overTargetCents, currency) })}
+          {zone === 'over_ceiling' &&
+            t('outing.over_ceiling_status', { over: formatCurrency(overCeilingCents, currency) })}
+          {zone === 'over_max' &&
+            t('outing.over_max_status', { over: formatCurrency(overMaxCents, currency) })}
         </p>
-        {avgDrink > 0 && (
+        {zone === 'under_target' && avgDrink > 0 && (
           <p className="text-xs font-bold mt-0.5" style={{ color: 'var(--on-surface-dim)' }}>
             {t('outing.drinks_remaining', { count: drinksRemaining })}
           </p>
@@ -1766,13 +1769,13 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         <div className="text-center mb-3">
           <span
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold"
-            style={{ background: zoneBg, color: zoneColor }}
+            style={{ background: zoneStyle.bg, color: zoneStyle.color }}
           >
             <span
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: zoneColor }}
+              style={{ background: zoneStyle.color }}
             />
-            {zoneLabel}
+            {t(zoneStyle.labelKey as never)}
           </span>
         </div>
       </div>
@@ -1853,14 +1856,17 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         </div>
       )}
 
-      {/* 9. NEXT DRINK MESSAGE */}
-      {drinkImpact && !drinkImpact.exceedsCeiling && avgDrink > 0 && (
+      {/* 9. NEXT DRINK MESSAGE — DEC-117 (R-08): honest per zone; the inviting
+          copy only appears while the next drink stays INSIDE the target. */}
+      {nextDrinkKind !== null && zone !== 'over_max' && (
         <div className="mx-5 p-3 rounded-xl mb-2.5" style={{ background: '#C75B390a' }}>
           <p className="text-xs leading-relaxed font-semibold" style={{ color: '#C75B39cc' }}>
             <span className="font-bold" style={{ color: 'var(--primary)' }}>
               {t('outing.next_drink_label', { amount: formatCurrency(avgDrink, currency) })}:
             </span>{' '}
-            {t('outing.next_drink_message')}
+            {nextDrinkKind === 'fits_target' && t('outing.next_drink_message')}
+            {nextDrinkKind === 'crosses_target' && t('outing.next_drink_crosses_target')}
+            {nextDrinkKind === 'over_target' && t('outing.next_drink_over_target')}
           </p>
         </div>
       )}

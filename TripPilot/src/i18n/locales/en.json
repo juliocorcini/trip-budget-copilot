@@ -44,7 +44,7 @@
     "active_outing_open": "Open",
     "amigo_sincero": "Honest friend",
     "amigo_see_impact": "See full impact",
-    "session_drinks_left": "{{count}} drinks until the ceiling",
+    "session_drinks_left": "{{count}} drinks until the target",
     "pending_confirmation": "{{count}} splits awaiting confirmation",
     "free_per_day": "Free to spend today: {{amount}}",
     "peak_day_free": "Today is a peak day — free up to {{amount}}",
@@ -440,16 +440,16 @@
     "end_button": "End",
     "personal_spent": "Personal spending",
     "comfort_remaining": "You can still spend comfortably: {{amount}}",
-    "drinks_remaining": "About {{count}} drinks still fit",
+    "drinks_remaining": "About {{count}} drinks still fit within the target",
     "limit_target": "TARGET",
-    "limit_ceiling": "SAFE CEILING",
+    "limit_ceiling": "CEILING",
     "limit_max": "MAXIMUM",
     "zone_on_target": "On target",
     "zone_above_target": "Above target",
     "zone_over_ceiling": "Above the ceiling",
     "recent_expenses": "Latest expenses",
     "next_drink_label": "Next drink {{amount}}",
-    "next_drink_message": "It still fits without affecting your next outings.",
+    "next_drink_message": "It still fits within the target, without affecting your next outings.",
     "other_amount": "Other",
     "register_total": "Register current total",
     "total_adjustment_desc": "Adjustment to reported total",
@@ -513,26 +513,32 @@
     "review_confirm": "Confirm and end outing",
     "alerts": {
       "amigo_sincero": {
-        "halfway": "Half the ceiling is gone. Is this the pace you wanted?",
-        "three_quarters": "75% of the ceiling. Ease up on the next rounds?",
-        "almost_limit": "90% of the ceiling — the next round will probably blow it.",
-        "at_limit": "Ceiling reached. From here on you're spending your next outings' budget."
+        "halfway": "Half the target is gone. Is this the pace you wanted?",
+        "over_target": "Past the target. From here on the money comes out of other things in your plan.",
+        "over_ceiling": "Past the ceiling. This is already compromising the phase budget.",
+        "at_max": "Max reached. Time to actually stop."
       },
       "calmo": {
-        "halfway": "You've used half of your ceiling for today.",
-        "three_quarters": "75% of the ceiling used.",
-        "almost_limit": "Almost at the ceiling: 90% used.",
-        "at_limit": "You've reached the planned ceiling for this outing."
+        "halfway": "You've used half of your target for today.",
+        "over_target": "You went past the target. The excess comes out of other plan categories.",
+        "over_ceiling": "You went past the ceiling — the phase budget is being compromised.",
+        "at_max": "You've reached this outing's max."
       },
       "direto": {
-        "halfway": "50% of the ceiling.",
-        "three_quarters": "75% of the ceiling.",
-        "almost_limit": "90% of the ceiling.",
-        "at_limit": "Ceiling blown."
+        "halfway": "50% of the target.",
+        "over_target": "Target blown — using money from other things.",
+        "over_ceiling": "Ceiling blown — compromising the phase.",
+        "at_max": "Max reached."
       }
     },
     "enrich_where": "Where was this?",
-    "tap_to_detail": "Tap to detail"
+    "tap_to_detail": "Tap to detail",
+    "next_drink_crosses_target": "It goes past the target — you'd start using money from other things.",
+    "next_drink_over_target": "It increases what you're taking from other things.",
+    "zone_over_max": "Above the max",
+    "over_target_status": "You went {{over}} past the target — that comes out of other things in your plan",
+    "over_ceiling_status": "{{over}} above the ceiling — compromising the phase budget",
+    "over_max_status": "{{over}} above this outing's max"
   },
   "simulator": {
     "title": "Simulator",

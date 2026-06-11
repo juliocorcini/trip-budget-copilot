@@ -3,6 +3,8 @@ import {
   calculateSessionTotal,
   getSessionPercentUsed,
   getProgressiveAlerts,
+  getOutingZone,
+  getNextDrinkMessageKind,
   calculateNextDrinkImpact,
   endSession,
 } from '@/domain/outing';
@@ -62,21 +64,71 @@ describe('getSessionPercentUsed', () => {
   });
 });
 
+// DEC-117 (R-08): alerts re-anchored on the zones (target 1500 / ceiling 2500 / max 3500).
 describe('getProgressiveAlerts', () => {
-  it('returns alerts at thresholds', () => {
-    const alerts = getProgressiveAlerts(2300, session);
-    expect(alerts.length).toBeGreaterThanOrEqual(2);
-    expect(alerts.some((a) => a.type === 'danger')).toBe(true);
-  });
-
-  it('returns no alerts below 50%', () => {
+  it('returns no alerts below half the target', () => {
     const alerts = getProgressiveAlerts(500, session);
     expect(alerts).toHaveLength(0);
   });
 
-  it('returns critical at 100%', () => {
-    const alerts = getProgressiveAlerts(2500, session);
-    expect(alerts.some((a) => a.type === 'critical')).toBe(true);
+  it('fires the warning the moment the TARGET is crossed', () => {
+    const alerts = getProgressiveAlerts(1600, session);
+    expect(alerts.map((a) => a.message)).toEqual(['halfway', 'over_target']);
+    expect(alerts.find((a) => a.message === 'over_target')?.type).toBe('warning');
+  });
+
+  it('does not fire over_target at exactly the target', () => {
+    const alerts = getProgressiveAlerts(1500, session);
+    expect(alerts.map((a) => a.message)).toEqual(['halfway']);
+  });
+
+  it('fires danger past the ceiling', () => {
+    const alerts = getProgressiveAlerts(2600, session);
+    expect(alerts.find((a) => a.message === 'over_ceiling')?.type).toBe('danger');
+  });
+
+  it('fires critical at the max', () => {
+    const alerts = getProgressiveAlerts(3500, session);
+    expect(alerts.find((a) => a.message === 'at_max')?.type).toBe('critical');
+  });
+
+  it('uses distinct stable ids for firedAlertPercents dedupe', () => {
+    const alerts = getProgressiveAlerts(3600, session);
+    expect(alerts.map((a) => a.percent)).toEqual([50, 100, 150, 200]);
+  });
+});
+
+// DEC-117 (R-08): zones change AT the target, not near the max.
+describe('getOutingZone', () => {
+  it('stays under_target up to and including the target', () => {
+    expect(getOutingZone(1500, 1500, 2500, 3500)).toBe('under_target');
+  });
+
+  it('crossing the target immediately changes the zone', () => {
+    expect(getOutingZone(1501, 1500, 2500, 3500)).toBe('over_target');
+  });
+
+  it('crossing the ceiling moves to over_ceiling', () => {
+    expect(getOutingZone(2501, 1500, 2500, 3500)).toBe('over_ceiling');
+  });
+
+  it('crossing the max moves to over_max', () => {
+    expect(getOutingZone(3501, 1500, 2500, 3500)).toBe('over_max');
+  });
+});
+
+// DEC-117 (R-08): the inviting copy only appears while the next drink fits the TARGET.
+describe('getNextDrinkMessageKind', () => {
+  it('fits_target while the next drink stays inside the target', () => {
+    expect(getNextDrinkMessageKind(1000, 350, 1500)).toBe('fits_target');
+  });
+
+  it('crosses_target when the next drink would cross the target', () => {
+    expect(getNextDrinkMessageKind(1200, 350, 1500)).toBe('crosses_target');
+  });
+
+  it('over_target once the target is already crossed', () => {
+    expect(getNextDrinkMessageKind(1600, 350, 1500)).toBe('over_target');
   });
 });
 

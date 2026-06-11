@@ -10,6 +10,8 @@ export {
   GAUGE_TARGET_END,
   GAUGE_CEILING_END,
   getProgressiveAlerts,
+  getOutingZone,
+  getNextDrinkMessageKind,
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,
   endSession,
@@ -17,6 +19,8 @@ export {
 } from './outing';
 export type {
   OutingAlert,
+  OutingZone,
+  NextDrinkMessageKind,
   ReportedTotalResult,
   SessionLimits,
   CreateSessionInput,

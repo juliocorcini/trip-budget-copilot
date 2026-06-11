@@ -44,7 +44,7 @@
     "active_outing_open": "Abrir",
     "amigo_sincero": "Amigo sincero",
     "amigo_see_impact": "Ver impacto completo",
-    "session_drinks_left": "{{count}} bebidas hasta el tope",
+    "session_drinks_left": "{{count}} bebidas hasta la meta",
     "pending_confirmation": "{{count}} divisiones esperando confirmación",
     "free_per_day": "Libre para usar hoy: {{amount}}",
     "peak_day_free": "Hoy es día de pico — libre hasta {{amount}}",
@@ -440,16 +440,16 @@
     "end_button": "Finalizar",
     "personal_spent": "Gasto personal",
     "comfort_remaining": "Aún puedes gastar con tranquilidad: {{amount}}",
-    "drinks_remaining": "Aproximadamente {{count}} bebidas aún caben",
+    "drinks_remaining": "Aproximadamente {{count}} bebidas aún caben en la meta",
     "limit_target": "META",
-    "limit_ceiling": "TOPE SEGURO",
+    "limit_ceiling": "TOPE",
     "limit_max": "MÁXIMO",
     "zone_on_target": "Dentro de la meta",
     "zone_above_target": "Por encima de la meta",
     "zone_over_ceiling": "Por encima del tope",
     "recent_expenses": "Últimos gastos",
     "next_drink_label": "Próxima bebida {{amount}}",
-    "next_drink_message": "Aún cabe sin afectar tus próximas salidas.",
+    "next_drink_message": "Aún cabe dentro de la meta, sin afectar tus próximas salidas.",
     "other_amount": "Otro",
     "register_total": "Registrar total actual",
     "total_adjustment_desc": "Ajuste al total informado",
@@ -513,26 +513,32 @@
     "review_confirm": "Confirmar y finalizar salida",
     "alerts": {
       "amigo_sincero": {
-        "halfway": "Ya se fue la mitad del tope. ¿Es el ritmo que querías?",
-        "three_quarters": "75% del tope. ¿Bajamos el ritmo en las próximas rondas?",
-        "almost_limit": "90% del tope — la próxima ronda probablemente lo supere.",
-        "at_limit": "Tope alcanzado. De aquí en adelante estás usando el presupuesto de tus próximas salidas."
+        "halfway": "Ya se fue la mitad de la meta. ¿Es el ritmo que querías?",
+        "over_target": "Superaste la meta. De aquí en adelante el dinero sale de otras cosas de tu plan.",
+        "over_ceiling": "Superaste el tope. Esto ya compromete el presupuesto de la fase.",
+        "at_max": "Máximo alcanzado. Hora de parar de verdad."
       },
       "calmo": {
-        "halfway": "Usaste la mitad de tu tope para hoy.",
-        "three_quarters": "75% del tope utilizado.",
-        "almost_limit": "Casi en el tope: 90% utilizado.",
-        "at_limit": "Alcanzaste el tope planificado para esta salida."
+        "halfway": "Usaste la mitad de tu meta para hoy.",
+        "over_target": "Superaste la meta. El excedente sale de otras categorías del plan.",
+        "over_ceiling": "Superaste el tope — el presupuesto de la fase se está comprometiendo.",
+        "at_max": "Alcanzaste el máximo de esta salida."
       },
       "direto": {
-        "halfway": "50% del tope.",
-        "three_quarters": "75% del tope.",
-        "almost_limit": "90% del tope.",
-        "at_limit": "Tope superado."
+        "halfway": "50% de la meta.",
+        "over_target": "Meta superada — usando dinero de otras cosas.",
+        "over_ceiling": "Tope superado — comprometiendo la fase.",
+        "at_max": "Máximo alcanzado."
       }
     },
     "enrich_where": "¿Dónde fue esto?",
-    "tap_to_detail": "Toca para detallar"
+    "tap_to_detail": "Toca para detallar",
+    "next_drink_crosses_target": "Supera la meta — empezarías a usar dinero de otras cosas.",
+    "next_drink_over_target": "Aumenta lo que estás sacando de otras cosas.",
+    "zone_over_max": "Por encima del máximo",
+    "over_target_status": "Superaste la meta en {{over}} — eso sale de otras cosas del plan",
+    "over_ceiling_status": "{{over}} por encima del tope — comprometiendo el presupuesto de la fase",
+    "over_max_status": "{{over}} por encima del máximo de esta salida"
   },
   "simulator": {
     "title": "Simulador",

@@ -9,9 +9,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 5 (honest outing limits)
-- **Progress**: 7/12 requirements
-- **Tests**: 367 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Active gate**: GATE 6 (long-press: lists + home screen)
+- **Progress**: 8/12 requirements
+- **Tests**: 377 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
 - **Build**: v0.6.0
 
 ## GATE 0 — Baseline + decision-log ✅
@@ -63,8 +63,22 @@
       scenario €20 vs €5.24/day ≈ 3.8 days), event (covers / short / no reserve),
       large values (exceeds_free wins even with plan target; large_share 60%).
 
-## GATE 5 — Honest outing limits
-- [ ] R-08 zones/colors/copy change at the target
+## GATE 5 — Honest outing limits ✅
+- [x] R-08 (DEC-117) `getOutingZone` domain function — zones change AT the target:
+      under_target (success) / over_target (warning) / over_ceiling (error) /
+      over_max (strong error). Status line per zone: "Você passou da meta em €X —
+      isso sai de outras coisas do plano" / "€X acima do teto — comprometendo o
+      orçamento da fase" / "€X acima do máximo". "Ainda pode gastar com
+      tranquilidade: €0" eliminado (só aparece abaixo da meta, junto com
+      "≈N bebidas cabem NA META"). "TETO SEGURO" → "TETO" ×3. Next-drink hint via
+      `getNextDrinkMessageKind`: fits_target (convite só DENTRO da meta) /
+      crosses_target / over_target ("aumenta o que você está tirando de outras
+      coisas"). Alertas progressivos (DEC-048) re-ancorados nas zonas: 50% da
+      meta / cruzou meta (warning) / cruzou teto (danger) / máximo (critical),
+      ids estáveis 50/100/150/200 em firedAlertPercents; copy ×3 tons ×3 línguas.
+      Dashboard: card de saída ativa usa total PESSOAL (calculateSessionTotal,
+      coerência R-04) e "bebidas até a META" (era teto).
+- New tests: outing.test.ts reescrito p/ zonas (6 alerts + 4 zone + 3 next-drink).
 
 ## GATE 6 — Long-press
 - [ ] R-09 multi-select in lists (expenses + outing history)

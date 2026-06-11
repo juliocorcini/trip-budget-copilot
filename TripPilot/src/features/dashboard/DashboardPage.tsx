@@ -516,9 +516,11 @@ export function DashboardPage() {
         })
       : ({ kind: 'none' } as const);
 
-  const sessionTotalCents = sumCents(sessionTxs.filter((t) => t.deletedAt === null).map((t) => t.amountCents));
-  const sessionDrinksLeft = activeSession?.ceilingCents && activeSession?.avgDrinkPriceCents
-    ? Math.floor(Math.max(0, (activeSession.ceilingCents - sessionTotalCents)) / activeSession.avgDrinkPriceCents)
+  // DEC-114 (R-04): the session card shows MY cost (shares, not raw amounts).
+  const sessionTotalCents = calculateSessionTotal(sessionTxs);
+  // DEC-117 (R-08): drinks-left counts until the TARGET, not the ceiling.
+  const sessionDrinksLeft = activeSession?.targetCents && activeSession?.avgDrinkPriceCents
+    ? Math.floor(Math.max(0, (activeSession.targetCents - sessionTotalCents)) / activeSession.avgDrinkPriceCents)
     : null;
 
   const sessionProfile = activeSession
