@@ -1,3 +1,4 @@
+import { createMessageBuffer } from './channel';
 import { generateSessionKey, importSessionKey, encryptText, decryptText } from './crypto';
 import { createRoom, connectToRoom } from './signaling-client';
 import type { SignalingConnection } from './signaling-client';
@@ -38,11 +39,12 @@ function createRelayChannel(
   registerDataHandler: (handler: (envelope: RoomEnvelope) => void) => void,
   registerCloseHandler: (handler: () => void) => void,
 ): SyncChannel {
-  let messageHandler: (text: string) => void = () => {};
+  // R6-07: frames received before setMessageHandler are buffered, not dropped.
+  const buffer = createMessageBuffer();
   let closeHandler: () => void = () => {};
   registerDataHandler((envelope) => {
     if (envelope.kind === 'data' && typeof envelope.data === 'string') {
-      messageHandler(envelope.data);
+      buffer.push(envelope.data);
     }
   });
   registerCloseHandler(() => closeHandler());
@@ -53,9 +55,7 @@ function createRelayChannel(
         connection.send(cipher),
       );
     },
-    setMessageHandler: (handler) => {
-      messageHandler = handler;
-    },
+    setMessageHandler: (handler) => buffer.setHandler(handler),
     setCloseHandler: (handler) => {
       closeHandler = handler;
     },

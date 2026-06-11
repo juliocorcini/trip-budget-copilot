@@ -117,6 +117,14 @@ export function SyncTransferFlow({
           purpose,
           appVersion: APP_VERSION,
         });
+        // R6-06: consume the receiver's hello symmetrically. Without this the
+        // orphan hello stayed queued and sendPayload's expect('ack') pulled it
+        // first → protocol_error → error screen on EVERY successful send.
+        try {
+          await session.expect('hello', 15_000);
+        } catch {
+          // Older peers may skip hello — the transfer still proceeds.
+        }
         const { kind, payload } = await buildPayload();
         await sendPayload(session, kind, payload, (done, total) =>
           setFlow({ step: 'transferring', done, total }),

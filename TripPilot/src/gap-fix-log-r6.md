@@ -6,9 +6,9 @@
 
 ## Current State
 
-- Active gate: G2 (P2P sync)
-- Last milestone: G1 complete (R6-01..05)
-- Tests: 334 unit (was 317; +17 new in r6-gate1-fixes.test.ts) / 29 e2e
+- Active gate: G3 (QR scanner)
+- Last milestone: G2 complete (R6-06..07)
+- Tests: 337 unit / 29 e2e
 - Build: OK (typecheck clean)
 - Risks: date projection now local everywhere — watch DashboardPage day card (already local via GAP-R2-007)
 
@@ -16,7 +16,7 @@
 
 - [x] G0 — Setup + baseline
 - [x] G1 — Domain bugs (R6-01..05: BUG-001..004, PAR-006)
-- [ ] G2 — P2P sync reliability (R6-06..07)
+- [x] G2 — P2P sync reliability (R6-06..07)
 - [ ] G3 — QR scanner camera switch + zoom (R6-08..10)
 - [ ] G4 — UI polish: carousel, gauge, iOS banner, keyboard (R6-11..14)
 - [ ] G5 — Locale formatting (R6-15..18)
@@ -24,6 +24,20 @@
 - [ ] G7 — Housekeeping + validation + deploy (R6-23..25)
 
 ## Milestones
+
+### G2 — P2P sync reliability (R6-06..07)
+
+- **R6-06 (P2P-09/12/13 "sender always errors")**: `runSender` now consumes the receiver's
+  hello symmetrically (tolerant 15s expect). Previously the orphan hello was dequeued by
+  `expect('ack')` → protocol_error → error screen on every successful send; same defect
+  broke `waitForResponses` on the owner side.
+- **R6-07 (P2P-09 "first attempt fails")**: `createMessageBuffer` in `data/sync/channel.ts`;
+  `wrapDataChannel` (webrtc/manual) and `createRelayChannel` (relay) buffer frames until
+  `setMessageHandler` attaches — no more silent drops in the open-to-listen window.
+- Tests: +3 (`sync-reliability.test.ts`) — buffer ordering, first-attempt race simulation,
+  full statement round-trip (hello × 2 → payload → ack → responses → ack). 337 unit ✅.
+- Regression named: R4 channel kinds untouched (webrtc/relay/manual), sync-session tests
+  still green, crypto/signaling untouched.
 
 ### G1 — Domain bugs (R6-01..05)
 

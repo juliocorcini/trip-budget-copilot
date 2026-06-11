@@ -1,4 +1,5 @@
 import { ICE_SERVERS } from './config';
+import { createMessageBuffer } from './channel';
 import type { SyncChannel } from './channel';
 
 /**
@@ -26,18 +27,17 @@ function wrapDataChannel(
   dataChannel: RTCDataChannel,
   kind: 'webrtc' | 'manual',
 ): SyncChannel {
-  let messageHandler: (text: string) => void = () => {};
+  // R6-07: frames received before setMessageHandler are buffered, not dropped.
+  const buffer = createMessageBuffer();
   let closeHandler: () => void = () => {};
   dataChannel.addEventListener('message', (event) => {
-    if (typeof event.data === 'string') messageHandler(event.data);
+    if (typeof event.data === 'string') buffer.push(event.data);
   });
   dataChannel.addEventListener('close', () => closeHandler());
   return {
     kind,
     send: (text) => dataChannel.send(text),
-    setMessageHandler: (handler) => {
-      messageHandler = handler;
-    },
+    setMessageHandler: (handler) => buffer.setHandler(handler),
     setCloseHandler: (handler) => {
       closeHandler = handler;
     },
