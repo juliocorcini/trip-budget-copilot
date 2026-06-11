@@ -1,6 +1,7 @@
 import { db } from '@/data/db/database';
 import { endSession } from '@/domain/outing';
 import { updateProfileFromTransaction } from '@/domain/forecasting';
+import { isPaidByOwner } from '@/domain/splitting';
 import { markUpdated } from '@/utils/entity-factory';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -13,6 +14,8 @@ export interface EndOutingSessionInput {
   transactions: Transaction[];
   /** Batch wallet assignment — applied to items still without a wallet (DEC-049). */
   walletId: string | null;
+  /** DEC-114: items paid by someone else NEVER receive the batch wallet. */
+  ownerParticipantId: string | null;
   isSpecialOccasion: boolean;
   excludeFromLearning: boolean;
   /** Optional "reported total" adjustment built by the review (DEC-046). */
@@ -38,7 +41,11 @@ export async function endOutingSession(
     .map((tx) =>
       markUpdated({
         ...tx,
-        walletId: tx.walletId ?? input.walletId,
+        // DEC-114: someone else paid → my wallet was never moved, so the
+        // batch wallet must not be assigned to that item.
+        walletId: isPaidByOwner(tx, input.ownerParticipantId)
+          ? (tx.walletId ?? input.walletId)
+          : tx.walletId,
         isSpecialOccasion: input.isSpecialOccasion,
         excludeFromLearning: input.excludeFromLearning,
       }),

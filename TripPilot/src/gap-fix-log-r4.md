@@ -9,9 +9,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 2 (payer math)
-- **Progress**: 3/12 requirements
-- **Tests**: 343 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Active gate**: GATE 3 (occasions = sessions)
+- **Progress**: 5/12 requirements
+- **Tests**: 352 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
 - **Build**: v0.6.0
 
 ## GATE 0 — Baseline + decision-log ✅
@@ -26,9 +26,18 @@
 - [x] R-03 chip label fit — chip labels wrap with `break-words hyphens-auto line-clamp-2`
       (QuickAdd + ExpenseDetail); `<html lang>` now follows the active language
 
-## GATE 2 — Payer math (CRITICAL)
-- [ ] R-04 "someone else paid" keeps personal cost + creates debt (truth table)
-- [ ] R-05 session reconciliation over personal cost, shares preserved
+## GATE 2 — Payer math (CRITICAL) ✅
+- [x] R-04 `resolvePayerExpense` (domain/splitting) — single truth-table function used by
+      QuickAdd, outing stepper and outing split. Row 4 fixed: "other paid, not split" =
+      full personal cost + full debt (was: cost zeroed, no debt). Owner's own share born
+      confirmed → debt appears in /shared immediately. `endOutingSession` no longer
+      batch-assigns MY wallet to items paid by someone else (`isPaidByOwner`).
+- [x] R-05 reconciliation verified over PERSONAL session total (calculateSessionTotal);
+      composite test: own 20 + split (10→5) + other-paid (15) = personal 40; reported 50 →
+      adjustment 10; debts to Ana (5+15=20) intact.
+- [x] D-R4-J (DEC-123): "Quem pagou?" first-level in QuickAdd — Eu/outros; se outro:
+      "Pagou tudo por mim" / "Dividimos" (split prefilled owner+payer); debt hints shown.
+- New tests: payer-semantics.test.ts (8) + end-outing-session wallet protection (1).
 
 ## GATE 3 — Occasions = sessions
 - [ ] R-06 occasion counting groups by session everywhere

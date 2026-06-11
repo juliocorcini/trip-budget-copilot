@@ -29,7 +29,7 @@ import type {
   EventContext,
 } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
-import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
+import { resolvePayerExpense } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
 import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
@@ -525,25 +525,28 @@ export function OutingPage() {
     }
     const tx = await transactionRepository.getById(enrich.txId);
     if (tx) {
-      const participantIds = didSplit ? [owner.id, enrich.paidById] : [enrich.paidById];
-      const shares = buildSharesWithPayer({
+      // DEC-114 (R-04): "someone else paid, not split" keeps MY full cost and
+      // creates a debt for the TOTAL — never a gift, never personal cost 0.
+      const resolution = resolvePayerExpense({
         transactionId: tx.id,
         amountCents: tx.amountCents,
-        participantIds,
-        paidByParticipantId: enrich.paidById,
+        ownerId: owner.id,
+        payerId: enrich.paidById,
+        didSplit,
+        participantIds: didSplit ? [owner.id, enrich.paidById] : [],
         shareType: 'equal',
         customAmountsCents: {},
       });
       const updated = await enrichTransactionShares({
         transaction: {
           ...tx,
-          isShared: true,
+          isShared: resolution.isShared,
           paidByParticipantId: enrich.paidById,
           // Someone else paid → it never left one of MY wallets.
-          walletId: null,
-          personalCostCents: calculatePersonalCost(shares, owner.id),
+          walletId: resolution.movesOwnerWallet ? tx.walletId : null,
+          personalCostCents: resolution.personalCostCents,
         },
-        shares,
+        shares: resolution.shares,
       });
       replaceSessionTx(updated);
     }
@@ -577,17 +580,20 @@ export function OutingPage() {
       isShared: true,
       paidByParticipantId: input.paidByParticipantId,
     });
-    const shares = buildSharesWithPayer({
+    // DEC-114 (R-04): single truth-table function for payer semantics.
+    const resolution = resolvePayerExpense({
       transactionId: tx.id,
       amountCents: input.amountCents,
+      ownerId: owner.id,
+      payerId: input.paidByParticipantId,
+      didSplit: true,
       participantIds: input.participantIds,
-      paidByParticipantId: input.paidByParticipantId,
       shareType: input.shareType,
       customAmountsCents: input.customAmountsCents,
     });
-    tx.personalCostCents = calculatePersonalCost(shares, owner.id);
-    if (tx.paidByParticipantId !== owner.id) tx.walletId = null;
-    await registerExpense({ transaction: tx, shares });
+    tx.personalCostCents = resolution.personalCostCents;
+    if (!resolution.movesOwnerWallet) tx.walletId = null;
+    await registerExpense({ transaction: tx, shares: resolution.shares });
     await persistSessionItem(tx, [...sessionTxs, tx], sess);
     // DEC-096 (R-16): the split flow also asks WHAT it was — payer and
     // shares are already set, so the stepper skips those steps.
@@ -634,6 +640,7 @@ export function OutingPage() {
       session,
       transactions: review.transactions,
       walletId: review.walletId,
+      ownerParticipantId: owner?.id ?? null,
       isSpecialOccasion: review.isSpecialOccasion,
       excludeFromLearning: review.excludeFromLearning,
       totalAdjustment,

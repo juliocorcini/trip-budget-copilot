@@ -12,11 +12,15 @@ export {
   findPendingConfirmationShares,
   calculateOwnerPersonalCost,
   buildParticipantStatement,
+  resolvePayerExpense,
+  isPaidByOwner,
 } from './splitting';
 export type {
   DebtEntry,
   DebtSummary,
   BuildSharesInput,
+  PayerExpenseInput,
+  PayerExpenseResolution,
   PendingShareEntry,
   StatementLine,
   StatementLineKind,

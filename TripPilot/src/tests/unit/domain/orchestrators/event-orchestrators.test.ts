@@ -87,6 +87,7 @@ describe('Parral lifecycle (DEC-072/073 — FIELD-05 resolves FIELD-04)', () => 
       session,
       transactions: [tx],
       walletId: null,
+      ownerParticipantId: null,
       isSpecialOccasion: false,
       excludeFromLearning: false,
       totalAdjustment: null,

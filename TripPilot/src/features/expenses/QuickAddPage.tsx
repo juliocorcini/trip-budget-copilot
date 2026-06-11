@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { createExpenseTransaction } from '@/domain/transactions';
-import { buildSharesWithPayer, calculatePersonalCost } from '@/domain/splitting';
+import { resolvePayerExpense } from '@/domain/splitting';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase } from '@/domain/dates';
 import { toCents, formatMoney } from '@/domain/money';
@@ -60,7 +60,10 @@ export function QuickAddPage() {
 
   const [isShared, setIsShared] = useState(false);
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  // DEC-123 (D-R4-J): "Who paid?" is a first-level question (null = me).
   const [paidById, setPaidById] = useState<string | null>(null);
+  // DEC-123: when someone else paid — they paid everything for me OR we split.
+  const [otherPaidSplit, setOtherPaidSplit] = useState(false);
   const [splitMode, setSplitMode] = useState<ShareType>('equal');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [showZeroBudgetConfirm, setShowZeroBudgetConfirm] = useState(false);
@@ -118,6 +121,11 @@ export function QuickAddPage() {
   const owner = participants.find((p) => p.isOwner) ?? null;
   const effectivePaidById = paidById ?? owner?.id ?? null;
   const canSplit = !isTransferLike && participants.length > 1;
+  // DEC-123: someone else paid — first-level state, independent of splitting.
+  const otherPaid = owner !== null && effectivePaidById !== null && effectivePaidById !== owner.id;
+  const wantsSplit = otherPaid ? otherPaidSplit : isShared;
+  const payer = participants.find((p) => p.id === effectivePaidById) ?? null;
+  const payerName = payer ? (payer.nickname ?? payer.name) : '';
 
   const toggleShared = () => {
     setIsShared((prev) => {
@@ -127,6 +135,14 @@ export function QuickAddPage() {
       }
       return next;
     });
+  };
+
+  const selectPayer = (id: string) => {
+    setPaidById(id);
+    // DEC-123: simple case prefilled — splitting with the payer needs no setup.
+    if (owner && id !== owner.id && selectedParticipantIds.length < 2) {
+      setSelectedParticipantIds([owner.id, id]);
+    }
   };
 
   const toggleParticipant = (id: string) => {
@@ -143,7 +159,7 @@ export function QuickAddPage() {
   const customRemainingCents = amountCentsPreview - customSumCents;
 
   const previewShareCents =
-    isShared && selectedParticipantIds.length > 0 && owner && selectedParticipantIds.includes(owner.id)
+    wantsSplit && selectedParticipantIds.length > 0 && owner && selectedParticipantIds.includes(owner.id)
       ? splitMode === 'equal'
         ? Math.round(amountCentsPreview / selectedParticipantIds.length)
         : (() => {
@@ -199,41 +215,48 @@ export function QuickAddPage() {
       }
 
       const splitActive =
-        canSplit && isShared && selectedParticipantIds.length >= 2 && effectivePaidById !== null;
-      const ownerPaid = !splitActive || effectivePaidById === owner?.id;
+        canSplit && wantsSplit && selectedParticipantIds.length >= 2 && effectivePaidById !== null;
+      // DEC-114/123: the payer flow applies whenever someone else paid (even
+      // without splitting — truth-table row 4) or a split is active.
+      const payerFlowActive =
+        owner !== null && effectivePaidById !== null && (otherPaid || splitActive);
 
       const tx = createExpenseTransaction({
         tripId: trip.id,
         phaseId: currentPhase.id,
         budgetPoolId: effectivePoolId,
-        // When someone else paid, no money left the user's wallets.
-        walletId: ownerPaid ? effectiveWalletId : null,
+        walletId: effectiveWalletId,
         amountCents,
         currency: trip.baseCurrency,
         category,
         description: description || t(`categories.${category}` as never),
         date: customDate ? new Date(customDate).toISOString() : undefined,
-        isShared: splitActive,
-        paidByParticipantId: splitActive ? effectivePaidById : undefined,
       });
 
       let finalShares: ParticipantShare[] = [];
-      if (splitActive) {
+      if (payerFlowActive) {
         const customAmountsCents = Object.fromEntries(
           selectedParticipantIds.map((pid) => {
             const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
             return [pid, Number.isNaN(value) ? 0 : Math.round(value * 100)];
           }),
         );
-        finalShares = buildSharesWithPayer({
+        const resolution = resolvePayerExpense({
           transactionId: tx.id,
           amountCents,
+          ownerId: owner.id,
+          payerId: effectivePaidById,
+          didSplit: splitActive,
           participantIds: selectedParticipantIds,
-          paidByParticipantId: effectivePaidById!,
           shareType: splitMode,
           customAmountsCents,
         });
-        tx.personalCostCents = owner ? calculatePersonalCost(finalShares, owner.id) : null;
+        tx.isShared = resolution.isShared;
+        tx.paidByParticipantId = effectivePaidById;
+        tx.personalCostCents = resolution.personalCostCents;
+        // When someone else paid, no money left the user's wallets (DEC-114).
+        if (!resolution.movesOwnerWallet) tx.walletId = null;
+        finalShares = resolution.shares;
       }
 
       await registerExpense({ transaction: tx, shares: finalShares });
@@ -414,30 +437,88 @@ export function QuickAddPage() {
       </div>
       )}
 
-      {/* ── SHARED EXPENSE (split) ── */}
+      {/* ── WHO PAID? (DEC-123 / D-R4-J) — first-level question + split ── */}
       {canSplit && (
-        <div className="bg-surface-container rounded-xl p-4">
-          <button
-            onClick={toggleShared}
-            className="w-full flex items-center justify-between btn-press"
-          >
-            <span className="text-sm text-on-surface font-medium flex items-center gap-2">
-              <Icon name="group" size={18} className="text-on-surface-dim" />
-              {t('expenses.shared_toggle')}
-            </span>
-            <span
-              className="w-10 h-6 rounded-full relative transition-colors"
-              style={{ background: isShared ? 'var(--primary)' : 'var(--surface-high)' }}
-            >
-              <span
-                className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
-                style={{ left: isShared ? '18px' : '2px' }}
-              />
-            </span>
-          </button>
+        <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-4">
+          <div>
+            <label className="text-xs text-on-surface-faint mb-2 block">
+              {t('expenses.who_paid')}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {participants.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => selectPayer(p.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    effectivePaidById === p.id
+                      ? 'bg-primary text-on-surface'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          {isShared && (
-            <div className="mt-4 flex flex-col gap-3">
+          {otherPaid && (
+            <div>
+              <label className="text-xs text-on-surface-faint mb-2 block">
+                {t('expenses.other_paid_question')}
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setOtherPaidSplit(false)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                    !otherPaidSplit ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {t('expenses.other_paid_full')}
+                </button>
+                <button
+                  onClick={() => setOtherPaidSplit(true)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                    otherPaidSplit ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {t('expenses.other_paid_split')}
+                </button>
+              </div>
+              {/* DEC-114: never a gift — the cost stays mine, as a debt. */}
+              {!otherPaidSplit && amountCentsPreview > 0 && (
+                <p className="text-xs font-semibold text-warning mt-2">
+                  {t('expenses.debt_full_hint', {
+                    amount: formatMoney(amountCentsPreview, trip.baseCurrency),
+                    name: payerName,
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {!otherPaid && (
+            <button
+              onClick={toggleShared}
+              className="w-full flex items-center justify-between btn-press"
+            >
+              <span className="text-sm text-on-surface font-medium flex items-center gap-2">
+                <Icon name="group" size={18} className="text-on-surface-dim" />
+                {t('expenses.shared_toggle')}
+              </span>
+              <span
+                className="w-10 h-6 rounded-full relative transition-colors"
+                style={{ background: isShared ? 'var(--primary)' : 'var(--surface-high)' }}
+              >
+                <span
+                  className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
+                  style={{ left: isShared ? '18px' : '2px' }}
+                />
+              </span>
+            </button>
+          )}
+
+          {wantsSplit && (
+            <div className="flex flex-col gap-3">
               <div>
                 <label className="text-xs text-on-surface-faint mb-2 block">
                   {t('expenses.participants_label')}
@@ -454,27 +535,6 @@ export function QuickAddPage() {
                       }`}
                     >
                       {p.nickname ?? p.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs text-on-surface-faint mb-2 block">
-                  {t('expenses.who_paid')}
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {participants.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setPaidById(p.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                        effectivePaidById === p.id
-                          ? 'bg-primary text-on-surface'
-                          : 'bg-surface-high text-on-surface-dim'
-                      }`}
-                    >
-                      {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
                     </button>
                   ))}
                 </div>
@@ -540,13 +600,23 @@ export function QuickAddPage() {
                 </div>
               )}
 
-              {previewShareCents !== null && amountCentsPreview > 0 && (
-                <p className="text-xs font-semibold text-success">
-                  {t('expenses.your_share', {
-                    amount: formatMoney(previewShareCents, trip.baseCurrency),
-                  })}
-                </p>
-              )}
+              {previewShareCents !== null &&
+                amountCentsPreview > 0 &&
+                (otherPaid ? (
+                  // DEC-114: my share stays my cost AND becomes a debt to the payer.
+                  <p className="text-xs font-semibold text-warning">
+                    {t('expenses.debt_share_hint', {
+                      amount: formatMoney(previewShareCents, trip.baseCurrency),
+                      name: payerName,
+                    })}
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-success">
+                    {t('expenses.your_share', {
+                      amount: formatMoney(previewShareCents, trip.baseCurrency),
+                    })}
+                  </p>
+                ))}
             </div>
           )}
         </div>

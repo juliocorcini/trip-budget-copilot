@@ -101,6 +101,94 @@ export function calculatePersonalCost(
   return ownerShare?.shareAmountCents ?? 0;
 }
 
+/* ── DEC-114 (R-04): universal payer semantics — the truth table ────────── */
+
+export interface PayerExpenseInput {
+  transactionId: string;
+  amountCents: number;
+  ownerId: string;
+  /** Who actually handed over the money. */
+  payerId: string;
+  /** True when the cost is divided among participants. */
+  didSplit: boolean;
+  /** Everyone with a part when splitting (owner included when they have one). */
+  participantIds: string[];
+  shareType: 'equal' | 'custom';
+  customAmountsCents: Record<string, number>;
+}
+
+export interface PayerExpenseResolution {
+  shares: ParticipantShare[];
+  /** What this expense costs ME (DEC-114 truth table). */
+  personalCostCents: number;
+  /** False = my wallet is NOT moved (someone else handed over the money). */
+  movesOwnerWallet: boolean;
+  isShared: boolean;
+}
+
+/**
+ * DEC-114: registering an expense = registering MY COST. "Someone else paid"
+ * NEVER means a gift — it creates a debt to the payer. Single source of truth
+ * for every flow that marks a payer (QuickAdd, outing stepper, outing split).
+ *
+ * | payer | split | personal cost | debt                   | owner wallet |
+ * |-------|-------|---------------|------------------------|--------------|
+ * | me    | no    | total         | —                      | debited      |
+ * | me    | yes   | my share      | others owe me theirs   | debited      |
+ * | other | yes   | my share      | I owe MY SHARE         | not moved    |
+ * | other | no    | TOTAL         | I owe the TOTAL        | not moved    |
+ */
+export function resolvePayerExpense(input: PayerExpenseInput): PayerExpenseResolution {
+  const ownerPaid = input.payerId === input.ownerId;
+
+  if (ownerPaid && !input.didSplit) {
+    return {
+      shares: [],
+      personalCostCents: input.amountCents,
+      movesOwnerWallet: true,
+      isShared: false,
+    };
+  }
+
+  // Truth-table row 4: someone else paid and nothing was split — the whole
+  // thing is mine, so the single share is MY debt for the FULL amount.
+  const participantIds = input.didSplit ? input.participantIds : [input.ownerId];
+
+  const built = buildSharesWithPayer({
+    transactionId: input.transactionId,
+    amountCents: input.amountCents,
+    participantIds,
+    paidByParticipantId: input.payerId,
+    shareType: input.didSplit ? input.shareType : 'equal',
+    customAmountsCents: input.customAmountsCents,
+  });
+
+  // DEC-114 + DEC-071: the OWNER registers the expense, so their own share is
+  // born confirmed — the debt to the payer exists immediately in /shared.
+  const shares = built.map((s) =>
+    s.participantId === input.ownerId && s.confirmationStatus === 'pending'
+      ? { ...s, confirmationStatus: 'confirmed' as const }
+      : s,
+  );
+
+  return {
+    shares,
+    personalCostCents: calculatePersonalCost(shares, input.ownerId),
+    movesOwnerWallet: ownerPaid,
+    isShared: true,
+  };
+}
+
+/** DEC-114: true when the expense moved the owner's own money. */
+export function isPaidByOwner(
+  transaction: Pick<Transaction, 'paidByParticipantId'>,
+  ownerId: string | null,
+): boolean {
+  return (
+    transaction.paidByParticipantId === null || transaction.paidByParticipantId === ownerId
+  );
+}
+
 export function calculateDebts(
   transactions: Transaction[],
   shares: ParticipantShare[],

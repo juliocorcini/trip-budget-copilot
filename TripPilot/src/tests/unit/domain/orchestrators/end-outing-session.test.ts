@@ -74,6 +74,7 @@ describe('endOutingSession orchestrator', () => {
       session,
       transactions: [tx1, tx2],
       walletId: 'wallet-cash',
+      ownerParticipantId: null,
       isSpecialOccasion: false,
       excludeFromLearning: false,
       totalAdjustment: null,
@@ -114,6 +115,7 @@ describe('endOutingSession orchestrator', () => {
       session,
       transactions: [tx],
       walletId: null,
+      ownerParticipantId: null,
       isSpecialOccasion: true,
       excludeFromLearning: false,
       totalAdjustment: null,
@@ -125,6 +127,45 @@ describe('endOutingSession orchestrator', () => {
     const storedProfile = await db.activityProfiles.get(profile.id);
     expect(storedProfile!.dataPointCount).toBe(2);
     expect(storedProfile!.typicalValueCents).toBe(4000);
+  });
+
+  it('DEC-114: batch wallet is NEVER assigned to items paid by someone else', async () => {
+    const profile = mkProfile();
+    const session = createSession({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      activityProfileId: profile.id,
+      name: 'Bar night',
+      limits: deriveSessionLimits(profile),
+      quickAddValuesCents: [300],
+    });
+    await db.sessions.add(session);
+    const ownTx = mkSessionTx(session.id, 2000, profile.id);
+    const anaTx = {
+      ...mkSessionTx(session.id, 1500, profile.id),
+      isShared: true,
+      paidByParticipantId: 'ana',
+      personalCostCents: 1500,
+    };
+    await db.transactions.bulkAdd([ownTx, anaTx]);
+
+    await endOutingSession({
+      session,
+      transactions: [ownTx, anaTx],
+      walletId: 'wallet-cash',
+      ownerParticipantId: 'julio',
+      isSpecialOccasion: false,
+      excludeFromLearning: false,
+      totalAdjustment: null,
+      profile: null,
+    });
+
+    const storedOwn = await db.transactions.get(ownTx.id);
+    const storedAna = await db.transactions.get(anaTx.id);
+    expect(storedOwn!.walletId).toBe('wallet-cash');
+    // Ana paid → my wallet was never moved.
+    expect(storedAna!.walletId).toBeNull();
   });
 
   it('persists the optional reported-total adjustment with the batch wallet', async () => {
@@ -147,6 +188,7 @@ describe('endOutingSession orchestrator', () => {
       session,
       transactions: [tx],
       walletId: 'wallet-cash',
+      ownerParticipantId: null,
       isSpecialOccasion: false,
       excludeFromLearning: true,
       totalAdjustment: adjustment,
