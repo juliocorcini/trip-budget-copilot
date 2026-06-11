@@ -7,6 +7,7 @@ import { calculateFreeToSpend, createPoolSummary, calculateLastOutingSavings, bu
 import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory, calculateSpentOnDate } from '@/domain/transactions';
 import { formatMoney, fromCents, sumCents } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
+import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import { Icon } from '@/components/Icon';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -65,6 +66,25 @@ function splitMoneyDisplay(cents: number, currency: string): { symbol: string; i
     integer: `${symbol}${intPart}`,
     decimal: `,${decPart.toString().padStart(2, '0')}`,
   };
+}
+
+// R6-11 (R-02): per-category Mediterranean accents for the counter carousel —
+// the old fallback grid had them and the carousel had flattened everything
+// to terracotta. Data-driven, mirrors the semantic tokens.
+const COUNTER_ACCENTS: Record<string, { color: string; bg: string }> = {
+  bar: { color: 'var(--primary)', bg: '#C75B3918' },
+  restaurant: { color: 'var(--warning)', bg: '#D4A84318' },
+  market: { color: 'var(--success)', bg: '#6B8F7118' },
+  transport: { color: '#5B8FA6', bg: '#5B8FA618' },
+  outing: { color: 'var(--primary)', bg: '#C75B3918' },
+  entertainment: { color: '#9A7BB8', bg: '#9A7BB818' },
+  health: { color: 'var(--success)', bg: '#6B8F7118' },
+  accommodation: { color: '#5B8FA6', bg: '#5B8FA618' },
+  other: { color: 'var(--on-surface-dim)', bg: '#8A8A8A18' },
+};
+
+function counterAccent(category: string | null | undefined): { color: string; bg: string } {
+  return COUNTER_ACCENTS[category ?? 'other'] ?? COUNTER_ACCENTS.other!;
 }
 
 // DEC-077: icon + copy per insight kind (data-driven).
@@ -513,16 +533,21 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* STORAGE NOT PERSISTENT (R5-03): eviction risk warning, tap → settings */}
-      {storageNotPersisted && (
+      {/* STORAGE NOT PERSISTENT (R5-03 / R6-13): eviction risk warning.
+          iOS Safari cannot grant persistence programmatically — the honest
+          advice there is installing to the home screen; installed iOS PWAs
+          are already protected, so no alarm at all. */}
+      {storageNotPersisted && !(isIosDevice() && isStandaloneDisplayMode()) && (
         <button
           onClick={() => navigate('/settings')}
           className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
           style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
         >
-          <Icon name="warning" size={16} className="text-warning" />
+          <Icon name={isIosDevice() ? 'add_to_home_screen' : 'warning'} size={16} className="text-warning" />
           <p className="text-xs font-semibold text-on-surface-dim flex-1">
-            {t('dashboard.storage_not_persisted')}
+            {isIosDevice()
+              ? t('dashboard.storage_install_ios')
+              : t('dashboard.storage_not_persisted')}
           </p>
           <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
         </button>
@@ -772,15 +797,21 @@ export function DashboardPage() {
           >
             {forecasts.map((forecast) => {
               const profile = profiles.find((p) => p.id === forecast.profileId);
+              const accent = counterAccent(profile?.category);
               return (
-                <div key={forecast.profileId} className="snap-start shrink-0 w-[30%] min-w-[104px] flex">
+                <div
+                  key={forecast.profileId}
+                  // R6-11 (R-02): exactly 3 cards per page — w-[30%] left a 4th
+                  // card peeking and broke the side alignment.
+                  className="snap-start shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
+                >
                   <OccasionCounter
                     icon={profile?.iconName ?? getCategoryIcon(profile?.category ?? 'other')}
                     count={forecast.remaining}
                     label={t('dashboard.occasion_remaining', { name: forecast.profileName })}
                     sublabel={t('dashboard.occasion_done', { count: forecast.spent })}
-                    iconBg="#C75B3918"
-                    iconColor="var(--primary)"
+                    iconBg={accent.bg}
+                    iconColor={accent.color}
                     onClick={() => navigate(`/expenses?profile=${forecast.profileId}`)}
                   />
                 </div>

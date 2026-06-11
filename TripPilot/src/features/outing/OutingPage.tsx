@@ -10,6 +10,8 @@ import {
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,
   calculateGaugePosition,
+  GAUGE_TARGET_END,
+  GAUGE_CEILING_END,
   getProgressiveAlerts,
   DEFAULT_QUICK_ADD_VALUES_CENTS,
   findHighlightedQuickValueIndex,
@@ -1690,6 +1692,15 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
             <div className="flex-[1]" style={{ background: '#D4A84360' }} />
             <div className="flex-[1] rounded-r-md" style={{ background: '#D9404030' }} />
           </div>
+          {/* R6-12 (R5-09): ticks on the REAL segment boundaries, in the limit color */}
+          <div
+            className="absolute w-[2px] h-[18px] top-[19px] rounded-full"
+            style={{ left: `calc(${GAUGE_TARGET_END}% - 1px)`, background: 'var(--success)', opacity: 0.85 }}
+          />
+          <div
+            className="absolute w-[2px] h-[18px] top-[19px] rounded-full"
+            style={{ left: `calc(${GAUGE_CEILING_END}% - 1px)`, background: 'var(--primary)', opacity: 0.85 }}
+          />
           <div
             className="absolute bottom-[-2px] w-4 h-4 rounded-full border-2"
             style={{
@@ -1701,26 +1712,41 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
           />
         </div>
 
-        {/* 6. THREE-LIMIT LABELS */}
-        <div className="flex justify-between items-start px-0.5 mt-4 mb-2.5">
-          <div>
-            <p className="text-[9px] font-bold" style={{ color: 'var(--success)' }}>
+        {/* 6. THREE-LIMIT LABELS — R6-12 (R5-09): each label is anchored on the
+            real boundary of its segment so value, color and position agree. */}
+        <div className="relative mt-4 mb-2.5 h-[26px]">
+          <div
+            className="absolute top-0"
+            style={{
+              left: `${GAUGE_TARGET_END}%`,
+              transform: 'translateX(-50%)',
+              maxWidth: '40%',
+            }}
+          >
+            <p className="text-[9px] font-bold text-center whitespace-nowrap" style={{ color: 'var(--success)' }}>
               {t('outing.limit_target')}
             </p>
-            <p className="text-[11px] font-extrabold tabular" style={{ color: 'var(--success)' }}>
+            <p className="text-[11px] font-extrabold tabular text-center" style={{ color: 'var(--success)' }}>
               {formatCurrency(targetCents, currency)}
             </p>
           </div>
-          <div className="text-center">
-            <p className="text-[9px] font-bold" style={{ color: 'var(--primary)' }}>
+          <div
+            className="absolute top-0"
+            style={{
+              left: `${GAUGE_CEILING_END}%`,
+              transform: 'translateX(-50%)',
+              maxWidth: '34%',
+            }}
+          >
+            <p className="text-[9px] font-bold text-center whitespace-nowrap" style={{ color: 'var(--primary)' }}>
               {t('outing.limit_ceiling')}
             </p>
-            <p className="text-[11px] font-extrabold tabular" style={{ color: 'var(--primary)' }}>
+            <p className="text-[11px] font-extrabold tabular text-center" style={{ color: 'var(--primary)' }}>
               {formatCurrency(ceilingCents, currency)}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-[9px] font-bold" style={{ color: '#D9404080' }}>
+          <div className="absolute top-0 right-0 text-right">
+            <p className="text-[9px] font-bold whitespace-nowrap" style={{ color: '#D9404080' }}>
               {t('outing.limit_max')}
             </p>
             <p className="text-[11px] font-extrabold tabular" style={{ color: '#D9404080' }}>

@@ -5,6 +5,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository } from '@/data/repositories';
 import { fromCents, toCents } from '@/domain/money';
 import { Icon } from '@/components/Icon';
+import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import type { AlertTone, ThemePreference } from '@/domain/types/common';
 
 const LANGUAGE_OPTIONS = [
@@ -232,21 +233,33 @@ export function SettingsPage() {
       </Section>
 
       <Section title={t('settings.persistent_storage')}>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-on-surface">
-            {settings.persistentStorageGranted
-              ? t('settings.storage_granted')
-              : t('settings.storage_not_granted')}
-          </span>
-          {!settings.persistentStorageGranted && (
-            <button
-              onClick={handlePersistentStorage}
-              className="px-3 py-1.5 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
-            >
-              {t('settings.request_storage')}
-            </button>
-          )}
-        </div>
+        {/* R6-13 (R5-03): on iOS the "activate" button can never work —
+            navigator.storage.persist() silently returns false. Show honest
+            guidance instead: install to home screen (Safari) or reassure
+            (already installed). */}
+        {isIosDevice() && !settings.persistentStorageGranted ? (
+          <p className="text-sm text-on-surface-dim">
+            {isStandaloneDisplayMode()
+              ? t('settings.storage_ios_installed')
+              : t('settings.storage_ios_hint')}
+          </p>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-on-surface">
+              {settings.persistentStorageGranted
+                ? t('settings.storage_granted')
+                : t('settings.storage_not_granted')}
+            </span>
+            {!settings.persistentStorageGranted && (
+              <button
+                onClick={handlePersistentStorage}
+                className="px-3 py-1.5 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
+              >
+                {t('settings.request_storage')}
+              </button>
+            )}
+          </div>
+        )}
       </Section>
 
       <Section title={t('settings.about')}>

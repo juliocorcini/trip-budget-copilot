@@ -85,7 +85,8 @@
     "amigo_on_plan": "Seus gastos com {{type}} estão dentro do plano: {{done}} de {{planned}} ocasiões usadas.",
     "amigo_no_plan": "Esse gasto com {{type}} usou {{percent}}% do que sobra livre. Não há plano para essa categoria.",
     "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}.",
-    "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações."
+    "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações.",
+    "storage_install_ios": "Instale o TripPilot na tela inicial para proteger seus dados (Compartilhar → Adicionar à Tela de Início)."
   },
   "expenses": {
     "title": "Gastos",
@@ -333,6 +334,8 @@
     "storage_granted": "Armazenamento persistente ativado",
     "storage_not_granted": "Dados podem ser removidos pelo navegador",
     "request_storage": "Ativar",
+    "storage_ios_hint": "No iPhone o Safari não permite ativar por botão. Instale o app na tela inicial (Compartilhar → Adicionar à Tela de Início) para proteger seus dados, e mantenha backups em dia.",
+    "storage_ios_installed": "App instalado na tela inicial — seus dados estão protegidos da limpeza automática do Safari. Mantenha backups em dia.",
     "quick_add_defaults": "Valores rápidos padrão",
     "about": "Sobre",
     "about_desc": "Seu copiloto de orçamento de viagem"

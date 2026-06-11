@@ -152,8 +152,10 @@ export function getSessionPercentUsed(
 // up to 100%). The dot must be mapped piecewise onto those visual ranges —
 // a linear spent/max position puts e.g. 40 of target 35 / ceiling 45 /
 // max 55 past the 45 mark on screen.
-const GAUGE_TARGET_END = 300 / 7; // 42.857% — end of the green segment
-const GAUGE_CEILING_END = 500 / 7; // 71.428% — end of the primary segment
+// R6-12 (R5-09): exported so the UI anchors the limit labels/ticks on the
+// REAL segment boundaries instead of justify-between (0/50/100%).
+export const GAUGE_TARGET_END = 300 / 7; // 42.857% — end of the green segment
+export const GAUGE_CEILING_END = 500 / 7; // 71.428% — end of the primary segment
 
 export function calculateGaugePosition(
   spentCents: number,

@@ -7,6 +7,8 @@ export {
   calculateSessionTotal,
   getSessionPercentUsed,
   calculateGaugePosition,
+  GAUGE_TARGET_END,
+  GAUGE_CEILING_END,
   getProgressiveAlerts,
   calculateNextDrinkImpact,
   calculateReportedTotalDiff,

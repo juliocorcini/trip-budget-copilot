@@ -6,8 +6,8 @@
 
 ## Current State
 
-- Active gate: G4 (UI polish)
-- Last milestone: G3 complete (R6-08..10)
+- Active gate: G5 (locale formatting)
+- Last milestone: G4 complete (R6-11..14)
 - Tests: 337 unit / 29 e2e
 - Build: OK (typecheck clean)
 - Risks: date projection now local everywhere — watch DashboardPage day card (already local via GAP-R2-007)
@@ -18,12 +18,31 @@
 - [x] G1 — Domain bugs (R6-01..05: BUG-001..004, PAR-006)
 - [x] G2 — P2P sync reliability (R6-06..07)
 - [x] G3 — QR scanner camera switch + zoom (R6-08..10)
-- [ ] G4 — UI polish: carousel, gauge, iOS banner, keyboard (R6-11..14)
+- [x] G4 — UI polish: carousel, gauge, iOS banner, keyboard (R6-11..14)
 - [ ] G5 — Locale formatting (R6-15..18)
 - [ ] G6 — Simulator v3 + learning prior (R6-19..22)
 - [ ] G7 — Housekeeping + validation + deploy (R6-23..25)
 
 ## Milestones
+
+### G4 — UI polish (R6-11..14)
+
+- **R6-11 (R-02)**: Dashboard carousel cards now `w-[calc((100%-1.5rem)/3)]` — exactly 3 per
+  page, snap aligns with edges; `COUNTER_ACCENTS` restores per-category icon colors
+  (mediterranean palette) instead of fixed terracotta.
+- **R6-12 (R5-09)**: Outing gauge labels absolutely anchored at the real segment boundaries
+  (`GAUGE_TARGET_END` ≈43%, `GAUGE_CEILING_END` ≈71%, max 86%, clamped at edges) + colored
+  tick marks on the bar at each boundary. Constants exported from `domain/outing`.
+- **R6-13 (R5-03)**: honest iOS persistence story — `utils/platform.ts`
+  (`isIosDevice`/`isStandaloneDisplayMode`). Dashboard banner: hidden on installed iOS PWA,
+  install-to-home-screen guidance on iOS Safari, unchanged elsewhere. Settings: iOS shows
+  guidance text instead of the impossible "Enable" button.
+- **R6-14 (R5-04)**: `useKeyboardInset` forces `window.scrollTo(0, 0)` when the inset
+  returns to 0 and on `focusout` (250ms, skips focus moving to another field).
+- i18n: `dashboard.storage_install_ios`, `settings.storage_ios_hint`,
+  `settings.storage_ios_installed` in pt-BR/en/es (parity 741/741/741).
+- 337 unit ✅, typecheck ✅, build ✅. Regression named: R3 carousel snap behavior,
+  R5 gauge math (`buildOutingGauge` untouched — UI only), R5-02 keyboard inset spacer.
 
 ### G3 — QR scanner camera switch + zoom (R6-08..10)
 

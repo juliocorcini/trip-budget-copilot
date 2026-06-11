@@ -85,7 +85,8 @@
     "amigo_on_plan": "Your {{type}} spending is on plan: {{done}} of {{planned}} occasions used.",
     "amigo_no_plan": "This {{type}} expense used {{percent}}% of what is left free. There is no plan for this category.",
     "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}.",
-    "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings."
+    "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings.",
+    "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen)."
   },
   "expenses": {
     "title": "Expenses",
@@ -333,6 +334,8 @@
     "storage_granted": "Persistent storage enabled",
     "storage_not_granted": "Data may be removed by the browser",
     "request_storage": "Enable",
+    "storage_ios_hint": "On iPhone, Safari does not allow enabling this with a button. Install the app to your home screen (Share → Add to Home Screen) to protect your data, and keep backups current.",
+    "storage_ios_installed": "App installed to the home screen — your data is protected from Safari's automatic cleanup. Keep backups current.",
     "quick_add_defaults": "Default quick values",
     "about": "About",
     "about_desc": "Your travel budget copilot"
