@@ -55,6 +55,34 @@ export interface OccasionForecast {
   estimatedRemainingCostCents: number;
 }
 
+/**
+ * DEC-115 (R-06): occasion = OUTING/SESSION, never item. Transactions with a
+ * sessionId group into their session (1 session with 9 items = 1 occasion);
+ * standalone profile expenses count 1 each. "I plan to go to the bar 5
+ * times", not "5 bar items".
+ */
+export function countProfileOccasions(
+  transactions: Transaction[],
+  profileId: string,
+  phaseId: string,
+): number {
+  const sessionIds = new Set<string>();
+  let standalone = 0;
+  for (const t of transactions) {
+    if (
+      t.activityProfileId !== profileId ||
+      t.phaseId !== phaseId ||
+      t.type !== 'expense' ||
+      t.deletedAt !== null
+    ) {
+      continue;
+    }
+    if (t.sessionId !== null) sessionIds.add(t.sessionId);
+    else standalone += 1;
+  }
+  return sessionIds.size + standalone;
+}
+
 // GAP-R2-006: forecasts are phase-scoped — allocations come from the phase's
 // active plan and transactions are filtered by phase, so counters never mix phases.
 export function calculateOccasionForecasts(
@@ -71,13 +99,8 @@ export function calculateOccasionForecasts(
       );
       const totalPlanned = allocation?.quantity ?? 0;
 
-      const spent = transactions.filter(
-        (t) =>
-          t.activityProfileId === profile.id &&
-          t.phaseId === phaseId &&
-          t.type === 'expense' &&
-          t.deletedAt === null,
-      ).length;
+      // DEC-115 (R-06): sessions count once — never items.
+      const spent = countProfileOccasions(transactions, profile.id, phaseId);
 
       const remaining = Math.max(0, totalPlanned - spent);
       const estimatedRemainingCostCents = remaining * profile.safeValueCents;

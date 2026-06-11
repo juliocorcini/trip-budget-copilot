@@ -83,6 +83,7 @@
     "detail_streak_explainer": "Contamos os dias consecutivos sem nenhum gasto registrado na fase, terminando hoje.",
     "amigo_over_pace": "Você planejou {{planned}} {{type}} este mês. No ritmo atual, cabem só {{fit}} dos {{remaining}} que faltam dentro do plano.",
     "amigo_on_plan": "Seus gastos com {{type}} estão dentro do plano: {{done}} de {{planned}} ocasiões usadas.",
+    "amigo_over_plan": "Você planejou {{planned}} ocasiões de {{type}} e já fez {{done}} — acima do plano. Cada nova sai de outras categorias.",
     "amigo_no_plan": "Esse gasto com {{type}} usou {{percent}}% do que sobra livre. Não há plano para essa categoria.",
     "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}.",
     "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações.",

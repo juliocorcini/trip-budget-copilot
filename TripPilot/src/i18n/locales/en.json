@@ -83,6 +83,7 @@
     "detail_streak_explainer": "We count consecutive days with no expense recorded in the phase, ending today.",
     "amigo_over_pace": "You planned {{planned}} {{type}} this month. At the current pace, only {{fit}} of the {{remaining}} left fit the plan.",
     "amigo_on_plan": "Your {{type}} spending is on plan: {{done}} of {{planned}} occasions used.",
+    "amigo_over_plan": "You planned {{planned}} {{type}} occasions and already did {{done}} — over plan. Each new one comes out of other categories.",
     "amigo_no_plan": "This {{type}} expense used {{percent}}% of what is left free. There is no plan for this category.",
     "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}.",
     "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings.",

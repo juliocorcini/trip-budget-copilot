@@ -984,13 +984,20 @@ export function DashboardPage() {
                     done: amigoV2.doneQuantity,
                     planned: amigoV2.plannedQuantity,
                   })}
+                {amigoV2.kind === 'over_plan' &&
+                  t('dashboard.amigo_over_plan', {
+                    type: amigoV2.profileName.toLowerCase(),
+                    done: amigoV2.doneQuantity,
+                    planned: amigoV2.plannedQuantity,
+                  })}
                 {amigoV2.kind === 'no_plan' &&
                   t('dashboard.amigo_no_plan', {
                     type: amigoV2.profileName.toLowerCase(),
                     percent: amigoV2.impactPercent,
                   })}
               </p>
-              {amigoV2.kind === 'over_pace' && amigoV2.reserveStartDate && (
+              {(amigoV2.kind === 'over_pace' || amigoV2.kind === 'over_plan') &&
+                amigoV2.reserveStartDate && (
                 <p className="text-xs font-bold text-warning mt-2">
                   {t('dashboard.amigo_reserve_date', {
                     date: formatDate(amigoV2.reserveStartDate, "d 'de' MMMM"),

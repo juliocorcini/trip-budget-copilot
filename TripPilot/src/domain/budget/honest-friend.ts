@@ -39,6 +39,15 @@ export type HonestFriendV2 =
       remainingPlanned: number;
     }
   | {
+      /** DEC-115 (R-06): done > planned NEVER reads as "within plan". */
+      kind: 'over_plan';
+      profileId: string;
+      profileName: string;
+      plannedQuantity: number;
+      doneQuantity: number;
+      reserveStartDate: string | null;
+    }
+  | {
       kind: 'over_pace';
       profileId: string;
       profileName: string;
@@ -102,6 +111,24 @@ export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 
   }
 
   if (input.plannedQuantity > 0) {
+    // DEC-115 (R-06): "20 of 5 — within plan" is impossible. Used more
+    // occasions than planned → say it plainly.
+    if (input.doneQuantity > input.plannedQuantity) {
+      return {
+        kind: 'over_plan',
+        profileId: input.profileId,
+        profileName: input.profileName,
+        plannedQuantity: input.plannedQuantity,
+        doneQuantity: input.doneQuantity,
+        reserveStartDate: projectReserveStartDate(
+          input.phase,
+          input.todayDate,
+          input.phaseSpentCents,
+          input.phaseBudgetCents,
+        ),
+      };
+    }
+
     const remainingPlanned = Math.max(0, input.plannedQuantity - input.doneQuantity);
     const categoryBudgetCents = input.plannedQuantity * input.typicalValueCents;
     const categoryRemainingCents = categoryBudgetCents - input.categorySpentCents;

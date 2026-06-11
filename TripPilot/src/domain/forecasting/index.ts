@@ -1,5 +1,6 @@
 export {
   updateProfileFromTransaction,
+  countProfileOccasions,
   calculateOccasionForecasts,
   orderForecastsByUsage,
   simulateSpend,

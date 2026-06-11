@@ -84,6 +84,25 @@ describe('buildHonestFriendV2 (DEC-093 / R-11)', () => {
     }
   });
 
+  it('DEC-115 (R-06): done > planned NEVER reads as "within plan"', () => {
+    // The field bug: "20 of 5 occasions — within plan". Must be over_plan.
+    const result = buildHonestFriendV2(
+      baseInput({ plannedQuantity: 5, doneQuantity: 20, categorySpentCents: 6_000 }),
+    );
+    expect(result.kind).toBe('over_plan');
+    if (result.kind === 'over_plan') {
+      expect(result.doneQuantity).toBe(20);
+      expect(result.plannedQuantity).toBe(5);
+    }
+  });
+
+  it('done == planned still reads as on_plan (plan completed, not exceeded)', () => {
+    const result = buildHonestFriendV2(
+      baseInput({ plannedQuantity: 5, doneQuantity: 5, categorySpentCents: 1_500 }),
+    );
+    expect(result.kind).toBe('on_plan');
+  });
+
   it('no plan for the category → impact on phase free margin, never counts', () => {
     const result = buildHonestFriendV2(
       baseInput({ plannedQuantity: 0, recentSpendCents: 1_000, freeToSpendCents: 9_000 }),

@@ -9,9 +9,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 3 (occasions = sessions)
-- **Progress**: 5/12 requirements
-- **Tests**: 352 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Active gate**: GATE 4 (simulator v3)
+- **Progress**: 6/12 requirements
+- **Tests**: 355 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
 - **Build**: v0.6.0
 
 ## GATE 0 — Baseline + decision-log ✅
@@ -39,8 +39,11 @@
       "Pagou tudo por mim" / "Dividimos" (split prefilled owner+payer); debt hints shown.
 - New tests: payer-semantics.test.ts (8) + end-outing-session wallet protection (1).
 
-## GATE 3 — Occasions = sessions
-- [ ] R-06 occasion counting groups by session everywhere
+## GATE 3 — Occasions = sessions ✅
+- [x] R-06 `countProfileOccasions` (forecasting) — sessions count once, standalone = 1 each;
+      `calculateOccasionForecasts` uses it → dashboard counters, Amigo Sincero (doneQuantity),
+      ImpactDetail and Simulator all corrected centrally. New honest-friend kind `over_plan`
+      (done > planned ≠ "dentro do plano") + copy ×3. Tests: 9+8+3 items + 2 avulsos = 5.
 
 ## GATE 4 — Simulator v3
 - [ ] R-07 contextual simulator with labeled explanations + justified verdict

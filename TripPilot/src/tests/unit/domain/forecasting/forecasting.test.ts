@@ -5,6 +5,7 @@ import {
   simulateSpendMultiMetric,
   calculateScenarioCost,
   calculateOccasionForecasts,
+  countProfileOccasions,
 } from '@/domain/forecasting';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { ScenarioAllocationItem } from '@/domain/types/scenario';
@@ -182,5 +183,56 @@ describe('calculateOccasionForecasts', () => {
     const forecasts = calculateOccasionForecasts(profiles, allocations, txs, 'ph-1');
     expect(forecasts[0]!.spent).toBe(1);
     expect(forecasts[0]!.remaining).toBe(4);
+  });
+
+  // DEC-115 (R-06) — the field scenario: 3 bar outings (9+8+3 items) + 2
+  // standalone bar expenses = 5 occasions, NEVER 22.
+  it('counts sessions as single occasions (field scenario 9+8+3 items + 2 standalone)', () => {
+    const mkTx = (id: string, sessionId: string | null) => ({
+      ...meta,
+      id,
+      tripId: 'trip-1',
+      phaseId: 'ph-1',
+      budgetPoolId: 'pool-1',
+      walletId: null,
+      sessionId,
+      type: 'expense' as const,
+      amountCents: 500,
+      personalCostCents: 500,
+      currency: 'EUR',
+      baseCurrencyAmountCents: 500,
+      exchangeRate: null,
+      category: 'bar',
+      subcategoryId: null,
+      description: 'test',
+      date: '2026-07-01T00:00:00.000Z',
+      isShared: false,
+      paidByParticipantId: null,
+      activityProfileId: 'prof-1',
+      isSpecialOccasion: false,
+      excludeFromLearning: false,
+      sourceWalletId: null,
+      targetWalletId: null,
+      settlementId: null,
+      adjustmentReason: null,
+      notes: null,
+    });
+
+    const txs = [
+      ...Array.from({ length: 9 }, (_, i) => mkTx(`s1-${i}`, 'session-1')),
+      ...Array.from({ length: 8 }, (_, i) => mkTx(`s2-${i}`, 'session-2')),
+      ...Array.from({ length: 3 }, (_, i) => mkTx(`s3-${i}`, 'session-3')),
+      mkTx('standalone-1', null),
+      mkTx('standalone-2', null),
+    ];
+
+    expect(countProfileOccasions(txs, 'prof-1', 'ph-1')).toBe(5);
+
+    const allocations: ScenarioAllocationItem[] = [
+      { ...meta, id: 'a1', scenarioPlanId: 'sp1', activityProfileId: 'prof-1', quantity: 5, estimatedUnitCostCents: 1500, isLocked: false, priority: 'planned', notes: null },
+    ];
+    const forecasts = calculateOccasionForecasts([baseProfile], allocations, txs, 'ph-1');
+    expect(forecasts[0]!.spent).toBe(5);
+    expect(forecasts[0]!.remaining).toBe(0);
   });
 });
