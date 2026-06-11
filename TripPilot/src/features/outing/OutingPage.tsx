@@ -45,6 +45,15 @@ import {
   startOneOffEventSession,
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
+import {
+  isOutingNotificationSupported,
+  wasOutingNotificationPrompted,
+  markOutingNotificationPrompted,
+  requestOutingNotificationPermission,
+  syncOutingNotification,
+  closeOutingNotifications,
+  OUTING_CHANGED_EVENT,
+} from '@/utils/outing-notification';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { phaseProfileSettingRepository } from '@/data/repositories/phase-profile-setting-repository';
@@ -167,6 +176,8 @@ export function OutingPage() {
   const [reviewing, setReviewing] = useState(false);
   // DEC-078 (FIELD-08): post-add enrichment stepper — tx already saved.
   const [enrich, setEnrich] = useState<EnrichTarget | null>(null);
+  // DEC-120 (R-11): one-time notification offer at first session start.
+  const [showNotificationOffer, setShowNotificationOffer] = useState(false);
 
   // DEC-053(b)/(c) confirmatory gates
   const [pendingOverMaxAdd, setPendingOverMaxAdd] = useState<{
@@ -230,6 +241,56 @@ export function OutingPage() {
     return () => clearInterval(interval);
   }, [session]);
 
+  // DEC-120 (R-11): keep the persistent notification in sync — every change
+  // in the session items refreshes the same tag silently (no re-alert).
+  useEffect(() => {
+    if (!trip || !session || session.status !== 'active') return;
+    const profileCategory =
+      profiles.find((p) => p.id === session.activityProfileId)?.category ?? null;
+    syncOutingNotification({
+      session,
+      totalCents: calculateSessionTotal(sessionTxs),
+      currency: trip.baseCurrency,
+      profileCategory,
+    });
+  }, [trip, session, sessionTxs, profiles]);
+
+  // DEC-120 (R-11): expenses added through the notification (app open in
+  // background) land directly in the DB — reload the visible list.
+  useEffect(() => {
+    if (!session) return;
+    const onOutingChanged = async () => {
+      const txs = await transactionRepository.getBySessionId(session.id);
+      setSessionTxs(txs);
+      setItemCount(txs.length);
+    };
+    window.addEventListener(OUTING_CHANGED_EVENT, onOutingChanged);
+    return () => window.removeEventListener(OUTING_CHANGED_EVENT, onOutingChanged);
+  }, [session]);
+
+  // DEC-120 (R-11): permission asked at the FIRST session start, with an
+  // explanation sheet — never on app boot.
+  const maybeOfferNotification = () => {
+    if (!isOutingNotificationSupported()) return;
+    if (Notification.permission !== 'default' || wasOutingNotificationPrompted()) return;
+    setShowNotificationOffer(true);
+  };
+
+  const handleAcceptNotifications = async () => {
+    setShowNotificationOffer(false);
+    const permission = await requestOutingNotificationPermission();
+    if (permission === 'granted' && trip && session) {
+      const profileCategory =
+        profiles.find((p) => p.id === session.activityProfileId)?.category ?? null;
+      await syncOutingNotification({
+        session,
+        totalCents: calculateSessionTotal(sessionTxs),
+        currency: trip.baseCurrency,
+        profileCategory,
+      });
+    }
+  };
+
   // GAP-015: profile selection opens an editable confirmation step.
   const handleChooseProfile = (profile: ActivityProfile) => {
     if (!trip || !currentPhase || !defaultPool) {
@@ -255,6 +316,7 @@ export function OutingPage() {
     setSession(sess);
     setSessionTxs([]);
     setItemCount(0);
+    maybeOfferNotification();
   };
 
   // DEC-072 (M6.3): start the session linked to the day-card occurrence —
@@ -275,6 +337,7 @@ export function OutingPage() {
     setSession(sess);
     setSessionTxs([]);
     setItemCount(0);
+    maybeOfferNotification();
   };
 
   // DEC-073 (M6.5 / FIELD-04): one-off event creates a linked occurrence,
@@ -307,6 +370,7 @@ export function OutingPage() {
     setSession(sess);
     setSessionTxs([]);
     setItemCount(0);
+    maybeOfferNotification();
   };
 
   const handleStartCustomSession = async (data: ProfileFormData) => {
@@ -649,6 +713,9 @@ export function OutingPage() {
       profile: sessionProfile,
     });
 
+    // DEC-120 (R-11): ending the session clears the persistent notification.
+    await closeOutingNotifications();
+
     showToast(t('outing.session_ended'), 'success');
     setReviewing(false);
     setSession(null);
@@ -874,6 +941,37 @@ export function OutingPage() {
           )
         }
       />
+
+      {/* DEC-120 (R-11): notification offer at first session start */}
+      <BottomSheet
+        open={showNotificationOffer}
+        onClose={() => {
+          setShowNotificationOffer(false);
+          markOutingNotificationPrompted();
+        }}
+        title={t('outing.notification_offer_title')}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-on-surface-dim">{t('outing.notification_offer_body')}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setShowNotificationOffer(false);
+                markOutingNotificationPrompted();
+              }}
+              className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+            >
+              {t('outing.notification_offer_later')}
+            </button>
+            <button
+              onClick={handleAcceptNotifications}
+              className="flex-1 py-2.5 rounded-xl bg-primary text-on-surface font-semibold text-sm btn-press"
+            >
+              {t('outing.notification_offer_enable')}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* DEC-053(b): over-max confirmation */}
       <BottomSheet

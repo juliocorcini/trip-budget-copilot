@@ -35,3 +35,17 @@ export {
   getSubcategoriesForContext,
 } from './expense-taxonomy';
 export type { ExpenseSubcategory, EventContext } from './expense-taxonomy';
+export {
+  OUTING_NOTIFICATION_TAG,
+  OUTING_FOLLOWUP_TAG,
+  pickNotificationQuickValues,
+  pickFollowupSubcategoryIds,
+  buildOutingNotificationPayload,
+} from './outing-notification';
+export type {
+  OutingNotificationPayload,
+  OutingNotificationStrings,
+  OutingNotificationAction,
+  OutingFollowupAction,
+  BuildOutingNotificationInput,
+} from './outing-notification';

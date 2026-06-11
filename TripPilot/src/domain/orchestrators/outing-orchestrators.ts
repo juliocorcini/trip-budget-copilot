@@ -1,5 +1,6 @@
 import { db } from '@/data/db/database';
-import { endSession } from '@/domain/outing';
+import { endSession, createSessionItem } from '@/domain/outing';
+import { createExpenseTransaction } from '@/domain/transactions';
 import { updateProfileFromTransaction } from '@/domain/forecasting';
 import { isPaidByOwner } from '@/domain/splitting';
 import { markUpdated } from '@/utils/entity-factory';
@@ -147,4 +148,59 @@ export async function startOneOffEventSession(
     await db.sessions.add(input.session);
     await db.plannedOccurrences.add({ ...input.occurrence, linkedSessionId: input.session.id });
   });
+}
+
+export interface QuickAddSessionExpenseInput {
+  session: Session;
+  amountCents: number;
+  /** Effective phase for the new expense (DEC-053c boundary choice). */
+  phaseId: string;
+  currency: string;
+  /** Category of the session's profile — same rule as OutingPage quick-add. */
+  profileCategory: string | null;
+}
+
+/**
+ * DEC-120 (R-11): quick-add reachable from outside OutingPage (notification
+ * bridge). Creates the expense + session item atomically; the item order is
+ * derived inside the transaction so concurrent adds stay consistent.
+ */
+export async function quickAddSessionExpense(
+  input: QuickAddSessionExpenseInput,
+): Promise<Transaction> {
+  const tx = createExpenseTransaction({
+    tripId: input.session.tripId,
+    phaseId: input.phaseId,
+    budgetPoolId: input.session.budgetPoolId,
+    walletId: null,
+    amountCents: input.amountCents,
+    currency: input.currency,
+    category: input.profileCategory ?? 'other',
+    description: input.session.name,
+    sessionId: input.session.id,
+    activityProfileId: input.session.activityProfileId,
+  });
+
+  await db.transaction('rw', [db.transactions, db.sessionItems], async () => {
+    const order = await db.sessionItems
+      .where('sessionId')
+      .equals(input.session.id)
+      .count();
+    await db.transactions.add(tx);
+    await db.sessionItems.add(createSessionItem(input.session.id, tx.id, order + 1));
+  });
+
+  return tx;
+}
+
+/**
+ * DEC-120 (R-11): follow-up notification action — "what was that expense?".
+ */
+export async function assignTransactionSubcategory(
+  transactionId: string,
+  subcategoryId: string,
+): Promise<void> {
+  const tx = await db.transactions.get(transactionId);
+  if (!tx || tx.deletedAt !== null) return;
+  await db.transactions.put(markUpdated({ ...tx, subcategoryId }));
 }

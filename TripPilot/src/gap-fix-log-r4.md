@@ -9,9 +9,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 7 (PWA outing notification)
-- **Progress**: 10/12 requirements
-- **Tests**: 390 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Active gate**: GATE 8 (help mode)
+- **Progress**: 11/12 requirements
+- **Tests**: 402 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
 - **Build**: v0.6.0
 
 ## GATE 0 — Baseline + decision-log ✅
@@ -100,8 +100,26 @@
       (selection.* + dashboard.* novos, parity ✅).
 - New tests: dashboard-cards.test.ts (9) + batch-orchestrators.test.ts (4).
 
-## GATE 7 — PWA outing notification
-- [ ] R-11 persistent notification with quick-add actions (research + best effort)
+## GATE 7 — PWA outing notification ✅
+- [x] R-11 (DEC-120) research VERIFIED 2026-06-11 (MDN + WHATWG + web.dev) →
+      `brain/documents/pwa-notification-research.md`: actions/tag/renotify/
+      requireInteraction OK em Android; ongoing real (Spotify-like) e
+      media-style NÃO existem em PWA → registrado como item Capacitor
+      (DEC-017). Implementado o viável: notificação persistente tag fixa
+      (requireInteraction, updates silenciosos a cada gasto) com ações
+      +€X/+€Y (2 primeiros quick values) e "Abrir app". App constrói payload
+      completo (i18n, valores, follow-up subcategorias por proximidade
+      DEC-095, deviceId) no data — SW sem i18n só o replê. Clique: SW delega
+      a janela aberta (postMessage → quickAddSessionExpense, fluxo de domínio
+      completo) ou grava direto no IDB (shape replicado). Follow-up "O que
+      foi esse gasto?" com 2 subcategorias + abrir; clique grava
+      subcategoryId. Permissão pedida no 1º início de sessão com sheet
+      explicativo (localStorage, nunca no boot); encerrar limpa as 2 tags.
+      Novos: domain/outing/outing-notification.ts (payload puro),
+      orchestrators quickAddSessionExpense/assignTransactionSubcategory,
+      utils/outing-notification.ts (bridge), sw.js v6 (notificationclick +
+      fallback IDB). i18n ×3 (9 chaves outing.notification_*).
+- New tests: outing-notification.test.ts (8) + quick-add-session-expense.test.ts (4).
 
 ## GATE 8 — Help mode
 - [ ] R-12 contextual "?" with annotated screens (Funds, Planner, Wallets, Phase/Events, Outing, Backup)

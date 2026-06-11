@@ -10,12 +10,15 @@ export {
   endOutingSession,
   startSessionForOccurrence,
   startOneOffEventSession,
+  quickAddSessionExpense,
+  assignTransactionSubcategory,
 } from './outing-orchestrators';
 export type {
   EndOutingSessionInput,
   EndOutingSessionResult,
   StartSessionForOccurrenceInput,
   StartOneOffEventSessionInput,
+  QuickAddSessionExpenseInput,
 } from './outing-orchestrators';
 export { buildFullBackup, importBackup } from './backup-orchestrators';
 export type { ImportMode } from './backup-orchestrators';
