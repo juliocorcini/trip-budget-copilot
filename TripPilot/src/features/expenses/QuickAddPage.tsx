@@ -42,7 +42,13 @@ export function QuickAddPage() {
   const isWithdrawal = txType === 'withdrawal';
   const isTransferLike = isTransfer || isWithdrawal;
 
-  const [amount, setAmount] = useState('');
+  // R6-21: the simulator CTA pre-fills the amount (?amount=).
+  const [amount, setAmount] = useState(() => {
+    const prefill = searchParams.get('amount');
+    if (!prefill) return '';
+    const parsed = parseFloat(prefill);
+    return Number.isNaN(parsed) || parsed <= 0 ? '' : String(parsed);
+  });
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(initialCategory);
   const [walletId, setWalletId] = useState<string | null>(null);

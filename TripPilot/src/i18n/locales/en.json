@@ -543,7 +543,12 @@
     "metric_daily_none": "No daily free amount calculated for today",
     "metric_plan_label": "Of the plan",
     "metric_plan_item": "≈ {{count}} fewer {{name}}",
-    "metric_plan_none": "No planned occasion would be affected"
+    "metric_plan_none": "No planned occasion would be affected",
+    "math_total": "{{free}} − {{amount}} = {{after}}",
+    "math_daily": "{{amount}} ÷ {{daily}}/day ≈ {{days}} days",
+    "math_plan": "{{amount}} ÷ {{typical}} ≈ {{count}}× {{name}}",
+    "cta_register": "Log this expense",
+    "cta_planner": "View in planner"
   },
   "shared": {
     "owner_tag": "Me",

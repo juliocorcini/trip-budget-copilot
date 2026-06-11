@@ -11,6 +11,13 @@ export interface ProfileLearningUpdate {
   dataPointCount: number;
 }
 
+/**
+ * PAR-003a (R6-22): the preset estimate acts as a prior worth this many
+ * virtual data points, so the first real observation refines the estimate
+ * instead of replacing it outright (1500 + first datum 9000 → 3375, not 9000).
+ */
+const ESTIMATE_PRIOR_WEIGHT = 3;
+
 export function updateProfileFromTransaction(
   profile: ActivityProfile,
   newAmountCents: number,
@@ -26,7 +33,7 @@ export function updateProfileFromTransaction(
   }
 
   const newCount = profile.dataPointCount + 1;
-  const weight = 1 / newCount;
+  const weight = 1 / (newCount + ESTIMATE_PRIOR_WEIGHT);
   const typicalValueCents = Math.round(
     profile.typicalValueCents * (1 - weight) + newAmountCents * weight,
   );

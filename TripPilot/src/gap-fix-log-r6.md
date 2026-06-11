@@ -6,9 +6,9 @@
 
 ## Current State
 
-- Active gate: G6 (simulator v3)
-- Last milestone: G5 complete (R6-15..18)
-- Tests: 342 unit / 29 e2e
+- Active gate: G7 (housekeeping + deploy)
+- Last milestone: G6 complete (R6-19..22)
+- Tests: 343 unit / 29 e2e
 - Build: OK (typecheck clean)
 - Risks: date projection now local everywhere — watch DashboardPage day card (already local via GAP-R2-007)
 
@@ -20,10 +20,27 @@
 - [x] G3 — QR scanner camera switch + zoom (R6-08..10)
 - [x] G4 — UI polish: carousel, gauge, iOS banner, keyboard (R6-11..14)
 - [x] G5 — Locale formatting (R6-15..18)
-- [ ] G6 — Simulator v3 + learning prior (R6-19..22)
+- [x] G6 — Simulator v3 + learning prior (R6-19..22)
 - [ ] G7 — Housekeeping + validation + deploy (R6-23..25)
 
 ## Milestones
+
+### G6 — Simulator v3 + learning prior (R6-19..22)
+
+- **R6-19 (R-12)**: each metric card shows the derivation in one line (`math` prop):
+  total "free − amount = after", daily "amount ÷ daily/day ≈ N days" (locale-formatted),
+  plan "amount ÷ typical ≈ N× profile" (top impact) — all from `simulateSpendMultiMetric`
+  outputs, no new domain logic.
+- **R6-20**: quick value chips €5/€10/€20 below the amount input (free field preserved).
+- **R6-21**: post-verdict CTAs — "Registrar esse gasto" (→ `/quick-add?amount=`; QuickAddPage
+  now pre-fills from the param) and "Ver no planner" (→ `/planner`).
+  *Deferred to R7 (product decision needed): per-category simulation weighting when the
+  category plan is already blown.*
+- **R6-22 (PAR-003a)**: `ESTIMATE_PRIOR_WEIGHT = 3` in `updateProfileFromTransaction` —
+  preset counts as 3 virtual data points; typical 1500 + first datum 9000 → 3375 (test added).
+- i18n: `simulator.math_total/math_daily/math_plan/cta_register/cta_planner` ×3 (754/754/754).
+- 343 unit ✅, typecheck ✅, build ✅. Regression named: forecasting averaging tests (range
+  assertions still hold), DEC-094 multi-metric verdicts (unchanged), QuickAdd `?cat=` prefill.
 
 ### G5 — Locale formatting (R6-15..18)
 

@@ -543,7 +543,12 @@
     "metric_daily_none": "Sem livre diário calculado para hoje",
     "metric_plan_label": "Do plano",
     "metric_plan_item": "≈ {{count}} {{name}} a menos",
-    "metric_plan_none": "Nenhuma ocasião planejada seria afetada"
+    "metric_plan_none": "Nenhuma ocasião planejada seria afetada",
+    "math_total": "{{free}} − {{amount}} = {{after}}",
+    "math_daily": "{{amount}} ÷ {{daily}}/dia ≈ {{days}} dias",
+    "math_plan": "{{amount}} ÷ {{typical}} ≈ {{count}}× {{name}}",
+    "cta_register": "Registrar esse gasto",
+    "cta_planner": "Ver no planner"
   },
   "shared": {
     "owner_tag": "Eu",

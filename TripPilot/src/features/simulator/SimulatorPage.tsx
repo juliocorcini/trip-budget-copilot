@@ -12,7 +12,8 @@ import {
   type SimulatorVerdict,
 } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
-import { toCents, formatMoney } from '@/domain/money';
+import { toCents, fromCents, formatMoney } from '@/domain/money';
+import { getActiveIntlLocale } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
 import {
   activityProfileRepository,
@@ -33,6 +34,21 @@ const VERDICT_STYLE: Record<SimulatorVerdict, { icon: string; className: string 
   attention: { icon: 'error', className: 'text-warning' },
   risk: { icon: 'warning', className: 'text-error' },
 };
+
+// R6-20: quick value chips (same spirit as the outing quick-add buttons).
+const QUICK_AMOUNT_CENTS = [500, 1000, 2000];
+
+function formatWholeMoney(cents: number, currency: string): string {
+  return new Intl.NumberFormat(getActiveIntlLocale(), {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(fromCents(cents));
+}
+
+function formatDays(days: number): string {
+  return new Intl.NumberFormat(getActiveIntlLocale(), { maximumFractionDigits: 1 }).format(days);
+}
 
 export function SimulatorPage() {
   const { t } = useTranslation();
@@ -132,6 +148,13 @@ export function SimulatorPage() {
         })
       : null;
 
+  // R6-19: expose the derivation behind the plan metric (top impact only).
+  const topPlanImpact = result?.planImpacts[0] ?? null;
+  const topPlanTypical = topPlanImpact
+    ? (remainingOccasions.find((o) => o.profileId === topPlanImpact.profileId)
+        ?.typicalValueCents ?? null)
+    : null;
+
   if (!trip) return null;
 
   return (
@@ -167,6 +190,22 @@ export function SimulatorPage() {
             autoFocus
           />
         </div>
+        {/* R6-20: quick value chips */}
+        <div className="flex gap-2 mt-3">
+          {QUICK_AMOUNT_CENTS.map((cents) => (
+            <button
+              key={cents}
+              onClick={() => setAmount(String(fromCents(cents)))}
+              className={`px-4 py-2 rounded-lg text-xs font-bold tabular btn-press ${
+                amountCents === cents
+                  ? 'bg-primary text-on-surface'
+                  : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {formatWholeMoney(cents, trip.baseCurrency)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {result && (
@@ -199,6 +238,11 @@ export function SimulatorPage() {
               after: formatMoney(Math.max(0, result.total.freeAfterCents), trip.baseCurrency),
               percent: result.total.percentOfRemaining,
             })}
+            math={t('simulator.math_total', {
+              free: formatMoney(fts!.freeToSpendCents, trip.baseCurrency),
+              amount: formatMoney(amountCents, trip.baseCurrency),
+              after: formatMoney(result.total.freeAfterCents, trip.baseCurrency),
+            })}
           />
 
           {/* Perspective 2 — of the day-to-day */}
@@ -213,6 +257,15 @@ export function SimulatorPage() {
                     daily: formatMoney(result.dailyAllowanceCents, trip.baseCurrency),
                   })
                 : t('simulator.metric_daily_none')
+            }
+            math={
+              result.allowanceDays !== null && result.dailyAllowanceCents !== null
+                ? t('simulator.math_daily', {
+                    amount: formatMoney(amountCents, trip.baseCurrency),
+                    daily: formatMoney(result.dailyAllowanceCents, trip.baseCurrency),
+                    days: formatDays(result.allowanceDays),
+                  })
+                : null
             }
             highlight={result.allowanceDays !== null && result.allowanceDays > 3}
           />
@@ -233,8 +286,34 @@ export function SimulatorPage() {
                     .join(' · ')
                 : t('simulator.metric_plan_none')
             }
+            math={
+              topPlanImpact && topPlanTypical
+                ? t('simulator.math_plan', {
+                    amount: formatMoney(amountCents, trip.baseCurrency),
+                    typical: formatMoney(topPlanTypical, trip.baseCurrency),
+                    count: topPlanImpact.occasionsLost,
+                    name: topPlanImpact.profileName.toLowerCase(),
+                  })
+                : null
+            }
             highlight={result.planImpacts.reduce((sum, i) => sum + i.occasionsLost, 0) >= 2}
           />
+
+          {/* R6-21: post-verdict CTAs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate(`/quick-add?amount=${encodeURIComponent(amount)}`)}
+              className="flex-1 py-3 rounded-xl bg-primary text-on-surface text-sm font-semibold btn-press"
+            >
+              {t('simulator.cta_register')}
+            </button>
+            <button
+              onClick={() => navigate('/planner')}
+              className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim text-sm font-semibold btn-press"
+            >
+              {t('simulator.cta_planner')}
+            </button>
+          </div>
         </>
       )}
     </div>
@@ -245,11 +324,14 @@ function MetricCard({
   icon,
   label,
   text,
+  math,
   highlight,
 }: {
   icon: string;
   label: string;
   text: string;
+  /** R6-19: one-line derivation behind the verdict ("the math"). */
+  math?: string | null;
   highlight?: boolean;
 }) {
   return (
@@ -266,6 +348,9 @@ function MetricCard({
         >
           {text}
         </p>
+        {math && (
+          <p className="text-[11px] tabular text-on-surface-faint mt-1">{math}</p>
+        )}
       </div>
     </div>
   );

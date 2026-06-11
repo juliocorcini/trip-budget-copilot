@@ -47,6 +47,17 @@ describe('updateProfileFromTransaction', () => {
     const result = updateProfileFromTransaction(profile, 1500, false);
     expect(result.confidence).toBe('high');
   });
+
+  // PAR-003a (R6-22): the preset acts as a prior of 3 virtual data points.
+  it('first real data point refines the preset estimate instead of replacing it', () => {
+    const fresh = { ...baseProfile, typicalValueCents: 1500, dataPointCount: 0 };
+    const result = updateProfileFromTransaction(fresh, 9000, false);
+    // weight = 1/(1+3) → 1500 × 0.75 + 9000 × 0.25 = 3375
+    expect(result.typicalValueCents).toBe(3375);
+    expect(result.typicalValueCents).toBeGreaterThan(1500);
+    expect(result.typicalValueCents).toBeLessThan(9000);
+    expect(result.dataPointCount).toBe(1);
+  });
 });
 
 describe('simulateSpend', () => {
