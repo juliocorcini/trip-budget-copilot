@@ -773,6 +773,7 @@
     "error_connection": "No pude conectar los móviles. Revisa la internet o prueba el modo offline.",
     "error_qr_too_large": "Esta conexión no cabe en un código QR. Usa el modo online.",
     "camera_denied": "Se denegó el acceso a la cámara. Permite la cámara en los ajustes del navegador para escanear.",
+    "switch_camera": "Cambiar cámara",
     "camera_unavailable": "No pude acceder a la cámara de este dispositivo.",
     "statement_received": "Extracto de {{name}} recibido",
     "my_qr": "Mi QR",

@@ -774,6 +774,7 @@
     "error_qr_too_large": "Essa conexão não cabe em um QR code. Use o modo online.",
     "camera_denied": "O acesso à câmera foi negado. Libere a câmera nas configurações do navegador para escanear.",
     "camera_unavailable": "Não consegui acessar a câmera deste aparelho.",
+    "switch_camera": "Trocar câmera",
     "statement_received": "Extrato de {{name}} recebido",
     "my_qr": "Meu QR",
     "my_qr_hint": "Peça para a outra pessoa escanear este código no TripPilot dela",

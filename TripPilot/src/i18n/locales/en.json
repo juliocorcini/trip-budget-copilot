@@ -773,6 +773,7 @@
     "error_connection": "Couldn't connect the phones. Check the internet or try offline mode.",
     "error_qr_too_large": "This connection doesn't fit in a QR code. Use the online mode instead.",
     "camera_denied": "Camera access was denied. Allow the camera in your browser settings to scan.",
+    "switch_camera": "Switch camera",
     "camera_unavailable": "Couldn't access the camera on this device.",
     "statement_received": "Statement from {{name}} received",
     "my_qr": "My QR",

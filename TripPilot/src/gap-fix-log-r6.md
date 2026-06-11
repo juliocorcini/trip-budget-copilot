@@ -6,8 +6,8 @@
 
 ## Current State
 
-- Active gate: G3 (QR scanner)
-- Last milestone: G2 complete (R6-06..07)
+- Active gate: G4 (UI polish)
+- Last milestone: G3 complete (R6-08..10)
 - Tests: 337 unit / 29 e2e
 - Build: OK (typecheck clean)
 - Risks: date projection now local everywhere — watch DashboardPage day card (already local via GAP-R2-007)
@@ -17,13 +17,23 @@
 - [x] G0 — Setup + baseline
 - [x] G1 — Domain bugs (R6-01..05: BUG-001..004, PAR-006)
 - [x] G2 — P2P sync reliability (R6-06..07)
-- [ ] G3 — QR scanner camera switch + zoom (R6-08..10)
+- [x] G3 — QR scanner camera switch + zoom (R6-08..10)
 - [ ] G4 — UI polish: carousel, gauge, iOS banner, keyboard (R6-11..14)
 - [ ] G5 — Locale formatting (R6-15..18)
 - [ ] G6 — Simulator v3 + learning prior (R6-19..22)
 - [ ] G7 — Housekeeping + validation + deploy (R6-23..25)
 
 ## Milestones
+
+### G3 — QR scanner camera switch + zoom (R6-08..10)
+
+- **R6-08 (P2P-06)**: QrScanner enumerates video inputs after permission, shows a
+  switch-camera button (cycles devices), remembers the last used camera in localStorage
+  and recovers from a stale id (OverconstrainedError → environment default).
+- **R6-09**: zoom chips (1×/2×/3× clamped to track capabilities) via applyConstraints;
+  hidden when the lens does not support zoom.
+- **R6-10 (P2P-07)**: denied/unavailable error states preserved (verified path).
+- i18n: `sync.switch_camera` added to pt-BR/en/es. 337 unit ✅, typecheck ✅.
 
 ### G2 — P2P sync reliability (R6-06..07)
 
