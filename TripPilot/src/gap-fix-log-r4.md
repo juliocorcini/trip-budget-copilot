@@ -158,7 +158,8 @@
       e) R-01/R-02 confirmados no código (scroll-pl + snap-always) ✅
       f) DashboardConfigPage persiste em AppSettings (update no DB) ✅
 - [x] i18n paridade 886 ×3 ✅ · 0 native dialogs ✅
-- [x] Deploy Cloudflare Pages
+- [x] Deploy Cloudflare Pages ✅ — https://trippilot.pages.dev
+      (deployment https://771063b5.trippilot.pages.dev, alias master)
 
 ## Extras found (not fixed)
 
