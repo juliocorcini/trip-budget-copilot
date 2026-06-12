@@ -30,7 +30,7 @@
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (950 keys) |
 | Tests | ✅ DONE | 456 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.8.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
+| Deploy | ✅ DONE | v0.8.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: deploy with `--branch=main` (the project's production branch) — plain `master` deploys land as Preview only |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
