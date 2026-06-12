@@ -1,12 +1,16 @@
 import type { Phase } from '@/domain/types/phase';
 import type { Transaction } from '@/domain/types/transaction';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import { calculateSpentOnDate } from '@/domain/transactions';
 import { getDaySpendingWeight } from '@/domain/phases';
+import { calculateEventReserves } from '@/domain/budget';
 
 /**
- * DEC-130: phase burn-down — cumulative real spending vs the ideal pace
- * line. The ideal line follows the phase RHYTHM weights (DEC-075), not a
- * naive linear split, so peak days legitimately allow steeper spending.
+ * DEC-130 + DEC-136: phase burn-down — cumulative real spending vs the ideal
+ * pace line. The ideal line follows the FULL plan, not a naive linear split:
+ * rhythm weights (DEC-075) make peak days release more budget, and planned
+ * occurrences with a date (events, sub-destinations — DEC-072) appear as
+ * steps on their planned day with their reserved/estimated amount.
  */
 
 export interface BurndownPoint {
@@ -31,11 +35,17 @@ export interface PhaseBurndown {
 
 export interface BuildPhaseBurndownInput {
   phase: Phase;
-  /** Full phase envelope: current free-to-spend + what was already spent. */
+  /**
+   * Current free-to-spend + what was already spent. Reserves of PENDING
+   * events are NOT in here (free-to-spend already deducted them) — they are
+   * added back so the chart shows the full phase envelope.
+   */
   phaseBudgetCents: number;
   /** Pool-scoped transactions (same set the hero math uses). */
   transactions: Transaction[];
   todayIso: string;
+  /** Pool-scoped planned occurrences; dated ones become ideal-line steps. */
+  occurrences: PlannedOccurrence[];
 }
 
 const MAX_PHASE_DAYS = 92;
@@ -53,24 +63,71 @@ function listPhaseDays(phase: Phase): string[] {
   return days;
 }
 
+/**
+ * DEC-136: planned money with a known date is "released" on that exact day,
+ * not diluted across the phase. Multi-day occurrences spread their amount
+ * evenly over the planned interval (clamped to the phase).
+ */
+function buildEventStepsByDay(
+  occurrences: PlannedOccurrence[],
+  phase: Phase,
+  days: string[],
+): Map<string, number> {
+  const steps = new Map<string, number>();
+  for (const occ of occurrences) {
+    if (occ.deletedAt !== null || occ.phaseId !== phase.id) continue;
+    if (occ.plannedDate === null) continue;
+    const stepCents = occ.reservedCents ?? occ.estimatedCostCents;
+    if (stepCents <= 0) continue;
+
+    const start = occ.plannedDate.slice(0, 10);
+    const end = (occ.endDate ?? occ.plannedDate).slice(0, 10);
+    const span = days.filter((day) => day >= start && day <= end);
+    if (span.length === 0) continue;
+
+    const perDay = Math.floor(stepCents / span.length);
+    span.forEach((day, i) => {
+      const amount = i === span.length - 1 ? stepCents - perDay * (span.length - 1) : perDay;
+      steps.set(day, (steps.get(day) ?? 0) + amount);
+    });
+  }
+  return steps;
+}
+
 export function buildPhaseBurndown(input: BuildPhaseBurndownInput): PhaseBurndown | null {
-  if (input.phaseBudgetCents <= 0) return null;
   const days = listPhaseDays(input.phase);
   if (days.length < 2) return null;
   const firstDay = days[0]!;
   if (input.todayIso < firstDay) return null;
 
+  // Pending reserves were deducted from free-to-spend; the chart envelope
+  // adds them back so the ideal line can release them on their planned days.
+  const pendingReserveCents = calculateEventReserves(input.occurrences, input.phase.id);
+  const chartBudgetCents = input.phaseBudgetCents + pendingReserveCents;
+  if (chartBudgetCents <= 0) return null;
+
   const weights = days.map((day) => getDaySpendingWeight(input.phase, day));
   const totalWeight = weights.reduce((sum, w) => sum + w, 0);
   if (totalWeight <= 0) return null;
 
+  const stepsByDay = buildEventStepsByDay(input.occurrences, input.phase, days);
+  let stepTotalCents = 0;
+  stepsByDay.forEach((cents) => {
+    stepTotalCents += cents;
+  });
+  // Whatever is not tied to a dated occurrence follows the daily rhythm.
+  const dailyBudgetCents = Math.max(0, chartBudgetCents - stepTotalCents);
+
   let runningWeight = 0;
+  let runningStepCents = 0;
   let runningSpentCents = 0;
   let todayIndex = days.length - 1;
 
   const points: BurndownPoint[] = days.map((dayIso, i) => {
     runningWeight += weights[i]!;
-    const idealCents = Math.round((input.phaseBudgetCents * runningWeight) / totalWeight);
+    runningStepCents += stepsByDay.get(dayIso) ?? 0;
+    const idealCents =
+      Math.round((dailyBudgetCents * runningWeight) / totalWeight) + runningStepCents;
 
     if (dayIso > input.todayIso) {
       return { dayIso, idealCents, actualCents: null };
@@ -87,7 +144,7 @@ export function buildPhaseBurndown(input: BuildPhaseBurndownInput): PhaseBurndow
 
   return {
     points,
-    budgetCents: input.phaseBudgetCents,
+    budgetCents: dailyBudgetCents + stepTotalCents,
     spentToDateCents,
     idealToDateCents,
     deltaCents,

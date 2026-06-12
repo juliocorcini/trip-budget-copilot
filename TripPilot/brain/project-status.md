@@ -1,6 +1,6 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-12 (brainstorm features F1–F9 implemented, v0.8.0)
+> Last updated: 2026-06-12 (v0.8.1 — install/update controls, plan-aware burn-down)
 
 ## Current Phase
 
@@ -14,7 +14,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 134 decisions (DEC-001 to DEC-134); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 136 decisions (DEC-001 to DEC-136); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -29,8 +29,9 @@
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (950 keys) |
-| Tests | ✅ DONE | 456 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.8.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: deploy with `--branch=main` (the project's production branch) — plain `master` deploys land as Preview only |
+| Tests | ✅ DONE | 460 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.8.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: deploy with `--branch=main` (the project's production branch) — plain `master` deploys land as Preview only |
+| Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
@@ -225,6 +226,19 @@ implemented in one session. Decisions DEC-126..134. Highlights:
 - **PWA shortcuts (DEC-134)**: launcher long-press → quick-add / outing / simulator
 - **Tests**: +42 unit (456 total); sync-crypto suite moved to node environment
   (jsdom lacks SubtleCrypto)
+
+### Same-day field feedback on v0.8.0 (→ v0.8.1)
+
+- **Install + update controls (DEC-135)**: "Add to home screen" button in More +
+  Settings (captured beforeinstallprompt); Settings "App" section shows the real
+  version and a "Check for update" button that forces the SW update and reloads —
+  covers the "Chrome updated but the installed app is stale" case
+- **Burn-down follows the full plan (DEC-136)**: dated events/sub-destinations
+  now appear as steps on the ideal line on their planned day (multi-day spread
+  evenly); pending reserves added back to the chart envelope; +4 unit tests (460)
+- **Width fix**: pending-shares card (and active-outing card) gained `w-full` —
+  buttons shrink-to-fit unlike the div cards
+- **Repo**: project pushed to GitHub (`juliocorcini/trip-budget-copilot`)
 
 ## Registered Technical Debts
 

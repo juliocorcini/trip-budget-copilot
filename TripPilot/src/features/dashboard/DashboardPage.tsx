@@ -558,14 +558,16 @@ export function DashboardPage() {
         })
       : ({ kind: 'none' } as const);
 
-  // DEC-130: burn-down uses the same phase envelope as the insights math.
+  // DEC-130 + DEC-136: burn-down uses the same phase envelope as the insights
+  // math; dated events (pool-scoped) become steps on the ideal line.
   const burndown =
-    fts && activePhase
+    fts && activePhase && primaryPool
       ? buildPhaseBurndown({
           phase: activePhase,
           phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
           transactions: phaseTxsForInsights,
           todayIso,
+          occurrences: occurrences.filter((o) => o.budgetPoolId === primaryPool.id),
         })
       : null;
 
@@ -658,7 +660,7 @@ export function DashboardPage() {
       {activeSession && (
         <button
           onClick={() => navigate('/outings/active')}
-          className="mt-4 p-4 rounded-2xl flex items-center gap-4 btn-press text-left"
+          className="w-full mt-4 p-4 rounded-2xl flex items-center gap-4 btn-press text-left"
           style={{ background: 'var(--surface-deep)', border: '1px solid #C75B3925' }}
         >
           <div
@@ -1062,7 +1064,8 @@ export function DashboardPage() {
       {hasPendingExpenses && (
         <button
           onClick={() => setConfirmSheetOpen(true)}
-          className="mt-4 p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
+          /* w-full: buttons shrink-to-fit — every other card is a block div */
+          className="w-full mt-4 p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
           style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}
         >
           <Icon name="group" className="text-warning" />

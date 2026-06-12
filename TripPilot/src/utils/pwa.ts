@@ -60,3 +60,104 @@ export async function requestPersistentStorage(): Promise<boolean> {
   }
   return false;
 }
+
+/* ─────────── DEC-135: in-app install button + manual update check ─────────── */
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
+const installAvailabilityListeners = new Set<() => void>();
+
+function notifyInstallAvailability(): void {
+  installAvailabilityListeners.forEach((listener) => listener());
+}
+
+/**
+ * Must run at module-boot time: the browser fires `beforeinstallprompt` once,
+ * early, and only when the PWA is installable and not yet installed.
+ */
+export function captureInstallPrompt(): void {
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event as BeforeInstallPromptEvent;
+    notifyInstallAvailability();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    notifyInstallAvailability();
+  });
+}
+
+export function isInstallPromptAvailable(): boolean {
+  return deferredInstallPrompt !== null;
+}
+
+export function subscribeInstallPromptAvailability(listener: () => void): () => void {
+  installAvailabilityListeners.add(listener);
+  return () => installAvailabilityListeners.delete(listener);
+}
+
+export async function promptAppInstall(): Promise<'accepted' | 'dismissed' | 'unavailable'> {
+  const pending = deferredInstallPrompt;
+  if (!pending) return 'unavailable';
+  await pending.prompt();
+  const choice = await pending.userChoice;
+  if (choice.outcome === 'accepted') {
+    deferredInstallPrompt = null;
+    notifyInstallAvailability();
+  }
+  return choice.outcome;
+}
+
+export type UpdateCheckResult = 'updating' | 'up_to_date' | 'unsupported';
+
+/**
+ * DEC-135: "Chrome updated but the installed app is stale" — force the SW to
+ * fetch the latest version. When a new worker lands we skip waiting right away
+ * (the user explicitly asked); the existing controllerchange handler reloads.
+ */
+/** Plain accessor — defeats TS control-flow narrowing across awaits. */
+function getWaitingWorker(reg: ServiceWorkerRegistration): ServiceWorker | null {
+  return reg.waiting;
+}
+
+export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
+  if (!('serviceWorker' in navigator)) return 'unsupported';
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return 'unsupported';
+
+  await reg.update();
+
+  const waiting = getWaitingWorker(reg);
+  if (waiting) {
+    waiting.postMessage({ type: 'SKIP_WAITING' });
+    return 'updating';
+  }
+
+  const installing = reg.installing;
+  if (installing) {
+    const installed = await new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => resolve(false), 20000);
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed') {
+          clearTimeout(timeout);
+          resolve(true);
+        } else if (installing.state === 'redundant') {
+          clearTimeout(timeout);
+          resolve(false);
+        }
+      });
+    });
+    if (installed) {
+      // The worker moved from installing to waiting during the await.
+      getWaitingWorker(reg)?.postMessage({ type: 'SKIP_WAITING' });
+      return 'updating';
+    }
+    return 'up_to_date';
+  }
+
+  return 'up_to_date';
+}

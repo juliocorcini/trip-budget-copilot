@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 
 interface MenuItem {
   icon: string;
@@ -44,10 +45,27 @@ const SECTIONS: { titleKey: string; items: MenuItem[] }[] = [
 export function MorePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  // DEC-135: visible only when the browser offered the install prompt.
+  const { available: installAvailable, install } = useInstallPrompt();
 
   return (
     <div className="flex flex-col gap-5 pb-4 pt-2">
       <h1 className="text-heading font-bold text-on-surface">{t('more.title')}</h1>
+
+      {installAvailable && (
+        <button
+          onClick={() => install()}
+          className="w-full flex items-center gap-3 p-4 rounded-xl btn-press text-left"
+          style={{ background: 'var(--highlight-subtle)' }}
+        >
+          <Icon name="install_mobile" size={22} className="text-primary" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-on-surface">{t('more.install_app')}</p>
+            <p className="text-xs text-on-surface-dim mt-0.5">{t('more.install_app_hint')}</p>
+          </div>
+          <Icon name="chevron_right" size={18} className="text-on-surface-faint" />
+        </button>
+      )}
 
       {SECTIONS.map((section) => (
         <div key={section.titleKey}>

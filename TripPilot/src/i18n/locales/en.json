@@ -399,7 +399,13 @@
     "anchor_title": "Mental anchor",
     "anchor_hint": "Shows amounts in your home currency too (\"€20 ≈ R$124\"), with a manual rate — works offline.",
     "anchor_off": "Off",
-    "anchor_rate_prefix": "1 {{base}} ="
+    "anchor_rate_prefix": "1 {{base}} =",
+    "app_section": "App",
+    "install_app": "Add to home screen",
+    "install_app_hint": "Install the app to launch it directly and work offline",
+    "version_label": "Version {{version}}",
+    "check_update": "Check for update",
+    "checking_update": "Checking…"
   },
   "backup": {
     "title": "Backup and data",
@@ -439,7 +445,9 @@
     "section_app": "App",
     "settings": "Settings",
     "about": "About",
-    "rescue": "Rescue mode"
+    "rescue": "Rescue mode",
+    "install_app": "Install TripPilot",
+    "install_app_hint": "Add it to your home screen to use it as an app"
   },
   "about": {
     "title": "About",
@@ -681,7 +689,10 @@
   },
   "pwa": {
     "offline_ready": "Ready for offline use",
-    "update_available": "New version available — tap to update"
+    "update_available": "New version available — tap to update",
+    "up_to_date": "You are already on the latest version",
+    "update_found": "New version found — updating…",
+    "update_check_failed": "Could not check — verify your connection"
   },
   "errors": {
     "boundary_title": "Something went wrong",

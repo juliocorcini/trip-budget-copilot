@@ -5,6 +5,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository } from '@/data/repositories';
 import { fromCents, toCents, formatAnchorHint, formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
+import { showToast } from '@/components/Toast';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import {
   getOutingNotificationPermission,
@@ -12,6 +13,9 @@ import {
   syncActiveOutingNotification,
   closeOutingNotifications,
 } from '@/utils/outing-notification';
+import { checkForAppUpdate } from '@/utils/pwa';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { APP_VERSION } from '@/utils/app-version';
 import type { AlertTone, ThemePreference } from '@/domain/types/common';
 
 const LANGUAGE_OPTIONS = [
@@ -34,6 +38,9 @@ export function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState(getOutingNotificationPermission());
   // DEC-128: rate is typed locally and persisted on save (quick-add pattern).
   const [anchorRateInput, setAnchorRateInput] = useState('');
+  // DEC-135: in-app install + manual "look for a new version" button.
+  const { available: installAvailable, install } = useInstallPrompt();
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   if (!settings) return null;
 
@@ -67,6 +74,32 @@ export function SettingsPage() {
   const handleLanguageChange = async (lang: string) => {
     await i18n.changeLanguage(lang);
     await updateSetting({ language: lang });
+  };
+
+  // DEC-135: force the SW to look for a new version right now. Covers the
+  // "Chrome has the new version but the installed app is stale" case.
+  const handleCheckUpdate = async () => {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    try {
+      const result = await checkForAppUpdate();
+      if (result === 'updating') {
+        // SKIP_WAITING was sent; controllerchange reloads the app in a moment.
+        showToast(t('pwa.update_found'), 'success');
+      } else if (result === 'up_to_date') {
+        showToast(t('pwa.up_to_date'), 'info');
+      } else {
+        showToast(t('pwa.update_check_failed'), 'danger');
+      }
+    } catch {
+      showToast(t('pwa.update_check_failed'), 'danger');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleInstallApp = async () => {
+    await install();
   };
 
   const handlePersistentStorage = async () => {
@@ -407,8 +440,37 @@ export function SettingsPage() {
         )}
       </Section>
 
+      {/* DEC-135: install + update controls */}
+      <Section title={t('settings.app_section')}>
+        {installAvailable && (
+          <button
+            onClick={handleInstallApp}
+            className="w-full flex items-center gap-3 p-3 rounded-xl btn-press text-left mb-3"
+            style={{ background: 'var(--highlight-subtle)' }}
+          >
+            <Icon name="install_mobile" size={20} className="text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-on-surface">{t('settings.install_app')}</p>
+              <p className="text-xs text-on-surface-dim mt-0.5">{t('settings.install_app_hint')}</p>
+            </div>
+          </button>
+        )}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-on-surface">
+            {t('settings.version_label', { version: APP_VERSION })}
+          </span>
+          <button
+            onClick={handleCheckUpdate}
+            disabled={checkingUpdate}
+            className="px-3 py-1.5 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press disabled:opacity-50"
+          >
+            {checkingUpdate ? t('settings.checking_update') : t('settings.check_update')}
+          </button>
+        </div>
+      </Section>
+
       <Section title={t('settings.about')}>
-        <p className="text-sm text-on-surface">TripPilot v1.0</p>
+        <p className="text-sm text-on-surface">TripPilot v{APP_VERSION}</p>
         <p className="text-xs text-on-surface-faint mt-1">{t('settings.about_desc')}</p>
       </Section>
     </div>

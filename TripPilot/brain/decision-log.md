@@ -954,6 +954,20 @@
 - **Rationale**: Brainstorm council: free OS-level entry points into the three most frequent actions
 - **Alternatives**: Dynamic shortcuts per state (not supported by PWA manifests)
 
+### DEC-135 — In-App Install Button + Manual Update Check (v0.8.1)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: (1) `beforeinstallprompt` is captured at boot; when available (not installed, Chromium) the More menu and Settings show an "Add to home screen" button that replays the native prompt. (2) Settings gains an "App" section with the real version (`APP_VERSION`, replacing a hardcoded "v1.0") and a "Check for update" button: forces `registration.update()`, and when a new SW lands it skips waiting immediately (user asked explicitly) — the existing controllerchange handler reloads. Toasts report "updating" / "already latest" / "check failed"
+- **Rationale**: Field request: the browser tab updates but the INSTALLED app stays stale with no user-visible way to force a version check; install discoverability relied on browser UI only
+- **Alternatives**: Auto-update on every boot without asking (already happens via SW update flow — the button covers the "now" case), custom iOS instructions sheet (deferred: Julio is on Android; iOS never fires beforeinstallprompt)
+
+### DEC-136 — Burn-down Ideal Line Follows the Full Plan (v0.8.1)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: The burn-down ideal line (DEC-130) now releases planned occurrences (DEC-072 events/sub-destinations) as STEPS on their planned day — single-day events jump on that date, multi-day ones spread evenly over their interval; undated reserves stay diluted in the daily rhythm. Pending reserves are added back to the chart envelope (free-to-spend had deducted them); confirmed/linked events keep their step without double counting. The remaining (non-event) budget follows the rhythm weights as before
+- **Rationale**: Field feedback on v0.8.0: "the chart must rise according to the real phase rhythm — we chose the low-spend days, the high days, events, outings — everything should shape the chart"
+- **Alternatives**: Dating planned occasions (bar nights etc.) individually (rejected: occasions are per-phase counts without dates by design — DEC-074), naive linear ideal (superseded)
+
 ---
 
 *New decisions will be added as the project progresses.*

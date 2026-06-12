@@ -399,7 +399,13 @@
     "anchor_title": "Ancla mental",
     "anchor_hint": "Muestra los valores también en tu moneda de origen (\"€20 ≈ R$124\"), con tasa manual — funciona offline.",
     "anchor_off": "Apagada",
-    "anchor_rate_prefix": "1 {{base}} ="
+    "anchor_rate_prefix": "1 {{base}} =",
+    "app_section": "Aplicación",
+    "install_app": "Añadir a la pantalla de inicio",
+    "install_app_hint": "Instala la app para abrirla directo y usarla offline",
+    "version_label": "Versión {{version}}",
+    "check_update": "Buscar actualización",
+    "checking_update": "Comprobando…"
   },
   "backup": {
     "title": "Copia de seguridad y datos",
@@ -439,7 +445,9 @@
     "section_app": "Aplicación",
     "settings": "Configuración",
     "about": "Acerca de",
-    "rescue": "Modo rescate"
+    "rescue": "Modo rescate",
+    "install_app": "Instalar TripPilot",
+    "install_app_hint": "Añádelo a la pantalla de inicio para usarlo como app"
   },
   "about": {
     "title": "Acerca de",
@@ -681,7 +689,10 @@
   },
   "pwa": {
     "offline_ready": "Listo para uso sin conexión",
-    "update_available": "Nueva versión disponible — toca para actualizar"
+    "update_available": "Nueva versión disponible — toca para actualizar",
+    "up_to_date": "Ya estás en la última versión",
+    "update_found": "Nueva versión encontrada — actualizando…",
+    "update_check_failed": "No se pudo comprobar — revisa tu conexión"
   },
   "errors": {
     "boundary_title": "Algo salió mal",

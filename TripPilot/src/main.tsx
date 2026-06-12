@@ -4,7 +4,7 @@ import { RouterProvider } from 'react-router';
 import { router } from './app/router';
 import { ToastHost } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { registerServiceWorker, requestPersistentStorage } from './utils/pwa';
+import { registerServiceWorker, requestPersistentStorage, captureInstallPrompt } from './utils/pwa';
 import {
   registerOutingNotificationBridge,
   syncActiveOutingNotification,
@@ -14,6 +14,10 @@ import i18n from './i18n';
 import './styles/globals.css';
 
 registerServiceWorker();
+
+// DEC-135: beforeinstallprompt fires once and early — capture it at boot so
+// the in-app "add to home screen" button can replay it later.
+captureInstallPrompt();
 
 // DEC-120 + DEC-124 (R-11 v2): SW broadcasts (notification actions wrote to
 // the DB) refresh open pages; on boot an active outing re-shows its
