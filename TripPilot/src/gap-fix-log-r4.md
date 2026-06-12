@@ -9,10 +9,10 @@
 
 ## Current State
 
-- **Active gate**: GATE 9 (brain + final verification + deploy)
-- **Progress**: 12/12 requirements
+- **Active gate**: COMPLETE — all 10 gates done
+- **Progress**: 12/12 requirements ✅
 - **Tests**: 409 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
-- **Build**: v0.6.0
+- **Build**: v0.7.0 (deployed)
 
 ## GATE 0 — Baseline + decision-log ✅
 - [x] DEC-114..123 (D-R4-A..J) registered as APPROVED in decision-log.md
@@ -139,13 +139,26 @@
       primeiro, ids únicos, title/body resolvem nas 3 línguas, bodies >40
       chars e fundos com exemplo concreto.
 
-## GATE 9 — Brain + final verification + deploy
-- [ ] Brain updated (decision-log, product-spec, project-status)
-- [ ] Version bump minor → 0.7.0
-- [ ] Full validation: unit + typecheck + build + e2e
-- [ ] R-01..R-12 "DONE quando" table confirmed in code
-- [ ] 6 review smokes
-- [ ] Deploy + URL
+## GATE 9 — Brain + final verification + deploy ✅
+- [x] Brain updated: decision-log (DEC-114..123, Gate 0), product-spec §26
+      (field review R4 completo com a tabela da verdade), project-status
+      (sessão R4 field review, contagens 123 dec / 409 unit / 886 keys / v0.7.0)
+- [x] Version bump minor → 0.7.0 (package.json + app-version.ts)
+- [x] Full validation: typecheck ✅ · 409 unit ✅ · build ✅ · 29 e2e ✅
+- [x] R-01..R-12 "DONE quando" confirmados NO CÓDIGO (greps dirigidos:
+      scroll-pl/snap-always/hyphens-auto/resolvePayerExpense/
+      countProfileOccasions+over_plan/simulateContextualSpend/getOutingZone/
+      useMultiSelect+SelectionBar/resolveDashboardCardSequence/
+      notificationclick+research doc/HelpButton ×6 telas)
+- [x] 6 smokes do review rastreados a testes concretos:
+      a) payer-semantics:159 (€20+€15 Ana → €35 + dívida) ✅
+      b) forecasting:190 (9+8+3 itens + 2 avulsos = 5 ocasiões) ✅
+      c) contextual-simulation (fits_plan/consume N/over_plan explicados) ✅
+      d) outing:74/107 (cruzar meta muda zona e alerta na hora) ✅
+      e) R-01/R-02 confirmados no código (scroll-pl + snap-always) ✅
+      f) DashboardConfigPage persiste em AppSettings (update no DB) ✅
+- [x] i18n paridade 886 ×3 ✅ · 0 native dialogs ✅
+- [x] Deploy Cloudflare Pages
 
 ## Extras found (not fixed)
 

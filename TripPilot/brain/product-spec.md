@@ -206,6 +206,48 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
 - V2+ deferrals (DEC-108): real-time table split, group multi-device merge, live shared
   outing sessions, settlement handshake, animated multi-QR
 
+### 26. Field Review R4 (DEC-114..123)
+
+- **Payer semantics truth table** (DEC-114, the round's critical fix) — single domain
+  function `resolvePayerExpense` used by QuickAdd, outing stepper and outing split:
+
+  | Who paid | Split? | Personal cost | Debt created | Wallet |
+  |---|---|---|---|---|
+  | Me | no | full amount | — | debits mine |
+  | Me | yes | my share | others owe me their shares | debits mine (full) |
+  | Other | yes | my share | I owe MY SHARE to the payer | no movement |
+  | Other | no | full amount | I owe the FULL amount to the payer | no movement |
+
+  "Someone paid for me" is never a gift — it is a debt reminder. Session reconciliation
+  (DEC-046) adjusts over the PERSONAL total and preserves debts. End-of-session batch
+  wallet never touches items paid by someone else.
+- **Occasions = sessions** (DEC-115): an outing session with N items counts as ONE
+  occasion; standalone expenses count 1 each. Applied centrally (`countProfileOccasions`)
+  → dashboard counters, Honest Friend (`over_plan` kind when done > planned), impact
+  detail and simulator all agree.
+- **Contextual simulator v3** (DEC-116): asks WHERE the money goes (profile / event /
+  other); answers with labeled facts and a justified verdict (fits plan / consumes N of M
+  occasions / uses the whole plan / over plan / reserve covers / short by €X / free
+  margin + daily-allowance reading). No raw equations, no unlabeled numbers.
+- **Honest outing zones** (DEC-117): speech changes AT the target — under target /
+  over target ("this comes out of other plans") / over ceiling / over max; progressive
+  alerts re-anchored on the zones; "drinks remaining" counts toward the TARGET.
+- **Multi-select in lists** (DEC-118): long-press enters selection mode (expenses and
+  outing history); batch delete / move pool / change category via atomic orchestrators.
+- **Configurable dashboard** (DEC-119): long-press a card → quick action / hide /
+  configure; /settings/dashboard reorders and toggles cards (anchors stay fixed);
+  persisted in AppSettings.
+- **Active-outing PWA notification** (DEC-120, best effort): persistent notification with
+  quick-add action buttons and a "what was it?" follow-up; SW delegates to an open window
+  or writes directly to IndexedDB. True ongoing/live notifications are native-only →
+  Capacitor backlog (DEC-017); research in `brain/documents/pwa-notification-research.md`.
+- **Contextual help mode** (DEC-121): "?" on complex screens opens an overlay over the
+  real screen highlighting element by element with concrete travel examples (registry
+  `domain/help/help-content.ts`; V1 screens: Funds, Planner, Wallets, Phase/Events,
+  active Outing, Backup).
+- **QuickAdd payer-first flow** (DEC-123): "Who paid?" is the first-level question; if
+  someone else paid: "paid everything for me" vs "we split" with debt hints.
+
 ## V1 — Explicitly NOT in Scope
 
 - Login / user accounts / authentication

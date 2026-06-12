@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-10 (R6 session)
+> Last updated: 2026-06-11 (field review R4 session)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 implemented, v0.6.0 deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 implemented, v0.7.0 deployed** ✅
 
 ## Status Summary
 
@@ -14,7 +14,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 113 decisions (DEC-001 to DEC-113); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 123 decisions (DEC-001 to DEC-123); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -26,9 +26,10 @@
 | P2P sync R4 2026-06-10 | ✅ DONE | 14/14 requirements in 7 gates (see `src/gap-fix-log-r4-p2p-sync.md`); DEC-103..108 |
 | Reliability R5 2026-06-10 | ✅ DONE | 9/9 requirements in 4 gates (see `src/gap-fix-log-r5.md`); DEC-109..113 |
 | Full-fix R6 2026-06-10 | ✅ DONE | 25/25 items in 7 gates: 4 audit bugs + 6 partials + 8 field-test findings + simulator v3 (see `src/gap-fix-log-r6.md`) |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (754 keys) |
-| Tests | ✅ DONE | 343 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.6.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
+| Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (886 keys) |
+| Tests | ✅ DONE | 409 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.7.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
@@ -153,6 +154,42 @@ in a 7-gate session (full log in `src/gap-fix-log-r6.md`, prompt in
 R7 candidate (deferred, product decision): per-category simulation weighting when the
 category plan is already blown.
 
+## Field Review Session R4 (2026-06-11)
+
+All 12 requirements from Julio's in-trip audio review were resolved in a 10-gate
+session (full log in `src/gap-fix-log-r4.md`, prompt in
+`documents/gap-fix-r4-implementation-prompt.md`). Decisions DEC-114..123. Highlights:
+
+- **Payer math fixed (DEC-114, the critical one)**: "Ana paid €15 and we didn't split"
+  no longer erases the cost — it stays MY expense AND creates a €15 debt to Ana.
+  Single truth-table function `resolvePayerExpense` reused by QuickAdd, outing stepper
+  and outing split; end-of-session batch wallet skips items paid by others;
+  reconciliation adjusts over the personal total preserving debts
+- **Occasions = sessions (DEC-115)**: a 9-item bar night counts as ONE bar occasion
+  everywhere (dashboard counters, Honest Friend with new `over_plan` kind, impact,
+  simulator) via `countProfileOccasions`
+- **Contextual simulator v3 (DEC-116)**: asks WHERE the money goes; explained verdicts
+  ("consumes ≈2 of your 4 dinners", "the €60 reserve covers it", "≈4 days of your daily
+  free") — zero unlabeled numbers, old raw-equation displays removed
+- **Honest outing zones (DEC-117)**: copy/color change AT the target; "can still spend
+  comfortably: €0" eliminated; next-drink hint is honest per zone; progressive alerts
+  re-anchored (50% target / target / ceiling / max)
+- **Multi-select (DEC-118)**: long-press in expense/outing lists → selection bar with
+  batch delete / move pool / change category (atomic Dexie orchestrators)
+- **Configurable dashboard (DEC-119)**: long-press a card → quick action / hide /
+  configure; /settings/dashboard reorder + visibility persisted in AppSettings
+- **PWA outing notification (DEC-120, best effort)**: persistent notification with
+  +€X quick-add buttons and "what was it?" follow-up; SW delegates to an open window or
+  writes straight to IndexedDB; research VERIFIED 2026-06-11 in
+  `documents/pwa-notification-research.md`; true ongoing/media-style → Capacitor
+  backlog (DEC-017)
+- **Help mode (DEC-121)**: "?" on 6 complex screens → overlay highlighting the real
+  elements with concrete travel examples ×3 languages
+- **UI polish (DEC-122)**: carousel opens aligned (3 cards), insights advance one per
+  gesture, category chip labels never overflow, `<html lang>` follows the language
+- **QuickAdd payer-first (DEC-123)**: "Who paid?" as first-level question with debt hints
+- **Tests**: +66 unit (409 total)
+
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
@@ -164,13 +201,13 @@ category plan is already blown.
 
 ## Next Steps
 
-1. Julio re-tests v0.6.0 in the field — the 8 R6-fixed findings: P2P sync first-attempt
-   + sender success, statement responses in-session, offline 2-QR with camera switch,
-   camera permission denied, carousel alignment/colors, gauge labels, iOS persistence
-   guidance, keyboard viewport restore, simulator v3
+1. Julio re-tests v0.7.0 in the field — focus on the payer math (debts after "someone
+   else paid"), occasion counters, contextual simulator verdicts, outing zone copy,
+   notification quick-add on his Samsung, help mode usefulness
 2. Real-data seed (julio-europa-2026) when trip data is ready
 3. D6 / V2 features per `implementation-phases.md` (native layer, reports, automatic
-   future floor)
+   future floor); Capacitor package now also carries the ongoing-notification item
+   (DEC-120 research)
 4. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
 5. R7 candidate: per-category simulation weighting (product decision pending)
 
@@ -183,4 +220,5 @@ category plan is already blown.
 All decisions documented in [decision-log.md](decision-log.md). R2 session added
 DEC-071..DEC-083 (approved 2026-06-09); R3 session added DEC-084..DEC-102
 (approved 2026-06-10); R4 session added DEC-103..DEC-108 (approved 2026-06-10);
-R5 session added DEC-109..DEC-113 (approved 2026-06-10).
+R5 session added DEC-109..DEC-113 (approved 2026-06-10); field review R4 session
+added DEC-114..DEC-123 (approved 2026-06-11).
