@@ -8,6 +8,10 @@ export interface ToastOptions {
   persistent?: boolean;
   /** Action executed on tap; the toast dismisses itself afterwards. */
   onTap?: () => void;
+  /** DEC-126: visible action chip (e.g. "Undo") — tap target = whole toast. */
+  actionLabel?: string;
+  /** Override the default auto-dismiss window (undo toasts stay longer). */
+  durationMs?: number;
 }
 
 export interface ToastMessage {
@@ -16,6 +20,8 @@ export interface ToastMessage {
   variant: ToastVariant;
   persistent: boolean;
   onTap?: () => void;
+  actionLabel?: string;
+  durationMs: number;
 }
 
 type Listener = (toast: ToastMessage) => void;
@@ -31,6 +37,8 @@ export function showToast(message: string, variant: ToastVariant = 'info', optio
     variant,
     persistent: options?.persistent ?? false,
     onTap: options?.onTap,
+    actionLabel: options?.actionLabel,
+    durationMs: options?.durationMs ?? TOAST_DURATION_MS,
   };
   listeners.forEach((l) => l(toast));
 }
@@ -54,7 +62,7 @@ export function ToastHost() {
       if (!toast.persistent) {
         setTimeout(() => {
           setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-        }, TOAST_DURATION_MS);
+        }, toast.durationMs);
       }
     };
     listeners.add(listener);
@@ -90,9 +98,17 @@ export function ToastHost() {
             }}
           >
             <Icon name={style.icon} size={18} style={{ color: style.color }} />
-            <p className="text-xs font-semibold leading-snug" style={{ color: style.color }}>
+            <p className="text-xs font-semibold leading-snug flex-1" style={{ color: style.color }}>
               {toast.message}
             </p>
+            {toast.actionLabel && (
+              <span
+                className="text-xs font-extrabold uppercase tracking-wide px-2 py-1 rounded-lg shrink-0"
+                style={{ background: 'var(--highlight-subtle)', color: 'var(--on-surface)' }}
+              >
+                {toast.actionLabel}
+              </span>
+            )}
           </div>
         );
       })}

@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-10
+> Last updated: 2026-06-12
 
 ## Format
 
@@ -890,6 +890,69 @@
 - **Decision**: `SelectionBar` and the help overlay render through `createPortal(document.body)` — `.page-sticky-header` (position: sticky + z-index: 30) creates a stacking context that trapped any overlay rendered inside it under the bottom nav (z-40). SelectionBar sits at z-45 (covers the nav, below sheets at z-50, min-height covers the FAB notch); the help overlay sits at z-80, above nav and FAB. The help explanation card gains a grab handle and is draggable vertically (pointer events, clamped to the viewport) so it never hides the highlighted element
 - **Rationale**: R4 field feedback: the selection bar appeared under the main bottom menu in Expenses, and the help card was behind the bottom menu on screens with sticky headers, sometimes covering content the user wanted to read
 - **Alternatives**: Raising z-index inside the page tree (rejected: stacking context makes inner z-index irrelevant), fixed top position for the help card (rejected: still covers content; dragging lets the user decide)
+
+### DEC-126 — Universal Undo via Toast Action (F2, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: Every destructive action (single/batch expense delete, outing delete) shows a 6s toast with an "Undo" action instead of relying on confirmation dialogs alone. Soft deletes (Core Rule 4) gain restore twins (`restoreTransactionsBatch`, `restoreOutingSessionsBatch`) that clear `deletedAt` on the full cascade (transaction + shares + session items). A global `trippilot:data-changed` event makes `useAppData` consumers reload after restores
+- **Rationale**: Brainstorm council: forgiveness beats confirmation friction; soft deletes already store everything needed for a perfect undo
+- **Alternatives**: Trash screen with manual restore (rejected for V1: heavier UX for the same safety), hard confirmation dialogs everywhere (rejected: slows down the common case)
+
+### DEC-127 — Bar Mode: Fullscreen Outing View with Wake Lock (F1, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: Active outing gains a "Bar Mode" — a fullscreen portal (dark OLED background, oversized total + quick-add buttons) with Screen Wake Lock while open, designed for one-thumb use in dark venues. Quick-adds in bar mode skip the enrichment stepper and show an undo toast instead (`softDeleteSessionExpense`); over-ceiling/max confirmations exit bar mode and fall back to the normal sheets
+- **Rationale**: Brainstorm council: the #1 real usage context (bar at night) deserves a dedicated ergonomic mode; wake lock prevents screen sleep between rounds
+- **Alternatives**: Auto-entering bar mode on session start (rejected: explicit entry keeps control), Capacitor-native screen-on flag (kept for DEC-017)
+
+### DEC-128 — Mental Currency Anchor (F4, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: Optional "mental anchor": user picks a home currency and a MANUAL rate in Settings (`anchorCurrency`, `anchorRatePer1` in AppSettings); amounts in Quick Add, expense detail and Bar Mode show "≈ R$ 124" hints (whole units only). Never fetched from the network — offline-first, user-owned rate
+- **Rationale**: Brainstorm council: travelers think in their home currency; a rough manual anchor kills the "is €20 a lot?" doubt without exchange-rate infrastructure
+- **Alternatives**: Live exchange rates via API (rejected: network dependency + false precision), automatic per-currency formatting everywhere (rejected: clutter — hint only at decision points)
+
+### DEC-129 — Yesterday Recap Dashboard Card (F7, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: Movable dashboard card "Ontem": yesterday's spend vs that day's reconstructed allowance (DEC-088 add-back trick applied backwards), saved/overshoot delta and a streak counter ("3º dia seguido dentro do plano"). Hidden while there is no spending history
+- **Rationale**: Brainstorm council: closing the loop on yesterday is the cheapest motivational insight the data already affords
+- **Alternatives**: Weekly summary email/notification (rejected: out of scope), full history analytics screen (exists via Impact — the card is the glanceable summary)
+
+### DEC-130 — Phase Burn-down Card (F5, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: Movable dashboard card with an SVG burn-down: cumulative actual spending vs the ideal pace line for the active phase + pool. The ideal line follows rhythm weights (DEC-075), so peak days release more budget. Shows "€X acima do ritmo / de folga" and a today marker
+- **Rationale**: Brainstorm council: "am I on pace for the PHASE?" needs a trend, not a daily snapshot; the rhythm-aware ideal avoids false alarms on planned peak days
+- **Alternatives**: Naive linear ideal line (rejected: contradicts DEC-075 rhythm planning), full chart screen (rejected: card is enough for V1)
+
+### DEC-131 — Month Spending Heatmap Card (F6, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: Movable dashboard card: calendar grid of the month where each day's color intensity is its spend relative to the month's peak day (quartile buckets). Month navigation (capped to trip-relevant months), tap on a day opens a bottom sheet listing that day's transactions. Trip-wide (all pools) — it answers "how was my behavior", not pool accounting
+- **Rationale**: Brainstorm council: pattern recognition ("weekends explode") emerges visually with zero math exposed to the user
+- **Alternatives**: GitHub-style year heatmap (rejected: trips are weeks, month granularity fits), per-pool filtering (deferred until requested)
+
+### DEC-132 — Rescue Mode Calculator (F8, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: `/rescue` page (More menu + simulator cross-link): user types "I need to save €X"; the app shows the new daily allowance until the phase end, the daily cut, feasibility, and a greedy list of planned occasions to skip (most expensive first) with covered/partial summary. Pure calculator — nothing is persisted, the plan stays untouched
+- **Rationale**: Brainstorm council: the "I overspent, now what?" moment is when users abandon budget apps; an actionable exit plan retains them
+- **Alternatives**: Persisting the rescue as a plan revision (rejected: high complexity, low trust — users want a what-if first), automatic suggestions on overspend detection (deferred: notification fatigue risk)
+
+### DEC-133 — Shareable Trip Summary Card (F9, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: Share button on Trip Overview renders a 1080×1350 PNG via canvas (spent, budget %, day N of M, top category, progress bar) and hands it to the OS share sheet (Web Share API Level 2, download fallback). Scope exception to DEC-011 explicitly recorded: this is a LOCAL image export — the app gains no social surface, no accounts, no feed
+- **Rationale**: Brainstorm council: zero-cost word-of-mouth; travelers already share trip stats manually
+- **Alternatives**: Multiple card themes (deferred), in-app social features (rejected: DEC-011 stands)
+
+### DEC-134 — PWA App Shortcuts (F3, v0.8.0)
+- **Date**: 2026-06-12
+- **Status**: APPROVED
+- **Decision**: `manifest.json` ships three app shortcuts (long-press on the launcher icon): Register expense (`/quick-add`), Start outing (`/outings/new`), Simulate purchase (`/simulator`), with proper `short_name`s
+- **Rationale**: Brainstorm council: free OS-level entry points into the three most frequent actions
+- **Alternatives**: Dynamic shortcuts per state (not supported by PWA manifests)
 
 ---
 

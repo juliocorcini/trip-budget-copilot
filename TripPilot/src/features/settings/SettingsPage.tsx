@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository } from '@/data/repositories';
-import { fromCents, toCents } from '@/domain/money';
+import { fromCents, toCents, formatAnchorHint, formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import {
@@ -22,6 +22,9 @@ const LANGUAGE_OPTIONS = [
 
 const CURRENCY_OPTIONS = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'];
 
+/** DEC-128: currencies offered as mental anchor (the traveler's "home" money). */
+const ANCHOR_CURRENCY_OPTIONS = ['BRL', 'USD', 'EUR', 'GBP'];
+
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -29,6 +32,8 @@ export function SettingsPage() {
   const [quickAddInput, setQuickAddInput] = useState('');
   // DEC-124: permission is browser state — track it so the section re-renders.
   const [notifPermission, setNotifPermission] = useState(getOutingNotificationPermission());
+  // DEC-128: rate is typed locally and persisted on save (quick-add pattern).
+  const [anchorRateInput, setAnchorRateInput] = useState('');
 
   if (!settings) return null;
 
@@ -86,6 +91,14 @@ export function SettingsPage() {
   const quickAddDisplay = settings.quickAddDefaultValuesCents
     .map((c) => fromCents(c).toFixed(2))
     .join(', ');
+
+  // DEC-128: live preview of the anchor ("€100 ≈ R$ 620") with the saved rate.
+  const baseCurrency = trip?.baseCurrency ?? settings.defaultCurrency;
+  const anchorPreview = formatAnchorHint(
+    10000,
+    { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 },
+    baseCurrency,
+  );
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
@@ -189,6 +202,72 @@ export function SettingsPage() {
             {notifPermission === 'denied' && (
               <p className="text-xs mt-2" style={{ color: 'var(--error)' }}>
                 {t('settings.outing_notification_blocked')}
+              </p>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* DEC-128: mental currency anchor — manual offline rate, no network */}
+      <Section title={t('settings.anchor_title')}>
+        <p className="text-xs text-on-surface-faint mb-3">{t('settings.anchor_hint')}</p>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => updateSetting({ anchorCurrency: null })}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+              settings.anchorCurrency === null
+                ? 'bg-primary text-on-surface'
+                : 'bg-surface-high text-on-surface-dim'
+            }`}
+          >
+            {t('settings.anchor_off')}
+          </button>
+          {ANCHOR_CURRENCY_OPTIONS.filter((c) => c !== baseCurrency).map((c) => (
+            <button
+              key={c}
+              onClick={() => updateSetting({ anchorCurrency: c })}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                settings.anchorCurrency === c
+                  ? 'bg-primary text-on-surface'
+                  : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        {settings.anchorCurrency !== null && (
+          <>
+            <div className="flex items-center gap-2 mt-3">
+              <span className="text-xs font-semibold text-on-surface-dim whitespace-nowrap">
+                {t('settings.anchor_rate_prefix', { base: baseCurrency })}
+              </span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                value={anchorRateInput}
+                onChange={(e) => setAnchorRateInput(e.target.value)}
+                placeholder={settings.anchorRatePer1 !== null ? String(settings.anchorRatePer1) : '6.20'}
+                className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none flex-1 min-w-0"
+              />
+              <span className="text-xs font-semibold text-on-surface-dim">{settings.anchorCurrency}</span>
+              <button
+                onClick={() => {
+                  const rate = parseFloat(anchorRateInput.replace(',', '.'));
+                  if (Number.isFinite(rate) && rate > 0) {
+                    updateSetting({ anchorRatePer1: rate });
+                    setAnchorRateInput('');
+                  }
+                }}
+                className="px-3 py-2 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
+              >
+                {t('common.save')}
+              </button>
+            </div>
+            {anchorPreview && (
+              <p className="text-xs text-on-surface-faint mt-2">
+                {formatMoney(10000, baseCurrency)} {anchorPreview}
               </p>
             )}
           </>

@@ -21,4 +21,8 @@ export interface AppSettings {
   dashboardCardOrder: string[];
   /** DEC-124 (R-11 v2): user toggle for the active-outing notification. */
   outingNotificationEnabled: boolean;
+  /** DEC-128: mental anchor currency ("think in R$"). null = off. */
+  anchorCurrency: string | null;
+  /** DEC-128: manual offline rate — anchor units per 1 base currency unit. */
+  anchorRatePer1: number | null;
 }

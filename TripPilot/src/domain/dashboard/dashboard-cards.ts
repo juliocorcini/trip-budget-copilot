@@ -11,8 +11,11 @@ export type DashboardCardId =
   | 'today_events'
   | 'active_outing'
   | 'hero'
+  | 'yesterday_recap'
   | 'occasion_counters'
   | 'insights'
+  | 'phase_burndown'
+  | 'spend_heatmap'
   | 'amigo_sincero'
   | 'pending_shares'
   | 'funds_summary'
@@ -47,6 +50,16 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   { id: 'active_outing', labelKey: 'dashboard.card_active_outing', fixed: true, quickAction: null },
   { id: 'hero', labelKey: 'dashboard.card_hero', fixed: true, quickAction: null },
   {
+    id: 'yesterday_recap',
+    labelKey: 'dashboard.card_yesterday_recap',
+    fixed: false,
+    quickAction: {
+      route: '/expenses',
+      labelKey: 'dashboard.card_action_see_expenses',
+      icon: 'receipt_long',
+    },
+  },
+  {
     id: 'occasion_counters',
     labelKey: 'dashboard.card_occasion_counters',
     fixed: false,
@@ -64,6 +77,26 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
       route: '/impact',
       labelKey: 'dashboard.card_action_see_impact',
       icon: 'insights',
+    },
+  },
+  {
+    id: 'phase_burndown',
+    labelKey: 'dashboard.card_phase_burndown',
+    fixed: false,
+    quickAction: {
+      route: '/impact',
+      labelKey: 'dashboard.card_action_see_impact',
+      icon: 'monitoring',
+    },
+  },
+  {
+    id: 'spend_heatmap',
+    labelKey: 'dashboard.card_spend_heatmap',
+    fixed: false,
+    quickAction: {
+      route: '/expenses',
+      labelKey: 'dashboard.card_action_see_expenses',
+      icon: 'calendar_month',
     },
   },
   {

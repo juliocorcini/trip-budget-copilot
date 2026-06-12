@@ -111,7 +111,23 @@
     "card_action_see_impact": "Ver impacto",
     "card_action_open_shared": "Abrir gastos divididos",
     "card_action_open_funds": "Abrir fundos",
-    "card_action_register_expense": "Registrar gasto"
+    "card_action_register_expense": "Registrar gasto",
+    "card_yesterday_recap": "Recap de ontem",
+    "card_phase_burndown": "Ritmo da fase",
+    "card_spend_heatmap": "Mapa do mês",
+    "card_action_see_expenses": "Ver gastos",
+    "recap_title": "Ontem",
+    "recap_within": "{{spent}} — {{delta}} abaixo do plano do dia",
+    "recap_over": "{{spent}} — {{delta}} acima do plano do dia",
+    "recap_streak": "{{n}}º dia seguido dentro do plano",
+    "burndown_title": "Ritmo da fase",
+    "burndown_spent": "{{spent}} gastos · ideal {{ideal}}",
+    "burndown_above": "{{delta}} acima do ritmo",
+    "burndown_below": "{{delta}} de folga",
+    "heatmap_title": "Mapa do mês",
+    "heatmap_total": "{{amount}} no mês",
+    "heatmap_prev_month": "Mês anterior",
+    "heatmap_next_month": "Próximo mês"
   },
   "expenses": {
     "title": "Gastos",
@@ -166,7 +182,8 @@
     "paid_by": "Pago por {{name}}",
     "delete_confirm": "Excluir este gasto? Essa ação pode ser desfeita pelo backup.",
     "delete_title": "Excluir gasto",
-    "not_found": "Gasto não encontrado"
+    "not_found": "Gasto não encontrado",
+    "deleted_toast": "Gasto excluído"
   },
   "categories": {
     "bar": "Bar",
@@ -378,7 +395,11 @@
     "storage_ios_installed": "App instalado na tela inicial — seus dados estão protegidos da limpeza automática do Safari. Mantenha backups em dia.",
     "quick_add_defaults": "Valores rápidos padrão",
     "about": "Sobre",
-    "about_desc": "Seu copiloto de orçamento de viagem"
+    "about_desc": "Seu copiloto de orçamento de viagem",
+    "anchor_title": "Âncora mental",
+    "anchor_hint": "Mostra os valores também na sua moeda de origem (\"€20 ≈ R$ 124\"), com taxa manual — funciona offline.",
+    "anchor_off": "Desligada",
+    "anchor_rate_prefix": "1 {{base}} ="
   },
   "backup": {
     "title": "Backup e dados",
@@ -417,7 +438,8 @@
     "backup": "Backup e importação",
     "section_app": "Aplicativo",
     "settings": "Configurações",
-    "about": "Sobre"
+    "about": "Sobre",
+    "rescue": "Modo resgate"
   },
   "about": {
     "title": "Sobre",
@@ -583,7 +605,12 @@
     "zone_over_max": "Acima do máximo",
     "over_target_status": "Você passou da meta em {{over}} — isso sai de outras coisas do plano",
     "over_ceiling_status": "{{over}} acima do teto — comprometendo o orçamento da fase",
-    "over_max_status": "{{over}} acima do máximo desta saída"
+    "over_max_status": "{{over}} acima do máximo desta saída",
+    "bar_mode_enter": "Modo bar",
+    "bar_mode_exit": "Sair do modo bar",
+    "bar_mode_label": "Modo bar",
+    "bar_mode_hint": "Toque num valor para registrar · X para sair",
+    "bar_mode_added": "{{amount}} registrado"
   },
   "simulator": {
     "title": "Simulador",
@@ -673,7 +700,10 @@
     "view_all": "Ver todos",
     "loading": "Carregando...",
     "error": "Erro",
-    "success": "Sucesso"
+    "success": "Sucesso",
+    "undo": "Desfazer",
+    "undo_done": "Desfeito",
+    "total": "Total"
   },
   "profile_presets": {
     "restaurants": "Restaurantes",
@@ -976,5 +1006,31 @@
       "csv_title": "Exportar CSV",
       "csv_body": "Planilha para abrir no Excel/Sheets — boa para analisar gastos. O modo avançado inclui todas as colunas técnicas."
     }
+  },
+  "rescue": {
+    "title": "Modo resgate",
+    "intro": "Precisa guardar dinheiro até o fim da fase? Veja o que muda no seu dia a dia — nada é gravado.",
+    "context_label": "Disponível na fase",
+    "context_value": "{{free}} livres · {{days}} dias restantes",
+    "how_much": "Quanto você precisa guardar?",
+    "infeasible": "Guardar {{target}} não cabe: você tem {{free}} livres na fase.",
+    "new_daily": "Novo livre por dia",
+    "instead_of": "em vez de {{current}}",
+    "daily_cut": "Corte de {{cut}}/dia até {{date}}",
+    "suggestions_title": "Ou pule ocasiões planejadas",
+    "suggestion_item": "{{n}}× {{name}}",
+    "suggestion_savings": "economiza {{amount}}",
+    "covered_full": "Pulando essas ocasiões você cobre os {{target}}.",
+    "covered_partial": "Cobre {{covered}} dos {{target}} — o resto sai do dia a dia.",
+    "note": "Nada é gravado — o modo resgate é uma calculadora.",
+    "entry_from_simulator": "Preciso economizar — modo resgate"
+  },
+  "share": {
+    "button": "Compartilhar resumo",
+    "of_budget": "de {{budget}} planejados · {{percent}}% usado",
+    "day_of": "Dia {{n}} de {{total}}",
+    "top_category": "Maior categoria: {{name}} ({{amount}})",
+    "downloaded_toast": "Imagem salva",
+    "failed_toast": "Não foi possível gerar a imagem"
   }
 }

@@ -111,7 +111,23 @@
     "card_action_see_impact": "Ver impacto",
     "card_action_open_shared": "Abrir gastos divididos",
     "card_action_open_funds": "Abrir fondos",
-    "card_action_register_expense": "Registrar gasto"
+    "card_action_register_expense": "Registrar gasto",
+    "card_yesterday_recap": "Resumen de ayer",
+    "card_phase_burndown": "Ritmo de la fase",
+    "card_spend_heatmap": "Mapa del mes",
+    "card_action_see_expenses": "Ver gastos",
+    "recap_title": "Ayer",
+    "recap_within": "{{spent}} — {{delta}} por debajo del plan del día",
+    "recap_over": "{{spent}} — {{delta}} por encima del plan del día",
+    "recap_streak": "{{n}}º día seguido dentro del plan",
+    "burndown_title": "Ritmo de la fase",
+    "burndown_spent": "{{spent}} gastados · ideal {{ideal}}",
+    "burndown_above": "{{delta}} por encima del ritmo",
+    "burndown_below": "{{delta}} de holgura",
+    "heatmap_title": "Mapa del mes",
+    "heatmap_total": "{{amount}} en el mes",
+    "heatmap_prev_month": "Mes anterior",
+    "heatmap_next_month": "Mes siguiente"
   },
   "expenses": {
     "title": "Gastos",
@@ -166,7 +182,8 @@
     "paid_by": "Pagado por {{name}}",
     "delete_confirm": "¿Eliminar este gasto? Esta acción puede deshacerse con la copia de seguridad.",
     "delete_title": "Eliminar gasto",
-    "not_found": "Gasto no encontrado"
+    "not_found": "Gasto no encontrado",
+    "deleted_toast": "Gasto eliminado"
   },
   "categories": {
     "bar": "Bar",
@@ -378,7 +395,11 @@
     "storage_ios_installed": "App instalada en la pantalla de inicio — tus datos están protegidos de la limpieza automática de Safari. Mantén los backups al día.",
     "quick_add_defaults": "Valores rápidos predeterminados",
     "about": "Acerca de",
-    "about_desc": "Tu copiloto de presupuesto de viaje"
+    "about_desc": "Tu copiloto de presupuesto de viaje",
+    "anchor_title": "Ancla mental",
+    "anchor_hint": "Muestra los valores también en tu moneda de origen (\"€20 ≈ R$124\"), con tasa manual — funciona offline.",
+    "anchor_off": "Apagada",
+    "anchor_rate_prefix": "1 {{base}} ="
   },
   "backup": {
     "title": "Copia de seguridad y datos",
@@ -417,7 +438,8 @@
     "backup": "Copia de seguridad e importación",
     "section_app": "Aplicación",
     "settings": "Configuración",
-    "about": "Acerca de"
+    "about": "Acerca de",
+    "rescue": "Modo rescate"
   },
   "about": {
     "title": "Acerca de",
@@ -583,7 +605,12 @@
     "zone_over_max": "Por encima del máximo",
     "over_target_status": "Superaste la meta en {{over}} — eso sale de otras cosas del plan",
     "over_ceiling_status": "{{over}} por encima del tope — comprometiendo el presupuesto de la fase",
-    "over_max_status": "{{over}} por encima del máximo de esta salida"
+    "over_max_status": "{{over}} por encima del máximo de esta salida",
+    "bar_mode_enter": "Modo bar",
+    "bar_mode_exit": "Salir del modo bar",
+    "bar_mode_label": "Modo bar",
+    "bar_mode_hint": "Toca un valor para registrar · X para salir",
+    "bar_mode_added": "{{amount}} registrado"
   },
   "simulator": {
     "title": "Simulador",
@@ -673,7 +700,10 @@
     "view_all": "Ver todos",
     "loading": "Cargando...",
     "error": "Error",
-    "success": "Éxito"
+    "success": "Éxito",
+    "undo": "Deshacer",
+    "undo_done": "Deshecho",
+    "total": "Total"
   },
   "profile_presets": {
     "restaurants": "Restaurantes",
@@ -976,5 +1006,31 @@
       "csv_title": "Exportar CSV",
       "csv_body": "Una hoja de cálculo para Excel/Sheets — ideal para analizar gastos. El modo avanzado incluye todas las columnas técnicas."
     }
+  },
+  "rescue": {
+    "title": "Modo rescate",
+    "intro": "¿Necesitas guardar dinero hasta el final de la fase? Mira qué cambia en tu día a día — no se guarda nada.",
+    "context_label": "Disponible en la fase",
+    "context_value": "{{free}} libres · {{days}} días restantes",
+    "how_much": "¿Cuánto necesitas guardar?",
+    "infeasible": "Guardar {{target}} no cabe: tienes {{free}} libres en la fase.",
+    "new_daily": "Nuevo libre por día",
+    "instead_of": "en vez de {{current}}",
+    "daily_cut": "Recorte de {{cut}}/día hasta {{date}}",
+    "suggestions_title": "O salta ocasiones planificadas",
+    "suggestion_item": "{{n}}× {{name}}",
+    "suggestion_savings": "ahorra {{amount}}",
+    "covered_full": "Saltando esas ocasiones cubres los {{target}}.",
+    "covered_partial": "Cubre {{covered}} de {{target}} — el resto sale del día a día.",
+    "note": "No se guarda nada — el modo rescate es una calculadora.",
+    "entry_from_simulator": "Necesito ahorrar — modo rescate"
+  },
+  "share": {
+    "button": "Compartir resumen",
+    "of_budget": "de {{budget}} planificados · {{percent}}% usado",
+    "day_of": "Día {{n}} de {{total}}",
+    "top_category": "Mayor categoría: {{name}} ({{amount}})",
+    "downloaded_toast": "Imagen guardada",
+    "failed_toast": "No se pudo generar la imagen"
   }
 }

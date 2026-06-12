@@ -52,3 +52,8 @@ export function softDelete<T extends SyncMetadata>(entity: T): T {
     sourceDeviceId: getDeviceId(),
   };
 }
+
+/** DEC-126: undo — soft deletes are reversible by clearing deletedAt. */
+export function restoreDeleted<T extends SyncMetadata>(entity: T): T {
+  return markUpdated({ ...entity, deletedAt: null });
+}

@@ -17,6 +17,13 @@ export {
 } from './budget';
 export { buildHonestFriendV2, projectReserveStartDate } from './honest-friend';
 export type { HonestFriendV2, HonestFriendV2Input } from './honest-friend';
+export { buildRescuePlan } from './rescue';
+export type {
+  RescuePlan,
+  RescueSuggestion,
+  RescueOccasionInput,
+  BuildRescuePlanInput,
+} from './rescue';
 export type {
   FreeToSpendResult,
   PoolSummary,

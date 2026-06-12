@@ -1,3 +1,6 @@
+// @vitest-environment node
+// SubtleCrypto is unavailable in jsdom; Node's WebCrypto (same realm) is the
+// faithful stand-in for the browser implementation this module targets.
 import { describe, it, expect } from 'vitest';
 import {
   generateSessionKey,

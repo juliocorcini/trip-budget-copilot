@@ -5,6 +5,9 @@ import {
   moveTransactionsToPoolBatch,
   changeTransactionsCategoryBatch,
   softDeleteOutingSessionsBatch,
+  restoreTransactionsBatch,
+  restoreOutingSessionsBatch,
+  softDeleteSessionExpense,
 } from '@/domain/orchestrators';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { createSession, createSessionItem } from '@/domain/outing';
@@ -123,5 +126,65 @@ describe('batch orchestrators', () => {
     expect((await db.transactions.get(standalone.id))!.deletedAt).toBeNull();
     const shares = await db.participantShares.toArray();
     expect(shares[0]!.deletedAt).not.toBeNull();
+  });
+
+  // DEC-126: undo — restore twins of the soft deletes above.
+
+  it('restores soft-deleted transactions with their shares (undo)', async () => {
+    const tx1 = mkTx(1000);
+    const tx2 = mkTx(2000);
+    await db.transactions.bulkAdd([tx1, tx2]);
+    await db.participantShares.add(mkShare(tx1.id));
+    await softDeleteTransactionsBatch([tx1.id, tx2.id]);
+
+    await restoreTransactionsBatch([tx1.id, tx2.id]);
+
+    const stored = await db.transactions.toArray();
+    expect(stored.every((t) => t.deletedAt === null)).toBe(true);
+    const shares = await db.participantShares.toArray();
+    expect(shares[0]!.deletedAt).toBeNull();
+    // Restore is a real mutation: revision moves forward (delete +1, restore +1).
+    expect(stored.find((t) => t.id === tx1.id)!.revision).toBe(tx1.revision + 2);
+  });
+
+  it('restores a deleted outing with its full cascade (undo)', async () => {
+    const session = mkSession();
+    await db.sessions.add(session);
+    const tx1 = mkTx(900, session.id);
+    const standalone = mkTx(500);
+    await db.transactions.bulkAdd([tx1, standalone]);
+    await db.sessionItems.add(createSessionItem(session.id, tx1.id, 1));
+    await db.participantShares.add(mkShare(tx1.id));
+    await softDeleteOutingSessionsBatch([session.id]);
+
+    await restoreOutingSessionsBatch([session.id]);
+
+    expect((await db.sessions.get(session.id))!.deletedAt).toBeNull();
+    expect((await db.transactions.get(tx1.id))!.deletedAt).toBeNull();
+    const items = await db.sessionItems.toArray();
+    expect(items.every((item) => item.deletedAt === null)).toBe(true);
+    const shares = await db.participantShares.toArray();
+    expect(shares[0]!.deletedAt).toBeNull();
+  });
+
+  it('soft-deletes a single session expense, keeping the session (bar mode undo)', async () => {
+    const session = mkSession();
+    await db.sessions.add(session);
+    const tx1 = mkTx(900, session.id);
+    const tx2 = mkTx(1100, session.id);
+    await db.transactions.bulkAdd([tx1, tx2]);
+    await db.sessionItems.bulkAdd([
+      createSessionItem(session.id, tx1.id, 1),
+      createSessionItem(session.id, tx2.id, 2),
+    ]);
+
+    await softDeleteSessionExpense(tx1.id);
+
+    expect((await db.sessions.get(session.id))!.deletedAt).toBeNull();
+    expect((await db.transactions.get(tx1.id))!.deletedAt).not.toBeNull();
+    expect((await db.transactions.get(tx2.id))!.deletedAt).toBeNull();
+    const items = await db.sessionItems.toArray();
+    expect(items.find((i) => i.transactionId === tx1.id)!.deletedAt).not.toBeNull();
+    expect(items.find((i) => i.transactionId === tx2.id)!.deletedAt).toBeNull();
   });
 });

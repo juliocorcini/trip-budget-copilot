@@ -27,6 +27,8 @@ const settings: AppSettings = {
   hiddenDashboardCards: [],
   dashboardCardOrder: [],
   outingNotificationEnabled: true,
+  anchorCurrency: null,
+  anchorRatePer1: null,
 };
 
 const mkTrip = (): Trip => ({

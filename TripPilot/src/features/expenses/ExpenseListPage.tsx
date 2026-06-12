@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
-import { useAppData } from '@/hooks/useAppData';
+import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { useMultiSelect, type MultiSelect } from '@/hooks/useMultiSelect';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
@@ -12,9 +12,11 @@ import { getUnassignedTransactionCount } from '@/domain/wallets';
 import { calculateSessionTotal, formatSessionDuration } from '@/domain/outing';
 import {
   softDeleteTransactionsBatch,
+  restoreTransactionsBatch,
   moveTransactionsToPoolBatch,
   changeTransactionsCategoryBatch,
   softDeleteOutingSessionsBatch,
+  restoreOutingSessionsBatch,
 } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -98,9 +100,28 @@ export function ExpenseListPage() {
     showToast(t(messageKey as never), 'success');
   };
 
+  // DEC-126: deletions get an undo toast — restore + refresh whatever page
+  // is mounted by then (the global data-changed event handles navigation).
+  const finishDeleteWithUndo = async (onUndo: () => Promise<void>) => {
+    setBatchSheet(null);
+    selection.clear();
+    await reload();
+    showToast(t('selection.deleted_toast'), 'success', {
+      actionLabel: t('common.undo'),
+      durationMs: 8000,
+      onTap: () => {
+        void onUndo().then(() => {
+          notifyAppDataChanged();
+          showToast(t('common.undo_done'), 'info');
+        });
+      },
+    });
+  };
+
   const handleDeleteExpenses = async () => {
-    await softDeleteTransactionsBatch(selection.selectedIds);
-    await finishBatch('selection.deleted_toast');
+    const ids = selection.selectedIds;
+    await softDeleteTransactionsBatch(ids);
+    await finishDeleteWithUndo(() => restoreTransactionsBatch(ids));
   };
 
   const handleMovePool = async (poolId: string) => {
@@ -114,8 +135,9 @@ export function ExpenseListPage() {
   };
 
   const handleDeleteOutings = async () => {
-    await softDeleteOutingSessionsBatch(selection.selectedIds);
-    await finishBatch('selection.deleted_toast');
+    const ids = selection.selectedIds;
+    await softDeleteOutingSessionsBatch(ids);
+    await finishDeleteWithUndo(() => restoreOutingSessionsBatch(ids));
   };
 
   // DEC-118: batch actions per list (data-driven by tab).

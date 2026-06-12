@@ -11,13 +11,15 @@ class AppSettingsRepository {
       await db.appSettings.add(defaults);
       return defaults;
     }
-    // DEC-119/DEC-124: records created before these non-indexed fields
-    // existed are backfilled in memory (no migration needed).
+    // DEC-119/DEC-124/DEC-128: records created before these non-indexed
+    // fields existed are backfilled in memory (no migration needed).
     return {
       ...settings,
       hiddenDashboardCards: settings.hiddenDashboardCards ?? [],
       dashboardCardOrder: settings.dashboardCardOrder ?? [],
       outingNotificationEnabled: settings.outingNotificationEnabled ?? true,
+      anchorCurrency: settings.anchorCurrency ?? null,
+      anchorRatePer1: settings.anchorRatePer1 ?? null,
     };
   }
 

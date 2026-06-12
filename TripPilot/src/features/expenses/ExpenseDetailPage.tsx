@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
-import { useAppData } from '@/hooks/useAppData';
+import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
-import { formatMoney, fromCents, toCents } from '@/domain/money';
+import { formatMoney, fromCents, toCents, formatAnchorHint } from '@/domain/money';
 import { formatDate, localDayOf, moveToLocalDay } from '@/domain/dates';
 import { transactionRepository, participantShareRepository } from '@/data/repositories';
+import { softDeleteTransactionsBatch, restoreTransactionsBatch } from '@/domain/orchestrators';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 
@@ -28,7 +30,7 @@ export function ExpenseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { trip, pools, wallets, participants, loading, reload } = useAppData();
+  const { trip, pools, wallets, participants, settings, loading, reload } = useAppData();
 
   const [tx, setTx] = useState<Transaction | null>(null);
   const [txLoading, setTxLoading] = useState(true);
@@ -84,6 +86,15 @@ export function ExpenseDetailPage() {
   const payer = tx.paidByParticipantId ? participantById.get(tx.paidByParticipantId) : null;
   const owner = participants.find((p) => p.isOwner) ?? null;
 
+  // DEC-128: mental anchor under the amount ("≈ R$ 124").
+  const anchorHint = settings
+    ? formatAnchorHint(
+        tx.amountCents,
+        { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 },
+        tx.currency,
+      )
+    : null;
+
   const startEdit = () => {
     setEditAmount(fromCents(tx.amountCents).toFixed(2));
     setEditDescription(tx.description);
@@ -137,12 +148,24 @@ export function ExpenseDetailPage() {
     }
   };
 
+  // DEC-126: single delete goes through the same batch orchestrator (shares
+  // cascade included) so the undo toast can restore the exact previous state
+  // even after navigating back to the list.
   const handleDelete = async () => {
-    await transactionRepository.delete(tx.id);
-    await Promise.all(shares.map((s) => participantShareRepository.delete(s.id)));
+    await softDeleteTransactionsBatch([tx.id]);
     setShowDeleteConfirm(false);
     await reload();
     navigate('/expenses', { replace: true });
+    showToast(t('expenses.deleted_toast'), 'success', {
+      actionLabel: t('common.undo'),
+      durationMs: 8000,
+      onTap: () => {
+        void restoreTransactionsBatch([tx.id]).then(() => {
+          notifyAppDataChanged();
+          showToast(t('common.undo_done'), 'info');
+        });
+      },
+    });
   };
 
   return (
@@ -166,6 +189,10 @@ export function ExpenseDetailPage() {
             <p className="text-[32px] font-extrabold tabular text-on-surface leading-none">
               {formatMoney(tx.amountCents, tx.currency)}
             </p>
+            {/* DEC-128: mental anchor under the amount ("≈ R$ 124") */}
+            {anchorHint && (
+              <p className="text-sm font-semibold text-on-surface-dim mt-1 tabular">{anchorHint}</p>
+            )}
             <p className="text-sm text-on-surface-dim mt-2">{tx.description}</p>
           </div>
 

@@ -20,6 +20,8 @@ const SECTIONS: { titleKey: string; items: MenuItem[] }[] = [
       { icon: 'credit_card', labelKey: 'more.wallets', path: '/wallets' },
       // DEC-079: secondary shortcut — same route as the Expenses tab.
       { icon: 'history', labelKey: 'more.outing_history', path: '/expenses?tab=outings' },
+      // DEC-132: rescue calculator ("I need to save €X by the phase end").
+      { icon: 'sos', labelKey: 'more.rescue', path: '/rescue' },
     ],
   },
   {

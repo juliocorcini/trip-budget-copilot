@@ -43,6 +43,7 @@ import {
   createProfileEnabledInPhase,
   startSessionForOccurrence,
   startOneOffEventSession,
+  softDeleteSessionExpense,
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
 import {
@@ -72,6 +73,8 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { HelpButton } from '@/components/HelpMode';
 import { showToast, type ToastVariant } from '@/components/Toast';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
+import { BarModeView } from '@/features/outing/BarModeView';
+import { formatAnchorHint, type AnchorConfig } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { db } from '@/data/db/database';
 
@@ -182,6 +185,8 @@ export function OutingPage() {
   const [showNotificationOffer, setShowNotificationOffer] = useState(false);
   // DEC-124 (R-11 v2): browser permission tracked so the banner reacts.
   const [notifPermission, setNotifPermission] = useState(getOutingNotificationPermission());
+  // DEC-127: fullscreen Bar Mode during an active session.
+  const [barMode, setBarMode] = useState(false);
 
   // DEC-053(b)/(c) confirmatory gates
   const [pendingOverMaxAdd, setPendingOverMaxAdd] = useState<{
@@ -503,6 +508,15 @@ export function OutingPage() {
     }
   };
 
+  // DEC-127: undoing a bar-mode tap removes the expense + its session item;
+  // the sessionTxs effect re-syncs the persistent notification automatically.
+  const undoBarModeAdd = async (txId: string) => {
+    await softDeleteSessionExpense(txId);
+    setSessionTxs((prev) => prev.filter((tx) => tx.id !== txId));
+    setItemCount((prev) => Math.max(0, prev - 1));
+    showToast(t('common.undo_done'), 'info');
+  };
+
   // DEC-053(b): quick-add above max asks for confirmation, remembered 15 min.
   const doQuickAdd = async (amountCents: number, sess: Session, txPhaseId: string) => {
     const newTotalCents = calculateSessionTotal(sessionTxs) + amountCents;
@@ -510,17 +524,39 @@ export function OutingPage() {
       sess.overMaxConfirmedAt !== null &&
       Date.now() - new Date(sess.overMaxConfirmedAt).getTime() < OVER_MAX_REMEMBER_MS;
     if (sess.maxCents !== null && sess.maxCents > 0 && newTotalCents > sess.maxCents && !confirmedRecently) {
+      // DEC-127: confirmation sheets live below the bar overlay — leave first.
+      setBarMode(false);
       setPendingOverMaxAdd({ amountCents, txPhaseId });
       return;
     }
     const tx = await addSessionExpense(amountCents, sess.name, sess, txPhaseId);
+    if (!tx) return;
+    if (barMode) {
+      // DEC-127: no enrichment stepper in Bar Mode — undo toast instead.
+      showToast(
+        t('outing.bar_mode_added', { amount: formatCurrency(amountCents, trip?.baseCurrency ?? 'EUR') }),
+        'success',
+        {
+          actionLabel: t('common.undo'),
+          durationMs: 8000,
+          onTap: () => {
+            void undoBarModeAdd(tx.id);
+          },
+        },
+      );
+      return;
+    }
     // DEC-078: the stepper only enriches — the expense above is already saved.
-    if (tx) setEnrich(buildEnrichTarget(tx.id, amountCents, sess, false));
+    setEnrich(buildEnrichTarget(tx.id, amountCents, sess, false));
   };
 
   const handleQuickAdd = async (amountCents: number) => {
     if (!session) return;
-    if (runWithPhaseGate((txPhaseId, sess) => doQuickAdd(amountCents, sess, txPhaseId))) return;
+    if (runWithPhaseGate((txPhaseId, sess) => doQuickAdd(amountCents, sess, txPhaseId))) {
+      // DEC-127: the phase-choice sheet renders below the bar overlay.
+      setBarMode(false);
+      return;
+    }
     await doQuickAdd(amountCents, session, resolveTxPhaseId(session));
   };
 
@@ -945,6 +981,14 @@ export function OutingPage() {
         onUpdateQuickValues={handleUpdateQuickValues}
         onEnd={() => setReviewing(true)}
         onBack={() => navigate(-1)}
+        anchorConfig={
+          settings
+            ? { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 }
+            : null
+        }
+        barMode={barMode}
+        onEnterBarMode={() => setBarMode(true)}
+        onExitBarMode={() => setBarMode(false)}
         onDetailItem={(tx) =>
           setEnrich(
             buildEnrichTarget(tx.id, tx.personalCostCents ?? tx.amountCents, session, true),
@@ -1621,9 +1665,15 @@ interface ActiveSessionProps {
   notificationBanner: React.ReactNode;
   /** Post-add enrichment stepper slot (DEC-078) — rendered above quick-add. */
   enrichStepper: React.ReactNode;
+  /** DEC-128: mental anchor config (null = off). */
+  anchorConfig: AnchorConfig | null;
+  /** DEC-127: fullscreen Bar Mode controls (state lives in OutingPage). */
+  barMode: boolean;
+  onEnterBarMode: () => void;
+  onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, onDetailItem, notificationBanner, enrichStepper }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -1695,6 +1745,19 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   const overCeilingCents = Math.max(0, totalSpent - ceilingCents);
   const overMaxCents = Math.max(0, totalSpent - maxCents);
 
+  // DEC-128: mental anchor under the central value (and in Bar Mode).
+  const anchorHint = anchorConfig ? formatAnchorHint(totalSpent, anchorConfig, currency) : null;
+
+  // DEC-127: single-string zone status reused by the Bar Mode overlay.
+  const zoneStatusLine =
+    zone === 'under_target'
+      ? t('outing.comfort_remaining', { amount: formatCurrency(remainingComfort, currency) })
+      : zone === 'over_target'
+        ? t('outing.over_target_status', { over: formatCurrency(overTargetCents, currency) })
+        : zone === 'over_ceiling'
+          ? t('outing.over_ceiling_status', { over: formatCurrency(overCeilingCents, currency) })
+          : t('outing.over_max_status', { over: formatCurrency(overMaxCents, currency) });
+
   // DEC-117: the inviting "next drink fits" hint is anchored on the TARGET.
   const nextDrinkKind = avgDrink > 0
     ? getNextDrinkMessageKind(totalSpent, avgDrink, targetCents)
@@ -1718,6 +1781,29 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
       className="max-w-[430px] mx-auto flex flex-col"
       style={{ background: 'var(--surface-deep)', minHeight: '100vh' }}
     >
+      {/* DEC-127: fullscreen Bar Mode overlay (portal, OLED black) */}
+      {barMode && (
+        <BarModeView
+          sessionName={session.name}
+          elapsed={elapsed}
+          totalLabel={t('outing.personal_spent')}
+          totalDisplay={formatCurrency(totalSpent, currency)}
+          statusLine={zoneStatusLine}
+          statusColor={zoneStyle.color}
+          drinksLine={
+            zone === 'under_target' && avgDrink > 0
+              ? t('outing.drinks_remaining', { count: drinksRemaining })
+              : null
+          }
+          anchorHint={anchorHint}
+          quickValuesCents={quickValues}
+          highlightIndex={highlightIndex}
+          formatValue={(cents) => formatCurrency(cents, currency)}
+          onQuickAdd={onQuickAdd}
+          onExit={onExitBarMode}
+        />
+      )}
+
       {/* 1. HEADER */}
       <div className="px-5 pt-5 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -1742,6 +1828,15 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         </div>
         <div className="flex items-center gap-2">
           <HelpButton screenId="outing" />
+          {/* DEC-127: Bar Mode — fullscreen total + giant buttons */}
+          <button
+            onClick={onEnterBarMode}
+            className="btn-press w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{ background: '#C75B3918' }}
+            aria-label={t('outing.bar_mode_enter')}
+          >
+            <Icon name="nightlife" size={18} className="text-primary" />
+          </button>
           <span className="text-xs font-bold" style={{ color: 'var(--on-surface-dim)' }}>
             {elapsed}
           </span>
@@ -1770,19 +1865,18 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         >
           {formatCurrency(totalSpent, currency)}
         </p>
+        {/* DEC-128: mental anchor under the session total */}
+        {anchorHint && (
+          <p className="text-sm font-semibold mt-1 tabular" style={{ color: 'var(--on-surface-faint)' }}>
+            {anchorHint}
+          </p>
+        )}
       </div>
 
       {/* 3. ZONE STATUS LABEL — DEC-117 (R-08): the speech changes AT the target */}
       <div className="text-center pb-2 px-5">
         <p className="text-sm font-bold" style={{ color: zoneStyle.color }}>
-          {zone === 'under_target' &&
-            t('outing.comfort_remaining', { amount: formatCurrency(remainingComfort, currency) })}
-          {zone === 'over_target' &&
-            t('outing.over_target_status', { over: formatCurrency(overTargetCents, currency) })}
-          {zone === 'over_ceiling' &&
-            t('outing.over_ceiling_status', { over: formatCurrency(overCeilingCents, currency) })}
-          {zone === 'over_max' &&
-            t('outing.over_max_status', { over: formatCurrency(overMaxCents, currency) })}
+          {zoneStatusLine}
         </p>
         {zone === 'under_target' && avgDrink > 0 && (
           <p className="text-xs font-bold mt-0.5" style={{ color: 'var(--on-surface-dim)' }}>

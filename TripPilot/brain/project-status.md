@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-11 (field review R4 + same-day field feedback v0.7.1)
+> Last updated: 2026-06-12 (brainstorm features F1–F9 implemented, v0.8.0)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 implemented + field feedback fixes, v0.7.1 deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0 deployed** ✅
 
 ## Status Summary
 
@@ -14,7 +14,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 125 decisions (DEC-001 to DEC-125); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 134 decisions (DEC-001 to DEC-134); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -27,9 +27,10 @@
 | Reliability R5 2026-06-10 | ✅ DONE | 9/9 requirements in 4 gates (see `src/gap-fix-log-r5.md`); DEC-109..113 |
 | Full-fix R6 2026-06-10 | ✅ DONE | 25/25 items in 7 gates: 4 audit bugs + 6 partials + 8 field-test findings + simulator v3 (see `src/gap-fix-log-r6.md`) |
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (898 keys) |
-| Tests | ✅ DONE | 414 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.7.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
+| Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (950 keys) |
+| Tests | ✅ DONE | 456 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.8.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
@@ -200,6 +201,31 @@ session (full log in `src/gap-fix-log-r4.md`, prompt in
 - **Overlay stacking fix (DEC-125)**: SelectionBar and help overlay portaled to
   <body> (sticky headers trapped them under the bottom nav); help card draggable
 
+## Brainstorm Features Session (2026-06-12, v0.8.0)
+
+Nine features from the creative brainstorm council, all approved by Julio and
+implemented in one session. Decisions DEC-126..134. Highlights:
+
+- **Universal undo (DEC-126)**: deletes (single/batch/outing) show a 6s toast with
+  "Desfazer" — restore orchestrators clear `deletedAt` on the full cascade;
+  `trippilot:data-changed` event refreshes any open page
+- **Bar Mode (DEC-127)**: fullscreen dark view for the active outing (huge total,
+  giant quick-add buttons, wake lock keeps the screen on); quick-adds skip the
+  stepper and offer undo instead
+- **Mental anchor (DEC-128)**: "€20 ≈ R$ 124" hints in QuickAdd/detail/bar mode
+  with a manual offline rate configured in Settings
+- **Dashboard insight cards (DEC-129/130/131)**: yesterday recap (spent vs
+  reconstructed allowance + streak), phase burn-down (SVG, rhythm-aware ideal
+  line), month heatmap (calendar grid, tap day → transactions sheet) — all
+  movable/hideable via DEC-119 infrastructure
+- **Rescue mode (DEC-132)**: `/rescue` calculator — "guardar €X" → new daily
+  allowance + greedy occasion-skip suggestions; nothing persisted
+- **Share card (DEC-133)**: trip overview exports a 1080×1350 PNG via canvas +
+  Web Share sheet (local only — DEC-011 stands, no social surface)
+- **PWA shortcuts (DEC-134)**: launcher long-press → quick-add / outing / simulator
+- **Tests**: +42 unit (456 total); sync-crypto suite moved to node environment
+  (jsdom lacks SubtleCrypto)
+
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
@@ -211,15 +237,18 @@ session (full log in `src/gap-fix-log-r4.md`, prompt in
 
 ## Next Steps
 
-1. Julio re-tests v0.7.1 in the field — focus on the payer math (debts after "someone
-   else paid"), occasion counters, contextual simulator verdicts, outing zone copy,
-   notification quick-add on his Samsung, help mode usefulness
-2. Real-data seed (julio-europa-2026) when trip data is ready
-3. D6 / V2 features per `implementation-phases.md` (native layer, reports, automatic
+1. Julio tests v0.8.0 in the field — focus on bar mode at night, undo toasts,
+   anchor hints with his real BRL rate, the three new dashboard cards, rescue
+   calculator and the share card on his Samsung
+2. Re-test v0.7.1 items still pending field validation — payer math (debts after
+   "someone else paid"), occasion counters, contextual simulator verdicts,
+   notification quick-add
+3. Real-data seed (julio-europa-2026) when trip data is ready
+4. D6 / V2 features per `implementation-phases.md` (native layer, reports, automatic
    future floor); Capacitor package now also carries the ongoing-notification item
    (DEC-120 research)
-4. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
-5. R7 candidate: per-category simulation weighting (product decision pending)
+5. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
+6. R7 candidate: per-category simulation weighting (product decision pending)
 
 ## Blockers
 
@@ -231,4 +260,5 @@ All decisions documented in [decision-log.md](decision-log.md). R2 session added
 DEC-071..DEC-083 (approved 2026-06-09); R3 session added DEC-084..DEC-102
 (approved 2026-06-10); R4 session added DEC-103..DEC-108 (approved 2026-06-10);
 R5 session added DEC-109..DEC-113 (approved 2026-06-10); field review R4 session
-added DEC-114..DEC-123 (approved 2026-06-11).
+added DEC-114..DEC-123 (approved 2026-06-11); brainstorm session added
+DEC-126..DEC-134 (approved 2026-06-12).

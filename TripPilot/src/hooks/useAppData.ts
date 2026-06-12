@@ -18,6 +18,17 @@ import { repairDemoTripIfNeeded } from '@/data/demo-repair';
 // the app on an infinite "loading" screen.
 const LOAD_TIMEOUT_MS = 10000;
 
+/**
+ * DEC-126: data written outside the mounted page's own flow (undo toast after
+ * navigation, SW direct writes) announces itself here so every mounted
+ * useAppData refreshes. Mirrors the OUTING_CHANGED_EVENT pattern.
+ */
+export const APP_DATA_CHANGED_EVENT = 'trippilot:data-changed';
+
+export function notifyAppDataChanged(): void {
+  window.dispatchEvent(new CustomEvent(APP_DATA_CHANGED_EVENT));
+}
+
 class LoadTimeoutError extends Error {
   constructor() {
     super('App data load timed out');
@@ -141,6 +152,15 @@ export function useAppData(): AppData {
 
   useEffect(() => {
     reload();
+  }, [reload]);
+
+  // DEC-126: refresh when another surface (undo toast, SW) changed the data.
+  useEffect(() => {
+    const onDataChanged = () => {
+      reload();
+    };
+    window.addEventListener(APP_DATA_CHANGED_EVENT, onDataChanged);
+    return () => window.removeEventListener(APP_DATA_CHANGED_EVENT, onDataChanged);
   }, [reload]);
 
   // DEC-109: when the app returns to the foreground after a failed load,

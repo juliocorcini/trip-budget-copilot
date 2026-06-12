@@ -111,7 +111,23 @@
     "card_action_see_impact": "See impact",
     "card_action_open_shared": "Open shared expenses",
     "card_action_open_funds": "Open funds",
-    "card_action_register_expense": "Register expense"
+    "card_action_register_expense": "Register expense",
+    "card_yesterday_recap": "Yesterday recap",
+    "card_phase_burndown": "Phase pace",
+    "card_spend_heatmap": "Month map",
+    "card_action_see_expenses": "See expenses",
+    "recap_title": "Yesterday",
+    "recap_within": "{{spent}} — {{delta}} under the day's plan",
+    "recap_over": "{{spent}} — {{delta}} over the day's plan",
+    "recap_streak": "{{n}} days in a row on plan",
+    "burndown_title": "Phase pace",
+    "burndown_spent": "{{spent}} spent · ideal {{ideal}}",
+    "burndown_above": "{{delta}} above pace",
+    "burndown_below": "{{delta}} of slack",
+    "heatmap_title": "Month map",
+    "heatmap_total": "{{amount}} this month",
+    "heatmap_prev_month": "Previous month",
+    "heatmap_next_month": "Next month"
   },
   "expenses": {
     "title": "Expenses",
@@ -166,7 +182,8 @@
     "paid_by": "Paid by {{name}}",
     "delete_confirm": "Delete this expense? This action can be undone via backup.",
     "delete_title": "Delete expense",
-    "not_found": "Expense not found"
+    "not_found": "Expense not found",
+    "deleted_toast": "Expense deleted"
   },
   "categories": {
     "bar": "Bar",
@@ -378,7 +395,11 @@
     "storage_ios_installed": "App installed to the home screen — your data is protected from Safari's automatic cleanup. Keep backups current.",
     "quick_add_defaults": "Default quick values",
     "about": "About",
-    "about_desc": "Your travel budget copilot"
+    "about_desc": "Your travel budget copilot",
+    "anchor_title": "Mental anchor",
+    "anchor_hint": "Shows amounts in your home currency too (\"€20 ≈ R$124\"), with a manual rate — works offline.",
+    "anchor_off": "Off",
+    "anchor_rate_prefix": "1 {{base}} ="
   },
   "backup": {
     "title": "Backup and data",
@@ -417,7 +438,8 @@
     "backup": "Backup and import",
     "section_app": "App",
     "settings": "Settings",
-    "about": "About"
+    "about": "About",
+    "rescue": "Rescue mode"
   },
   "about": {
     "title": "About",
@@ -583,7 +605,12 @@
     "zone_over_max": "Above the max",
     "over_target_status": "You went {{over}} past the target — that comes out of other things in your plan",
     "over_ceiling_status": "{{over}} above the ceiling — compromising the phase budget",
-    "over_max_status": "{{over}} above this outing's max"
+    "over_max_status": "{{over}} above this outing's max",
+    "bar_mode_enter": "Bar mode",
+    "bar_mode_exit": "Exit bar mode",
+    "bar_mode_label": "Bar mode",
+    "bar_mode_hint": "Tap a value to log · X to exit",
+    "bar_mode_added": "{{amount}} logged"
   },
   "simulator": {
     "title": "Simulator",
@@ -673,7 +700,10 @@
     "view_all": "View all",
     "loading": "Loading...",
     "error": "Error",
-    "success": "Success"
+    "success": "Success",
+    "undo": "Undo",
+    "undo_done": "Undone",
+    "total": "Total"
   },
   "profile_presets": {
     "restaurants": "Restaurants",
@@ -976,5 +1006,31 @@
       "csv_title": "Export CSV",
       "csv_body": "A spreadsheet for Excel/Sheets — great for analyzing expenses. Advanced mode includes every technical column."
     }
+  },
+  "rescue": {
+    "title": "Rescue mode",
+    "intro": "Need to set money aside until the phase ends? See what changes day to day — nothing is saved.",
+    "context_label": "Available in this phase",
+    "context_value": "{{free}} free · {{days}} days left",
+    "how_much": "How much do you need to save?",
+    "infeasible": "Saving {{target}} doesn't fit: you have {{free}} free in this phase.",
+    "new_daily": "New daily allowance",
+    "instead_of": "instead of {{current}}",
+    "daily_cut": "{{cut}}/day cut until {{date}}",
+    "suggestions_title": "Or skip planned occasions",
+    "suggestion_item": "{{n}}× {{name}}",
+    "suggestion_savings": "saves {{amount}}",
+    "covered_full": "Skipping these covers the {{target}}.",
+    "covered_partial": "Covers {{covered}} of {{target}} — the rest comes from daily spending.",
+    "note": "Nothing is saved — rescue mode is a calculator.",
+    "entry_from_simulator": "I need to save — rescue mode"
+  },
+  "share": {
+    "button": "Share summary",
+    "of_budget": "of {{budget}} planned · {{percent}}% used",
+    "day_of": "Day {{n}} of {{total}}",
+    "top_category": "Top category: {{name}} ({{amount}})",
+    "downloaded_toast": "Image saved",
+    "failed_toast": "Could not generate the image"
   }
 }

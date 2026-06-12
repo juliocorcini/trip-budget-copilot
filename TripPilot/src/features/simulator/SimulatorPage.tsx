@@ -344,6 +344,15 @@ export function SimulatorPage() {
           </div>
         </>
       )}
+
+      {/* DEC-132: cross-link — the inverse question ("how do I save €X?") */}
+      <button
+        onClick={() => navigate('/rescue')}
+        className="py-3 rounded-xl bg-surface-container text-on-surface-dim text-xs font-semibold btn-press flex items-center justify-center gap-2"
+      >
+        <Icon name="sos" size={14} className="text-primary" />
+        {t('rescue.entry_from_simulator')}
+      </button>
     </div>
   );
 }

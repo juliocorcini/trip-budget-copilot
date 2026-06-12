@@ -17,6 +17,7 @@ const SharedExpensesPage = lazy(() => import('@/features/shared/SharedExpensesPa
 const OutingPage = lazy(() => import('@/features/outing/OutingPage').then(m => ({ default: m.OutingPage })));
 const OutingReviewPage = lazy(() => import('@/features/outing/OutingReviewPage').then(m => ({ default: m.OutingReviewPage })));
 const SimulatorPage = lazy(() => import('@/features/simulator/SimulatorPage').then(m => ({ default: m.SimulatorPage })));
+const RescuePage = lazy(() => import('@/features/rescue/RescuePage').then(m => ({ default: m.RescuePage })));
 const TripOverviewPage = lazy(() => import('@/features/trip/TripOverviewPage').then(m => ({ default: m.TripOverviewPage })));
 const TripEditPage = lazy(() => import('@/features/trip/TripEditPage').then(m => ({ default: m.TripEditPage })));
 const WalletsPage = lazy(() => import('@/features/wallets/WalletsPage').then(m => ({ default: m.WalletsPage })));
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
       { path: '/outings/new', element: <LazyRoute><OutingPage /></LazyRoute> },
       { path: '/outings/active', element: <LazyRoute><OutingPage /></LazyRoute> },
       { path: '/simulator', element: <LazyRoute><SimulatorPage /></LazyRoute> },
+      { path: '/rescue', element: <LazyRoute><RescuePage /></LazyRoute> },
       { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
     ],
   },

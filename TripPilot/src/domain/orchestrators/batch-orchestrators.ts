@@ -1,9 +1,10 @@
 import { db } from '@/data/db/database';
-import { markUpdated, softDelete } from '@/utils/entity-factory';
+import { markUpdated, softDelete, restoreDeleted } from '@/utils/entity-factory';
 
 /**
  * DEC-118 (R-09): batch operations behind the list selection mode.
  * All deletions are SOFT (Core Rule 4) and each batch runs atomically.
+ * DEC-126: every soft delete here has a restore twin powering the undo toast.
  */
 
 export async function softDeleteTransactionsBatch(transactionIds: string[]): Promise<void> {
@@ -18,6 +19,25 @@ export async function softDeleteTransactionsBatch(transactionIds: string[]): Pro
       .anyOf(transactionIds)
       .toArray();
     await db.participantShares.bulkPut(shares.map((share) => softDelete(share)));
+  });
+}
+
+/**
+ * DEC-126: undo for {@link softDeleteTransactionsBatch}. Shares are restored
+ * together — in every flow they are only ever deleted WITH their transaction,
+ * so clearing both deletedAt timestamps recovers the exact previous state.
+ */
+export async function restoreTransactionsBatch(transactionIds: string[]): Promise<void> {
+  await db.transaction('rw', [db.transactions, db.participantShares], async () => {
+    const transactions = await db.transactions.bulkGet(transactionIds);
+    const found = transactions.filter((tx) => tx !== undefined);
+    await db.transactions.bulkPut(found.map((tx) => restoreDeleted(tx)));
+
+    const shares = await db.participantShares
+      .where('transactionId')
+      .anyOf(transactionIds)
+      .toArray();
+    await db.participantShares.bulkPut(shares.map((share) => restoreDeleted(share)));
   });
 }
 
@@ -73,6 +93,65 @@ export async function softDeleteOutingSessionsBatch(sessionIds: string[]): Promi
           .toArray();
         await db.participantShares.bulkPut(shares.map((share) => softDelete(share)));
       }
+    },
+  );
+}
+
+/** DEC-126: undo for {@link softDeleteOutingSessionsBatch} — full cascade back. */
+export async function restoreOutingSessionsBatch(sessionIds: string[]): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.sessions, db.sessionItems, db.transactions, db.participantShares],
+    async () => {
+      const sessions = await db.sessions.bulkGet(sessionIds);
+      const foundSessions = sessions.filter((s) => s !== undefined);
+      await db.sessions.bulkPut(foundSessions.map((s) => restoreDeleted(s)));
+
+      const items = await db.sessionItems.where('sessionId').anyOf(sessionIds).toArray();
+      await db.sessionItems.bulkPut(items.map((item) => restoreDeleted(item)));
+
+      const transactions = await db.transactions
+        .where('sessionId')
+        .anyOf(sessionIds)
+        .toArray();
+      const txIds = transactions.map((tx) => tx.id);
+      await db.transactions.bulkPut(transactions.map((tx) => restoreDeleted(tx)));
+
+      if (txIds.length > 0) {
+        const shares = await db.participantShares
+          .where('transactionId')
+          .anyOf(txIds)
+          .toArray();
+        await db.participantShares.bulkPut(shares.map((share) => restoreDeleted(share)));
+      }
+    },
+  );
+}
+
+/**
+ * DEC-126/DEC-127: undo of a single in-session quick-add (Bar Mode has no
+ * enrichment stepper, so a mistaken tap is reverted from the toast). The
+ * session itself stays — only the expense and its links go.
+ */
+export async function softDeleteSessionExpense(transactionId: string): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.transactions, db.sessionItems, db.participantShares],
+    async () => {
+      const tx = await db.transactions.get(transactionId);
+      if (tx) await db.transactions.put(softDelete(tx));
+
+      const items = await db.sessionItems
+        .where('transactionId')
+        .equals(transactionId)
+        .toArray();
+      await db.sessionItems.bulkPut(items.map((item) => softDelete(item)));
+
+      const shares = await db.participantShares
+        .where('transactionId')
+        .equals(transactionId)
+        .toArray();
+      await db.participantShares.bulkPut(shares.map((share) => softDelete(share)));
     },
   );
 }

@@ -24,9 +24,12 @@ export { buildFullBackup, importBackup } from './backup-orchestrators';
 export type { ImportMode } from './backup-orchestrators';
 export {
   softDeleteTransactionsBatch,
+  restoreTransactionsBatch,
   moveTransactionsToPoolBatch,
   changeTransactionsCategoryBatch,
   softDeleteOutingSessionsBatch,
+  restoreOutingSessionsBatch,
+  softDeleteSessionExpense,
 } from './batch-orchestrators';
 export { resolveShareConfirmation } from './share-orchestrators';
 export type { ResolveShareInput } from './share-orchestrators';

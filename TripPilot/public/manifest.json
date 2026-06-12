@@ -28,12 +28,20 @@
   "shortcuts": [
     {
       "name": "Registrar gasto",
+      "short_name": "Gasto",
       "url": "/quick-add",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Iniciar saída",
+      "short_name": "Saída",
       "url": "/outings/new",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Posso gastar? (simulador)",
+      "short_name": "Simular",
+      "url": "/simulator",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ],

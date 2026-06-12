@@ -28,6 +28,9 @@ export function createDefaultAppSettings(): AppSettings {
     dashboardCardOrder: [],
     // DEC-124 (R-11 v2): outing notification opt-out lives in Settings.
     outingNotificationEnabled: true,
+    // DEC-128: mental currency anchor — off until the traveler sets a rate.
+    anchorCurrency: null,
+    anchorRatePer1: null,
   };
 }
 

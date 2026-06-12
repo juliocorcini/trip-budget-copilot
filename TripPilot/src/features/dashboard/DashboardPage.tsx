@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { useLongPress } from '@/hooks/useLongPress';
-import { resolveActivePhase, getDayNumber, getTotalDays, formatDate, localDateString } from '@/domain/dates';
+import { resolveActivePhase, getDayNumber, getTotalDays, formatDate, localDateString, localDayOf } from '@/domain/dates';
 import { calculateFreeToSpend, createPoolSummary, calculateLastOutingSavings, buildHonestFriendV2 } from '@/domain/budget';
 import { getRecentTransactions, filterTransactionsByPool, groupTransactionsByCategory, calculateSpentOnDate } from '@/domain/transactions';
 import { formatMoney, fromCents, sumCents } from '@/domain/money';
@@ -29,8 +29,15 @@ import {
   isDashboardCardHidden,
   toggleDashboardCardHidden,
   getDashboardCard,
+  buildYesterdayRecap,
+  buildPhaseBurndown,
+  buildMonthHeatmap,
+  shiftMonth,
   type DashboardCardId,
 } from '@/domain/dashboard';
+import { RecapCard } from '@/features/dashboard/cards/RecapCard';
+import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
+import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { calculateTodayFreeBudget } from '@/domain/phases';
 import { calculatePoolSpent } from '@/domain/budget';
@@ -193,6 +200,9 @@ export function DashboardPage() {
   // DEC-119 (R-10): long-press on a card opens its options sheet.
   const [configCardId, setConfigCardId] = useState<DashboardCardId | null>(null);
   const getCardLongPress = useLongPress((id) => setConfigCardId(id as DashboardCardId));
+  // DEC-131: heatmap month navigation + tapped-day sheet.
+  const [heatmapMonth, setHeatmapMonth] = useState(() => localDateString(new Date()).slice(0, 7));
+  const [heatmapDayIso, setHeatmapDayIso] = useState<string | null>(null);
 
   useEffect(() => {
     if (navigator.storage?.persisted) {
@@ -488,12 +498,23 @@ export function DashboardPage() {
 
   // DEC-088 (R-06): subtractive "free to use today" — allowance fixed at day
   // start minus what was spent today. Spending €2 drops the number by €2.
-  const todaySpentCents = primaryPool
-    ? calculateSpentOnDate(filterTransactionsByPool(transactions, primaryPool.id), todayIso)
-    : 0;
+  const primaryPoolTxs = primaryPool ? filterTransactionsByPool(transactions, primaryPool.id) : [];
+  const todaySpentCents = primaryPool ? calculateSpentOnDate(primaryPoolTxs, todayIso) : 0;
   const todayBudget =
     fts && activePhase
       ? calculateTodayFreeBudget(fts.freeToSpendCents, todaySpentCents, activePhase, todayIso)
+      : null;
+
+  // DEC-129: yesterday recap mirrors the hero math (pool-scoped, add-back).
+  const recap =
+    fts && activePhase
+      ? buildYesterdayRecap({
+          freeToSpendCents: fts.freeToSpendCents,
+          todaySpentCents,
+          transactions: primaryPoolTxs,
+          phase: activePhase,
+          todayIso,
+        })
       : null;
 
   // DEC-092 (R-10): savings refer to the LAST closed outing, with the typical
@@ -536,6 +557,33 @@ export function DashboardPage() {
           phase: activePhase,
         })
       : ({ kind: 'none' } as const);
+
+  // DEC-130: burn-down uses the same phase envelope as the insights math.
+  const burndown =
+    fts && activePhase
+      ? buildPhaseBurndown({
+          phase: activePhase,
+          phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
+          transactions: phaseTxsForInsights,
+          todayIso,
+        })
+      : null;
+
+  // DEC-131: heatmap is trip-wide (spending behavior, not pool accounting).
+  // Month navigation clamps between the trip start month and today's month.
+  const currentMonth = todayIso.slice(0, 7);
+  const tripStartMonth = trip.startDate.slice(0, 7);
+  const heatmap = buildMonthHeatmap(transactions, heatmapMonth, todayIso);
+  const heatmapDayTxs = heatmapDayIso
+    ? transactions
+        .filter(
+          (tx) =>
+            tx.deletedAt === null &&
+            (tx.type === 'expense' || tx.type === 'adjustment') &&
+            localDayOf(tx.date) === heatmapDayIso,
+        )
+        .sort((a, b) => b.date.localeCompare(a.date))
+    : [];
 
   // DEC-114 (R-04): the session card shows MY cost (shares, not raw amounts).
   const sessionTotalCents = calculateSessionTotal(sessionTxs);
@@ -729,6 +777,38 @@ export function DashboardPage() {
       )}
           </>
         );
+      case 'yesterday_recap':
+        // DEC-129: hidden until there is a past day worth recapping.
+        return recap ? (
+          <RecapCard
+            recap={recap}
+            currency={trip.baseCurrency}
+            onOpen={() => navigate('/expenses')}
+          />
+        ) : null;
+      case 'phase_burndown':
+        // DEC-130: needs an active phase with a positive budget envelope.
+        return burndown ? (
+          <BurndownCard
+            burndown={burndown}
+            currency={trip.baseCurrency}
+            onOpen={() => navigate('/impact')}
+          />
+        ) : null;
+      case 'spend_heatmap':
+        // DEC-131: pointless before the first registered expense.
+        return transactions.length > 0 ? (
+          <HeatmapCard
+            heatmap={heatmap}
+            currency={trip.baseCurrency}
+            todayIso={todayIso}
+            canPrev={heatmapMonth > tripStartMonth}
+            canNext={heatmapMonth < currentMonth}
+            onPrev={() => setHeatmapMonth((m) => shiftMonth(m, -1))}
+            onNext={() => setHeatmapMonth((m) => shiftMonth(m, 1))}
+            onSelectDay={setHeatmapDayIso}
+          />
+        ) : null;
       case 'occasion_counters':
         return (
           <>
@@ -1344,6 +1424,46 @@ export function DashboardPage() {
             </button>
           </div>
         )}
+      </BottomSheet>
+
+      {/* DEC-131: heatmap day drill-down — the expenses of the tapped day */}
+      <BottomSheet
+        open={heatmapDayIso !== null}
+        onClose={() => setHeatmapDayIso(null)}
+        title={heatmapDayIso ? formatDate(heatmapDayIso, "d 'de' MMMM") : ''}
+      >
+        <div className="flex flex-col gap-2">
+          {heatmapDayTxs.map((tx) => (
+            <button
+              key={tx.id}
+              onClick={() => {
+                setHeatmapDayIso(null);
+                navigate(`/expenses/${tx.id}`);
+              }}
+              className="w-full p-3 rounded-xl bg-surface-high flex items-center gap-3 text-left btn-press"
+            >
+              <Icon name={getCategoryIcon(tx.category)} size={18} className="text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-on-surface truncate">{tx.description}</p>
+                <p className="text-xs text-on-surface-faint mt-0.5">
+                  {tx.category ? t(`categories.${tx.category}` as never) : '—'}
+                </p>
+              </div>
+              <p className="text-sm font-extrabold tabular text-on-surface">
+                {formatMoney(tx.personalCostCents ?? tx.amountCents, trip.baseCurrency)}
+              </p>
+            </button>
+          ))}
+          <div className="flex justify-between items-center px-1 pt-2">
+            <p className="text-xs font-bold uppercase text-on-surface-faint">{t('common.total')}</p>
+            <p className="text-sm font-extrabold tabular text-on-surface">
+              {formatMoney(
+                sumCents(heatmapDayTxs.map((tx) => tx.personalCostCents ?? tx.amountCents)),
+                trip.baseCurrency,
+              )}
+            </p>
+          </div>
+        </div>
       </BottomSheet>
     </div>
   );

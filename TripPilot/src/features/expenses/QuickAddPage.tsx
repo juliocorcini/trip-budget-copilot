@@ -6,7 +6,7 @@ import { createExpenseTransaction } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase } from '@/domain/dates';
-import { toCents, formatMoney } from '@/domain/money';
+import { toCents, formatMoney, formatAnchorHint } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
@@ -152,6 +152,17 @@ export function QuickAddPage() {
   };
 
   const amountCentsPreview = amount ? toCents(parseFloat(amount) || 0) : 0;
+
+  // DEC-128: mental anchor while typing — "€20 ≈ R$ 124".
+  const anchorHint =
+    settings && trip && amountCentsPreview > 0
+      ? formatAnchorHint(
+          amountCentsPreview,
+          { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 },
+          trip.baseCurrency,
+        )
+      : null;
+
   const customSumCents = selectedParticipantIds.reduce((sum, pid) => {
     const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
     return sum + (Number.isNaN(value) ? 0 : Math.round(value * 100));
@@ -303,6 +314,9 @@ export function QuickAddPage() {
             autoFocus
           />
         </div>
+        {anchorHint && (
+          <p className="text-sm font-semibold text-on-surface-dim mt-1 tabular">{anchorHint}</p>
+        )}
       </div>
 
       {!isTransferLike && (
