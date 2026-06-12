@@ -31,6 +31,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
+import { HelpButton } from '@/components/HelpMode';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
@@ -681,12 +682,15 @@ export function PlannerPage() {
             {t('planner.scenarios_of', { phase: phaseName })}
           </h1>
         </div>
-        <span
-          className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
-          style={{ background: '#6B8F7118', color: 'var(--success)' }}
-        >
-          {t('planner.mode_manual')}
-        </span>
+        <div className="flex items-center gap-1">
+          <HelpButton screenId="planner" />
+          <span
+            className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
+            style={{ background: '#6B8F7118', color: 'var(--success)' }}
+          >
+            {t('planner.mode_manual')}
+          </span>
+        </div>
       </div>
 
       {/* ── PHASE SELECTOR (multi-phase trips) ── */}
@@ -714,7 +718,7 @@ export function PlannerPage() {
       )}
 
       {/* ── BUDGET SUMMARY (DEC-098: live margin, negative when over) ── */}
-      <div className="mt-4 p-4 rounded-2xl bg-surface-container">
+      <div className="mt-4 p-4 rounded-2xl bg-surface-container" data-help-anchor="planner-free-margin">
         <div className="flex justify-between items-center">
           <div>
             <p className="text-xs font-bold text-on-surface-dim">
@@ -822,7 +826,7 @@ export function PlannerPage() {
       })()}
 
       {/* ── PROFILE CARDS ── */}
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 space-y-3" data-help-anchor="planner-categories">
         {enabledProfiles.map((profile) => {
           const s = states[profile.id];
           if (!s) return null;

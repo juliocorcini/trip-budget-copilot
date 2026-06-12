@@ -18,6 +18,7 @@ import { formatDate } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { BottomSheet } from '@/components/BottomSheet';
+import { HelpButton } from '@/components/HelpMode';
 import { buildMigrationPayload } from '@/domain/sync';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 
@@ -141,6 +142,7 @@ export function BackupPage() {
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('backup.title')}</h1>
+        <HelpButton screenId="backup" />
       </div>
 
       {settings?.lastBackupDate && (
@@ -149,7 +151,7 @@ export function BackupPage() {
         </p>
       )}
 
-      <button onClick={handleExport} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40">
+      <button onClick={handleExport} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40" data-help-anchor="backup-export">
         <Icon name="cloud_upload" size={24} className="text-primary" />
         <div>
           <p className="text-sm font-medium text-on-surface">{t('backup.export_json')}</p>
@@ -180,7 +182,7 @@ export function BackupPage() {
         </button>
       </div>
 
-      <label className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press cursor-pointer">
+      <label className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press cursor-pointer" data-help-anchor="backup-import">
         <Icon name="cloud_download" size={24} className="text-warning" />
         <div>
           <p className="text-sm font-medium text-on-surface">{t('backup.import_json')}</p>

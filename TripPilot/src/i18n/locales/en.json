@@ -886,5 +886,83 @@
     "deleted_toast": "Deleted ✓",
     "moved_toast": "Fund updated ✓",
     "category_toast": "Category updated ✓"
+  },
+  "help": {
+    "open": "Open help",
+    "prev": "Previous",
+    "next": "Next",
+    "done": "Got it",
+    "funds": {
+      "what_title": "What is a fund?",
+      "what_body": "A fund is WHERE the money comes from. Example: you have €2,000 in your account and €250 in cash — create a \"Account\" fund with €2,000 and a \"Cash\" fund with €250. Every logged expense draws from a fund.",
+      "pool_card_title": "The fund card",
+      "pool_card_body": "The green value is what's STILL LEFT. The line below shows usage: \"€350 / €2,000\" = you've spent €350. Tap the card to open editing, reserves and envelopes.",
+      "scope_title": "Linked phases or global",
+      "scope_body": "A fund can apply to specific phases only (e.g. \"Barcelona + Lisbon\") or to the whole trip (global). Linking the right phases makes \"how much can I spend today\" more honest.",
+      "future_floors_title": "Reserve for a future phase",
+      "future_floors_body": "Money you want to KEEP for a phase still ahead — it disappears from today's available amount. Example: €300 reserved for Lisbon stops being counted while you're in Barcelona.",
+      "envelopes_title": "Envelopes",
+      "envelopes_body": "Partitions inside the fund. Example: a €100 \"Gifts\" envelope locks that money — it leaves your free margin but stays in the fund until you decide to use it.",
+      "add_title": "Create a fund",
+      "add_body": "Tap here and enter a name plus the amount sitting in that source. Example: \"Wise card\" with €800."
+    },
+    "planner": {
+      "what_title": "What is the Planner?",
+      "what_body": "Here you build the phase plan: what you intend to do and how many times. The app multiplies each category by its typical value and shows whether it fits the budget.",
+      "free_margin_title": "Free margin",
+      "free_margin_body": "How much of the phase budget is NOT committed yet. Example: €700 budget and a €530 plan → €170 free. If it goes negative (red), you planned more than you have.",
+      "categories_title": "Category cards",
+      "categories_body": "Each card is a category (Dinner out, Bar, Museums...) with the typical value the app learned from your real expenses. Example: typical dinner €20.",
+      "quantities_title": "Quantities (− and +)",
+      "quantities_body": "The − and + buttons change how many times you plan to do that in the phase. Example: 4× €20 dinners = €80 of the budget committed to dinners.",
+      "recommendation_title": "Recommendation",
+      "recommendation_body": "When the plan exceeds the budget, the app suggests where to cut so the math closes — you decide whether to apply it or adjust manually."
+    },
+    "wallets": {
+      "what_title": "What are wallets?",
+      "what_body": "A wallet is WHERE the money physically is: cash, card, account. Example: \"Pocket\" (cash) and \"Wise card\". It's different from a fund, which is the budget.",
+      "balance_title": "Wallet balance",
+      "balance_body": "The balance is derived from logged expenses: you started with €100 cash and logged a €13 market run paid in cash → the app shows €87.",
+      "default_title": "Default wallet",
+      "default_body": "When an expense doesn't say where it came from, it lands in the default wallet. Make your everyday one the default.",
+      "reconcile_title": "Reconcile",
+      "reconcile_body": "Count your real cash and type what you have. Example: the app expected €87 and you counted €80 → it creates a €7 adjustment so reality matches.",
+      "vs_funds_title": "Wallet × Fund",
+      "vs_funds_body": "Fund = budget (where money comes from in the plan). Wallet = physical place (where it is right now). A €20 dinner draws from the \"Account\" fund AND the \"Card\" wallet."
+    },
+    "phase_edit": {
+      "what_title": "Trip phases",
+      "what_body": "Phases are the chapters of your trip — e.g. \"Barcelona\" (10 days) and \"Lisbon\" (5 days). Each phase has its own dates, budget and activities.",
+      "dates_title": "Phase dates",
+      "dates_body": "Changing dates recalculates the daily budget. Example: €700 over 10 days = €70/day; stretching to 14 days makes it €50/day.",
+      "activities_title": "Phase activities",
+      "activities_body": "Enable only what makes sense in the phase. Example: \"Beach\" on in Barcelona, off in Madrid — the Planner and Outing only offer what's active.",
+      "events_title": "Events",
+      "events_body": "Events are one-off expenses with reserved money. Example: \"Coldplay concert\" on Jul 12 with €60 reserved — the app guards that amount until the event day."
+    },
+    "outing": {
+      "what_title": "Outing mode",
+      "what_body": "The outing tracks your night in real time: every drink or bill goes in with one tap and the app shows where you stand against your limits.",
+      "gauge_title": "The limits bar",
+      "gauge_body": "The dot is your current total over the 3 zones: green (up to target), orange (up to ceiling) and red (up to max). The pill value is only YOUR share of split items.",
+      "limits_title": "Target, ceiling and max",
+      "limits_body": "Target = what you'd like to spend (e.g. €15). Ceiling = still acceptable (€25). Max = stop here (€35). Crossing the target means taking money away from other plans.",
+      "quick_add_title": "Quick buttons",
+      "quick_add_body": "One tap logs the value — +€3 for the beer, +€5 for the cocktail. The values belong to this session and can be edited via \"adjust\".",
+      "items_title": "Outing items",
+      "items_body": "Every logged expense shows up here. An undetailed item (\"tap to detail\") opens the \"what was it?\" question — answer later, no rush.",
+      "end_title": "Ending",
+      "end_body": "Ending opens the review: confirm the total (you can correct it to match the tab), pick the wallet that paid and flag an atypical night — atypical nights don't teach the app."
+    },
+    "backup": {
+      "what_title": "Why back up?",
+      "what_body": "Your data lives ONLY on this device — there is no cloud. If the phone breaks or the browser wipes data, the backup is the only way back.",
+      "export_title": "Export JSON",
+      "export_body": "Generates a file with EVERYTHING (expenses, phases, funds, settings). Keep it on Drive or email it to yourself. Example: export every Friday during the trip.",
+      "import_title": "Import JSON",
+      "import_body": "Restores from an exported file. Before applying, the app previews what changes: new, updated and conflicting records — and you choose merge or replace all.",
+      "csv_title": "Export CSV",
+      "csv_body": "A spreadsheet for Excel/Sheets — great for analyzing expenses. Advanced mode includes every technical column."
+    }
   }
 }

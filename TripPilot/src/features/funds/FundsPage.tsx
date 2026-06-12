@@ -10,6 +10,7 @@ import { budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository
 import { deleteBudgetPool } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { HelpButton } from '@/components/HelpMode';
 import { showToast } from '@/components/Toast';
 import type { BudgetPoolScope } from '@/domain/types/common';
 
@@ -198,6 +199,7 @@ export function FundsPage() {
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('funds.title')}</h1>
+        <HelpButton screenId="funds" />
       </div>
 
       {pools.length === 0 && (
@@ -207,7 +209,7 @@ export function FundsPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2" data-help-anchor="funds-pool-list">
         {pools.map((pool) => {
           const summary = createPoolSummary(pool, filterTransactionsByPool(transactions, pool.id));
           const poolLinks = links.filter((l) => l.budgetPoolId === pool.id && l.deletedAt === null);
@@ -565,6 +567,7 @@ export function FundsPage() {
           onClick={() => setShowForm(true)}
           className="w-full py-3 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
           style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
+          data-help-anchor="funds-add"
         >
           <Icon name="add" size={18} className="text-primary" />
           {t('funds.add')}

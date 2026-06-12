@@ -886,5 +886,83 @@
     "deleted_toast": "Excluídos ✓",
     "moved_toast": "Movidos de fundo ✓",
     "category_toast": "Categoria atualizada ✓"
+  },
+  "help": {
+    "open": "Abrir ajuda",
+    "prev": "Anterior",
+    "next": "Próximo",
+    "done": "Entendi",
+    "funds": {
+      "what_title": "O que é um fundo?",
+      "what_body": "Fundo é DE ONDE o dinheiro sai. Exemplo: você tem €2.000 na conta e €250 em dinheiro vivo — crie um fundo \"Conta\" de €2.000 e outro \"Dinheiro\" de €250. Cada gasto registrado desconta de um fundo.",
+      "pool_card_title": "O card do fundo",
+      "pool_card_body": "O valor verde é quanto AINDA RESTA. A linha de baixo mostra o usado: \"€350 / €2.000\" = você já gastou €350. Toque no card para abrir edição, reservas e envelopes.",
+      "scope_title": "Fases vinculadas ou global",
+      "scope_body": "Um fundo pode valer só para algumas fases (ex.: \"Barcelona + Lisboa\") ou para a viagem inteira (global). Vincular às fases certas deixa o \"quanto posso gastar hoje\" mais honesto.",
+      "future_floors_title": "Reserva para fase futura",
+      "future_floors_body": "É o valor que você quer GUARDAR para uma fase que ainda vem — ele some do disponível de hoje. Exemplo: €300 reservados para Lisboa fazem o app parar de contar com eles em Barcelona.",
+      "envelopes_title": "Envelopes",
+      "envelopes_body": "Separações dentro do fundo. Exemplo: envelope \"Presentes\" de €100 tranca esse dinheiro — ele sai da margem livre, mas continua no fundo até você decidir usar.",
+      "add_title": "Criar um fundo",
+      "add_body": "Toque aqui e informe um nome e o valor que existe nessa origem. Exemplo: \"Cartão Wise\" com €800."
+    },
+    "planner": {
+      "what_title": "O que é o Planejar?",
+      "what_body": "Aqui você monta o plano da fase: o que pretende fazer e quantas vezes. O app multiplica cada categoria pelo valor típico e mostra se cabe no orçamento.",
+      "free_margin_title": "Margem livre",
+      "free_margin_body": "Quanto do orçamento da fase ainda NÃO está comprometido. Exemplo: orçamento €700 e plano de €530 → livre €170. Se ficar negativo (vermelho), você planejou mais do que tem.",
+      "categories_title": "Cards de categoria",
+      "categories_body": "Cada card é uma categoria (Jantar fora, Bar, Museus...) com o valor típico que o app aprendeu dos seus gastos reais. Exemplo: jantar típico €20.",
+      "quantities_title": "Quantidades (− e +)",
+      "quantities_body": "Os botões − e + mudam quantas vezes você pretende fazer aquilo na fase. Exemplo: 4× jantar de €20 = €80 do orçamento comprometidos com jantares.",
+      "recommendation_title": "Recomendação",
+      "recommendation_body": "Quando o plano passa do orçamento, o app sugere onde reduzir para fechar a conta — você decide se aplica ou ajusta manualmente."
+    },
+    "wallets": {
+      "what_title": "O que são carteiras?",
+      "what_body": "Carteira é ONDE o dinheiro está fisicamente: dinheiro vivo, cartão, conta. Exemplo: \"Bolso\" (cash) e \"Cartão Wise\". É diferente do fundo, que é o orçamento.",
+      "balance_title": "Saldo da carteira",
+      "balance_body": "O saldo é calculado pelos gastos registrados: começou com €100 em dinheiro e registrou €13 de mercado pagando em cash → o app mostra €87.",
+      "default_title": "Carteira padrão",
+      "default_body": "Quando um gasto não diz de onde saiu, ele cai na carteira padrão. Marque como padrão a que você mais usa no dia a dia.",
+      "reconcile_title": "Conferir (reconciliar)",
+      "reconcile_body": "Conte o dinheiro de verdade e digite o que tem. Exemplo: o app esperava €87 e você contou €80 → ele cria um ajuste de €7 para a realidade bater.",
+      "vs_funds_title": "Carteira × Fundo",
+      "vs_funds_body": "Fundo = orçamento (de onde o dinheiro sai no plano). Carteira = lugar físico (onde ele está agora). Um jantar de €20 desconta do fundo \"Conta\" E da carteira \"Cartão\"."
+    },
+    "phase_edit": {
+      "what_title": "Fases da viagem",
+      "what_body": "Fases são os capítulos da viagem — ex.: \"Barcelona\" (10 dias) e \"Lisboa\" (5 dias). Cada fase tem datas, orçamento e atividades próprias.",
+      "dates_title": "Datas da fase",
+      "dates_body": "Mudar as datas recalcula o orçamento diário. Exemplo: €700 em 10 dias = €70/dia; esticar para 14 dias vira €50/dia.",
+      "activities_title": "Atividades da fase",
+      "activities_body": "Ative só o que faz sentido na fase. Exemplo: \"Praia\" ligada em Barcelona e desligada em Madri — o Planejar e a Saída só oferecem o que está ativo.",
+      "events_title": "Eventos",
+      "events_body": "Eventos são gastos pontuais com dinheiro reservado. Exemplo: \"Show do Coldplay\" dia 12/07 com €60 reservados — o app guarda esse valor até o dia do evento."
+    },
+    "outing": {
+      "what_title": "Modo saída",
+      "what_body": "A saída acompanha a noite em tempo real: cada bebida ou conta entra com um toque e o app mostra onde você está em relação aos seus limites.",
+      "gauge_title": "A barra de limites",
+      "gauge_body": "A bolinha é o seu total atual em cima das 3 zonas: verde (até a meta), laranja (até o teto) e vermelho (até o máximo). O valor no balão é só a SUA parte dos gastos divididos.",
+      "limits_title": "Meta, teto e máximo",
+      "limits_body": "Meta = o que você gostaria de gastar (ex.: €15). Teto = até onde é aceitável (€25). Máximo = pare aqui (€35). Passar da meta significa tirar dinheiro de outras coisas do plano.",
+      "quick_add_title": "Botões rápidos",
+      "quick_add_body": "Um toque registra o valor — +€3 para a cerveja, +€5 para o drink. Os valores são da sessão e você pode editá-los no \"ajustar\".",
+      "items_title": "Itens da saída",
+      "items_body": "Cada gasto registrado aparece aqui. Item sem detalhe (\"toque para detalhar\") abre a pergunta \"o que foi?\" — responda depois, sem pressa.",
+      "end_title": "Encerrar",
+      "end_body": "Encerrar abre a revisão: confirme o total (pode corrigir pelo que está na comanda), escolha a carteira que pagou e diga se a noite foi atípica — noite atípica não ensina o app."
+    },
+    "backup": {
+      "what_title": "Por que fazer backup?",
+      "what_body": "Seus dados vivem SÓ neste aparelho — não há nuvem. Se o celular quebrar ou o navegador limpar os dados, o backup é o único caminho de volta.",
+      "export_title": "Exportar JSON",
+      "export_body": "Gera um arquivo com TUDO (gastos, fases, fundos, configurações). Guarde no Drive ou mande para você mesmo. Exemplo: exporte toda sexta durante a viagem.",
+      "import_title": "Importar JSON",
+      "import_body": "Restaura a partir de um arquivo exportado. Antes de aplicar, o app mostra o que muda: registros novos, atualizados e conflitos — e você escolhe mesclar ou substituir tudo.",
+      "csv_title": "Exportar CSV",
+      "csv_body": "Planilha para abrir no Excel/Sheets — boa para analisar gastos. O modo avançado inclui todas as colunas técnicas."
+    }
   }
 }

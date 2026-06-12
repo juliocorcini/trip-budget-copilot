@@ -68,6 +68,7 @@ import type { Wallet } from '@/domain/types/wallet';
 import type { ShareType } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { HelpButton } from '@/components/HelpMode';
 import { showToast, type ToastVariant } from '@/components/Toast';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -1689,6 +1690,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <HelpButton screenId="outing" />
           <span className="text-xs font-bold" style={{ color: 'var(--on-surface-dim)' }}>
             {elapsed}
           </span>
@@ -1696,6 +1698,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
             onClick={onEnd}
             className="btn-press px-3 py-2 rounded-xl text-xs font-bold"
             style={{ background: '#D9404015', color: 'var(--error)' }}
+            data-help-anchor="outing-end"
           >
             {t('outing.end_button')}
           </button>
@@ -1774,7 +1777,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         </div>
 
         {/* 5. SEGMENTED GAUGE — DEC-113 (R5-09): piecewise dot + value pill */}
-        <div className="relative mb-1.5 pt-6">
+        <div className="relative mb-1.5 pt-6" data-help-anchor="outing-gauge">
           {/* Value pill above the dot, clamped so it never overflows the bar */}
           <div
             className="absolute top-0 whitespace-nowrap"
@@ -1880,7 +1883,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
 
       {/* 8. SESSION HISTORY */}
       {recentTxs.length > 0 && (
-        <div className="mx-5 p-3 rounded-xl mb-2.5" style={{ background: 'var(--highlight-faint)' }}>
+        <div className="mx-5 p-3 rounded-xl mb-2.5" style={{ background: 'var(--highlight-faint)' }} data-help-anchor="outing-items">
           <div className="flex items-center justify-between mb-2">
             <p
               className="text-[10px] font-bold tracking-[0.1em] uppercase"
@@ -1976,7 +1979,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
       {enrichStepper}
 
       {/* 11. QUICK-ADD BUTTONS (highlight = closest to avg drink, DEC-045) */}
-      <div className="px-5 pb-3">
+      <div className="px-5 pb-3" data-help-anchor="outing-quick-add">
         <div className="flex justify-end mb-1.5">
           <button
             onClick={openEditValuesSheet}

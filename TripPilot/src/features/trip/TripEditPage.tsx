@@ -35,6 +35,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
+import { HelpButton } from '@/components/HelpMode';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import type { Phase, PhaseRhythmPreset } from '@/domain/types/phase';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
@@ -409,6 +410,7 @@ export function TripEditPage() {
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('trip.edit_title')}</h1>
+        <HelpButton screenId="phase_edit" />
       </div>
 
       <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
@@ -435,7 +437,7 @@ export function TripEditPage() {
         />
       </div>
 
-      <div>
+      <div data-help-anchor="phase-edit-list">
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
           {t('planner.phases')}
         </p>

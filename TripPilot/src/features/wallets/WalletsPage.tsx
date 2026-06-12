@@ -9,6 +9,7 @@ import { reconcileWallet } from '@/domain/orchestrators';
 import { walletRepository } from '@/data/repositories';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import { getCategoryIcon } from '@/utils/category-icons';
+import { HelpButton } from '@/components/HelpMode';
 import type { Wallet } from '@/domain/types/wallet';
 import type { WalletType, TransactionCategory } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
@@ -123,12 +124,15 @@ export function WalletsPage() {
           </button>
           <h1 className="text-heading font-bold text-on-surface">{t('wallets.title')}</h1>
         </div>
-        <button
-          onClick={() => setShowAdd((v) => !v)}
-          className="px-3 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
-        >
-          {t('wallets.add')}
-        </button>
+        <div className="flex items-center gap-1">
+          <HelpButton screenId="wallets" />
+          <button
+            onClick={() => setShowAdd((v) => !v)}
+            className="px-3 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
+          >
+            {t('wallets.add')}
+          </button>
+        </div>
       </div>
 
       {showAdd && (
@@ -176,7 +180,7 @@ export function WalletsPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2" data-help-anchor="wallets-list">
         {wallets.map((wallet) => {
           const balance = calculateWalletBalance(wallet, transactions);
           return (

@@ -9,9 +9,9 @@
 
 ## Current State
 
-- **Active gate**: GATE 8 (help mode)
-- **Progress**: 11/12 requirements
-- **Tests**: 402 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
+- **Active gate**: GATE 9 (brain + final verification + deploy)
+- **Progress**: 12/12 requirements
+- **Tests**: 409 unit ✅ · 29 e2e ✅ · typecheck ✅ · build ✅
 - **Build**: v0.6.0
 
 ## GATE 0 — Baseline + decision-log ✅
@@ -121,8 +121,23 @@
       fallback IDB). i18n ×3 (9 chaves outing.notification_*).
 - New tests: outing-notification.test.ts (8) + quick-add-session-expense.test.ts (4).
 
-## GATE 8 — Help mode
-- [ ] R-12 contextual "?" with annotated screens (Funds, Planner, Wallets, Phase/Events, Outing, Backup)
+## GATE 8 — Help mode ✅
+- [x] R-12 (DEC-121) registry data-driven `domain/help/help-content.ts`:
+      6 telas V1 (funds 6 tópicos / planner 5 / wallets 5 / phase_edit 4 /
+      outing 6 / backup 4), cada tópico {id, anchorId} → chaves
+      `help.<tela>.<id>_title/_body`. UI `components/HelpMode.tsx`:
+      HelpButton "?" no header → overlay escurecido sobre a tela REAL,
+      tópico a tópico (anterior/próximo/contador), scrollIntoView +
+      anel de destaque no elemento real via `data-help-anchor` (spread
+      shadow recorta o "buraco" no dim); sem âncora → só o card. Âncoras
+      plantadas nas 6 telas (pool list, add fund, free margin, categorias,
+      wallets list, fases, gauge, quick-add, itens, encerrar, export,
+      import). Copy com exemplos CONCRETOS de viagem ("€300 reservados
+      para Lisboa", "€700 em 10 dias = €70/dia", "esperava €87, contou
+      €80 → ajuste €7") ×3 línguas (66 chaves novas; paridade 886 ✅).
+- New tests: help-content.test.ts (6) — telas obrigatórias, intro 'what'
+      primeiro, ids únicos, title/body resolvem nas 3 línguas, bodies >40
+      chars e fundos com exemplo concreto.
 
 ## GATE 9 — Brain + final verification + deploy
 - [ ] Brain updated (decision-log, product-spec, project-status)
