@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-11 (field review R4 session)
+> Last updated: 2026-06-11 (field review R4 + same-day field feedback v0.7.1)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 implemented, v0.7.0 deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 implemented + field feedback fixes, v0.7.1 deployed** ✅
 
 ## Status Summary
 
@@ -14,7 +14,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 123 decisions (DEC-001 to DEC-123); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 125 decisions (DEC-001 to DEC-125); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -27,9 +27,9 @@
 | Reliability R5 2026-06-10 | ✅ DONE | 9/9 requirements in 4 gates (see `src/gap-fix-log-r5.md`); DEC-109..113 |
 | Full-fix R6 2026-06-10 | ✅ DONE | 25/25 items in 7 gates: 4 audit bugs + 6 partials + 8 field-test findings + simulator v3 (see `src/gap-fix-log-r6.md`) |
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (886 keys) |
-| Tests | ✅ DONE | 409 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.7.0 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (898 keys) |
+| Tests | ✅ DONE | 414 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.7.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast |
 
 ## Gap-Fix Session R2 (2026-06-09)
 
@@ -179,16 +179,26 @@ session (full log in `src/gap-fix-log-r4.md`, prompt in
 - **Configurable dashboard (DEC-119)**: long-press a card → quick action / hide /
   configure; /settings/dashboard reorder + visibility persisted in AppSettings
 - **PWA outing notification (DEC-120, best effort)**: persistent notification with
-  +€X quick-add buttons and "what was it?" follow-up; SW delegates to an open window or
-  writes straight to IndexedDB; research VERIFIED 2026-06-11 in
-  `documents/pwa-notification-research.md`; true ongoing/media-style → Capacitor
-  backlog (DEC-017)
+  +€X quick-add buttons and "what was it?" follow-up; superseded by DEC-124 (v0.7.1):
+  the SW now always writes straight to IndexedDB and re-renders itself; research
+  VERIFIED 2026-06-11 in `documents/pwa-notification-research.md`; true
+  ongoing/media-style → Capacitor backlog (DEC-017)
 - **Help mode (DEC-121)**: "?" on 6 complex screens → overlay highlighting the real
   elements with concrete travel examples ×3 languages
 - **UI polish (DEC-122)**: carousel opens aligned (3 cards), insights advance one per
   gesture, category chip labels never overflow, `<html lang>` follows the language
 - **QuickAdd payer-first (DEC-123)**: "Who paid?" as first-level question with debt hints
 - **Tests**: +66 unit (409 total)
+
+### Same-day field feedback on v0.7.0 (→ v0.7.1)
+
+- **Notification v2 (DEC-124)**: SW handles action clicks alone (direct IndexedDB
+  write + re-render from fresh DB + broadcast) — v1 window delegation died on
+  Android frozen tabs (stuck €0); Settings toggle + outing-screen enable banner +
+  boot/refocus re-sync; rich body (total vs target, remaining, ≈N drinks); "open"
+  fixed to /outings/active
+- **Overlay stacking fix (DEC-125)**: SelectionBar and help overlay portaled to
+  <body> (sticky headers trapped them under the bottom nav); help card draggable
 
 ## Registered Technical Debts
 
@@ -201,7 +211,7 @@ session (full log in `src/gap-fix-log-r4.md`, prompt in
 
 ## Next Steps
 
-1. Julio re-tests v0.7.0 in the field — focus on the payer math (debts after "someone
+1. Julio re-tests v0.7.1 in the field — focus on the payer math (debts after "someone
    else paid"), occasion counters, contextual simulator verdicts, outing zone copy,
    notification quick-add on his Samsung, help mode usefulness
 2. Real-data seed (julio-europa-2026) when trip data is ready

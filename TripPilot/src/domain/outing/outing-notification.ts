@@ -21,10 +21,11 @@ const MAX_FOLLOWUP_SUBCATEGORIES = 2;
 export interface OutingNotificationStrings {
   /** e.g. "Saída ativa: {{name}}" already interpolated. */
   title: string;
-  /** e.g. "Total até agora: {{total}}" already interpolated. */
-  body: string;
-  /** Same text with the {{total}} placeholder kept — SW re-renders totals. */
-  bodyTemplate: string;
+  /** DEC-124: body templates with placeholders kept — app AND SW render them. */
+  bodyNoTarget: string;
+  bodyUnderTarget: string;
+  bodyOverTarget: string;
+  drinksToTarget: string;
   openAction: string;
   followupTitle: string;
   /** e.g. "{{amount}} adicionado — o que foi?" with placeholder kept; SW interpolates. */
@@ -56,7 +57,50 @@ export interface OutingNotificationPayload {
     followups: Record<string, OutingFollowupAction[]>;
     strings: OutingNotificationStrings;
     deviceId: string;
+    /** DEC-124: limits embedded so the SW re-renders the rich body on updates. */
+    targetCents: number | null;
+    avgDrinkPriceCents: number | null;
   };
+}
+
+export interface OutingNotificationBodyInput {
+  totalCents: number;
+  targetCents: number | null;
+  avgDrinkPriceCents: number | null;
+  strings: Pick<
+    OutingNotificationStrings,
+    'bodyNoTarget' | 'bodyUnderTarget' | 'bodyOverTarget' | 'drinksToTarget'
+  >;
+  /** cents → localized money string. */
+  format: (cents: number) => string;
+}
+
+/**
+ * DEC-124: rich notification body — total vs target, remaining (or overshoot)
+ * and "≈N drinks to the target" when the profile has an average drink price.
+ * MIRRORED in public/sw.js (buildOutingBodySw) — keep both in sync.
+ */
+export function buildOutingNotificationBody(input: OutingNotificationBodyInput): string {
+  const { totalCents, targetCents, avgDrinkPriceCents, strings, format } = input;
+  if (targetCents === null || targetCents <= 0) {
+    return strings.bodyNoTarget.replace('{{total}}', format(totalCents));
+  }
+  if (totalCents <= targetCents) {
+    const leftCents = targetCents - totalCents;
+    let body = strings.bodyUnderTarget
+      .replace('{{total}}', format(totalCents))
+      .replace('{{left}}', format(leftCents));
+    if (avgDrinkPriceCents !== null && avgDrinkPriceCents > 0) {
+      const drinks = Math.floor(leftCents / avgDrinkPriceCents);
+      if (drinks > 0) {
+        body += '\n' + strings.drinksToTarget.replace('{{count}}', String(drinks));
+      }
+    }
+    return body;
+  }
+  return strings.bodyOverTarget
+    .replace('{{total}}', format(totalCents))
+    .replace('{{over}}', format(totalCents - targetCents));
 }
 
 /** First distinct positive quick-add values, capped at the action limit. */
@@ -113,10 +157,18 @@ export function buildOutingNotificationPayload(
   });
   actions.push({ action: 'open', title: input.strings.openAction });
 
+  const body = buildOutingNotificationBody({
+    totalCents: input.totalCents,
+    targetCents: input.session.targetCents,
+    avgDrinkPriceCents: input.session.avgDrinkPriceCents,
+    strings: input.strings,
+    format: (cents) => formatMoney(cents, input.currency, input.locale),
+  });
+
   return {
     tag: OUTING_NOTIFICATION_TAG,
     title: input.strings.title,
-    body: input.strings.body,
+    body,
     actions,
     data: {
       kind: 'outing',
@@ -125,6 +177,8 @@ export function buildOutingNotificationPayload(
       followups,
       strings: input.strings,
       deviceId: input.deviceId,
+      targetCents: input.session.targetCents,
+      avgDrinkPriceCents: input.session.avgDrinkPriceCents,
     },
   };
 }

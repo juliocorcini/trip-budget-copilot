@@ -30,6 +30,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     quickAddDefaultValuesCents: [300, 500, 1000],
     hiddenDashboardCards: [],
     dashboardCardOrder: [],
+    outingNotificationEnabled: true,
   },
   trips: [],
   phases: [],

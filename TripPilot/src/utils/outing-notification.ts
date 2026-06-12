@@ -3,24 +3,25 @@ import { db } from '@/data/db/database';
 import {
   buildOutingNotificationPayload,
   calculateSessionTotal,
-  pickFollowupSubcategoryIds,
   OUTING_NOTIFICATION_TAG,
   OUTING_FOLLOWUP_TAG,
 } from '@/domain/outing';
-import { quickAddSessionExpense, assignTransactionSubcategory } from '@/domain/orchestrators';
-import { formatMoney } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
+import { appSettingsRepository } from '@/data/repositories/app-settings-repository';
 import { getInstallationId } from '@/utils/entity-factory';
 import type { Session } from '@/domain/types/session';
 import type { OutingNotificationStrings } from '@/domain/outing';
 
 /**
- * DEC-120 (R-11): active-outing notification bridge (PWA best effort).
+ * DEC-120 + DEC-124 (R-11 v2): active-outing notification bridge.
  *
  * The app builds the full payload (i18n labels, amounts, follow-up
- * subcategories) and shows it through the SW registration. Action clicks
- * land on the SW; when a window client exists the SW delegates back here
- * (full domain flow), otherwise it falls back to a direct IndexedDB write.
+ * subcategories, body templates, session limits) and shows it through the
+ * SW registration. Action clicks are handled ENTIRELY by the SW (direct
+ * IndexedDB write + notification re-render) — window clients only receive
+ * a refresh broadcast. Delegating writes to windows proved unreliable on
+ * Android (frozen tabs swallow postMessage until refocused), which is why
+ * v1 notifications stayed stuck at €0.
  */
 
 const PROMPTED_KEY = 'trippilot-outing-notification-prompted';
@@ -48,6 +49,11 @@ export function isOutingNotificationSupported(): boolean {
   );
 }
 
+export function getOutingNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (!isOutingNotificationSupported()) return 'unsupported';
+  return Notification.permission;
+}
+
 export function wasOutingNotificationPrompted(): boolean {
   return localStorage.getItem(PROMPTED_KEY) !== null;
 }
@@ -61,8 +67,11 @@ export async function requestOutingNotificationPermission(): Promise<Notificatio
   return Notification.requestPermission();
 }
 
-function canNotify(): boolean {
-  return isOutingNotificationSupported() && Notification.permission === 'granted';
+/** DEC-124: permission AND the user toggle in Settings must both allow it. */
+async function canNotify(): Promise<boolean> {
+  if (!isOutingNotificationSupported() || Notification.permission !== 'granted') return false;
+  const settings = await appSettingsRepository.get();
+  return settings.outingNotificationEnabled;
 }
 
 async function getReadyRegistration(): Promise<ServiceWorkerRegistration | null> {
@@ -73,15 +82,24 @@ async function getReadyRegistration(): Promise<ServiceWorkerRegistration | null>
   }
 }
 
-function buildStrings(sessionName: string, totalCents: number, currency: string): OutingNotificationStrings {
-  const locale = getActiveIntlLocale();
+function buildStrings(sessionName: string): OutingNotificationStrings {
   return {
     title: i18n.t('outing.notification_title', { name: sessionName }),
-    body: i18n.t('outing.notification_body', { total: formatMoney(totalCents, currency, locale) }),
-    bodyTemplate: i18n.t('outing.notification_body', { total: '{{total}}' }),
+    // Placeholders are kept verbatim — the domain builder interpolates the
+    // first render and the SW re-interpolates on every silent update.
+    bodyNoTarget: i18n.t('outing.notification_body', { total: '{{total}}' }),
+    bodyUnderTarget: i18n.t('outing.notification_body_under', {
+      total: '{{total}}',
+      left: '{{left}}',
+    }),
+    bodyOverTarget: i18n.t('outing.notification_body_over', {
+      total: '{{total}}',
+      over: '{{over}}',
+    }),
+    // `n` (not i18next's reserved `count`) — the SW interpolates {{count}}.
+    drinksToTarget: i18n.t('outing.notification_drinks_left', { n: '{{count}}' }),
     openAction: i18n.t('outing.notification_open'),
     followupTitle: i18n.t('outing.notification_followup_title'),
-    // The SW interpolates {{amount}} when it registers the expense itself.
     followupBodyTemplate: i18n.t('outing.notification_followup_body', { amount: '{{amount}}' }),
   };
 }
@@ -95,7 +113,7 @@ export interface SyncOutingNotificationInput {
 
 /** Shows/updates (same tag, silent) the persistent active-outing notification. */
 export async function syncOutingNotification(input: SyncOutingNotificationInput): Promise<void> {
-  if (!canNotify()) return;
+  if (!(await canNotify())) return;
   const registration = await getReadyRegistration();
   if (!registration) return;
 
@@ -105,7 +123,7 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
     totalCents: input.totalCents,
     currency: input.currency,
     profileCategory: input.profileCategory,
-    strings: buildStrings(input.session.name, input.totalCents, input.currency),
+    strings: buildStrings(input.session.name),
     resolveSubcategoryLabel: (id) => i18n.t(`taxonomy.${id}` as never),
     deviceId: getInstallationId(),
     locale,
@@ -128,39 +146,6 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
     },
   };
   await registration.showNotification(payload.title, options as NotificationOptions);
-}
-
-interface FollowupInput {
-  txId: string;
-  amountCents: number;
-  currency: string;
-  profileCategory: string | null;
-}
-
-/** Second notification: "what was that expense?" with likely subcategories. */
-async function showFollowupNotification(input: FollowupInput): Promise<void> {
-  if (!canNotify()) return;
-  const registration = await getReadyRegistration();
-  if (!registration) return;
-
-  const locale = getActiveIntlLocale();
-  const subActions = pickFollowupSubcategoryIds(input.profileCategory, input.amountCents).map(
-    (id) => ({ action: `sub_${id}`, title: i18n.t(`taxonomy.${id}` as never) as string }),
-  );
-  const options: SwNotificationOptions = {
-    tag: OUTING_FOLLOWUP_TAG,
-    body: i18n.t('outing.notification_followup_body', {
-      amount: formatMoney(input.amountCents, input.currency, locale),
-    }),
-    icon: '/icons/icon-192.png',
-    renotify: false,
-    actions: [...subActions, { action: 'open', title: i18n.t('outing.notification_open') }],
-    data: { kind: 'followup', txId: input.txId },
-  };
-  await registration.showNotification(
-    i18n.t('outing.notification_followup_title'),
-    options as NotificationOptions,
-  );
 }
 
 export async function closeOutingNotifications(): Promise<void> {
@@ -193,60 +178,58 @@ async function getActiveSessionContext(): Promise<{
   return { session, currency: trip.baseCurrency, profileCategory: profile?.category ?? null };
 }
 
-async function handleQuickAddMessage(amountCents: number): Promise<void> {
-  const ctx = await getActiveSessionContext();
-  if (!ctx) return;
-  const tx = await quickAddSessionExpense({
-    session: ctx.session,
-    amountCents,
-    phaseId: ctx.session.phaseId,
-    currency: ctx.currency,
-    profileCategory: ctx.profileCategory,
-  });
-  const sessionTxs = await db.transactions.where('sessionId').equals(ctx.session.id).toArray();
-  await syncOutingNotification({
-    session: ctx.session,
-    totalCents: calculateSessionTotal(sessionTxs),
-    currency: ctx.currency,
-    profileCategory: ctx.profileCategory,
-  });
-  await showFollowupNotification({
-    txId: tx.id,
-    amountCents,
-    currency: ctx.currency,
-    profileCategory: ctx.profileCategory,
-  });
-  window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
-}
-
-async function handleSetSubcategoryMessage(txId: string, subcategoryId: string): Promise<void> {
-  await assignTransactionSubcategory(txId, subcategoryId);
-  window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
+/**
+ * DEC-124: re-shows the notification for whatever session is currently
+ * active. Called on app boot, on tab refocus and when the Settings toggle
+ * turns on — so an active outing ALWAYS has its notification, regardless
+ * of which screen the user lands on.
+ */
+export async function syncActiveOutingNotification(): Promise<void> {
+  try {
+    if (!(await canNotify())) return;
+    const ctx = await getActiveSessionContext();
+    if (!ctx) return;
+    const sessionTxs = await db.transactions.where('sessionId').equals(ctx.session.id).toArray();
+    await syncOutingNotification({
+      session: ctx.session,
+      totalCents: calculateSessionTotal(sessionTxs),
+      currency: ctx.currency,
+      profileCategory: ctx.profileCategory,
+    });
+  } catch {
+    // Notification sync must never break the app flow.
+  }
 }
 
 let bridgeRegistered = false;
 
-/** Listens for SW-delegated notification actions (app window open). */
+/**
+ * Listens for SW broadcasts (data changed by a notification action) and
+ * re-syncs state when the tab returns to the foreground — Android freezes
+ * background tabs, so messages sent meanwhile may only land now.
+ */
 export function registerOutingNotificationBridge(): void {
   if (bridgeRegistered || !('serviceWorker' in navigator)) return;
   bridgeRegistered = true;
+
   navigator.serviceWorker.addEventListener('message', (event) => {
     const data = event.data;
     if (!data || typeof data !== 'object') return;
-    if (data.type === 'OUTING_NOTIFICATION_QUICK_ADD' && typeof data.amountCents === 'number') {
-      handleQuickAddMessage(data.amountCents);
-    } else if (
-      data.type === 'OUTING_NOTIFICATION_SET_SUBCATEGORY' &&
-      typeof data.txId === 'string' &&
-      typeof data.subcategoryId === 'string'
-    ) {
-      handleSetSubcategoryMessage(data.txId, data.subcategoryId);
+    if (data.type === 'OUTING_DATA_CHANGED') {
+      window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
     } else if (
       data.type === 'OUTING_NOTIFICATION_NAVIGATE' &&
       typeof data.url === 'string' &&
       window.location.pathname !== data.url
     ) {
       window.location.assign(data.url);
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
+      syncActiveOutingNotification();
     }
   });
 }

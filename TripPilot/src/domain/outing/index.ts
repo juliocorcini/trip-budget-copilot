@@ -40,6 +40,7 @@ export {
   OUTING_FOLLOWUP_TAG,
   pickNotificationQuickValues,
   pickFollowupSubcategoryIds,
+  buildOutingNotificationBody,
   buildOutingNotificationPayload,
 } from './outing-notification';
 export type {
@@ -47,5 +48,6 @@ export type {
   OutingNotificationStrings,
   OutingNotificationAction,
   OutingFollowupAction,
+  OutingNotificationBodyInput,
   BuildOutingNotificationInput,
 } from './outing-notification';

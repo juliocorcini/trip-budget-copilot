@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trippilot-v6';
+const CACHE_NAME = 'trippilot-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -91,12 +91,16 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ---------------------------------------------------------------------------
-// DEC-120 (R-11): active-outing notification actions.
+// DEC-120 + DEC-124 (R-11 v2): active-outing notification actions.
 //
 // The app embeds everything (labels, amounts, follow-up subcategories,
-// device id) in the notification data. On action click we delegate to an
-// open window when possible (full domain flow); with no window open we
-// fall back to a direct IndexedDB write replicating the app's record shape.
+// body templates, session limits, device id) in the notification data.
+// Action clicks are handled HERE, always: direct IndexedDB write replicating
+// the app's record shape (executable spec: quickAddSessionExpense tests),
+// then the notification re-renders from fresh DB state and every open window
+// receives an OUTING_DATA_CHANGED broadcast. v1 delegated writes to window
+// clients, but Android freezes background tabs and the message only landed
+// on refocus — the notification looked dead (stuck at €0).
 // ---------------------------------------------------------------------------
 
 const DB_NAME = 'TripPilotDB';
@@ -176,6 +180,69 @@ async function focusOrOpen(url) {
   await self.clients.openWindow(url);
 }
 
+/** Tells every open window that notification actions changed the DB. */
+async function broadcastOutingChange() {
+  const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  clientList.forEach((client) => {
+    try {
+      client.postMessage({ type: 'OUTING_DATA_CHANGED' });
+    } catch {
+      // Frozen/dying client — it re-syncs on visibilitychange anyway.
+    }
+  });
+}
+
+/** MIRRORS domain buildOutingNotificationBody — keep both in sync (DEC-124). */
+function buildOutingBodySw(totalCents, data) {
+  const strings = data.strings || {};
+  const fmt = (cents) => formatMoneySw(cents, data.currency, data.locale);
+  const target = typeof data.targetCents === 'number' ? data.targetCents : null;
+  const avgDrink = typeof data.avgDrinkPriceCents === 'number' ? data.avgDrinkPriceCents : null;
+
+  if (target === null || target <= 0) {
+    return (strings.bodyNoTarget || 'Total: {{total}}').replace('{{total}}', fmt(totalCents));
+  }
+  if (totalCents <= target) {
+    const leftCents = target - totalCents;
+    let body = (strings.bodyUnderTarget || '{{total}} / {{left}}')
+      .replace('{{total}}', fmt(totalCents))
+      .replace('{{left}}', fmt(leftCents));
+    if (avgDrink !== null && avgDrink > 0) {
+      const drinks = Math.floor(leftCents / avgDrink);
+      if (drinks > 0 && strings.drinksToTarget) {
+        body += '\n' + strings.drinksToTarget.replace('{{count}}', String(drinks));
+      }
+    }
+    return body;
+  }
+  return (strings.bodyOverTarget || '{{total}} (+{{over}})')
+    .replace('{{total}}', fmt(totalCents))
+    .replace('{{over}}', fmt(totalCents - target));
+}
+
+/** Re-renders the persistent notification from fresh DB state. */
+async function refreshOutingNotification(dbConn, session, data) {
+  const sessionTxs = await idbGetAllByIndex(dbConn, 'transactions', 'sessionId', session.id);
+  const total = personalSessionTotal(sessionTxs);
+  const strings = data.strings || {};
+  const actions = Object.keys(data.amounts || {}).map((actionId) => ({
+    action: actionId,
+    title: '+' + formatMoneySw(data.amounts[actionId], data.currency, data.locale),
+  }));
+  actions.push({ action: 'open', title: strings.openAction || 'Open' });
+  await self.registration.showNotification(strings.title || 'TripPilot', {
+    tag: OUTING_TAG,
+    body: buildOutingBodySw(total, data),
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    silent: true,
+    renotify: false,
+    requireInteraction: true,
+    actions,
+    data,
+  });
+}
+
 /** Mirrors createExpenseTransaction + createSessionItem record shapes. */
 async function swDirectQuickAdd(amountCents, data) {
   const dbConn = await openDb();
@@ -232,25 +299,8 @@ async function swDirectQuickAdd(amountCents, data) {
     await idbPut(dbConn, 'sessionItems', itemRecord);
 
     // Re-show the persistent notification with the new total (silent update).
-    const sessionTxs = await idbGetAllByIndex(dbConn, 'transactions', 'sessionId', session.id);
-    const total = personalSessionTotal(sessionTxs);
     const strings = data.strings || {};
-    const actions = Object.keys(data.amounts || {}).map((actionId) => ({
-      action: actionId,
-      title: '+' + formatMoneySw(data.amounts[actionId], data.currency, data.locale),
-    }));
-    actions.push({ action: 'open', title: strings.openAction || 'Open' });
-    await self.registration.showNotification(strings.title || 'TripPilot', {
-      tag: OUTING_TAG,
-      body: (strings.bodyTemplate || '{{total}}').replace('{{total}}', formatMoneySw(total, data.currency, data.locale)),
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      silent: true,
-      renotify: false,
-      requireInteraction: true,
-      actions,
-      data,
-    });
+    await refreshOutingNotification(dbConn, session, data);
 
     // Follow-up: "what was that expense?" with the precomputed subcategories.
     const followups = (data.followups || {})[String(amountCents)] || [];
@@ -295,34 +345,28 @@ async function handleOutingAction(event) {
   if (data.kind === 'outing' && action && action.indexOf('quick_add_') === 0) {
     const amountCents = (data.amounts || {})[action];
     if (typeof amountCents !== 'number') return;
-    const client = await findWindowClient();
-    if (client) {
-      client.postMessage({ type: 'OUTING_NOTIFICATION_QUICK_ADD', amountCents });
-      return;
+    try {
+      await swDirectQuickAdd(amountCents, data);
+    } finally {
+      await broadcastOutingChange();
     }
-    await swDirectQuickAdd(amountCents, data);
     return;
   }
 
   if (data.kind === 'followup' && action && action.indexOf('sub_') === 0) {
     event.notification.close();
     const subcategoryId = action.slice(4);
-    const client = await findWindowClient();
-    if (client) {
-      client.postMessage({
-        type: 'OUTING_NOTIFICATION_SET_SUBCATEGORY',
-        txId: data.txId,
-        subcategoryId,
-      });
-      return;
+    try {
+      await swDirectSetSubcategory(data.txId, subcategoryId);
+    } finally {
+      await broadcastOutingChange();
     }
-    await swDirectSetSubcategory(data.txId, subcategoryId);
     return;
   }
 
   // Body click or explicit "open" → bring the outing screen up.
   if (data.kind === 'followup') event.notification.close();
-  await focusOrOpen('/outing');
+  await focusOrOpen('/outings/active');
 }
 
 self.addEventListener('notificationclick', (event) => {

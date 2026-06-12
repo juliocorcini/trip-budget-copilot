@@ -26,6 +26,8 @@ export function createDefaultAppSettings(): AppSettings {
     // DEC-119 (R-10): configurable home screen defaults.
     hiddenDashboardCards: [],
     dashboardCardOrder: [],
+    // DEC-124 (R-11 v2): outing notification opt-out lives in Settings.
+    outingNotificationEnabled: true,
   };
 }
 

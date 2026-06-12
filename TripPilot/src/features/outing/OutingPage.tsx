@@ -50,6 +50,7 @@ import {
   wasOutingNotificationPrompted,
   markOutingNotificationPrompted,
   requestOutingNotificationPermission,
+  getOutingNotificationPermission,
   syncOutingNotification,
   closeOutingNotifications,
   OUTING_CHANGED_EVENT,
@@ -179,6 +180,8 @@ export function OutingPage() {
   const [enrich, setEnrich] = useState<EnrichTarget | null>(null);
   // DEC-120 (R-11): one-time notification offer at first session start.
   const [showNotificationOffer, setShowNotificationOffer] = useState(false);
+  // DEC-124 (R-11 v2): browser permission tracked so the banner reacts.
+  const [notifPermission, setNotifPermission] = useState(getOutingNotificationPermission());
 
   // DEC-053(b)/(c) confirmatory gates
   const [pendingOverMaxAdd, setPendingOverMaxAdd] = useState<{
@@ -273,22 +276,42 @@ export function OutingPage() {
   // explanation sheet — never on app boot.
   const maybeOfferNotification = () => {
     if (!isOutingNotificationSupported()) return;
+    if (settings && !settings.outingNotificationEnabled) return;
     if (Notification.permission !== 'default' || wasOutingNotificationPrompted()) return;
     setShowNotificationOffer(true);
+  };
+
+  const syncNotificationNow = async (forSession: Session, txs: Transaction[]) => {
+    if (!trip) return;
+    const profileCategory =
+      profiles.find((p) => p.id === forSession.activityProfileId)?.category ?? null;
+    await syncOutingNotification({
+      session: forSession,
+      totalCents: calculateSessionTotal(txs),
+      currency: trip.baseCurrency,
+      profileCategory,
+    });
   };
 
   const handleAcceptNotifications = async () => {
     setShowNotificationOffer(false);
     const permission = await requestOutingNotificationPermission();
-    if (permission === 'granted' && trip && session) {
-      const profileCategory =
-        profiles.find((p) => p.id === session.activityProfileId)?.category ?? null;
-      await syncOutingNotification({
-        session,
-        totalCents: calculateSessionTotal(sessionTxs),
-        currency: trip.baseCurrency,
-        profileCategory,
-      });
+    setNotifPermission(permission);
+    if (permission === 'granted' && session) {
+      await syncNotificationNow(session, sessionTxs);
+    }
+  };
+
+  // DEC-124 (R-11 v2): always-visible enable shortcut during an active
+  // session — Julio had no way to (re)activate after dismissing the offer.
+  const handleEnableFromBanner = async () => {
+    const permission = await requestOutingNotificationPermission();
+    setNotifPermission(permission);
+    if (permission === 'granted' && session) {
+      await syncNotificationNow(session, sessionTxs);
+      showToast(t('outing.notification_enabled_toast'), 'success');
+    } else {
+      showToast(t('outing.notification_blocked_toast'), 'warning');
     }
   };
 
@@ -900,6 +923,12 @@ export function OutingPage() {
   const sessionIcon =
     sessionProfile?.iconName ?? getCategoryIcon(sessionProfile?.category ?? null);
 
+  // DEC-124: show the enable shortcut whenever the notification CAN'T appear.
+  const showNotificationBanner =
+    notifPermission !== 'unsupported' &&
+    notifPermission !== 'granted' &&
+    settings?.outingNotificationEnabled !== false;
+
   return (
     <>
       <ActiveSession
@@ -919,6 +948,26 @@ export function OutingPage() {
         onDetailItem={(tx) =>
           setEnrich(
             buildEnrichTarget(tx.id, tx.personalCostCents ?? tx.amountCents, session, true),
+          )
+        }
+        notificationBanner={
+          showNotificationBanner && (
+            <button
+              onClick={handleEnableFromBanner}
+              className="btn-press mx-5 mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-left"
+              style={{ background: 'var(--highlight-subtle)', border: '1px dashed var(--border-faint)' }}
+            >
+              <Icon name="notifications_active" size={18} className="text-primary shrink-0" />
+              <span className="flex-1">
+                <span className="block text-xs font-bold text-on-surface">
+                  {t('outing.notification_banner')}
+                </span>
+                <span className="block text-[11px] text-on-surface-faint">
+                  {t('outing.notification_banner_desc')}
+                </span>
+              </span>
+              <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
+            </button>
           )
         }
         enrichStepper={
@@ -1568,11 +1617,13 @@ interface ActiveSessionProps {
   onBack: () => void;
   /** DEC-097 (R-15): re-opens the stepper for an item without subcategory. */
   onDetailItem: (tx: Transaction) => void;
+  /** DEC-124: "enable notification" shortcut slot — rendered under the header. */
+  notificationBanner: React.ReactNode;
   /** Post-add enrichment stepper slot (DEC-078) — rendered above quick-add. */
   enrichStepper: React.ReactNode;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, onDetailItem, enrichStepper }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, onDetailItem, notificationBanner, enrichStepper }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -1704,6 +1755,9 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
           </button>
         </div>
       </div>
+
+      {/* DEC-124: notification enable shortcut (only while permission is missing) */}
+      {notificationBanner}
 
       {/* 2. CENTRAL VALUE */}
       <div className="text-center pt-4 pb-1">

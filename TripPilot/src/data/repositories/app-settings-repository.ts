@@ -11,12 +11,13 @@ class AppSettingsRepository {
       await db.appSettings.add(defaults);
       return defaults;
     }
-    // DEC-119 (R-10): records created before the dashboard-config fields
-    // existed are backfilled in memory (non-indexed — no migration needed).
+    // DEC-119/DEC-124: records created before these non-indexed fields
+    // existed are backfilled in memory (no migration needed).
     return {
       ...settings,
       hiddenDashboardCards: settings.hiddenDashboardCards ?? [],
       dashboardCardOrder: settings.dashboardCardOrder ?? [],
+      outingNotificationEnabled: settings.outingNotificationEnabled ?? true,
     };
   }
 

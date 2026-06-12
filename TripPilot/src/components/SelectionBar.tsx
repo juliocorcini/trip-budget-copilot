@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 
@@ -15,12 +16,16 @@ interface SelectionBarProps {
   onCancel: () => void;
 }
 
-/** DEC-118 (R-09): bottom action bar for list selection mode. */
+/**
+ * DEC-118 (R-09): bottom action bar for list selection mode.
+ * Rendered through a portal so no page/header stacking context can trap it,
+ * and z-[45] so it covers the bottom nav (z-40) while staying below sheets (z-50).
+ */
 export function SelectionBar({ count, actions, onCancel }: SelectionBarProps) {
   const { t } = useTranslation();
-  return (
+  return createPortal(
     <div
-      className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3"
+      className="fixed bottom-0 left-0 right-0 z-[45] min-h-[76px] px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3"
       style={{ background: 'var(--surface-deep)', borderTop: '1px solid var(--border-faint)' }}
     >
       <div className="max-w-[430px] mx-auto flex items-center gap-2">
@@ -53,6 +58,7 @@ export function SelectionBar({ count, actions, onCancel }: SelectionBarProps) {
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

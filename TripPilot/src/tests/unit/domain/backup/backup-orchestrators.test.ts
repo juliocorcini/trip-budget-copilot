@@ -26,6 +26,7 @@ const settings: AppSettings = {
   quickAddDefaultValuesCents: [300, 500, 700, 1000, 1500],
   hiddenDashboardCards: [],
   dashboardCardOrder: [],
+  outingNotificationEnabled: true,
 };
 
 const mkTrip = (): Trip => ({

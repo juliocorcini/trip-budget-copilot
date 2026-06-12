@@ -19,4 +19,6 @@ export interface AppSettings {
   /** DEC-119 (R-10): configurable home screen (non-indexed — no migration). */
   hiddenDashboardCards: string[];
   dashboardCardOrder: string[];
+  /** DEC-124 (R-11 v2): user toggle for the active-outing notification. */
+  outingNotificationEnabled: boolean;
 }

@@ -161,6 +161,36 @@
 - [x] Deploy Cloudflare Pages ✅ — https://trippilot.pages.dev
       (deployment https://771063b5.trippilot.pages.dev, alias master)
 
+## POST-R4 — Field feedback on v0.7.0 (same day, → v0.7.1) ✅
+
+Feedback do Julio em campo sobre R-09/R-11/R-12:
+
+- [x] R-09 fix: SelectionBar aparecia ATRÁS do bottom nav nos Gastos.
+      Causa raiz: z-40 empatado com o nav (nav vence por ordem no DOM) +
+      risco de stacking context. Fix: `createPortal(document.body)` +
+      z-[45] (cobre o nav, abaixo dos sheets z-50) + min-h cobrindo o FAB.
+- [x] R-12 fix: overlay de ajuda ficava atrás do menu inferior em telas
+      com `.page-sticky-header` (sticky + z-30 cria stacking context que
+      PRENDE o overlay interno; nav z-40 pintava por cima). Fix: portal
+      para <body> + z-[80] + card AGORA DRAGGABLE (alça + pointer events,
+      clamp na viewport) para nunca esconder o elemento destacado (DEC-125).
+- [x] R-11 v2 (DEC-124): notificação reescrita single-path —
+      clique de ação SEMPRE grava no IDB pelo SW e re-renderiza a própria
+      notificação de estado fresco + broadcast OUTING_DATA_CHANGED (v1
+      delegava à janela aberta; Android congela tabs em background e o
+      postMessage só chegava no refocus → notificação travada em €0 e
+      gasto "atrasado"). "Abrir" corrigido para /outings/active (rota
+      /outing NÃO existia). Toggle em Configurações
+      (AppSettings.outingNotificationEnabled + status bloqueado/não
+      suportado) + banner "Ativar notificação" na saída ativa enquanto a
+      permissão faltar + re-sync no boot e no visibilitychange. Corpo
+      rico: total vs meta, restante/acima e "≈N bebidas até a meta"
+      (templates embedados no data, SW re-renderiza; espelho documentado
+      buildOutingNotificationBody ↔ buildOutingBodySw). sw.js → v7.
+- [x] i18n +12 chaves ×3 (898 ✅) · 414 unit ✅ · 29 e2e ✅ · build ✅ · tsc ✅
+- [x] Brain: DEC-124 + DEC-125 no decision-log; project-status atualizado
+- [x] Version bump patch → 0.7.1 + deploy
+
 ## Extras found (not fixed)
 
 - (none yet)

@@ -877,6 +877,20 @@
 - **Rationale**: R4 field review: the common real-world case "Ana paid for me" needed an artificial split flow
 - **Alternatives**: Keep payer buried inside split UI (rejected: the simple case is the frequent one)
 
+### DEC-124 — Outing Notification v2: SW Single-Path + Settings Toggle + Rich Body (R-11 follow-up)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: (1) Notification action clicks are handled ENTIRELY by the service worker — direct IndexedDB write (mirroring `quickAddSessionExpense`, whose unit tests are the executable spec) + notification re-render from fresh DB state + `OUTING_DATA_CHANGED` broadcast to open windows. The v1 "delegate to open window" path is removed. (2) New `AppSettings.outingNotificationEnabled` toggle in Settings (status + blocked/unsupported hints) and an inline "enable notification" banner on the active outing screen whenever permission is missing. (3) Notification re-syncs on app boot, on tab refocus (visibilitychange) and on toggle-on — an active outing always has its notification. (4) Rich body: total vs target, remaining (or overshoot) and "≈N drinks until the target", re-rendered by the SW on every update via embedded templates + session limits. (5) Notification "open" goes to `/outings/active` (v1 pointed at a nonexistent `/outing` route)
+- **Rationale**: Field test on Android: the v1 window-delegation path silently dropped postMessage on frozen background tabs — the expense only landed on refocus and the notification stayed stuck at €0 with no follow-up; there was also no way to (re)activate notifications after dismissing the one-time offer
+- **Alternatives**: ACK + timeout fallback keeping the window path (rejected: two code paths, the rarely-exercised one rots; SW-only means the fallback is exercised on every click)
+
+### DEC-125 — Overlays Escape Page Stacking Contexts (portal) + Draggable Help Card (R-09/R-12 follow-up)
+- **Date**: 2026-06-11
+- **Status**: APPROVED
+- **Decision**: `SelectionBar` and the help overlay render through `createPortal(document.body)` — `.page-sticky-header` (position: sticky + z-index: 30) creates a stacking context that trapped any overlay rendered inside it under the bottom nav (z-40). SelectionBar sits at z-45 (covers the nav, below sheets at z-50, min-height covers the FAB notch); the help overlay sits at z-80, above nav and FAB. The help explanation card gains a grab handle and is draggable vertically (pointer events, clamped to the viewport) so it never hides the highlighted element
+- **Rationale**: R4 field feedback: the selection bar appeared under the main bottom menu in Expenses, and the help card was behind the bottom menu on screens with sticky headers, sometimes covering content the user wanted to read
+- **Alternatives**: Raising z-index inside the page tree (rejected: stacking context makes inner z-index irrelevant), fixed top position for the help card (rejected: still covers content; dragging lets the user decide)
+
 ---
 
 *New decisions will be added as the project progresses.*

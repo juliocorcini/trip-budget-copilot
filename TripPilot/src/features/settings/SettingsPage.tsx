@@ -6,6 +6,12 @@ import { appSettingsRepository, walletRepository } from '@/data/repositories';
 import { fromCents, toCents } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
+import {
+  getOutingNotificationPermission,
+  requestOutingNotificationPermission,
+  syncActiveOutingNotification,
+  closeOutingNotifications,
+} from '@/utils/outing-notification';
 import type { AlertTone, ThemePreference } from '@/domain/types/common';
 
 const LANGUAGE_OPTIONS = [
@@ -21,12 +27,36 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { settings, wallets, trip, reload } = useAppData();
   const [quickAddInput, setQuickAddInput] = useState('');
+  // DEC-124: permission is browser state — track it so the section re-renders.
+  const [notifPermission, setNotifPermission] = useState(getOutingNotificationPermission());
 
   if (!settings) return null;
 
   const updateSetting = async (partial: Record<string, unknown>) => {
     await appSettingsRepository.update(partial);
     await reload();
+  };
+
+  // DEC-124 (R-11 v2): the toggle owns the preference; turning it on also
+  // requests browser permission and immediately syncs an active outing.
+  const outingNotifActive =
+    settings.outingNotificationEnabled && notifPermission === 'granted';
+
+  const handleToggleOutingNotification = async () => {
+    if (outingNotifActive) {
+      await updateSetting({ outingNotificationEnabled: false });
+      await closeOutingNotifications();
+      return;
+    }
+    if (!settings.outingNotificationEnabled) {
+      await updateSetting({ outingNotificationEnabled: true });
+    }
+    if (notifPermission !== 'granted') {
+      const permission = await requestOutingNotificationPermission();
+      setNotifPermission(permission);
+      if (permission !== 'granted') return;
+    }
+    await syncActiveOutingNotification();
   };
 
   const handleLanguageChange = async (lang: string) => {
@@ -138,6 +168,31 @@ export function SettingsPage() {
           enabled={settings.vibrationEnabled}
           onChange={() => updateSetting({ vibrationEnabled: !settings.vibrationEnabled })}
         />
+      </Section>
+
+      {/* DEC-124 (R-11 v2): outing notification — discoverable + reactivatable */}
+      <Section title={t('settings.notifications')}>
+        {notifPermission === 'unsupported' ? (
+          <p className="text-sm text-on-surface-dim">
+            {t('settings.outing_notification_unsupported')}
+          </p>
+        ) : (
+          <>
+            <ToggleRow
+              label={t('settings.outing_notification')}
+              enabled={outingNotifActive}
+              onChange={handleToggleOutingNotification}
+            />
+            <p className="text-xs text-on-surface-faint mt-2">
+              {t('settings.outing_notification_hint')}
+            </p>
+            {notifPermission === 'denied' && (
+              <p className="text-xs mt-2" style={{ color: 'var(--error)' }}>
+                {t('settings.outing_notification_blocked')}
+              </p>
+            )}
+          </>
+        )}
       </Section>
 
       {/* DEC-119 (R-10): home screen card order + visibility */}

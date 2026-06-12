@@ -5,16 +5,21 @@ import { router } from './app/router';
 import { ToastHost } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { registerServiceWorker, requestPersistentStorage } from './utils/pwa';
-import { registerOutingNotificationBridge } from './utils/outing-notification';
+import {
+  registerOutingNotificationBridge,
+  syncActiveOutingNotification,
+} from './utils/outing-notification';
 import { appSettingsRepository } from './data/repositories';
 import i18n from './i18n';
 import './styles/globals.css';
 
 registerServiceWorker();
 
-// DEC-120 (R-11): notification action clicks delegated by the SW when a
-// window is open are handled through the full domain flow.
+// DEC-120 + DEC-124 (R-11 v2): SW broadcasts (notification actions wrote to
+// the DB) refresh open pages; on boot an active outing re-shows its
+// notification no matter which screen the user lands on.
 registerOutingNotificationBridge();
+syncActiveOutingNotification();
 
 // DEC-111 (R5-03): ask for durable storage as early as possible — without it
 // the OS may evict IndexedDB and the user genuinely loses everything.

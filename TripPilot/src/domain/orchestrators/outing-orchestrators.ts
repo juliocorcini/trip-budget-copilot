@@ -161,9 +161,11 @@ export interface QuickAddSessionExpenseInput {
 }
 
 /**
- * DEC-120 (R-11): quick-add reachable from outside OutingPage (notification
- * bridge). Creates the expense + session item atomically; the item order is
- * derived inside the transaction so concurrent adds stay consistent.
+ * DEC-120/DEC-124 (R-11): canonical domain twin of the service worker's
+ * direct quick-add (public/sw.js swDirectQuickAdd) — the SW replicates this
+ * record shape 1:1 and these tests are its executable spec. Creates the
+ * expense + session item atomically; the item order is derived inside the
+ * transaction so concurrent adds stay consistent.
  */
 export async function quickAddSessionExpense(
   input: QuickAddSessionExpenseInput,
@@ -194,7 +196,8 @@ export async function quickAddSessionExpense(
 }
 
 /**
- * DEC-120 (R-11): follow-up notification action — "what was that expense?".
+ * DEC-120/DEC-124 (R-11): domain twin of the SW's swDirectSetSubcategory
+ * (follow-up notification action — "what was that expense?").
  */
 export async function assignTransactionSubcategory(
   transactionId: string,

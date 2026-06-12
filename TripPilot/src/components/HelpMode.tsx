@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   getHelpTopics,
@@ -13,6 +14,10 @@ import { Icon } from '@/components/Icon';
  * darkened overlay over the REAL screen; topics are walked one by one,
  * scrolling to and highlighting the actual element (`data-help-anchor`)
  * with the explanation card pinned at the bottom.
+ *
+ * DEC-125: the overlay is portaled to <body> (page sticky headers create
+ * stacking contexts that trapped it under the bottom nav) and the card is
+ * draggable vertically so it never hides what the user wants to look at.
  */
 
 interface HighlightRect {
@@ -22,11 +27,43 @@ interface HighlightRect {
   height: number;
 }
 
+/** Vertical drag for the explanation card (pointer events, clamped to viewport). */
+function useDraggableCard() {
+  const [offsetY, setOffsetY] = useState(0);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; startY: number; baseOffset: number } | null>(null);
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      dragRef.current = { pointerId: e.pointerId, startY: e.clientY, baseOffset: offsetY };
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [offsetY]
+  );
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const cardHeight = cardRef.current?.offsetHeight ?? 200;
+    // 0 = anchored at the bottom; negative values move the card up.
+    const minOffset = -(window.innerHeight - cardHeight - 24);
+    const next = drag.baseOffset + (e.clientY - drag.startY);
+    setOffsetY(Math.min(0, Math.max(minOffset, next)));
+  }, []);
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current?.pointerId === e.pointerId) dragRef.current = null;
+  }, []);
+
+  return { offsetY, cardRef, handleProps: { onPointerDown, onPointerMove, onPointerUp } };
+}
+
 function HelpOverlay({ screenId, onClose }: { screenId: HelpScreenId; onClose: () => void }) {
   const { t } = useTranslation();
   const topics = getHelpTopics(screenId);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<HighlightRect | null>(null);
+  const { offsetY, cardRef, handleProps } = useDraggableCard();
 
   const current = topics[index]!;
 
@@ -65,8 +102,8 @@ function HelpOverlay({ screenId, onClose }: { screenId: HelpScreenId; onClose: (
     };
   }, []);
 
-  return (
-    <div className="fixed inset-0 z-[70]">
+  return createPortal(
+    <div className="fixed inset-0 z-[80]">
       {/* Dimmer — tapping it closes the help mode. When an element is
           highlighted, the ring's spread shadow paints the dim instead
           (it leaves a "hole" over the real element). */}
@@ -87,9 +124,24 @@ function HelpOverlay({ screenId, onClose }: { screenId: HelpScreenId; onClose: (
         />
       )}
 
-      {/* Explanation card */}
-      <div className="absolute bottom-0 left-0 right-0 max-w-[430px] mx-auto p-4 pb-6">
-        <div className="bg-surface-container rounded-2xl p-4 shadow-2xl" style={{ border: '1px solid var(--surface-container-high)' }}>
+      {/* Explanation card — draggable up/down via the grab handle */}
+      <div
+        className="absolute bottom-0 left-0 right-0 max-w-[430px] mx-auto p-4 pb-[calc(env(safe-area-inset-bottom)+16px)]"
+        style={{ transform: `translateY(${offsetY}px)`, transition: 'none' }}
+      >
+        <div
+          ref={cardRef}
+          className="bg-surface-container rounded-2xl p-4 shadow-2xl"
+          style={{ border: '1px solid var(--surface-container-high)' }}
+        >
+          <div
+            {...handleProps}
+            className="flex justify-center -mt-2 mb-1 py-1.5 cursor-grab active:cursor-grabbing"
+            style={{ touchAction: 'none' }}
+            aria-hidden
+          >
+            <div className="w-10 h-1 rounded-full" style={{ background: 'var(--border-faint)' }} />
+          </div>
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <p className="text-sm font-bold text-on-surface">
               {t(getHelpTopicTitleKey(screenId, current.id) as never)}
@@ -130,7 +182,8 @@ function HelpOverlay({ screenId, onClose }: { screenId: HelpScreenId; onClose: (
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
