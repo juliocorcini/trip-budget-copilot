@@ -90,6 +90,12 @@
     "storage_backup_now": "Seus dados podem ser perdidos pelo sistema. Faça backup agora.",
     "storage_install_ios": "Instale o TripPilot na tela inicial para proteger seus dados (Compartilhar → Adicionar à Tela de Início).",
     "hidden_cards_entry": "{{count}} card(s) escondido(s) · Configurar tela inicial",
+    "simple_free_today": "Livre hoje",
+    "simple_no_budget": "Comece registrando",
+    "simple_over_today": "Você passou do limite de hoje",
+    "simple_free_phase": "Livre nesta fase: {{amount}}",
+    "simple_register": "Registrar gasto",
+    "simple_active_outing": "Voltar ao rolê em andamento",
     "hide_card": "Esconder card",
     "configure_home": "Configurar tela inicial",
     "configure_home_entry": "Ordem e visibilidade dos cards",
@@ -378,6 +384,11 @@
   },
   "settings": {
     "title": "Configurações",
+    "mode_title": "Modo do app",
+    "mode_simple": "Simples",
+    "mode_complete": "Completo",
+    "mode_simple_hint": "Mostra só o essencial — quanto sobra hoje e registrar gastos. Recursos avançados ficam escondidos.",
+    "mode_complete_hint": "Mostra tudo: planejamento, rolês, simulador e todos os cards da tela inicial.",
     "alert_tone": "Tom de alerta",
     "notifications": "Notificações",
     "outing_notification": "Notificação da saída ativa",
@@ -750,6 +761,12 @@
     "boundary_persistent_message": "Detectamos várias falhas seguidas. Limpe o cache e recarregue, ou exporte seus dados como backup de emergência.",
     "boundary_clear_cache": "Limpar cache e recarregar",
     "boundary_export": "Exportar dados"
+  },
+  "mode_guard": {
+    "title": "Recurso avançado",
+    "body": "Este recurso fica escondido no modo simples. Você pode abrir mesmo assim ou ativar o modo completo nos ajustes.",
+    "open_anyway": "Abrir mesmo assim",
+    "go_settings": "Ir para os ajustes"
   },
   "common": {
     "save": "Salvar",

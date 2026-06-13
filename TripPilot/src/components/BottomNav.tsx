@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { Icon } from './Icon';
 import { FABMenu } from './FAB';
+import { useAppData } from '@/hooks/useAppData';
+import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 
-interface NavItem {
+interface NavItem extends ModeAware {
   path: string;
   icon: string;
   labelKey: string;
@@ -16,7 +18,7 @@ const LEFT_NAV: NavItem[] = [
 ];
 
 const RIGHT_NAV: NavItem[] = [
-  { path: '/planner', icon: 'tune', labelKey: 'nav.plan' },
+  { path: '/planner', icon: 'tune', labelKey: 'nav.plan', advanced: true },
   { path: '/more', icon: 'more_horiz', labelKey: 'nav.more' },
 ];
 
@@ -25,6 +27,10 @@ export function BottomNav() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { settings } = useAppData();
+  // M19: planner (advanced) is hidden in simple mode; its route still exists.
+  const appMode = settings?.appMode ?? 'complete';
+  const rightNav = visibleInMode(RIGHT_NAV, appMode);
 
   const renderNavItem = (item: NavItem) => {
     const isActive = location.pathname.startsWith(item.path);
@@ -84,7 +90,7 @@ export function BottomNav() {
             </button>
           </div>
 
-          {RIGHT_NAV.map(renderNavItem)}
+          {rightNav.map(renderNavItem)}
         </div>
       </nav>
     </>

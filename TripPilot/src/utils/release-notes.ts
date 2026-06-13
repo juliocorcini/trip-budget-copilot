@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.2',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Modo Simples chegou: tela inicial enxuta com "livre hoje" e um botão para registrar.',
+        'Menos é mais: planejamento, rolês e simulador ficam escondidos (e voltam quando você quiser).',
+        'Troque entre Simples e Completo a qualquer momento nos Ajustes.',
+      ],
+      en: [
+        'Simple mode is here: a lean home with "free today" and one button to log.',
+        'Less is more: planning, outings and simulator stay hidden (and come back when you want).',
+        'Switch between Simple and Complete anytime in Settings.',
+      ],
+      es: [
+        'Llegó el Modo Simple: pantalla de inicio mínima con "libre hoy" y un botón para registrar.',
+        'Menos es más: planificación, salidas y simulador quedan ocultos (y vuelven cuando quieras).',
+        'Cambia entre Simple y Completo cuando quieras en Ajustes.',
+      ],
+    },
+  },
+  {
     version: '0.9.1',
     date: '2026-06-13',
     items: {

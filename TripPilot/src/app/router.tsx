@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { AppShell } from './AppShell';
 import { RootLayout } from './RootLayout';
+import { ModeGuard } from '@/components/ModeGuard';
 
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const ExpenseListPage = lazy(() => import('@/features/expenses/ExpenseListPage').then(m => ({ default: m.ExpenseListPage })));
@@ -57,7 +58,7 @@ export const router = createBrowserRouter([
           { path: '/expenses', element: <LazyRoute><ExpenseListPage /></LazyRoute> },
           { path: '/expenses/:id', element: <LazyRoute><ExpenseDetailPage /></LazyRoute> },
           { path: '/outings/:id/review', element: <LazyRoute><OutingReviewPage /></LazyRoute> },
-          { path: '/planner', element: <LazyRoute><PlannerPage /></LazyRoute> },
+          { path: '/planner', element: <LazyRoute><ModeGuard><PlannerPage /></ModeGuard></LazyRoute> },
           { path: '/more', element: <LazyRoute><MorePage /></LazyRoute> },
           { path: '/settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
           { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
@@ -77,9 +78,9 @@ export const router = createBrowserRouter([
       { path: '/welcome', element: <LazyRoute><WelcomePage /></LazyRoute> },
       { path: '/onboarding', element: <LazyRoute><OnboardingPage /></LazyRoute> },
       { path: '/quick-add', element: <LazyRoute><QuickAddPage /></LazyRoute> },
-      { path: '/outings/new', element: <LazyRoute><OutingPage /></LazyRoute> },
-      { path: '/outings/active', element: <LazyRoute><OutingPage /></LazyRoute> },
-      { path: '/simulator', element: <LazyRoute><SimulatorPage /></LazyRoute> },
+      { path: '/outings/new', element: <LazyRoute><ModeGuard><OutingPage /></ModeGuard></LazyRoute> },
+      { path: '/outings/active', element: <LazyRoute><ModeGuard><OutingPage /></ModeGuard></LazyRoute> },
+      { path: '/simulator', element: <LazyRoute><ModeGuard><SimulatorPage /></ModeGuard></LazyRoute> },
       { path: '/rescue', element: <LazyRoute><RescuePage /></LazyRoute> },
       { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
     ],

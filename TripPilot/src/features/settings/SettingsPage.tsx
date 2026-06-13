@@ -16,7 +16,7 @@ import {
 import { checkForAppUpdate } from '@/utils/pwa';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { APP_VERSION } from '@/utils/app-version';
-import type { AlertTone, ThemePreference } from '@/domain/types/common';
+import type { AlertTone, AppMode, ThemePreference } from '@/domain/types/common';
 
 const LANGUAGE_OPTIONS = [
   { key: 'pt-BR', label: 'Português (BR)' },
@@ -142,6 +142,26 @@ export function SettingsPage() {
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('settings.title')}</h1>
       </div>
+
+      {/* M21: app mode — simple hides advanced surfaces; complete shows all */}
+      <Section title={t('settings.mode_title')}>
+        <div className="flex gap-2">
+          {(['simple', 'complete'] as AppMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => updateSetting({ appMode: m })}
+              className={`flex-1 py-2 rounded-xl text-xs font-medium btn-press ${
+                settings.appMode === m ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {t(`settings.mode_${m}`)}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-on-surface-faint mt-2">
+          {t(settings.appMode === 'simple' ? 'settings.mode_simple_hint' : 'settings.mode_complete_hint')}
+        </p>
+      </Section>
 
       <Section title={t('settings.alert_tone')}>
         <div className="flex gap-2">

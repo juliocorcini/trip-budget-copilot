@@ -17,6 +17,7 @@ import type { DashboardInsight } from '@/domain/insights';
 import { useDashboardModel } from './useDashboardModel';
 import { DashboardCards } from './DashboardCards';
 import { DashboardSheets } from './DashboardSheets';
+import { SimpleHome } from './SimpleHome';
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -117,6 +118,8 @@ export function DashboardPage() {
 
   const { activePhase, dayNum } = model;
   const hiddenCardCount = (settings.hiddenDashboardCards ?? []).length;
+  // M18: simple mode shows a lean home (one number + register) instead of cards.
+  const isSimpleMode = settings.appMode === 'simple';
 
   return (
     <div className="flex flex-col pb-6">
@@ -218,32 +221,39 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* DEC-119 (R-10): configurable home screen — order + visibility */}
-      <DashboardCards
-        model={model}
-        trip={trip}
-        settings={settings}
-        heatmapMonth={heatmapMonth}
-        setHeatmapMonth={setHeatmapMonth}
-        onOpenConfirmSheet={() => setConfirmSheetOpen(true)}
-        onConfigCard={setConfigCardId}
-        onPostponeEvent={handlePostponeEvent}
-        onInsightTap={handleInsightTap}
-        onSelectHeatmapDay={setHeatmapDayIso}
-      />
+      {/* M18: simple = lean home; complete = the full configurable card stack */}
+      {isSimpleMode ? (
+        <SimpleHome model={model} trip={trip} />
+      ) : (
+        <>
+          {/* DEC-119 (R-10): configurable home screen — order + visibility */}
+          <DashboardCards
+            model={model}
+            trip={trip}
+            settings={settings}
+            heatmapMonth={heatmapMonth}
+            setHeatmapMonth={setHeatmapMonth}
+            onOpenConfirmSheet={() => setConfirmSheetOpen(true)}
+            onConfigCard={setConfigCardId}
+            onPostponeEvent={handlePostponeEvent}
+            onInsightTap={handleInsightTap}
+            onSelectHeatmapDay={setHeatmapDayIso}
+          />
 
-      {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}
-      {hiddenCardCount > 0 && (
-        <button
-          onClick={() => navigate('/settings/dashboard')}
-          className="mt-5 w-full py-2.5 rounded-xl flex items-center justify-center gap-2 btn-press"
-          style={{ background: 'var(--surface-container)', border: '1px dashed var(--border-faint)' }}
-        >
-          <Icon name="visibility_off" size={14} className="text-on-surface-faint" />
-          <span className="text-xs font-semibold text-on-surface-dim">
-            {t('dashboard.hidden_cards_entry', { count: hiddenCardCount })}
-          </span>
-        </button>
+          {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}
+          {hiddenCardCount > 0 && (
+            <button
+              onClick={() => navigate('/settings/dashboard')}
+              className="mt-5 w-full py-2.5 rounded-xl flex items-center justify-center gap-2 btn-press"
+              style={{ background: 'var(--surface-container)', border: '1px dashed var(--border-faint)' }}
+            >
+              <Icon name="visibility_off" size={14} className="text-on-surface-faint" />
+              <span className="text-xs font-semibold text-on-surface-dim">
+                {t('dashboard.hidden_cards_entry', { count: hiddenCardCount })}
+              </span>
+            </button>
+          )}
+        </>
       )}
 
       <DashboardSheets

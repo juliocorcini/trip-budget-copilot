@@ -1,13 +1,14 @@
 # Pacote 1 — Captura + Saída v2 + Modo Simples — Log
 
 ## Current State
-- Fase: FASE 2 (GATE 4 ✅) | Gate: 5 (próximo) | Milestone: M18 | Done: 17/26 | Tests: 600 (baseline 504, +96) | Versão: 0.9.1 | Último deploy: 58f5a182.trippilot.pages.dev | Build: ✅
+- Fase: FASE 2 (GATE 5 ✅) | Gate: 6 (próximo) | Milestone: M22 | Done: 21/26 | Tests: 608 (baseline 504, +104) | Versão: 0.9.2 | Último deploy: 6e0f64ce.trippilot.pages.dev | Build: ✅
 
 ## HANDOFF Fase 2 (para retomar em chat novo)
 - Fase 1 (captura + saída v2 + extras) commitada/deployada até 0.9.0 (d71d7ae).
 - GATE 4 (fundação do modo) feito: appMode existe, onboarding 1-pergunta + escolha de modo, presets de viagem.
-- PRÓXIMO = GATE 5 (UI do modo): M18 dashboard simples, M19 nav mode-aware, M20 guardas de rota, M21 toggle em Settings → 0.9.2.
-- Para retomar: chat novo → "Leia phase-1-2-log.md + o pacote e execute do GATE 5".
+- GATE 5 (UI do modo) feito: dashboard simples (SimpleHome), nav/FAB mode-aware, ModeGuard nas rotas avançadas, toggle em Settings.
+- PRÓXIMO = GATE 6 (FASE 2 COMPLETA): M22 revelação adaptativa, M23 microcopy/empty states, M24 i18n Fase 2, M25 testes (≥12) → 0.10.0.
+- Para retomar: chat novo → "Leia phase-1-2-log.md + o pacote e execute do GATE 6".
 
 ## Baseline (GATE 0)
 - `npm run test` → 504 passed (64 files)
@@ -24,6 +25,7 @@
 - 0.8.5 (GATE 2) → https://e0c0c95f.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.9.0 (GATE 3, FASE 1 completa) → https://a2ceefe4.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.9.1 (GATE 4, fundação modo) → https://58f5a182.trippilot.pages.dev (alias master.trippilot.pages.dev)
+- 0.9.2 (GATE 5, UI do modo) → https://6e0f64ce.trippilot.pages.dev (alias master.trippilot.pages.dev)
 
 ## GATE 0 — Baseline + Novidades + pipeline (0.8.3) ✅
 - [x] Baseline: test 504 / tsc 0 / build ok
@@ -70,11 +72,15 @@
   - trip-presets.ts separado de profile-presets.ts (presets de VIAGEM ≠ presets de ATIVIDADE) p/ não misturar responsabilidades. Preset é opcional/sugestão (ÂNCORA 10 — nada forçado).
   - appMode NÃO entra no merge de import de backup (preferência local do aparelho; só activeTrip/onboardingCompleted são mesclados, como já era).
   - +16 testes (3 appMode + 9 presets + 4 quick-onboarding). Total 600.
-### GATE 5 — UI do modo (0.9.2)
-- [ ] M18 Dashboard simples
-- [ ] M19 Nav mode-aware
-- [ ] M20 Guardas de rota
-- [ ] M21 Toggle "mudar de modo" em Settings
+### GATE 5 — UI do modo (0.9.2) ✅
+- [x] M18 Dashboard simples — SimpleHome.tsx ("livre hoje" + botão registrar + atalho rolê ativo); DashboardPage ramifica por appMode (reusa o model, sem recalcular)
+- [x] M19 Nav mode-aware — BottomNav esconde Planner; FAB esconde Saída + Simulador (flag `advanced` data-driven + visibleInMode)
+- [x] M20 Guardas de rota — ModeGuard nas rotas avançadas (/planner, /outings/new, /outings/active, /simulator); interstitial com "abrir mesmo assim" (override por visita, não muda preferência) + "ir para ajustes"
+- [x] M21 Toggle em Settings — seção "Modo do app" (Simples/Completo) com hint do modo ativo
+- Decisões GATE 5:
+  - domain/app-mode/mode-visibility.ts: helpers puros `visibleInMode` (filtra `advanced` no simples) + `isAdvancedRouteBlocked` (simples && !override). Reusado por nav, FAB e guard (3 call sites → módulo compartilhado justificado).
+  - Simples ESCONDE, nunca remove (ÂNCORA 9): rotas seguem existindo; guard tem escape hatch por visita sem gravar preferência (ÂNCORA 11). Review de saída (/outings/:id/review) fica fora do guard (ver dado existente é ok no simples).
+  - SimpleHome usa freeTodayCents do model (mesma matemática do dashboard completo). +8 testes (mode-visibility). Total 608.
 ### GATE 6 — Adaptativo + polish + i18n + testes → FASE 2 COMPLETA (0.10.0)
 - [ ] M22 Revelação adaptativa
 - [ ] M23 Empty states/microcopy

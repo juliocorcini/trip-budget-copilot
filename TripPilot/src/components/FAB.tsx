@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from './Icon';
+import { useAppData } from '@/hooks/useAppData';
+import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 
-interface FabAction {
+interface FabAction extends ModeAware {
   icon: string;
   labelKey: string;
   descKey: string;
@@ -30,6 +32,7 @@ const FAB_ACTIONS: FabAction[] = [
     itemBg: 'var(--surface-container)',
     iconBg: '#C75B3918',
     iconColorClass: 'text-primary',
+    advanced: true,
   },
   {
     icon: 'calculate',
@@ -39,6 +42,7 @@ const FAB_ACTIONS: FabAction[] = [
     itemBg: 'var(--surface-container)',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
+    advanced: true,
   },
   {
     icon: 'shopping_cart',
@@ -77,8 +81,13 @@ interface FABMenuProps {
 export function FABMenu({ isOpen, onClose }: FABMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { settings } = useAppData();
 
   if (!isOpen) return null;
+
+  // M19: simple mode keeps only the capture actions; advanced ones stay
+  // reachable via their full pages (ÂNCORA 9 — hide, never delete).
+  const actions = visibleInMode(FAB_ACTIONS, settings?.appMode ?? 'complete');
 
   const handleAction = (path: string) => {
     onClose();
@@ -95,7 +104,7 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
             {t('fab.quick_actions')}
           </p>
 
-          {FAB_ACTIONS.map((action) => (
+          {actions.map((action) => (
             <button
               key={action.path}
               onClick={(e) => {

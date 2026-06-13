@@ -90,6 +90,12 @@
     "storage_backup_now": "Your data may be lost by the system. Back it up now.",
     "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen).",
     "hidden_cards_entry": "{{count}} hidden card(s) · Configure home screen",
+    "simple_free_today": "Free today",
+    "simple_no_budget": "Start by logging",
+    "simple_over_today": "You went over today's limit",
+    "simple_free_phase": "Free this phase: {{amount}}",
+    "simple_register": "Log expense",
+    "simple_active_outing": "Back to the active outing",
     "hide_card": "Hide card",
     "configure_home": "Configure home screen",
     "configure_home_entry": "Card order and visibility",
@@ -378,6 +384,11 @@
   },
   "settings": {
     "title": "Settings",
+    "mode_title": "App mode",
+    "mode_simple": "Simple",
+    "mode_complete": "Complete",
+    "mode_simple_hint": "Shows only the essentials — what's free today and logging expenses. Advanced features stay hidden.",
+    "mode_complete_hint": "Shows everything: planning, outings, simulator and all home screen cards.",
     "alert_tone": "Alert tone",
     "notifications": "Notifications",
     "outing_notification": "Active outing notification",
@@ -750,6 +761,12 @@
     "boundary_persistent_message": "We detected several crashes in a row. Clear the cache and reload, or export your data as an emergency backup.",
     "boundary_clear_cache": "Clear cache and reload",
     "boundary_export": "Export data"
+  },
+  "mode_guard": {
+    "title": "Advanced feature",
+    "body": "This feature is hidden in simple mode. You can open it anyway or switch to complete mode in settings.",
+    "open_anyway": "Open anyway",
+    "go_settings": "Go to settings"
   },
   "common": {
     "save": "Save",

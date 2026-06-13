@@ -90,6 +90,12 @@
     "storage_backup_now": "El sistema puede borrar tus datos. Haz una copia ahora.",
     "storage_install_ios": "Instala TripPilot en la pantalla de inicio para proteger tus datos (Compartir → Añadir a pantalla de inicio).",
     "hidden_cards_entry": "{{count}} card(s) oculto(s) · Configurar pantalla de inicio",
+    "simple_free_today": "Libre hoy",
+    "simple_no_budget": "Empieza registrando",
+    "simple_over_today": "Pasaste el límite de hoy",
+    "simple_free_phase": "Libre en esta fase: {{amount}}",
+    "simple_register": "Registrar gasto",
+    "simple_active_outing": "Volver a la salida activa",
     "hide_card": "Ocultar card",
     "configure_home": "Configurar pantalla de inicio",
     "configure_home_entry": "Orden y visibilidad de los cards",
@@ -378,6 +384,11 @@
   },
   "settings": {
     "title": "Configuración",
+    "mode_title": "Modo de la app",
+    "mode_simple": "Simple",
+    "mode_complete": "Completo",
+    "mode_simple_hint": "Muestra solo lo esencial: cuánto queda hoy y registrar gastos. Las funciones avanzadas quedan ocultas.",
+    "mode_complete_hint": "Muestra todo: planificación, salidas, simulador y todas las cards de la pantalla de inicio.",
     "alert_tone": "Tono de alerta",
     "notifications": "Notificaciones",
     "outing_notification": "Notificación de la salida activa",
@@ -750,6 +761,12 @@
     "boundary_persistent_message": "Detectamos varios fallos seguidos. Limpia la caché y recarga, o exporta tus datos como copia de emergencia.",
     "boundary_clear_cache": "Limpiar caché y recargar",
     "boundary_export": "Exportar datos"
+  },
+  "mode_guard": {
+    "title": "Función avanzada",
+    "body": "Esta función está oculta en el modo simple. Puedes abrirla igual o activar el modo completo en ajustes.",
+    "open_anyway": "Abrir igual",
+    "go_settings": "Ir a ajustes"
   },
   "common": {
     "save": "Guardar",
