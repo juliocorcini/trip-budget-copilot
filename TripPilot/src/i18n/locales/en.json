@@ -925,6 +925,11 @@
     "body": "Your data was NOT deleted — the local database just failed to respond. Close other tabs of the app and try again.",
     "retry": "Try again"
   },
+  "recovery": {
+    "title": "We found your trip",
+    "body": "Your data is still saved on this device. Pick the trip to continue where you left off.",
+    "start_fresh": "Start a new trip"
+  },
   "selection": {
     "count": "{{count}} selected",
     "action_delete": "Delete",

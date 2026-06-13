@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase, getDaysRemaining, formatDate } from '@/domain/dates';
 import { calculateFreeToSpend, buildRescuePlan, type RescueOccasionInput } from '@/domain/budget';
@@ -10,6 +10,8 @@ import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { toCents, fromCents, formatMoney } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import {
   activityProfileRepository,
   scenarioPlanRepository,
@@ -36,7 +38,7 @@ function formatWholeMoney(cents: number, currency: string): string {
 export function RescuePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, loading, error, retry } = useAppData();
 
   const [amount, setAmount] = useState('');
   const [remainingOccasions, setRemainingOccasions] = useState<RescueOccasionInput[]>([]);
@@ -97,7 +99,13 @@ export function RescuePage() {
         )
       : null;
 
-  if (!trip) return null;
+  // BUG-014: never blank out on a DB error — offer recovery instead of a
+  // white screen, and only go to onboarding when there is genuinely no trip.
+  if (!trip) {
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <LoadingScreen />;
+    return <Navigate to="/welcome" replace />;
+  }
   const currency = trip.baseCurrency;
 
   const remainingDays = activePhase ? getDaysRemaining(activePhase.endDate) + 1 : 0;

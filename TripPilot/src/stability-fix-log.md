@@ -1,7 +1,7 @@
 # Stability Fix Log
 
 ## Current State
-- Gate: 0 | Bug: — | Fixed: 0/20 | Tests: 460 | Build: ✅ (index 635 KB warning)
+- Gate: 1 done | Bug: — | Fixed: 5/20 | Tests: 473 (+13) | Build: ✅ (index 635 KB warning)
 
 ## Gate 0 — Baseline
 - [x] Node 22.22.3
@@ -10,12 +10,14 @@
 - [x] npm run build → ok (index 635 KB chunk warning noted)
 - [x] State file created
 
-## Gate 1 — Boot/Onboarding (P0)
-- [ ] BUG-001 start_url + WelcomePage redirect/boot guard + recovery screen
-- [ ] BUG-003 appSettings.get() non-destructive + update() guard
-- [ ] BUG-004 TripOverview/TripEdit/Wallets check error → DataErrorScreen
-- [ ] BUG-009 no navigate() in render body (declarative <Navigate>)
-- [ ] BUG-014 Rescue/Simulator/SharedExpenses/Outing error+loading guards
+## Gate 1 — Boot/Onboarding (P0) ✅
+- [x] BUG-001 BootGate guard on `/` + WelcomePage redirect + TripRecoveryScreen
+- [x] BUG-003 appSettings.get() non-destructive + update() self-heals null
+- [x] BUG-004 TripOverview/TripEdit/Wallets: error → DataErrorScreen, declarative Navigate
+- [x] BUG-009 declarative <Navigate> in Dashboard + 3 pages (no navigate() in render)
+- [x] BUG-014 Rescue/Simulator/SharedExpenses/Outing error+loading+Navigate guards
+- New components: BootGate, TripRecoveryScreen, LoadingScreen. i18n: recovery.* ×3.
+- New tests: app-settings-repository.test.ts (5), boot-recovery.test.tsx (8) = +13 → 473.
 
 ## Gate 2 — Safety net
 - [ ] BUG-005 safeLocalStorage helper + getDeviceId

@@ -11,6 +11,7 @@ const MorePage = lazy(() => import('@/features/more/MorePage').then(m => ({ defa
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const BackupPage = lazy(() => import('@/features/backup/BackupPage').then(m => ({ default: m.BackupPage })));
 const DashboardConfigPage = lazy(() => import('@/features/settings/DashboardConfigPage').then(m => ({ default: m.DashboardConfigPage })));
+const BootGate = lazy(() => import('@/features/onboarding/BootGate').then(m => ({ default: m.BootGate })));
 const WelcomePage = lazy(() => import('@/features/onboarding/WelcomePage').then(m => ({ default: m.WelcomePage })));
 const OnboardingPage = lazy(() => import('@/features/onboarding/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 const SharedExpensesPage = lazy(() => import('@/features/shared/SharedExpensesPage').then(m => ({ default: m.SharedExpensesPage })));
@@ -72,7 +73,7 @@ export const router = createBrowserRouter([
           { path: '/impact', element: <LazyRoute><ImpactDetailPage /></LazyRoute> },
         ],
       },
-      { path: '/', element: <LazyRoute><WelcomePage /></LazyRoute> },
+      { path: '/', element: <LazyRoute><BootGate /></LazyRoute> },
       { path: '/welcome', element: <LazyRoute><WelcomePage /></LazyRoute> },
       { path: '/onboarding', element: <LazyRoute><OnboardingPage /></LazyRoute> },
       { path: '/quick-add', element: <LazyRoute><QuickAddPage /></LazyRoute> },

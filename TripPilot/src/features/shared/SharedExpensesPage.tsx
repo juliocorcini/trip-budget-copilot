@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   calculateDebts,
@@ -21,6 +21,8 @@ import { participantShareRepository } from '@/data/repositories/participant-shar
 import { settlementRepository } from '@/data/repositories/settlement-repository';
 import { participantRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
@@ -45,7 +47,7 @@ import { MirroredStatementsSection } from './MirroredStatementsSection';
 export function SharedExpensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, transactions, participants, settings, reload } = useAppData();
+  const { trip, transactions, participants, settings, loading, error, retry, reload } = useAppData();
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
@@ -191,7 +193,12 @@ export function SharedExpensesPage() {
     }
   };
 
-  if (!trip) return null;
+  // BUG-014: recovery on DB error instead of a blank page.
+  if (!trip) {
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <LoadingScreen />;
+    return <Navigate to="/welcome" replace />;
+  }
 
   const balances = debtSummary ? calculateParticipantBalances(debtSummary.debts) : new Map<string, number>();
 

@@ -925,6 +925,11 @@
     "body": "Tus datos NO fueron borrados — la base local simplemente no respondió. Cierra otras pestañas de la app e inténtalo de nuevo.",
     "retry": "Intentar de nuevo"
   },
+  "recovery": {
+    "title": "Encontramos tu viaje",
+    "body": "Tus datos siguen guardados en este dispositivo. Elige el viaje para continuar donde lo dejaste.",
+    "start_fresh": "Empezar un viaje nuevo"
+  },
   "selection": {
     "count": "{{count}} seleccionados",
     "action_delete": "Eliminar",

@@ -925,6 +925,11 @@
     "body": "Seus dados NÃO foram apagados — o banco local apenas não respondeu. Feche outras abas do app e tente de novo.",
     "retry": "Tentar novamente"
   },
+  "recovery": {
+    "title": "Encontramos sua viagem",
+    "body": "Seus dados continuam salvos neste aparelho. Escolha a viagem para continuar de onde parou.",
+    "start_fresh": "Começar uma viagem nova"
+  },
   "selection": {
     "count": "{{count}} selecionados",
     "action_delete": "Excluir",

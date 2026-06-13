@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { calculateWalletBalance, calculateCashReconciliation } from '@/domain/wallets';
 import { resolveActivePhase } from '@/domain/dates';
@@ -13,6 +13,7 @@ import { HelpButton } from '@/components/HelpMode';
 import type { Wallet } from '@/domain/types/wallet';
 import type { WalletType, TransactionCategory } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 
@@ -24,7 +25,7 @@ const WALLET_TYPES: WalletType[] = ['cash', 'digital', 'debit_card', 'credit_car
 export function WalletsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, wallets, transactions, loading, reload } = useAppData();
+  const { trip, phases, pools, wallets, transactions, loading, error, retry, reload } = useAppData();
 
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
@@ -106,13 +107,12 @@ export function WalletsPage() {
     await reload();
   };
 
-  if (loading) {
-    return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
-  }
-
+  // BUG-004/009/014: a failed DB read must never bounce to the destructive
+  // onboarding flow — show recovery, keep valid data through a reload.
   if (!trip) {
-    navigate('/welcome');
-    return null;
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
+    return <Navigate to="/welcome" replace />;
   }
 
   return (

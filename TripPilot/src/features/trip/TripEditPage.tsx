@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import { useAppData } from '@/hooks/useAppData';
 import { sortPhasesByOrder } from '@/domain/dates';
@@ -33,6 +33,7 @@ import {
 } from '@/domain/profiles';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import { HelpButton } from '@/components/HelpMode';
@@ -58,7 +59,7 @@ export function TripEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { trip, phases, pools, links, occurrences, loading, reload } = useAppData();
+  const { trip, phases, pools, links, occurrences, loading, error, retry, reload } = useAppData();
 
   const [tripName, setTripName] = useState('');
   const [tripStart, setTripStart] = useState('');
@@ -392,13 +393,12 @@ export function TripEditPage() {
     }
   };
 
-  if (loading) {
-    return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
-  }
-
+  // BUG-004/009/014: never treat a DB read error as "no trip" (that would
+  // redirect to the destructive onboarding flow). Keep valid data on reload.
   if (!trip) {
-    navigate('/welcome');
-    return null;
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
+    return <Navigate to="/welcome" replace />;
   }
 
   const linkablePools = pools.filter((p) => p.scope === 'linked_phases');

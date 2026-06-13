@@ -11,7 +11,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import { getActiveDecimalSeparator } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useNotifications } from '@/hooks/useNotifications';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
@@ -399,9 +399,10 @@ export function DashboardPage() {
     return <DataErrorScreen onRetry={retry} />;
   }
 
+  // BUG-009: declarative redirect — calling navigate() during render triggers
+  // React's "cannot update a component while rendering" warning under React 19.
   if (!trip || !settings?.onboardingCompleted) {
-    navigate('/welcome');
-    return null;
+    return <Navigate to="/welcome" replace />;
   }
 
   const activePhase = resolveActivePhase(phases);

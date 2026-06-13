@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   createSession,
@@ -69,6 +69,8 @@ import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { ShareType } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { HelpButton } from '@/components/HelpMode';
 import { showToast, type ToastVariant } from '@/components/Toast';
@@ -162,7 +164,7 @@ export function OutingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, wallets, participants, settings, reload: reloadAppData } = useAppData();
+  const { trip, phases, pools, wallets, participants, settings, loading, error, retry, reload: reloadAppData } = useAppData();
 
   const [session, setSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
@@ -784,7 +786,15 @@ export function OutingPage() {
     navigate('/dashboard');
   };
 
-  if (!trip || !settings) return null;
+  // BUG-014: an active outing must survive a transient DB error. While trip
+  // data is present we keep rendering the session (a background reload failure
+  // never tears it down); only when there is no trip do we branch — recovery
+  // on error, never a blank screen or destructive onboarding redirect.
+  if (!trip || !settings) {
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <LoadingScreen />;
+    return <Navigate to="/welcome" replace />;
+  }
 
   if (session && reviewing) {
     return (

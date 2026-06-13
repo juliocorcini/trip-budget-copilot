@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
@@ -21,6 +21,8 @@ import { toCents, fromCents, formatMoney } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import {
   activityProfileRepository,
   scenarioPlanRepository,
@@ -57,7 +59,7 @@ export function SimulatorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, loading, error, retry } = useAppData();
 
   const [amount, setAmount] = useState(() => {
     const prefill = searchParams.get('amount');
@@ -174,7 +176,12 @@ export function SimulatorPage() {
         })
       : null;
 
-  if (!trip) return null;
+  // BUG-014: recovery screen on DB error instead of a blank page.
+  if (!trip) {
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <LoadingScreen />;
+    return <Navigate to="/welcome" replace />;
+  }
 
   const currency = trip.baseCurrency;
 

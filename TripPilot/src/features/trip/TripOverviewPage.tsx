@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase, formatDate, sortPhasesByOrder, findActivePhase, getDayNumber, getTotalDays } from '@/domain/dates';
 import { calculateTotalBudget, calculateTotalSpent, createPoolSummary } from '@/domain/budget';
@@ -9,21 +9,22 @@ import { buildShareCardStats } from '@/domain/sharing';
 import { formatMoney } from '@/domain/money';
 import { renderShareCard, deliverShareCard } from '@/utils/share-card';
 import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { showToast } from '@/components/Toast';
 
 export function TripOverviewPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, transactions, loading } = useAppData();
+  const { trip, phases, pools, transactions, loading, error, retry } = useAppData();
   const [sharing, setSharing] = useState(false);
 
-  if (loading) {
-    return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
-  }
-
+  // BUG-004/009/014: a DB read error is NOT "no trip" — never redirect to the
+  // destructive onboarding flow on error. Keep showing valid data through a
+  // background reload; only branch on state when there is no trip in memory.
   if (!trip) {
-    navigate('/welcome');
-    return null;
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
+    return <Navigate to="/welcome" replace />;
   }
 
   const sortedPhases = sortPhasesByOrder(phases);

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { generateDemoData } from '@/domain/demo';
 import { db } from '@/data/db/database';
@@ -9,7 +9,7 @@ import { Icon } from '@/components/Icon';
 export function WelcomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { reload } = useAppData();
+  const { trip, reload } = useAppData();
 
   const handleDemo = async () => {
     const deviceId = crypto.randomUUID();
@@ -38,6 +38,12 @@ export function WelcomePage() {
     await reload();
     navigate('/dashboard');
   };
+
+  // BUG-001: reaching /welcome with an active trip (cold start, manual nav)
+  // must never expose the destructive onboarding menu — go to the dashboard.
+  if (trip) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-6 gap-8">
