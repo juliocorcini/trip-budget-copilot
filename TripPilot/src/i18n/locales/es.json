@@ -454,6 +454,8 @@
     "title": "Acerca de",
     "version": "Versión {{version}}",
     "description": "Copiloto de presupuesto de viaje. Planifica, registra y sigue tus gastos por fase, fondo y ocasión.",
+    "whats_new": "Novedades de esta versión",
+    "previous_versions": "Versiones anteriores",
     "backup_link": "Copia de seguridad y exportación de datos",
     "local_first": "Tus datos viven solo en este dispositivo. Haz copias regulares para no perder nada."
   },

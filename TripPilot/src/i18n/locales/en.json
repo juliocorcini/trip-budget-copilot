@@ -454,6 +454,8 @@
     "title": "About",
     "version": "Version {{version}}",
     "description": "Travel budget copilot. Plan, register and track your spending by phase, fund and occasion.",
+    "whats_new": "What's new in this version",
+    "previous_versions": "Previous versions",
     "backup_link": "Backup and data export",
     "local_first": "Your data lives only on this device. Back up regularly so you never lose anything."
   },
