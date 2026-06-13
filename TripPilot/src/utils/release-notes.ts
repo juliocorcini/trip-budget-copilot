@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.4',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'O campo de valor virou calculadora: digite "12+3,50" ou "10*2".',
+        'Repetir gastos: atalhos para os seus gastos mais frequentes.',
+        'Sugestão pela descrição: ao digitar, ele lembra a categoria e o valor de antes.',
+        'Transporte ida-e-volta: registre a volta com um toque.',
+        'Aviso de valor fora do normal para evitar erros de digitação.',
+      ],
+      en: [
+        'The amount field is now a calculator: type "12+3.50" or "10*2".',
+        'Repeat expenses: shortcuts to your most frequent ones.',
+        'Description memory: as you type, it recalls the category and amount from before.',
+        'Round-trip transport: log the return leg with one tap.',
+        'Heads-up when an amount is far above your usual, to catch typos.',
+      ],
+      es: [
+        'El campo de importe ahora es una calculadora: escribe "12+3,50" o "10*2".',
+        'Repetir gastos: accesos directos a los más frecuentes.',
+        'Memoria por descripción: al escribir, recuerda la categoría y el importe de antes.',
+        'Transporte ida y vuelta: registra la vuelta con un toque.',
+        'Aviso cuando un importe está muy por encima de lo normal, para evitar errores.',
+      ],
+    },
+  },
+  {
     version: '0.8.3',
     date: '2026-06-13',
     items: {

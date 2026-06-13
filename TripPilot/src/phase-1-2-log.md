@@ -1,7 +1,7 @@
 # Pacote 1 — Captura + Saída v2 + Modo Simples — Log
 
 ## Current State
-- Fase: GATE 0 ✅ | Gate: 1 (próximo) | Milestone: M1 | Done: 1/26 | Tests: 511 (baseline 504, +7) | Versão: 0.8.3 | Último deploy: 789fe9cb.trippilot.pages.dev | Build: ✅
+- Fase: GATE 1 ✅ | Gate: 2 (próximo) | Milestone: M6 | Done: 6/26 | Tests: 545 (baseline 504, +41) | Versão: 0.8.4 | Último deploy: 57e0da00.trippilot.pages.dev | Build: ✅
 
 ## Baseline (GATE 0)
 - `npm run test` → 504 passed (64 files)
@@ -14,6 +14,7 @@
 
 ## Deploys
 - 0.8.3 (GATE 0) → https://789fe9cb.trippilot.pages.dev (alias master.trippilot.pages.dev)
+- 0.8.4 (GATE 1) → https://57e0da00.trippilot.pages.dev (alias master.trippilot.pages.dev)
 
 ## GATE 0 — Baseline + Novidades + pipeline (0.8.3) ✅
 - [x] Baseline: test 504 / tsc 0 / build ok
@@ -22,12 +23,13 @@
 - [x] Deploy 0.8.3 + commit
 
 ## FASE 1 — Captura Rápida + Saída v2
-### GATE 1 — Captura no QuickAdd (0.8.4)
-- [ ] M1 Calculadora no campo de valor (evaluateAmountExpression)
-- [ ] M2 Memória por descrição (suggestFromDescription)
-- [ ] M3 Repetir / favoritos (getFrequentExpenses)
-- [ ] M4 Transporte ida-e-volta (duplicar no save)
-- [ ] M5 Aviso de anomalia (detectAmountAnomaly)
+### GATE 1 — Captura no QuickAdd (0.8.4) ✅
+- [x] M1 Calculadora no campo de valor (evaluateAmountExpression) — domain/money/expression.ts (17 testes)
+- [x] M2 Memória por descrição (suggestFromDescription) — domain/transactions/suggestions.ts
+- [x] M3 Repetir / favoritos (getFrequentExpenses) — chips no topo do QuickAdd
+- [x] M4 Transporte ida-e-volta (duplicar no save) — BottomSheet round-trip
+- [x] M5 Aviso de anomalia (detectAmountAnomaly + getCategoryTypicalCents) — BottomSheet
+- Decisão: typical derivado da MEDIANA das transações da categoria (≥3 amostras), pois QuickAdd não carrega ActivityProfiles (evita expandir o provider — ÂNCORA 6). 17 testes de suggestions.
 ### GATE 2 — Saída v2 (0.8.5)
 - [ ] M6 Botões "últimos valores usados" (updateQuickValuesFromItem)
 - [ ] M7 Repetir último item

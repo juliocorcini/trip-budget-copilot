@@ -11,3 +11,4 @@ export {
 } from './money';
 export { isAnchorActive, convertToAnchorCents, formatAnchorHint } from './anchor';
 export type { AnchorConfig } from './anchor';
+export { evaluateAmountExpression, parseLocaleNumber } from './expression';

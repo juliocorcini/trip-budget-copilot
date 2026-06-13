@@ -2,11 +2,18 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { createExpenseTransaction } from '@/domain/transactions';
+import {
+  createExpenseTransaction,
+  suggestFromDescription,
+  getFrequentExpenses,
+  getCategoryTypicalCents,
+  detectAmountAnomaly,
+} from '@/domain/transactions';
+import type { ExpenseSuggestion } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
-import { toCents, formatMoney, formatAnchorHint } from '@/domain/money';
+import { toCents, fromCents, formatMoney, formatAnchorHint, evaluateAmountExpression } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
@@ -68,6 +75,10 @@ export function QuickAddPage() {
   const [splitMode, setSplitMode] = useState<ShareType>('equal');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [showZeroBudgetConfirm, setShowZeroBudgetConfirm] = useState(false);
+  // M5: confirm an amount far above the category typical (never blocks — DEC-053).
+  const [showAnomalyConfirm, setShowAnomalyConfirm] = useState(false);
+  // M4: offer to duplicate a transport expense as a round trip.
+  const [showRoundTrip, setShowRoundTrip] = useState(false);
 
   // BUG-002 (R6-02): never fall back to phases[0] — resolveActivePhase picks
   // the nearest phase (current, else last past, else first future).
@@ -152,7 +163,24 @@ export function QuickAddPage() {
     );
   };
 
-  const amountCentsPreview = amount ? toCents(parseFloat(amount) || 0) : 0;
+  // M1: the amount field accepts a calculator expression ("12+3,50").
+  const evaluatedAmount = evaluateAmountExpression(amount);
+  const amountCentsPreview =
+    evaluatedAmount !== null && evaluatedAmount > 0 ? toCents(evaluatedAmount) : 0;
+
+  // M2/M3/M5: capture helpers derived purely from existing transactions.
+  const frequentExpenses = !isTransferLike ? getFrequentExpenses(transactions) : [];
+  const descriptionSuggestion = !isTransferLike
+    ? suggestFromDescription(transactions, description)
+    : null;
+  const categoryTypicalCents = !isTransferLike ? getCategoryTypicalCents(transactions, category) : 0;
+  const isAmountAnomaly = !isTransferLike && detectAmountAnomaly(amountCentsPreview, categoryTypicalCents);
+
+  const applySuggestion = (suggestion: ExpenseSuggestion) => {
+    setCategory(suggestion.category);
+    setDescription(suggestion.description);
+    setAmount(String(fromCents(suggestion.amountCents)));
+  };
 
   // DEC-128: mental anchor while typing — "€20 ≈ R$ 124".
   const anchorHint =
@@ -186,103 +214,159 @@ export function QuickAddPage() {
       effectiveTargetWalletId !== null &&
       effectiveSourceWalletId !== effectiveTargetWalletId);
 
-  const handleSave = async () => {
-    if (!trip || !currentPhase || !amount) return;
-    if (!isTransferLike && !effectivePoolId) return;
-    if (!canSaveTransferLike) return;
+  // Builds the expense transaction + shares from the current form state. Reading
+  // it on demand lets M4 register an identical return trip with a fresh id.
+  const buildExpense = () => {
+    const amountCents = toCents(evaluatedAmount!);
+    const tx = createExpenseTransaction({
+      tripId: trip!.id,
+      phaseId: currentPhase!.id,
+      budgetPoolId: effectivePoolId,
+      walletId: effectiveWalletId,
+      amountCents,
+      currency: trip!.baseCurrency,
+      category,
+      description: description || t(`categories.${category}` as never),
+      date: customDate ? toSafeIsoDate(customDate) : undefined,
+    });
 
-    // DEC-053(a): zero/negative budget never blocks — it asks for confirmation.
-    if (
-      !isTransferLike &&
-      !showZeroBudgetConfirm &&
-      selectedPoolFreeToSpendCents !== null &&
-      selectedPoolFreeToSpendCents <= 0
-    ) {
-      setShowZeroBudgetConfirm(true);
-      return;
+    const splitActive =
+      canSplit && wantsSplit && selectedParticipantIds.length >= 2 && effectivePaidById !== null;
+    // DEC-114/123: the payer flow applies whenever someone else paid (even
+    // without splitting — truth-table row 4) or a split is active.
+    const payerFlowActive =
+      owner !== null && effectivePaidById !== null && (otherPaid || splitActive);
+
+    let finalShares: ParticipantShare[] = [];
+    if (payerFlowActive) {
+      const customAmountsCents = Object.fromEntries(
+        selectedParticipantIds.map((pid) => {
+          const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
+          return [pid, Number.isNaN(value) ? 0 : Math.round(value * 100)];
+        }),
+      );
+      const resolution = resolvePayerExpense({
+        transactionId: tx.id,
+        amountCents,
+        ownerId: owner!.id,
+        payerId: effectivePaidById!,
+        didSplit: splitActive,
+        participantIds: selectedParticipantIds,
+        shareType: splitMode,
+        customAmountsCents,
+      });
+      tx.isShared = resolution.isShared;
+      tx.paidByParticipantId = effectivePaidById;
+      tx.personalCostCents = resolution.personalCostCents;
+      // When someone else paid, no money left the user's wallets (DEC-114).
+      if (!resolution.movesOwnerWallet) tx.walletId = null;
+      finalShares = resolution.shares;
     }
-    setShowZeroBudgetConfirm(false);
 
+    return { transaction: tx, shares: finalShares };
+  };
+
+  const persistExpense = async () => {
+    const { transaction, shares } = buildExpense();
+    await registerExpense({ transaction, shares });
+    // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
+    requestPersistentStorage();
+    // BUG-002: refresh the emergency snapshot every few expenses (best-effort).
+    void recordExpenseForSnapshot();
+  };
+
+  const finishAndGoHome = async () => {
+    await reload();
+    navigate('/dashboard');
+  };
+
+  // Actually registers the expense (after any confirmation sheets are cleared).
+  const commitExpense = async () => {
+    if (!trip || !currentPhase || evaluatedAmount === null || evaluatedAmount <= 0) return;
+    setShowAnomalyConfirm(false);
+    setShowZeroBudgetConfirm(false);
     setSaving(true);
     try {
-      const amountCents = toCents(parseFloat(amount));
+      await persistExpense();
+      // M4: a transport expense offers to log the return trip too.
+      if (category === 'transport') {
+        setShowRoundTrip(true);
+        return;
+      }
+      await finishAndGoHome();
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      // Transfers and withdrawals move money between wallets and never touch
-      // the budget (budgetPoolId/personalCostCents = null — Core Rule 3).
-      if (isTransferLike) {
+  const handleSave = async () => {
+    if (!trip || !currentPhase || evaluatedAmount === null || evaluatedAmount <= 0) return;
+
+    // Transfers and withdrawals move money between wallets and never touch the
+    // budget (budgetPoolId/personalCostCents = null — Core Rule 3).
+    if (isTransferLike) {
+      if (!canSaveTransferLike) return;
+      setSaving(true);
+      try {
         const input = {
           tripId: trip.id,
           phaseId: currentPhase.id,
           sourceWalletId: effectiveSourceWalletId!,
           targetWalletId: effectiveTargetWalletId!,
-          amountCents,
+          amountCents: toCents(evaluatedAmount),
           currency: trip.baseCurrency,
           description:
             description || (isWithdrawal ? t('fab.register_withdrawal') : t('fab.register_transfer')),
         };
         await (isWithdrawal ? withdrawCash(input) : transferBetweenWallets(input));
-        await reload();
-        navigate('/dashboard');
-        return;
+        await finishAndGoHome();
+      } finally {
+        setSaving(false);
       }
+      return;
+    }
 
-      const splitActive =
-        canSplit && wantsSplit && selectedParticipantIds.length >= 2 && effectivePaidById !== null;
-      // DEC-114/123: the payer flow applies whenever someone else paid (even
-      // without splitting — truth-table row 4) or a split is active.
-      const payerFlowActive =
-        owner !== null && effectivePaidById !== null && (otherPaid || splitActive);
+    if (!effectivePoolId) return;
 
-      const tx = createExpenseTransaction({
-        tripId: trip.id,
-        phaseId: currentPhase.id,
-        budgetPoolId: effectivePoolId,
-        walletId: effectiveWalletId,
-        amountCents,
-        currency: trip.baseCurrency,
-        category,
-        description: description || t(`categories.${category}` as never),
-        date: customDate ? toSafeIsoDate(customDate) : undefined,
-      });
+    // M5: confirm an amount far above the category typical (never blocks — DEC-053).
+    if (isAmountAnomaly) {
+      setShowAnomalyConfirm(true);
+      return;
+    }
+    // DEC-053(a): zero/negative budget never blocks — it asks for confirmation.
+    if (selectedPoolFreeToSpendCents !== null && selectedPoolFreeToSpendCents <= 0) {
+      setShowZeroBudgetConfirm(true);
+      return;
+    }
 
-      let finalShares: ParticipantShare[] = [];
-      if (payerFlowActive) {
-        const customAmountsCents = Object.fromEntries(
-          selectedParticipantIds.map((pid) => {
-            const value = parseFloat((customAmounts[pid] ?? '').replace(',', '.'));
-            return [pid, Number.isNaN(value) ? 0 : Math.round(value * 100)];
-          }),
-        );
-        const resolution = resolvePayerExpense({
-          transactionId: tx.id,
-          amountCents,
-          ownerId: owner.id,
-          payerId: effectivePaidById,
-          didSplit: splitActive,
-          participantIds: selectedParticipantIds,
-          shareType: splitMode,
-          customAmountsCents,
-        });
-        tx.isShared = resolution.isShared;
-        tx.paidByParticipantId = effectivePaidById;
-        tx.personalCostCents = resolution.personalCostCents;
-        // When someone else paid, no money left the user's wallets (DEC-114).
-        if (!resolution.movesOwnerWallet) tx.walletId = null;
-        finalShares = resolution.shares;
-      }
+    await commitExpense();
+  };
 
-      await registerExpense({ transaction: tx, shares: finalShares });
+  // M5: after confirming the anomaly, still honor the zero-budget confirmation.
+  const confirmAfterAnomaly = async () => {
+    setShowAnomalyConfirm(false);
+    if (selectedPoolFreeToSpendCents !== null && selectedPoolFreeToSpendCents <= 0) {
+      setShowZeroBudgetConfirm(true);
+      return;
+    }
+    await commitExpense();
+  };
 
-      // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
-      requestPersistentStorage();
-      // BUG-002: refresh the emergency snapshot every few expenses (best-effort).
-      void recordExpenseForSnapshot();
-
-      await reload();
-      navigate('/dashboard');
+  // M4: register the return trip (identical expense, fresh id) then leave.
+  const handleRoundTripYes = async () => {
+    setShowRoundTrip(false);
+    setSaving(true);
+    try {
+      await persistExpense();
+      await finishAndGoHome();
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRoundTripNo = async () => {
+    setShowRoundTrip(false);
+    await finishAndGoHome();
   };
 
   // DEC-109: failed DB read shows recovery instead of silently rendering nothing.
@@ -302,14 +386,37 @@ export function QuickAddPage() {
         <div className="w-8" />
       </div>
 
+      {/* M3: 1-tap repeat of the most frequent expenses (derived, not stored). */}
+      {frequentExpenses.length > 0 && (
+        <div>
+          <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.repeat_label')}</label>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {frequentExpenses.map((fav, index) => (
+              <button
+                key={index}
+                onClick={() => applySuggestion(fav)}
+                className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-container btn-press"
+              >
+                <Icon name={getCategoryIcon(fav.category)} size={16} className="text-on-surface-dim" />
+                <span className="text-xs text-left">
+                  <span className="block font-medium text-on-surface truncate max-w-[120px]">{fav.description}</span>
+                  <span className="block text-on-surface-faint tabular">
+                    {formatMoney(fav.amountCents, trip.baseCurrency)}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-surface-container rounded-2xl p-5">
         <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.amount')}</label>
         <div className="flex items-baseline gap-1">
           <span className="text-on-surface-dim text-lg">{trip.baseCurrency}</span>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
-            step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0,00"
@@ -361,6 +468,21 @@ export function QuickAddPage() {
           }
           className="bg-transparent text-sm text-on-surface outline-none w-full"
         />
+        {/* M2: memory by description — 1 tap fills category + value from last use. */}
+        {descriptionSuggestion && (
+          <button
+            onClick={() => applySuggestion(descriptionSuggestion)}
+            className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/15 ring-1 ring-primary/30 btn-press w-full text-left"
+          >
+            <Icon name="auto_awesome" size={16} className="text-primary shrink-0" />
+            <span className="text-xs text-on-surface flex-1">
+              {t('expenses.suggestion_hint', {
+                category: t(`categories.${descriptionSuggestion.category}` as never),
+                amount: formatMoney(descriptionSuggestion.amountCents, trip.baseCurrency),
+              })}
+            </span>
+          </button>
+        )}
       </div>
 
       {!isTransferLike && (
@@ -698,11 +820,11 @@ export function QuickAddPage() {
         </>
       )}
 
-      {amount && parseFloat(amount) > 0 && (
+      {amountCentsPreview > 0 && (
         <div className="bg-surface-high rounded-xl p-3 text-center">
           <p className="text-xs text-on-surface-faint">{t('expenses.amount')}</p>
           <p className="text-lg font-bold tabular text-on-surface">
-            {formatMoney(toCents(parseFloat(amount)), trip.baseCurrency)}
+            {formatMoney(amountCentsPreview, trip.baseCurrency)}
           </p>
         </div>
       )}
@@ -717,8 +839,7 @@ export function QuickAddPage() {
         <button
           onClick={handleSave}
           disabled={
-            !amount ||
-            parseFloat(amount) <= 0 ||
+            amountCentsPreview <= 0 ||
             saving ||
             !canSaveTransferLike ||
             (!isTransferLike && !effectivePoolId)
@@ -748,11 +869,70 @@ export function QuickAddPage() {
               {t('common.cancel')}
             </button>
             <button
-              onClick={handleSave}
+              onClick={commitExpense}
               disabled={saving}
               className="flex-1 py-2.5 rounded-xl bg-warning/20 text-warning ring-1 ring-warning font-semibold text-sm btn-press disabled:opacity-40"
             >
               {t('expenses.zero_budget_confirm')}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* M5: anomaly confirmation — catches typos, never blocks (DEC-053). */}
+      <BottomSheet
+        open={showAnomalyConfirm}
+        onClose={() => setShowAnomalyConfirm(false)}
+        title={t('expenses.anomaly_title')}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-on-surface-dim">
+            {t('expenses.anomaly_body', {
+              amount: formatMoney(amountCentsPreview, trip.baseCurrency),
+              category: t(`categories.${category}` as never),
+              typical: formatMoney(categoryTypicalCents, trip.baseCurrency),
+            })}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAnomalyConfirm(false)}
+              className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={confirmAfterAnomaly}
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-warning/20 text-warning ring-1 ring-warning font-semibold text-sm btn-press disabled:opacity-40"
+            >
+              {t('expenses.anomaly_confirm')}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* M4: transport round trip — duplicates the expense for the return leg. */}
+      <BottomSheet
+        open={showRoundTrip}
+        onClose={handleRoundTripNo}
+        title={t('expenses.round_trip_title')}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-on-surface-dim">{t('expenses.round_trip_body')}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRoundTripNo}
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press disabled:opacity-40"
+            >
+              {t('expenses.round_trip_no')}
+            </button>
+            <button
+              onClick={handleRoundTripYes}
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-primary text-on-surface font-semibold text-sm btn-press disabled:opacity-40"
+            >
+              {t('expenses.round_trip_yes')}
             </button>
           </div>
         </div>
