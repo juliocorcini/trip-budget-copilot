@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-12
+> Last updated: 2026-06-13
 
 ## Format
 
@@ -982,6 +982,90 @@
   8. **Single shared read + lighter app.** `AppDataProvider` (React context in `RootLayout`) runs the loader ONCE; `useAppData()` is a consumer. Foreground auto-retry is throttled (30s cooldown, max 3) with a plain reload (no `db.close()` storm). The bundle is code-split via Vite `manualChunks` (main `index` 729 KB → 156 KB; QR libs stay lazy). The Android hardware back button no longer exits the PWA on home routes.
 - **Rationale**: Field report: the deployed app was effectively unusable — cold starts with real data landed on onboarding, transient IndexedDB hiccups looked like "all my data is gone," and crashes could loop. The audit traced each symptom to a concrete file:line; the fixes are defensive (degrade to recovery, never to data loss) and were each covered by new tests (+44, 460 → 504).
 - **Alternatives**: Patch only the boot redirect (rejected: the same "DB error == empty" fallacy reappears on every data screen), full rewrite of the data layer (rejected: surgical guards + one shared provider deliver the safety without churn)
+
+### DEC-138 — "What's New" in the About screen (Package 1, v0.8.3)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: The About screen lists "What's new in this version" (the items of `APP_VERSION`) plus an expandable "Previous versions". Notes live in `src/utils/release-notes.ts` (`RELEASE_NOTES`, descending by version, with pt-BR/en/es copy) and pure helpers (`resolveReleaseNoteLang`, `findReleaseNote`, `getPreviousReleaseNotes`). Every gate of the feature-expansion package appends one entry in the same commit as the version bump.
+- **Rationale**: Julio tests each gate on his phone — he needs to see what shipped and what to try, in his language.
+- **Alternatives**: External changelog (rejected: offline-first app, must live in the bundle), single-language notes (rejected: app is tri-lingual)
+
+### DEC-139 — Amount Field Is a Calculator (Package 1, v0.8.4)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: The QuickAdd amount field accepts arithmetic expressions (`12+3,50`, `10*2`, `5+5+2`) evaluated by a safe pure parser `evaluateAmountExpression` (digits and `+ - * / . ,` only — NO `eval`; locale-aware via `parseLocaleNumber`, which rejects malformed input like `1.2.3,4`). Invalid input falls back to the existing parse without breaking; result is integer cents.
+- **Rationale**: Splitting a bill or summing a few items at the counter is the most common real-world capture friction; a calculator removes mental math without leaving the field.
+- **Alternatives**: A separate calculator sheet (rejected: extra taps), `eval`/`Function` (rejected: unsafe), a math library (rejected: overkill, bundle cost)
+
+### DEC-140 — Description Memory + Frequent Favorites (Package 1, v0.8.4)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: Two zero-AI helpers derived from the in-memory transactions (no new table): `suggestFromDescription(transactions, text)` proposes category/subcategory/value from the last matching entry (chip under the description), and `getFrequentExpenses(transactions, n)` surfaces the 3-4 most frequent expenses as one-tap chips at the top of QuickAdd. Tapping fills the form; nothing is written until the user saves.
+- **Rationale**: Most travel spending is repetitive ("café", "metrô"); reusing the last/known value is faster and more accurate than retyping — without any model or network.
+- **Alternatives**: ML categorization (rejected: offline, privacy, complexity), a dedicated "templates" table (rejected: the history already is the data — DEC-004)
+
+### DEC-141 — Round-Trip Transport Capture (Package 1, v0.8.4)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: Saving a `transport` expense offers "register the return too?" in a BottomSheet; confirming writes a second identical transaction. Never blocks (DEC-053) — declining saves exactly one.
+- **Rationale**: Transport is almost always round-trip; one tap avoids a full second capture.
+- **Alternatives**: A permanent "x2" toggle (rejected: noisy for non-transport), auto-duplicating silently (rejected: violates DEC-007 — never change the user's data unasked)
+
+### DEC-142 — Amount Anomaly Confirmation (Package 1, v0.8.4)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: When an amount is ≥3× the category's typical value, a BottomSheet confirms ("€180? your usual is ~€6") to catch typos. Typical is the MEDIAN of that category's transactions (≥3 samples) — derived from the data already in `useAppData`, so QuickAdd does not need to load ActivityProfiles (avoids expanding the provider). Confirming saves; with no prior data there is no warning. Never blocks (DEC-053).
+- **Rationale**: A misplaced decimal (€6 → €60) silently wrecks the budget; a confirm (not a block) catches it while honoring "warnings confirm, never prevent".
+- **Alternatives**: Hard validation/rejection (rejected: DEC-053), profile `typicalValueCents` only (rejected: QuickAdd doesn't load profiles; median of history is available and robust)
+
+### DEC-143 — Outing v2: Last Values, Repeat, Round, Payer Rotation, Time Projection (Package 1, v0.8.5)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: Five additions to the active outing, all reusing the atomic session orchestrators: (1) `updateQuickValuesFromItem` makes the amount buttons learn the last used value (replaces the nearest, keeps order/size; learned on the quick-add path, not on total adjustments); (2) repeat-last-item via `repeatLastSessionItem` (respects the split through `resolvePayerExpense`, confirmed with an undo toast — no enrich stepper); (3) `addRoundExpenses` logs N × price as N faithful items atomically (split per item; bypasses the over-max gate as an explicit action); (4) `suggestNextPayer` shows a discreet fair-rotation hint (≥2 participants); (5) `projectTimeToCeiling` shows "at this pace, ~1h to the ceiling" (≥2 items and ≥10 min). All read-only suggestions; none mutate data on their own.
+- **Rationale**: The bar/outing flow is the highest-tempo capture moment; these remove taps and add foresight without changing the money math (DEC-047/114).
+- **Alternatives**: A free-form "add many" form (rejected: rounds are the real pattern), auto-rotating the payer (rejected: DEC-007 — suggest only)
+
+### DEC-144 — Voice Quick-Add (Package 1, v0.9.0)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: An optional microphone button in QuickAdd uses the Web Speech API behind a thin boundary (`utils/speech-recognition.ts`, with support detection) — the button only renders where `SpeechRecognition`/`webkitSpeechRecognition` exists, degrading cleanly to nothing elsewhere. A pure parser `parseVoiceExpense(transcript)` takes the first number as the amount and the cleaned remainder as the description (strips spend verbs and currency words). It pre-fills the form; the user still reviews and saves.
+- **Rationale**: Hands-busy capture (carrying bags, walking) is faster by voice; isolating it as additive keeps the feature from ever breaking unsupported browsers.
+- **Alternatives**: A cloud speech service (rejected: offline, privacy, cost), full NLP parsing (rejected: a forgiving "first number + rest" is enough and predictable). M11 was marked CUTTABLE in the package but fit within budget — shipped, not deferred.
+
+### DEC-145 — Simulator "Borrow From Tomorrow" Notice (Package 1, v0.9.0)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: `evaluateBorrowFromTomorrow` (in `honest-friend.ts`) distinguishes a spend that fits the phase but overflows TODAY (borrow from tomorrow) from one that overflows the whole phase (real overspend). The SimulatorPage shows a non-blocking warning card with the trade-off only in the borrow case, reusing the freeToSpend/todayAllowance already computed there. Never blocks (DEC-053).
+- **Rationale**: "It leaves you €8 negative today, but you can pull from tomorrow if you won't spend then" is the honest framing a traveler actually needs — an alarm, not a barrier.
+- **Alternatives**: Treating any negative-today as overspend (rejected: conflates two very different situations), blocking the simulated spend (rejected: it's a simulator, and DEC-053)
+
+### DEC-146 — Simple Mode (appMode) (Package 1, v0.9.1–0.9.2)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: A new non-indexed `appMode: 'simple' | 'complete'` in AppSettings (default `complete`; backfilled in `repository.get()` so old records/backups stay full — no Dexie migration; not merged on backup import, it is a local device preference). Simple mode is presentation-only and only HIDES, never deletes data or routes (ÂNCORA 9): (M18) a lean `SimpleHome` shows "free today" + a register button reusing the same dashboard model; (M19) data-driven `visibleInMode` hides advanced items (Planner in the nav; Outing + Simulator in the FAB) via an `advanced` flag; (M20) a `ModeGuard` wraps advanced routes (`/planner`, `/outings/*`, `/simulator`) showing an interstitial with a per-visit "open anyway" escape hatch (no preference change — ÂNCORA 11) plus "go to settings"; (M21) a Settings toggle switches mode live (no destructive reload). Shared logic lives in `domain/app-mode/` (`visibleInMode`, `isAdvancedRouteBlocked`).
+- **Rationale**: The "two doors" reorientation: many travelers want only "what can I spend today?" — the full feature set overwhelms them. Hiding (reversibly) instead of forking the app keeps one codebase and one source of data truth.
+- **Alternatives**: Separate "lite" build (rejected: duplicate maintenance), deleting/disabling features (rejected: ÂNCORA 9 — data and routes must persist), per-feature flags (rejected: a single mode is simpler and matches the mental model)
+
+### DEC-147 — One-Question Onboarding + Mode Choice (Package 1, v0.9.1)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: Onboarding has two doors: a default quick flow ("how much do you have and until when?") that builds trip+phase+fund+daily via the existing atomic `createTripFromOnboarding` (BUG-013), with a "customize everything" link to the preserved 5-step detailed flow (zero regression). Both flows END on a mode-choice step ("start simple, add later — or complete?") that sets `appMode`. The quick path uses a pure `buildQuickOnboardingInput` helper.
+- **Rationale**: First-run friction is where users churn; one question to a working dashboard is the fastest path to value, and asking the mode at the end frames the whole experience.
+- **Alternatives**: Replacing the detailed flow (rejected: power users and presets need it), asking the mode first (rejected: the choice is more meaningful after they've seen the quick result)
+
+### DEC-148 — Smart Defaults by Trip Preset (Package 1, v0.9.1)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: `domain/profiles/trip-presets.ts` defines trip archetypes (Urban / Family / Festival) each carrying a default rhythm, peak days and protected-reserve rate; `applyTripPreset(preset, totalCents)` maps them to onboarding defaults (`calculatePresetReserveCents` rounds the reserve). Offered as optional chips in the quick onboarding — the preset only suggests plausible values; the user can adjust and nothing is forced (ÂNCORA 10). Kept separate from activity `profile-presets.ts` (trip presets ≠ activity presets) to avoid mixing responsibilities.
+- **Rationale**: A first-time user has no idea what "rhythm" or "reserve" to set; a one-tap archetype gives a sensible, editable starting point.
+- **Alternatives**: A single global default (rejected: a festival and a family trip differ wildly), forcing the preset's values (rejected: DEC-007/ÂNCORA 10)
+
+### DEC-149 — Adaptive Reveal of Complete Mode (Package 1, v0.10.0)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: After a simple-mode user logs ≥`MODE_REVEAL_MIN_EXPENSES` (5) expenses, a discreet, dismissible `SimpleRevealCard` offers to unlock complete mode. The decision is the pure `shouldOfferModeReveal(appMode, dismissed, expenseCount, threshold)`; a single non-indexed `simpleRevealDismissed` flag (default false, backfilled) makes the offer appear ONCE — set on both accept and dismiss. Accepting switches `appMode` to `complete` (explicit user action — ÂNCORA 10); dismissing only silences it.
+- **Rationale**: Progressive disclosure: let users settle into the simple flow, then invite (never push) them to the richer features once they're comfortable.
+- **Alternatives**: Repeating the nudge (rejected: nagging), unlocking automatically at the threshold (rejected: ÂNCORA 10 — the user decides), a time-based trigger (rejected: usage/expense count reflects real readiness better)
 
 ---
 

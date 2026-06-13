@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-13 (v0.8.2 — stability hardening: boot guard, recovery, crash anti-loop, shared data context, code split)
+> Last updated: 2026-06-13 (v0.10.1 — Feature Expansion Package 1: fast capture + outing v2 + simple mode)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) deployed** ✅
 
 ## Status Summary
 
@@ -14,7 +14,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 137 decisions (DEC-001 to DEC-137); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 149 decisions (DEC-001 to DEC-149); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -29,8 +29,8 @@
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (recovery/restore/PWA-update keys added in v0.8.2) |
-| Tests | ✅ DONE | 504 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.8.2 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: deploy with `--branch=main` (the project's production branch) — plain `master` deploys land as Preview only |
+| Tests | ✅ DONE | 614 unit tests + 29 Playwright e2e, all green (+110 in Package 1: Phases 1 & 2) |
+| Deploy | ✅ DONE | v0.10.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 1 gates 0.8.3→0.10.0 were Preview-only; the 0.10.1 final shipped to Production |
 | Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
 ## Gap-Fix Session R2 (2026-06-09)
@@ -276,6 +276,43 @@ IndexedDB hiccups looked like total data loss. Highlights:
   Android back button no longer exits the PWA on home routes.
 - **Tests**: +44 unit (460 → 504), all green; build + typecheck clean.
 
+## Feature Expansion Package 1 (2026-06-13, v0.8.3 → v0.10.1)
+
+Phases 1 & 2 of `documents/feature-expansion-master-plan-2026-06-13.md` were built
+autonomously in 8 gates (prompt `documents/phase-package-1-capture-simple-mode.md`,
+log in `src/phase-1-2-log.md`). Decisions DEC-138..149. A version + deploy + "what's
+new" entry per gate. Highlights:
+
+- **What's New screen (DEC-138, M0)**: About lists the current version's notes +
+  expandable history; `release-notes.ts` with pt/en/es copy, one entry per gate.
+- **Phase 1 — fast capture (DEC-139..142, v0.8.4)**: amount field is a safe
+  calculator (`evaluateAmountExpression`, no `eval`); description memory +
+  frequent favorites (zero-AI, derived from history); round-trip transport
+  duplication; ≥3× median anomaly confirm (never blocks — DEC-053).
+- **Phase 1 — outing v2 (DEC-143, v0.8.5)**: amount buttons learn the last value;
+  repeat-last-item; round (N × price, atomic); fair payer-rotation hint; "time to
+  ceiling" projection. All reuse the atomic session orchestrators; suggestions only.
+- **Phase 1 — extras (DEC-144/145, v0.9.0 — Phase 1 complete)**: optional voice
+  quick-add (Web Speech behind a support-detected boundary; `parseVoiceExpense`);
+  simulator "borrow from tomorrow" honest notice (fits the phase but overflows today).
+- **Phase 2 — simple mode (DEC-146, v0.9.1→0.9.2)**: non-indexed `appMode`
+  (default complete, backfilled, not merged on import); lean `SimpleHome`
+  ("free today" + register); data-driven `visibleInMode` hides Planner/Outing/
+  Simulator; `ModeGuard` on advanced routes with a per-visit "open anyway" escape;
+  live Settings toggle. Only HIDES — never deletes data or routes (ÂNCORA 9).
+- **Phase 2 — smart start (DEC-147/148, v0.9.1)**: one-question onboarding (atomic
+  via `createTripFromOnboarding`) with a "customize everything" door to the
+  preserved 5-step flow, both ending on the mode choice; trip presets
+  (Urban/Family/Festival) seed rhythm/peak days/reserve as editable suggestions.
+- **Phase 2 — adaptive reveal (DEC-149, v0.10.0 — Phase 2 complete)**: after ≥5
+  expenses in simple mode, a one-time dismissible card offers to unlock complete
+  mode; `shouldOfferModeReveal` + `simpleRevealDismissed` flag.
+- **Tests**: +110 unit (504 → 614), all green; typecheck + build clean (no >500 KB
+  chunk warning). M11 (voice) shipped, not deferred.
+- **Deploy note**: all gate deploys (0.8.3→0.10.0) used `--branch master` and
+  therefore landed as **Preview** (`master.trippilot.pages.dev`); the 0.10.1 final
+  was deployed with `--branch main` to update Production (`trippilot.pages.dev`).
+
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
@@ -287,10 +324,11 @@ IndexedDB hiccups looked like total data loss. Highlights:
 
 ## Next Steps
 
-1. Julio re-tests v0.8.2 in the field — confirm the stability fixes: cold start with
-   real data lands on the dashboard (never onboarding), no "data gone" scare on a
-   transient DB hiccup, the app stays open on Android back, and the home screen feels
-   faster after the code split
+1. Julio re-tests v0.10.1 in the field at `trippilot.pages.dev` (now Production) —
+   Package 1 golden path: one-question onboarding → simple → lean dashboard; capture
+   with calculator + memory/favorites; outing with last values, round, projection;
+   switch to complete → planner/outing/simulator return; adaptive reveal after a few
+   expenses; About shows v0.10.1 + accumulated "what's new"
 2. Julio tests v0.8.0 in the field — focus on bar mode at night, undo toasts,
    anchor hints with his real BRL rate, the three new dashboard cards, rescue
    calculator and the share card on his Samsung
@@ -316,4 +354,5 @@ DEC-071..DEC-083 (approved 2026-06-09); R3 session added DEC-084..DEC-102
 R5 session added DEC-109..DEC-113 (approved 2026-06-10); field review R4 session
 added DEC-114..DEC-123 (approved 2026-06-11); brainstorm session added
 DEC-126..DEC-134 (approved 2026-06-12); v0.8.1 field feedback added DEC-135/136
-(approved 2026-06-12); stability hardening added DEC-137 (approved 2026-06-13).
+(approved 2026-06-12); stability hardening added DEC-137 (approved 2026-06-13);
+Feature Expansion Package 1 (Phases 1 & 2) added DEC-138..DEC-149 (approved 2026-06-13).

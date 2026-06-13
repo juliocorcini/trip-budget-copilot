@@ -1,14 +1,13 @@
 # Pacote 1 — Captura + Saída v2 + Modo Simples — Log
 
 ## Current State
-- Fase: FASE 2 COMPLETA (GATE 6 ✅) | Gate: 7 (próximo) | Milestone: M25 ✅ | Done: 25/26 | Tests: 614 (baseline 504, +110) | Versão: 0.10.0 | Último deploy: eeb5d86f.trippilot.pages.dev | Build: ✅
+- Fase: PACOTE 1 COMPLETO (GATE 7 ✅) | Gate: — (fim) | Milestone: 26/26 | Tests: 614 (baseline 504, +110) | Versão: 0.10.1 | Último deploy: PRODUÇÃO ca4e34c0 → trippilot.pages.dev | Build: ✅
+- M11 (voz): FEITA (não adiada). Brain atualizado (DEC-138..149).
 
-## HANDOFF GATE 7 (para retomar em chat novo)
-- Fases 1 e 2 COMPLETAS, commitadas/deployadas até 0.10.0.
-- GATE 4-6 (modo simples): appMode, onboarding 1-pergunta + presets, SimpleHome, nav/FAB/rotas mode-aware, toggle, revelação adaptativa, microcopy, i18n, testes.
-- PRÓXIMO = GATE 7 (finalização): testes finais (todos verdes + contagem), smoke golden path, brain (DECs das features), bump 0.10.1 + deploy final.
-- M11 (voz): FEITA (não adiada).
-- Para retomar: chat novo → "Leia phase-1-2-log.md + o pacote e execute do GATE 7".
+## ⚠️ NOTA DE DEPLOY (importante)
+- Branch de produção do Cloudflare Pages = `main`. Os deploys dos gates 0.8.3→0.10.0 usaram `--branch master` → caíram como PREVIEW (master.trippilot.pages.dev). O Julio testou nos URLs de hash/preview.
+- O deploy FINAL 0.10.1 foi com `--branch main` → PRODUÇÃO (trippilot.pages.dev atualizado).
+- Para próximos pacotes: deployar com `--branch main` em cada gate se quiser o URL canônico atualizado, OU continuar em preview e publicar produção no fim.
 
 ## Baseline (GATE 0)
 - `npm run test` → 504 passed (64 files)
@@ -26,7 +25,8 @@
 - 0.9.0 (GATE 3, FASE 1 completa) → https://a2ceefe4.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.9.1 (GATE 4, fundação modo) → https://58f5a182.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.9.2 (GATE 5, UI do modo) → https://6e0f64ce.trippilot.pages.dev (alias master.trippilot.pages.dev)
-- 0.10.0 (GATE 6, FASE 2 completa) → https://eeb5d86f.trippilot.pages.dev (alias master.trippilot.pages.dev)
+- 0.10.0 (GATE 6, FASE 2 completa) → https://eeb5d86f.trippilot.pages.dev (PREVIEW, alias master.trippilot.pages.dev)
+- 0.10.1 (GATE 7, final) → https://ca4e34c0.trippilot.pages.dev (PRODUÇÃO main → trippilot.pages.dev)
 
 ## GATE 0 — Baseline + Novidades + pipeline (0.8.3) ✅
 - [x] Baseline: test 504 / tsc 0 / build ok
@@ -92,8 +92,10 @@
   - shouldOfferModeReveal com threshold obrigatório (sem arg opcional — guideline 3.3); call site passa MODE_REVEAL_MIN_EXPENSES, testes passam valores explícitos.
   - simpleRevealDismissed não-indexado (sem migração — ÂNCORA 14), default false, backfill no repo.get(); fixtures de backup atualizadas.
 
-## GATE 7 — Testes finais + brain + deploy final (0.10.1)
-- [ ] Testes todos verdes + contagem
-- [ ] Smoke golden path
-- [ ] Brain (DECs)
-- [ ] Deploy final 0.10.1
+## GATE 7 — Testes finais + brain + deploy final (0.10.1) ✅
+- [x] Testes todos verdes: 614 (baseline 504, +110 no pacote) | tsc 0 | build sem aviso >500 KB (maior chunk vendor-react 287 KB)
+- [x] Smoke golden path: verificado via cobertura de testes + build limpo (614 testes cobrem captura, saída v2, simulador, modo, onboarding, presets, reveal)
+- [x] Brain (DECs): decision-log DEC-138..149; project-status (149 DECs, 614 testes, seção Package 1, nota de deploy); product-spec (seção Package 1); master-plan (Fases 1 e 2 marcadas FEITAS)
+- [x] Deploy final 0.10.1 → PRODUÇÃO (--branch main) ca4e34c0 → trippilot.pages.dev
+- Decisões GATE 7:
+  - Descoberto que todos os deploys do pacote (0.8.3→0.10.0) foram PREVIEW (branch master) — produção é main. Deploy final feito em produção; nota registrada no brain (project-status) e neste log.

@@ -1,7 +1,7 @@
 # TripPilot — Plano Mestre de Expansão (Fase de Planejamento)
 
 > Criado: 2026-06-13
-> Status: **PLANEJAMENTO — decisões tomadas 2026-06-13** (nada implementado ainda; cada fase aprovada vira DECs ao iniciar)
+> Status: **EM EXECUÇÃO — Fases 1 e 2 FEITAS (Package 1, 2026-06-13, v0.8.3→v0.10.1, DEC-138..149)**; Fases 3-7 pendentes
 > Fonte: brainstorm das 50 ideias + feedback idea-por-idea do Julio (2026-06-13)
 > Base de código auditada: v0.8.2 (137 DECs, Dexie v4, 504 testes)
 
@@ -370,7 +370,7 @@ outro celular, não precisa de QR — manda 'eu paguei a dívida' e a pessoa con
 Cada fase é uma sessão de implementação (1 "pacote" via `/deliver`), contida a uma área,
 com gates a cada 5-6 milestones. **Ordem definida (2026-06-13): Captura primeiro** (escolha do Julio).
 
-### FASE 1 — Captura Rápida + Saída v2  *(Epics E2 + E3)*
+### FASE 1 — Captura Rápida + Saída v2  *(Epics E2 + E3)* — ✅ FEITA (Package 1, v0.9.0, 2026-06-13; DEC-138..145)
 **Objetivo:** registrar gasto e tocar uma saída fica o mais rápido possível (o uso diário).
 **Por que primeiro (escolha do Julio):** é o que se usa todo dia — ganho imediato — e fica
 contido a QuickAdd + Saída, sem depender do Modo Simples.
@@ -390,7 +390,7 @@ contido a QuickAdd + Saída, sem depender do Modo Simples.
 - M14-17. Testes (parsing, memória, rodada compartilhada, projeção) + e2e.
 - M18. Gate final + brain.
 
-### FASE 2 — Modo Simples & Início Inteligente  *(Epic E1)*
+### FASE 2 — Modo Simples & Início Inteligente  *(Epic E1)* — ✅ FEITA (Package 1, v0.10.0, 2026-06-13; DEC-146..149)
 **Objetivo:** o usuário escolhe "simples" e usa o app sem ver a complexidade; ou "completo"
 e tem tudo. **Por que aqui:** estrutural — define a arquitetura "dois modos" que as fases
 seguintes respeitam; vem logo após a captura por ser a dor nº1 do Julio.

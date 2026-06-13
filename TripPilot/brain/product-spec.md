@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-06-10 (R4 session — feature 25 device-to-device sync added)
+> Last updated: 2026-06-13 (Feature Expansion Package 1 — fast capture, outing v2, simple mode)
 
 ## What is TripPilot?
 
@@ -271,6 +271,32 @@ The guarantees the user can rely on, even when the device storage misbehaves:
   the JavaScript bundle is split so the first load is small, and notifications/updates no
   longer reload the app mid-outing. On Android, the hardware back button keeps the app
   open on the home screen instead of closing it.
+
+### Feature Expansion Package 1 — Fast Capture, Outing v2, Simple Mode (v0.10.x)
+
+**Fast capture (QuickAdd):**
+- The amount field is a **calculator** — type `12+3,50` or `10*2` and it saves the result (safe parser, locale-aware, no `eval`).
+- **Description memory & favorites** — typing a known description suggests the last category/value; the 3-4 most frequent expenses appear as one-tap chips. Nothing is saved until you confirm.
+- **Round-trip transport** — saving a transport expense offers to log the return too (one tap = two transactions).
+- **Anomaly confirm** — an amount far above your usual for that category asks to confirm (catches typos). It never blocks the save.
+- **Voice quick-add (where supported)** — tap the mic and say "25 at the market"; it pre-fills the form for review.
+
+**Outing v2 (active outing):**
+- Amount buttons **learn the last value** you used; **repeat last item** in one tap; **round** logs N drinks at one price at once (splits correctly).
+- A discreet **fair-rotation hint** suggests who pays next, and a **time projection** estimates "~1h to the ceiling at this pace." All suggestions — they never change your data.
+
+**Simulator:**
+- A **"borrow from tomorrow"** notice appears when a spend fits the phase budget but overflows today, with the honest trade-off. It never blocks.
+
+**Simple mode (two doors):**
+- The app has a **Simple** and a **Complete** mode. Simple shows a lean home — **"free today"** and a register button — and hides advanced surfaces (planner, outings, simulator). It only **hides**: your data and the pages still exist, and a hidden page can always be opened with "open anyway."
+- **One-question onboarding** ("how much do you have and until when?") creates a working trip instantly, with a "customize everything" path to the full setup; both end by asking Simple or Complete.
+- **Trip presets** (Urban / Family / Festival) suggest a starting rhythm and reserve — editable, never forced.
+- **Adaptive reveal** — after a few expenses in simple mode, a one-time, dismissible card offers to unlock complete mode.
+- Switch modes anytime in **Settings**.
+
+**About:**
+- The About screen shows **"What's new in this version"** plus an expandable history, in your language.
 
 ## V1 — Explicitly NOT in Scope
 

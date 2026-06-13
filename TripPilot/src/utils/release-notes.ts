@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.1',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Pacote de captura rápida + saída v2 + modo simples finalizado e publicado.',
+        'Tudo revisado: testes verdes, sem regressões dos ajustes de estabilidade.',
+      ],
+      en: [
+        'Fast capture + outing v2 + simple mode package finalized and published.',
+        'All reviewed: tests green, no regressions from the stability fixes.',
+      ],
+      es: [
+        'Paquete de captura rápida + salida v2 + modo simple finalizado y publicado.',
+        'Todo revisado: pruebas en verde, sin regresiones de los ajustes de estabilidad.',
+      ],
+    },
+  },
+  {
     version: '0.10.0',
     date: '2026-06-13',
     items: {
