@@ -692,7 +692,8 @@
     "update_available": "Nova versão disponível — toque para atualizar",
     "up_to_date": "Você já está na versão mais recente",
     "update_found": "Nova versão encontrada — atualizando…",
-    "update_check_failed": "Não foi possível verificar — confira a conexão"
+    "update_check_failed": "Não foi possível verificar — confira a conexão",
+    "update_deferred_outing": "Atualização disponível — será aplicada ao encerrar a saída"
   },
   "errors": {
     "boundary_title": "Algo deu errado",

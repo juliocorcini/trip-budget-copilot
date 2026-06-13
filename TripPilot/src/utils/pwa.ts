@@ -1,5 +1,6 @@
 import i18n from '@/i18n';
 import { showToast } from '@/components/Toast';
+import { shouldReloadOnUpdate } from '@/utils/sw-reload';
 
 // DEC-082 (GAP-R2-001): when a new SW is waiting, show a persistent toast.
 // Tapping it tells the SW to skipWaiting; controllerchange then reloads once.
@@ -23,6 +24,11 @@ export function registerServiceWorker(): void {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       // clients.claim() also fires this on first install — no reload then.
       if (isFirstInstall || reloading) return;
+      // BUG-011: never reload mid-outing — defer until the session ends.
+      if (!shouldReloadOnUpdate()) {
+        showToast(i18n.t('pwa.update_deferred_outing'), 'info', { persistent: true });
+        return;
+      }
       reloading = true;
       window.location.reload();
     });

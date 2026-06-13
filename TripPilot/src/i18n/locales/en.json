@@ -692,7 +692,8 @@
     "update_available": "New version available — tap to update",
     "up_to_date": "You are already on the latest version",
     "update_found": "New version found — updating…",
-    "update_check_failed": "Could not check — verify your connection"
+    "update_check_failed": "Could not check — verify your connection",
+    "update_deferred_outing": "Update ready — it will be applied when the outing ends"
   },
   "errors": {
     "boundary_title": "Something went wrong",

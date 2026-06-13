@@ -1,7 +1,7 @@
 # Stability Fix Log
 
 ## Current State
-- Gate: 2 done | Bug: — | Fixed: 10/20 | Tests: 487 (+27) | Build: ✅ (index 635 KB warning)
+- Gate: 3 done | Bug: — | Fixed: 12/20 | Tests: 492 (+32) | Build: ✅ (index 705 KB warning — BUG-012/Gate 5)
 
 ## Gate 0 — Baseline
 - [x] Node 22.22.3
@@ -28,9 +28,13 @@
 - New: safe-storage.ts, crash-log.ts, emergency-backup.ts, toSafeIsoDate. i18n: errors.boundary_persistent_* ×3.
 - New tests: safe-storage (3), crash-log (5), money +4, dates +2 = +14 → 487.
 
-## Gate 3 — Service Worker hardening
-- [ ] BUG-006 SW openDb versioned + onblocked + store guards
-- [ ] BUG-011 deferred reload during active outing
+## Gate 3 — Service Worker hardening ✅
+- [x] BUG-006 SW openDb opens version-less (attaches to Dexie's schema), aborts empty-DB creation (oldVersion===0), onblocked rejects, onversionchange closes; hasStores() guard before every tx; whole notificationclick wrapped in try/catch. CACHE_NAME v7→v8.
+  - Note: chose version-less open over a hardcoded SW version — a stale SW constant would throw VersionError or trigger a bad upgrade. Version-less + abort-on-create + onversionchange meets both DONE criteria (never empty DB, never blocks upgrade) safely.
+  - SW is vanilla JS (no .ts), not importable in vitest/jsdom → covered by code review + Gate 6 smoke test rather than a unit test.
+- [x] BUG-011 sw-reload.ts guard: controllerchange defers reload while an outing is active (toast pwa.update_deferred_outing), OutingPage flips the flag and applies the pending reload when the session ends.
+- New: sw-reload.ts. i18n: pwa.update_deferred_outing ×3.
+- New tests: sw-reload (5) = +5 → 492.
 
 ## Gate 4 — iOS persistence + data integrity
 - [ ] BUG-002 iOS persistence warning + emergency auto-backup

@@ -46,6 +46,7 @@ import {
   softDeleteSessionExpense,
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
+import { setActiveOuting, takePendingReload } from '@/utils/sw-reload';
 import {
   isOutingNotificationSupported,
   wasOutingNotificationPrompted,
@@ -278,6 +279,23 @@ export function OutingPage() {
     window.addEventListener(OUTING_CHANGED_EVENT, onOutingChanged);
     return () => window.removeEventListener(OUTING_CHANGED_EVENT, onOutingChanged);
   }, [session]);
+
+  // BUG-011: tell the SW reload guard whether a session is live, so a new
+  // version is never applied mid-outing. Cleared on unmount so leaving the
+  // screen also releases the guard.
+  const sessionActive = session !== null && session.status === 'active';
+  useEffect(() => {
+    setActiveOuting(sessionActive);
+    return () => setActiveOuting(false);
+  }, [sessionActive]);
+
+  // BUG-011: once the outing is no longer active, apply any SW update that
+  // arrived (and was deferred) while it was running.
+  useEffect(() => {
+    if (!sessionActive && takePendingReload()) {
+      window.location.reload();
+    }
+  }, [sessionActive]);
 
   // DEC-120 (R-11): permission asked at the FIRST session start, with an
   // explanation sheet — never on app boot.

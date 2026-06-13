@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trippilot-v7';
+const CACHE_NAME = 'trippilot-v8';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -107,12 +107,47 @@ const DB_NAME = 'TripPilotDB';
 const OUTING_TAG = 'trippilot-active-outing';
 const FOLLOWUP_TAG = 'trippilot-outing-followup';
 
+// BUG-006: open WITHOUT a version so the SW only ever attaches to the schema
+// the app (Dexie) already created — it never triggers an upgrade and never
+// downgrades. Three guards keep it from corrupting the DB or deadlocking:
+//  1. onupgradeneeded with oldVersion === 0 means the DB does not exist yet:
+//     the SW must NOT create an empty DB (that skips Dexie's on('populate') →
+//     BUG-003), so we abort the creation transaction and let the open fail.
+//  2. onblocked means a versionchange (the app upgrading the schema) is queued:
+//     we back off instead of holding the upgrade hostage.
+//  3. onversionchange on the live connection: the moment the app needs to
+//     upgrade, we close so db.open() in the window never times out.
 function openDb() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    let request;
+    try {
+      request = indexedDB.open(DB_NAME);
+    } catch (err) {
+      reject(err);
+      return;
+    }
+    request.onupgradeneeded = (event) => {
+      if (event.oldVersion === 0) {
+        try {
+          event.target.transaction.abort();
+        } catch {
+          // Abort unsupported — onerror/onsuccess still resolves the open.
+        }
+      }
+    };
+    request.onblocked = () => reject(new Error('idb-blocked'));
+    request.onsuccess = () => {
+      const dbConn = request.result;
+      dbConn.onversionchange = () => dbConn.close();
+      resolve(dbConn);
+    };
+    request.onerror = () => reject(request.error || new Error('idb-open-failed'));
   });
+}
+
+/** BUG-006: never open a transaction on a store the app has not created yet. */
+function hasStores(dbConn, names) {
+  return names.every((name) => dbConn.objectStoreNames.contains(name));
 }
 
 function idbGetAllByIndex(dbConn, storeName, indexName, value) {
@@ -247,6 +282,8 @@ async function refreshOutingNotification(dbConn, session, data) {
 async function swDirectQuickAdd(amountCents, data) {
   const dbConn = await openDb();
   try {
+    // BUG-006: bail out cleanly if the schema the app owns is not in place.
+    if (!hasStores(dbConn, ['sessions', 'transactions', 'sessionItems'])) return;
     const session = await idbGet(dbConn, 'sessions', data.sessionId);
     if (!session || session.status !== 'active' || session.deletedAt !== null) return;
 
@@ -327,6 +364,7 @@ async function swDirectQuickAdd(amountCents, data) {
 async function swDirectSetSubcategory(txId, subcategoryId) {
   const dbConn = await openDb();
   try {
+    if (!hasStores(dbConn, ['transactions'])) return;
     const tx = await idbGet(dbConn, 'transactions', txId);
     if (!tx || tx.deletedAt !== null) return;
     tx.subcategoryId = subcategoryId;
@@ -339,34 +377,42 @@ async function swDirectSetSubcategory(txId, subcategoryId) {
 }
 
 async function handleOutingAction(event) {
-  const data = event.notification.data || {};
-  const action = event.action;
+  // BUG-006: a single top-level guard so a rejected DB open (mid-upgrade →
+  // 'idb-blocked') or a missing store can never surface as an unhandled
+  // rejection inside event.waitUntil. The window re-syncs on focus regardless.
+  try {
+    const data = event.notification.data || {};
+    const action = event.action;
 
-  if (data.kind === 'outing' && action && action.indexOf('quick_add_') === 0) {
-    const amountCents = (data.amounts || {})[action];
-    if (typeof amountCents !== 'number') return;
-    try {
-      await swDirectQuickAdd(amountCents, data);
-    } finally {
-      await broadcastOutingChange();
+    if (data.kind === 'outing' && action && action.indexOf('quick_add_') === 0) {
+      const amountCents = (data.amounts || {})[action];
+      if (typeof amountCents !== 'number') return;
+      try {
+        await swDirectQuickAdd(amountCents, data);
+      } finally {
+        await broadcastOutingChange();
+      }
+      return;
     }
-    return;
-  }
 
-  if (data.kind === 'followup' && action && action.indexOf('sub_') === 0) {
-    event.notification.close();
-    const subcategoryId = action.slice(4);
-    try {
-      await swDirectSetSubcategory(data.txId, subcategoryId);
-    } finally {
-      await broadcastOutingChange();
+    if (data.kind === 'followup' && action && action.indexOf('sub_') === 0) {
+      event.notification.close();
+      const subcategoryId = action.slice(4);
+      try {
+        await swDirectSetSubcategory(data.txId, subcategoryId);
+      } finally {
+        await broadcastOutingChange();
+      }
+      return;
     }
-    return;
-  }
 
-  // Body click or explicit "open" → bring the outing screen up.
-  if (data.kind === 'followup') event.notification.close();
-  await focusOrOpen('/outings/active');
+    // Body click or explicit "open" → bring the outing screen up.
+    if (data.kind === 'followup') event.notification.close();
+    await focusOrOpen('/outings/active');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[SW] outing action failed:', err);
+  }
 }
 
 self.addEventListener('notificationclick', (event) => {
