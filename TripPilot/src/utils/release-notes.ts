@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.12.1',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Fechamento do pacote: insights, ciclo de fase, metas e continuidade entre viagens revisados e estabilizados.',
+      ],
+      en: [
+        'Package wrap-up: insights, phase cycle, goals and trip-to-trip continuity reviewed and stabilized.',
+      ],
+      es: [
+        'Cierre del paquete: insights, ciclo de fase, metas y continuidad entre viajes revisados y estabilizados.',
+      ],
+    },
+  },
+  {
     version: '0.12.0',
     date: '2026-06-13',
     items: {

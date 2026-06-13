@@ -1,10 +1,16 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-13 (v0.10.1 — Feature Expansion Package 1: fast capture + outing v2 + simple mode)
+> Last updated: 2026-06-13 (v0.12.1 — Feature Expansion Package 2: insights v2 + phase cycle + motivation + trip continuity)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) deployed** ✅
+
+### Feature Expansion Package 2 (Phases 3 & 4) — 2026-06-13 ✅ SHIPPED TO PRODUCTION
+- **Phase 3 (insights v2 + check-in + phase cycle)** v0.10.2→v0.11.0: insights uncapped + priority-ordered + auto-rotation (DEC-150); calibrated builders category-rhythm/dangerous-day/end-of-day, anti-spam (DEC-151); daily check-in card + responsive notification (DEC-152); phase leftover sheet + atomic move (preserves total) + countdown (DEC-153).
+- **Phase 4 (motivation + continuity)** v0.11.1→v0.12.0: savings goal + piggy bank (read-only, never touch free-to-spend — DEC-154); in-trip occasion-average value suggestion, accept-only (DEC-155); end-of-trip priors + save/apply trip templates (DEC-156).
+- **Quality**: 708 unit tests green (+94 vs Package 1 baseline of 614); tsc 0; build no chunk >500KB. All ÂNCORA invariants proven by tests (free-to-spend untouched by goal/piggy; learning never auto-writes; templates mint new ids).
+- **Deploy**: Phase 4 (v0.12.0) + final (v0.12.1) shipped to **Production** via `--branch=main` → `trippilot.pages.dev`; intermediate gates (0.10.2→0.11.2) were Preview (`master.trippilot.pages.dev`).
 
 ## Status Summary
 
@@ -14,7 +20,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 149 decisions (DEC-001 to DEC-149); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 156 decisions (DEC-001 to DEC-156); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -29,8 +35,8 @@
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (recovery/restore/PWA-update keys added in v0.8.2) |
-| Tests | ✅ DONE | 614 unit tests + 29 Playwright e2e, all green (+110 in Package 1: Phases 1 & 2) |
-| Deploy | ✅ DONE | v0.10.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 1 gates 0.8.3→0.10.0 were Preview-only; the 0.10.1 final shipped to Production |
+| Tests | ✅ DONE | 708 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2: Phases 3 & 4) |
+| Deploy | ✅ DONE | v0.12.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 2: Phase 4 (0.12.0) + final (0.12.1) shipped to Production; intermediate gates (0.10.2→0.11.2) were Preview-only |
 | Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
 ## Gap-Fix Session R2 (2026-06-09)

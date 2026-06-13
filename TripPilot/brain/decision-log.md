@@ -1067,6 +1067,55 @@
 - **Rationale**: Progressive disclosure: let users settle into the simple flow, then invite (never push) them to the richer features once they're comfortable.
 - **Alternatives**: Repeating the nudge (rejected: nagging), unlocking automatically at the threshold (rejected: ÂNCORA 10 — the user decides), a time-based trigger (rejected: usage/expense count reflects real readiness better)
 
+### DEC-150 — Insights v2: No Cap, Priority Ordering, Auto-Rotation (Package 2, v0.10.2)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: The dashboard insight carousel drops the fixed cap of 4 in favor of a data-driven priority (`INSIGHT_PRIORITY`: end-of-day 100 > projection 80 > dangerous-day 70 > category-rhythm 65 > rhythm 60 > countdown 55 > balance 50 > next 40 > avg 30 > streak 20), sorted by priority desc with `warning` tone breaking ties first; a safety cap (`INSIGHT_SAFETY_CAP=12`) only prevents runaway. Cards auto-rotate every 7s (`INSIGHT_AUTO_ROTATE_MS`), pausing for 12s after interaction (pointer/wheel/dot, NOT self-scroll) and fully respecting `prefers-reduced-motion`. Simple mode shows at most ONE insight — the highest priority and only if `warning` (never a carousel, ÂNCORA 14).
+- **Rationale**: A hard limit hid the most useful insight at the wrong moment; ranking by what matters now (and rotating) surfaces the right nudge without a wall of cards.
+- **Alternatives**: Keep the fixed cap (rejected: arbitrary, hid relevant insights), manual-only paging (rejected: travelers don't swipe; rotation invites discovery), no Simple-mode guard (rejected: ÂNCORA 14)
+
+### DEC-151 — Calibrated Insight Builders: Category Rhythm, Dangerous Day, End of Day (Package 2, v0.10.3)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: Three pure, anti-spam insight builders. Category rhythm fires only with ≥3 elapsed days AND consumed fraction ≥ elapsed × `CATEGORY_RHYTHM_FACTOR(1.5)`, naming the worst category (tap → filtered expenses). Dangerous day aggregates spend per weekday over the phase's PAST transactions (excludes today — it's a forecast), firing only with `DANGER_DAY_MIN_SAMPLES(2)` AND the day's average ≥ `DANGER_DAY_FACTOR(1.8)`× the other days. End of day fires only if `nowHour ≥ END_OF_DAY_HOUR(18)` AND nothing logged today within the phase window (tap → quick-add). All weekday labels localize via Intl.
+- **Rationale**: Generic "you're spending fast" noise trains users to ignore insights; calibrated thresholds make each builder return null unless the signal is real — anti-spam is sacred.
+- **Alternatives**: Lower thresholds / always-on builders (rejected: noise and false alarms), reacting to today's spend for the dangerous-day card (rejected: that's hindsight, not a forecast)
+
+### DEC-152 — Daily Check-In: Card + Responsive Notification (Package 2, v0.10.3)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: A one-tap "intent of the day" (calm / outing / night) sets context (read-only, never writes a user value — ÂNCORA 12). Stored as a non-indexed `dailyCheckIn:{date,intent}|null` in AppSettings (backfilled + seeded, no Dexie migration — ÂNCORA 18); pure domain in `domain/check-in`. A movable `daily_checkin` card sits below the hero (Simple mode excluded — ÂNCORA 14). M8 ships COMPLETE: the morning notification is responsive — the service worker (`CHECKIN_TAG`) writes the intent straight into AppSettings via read-modify-write (never creating the row, BUG-003) and broadcasts `APP_DATA_CHANGED`; without Notification Actions support it degrades to opening the dashboard. Firing is best-effort (boot, 5–13h window, 1×/day, permission granted); true background scheduling needs push/Triggers (unavailable offline-first) — documented honestly as a limitation.
+- **Rationale**: The day's plan ("quiet night in" vs "big night out") should color tone and pacing; answering it from the notification removes all friction.
+- **Alternatives**: A required prompt (rejected: friction; it's optional), scheduling via background push (rejected: not available in an offline-first PWA — best-effort is the honest contract)
+
+### DEC-153 — Phase Cycle: Leftover Sheet, Atomic Move, Countdown (Package 2, v0.11.0 — Phase 3 complete)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: When a phase closes with a successor (pure `findEndedPhaseWithSuccessor`, inclusive end-of-day BUG-002) and free-to-spend > 0, a BottomSheet offers what to do with the leftover (auto-opens in Complete mode only — ÂNCORA 14). The leftover is the operational pool's free-to-spend evaluated with the NEXT phase as current — an honest, conservative number that respects reserves/floors. The atomic `applyPhaseLeftover` (transaction over pools+envelopes+appSettings) has three destinations: carry-next (no-op, stays free), reserve (new protected_reserve envelope — totals intact), shopping (pool→pool transfer via pure `computePoolTransfer` — preserves the trip total, ÂNCORA 13/15); all mark `phaseLeftoverHandled` (idempotent, non-indexed). A countdown builder (`buildPhaseCountdown`) shows "X days to the next phase — you have €Y/day until then" within a `COUNTDOWN_WINDOW_DAYS(5)` window.
+- **Rationale**: A subtractive shared-pool model has no per-phase wallet, so the honest "leftover" is the money that flows free into the next phase; letting the traveler steer it (keep / protect / spend) without ever changing the total respects the money-math invariants.
+- **Alternatives**: Auto-rolling the leftover (rejected: ÂNCORA 12 — the user decides), a separate per-phase wallet (rejected: contradicts the shared-pool model), showing the leftover with the closed phase as current (rejected: not the number that actually carries forward)
+
+### DEC-154 — Savings Goal + Piggy Bank (read-only motivation) (Package 2, v0.11.1)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: A motivation layer that is PURE and read-only. `projectTripEndSurplus` extrapolates the daily pace over the remaining days (can be negative); `calculateSavingsGoalProgress` gives ratio/gap/on-track vs projection; `calculatePiggyBank` is accumulated under-spend (ideal-linear-to-today − spent, clamped ≥0) at the trip level. Goal stored as non-indexed `savingsGoalCents:number|null` in AppSettings (backfill+seed — ÂNCORA 18); movable `savings_goal` and `piggy_bank` cards appear only when relevant. CRITICAL (ÂNCORA 11): neither is ever an input to `calculateFreeToSpend` — proven by a structural invariance test (free-to-spend is identical with and without a goal).
+- **Rationale**: Travelers are motivated by a concrete "come home with €X" target and by seeing what they've banked — but motivation must never quietly shrink today's spendable money (DEC-088).
+- **Alternatives**: Deducting the goal from the daily allowance (rejected: ÂNCORA 11 — it would corrupt the core number), a weighted/non-linear piggy bank (rejected: a simple linear pace is honest and legible)
+
+### DEC-155 — In-Trip Learning: Occasion-Average Value Suggestion (accept-only) (Package 2, v0.11.2)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: A second, occasion-level learning path (separate from the existing per-item EWMA `updateProfileFromTransaction`, which stays intact). `computeProfileOccasionAverages` treats one closed session as ONE occasion (DEC-115), summing its transactions' personal cost and excluding `isSpecialOccasion`/`excludeFromLearning` items (ÂNCORA 12), over the `VALUE_SUGGESTION_RECENT_OUTINGS(5)` most recent sessions per profile. `detectValueSuggestion` fires with ≥`MIN_SAMPLES(3)` occasions AND |avg−typical| ≥ `MIN_DELTA_CENTS(500)` AND ratio ≥ `MIN_RATIO(0.2)`, returning the most-divergent non-dismissed profile. A BottomSheet proposes the update; accepting calls the atomic `applyValueSuggestion` (writes `typicalValueCents`), keeping/closing records the id in non-indexed `valueSuggestionsDismissed` (won't nag again this trip). Detection is read-only — the profile only changes on explicit accept (ÂNCORA 12 proven). Simple mode excluded (ÂNCORA 14).
+- **Rationale**: Per-item EWMA drifts silently; an occasion-level "your bar nights actually run ~€22, update from €15?" is the honest, legible learning a traveler can approve — never an automatic rewrite.
+- **Alternatives**: Auto-updating the profile (rejected: ÂNCORA 12), folding it into the existing EWMA (rejected: different granularity and semantics; keeping them separate avoids coupling), per-item suggestions (rejected: the occasion is the unit travelers reason about)
+
+### DEC-156 — Trip Continuity: End-of-Trip Priors + Save/Apply Templates (Package 2, v0.12.0 — Phase 4 complete)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: Learnings carry to the next trip. (M21) `detectTripPriorsOffer` fires once after a trip's end date (with live profiles, not yet in non-indexed `tripPriorsHandled`) via a dashboard BottomSheet — "save model" builds+saves a template; "not now" just marks handled (anti-nag, ÂNCORA 8). (M22) `buildTripTemplate` (pure) serializes a trip into a reusable mold — phases (name, order, date-derived `durationDays`, rhythm/peak) and profiles (typical/safe/cost shape, stripped of ids/tripId/dataPointCount); persisted in non-indexed `tripTemplates:TripTemplate[]` (newest-first, capped 20) via the atomic `saveTripTemplate`; managed in a Settings section. (M23) `instantiateTemplate` (pure) recreates a new trip's entities — phases laid contiguously across the new range proportional to their stored duration (first starts on start, last ends on end), one link per phase to the operational pool, and profiles recreated COLD (confidence low, zero data points — the new trip re-learns). The atomic `createTripFromTemplate` mirrors `createTripFromOnboarding` (BUG-013) but persists the template's MANY phases+links in one transaction; an onboarding picker applies it. Brand-new ids always — applying can never collide with the source trip (ÂNCORA 12). All non-indexed fields keep ÂNCORA 18 (no Dexie migration).
+- **Rationale**: A second trip to a similar place shouldn't start from zero; capturing the structure and the learned cost shape (then re-learning cold) turns each trip into a better starting point for the next without ever overwriting history.
+- **Alternatives**: Copying profiles hot (rejected: a new trip has its own prices — cold re-learning is honest), reusing the single-phase onboarding orchestrator (rejected: templates are multi-phase; a dedicated atomic path avoids half-applied templates), a new Dexie table for templates (rejected: ÂNCORA 18 — a non-indexed AppSettings field needs no migration)
+
 ---
 
 *New decisions will be added as the project progresses.*

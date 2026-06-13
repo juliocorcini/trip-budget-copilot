@@ -1,7 +1,7 @@
 # TripPilot — Plano Mestre de Expansão (Fase de Planejamento)
 
 > Criado: 2026-06-13
-> Status: **EM EXECUÇÃO — Fases 1 e 2 FEITAS (Package 1, 2026-06-13, v0.8.3→v0.10.1, DEC-138..149)**; **Pacote 2 (Fases 3+4) PRONTO p/ rodar** (`phase-package-2-insights-motivation.md`); Fases 5-7 pendentes
+> Status: **EM EXECUÇÃO — Fases 1, 2, 3 e 4 FEITAS** (Package 1, v0.8.3→v0.10.1, DEC-138..149; Package 2, v0.10.2→v0.12.1, DEC-150..156; 2026-06-13); **Pacote 3 (Fases 5+6) PRONTO p/ rodar** (`phase-package-3-context-security.md`); Fase 7 (P2P v2) = V2
 > Fonte: brainstorm das 50 ideias + feedback idea-por-idea do Julio (2026-06-13)
 > Base de código auditada: v0.8.2 (137 DECs, Dexie v4, 504 testes)
 
@@ -409,7 +409,7 @@ seguintes respeitam; vem logo após a captura por ser a dor nº1 do Julio.
 - M12-14. Testes (onboarding simples, troca de modo, guardas) + e2e.
 - M15. Gate final + dev-log + atualizar brain (DECs novas).
 
-### FASE 3 — Insights v2, Check-in & Ciclo de Fase  *(Epics E4 + E5)*
+### FASE 3 — Insights v2, Check-in & Ciclo de Fase  *(Epics E4 + E5)* — ✅ FEITA (Package 2, v0.10.2→v0.11.0, 2026-06-13; DEC-150..153)
 **Objetivo:** o dashboard vira inteligência glanceável e honesta, sem virar spam.
 - M1. Remover teto de insights + ordenar por importância.
 - M2. Auto-rotação (pausa ao tocar) + manter swipe/dots.
@@ -425,7 +425,7 @@ seguintes respeitam; vem logo após a captura por ser a dor nº1 do Julio.
 - M12-15. Testes (significância dos builders, sobra preserva total) + e2e.
 - M16. Gate final + brain.
 
-### FASE 4 — Motivação & Continuidade entre Viagens  *(Epics E6 + E7)*
+### FASE 4 — Motivação & Continuidade entre Viagens  *(Epics E6 + E7)* — ✅ FEITA (Package 2, v0.11.1→v0.12.1, 2026-06-13; DEC-154..156)
 **Objetivo:** dar um alvo positivo e fazer o app aprender de viagem pra viagem.
 - M1. `savingsGoalCents` + card de progresso da meta.
 - M2. Cofrinho (saldo extra liberado, leitura derivada do subgasto).
@@ -522,6 +522,10 @@ Decisão de empacotamento (atualizada 2026-06-13 com a diretriz do Julio):
   `stability-fix-prompt.md`: ÂNCORA, STATE FILE, gates, checkpoint, recovery). **FEITO.**
 - Pacote 2 escrito em `phase-package-2-insights-motivation.md` (Fases 3+4; mesmo formato;
   versão 0.10.1→0.12.1, 8 gates, baseline 614 testes). Pronto pra rodar em chat novo.
+- Pacote 3 escrito em `phase-package-3-context-security.md` (Fases 5+6; mesmo formato;
+  versão 0.12.1→0.14.1, 8 gates). Fecha o V1 expandido. Única migração Dexie do pacote =
+  tabela `localSnapshots` (histórico). Backup sobe v4→v5 (campos de local). Pronto pra rodar.
+- Os 3 pacotes cobrem Fases 1-6. Fase 7 (P2P v2 + modo casal) fica pra V2.
 
 ## 7. O que fica de fora (consciente)
 - Backend, contas, sync automático em background (mantém DEC / V1 exclusions).

@@ -1,8 +1,8 @@
 # Pacote 2 — Insights v2 + Ciclo de Fase + Motivação + Continuidade — Log
 
 ## Current State
-- Fase: 4 ✅ COMPLETA | Gate: 6 ✅ | Milestone: M25 done | Done: 25/26 | Tests: 708 (+94 desde baseline) | Versão: 0.12.0 | Último deploy: PRODUÇÃO → trippilot.pages.dev (--branch=main) | Build: ✅
-- PRÓXIMO: GATE 7 (testes finais + brain DECs + deploy final 0.12.1). Continuar sem parar.
+- PACOTE 2 COMPLETO ✅ (Fases 3+4) | Gate: 7 ✅ (fim) | Milestone: 26/26 | Tests: 708 (+94 desde baseline 614) | Versão: 0.12.1 | Último deploy: PRODUÇÃO 5fd192d0 → trippilot.pages.dev (--branch=main) | Build: ✅
+- PRÓXIMO: nada neste pacote. Pacote 3 (Fases 5+6: local/hora + multi-moeda + segurança) pronto pra rodar (`phase-package-3-context-security.md`).
 
 ## Decisões tomadas durante a execução
 - M1: prioridade data-driven (`INSIGHT_PRIORITY`) — projection 80 > rhythm 60 > balance 50 > next 40 > avg 30 > streak 20. Ordena priority desc, desempate por tone (warning primeiro). Teto fixo de 4 removido; substituído por `INSIGHT_SAFETY_CAP=12` só p/ não explodir o carrossel. `MAX_INSIGHTS_PER_DAY` renomeado → `INSIGHT_SAFETY_CAP`.
@@ -36,6 +36,8 @@
 - 0.11.0 (GATE 3 — FASE 3 COMPLETA) → https://master.trippilot.pages.dev (https://37431597.trippilot.pages.dev)
 - 0.11.1 (GATE 4 — meta + cofrinho) → https://master.trippilot.pages.dev (https://5bc46a45.trippilot.pages.dev)
 - 0.11.2 (GATE 5 — aprendizado in-trip) → https://master.trippilot.pages.dev (https://5895012e.trippilot.pages.dev)
+- 0.12.0 (GATE 6 — FASE 4 COMPLETA: templates + priors) → **PRODUÇÃO** `--branch=main` → https://trippilot.pages.dev (deploy https://d5e60284.trippilot.pages.dev)
+- 0.12.1 (GATE 7 — PACOTE 2 FINALIZADO: brain + testes finais) → **PRODUÇÃO** `--branch=main` → https://trippilot.pages.dev (deploy https://5fd192d0.trippilot.pages.dev)
 
 ---
 
@@ -104,9 +106,14 @@
 - [x] M25 Testes Fase 4 (+17 no gate; ≥12 exigidos)
 - [x] Checkpoint: version/deploy/novidades 0.12.0 + commit + deploy PRODUÇÃO
 
-## GATE 7 — Testes finais + brain + deploy final → 0.12.1
-- [ ] Testes todos verdes (≥30 novos)
-- [ ] Smoke golden path
-- [ ] Brain atualizado (DECs)
-- [ ] Deploy final 0.12.1
-- [ ] Entrega (resumo)
+## GATE 7 — Testes finais + brain + deploy final → 0.12.1 ✅
+- [x] Testes todos verdes — 708 (+94 vs baseline 614; ≥30 exigidos no pacote). tsc 0, build sem chunk>500KB.
+- [x] Smoke golden path — coberto pela suíte unitária (phase-cycle/leftover preserva total, invariância free-to-spend com/sem meta, value-suggestion só grava no aceite, createTripFromTemplate recria estrutura, simple-mode mínimo) + smoke no ar (prod carrega a shell, Sobre = 0.12.1). Sem harness E2E neste pacote.
+- [x] Brain atualizado — DEC-150..156 no decision-log; project-status (versão/contagem/testes/deploy + bloco Pacote 2); product-spec (seção "Feature Expansion Package 2"); master-plan (Fases 3 e 4 marcadas FEITAS).
+- [x] Deploy final 0.12.1 → PRODUÇÃO 5fd192d0 → trippilot.pages.dev
+- [x] Entrega (resumo) — abaixo + no chat.
+
+## ENTREGA — PACOTE 2 (Fases 3+4)
+- 26/26 milestones. Testes 708 (+94: Fase 3 +49, Fase 4 +45 incl. M25 +17). 7 deploys: 0.10.2 · 0.10.3 · 0.11.0 (preview) · 0.11.1 · 0.11.2 (preview) · 0.12.0 (PROD) · 0.12.1 (PROD).
+- M8 (check-in por notificação): COMPLETA (respondível via SW + fallback abrir-app; disparo best-effort — limitação de background honestamente registrada).
+- ÂNCORAs provadas por teste: 11 (meta/cofrinho não tocam free-to-spend), 12 (aprendizado só sugere; templates criam ids novos), 13/15 (mover sobra/transfer preserva total), 18 (campos não-indexados, sem migração).

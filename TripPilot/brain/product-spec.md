@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-06-13 (Feature Expansion Package 1 — fast capture, outing v2, simple mode)
+> Last updated: 2026-06-13 (Feature Expansion Package 2 — insights v2, phase cycle, motivation, trip continuity)
 
 ## What is TripPilot?
 
@@ -297,6 +297,30 @@ The guarantees the user can rely on, even when the device storage misbehaves:
 
 **About:**
 - The About screen shows **"What's new in this version"** plus an expandable history, in your language.
+
+### Feature Expansion Package 2 — Insights v2, Phase Cycle, Motivation, Continuity (v0.11.x–v0.12.x)
+
+**Smarter dashboard (insights v2):**
+- Insights are **no longer capped** and are **ordered by what matters now**; the carousel **rotates on its own** (every 7s), pausing when you touch it and respecting reduced-motion.
+- New **calibrated** nudges that stay quiet unless the signal is real (anti-spam): **category rhythm** ("eating out is ahead of pace"), **dangerous day** (the weekday you tend to overspend, as a forecast), and **end of day** (only if you logged nothing today).
+
+**Daily check-in:**
+- A one-tap **"intent of the day"** (calm / outing / night) sets the day's context. It's **read-only** — it never changes your numbers. Where supported, you can answer it **straight from the morning notification**.
+
+**Phase cycle:**
+- When a phase ends with money left, a sheet shows the **leftover** and lets you **carry it to the next phase**, **protect it as a reserve**, or **free it for shopping** — always preserving the trip total.
+- A **countdown** between phases shows "X days to the next phase — €Y/day until then."
+
+**Motivation (read-only — never touches "free today"):**
+- **Savings goal** — set how much you want to come home with and track the projection to the trip's end.
+- **Piggy bank** — see how much you've banked by spending under pace.
+
+**Learns during the trip (suggests, never auto-changes):**
+- When your outings consistently cost differently than a profile's typical value, the app **suggests** an update (treating a whole outing as one occasion, ignoring special expenses). It only changes the value **if you accept**; keeping it won't ask again this trip.
+
+**Continuity between trips:**
+- At a trip's end, the app offers to **save what it learned** for next time.
+- **Save a trip as a template** (phases, profiles, typical values) and **start a new trip from a template** — the structure and learned values come pre-filled, while the new trip re-learns its own prices.
 
 ## V1 — Explicitly NOT in Scope
 
