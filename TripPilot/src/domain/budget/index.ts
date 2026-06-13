@@ -29,6 +29,17 @@ export type {
   RescueOccasionInput,
   BuildRescuePlanInput,
 } from './rescue';
+export {
+  projectTripEndSurplus,
+  calculateSavingsGoalProgress,
+  calculatePiggyBank,
+} from './motivation';
+export type {
+  ProjectTripEndSurplusInput,
+  SavingsGoalProgressInput,
+  SavingsGoalProgress,
+  PiggyBankInput,
+} from './motivation';
 export type {
   FreeToSpendResult,
   PoolSummary,

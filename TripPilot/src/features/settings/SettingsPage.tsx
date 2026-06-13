@@ -38,6 +38,8 @@ export function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState(getOutingNotificationPermission());
   // DEC-128: rate is typed locally and persisted on save (quick-add pattern).
   const [anchorRateInput, setAnchorRateInput] = useState('');
+  // M14: savings goal typed locally, persisted on save (same quick-add pattern).
+  const [goalInput, setGoalInput] = useState('');
   // DEC-135: in-app install + manual "look for a new version" button.
   const { available: installAvailable, install } = useInstallPrompt();
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -324,6 +326,49 @@ export function SettingsPage() {
               </p>
             )}
           </>
+        )}
+      </Section>
+
+      {/* M14 (E6): savings goal — money to bring home. Read-only motivation,
+          never affects the budget (ÂNCORA 11 / DEC-088). */}
+      <Section title={t('settings.goal_title')}>
+        <p className="text-xs text-on-surface-faint mb-3">{t('settings.goal_hint')}</p>
+        {settings.savingsGoalCents != null && (
+          <p className="text-sm font-bold text-on-surface mb-2 tabular">
+            {t('settings.goal_current', { amount: formatMoney(settings.savingsGoalCents, baseCurrency) })}
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            value={goalInput}
+            onChange={(e) => setGoalInput(e.target.value)}
+            placeholder={settings.savingsGoalCents != null ? String(fromCents(settings.savingsGoalCents)) : '200'}
+            className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none flex-1 min-w-0"
+          />
+          <span className="text-xs font-semibold text-on-surface-dim">{baseCurrency}</span>
+          <button
+            onClick={() => {
+              const value = toCents(parseFloat(goalInput.replace(',', '.')));
+              if (Number.isFinite(value) && value > 0) {
+                updateSetting({ savingsGoalCents: value });
+                setGoalInput('');
+              }
+            }}
+            className="px-3 py-2 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
+          >
+            {t('common.save')}
+          </button>
+        </div>
+        {settings.savingsGoalCents != null && (
+          <button
+            onClick={() => updateSetting({ savingsGoalCents: null })}
+            className="text-xs text-on-surface-faint mt-3 btn-press"
+          >
+            {t('settings.goal_remove')}
+          </button>
         )}
       </Section>
 

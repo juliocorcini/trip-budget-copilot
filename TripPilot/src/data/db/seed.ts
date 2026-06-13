@@ -39,6 +39,8 @@ export function createDefaultAppSettings(): AppSettings {
     dailyCheckIn: null,
     // M9: no phase leftover handled yet.
     phaseLeftoverHandled: [],
+    // M14: no savings goal until the traveler sets one.
+    savingsGoalCents: null,
   };
 }
 

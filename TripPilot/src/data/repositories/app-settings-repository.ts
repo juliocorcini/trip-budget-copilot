@@ -32,6 +32,8 @@ class AppSettingsRepository {
       dailyCheckIn: settings.dailyCheckIn ?? null,
       // M9: records predating the phase-cycle have nothing handled yet.
       phaseLeftoverHandled: settings.phaseLeftoverHandled ?? [],
+      // M14: records predating the savings goal have none.
+      savingsGoalCents: settings.savingsGoalCents ?? null,
     };
   }
 

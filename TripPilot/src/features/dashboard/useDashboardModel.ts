@@ -13,6 +13,9 @@ import {
   calculateLastOutingSavings,
   buildHonestFriendV2,
   calculatePoolSpent,
+  projectTripEndSurplus,
+  calculateSavingsGoalProgress,
+  calculatePiggyBank,
 } from '@/domain/budget';
 import {
   getRecentTransactions,
@@ -373,6 +376,33 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // DEC-092 (R-10): savings refer to the LAST closed outing.
     const savings = calculateLastOutingSavings(completedSessions, transactions, profiles, Date.now());
 
+    // E6 (M14/M15): motivation layer — savings goal + piggy bank. Both are
+    // READ-ONLY derivations of trip-level under-spend; they never touch the
+    // freeToSpend math (ÂNCORA 11 / DEC-088).
+    const tripTotalDays = trip ? getTotalDays(trip.startDate, trip.endDate) : 0;
+    const tripDaysElapsed = trip ? Math.max(0, Math.min(tripTotalDays, getDayNumber(trip.startDate))) : 0;
+    const tripDaysRemaining = Math.max(0, tripTotalDays - tripDaysElapsed);
+    const motivationBudgetCents = fts?.totalBudgetCents ?? 0;
+    const motivationSpentCents = fts?.totalSpentCents ?? 0;
+    const piggyBankCents = calculatePiggyBank({
+      totalBudgetCents: motivationBudgetCents,
+      totalSpentCents: motivationSpentCents,
+      daysElapsed: tripDaysElapsed,
+      totalDays: tripTotalDays,
+    });
+    const savingsGoal =
+      fts && settings?.savingsGoalCents != null
+        ? calculateSavingsGoalProgress({
+            goalCents: settings.savingsGoalCents,
+            projectedSurplusCents: projectTripEndSurplus({
+              totalBudgetCents: motivationBudgetCents,
+              totalSpentCents: motivationSpentCents,
+              daysElapsed: tripDaysElapsed,
+              daysRemaining: tripDaysRemaining,
+            }),
+          })
+        : null;
+
     // DEC-093 (R-11): Honest Friend v2 — based on the PLAN of the category.
     const recentProfileTx =
       [...phaseTxsForInsights]
@@ -481,6 +511,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       todayBudget,
       recap,
       savings,
+      savingsGoal,
+      piggyBankCents,
       amigoV2,
       burndown,
       currentMonth,

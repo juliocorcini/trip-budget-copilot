@@ -203,6 +203,77 @@ export function DashboardCards({
           </div>
         );
       }
+      case 'savings_goal': {
+        // M14 (E6): savings goal vs projected end-of-trip surplus. READ-ONLY —
+        // shown only when the traveler set a goal (ÂNCORA 11 / DEC-088).
+        const goal = model.savingsGoal;
+        if (!goal) return null;
+        const pct = Math.round(goal.progressRatio * 100);
+        return (
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-full mt-4 p-4 rounded-2xl bg-surface-container text-left btn-press"
+          >
+            <div className="flex items-center gap-2.5">
+              <Icon
+                name="flag"
+                size={18}
+                filled
+                className={goal.onTrack ? 'text-success' : 'text-warning'}
+              />
+              <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint flex-1">
+                {t('dashboard.goal_title')}
+              </p>
+              <span className="text-xs font-bold tabular text-on-surface-dim">
+                {t('dashboard.goal_target', { amount: formatMoney(goal.goalCents, trip.baseCurrency) })}
+              </span>
+            </div>
+            <p className="text-[26px] font-extrabold tracking-tight leading-none mt-2 tabular text-on-surface">
+              {formatMoney(Math.max(0, goal.projectedSurplusCents), trip.baseCurrency)}
+            </p>
+            <p className="text-[11px] font-semibold mt-1 text-on-surface-dim">{t('dashboard.goal_projected')}</p>
+            <div
+              className="w-full h-2 rounded-full overflow-hidden mt-3"
+              style={{ background: 'var(--surface-container-high)' }}
+            >
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${pct}%`, background: goal.onTrack ? 'var(--success)' : 'var(--warning)' }}
+              />
+            </div>
+            <p className={`text-xs font-bold mt-2 ${goal.onTrack ? 'text-success' : 'text-warning'}`}>
+              {goal.onTrack
+                ? t('dashboard.goal_on_track', { amount: formatMoney(goal.gapCents, trip.baseCurrency) })
+                : t('dashboard.goal_behind', { amount: formatMoney(Math.abs(goal.gapCents), trip.baseCurrency) })}
+            </p>
+          </button>
+        );
+      }
+      case 'piggy_bank':
+        // M15 (E6): accumulated under-spend framed as a piggy bank. READ-ONLY —
+        // never part of "free today" (ÂNCORA 11).
+        return model.piggyBankCents > 0 ? (
+          <div
+            className="mt-4 p-4 rounded-2xl flex items-center gap-3"
+            style={{ background: '#6B8F7112', border: '1px solid #6B8F7118' }}
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: '#6B8F7118' }}
+            >
+              <Icon name="savings" size={20} filled className="text-success" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                {t('dashboard.piggy_title')}
+              </p>
+              <p className="text-lg font-extrabold tabular text-success leading-tight">
+                {formatMoney(model.piggyBankCents, trip.baseCurrency)}
+              </p>
+              <p className="text-[11px] font-semibold text-on-surface-dim mt-0.5">{t('dashboard.piggy_desc')}</p>
+            </div>
+          </div>
+        ) : null;
       case 'active_outing':
         return (
           <>

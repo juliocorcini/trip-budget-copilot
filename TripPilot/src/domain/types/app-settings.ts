@@ -36,4 +36,7 @@ export interface AppSettings {
    * (moved or dismissed) — so the sheet never reopens for the same cycle
    * (non-indexed — no migration). */
   phaseLeftoverHandled: string[];
+  /** E6 (M14): target money to come home with ("save €200"); null = no goal.
+   * Read-only motivation — never affects "free today" (non-indexed). */
+  savingsGoalCents: number | null;
 }

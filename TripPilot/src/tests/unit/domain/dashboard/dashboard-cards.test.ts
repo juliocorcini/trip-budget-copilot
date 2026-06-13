@@ -32,6 +32,8 @@ describe('resolveDashboardCardSequence', () => {
     expect(movable.slice(2)).toEqual([
       'today_events',
       'daily_checkin',
+      'savings_goal',
+      'piggy_bank',
       'yesterday_recap',
       'occasion_counters',
       'phase_burndown',
@@ -66,12 +68,15 @@ describe('hide / show', () => {
 describe('moveDashboardCard', () => {
   it('moves a card up among the movable cards', () => {
     const order = moveDashboardCard(undefined, 'occasion_counters', 'up');
-    // Default movable order: today_events, daily_checkin, yesterday_recap, occasion_counters, …
+    // Default movable order: today_events, daily_checkin, savings_goal,
+    // piggy_bank, yesterday_recap, occasion_counters, …
     expect(order[0]).toBe('today_events');
     expect(order[1]).toBe('daily_checkin');
+    expect(order[2]).toBe('savings_goal');
+    expect(order[3]).toBe('piggy_bank');
     // occasion_counters swaps up past yesterday_recap.
-    expect(order[2]).toBe('occasion_counters');
-    expect(order[3]).toBe('yesterday_recap');
+    expect(order[4]).toBe('occasion_counters');
+    expect(order[5]).toBe('yesterday_recap');
   });
 
   it('does not move past the edges', () => {

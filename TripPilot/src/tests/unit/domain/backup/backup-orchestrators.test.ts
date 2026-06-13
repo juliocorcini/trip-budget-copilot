@@ -33,6 +33,7 @@ const settings: AppSettings = {
   anchorRatePer1: null,
   dailyCheckIn: null,
   phaseLeftoverHandled: [],
+  savingsGoalCents: null,
 };
 
 const mkTrip = (): Trip => ({

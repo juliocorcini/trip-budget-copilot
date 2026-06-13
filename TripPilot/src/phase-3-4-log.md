@@ -1,8 +1,8 @@
 # Pacote 2 — Insights v2 + Ciclo de Fase + Motivação + Continuidade — Log
 
 ## Current State
-- Fase: 3 ✅ COMPLETA | Gate: 3 ✅ | Milestone: M13 done | Done: 13/26 | Tests: 663 (+49 desde baseline) | Versão: 0.11.0 | Último deploy: master.trippilot.pages.dev (37431597) | Build: ✅
-- PRÓXIMO: GATE 4 / M14 (meta de economia) — Fase 4. Continuar sem parar.
+- Fase: 4 🚧 | Gate: 4 ✅ | Milestone: M17 done | Done: 17/26 | Tests: 677 (+63 desde baseline) | Versão: 0.11.1 | Último deploy: master.trippilot.pages.dev (5bc46a45) | Build: ✅
+- PRÓXIMO: GATE 5 / M18 (ajuste contínuo de perfis) — Fase 4. Continuar sem parar.
 
 ## Decisões tomadas durante a execução
 - M1: prioridade data-driven (`INSIGHT_PRIORITY`) — projection 80 > rhythm 60 > balance 50 > next 40 > avg 30 > streak 20. Ordena priority desc, desempate por tone (warning primeiro). Teto fixo de 4 removido; substituído por `INSIGHT_SAFETY_CAP=12` só p/ não explodir o carrossel. `MAX_INSIGHTS_PER_DAY` renomeado → `INSIGHT_SAFETY_CAP`.
@@ -17,11 +17,16 @@
 - M10: orquestrador atômico `applyPhaseLeftover` (`db.transaction` em budgetPools+envelopes+appSettings). 3 destinos: carry_next (no-op, fica livre), reserve (cria envelope protected_reserve no pool operacional — totais intactos), shopping (transferência pool→pool via `computePoolTransfer` puro — preserva o total da viagem, ÂNCORA 13/15). TODOS marcam handled (idempotente via `markPhaseLeftoverHandled`). UI: 1 botão por pool global em `leftoverTargets`.
 - M11: builder puro `buildPhaseCountdown` (insights.ts). Input novo `nextPhase:{name,daysUntilStart}|null` (model acha a fase futura mais próxima; daysUntilStart = getTotalDays(today,next)-1). Dispara só em 1..`COUNTDOWN_WINDOW_DAYS(5)` E free>0; €/dia = free / daysUntilStart. Tone neutral (não polui o Simples). Prioridade 55. Tap → /trip. Ícone flight_takeoff.
 - M13: +24 testes no gate (phase-cycle 12, pool-transfer 3, orquestrador 4, countdown 5). Fase 3 inteira: +49 vs baseline 614.
+- M14: camada de motivação PURA em `domain/budget/motivation.ts` — `projectTripEndSurplus` (extrapola o ritmo diário sobre os dias restantes; pode ser negativo), `calculateSavingsGoalProgress` (ratio 0..1, gap, onTrack vs projeção). Card movível `savings_goal` (logo abaixo do check-in) só aparece se a meta foi definida; tap → /settings. Meta = `savingsGoalCents:number|null` em AppSettings (não-indexado, backfill+seed, ÂNCORA 18). ÂNCORA 11: NUNCA é input de `calculateFreeToSpend` — só leitura.
+- M15: `calculatePiggyBank` puro — subgasto acumulado = ideal-linear-até-hoje − gasto, nunca negativo, clamp da fração em 1. Card movível `piggy_bank` só aparece com cofrinho>0. Decisão de produto: ritmo LINEAR no nível-viagem (não ponderado) — número motivacional simples, read-only. Dias da viagem: `getTotalDays(trip.start,trip.end)` + `getDayNumber(trip.start)` (clamp 0..total).
+- M16: seção "Meta de economia" na SettingsPage (mesmo padrão quick-add: input local + salvar + remover). Mostra meta atual; placeholder = meta atual ou 200.
+- M17: +14 testes E6 (projectTripEndSurplus 5, savings-goal 4, piggy 4, invariância free-to-spend 1). A invariância é estrutural: a meta não é parâmetro de `calculateFreeToSpend`, então o "livre" é idêntico com/sem meta (ÂNCORA 11 provada). Total 677.
 
 ## Deploys
 - 0.10.2 (GATE 1) → https://master.trippilot.pages.dev (https://6c0f7900.trippilot.pages.dev)
 - 0.10.3 (GATE 2) → https://master.trippilot.pages.dev (https://f1abd098.trippilot.pages.dev)
 - 0.11.0 (GATE 3 — FASE 3 COMPLETA) → https://master.trippilot.pages.dev (https://37431597.trippilot.pages.dev)
+- 0.11.1 (GATE 4 — meta + cofrinho) → https://master.trippilot.pages.dev (https://5bc46a45.trippilot.pages.dev)
 
 ---
 
@@ -69,12 +74,12 @@
 
 ## FASE 4 — MOTIVAÇÃO + CONTINUIDADE
 
-### GATE 4 — Meta + cofrinho → 0.11.1
-- [ ] M14 Meta de economia + card de progresso
-- [ ] M15 Cofrinho (leitura derivada, não altera livre)
-- [ ] M16 UI da meta (Settings/Trip)
-- [ ] M17 Testes E6
-- [ ] Checkpoint: version/deploy/novidades 0.11.1 + commit
+### GATE 4 — Meta + cofrinho → 0.11.1 ✅
+- [x] M14 Meta de economia + card de progresso
+- [x] M15 Cofrinho (leitura derivada, não altera livre)
+- [x] M16 UI da meta (Settings/Trip)
+- [x] M17 Testes E6 (+14: projeção, meta, cofrinho, invariância free-to-spend)
+- [x] Checkpoint: version/deploy/novidades 0.11.1 + commit
 
 ### GATE 5 — Aprendizado in-trip → 0.11.2
 - [ ] M18 Ajuste contínuo de perfis (sugerido)

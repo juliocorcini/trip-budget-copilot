@@ -10,6 +10,8 @@
 export type DashboardCardId =
   | 'today_events'
   | 'daily_checkin'
+  | 'savings_goal'
+  | 'piggy_bank'
   | 'active_outing'
   | 'hero'
   | 'yesterday_recap'
@@ -54,6 +56,24 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     // M7: one-tap intent for the day — sits right below the hero.
     id: 'daily_checkin',
     labelKey: 'dashboard.card_daily_checkin',
+    fixed: false,
+    quickAction: null,
+  },
+  {
+    // M14: savings goal progress — positive target next to the budget.
+    id: 'savings_goal',
+    labelKey: 'dashboard.card_savings_goal',
+    fixed: false,
+    quickAction: {
+      route: '/settings',
+      labelKey: 'dashboard.card_action_edit_goal',
+      icon: 'flag',
+    },
+  },
+  {
+    // M15: piggy bank — accumulated under-spend (read-only).
+    id: 'piggy_bank',
+    labelKey: 'dashboard.card_piggy_bank',
     fixed: false,
     quickAction: null,
   },

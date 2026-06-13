@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.1',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Meta de economia: defina quanto quer voltar com sobrando e acompanhe a projeção até o fim da viagem.',
+        'Cofrinho: veja quanto você já guardou gastando abaixo do ritmo.',
+        'A meta e o cofrinho são só motivação — nunca mexem no seu "livre pra gastar".',
+      ],
+      en: [
+        'Savings goal: set how much you want to come home with and track the projection to the trip’s end.',
+        'Piggy bank: see how much you’ve put aside by spending under pace.',
+        'The goal and piggy bank are motivation only — they never touch your "free to spend".',
+      ],
+      es: [
+        'Meta de ahorro: define con cuánto quieres volver y sigue la proyección hasta el final del viaje.',
+        'Alcancía: mira cuánto ya guardaste gastando por debajo del ritmo.',
+        'La meta y la alcancía son solo motivación — nunca tocan tu "libre para gastar".',
+      ],
+    },
+  },
+  {
     version: '0.11.0',
     date: '2026-06-13',
     items: {
