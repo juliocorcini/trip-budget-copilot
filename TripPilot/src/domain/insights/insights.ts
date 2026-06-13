@@ -26,7 +26,10 @@ export const INSIGHT_SAFETY_CAP = 12;
 export const MIN_DAYS_FOR_PROJECTION = 3;
 
 export type DashboardInsightKind =
+  | 'end_of_day'
   | 'phase_projection'
+  | 'danger_day'
+  | 'category_rhythm'
   | 'rhythm_compare'
   | 'no_spend_streak'
   | 'avg_outing_cost'
@@ -40,13 +43,27 @@ export type InsightTone = 'positive' | 'warning' | 'neutral';
  * table, not branching logic. Ties are broken by tone (warnings first).
  */
 export const INSIGHT_PRIORITY: Record<DashboardInsightKind, number> = {
+  // M6: a missing day-log prompt is the most actionable card when it fires.
+  end_of_day: 100,
   phase_projection: 80,
+  // M5/M4: calibrated warnings rank just under the headline projection.
+  danger_day: 70,
+  category_rhythm: 65,
   rhythm_compare: 60,
   participant_balance: 50,
   next_event: 40,
   avg_outing_cost: 30,
   no_spend_streak: 20,
 };
+
+/** M5: today's weekday must spend at least this much MORE than other days. */
+export const DANGER_DAY_FACTOR = 1.8;
+/** M5: need at least this many past samples of the weekday to trust it. */
+export const DANGER_DAY_MIN_SAMPLES = 2;
+/** M4: a category is "ahead of pace" past this consumed-vs-elapsed ratio. */
+export const CATEGORY_RHYTHM_FACTOR = 1.5;
+/** M6: only nudge for a missing day-log in the evening. */
+export const END_OF_DAY_HOUR = 18;
 
 /** Tone order for tie-breaking — warnings surface before neutral/positive. */
 const TONE_RANK: Record<InsightTone, number> = { warning: 0, neutral: 1, positive: 2 };
@@ -75,6 +92,17 @@ export interface BuildInsightsInput {
   ownerId: string;
   /** Trip occurrences — builder filters the upcoming ones itself. */
   occurrences: PlannedOccurrence[];
+  /** M4: per-category plan vs spend (cents) for the active phase. */
+  categoryRhythm: CategoryRhythmEntry[];
+  /** M6: local hour-of-day (0-23) — the end-of-day nudge only fires late. */
+  nowHour: number;
+}
+
+/** M4: a category's planned budget and actual spend within the phase. */
+export interface CategoryRhythmEntry {
+  category: string;
+  plannedCents: number;
+  spentCents: number;
 }
 
 function daysBetweenInclusive(startDate: string, endDate: string): number {
@@ -247,8 +275,125 @@ function buildNextEvent(input: BuildInsightsInput): DashboardInsight | null {
   };
 }
 
+/**
+ * M4 — a category is burning its phase plan faster than time is passing
+ * ("Bar already ate 60% of the plan on day 3 of 10"). Anti-spam (ÂNCORA 8):
+ * only with ≥3 days of data, a real plan for the category, and consumption
+ * disproportionate to the elapsed fraction. Reports the worst offender.
+ */
+function buildCategoryRhythm(input: BuildInsightsInput): DashboardInsight | null {
+  const elapsed = daysElapsed(input);
+  if (elapsed < MIN_DAYS_FOR_PROJECTION) return null;
+  const totalDays = daysBetweenInclusive(input.phase.startDate, input.phase.endDate);
+  if (totalDays <= 0) return null;
+
+  const elapsedFraction = elapsed / totalDays;
+  let worst: { entry: CategoryRhythmEntry; consumedFraction: number } | null = null;
+  for (const entry of input.categoryRhythm) {
+    if (entry.plannedCents <= 0 || entry.spentCents <= 0) continue;
+    const consumedFraction = entry.spentCents / entry.plannedCents;
+    if (consumedFraction < elapsedFraction * CATEGORY_RHYTHM_FACTOR) continue;
+    if (!worst || consumedFraction > worst.consumedFraction) worst = { entry, consumedFraction };
+  }
+  if (!worst) return null;
+
+  return {
+    kind: 'category_rhythm',
+    tone: 'warning',
+    priority: INSIGHT_PRIORITY.category_rhythm,
+    values: {
+      category: worst.entry.category,
+      percent: Math.round(worst.consumedFraction * 100),
+      daysElapsed: elapsed,
+      totalDays,
+      spentCents: worst.entry.spentCents,
+      plannedCents: worst.entry.plannedCents,
+    },
+  };
+}
+
+/** Local weekday (0=Sun..6=Sat) of an ISO date, read in local time. */
+function weekdayOf(isoDate: string): number {
+  return new Date(`${isoDate}T00:00:00`).getDay();
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+/**
+ * M5 — "Saturday you spend 2× more, and today is Saturday." Aggregates daily
+ * spend by weekday over the phase history; fires ONLY when today's weekday
+ * averages ≥ DANGER_DAY_FACTOR of the other days AND has enough past samples
+ * (≥ DANGER_DAY_MIN_SAMPLES). Never every day (ÂNCORA 8) — today's own spend
+ * is excluded so the signal is a forecast, not a reaction.
+ */
+function buildDangerDay(input: BuildInsightsInput): DashboardInsight | null {
+  if (input.todayDate < input.phase.startDate || input.todayDate > input.phase.endDate) return null;
+
+  const dailyTotals = new Map<string, number>();
+  for (const tx of input.phaseTransactions) {
+    if (tx.deletedAt !== null || tx.type !== 'expense') continue;
+    const day = localDayOf(tx.date);
+    if (day >= input.todayDate) continue; // only PAST days inform the forecast
+    dailyTotals.set(day, (dailyTotals.get(day) ?? 0) + (tx.personalCostCents ?? tx.amountCents));
+  }
+  if (dailyTotals.size === 0) return null;
+
+  const todayWeekday = weekdayOf(input.todayDate);
+  const sameWeekday: number[] = [];
+  const otherWeekday: number[] = [];
+  for (const [day, total] of dailyTotals) {
+    if (weekdayOf(day) === todayWeekday) sameWeekday.push(total);
+    else otherWeekday.push(total);
+  }
+  if (sameWeekday.length < DANGER_DAY_MIN_SAMPLES || otherWeekday.length === 0) return null;
+
+  const avgSame = average(sameWeekday);
+  const avgOther = average(otherWeekday);
+  if (avgOther <= 0 || avgSame < avgOther * DANGER_DAY_FACTOR) return null;
+
+  return {
+    kind: 'danger_day',
+    tone: 'warning',
+    priority: INSIGHT_PRIORITY.danger_day,
+    values: {
+      weekday: todayWeekday,
+      multiplier: Math.round((avgSame / avgOther) * 10) / 10,
+      avgCents: Math.round(avgSame),
+    },
+  };
+}
+
+/**
+ * M6 — nothing logged today and it is already evening: gently prompt a
+ * record ("what did you spend today?"). Disappears the moment any expense is
+ * registered today; never nags in the morning (END_OF_DAY_HOUR). Informs,
+ * never blocks (ÂNCORA 10).
+ */
+function buildEndOfDay(input: BuildInsightsInput): DashboardInsight | null {
+  if (input.nowHour < END_OF_DAY_HOUR) return null;
+  if (input.todayDate < input.phase.startDate || input.todayDate > input.phase.endDate) return null;
+
+  const loggedToday = input.phaseTransactions.some(
+    (tx) => tx.deletedAt === null && tx.type === 'expense' && localDayOf(tx.date) === input.todayDate,
+  );
+  if (loggedToday) return null;
+
+  return {
+    kind: 'end_of_day',
+    tone: 'warning',
+    priority: INSIGHT_PRIORITY.end_of_day,
+    values: {},
+  };
+}
+
 const INSIGHT_BUILDERS: Array<(input: BuildInsightsInput) => DashboardInsight | null> = [
+  buildEndOfDay,
   buildPhaseProjection,
+  buildDangerDay,
+  buildCategoryRhythm,
   buildRhythmCompare,
   buildNoSpendStreak,
   buildAvgOutingCost,

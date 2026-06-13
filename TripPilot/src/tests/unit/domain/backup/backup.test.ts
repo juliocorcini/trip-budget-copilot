@@ -35,6 +35,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     outingNotificationEnabled: true,
     anchorCurrency: null,
     anchorRatePer1: null,
+    dailyCheckIn: null,
   },
   trips: [],
   phases: [],

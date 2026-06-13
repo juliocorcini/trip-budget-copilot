@@ -13,9 +13,11 @@ import {
   type DashboardCardId,
 } from '@/domain/dashboard';
 import { useLongPress } from '@/hooks/useLongPress';
+import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
 import type { AppSettings } from '@/domain/types/app-settings';
+import type { CheckInIntent } from '@/domain/types/common';
 import { RecapCard } from '@/features/dashboard/cards/RecapCard';
 import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
@@ -43,6 +45,7 @@ interface DashboardCardsProps {
   onPostponeEvent: (occurrenceId: string) => void;
   onInsightTap: (insight: DashboardInsight) => void;
   onSelectHeatmapDay: (iso: string) => void;
+  onSelectCheckIn: (intent: CheckInIntent) => void;
 }
 
 // BUG-008: the home cards moved out of the 1.6k-line DashboardPage into one
@@ -58,6 +61,7 @@ export function DashboardCards({
   onPostponeEvent,
   onInsightTap,
   onSelectHeatmapDay,
+  onSelectCheckIn,
 }: DashboardCardsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -152,6 +156,53 @@ export function DashboardCards({
             ))}
           </>
         );
+      case 'daily_checkin': {
+        // M7 (E5): one-tap intent for the day — read-only context, never blocks.
+        const activeCheckIn = getActiveCheckIn(settings.dailyCheckIn, model.todayIso);
+        return (
+          <div className="mt-4 p-4 rounded-2xl bg-surface-container">
+            <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+              {t('dashboard.checkin_title')}
+            </p>
+            <p className="text-[13px] font-semibold leading-snug mt-1 text-on-surface">
+              {activeCheckIn
+                ? t('dashboard.checkin_active', {
+                    intent: t(`dashboard.checkin_${activeCheckIn.intent}`),
+                  })
+                : t('dashboard.checkin_prompt')}
+            </p>
+            <div className="flex gap-2 mt-3">
+              {CHECK_IN_INTENT_CATALOG.map((option) => {
+                const selected = activeCheckIn?.intent === option.intent;
+                return (
+                  <button
+                    key={option.intent}
+                    onClick={() => onSelectCheckIn(option.intent)}
+                    aria-pressed={selected}
+                    className="flex-1 py-2.5 rounded-xl flex flex-col items-center gap-1 btn-press"
+                    style={{
+                      background: selected ? 'var(--primary)' : 'var(--surface-high)',
+                      border: selected ? '1px solid var(--primary)' : '1px solid var(--border-faint)',
+                    }}
+                  >
+                    <Icon
+                      name={option.icon}
+                      size={20}
+                      filled={selected}
+                      className={selected ? 'text-surface' : 'text-on-surface-dim'}
+                    />
+                    <span
+                      className={`text-[11px] font-bold ${selected ? 'text-surface' : 'text-on-surface-dim'}`}
+                    >
+                      {t(option.labelKey as never)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
       case 'active_outing':
         return (
           <>

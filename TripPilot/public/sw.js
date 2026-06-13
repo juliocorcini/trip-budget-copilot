@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trippilot-v8';
+const CACHE_NAME = 'trippilot-v9';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -106,6 +106,11 @@ self.addEventListener('fetch', (event) => {
 const DB_NAME = 'TripPilotDB';
 const OUTING_TAG = 'trippilot-active-outing';
 const FOLLOWUP_TAG = 'trippilot-outing-followup';
+// M8 (E5): answerable daily check-in notification.
+const CHECKIN_TAG = 'trippilot-daily-checkin';
+const APP_SETTINGS_STORE = 'appSettings';
+const APP_SETTINGS_ID = 'app-settings';
+const CHECKIN_INTENTS = ['calm', 'outing', 'night'];
 
 // BUG-006: open WITHOUT a version so the SW only ever attaches to the schema
 // the app (Dexie) already created — it never triggers an upgrade and never
@@ -415,11 +420,72 @@ async function handleOutingAction(event) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// M8 (E5): daily check-in notification — answerable where Notification Actions
+// exist; degrades to "open the app on the dashboard" otherwise (ÂNCORA 19).
+// The action click writes the intent straight to appSettings (mirrors
+// createDailyCheckIn) and broadcasts so any open window refreshes.
+// ---------------------------------------------------------------------------
+
+/** Tells every open window the DB changed (mirrors APP_DATA_CHANGED_EVENT). */
+async function broadcastAppDataChange() {
+  const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  clientList.forEach((client) => {
+    try {
+      client.postMessage({ type: 'APP_DATA_CHANGED' });
+    } catch {
+      // Frozen/dying client — it re-syncs on visibilitychange anyway.
+    }
+  });
+}
+
+/** Mirrors createDailyCheckIn — sets the day's intent on the settings row. */
+async function swDirectSetCheckIn(intent, date) {
+  const dbConn = await openDb();
+  try {
+    if (!hasStores(dbConn, [APP_SETTINGS_STORE])) return;
+    const settings = await idbGet(dbConn, APP_SETTINGS_STORE, APP_SETTINGS_ID);
+    // BUG-003: the SW must NEVER create the settings row (that would persist
+    // activeTrip:null and orphan trips). Only update an existing one.
+    if (!settings) return;
+    settings.dailyCheckIn = { date, intent };
+    await idbPut(dbConn, APP_SETTINGS_STORE, settings);
+  } finally {
+    dbConn.close();
+  }
+}
+
+async function handleCheckInAction(event) {
+  try {
+    const data = event.notification.data || {};
+    const action = event.action;
+
+    if (action && CHECKIN_INTENTS.indexOf(action) !== -1) {
+      event.notification.close();
+      try {
+        await swDirectSetCheckIn(action, data.date);
+      } finally {
+        await broadcastAppDataChange();
+      }
+      return;
+    }
+
+    // Body click or "open" → bring the dashboard (check-in card) up.
+    event.notification.close();
+    await focusOrOpen('/dashboard');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[SW] check-in action failed:', err);
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   if (
     event.notification.tag === OUTING_TAG ||
     event.notification.tag === FOLLOWUP_TAG
   ) {
     event.waitUntil(handleOutingAction(event));
+  } else if (event.notification.tag === CHECKIN_TAG) {
+    event.waitUntil(handleCheckInAction(event));
   }
 });

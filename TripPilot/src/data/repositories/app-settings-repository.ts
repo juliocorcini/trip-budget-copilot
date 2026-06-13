@@ -28,6 +28,8 @@ class AppSettingsRepository {
       outingNotificationEnabled: settings.outingNotificationEnabled ?? true,
       anchorCurrency: settings.anchorCurrency ?? null,
       anchorRatePer1: settings.anchorRatePer1 ?? null,
+      // M7: records predating the daily check-in have none.
+      dailyCheckIn: settings.dailyCheckIn ?? null,
     };
   }
 

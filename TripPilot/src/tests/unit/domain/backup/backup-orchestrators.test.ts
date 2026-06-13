@@ -31,6 +31,7 @@ const settings: AppSettings = {
   outingNotificationEnabled: true,
   anchorCurrency: null,
   anchorRatePer1: null,
+  dailyCheckIn: null,
 };
 
 const mkTrip = (): Trip => ({

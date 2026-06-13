@@ -28,6 +28,18 @@ export type ThemePreference = 'dark' | 'light' | 'system';
 export type AppMode = 'simple' | 'complete';
 export type AlertType = 'budget_threshold' | 'backup_reminder' | 'session_limit' | 'custom';
 
+/**
+ * E5 (M7): the day's intent — a one-tap context that colors tone/budget
+ * (read-only; never writes a user value — ÂNCORA 12).
+ */
+export type CheckInIntent = 'calm' | 'outing' | 'night';
+
+/** E5 (M7): the active check-in, scoped to a single local date. */
+export interface DailyCheckIn {
+  date: string;
+  intent: CheckInIntent;
+}
+
 export type TransactionCategory =
   | 'bar'
   | 'market'

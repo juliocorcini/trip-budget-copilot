@@ -35,6 +35,8 @@ export function createDefaultAppSettings(): AppSettings {
     // DEC-128: mental currency anchor — off until the traveler sets a rate.
     anchorCurrency: null,
     anchorRatePer1: null,
+    // M7: no check-in until the traveler taps one for the day.
+    dailyCheckIn: null,
   };
 }
 

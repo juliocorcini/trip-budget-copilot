@@ -1,15 +1,21 @@
 # Pacote 2 — Insights v2 + Ciclo de Fase + Motivação + Continuidade — Log
 
 ## Current State
-- Fase: 3 | Gate: 1 ✅ | Milestone: M3 done | Done: 4/26 | Tests: 623 (+9) | Versão: 0.10.2 | Último deploy: master.trippilot.pages.dev | Build: ✅
+- Fase: 3 | Gate: 2 ✅ | Milestone: M8 done | Done: 9/26 | Tests: 639 (+25 desde baseline) | Versão: 0.10.3 | Último deploy: master.trippilot.pages.dev (f1abd098) | Build: ✅
 
 ## Decisões tomadas durante a execução
 - M1: prioridade data-driven (`INSIGHT_PRIORITY`) — projection 80 > rhythm 60 > balance 50 > next 40 > avg 30 > streak 20. Ordena priority desc, desempate por tone (warning primeiro). Teto fixo de 4 removido; substituído por `INSIGHT_SAFETY_CAP=12` só p/ não explodir o carrossel. `MAX_INSIGHTS_PER_DAY` renomeado → `INSIGHT_SAFETY_CAP`.
 - M2: auto-rotação a cada 7s (`INSIGHT_AUTO_ROTATE_MS`), pausa 12s após interação (`INSIGHT_RESUME_DELAY_MS`). Pausa em onPointerDown/onWheel/dot-click (NÃO em onScroll, p/ self-scroll não se auto-pausar). Respeita prefers-reduced-motion. Helpers puros `nextInsightIndex`/`shouldAutoRotateInsights` testados.
 - M3: Modo Simples (SimpleHome) mostra no máximo 1 insight — o de maior prioridade E só se tone==='warning'. Nunca carrossel. O completo recebe tudo.
+- M4: ritmo/categoria — input novo `categoryRhythm[]` montado no `useDashboardModel` (perfis×forecasts: planned = totalPlanned×typicalValueCents, agrupado por categoria; spent = soma personalCost da fase). Builder dispara só com ≥3 dias E consumedFraction ≥ elapsedFraction×`CATEGORY_RHYTHM_FACTOR(1.5)`; reporta a pior categoria. Tap → /expenses?category=. Prioridade 65.
+- M5: dia perigoso — agrega gasto/dia-da-semana sobre as transações PASSADAS da fase (exclui hoje → é previsão, não reação). Dispara só com `DANGER_DAY_MIN_SAMPLES(2)`+ amostras E média do dia ≥ `DANGER_DAY_FACTOR(1.8)`× média dos outros dias. Detalhe (sheet) mostra média+multiplicador. Prioridade 70. weekday localizado via Intl (helper `weekdayLabel`).
+- M6: fim do dia — `nowHour` novo no input (model passa `new Date().getHours()`). Dispara só se `nowHour ≥ END_OF_DAY_HOUR(18)` E nada registrado hoje na fase E dentro da janela da fase. Tap → /quick-add. Prioridade 100 (topo).
+- M7: check-in — `dailyCheckIn:{date,intent}|null` em AppSettings (não-indexado, backfill no repo + seed). Domínio puro `domain/check-in` (getActiveCheckIn/createDailyCheckIn/shouldPromptCheckIn + catálogo de intents). Card movível `daily_checkin` no registry, logo abaixo do hero. Grava via appSettingsRepository.update + reload. Modo Simples NÃO recebe o card (ÂNCORA 14).
+- M8: COMPLETA (não reduzida). Notificação respondível: SW (`CHECKIN_TAG`, cache v9) grava o intent direto em `appSettings` (read-modify-write — nunca cria o registro, BUG-003) e faz broadcast `APP_DATA_CHANGED`; bridge novo `registerCheckInNotificationBridge` → `notifyAppDataChanged`. Fallback gracioso: sem suporte a Actions, o toque abre /dashboard (reusa focusOrOpen). Disparo é BEST-EFFORT: `maybeShowCheckInPrompt` no boot, janela da manhã (5–13h), 1×/dia (safeLocalStorage), permission=granted. Scheduling em background real exige push/Notification Triggers (indisponível, local-first) — registrado como limitação honesta.
 
 ## Deploys
 - 0.10.2 (GATE 1) → https://master.trippilot.pages.dev (https://6c0f7900.trippilot.pages.dev)
+- 0.10.3 (GATE 2) → https://master.trippilot.pages.dev (https://f1abd098.trippilot.pages.dev)
 
 ---
 
@@ -28,13 +34,15 @@
 - [x] M3 Guarda de appMode (SimpleHome — sem mural de insights)
 - [x] Checkpoint: version/deploy/novidades 0.10.2 + commit
 
-### GATE 2 — Builders calibrados + check-in → 0.10.3
-- [ ] M4 Ritmo por categoria (builder puro, ≥3 dias + desproporcional)
-- [ ] M5 Dia perigoso (gatilho calibrado, anti-spam)
-- [ ] M6 Fim do dia (só sem registro + ≥18h)
-- [ ] M7 Check-in card (intent do dia em AppSettings, sem migração)
-- [ ] M8 Check-in por notificação (best-effort; cortável a "abrir app")
-- [ ] Checkpoint: version/deploy/novidades 0.10.3 + commit
+### GATE 2 — Builders calibrados + check-in → 0.10.3 ✅
+- [x] M4 Ritmo por categoria (builder puro, ≥3 dias + desproporcional)
+- [x] M5 Dia perigoso (gatilho calibrado, anti-spam)
+- [x] M6 Fim do dia (só sem registro + ≥18h)
+- [x] M7 Check-in card (intent do dia em AppSettings, sem migração)
+- [x] M8 Check-in por notificação (COMPLETA: respondível + fallback abrir-app; disparo best-effort)
+- [x] i18n pt/en/es de tudo do gate (no mesmo commit — ÂNCORA 16)
+- [x] Testes: M4 (4), M5 (4), M6 (4), check-in helper (4) = 16 novos
+- [x] Checkpoint: version/deploy/novidades 0.10.3 + commit
 
 ### GATE 3 — Ciclo de fase + i18n + testes → FASE 3 COMPLETA → 0.11.0
 - [ ] M9 Sobra de fase (BottomSheet de decisão)

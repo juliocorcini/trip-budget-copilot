@@ -9,6 +9,7 @@
 
 export type DashboardCardId =
   | 'today_events'
+  | 'daily_checkin'
   | 'active_outing'
   | 'hero'
   | 'yesterday_recap'
@@ -49,6 +50,13 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   },
   { id: 'active_outing', labelKey: 'dashboard.card_active_outing', fixed: true, quickAction: null },
   { id: 'hero', labelKey: 'dashboard.card_hero', fixed: true, quickAction: null },
+  {
+    // M7: one-tap intent for the day — sits right below the hero.
+    id: 'daily_checkin',
+    labelKey: 'dashboard.card_daily_checkin',
+    fixed: false,
+    quickAction: null,
+  },
   {
     id: 'yesterday_recap',
     labelKey: 'dashboard.card_yesterday_recap',

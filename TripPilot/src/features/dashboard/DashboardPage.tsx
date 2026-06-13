@@ -13,7 +13,9 @@ import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repos
 import { toggleDashboardCardHidden, type DashboardCardId } from '@/domain/dashboard';
 import { postponeOccurrence } from '@/domain/planning';
 import { resolveShareConfirmation } from '@/domain/orchestrators';
+import { createDailyCheckIn } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
+import type { CheckInIntent } from '@/domain/types/common';
 import { shouldOfferModeReveal, MODE_REVEAL_MIN_EXPENSES } from '@/domain/app-mode';
 import { useDashboardModel } from './useDashboardModel';
 import { DashboardCards } from './DashboardCards';
@@ -86,6 +88,14 @@ export function DashboardPage() {
     await reload();
   };
 
+  // M7 (E5): one tap sets the day's intent (read-only context — ÂNCORA 12).
+  const handleSelectCheckIn = async (intent: CheckInIntent) => {
+    await appSettingsRepository.update({
+      dailyCheckIn: createDailyCheckIn(intent, localDateString(new Date())),
+    });
+    await reload();
+  };
+
   // DEC-072 (M6.3): "Postpone" pushes the event's date interval +1 day.
   const handlePostponeEvent = async (occurrenceId: string) => {
     const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
@@ -105,6 +115,14 @@ export function DashboardPage() {
         return;
       case 'next_event':
         navigate(`/trip/edit?occurrence=${insight.values.occurrenceId}`);
+        return;
+      // M4: jump to the offending category's expenses.
+      case 'category_rhythm':
+        navigate(`/expenses?category=${insight.values.category}`);
+        return;
+      // M6: the nudge opens quick capture so "what did I spend?" is one tap.
+      case 'end_of_day':
+        navigate('/quick-add');
         return;
       default:
         setDetailInsight(insight);
@@ -265,6 +283,7 @@ export function DashboardPage() {
             onPostponeEvent={handlePostponeEvent}
             onInsightTap={handleInsightTap}
             onSelectHeatmapDay={setHeatmapDayIso}
+            onSelectCheckIn={handleSelectCheckIn}
           />
 
           {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}

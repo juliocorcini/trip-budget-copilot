@@ -259,6 +259,29 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const debts = owner
       ? calculateDebts(transactions, allShares, participants, settlements, owner.id).debts
       : [];
+    // M4: per-category plan (planned occasions × typical value) vs real spend,
+    // grouped by the profile's category — feeds the "category rhythm" builder.
+    const categoryRhythmMap = new Map<string, { plannedCents: number; spentCents: number }>();
+    for (const profile of profiles) {
+      const forecast = forecasts.find((f) => f.profileId === profile.id);
+      if (!forecast) continue;
+      const plannedCents = forecast.totalPlanned * profile.typicalValueCents;
+      const spentCents = sumCents(
+        phaseTxsForInsights
+          .filter((tx) => tx.activityProfileId === profile.id && tx.type === 'expense')
+          .map((tx) => tx.personalCostCents ?? tx.amountCents),
+      );
+      if (plannedCents <= 0 && spentCents <= 0) continue;
+      const prev = categoryRhythmMap.get(profile.category) ?? { plannedCents: 0, spentCents: 0 };
+      categoryRhythmMap.set(profile.category, {
+        plannedCents: prev.plannedCents + plannedCents,
+        spentCents: prev.spentCents + spentCents,
+      });
+    }
+    const categoryRhythm = [...categoryRhythmMap.entries()].map(([category, v]) => ({
+      category,
+      ...v,
+    }));
     const insights =
       activePhase && fts && owner
         ? buildDashboardInsights({
@@ -270,6 +293,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             debts,
             ownerId: owner.id,
             occurrences,
+            categoryRhythm,
+            nowHour: new Date().getHours(),
           })
         : [];
 

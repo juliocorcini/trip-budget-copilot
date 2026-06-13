@@ -69,15 +69,45 @@ export function InsightDetail({ insight, currency }: { insight: DashboardInsight
     );
   }
 
-  // no_spend_streak
+  if (insight.kind === 'danger_day') {
+    return (
+      <div className="flex flex-col">
+        <p className="text-[13px] font-semibold leading-snug text-on-surface mb-2">
+          {formatInsightText(insight, t, currency)}
+        </p>
+        <DetailRow
+          label={t('dashboard.detail_danger_avg')}
+          value={formatMoney(v.avgCents as number, currency)}
+          accent="warning"
+        />
+        <DetailRow label={t('dashboard.detail_danger_multiplier')} value={`${v.multiplier as number}×`} accent="warning" />
+        <p className="text-[11px] text-on-surface-faint mt-3 leading-relaxed">
+          {t('dashboard.detail_danger_explainer')}
+        </p>
+      </div>
+    );
+  }
+
+  if (insight.kind === 'no_spend_streak') {
+    return (
+      <div className="flex flex-col">
+        <p className="text-[13px] font-semibold leading-snug text-on-surface mb-2">
+          {formatInsightText(insight, t, currency)}
+        </p>
+        <DetailRow label={t('dashboard.detail_streak_days')} value={String(v.days)} accent="success" />
+        <p className="text-[11px] text-on-surface-faint mt-3 leading-relaxed">
+          {t('dashboard.detail_streak_explainer')}
+        </p>
+      </div>
+    );
+  }
+
+  // Fallback: kinds whose tap navigates elsewhere never open this sheet, but a
+  // plain text card keeps the UI safe if one ever reaches here.
   return (
     <div className="flex flex-col">
-      <p className="text-[13px] font-semibold leading-snug text-on-surface mb-2">
+      <p className="text-[13px] font-semibold leading-snug text-on-surface">
         {formatInsightText(insight, t, currency)}
-      </p>
-      <DetailRow label={t('dashboard.detail_streak_days')} value={String(v.days)} accent="success" />
-      <p className="text-[11px] text-on-surface-faint mt-3 leading-relaxed">
-        {t('dashboard.detail_streak_explainer')}
       </p>
     </div>
   );

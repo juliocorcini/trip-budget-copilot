@@ -1,4 +1,4 @@
-import type { AlertTone, AppMode, ThemePreference } from './common';
+import type { AlertTone, AppMode, DailyCheckIn, ThemePreference } from './common';
 
 export interface AppSettings {
   id: string;
@@ -30,4 +30,6 @@ export interface AppSettings {
   anchorCurrency: string | null;
   /** DEC-128: manual offline rate — anchor units per 1 base currency unit. */
   anchorRatePer1: number | null;
+  /** E5 (M7): the day's intent check-in (non-indexed — no migration). */
+  dailyCheckIn: DailyCheckIn | null;
 }

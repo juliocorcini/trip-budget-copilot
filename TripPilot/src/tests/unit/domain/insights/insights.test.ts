@@ -49,6 +49,9 @@ function baseInput(overrides: Partial<BuildInsightsInput> = {}): BuildInsightsIn
     debts: [],
     ownerId: OWNER_ID,
     occurrences: [],
+    categoryRhythm: [],
+    // Noon by default so the end-of-day nudge stays dormant in existing tests.
+    nowHour: 12,
     ...overrides,
   };
 }
@@ -201,6 +204,152 @@ describe('buildDashboardInsights (DEC-077 — FIELD-07)', () => {
   it('M1: never exceeds the safety cap even with every builder firing', () => {
     const insights = buildDashboardInsights(manySignalsInput());
     expect(insights.length).toBeLessThanOrEqual(INSIGHT_SAFETY_CAP);
+  });
+});
+
+describe('M4 — category rhythm builder (anti-spam)', () => {
+  it('fires when a category outruns the elapsed fraction (bar 60% on day 3/10)', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        todayDate: '2026-06-03',
+        phaseTransactions: [mkTx(2000, '2026-06-01')],
+        categoryRhythm: [{ category: 'bar', plannedCents: 10_000, spentCents: 6_000 }],
+      }),
+    );
+    const rhythm = insights.find((i) => i.kind === 'category_rhythm')!;
+    expect(rhythm).toBeDefined();
+    expect(rhythm.values.category).toBe('bar');
+    expect(rhythm.values.percent).toBe(60);
+    expect(rhythm.values.daysElapsed).toBe(3);
+    expect(rhythm.values.totalDays).toBe(10);
+    expect(rhythm.tone).toBe('warning');
+  });
+
+  it('null when the category is on pace with elapsed time', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        todayDate: '2026-06-03',
+        categoryRhythm: [{ category: 'bar', plannedCents: 10_000, spentCents: 3_000 }],
+      }),
+    );
+    expect(insights.find((i) => i.kind === 'category_rhythm')).toBeUndefined();
+  });
+
+  it('null before 3 days of data, even when disproportionate', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        todayDate: '2026-06-02',
+        categoryRhythm: [{ category: 'bar', plannedCents: 10_000, spentCents: 9_000 }],
+      }),
+    );
+    expect(insights.find((i) => i.kind === 'category_rhythm')).toBeUndefined();
+  });
+
+  it('reports the worst offender among several categories', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        todayDate: '2026-06-03',
+        categoryRhythm: [
+          { category: 'bar', plannedCents: 10_000, spentCents: 5_000 }, // 50%
+          { category: 'restaurant', plannedCents: 10_000, spentCents: 8_000 }, // 80%
+        ],
+      }),
+    );
+    const rhythm = insights.find((i) => i.kind === 'category_rhythm')!;
+    expect(rhythm.values.category).toBe('restaurant');
+    expect(rhythm.values.percent).toBe(80);
+  });
+});
+
+describe('M5 — danger day builder (anti-spam)', () => {
+  const longPhase = () => mkPhase({ endDate: '2026-06-30' });
+
+  it('fires on a weekday that averages ≥1.8× the others (Saturday 5×)', () => {
+    // Jun 6 and Jun 13 are the same weekday as Jun 20 (today); Jun 8/10 differ.
+    const insights = buildDashboardInsights(
+      baseInput({
+        phase: longPhase(),
+        todayDate: '2026-06-20',
+        phaseTransactions: [
+          mkTx(10_000, '2026-06-06'),
+          mkTx(10_000, '2026-06-13'),
+          mkTx(2_000, '2026-06-08'),
+          mkTx(2_000, '2026-06-10'),
+        ],
+      }),
+    );
+    const danger = insights.find((i) => i.kind === 'danger_day')!;
+    expect(danger).toBeDefined();
+    expect(danger.values.weekday).toBe(new Date('2026-06-20T00:00:00').getDay());
+    expect(danger.values.multiplier).toBe(5);
+    expect(danger.tone).toBe('warning');
+  });
+
+  it('null with only one sample of the weekday (insufficient history)', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        phase: longPhase(),
+        todayDate: '2026-06-20',
+        phaseTransactions: [mkTx(10_000, '2026-06-13'), mkTx(2_000, '2026-06-10')],
+      }),
+    );
+    expect(insights.find((i) => i.kind === 'danger_day')).toBeUndefined();
+  });
+
+  it('null when the weekday is not unusually expensive (uniform spend)', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        phase: longPhase(),
+        todayDate: '2026-06-20',
+        phaseTransactions: [
+          mkTx(2_000, '2026-06-06'),
+          mkTx(2_000, '2026-06-13'),
+          mkTx(2_000, '2026-06-08'),
+          mkTx(2_000, '2026-06-10'),
+        ],
+      }),
+    );
+    expect(insights.find((i) => i.kind === 'danger_day')).toBeUndefined();
+  });
+
+  it('ignores today own spend (forecast, not reaction)', () => {
+    // Today is the only same-weekday day with spend → no past sample → null.
+    const insights = buildDashboardInsights(
+      baseInput({
+        phase: longPhase(),
+        todayDate: '2026-06-20',
+        phaseTransactions: [mkTx(50_000, '2026-06-20'), mkTx(2_000, '2026-06-10')],
+      }),
+    );
+    expect(insights.find((i) => i.kind === 'danger_day')).toBeUndefined();
+  });
+});
+
+describe('M6 — end of day builder (anti-spam)', () => {
+  it('fires in the evening when nothing is logged today', () => {
+    const insights = buildDashboardInsights(
+      baseInput({ todayDate: '2026-06-05', nowHour: 19, phaseTransactions: [mkTx(2000, '2026-06-04')] }),
+    );
+    const eod = insights.find((i) => i.kind === 'end_of_day')!;
+    expect(eod).toBeDefined();
+    expect(eod.priority).toBeGreaterThan(80); // highest — surfaces first
+  });
+
+  it('null in the morning even with nothing logged', () => {
+    const insights = buildDashboardInsights(baseInput({ todayDate: '2026-06-05', nowHour: 9 }));
+    expect(insights.find((i) => i.kind === 'end_of_day')).toBeUndefined();
+  });
+
+  it('null once something is logged today', () => {
+    const insights = buildDashboardInsights(
+      baseInput({ todayDate: '2026-06-05', nowHour: 21, phaseTransactions: [mkTx(2000, '2026-06-05')] }),
+    );
+    expect(insights.find((i) => i.kind === 'end_of_day')).toBeUndefined();
+  });
+
+  it('null outside the phase window', () => {
+    const insights = buildDashboardInsights(baseInput({ todayDate: '2026-05-20', nowHour: 22 }));
+    expect(insights.find((i) => i.kind === 'end_of_day')).toBeUndefined();
   });
 });
 

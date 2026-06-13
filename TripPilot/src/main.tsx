@@ -9,6 +9,10 @@ import {
   registerOutingNotificationBridge,
   syncActiveOutingNotification,
 } from './utils/outing-notification';
+import {
+  registerCheckInNotificationBridge,
+  maybeShowCheckInPrompt,
+} from './utils/check-in-notification';
 import { appSettingsRepository } from './data/repositories';
 import { recordCrash, describeError } from './utils/crash-log';
 import i18n from './i18n';
@@ -35,6 +39,11 @@ captureInstallPrompt();
 // notification no matter which screen the user lands on.
 registerOutingNotificationBridge();
 syncActiveOutingNotification();
+
+// M8 (E5): check-in action writes refresh open pages; a best-effort morning
+// reminder fires at most once a day (true scheduling needs push — local-first).
+registerCheckInNotificationBridge();
+maybeShowCheckInPrompt();
 
 // DEC-111 (R5-03): ask for durable storage as early as possible — without it
 // the OS may evict IndexedDB and the user genuinely loses everything.

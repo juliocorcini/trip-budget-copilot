@@ -1,5 +1,5 @@
 import { formatMoney, fromCents } from '@/domain/money';
-import { getActiveDecimalSeparator } from '@/domain/locale';
+import { getActiveDecimalSeparator, getActiveIntlLocale } from '@/domain/locale';
 import type { DashboardInsight } from '@/domain/insights';
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
@@ -45,13 +45,25 @@ export function counterAccent(category: string | null | undefined): { color: str
 
 // DEC-077: icon per insight kind (data-driven).
 export const INSIGHT_ICONS: Record<DashboardInsight['kind'], string> = {
+  end_of_day: 'edit_note',
   phase_projection: 'query_stats',
+  danger_day: 'local_fire_department',
+  category_rhythm: 'donut_large',
   rhythm_compare: 'speed',
   no_spend_streak: 'emoji_events',
   avg_outing_cost: 'local_bar',
   participant_balance: 'group',
   next_event: 'event',
 };
+
+/** Localized full weekday name (0=Sun..6=Sat) — Jan 4 1970 was a Sunday. */
+export function weekdayLabel(index: number): string {
+  const reference = new Date(Date.UTC(1970, 0, 4 + index));
+  return new Intl.DateTimeFormat(getActiveIntlLocale(), {
+    weekday: 'long',
+    timeZone: 'UTC',
+  }).format(reference);
+}
 
 export function formatInsightText(
   insight: DashboardInsight,
@@ -97,6 +109,20 @@ export function formatInsightText(
           amount: formatMoney(v.reservedCents as number, currency),
         },
       );
+    case 'category_rhythm':
+      return t('dashboard.insight_category_rhythm', {
+        category: t(`categories.${v.category}` as never),
+        percent: v.percent as number,
+        day: v.daysElapsed as number,
+        total: v.totalDays as number,
+      });
+    case 'danger_day':
+      return t('dashboard.insight_danger_day', {
+        weekday: weekdayLabel(v.weekday as number),
+        multiplier: v.multiplier as number,
+      });
+    case 'end_of_day':
+      return t('dashboard.insight_end_of_day');
   }
 }
 

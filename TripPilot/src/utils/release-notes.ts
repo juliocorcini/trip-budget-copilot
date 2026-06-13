@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.3',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Insights mais espertos: aviso de "categoria acelerada" (ex.: bar já no limite cedo).',
+        '"Dia perigoso": quando um dia da semana costuma sair caro, o app avisa logo cedo.',
+        '"Fim do dia": se você não registrou nada, um toque abre o registro rápido.',
+        'Check-in do dia: diga em 1 toque se vai ser tranquilo, passeio ou noite.',
+      ],
+      en: [
+        'Smarter insights: a "category on a tear" heads-up (e.g. bar near its limit early).',
+        '"Pricey day": when a weekday tends to cost more, the app flags it early.',
+        '"End of day": if you logged nothing, one tap opens quick capture.',
+        'Daily check-in: say in one tap whether it’s a calm, outing or night kind of day.',
+      ],
+      es: [
+        'Insights más listos: aviso de "categoría acelerada" (p. ej. bar cerca del límite pronto).',
+        '"Día caro": cuando un día de la semana suele costar más, la app lo avisa temprano.',
+        '"Fin del día": si no registraste nada, un toque abre la captura rápida.',
+        'Check-in del día: di en un toque si será tranquilo, paseo o noche.',
+      ],
+    },
+  },
+  {
     version: '0.10.2',
     date: '2026-06-13',
     items: {
