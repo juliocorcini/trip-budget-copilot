@@ -2,10 +2,11 @@ import { db } from '@/data/db/database';
 import { endSession, createSessionItem } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { updateProfileFromTransaction } from '@/domain/forecasting';
-import { isPaidByOwner } from '@/domain/splitting';
+import { isPaidByOwner, resolvePayerExpense } from '@/domain/splitting';
 import { markUpdated } from '@/utils/entity-factory';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
+import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 
@@ -206,4 +207,151 @@ export async function assignTransactionSubcategory(
   const tx = await db.transactions.get(transactionId);
   if (!tx || tx.deletedAt !== null) return;
   await db.transactions.put(markUpdated({ ...tx, subcategoryId }));
+}
+
+export interface RepeatLastSessionItemInput {
+  session: Session;
+  /** The item being repeated (its amount/category/subcategory/sharing). */
+  lastTx: Transaction;
+  /** Shares of the last item — empty for a simple (non-shared) item. */
+  lastShares: ParticipantShare[];
+  /** Effective phase for the new expense (DEC-053c boundary choice). */
+  phaseId: string;
+  currency: string;
+  ownerId: string;
+}
+
+/**
+ * E3 (M7): repeat the last session item — a fresh expense identical to the
+ * previous one. Sharing is respected (DEC-114): a shared item is rebuilt with
+ * the same payer/participants/split via resolvePayerExpense, so the new debt
+ * is born confirmed for the owner and pending for third parties (DEC-071).
+ * Persisted atomically (D-H / GAP-030) with its session item and shares.
+ */
+export async function repeatLastSessionItem(
+  input: RepeatLastSessionItemInput,
+): Promise<Transaction> {
+  const { session, lastTx, lastShares, phaseId, currency, ownerId } = input;
+
+  const tx = createExpenseTransaction({
+    tripId: session.tripId,
+    phaseId,
+    budgetPoolId: session.budgetPoolId,
+    walletId: lastTx.walletId,
+    amountCents: lastTx.amountCents,
+    currency,
+    category: lastTx.category ?? 'other',
+    subcategoryId: lastTx.subcategoryId,
+    description: lastTx.description,
+    sessionId: session.id,
+    activityProfileId: session.activityProfileId,
+  });
+
+  let shares: ParticipantShare[] = [];
+  if (lastTx.isShared && lastShares.length > 0) {
+    const payerId = lastTx.paidByParticipantId ?? ownerId;
+    const resolution = resolvePayerExpense({
+      transactionId: tx.id,
+      amountCents: lastTx.amountCents,
+      ownerId,
+      payerId,
+      didSplit: true,
+      participantIds: lastShares.map((s) => s.participantId),
+      shareType: lastShares[0]!.shareType,
+      customAmountsCents: Object.fromEntries(
+        lastShares.map((s) => [s.participantId, s.shareAmountCents]),
+      ),
+    });
+    tx.isShared = resolution.isShared;
+    tx.paidByParticipantId = payerId;
+    tx.personalCostCents = resolution.personalCostCents;
+    tx.walletId = resolution.movesOwnerWallet ? lastTx.walletId : null;
+    shares = resolution.shares;
+  }
+
+  await db.transaction('rw', [db.transactions, db.sessionItems, db.participantShares], async () => {
+    const order = await db.sessionItems.where('sessionId').equals(session.id).count();
+    await db.transactions.add(tx);
+    if (shares.length > 0) await db.participantShares.bulkAdd(shares);
+    await db.sessionItems.add(createSessionItem(session.id, tx.id, order + 1));
+  });
+
+  return tx;
+}
+
+export interface AddRoundExpensesInput {
+  session: Session;
+  count: number;
+  unitPriceCents: number;
+  /** Effective phase for the new expenses (DEC-053c boundary choice). */
+  phaseId: string;
+  currency: string;
+  profileCategory: string | null;
+  /**
+   * When set, every drink is split equally among `participantIds` and paid by
+   * `payerId`. The owner MUST be the first participant so the personal cost
+   * matches calculateRoundPersonalCents.
+   */
+  split: { ownerId: string; payerId: string; participantIds: string[] } | null;
+}
+
+/**
+ * E3 (M8): a "round" — `count` drinks at the same unit price added in one go.
+ * DEC-047/DEC-114: when split, each drink runs through resolvePayerExpense so
+ * the owner keeps their equal share and the others' debts are tracked. All
+ * transactions, shares and session items are written atomically; item order
+ * is derived inside the transaction so concurrent adds stay consistent.
+ */
+export async function addRoundExpenses(
+  input: AddRoundExpensesInput,
+): Promise<Transaction[]> {
+  const { session, count, unitPriceCents, phaseId, currency, profileCategory, split } = input;
+  if (count <= 0 || unitPriceCents <= 0) return [];
+
+  const txs: Transaction[] = [];
+  const allShares: ParticipantShare[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const tx = createExpenseTransaction({
+      tripId: session.tripId,
+      phaseId,
+      budgetPoolId: session.budgetPoolId,
+      walletId: null,
+      amountCents: unitPriceCents,
+      currency,
+      category: profileCategory ?? 'other',
+      description: session.name,
+      sessionId: session.id,
+      activityProfileId: session.activityProfileId,
+      isShared: split !== null,
+      paidByParticipantId: split?.payerId ?? null,
+    });
+    if (split) {
+      const resolution = resolvePayerExpense({
+        transactionId: tx.id,
+        amountCents: unitPriceCents,
+        ownerId: split.ownerId,
+        payerId: split.payerId,
+        didSplit: true,
+        participantIds: split.participantIds,
+        shareType: 'equal',
+        customAmountsCents: {},
+      });
+      tx.personalCostCents = resolution.personalCostCents;
+      if (!resolution.movesOwnerWallet) tx.walletId = null;
+      allShares.push(...resolution.shares);
+    }
+    txs.push(tx);
+  }
+
+  await db.transaction('rw', [db.transactions, db.sessionItems, db.participantShares], async () => {
+    const baseOrder = await db.sessionItems.where('sessionId').equals(session.id).count();
+    await db.transactions.bulkAdd(txs);
+    if (allShares.length > 0) await db.participantShares.bulkAdd(allShares);
+    for (let i = 0; i < txs.length; i++) {
+      await db.sessionItems.add(createSessionItem(session.id, txs[i]!.id, baseOrder + i + 1));
+    }
+  });
+
+  return txs;
 }

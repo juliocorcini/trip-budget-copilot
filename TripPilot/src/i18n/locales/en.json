@@ -631,7 +631,20 @@
     "bar_mode_exit": "Exit bar mode",
     "bar_mode_label": "Bar mode",
     "bar_mode_hint": "Tap a value to log · X to exit",
-    "bar_mode_added": "{{amount}} logged"
+    "bar_mode_added": "{{amount}} logged",
+    "repeat_last": "Repeat last",
+    "repeat_done": "Repeated: {{amount}}",
+    "round_action": "Round",
+    "round_count": "How many?",
+    "round_count_less": "One fewer",
+    "round_count_more": "One more",
+    "round_unit_price": "Price each",
+    "round_split": "Split with the group",
+    "round_total_preview": "{{count}} × — total {{amount}}",
+    "round_personal_preview": "Your share: {{amount}}",
+    "round_done": "Round of {{count}} · {{amount}}",
+    "next_payer_hint": "Next round: {{name}}'s turn?",
+    "projection_hint": "At this pace, ~{{time}} to the ceiling"
   },
   "simulator": {
     "title": "Simulator",

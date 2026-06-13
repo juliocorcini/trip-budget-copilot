@@ -12,6 +12,8 @@ export {
   startOneOffEventSession,
   quickAddSessionExpense,
   assignTransactionSubcategory,
+  repeatLastSessionItem,
+  addRoundExpenses,
 } from './outing-orchestrators';
 export type {
   EndOutingSessionInput,
@@ -19,6 +21,8 @@ export type {
   StartSessionForOccurrenceInput,
   StartOneOffEventSessionInput,
   QuickAddSessionExpenseInput,
+  RepeatLastSessionItemInput,
+  AddRoundExpensesInput,
 } from './outing-orchestrators';
 export { buildFullBackup, importBackup } from './backup-orchestrators';
 export type { ImportMode } from './backup-orchestrators';

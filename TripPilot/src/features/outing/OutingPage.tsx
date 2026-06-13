@@ -16,6 +16,10 @@ import {
   getProgressiveAlerts,
   DEFAULT_QUICK_ADD_VALUES_CENTS,
   findHighlightedQuickValueIndex,
+  updateQuickValuesFromItem,
+  suggestNextPayer,
+  projectTimeToCeiling,
+  calculateRoundPersonalCents,
   ENRICH_AUTO_DISMISS_MS,
   getSubcategories,
   sortSubcategoriesByProximity,
@@ -44,6 +48,8 @@ import {
   startSessionForOccurrence,
   startOneOffEventSession,
   softDeleteSessionExpense,
+  repeatLastSessionItem,
+  addRoundExpenses,
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { setActiveOuting, takePendingReload } from '@/utils/sw-reload';
@@ -62,7 +68,7 @@ import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { phaseProfileSettingRepository } from '@/data/repositories/phase-profile-setting-repository';
 import { plannedOccurrenceRepository } from '@/data/repositories/planned-occurrence-repository';
-import { transactionRepository } from '@/data/repositories';
+import { transactionRepository, participantShareRepository } from '@/data/repositories';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
@@ -89,6 +95,14 @@ function formatElapsed(startedAt: string): string {
   const m = totalMin % 60;
   if (h === 0) return `${m}min`;
   return `${h}h ${String(m).padStart(2, '0')}min`;
+}
+
+// E3 (M10): compact "~1h" / "~45min" projection label.
+function formatDurationShort(totalMin: number): string {
+  if (totalMin < 60) return `${totalMin}min`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`;
 }
 
 function formatTime(isoDate: string): string {
@@ -443,12 +457,17 @@ export function OutingPage() {
   };
 
   // GAP-005 (DEC-048): fire each milestone once, honoring tone + vibration.
-  const fireProgressiveAlerts = async (currentSession: Session, newTotalCents: number) => {
-    if (!settings) return;
+  // Returns the freshest session so callers can chain further updates without
+  // clobbering the new firedAlertPercents.
+  const fireProgressiveAlerts = async (
+    currentSession: Session,
+    newTotalCents: number,
+  ): Promise<Session> => {
+    if (!settings) return currentSession;
     const fired = currentSession.firedAlertPercents ?? [];
     const alerts = getProgressiveAlerts(newTotalCents, currentSession, settings.alertTone);
     const newAlerts = alerts.filter((a) => !fired.includes(a.percent));
-    if (newAlerts.length === 0) return;
+    if (newAlerts.length === 0) return currentSession;
 
     const topAlert = newAlerts[newAlerts.length - 1]!;
     showToast(
@@ -464,15 +483,43 @@ export function OutingPage() {
       firedAlertPercents: [...fired, ...newAlerts.map((a) => a.percent)],
     });
     setSession(updated);
+    return updated;
   };
 
-  const persistSessionItem = async (tx: Transaction, txsAfter: Transaction[], sess: Session) => {
+  // DEC-045 (E3 / M6): the quick-add buttons learn the last value used. Updates
+  // session.quickAddValuesCents off the freshest session; no-op when unchanged.
+  const learnQuickValues = async (sess: Session, itemCents: number): Promise<Session> => {
+    const base =
+      sess.quickAddValuesCents.length >= 5
+        ? sess.quickAddValuesCents.slice(0, 5)
+        : DEFAULT_QUICK_ADD_VALUES_CENTS;
+    const next = updateQuickValuesFromItem(base, itemCents);
+    if (
+      next.length === sess.quickAddValuesCents.length &&
+      next.every((v, i) => v === sess.quickAddValuesCents[i])
+    ) {
+      return sess;
+    }
+    const updated = await sessionRepository.update({ ...sess, quickAddValuesCents: next });
+    setSession(updated);
+    return updated;
+  };
+
+  const persistSessionItem = async (
+    tx: Transaction,
+    txsAfter: Transaction[],
+    sess: Session,
+    learnFromCents?: number,
+  ) => {
     const newCount = itemCount + 1;
     const item = createSessionItem(sess.id, tx.id, newCount);
     await db.sessionItems.add(item);
     setSessionTxs(txsAfter);
     setItemCount(newCount);
-    await fireProgressiveAlerts(sess, calculateSessionTotal(txsAfter));
+    const afterAlerts = await fireProgressiveAlerts(sess, calculateSessionTotal(txsAfter));
+    if (learnFromCents !== undefined && learnFromCents > 0) {
+      await learnQuickValues(afterAlerts, learnFromCents);
+    }
   };
 
   const addSessionExpense = async (
@@ -480,6 +527,7 @@ export function OutingPage() {
     description: string,
     sess: Session,
     txPhaseId: string,
+    learnQuickValue = false,
   ): Promise<Transaction | null> => {
     if (!trip) return null;
     const sessionProfile = profiles.find((p) => p.id === sess.activityProfileId);
@@ -496,8 +544,25 @@ export function OutingPage() {
       activityProfileId: sess.activityProfileId,
     });
     await transactionRepository.create(tx);
-    await persistSessionItem(tx, [...sessionTxs, tx], sess);
+    await persistSessionItem(tx, [...sessionTxs, tx], sess, learnQuickValue ? amountCents : undefined);
     return tx;
+  };
+
+  // E3 (M7/M8): finalize a bulk add (repeat / round). Appends the new items to
+  // the visible list, fires alerts on the new total, then learns the value.
+  const afterItemsAdded = async (
+    sess: Session,
+    newTxs: Transaction[],
+    learnFromCents: number | null,
+  ) => {
+    if (newTxs.length === 0) return;
+    const allTxs = [...sessionTxs, ...newTxs];
+    setSessionTxs(allTxs);
+    setItemCount(itemCount + newTxs.length);
+    const afterAlerts = await fireProgressiveAlerts(sess, calculateSessionTotal(allTxs));
+    if (learnFromCents !== null && learnFromCents > 0) {
+      await learnQuickValues(afterAlerts, learnFromCents);
+    }
   };
 
   // DEC-053(c): a session crossing a phase boundary asks once where new
@@ -550,7 +615,7 @@ export function OutingPage() {
       setPendingOverMaxAdd({ amountCents, txPhaseId });
       return;
     }
-    const tx = await addSessionExpense(amountCents, sess.name, sess, txPhaseId);
+    const tx = await addSessionExpense(amountCents, sess.name, sess, txPhaseId, true);
     if (!tx) return;
     if (barMode) {
       // DEC-127: no enrichment stepper in Bar Mode — undo toast instead.
@@ -590,8 +655,96 @@ export function OutingPage() {
     setSession(updated);
     const pending = pendingOverMaxAdd;
     setPendingOverMaxAdd(null);
-    const tx = await addSessionExpense(pending.amountCents, updated.name, updated, pending.txPhaseId);
+    const tx = await addSessionExpense(
+      pending.amountCents,
+      updated.name,
+      updated,
+      pending.txPhaseId,
+      true,
+    );
     if (tx) setEnrich(buildEnrichTarget(tx.id, pending.amountCents, updated, false));
+  };
+
+  // E3 (M7): repeat the last logged item — respects sharing (DEC-114). Phase
+  // gate honored like every other add (DEC-053c); undo toast like Bar Mode.
+  const doRepeatLast = async (lastTx: Transaction, sess: Session, txPhaseId: string) => {
+    if (!trip || !owner) return;
+    const lastShares = lastTx.isShared
+      ? await participantShareRepository.getByTransactionId(lastTx.id)
+      : [];
+    const newTx = await repeatLastSessionItem({
+      session: sess,
+      lastTx,
+      lastShares,
+      phaseId: txPhaseId,
+      currency: trip.baseCurrency,
+      ownerId: owner.id,
+    });
+    await afterItemsAdded(sess, [newTx], newTx.personalCostCents ?? newTx.amountCents);
+    showToast(
+      t('outing.repeat_done', {
+        amount: formatCurrency(newTx.personalCostCents ?? newTx.amountCents, trip.baseCurrency),
+      }),
+      'success',
+      {
+        actionLabel: t('common.undo'),
+        durationMs: 8000,
+        onTap: () => {
+          void undoBarModeAdd(newTx.id);
+        },
+      },
+    );
+  };
+
+  const handleRepeatLast = async () => {
+    if (!session) return;
+    const lastTx = [...sessionTxs].reverse().find((tx) => tx.deletedAt === null);
+    if (!lastTx) return;
+    if (runWithPhaseGate((txPhaseId, sess) => doRepeatLast(lastTx, sess, txPhaseId))) return;
+    await doRepeatLast(lastTx, session, resolveTxPhaseId(session));
+  };
+
+  // E3 (M8): a round — N drinks at the same price added at once. When split,
+  // the owner is the first participant so the personal cost matches
+  // calculateRoundPersonalCents (DEC-047/114).
+  const doAddRound = async (
+    input: RoundInput,
+    sess: Session,
+    txPhaseId: string,
+  ) => {
+    if (!trip || !owner) return;
+    const sessionProfile = profiles.find((p) => p.id === sess.activityProfileId);
+    const split =
+      input.split && participants.length > 1
+        ? {
+            ownerId: owner.id,
+            payerId: owner.id,
+            participantIds: [owner.id, ...participants.filter((p) => !p.isOwner).map((p) => p.id)],
+          }
+        : null;
+    const newTxs = await addRoundExpenses({
+      session: sess,
+      count: input.count,
+      unitPriceCents: input.unitPriceCents,
+      phaseId: txPhaseId,
+      currency: trip.baseCurrency,
+      profileCategory: sessionProfile?.category ?? null,
+      split,
+    });
+    await afterItemsAdded(sess, newTxs, input.unitPriceCents);
+    showToast(
+      t('outing.round_done', {
+        count: input.count,
+        amount: formatCurrency(input.count * input.unitPriceCents, trip.baseCurrency),
+      }),
+      'success',
+    );
+  };
+
+  const handleAddRound = async (input: RoundInput) => {
+    if (!session) return;
+    if (runWithPhaseGate((txPhaseId, sess) => doAddRound(input, sess, txPhaseId))) return;
+    await doAddRound(input, session, resolveTxPhaseId(session));
   };
 
   // DEC-095/096: profile sessions ask the subcategory directly; event
@@ -1010,6 +1163,8 @@ export function OutingPage() {
         onQuickAdd={handleQuickAdd}
         onRegisterTotal={handleRegisterTotal}
         onSplitAdd={handleSplitAdd}
+        onRepeatLast={handleRepeatLast}
+        onAddRound={handleAddRound}
         onUpdateQuickValues={handleUpdateQuickValues}
         onEnd={() => setReviewing(true)}
         onBack={() => navigate(-1)}
@@ -1677,6 +1832,13 @@ interface SessionSplitInput {
   customAmountsCents: Record<string, number>;
 }
 
+// E3 (M8): a round of N drinks at one unit price; split = divide among the group.
+interface RoundInput {
+  count: number;
+  unitPriceCents: number;
+  split: boolean;
+}
+
 interface ActiveSessionProps {
   session: Session;
   sessionTxs: Transaction[];
@@ -1688,6 +1850,10 @@ interface ActiveSessionProps {
   onQuickAdd: (cents: number) => void;
   onRegisterTotal: (diffCents: number) => void;
   onSplitAdd: (input: SessionSplitInput) => void;
+  /** E3 (M7): repeat the last logged item. */
+  onRepeatLast: () => void;
+  /** E3 (M8): add a round of N drinks at one price. */
+  onAddRound: (input: RoundInput) => void;
   onUpdateQuickValues: (valuesCents: number[]) => void;
   onEnd: () => void;
   onBack: () => void;
@@ -1705,14 +1871,19 @@ interface ActiveSessionProps {
   onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onUpdateQuickValues, onEnd, onBack, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
-  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | null>(null);
+  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | 'round' | null>(null);
   const [sheetAmount, setSheetAmount] = useState('');
   const [negativeConfirmed, setNegativeConfirmed] = useState(false);
   const [editValuesDraft, setEditValuesDraft] = useState<string[]>([]);
+
+  // E3 (M8): round composer state.
+  const [roundCount, setRoundCount] = useState(2);
+  const [roundUnit, setRoundUnit] = useState('');
+  const [roundSplit, setRoundSplit] = useState(false);
 
   const [splitParticipantIds, setSplitParticipantIds] = useState<string[]>([]);
   const [splitPaidById, setSplitPaidById] = useState<string | null>(null);
@@ -1739,6 +1910,15 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   const openEditValuesSheet = () => {
     setEditValuesDraft(quickValues.map((v) => String(fromCents(v))));
     setActiveSheet('editValues');
+  };
+
+  // E3 (M8): the round defaults to the highlighted quick value (≈ avg drink).
+  const openRoundSheet = () => {
+    setRoundCount(Math.max(2, participants.length || 2));
+    const defaultUnit = avgDrink > 0 ? avgDrink : (quickValues[highlightIndex] ?? quickValues[0] ?? 500);
+    setRoundUnit(String(fromCents(defaultUnit)));
+    setRoundSplit(false);
+    setActiveSheet('round');
   };
 
   const handleSaveQuickValues = () => {
@@ -1804,9 +1984,32 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
 
   const recentTxs = sessionTxs.slice().reverse().slice(0, 4);
 
+  // E3 (M9): fairness rotation — who pays the next round (suggestion only).
+  const nextPayer =
+    canSplit && sessionTxs.length >= 1
+      ? suggestNextPayer(participants, sessionTxs, owner?.id ?? '')
+      : null;
+
+  // E3 (M10): pace projection — minutes to the ceiling at the current rate.
+  const elapsedMin = Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 60000);
+  const rawProjection = projectTimeToCeiling(
+    totalSpent,
+    ceilingCents,
+    session.startedAt,
+    new Date().toISOString(),
+  );
+  const projectionMinutes =
+    sessionTxs.length >= 2 && elapsedMin >= 10 && rawProjection !== null && rawProjection > 0
+      ? rawProjection
+      : null;
+
   const splitAmountCents = parseAmountToCents(sheetAmount);
   const canConfirmSplit =
     splitAmountCents > 0 && splitParticipantIds.length >= 2 && splitPaidById !== null;
+
+  // E3 (M8): round composer derived values.
+  const roundUnitCents = parseAmountToCents(roundUnit);
+  const roundTotalCents = roundCount * roundUnitCents;
 
   return (
     <div
@@ -2152,6 +2355,36 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         </div>
       )}
 
+      {/* 9b. E3 (M9): who pays the next round — discreet suggestion */}
+      {nextPayer && (
+        <div
+          className="mx-5 mb-2.5 flex items-center gap-2 px-3 py-2 rounded-xl"
+          style={{ background: 'var(--highlight-faint)' }}
+        >
+          <Icon name="swap_horiz" size={14} className="text-on-surface-faint shrink-0" />
+          <p className="text-[11px] font-semibold" style={{ color: 'var(--on-surface-dim)' }}>
+            {t('outing.next_payer_hint', {
+              name: nextPayer.isOwner
+                ? t('outing.enrich_me')
+                : (nextPayer.nickname ?? nextPayer.name),
+            })}
+          </p>
+        </div>
+      )}
+
+      {/* 9c. E3 (M10): pace projection to the ceiling — read-only */}
+      {projectionMinutes !== null && (
+        <div
+          className="mx-5 mb-2.5 flex items-center gap-2 px-3 py-2 rounded-xl"
+          style={{ background: 'var(--highlight-faint)' }}
+        >
+          <Icon name="schedule" size={14} className="text-on-surface-faint shrink-0" />
+          <p className="text-[11px] font-semibold" style={{ color: 'var(--on-surface-dim)' }}>
+            {t('outing.projection_hint', { time: formatDurationShort(projectionMinutes) })}
+          </p>
+        </div>
+      )}
+
       {/* 10. SPACER */}
       <div className="flex-1 min-h-[4px]" />
 
@@ -2197,6 +2430,26 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
             style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
           >
             {t('outing.other_amount')}
+          </button>
+        </div>
+        {/* E3 (M7/M8): repeat last item + round of N drinks */}
+        <div className="flex gap-2.5 mb-2.5">
+          <button
+            onClick={onRepeatLast}
+            disabled={sessionTxs.length === 0}
+            className="btn-press flex-1 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40"
+            style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+          >
+            <Icon name="replay" size={16} className="text-on-surface-faint" />
+            {t('outing.repeat_last')}
+          </button>
+          <button
+            onClick={openRoundSheet}
+            className="btn-press flex-1 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+            style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+          >
+            <Icon name="local_bar" size={16} className="text-on-surface-faint" />
+            {t('outing.round_action')}
           </button>
         </div>
         <div className="flex gap-2.5">
@@ -2435,6 +2688,92 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
               closeSheet();
             }}
             disabled={!canConfirmSplit}
+            className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
+          >
+            {t('common.add')}
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* Round sheet — E3 (M8): N drinks at one unit price */}
+      <BottomSheet open={activeSheet === 'round'} onClose={closeSheet} title={t('outing.round_action')}>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-xs text-on-surface-faint mb-2 block">{t('outing.round_count')}</label>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setRoundCount((c) => Math.max(1, c - 1))}
+                className="btn-press w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: 'var(--surface-high)' }}
+                aria-label={t('outing.round_count_less')}
+              >
+                <Icon name="remove" size={18} className="text-on-surface" />
+              </button>
+              <span className="text-xl font-extrabold tabular text-on-surface w-10 text-center">
+                {roundCount}
+              </span>
+              <button
+                onClick={() => setRoundCount((c) => Math.min(20, c + 1))}
+                className="btn-press w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: 'var(--surface-high)' }}
+                aria-label={t('outing.round_count_more')}
+              >
+                <Icon name="add" size={18} className="text-on-surface" />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-on-surface-faint mb-2 block">
+              {t('outing.round_unit_price')}
+            </label>
+            <SheetAmountInput currency={currency} value={roundUnit} onChange={setRoundUnit} />
+          </div>
+
+          {canSplit && (
+            <button onClick={() => setRoundSplit((v) => !v)} className="flex items-center gap-2 btn-press">
+              <span
+                className="w-4 h-4 rounded flex items-center justify-center"
+                style={{ background: roundSplit ? 'var(--primary)' : 'var(--surface-high)' }}
+              >
+                {roundSplit && <Icon name="check" size={12} style={{ color: 'var(--surface-deep)' }} />}
+              </span>
+              <span className="text-xs text-on-surface-dim">{t('outing.round_split')}</span>
+            </button>
+          )}
+
+          {roundUnitCents > 0 && (
+            <div className="rounded-xl p-3" style={{ background: 'var(--highlight-faint)' }}>
+              <p className="text-xs font-semibold text-on-surface">
+                {t('outing.round_total_preview', {
+                  count: roundCount,
+                  amount: formatCurrencyFull(roundTotalCents, currency),
+                })}
+              </p>
+              {roundSplit && canSplit && (
+                <p className="text-[11px] text-on-surface-dim mt-1">
+                  {t('outing.round_personal_preview', {
+                    amount: formatCurrencyFull(
+                      calculateRoundPersonalCents(roundCount, roundUnitCents, participants.length),
+                      currency,
+                    ),
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              if (roundUnitCents <= 0 || roundCount <= 0) return;
+              onAddRound({
+                count: roundCount,
+                unitPriceCents: roundUnitCents,
+                split: roundSplit && canSplit,
+              });
+              closeSheet();
+            }}
+            disabled={roundUnitCents <= 0 || roundCount <= 0}
             className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
           >
             {t('common.add')}

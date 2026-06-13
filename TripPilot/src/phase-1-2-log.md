@@ -1,7 +1,7 @@
 # Pacote 1 — Captura + Saída v2 + Modo Simples — Log
 
 ## Current State
-- Fase: GATE 1 ✅ | Gate: 2 (próximo) | Milestone: M6 | Done: 6/26 | Tests: 545 (baseline 504, +41) | Versão: 0.8.4 | Último deploy: 57e0da00.trippilot.pages.dev | Build: ✅
+- Fase: GATE 2 ✅ | Gate: 3 (próximo) | Milestone: M11 | Done: 11/26 | Tests: 567 (baseline 504, +63) | Versão: 0.8.5 | Último deploy: e0c0c95f.trippilot.pages.dev | Build: ✅
 
 ## Baseline (GATE 0)
 - `npm run test` → 504 passed (64 files)
@@ -15,6 +15,7 @@
 ## Deploys
 - 0.8.3 (GATE 0) → https://789fe9cb.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.8.4 (GATE 1) → https://57e0da00.trippilot.pages.dev (alias master.trippilot.pages.dev)
+- 0.8.5 (GATE 2) → https://e0c0c95f.trippilot.pages.dev (alias master.trippilot.pages.dev)
 
 ## GATE 0 — Baseline + Novidades + pipeline (0.8.3) ✅
 - [x] Baseline: test 504 / tsc 0 / build ok
@@ -30,12 +31,17 @@
 - [x] M4 Transporte ida-e-volta (duplicar no save) — BottomSheet round-trip
 - [x] M5 Aviso de anomalia (detectAmountAnomaly + getCategoryTypicalCents) — BottomSheet
 - Decisão: typical derivado da MEDIANA das transações da categoria (≥3 amostras), pois QuickAdd não carrega ActivityProfiles (evita expandir o provider — ÂNCORA 6). 17 testes de suggestions.
-### GATE 2 — Saída v2 (0.8.5)
-- [ ] M6 Botões "últimos valores usados" (updateQuickValuesFromItem)
-- [ ] M7 Repetir último item
-- [ ] M8 Rodada (N × preço médio)
-- [ ] M9 Rotação "quem paga" (suggestNextPayer)
-- [ ] M10 Projeção temporal (projectTimeToCeiling)
+### GATE 2 — Saída v2 (0.8.5) ✅
+- [x] M6 Botões "últimos valores usados" (updateQuickValuesFromItem) — aprende no quick-add/over-max/repeat/rodada
+- [x] M7 Repetir último item (repeatLastSessionItem orchestrator) — respeita split via resolvePayerExpense
+- [x] M8 Rodada N × preço (addRoundExpenses orchestrator + calculateRoundTotalCents/PersonalCents) — sheet com stepper + dividir
+- [x] M9 Rotação "quem paga" (suggestNextPayer) — linha discreta, ≥2 participantes
+- [x] M10 Projeção temporal (projectTimeToCeiling) — linha ≥2 itens e ≥10min
+- Decisões GATE 2:
+  - fireProgressiveAlerts agora retorna Session p/ encadear learnQuickValues sem clobber de firedAlertPercents.
+  - M6 aprende no path quick-add (não em ajustes de total). persistSessionItem ganhou learnFromCents; addSessionExpense ganhou flag learnQuickValue.
+  - M8 grava N itens via orquestrador atômico (faithful "N itens"); split usa resolvePayerExpense por item, owner = 1º participante (casa com calculateRoundPersonalCents). Rodada não passa pelo gate over-max (ação explícita).
+  - M7/M8 não abrem o enrich stepper; usam toast (repeat com undo). 22 testes novos (17 puros + 5 orquestrador).
 ### GATE 3 — Extras + i18n + testes → FASE 1 COMPLETA (0.9.0)
 - [ ] M11 (Opcional) voz (parseVoiceExpense)
 - [ ] M12 Simulador "pegar de amanhã"

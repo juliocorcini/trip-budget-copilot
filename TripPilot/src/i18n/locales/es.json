@@ -631,7 +631,20 @@
     "bar_mode_exit": "Salir del modo bar",
     "bar_mode_label": "Modo bar",
     "bar_mode_hint": "Toca un valor para registrar · X para salir",
-    "bar_mode_added": "{{amount}} registrado"
+    "bar_mode_added": "{{amount}} registrado",
+    "repeat_last": "Repetir último",
+    "repeat_done": "Repetido: {{amount}}",
+    "round_action": "Ronda",
+    "round_count": "¿Cuántas?",
+    "round_count_less": "Una menos",
+    "round_count_more": "Una más",
+    "round_unit_price": "Precio de cada una",
+    "round_split": "Dividir con el grupo",
+    "round_total_preview": "{{count}} × — total {{amount}}",
+    "round_personal_preview": "Tu parte: {{amount}}",
+    "round_done": "Ronda de {{count}} · {{amount}}",
+    "next_payer_hint": "Próxima ronda: ¿turno de {{name}}?",
+    "projection_hint": "A este ritmo, ~{{time}} hasta el techo"
   },
   "simulator": {
     "title": "Simulador",

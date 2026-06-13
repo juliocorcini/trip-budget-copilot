@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.5',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Saída v2: os botões de valor aprendem o último valor usado.',
+        'Repetir último item com um toque (respeita divisão com o grupo).',
+        'Rodada: lance várias bebidas do mesmo preço de uma vez, dividindo se quiser.',
+        'Sugestão de quem paga a próxima rodada (rotação justa).',
+        'Projeção: "no seu ritmo, ~1h até o teto" durante a saída.',
+      ],
+      en: [
+        'Outing v2: the amount buttons learn the last value you used.',
+        'Repeat the last item in one tap (keeps the group split).',
+        'Round: log several same-price drinks at once, split if you like.',
+        'Suggestion for who pays the next round (fair rotation).',
+        'Pace projection: "at this rate, ~1h to the ceiling" during the outing.',
+      ],
+      es: [
+        'Salida v2: los botones de importe aprenden el último valor usado.',
+        'Repetir el último ítem con un toque (respeta la división del grupo).',
+        'Ronda: registra varias bebidas del mismo precio a la vez, dividiendo si quieres.',
+        'Sugerencia de quién paga la próxima ronda (rotación justa).',
+        'Proyección: "a este ritmo, ~1h hasta el techo" durante la salida.',
+      ],
+    },
+  },
+  {
     version: '0.8.4',
     date: '2026-06-13',
     items: {

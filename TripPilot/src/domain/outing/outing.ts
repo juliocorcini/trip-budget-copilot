@@ -1,8 +1,9 @@
 import type { Session, SessionItem } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { Participant } from '@/domain/types/participant';
 import { createSyncMetadata } from '@/utils/entity-factory';
-import { sumCents } from '@/domain/money';
+import { sumCents, splitEqually } from '@/domain/money';
 import type { AlertTone } from '@/domain/types/common';
 
 export interface OutingAlert {
@@ -41,6 +42,33 @@ export function findHighlightedQuickValueIndex(
     }
   });
   return bestIndex;
+}
+
+/**
+ * DEC-045 (E3 / M6): the quick-add buttons learn the last value used. The
+ * button closest to the new item adopts its value, so the set keeps the same
+ * size and order. A value already present is left untouched (no duplicates).
+ */
+export function updateQuickValuesFromItem(
+  currentValuesCents: number[],
+  newItemCents: number,
+): number[] {
+  if (newItemCents <= 0 || currentValuesCents.length === 0) return currentValuesCents;
+  if (currentValuesCents.includes(newItemCents)) return currentValuesCents;
+
+  let closestIndex = 0;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  currentValuesCents.forEach((value, index) => {
+    const distance = Math.abs(value - newItemCents);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
+
+  return currentValuesCents.map((value, index) =>
+    index === closestIndex ? newItemCents : value,
+  );
 }
 
 const LIMIT_STEP_CENTS = 500;
@@ -286,6 +314,87 @@ export function calculateNextDrinkImpact(
     percentAfter,
     exceedsCeiling: ceilingCents !== null && afterCents > ceilingCents,
   };
+}
+
+/**
+ * E3 (M8): a "round" buys `count` drinks at the same unit price. DEC-047 —
+ * the total is always count × unit, never a hidden surcharge.
+ */
+export function calculateRoundTotalCents(count: number, unitPriceCents: number): number {
+  if (count <= 0 || unitPriceCents <= 0) return 0;
+  return count * unitPriceCents;
+}
+
+/**
+ * E3 (M8) + DEC-114: the buyer's personal cost of a round. Paying alone keeps
+ * the whole total; splitting equally among `splitWays` people leaves the buyer
+ * one equal share per drink (summed per item so it matches the persisted
+ * shares, where the owner is the first participant).
+ */
+export function calculateRoundPersonalCents(
+  count: number,
+  unitPriceCents: number,
+  splitWays: number,
+): number {
+  if (count <= 0 || unitPriceCents <= 0) return 0;
+  if (splitWays <= 1) return count * unitPriceCents;
+  const ownerSharePerItem = splitEqually(unitPriceCents, splitWays)[0] ?? 0;
+  return count * ownerSharePerItem;
+}
+
+/**
+ * E3 (M9): fairness rotation for "who pays the next round". Suggests the
+ * participant who has paid the fewest items so far (ties broken by list
+ * order). Pure suggestion — never assigns a payer. Null with < 2 participants.
+ */
+export function suggestNextPayer(
+  participants: Participant[],
+  sessionTxs: Transaction[],
+  ownerId: string,
+): Participant | null {
+  if (participants.length < 2) return null;
+
+  const paidCount = new Map<string, number>();
+  participants.forEach((participant) => paidCount.set(participant.id, 0));
+  for (const tx of sessionTxs) {
+    if (tx.deletedAt !== null || tx.type !== 'expense') continue;
+    const payerId = tx.paidByParticipantId ?? ownerId;
+    if (paidCount.has(payerId)) {
+      paidCount.set(payerId, (paidCount.get(payerId) ?? 0) + 1);
+    }
+  }
+
+  let suggested: Participant | null = null;
+  let fewest = Number.POSITIVE_INFINITY;
+  for (const participant of participants) {
+    const count = paidCount.get(participant.id) ?? 0;
+    if (count < fewest) {
+      fewest = count;
+      suggested = participant;
+    }
+  }
+  return suggested;
+}
+
+/**
+ * E3 (M10): at the current spending rate, minutes until the session reaches
+ * its ceiling. Read-only projection — null when it can't be estimated (no
+ * spend yet, no elapsed time) and 0 once the ceiling is already reached.
+ */
+export function projectTimeToCeiling(
+  currentTotalCents: number,
+  ceilingCents: number,
+  startedAt: string,
+  now: string,
+): number | null {
+  if (currentTotalCents <= 0 || ceilingCents <= 0) return null;
+  if (currentTotalCents >= ceilingCents) return 0;
+  const elapsedMs = new Date(now).getTime() - new Date(startedAt).getTime();
+  if (elapsedMs <= 0) return null;
+  const centsPerMs = currentTotalCents / elapsedMs;
+  if (centsPerMs <= 0) return null;
+  const remainingCents = ceilingCents - currentTotalCents;
+  return Math.round(remainingCents / centsPerMs / 60000);
 }
 
 export interface ReportedTotalResult {
