@@ -1,7 +1,7 @@
 # TripPilot — Plano Mestre de Expansão (Fase de Planejamento)
 
 > Criado: 2026-06-13
-> Status: **EM EXECUÇÃO — Fases 1 e 2 FEITAS (Package 1, 2026-06-13, v0.8.3→v0.10.1, DEC-138..149)**; Fases 3-7 pendentes
+> Status: **EM EXECUÇÃO — Fases 1 e 2 FEITAS (Package 1, 2026-06-13, v0.8.3→v0.10.1, DEC-138..149)**; **Pacote 2 (Fases 3+4) PRONTO p/ rodar** (`phase-package-2-insights-motivation.md`); Fases 5-7 pendentes
 > Fonte: brainstorm das 50 ideias + feedback idea-por-idea do Julio (2026-06-13)
 > Base de código auditada: v0.8.2 (137 DECs, Dexie v4, 504 testes)
 
@@ -519,7 +519,9 @@ Decisão de empacotamento (atualizada 2026-06-13 com a diretriz do Julio):
   Construída logo no **GATE 0 (M0)** do Pacote 1 — não fica pra Fase 6.
 - O que de fato corta requests: rodar sem aprovação + retomada barata (state file + RECOVERY).
 - Pacote 1 escrito em `phase-package-1-capture-simple-mode.md` (formato testado no
-  `stability-fix-prompt.md`: ÂNCORA, STATE FILE, gates, checkpoint, recovery).
+  `stability-fix-prompt.md`: ÂNCORA, STATE FILE, gates, checkpoint, recovery). **FEITO.**
+- Pacote 2 escrito em `phase-package-2-insights-motivation.md` (Fases 3+4; mesmo formato;
+  versão 0.10.1→0.12.1, 8 gates, baseline 614 testes). Pronto pra rodar em chat novo.
 
 ## 7. O que fica de fora (consciente)
 - Backend, contas, sync automático em background (mantém DEC / V1 exclusions).

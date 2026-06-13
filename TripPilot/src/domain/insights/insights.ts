@@ -10,14 +10,17 @@ import { getTotalDays, localDayOf } from '@/domain/dates';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
 /**
- * Rotating dashboard insights (DEC-077 / FIELD-07).
+ * Rotating dashboard insights (DEC-077 / FIELD-07; E4 Phase 3).
  *
- * Pure builders, one per V1 card (1, 2, 3, 4, 7, 9 of the audit table).
- * Each builder returns null when its data is NOT significant — the block
- * only shows cards backed by real signal, capped at MAX_INSIGHTS_PER_DAY.
+ * Pure builders, one per signal. Each builder returns null when its data is
+ * NOT significant (anti-spam is rule #1) — the block only shows cards backed
+ * by real signal. Phase 3 (M1) removed the hard cap of 4: every significant
+ * insight now shows, ordered by `priority` (warnings break ties). A high
+ * safety cap stays so a pathological dataset can never explode the carousel.
  */
 
-export const MAX_INSIGHTS_PER_DAY = 4;
+/** Safety ceiling so the carousel never renders an absurd number of cards. */
+export const INSIGHT_SAFETY_CAP = 12;
 
 /** Projection/rhythm cards need at least this many days of data. */
 export const MIN_DAYS_FOR_PROJECTION = 3;
@@ -32,9 +35,27 @@ export type DashboardInsightKind =
 
 export type InsightTone = 'positive' | 'warning' | 'neutral';
 
+/**
+ * M1: importance ranking (higher = shown first). Data-driven so ordering is a
+ * table, not branching logic. Ties are broken by tone (warnings first).
+ */
+export const INSIGHT_PRIORITY: Record<DashboardInsightKind, number> = {
+  phase_projection: 80,
+  rhythm_compare: 60,
+  participant_balance: 50,
+  next_event: 40,
+  avg_outing_cost: 30,
+  no_spend_streak: 20,
+};
+
+/** Tone order for tie-breaking — warnings surface before neutral/positive. */
+const TONE_RANK: Record<InsightTone, number> = { warning: 0, neutral: 1, positive: 2 };
+
 export interface DashboardInsight {
   kind: DashboardInsightKind;
   tone: InsightTone;
+  /** M1: importance for ordering — defaults from INSIGHT_PRIORITY per kind. */
+  priority: number;
   /** Raw values for i18n interpolation — cents formatted by the UI. */
   values: Record<string, string | number>;
 }
@@ -96,6 +117,7 @@ function buildPhaseProjection(input: BuildInsightsInput): DashboardInsight | nul
   return {
     kind: 'phase_projection',
     tone: diffCents > 0 ? 'warning' : 'positive',
+    priority: INSIGHT_PRIORITY.phase_projection,
     values: {
       projectedCents,
       diffCents: Math.abs(diffCents),
@@ -126,6 +148,7 @@ function buildRhythmCompare(input: BuildInsightsInput): DashboardInsight | null 
   return {
     kind: 'rhythm_compare',
     tone: realDailyCents <= plannedDailyCents ? 'positive' : 'warning',
+    priority: INSIGHT_PRIORITY.rhythm_compare,
     values: { realDailyCents, plannedDailyCents, over: realDailyCents > plannedDailyCents ? 1 : 0 },
   };
 }
@@ -150,7 +173,12 @@ function buildNoSpendStreak(input: BuildInsightsInput): DashboardInsight | null 
   }
   if (streak < 2) return null;
 
-  return { kind: 'no_spend_streak', tone: 'positive', values: { days: streak } };
+  return {
+    kind: 'no_spend_streak',
+    tone: 'positive',
+    priority: INSIGHT_PRIORITY.no_spend_streak,
+    values: { days: streak },
+  };
 }
 
 /** Card 4 — average cost per completed outing in the phase. */
@@ -162,6 +190,7 @@ function buildAvgOutingCost(input: BuildInsightsInput): DashboardInsight | null 
   return {
     kind: 'avg_outing_cost',
     tone: 'neutral',
+    priority: INSIGHT_PRIORITY.avg_outing_cost,
     values: { avgCents, count: totals.length },
   };
 }
@@ -178,6 +207,7 @@ function buildParticipantBalance(input: BuildInsightsInput): DashboardInsight | 
   return {
     kind: 'participant_balance',
     tone: 'neutral',
+    priority: INSIGHT_PRIORITY.participant_balance,
     values: {
       name: owedToMe ? largest.debtorName : largest.creditorName,
       amountCents: largest.amountCents,
@@ -205,6 +235,7 @@ function buildNextEvent(input: BuildInsightsInput): DashboardInsight | null {
   return {
     kind: 'next_event',
     tone: 'neutral',
+    priority: INSIGHT_PRIORITY.next_event,
     values: {
       name: next.name,
       days: daysUntil,
@@ -225,10 +256,16 @@ const INSIGHT_BUILDERS: Array<(input: BuildInsightsInput) => DashboardInsight | 
   buildNextEvent,
 ];
 
+/**
+ * M1: every significant insight, ordered by importance. No fixed cap of 4 —
+ * builders self-censor (return null) so only real signal reaches here. Sort is
+ * priority desc, then tone (warnings first). A safety cap is the only ceiling.
+ */
 export function buildDashboardInsights(input: BuildInsightsInput): DashboardInsight[] {
   return INSIGHT_BUILDERS.map((build) => build(input))
     .filter((insight): insight is DashboardInsight => insight !== null)
-    .slice(0, MAX_INSIGHTS_PER_DAY);
+    .sort((a, b) => b.priority - a.priority || TONE_RANK[a.tone] - TONE_RANK[b.tone])
+    .slice(0, INSIGHT_SAFETY_CAP);
 }
 
 /* ──────────────── Daily forecast snapshot (DEC-077 / M8.3) ──────────────── */

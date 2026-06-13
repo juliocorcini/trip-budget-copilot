@@ -1,7 +1,8 @@
 export {
   buildDashboardInsights,
   createForecastSnapshot,
-  MAX_INSIGHTS_PER_DAY,
+  INSIGHT_SAFETY_CAP,
+  INSIGHT_PRIORITY,
   MIN_DAYS_FOR_PROJECTION,
 } from './insights';
 export type {

@@ -1,4 +1,4 @@
-import { useState, useRef, type ReactNode, type Dispatch, type SetStateAction } from 'react';
+import { useState, useRef, useEffect, type ReactNode, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
@@ -20,7 +20,16 @@ import { RecapCard } from '@/features/dashboard/cards/RecapCard';
 import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { OccasionCounter } from '@/features/dashboard/cards/OccasionCounter';
-import { counterAccent, INSIGHT_ICONS, formatInsightText, formatElapsed } from './dashboard-format';
+import {
+  counterAccent,
+  INSIGHT_ICONS,
+  formatInsightText,
+  formatElapsed,
+  nextInsightIndex,
+  shouldAutoRotateInsights,
+  INSIGHT_AUTO_ROTATE_MS,
+  INSIGHT_RESUME_DELAY_MS,
+} from './dashboard-format';
 import type { DashboardModel } from './useDashboardModel';
 
 interface DashboardCardsProps {
@@ -56,8 +65,40 @@ export function DashboardCards({
   const [insightIndex, setInsightIndex] = useState(0);
   const [carouselPage, setCarouselPage] = useState(0);
   const insightScrollRef = useRef<HTMLDivElement>(null);
+  // M2: auto-rotation — paused (timestamp) while the user is interacting, and
+  // gated by reduced-motion. Self-scrolls never re-pause (only pointer/wheel).
+  const insightPausedUntilRef = useRef(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
   // DEC-119 (R-10): long-press on a card opens its options sheet.
   const getCardLongPress = useLongPress((id) => onConfigCard(id as DashboardCardId));
+
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!mq) return;
+    setReducedMotion(mq.matches);
+    const onChange = () => setReducedMotion(mq.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
+  // M2: advance the insights carousel every few seconds, honoring pauses.
+  const insightCount = model.insights.length;
+  useEffect(() => {
+    if (!shouldAutoRotateInsights(insightCount, reducedMotion)) return;
+    const timer = window.setInterval(() => {
+      if (Date.now() < insightPausedUntilRef.current) return;
+      const el = insightScrollRef.current;
+      if (!el || el.clientWidth === 0) return;
+      const current = Math.round(el.scrollLeft / el.clientWidth);
+      const next = nextInsightIndex(current, insightCount);
+      el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' });
+    }, INSIGHT_AUTO_ROTATE_MS);
+    return () => window.clearInterval(timer);
+  }, [insightCount, reducedMotion]);
+
+  const pauseInsightRotation = () => {
+    insightPausedUntilRef.current = Date.now() + INSIGHT_RESUME_DELAY_MS;
+  };
 
   const renderDashboardCard = (id: DashboardCardId): ReactNode => {
     switch (id) {
@@ -352,6 +393,10 @@ export function DashboardCards({
                 <div
                   ref={insightScrollRef}
                   className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory"
+                  // M2: any manual interaction pauses auto-rotation; programmatic
+                  // self-scrolls fire onScroll only, so they never re-pause.
+                  onPointerDown={pauseInsightRotation}
+                  onWheel={pauseInsightRotation}
                   onScroll={(e) => {
                     const el = e.currentTarget;
                     if (el.clientWidth === 0) return;
@@ -394,12 +439,13 @@ export function DashboardCards({
                     {model.insights.map((insight, i) => (
                       <button
                         key={insight.kind}
-                        onClick={() =>
+                        onClick={() => {
+                          pauseInsightRotation();
                           insightScrollRef.current?.scrollTo({
                             left: i * insightScrollRef.current.clientWidth,
                             behavior: 'smooth',
-                          })
-                        }
+                          });
+                        }}
                         aria-label={`${t('dashboard.insights_title')} ${i + 1}`}
                         className="p-1 btn-press"
                       >

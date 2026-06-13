@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDashboardInsights,
   createForecastSnapshot,
-  MAX_INSIGHTS_PER_DAY,
+  INSIGHT_SAFETY_CAP,
   type BuildInsightsInput,
 } from '@/domain/insights';
 import { orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
@@ -148,8 +148,10 @@ describe('buildDashboardInsights (DEC-077 — FIELD-07)', () => {
     expect(next.values.hasReserve).toBe(1);
   });
 
-  it('caps at MAX_INSIGHTS_PER_DAY significant cards', () => {
-    const txs = [mkTx(2000, '2026-06-01'), mkTx(2000, '2026-06-02')];
+  function manySignalsInput() {
+    // Spread spend across days so streak does NOT fire (a spend today breaks it),
+    // letting projection + rhythm + avg + balance + next all surface together.
+    const txs = [mkTx(2000, '2026-06-01'), mkTx(2000, '2026-06-03'), mkTx(2000, '2026-06-05')];
     const debts: DebtEntry[] = [
       { debtorId: 'mira', debtorName: 'Mira', creditorId: OWNER_ID, creditorName: 'Julio', amountCents: 1200 },
     ];
@@ -165,19 +167,40 @@ describe('buildDashboardInsights (DEC-077 — FIELD-07)', () => {
       reservedCents: null,
       activityProfileId: null,
     });
-    const insights = buildDashboardInsights(
-      baseInput({
-        todayDate: '2026-06-05',
-        phaseTransactions: txs,
-        phaseBudgetCents: 30_000,
-        completedOutingTotalsCents: [3800, 2200],
-        debts,
-        occurrences: [occurrence],
-      }),
-    );
-    // 5 builders fire (projection, rhythm, streak, avg, balance, next) → capped.
-    expect(insights.length).toBeLessThanOrEqual(MAX_INSIGHTS_PER_DAY);
-    expect(insights.length).toBe(MAX_INSIGHTS_PER_DAY);
+    return baseInput({
+      todayDate: '2026-06-05',
+      phaseTransactions: txs,
+      phaseBudgetCents: 30_000,
+      completedOutingTotalsCents: [3800, 2200],
+      debts,
+      occurrences: [occurrence],
+    });
+  }
+
+  it('M1: shows ALL significant insights (no fixed cap of 4)', () => {
+    const insights = buildDashboardInsights(manySignalsInput());
+    // projection, rhythm, avg, balance, next all fire — 5 > the old cap of 4.
+    expect(insights.length).toBe(5);
+    expect(insights.length).toBeLessThanOrEqual(INSIGHT_SAFETY_CAP);
+    const kinds = insights.map((i) => i.kind);
+    expect(kinds).toContain('phase_projection');
+    expect(kinds).toContain('rhythm_compare');
+    expect(kinds).toContain('avg_outing_cost');
+    expect(kinds).toContain('participant_balance');
+    expect(kinds).toContain('next_event');
+  });
+
+  it('M1: orders insights by priority (projection > rhythm > balance > next > avg)', () => {
+    const insights = buildDashboardInsights(manySignalsInput());
+    const priorities = insights.map((i) => i.priority);
+    const sortedDesc = [...priorities].sort((a, b) => b - a);
+    expect(priorities).toEqual(sortedDesc);
+    expect(insights[0]!.kind).toBe('phase_projection');
+  });
+
+  it('M1: never exceeds the safety cap even with every builder firing', () => {
+    const insights = buildDashboardInsights(manySignalsInput());
+    expect(insights.length).toBeLessThanOrEqual(INSIGHT_SAFETY_CAP);
   });
 });
 

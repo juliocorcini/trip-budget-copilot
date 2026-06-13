@@ -100,6 +100,27 @@ export function formatInsightText(
   }
 }
 
+/* ──────────────── M2: insights auto-rotation (pure, testable) ──────────────── */
+
+/** How often the insights carousel advances on its own. */
+export const INSIGHT_AUTO_ROTATE_MS = 7000;
+/** After a manual interaction, auto-rotation stays paused for this long. */
+export const INSIGHT_RESUME_DELAY_MS = 12000;
+
+/** Index of the next insight in the rotation loop (wraps to the start). */
+export function nextInsightIndex(current: number, total: number): number {
+  if (total <= 0) return 0;
+  return (current + 1) % total;
+}
+
+/**
+ * Auto-rotation only runs with 2+ insights and when the user has NOT asked
+ * for reduced motion (accessibility) — a single insight has nothing to rotate.
+ */
+export function shouldAutoRotateInsights(count: number, prefersReducedMotion: boolean): boolean {
+  return count >= 2 && !prefersReducedMotion;
+}
+
 export function formatElapsed(startedAt: string): string {
   const ms = Date.now() - new Date(startedAt).getTime();
   const totalMin = Math.floor(ms / 60000);

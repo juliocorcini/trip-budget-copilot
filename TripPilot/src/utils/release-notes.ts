@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.2',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Insights sem limite: agora aparecem todos os relevantes, dos mais importantes aos menos.',
+        'Os insights giram sozinhos — e pausam assim que você toca ou desliza.',
+        'No Modo Simples, no máximo um aviso importante, sem virar mural.',
+      ],
+      en: [
+        'Insights without a cap: all the relevant ones now show, most important first.',
+        'Insights rotate on their own — and pause the moment you touch or swipe.',
+        'In Simple mode, at most one important heads-up, never a wall.',
+      ],
+      es: [
+        'Insights sin límite: ahora aparecen todos los relevantes, de los más importantes a los menos.',
+        'Los insights giran solos — y se pausan en cuanto tocas o deslizas.',
+        'En Modo Simple, como mucho un aviso importante, sin convertirse en un muro.',
+      ],
+    },
+  },
+  {
     version: '0.10.1',
     date: '2026-06-13',
     items: {

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { formatMoney } from '@/domain/money';
-import { splitMoneyDisplay } from './dashboard-format';
+import { splitMoneyDisplay, INSIGHT_ICONS, formatInsightText } from './dashboard-format';
 import type { DashboardModel } from './useDashboardModel';
 import type { Trip } from '@/domain/types/trip';
 
@@ -19,6 +19,12 @@ export function SimpleHome({ model, trip }: { model: DashboardModel; trip: Trip 
   const freeTodayCents = model.todayBudget?.freeTodayCents ?? null;
   const isOver = freeTodayCents !== null && freeTodayCents < 0;
   const display = freeTodayCents !== null ? splitMoneyDisplay(freeTodayCents, currency) : null;
+
+  // M3 (ÂNCORA 14): simple mode never becomes an insights wall. At most ONE
+  // honest heads-up — the single highest-priority insight, and only when it is
+  // a warning. Insights come pre-sorted, so [0] is always the top one.
+  const topInsight = model.insights[0] ?? null;
+  const simpleInsight = topInsight && topInsight.tone === 'warning' ? topInsight : null;
 
   return (
     <div className="flex flex-col gap-6 pt-8">
@@ -48,6 +54,19 @@ export function SimpleHome({ model, trip }: { model: DashboardModel; trip: Trip 
           </p>
         )}
       </div>
+
+      {/* M3: a single honest heads-up (warning only) — never a carousel */}
+      {simpleInsight && (
+        <div
+          className="-mt-2 p-3.5 rounded-2xl flex items-start gap-3"
+          style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}
+        >
+          <Icon name={INSIGHT_ICONS[simpleInsight.kind]} size={18} className="text-warning mt-0.5" />
+          <p className="text-[13px] font-semibold leading-snug text-on-surface">
+            {formatInsightText(simpleInsight, t, currency)}
+          </p>
+        </div>
+      )}
 
       <button
         onClick={() => navigate('/quick-add')}
