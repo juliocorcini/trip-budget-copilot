@@ -697,7 +697,11 @@
   "errors": {
     "boundary_title": "Algo salió mal",
     "boundary_message": "Tus datos están seguros en el dispositivo. Recarga la app para continuar.",
-    "boundary_reload": "Recargar"
+    "boundary_reload": "Recargar",
+    "boundary_persistent_title": "La app sigue teniendo problemas",
+    "boundary_persistent_message": "Detectamos varios fallos seguidos. Limpia la caché y recarga, o exporta tus datos como copia de emergencia.",
+    "boundary_clear_cache": "Limpiar caché y recargar",
+    "boundary_export": "Exportar datos"
   },
   "common": {
     "save": "Guardar",

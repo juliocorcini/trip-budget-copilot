@@ -43,6 +43,30 @@ describe('formatMoney', () => {
     const result = formatMoney(150000, 'EUR', 'pt-BR');
     expect(result).toContain('1.500,00');
   });
+
+  // BUG-010: a trip with an invalid baseCurrency (bad import/sync) must never
+  // crash a render — formatMoney must always return a legible string.
+  it('never throws on a malformed currency code and includes the raw code', () => {
+    expect(() => formatMoney(1250, 'INVALID', 'pt-BR')).not.toThrow();
+    const result = formatMoney(1250, 'INVALID', 'pt-BR');
+    expect(result).toContain('12,50');
+    expect(result).toContain('INVALID');
+  });
+
+  it('never throws on an empty currency', () => {
+    expect(() => formatMoney(1250, '', 'pt-BR')).not.toThrow();
+    expect(formatMoney(1250, '', 'pt-BR')).toContain('12,50');
+  });
+
+  it('does not throw on a well-formed but unknown ISO code', () => {
+    expect(() => formatMoney(1250, 'XYZ', 'pt-BR')).not.toThrow();
+    expect(formatMoney(1250, 'XYZ', 'pt-BR')).toContain('12,50');
+  });
+
+  it('normalizes lowercase currency codes', () => {
+    const result = formatMoney(71750, 'eur', 'pt-BR');
+    expect(result).toContain('717,50');
+  });
 });
 
 describe('splitEqually', () => {

@@ -7,6 +7,7 @@ import {
   getTotalDays,
   formatDate,
   sortPhasesByOrder,
+  toSafeIsoDate,
 } from '@/domain/dates';
 import type { Phase } from '@/domain/types/phase';
 
@@ -80,5 +81,18 @@ describe('sortPhasesByOrder', () => {
     const sorted = sortPhasesByOrder(reversed);
     expect(sorted[0]!.order).toBe(0);
     expect(sorted[1]!.order).toBe(1);
+  });
+});
+
+describe('toSafeIsoDate (BUG-016)', () => {
+  it('converts a valid datetime-local value to ISO', () => {
+    expect(toSafeIsoDate('2026-06-13T20:30')).toBe(new Date('2026-06-13T20:30').toISOString());
+  });
+
+  it('never throws on a corrupted value and falls back to a valid ISO string', () => {
+    expect(() => toSafeIsoDate('not-a-date')).not.toThrow();
+    const result = toSafeIsoDate('not-a-date');
+    expect(() => new Date(result).toISOString()).not.toThrow();
+    expect(Number.isNaN(new Date(result).getTime())).toBe(false);
   });
 });

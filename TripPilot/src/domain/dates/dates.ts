@@ -73,6 +73,16 @@ export function moveToLocalDay(isoTimestamp: string, localDay: string): string {
   return new Date(`${localDay}T${time}`).toISOString();
 }
 
+/**
+ * BUG-016: `new Date(value).toISOString()` throws RangeError on a corrupted
+ * value (e.g. a bad datetime-local input). This converts safely, falling back
+ * to "now" instead of crashing the save.
+ */
+export function toSafeIsoDate(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
 // PAR-001 (R6-15): patterns are written in pt-BR reference form and translated
 // to the active language by the locale bridge ("d 'de' MMMM" → "MMMM d" in EN).
 export function formatDate(isoDate: string, pattern: string = 'dd/MM/yyyy'): string {

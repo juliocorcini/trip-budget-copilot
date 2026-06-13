@@ -5,7 +5,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import type { ParticipantShare } from '@/domain/types/participant-share';
-import { resolveActivePhase } from '@/domain/dates';
+import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
 import { toCents, formatMoney, formatAnchorHint } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
@@ -241,7 +241,7 @@ export function QuickAddPage() {
         currency: trip.baseCurrency,
         category,
         description: description || t(`categories.${category}` as never),
-        date: customDate ? new Date(customDate).toISOString() : undefined,
+        date: customDate ? toSafeIsoDate(customDate) : undefined,
       });
 
       let finalShares: ParticipantShare[] = [];

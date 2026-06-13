@@ -1,7 +1,7 @@
 # Stability Fix Log
 
 ## Current State
-- Gate: 1 done | Bug: — | Fixed: 5/20 | Tests: 473 (+13) | Build: ✅ (index 635 KB warning)
+- Gate: 2 done | Bug: — | Fixed: 10/20 | Tests: 487 (+27) | Build: ✅ (index 635 KB warning)
 
 ## Gate 0 — Baseline
 - [x] Node 22.22.3
@@ -19,12 +19,14 @@
 - New components: BootGate, TripRecoveryScreen, LoadingScreen. i18n: recovery.* ×3.
 - New tests: app-settings-repository.test.ts (5), boot-recovery.test.tsx (8) = +13 → 473.
 
-## Gate 2 — Safety net
-- [ ] BUG-005 safeLocalStorage helper + getDeviceId
-- [ ] BUG-018 outing-notification + QrScanner via safeLocalStorage
-- [ ] BUG-010 formatMoney never throws
-- [ ] BUG-016 QuickAdd customDate validation
-- [ ] BUG-017 ErrorBoundary telemetry + anti-loop
+## Gate 2 — Safety net ✅
+- [x] BUG-005 safeLocalStorage helper + getDeviceId (memory fallback)
+- [x] BUG-018 outing-notification + QrScanner via safeLocalStorage (grep=0 outside helper)
+- [x] BUG-010 formatMoney never throws (regex guard + try/catch + plain fallback)
+- [x] BUG-016 toSafeIsoDate in dates domain + QuickAdd uses it
+- [x] BUG-017 ErrorBoundary telemetry (crash-log buffer) + loop detection + clear-cache/export; window error+rejection handlers in main.tsx
+- New: safe-storage.ts, crash-log.ts, emergency-backup.ts, toSafeIsoDate. i18n: errors.boundary_persistent_* ×3.
+- New tests: safe-storage (3), crash-log (5), money +4, dates +2 = +14 → 487.
 
 ## Gate 3 — Service Worker hardening
 - [ ] BUG-006 SW openDb versioned + onblocked + store guards

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import jsQR from 'jsqr';
 import { Icon } from '@/components/Icon';
+import { safeLocalStorage } from '@/utils/safe-storage';
 
 interface QrScannerProps {
   onScan: (text: string) => void;
@@ -26,19 +27,13 @@ interface ZoomState {
 }
 
 function readPreferredCameraId(): string | null {
-  try {
-    return localStorage.getItem(PREFERRED_CAMERA_KEY);
-  } catch {
-    return null;
-  }
+  return safeLocalStorage.get(PREFERRED_CAMERA_KEY);
 }
 
 function savePreferredCameraId(deviceId: string): void {
-  try {
-    localStorage.setItem(PREFERRED_CAMERA_KEY, deviceId);
-  } catch {
-    // Storage unavailable — switching still works for this session.
-  }
+  // BUG-018: storage unavailable — safeLocalStorage keeps it in memory so
+  // switching still works for this session.
+  safeLocalStorage.set(PREFERRED_CAMERA_KEY, deviceId);
 }
 
 /**

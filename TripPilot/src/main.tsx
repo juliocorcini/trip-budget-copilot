@@ -10,8 +10,19 @@ import {
   syncActiveOutingNotification,
 } from './utils/outing-notification';
 import { appSettingsRepository } from './data/repositories';
+import { recordCrash, describeError } from './utils/crash-log';
 import i18n from './i18n';
 import './styles/globals.css';
+
+// BUG-017: capture errors that never reach the React ErrorBoundary (async
+// rejections, event handlers, non-React code) into the same crash buffer so
+// the boundary's loop detection sees the full picture.
+window.addEventListener('error', (event) => {
+  recordCrash(describeError(event.error ?? event.message));
+});
+window.addEventListener('unhandledrejection', (event) => {
+  recordCrash(describeError(event.reason));
+});
 
 registerServiceWorker();
 

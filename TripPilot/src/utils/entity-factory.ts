@@ -1,14 +1,18 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { SyncMetadata } from '@/domain/types/common';
+import { safeLocalStorage } from '@/utils/safe-storage';
 
 const DEVICE_ID_KEY = 'trippilot_device_id';
 
+// BUG-005: getDeviceId runs inside createSyncMetadata/markUpdated/softDelete,
+// i.e. on EVERY create/update/delete. A throwing localStorage (iOS private
+// mode / quota) must never break a save — safeLocalStorage falls back to a
+// volatile in-memory id that still works for the whole session.
 function getDeviceId(): string {
-  if (typeof localStorage === 'undefined') return uuidv4();
-  let id = localStorage.getItem(DEVICE_ID_KEY);
+  let id = safeLocalStorage.get(DEVICE_ID_KEY);
   if (!id) {
     id = uuidv4();
-    localStorage.setItem(DEVICE_ID_KEY, id);
+    safeLocalStorage.set(DEVICE_ID_KEY, id);
   }
   return id;
 }

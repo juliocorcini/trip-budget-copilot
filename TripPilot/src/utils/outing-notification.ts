@@ -9,6 +9,7 @@ import {
 import { getActiveIntlLocale } from '@/domain/locale';
 import { appSettingsRepository } from '@/data/repositories/app-settings-repository';
 import { getInstallationId } from '@/utils/entity-factory';
+import { safeLocalStorage } from '@/utils/safe-storage';
 import type { Session } from '@/domain/types/session';
 import type { OutingNotificationStrings } from '@/domain/outing';
 
@@ -55,11 +56,11 @@ export function getOutingNotificationPermission(): NotificationPermission | 'uns
 }
 
 export function wasOutingNotificationPrompted(): boolean {
-  return localStorage.getItem(PROMPTED_KEY) !== null;
+  return safeLocalStorage.get(PROMPTED_KEY) !== null;
 }
 
 export function markOutingNotificationPrompted(): void {
-  localStorage.setItem(PROMPTED_KEY, '1');
+  safeLocalStorage.set(PROMPTED_KEY, '1');
 }
 
 export async function requestOutingNotificationPermission(): Promise<NotificationPermission> {

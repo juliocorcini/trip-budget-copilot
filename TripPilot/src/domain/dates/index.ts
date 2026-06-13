@@ -8,6 +8,7 @@ export {
   localDayOf,
   localClockTime,
   moveToLocalDay,
+  toSafeIsoDate,
   formatDate,
   formatShortDate,
   isDateInRange,

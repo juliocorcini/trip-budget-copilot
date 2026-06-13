@@ -697,7 +697,11 @@
   "errors": {
     "boundary_title": "Something went wrong",
     "boundary_message": "Your data is safe on this device. Reload the app to continue.",
-    "boundary_reload": "Reload"
+    "boundary_reload": "Reload",
+    "boundary_persistent_title": "The app keeps running into problems",
+    "boundary_persistent_message": "We detected several crashes in a row. Clear the cache and reload, or export your data as an emergency backup.",
+    "boundary_clear_cache": "Clear cache and reload",
+    "boundary_export": "Export data"
   },
   "common": {
     "save": "Save",
