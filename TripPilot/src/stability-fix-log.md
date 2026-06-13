@@ -1,7 +1,7 @@
 # Stability Fix Log
 
 ## Current State
-- Gate: 5 done | Bug: — | Fixed: 20/20 | Tests: 504 (+44) | Build: ✅ index 156 KB (was 729) · no >500 KB chunk warning
+- Gate: 6 done | Bug: — | Fixed: 20/20 | Tests: 504 (+44) | Build: ✅ index 156 KB (was 729) · no >500 KB chunk warning | Brain ✅ | v0.8.2 deployed
 
 ## Gate 0 — Baseline
 - [x] Node 22.22.3
@@ -54,8 +54,11 @@
 - New: AppDataProvider.tsx, useDashboardModel.ts, DashboardCards.tsx, DashboardSheets.tsx, dashboard-format.ts, InsightDetail.tsx, cards/OccasionCounter.tsx.
 - New tests: app-data-provider (2: single shared load + throws w/o provider), use-app-data-error +1 (BUG-019 cooldown) = +3 → 504.
 
-## Gate 6 — Final
-- [ ] Tests green (460 + new)
-- [ ] tsc + build clean (no >500 KB chunk)
-- [ ] Brain updated
-- [ ] Version bump + deploy
+## Gate 6 — Final ✅
+- [x] Tests green: 504/504 (64 files); +44 over the 460 baseline
+- [x] tsc -b + vite build clean; index 156 KB, largest chunk vendor-react 287 KB → no >500 KB warning
+- [x] Smoke greps: localStorage.(get|set|remove)Item outside safe-storage.ts → 0; navigate() in render body of corrected screens → 0 (all inside handlers; redirects use <Navigate>)
+- [x] Verified the deleted vite.config.js/.d.ts do NOT regenerate on build (tsc -b emits nothing for them) — the code-split fix is durable
+- [x] Brain updated: DEC-137 (decision-log), Stability Fix Session + status rows (project-status), §27 Stability & Data Safety (product-spec)
+- [x] Version bump: package.json + app-version.ts 0.8.1 → 0.8.2
+- [x] Deploy: npx wrangler pages deploy dist --project-name=trippilot --branch=main

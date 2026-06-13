@@ -968,6 +968,21 @@
 - **Rationale**: Field feedback on v0.8.0: "the chart must rise according to the real phase rhythm — we chose the low-spend days, the high days, events, outings — everything should shape the chart"
 - **Alternatives**: Dating planned occasions (bar nights etc.) individually (rejected: occasions are per-phase counts without dates by design — DEC-074), naive linear ideal (superseded)
 
+### DEC-137 — Stability Hardening: Boot Guard, Recovery, Crash Anti-Loop, Shared Data, Code Split (v0.8.2)
+- **Date**: 2026-06-13
+- **Status**: APPROVED
+- **Decision**: A 20-bug stability pass (`brain/documents/stability-audit-2026-06-13.md`, log in `src/stability-fix-log.md`) that makes the production PWA usable again. The non-negotiable principles it codifies:
+  1. **A failed/slow DB read is NEVER "no data."** Boot routes through a `BootGate` that only sends to Welcome after a SUCCESSFUL empty load; every data screen renders `DataErrorScreen` ("your data was NOT deleted" + retry that reopens Dexie) on error and uses declarative `<Navigate>` (never `navigate()` in the render body — it crashed under React 19).
+  2. **appSettings is non-destructive.** `get()` never writes a default row; a missing settings row with existing trips triggers a recovery flow, not a silent reset.
+  3. **Crash anti-loop.** The root `ErrorBoundary` keeps a crash-log buffer; ≥4 crashes in a short window shows a persistent recovery screen (clear-cache / export) instead of an infinite reload loop. `formatMoney` and date coercion (`toSafeIsoDate`) never throw.
+  4. **All `localStorage` goes through `safeLocalStorage`** (in-memory fallback when storage throws/blocked) — zero direct access elsewhere.
+  5. **The Service Worker may not sabotage Dexie.** It opens IndexedDB version-less (attaches to the app schema), aborts empty-DB creation, rejects on `onblocked`, closes on `onversionchange`, guards `hasStores()` before any transaction, and SW-triggered reloads are deferred while an outing is active.
+  6. **iOS eviction safety.** Diagnostics around `persisted()`; an emergency JSON snapshot is written to `localStorage` every 5 expenses and on outing end; an empty DB + a snapshot shows `EmergencyRestoreScreen` (one-tap restore); the Dashboard storage banner is reinforced for non-persisted devices.
+  7. **Onboarding is atomic.** `createTripFromOnboarding` wraps all inserts in one Dexie transaction; `activeTrip` flips only after commit. Demo repair (`repairDemoTripIfNeeded`) is gated by `isDemo` so real trips never get profiles resurrected.
+  8. **Single shared read + lighter app.** `AppDataProvider` (React context in `RootLayout`) runs the loader ONCE; `useAppData()` is a consumer. Foreground auto-retry is throttled (30s cooldown, max 3) with a plain reload (no `db.close()` storm). The bundle is code-split via Vite `manualChunks` (main `index` 729 KB → 156 KB; QR libs stay lazy). The Android hardware back button no longer exits the PWA on home routes.
+- **Rationale**: Field report: the deployed app was effectively unusable — cold starts with real data landed on onboarding, transient IndexedDB hiccups looked like "all my data is gone," and crashes could loop. The audit traced each symptom to a concrete file:line; the fixes are defensive (degrade to recovery, never to data loss) and were each covered by new tests (+44, 460 → 504).
+- **Alternatives**: Patch only the boot redirect (rejected: the same "DB error == empty" fallacy reappears on every data screen), full rewrite of the data layer (rejected: surgical guards + one shared provider deliver the safety without churn)
+
 ---
 
 *New decisions will be added as the project progresses.*

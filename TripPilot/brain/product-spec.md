@@ -248,6 +248,30 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
 - **QuickAdd payer-first flow** (DEC-123): "Who paid?" is the first-level question; if
   someone else paid: "paid everything for me" vs "we split" with debt hints.
 
+### 27. Stability & Data Safety (2026-06-13 — DEC-137)
+
+The guarantees the user can rely on, even when the device storage misbehaves:
+
+- **Your data is never confused with "no data."** If the database is slow or errors,
+  the app shows a recovery screen ("your data was NOT deleted" + a Retry that reopens
+  the database) — it never silently sends you back to onboarding or to Welcome.
+- **Cold start always lands where it should.** Opening the installed app with a trip in
+  the database goes straight to the dashboard; onboarding only appears for a genuinely
+  empty install.
+- **The app cannot get stuck in a crash loop.** If something crashes repeatedly, a
+  persistent recovery screen offers "clear cache" and "export my data" instead of
+  reloading forever.
+- **Emergency restore (iOS-focused).** A lightweight backup is kept on the device and
+  refreshed as you use the app; if the database is ever wiped by the OS while a backup
+  exists, the app offers a one-tap restore on next open. The storage-durability banner is
+  reinforced for devices that won't grant persistent storage.
+- **Onboarding is all-or-nothing.** Creating a trip either completes fully or leaves no
+  half-made trip behind; the active trip switches only after everything is saved.
+- **Faster, lighter app.** The home screen and shared data load once (no double work),
+  the JavaScript bundle is split so the first load is small, and notifications/updates no
+  longer reload the app mid-outing. On Android, the hardware back button keeps the app
+  open on the home screen instead of closing it.
+
 ## V1 — Explicitly NOT in Scope
 
 - Login / user accounts / authentication

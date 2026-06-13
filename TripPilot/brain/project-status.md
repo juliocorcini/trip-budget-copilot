@@ -1,10 +1,10 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-12 (v0.8.1 — install/update controls, plan-aware burn-down)
+> Last updated: 2026-06-13 (v0.8.2 — stability hardening: boot guard, recovery, crash anti-loop, shared data context, code split)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0 deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 deployed** ✅
 
 ## Status Summary
 
@@ -14,7 +14,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 136 decisions (DEC-001 to DEC-136); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 137 decisions (DEC-001 to DEC-137); DEC-063 superseded by DEC-071 |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
 | Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -28,9 +28,9 @@
 | Full-fix R6 2026-06-10 | ✅ DONE | 25/25 items in 7 gates: 4 audit bugs + 6 partials + 8 field-test findings + simulator v3 (see `src/gap-fix-log-r6.md`) |
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
-| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (950 keys) |
-| Tests | ✅ DONE | 460 unit tests + 29 Playwright e2e, all green |
-| Deploy | ✅ DONE | v0.8.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: deploy with `--branch=main` (the project's production branch) — plain `master` deploys land as Preview only |
+| i18n | ✅ DONE | pt-BR + en + es complete and synchronized (recovery/restore/PWA-update keys added in v0.8.2) |
+| Tests | ✅ DONE | 504 unit tests + 29 Playwright e2e, all green |
+| Deploy | ✅ DONE | v0.8.2 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: deploy with `--branch=main` (the project's production branch) — plain `master` deploys land as Preview only |
 | Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
 ## Gap-Fix Session R2 (2026-06-09)
@@ -240,6 +240,42 @@ implemented in one session. Decisions DEC-126..134. Highlights:
   buttons shrink-to-fit unlike the div cards
 - **Repo**: project pushed to GitHub (`juliocorcini/trip-budget-copilot`)
 
+## Stability Fix Session (2026-06-13, v0.8.2)
+
+All 20 bugs from `documents/stability-audit-2026-06-13.md` were fixed in a 7-gate
+session (prompt `documents/stability-fix-prompt.md`, full log in
+`src/stability-fix-log.md`). Decision DEC-137. The deployed app had become
+unusable — cold starts with real data landed on onboarding and transient
+IndexedDB hiccups looked like total data loss. Highlights:
+
+- **Boot/onboarding P0 (Gate 1 — BUG-001/003/004/009/014)**: `BootGate` routes
+  cold starts (dashboard / recovery / welcome) and only reaches Welcome after a
+  SUCCESSFUL empty load; `appSettings.get()` is non-destructive (no default-row
+  write); every data screen renders `DataErrorScreen` on error with declarative
+  `<Navigate>` — no `navigate()` in the render body (it crashed under React 19).
+  New `BootGate`, `TripRecoveryScreen`, `LoadingScreen`.
+- **Safety net (Gate 2 — BUG-005/010/016/017/018)**: `safeLocalStorage` helper
+  (in-memory fallback, zero direct `localStorage` elsewhere); `formatMoney` and
+  `toSafeIsoDate` never throw; root `ErrorBoundary` keeps a crash-log buffer and
+  shows a persistent recovery screen after ≥4 crashes (clear-cache / export)
+  instead of looping; `window` error + unhandledrejection handlers.
+- **SW hardening (Gate 3 — BUG-006/011)**: the Service Worker opens IndexedDB
+  version-less, aborts empty-DB creation, rejects on `onblocked`, closes on
+  `onversionchange`, guards `hasStores()` before any transaction; SW reloads are
+  deferred while an outing is active (`sw-reload.ts`). CACHE_NAME v7→v8.
+- **iOS persistence + integrity (Gate 4 — BUG-002/013/015)**: emergency JSON
+  snapshot to `localStorage` (every 5 expenses + on outing end); empty DB +
+  snapshot → `EmergencyRestoreScreen` (one-tap restore); onboarding wrapped in
+  one atomic Dexie transaction (`createTripFromOnboarding`, `activeTrip` flips
+  only after commit); demo repair gated by `isDemo` so real trips are untouched.
+- **Performance (Gate 5 — BUG-007/008/012/019/020)**: `AppDataProvider` runs the
+  loader ONCE (context consumer `useAppData`); `DashboardPage` 1607 → 267 lines
+  with heavy math/async moved to a single-memo `useDashboardModel`; Vite
+  `manualChunks` (index 729 → 156 KB, QR libs stay lazy, no >500 KB warning);
+  foreground auto-retry throttled (30s cooldown, max 3, no `db.close` storm);
+  Android back button no longer exits the PWA on home routes.
+- **Tests**: +44 unit (460 → 504), all green; build + typecheck clean.
+
 ## Registered Technical Debts
 
 | Debt | Origin | Notes |
@@ -251,18 +287,22 @@ implemented in one session. Decisions DEC-126..134. Highlights:
 
 ## Next Steps
 
-1. Julio tests v0.8.0 in the field — focus on bar mode at night, undo toasts,
+1. Julio re-tests v0.8.2 in the field — confirm the stability fixes: cold start with
+   real data lands on the dashboard (never onboarding), no "data gone" scare on a
+   transient DB hiccup, the app stays open on Android back, and the home screen feels
+   faster after the code split
+2. Julio tests v0.8.0 in the field — focus on bar mode at night, undo toasts,
    anchor hints with his real BRL rate, the three new dashboard cards, rescue
    calculator and the share card on his Samsung
-2. Re-test v0.7.1 items still pending field validation — payer math (debts after
+3. Re-test v0.7.1 items still pending field validation — payer math (debts after
    "someone else paid"), occasion counters, contextual simulator verdicts,
    notification quick-add
-3. Real-data seed (julio-europa-2026) when trip data is ready
-4. D6 / V2 features per `implementation-phases.md` (native layer, reports, automatic
+4. Real-data seed (julio-europa-2026) when trip data is ready
+5. D6 / V2 features per `implementation-phases.md` (native layer, reports, automatic
    future floor); Capacitor package now also carries the ongoing-notification item
    (DEC-120 research)
-5. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
-6. R7 candidate: per-category simulation weighting (product decision pending)
+6. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
+7. R7 candidate: per-category simulation weighting (product decision pending)
 
 ## Blockers
 
@@ -275,4 +315,5 @@ DEC-071..DEC-083 (approved 2026-06-09); R3 session added DEC-084..DEC-102
 (approved 2026-06-10); R4 session added DEC-103..DEC-108 (approved 2026-06-10);
 R5 session added DEC-109..DEC-113 (approved 2026-06-10); field review R4 session
 added DEC-114..DEC-123 (approved 2026-06-11); brainstorm session added
-DEC-126..DEC-134 (approved 2026-06-12).
+DEC-126..DEC-134 (approved 2026-06-12); v0.8.1 field feedback added DEC-135/136
+(approved 2026-06-12); stability hardening added DEC-137 (approved 2026-06-13).
