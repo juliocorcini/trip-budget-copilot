@@ -299,6 +299,27 @@ export function getAvailablePoolsForPhase(
   };
 }
 
+/**
+ * M10 (E5 / ÂNCORA 13): moving a phase leftover between pools conserves money —
+ * the source pool loses exactly what the target pool gains, so the trip total
+ * (sum of pool totals) is invariant. Pure integer-cents math.
+ */
+export interface PoolTransferResult {
+  sourceTotalCents: number;
+  targetTotalCents: number;
+}
+
+export function computePoolTransfer(
+  sourceTotalCents: number,
+  targetTotalCents: number,
+  amountCents: number,
+): PoolTransferResult {
+  return {
+    sourceTotalCents: sourceTotalCents - amountCents,
+    targetTotalCents: targetTotalCents + amountCents,
+  };
+}
+
 export interface CreateEnvelopeInput {
   budgetPoolId: string;
   kind: 'protected_reserve' | 'allocation';

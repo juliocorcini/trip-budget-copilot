@@ -12,7 +12,11 @@ import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
 import { toggleDashboardCardHidden, type DashboardCardId } from '@/domain/dashboard';
 import { postponeOccurrence } from '@/domain/planning';
-import { resolveShareConfirmation } from '@/domain/orchestrators';
+import {
+  resolveShareConfirmation,
+  applyPhaseLeftover,
+  type PhaseLeftoverDestination,
+} from '@/domain/orchestrators';
 import { createDailyCheckIn } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { CheckInIntent } from '@/domain/types/common';
@@ -96,6 +100,27 @@ export function DashboardPage() {
     await reload();
   };
 
+  // M9/M10 (E5): the chosen leftover decision runs through the atomic
+  // orchestrator; every path (including dismiss = carry_next) marks the ended
+  // phase handled, so the sheet shows exactly once per cycle. ÂNCORA 13.
+  const handlePhaseLeftover = async (
+    destination: PhaseLeftoverDestination,
+    targetPoolId: string | null,
+  ) => {
+    if (!model.phaseLeftover || !model.primaryPool) return;
+    await applyPhaseLeftover({
+      endedPhaseId: model.phaseLeftover.endedPhaseId,
+      sourcePoolId: model.primaryPool.id,
+      amountCents: model.phaseLeftover.leftoverCents,
+      destination,
+      targetPoolId,
+      reserveName: t('dashboard.leftover_reserve_name', {
+        phase: model.phaseLeftover.endedPhaseName,
+      }),
+    });
+    await reload();
+  };
+
   // DEC-072 (M6.3): "Postpone" pushes the event's date interval +1 day.
   const handlePostponeEvent = async (occurrenceId: string) => {
     const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
@@ -123,6 +148,10 @@ export function DashboardPage() {
       // M6: the nudge opens quick capture so "what did I spend?" is one tap.
       case 'end_of_day':
         navigate('/quick-add');
+        return;
+      // M11: the countdown jumps to the trip overview (phases + dates).
+      case 'phase_countdown':
+        navigate('/trip');
         return;
       default:
         setDetailInsight(insight);
@@ -317,6 +346,9 @@ export function DashboardPage() {
         onHideCard={handleHideCard}
         heatmapDayIso={heatmapDayIso}
         onCloseHeatmapDay={() => setHeatmapDayIso(null)}
+        phaseLeftover={isSimpleMode ? null : model.phaseLeftover}
+        leftoverTargets={model.globalPoolSummaries.map((g) => g.pool)}
+        onPhaseLeftover={handlePhaseLeftover}
       />
     </div>
   );

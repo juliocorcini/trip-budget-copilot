@@ -52,6 +52,8 @@ function baseInput(overrides: Partial<BuildInsightsInput> = {}): BuildInsightsIn
     categoryRhythm: [],
     // Noon by default so the end-of-day nudge stays dormant in existing tests.
     nowHour: 12,
+    // M11: no upcoming phase by default so the countdown stays dormant.
+    nextPhase: null,
     ...overrides,
   };
 }
@@ -350,6 +352,59 @@ describe('M6 — end of day builder (anti-spam)', () => {
   it('null outside the phase window', () => {
     const insights = buildDashboardInsights(baseInput({ todayDate: '2026-05-20', nowHour: 22 }));
     expect(insights.find((i) => i.kind === 'end_of_day')).toBeUndefined();
+  });
+});
+
+describe('M11 — between-phases countdown builder', () => {
+  it('fires inside the window with the per-day pace', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        phaseBudgetCents: 12_000,
+        nextPhase: { name: 'Eurotrip', daysUntilStart: 3 },
+      }),
+    );
+    const countdown = insights.find((i) => i.kind === 'phase_countdown')!;
+    expect(countdown).toBeDefined();
+    expect(countdown.values.name).toBe('Eurotrip');
+    expect(countdown.values.days).toBe(3);
+    // 12 000 free spread over 3 days = 4 000/day.
+    expect(countdown.values.perDayCents).toBe(4_000);
+  });
+
+  it('spreads only the free amount (budget minus spend)', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        phaseBudgetCents: 12_000,
+        phaseTransactions: [mkTx(3_000, '2026-06-02')],
+        nextPhase: { name: 'Eurotrip', daysUntilStart: 3 },
+      }),
+    );
+    const countdown = insights.find((i) => i.kind === 'phase_countdown')!;
+    // (12 000 − 3 000) / 3 = 3 000/day.
+    expect(countdown.values.perDayCents).toBe(3_000);
+  });
+
+  it('null outside the transition window (too far away)', () => {
+    const insights = buildDashboardInsights(
+      baseInput({ phaseBudgetCents: 12_000, nextPhase: { name: 'Eurotrip', daysUntilStart: 10 } }),
+    );
+    expect(insights.find((i) => i.kind === 'phase_countdown')).toBeUndefined();
+  });
+
+  it('null when there is no upcoming phase', () => {
+    const insights = buildDashboardInsights(baseInput({ phaseBudgetCents: 12_000, nextPhase: null }));
+    expect(insights.find((i) => i.kind === 'phase_countdown')).toBeUndefined();
+  });
+
+  it('null when there is no free money to pace', () => {
+    const insights = buildDashboardInsights(
+      baseInput({
+        phaseBudgetCents: 5_000,
+        phaseTransactions: [mkTx(5_000, '2026-06-02')],
+        nextPhase: { name: 'Eurotrip', daysUntilStart: 2 },
+      }),
+    );
+    expect(insights.find((i) => i.kind === 'phase_countdown')).toBeUndefined();
   });
 });
 

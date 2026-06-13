@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.0',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Ciclo de fase: quando uma fase fecha com saldo, o app mostra quanto você economizou.',
+        'Decida o que fazer com a sobra: levar pra próxima fase, guardar como reserva ou liberar pras compras.',
+        'Contagem regressiva entre fases: "faltam X dias pra próxima — você tem Y/dia até lá".',
+      ],
+      en: [
+        'Phase cycle: when a phase closes with money left, the app shows how much you saved.',
+        'Decide what to do with the leftover: carry it on, keep it as a reserve, or release it to shopping.',
+        'Between-phases countdown: "X days until the next one — you have Y/day until then".',
+      ],
+      es: [
+        'Ciclo de fase: cuando una fase cierra con saldo, la app muestra cuánto ahorraste.',
+        'Decide qué hacer con lo que sobró: llevarlo a la próxima fase, guardarlo como reserva o liberarlo para compras.',
+        'Cuenta regresiva entre fases: "faltan X días para la próxima — tienes Y/día hasta entonces".',
+      ],
+    },
+  },
+  {
     version: '0.10.3',
     date: '2026-06-13',
     items: {

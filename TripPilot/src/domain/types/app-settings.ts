@@ -32,4 +32,8 @@ export interface AppSettings {
   anchorRatePer1: number | null;
   /** E5 (M7): the day's intent check-in (non-indexed — no migration). */
   dailyCheckIn: DailyCheckIn | null;
+  /** E5 (M9): ids of ended phases whose leftover decision was already handled
+   * (moved or dismissed) — so the sheet never reopens for the same cycle
+   * (non-indexed — no migration). */
+  phaseLeftoverHandled: string[];
 }

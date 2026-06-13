@@ -30,6 +30,7 @@ export type DashboardInsightKind =
   | 'phase_projection'
   | 'danger_day'
   | 'category_rhythm'
+  | 'phase_countdown'
   | 'rhythm_compare'
   | 'no_spend_streak'
   | 'avg_outing_cost'
@@ -50,6 +51,8 @@ export const INSIGHT_PRIORITY: Record<DashboardInsightKind, number> = {
   danger_day: 70,
   category_rhythm: 65,
   rhythm_compare: 60,
+  // M11: the between-phases countdown is timely in its short transition window.
+  phase_countdown: 55,
   participant_balance: 50,
   next_event: 40,
   avg_outing_cost: 30,
@@ -64,6 +67,8 @@ export const DANGER_DAY_MIN_SAMPLES = 2;
 export const CATEGORY_RHYTHM_FACTOR = 1.5;
 /** M6: only nudge for a missing day-log in the evening. */
 export const END_OF_DAY_HOUR = 18;
+/** M11: the between-phases countdown only shows this close to the next phase. */
+export const COUNTDOWN_WINDOW_DAYS = 5;
 
 /** Tone order for tie-breaking — warnings surface before neutral/positive. */
 const TONE_RANK: Record<InsightTone, number> = { warning: 0, neutral: 1, positive: 2 };
@@ -96,6 +101,8 @@ export interface BuildInsightsInput {
   categoryRhythm: CategoryRhythmEntry[];
   /** M6: local hour-of-day (0-23) — the end-of-day nudge only fires late. */
   nowHour: number;
+  /** M11: the upcoming phase for the between-phases countdown, or null. */
+  nextPhase: NextPhaseInfo | null;
 }
 
 /** M4: a category's planned budget and actual spend within the phase. */
@@ -103,6 +110,12 @@ export interface CategoryRhythmEntry {
   category: string;
   plannedCents: number;
   spentCents: number;
+}
+
+/** M11: the next phase and how many days until it starts (≥1). */
+export interface NextPhaseInfo {
+  name: string;
+  daysUntilStart: number;
 }
 
 function daysBetweenInclusive(startDate: string, endDate: string): number {
@@ -389,11 +402,39 @@ function buildEndOfDay(input: BuildInsightsInput): DashboardInsight | null {
   };
 }
 
+/**
+ * M11 — "3 days until Eurotrip; you have €40/day until then." Only fires inside
+ * the short transition window before the next phase (≤ COUNTDOWN_WINDOW_DAYS)
+ * and when there is free money to pace; outside the window it stays silent
+ * (ÂNCORA 8). The per-day figure spreads the current free-to-spend over the
+ * days remaining before the next phase begins.
+ */
+function buildPhaseCountdown(input: BuildInsightsInput): DashboardInsight | null {
+  const next = input.nextPhase;
+  if (!next) return null;
+  if (next.daysUntilStart < 1 || next.daysUntilStart > COUNTDOWN_WINDOW_DAYS) return null;
+
+  const freeCents = input.phaseBudgetCents - phaseSpent(input);
+  if (freeCents <= 0) return null;
+
+  return {
+    kind: 'phase_countdown',
+    tone: 'neutral',
+    priority: INSIGHT_PRIORITY.phase_countdown,
+    values: {
+      name: next.name,
+      days: next.daysUntilStart,
+      perDayCents: Math.round(freeCents / next.daysUntilStart),
+    },
+  };
+}
+
 const INSIGHT_BUILDERS: Array<(input: BuildInsightsInput) => DashboardInsight | null> = [
   buildEndOfDay,
   buildPhaseProjection,
   buildDangerDay,
   buildCategoryRhythm,
+  buildPhaseCountdown,
   buildRhythmCompare,
   buildNoSpendStreak,
   buildAvgOutingCost,

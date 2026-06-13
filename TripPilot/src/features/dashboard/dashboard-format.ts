@@ -49,6 +49,7 @@ export const INSIGHT_ICONS: Record<DashboardInsight['kind'], string> = {
   phase_projection: 'query_stats',
   danger_day: 'local_fire_department',
   category_rhythm: 'donut_large',
+  phase_countdown: 'flight_takeoff',
   rhythm_compare: 'speed',
   no_spend_streak: 'emoji_events',
   avg_outing_cost: 'local_bar',
@@ -120,6 +121,12 @@ export function formatInsightText(
       return t('dashboard.insight_danger_day', {
         weekday: weekdayLabel(v.weekday as number),
         multiplier: v.multiplier as number,
+      });
+    case 'phase_countdown':
+      return t('dashboard.insight_phase_countdown', {
+        name: v.name as string,
+        count: v.days as number,
+        perDay: formatMoney(v.perDayCents as number, currency),
       });
     case 'end_of_day':
       return t('dashboard.insight_end_of_day');

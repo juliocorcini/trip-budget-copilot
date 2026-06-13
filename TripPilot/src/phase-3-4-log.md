@@ -1,7 +1,8 @@
 # Pacote 2 — Insights v2 + Ciclo de Fase + Motivação + Continuidade — Log
 
 ## Current State
-- Fase: 3 | Gate: 2 ✅ | Milestone: M8 done | Done: 9/26 | Tests: 639 (+25 desde baseline) | Versão: 0.10.3 | Último deploy: master.trippilot.pages.dev (f1abd098) | Build: ✅
+- Fase: 3 ✅ COMPLETA | Gate: 3 ✅ | Milestone: M13 done | Done: 13/26 | Tests: 663 (+49 desde baseline) | Versão: 0.11.0 | Último deploy: master.trippilot.pages.dev (37431597) | Build: ✅
+- PRÓXIMO: GATE 4 / M14 (meta de economia) — Fase 4. Continuar sem parar.
 
 ## Decisões tomadas durante a execução
 - M1: prioridade data-driven (`INSIGHT_PRIORITY`) — projection 80 > rhythm 60 > balance 50 > next 40 > avg 30 > streak 20. Ordena priority desc, desempate por tone (warning primeiro). Teto fixo de 4 removido; substituído por `INSIGHT_SAFETY_CAP=12` só p/ não explodir o carrossel. `MAX_INSIGHTS_PER_DAY` renomeado → `INSIGHT_SAFETY_CAP`.
@@ -12,10 +13,15 @@
 - M6: fim do dia — `nowHour` novo no input (model passa `new Date().getHours()`). Dispara só se `nowHour ≥ END_OF_DAY_HOUR(18)` E nada registrado hoje na fase E dentro da janela da fase. Tap → /quick-add. Prioridade 100 (topo).
 - M7: check-in — `dailyCheckIn:{date,intent}|null` em AppSettings (não-indexado, backfill no repo + seed). Domínio puro `domain/check-in` (getActiveCheckIn/createDailyCheckIn/shouldPromptCheckIn + catálogo de intents). Card movível `daily_checkin` no registry, logo abaixo do hero. Grava via appSettingsRepository.update + reload. Modo Simples NÃO recebe o card (ÂNCORA 14).
 - M8: COMPLETA (não reduzida). Notificação respondível: SW (`CHECKIN_TAG`, cache v9) grava o intent direto em `appSettings` (read-modify-write — nunca cria o registro, BUG-003) e faz broadcast `APP_DATA_CHANGED`; bridge novo `registerCheckInNotificationBridge` → `notifyAppDataChanged`. Fallback gracioso: sem suporte a Actions, o toque abre /dashboard (reusa focusOrOpen). Disparo é BEST-EFFORT: `maybeShowCheckInPrompt` no boot, janela da manhã (5–13h), 1×/dia (safeLocalStorage), permission=granted. Scheduling em background real exige push/Notification Triggers (indisponível, local-first) — registrado como limitação honesta.
+- M9: detector PURO em `domain/phases/phase-cycle.ts` — `findEndedPhaseWithSuccessor` (última fase encerrada COM sucessora viva; fim de dia inclusivo, BUG-002) + `detectPhaseLeftover` (só com leftover>0 E não-handled). Sobra = free-to-spend do pool operacional avaliado com a PRÓXIMA fase como corrente (`calculateFreeToSpend(..., next.id)`) — número honesto/conservador (respeita reservas/floors). Decisão de produto: a "sobra de fase" é o dinheiro livre que entra na próxima fase (não há carteira separada por fase neste modelo subtrativo de pool compartilhado). Sheet auto-abre só no Modo COMPLETO (ÂNCORA 14); fechar = carry_next (marca handled → não repete). Campo não-indexado `phaseLeftoverHandled:string[]` em AppSettings (backfill + seed).
+- M10: orquestrador atômico `applyPhaseLeftover` (`db.transaction` em budgetPools+envelopes+appSettings). 3 destinos: carry_next (no-op, fica livre), reserve (cria envelope protected_reserve no pool operacional — totais intactos), shopping (transferência pool→pool via `computePoolTransfer` puro — preserva o total da viagem, ÂNCORA 13/15). TODOS marcam handled (idempotente via `markPhaseLeftoverHandled`). UI: 1 botão por pool global em `leftoverTargets`.
+- M11: builder puro `buildPhaseCountdown` (insights.ts). Input novo `nextPhase:{name,daysUntilStart}|null` (model acha a fase futura mais próxima; daysUntilStart = getTotalDays(today,next)-1). Dispara só em 1..`COUNTDOWN_WINDOW_DAYS(5)` E free>0; €/dia = free / daysUntilStart. Tone neutral (não polui o Simples). Prioridade 55. Tap → /trip. Ícone flight_takeoff.
+- M13: +24 testes no gate (phase-cycle 12, pool-transfer 3, orquestrador 4, countdown 5). Fase 3 inteira: +49 vs baseline 614.
 
 ## Deploys
 - 0.10.2 (GATE 1) → https://master.trippilot.pages.dev (https://6c0f7900.trippilot.pages.dev)
 - 0.10.3 (GATE 2) → https://master.trippilot.pages.dev (https://f1abd098.trippilot.pages.dev)
+- 0.11.0 (GATE 3 — FASE 3 COMPLETA) → https://master.trippilot.pages.dev (https://37431597.trippilot.pages.dev)
 
 ---
 
@@ -44,15 +50,22 @@
 - [x] Testes: M4 (4), M5 (4), M6 (4), check-in helper (4) = 16 novos
 - [x] Checkpoint: version/deploy/novidades 0.10.3 + commit
 
-### GATE 3 — Ciclo de fase + i18n + testes → FASE 3 COMPLETA → 0.11.0
-- [ ] M9 Sobra de fase (BottomSheet de decisão)
-- [ ] M10 Mover sobra entre pools (orquestrador atômico, preserva total)
-- [ ] M11 Contagem regressiva entre fases
-- [ ] M12 i18n Fase 3 (pt/en/es)
-- [ ] M13 Testes Fase 3 (≥18 novos)
-- [ ] Checkpoint: version/deploy/novidades 0.11.0 + commit
+### GATE 3 — Ciclo de fase + i18n + testes → FASE 3 COMPLETA → 0.11.0 ✅
+- [x] M9 Sobra de fase (BottomSheet de decisão; detector puro testado)
+- [x] M10 Mover sobra entre pools (orquestrador atômico, preserva total)
+- [x] M11 Contagem regressiva entre fases (builder na janela de transição)
+- [x] M12 i18n Fase 3 (pt/en/es no mesmo commit)
+- [x] M13 Testes Fase 3 (+24 no gate; +49 na fase vs baseline)
+- [x] Checkpoint: version/deploy/novidades 0.11.0 + commit
 
 >>> TRANSIÇÃO FASE 3 → FASE 4 (continue) <<<
+
+## HANDOFF FASE 4 (de GATE 3 → GATE 4)
+- Fase 3 commitada+deployada (0.11.0). Verde: 663 testes, tsc 0, build sem chunk>500KB.
+- Estado: insights sem teto+ordenados+auto-rotação; builders calibrados (ritmo/categoria, dia perigoso, fim do dia); check-in card+notificação; ciclo de fase (sobra→sheet→mover atômico preserva total; countdown). Modo Simples segue mínimo.
+- Invariantes a respeitar na Fase 4: ÂNCORA 11 (cofrinho/meta = LEITURA derivada, NUNCA pool real, NUNCA altera "livre hoje"/DEC-088), ÂNCORA 12 (aprendizado sugere, nunca grava sozinho; special/exclude fora; sessão=1 ocasião DEC-115), ÂNCORA 14 (Simples mínimo), ÂNCORA 15 (cents + teste math), ÂNCORA 16 (i18n no mesmo commit), ÂNCORA 18 (AppSettings/Trip campos não-indexados sem migração).
+- `model.savings` (calculateLastOutingSavings) já existe — base do M15 (cofrinho).
+- PRÓXIMO: GATE 4 / M14 meta de economia. Continuar sem pedir OK.
 
 ## FASE 4 — MOTIVAÇÃO + CONTINUIDADE
 

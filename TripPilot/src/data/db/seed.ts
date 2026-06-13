@@ -37,6 +37,8 @@ export function createDefaultAppSettings(): AppSettings {
     anchorRatePer1: null,
     // M7: no check-in until the traveler taps one for the day.
     dailyCheckIn: null,
+    // M9: no phase leftover handled yet.
+    phaseLeftoverHandled: [],
   };
 }
 

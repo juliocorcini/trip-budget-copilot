@@ -59,3 +59,8 @@ export {
   applyPeerResponses,
 } from './sync-orchestrators';
 export type { PairResult } from './sync-orchestrators';
+export { applyPhaseLeftover } from './phase-cycle-orchestrators';
+export type {
+  ApplyPhaseLeftoverInput,
+  PhaseLeftoverDestination,
+} from './phase-cycle-orchestrators';

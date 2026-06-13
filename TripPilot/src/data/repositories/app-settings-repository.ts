@@ -30,6 +30,8 @@ class AppSettingsRepository {
       anchorRatePer1: settings.anchorRatePer1 ?? null,
       // M7: records predating the daily check-in have none.
       dailyCheckIn: settings.dailyCheckIn ?? null,
+      // M9: records predating the phase-cycle have nothing handled yet.
+      phaseLeftoverHandled: settings.phaseLeftoverHandled ?? [],
     };
   }
 

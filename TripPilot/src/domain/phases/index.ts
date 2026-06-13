@@ -8,3 +8,13 @@ export {
   calculateTodayFreeBudget,
 } from './rhythm';
 export type { FreeToSpendPerDay, TodayFreeBudget } from './rhythm';
+export {
+  findEndedPhaseWithSuccessor,
+  detectPhaseLeftover,
+  markPhaseLeftoverHandled,
+} from './phase-cycle';
+export type {
+  EndedPhaseTransition,
+  PhaseLeftover,
+  DetectPhaseLeftoverInput,
+} from './phase-cycle';

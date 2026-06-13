@@ -8,7 +8,10 @@ import { formatDate } from '@/domain/dates';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { getDashboardCard, type DashboardCardId } from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
+import type { PhaseLeftover } from '@/domain/phases';
+import type { PhaseLeftoverDestination } from '@/domain/orchestrators';
 import type { Trip } from '@/domain/types/trip';
+import type { BudgetPool } from '@/domain/types/budget-pool';
 import { InsightDetail } from './InsightDetail';
 import type { DashboardModel } from './useDashboardModel';
 
@@ -27,6 +30,10 @@ interface DashboardSheetsProps {
   onHideCard: (id: DashboardCardId) => void;
   heatmapDayIso: string | null;
   onCloseHeatmapDay: () => void;
+  // M9/M10: phase-leftover decision sheet (null = nothing to settle / simple mode)
+  phaseLeftover: PhaseLeftover | null;
+  leftoverTargets: BudgetPool[];
+  onPhaseLeftover: (destination: PhaseLeftoverDestination, targetPoolId: string | null) => void;
 }
 
 // BUG-008: the Dashboard's four bottom sheets, lifted out of the page. They read
@@ -46,6 +53,9 @@ export function DashboardSheets({
   onHideCard,
   heatmapDayIso,
   onCloseHeatmapDay,
+  phaseLeftover,
+  leftoverTargets,
+  onPhaseLeftover,
 }: DashboardSheetsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -192,6 +202,60 @@ export function DashboardSheets({
             </p>
           </div>
         </div>
+      </BottomSheet>
+
+      {/* M9/M10 (E5): a phase ended with money left — propose, never force.
+          Closing (dismiss) carries the leftover into the next phase and marks
+          the cycle handled so it never reopens. */}
+      <BottomSheet
+        open={phaseLeftover !== null}
+        onClose={() => onPhaseLeftover('carry_next', null)}
+        title={t('dashboard.leftover_title')}
+      >
+        {phaseLeftover && (
+          <div className="flex flex-col gap-4">
+            <div className="text-center">
+              <p className="text-4xl font-extrabold tabular text-success">
+                {formatMoney(phaseLeftover.leftoverCents, trip.baseCurrency)}
+              </p>
+              <p className="mt-2 text-sm text-on-surface-dim">
+                {t('dashboard.leftover_body', { phase: phaseLeftover.endedPhaseName })}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => onPhaseLeftover('carry_next', null)}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon name="arrow_forward" size={18} className="text-primary" />
+                <span className="text-sm font-semibold text-on-surface">
+                  {t('dashboard.leftover_carry', { phase: phaseLeftover.nextPhaseName })}
+                </span>
+              </button>
+              <button
+                onClick={() => onPhaseLeftover('reserve', null)}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon name="savings" size={18} className="text-on-surface-dim" />
+                <span className="text-sm font-semibold text-on-surface">
+                  {t('dashboard.leftover_reserve')}
+                </span>
+              </button>
+              {leftoverTargets.map((pool) => (
+                <button
+                  key={pool.id}
+                  onClick={() => onPhaseLeftover('shopping', pool.id)}
+                  className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+                >
+                  <Icon name="shopping_bag" size={18} className="text-on-surface-dim" />
+                  <span className="text-sm font-semibold text-on-surface">
+                    {t('dashboard.leftover_shopping', { pool: pool.name })}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </BottomSheet>
     </>
   );

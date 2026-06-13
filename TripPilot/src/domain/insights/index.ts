@@ -8,6 +8,7 @@ export {
   DANGER_DAY_MIN_SAMPLES,
   CATEGORY_RHYTHM_FACTOR,
   END_OF_DAY_HOUR,
+  COUNTDOWN_WINDOW_DAYS,
 } from './insights';
 export type {
   DashboardInsight,
@@ -15,6 +16,7 @@ export type {
   InsightTone,
   BuildInsightsInput,
   CategoryRhythmEntry,
+  NextPhaseInfo,
   CreateForecastSnapshotInput,
 } from './insights';
 export { buildNotifications, LONG_OUTING_THRESHOLD_MS } from './notifications';

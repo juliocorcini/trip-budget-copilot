@@ -14,6 +14,7 @@ export {
   createBudgetPoolPhaseLink,
   getAvailablePoolsForPhase,
   createEnvelope,
+  computePoolTransfer,
 } from './budget';
 export {
   buildHonestFriendV2,
@@ -35,4 +36,5 @@ export type {
   CreateBudgetPoolInput,
   AvailablePools,
   CreateEnvelopeInput,
+  PoolTransferResult,
 } from './budget';

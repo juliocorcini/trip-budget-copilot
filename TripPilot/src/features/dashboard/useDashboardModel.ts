@@ -36,7 +36,11 @@ import {
 } from '@/data/repositories';
 import { buildYesterdayRecap, buildPhaseBurndown, buildMonthHeatmap } from '@/domain/dashboard';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
-import { calculateTodayFreeBudget } from '@/domain/phases';
+import {
+  calculateTodayFreeBudget,
+  findEndedPhaseWithSuccessor,
+  detectPhaseLeftover,
+} from '@/domain/phases';
 import { isOccurrenceActiveToday } from '@/domain/planning';
 import { findPendingConfirmationShares, calculateDebts } from '@/domain/splitting';
 import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
@@ -56,7 +60,7 @@ type AppData = ReturnType<typeof useAppData>;
 // reads (sessions, profiles, shares, forecasts) are colocated here too. The
 // page keeps the UI state and the mutation handlers.
 export function useDashboardModel(appData: AppData, heatmapMonth: string, heatmapDayIso: string | null) {
-  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences } = appData;
+  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, settings } = appData;
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
@@ -282,6 +286,18 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       category,
       ...v,
     }));
+    // M11: the immediate upcoming phase (earliest start after today) feeds the
+    // between-phases countdown. Days-until is calendar-inclusive minus one.
+    const upcomingPhases = phases
+      .filter((p) => p.deletedAt === null && p.startDate.slice(0, 10) > todayIso)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+    const nextPhaseForCountdown = upcomingPhases[0]
+      ? {
+          name: upcomingPhases[0].name,
+          daysUntilStart: getTotalDays(todayIso, upcomingPhases[0].startDate.slice(0, 10)) - 1,
+        }
+      : null;
+
     const insights =
       activePhase && fts && owner
         ? buildDashboardInsights({
@@ -295,8 +311,30 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             occurrences,
             categoryRhythm,
             nowHour: new Date().getHours(),
+            nextPhase: nextPhaseForCountdown,
           })
         : [];
+
+    // M9: a just-ended phase's leftover = the free money carried into the next
+    // phase. Detector self-censors (positive + not already handled — ÂNCORA 8).
+    const leftoverTransition = findEndedPhaseWithSuccessor(phases, todayIso);
+    const leftoverCents =
+      leftoverTransition && primaryPool
+        ? calculateFreeToSpend(
+            primaryPool,
+            envelopes.filter((e) => e.budgetPoolId === primaryPool.id),
+            filterTransactionsByPool(transactions, primaryPool.id),
+            links.filter((l) => l.budgetPoolId === primaryPool.id),
+            leftoverTransition.next.id,
+            occurrences,
+          ).freeToSpendCents
+        : 0;
+    const phaseLeftover = detectPhaseLeftover({
+      phases,
+      todayIso,
+      leftoverCents,
+      handledPhaseIds: settings?.phaseLeftoverHandled ?? [],
+    });
 
     // Global pools (e.g. personal shopping) are detected by scope (GAP-017).
     const globalPools = pools.filter((p) => p.scope === 'global' && p.deletedAt === null);
@@ -436,6 +474,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       participantNameById,
       owner,
       insights,
+      phaseLeftover,
       globalPoolSummaries,
       progressPercent,
       heroMoney,
@@ -461,6 +500,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     transactions,
     participants,
     occurrences,
+    settings,
     activeSession,
     sessionTxs,
     completedSessions,
