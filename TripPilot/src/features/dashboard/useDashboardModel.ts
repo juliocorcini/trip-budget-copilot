@@ -1,0 +1,454 @@
+import { useState, useEffect, useMemo } from 'react';
+import type { useAppData } from '@/hooks/useAppData';
+import {
+  resolveActivePhase,
+  getDayNumber,
+  getTotalDays,
+  localDateString,
+  localDayOf,
+} from '@/domain/dates';
+import {
+  calculateFreeToSpend,
+  createPoolSummary,
+  calculateLastOutingSavings,
+  buildHonestFriendV2,
+  calculatePoolSpent,
+} from '@/domain/budget';
+import {
+  getRecentTransactions,
+  filterTransactionsByPool,
+  groupTransactionsByCategory,
+  calculateSpentOnDate,
+} from '@/domain/transactions';
+import { sumCents } from '@/domain/money';
+import { getCategoryIcon } from '@/utils/category-icons';
+import { splitMoneyDisplay } from './dashboard-format';
+import { sessionRepository } from '@/data/repositories/session-repository';
+import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
+import {
+  transactionRepository,
+  participantShareRepository,
+  scenarioPlanRepository,
+  scenarioAllocationItemRepository,
+  phaseProfileSettingRepository,
+  settlementRepository,
+  forecastSnapshotRepository,
+} from '@/data/repositories';
+import { buildYesterdayRecap, buildPhaseBurndown, buildMonthHeatmap } from '@/domain/dashboard';
+import { isProfileEnabledInPhase } from '@/domain/profiles';
+import { calculateTodayFreeBudget } from '@/domain/phases';
+import { isOccurrenceActiveToday } from '@/domain/planning';
+import { findPendingConfirmationShares, calculateDebts } from '@/domain/splitting';
+import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
+import { buildDashboardInsights, createForecastSnapshot } from '@/domain/insights';
+import { calculateSessionTotal } from '@/domain/outing';
+import type { Session } from '@/domain/types/session';
+import type { Transaction } from '@/domain/types/transaction';
+import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { ParticipantShare } from '@/domain/types/participant-share';
+import type { Settlement } from '@/domain/types/settlement';
+
+type AppData = ReturnType<typeof useAppData>;
+
+// BUG-008: the Dashboard's heavy budget/insight/heatmap math used to run on every
+// render — including UI-only re-renders (opening a sheet, swiping a carousel).
+// All of it now lives in one memo keyed on the actual data inputs, and the async
+// reads (sessions, profiles, shares, forecasts) are colocated here too. The
+// page keeps the UI state and the mutation handlers.
+export function useDashboardModel(appData: AppData, heatmapMonth: string, heatmapDayIso: string | null) {
+  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences } = appData;
+
+  const [activeSession, setActiveSession] = useState<Session | null>(null);
+  const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
+  const [completedSessions, setCompletedSessions] = useState<Session[]>([]);
+  const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
+  const [pendingShares, setPendingShares] = useState<ReturnType<typeof findPendingConfirmationShares>>([]);
+  const [allShares, setAllShares] = useState<ParticipantShare[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
+  // R5-03: warn when the OS may evict IndexedDB (storage not persistent).
+  const [storageNotPersisted, setStorageNotPersisted] = useState(false);
+
+  useEffect(() => {
+    if (navigator.storage?.persisted) {
+      navigator.storage
+        .persisted()
+        .then((persisted) => setStorageNotPersisted(!persisted))
+        .catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!trip) return;
+    const load = async () => {
+      const [sess, profs, completed] = await Promise.all([
+        sessionRepository.getActive(trip.id),
+        activityProfileRepository.getByTripId(trip.id),
+        sessionRepository.getCompleted(trip.id),
+      ]);
+      setProfiles(profs);
+      setCompletedSessions(completed);
+      if (sess) {
+        setActiveSession(sess);
+        const txs = await transactionRepository.getBySessionId(sess.id);
+        setSessionTxs(txs);
+      } else {
+        setActiveSession(null);
+        setSessionTxs([]);
+      }
+    };
+    load();
+  }, [trip, transactions]);
+
+  // DEC-071 (FIELD-03): pending = third-party shares awaiting confirmation.
+  useEffect(() => {
+    if (!trip) return;
+    const owner = participants.find((p) => p.isOwner);
+    if (!owner) {
+      setPendingShares([]);
+      return;
+    }
+    const load = async () => {
+      const sharedTxIds = transactions
+        .filter((tx) => tx.isShared && tx.deletedAt === null)
+        .map((tx) => tx.id);
+      const [shares, tripSettlements] = await Promise.all([
+        participantShareRepository.getAllForTrip(sharedTxIds),
+        settlementRepository.getByTripId(trip.id),
+      ]);
+      setAllShares(shares);
+      setSettlements(tripSettlements);
+      setPendingShares(findPendingConfirmationShares(transactions, shares, owner.id));
+    };
+    load();
+  }, [trip, transactions, participants]);
+
+  // GAP-020 (DEC-006/043): counters show the forecast ("X remaining").
+  useEffect(() => {
+    if (!trip || profiles.length === 0) {
+      setForecasts([]);
+      return;
+    }
+    const phase = resolveActivePhase(phases);
+    const pool = pools.find((p) => p.scope === 'linked_phases');
+    if (!phase || !pool) {
+      setForecasts([]);
+      return;
+    }
+    const load = async () => {
+      const [plan, profileSettings] = await Promise.all([
+        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, phase.id, pool.id),
+        phaseProfileSettingRepository.getByPhaseId(phase.id),
+      ]);
+      if (!plan) {
+        setForecasts([]);
+        return;
+      }
+      const allocations = await scenarioAllocationItemRepository.getByPlanId(plan.id);
+      // DEC-074 (FIELD-01): counters only show profiles enabled in this phase.
+      const enabledProfiles = profiles.filter((p) =>
+        isProfileEnabledInPhase(profileSettings, phase.id, p.id),
+      );
+      // DEC-076 (FIELD-06): used profiles first, then planned without use.
+      setForecasts(
+        orderForecastsByUsage(
+          calculateOccasionForecasts(enabledProfiles, allocations, transactions, phase.id),
+        ),
+      );
+    };
+    load();
+  }, [trip, phases, pools, profiles, transactions]);
+
+  // DEC-077 (M8.3): persist ONE forecast snapshot per phase per day.
+  useEffect(() => {
+    if (!trip) return;
+    const phase = resolveActivePhase(phases);
+    const pool = pools.find((p) => p.scope === 'linked_phases');
+    if (!phase || !pool) return;
+    const phaseTxs = transactions.filter((tx) => tx.phaseId === phase.id && tx.deletedAt === null);
+    if (phaseTxs.length === 0) return;
+
+    const persist = async () => {
+      const todayDate = localDateString(new Date());
+      const existing = await forecastSnapshotRepository.getByPhaseAndDate(phase.id, todayDate);
+      if (existing) return;
+
+      const snapshotFts = calculateFreeToSpend(
+        pool,
+        envelopes.filter((e) => e.budgetPoolId === pool.id),
+        filterTransactionsByPool(transactions, pool.id),
+        links.filter((l) => l.budgetPoolId === pool.id),
+        phase.id,
+        occurrences,
+      );
+      const spentCents = calculatePoolSpent(phaseTxs);
+      const daysOfData = Math.max(1, getDayNumber(phase.startDate));
+      const avgDailySpendCents = Math.round(spentCents / daysOfData);
+      const totalDays = getTotalDays(phase.startDate, phase.endDate);
+
+      await forecastSnapshotRepository.create(
+        createForecastSnapshot({
+          tripId: trip.id,
+          phaseId: phase.id,
+          snapshotDate: todayDate,
+          totalBudgetCents: snapshotFts.totalBudgetCents,
+          totalSpentCents: snapshotFts.totalSpentCents,
+          freeToSpendCents: snapshotFts.freeToSpendCents,
+          avgDailySpendCents,
+          projectedEndSpendCents: avgDailySpendCents * totalDays,
+          daysOfData,
+        }),
+      );
+    };
+    persist();
+  }, [trip, phases, pools, envelopes, links, transactions, occurrences]);
+
+  // Heavy derivations — one memo over every real input, so UI-only re-renders
+  // (sheets, carousels) never re-run the budget/insight/heatmap math.
+  const derived = useMemo(() => {
+    const activePhase = resolveActivePhase(phases);
+    const dayNum = activePhase ? getDayNumber(activePhase.startDate) : null;
+    const recent = getRecentTransactions(transactions, 5);
+
+    const linkedPools = pools.filter((p) => p.scope === 'linked_phases');
+    const primaryPool = linkedPools[0];
+    const fts =
+      primaryPool && activePhase
+        ? calculateFreeToSpend(
+            primaryPool,
+            envelopes.filter((e) => e.budgetPoolId === primaryPool.id),
+            filterTransactionsByPool(transactions, primaryPool.id),
+            links.filter((l) => l.budgetPoolId === primaryPool.id),
+            activePhase.id,
+            occurrences,
+          )
+        : null;
+
+    const categoryGroups = groupTransactionsByCategory(transactions);
+    const barCount = categoryGroups['bar']?.length ?? 0;
+    const marketCount = categoryGroups['market']?.length ?? 0;
+    const restaurantCount = categoryGroups['restaurant']?.length ?? 0;
+    const hasOccasionData = barCount > 0 || marketCount > 0 || restaurantCount > 0;
+
+    // Local date, not UTC — toISOString() would skip to tomorrow after 21:00 in UTC-3.
+    const todayIso = localDateString(new Date());
+    const todayEvents = activePhase
+      ? occurrences.filter(
+          (o) => o.phaseId === activePhase.id && isOccurrenceActiveToday(o, todayIso),
+        )
+      : [];
+
+    const hasPendingExpenses = pendingShares.length > 0;
+    const pendingImpactCents = pendingShares.reduce(
+      (sum, entry) => sum + entry.share.shareAmountCents,
+      0,
+    );
+    const participantNameById = new Map(participants.map((p) => [p.id, p.nickname ?? p.name]));
+
+    const owner = participants.find((p) => p.isOwner) ?? null;
+
+    // DEC-077 (FIELD-07): rotating insights — only significant cards, max 4/day.
+    const phaseTxsForInsights = activePhase
+      ? transactions.filter((tx) => tx.phaseId === activePhase.id && tx.deletedAt === null)
+      : [];
+    const completedOutingTotalsCents = activePhase
+      ? completedSessions
+          .filter((s) => s.phaseId === activePhase.id)
+          .map((s) => calculateSessionTotal(transactions.filter((tx) => tx.sessionId === s.id)))
+      : [];
+    const debts = owner
+      ? calculateDebts(transactions, allShares, participants, settlements, owner.id).debts
+      : [];
+    const insights =
+      activePhase && fts && owner
+        ? buildDashboardInsights({
+            todayDate: todayIso,
+            phase: activePhase,
+            phaseTransactions: phaseTxsForInsights,
+            phaseBudgetCents: fts.freeToSpendCents + calculatePoolSpent(phaseTxsForInsights),
+            completedOutingTotalsCents,
+            debts,
+            ownerId: owner.id,
+            occurrences,
+          })
+        : [];
+
+    // Global pools (e.g. personal shopping) are detected by scope (GAP-017).
+    const globalPools = pools.filter((p) => p.scope === 'global' && p.deletedAt === null);
+    const globalPoolSummaries = globalPools.map((pool) => ({
+      pool,
+      summary: createPoolSummary(pool, filterTransactionsByPool(transactions, pool.id)),
+    }));
+
+    const progressPercent =
+      fts && fts.totalBudgetCents > 0
+        ? Math.round((fts.totalSpentCents / fts.totalBudgetCents) * 100)
+        : 0;
+
+    const heroMoney = fts && trip ? splitMoneyDisplay(fts.freeToSpendCents, trip.baseCurrency) : null;
+
+    // DEC-088 (R-06): subtractive "free to use today".
+    const primaryPoolTxs = primaryPool ? filterTransactionsByPool(transactions, primaryPool.id) : [];
+    const todaySpentCents = primaryPool ? calculateSpentOnDate(primaryPoolTxs, todayIso) : 0;
+    const todayBudget =
+      fts && activePhase
+        ? calculateTodayFreeBudget(fts.freeToSpendCents, todaySpentCents, activePhase, todayIso)
+        : null;
+
+    // DEC-129: yesterday recap mirrors the hero math (pool-scoped, add-back).
+    const recap =
+      fts && activePhase
+        ? buildYesterdayRecap({
+            freeToSpendCents: fts.freeToSpendCents,
+            todaySpentCents,
+            transactions: primaryPoolTxs,
+            phase: activePhase,
+            todayIso,
+          })
+        : null;
+
+    // DEC-092 (R-10): savings refer to the LAST closed outing.
+    const savings = calculateLastOutingSavings(completedSessions, transactions, profiles, Date.now());
+
+    // DEC-093 (R-11): Honest Friend v2 — based on the PLAN of the category.
+    const recentProfileTx =
+      [...phaseTxsForInsights]
+        .filter((tx) => tx.type === 'expense' && tx.activityProfileId !== null)
+        .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+    const amigoProfile = recentProfileTx
+      ? profiles.find((p) => p.id === recentProfileTx.activityProfileId) ?? null
+      : null;
+    const amigoForecast = amigoProfile
+      ? forecasts.find((f) => f.profileId === amigoProfile.id) ?? null
+      : null;
+    const phaseSpentCents = calculatePoolSpent(phaseTxsForInsights);
+    const amigoV2 =
+      activePhase && fts && amigoProfile && recentProfileTx
+        ? buildHonestFriendV2({
+            profileId: amigoProfile.id,
+            profileName: amigoProfile.name,
+            typicalValueCents: amigoProfile.typicalValueCents,
+            plannedQuantity: amigoForecast?.totalPlanned ?? 0,
+            doneQuantity: amigoForecast?.spent ?? 0,
+            categorySpentCents: sumCents(
+              phaseTxsForInsights
+                .filter((tx) => tx.activityProfileId === amigoProfile.id && tx.type === 'expense')
+                .map((tx) => tx.personalCostCents ?? tx.amountCents),
+            ),
+            recentSpendCents: recentProfileTx.personalCostCents ?? recentProfileTx.amountCents,
+            freeToSpendCents: fts.freeToSpendCents,
+            phaseSpentCents,
+            phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
+            todayDate: todayIso,
+            phase: activePhase,
+          })
+        : ({ kind: 'none' } as const);
+
+    // DEC-130 + DEC-136: burn-down uses the same phase envelope as the insights.
+    const burndown =
+      fts && activePhase && primaryPool
+        ? buildPhaseBurndown({
+            phase: activePhase,
+            phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
+            transactions: phaseTxsForInsights,
+            todayIso,
+            occurrences: occurrences.filter((o) => o.budgetPoolId === primaryPool.id),
+          })
+        : null;
+
+    // DEC-131: heatmap is trip-wide (spending behavior, not pool accounting).
+    const currentMonth = todayIso.slice(0, 7);
+    const tripStartMonth = trip ? trip.startDate.slice(0, 7) : '';
+    const heatmap = buildMonthHeatmap(transactions, heatmapMonth, todayIso);
+    const heatmapDayTxs = heatmapDayIso
+      ? transactions
+          .filter(
+            (tx) =>
+              tx.deletedAt === null &&
+              (tx.type === 'expense' || tx.type === 'adjustment') &&
+              localDayOf(tx.date) === heatmapDayIso,
+          )
+          .sort((a, b) => b.date.localeCompare(a.date))
+      : [];
+
+    // DEC-114 (R-04): the session card shows MY cost (shares, not raw amounts).
+    const sessionTotalCents = calculateSessionTotal(sessionTxs);
+    // DEC-117 (R-08): drinks-left counts until the TARGET, not the ceiling.
+    const sessionDrinksLeft =
+      activeSession?.targetCents && activeSession?.avgDrinkPriceCents
+        ? Math.floor(
+            Math.max(0, activeSession.targetCents - sessionTotalCents) /
+              activeSession.avgDrinkPriceCents,
+          )
+        : null;
+    const sessionProfile = activeSession
+      ? profiles.find((p) => p.id === activeSession.activityProfileId) ?? null
+      : null;
+    const sessionIcon = sessionProfile?.iconName ?? getCategoryIcon(sessionProfile?.category ?? 'bar');
+
+    return {
+      activeSession,
+      completedSessions,
+      profiles,
+      pendingShares,
+      allShares,
+      settlements,
+      forecasts,
+      activePhase,
+      dayNum,
+      recent,
+      hasTransactions: transactions.length > 0,
+      primaryPool,
+      fts,
+      barCount,
+      marketCount,
+      restaurantCount,
+      hasOccasionData,
+      todayIso,
+      todayEvents,
+      hasPendingExpenses,
+      pendingImpactCents,
+      participantNameById,
+      owner,
+      insights,
+      globalPoolSummaries,
+      progressPercent,
+      heroMoney,
+      todayBudget,
+      recap,
+      savings,
+      amigoV2,
+      burndown,
+      currentMonth,
+      tripStartMonth,
+      heatmap,
+      heatmapDayTxs,
+      sessionTotalCents,
+      sessionDrinksLeft,
+      sessionIcon,
+    };
+  }, [
+    trip,
+    phases,
+    pools,
+    links,
+    envelopes,
+    transactions,
+    participants,
+    occurrences,
+    activeSession,
+    sessionTxs,
+    completedSessions,
+    profiles,
+    pendingShares,
+    allShares,
+    settlements,
+    forecasts,
+    heatmapMonth,
+    heatmapDayIso,
+  ]);
+
+  return { ...derived, storageNotPersisted };
+}
+
+export type DashboardModel = ReturnType<typeof useDashboardModel>;

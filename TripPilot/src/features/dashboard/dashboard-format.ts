@@ -1,0 +1,110 @@
+import { formatMoney, fromCents } from '@/domain/money';
+import { getActiveDecimalSeparator } from '@/domain/locale';
+import type { DashboardInsight } from '@/domain/insights';
+
+type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
+
+export function splitMoneyDisplay(
+  cents: number,
+  currency: string,
+): { symbol: string; integer: string; decimal: string } {
+  const value = fromCents(cents);
+  const abs = Math.abs(value);
+  const intPart = Math.floor(abs);
+  const decPart = Math.round((abs - intPart) * 100);
+
+  const symbolMap: Record<string, string> = { EUR: '€', USD: '$', BRL: 'R$', GBP: '£' };
+  const symbol = symbolMap[currency] ?? currency;
+
+  return {
+    symbol,
+    integer: `${symbol}${intPart}`,
+    // PAR-002 (R6-16): decimal separator follows the active language.
+    decimal: `${getActiveDecimalSeparator()}${decPart.toString().padStart(2, '0')}`,
+  };
+}
+
+// R6-11 (R-02): per-category Mediterranean accents for the counter carousel —
+// the old fallback grid had them and the carousel had flattened everything
+// to terracotta. Data-driven, mirrors the semantic tokens.
+const COUNTER_ACCENTS: Record<string, { color: string; bg: string }> = {
+  bar: { color: 'var(--primary)', bg: '#C75B3918' },
+  restaurant: { color: 'var(--warning)', bg: '#D4A84318' },
+  market: { color: 'var(--success)', bg: '#6B8F7118' },
+  transport: { color: '#5B8FA6', bg: '#5B8FA618' },
+  outing: { color: 'var(--primary)', bg: '#C75B3918' },
+  entertainment: { color: '#9A7BB8', bg: '#9A7BB818' },
+  health: { color: 'var(--success)', bg: '#6B8F7118' },
+  accommodation: { color: '#5B8FA6', bg: '#5B8FA618' },
+  other: { color: 'var(--on-surface-dim)', bg: '#8A8A8A18' },
+};
+
+export function counterAccent(category: string | null | undefined): { color: string; bg: string } {
+  return COUNTER_ACCENTS[category ?? 'other'] ?? COUNTER_ACCENTS.other!;
+}
+
+// DEC-077: icon per insight kind (data-driven).
+export const INSIGHT_ICONS: Record<DashboardInsight['kind'], string> = {
+  phase_projection: 'query_stats',
+  rhythm_compare: 'speed',
+  no_spend_streak: 'emoji_events',
+  avg_outing_cost: 'local_bar',
+  participant_balance: 'group',
+  next_event: 'event',
+};
+
+export function formatInsightText(
+  insight: DashboardInsight,
+  t: TranslateFn,
+  currency: string,
+): string {
+  const v = insight.values;
+  switch (insight.kind) {
+    case 'phase_projection':
+      return t(
+        v.over ? 'dashboard.insight_projection_over' : 'dashboard.insight_projection_under',
+        {
+          projected: formatMoney(v.projectedCents as number, currency),
+          diff: formatMoney(v.diffCents as number, currency),
+        },
+      );
+    case 'rhythm_compare':
+      return t(v.over ? 'dashboard.insight_rhythm_over' : 'dashboard.insight_rhythm_under', {
+        real: formatMoney(v.realDailyCents as number, currency),
+        planned: formatMoney(v.plannedDailyCents as number, currency),
+      });
+    case 'no_spend_streak':
+      return t('dashboard.insight_no_spend', { count: v.days as number });
+    case 'avg_outing_cost':
+      return t('dashboard.insight_avg_outing', {
+        amount: formatMoney(v.avgCents as number, currency),
+        count: v.count as number,
+      });
+    case 'participant_balance':
+      return t(
+        v.owedToMe ? 'dashboard.insight_balance_owed' : 'dashboard.insight_balance_owing',
+        {
+          name: v.name as string,
+          amount: formatMoney(v.amountCents as number, currency),
+        },
+      );
+    case 'next_event':
+      return t(
+        v.hasReserve ? 'dashboard.insight_next_event' : 'dashboard.insight_next_event_no_reserve',
+        {
+          name: v.name as string,
+          count: v.days as number,
+          amount: formatMoney(v.reservedCents as number, currency),
+        },
+      );
+  }
+}
+
+export function formatElapsed(startedAt: string): string {
+  const ms = Date.now() - new Date(startedAt).getTime();
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}min`;
+  return `${h}h ${String(m).padStart(2, '0')}min`;
+}

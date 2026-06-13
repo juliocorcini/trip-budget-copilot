@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
+import { AppDataProvider } from '@/app/AppDataProvider';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
 
@@ -43,10 +44,38 @@ function useLanguage(settings: AppSettings | undefined) {
   }, [language]);
 }
 
+// BUG-020: Android hardware "back" on the landing screen pops out of the PWA
+// because nothing sits below it in the history stack. We seed one buffer entry
+// and, on `popstate`, re-seed it ONLY while the user is on a home route
+// (`/` or `/dashboard`) — so the back press is absorbed there and the app
+// stays open. Sub-pages are never touched, so in-app back navigation keeps
+// working normally. The same history.state is preserved to keep React Router's
+// location key stable. The native Capacitor shell (DEC-017) will later own
+// this via App.addListener('backButton').
+const HOME_PATHS = new Set(['/', '/dashboard']);
+
+function useBackButtonGuard() {
+  useEffect(() => {
+    const seedBuffer = () => window.history.pushState(window.history.state, '');
+    seedBuffer();
+    const onPopState = () => {
+      if (HOME_PATHS.has(window.location.pathname)) seedBuffer();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+}
+
 /** Root route element: wraps ALL routes (inside and outside the AppShell). */
 export function RootLayout() {
   const settings = useLiveSettings();
   useTheme(settings);
   useLanguage(settings);
-  return <Outlet />;
+  useBackButtonGuard();
+  // BUG-007: a single AppDataProvider above every route.
+  return (
+    <AppDataProvider>
+      <Outlet />
+    </AppDataProvider>
+  );
 }

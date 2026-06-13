@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import type { Trip } from '@/domain/types/trip';
 import type { Phase } from '@/domain/types/phase';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -17,6 +17,12 @@ import { repairDemoTripIfNeeded } from '@/data/demo-repair';
 // share-sheet/backgrounding), the load must fail loudly instead of leaving
 // the app on an infinite "loading" screen.
 const LOAD_TIMEOUT_MS = 10000;
+
+// BUG-019: the foreground auto-retry must not storm the DB when it stays
+// broken. Cap to one attempt per cooldown window and stop after a few tries —
+// the manual retry on DataErrorScreen always works and resets the cycle.
+const AUTO_RETRY_COOLDOWN_MS = 30000;
+const AUTO_RETRY_MAX_ATTEMPTS = 3;
 
 /**
  * DEC-126: data written outside the mounted page's own flow (undo toast after
@@ -63,7 +69,10 @@ interface AppData {
   retry: () => Promise<void>;
 }
 
-export function useAppData(): AppData {
+// BUG-007: the loader runs ONCE inside AppDataProvider; consumers read the
+// shared snapshot through context. Kept exported so the unit tests can drive
+// the loader in isolation.
+export function useAppDataState(): AppData {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [phases, setPhases] = useState<Phase[]>([]);
@@ -77,6 +86,9 @@ export function useAppData(): AppData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const errorRef = useRef(false);
+  // BUG-019: throttle the automatic foreground retry.
+  const lastAutoRetryAtRef = useRef(0);
+  const autoRetryCountRef = useRef(0);
 
   const loadAll = useCallback(async () => {
     const s = await appSettingsRepository.get();
@@ -130,6 +142,8 @@ export function useAppData(): AppData {
     try {
       await withTimeout(loadAll());
       errorRef.current = false;
+      // BUG-019: a healthy load reopens the auto-retry budget.
+      autoRetryCountRef.current = 0;
     } catch (err) {
       // DEC-109: keep whatever data was already in memory; flag the failure
       // so pages show the recovery screen instead of redirecting to /welcome.
@@ -141,12 +155,17 @@ export function useAppData(): AppData {
     }
   }, [loadAll]);
 
+  // DEC-109: manual recovery (DataErrorScreen button) is user-initiated, so the
+  // aggressive close+reopen of a hung Dexie connection is warranted here — and
+  // it resets the throttled auto-retry budget (BUG-019).
   const retry = useCallback(async () => {
     try {
       if (db.isOpen()) db.close();
     } catch {
       // Closing a broken connection can throw — a fresh open follows anyway.
     }
+    lastAutoRetryAtRef.current = 0;
+    autoRetryCountRef.current = 0;
     await reload();
   }, [reload]);
 
@@ -163,17 +182,36 @@ export function useAppData(): AppData {
     return () => window.removeEventListener(APP_DATA_CHANGED_EVENT, onDataChanged);
   }, [reload]);
 
-  // DEC-109: when the app returns to the foreground after a failed load,
-  // try once automatically — the hung IndexedDB connection often recovers.
+  // DEC-109: when the app returns to the foreground after a failed load, try
+  // automatically — the hung IndexedDB connection often recovers. BUG-019:
+  // throttle to one lightweight reload per cooldown and stop after a few
+  // attempts so a persistently broken DB never storms close/open in a loop.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && errorRef.current) {
-        retry();
-      }
+      if (document.visibilityState !== 'visible' || !errorRef.current) return;
+      const now = Date.now();
+      if (now - lastAutoRetryAtRef.current < AUTO_RETRY_COOLDOWN_MS) return;
+      if (autoRetryCountRef.current >= AUTO_RETRY_MAX_ATTEMPTS) return;
+      lastAutoRetryAtRef.current = now;
+      autoRetryCountRef.current += 1;
+      // Prefer a plain re-load over close+reopen in the foreground (risky).
+      reload();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [retry]);
+  }, [reload]);
 
   return { settings, trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, loading, error, reload, retry };
+}
+
+// BUG-007: single shared snapshot of app data. The Provider (in RootLayout)
+// runs the loader once; every `useAppData()` call site reads the same context.
+export const AppDataContext = createContext<AppData | null>(null);
+
+export function useAppData(): AppData {
+  const ctx = useContext(AppDataContext);
+  if (!ctx) {
+    throw new Error('useAppData must be used within an AppDataProvider');
+  }
+  return ctx;
 }
