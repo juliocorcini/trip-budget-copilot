@@ -38,7 +38,7 @@ import {
   forecastSnapshotRepository,
 } from '@/data/repositories';
 import { buildYesterdayRecap, buildPhaseBurndown, buildMonthHeatmap } from '@/domain/dashboard';
-import { isProfileEnabledInPhase } from '@/domain/profiles';
+import { isProfileEnabledInPhase, detectValueSuggestion } from '@/domain/profiles';
 import {
   calculateTodayFreeBudget,
   findEndedPhaseWithSuccessor,
@@ -376,6 +376,16 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // DEC-092 (R-10): savings refer to the LAST closed outing.
     const savings = calculateLastOutingSavings(completedSessions, transactions, profiles, Date.now());
 
+    // E7 (M18/M19): in-trip learning suggestion — the recent occasion average
+    // (session = 1 occasion, DEC-115) vs the stored typical. Only PROPOSES;
+    // writing happens on accept (ÂNCORA 12). Dismissed profiles stay silent.
+    const valueSuggestion = detectValueSuggestion({
+      profiles,
+      sessions: completedSessions,
+      transactions,
+      dismissedProfileIds: settings?.valueSuggestionsDismissed ?? [],
+    });
+
     // E6 (M14/M15): motivation layer — savings goal + piggy bank. Both are
     // READ-ONLY derivations of trip-level under-spend; they never touch the
     // freeToSpend math (ÂNCORA 11 / DEC-088).
@@ -513,6 +523,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       savings,
       savingsGoal,
       piggyBankCents,
+      valueSuggestion,
       amigoV2,
       burndown,
       currentMonth,

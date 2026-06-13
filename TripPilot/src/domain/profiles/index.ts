@@ -18,3 +18,18 @@ export {
   applyTripPreset,
 } from './trip-presets';
 export type { TripPreset, TripPresetId, TripPresetDefaults } from './trip-presets';
+export {
+  computeProfileOccasionAverages,
+  detectValueSuggestion,
+  markValueSuggestionDismissed,
+  VALUE_SUGGESTION_RECENT_OUTINGS,
+  VALUE_SUGGESTION_MIN_SAMPLES,
+  VALUE_SUGGESTION_MIN_RATIO,
+  VALUE_SUGGESTION_MIN_DELTA_CENTS,
+} from './profile-learning';
+export type {
+  ProfileOccasionAverage,
+  ComputeOccasionAveragesInput,
+  ValueSuggestion,
+  DetectValueSuggestionInput,
+} from './profile-learning';

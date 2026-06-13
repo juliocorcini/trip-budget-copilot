@@ -1,8 +1,8 @@
 # Pacote 2 — Insights v2 + Ciclo de Fase + Motivação + Continuidade — Log
 
 ## Current State
-- Fase: 4 🚧 | Gate: 4 ✅ | Milestone: M17 done | Done: 17/26 | Tests: 677 (+63 desde baseline) | Versão: 0.11.1 | Último deploy: master.trippilot.pages.dev (5bc46a45) | Build: ✅
-- PRÓXIMO: GATE 5 / M18 (ajuste contínuo de perfis) — Fase 4. Continuar sem parar.
+- Fase: 4 🚧 | Gate: 5 ✅ | Milestone: M20 done | Done: 20/26 | Tests: 691 (+77 desde baseline) | Versão: 0.11.2 | Último deploy: master.trippilot.pages.dev (5895012e) | Build: ✅
+- PRÓXIMO: GATE 6 / M21 (lições → priors no fim da viagem) — Fase 4. Continuar sem parar.
 
 ## Decisões tomadas durante a execução
 - M1: prioridade data-driven (`INSIGHT_PRIORITY`) — projection 80 > rhythm 60 > balance 50 > next 40 > avg 30 > streak 20. Ordena priority desc, desempate por tone (warning primeiro). Teto fixo de 4 removido; substituído por `INSIGHT_SAFETY_CAP=12` só p/ não explodir o carrossel. `MAX_INSIGHTS_PER_DAY` renomeado → `INSIGHT_SAFETY_CAP`.
@@ -21,12 +21,16 @@
 - M15: `calculatePiggyBank` puro — subgasto acumulado = ideal-linear-até-hoje − gasto, nunca negativo, clamp da fração em 1. Card movível `piggy_bank` só aparece com cofrinho>0. Decisão de produto: ritmo LINEAR no nível-viagem (não ponderado) — número motivacional simples, read-only. Dias da viagem: `getTotalDays(trip.start,trip.end)` + `getDayNumber(trip.start)` (clamp 0..total).
 - M16: seção "Meta de economia" na SettingsPage (mesmo padrão quick-add: input local + salvar + remover). Mostra meta atual; placeholder = meta atual ou 200.
 - M17: +14 testes E6 (projectTripEndSurplus 5, savings-goal 4, piggy 4, invariância free-to-spend 1). A invariância é estrutural: a meta não é parâmetro de `calculateFreeToSpend`, então o "livre" é idêntico com/sem meta (ÂNCORA 11 provada). Total 677.
+- M18: aprendizado in-trip PURO em `domain/profiles/profile-learning.ts` — `computeProfileOccasionAverages` (média por OCASIÃO: 1 sessão fechada = 1 ocasião, DEC-115; soma personalCost das transações da sessão; exclui isSpecialOccasion E excludeFromLearning, ÂNCORA 12). Olha só as `VALUE_SUGGESTION_RECENT_OUTINGS(5)` sessões mais recentes (por endedAt desc) por perfil. Decisão: separado do `updateProfileFromTransaction` existente (EWMA por-item, auto) — aquele continua intacto; este é nível-ocasião e só SUGERE. Não altera nada sozinho.
+- M19: `detectValueSuggestion` puro — dispara com ≥`MIN_SAMPLES(3)` ocasiões E |média−típico| ≥ `MIN_DELTA_CENTS(500)` E ratio ≥ `MIN_RATIO(0.2)`; retorna o 1º perfil elegível não-dispensado (maior divergência primeiro). UI: BottomSheet em DashboardSheets (espelha o padrão da sobra de fase) com "Atualizar"/"Manter". Aceitar → `applyValueSuggestion` (orquestrador atômico grava `typicalValueCents`); manter/fechar → `dismissValueSuggestion` (grava o id em `valueSuggestionsDismissed` — não volta a incomodar nesta viagem). Campo não-indexado `valueSuggestionsDismissed:string[]` em AppSettings (backfill+seed, ÂNCORA 18). Modo Simples NÃO recebe (ÂNCORA 14). ÂNCORA 12 provada: detecção é read-only; perfil só muda no aceite explícito.
+- M20: +14 testes aprendizado (profile-learning 10: occasion-averages 4 + detect 5 + dismiss-helper 1; orquestrador 4: apply 2 + dismiss 1 + invariância "nunca muda sozinho" 1). Total 691.
 
 ## Deploys
 - 0.10.2 (GATE 1) → https://master.trippilot.pages.dev (https://6c0f7900.trippilot.pages.dev)
 - 0.10.3 (GATE 2) → https://master.trippilot.pages.dev (https://f1abd098.trippilot.pages.dev)
 - 0.11.0 (GATE 3 — FASE 3 COMPLETA) → https://master.trippilot.pages.dev (https://37431597.trippilot.pages.dev)
 - 0.11.1 (GATE 4 — meta + cofrinho) → https://master.trippilot.pages.dev (https://5bc46a45.trippilot.pages.dev)
+- 0.11.2 (GATE 5 — aprendizado in-trip) → https://master.trippilot.pages.dev (https://5895012e.trippilot.pages.dev)
 
 ---
 
@@ -81,11 +85,11 @@
 - [x] M17 Testes E6 (+14: projeção, meta, cofrinho, invariância free-to-spend)
 - [x] Checkpoint: version/deploy/novidades 0.11.1 + commit
 
-### GATE 5 — Aprendizado in-trip → 0.11.2
-- [ ] M18 Ajuste contínuo de perfis (sugerido)
-- [ ] M19 Sugestão "atualizar valores" (D7 — mostra, não muda sozinho)
-- [ ] M20 Testes aprendizado
-- [ ] Checkpoint: version/deploy/novidades 0.11.2 + commit
+### GATE 5 — Aprendizado in-trip → 0.11.2 ✅
+- [x] M18 Ajuste contínuo de perfis (sugerido) — média por ocasião, sessão=1 ocasião, exclui special/excluded
+- [x] M19 Sugestão "atualizar valores" (D7 — mostra, não muda sozinho) — BottomSheet + orquestrador atômico no aceite
+- [x] M20 Testes aprendizado (+14: domínio 10 + orquestrador 4, inclui invariância ÂNCORA 12)
+- [x] Checkpoint: version/deploy/novidades 0.11.2 + commit
 
 ### GATE 6 — Templates + i18n + testes → FASE 4 COMPLETA → 0.12.0
 - [ ] M21 Lições → priors (fim da viagem)

@@ -34,6 +34,7 @@ const settings: AppSettings = {
   dailyCheckIn: null,
   phaseLeftoverHandled: [],
   savingsGoalCents: null,
+  valueSuggestionsDismissed: [],
 };
 
 const mkTrip = (): Trip => ({

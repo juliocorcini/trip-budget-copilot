@@ -9,6 +9,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { getDashboardCard, type DashboardCardId } from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
 import type { PhaseLeftover } from '@/domain/phases';
+import type { ValueSuggestion } from '@/domain/profiles';
 import type { PhaseLeftoverDestination } from '@/domain/orchestrators';
 import type { Trip } from '@/domain/types/trip';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -34,6 +35,9 @@ interface DashboardSheetsProps {
   phaseLeftover: PhaseLeftover | null;
   leftoverTargets: BudgetPool[];
   onPhaseLeftover: (destination: PhaseLeftoverDestination, targetPoolId: string | null) => void;
+  // M19: in-trip value suggestion (null = nothing diverges / simple mode)
+  valueSuggestion: ValueSuggestion | null;
+  onValueSuggestion: (accept: boolean) => void;
 }
 
 // BUG-008: the Dashboard's four bottom sheets, lifted out of the page. They read
@@ -56,6 +60,8 @@ export function DashboardSheets({
   phaseLeftover,
   leftoverTargets,
   onPhaseLeftover,
+  valueSuggestion,
+  onValueSuggestion,
 }: DashboardSheetsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -253,6 +259,55 @@ export function DashboardSheets({
                   </span>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* M19 (E7): the app noticed a profile's real cost drifted from its typical
+          and PROPOSES an update — never changes it silently. Closing = keep, so
+          the suggestion never nags again this trip. */}
+      <BottomSheet
+        open={valueSuggestion !== null}
+        onClose={() => onValueSuggestion(false)}
+        title={t('dashboard.value_suggestion_title')}
+      >
+        {valueSuggestion && (
+          <div className="flex flex-col gap-4">
+            <div className="text-center">
+              <p className="text-4xl font-extrabold tabular text-primary">
+                {formatMoney(valueSuggestion.suggestedTypicalCents, trip.baseCurrency)}
+              </p>
+              <p className="mt-2 text-sm text-on-surface-dim">
+                {t('dashboard.value_suggestion_body', {
+                  profile: valueSuggestion.profileName.toLowerCase(),
+                  average: formatMoney(valueSuggestion.suggestedTypicalCents, trip.baseCurrency),
+                  typical: formatMoney(valueSuggestion.currentTypicalCents, trip.baseCurrency),
+                })}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => onValueSuggestion(true)}
+                className="w-full px-4 py-3 rounded-xl bg-primary text-on-surface text-center btn-press flex items-center justify-center gap-2"
+              >
+                <Icon name="auto_awesome" size={18} className="text-on-surface" />
+                <span className="text-sm font-bold">
+                  {t('dashboard.value_suggestion_update', {
+                    amount: formatMoney(valueSuggestion.suggestedTypicalCents, trip.baseCurrency),
+                  })}
+                </span>
+              </button>
+              <button
+                onClick={() => onValueSuggestion(false)}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-center btn-press"
+              >
+                <span className="text-sm font-semibold text-on-surface-dim">
+                  {t('dashboard.value_suggestion_keep', {
+                    amount: formatMoney(valueSuggestion.currentTypicalCents, trip.baseCurrency),
+                  })}
+                </span>
+              </button>
             </div>
           </div>
         )}

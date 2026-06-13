@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.2',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'O app aprende na viagem: quando suas saídas custam diferente do perfil, ele sugere atualizar.',
+        'A sugestão só muda o valor se você aceitar — ignorar não altera nada.',
+        'A média usa a saída inteira como 1 ocasião e ignora gastos especiais.',
+      ],
+      en: [
+        'The app learns during the trip: when your outings cost differently than the profile, it suggests an update.',
+        'The suggestion only changes the value if you accept — ignoring it changes nothing.',
+        'The average treats a whole outing as one occasion and skips special expenses.',
+      ],
+      es: [
+        'La app aprende en el viaje: cuando tus salidas cuestan distinto al perfil, sugiere actualizar.',
+        'La sugerencia solo cambia el valor si la aceptas — ignorarla no cambia nada.',
+        'El promedio cuenta una salida entera como una ocasión e ignora gastos especiales.',
+      ],
+    },
+  },
+  {
     version: '0.11.1',
     date: '2026-06-13',
     items: {

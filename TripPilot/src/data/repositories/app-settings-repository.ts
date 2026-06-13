@@ -34,6 +34,8 @@ class AppSettingsRepository {
       phaseLeftoverHandled: settings.phaseLeftoverHandled ?? [],
       // M14: records predating the savings goal have none.
       savingsGoalCents: settings.savingsGoalCents ?? null,
+      // M19: records predating in-trip suggestions have nothing dismissed.
+      valueSuggestionsDismissed: settings.valueSuggestionsDismissed ?? [],
     };
   }
 

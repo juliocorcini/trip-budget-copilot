@@ -16,6 +16,8 @@ import {
   resolveShareConfirmation,
   applyPhaseLeftover,
   type PhaseLeftoverDestination,
+  applyValueSuggestion,
+  dismissValueSuggestion,
 } from '@/domain/orchestrators';
 import { createDailyCheckIn } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
@@ -118,6 +120,23 @@ export function DashboardPage() {
         phase: model.phaseLeftover.endedPhaseName,
       }),
     });
+    await reload();
+  };
+
+  // E7 (M19): the value suggestion is the app proposing, never deciding. Accept
+  // writes the new typical/safe to the profile; keep records the dismissal so it
+  // never nags again this trip. ÂNCORA 12.
+  const handleValueSuggestion = async (accept: boolean) => {
+    if (!model.valueSuggestion) return;
+    if (accept) {
+      await applyValueSuggestion({
+        profileId: model.valueSuggestion.profileId,
+        typicalValueCents: model.valueSuggestion.suggestedTypicalCents,
+        safeValueCents: model.valueSuggestion.suggestedSafeCents,
+      });
+    } else {
+      await dismissValueSuggestion(model.valueSuggestion.profileId);
+    }
     await reload();
   };
 
@@ -349,6 +368,8 @@ export function DashboardPage() {
         phaseLeftover={isSimpleMode ? null : model.phaseLeftover}
         leftoverTargets={model.globalPoolSummaries.map((g) => g.pool)}
         onPhaseLeftover={handlePhaseLeftover}
+        valueSuggestion={isSimpleMode ? null : model.valueSuggestion}
+        onValueSuggestion={handleValueSuggestion}
       />
     </div>
   );

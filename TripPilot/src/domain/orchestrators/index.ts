@@ -64,3 +64,5 @@ export type {
   ApplyPhaseLeftoverInput,
   PhaseLeftoverDestination,
 } from './phase-cycle-orchestrators';
+export { applyValueSuggestion, dismissValueSuggestion } from './learning-orchestrators';
+export type { ApplyValueSuggestionInput } from './learning-orchestrators';

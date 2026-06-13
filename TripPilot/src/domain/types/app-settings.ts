@@ -39,4 +39,8 @@ export interface AppSettings {
   /** E6 (M14): target money to come home with ("save €200"); null = no goal.
    * Read-only motivation — never affects "free today" (non-indexed). */
   savingsGoalCents: number | null;
+  /** E7 (M19): profile ids whose value-update suggestion the user dismissed
+   * ("keep") — so the same suggestion never nags again this trip
+   * (non-indexed — no migration). */
+  valueSuggestionsDismissed: string[];
 }
