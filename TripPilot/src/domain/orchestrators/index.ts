@@ -66,3 +66,10 @@ export type {
 } from './phase-cycle-orchestrators';
 export { applyValueSuggestion, dismissValueSuggestion } from './learning-orchestrators';
 export type { ApplyValueSuggestionInput } from './learning-orchestrators';
+export {
+  saveTripTemplate,
+  deleteTripTemplate,
+  markTripPriorsHandled,
+  createTripFromTemplate,
+} from './template-orchestrators';
+export type { CreateTripFromTemplateInput } from './template-orchestrators';

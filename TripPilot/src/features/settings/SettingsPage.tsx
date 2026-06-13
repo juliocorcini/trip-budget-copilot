@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository } from '@/data/repositories';
+import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
+import { buildTripTemplate, summarizeTemplate } from '@/domain/templates';
+import { saveTripTemplate, deleteTripTemplate } from '@/domain/orchestrators';
 import { fromCents, toCents, formatAnchorHint, formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
@@ -32,8 +35,10 @@ const ANCHOR_CURRENCY_OPTIONS = ['BRL', 'USD', 'EUR', 'GBP'];
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { settings, wallets, trip, reload } = useAppData();
+  const { settings, wallets, trip, phases, reload } = useAppData();
   const [quickAddInput, setQuickAddInput] = useState('');
+  // M22: saving a template loads the trip's profiles on demand (not in useAppData).
+  const [savingTemplate, setSavingTemplate] = useState(false);
   // DEC-124: permission is browser state — track it so the section re-renders.
   const [notifPermission, setNotifPermission] = useState(getOutingNotificationPermission());
   // DEC-128: rate is typed locally and persisted on save (quick-add pattern).
@@ -102,6 +107,35 @@ export function SettingsPage() {
 
   const handleInstallApp = async () => {
     await install();
+  };
+
+  // M22: save the current trip (phases + learned profiles) as a reusable
+  // template. Profiles are loaded here since useAppData does not carry them.
+  const handleSaveTemplate = async () => {
+    if (!trip || savingTemplate) return;
+    setSavingTemplate(true);
+    try {
+      const profiles = await activityProfileRepository.getByTripId(trip.id);
+      await saveTripTemplate(
+        buildTripTemplate({
+          id: crypto.randomUUID(),
+          name: trip.name,
+          createdAt: new Date().toISOString(),
+          baseCurrency: trip.baseCurrency,
+          phases,
+          profiles,
+        }),
+      );
+      showToast(t('settings.template_saved'), 'success');
+      await reload();
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    await deleteTripTemplate(templateId);
+    await reload();
   };
 
   const handlePersistentStorage = async () => {
@@ -369,6 +403,51 @@ export function SettingsPage() {
           >
             {t('settings.goal_remove')}
           </button>
+        )}
+      </Section>
+
+      {/* M22 (E7): save this trip's structure (phases + learned typicals) as a
+          reusable template, applied on the next trip's onboarding. */}
+      <Section title={t('settings.templates_title')}>
+        <p className="text-xs text-on-surface-faint mb-3">{t('settings.templates_hint')}</p>
+        <button
+          onClick={handleSaveTemplate}
+          disabled={!trip || savingTemplate}
+          className="w-full px-3 py-2 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <Icon name="bookmark_add" size={16} className="text-on-surface" />
+          {t('settings.template_save_current')}
+        </button>
+        {(settings.tripTemplates ?? []).length > 0 && (
+          <div className="flex flex-col gap-2 mt-3">
+            {(settings.tripTemplates ?? []).map((template) => {
+              const summary = summarizeTemplate(template);
+              return (
+                <div
+                  key={template.id}
+                  className="flex items-center gap-2 bg-surface-high rounded-lg px-3 py-2"
+                >
+                  <Icon name="luggage" size={16} className="text-on-surface-dim shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-on-surface truncate">{template.name}</p>
+                    <p className="text-[11px] text-on-surface-faint">
+                      {t('settings.template_summary', {
+                        phases: summary.phaseCount,
+                        profiles: summary.profileCount,
+                      })}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteTemplate(template.id)}
+                    className="btn-press p-1 shrink-0"
+                    aria-label={t('common.delete')}
+                  >
+                    <Icon name="delete" size={16} className="text-on-surface-faint" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         )}
       </Section>
 

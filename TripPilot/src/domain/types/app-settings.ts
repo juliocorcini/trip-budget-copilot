@@ -1,4 +1,5 @@
 import type { AlertTone, AppMode, DailyCheckIn, ThemePreference } from './common';
+import type { TripTemplate } from './trip-template';
 
 export interface AppSettings {
   id: string;
@@ -43,4 +44,11 @@ export interface AppSettings {
    * ("keep") — so the same suggestion never nags again this trip
    * (non-indexed — no migration). */
   valueSuggestionsDismissed: string[];
+  /** E7 (M22): reusable trip molds (phases + learned typicals) saved from past
+   * trips, applied on a new trip's onboarding. Non-indexed JSON blob — no
+   * Dexie table/migration (ÂNCORA 18). */
+  tripTemplates: TripTemplate[];
+  /** E7 (M21): trip ids whose end-of-trip "save what you learned" offer was
+   * already handled (saved or dismissed) — so it never reopens (non-indexed). */
+  tripPriorsHandled: string[];
 }

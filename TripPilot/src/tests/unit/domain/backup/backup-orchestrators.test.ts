@@ -35,6 +35,8 @@ const settings: AppSettings = {
   phaseLeftoverHandled: [],
   savingsGoalCents: null,
   valueSuggestionsDismissed: [],
+  tripTemplates: [],
+  tripPriorsHandled: [],
 };
 
 const mkTrip = (): Trip => ({

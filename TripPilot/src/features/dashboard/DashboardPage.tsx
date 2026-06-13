@@ -18,7 +18,11 @@ import {
   type PhaseLeftoverDestination,
   applyValueSuggestion,
   dismissValueSuggestion,
+  saveTripTemplate,
+  markTripPriorsHandled,
 } from '@/domain/orchestrators';
+import { buildTripTemplate } from '@/domain/templates';
+import { showToast } from '@/components/Toast';
 import { createDailyCheckIn } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { CheckInIntent } from '@/domain/types/common';
@@ -137,6 +141,28 @@ export function DashboardPage() {
     } else {
       await dismissValueSuggestion(model.valueSuggestion.profileId);
     }
+    await reload();
+  };
+
+  // E7 (M21): the trip ended → offer to save what it learned as priors for the
+  // next trip. Accept builds a template from the live trip (phases + learned
+  // profiles); both accept and dismiss mark it handled so it shows once.
+  const handleTripPriors = async (accept: boolean) => {
+    if (!model.tripPriors || !trip) return;
+    if (accept) {
+      await saveTripTemplate(
+        buildTripTemplate({
+          id: crypto.randomUUID(),
+          name: model.tripPriors.tripName,
+          createdAt: new Date().toISOString(),
+          baseCurrency: trip.baseCurrency,
+          phases: appData.phases,
+          profiles: model.profiles,
+        }),
+      );
+      showToast(t('dashboard.priors_saved'), 'success');
+    }
+    await markTripPriorsHandled(model.tripPriors.tripId);
     await reload();
   };
 
@@ -370,6 +396,8 @@ export function DashboardPage() {
         onPhaseLeftover={handlePhaseLeftover}
         valueSuggestion={isSimpleMode ? null : model.valueSuggestion}
         onValueSuggestion={handleValueSuggestion}
+        tripPriors={isSimpleMode ? null : model.tripPriors}
+        onTripPriors={handleTripPriors}
       />
     </div>
   );

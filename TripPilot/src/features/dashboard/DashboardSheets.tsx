@@ -10,6 +10,7 @@ import { getDashboardCard, type DashboardCardId } from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
 import type { PhaseLeftover } from '@/domain/phases';
 import type { ValueSuggestion } from '@/domain/profiles';
+import type { TripPriorsOffer } from '@/domain/templates';
 import type { PhaseLeftoverDestination } from '@/domain/orchestrators';
 import type { Trip } from '@/domain/types/trip';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -38,6 +39,9 @@ interface DashboardSheetsProps {
   // M19: in-trip value suggestion (null = nothing diverges / simple mode)
   valueSuggestion: ValueSuggestion | null;
   onValueSuggestion: (accept: boolean) => void;
+  // M21: end-of-trip "save priors" offer (null = trip still running / simple mode)
+  tripPriors: TripPriorsOffer | null;
+  onTripPriors: (accept: boolean) => void;
 }
 
 // BUG-008: the Dashboard's four bottom sheets, lifted out of the page. They read
@@ -62,6 +66,8 @@ export function DashboardSheets({
   onPhaseLeftover,
   valueSuggestion,
   onValueSuggestion,
+  tripPriors,
+  onTripPriors,
 }: DashboardSheetsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -306,6 +312,46 @@ export function DashboardSheets({
                   {t('dashboard.value_suggestion_keep', {
                     amount: formatMoney(valueSuggestion.currentTypicalCents, trip.baseCurrency),
                   })}
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* M21 (E7): the trip is over — offer to save what it learned as priors for
+          the next trip. Saving is explicit; "not now" just closes and never asks
+          again for this trip. */}
+      <BottomSheet
+        open={tripPriors !== null}
+        onClose={() => onTripPriors(false)}
+        title={t('dashboard.priors_title')}
+      >
+        {tripPriors && (
+          <div className="flex flex-col gap-4">
+            <div className="text-center">
+              <Icon name="auto_awesome" size={32} className="text-primary mx-auto" />
+              <p className="mt-2 text-sm text-on-surface-dim">
+                {t('dashboard.priors_body', {
+                  trip: tripPriors.tripName,
+                  count: tripPriors.profileCount,
+                })}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => onTripPriors(true)}
+                className="w-full px-4 py-3 rounded-xl bg-primary text-on-surface text-center btn-press flex items-center justify-center gap-2"
+              >
+                <Icon name="bookmark_add" size={18} className="text-on-surface" />
+                <span className="text-sm font-bold">{t('dashboard.priors_save')}</span>
+              </button>
+              <button
+                onClick={() => onTripPriors(false)}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-center btn-press"
+              >
+                <span className="text-sm font-semibold text-on-surface-dim">
+                  {t('dashboard.priors_dismiss')}
                 </span>
               </button>
             </div>

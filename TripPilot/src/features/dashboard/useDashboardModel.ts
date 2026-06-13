@@ -39,6 +39,7 @@ import {
 } from '@/data/repositories';
 import { buildYesterdayRecap, buildPhaseBurndown, buildMonthHeatmap } from '@/domain/dashboard';
 import { isProfileEnabledInPhase, detectValueSuggestion } from '@/domain/profiles';
+import { detectTripPriorsOffer } from '@/domain/templates';
 import {
   calculateTodayFreeBudget,
   findEndedPhaseWithSuccessor,
@@ -386,6 +387,15 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       dismissedProfileIds: settings?.valueSuggestionsDismissed ?? [],
     });
 
+    // E7 (M21): the trip is over → offer to save what it learned as priors for
+    // the next trip, once. Read-only detection; saving is an explicit accept.
+    const tripPriors = detectTripPriorsOffer({
+      trip,
+      todayIso,
+      profiles,
+      handledTripIds: settings?.tripPriorsHandled ?? [],
+    });
+
     // E6 (M14/M15): motivation layer — savings goal + piggy bank. Both are
     // READ-ONLY derivations of trip-level under-spend; they never touch the
     // freeToSpend math (ÂNCORA 11 / DEC-088).
@@ -524,6 +534,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       savingsGoal,
       piggyBankCents,
       valueSuggestion,
+      tripPriors,
       amigoV2,
       burndown,
       currentMonth,

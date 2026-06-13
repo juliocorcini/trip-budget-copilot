@@ -1,8 +1,8 @@
 # Pacote 2 — Insights v2 + Ciclo de Fase + Motivação + Continuidade — Log
 
 ## Current State
-- Fase: 4 🚧 | Gate: 5 ✅ | Milestone: M20 done | Done: 20/26 | Tests: 691 (+77 desde baseline) | Versão: 0.11.2 | Último deploy: master.trippilot.pages.dev (5895012e) | Build: ✅
-- PRÓXIMO: GATE 6 / M21 (lições → priors no fim da viagem) — Fase 4. Continuar sem parar.
+- Fase: 4 ✅ COMPLETA | Gate: 6 ✅ | Milestone: M25 done | Done: 25/26 | Tests: 708 (+94 desde baseline) | Versão: 0.12.0 | Último deploy: PRODUÇÃO → trippilot.pages.dev (--branch=main) | Build: ✅
+- PRÓXIMO: GATE 7 (testes finais + brain DECs + deploy final 0.12.1). Continuar sem parar.
 
 ## Decisões tomadas durante a execução
 - M1: prioridade data-driven (`INSIGHT_PRIORITY`) — projection 80 > rhythm 60 > balance 50 > next 40 > avg 30 > streak 20. Ordena priority desc, desempate por tone (warning primeiro). Teto fixo de 4 removido; substituído por `INSIGHT_SAFETY_CAP=12` só p/ não explodir o carrossel. `MAX_INSIGHTS_PER_DAY` renomeado → `INSIGHT_SAFETY_CAP`.
@@ -24,6 +24,11 @@
 - M18: aprendizado in-trip PURO em `domain/profiles/profile-learning.ts` — `computeProfileOccasionAverages` (média por OCASIÃO: 1 sessão fechada = 1 ocasião, DEC-115; soma personalCost das transações da sessão; exclui isSpecialOccasion E excludeFromLearning, ÂNCORA 12). Olha só as `VALUE_SUGGESTION_RECENT_OUTINGS(5)` sessões mais recentes (por endedAt desc) por perfil. Decisão: separado do `updateProfileFromTransaction` existente (EWMA por-item, auto) — aquele continua intacto; este é nível-ocasião e só SUGERE. Não altera nada sozinho.
 - M19: `detectValueSuggestion` puro — dispara com ≥`MIN_SAMPLES(3)` ocasiões E |média−típico| ≥ `MIN_DELTA_CENTS(500)` E ratio ≥ `MIN_RATIO(0.2)`; retorna o 1º perfil elegível não-dispensado (maior divergência primeiro). UI: BottomSheet em DashboardSheets (espelha o padrão da sobra de fase) com "Atualizar"/"Manter". Aceitar → `applyValueSuggestion` (orquestrador atômico grava `typicalValueCents`); manter/fechar → `dismissValueSuggestion` (grava o id em `valueSuggestionsDismissed` — não volta a incomodar nesta viagem). Campo não-indexado `valueSuggestionsDismissed:string[]` em AppSettings (backfill+seed, ÂNCORA 18). Modo Simples NÃO recebe (ÂNCORA 14). ÂNCORA 12 provada: detecção é read-only; perfil só muda no aceite explícito.
 - M20: +14 testes aprendizado (profile-learning 10: occasion-averages 4 + detect 5 + dismiss-helper 1; orquestrador 4: apply 2 + dismiss 1 + invariância "nunca muda sozinho" 1). Total 691.
+- M21: lições → priors PURO em `domain/templates/templates.ts` — `detectTripPriorsOffer` dispara só quando `todayIso > trip.endDate` (fim inclusivo via slice(0,10)) E há perfis vivos E o trip não está em `tripPriorsHandled`. BottomSheet na dashboard (espelha sobra de fase): "Salvar modelo" → `buildTripTemplate`+`saveTripTemplate`+`markTripPriorsHandled`; "Agora não" → só `markTripPriorsHandled` (anti-nag, ÂNCORA 8). Campo não-indexado `tripPriorsHandled:string[]` em AppSettings (backfill+seed, ÂNCORA 18). Modo Simples não recebe (ÂNCORA 14).
+- M22: salvar template — `buildTripTemplate` (puro) serializa a viagem viva em molde reusável: fases (nome, ordem, durationDays derivado das datas, ritmo/peak) + perfis (typical/safe/cost shape, SEM id/tripId/dataPointCount). Soft-deleted são descartados; fases saem ordenadas. Persistência: `saveTripTemplate` (read-modify-write atômico em appSettings; `upsertTemplate` newest-first, cap 20). Tipo novo `TripTemplate`/`TemplatePhase`/`TemplateProfile` em `domain/types/trip-template.ts`. Campo não-indexado `tripTemplates:TripTemplate[]` (backfill+seed, ÂNCORA 18). UI: seção "Modelos de viagem" na SettingsPage (salvar atual + listar/excluir).
+- M23: aplicar template — `instantiateTemplate` (puro) constrói as entidades da nova viagem: perfis recriados FRIOS (confidence low, dataPointCount 0 — re-aprende do próprio gasto); fases distribuídas proporcionalmente ao durationDays sobre [start,end] (1ª começa no start, última termina no end), 1 link por fase pro pool operacional. IDs novos sempre (nunca colide com a origem — ÂNCORA 12 reuso explícito). Orquestrador atômico `createTripFromTemplate` (espelha createTripFromOnboarding/BUG-013 mas com MUITAS fases+links numa transação). UI: picker de modelo no OnboardingPage; ao escolher, `handleFinish` usa `createTripFromTemplate` e esconde o preset de trip-type.
+- M24: i18n pt/en/es de tudo da Fase 4 (priors sheet, modelos em Settings, picker no onboarding) no mesmo commit (ÂNCORA 16).
+- M25: +17 testes Fase 4 (templates puro 13: build 3 + summarize 1 + instantiate 3 + detectPriors 3 + list-helpers 3; orquestrador 4: save/delete 2 + markHandled 1 + createTripFromTemplate "recria a estrutura" 1). Acima do mínimo de 12. Total 708.
 
 ## Deploys
 - 0.10.2 (GATE 1) → https://master.trippilot.pages.dev (https://6c0f7900.trippilot.pages.dev)
@@ -91,13 +96,13 @@
 - [x] M20 Testes aprendizado (+14: domínio 10 + orquestrador 4, inclui invariância ÂNCORA 12)
 - [x] Checkpoint: version/deploy/novidades 0.11.2 + commit
 
-### GATE 6 — Templates + i18n + testes → FASE 4 COMPLETA → 0.12.0
-- [ ] M21 Lições → priors (fim da viagem)
-- [ ] M22 Salvar template
-- [ ] M23 Aplicar template
-- [ ] M24 i18n Fase 4
-- [ ] M25 Testes Fase 4 (≥12 novos)
-- [ ] Checkpoint: version/deploy/novidades 0.12.0 + commit
+### GATE 6 — Templates + i18n + testes → FASE 4 COMPLETA → 0.12.0 ✅
+- [x] M21 Lições → priors (fim da viagem) — detector puro + sheet na dashboard
+- [x] M22 Salvar template — buildTripTemplate puro + saveTripTemplate atômico + UI Settings
+- [x] M23 Aplicar template — instantiateTemplate puro + createTripFromTemplate atômico + picker no onboarding
+- [x] M24 i18n Fase 4 (pt/en/es no mesmo commit)
+- [x] M25 Testes Fase 4 (+17 no gate; ≥12 exigidos)
+- [x] Checkpoint: version/deploy/novidades 0.12.0 + commit + deploy PRODUÇÃO
 
 ## GATE 7 — Testes finais + brain + deploy final → 0.12.1
 - [ ] Testes todos verdes (≥30 novos)

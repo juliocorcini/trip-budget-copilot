@@ -36,6 +36,10 @@ class AppSettingsRepository {
       savingsGoalCents: settings.savingsGoalCents ?? null,
       // M19: records predating in-trip suggestions have nothing dismissed.
       valueSuggestionsDismissed: settings.valueSuggestionsDismissed ?? [],
+      // M22: records predating templates have none saved.
+      tripTemplates: settings.tripTemplates ?? [],
+      // M21: records predating the priors offer have nothing handled.
+      tripPriorsHandled: settings.tripPriorsHandled ?? [],
     };
   }
 

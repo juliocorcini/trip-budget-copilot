@@ -43,6 +43,10 @@ export function createDefaultAppSettings(): AppSettings {
     savingsGoalCents: null,
     // M19: no value suggestions dismissed yet.
     valueSuggestionsDismissed: [],
+    // M22: no saved trip templates yet.
+    tripTemplates: [],
+    // M21: no end-of-trip priors offer handled yet.
+    tripPriorsHandled: [],
   };
 }
 

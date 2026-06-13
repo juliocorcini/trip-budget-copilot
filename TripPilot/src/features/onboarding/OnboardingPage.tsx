@@ -12,7 +12,8 @@ import {
 } from '@/domain/profiles';
 import { toCents } from '@/domain/money';
 import { localDateString } from '@/domain/dates';
-import { createTripFromOnboarding } from '@/domain/orchestrators';
+import { instantiateTemplate } from '@/domain/templates';
+import { createTripFromOnboarding, createTripFromTemplate } from '@/domain/orchestrators';
 import { appSettingsRepository } from '@/data/repositories';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { showToast } from '@/components/Toast';
@@ -28,13 +29,17 @@ type OnboardingFlow = 'quick' | 'detailed';
 export function OnboardingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { reload } = useAppData();
+  const { settings, reload } = useAppData();
+  // M23: templates saved from past trips, applied here on a new trip.
+  const tripTemplates = settings?.tripTemplates ?? [];
   // R5-04: keep the footer buttons above the on-screen keyboard (iOS overlay).
   const keyboardInset = useKeyboardInset();
 
   // M16: default to the 1-question path; "personalizar" switches to detailed.
   const [flow, setFlow] = useState<OnboardingFlow>('quick');
   const [presetId, setPresetId] = useState<TripPresetId | null>(null);
+  // M23: id of the chosen prior-trip template (null = start from defaults).
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(0);
   const [tripName, setTripName] = useState('');
@@ -105,16 +110,43 @@ export function OnboardingPage() {
     if (submitting) return;
     setSubmitting(true);
     const entities = buildEntities();
+    // M23: a chosen template recreates its phases + learned profiles instead of
+    // the single default phase + cold default profiles.
+    const template = selectedTemplateId
+      ? tripTemplates.find((tpl) => tpl.id === selectedTemplateId) ?? null
+      : null;
 
     try {
       // BUG-013: all-or-nothing. A crash/app-switch between these writes used
       // to leave a trip with no pool/wallet/profiles as the active trip; the
       // orchestrator now wraps them in a single transaction that rolls back on
       // any failure, so nothing is persisted on error.
-      await createTripFromOnboarding({
-        ...entities,
-        profiles: createDefaultActivityProfiles(entities.trip.id),
-      });
+      if (template && template.phases.length > 0) {
+        const { phases, links, profiles } = instantiateTemplate({
+          template,
+          tripId: entities.trip.id,
+          budgetPoolId: entities.pool.id,
+          startDate: entities.trip.startDate.slice(0, 10),
+          endDate: entities.trip.endDate.slice(0, 10),
+          deviceId: entities.trip.sourceDeviceId,
+          now: new Date().toISOString(),
+        });
+        await createTripFromTemplate({
+          trip: entities.trip,
+          pool: entities.pool,
+          reserve: entities.reserve,
+          owner: entities.owner,
+          wallets: entities.wallets,
+          phases,
+          links,
+          profiles,
+        });
+      } else {
+        await createTripFromOnboarding({
+          ...entities,
+          profiles: createDefaultActivityProfiles(entities.trip.id),
+        });
+      }
     } catch (err) {
       // Partial state is impossible (the transaction rolled back) — let the
       // user simply tap Finish again instead of stranding them.
@@ -272,30 +304,75 @@ export function OnboardingPage() {
       <Field label={t('onboarding.end_date')} type="date" value={endDate} onChange={setEndDate} />
       <Field label={t('onboarding.trip_name')} value={tripName} onChange={setTripName} placeholder={t('onboarding.default_trip_name')} />
       <CurrencySelect label={t('onboarding.currency')} value={currency} onChange={setCurrency} />
-      {/* M17: optional trip type — pre-fills rhythm/peak/reserve, never forced. */}
-      <div className="bg-surface-container rounded-xl p-4">
-        <label className="text-xs text-on-surface-faint block mb-2">{t('onboarding.trip_type_label')}</label>
-        <div className="flex gap-2">
-          {TRIP_PRESETS.map((preset) => {
-            const selected = presetId === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => setPresetId((prev) => (prev === preset.id ? null : preset.id))}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg btn-press ${
-                  selected ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
-                }`}
-                aria-pressed={selected}
-              >
-                <Icon name={preset.iconName} size={20} className={selected ? 'text-on-surface' : 'text-on-surface-dim'} />
-                <span className="text-[11px] font-medium">{t(`trip_presets.${preset.id}` as never)}</span>
-              </button>
-            );
-          })}
+      {/* M23: reuse a template saved from a past trip — recreates its phases and
+          learned profiles. Only shown when at least one template exists. */}
+      {tripTemplates.length > 0 && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <label className="text-xs text-on-surface-faint block mb-2">{t('onboarding.template_label')}</label>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedTemplateId(null)}
+              className={`w-full px-3 py-2 rounded-lg text-xs font-medium btn-press text-left ${
+                selectedTemplateId === null ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+              aria-pressed={selectedTemplateId === null}
+            >
+              {t('onboarding.template_none')}
+            </button>
+            {tripTemplates.map((tpl) => {
+              const selected = selectedTemplateId === tpl.id;
+              return (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => setSelectedTemplateId(tpl.id)}
+                  className={`w-full px-3 py-2 rounded-lg btn-press flex items-center gap-2 text-left ${
+                    selected ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                  aria-pressed={selected}
+                >
+                  <Icon name="luggage" size={16} className={selected ? 'text-on-surface' : 'text-on-surface-dim'} />
+                  <span className="text-xs font-semibold truncate">{tpl.name}</span>
+                  <span className="text-[10px] ml-auto opacity-80">
+                    {t('onboarding.template_meta', {
+                      phases: tpl.phases.length,
+                      profiles: tpl.profiles.length,
+                    })}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <p className="text-[10px] text-on-surface-faint mt-2">{t('onboarding.trip_type_hint')}</p>
-      </div>
+      )}
+      {/* M17: optional trip type — pre-fills rhythm/peak/reserve, never forced.
+          Hidden when a template is chosen (the template defines the structure). */}
+      {selectedTemplateId === null && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <label className="text-xs text-on-surface-faint block mb-2">{t('onboarding.trip_type_label')}</label>
+          <div className="flex gap-2">
+            {TRIP_PRESETS.map((preset) => {
+              const selected = presetId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setPresetId((prev) => (prev === preset.id ? null : preset.id))}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg btn-press ${
+                    selected ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                  aria-pressed={selected}
+                >
+                  <Icon name={preset.iconName} size={20} className={selected ? 'text-on-surface' : 'text-on-surface-dim'} />
+                  <span className="text-[11px] font-medium">{t(`trip_presets.${preset.id}` as never)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-on-surface-faint mt-2">{t('onboarding.trip_type_hint')}</p>
+        </div>
+      )}
       <button
         type="button"
         onClick={() => { setFlow('detailed'); setStep(0); }}

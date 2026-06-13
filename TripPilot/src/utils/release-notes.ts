@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.12.0',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'No fim da viagem, o app oferece guardar o que aprendeu como ponto de partida pra próxima.',
+        'Salve a viagem como modelo: fases, perfis e valores típicos prontos pra reusar.',
+        'Comece uma viagem nova a partir de um modelo salvo — a estrutura e os valores já vêm preenchidos.',
+      ],
+      en: [
+        'At the end of a trip, the app offers to save what it learned as a starting point for the next one.',
+        'Save a trip as a template: phases, profiles and typical values ready to reuse.',
+        'Start a new trip from a saved template — the structure and values come pre-filled.',
+      ],
+      es: [
+        'Al final del viaje, la app ofrece guardar lo aprendido como punto de partida para el próximo.',
+        'Guarda el viaje como plantilla: fases, perfiles y valores típicos listos para reutilizar.',
+        'Empieza un viaje nuevo desde una plantilla guardada — la estructura y los valores ya vienen cargados.',
+      ],
+    },
+  },
+  {
     version: '0.11.2',
     date: '2026-06-13',
     items: {
