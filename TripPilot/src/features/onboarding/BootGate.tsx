@@ -4,7 +4,9 @@ import { useAppData } from '@/hooks/useAppData';
 import { tripRepository } from '@/data/repositories';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { hasEmergencySnapshot } from '@/utils/emergency-snapshot';
 import { TripRecoveryScreen } from './TripRecoveryScreen';
+import { EmergencyRestoreScreen } from './EmergencyRestoreScreen';
 
 type OrphanCheck = 'idle' | 'checking' | 'has-trips' | 'empty' | 'error';
 
@@ -16,6 +18,8 @@ type OrphanCheck = 'idle' | 'checking' | 'has-trips' | 'empty' | 'error';
  *   - DB read failed/hung   → DataErrorScreen (never a destructive re-import)
  *   - no active trip but
  *     trips exist on disk    → recovery screen (BUG-003 orphan scenario)
+ *   - empty DB + a local
+ *     emergency snapshot     → restore screen (BUG-002 iOS eviction scenario)
  *   - genuinely empty DB     → /welcome
  */
 export function BootGate() {
@@ -52,5 +56,8 @@ export function BootGate() {
   if (orphan === 'error') return <DataErrorScreen onRetry={retry} />;
   if (orphan === 'idle' || orphan === 'checking') return <LoadingScreen />;
   if (orphan === 'has-trips') return <TripRecoveryScreen onRecovered={reload} />;
+  // BUG-002: empty DB but a snapshot survived in localStorage (likely an iOS
+  // eviction) → offer a restore instead of dropping them onto onboarding.
+  if (hasEmergencySnapshot()) return <EmergencyRestoreScreen onRestored={reload} />;
   return <Navigate to="/welcome" replace />;
 }

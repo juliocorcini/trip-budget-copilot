@@ -1,7 +1,7 @@
 # Stability Fix Log
 
 ## Current State
-- Gate: 3 done | Bug: — | Fixed: 12/20 | Tests: 492 (+32) | Build: ✅ (index 705 KB warning — BUG-012/Gate 5)
+- Gate: 4 done | Bug: — | Fixed: 15/20 | Tests: 501 (+41) | Build: ✅ (index 705 KB warning — BUG-012/Gate 5)
 
 ## Gate 0 — Baseline
 - [x] Node 22.22.3
@@ -36,10 +36,13 @@
 - New: sw-reload.ts. i18n: pwa.update_deferred_outing ×3.
 - New tests: sw-reload (5) = +5 → 492.
 
-## Gate 4 — iOS persistence + data integrity
-- [ ] BUG-002 iOS persistence warning + emergency auto-backup
-- [ ] BUG-013 atomic onboarding transaction
-- [ ] BUG-015 demo repair scoped to demo trips
+## Gate 4 — iOS persistence + data integrity ✅
+- [x] BUG-002 requestPersistentStorage checks persisted() + logs estimate when denied (iOS diagnostics). emergency-snapshot.ts: full JSON backup in localStorage every 5 expenses (QuickAddPage) + on outing end (OutingPage). BootGate: empty DB + snapshot → EmergencyRestoreScreen (one-tap restore via importBackup 'replace'); "start fresh" clears snapshot. Dashboard banner reinforced: data present + non-iOS → "backup now" CTA straight to /settings/backup.
+  - Note: persistence outcome is NOT stored in synced AppSettings (it is device-local and the banner already uses a live persisted() check). Deviated from "flag nos settings" to avoid sync/backup contamination + redundant boot writes; DONE criteria (clear alert + emergency auto-backup) fully met.
+- [x] BUG-013 createTripFromOnboarding orchestrator wraps all 8 inserts in one db.transaction (atomic); OnboardingPage flips activeTrip only after it commits; failure → toast + stay on screen to retry. Extracted DB logic out of the component (cleaner + testable).
+- [x] BUG-015 demo-repair profile recreation now gated by settings.isDemo — real trips never get profiles resurrected.
+- New: emergency-snapshot.ts, EmergencyRestoreScreen.tsx, onboarding-orchestrators.ts. i18n: recovery.snapshot_* + restore_error, dashboard.storage_backup_now, onboarding.create_error ×3.
+- New tests: onboarding-orchestrator (3), emergency-snapshot (4), demo-repair +2 (now 5; kept DEC-111 date tests, replaced old buggy "recreate for ANY trip" with BUG-015 scope) = +9 → 501.
 
 ## Gate 5 — Performance
 - [ ] BUG-007 AppDataProvider shared context

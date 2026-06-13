@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '@/data/db/database';
 import { repairDemoTripIfNeeded } from '@/data/demo-repair';
+import { activityProfileRepository } from '@/data/repositories';
 import { createDefaultAppSettings } from '@/data/db/seed';
 import type { Trip } from '@/domain/types/trip';
 import type { Phase } from '@/domain/types/phase';
@@ -73,14 +74,40 @@ describe('repairDemoTripIfNeeded (DEC-111 / R5-03)', () => {
     // Demo repair re-anchors the trip around "today".
     expect(trip!.startDate).not.toBe('2031-07-01');
   });
+});
 
-  it('recreates missing activity profiles for ANY trip (demo or real)', async () => {
+describe('repairDemoTripIfNeeded — profile recreation scope (BUG-015)', () => {
+  beforeEach(clearAll);
+
+  it('does NOT recreate profiles for a REAL trip with zero active profiles', async () => {
     await db.trips.add(FUTURE_TRIP);
     await db.phases.add(FUTURE_PHASE);
 
     await repairDemoTripIfNeeded(settingsFor('trip-real', false));
 
-    const profiles = await db.activityProfiles.where('tripId').equals('trip-real').toArray();
-    expect(profiles.length).toBeGreaterThan(0);
+    const profiles = await activityProfileRepository.getByTripId('trip-real');
+    expect(profiles).toHaveLength(0);
+  });
+
+  it('recreates the default profiles for the DEMO trip when it has none', async () => {
+    await db.trips.add({ ...FUTURE_TRIP, id: 'trip-demo', name: 'Demo' });
+    await db.phases.add({ ...FUTURE_PHASE, id: 'phase-demo', tripId: 'trip-demo' });
+
+    await repairDemoTripIfNeeded(settingsFor('trip-demo', true));
+
+    const profiles = await activityProfileRepository.getByTripId('trip-demo');
+    expect(profiles).toHaveLength(3);
+  });
+
+  it('never resurrects profiles a real-trip user deleted (no boot-time duplicates)', async () => {
+    await db.trips.add(FUTURE_TRIP);
+    await db.phases.add(FUTURE_PHASE);
+
+    // Two consecutive boots on a real trip must keep it at zero profiles.
+    await repairDemoTripIfNeeded(settingsFor('trip-real', false));
+    await repairDemoTripIfNeeded(settingsFor('trip-real', false));
+
+    const profiles = await activityProfileRepository.getByTripId('trip-real');
+    expect(profiles).toHaveLength(0);
   });
 });

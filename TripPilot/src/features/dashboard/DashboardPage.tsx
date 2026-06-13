@@ -1209,21 +1209,33 @@ export function DashboardPage() {
           iOS Safari cannot grant persistence programmatically — the honest
           advice there is installing to the home screen; installed iOS PWAs
           are already protected, so no alarm at all. */}
-      {storageNotPersisted && !(isIosDevice() && isStandaloneDisplayMode()) && (
-        <button
-          onClick={() => navigate('/settings')}
-          className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
-          style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
-        >
-          <Icon name={isIosDevice() ? 'add_to_home_screen' : 'warning'} size={16} className="text-warning" />
-          <p className="text-xs font-semibold text-on-surface-dim flex-1">
-            {isIosDevice()
-              ? t('dashboard.storage_install_ios')
-              : t('dashboard.storage_not_persisted')}
-          </p>
-          <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
-        </button>
-      )}
+      {storageNotPersisted && !(isIosDevice() && isStandaloneDisplayMode()) && (() => {
+        // BUG-002: when there is real data to lose and we are not on iOS (whose
+        // honest advice is "install to home"), make the CTA a direct, urgent
+        // call to back up now rather than a soft pointer to Settings.
+        const strongBackupCta = !isIosDevice() && transactions.length > 0;
+        return (
+          <button
+            onClick={() => navigate(strongBackupCta ? '/settings/backup' : '/settings')}
+            className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
+            style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
+          >
+            <Icon
+              name={isIosDevice() ? 'add_to_home_screen' : strongBackupCta ? 'cloud_upload' : 'warning'}
+              size={16}
+              className="text-warning"
+            />
+            <p className="text-xs font-semibold text-on-surface-dim flex-1">
+              {isIosDevice()
+                ? t('dashboard.storage_install_ios')
+                : strongBackupCta
+                  ? t('dashboard.storage_backup_now')
+                  : t('dashboard.storage_not_persisted')}
+            </p>
+            <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
+          </button>
+        );
+      })()}
 
       {/* BACKUP REMINDER (DEC-057 / decision D-J) — discreet, tap → backup */}
       {isBackupReminderDue(settings, Date.now()) && transactions.length > 0 && (

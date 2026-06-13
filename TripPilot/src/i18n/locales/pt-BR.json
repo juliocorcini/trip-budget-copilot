@@ -87,6 +87,7 @@
     "amigo_no_plan": "Esse gasto com {{type}} usou {{percent}}% do que sobra livre. Não há plano para essa categoria.",
     "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}.",
     "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações.",
+    "storage_backup_now": "Seus dados podem ser perdidos pelo sistema. Faça backup agora.",
     "storage_install_ios": "Instale o TripPilot na tela inicial para proteger seus dados (Compartilhar → Adicionar à Tela de Início).",
     "hidden_cards_entry": "{{count}} card(s) escondido(s) · Configurar tela inicial",
     "hide_card": "Esconder card",
@@ -473,6 +474,7 @@
     "owner_name": "Seu nome",
     "next": "Próximo",
     "finish": "Começar",
+    "create_error": "Não foi possível criar a viagem. Toque em Começar para tentar de novo.",
     "wallets_hint": "Como você vai pagar na viagem? Dá para editar e adicionar mais carteiras depois.",
     "default_wallet_label": "Carteira principal",
     "default_wallet_name": "Cartão de crédito",
@@ -933,7 +935,13 @@
   "recovery": {
     "title": "Encontramos sua viagem",
     "body": "Seus dados continuam salvos neste aparelho. Escolha a viagem para continuar de onde parou.",
-    "start_fresh": "Começar uma viagem nova"
+    "start_fresh": "Começar uma viagem nova",
+    "snapshot_title": "Recuperar seus dados",
+    "snapshot_body": "O app abriu vazio, mas encontramos um backup local recente neste aparelho. Quer restaurar seus dados?",
+    "snapshot_from": "Backup de",
+    "snapshot_contents": "{{trips}} viagem(ns) · {{expenses}} lançamento(s)",
+    "snapshot_restore": "Restaurar meus dados",
+    "restore_error": "Não foi possível restaurar — tente novamente"
   },
   "selection": {
     "count": "{{count}} selecionados",

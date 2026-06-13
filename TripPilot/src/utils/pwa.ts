@@ -59,12 +59,31 @@ export function registerServiceWorker(): void {
 // GAP-R2-005: persistence is requested automatically at key moments
 // (onboarding done, first expense) — idempotent, safe to call repeatedly.
 export async function requestPersistentStorage(): Promise<boolean> {
-  if (navigator.storage && navigator.storage.persist) {
-    const alreadyPersisted = await navigator.storage.persisted();
-    if (alreadyPersisted) return true;
-    return navigator.storage.persist();
+  if (!(navigator.storage && navigator.storage.persist)) return false;
+  let persisted = await navigator.storage.persisted();
+  if (!persisted) {
+    persisted = await navigator.storage.persist();
   }
-  return false;
+  // BUG-002: iOS Safari never grants persistence (persist() resolves false),
+  // so WebKit's ~7-day inactivity cap can evict IndexedDB and the user loses
+  // everything. We cannot force durability there — the real protections are
+  // the reinforced backup banner + the emergency snapshot. Here we just log the
+  // quota estimate when persistence failed, so the eviction risk is diagnosable.
+  if (!persisted) {
+    void logStorageEstimate();
+  }
+  return persisted;
+}
+
+async function logStorageEstimate(): Promise<void> {
+  try {
+    if (!navigator.storage?.estimate) return;
+    const { usage, quota } = await navigator.storage.estimate();
+    // eslint-disable-next-line no-console
+    console.info('[storage] persistence not granted — eviction risk', { usage, quota });
+  } catch {
+    // estimate() unsupported on this engine — nothing to log.
+  }
 }
 
 /* ─────────── DEC-135: in-app install button + manual update check ─────────── */

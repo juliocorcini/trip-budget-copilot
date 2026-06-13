@@ -6,9 +6,10 @@ import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { createOnboardingEntities } from '@/domain/onboarding';
 import { createDefaultActivityProfiles } from '@/domain/profiles';
 import { toCents } from '@/domain/money';
-import { db } from '@/data/db/database';
+import { createTripFromOnboarding } from '@/domain/orchestrators';
 import { appSettingsRepository } from '@/data/repositories';
 import { requestPersistentStorage } from '@/utils/pwa';
+import { showToast } from '@/components/Toast';
 import type { PhaseRhythmPreset } from '@/domain/types/phase';
 
 const RHYTHM_PRESETS: PhaseRhythmPreset[] = ['intense', 'moderate', 'relaxed'];
@@ -63,15 +64,26 @@ export function OnboardingPage() {
       reserveName: t('onboarding.reserve_name'),
     });
 
-    await db.trips.add(entities.trip);
-    await db.phases.add(entities.phase);
-    await db.budgetPools.add(entities.pool);
-    await db.budgetPoolPhaseLinks.add(entities.link);
-    if (entities.reserve) await db.envelopes.add(entities.reserve);
-    await db.participants.add(entities.owner);
-    await db.wallets.bulkAdd(entities.wallets);
-    await db.activityProfiles.bulkAdd(createDefaultActivityProfiles(entities.trip.id));
+    try {
+      // BUG-013: all-or-nothing. A crash/app-switch between these writes used
+      // to leave a trip with no pool/wallet/profiles as the active trip; the
+      // orchestrator now wraps them in a single transaction that rolls back on
+      // any failure, so nothing is persisted on error.
+      await createTripFromOnboarding({
+        ...entities,
+        profiles: createDefaultActivityProfiles(entities.trip.id),
+      });
+    } catch (err) {
+      // Partial state is impossible (the transaction rolled back) — let the
+      // user simply tap Finish again instead of stranding them.
+      console.error('[onboarding] trip creation failed', err);
+      showToast(t('onboarding.create_error'), 'danger');
+      return;
+    }
 
+    // BUG-013: flip the active trip only AFTER the data is durably committed.
+    // appSettings lives in its own store, so it stays out of the transaction
+    // above — activeTrip can never point at a rolled-back trip.
     await appSettingsRepository.update({
       activeTrip: entities.trip.id,
       onboardingCompleted: true,

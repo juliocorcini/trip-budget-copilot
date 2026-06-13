@@ -126,7 +126,11 @@ export async function repairDemoTripIfNeeded(settings: AppSettings): Promise<voi
     }
   }
 
-  if (profiles.length === 0) {
+  // BUG-015: only the DEMO trip gets its default profiles rebuilt. A real trip
+  // with zero active profiles is user truth (they deleted them, or it was
+  // imported/synced without profiles) — never resurrect them, or every boot
+  // re-creates rows and soft-deleted profiles pile up as duplicates.
+  if (settings.isDemo && profiles.length === 0) {
     await activityProfileRepository.bulkCreate(createDefaultProfiles(tripId));
   }
 }

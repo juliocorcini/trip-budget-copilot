@@ -47,6 +47,7 @@ import {
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { setActiveOuting, takePendingReload } from '@/utils/sw-reload';
+import { writeEmergencySnapshot } from '@/utils/emergency-snapshot';
 import {
   isOutingNotificationSupported,
   wasOutingNotificationPrompted,
@@ -795,6 +796,9 @@ export function OutingPage() {
 
     // DEC-120 (R-11): ending the session clears the persistent notification.
     await closeOutingNotifications();
+
+    // BUG-002: a finished outing is a natural checkpoint — refresh the snapshot.
+    void writeEmergencySnapshot();
 
     showToast(t('outing.session_ended'), 'success');
     setReviewing(false);

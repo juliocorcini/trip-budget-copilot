@@ -11,6 +11,7 @@ import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
+import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -274,6 +275,8 @@ export function QuickAddPage() {
 
       // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
       requestPersistentStorage();
+      // BUG-002: refresh the emergency snapshot every few expenses (best-effort).
+      void recordExpenseForSnapshot();
 
       await reload();
       navigate('/dashboard');

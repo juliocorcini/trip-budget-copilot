@@ -87,6 +87,7 @@
     "amigo_no_plan": "This {{type}} expense used {{percent}}% of what is left free. There is no plan for this category.",
     "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}.",
     "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings.",
+    "storage_backup_now": "Your data may be lost by the system. Back it up now.",
     "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen).",
     "hidden_cards_entry": "{{count}} hidden card(s) · Configure home screen",
     "hide_card": "Hide card",
@@ -473,6 +474,7 @@
     "owner_name": "Your name",
     "next": "Next",
     "finish": "Start",
+    "create_error": "Couldn't create the trip. Tap Start to try again.",
     "wallets_hint": "How will you pay during the trip? You can edit and add more wallets later.",
     "default_wallet_label": "Main wallet",
     "default_wallet_name": "Credit card",
@@ -933,7 +935,13 @@
   "recovery": {
     "title": "We found your trip",
     "body": "Your data is still saved on this device. Pick the trip to continue where you left off.",
-    "start_fresh": "Start a new trip"
+    "start_fresh": "Start a new trip",
+    "snapshot_title": "Recover your data",
+    "snapshot_body": "The app opened empty, but we found a recent local backup on this device. Restore your data?",
+    "snapshot_from": "Backup from",
+    "snapshot_contents": "{{trips}} trip(s) · {{expenses}} entry(ies)",
+    "snapshot_restore": "Restore my data",
+    "restore_error": "Could not restore — please try again"
   },
   "selection": {
     "count": "{{count}} selected",

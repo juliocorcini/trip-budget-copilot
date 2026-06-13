@@ -22,6 +22,8 @@ export type {
 } from './outing-orchestrators';
 export { buildFullBackup, importBackup } from './backup-orchestrators';
 export type { ImportMode } from './backup-orchestrators';
+export { createTripFromOnboarding } from './onboarding-orchestrators';
+export type { CreateTripFromOnboardingInput } from './onboarding-orchestrators';
 export {
   softDeleteTransactionsBatch,
   restoreTransactionsBatch,
