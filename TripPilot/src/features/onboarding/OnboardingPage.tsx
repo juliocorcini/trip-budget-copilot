@@ -3,17 +3,27 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
-import { createOnboardingEntities } from '@/domain/onboarding';
-import { createDefaultActivityProfiles } from '@/domain/profiles';
+import { createOnboardingEntities, buildQuickOnboardingInput } from '@/domain/onboarding';
+import {
+  createDefaultActivityProfiles,
+  TRIP_PRESETS,
+  findTripPreset,
+  applyTripPreset,
+} from '@/domain/profiles';
 import { toCents } from '@/domain/money';
+import { localDateString } from '@/domain/dates';
 import { createTripFromOnboarding } from '@/domain/orchestrators';
 import { appSettingsRepository } from '@/data/repositories';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { showToast } from '@/components/Toast';
+import { Icon } from '@/components/Icon';
 import type { PhaseRhythmPreset } from '@/domain/types/phase';
+import type { AppMode } from '@/domain/types/common';
+import type { TripPresetId } from '@/domain/profiles';
 
 const RHYTHM_PRESETS: PhaseRhythmPreset[] = ['intense', 'moderate', 'relaxed'];
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+type OnboardingFlow = 'quick' | 'detailed';
 
 export function OnboardingPage() {
   const { t } = useTranslation();
@@ -22,6 +32,10 @@ export function OnboardingPage() {
   // R5-04: keep the footer buttons above the on-screen keyboard (iOS overlay).
   const keyboardInset = useKeyboardInset();
 
+  // M16: default to the 1-question path; "personalizar" switches to detailed.
+  const [flow, setFlow] = useState<OnboardingFlow>('quick');
+  const [presetId, setPresetId] = useState<TripPresetId | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(0);
   const [tripName, setTripName] = useState('');
   const [phaseName, setPhaseName] = useState('');
@@ -41,15 +55,37 @@ export function OnboardingPage() {
   const [addCashWallet, setAddCashWallet] = useState(false);
   const [cashWalletName, setCashWalletName] = useState(() => t('onboarding.cash_wallet_name'));
 
-  const handleFinish = async () => {
+  // M16: the quick path defaults everything but amount + end date, and the
+  // chosen trip preset (if any) supplies rhythm/peak/reserve.
+  const buildEntities = () => {
     const deviceId = crypto.randomUUID();
-    const entities = createOnboardingEntities({
+    const totalAmountCents = toCents(parseFloat(totalAmount) || 0);
+    if (flow === 'quick') {
+      const quickName = tripName.trim() || t('onboarding.default_trip_name');
+      const preset = presetId ? findTripPreset(presetId) : null;
+      return createOnboardingEntities(
+        buildQuickOnboardingInput({
+          tripName: quickName,
+          currency,
+          startDate: startDate || localDateString(new Date()),
+          endDate,
+          totalAmountCents,
+          ownerName: t('onboarding.default_owner_name'),
+          deviceId,
+          defaultWalletName: t('onboarding.default_wallet_name'),
+          poolName: t('onboarding.pool_name', { phase: quickName }),
+          reserveName: t('onboarding.reserve_name'),
+          presetDefaults: preset ? applyTripPreset(preset, totalAmountCents) : null,
+        }),
+      );
+    }
+    return createOnboardingEntities({
       tripName,
       phaseName: phaseName || tripName,
       startDate,
       endDate,
       currency,
-      totalAmountCents: toCents(parseFloat(totalAmount) || 0),
+      totalAmountCents,
       protectedReserveCents: toCents(parseFloat(protectedReserve) || 0),
       ownerName: ownerName || t('onboarding.default_owner_name'),
       deviceId,
@@ -63,6 +99,12 @@ export function OnboardingPage() {
       poolName: t('onboarding.pool_name', { phase: phaseName || tripName }),
       reserveName: t('onboarding.reserve_name'),
     });
+  };
+
+  const handleFinish = async (appMode: AppMode) => {
+    if (submitting) return;
+    setSubmitting(true);
+    const entities = buildEntities();
 
     try {
       // BUG-013: all-or-nothing. A crash/app-switch between these writes used
@@ -78,16 +120,19 @@ export function OnboardingPage() {
       // user simply tap Finish again instead of stranding them.
       console.error('[onboarding] trip creation failed', err);
       showToast(t('onboarding.create_error'), 'danger');
+      setSubmitting(false);
       return;
     }
 
     // BUG-013: flip the active trip only AFTER the data is durably committed.
     // appSettings lives in its own store, so it stays out of the transaction
     // above — activeTrip can never point at a rolled-back trip.
+    // M16: persist the chosen UX mode in the same write.
     await appSettingsRepository.update({
       activeTrip: entities.trip.id,
       onboardingCompleted: true,
       isDemo: false,
+      appMode,
     });
 
     // GAP-R2-005: protect the freshly created trip data from browser eviction.
@@ -109,7 +154,7 @@ export function OnboardingPage() {
     (!phaseEndDate || !endDate || phaseEndDate <= endDate) &&
     (!phaseStartDate || !phaseEndDate || phaseStartDate <= phaseEndDate);
 
-  const steps = [
+  const detailedSteps = [
     <StepCard key="trip">
       <Field label={t('onboarding.trip_name')} value={tripName} onChange={setTripName} autoFocus />
       <Field label={t('onboarding.start_date')} type="date" value={startDate} onChange={setStartDate} />
@@ -216,11 +261,96 @@ export function OnboardingPage() {
     </StepCard>,
   ];
 
+  // M16: the 1-question path — amount + "until when", everything else defaulted.
+  const quickStep = (
+    <StepCard key="quick">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('onboarding.quick_title')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.quick_subtitle')}</p>
+      </div>
+      <Field label={t('onboarding.amount')} type="number" value={totalAmount} onChange={setTotalAmount} placeholder="0.00" autoFocus />
+      <Field label={t('onboarding.end_date')} type="date" value={endDate} onChange={setEndDate} />
+      <Field label={t('onboarding.trip_name')} value={tripName} onChange={setTripName} placeholder={t('onboarding.default_trip_name')} />
+      <CurrencySelect label={t('onboarding.currency')} value={currency} onChange={setCurrency} />
+      {/* M17: optional trip type — pre-fills rhythm/peak/reserve, never forced. */}
+      <div className="bg-surface-container rounded-xl p-4">
+        <label className="text-xs text-on-surface-faint block mb-2">{t('onboarding.trip_type_label')}</label>
+        <div className="flex gap-2">
+          {TRIP_PRESETS.map((preset) => {
+            const selected = presetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setPresetId((prev) => (prev === preset.id ? null : preset.id))}
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg btn-press ${
+                  selected ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                }`}
+                aria-pressed={selected}
+              >
+                <Icon name={preset.iconName} size={20} className={selected ? 'text-on-surface' : 'text-on-surface-dim'} />
+                <span className="text-[11px] font-medium">{t(`trip_presets.${preset.id}` as never)}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-on-surface-faint mt-2">{t('onboarding.trip_type_hint')}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => { setFlow('detailed'); setStep(0); }}
+        className="text-xs font-medium text-primary btn-press py-1 px-1 self-start"
+      >
+        {t('onboarding.customize_detailed')}
+      </button>
+    </StepCard>
+  );
+
+  // M16: closing step in BOTH flows — choose the UX mode (sets appMode).
+  const modeStep = (
+    <StepCard key="mode">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('onboarding.mode_title')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.mode_subtitle')}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => handleFinish('simple')}
+        disabled={submitting}
+        className="bg-surface-container rounded-xl p-4 flex items-start gap-3 text-left btn-press ring-1 ring-transparent hover:ring-primary disabled:opacity-50"
+      >
+        <Icon name="bolt" size={24} className="text-primary shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-on-surface">{t('onboarding.mode_simple_title')}</p>
+          <p className="text-xs text-on-surface-dim mt-0.5">{t('onboarding.mode_simple_desc')}</p>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={() => handleFinish('complete')}
+        disabled={submitting}
+        className="bg-surface-container rounded-xl p-4 flex items-start gap-3 text-left btn-press ring-1 ring-transparent hover:ring-primary disabled:opacity-50"
+      >
+        <Icon name="tune" size={24} className="text-primary shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-on-surface">{t('onboarding.mode_complete_title')}</p>
+          <p className="text-xs text-on-surface-dim mt-0.5">{t('onboarding.mode_complete_desc')}</p>
+        </div>
+      </button>
+    </StepCard>
+  );
+
+  const baseSteps = flow === 'quick' ? [quickStep] : detailedSteps;
+  const steps = [...baseSteps, modeStep];
+  const isModeStep = step === steps.length - 1;
+
   const canNext =
-    step === 0 ? Boolean(tripName && startDate && endDate)
-    : step === 1 ? phaseDatesValid
-    : step === 2 ? !!totalAmount
-    : true;
+    flow === 'quick'
+      ? Boolean(totalAmount && endDate)
+      : step === 0 ? Boolean(tripName && startDate && endDate)
+      : step === 1 ? phaseDatesValid
+      : step === 2 ? !!totalAmount
+      : true;
 
   return (
     // R5-04: dvh + scrollable content keeps the footer visible with the
@@ -246,20 +376,14 @@ export function OnboardingPage() {
             {t('common.back')}
           </button>
         )}
-        {step < steps.length - 1 ? (
+        {/* M16: the mode step finishes via its own option buttons (no footer CTA). */}
+        {!isModeStep && (
           <button
             onClick={() => setStep(step + 1)}
             disabled={!canNext}
             className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
           >
             {t('onboarding.next')}
-          </button>
-        ) : (
-          <button
-            onClick={handleFinish}
-            className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press"
-          >
-            {t('onboarding.finish')}
           </button>
         )}
       </div>

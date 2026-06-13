@@ -1,7 +1,13 @@
 # Pacote 1 — Captura + Saída v2 + Modo Simples — Log
 
 ## Current State
-- Fase: FASE 1 ✅ (GATE 3) | Gate: 4 (próximo) | Milestone: M15 | Done: 14/26 | Tests: 584 (baseline 504, +80) | Versão: 0.9.0 | Último deploy: a2ceefe4.trippilot.pages.dev | Build: ✅
+- Fase: FASE 2 (GATE 4 ✅) | Gate: 5 (próximo) | Milestone: M18 | Done: 17/26 | Tests: 600 (baseline 504, +96) | Versão: 0.9.1 | Último deploy: 58f5a182.trippilot.pages.dev | Build: ✅
+
+## HANDOFF Fase 2 (para retomar em chat novo)
+- Fase 1 (captura + saída v2 + extras) commitada/deployada até 0.9.0 (d71d7ae).
+- GATE 4 (fundação do modo) feito: appMode existe, onboarding 1-pergunta + escolha de modo, presets de viagem.
+- PRÓXIMO = GATE 5 (UI do modo): M18 dashboard simples, M19 nav mode-aware, M20 guardas de rota, M21 toggle em Settings → 0.9.2.
+- Para retomar: chat novo → "Leia phase-1-2-log.md + o pacote e execute do GATE 5".
 
 ## Baseline (GATE 0)
 - `npm run test` → 504 passed (64 files)
@@ -17,6 +23,7 @@
 - 0.8.4 (GATE 1) → https://57e0da00.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.8.5 (GATE 2) → https://e0c0c95f.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.9.0 (GATE 3, FASE 1 completa) → https://a2ceefe4.trippilot.pages.dev (alias master.trippilot.pages.dev)
+- 0.9.1 (GATE 4, fundação modo) → https://58f5a182.trippilot.pages.dev (alias master.trippilot.pages.dev)
 
 ## GATE 0 — Baseline + Novidades + pipeline (0.8.3) ✅
 - [x] Baseline: test 504 / tsc 0 / build ok
@@ -53,10 +60,16 @@
   - M12 reusa freeToSpend + todayAllowance já calculados no SimulatorPage; função pura decide borrow vs overspend real (estoura fase = não é borrow). Card warning/10 (padrão Dashboard/ExpenseList).
 
 ## FASE 2 — Modo Simples + Início Inteligente
-### GATE 4 — Fundação do modo (0.9.1)
-- [ ] M15 appMode em AppSettings
-- [ ] M16 Onboarding 1-pergunta + escolha simples/completo
-- [ ] M17 Defaults inteligentes por preset
+### GATE 4 — Fundação do modo (0.9.1) ✅
+- [x] M15 appMode em AppSettings — common.ts (AppMode), app-settings.ts, seed (default 'complete'), repo.get() backfill, backup-test fixtures atualizados
+- [x] M16 Onboarding 1-pergunta + escolha simples/completo — quickStep (valor + até quando + tipo) + modeStep (Simples/Completo → seta appMode); buildQuickOnboardingInput puro; reaproveita createTripFromOnboarding atômico (BUG-013)
+- [x] M17 Defaults por preset — domain/profiles/trip-presets.ts (Urbana/Família/Festival → ritmo/dias de pico/% reserva) + chips no quickStep
+- Decisões GATE 4:
+  - appMode default 'complete' (seguro): backups/registros antigos sem o campo continuam com tudo visível. Backfill no repo.get() (sem migração — ÂNCORA 14).
+  - Onboarding agora tem 2 portas: fluxo rápido (default) com link "personalizar" → fluxo detalhado (5 passos preservado, zero regressão). Escolha de modo é SEMPRE o último passo dos dois fluxos.
+  - trip-presets.ts separado de profile-presets.ts (presets de VIAGEM ≠ presets de ATIVIDADE) p/ não misturar responsabilidades. Preset é opcional/sugestão (ÂNCORA 10 — nada forçado).
+  - appMode NÃO entra no merge de import de backup (preferência local do aparelho; só activeTrip/onboardingCompleted são mesclados, como já era).
+  - +16 testes (3 appMode + 9 presets + 4 quick-onboarding). Total 600.
 ### GATE 5 — UI do modo (0.9.2)
 - [ ] M18 Dashboard simples
 - [ ] M19 Nav mode-aware

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.1',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Começo rápido: crie a viagem com 1 pergunta ("quanto você tem e até quando").',
+        'Escolha como usar: Modo Simples (só o essencial) ou Completo — dá pra trocar depois.',
+        'Tipo de viagem (Urbana/Família/Festival) já sugere ritmo e reserva.',
+      ],
+      en: [
+        'Quick start: create the trip with 1 question ("how much and until when").',
+        'Choose how to use it: Simple mode (essentials only) or Complete — switch anytime.',
+        'Trip type (Urban/Family/Festival) suggests pace and reserve for you.',
+      ],
+      es: [
+        'Inicio rápido: crea el viaje con 1 pregunta ("cuánto tienes y hasta cuándo").',
+        'Elige cómo usarlo: Modo Simple (lo esencial) o Completo — cámbialo cuando quieras.',
+        'Tipo de viaje (Urbana/Familia/Festival) ya sugiere ritmo y reserva.',
+      ],
+    },
+  },
+  {
     version: '0.9.0',
     date: '2026-06-13',
     items: {

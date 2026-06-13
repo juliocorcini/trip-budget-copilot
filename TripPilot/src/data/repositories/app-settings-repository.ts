@@ -19,6 +19,8 @@ class AppSettingsRepository {
     // fields existed are backfilled in memory (no migration needed).
     return {
       ...settings,
+      // M15: backups/records predating appMode default to the full app.
+      appMode: settings.appMode ?? 'complete',
       hiddenDashboardCards: settings.hiddenDashboardCards ?? [],
       dashboardCardOrder: settings.dashboardCardOrder ?? [],
       outingNotificationEnabled: settings.outingNotificationEnabled ?? true,

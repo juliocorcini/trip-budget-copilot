@@ -15,6 +15,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
   appSettings: {
     id: 'app-settings',
     activeTrip: null,
+    appMode: 'complete',
     alertTone: 'amigo_sincero',
     defaultCurrency: 'EUR',
     themePreference: 'dark',

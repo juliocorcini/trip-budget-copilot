@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '@/data/db/database';
 import { appSettingsRepository } from '@/data/repositories';
-import { APP_SETTINGS_ID } from '@/data/db/seed';
+import { APP_SETTINGS_ID, createDefaultAppSettings } from '@/data/db/seed';
 import type { Trip } from '@/domain/types/trip';
+import type { AppSettings } from '@/domain/types/app-settings';
 
 const meta = {
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -78,5 +79,31 @@ describe('appSettingsRepository — non-destructive get/update (BUG-003)', () =>
     const result = await appSettingsRepository.update({ activeTrip: null });
 
     expect(result.activeTrip).toBe('trip-active');
+  });
+});
+
+describe('appSettingsRepository — appMode (M15)', () => {
+  beforeEach(clearAll);
+
+  it('defaults appMode to complete on an empty DB (transient default)', async () => {
+    const settings = await appSettingsRepository.get();
+    expect(settings.appMode).toBe('complete');
+  });
+
+  it('backfills appMode to complete for records predating the field', async () => {
+    // A settings row written before appMode existed (no field on disk).
+    const legacy = createDefaultAppSettings() as Partial<AppSettings>;
+    delete legacy.appMode;
+    await db.appSettings.put(legacy as AppSettings);
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.appMode).toBe('complete');
+  });
+
+  it('persists a chosen appMode', async () => {
+    await appSettingsRepository.update({ appMode: 'simple' });
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.appMode).toBe('simple');
   });
 });

@@ -9,6 +9,8 @@ export function createDefaultAppSettings(): AppSettings {
   return {
     id: APP_SETTINGS_ID,
     activeTrip: null,
+    // E1 (M15): safe default — full app until the user opts into simple.
+    appMode: 'complete',
     alertTone: 'amigo_sincero',
     defaultCurrency: 'EUR',
     themePreference: 'dark',

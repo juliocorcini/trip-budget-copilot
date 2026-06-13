@@ -497,9 +497,26 @@
     "pool_name": "Fundo {{phase}}",
     "reserve_name": "Reserva protegida",
     "default_owner_name": "Eu",
+    "default_trip_name": "Minha viagem",
+    "quick_title": "Começar é rápido",
+    "quick_subtitle": "Quanto você tem e até quando? O resto dá pra ajustar depois.",
+    "trip_type_label": "Tipo de viagem (opcional)",
+    "trip_type_hint": "Só uma sugestão de ritmo e reserva — você ajusta quando quiser.",
+    "customize_detailed": "Personalizar tudo (modo detalhado)",
+    "mode_title": "Como você quer usar?",
+    "mode_subtitle": "Dá pra trocar quando quiser, em Ajustes.",
+    "mode_simple_title": "Começar simples",
+    "mode_simple_desc": "Só o essencial: quanto sobra hoje e registrar gastos. Vai liberando o resto aos poucos.",
+    "mode_complete_title": "Modo completo",
+    "mode_complete_desc": "Tudo à mão: planner, perfis, simulador e saídas.",
     "phase_details_hint": "A primeira fase começa com as datas da viagem — ajuste se ela cobrir só uma parte.",
     "phase_start_date": "Início da fase",
     "phase_end_date": "Fim da fase"
+  },
+  "trip_presets": {
+    "urban": "Urbana",
+    "family": "Família",
+    "festival": "Festival"
   },
   "demo": {
     "banner": "Você está usando dados de demonstração.",

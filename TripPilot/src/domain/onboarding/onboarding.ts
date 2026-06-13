@@ -7,7 +7,7 @@ import type { Envelope } from '@/domain/types/envelope';
 import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
 
-interface OnboardingInput {
+export interface OnboardingInput {
   tripName: string;
   phaseName: string;
   startDate: string;
@@ -40,6 +40,56 @@ interface OnboardingResult {
   reserve: Envelope | null;
   owner: Participant;
   wallets: Wallet[];
+}
+
+/** E1 (M17): the subset of onboarding fields a trip preset can pre-fill. */
+export interface QuickOnboardingPresetDefaults {
+  rhythmPreset: Phase['rhythmPreset'];
+  peakDays: number[];
+  protectedReserveCents: number;
+}
+
+export interface QuickOnboardingValues {
+  tripName: string;
+  currency: string;
+  startDate: string;
+  endDate: string;
+  totalAmountCents: number;
+  ownerName: string;
+  deviceId: string;
+  defaultWalletName: string;
+  poolName: string;
+  reserveName: string;
+  /** Preset suggestions, or null for a bare minimal trip. */
+  presetDefaults: QuickOnboardingPresetDefaults | null;
+}
+
+/**
+ * E1 (M16): builds the full OnboardingInput for the 1-question path. Phase
+ * mirrors the trip (single uniform phase), no cash wallet, and the trip preset
+ * (if any) supplies rhythm/peak/reserve. Pure — unit-tested in isolation.
+ */
+export function buildQuickOnboardingInput(values: QuickOnboardingValues): OnboardingInput {
+  const preset = values.presetDefaults;
+  return {
+    tripName: values.tripName,
+    phaseName: values.tripName,
+    startDate: values.startDate,
+    endDate: values.endDate,
+    currency: values.currency,
+    totalAmountCents: values.totalAmountCents,
+    protectedReserveCents: preset?.protectedReserveCents ?? 0,
+    ownerName: values.ownerName,
+    deviceId: values.deviceId,
+    defaultWalletName: values.defaultWalletName,
+    cashWalletName: null,
+    phaseStartDate: null,
+    phaseEndDate: null,
+    rhythmPreset: preset?.rhythmPreset ?? null,
+    peakDays: preset && preset.peakDays.length > 0 ? preset.peakDays : null,
+    poolName: values.poolName,
+    reserveName: values.reserveName,
+  };
 }
 
 export function createOnboardingEntities(input: OnboardingInput): OnboardingResult {

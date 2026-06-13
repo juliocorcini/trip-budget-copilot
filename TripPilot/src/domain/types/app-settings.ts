@@ -1,8 +1,10 @@
-import type { AlertTone, ThemePreference } from './common';
+import type { AlertTone, AppMode, ThemePreference } from './common';
 
 export interface AppSettings {
   id: string;
   activeTrip: string | null;
+  /** E1 (M15): simple/complete UX mode (non-indexed — no migration). */
+  appMode: AppMode;
   alertTone: AlertTone;
   defaultCurrency: string;
   themePreference: ThemePreference;

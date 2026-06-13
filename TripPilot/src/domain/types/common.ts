@@ -20,6 +20,12 @@ export type ShareType = 'equal' | 'custom';
 export type SessionStatus = 'active' | 'completed' | 'cancelled';
 export type AlertTone = 'amigo_sincero' | 'calmo' | 'direto';
 export type ThemePreference = 'dark' | 'light' | 'system';
+/**
+ * E1 (M15): two-doors UX. `simple` hides advanced surfaces (never deletes
+ * data — ÂNCORA 9); `complete` is the full app. Default is `complete` so any
+ * record predating this field keeps every feature visible.
+ */
+export type AppMode = 'simple' | 'complete';
 export type AlertType = 'budget_threshold' | 'backup_reminder' | 'session_limit' | 'custom';
 
 export type TransactionCategory =

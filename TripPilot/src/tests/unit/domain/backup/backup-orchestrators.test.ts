@@ -11,6 +11,7 @@ import type { Settlement } from '@/domain/types/settlement';
 const settings: AppSettings = {
   id: 'app-settings',
   activeTrip: null,
+  appMode: 'complete',
   alertTone: 'amigo_sincero',
   defaultCurrency: 'EUR',
   themePreference: 'dark',

@@ -497,9 +497,26 @@
     "pool_name": "{{phase}} fund",
     "reserve_name": "Protected reserve",
     "default_owner_name": "Me",
+    "default_trip_name": "My trip",
+    "quick_title": "Getting started is quick",
+    "quick_subtitle": "How much do you have and until when? You can adjust the rest later.",
+    "trip_type_label": "Trip type (optional)",
+    "trip_type_hint": "Just a suggestion for pace and reserve — adjust it whenever you like.",
+    "customize_detailed": "Customize everything (detailed mode)",
+    "mode_title": "How do you want to use it?",
+    "mode_subtitle": "You can switch anytime in Settings.",
+    "mode_simple_title": "Start simple",
+    "mode_simple_desc": "Just the essentials: what's left today and logging expenses. Unlock the rest gradually.",
+    "mode_complete_title": "Complete mode",
+    "mode_complete_desc": "Everything at hand: planner, profiles, simulator and outings.",
     "phase_details_hint": "The first phase starts with the trip dates — adjust if it covers only part of the trip.",
     "phase_start_date": "Phase start",
     "phase_end_date": "Phase end"
+  },
+  "trip_presets": {
+    "urban": "Urban",
+    "family": "Family",
+    "festival": "Festival"
   },
   "demo": {
     "banner": "You are using demo data.",
