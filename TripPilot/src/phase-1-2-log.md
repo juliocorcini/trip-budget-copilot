@@ -1,14 +1,14 @@
 # Pacote 1 — Captura + Saída v2 + Modo Simples — Log
 
 ## Current State
-- Fase: FASE 2 (GATE 5 ✅) | Gate: 6 (próximo) | Milestone: M22 | Done: 21/26 | Tests: 608 (baseline 504, +104) | Versão: 0.9.2 | Último deploy: 6e0f64ce.trippilot.pages.dev | Build: ✅
+- Fase: FASE 2 COMPLETA (GATE 6 ✅) | Gate: 7 (próximo) | Milestone: M25 ✅ | Done: 25/26 | Tests: 614 (baseline 504, +110) | Versão: 0.10.0 | Último deploy: eeb5d86f.trippilot.pages.dev | Build: ✅
 
-## HANDOFF Fase 2 (para retomar em chat novo)
-- Fase 1 (captura + saída v2 + extras) commitada/deployada até 0.9.0 (d71d7ae).
-- GATE 4 (fundação do modo) feito: appMode existe, onboarding 1-pergunta + escolha de modo, presets de viagem.
-- GATE 5 (UI do modo) feito: dashboard simples (SimpleHome), nav/FAB mode-aware, ModeGuard nas rotas avançadas, toggle em Settings.
-- PRÓXIMO = GATE 6 (FASE 2 COMPLETA): M22 revelação adaptativa, M23 microcopy/empty states, M24 i18n Fase 2, M25 testes (≥12) → 0.10.0.
-- Para retomar: chat novo → "Leia phase-1-2-log.md + o pacote e execute do GATE 6".
+## HANDOFF GATE 7 (para retomar em chat novo)
+- Fases 1 e 2 COMPLETAS, commitadas/deployadas até 0.10.0.
+- GATE 4-6 (modo simples): appMode, onboarding 1-pergunta + presets, SimpleHome, nav/FAB/rotas mode-aware, toggle, revelação adaptativa, microcopy, i18n, testes.
+- PRÓXIMO = GATE 7 (finalização): testes finais (todos verdes + contagem), smoke golden path, brain (DECs das features), bump 0.10.1 + deploy final.
+- M11 (voz): FEITA (não adiada).
+- Para retomar: chat novo → "Leia phase-1-2-log.md + o pacote e execute do GATE 7".
 
 ## Baseline (GATE 0)
 - `npm run test` → 504 passed (64 files)
@@ -26,6 +26,7 @@
 - 0.9.0 (GATE 3, FASE 1 completa) → https://a2ceefe4.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.9.1 (GATE 4, fundação modo) → https://58f5a182.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.9.2 (GATE 5, UI do modo) → https://6e0f64ce.trippilot.pages.dev (alias master.trippilot.pages.dev)
+- 0.10.0 (GATE 6, FASE 2 completa) → https://eeb5d86f.trippilot.pages.dev (alias master.trippilot.pages.dev)
 
 ## GATE 0 — Baseline + Novidades + pipeline (0.8.3) ✅
 - [x] Baseline: test 504 / tsc 0 / build ok
@@ -81,11 +82,15 @@
   - domain/app-mode/mode-visibility.ts: helpers puros `visibleInMode` (filtra `advanced` no simples) + `isAdvancedRouteBlocked` (simples && !override). Reusado por nav, FAB e guard (3 call sites → módulo compartilhado justificado).
   - Simples ESCONDE, nunca remove (ÂNCORA 9): rotas seguem existindo; guard tem escape hatch por visita sem gravar preferência (ÂNCORA 11). Review de saída (/outings/:id/review) fica fora do guard (ver dado existente é ok no simples).
   - SimpleHome usa freeTodayCents do model (mesma matemática do dashboard completo). +8 testes (mode-visibility). Total 608.
-### GATE 6 — Adaptativo + polish + i18n + testes → FASE 2 COMPLETA (0.10.0)
-- [ ] M22 Revelação adaptativa
-- [ ] M23 Empty states/microcopy
-- [ ] M24 i18n Fase 2
-- [ ] M25 Testes Fase 2 (≥12 novos)
+### GATE 6 — Adaptativo + polish + i18n + testes → FASE 2 COMPLETA (0.10.0) ✅
+- [x] M22 Revelação adaptativa — domain/app-mode/mode-reveal.ts (shouldOfferModeReveal + MODE_REVEAL_MIN_EXPENSES=5) + SimpleRevealCard no dashboard simples; flag simpleRevealDismissed em AppSettings (seed + backfill)
+- [x] M23 Empty states/microcopy — hint amigável no estado sem orçamento do SimpleHome (simple_no_budget_hint); tom "amigo sincero" no reveal/guard
+- [x] M24 i18n Fase 2 — reveal.* + mode_guard.* + settings.mode_* + dashboard.simple_* em pt/en/es
+- [x] M25 Testes Fase 2 — +6 reveal (total Fase 2: 16 GATE4 + 8 GATE5 + 6 GATE6 = 30; ≥12 ✓). Total geral 614
+- Decisões GATE 6:
+  - Revelação = oferta única (simpleRevealDismissed cobre aceitar E dispensar). Gatilho: appMode simples && !dismissed && nº de transações ≥ 5. Aceitar → appMode 'complete' (ação explícita do usuário, ÂNCORA 10) → dashboard completo aparece no reload.
+  - shouldOfferModeReveal com threshold obrigatório (sem arg opcional — guideline 3.3); call site passa MODE_REVEAL_MIN_EXPENSES, testes passam valores explícitos.
+  - simpleRevealDismissed não-indexado (sem migração — ÂNCORA 14), default false, backfill no repo.get(); fixtures de backup atualizadas.
 
 ## GATE 7 — Testes finais + brain + deploy final (0.10.1)
 - [ ] Testes todos verdes + contagem

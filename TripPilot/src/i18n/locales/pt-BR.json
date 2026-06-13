@@ -92,6 +92,7 @@
     "hidden_cards_entry": "{{count}} card(s) escondido(s) · Configurar tela inicial",
     "simple_free_today": "Livre hoje",
     "simple_no_budget": "Comece registrando",
+    "simple_no_budget_hint": "Assim que você lançar o primeiro gasto, mostro quanto sobra pra hoje.",
     "simple_over_today": "Você passou do limite de hoje",
     "simple_free_phase": "Livre nesta fase: {{amount}}",
     "simple_register": "Registrar gasto",
@@ -767,6 +768,12 @@
     "body": "Este recurso fica escondido no modo simples. Você pode abrir mesmo assim ou ativar o modo completo nos ajustes.",
     "open_anyway": "Abrir mesmo assim",
     "go_settings": "Ir para os ajustes"
+  },
+  "reveal": {
+    "title": "Pronto pra desbloquear mais?",
+    "body": "Você já pegou o jeito. Quer liberar rolês, simulador e planejamento? Dá pra voltar ao simples quando quiser.",
+    "accept": "Desbloquear tudo",
+    "dismiss": "Agora não"
   },
   "common": {
     "save": "Salvar",

@@ -14,10 +14,12 @@ import { toggleDashboardCardHidden, type DashboardCardId } from '@/domain/dashbo
 import { postponeOccurrence } from '@/domain/planning';
 import { resolveShareConfirmation } from '@/domain/orchestrators';
 import type { DashboardInsight } from '@/domain/insights';
+import { shouldOfferModeReveal, MODE_REVEAL_MIN_EXPENSES } from '@/domain/app-mode';
 import { useDashboardModel } from './useDashboardModel';
 import { DashboardCards } from './DashboardCards';
 import { DashboardSheets } from './DashboardSheets';
 import { SimpleHome } from './SimpleHome';
+import { SimpleRevealCard } from './SimpleRevealCard';
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -72,6 +74,18 @@ export function DashboardPage() {
     await reload();
   };
 
+  // M22: accepting the adaptive offer switches to complete mode (explicit user
+  // action — ÂNCORA 10) and never asks again; dismissing only silences it.
+  const handleRevealAccept = async () => {
+    await appSettingsRepository.update({ appMode: 'complete', simpleRevealDismissed: true });
+    await reload();
+  };
+
+  const handleRevealDismiss = async () => {
+    await appSettingsRepository.update({ simpleRevealDismissed: true });
+    await reload();
+  };
+
   // DEC-072 (M6.3): "Postpone" pushes the event's date interval +1 day.
   const handlePostponeEvent = async (occurrenceId: string) => {
     const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
@@ -120,6 +134,13 @@ export function DashboardPage() {
   const hiddenCardCount = (settings.hiddenDashboardCards ?? []).length;
   // M18: simple mode shows a lean home (one number + register) instead of cards.
   const isSimpleMode = settings.appMode === 'simple';
+  // M22: offer to unlock complete mode once enough expenses are logged.
+  const offerReveal = shouldOfferModeReveal(
+    settings.appMode,
+    settings.simpleRevealDismissed,
+    transactions.length,
+    MODE_REVEAL_MIN_EXPENSES,
+  );
 
   return (
     <div className="flex flex-col pb-6">
@@ -223,7 +244,13 @@ export function DashboardPage() {
 
       {/* M18: simple = lean home; complete = the full configurable card stack */}
       {isSimpleMode ? (
-        <SimpleHome model={model} trip={trip} />
+        <>
+          <SimpleHome model={model} trip={trip} />
+          {/* M22: adaptive reveal — discreet, dismissible, shown once */}
+          {offerReveal && (
+            <SimpleRevealCard onAccept={handleRevealAccept} onDismiss={handleRevealDismiss} />
+          )}
+        </>
       ) : (
         <>
           {/* DEC-119 (R-10): configurable home screen — order + visibility */}

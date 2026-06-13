@@ -92,6 +92,7 @@
     "hidden_cards_entry": "{{count}} hidden card(s) · Configure home screen",
     "simple_free_today": "Free today",
     "simple_no_budget": "Start by logging",
+    "simple_no_budget_hint": "Once you log your first expense, I'll show how much is free for today.",
     "simple_over_today": "You went over today's limit",
     "simple_free_phase": "Free this phase: {{amount}}",
     "simple_register": "Log expense",
@@ -767,6 +768,12 @@
     "body": "This feature is hidden in simple mode. You can open it anyway or switch to complete mode in settings.",
     "open_anyway": "Open anyway",
     "go_settings": "Go to settings"
+  },
+  "reveal": {
+    "title": "Ready to unlock more?",
+    "body": "You've got the hang of it. Want outings, the simulator and planning? You can go back to simple anytime.",
+    "accept": "Unlock everything",
+    "dismiss": "Not now"
   },
   "common": {
     "save": "Save",

@@ -92,6 +92,7 @@
     "hidden_cards_entry": "{{count}} card(s) oculto(s) · Configurar pantalla de inicio",
     "simple_free_today": "Libre hoy",
     "simple_no_budget": "Empieza registrando",
+    "simple_no_budget_hint": "En cuanto registres el primer gasto, te muestro cuánto queda para hoy.",
     "simple_over_today": "Pasaste el límite de hoy",
     "simple_free_phase": "Libre en esta fase: {{amount}}",
     "simple_register": "Registrar gasto",
@@ -767,6 +768,12 @@
     "body": "Esta función está oculta en el modo simple. Puedes abrirla igual o activar el modo completo en ajustes.",
     "open_anyway": "Abrir igual",
     "go_settings": "Ir a ajustes"
+  },
+  "reveal": {
+    "title": "¿Listo para desbloquear más?",
+    "body": "Ya le agarraste la mano. ¿Quieres salidas, simulador y planificación? Puedes volver al simple cuando quieras.",
+    "accept": "Desbloquear todo",
+    "dismiss": "Ahora no"
   },
   "common": {
     "save": "Guardar",

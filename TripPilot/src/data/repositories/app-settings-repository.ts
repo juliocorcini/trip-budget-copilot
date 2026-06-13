@@ -21,6 +21,8 @@ class AppSettingsRepository {
       ...settings,
       // M15: backups/records predating appMode default to the full app.
       appMode: settings.appMode ?? 'complete',
+      // M22: predating records have never seen the unlock offer.
+      simpleRevealDismissed: settings.simpleRevealDismissed ?? false,
       hiddenDashboardCards: settings.hiddenDashboardCards ?? [],
       dashboardCardOrder: settings.dashboardCardOrder ?? [],
       outingNotificationEnabled: settings.outingNotificationEnabled ?? true,

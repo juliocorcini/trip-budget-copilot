@@ -11,6 +11,8 @@ export function createDefaultAppSettings(): AppSettings {
     activeTrip: null,
     // E1 (M15): safe default — full app until the user opts into simple.
     appMode: 'complete',
+    // E1 (M22): adaptive unlock offer not yet shown.
+    simpleRevealDismissed: false,
     alertTone: 'amigo_sincero',
     defaultCurrency: 'EUR',
     themePreference: 'dark',

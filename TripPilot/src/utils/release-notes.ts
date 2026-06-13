@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.0',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Início inteligente fechado: depois de alguns gastos, o app oferece desbloquear tudo (rolês, simulador, planejamento) — sem forçar.',
+        'Textos mais humanos no modo simples, no tom de "amigo sincero".',
+        'Fase 2 completa: modo simples ponta a ponta, do começo rápido ao desbloqueio.',
+      ],
+      en: [
+        'Smart start wrapped up: after a few expenses, the app offers to unlock everything (outings, simulator, planning) — never forced.',
+        'Warmer copy across simple mode, in the "honest friend" tone.',
+        'Phase 2 complete: simple mode end to end, from quick start to unlock.',
+      ],
+      es: [
+        'Inicio inteligente cerrado: tras algunos gastos, la app ofrece desbloquear todo (salidas, simulador, planificación) — sin forzar.',
+        'Textos más humanos en el modo simple, con tono de "amigo sincero".',
+        'Fase 2 completa: modo simple de punta a punta, del inicio rápido al desbloqueo.',
+      ],
+    },
+  },
+  {
     version: '0.9.2',
     date: '2026-06-13',
     items: {

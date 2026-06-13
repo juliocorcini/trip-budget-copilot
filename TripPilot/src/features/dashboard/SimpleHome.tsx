@@ -32,7 +32,10 @@ export function SimpleHome({ model, trip }: { model: DashboardModel; trip: Trip 
             <span className="text-2xl">{display.decimal}</span>
           </p>
         ) : (
-          <p className="mt-3 text-2xl font-bold text-on-surface">{t('dashboard.simple_no_budget')}</p>
+          <>
+            <p className="mt-3 text-2xl font-bold text-on-surface">{t('dashboard.simple_no_budget')}</p>
+            <p className="mt-2 text-xs text-on-surface-dim">{t('dashboard.simple_no_budget_hint')}</p>
+          </>
         )}
         {isOver && (
           <p className="mt-3 text-xs font-semibold text-error">{t('dashboard.simple_over_today')}</p>
