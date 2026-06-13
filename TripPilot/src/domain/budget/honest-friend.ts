@@ -67,6 +67,40 @@ export type HonestFriendV2 =
       impactPercent: number;
     };
 
+/**
+ * E2 (M12): "borrow from tomorrow" — an honest warning, never a block
+ * (DEC-053). Triggered when a spend overflows TODAY's allowance but still
+ * fits the phase's free-to-spend: the money has to come from another day.
+ * A spend that overflows the whole phase is a real overspend (handled by the
+ * simulator's exceeds-free path), so it is NOT a borrow situation here.
+ */
+export type BorrowFromTomorrow =
+  | { kind: 'none' }
+  | {
+      kind: 'borrow_tomorrow';
+      /** How much today goes negative (amount − today's allowance). */
+      todayNegativeCents: number;
+      /** Phase free margin left after the spend. */
+      remainingAfterCents: number;
+    };
+
+export function evaluateBorrowFromTomorrow(
+  amountCents: number,
+  todayAllowanceCents: number | null,
+  freeToSpendCents: number,
+): BorrowFromTomorrow {
+  if (amountCents <= 0 || todayAllowanceCents === null) return { kind: 'none' };
+  // Fits today → nothing to borrow.
+  if (amountCents <= todayAllowanceCents) return { kind: 'none' };
+  // Overflows the whole phase → real overspend, not a borrow.
+  if (amountCents > freeToSpendCents) return { kind: 'none' };
+  return {
+    kind: 'borrow_tomorrow',
+    todayNegativeCents: amountCents - todayAllowanceCents,
+    remainingAfterCents: freeToSpendCents - amountCents,
+  };
+}
+
 function addDays(dateIso: string, days: number): string {
   const d = new Date(`${dateIso}T12:00:00`);
   d.setDate(d.getDate() + days);

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.0',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Falar o gasto: toque no microfone e diga "25 no mercado" (onde houver suporte).',
+        'Simulador "pegar de amanhã": aviso honesto quando o gasto cabe na fase, mas estoura o dia.',
+        'Captura mais rápida e redonda, fechando a primeira fase de melhorias.',
+      ],
+      en: [
+        'Speak the expense: tap the mic and say "25 at the market" (where supported).',
+        '"Borrow from tomorrow" in the simulator: an honest heads-up when a spend fits the phase but blows today.',
+        'Faster, rounder capture, wrapping up the first wave of improvements.',
+      ],
+      es: [
+        'Decir el gasto: toca el micrófono y di "25 en el mercado" (donde haya soporte).',
+        'Simulador "tomar de mañana": aviso honesto cuando el gasto cabe en la fase, pero se pasa del día.',
+        'Captura más rápida y completa, cerrando la primera fase de mejoras.',
+      ],
+    },
+  },
+  {
     version: '0.8.5',
     date: '2026-06-13',
     items: {

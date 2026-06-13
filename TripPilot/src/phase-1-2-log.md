@@ -1,7 +1,7 @@
 # Pacote 1 — Captura + Saída v2 + Modo Simples — Log
 
 ## Current State
-- Fase: GATE 2 ✅ | Gate: 3 (próximo) | Milestone: M11 | Done: 11/26 | Tests: 567 (baseline 504, +63) | Versão: 0.8.5 | Último deploy: e0c0c95f.trippilot.pages.dev | Build: ✅
+- Fase: FASE 1 ✅ (GATE 3) | Gate: 4 (próximo) | Milestone: M15 | Done: 14/26 | Tests: 584 (baseline 504, +80) | Versão: 0.9.0 | Último deploy: a2ceefe4.trippilot.pages.dev | Build: ✅
 
 ## Baseline (GATE 0)
 - `npm run test` → 504 passed (64 files)
@@ -16,6 +16,7 @@
 - 0.8.3 (GATE 0) → https://789fe9cb.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.8.4 (GATE 1) → https://57e0da00.trippilot.pages.dev (alias master.trippilot.pages.dev)
 - 0.8.5 (GATE 2) → https://e0c0c95f.trippilot.pages.dev (alias master.trippilot.pages.dev)
+- 0.9.0 (GATE 3, FASE 1 completa) → https://a2ceefe4.trippilot.pages.dev (alias master.trippilot.pages.dev)
 
 ## GATE 0 — Baseline + Novidades + pipeline (0.8.3) ✅
 - [x] Baseline: test 504 / tsc 0 / build ok
@@ -42,11 +43,14 @@
   - M6 aprende no path quick-add (não em ajustes de total). persistSessionItem ganhou learnFromCents; addSessionExpense ganhou flag learnQuickValue.
   - M8 grava N itens via orquestrador atômico (faithful "N itens"); split usa resolvePayerExpense por item, owner = 1º participante (casa com calculateRoundPersonalCents). Rodada não passa pelo gate over-max (ação explícita).
   - M7/M8 não abrem o enrich stepper; usam toast (repeat com undo). 22 testes novos (17 puros + 5 orquestrador).
-### GATE 3 — Extras + i18n + testes → FASE 1 COMPLETA (0.9.0)
-- [ ] M11 (Opcional) voz (parseVoiceExpense)
-- [ ] M12 Simulador "pegar de amanhã"
-- [ ] M13 i18n Gates 1-3
-- [ ] M14 Testes Fase 1 (≥18 novos)
+### GATE 3 — Extras + i18n + testes → FASE 1 COMPLETA (0.9.0) ✅
+- [x] M11 (Opcional) voz — utils/speech-recognition.ts (boundary) + domain/transactions/voice.ts (parseVoiceExpense) + botão mic no QuickAdd (escondido se sem suporte)
+- [x] M12 Simulador "pegar de amanhã" (evaluateBorrowFromTomorrow em honest-friend.ts) — card de aviso no SimulatorPage (cabe na fase, estoura o dia; nunca bloqueia)
+- [x] M13 i18n Gates 1-3 — chaves pt/en/es para voz + borrow_tomorrow
+- [x] M14 Testes Fase 1 — 17 novos (7 borrow + 10 voz). Total 584 (de 567)
+- Decisões GATE 3:
+  - M11 voz isolada num boundary (speech-recognition.ts) com detecção de suporte → botão só aparece se SpeechRecognition/webkit existir (ÂNCORA: voz é aditiva, degrada limpo). parseVoiceExpense é puro: 1º número = valor, resto = descrição (tira verbo de gasto + moeda).
+  - M12 reusa freeToSpend + todayAllowance já calculados no SimulatorPage; função pura decide borrow vs overspend real (estoura fase = não é borrow). Card warning/10 (padrão Dashboard/ExpenseList).
 
 ## FASE 2 — Modo Simples + Início Inteligente
 ### GATE 4 — Fundação do modo (0.9.1)

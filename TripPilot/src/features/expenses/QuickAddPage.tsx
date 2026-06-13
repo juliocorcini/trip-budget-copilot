@@ -8,6 +8,7 @@ import {
   getFrequentExpenses,
   getCategoryTypicalCents,
   detectAmountAnomaly,
+  parseVoiceExpense,
 } from '@/domain/transactions';
 import type { ExpenseSuggestion } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
@@ -18,6 +19,7 @@ import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
+import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
@@ -38,7 +40,7 @@ const CATEGORY_KEYS = [
 ] as const;
 
 export function QuickAddPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, settings, error, reload, retry } =
@@ -79,6 +81,8 @@ export function QuickAddPage() {
   const [showAnomalyConfirm, setShowAnomalyConfirm] = useState(false);
   // M4: offer to duplicate a transport expense as a round trip.
   const [showRoundTrip, setShowRoundTrip] = useState(false);
+  // M11: optional voice capture — only offered when the browser supports it.
+  const [listening, setListening] = useState(false);
 
   // BUG-002 (R6-02): never fall back to phases[0] — resolveActivePhase picks
   // the nearest phase (current, else last past, else first future).
@@ -180,6 +184,24 @@ export function QuickAddPage() {
     setCategory(suggestion.category);
     setDescription(suggestion.description);
     setAmount(String(fromCents(suggestion.amountCents)));
+  };
+
+  // M11: speak the expense — fills amount + description; the user reviews it.
+  const voiceSupported = !isTransferLike && isSpeechRecognitionSupported();
+  const handleVoiceCapture = () => {
+    if (listening) return;
+    setListening(true);
+    startVoiceCapture(i18n.language, {
+      onResult: (transcript) => {
+        const parsed = parseVoiceExpense(transcript);
+        if (parsed.amountCents !== null && parsed.amountCents > 0) {
+          setAmount(String(fromCents(parsed.amountCents)));
+        }
+        if (parsed.description !== '') setDescription(parsed.description);
+      },
+      onError: () => setListening(false),
+      onEnd: () => setListening(false),
+    });
   };
 
   // DEC-128: mental anchor while typing — "€20 ≈ R$ 124".
@@ -426,6 +448,27 @@ export function QuickAddPage() {
         </div>
         {anchorHint && (
           <p className="text-sm font-semibold text-on-surface-dim mt-1 tabular">{anchorHint}</p>
+        )}
+        {/* M11: optional voice capture (hidden when unsupported by the browser) */}
+        {voiceSupported && (
+          <button
+            onClick={handleVoiceCapture}
+            disabled={listening}
+            className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg btn-press ${
+              listening ? 'bg-primary/20 ring-1 ring-primary' : 'bg-surface-high'
+            }`}
+          >
+            <Icon
+              name="mic"
+              size={16}
+              className={listening ? 'text-primary' : 'text-on-surface-dim'}
+            />
+            <span
+              className={`text-xs font-medium ${listening ? 'text-primary' : 'text-on-surface-dim'}`}
+            >
+              {listening ? t('expenses.voice_listening') : t('expenses.voice_hint')}
+            </span>
+          </button>
         )}
       </div>
 

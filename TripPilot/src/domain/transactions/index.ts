@@ -18,3 +18,5 @@ export {
   detectAmountAnomaly,
 } from './suggestions';
 export type { ExpenseSuggestion } from './suggestions';
+export { parseVoiceExpense } from './voice';
+export type { VoiceExpenseParse } from './voice';

@@ -184,6 +184,8 @@
     "round_trip_body": "Quer registrar também a viagem de volta, com o mesmo valor?",
     "round_trip_yes": "Sim, ida e volta",
     "round_trip_no": "Só a ida",
+    "voice_hint": "Falar o gasto",
+    "voice_listening": "Ouvindo… fale o valor",
     "detail_title": "Detalhe do gasto",
     "date": "Data",
     "financial_flow": "Fluxo financeiro",
@@ -675,6 +677,8 @@
     "reason_consumes_whole_plan": "Consome praticamente tudo o que resta do plano de {{name}}.",
     "reason_over_plan": "O plano de {{name}} já está esgotado — esse gasto sai de outras categorias.",
     "reason_exceeds_free": "Passa do seu livre da fase em {{missing}}.",
+    "borrow_tomorrow_title": "Vai pegar de amanhã",
+    "borrow_tomorrow_body": "Hoje passa em {{over}}, mas ainda cabe na fase. Se gastar isso, sobram {{remaining}} livres pro resto — só vá com calma nos próximos dias.",
     "cta_register": "Registrar esse gasto",
     "cta_planner": "Ver no planner"
   },

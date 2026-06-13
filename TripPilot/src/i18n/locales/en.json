@@ -184,6 +184,8 @@
     "round_trip_body": "Want to log the return trip too, at the same amount?",
     "round_trip_yes": "Yes, round trip",
     "round_trip_no": "One way only",
+    "voice_hint": "Speak the expense",
+    "voice_listening": "Listening… say the amount",
     "detail_title": "Expense detail",
     "date": "Date",
     "financial_flow": "Financial flow",
@@ -675,6 +677,8 @@
     "reason_consumes_whole_plan": "It consumes nearly everything left in your {{name}} plan.",
     "reason_over_plan": "Your {{name}} plan is already used up — this spend comes out of other categories.",
     "reason_exceeds_free": "It goes over your phase free margin by {{missing}}.",
+    "borrow_tomorrow_title": "Borrowing from tomorrow",
+    "borrow_tomorrow_body": "Today goes over by {{over}}, but it still fits the phase. Spend it and you have {{remaining}} free for the rest — just ease off over the next days.",
     "cta_register": "Register this expense",
     "cta_planner": "See in planner"
   },

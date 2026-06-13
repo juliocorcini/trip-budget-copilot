@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildHonestFriendV2,
   projectReserveStartDate,
+  evaluateBorrowFromTomorrow,
   type HonestFriendV2Input,
 } from '@/domain/budget';
 import type { Phase } from '@/domain/types/phase';
@@ -133,5 +134,47 @@ describe('projectReserveStartDate (DEC-093 / R-11)', () => {
 
   it('already over budget → reserve in use TODAY', () => {
     expect(projectReserveStartDate(phase, '2026-06-10', 13_000, 12_000)).toBe('2026-06-10');
+  });
+});
+
+describe('evaluateBorrowFromTomorrow (E2 / M12 / DEC-053)', () => {
+  it('fits today → no borrow', () => {
+    // €30 spend, €50 today, €200 phase free → comfortably within today.
+    expect(evaluateBorrowFromTomorrow(3_000, 5_000, 20_000).kind).toBe('none');
+  });
+
+  it('overflows today but fits the phase → borrow warning with math', () => {
+    // €80 spend, €50 today, €200 phase free.
+    const result = evaluateBorrowFromTomorrow(8_000, 5_000, 20_000);
+    expect(result.kind).toBe('borrow_tomorrow');
+    if (result.kind === 'borrow_tomorrow') {
+      expect(result.todayNegativeCents).toBe(3_000); // 8000 − 5000
+      expect(result.remainingAfterCents).toBe(12_000); // 20000 − 8000
+    }
+  });
+
+  it('overflows the whole phase → real overspend, not a borrow', () => {
+    // €250 spend, €50 today, €200 phase free → exceeds free entirely.
+    expect(evaluateBorrowFromTomorrow(25_000, 5_000, 20_000).kind).toBe('none');
+  });
+
+  it('no daily allowance (off-rhythm day) → no borrow', () => {
+    expect(evaluateBorrowFromTomorrow(8_000, null, 20_000).kind).toBe('none');
+  });
+
+  it('spend exactly equal to today allowance → no borrow', () => {
+    expect(evaluateBorrowFromTomorrow(5_000, 5_000, 20_000).kind).toBe('none');
+  });
+
+  it('spend exactly equal to phase free (above today) → borrow at the limit', () => {
+    const result = evaluateBorrowFromTomorrow(20_000, 5_000, 20_000);
+    expect(result.kind).toBe('borrow_tomorrow');
+    if (result.kind === 'borrow_tomorrow') {
+      expect(result.remainingAfterCents).toBe(0);
+    }
+  });
+
+  it('non-positive amount → no borrow', () => {
+    expect(evaluateBorrowFromTomorrow(0, 5_000, 20_000).kind).toBe('none');
   });
 });

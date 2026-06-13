@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
-import { calculateFreeToSpend } from '@/domain/budget';
+import { calculateFreeToSpend, evaluateBorrowFromTomorrow } from '@/domain/budget';
 import { filterTransactionsByPool, calculateSpentOnDate } from '@/domain/transactions';
 import { calculateTodayFreeBudget } from '@/domain/phases';
 import {
@@ -161,20 +161,26 @@ export function SimulatorPage() {
       : null;
 
   const amountCents = amount ? toCents(parseFloat(amount) || 0) : 0;
+  const todayAllowanceCents =
+    todayBudget && todayBudget.todayAllowanceCents > 0 ? todayBudget.todayAllowanceCents : null;
   const result =
     fts && amountCents > 0 && target !== null
       ? simulateContextualSpend({
           amountCents,
           target,
           freeToSpendCents: fts.freeToSpendCents,
-          todayAllowanceCents:
-            todayBudget && todayBudget.todayAllowanceCents > 0
-              ? todayBudget.todayAllowanceCents
-              : null,
+          todayAllowanceCents,
           profiles: profileChips,
           events: eventChips,
         })
       : null;
+
+  // E2 (M12, DEC-053): honest "borrow from tomorrow" warning — fits the phase
+  // but not today. Shown alongside the verdict; it never blocks the spend.
+  const borrow =
+    fts && amountCents > 0
+      ? evaluateBorrowFromTomorrow(amountCents, todayAllowanceCents, fts.freeToSpendCents)
+      : { kind: 'none' as const };
 
   // BUG-014: recovery screen on DB error instead of a blank page.
   if (!trip) {
@@ -333,6 +339,24 @@ export function SimulatorPage() {
           {result.facts.map((fact, i) => (
             <FactCard key={`${fact.kind}-${i}`} text={formatFact(fact, currency, t)} />
           ))}
+
+          {/* E2 (M12): honest "borrow from tomorrow" — a warning, never a block */}
+          {borrow.kind === 'borrow_tomorrow' && (
+            <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 flex items-start gap-3">
+              <Icon name="schedule" size={18} className="text-warning" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-warning">
+                  {t('simulator.borrow_tomorrow_title')}
+                </p>
+                <p className="text-[13px] font-medium leading-snug mt-1 text-on-surface">
+                  {t('simulator.borrow_tomorrow_body', {
+                    over: formatMoney(borrow.todayNegativeCents, currency),
+                    remaining: formatMoney(borrow.remainingAfterCents, currency),
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* R6-21: post-verdict CTAs */}
           <div className="flex gap-2">

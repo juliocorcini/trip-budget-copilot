@@ -15,8 +15,12 @@ export {
   getAvailablePoolsForPhase,
   createEnvelope,
 } from './budget';
-export { buildHonestFriendV2, projectReserveStartDate } from './honest-friend';
-export type { HonestFriendV2, HonestFriendV2Input } from './honest-friend';
+export {
+  buildHonestFriendV2,
+  projectReserveStartDate,
+  evaluateBorrowFromTomorrow,
+} from './honest-friend';
+export type { HonestFriendV2, HonestFriendV2Input, BorrowFromTomorrow } from './honest-friend';
 export { buildRescuePlan } from './rescue';
 export type {
   RescuePlan,
