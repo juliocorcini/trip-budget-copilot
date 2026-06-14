@@ -32,8 +32,40 @@
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  /* E5 "lens of the day": the chosen check-in mode spotlights one card — a small
+     tag marks it, and the contained card gets a soft primary ring. Both ease in
+     once and respect reduced-motion. */
+  .lens-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px 2px 6px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--primary);
+    background: #C75B3914;
+    border: 1px solid #C75B3926;
+    animation: lens-in 280ms var(--ease-out) both;
+  }
+  .lens-chip--corner {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  .lens-card {
+    box-shadow: 0 0 0 1.5px var(--primary), 0 10px 28px -16px #C75B3966;
+    transition: box-shadow 280ms var(--ease-out);
+  }
+  @keyframes lens-in {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   @media (prefers-reduced-motion: reduce) {
     .checkin-reveal { animation: none; }
+    .lens-chip { animation: none; }
+    .lens-card { transition: none; }
   }
 }
 

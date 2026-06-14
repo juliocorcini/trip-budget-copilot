@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.19',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Check-in vira a “lente do dia”: o modo que você escolhe agora destaca um sinal da tela inicial — tranquilo realça o cofrinho, passeio realça suas ocasiões e noite projeta quantas rodadas cabem na reserva da noite.',
+        'O modo do dia deixou de ser só um rótulo: além dos valores que já mudavam, ele aponta para o card em foco logo abaixo.',
+      ],
+      en: [
+        'Check-in becomes the “lens of the day”: the mode you pick now spotlights one home-screen signal — calm highlights the piggy bank, outing highlights your occasions, and night projects how many rounds fit the night reserve.',
+        'The day’s mode is no longer just a label: on top of the numbers that already changed, it points to the card in focus right below.',
+      ],
+      es: [
+        'El check-in se vuelve la “lente del día”: el modo que eliges ahora resalta una señal de la pantalla inicial — tranquilo resalta la alcancía, salida resalta tus ocasiones y noche proyecta cuántas rondas caben en la reserva de la noche.',
+        'El modo del día ya no es solo una etiqueta: además de los valores que ya cambiaban, señala la tarjeta en foco justo abajo.',
+      ],
+    },
+  },
+  {
     version: '0.14.18',
     date: '2026-06-14',
     items: {

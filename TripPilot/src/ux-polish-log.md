@@ -409,6 +409,20 @@ Ideia estrutural do conselho (Connector, "Spotify now-playing"). Usuário pulou 
 
 821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v27.
 
+### Gate R — Lugares próximos automáticos (completa o M4 cortado) → 0.14.18 (DEC-166) ✅
+
+Pedido do Julio: ao registrar gasto / durante saída, listar estabelecimentos perto (por categoria), pré-selecionar o mais próximo, com fallback manual. Provider Overpass/OSM (grátis, sem chave). Domínio puro em `domain/location/nearby.ts`, boundary `searchNearbyPlaces` em `utils/places.ts` (nunca trava), UI compartilhada `NearbyPlaceList` no QuickAdd e na saída. Privacidade: `location_privacy_hint` atualizado (coords vão ao Overpass quando captura ON + online).
+
+**Visual** `scripts/ux-nearby.mjs` (QuickAdd) + `scripts/ux-outing-nearby.mjs` (saída ativa): mais próximo pré-selecionado ("em Cervejaria Ramiro", `osm:node:101`), lista com distâncias (22m/173m/212m) e fallback manual. RESULT: PASS (build de produção; StrictMode do dev causa race no efeito de captura). ✅
+
+### Gate S — Check-in como "lente do dia" (estrutural) → 0.14.19 (DEC-167) ✅
+
+A ideia estrutural mais subjetiva, aprovada pelo Julio. O modo do check-in passa a destacar UM sinal do dashboard: **tranquilo → cofrinho** (ring + chip "No foco de hoje"), **passeio → contadores de ocasião** (chip), **noite → projeção "≈ N rodadas"** inline (reserva da noite ÷ preço de rodada do próprio perfil; omite se < 1). Linha de explicação no card de check-in conecta o modo ao card destacado. Read-only (ÂNCORA 12): nenhum número do orçamento muda. Domínio puro `domain/check-in/lens.ts` (`getCheckInLens`/`estimateNightRounds`/`deriveAvgRoundCents`), 6 testes novos.
+
+**Visual** `scripts/ux-lens.mjs`: noite → "~13 rodadas" (floor(4765/350)); passeio → chip + "em foco: suas ocasiões"; tranquilo → chip + ring no cofrinho + "em foco: o cofrinho". RESULT: PASS. ✅
+
+842 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v29.
+
 ---
 
 ## Reverts

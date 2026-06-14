@@ -16,7 +16,14 @@ import {
 import { useLongPress } from '@/hooks/useLongPress';
 import { useCountUp } from '@/hooks/useCountUp';
 import { AnimatedMoney } from '@/components/AnimatedMoney';
-import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn, planCheckInDay } from '@/domain/check-in';
+import {
+  CHECK_IN_INTENT_CATALOG,
+  getActiveCheckIn,
+  planCheckInDay,
+  getCheckInLens,
+  estimateNightRounds,
+  deriveAvgRoundCents,
+} from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
 import type { AppSettings } from '@/domain/types/app-settings';
@@ -75,6 +82,16 @@ function writeHeroPrevCents(cents: number): void {
   } catch {
     // Private mode / storage disabled — the animation simply won't seed.
   }
+}
+
+// E5 "lens of the day": a small tag pinned to the card the day's mode spotlights.
+function LensChip({ label, corner = false }: { label: string; corner?: boolean }) {
+  return (
+    <span className={`lens-chip${corner ? ' lens-chip--corner' : ''}`}>
+      <Icon name="center_focus_strong" size={11} className="text-primary" />
+      {label}
+    </span>
+  );
 }
 
 // BUG-008: the home cards moved out of the 1.6k-line DashboardPage into one
@@ -136,11 +153,31 @@ export function DashboardCards({
   const [optimisticCheckIn, setOptimisticCheckIn] = useState<CheckInIntent | null>(null);
   const persistedCheckInIntent =
     getActiveCheckIn(settings.dailyCheckIn, model.todayIso)?.intent ?? null;
+  const effectiveCheckInIntent = optimisticCheckIn ?? persistedCheckInIntent;
   useEffect(() => {
     if (optimisticCheckIn && persistedCheckInIntent === optimisticCheckIn) {
       setOptimisticCheckIn(null);
     }
   }, [optimisticCheckIn, persistedCheckInIntent]);
+
+  // E5 "lens of the day": the chosen mode spotlights ONE other card. The focus
+  // only counts when that card is actually visible (not hidden, has content),
+  // so the check-in's "↓ in focus below" line never points at nothing.
+  const lens = effectiveCheckInIntent ? getCheckInLens(effectiveCheckInIntent) : null;
+  const piggyVisible =
+    model.piggyBankCents > 0 && !isDashboardCardHidden('piggy_bank', settings.hiddenDashboardCards);
+  const occasionsVisible =
+    (model.forecasts.length > 0 || model.hasOccasionData) &&
+    !isDashboardCardHidden('occasion_counters', settings.hiddenDashboardCards);
+  const focusAvailable =
+    lens?.focusCardId === 'piggy_bank'
+      ? piggyVisible
+      : lens?.focusCardId === 'occasion_counters'
+        ? occasionsVisible
+        : false;
+  const activeFocusCardId = focusAvailable ? lens!.focusCardId : null;
+  // Night projection: rounds the night reserve buys at the traveler's own price.
+  const avgRoundCents = deriveAvgRoundCents(model.profiles);
   const handleCheckInTap = (intent: CheckInIntent) => {
     // Council ("sensed result"): a soft tap so choosing a mode is FELT, not just
     // seen — gated by the user's vibration setting, progressive enhancement.
@@ -225,7 +262,7 @@ export function DashboardCards({
       case 'daily_checkin': {
         // M7 (E5): one-tap intent for the day — read-only context, never blocks.
         // Optimistic: the tapped intent shows instantly (Gate E), then settles.
-        const effectiveCheckInIntent = optimisticCheckIn ?? persistedCheckInIntent;
+        // `effectiveCheckInIntent` is hoisted to component scope (drives the lens).
         return (
           <div className="mt-4 p-4 rounded-2xl bg-surface-container">
             <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
@@ -315,6 +352,37 @@ export function DashboardCards({
                         secondary: formatMoney(plan.secondaryCents ?? 0, trip.baseCurrency),
                       })}
                     </p>
+                    {/* The "lens" payoff: the mode reshapes the home — night
+                        projects rounds; calm/outing spotlight a card below. */}
+                    {(() => {
+                      if (effectiveCheckInIntent === 'night') {
+                        const rounds = estimateNightRounds(plan.primaryCents, avgRoundCents);
+                        if (rounds === null) return null;
+                        return (
+                          <p className="text-[11px] font-bold text-primary mt-2 flex items-center gap-1">
+                            <Icon name="local_bar" size={13} className="text-primary" />
+                            {t('dashboard.checkin_lens_night', { count: rounds })}
+                          </p>
+                        );
+                      }
+                      if (activeFocusCardId === 'piggy_bank') {
+                        return (
+                          <p className="text-[11px] font-bold text-primary mt-2 flex items-center gap-1">
+                            <Icon name="south" size={13} className="text-primary" />
+                            {t('dashboard.checkin_lens_calm')}
+                          </p>
+                        );
+                      }
+                      if (activeFocusCardId === 'occasion_counters') {
+                        return (
+                          <p className="text-[11px] font-bold text-primary mt-2 flex items-center gap-1">
+                            <Icon name="south" size={13} className="text-primary" />
+                            {t('dashboard.checkin_lens_outing')}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 );
               })()}
@@ -372,9 +440,10 @@ export function DashboardCards({
         // never part of "free today" (ÂNCORA 11).
         return model.piggyBankCents > 0 ? (
           <div
-            className="mt-4 p-4 rounded-2xl flex items-center gap-3"
+            className={`relative mt-4 p-4 rounded-2xl flex items-center gap-3${activeFocusCardId === 'piggy_bank' ? ' lens-card' : ''}`}
             style={{ background: '#6B8F7112', border: '1px solid #6B8F7118' }}
           >
+            {activeFocusCardId === 'piggy_bank' && <LensChip label={t('dashboard.lens_in_focus')} corner />}
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
               style={{ background: '#6B8F7118' }}
@@ -586,12 +655,20 @@ export function DashboardCards({
           </div>
         );
       }
-      case 'occasion_counters':
+      case 'occasion_counters': {
+        // §7 pos. 6 — OCCASION COUNTERS — carousel (DEC-076), done-count fallback.
+        if (model.forecasts.length === 0 && !model.hasOccasionData) return null;
+        const occasionsFocused = activeFocusCardId === 'occasion_counters';
         return (
-          <>
-            {/* §7 pos. 6 — OCCASION COUNTERS — carousel (DEC-076), done-count fallback */}
+          <div className="mt-4">
+            {/* E5 lens: when "outing" is the day's mode, the counters are spotlighted. */}
+            {occasionsFocused && (
+              <div className="mb-2">
+                <LensChip label={t('dashboard.lens_in_focus')} />
+              </div>
+            )}
             {model.forecasts.length > 0 ? (
-              <div className="mt-4">
+              <>
                 {/* DEC-076/DEC-122 (R-01): pure-CSS scroll-snap carousel, ~3 visible */}
                 <div
                   className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] scroll-pl-[var(--page-padding-x)] scroll-pr-[var(--page-padding-x)] snap-x snap-mandatory"
@@ -639,9 +716,9 @@ export function DashboardCards({
                     ))}
                   </div>
                 )}
-              </div>
-            ) : model.hasOccasionData ? (
-              <div className="mt-4 grid grid-cols-3 gap-3">
+              </>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
                 <OccasionCounter
                   icon="local_bar"
                   count={model.barCount}
@@ -667,9 +744,10 @@ export function DashboardCards({
                   onClick={() => navigate('/expenses?category=restaurant')}
                 />
               </div>
-            ) : null}
-          </>
+            )}
+          </div>
         );
+      }
       case 'insights':
         return (
           <>

@@ -6,3 +6,5 @@ export {
   planCheckInDay,
 } from './check-in';
 export type { CheckInIntentDescriptor, CheckInDayPlan } from './check-in';
+export { getCheckInLens, estimateNightRounds, deriveAvgRoundCents } from './lens';
+export type { CheckInLens } from './lens';
