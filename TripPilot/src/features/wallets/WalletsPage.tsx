@@ -16,6 +16,7 @@ import type { WalletType, TransactionCategory } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
+import { EmptyState } from '@/components/EmptyState';
 import { showToast } from '@/components/Toast';
 
 const ADJUSTMENT_CATEGORIES = ['bar', 'restaurant', 'market', 'transport', 'entertainment', 'other'] as const;
@@ -42,6 +43,7 @@ export function WalletsPage() {
     await walletRepository.clearDefaults(trip.id);
     await walletRepository.update({ ...wallet, isDefault: true });
     await reload();
+    showToast(t('wallets.default_set'), 'success');
   };
 
   const handleAddWallet = async () => {
@@ -61,6 +63,7 @@ export function WalletsPage() {
     setNewBalance('');
     setShowAdd(false);
     await reload();
+    showToast(t('wallets.added'), 'success');
   };
 
   const expectedCents =
@@ -189,11 +192,13 @@ export function WalletsPage() {
         </div>
       )}
 
-      {wallets.length === 0 && (
-        <div className="bg-surface-container rounded-xl p-6 text-center">
-          <Icon name="account_balance_wallet" size={32} className="text-on-surface-mute mx-auto mb-2" />
-          <p className="text-sm text-on-surface-dim">{t('wallets.empty')}</p>
-        </div>
+      {wallets.length === 0 && !showAdd && (
+        <EmptyState
+          icon="account_balance_wallet"
+          title={t('wallets.empty_title')}
+          body={t('wallets.empty_body')}
+          cta={{ label: t('wallets.empty_cta'), icon: 'add', onClick: () => setShowAdd(true) }}
+        />
       )}
 
       {totalWalletCents !== null && (

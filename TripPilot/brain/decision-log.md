@@ -1227,4 +1227,32 @@
 
 ---
 
+### DEC-171 — One consistent first-use empty state across the app (v0.16.0 — Gate X)
+- **Date**: 2026-06-14
+- **Status**: APPROVED (Julio: "estados vazios do 1º uso com texto amigável + CTA"; part of the "all fronts, autonomous" batch).
+- **Decision**: Add a single presentational `components/EmptyState.tsx` (calm icon badge, warm title, one-line "what goes here", optional primary CTA) and use it on every first-run surface: Expenses (both the expenses tab and the outings-history tab), Wallets and Funds. Each empty state now starts the obvious next flow — Expenses → `/quick-add`, Outings → `/outings/new`, Wallets → open the add-wallet form, Funds → open the create-fund form.
+- **Why**: Before this each screen rolled its own empty treatment (some had a CTA, most were a bare line of text), so the very first impression felt unfinished and inconsistent. One component makes the empty state reassuring and actionable everywhere with shared copy keys in pt-BR/en/es.
+- **Scope note**: The Planner's empty state is deliberately deferred — a trip almost always has phases, the screen is a complex sticky-header layout, and forcing an `EmptyState` there carried real regression risk for little first-run value.
+
+### DEC-172 — Spread the "where this number comes from" pattern (v0.16.0 — Gate W)
+- **Date**: 2026-06-14
+- **Status**: APPROVED (Julio: "espalhar o de onde vem" — extend the Dashboard hero's explainer to other derived figures).
+- **Decision**: Extract the hero's arithmetic rows into a reusable `components/Breakdown.tsx` (`BreakdownRows` + a `BreakdownSheet` wrapper) — each line is a magnitude plus a `kind` (base/subtract/add) and the **total is rendered signed** so an over-allocation shows as a real negative, never a hidden zero. Apply it to: (a) **Fund balance** — inline inside the expanded fund card: `total − spent = available`; (b) **Planner margin** — the margin figure becomes tappable ("de onde vem?") and opens a sheet: `free to spend − planned = margin`, with a footnote when a future-phase floor is held out.
+- **Why**: Julio's recurring ask is to "always feel that what I do has a reason and a result". The hero proved the pattern (DEC-168); reusing one component keeps it visually identical and avoids three bespoke copies. The Dashboard hero itself was intentionally left untouched (working code, no need to refactor under risk).
+- **Deferred**: "Compras pessoais" — the label exists but is not bound to a single concrete figure in a clean spot; the personal-spent number that matters lives in the outing context, addressed by DEC-173 instead.
+
+### DEC-173 — End-of-outing recap (v0.16.0 — Gate Y)
+- **Date**: 2026-06-14
+- **Status**: APPROVED (Julio: "aprofundar a saída ativa — ritmo, rodadas restantes, encerrar com resumo").
+- **Decision**: Add a compact recap to the outing review's total card — **duration · items (rounds) · vs target** (green when at/under the comfort target, amber when over). The active-outing "pace projection to the ceiling" and "rounds remaining" already existed (E3/M10, DEC-117), so this closes the loop with a satisfying summary at the moment the outing ends.
+- **Why**: Ending an outing was a bare total + form; the recap answers "how did it go?" before any data entry, reinforcing that the session had a result.
+
+### DEC-174 — app-lock crypto test runs in the node environment (test infra, v0.16.0)
+- **Date**: 2026-06-14
+- **Status**: APPROVED (encountered while verifying the suite; surgical infra fix).
+- **Decision**: `app-lock.test.ts` declares `// @vitest-environment node`. jsdom exposes `crypto` (for `getRandomValues`) but **not** `crypto.subtle`, so the PBKDF2-based PIN hashing test cannot run under jsdom; the shared setup deliberately refuses to graft Node's `subtle` onto jsdom's `crypto` (cross-realm TypedArray hazard). Running just this one suite in the node environment gives it full WebCrypto with same-realm typed arrays.
+- **Why**: Keeps the whole suite green (863) without weakening the global setup or touching production code; it is the canonical Vitest pattern for a node-only API.
+
+---
+
 *New decisions will be added as the project progresses.*

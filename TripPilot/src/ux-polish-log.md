@@ -451,6 +451,18 @@ Auditoria scriptada (`scripts/ux-audit.mjs`) em 10 rotas: 0 erros de console, se
 
 **Verificação**: 19 testes novos/reescritos (db-recovery, DataErrorScreen, useAppData error) + suíte completa **863 verdes / 103 arquivos**, tsc 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v32.
 
+### Gates V·W·X·Y — Feedback, "de onde vem", estados vazios e resumo de saída → 0.16.0 (DEC-171/172/173) ✨
+
+Retomada das 4 frentes que o Julio aprovou ("faça todas, em sequência, autônomo") depois da estabilidade.
+
+- **Gate X — estados vazios do 1º uso** (DEC-171): novo `components/EmptyState.tsx` (ícone calmo + título + "o que vai aparecer aqui" + CTA). Aplicado em Gastos, Saídas, Carteiras e Fundos, cada um abrindo o próximo passo óbvio (`/quick-add`, `/outings/new`, abrir form de carteira/fundo). Planner adiado de propósito (fase quase sempre existe; layout sticky complexo). Chaves pt/en/es.
+- **Gate V — feedback nas interações**: auditoria do `showToast` mostrou que o grosso já tinha confirmação (editar/excluir gasto com desfazer, reconciliar carteira, adicionar rodada, encerrar saída). Lacunas fechadas: criar fundo (`funds.created`), adicionar carteira (`wallets.added`) e definir carteira padrão (`wallets.default_set`).
+- **Gate W — espalhar "de onde vem"** (DEC-172): extraí as linhas do hero pra um `components/Breakdown.tsx` reutilizável (`BreakdownRows` + `BreakdownSheet`, total com sinal). Saldo do fundo agora mostra `total − gasto = disponível` inline ao expandir; margem do planejador virou tocável ("de onde vem?") abrindo `livre para usar − planejado = margem` (com nota do piso futuro). Hero não foi tocado (código que funciona).
+- **Gate Y — resumo de saída** (DEC-173): card de total da revisão ganhou um recap compacto **duração · itens · vs alvo** (verde no/abaixo do alvo, âmbar acima). Ritmo e rodadas restantes já existiam (E3/M10, DEC-117).
+- **Infra (DEC-174)**: `app-lock.test.ts` passou a rodar em `// @vitest-environment node` (jsdom não tem `crypto.subtle`); suíte volta a 863 verdes sem mexer no setup global nem no código de produção.
+
+**Verificação**: suíte completa **863 verdes / 103 arquivos**, tsc 0, lint 0 nos arquivos tocados, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v33.
+
 ---
 
 ## Reverts

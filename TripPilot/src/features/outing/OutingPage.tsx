@@ -1765,6 +1765,18 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
   );
 
   const total = calculateSessionTotal(finalTxs);
+
+  // DEC-173: end-of-outing recap — answer "how did it go?" before the form.
+  // Duration uses endedAt when present, else now (review can precede the close).
+  const recapEndMs = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
+  const recapDurationMin = Math.max(
+    0,
+    Math.floor((recapEndMs - new Date(session.startedAt).getTime()) / 60000),
+  );
+  const recapTargetCents = session.targetCents ?? 0;
+  // Positive → under target (saved); negative → over target.
+  const recapVsTargetCents = recapTargetCents - total;
+
   const reportedCents = reportedTotal ? parseAmountToCents(reportedTotal) : null;
   const totalDiff =
     reportedCents !== null && reportedCents >= 0
@@ -1798,6 +1810,34 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
           {formatCurrencyFull(total, currency)}
         </p>
         <p className="text-xs text-on-surface-faint mt-1">{session.name}</p>
+        {/* DEC-173: recap chips — duration · rounds · vs target */}
+        <div className="flex items-center justify-center gap-2 mt-3 flex-wrap text-[11px] font-semibold text-on-surface-dim">
+          <span className="inline-flex items-center gap-1">
+            <Icon name="schedule" size={13} className="text-on-surface-faint" />
+            {formatDurationShort(recapDurationMin)}
+          </span>
+          <span className="text-on-surface-faint">·</span>
+          <span className="inline-flex items-center gap-1">
+            <Icon name="local_bar" size={13} className="text-on-surface-faint" />
+            {t('outing.recap_rounds', { count: sessionTxs.length })}
+          </span>
+          {recapTargetCents > 0 && total > 0 && (
+            <>
+              <span className="text-on-surface-faint">·</span>
+              <span
+                className="inline-flex items-center gap-1"
+                style={{ color: recapVsTargetCents >= 0 ? 'var(--success)' : 'var(--warning)' }}
+              >
+                <Icon name={recapVsTargetCents >= 0 ? 'check_circle' : 'warning'} size={13} />
+                {recapVsTargetCents === 0
+                  ? t('outing.recap_on_target')
+                  : t(recapVsTargetCents > 0 ? 'outing.recap_under_target' : 'outing.recap_over_target', {
+                      amount: formatCurrencyFull(Math.abs(recapVsTargetCents), currency),
+                    })}
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Items (editable) */}

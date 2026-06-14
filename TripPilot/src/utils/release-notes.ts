@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.16.0',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Telas vazias agora acolhem em vez de só ficar em branco: gastos, saídas, carteiras e fundos explicam o que aparece ali e trazem um botão para começar na hora.',
+        'Mais ações confirmam o que fizeram: criar um fundo, adicionar uma carteira ou definir a carteira padrão agora avisam com um toque na tela.',
+        '“De onde vem esse número?” espalhado pelo app: ao abrir um fundo você vê a conta (total − gasto = disponível), e no planejador dá para tocar na margem e ver livre para usar − planejado = margem.',
+        'Ao encerrar uma saída, um resumo rápido mostra quanto tempo durou, quantos itens rolaram e se você ficou abaixo ou acima do seu alvo.',
+      ],
+      en: [
+        'Empty screens now welcome you instead of just sitting blank: expenses, outings, wallets and funds explain what will show up there and offer a button to start right away.',
+        'More actions confirm what they did: creating a fund, adding a wallet or setting the default wallet now show a quick on-screen confirmation.',
+        '“Where does this number come from?” is now spread across the app: open a fund to see the math (total − spent = available), and in the planner tap the margin to see free to spend − planned = margin.',
+        'When you end an outing, a quick recap shows how long it lasted, how many items happened and whether you came in under or over your target.',
+      ],
+      es: [
+        'Las pantallas vacías ahora te reciben en vez de quedar en blanco: gastos, salidas, billeteras y fondos explican qué aparecerá allí y traen un botón para empezar al instante.',
+        'Más acciones confirman lo que hicieron: crear un fondo, agregar una billetera o definir la billetera predeterminada ahora avisan con un toque en pantalla.',
+        '“¿De dónde viene este número?” repartido por la app: al abrir un fondo ves la cuenta (total − gastado = disponible), y en el planificador puedes tocar el margen para ver libre para gastar − planificado = margen.',
+        'Al cerrar una salida, un resumen rápido muestra cuánto duró, cuántos ítems hubo y si quedaste por debajo o por encima de tu objetivo.',
+      ],
+    },
+  },
+  {
     version: '0.15.0',
     date: '2026-06-14',
     items: {

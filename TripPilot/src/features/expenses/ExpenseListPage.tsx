@@ -21,6 +21,7 @@ import {
 } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { EmptyState } from '@/components/EmptyState';
 import { SelectionBar, type SelectionAction } from '@/components/SelectionBar';
 import { showToast } from '@/components/Toast';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -325,18 +326,12 @@ export function ExpenseListPage() {
       )}
 
       {expenses.length === 0 ? (
-        <div className="bg-surface-container rounded-xl p-6 text-center">
-          <Icon name="receipt_long" size={32} className="text-on-surface-mute mx-auto mb-2" />
-          <p className="text-sm text-on-surface-dim">{t('dashboard.no_expenses')}</p>
-          <button
-            type="button"
-            onClick={() => navigate('/quick-add')}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-surface btn-press"
-          >
-            <Icon name="add" size={16} />
-            {t('expenses.empty_cta')}
-          </button>
-        </div>
+        <EmptyState
+          icon="receipt_long"
+          title={t('expenses.empty_title')}
+          body={t('expenses.empty_body')}
+          cta={{ label: t('expenses.empty_cta'), icon: 'add', onClick: () => navigate('/quick-add') }}
+        />
       ) : (
         <div className="flex flex-col gap-4">
           {expenseGroups.map((group) => (
@@ -512,13 +507,16 @@ interface OutingHistoryListProps {
 
 function OutingHistoryList({ sessions, transactions, profiles, currency, onOpen, selection }: OutingHistoryListProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   if (sessions.length === 0) {
     return (
-      <div className="bg-surface-container rounded-xl p-6 text-center">
-        <Icon name="celebration" size={32} className="text-on-surface-mute mx-auto mb-2" />
-        <p className="text-sm text-on-surface-dim">{t('expenses.no_outings')}</p>
-      </div>
+      <EmptyState
+        icon="celebration"
+        title={t('expenses.outings_empty_title')}
+        body={t('expenses.outings_empty_body')}
+        cta={{ label: t('expenses.outings_empty_cta'), icon: 'add', onClick: () => navigate('/outings/new') }}
+      />
     );
   }
 

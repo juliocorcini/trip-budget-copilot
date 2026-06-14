@@ -1,3 +1,7 @@
+// @vitest-environment node
+// app-lock relies on real SubtleCrypto (PBKDF2). jsdom exposes `crypto`
+// (getRandomValues) but not `crypto.subtle`, so this suite runs in the node
+// environment where full WebCrypto and same-realm typed arrays are available.
 import { describe, it, expect } from 'vitest';
 import { hashPin, verifyPin, isValidPin } from '@/utils/app-lock';
 

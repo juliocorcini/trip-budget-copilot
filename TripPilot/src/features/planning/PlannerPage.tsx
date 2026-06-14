@@ -30,6 +30,7 @@ import {
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { BreakdownSheet } from '@/components/Breakdown';
 import { showToast } from '@/components/Toast';
 import { HelpButton } from '@/components/HelpMode';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
@@ -162,6 +163,8 @@ export function PlannerPage() {
   // from phase, classification).
   const [menuProfile, setMenuProfile] = useState<ActivityProfile | null>(null);
   const [menuValueDraft, setMenuValueDraft] = useState('');
+  // DEC-172: "where the margin comes from" sheet (available − allocated = margin).
+  const [marginBreakdownOpen, setMarginBreakdownOpen] = useState(false);
 
   const profilesRef = useRef<ActivityProfile[]>([]);
   const enabledProfilesRef = useRef<ActivityProfile[]>([]);
@@ -720,9 +723,18 @@ export function PlannerPage() {
       {/* ── BUDGET SUMMARY (DEC-098: live margin, negative when over) ── */}
       <div className="mt-4 p-4 rounded-2xl bg-surface-container" data-help-anchor="planner-free-margin">
         <div className="flex justify-between items-center">
-          <div>
-            <p className="text-xs font-bold text-on-surface-dim">
+          <button
+            type="button"
+            onClick={() => setMarginBreakdownOpen(true)}
+            className="text-left btn-press"
+            aria-label={t('planner.margin_breakdown_title')}
+          >
+            <p className="text-xs font-bold text-on-surface-dim flex items-center gap-1">
               {t('planner.free_margin')}
+              <span className="flex items-center gap-0.5 text-[10px] font-bold text-on-surface-faint">
+                <Icon name="help" size={12} className="text-on-surface-faint" />
+                {t('planner.margin_hint')}
+              </span>
             </p>
             <p
               className="text-2xl font-extrabold tabular"
@@ -736,7 +748,7 @@ export function PlannerPage() {
                 {displayMargin.decimal}
               </span>
             </p>
-          </div>
+          </button>
           <div className="text-right">
             <p className="text-xs font-bold text-on-surface-dim">
               {t('planner.allocated')}
@@ -1192,6 +1204,26 @@ export function PlannerPage() {
           },
         )}
       </div>
+
+      {/* DEC-172: margin breakdown — available − allocated = margin (signed). */}
+      <BreakdownSheet
+        open={marginBreakdownOpen}
+        onClose={() => setMarginBreakdownOpen(false)}
+        title={t('planner.margin_breakdown_title')}
+        intro={t('planner.margin_breakdown_intro')}
+        items={[
+          { label: t('planner.bd_available'), cents: availableCents, kind: 'base' },
+          { label: t('planner.allocated'), cents: currentAllocatedCents, kind: 'subtract' },
+        ]}
+        totalLabel={t('planner.free_margin')}
+        totalCents={liveMarginCents}
+        currency={currency}
+        note={
+          (fts?.futureFloorCents ?? 0) > 0
+            ? t('planner.bd_floor_note', { amount: fmtFull(fts!.futureFloorCents, currency) })
+            : undefined
+        }
+      />
 
       {/* ── CATEGORY MENU (DEC-099 / R-21 + DEC-100 / R-22) ── */}
       <BottomSheet

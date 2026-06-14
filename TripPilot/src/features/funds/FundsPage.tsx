@@ -10,6 +10,8 @@ import { budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository
 import { deleteBudgetPool } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { EmptyState } from '@/components/EmptyState';
+import { BreakdownRows } from '@/components/Breakdown';
 import { HelpButton } from '@/components/HelpMode';
 import { showToast } from '@/components/Toast';
 import type { BudgetPoolScope } from '@/domain/types/common';
@@ -187,6 +189,7 @@ export function FundsPage() {
       }
       await reload();
       resetForm();
+      showToast(t('funds.created'), 'success');
     } finally {
       setSaving(false);
     }
@@ -202,11 +205,13 @@ export function FundsPage() {
         <HelpButton screenId="funds" />
       </div>
 
-      {pools.length === 0 && (
-        <div className="bg-surface-container rounded-xl p-6 text-center">
-          <Icon name="account_balance_wallet" size={32} className="text-on-surface-mute mx-auto mb-2" />
-          <p className="text-sm text-on-surface-dim">{t('funds.empty')}</p>
-        </div>
+      {pools.length === 0 && !showForm && (
+        <EmptyState
+          icon="savings"
+          title={t('funds.empty_title')}
+          body={t('funds.empty_body')}
+          cta={{ label: t('funds.empty_cta'), icon: 'add', onClick: () => setShowForm(true) }}
+        />
       )}
 
       <div className="flex flex-col gap-2" data-help-anchor="funds-pool-list">
@@ -265,6 +270,23 @@ export function FundsPage() {
 
               {isExpanded && (
                 <div className="mt-4 pt-4 flex flex-col gap-4" style={{ borderTop: '1px solid var(--surface-container-high)' }}>
+                  {/* DEC-172: "where this balance comes from" — total − spent = available,
+                      surfaced inline so the green figure above is never a mystery. */}
+                  <div>
+                    <p className="text-xs font-semibold text-on-surface-dim mb-2">
+                      {t('funds.breakdown_heading')}
+                    </p>
+                    <BreakdownRows
+                      items={[
+                        { label: t('funds.bd_total'), cents: summary.totalCents, kind: 'base' },
+                        { label: t('funds.bd_spent'), cents: summary.spentCents, kind: 'subtract' },
+                      ]}
+                      totalLabel={t('funds.bd_available')}
+                      totalCents={summary.remainingCents}
+                      currency={pool.currency}
+                    />
+                  </div>
+
                   {/* Edit name/value + delete (DEC-080 / FIELD-11) */}
                   <div>
                     <p className="text-xs font-semibold text-on-surface-dim mb-2">
