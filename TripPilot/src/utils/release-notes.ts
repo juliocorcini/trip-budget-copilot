@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.14',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'O valor de "livre para gastar" agora reage: quando você registra ou desfaz um gasto, o número desce (ou sobe) animado até o novo total — você vê o resultado acontecer, não um número que troca do nada.',
+        'Salvar um gasto e escolher o modo do check-in agora dão uma vibração suave de confirmação (quando a vibração está ativada nas configurações).',
+      ],
+      en: [
+        'The "free to spend" amount now reacts: when you log or undo an expense, the number animates down (or up) to the new total — you see the result happen instead of a number swapping silently.',
+        'Saving an expense and picking a check-in mode now give a soft confirmation tap (when vibration is enabled in settings).',
+      ],
+      es: [
+        'El importe "libre para gastar" ahora reacciona: al registrar o deshacer un gasto, el número baja (o sube) animado hasta el nuevo total — ves el resultado suceder en lugar de un número que cambia sin más.',
+        'Guardar un gasto y elegir el modo del check-in ahora dan una vibración suave de confirmación (cuando la vibración está activada en ajustes).',
+      ],
+    },
+  },
+  {
     version: '0.14.13',
     date: '2026-06-14',
     items: {

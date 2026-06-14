@@ -364,6 +364,15 @@ Terceira leva após feedback do usuário ("fez pouquíssimas coisas, faça mais,
 
 821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v23.
 
+### Gate N — conselho fechou: "o dinheiro responde" + ação sentida → 0.14.14 ✅
+
+Os 4 conselheiros (Visionary, Analyst, Connector, Simplifier) convergiram. **Verifiquei o código real**: a recomendação nº1 deles (Problema A — `reload()` ligando `setLoading(true)` em toda mutação → remount/scroll-to-top) **já estava resolvida** na RODADA 3 (Gate A): hoje `reload()` chama `runLoad()` SEM `showLoading`, só o 1º load e o recovery mostram o loader (`useAppData.ts:144-169`). Os subagentes citaram um snapshot antigo (linhas 139-142 com `setLoading(true)`, que não batem com o atual). Idem Problema B (check-in sem efeito) e toast de quick-add — já entregues em rodadas anteriores. O que sobrou de **genuinamente novo e validado** virou esta leva:
+
+- **N1 — Herói com count-up ("money responds", Connector/Visionary)**: o "livre para gastar" agora **anima** do valor anterior até o novo quando muda (registrar/desfazer gasto). Novo hook reutilizável `hooks/useCountUp.ts` (easeOutCubic 500ms, respeita `prefers-reduced-motion`, sem animação de entrada no 1º load). Como salvar navega p/ `/dashboard` (remount), o valor anterior é guardado em `sessionStorage` (`tp:hero-free-cents`) p/ semear o tween através do remount. Read-only: anima só a EXIBIÇÃO de um número já correto (ÂNCORA 12). **Visual** `scripts/ux-countup.mjs`: após gasto de €30, herói anima €1048,20→…→€1018,20 (29 frames distintos capturados via RAF in-browser; assenta no valor correto, sem NaN). ⚠️ Chromium headless reporta `prefers-reduced-motion: reduce` por padrão — o script força `reducedMotion: 'no-preference'`.
+- **N2 — Ação sentida (haptics, Connector)**: vibração suave de confirmação ao **salvar gasto/transferência/saque** (`QuickAddPage`, helper `triggerSaveHaptic`, 10ms) e ao **escolher o modo do check-in** (`DashboardCards.handleCheckInTap`, 8ms). Gated por `settings.vibrationEnabled` (infra já existia em OutingPage), progressive enhancement (`'vibrate' in navigator`).
+
+821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v24.
+
 ---
 
 ## Reverts

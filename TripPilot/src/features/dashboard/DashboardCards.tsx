@@ -14,6 +14,7 @@ import {
   type DashboardCardId,
 } from '@/domain/dashboard';
 import { useLongPress } from '@/hooks/useLongPress';
+import { useCountUp } from '@/hooks/useCountUp';
 import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn, planCheckInDay } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
@@ -25,6 +26,7 @@ import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { OccasionCounter } from '@/features/dashboard/cards/OccasionCounter';
 import {
   counterAccent,
+  splitMoneyDisplay,
   INSIGHT_ICONS,
   formatInsightText,
   formatElapsed,
@@ -48,6 +50,30 @@ interface DashboardCardsProps {
   onSelectHeatmapDay: (iso: string) => void;
   onSelectCheckIn: (intent: CheckInIntent) => void;
   onToggleCollapse: (id: DashboardCardId) => void;
+}
+
+// The hero's previous amount is stashed in sessionStorage so it survives the
+// dashboard remount caused by a save → navigate('/dashboard') (a module-scoped
+// variable did not survive the lazy route remount): the fresh mount animates
+// from the pre-action amount to the new one ("watch it drop"). Absent on the
+// very first visit, so there is no intro animation.
+const HERO_PREV_KEY = 'tp:hero-free-cents';
+
+function readHeroPrevCents(): number | null {
+  try {
+    const raw = sessionStorage.getItem(HERO_PREV_KEY);
+    return raw === null ? null : Number(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeHeroPrevCents(cents: number): void {
+  try {
+    sessionStorage.setItem(HERO_PREV_KEY, String(cents));
+  } catch {
+    // Private mode / storage disabled — the animation simply won't seed.
+  }
 }
 
 // BUG-008: the home cards moved out of the 1.6k-line DashboardPage into one
@@ -88,6 +114,20 @@ export function DashboardCards({
     return () => mq.removeEventListener?.('change', onChange);
   }, []);
 
+  // Council ("money responds"): the hero free-to-spend tweens to its new value
+  // after any change, so the budget visibly reacts to what you just did. This
+  // only animates how an already-correct number (ÂNCORA 12) is displayed.
+  const heroTargetCents = model.fts?.freeToSpendCents ?? 0;
+  const heroSeedRef = useRef<number | null>(model.fts ? readHeroPrevCents() : null);
+  const animatedHeroCents = useCountUp(heroTargetCents, !reducedMotion, heroSeedRef.current);
+  useEffect(() => {
+    if (model.fts) writeHeroPrevCents(heroTargetCents);
+  }, [heroTargetCents, model.fts]);
+  const animatedHero =
+    model.fts && model.heroMoney
+      ? splitMoneyDisplay(animatedHeroCents, trip.baseCurrency)
+      : null;
+
   // E5 optimistic check-in: reflect the tapped intent INSTANTLY (before the
   // silent reload round-trip) so the day's framing answers the tap with no
   // perceptible lag. Read-only context (ÂNCORA 12) — a faster echo of what is
@@ -101,6 +141,11 @@ export function DashboardCards({
     }
   }, [optimisticCheckIn, persistedCheckInIntent]);
   const handleCheckInTap = (intent: CheckInIntent) => {
+    // Council ("sensed result"): a soft tap so choosing a mode is FELT, not just
+    // seen — gated by the user's vibration setting, progressive enhancement.
+    if (settings.vibrationEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(8);
+    }
     setOptimisticCheckIn(intent);
     onSelectCheckIn(intent);
   };
@@ -399,8 +444,10 @@ export function DashboardCards({
                   })}
                 </p>
                 <p className="text-[44px] font-extrabold tracking-tight leading-none mt-2 tabular text-on-surface">
-                  {model.heroMoney.integer}
-                  <span className="text-xl font-bold text-on-surface-dim">{model.heroMoney.decimal}</span>
+                  {(animatedHero ?? model.heroMoney).integer}
+                  <span className="text-xl font-bold text-on-surface-dim">
+                    {(animatedHero ?? model.heroMoney).decimal}
+                  </span>
                 </p>
                 {model.todayBudget && model.todayBudget.todayAllowanceCents > 0 && (
                   <>
