@@ -67,6 +67,19 @@ export type {
 export { applyValueSuggestion, dismissValueSuggestion } from './learning-orchestrators';
 export type { ApplyValueSuggestionInput } from './learning-orchestrators';
 export {
+  addPlannedPurchase,
+  updatePlannedPurchase,
+  setPlannedPurchaseStatus,
+  deletePlannedPurchase,
+  restorePlannedPurchase,
+  logPlannedPurchaseExpense,
+  undoLogPlannedPurchaseExpense,
+} from './planned-purchase-orchestrators';
+export type {
+  LogPlannedPurchaseExpenseInput,
+  LogPlannedPurchaseExpenseResult,
+} from './planned-purchase-orchestrators';
+export {
   saveTripTemplate,
   deleteTripTemplate,
   markTripPriorsHandled,
