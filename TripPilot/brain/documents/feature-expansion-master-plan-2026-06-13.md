@@ -438,7 +438,7 @@ seguintes respeitam; vem logo após a captura por ser a dor nº1 do Julio.
 - M9-12. Testes (meta, cofrinho não mexe no livre, aprendizado não contamina) + e2e.
 - M13. Gate final + brain.
 
-### FASE 5 — Local & Hora + Multi-moeda  *(Epics E8 + E9)*  — D2 aprovado (GPS opt-in)
+### FASE 5 — Local & Hora + Multi-moeda  *(Epics E8 + E9)*  — ✅ FEITA (Package 3, v0.12.2→v0.13.0, 2026-06-13; DEC-157..158)
 **Objetivo:** contexto rico em cada gasto (onde/quando/qual moeda).
 - M1. Campos de local em `Transaction` + incluir no backup.
 - M2. Captura de GPS (permissão explícita, opt-in, fallback).
@@ -453,7 +453,7 @@ seguintes respeitam; vem logo após a captura por ser a dor nº1 do Julio.
 - M11-14. Testes (geo opcional, conversão, saldo de carteira) + e2e.
 - M15. Gate final + brain.
 
-### FASE 6 — Segurança de Dados, Compartilhamento & Share Target  *(Epic E10 + Share Target)*
+### FASE 6 — Segurança de Dados, Compartilhamento & Share Target  *(Epic E10 + Share Target)* — ✅ FEITA (Package 3, v0.13.1→v0.14.0, 2026-06-13; DEC-159..161)
 **Objetivo:** o usuário nunca perde dado, pode levar/mostrar a viagem, e registrar via share.
 - M1. Histórico de snapshots versionados (Configurações > Avançado).
 - M2. Restaurar "para ontem" a partir do histórico.

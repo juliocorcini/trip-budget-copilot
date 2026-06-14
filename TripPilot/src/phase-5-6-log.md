@@ -1,9 +1,9 @@
 # Pacote 3 — Local & Hora + Multi-moeda + Segurança & Sharing — Log
 
 ## Current State
-- Fase: 6 ✅ COMPLETA | Gate: 6 ✅ | Milestone: M23 done | Done: 23/24 | Tests: 814 (+17 no gate; +106 vs baseline 708) | Versão: 0.14.0 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.14.0) | Build: ✅ (SW cache v10)
-- Dexie SCHEMA_VERSION=5 ✅ (M14 — a ÚNICA migração do pacote, já feita: tabela localSnapshots). BACKUP_VERSION=5 ✅ (bumped no M1). NÃO migrar Dexie no GATE 7.
-- PRÓXIMO: GATE 7 (testes finais + brain DECs + deploy final) → 0.14.1.
+- Pacote 3 ✅ COMPLETO | Gate: 7 ✅ | Done: 24/24 | Tests: 814 (+106 vs baseline 708) | Versão: 0.14.1 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.14.1) | Build: ✅ (SW cache v11)
+- Dexie SCHEMA_VERSION=5 ✅ (M14 — a ÚNICA migração do pacote: tabela localSnapshots). BACKUP_VERSION=5 ✅ (bumped no M1).
+- DONE: GATE 7 — suite final verde, tsc 0, build sem chunk>500KB, brain (product-spec/technical-direction/project-status/decision-log/master-plan), 0.14.1 deployado em PRODUÇÃO. Pacote 3 encerrado.
 
 ## Decisões tomadas durante a execução
 - Deploy em PRODUÇÃO (--branch=main → trippilot.pages.dev) a cada gate, a pedido do Julio (supera o "preview" do pacote).
@@ -44,6 +44,7 @@
 - 0.13.1 (GATE 4) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://9f9f8f1e.trippilot.pages.dev)
 - 0.13.2 (GATE 5) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://d7a41f20.trippilot.pages.dev)
 - 0.14.0 (GATE 6 — FASE 6 COMPLETA) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://10466c6c.trippilot.pages.dev)
+- 0.14.1 (GATE 7 — PACOTE 3 FINALIZADO: brain + testes finais + SW cache v11) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://dcb3208a.trippilot.pages.dev)
 
 ## GATE 0 — Baseline (sem deploy)
 - [x] Node 22.22.3 confirmado
@@ -107,9 +108,10 @@
 - [x] M23 Testes Fase 6 (+17 no gate, ≥12 exigidos: PIN hash, share-target parser, lock gating)
 - [x] Checkpoint: 0.14.0 + deploy PRODUÇÃO + commit (814 testes, tsc 0, build sem chunk>500KB)
 
-## GATE 7 — Testes finais + brain + deploy final → 0.14.1
-- [ ] Testes todos verdes (≥30 novos)
-- [ ] Smoke golden path
-- [ ] Brain atualizado (DECs)
-- [ ] Deploy final 0.14.1 (produção)
-- [ ] Entrega (resumo)
+## GATE 7 — Testes finais + brain + deploy final → 0.14.1 ✅
+- [x] Testes todos verdes — 814 (98 files), +106 vs baseline 708 (>30 exigidos)
+- [x] tsc --noEmit → 0 erros | build → maior chunk vendor-react 287KB (sem aviso >500KB)
+- [x] Smoke golden path: coberto pela suíte verde (domínio: location, exchange, wallets multi-moeda, local-snapshots, share-intake, app-lock, app-lock-gate) + build OK. Smoke de UI em campo fica pro Julio (Next Steps do project-status).
+- [x] Brain atualizado: DEC-157..161 (decision-log), product-spec (seção Pacote 3), technical-direction (Dexie v5/backup v5/manifest share_target), project-status (métricas+deploys+tech-debt+next steps), master-plan (Fases 5 e 6 ✅)
+- [x] Deploy final 0.14.1 (produção) + SW cache v11 (toast de update p/ instalados 0.14.0)
+- [x] Entrega (resumo)

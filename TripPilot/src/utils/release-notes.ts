@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.1',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Pacote de viagem e segurança dos dados completo: local e horário nos gastos, gastos em outra moeda com conversão pra sua moeda base, pontos de restauração diários no aparelho, envio de backup pelo compartilhamento, resumo da viagem em HTML, bloqueio por PIN e compartilhar texto pro TripPilot.',
+        'Ajustes finais de estabilidade e desempenho em toda a viagem.',
+      ],
+      en: [
+        'Travel & data-safety package complete: place and time on expenses, foreign-currency expenses converted to your base currency, daily on-device restore points, backup sharing, an HTML trip summary, a PIN lock and share-into-TripPilot.',
+        'Final stability and performance touches across the whole trip.',
+      ],
+      es: [
+        'Paquete de viaje y seguridad de datos completo: lugar y hora en los gastos, gastos en otra moneda convertidos a tu moneda base, puntos de restauración diarios en el dispositivo, envío de copia por compartir, resumen del viaje en HTML, bloqueo por PIN y compartir texto a TripPilot.',
+        'Ajustes finales de estabilidad y rendimiento en todo el viaje.',
+      ],
+    },
+  },
+  {
     version: '0.14.0',
     date: '2026-06-13',
     items: {

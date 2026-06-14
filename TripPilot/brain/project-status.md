@@ -1,10 +1,16 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-13 (v0.12.1 — Feature Expansion Package 2: insights v2 + phase cycle + motivation + trip continuity)
+> Last updated: 2026-06-13 (v0.14.1 — Feature Expansion Package 3: location & time + multi-currency + data security & sharing + Share Target — V1 EXPANDED COMPLETE)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) deployed** ✅
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
+
+### Feature Expansion Package 3 (Phases 5 & 6) — 2026-06-13 ✅ SHIPPED TO PRODUCTION
+- **Phase 5 (location & time + multi-currency)** v0.12.2→v0.13.0: opt-in on-device location + sticky place + nearby reverse-geocode (online) + offline recents + manual name + time/place on list/detail + spend-by-place (DEC-157); multi-currency expenses (original preserved + base-currency budget), currency-aware wallet debit, opt-in frozen FX snapshot (DEC-158).
+- **Phase 6 (data security & sharing + Share Target)** v0.13.1→v0.14.0: local daily snapshots + restore-to-yesterday — the package's ONE Dexie migration v4→v5 `localSnapshots` (DEC-159); vault via share sheet + read-only self-contained HTML trip report (DEC-160); opt-in PIN app lock (PBKDF2/Web Crypto, off by default, recovery never trapped; biometrics deferred) + Web Share Target pre-fill (DEC-161).
+- **Quality**: 814 unit tests green (+106 vs Package 2 baseline of 708); tsc 0; build no chunk >500KB. ÂNCORA invariants held: location is opt-in/on-device, original currency preserved, budget routed through base, the lock never traps recovery, Share Target only pre-fills.
+- **Deploy**: EVERY gate shipped to **Production** via `--branch=main` → `trippilot.pages.dev` (per Julio's request): 0.12.2, 0.12.3, 0.13.0, 0.13.1, 0.13.2, 0.14.0, 0.14.1.
 
 ### Feature Expansion Package 2 (Phases 3 & 4) — 2026-06-13 ✅ SHIPPED TO PRODUCTION
 - **Phase 3 (insights v2 + check-in + phase cycle)** v0.10.2→v0.11.0: insights uncapped + priority-ordered + auto-rotation (DEC-150); calibrated builders category-rhythm/dangerous-day/end-of-day, anti-spam (DEC-151); daily check-in card + responsive notification (DEC-152); phase leftover sheet + atomic move (preserves total) + countdown (DEC-153).
@@ -20,9 +26,9 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 156 decisions (DEC-001 to DEC-156); DEC-063 superseded by DEC-071 |
-| Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) |
-| Data model | ✅ DONE | 24 entities; Dexie schema **v4** (peerLinks, mirroredStatements, linkedActorId) |
+| Decision log | ✅ DONE | 161 decisions (DEC-001 to DEC-161); DEC-063 superseded by DEC-071 |
+| Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) + Feature Expansion Phases 1–6 (V1 expanded complete) |
+| Data model | ✅ DONE | 24 entities + `localSnapshots` (device-local restore points); Dexie schema **v5** (peerLinks, mirroredStatements, linkedActorId, localSnapshots); backup **v5** (location fields); non-indexed expense location + multi-currency (`baseCurrencyAmountCents`/`exchangeRate`) + app-lock fields |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
 | Design system | ✅ DONE | Theme v4; BottomSheet/Toast primitives; zero native dialogs; zero hardcoded colors (tokens only) |
 | Implementation D1–D6 | ✅ DONE | All deliveries implemented and deployed to Cloudflare Pages |
@@ -35,8 +41,8 @@
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (recovery/restore/PWA-update keys added in v0.8.2) |
-| Tests | ✅ DONE | 708 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2: Phases 3 & 4) |
-| Deploy | ✅ DONE | v0.12.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast. IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 2: Phase 4 (0.12.0) + final (0.12.1) shipped to Production; intermediate gates (0.10.2→0.11.2) were Preview-only |
+| Tests | ✅ DONE | 814 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2; +106 in Package 3: Phases 5 & 6) |
+| Deploy | ✅ DONE | v0.14.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast (CACHE_NAME v11). IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 3: EVERY gate (0.12.2→0.14.1) shipped to Production via `--branch=main` |
 | Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
 ## Gap-Fix Session R2 (2026-06-09)
@@ -327,9 +333,16 @@ new" entry per gate. Highlights:
 | Automatic future floor calculation | DEC-069 (D-I) | Manual floor per phase link implemented; automatic calculation is D3+ |
 | SW precache via build plugin | GAP-036 | Current approach parses index.html at install; a Workbox/Vite plugin would be more robust |
 | E2E (Playwright) in CI | DEC-054 | 29 e2e tests run locally; CI requires browser install |
+| Biometric app lock (WebAuthn) | DEC-161 (M20 cut) | PIN-only shipped; WebAuthn platform authenticator deferred — PIN is the baseline |
+| Nearby POI list (Overpass) | DEC-157 (M4 cut) | Reverse-geocode + offline recents + manual name shipped; a full POI picker is deferred |
 
 ## Next Steps
 
+0. Julio field-tests v0.14.1 (Production `trippilot.pages.dev`) — Package 3 golden path:
+   expense with sticky location (offline still logs); foreign-currency expense (original kept,
+   wallet debits right); daily snapshot accumulates + restore-to-yesterday; send backup via
+   share + open the HTML summary offline; turn the PIN lock on → it asks at boot, recovery
+   never trapped; share text into the app → QuickAdd opens pre-filled (never auto-saves).
 1. Julio re-tests v0.10.1 in the field at `trippilot.pages.dev` (now Production) —
    Package 1 golden path: one-question onboarding → simple → lean dashboard; capture
    with calculator + memory/favorites; outing with last values, round, projection;
@@ -361,4 +374,6 @@ R5 session added DEC-109..DEC-113 (approved 2026-06-10); field review R4 session
 added DEC-114..DEC-123 (approved 2026-06-11); brainstorm session added
 DEC-126..DEC-134 (approved 2026-06-12); v0.8.1 field feedback added DEC-135/136
 (approved 2026-06-12); stability hardening added DEC-137 (approved 2026-06-13);
-Feature Expansion Package 1 (Phases 1 & 2) added DEC-138..DEC-149 (approved 2026-06-13).
+Feature Expansion Package 1 (Phases 1 & 2) added DEC-138..DEC-149 (approved 2026-06-13);
+Feature Expansion Package 2 (Phases 3 & 4) added DEC-150..DEC-156 (approved 2026-06-13);
+Feature Expansion Package 3 (Phases 5 & 6) added DEC-157..DEC-161 (approved 2026-06-13).

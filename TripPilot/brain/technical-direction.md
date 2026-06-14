@@ -77,13 +77,22 @@ src/
 ### Core Entities
 Trip, Phase, BudgetPool, BudgetPoolPhaseLink, Envelope, Participant, Wallet, Transaction, ParticipantShare, Session, ActivityProfile, PlannedOccurrence, Settlement, ForecastSnapshot, AlertRule, AppSettings, ScenarioPlan, FuturePhaseReservePolicy, Device, Actor
 
+### Device-local Entities (not in user backup, not synced)
+LocalSnapshot — rolling 7-day on-device restore points (DEC-159)
+
 ### Future Entities (types defined, not persisted yet)
 UserAccount, Group, GroupMembership, SharedExpenseConfirmation
 
+### Schema Version — Dexie v5 / backup v5 (as of Package 3, v0.14.x)
+- Dexie **v5** stores: P2P added `peerLinks`, `mirroredStatements` (v4); Package 3 added `localSnapshots: 'id, createdAt'` (the ONE migration of Package 3 — a new table, no `upgrade()` callback, existing data untouched — DEC-159). `localSnapshots` is device-local: excluded from `BACKUP_TABLE_KEYS`, never exported or imported.
+- Backup **v5** (`normalizeBackupToV5`, chains v1→v4): adds the non-indexed `Transaction` location fields (`placeLabel`, `latitude`, `longitude`, `placeId`, backfilled null — DEC-157).
+- Other Package 3 additions are NON-indexed (no migration): `Transaction.baseCurrencyAmountCents` + `exchangeRate` (DEC-158); `AppSettings.currentPlace`, `locationCaptureEnabled`, `frozenRates`, `appLockEnabled`, `appLockPinHash`, `appLockPinSalt` (DEC-157/158/161). App-lock PIN is stored only as a PBKDF2-SHA256 hash + salt via Web Crypto — never in clear.
+
 ### Key Design Rules
-- All entities have SyncMetadata (id, createdAt, updatedAt, deletedAt, revision, sourceDeviceId)
+- All entities have SyncMetadata (id, createdAt, updatedAt, deletedAt, revision, sourceDeviceId) — except device-local `LocalSnapshot` (standalone, keyed by day)
 - Soft delete (deletedAt) for merge-safe operations
 - JSON backup includes schema version for migration compatibility
+- `public/manifest.json` is static (no PWA build plugin); it declares PWA `shortcuts` and a `share_target` (GET → `/quick-add?title&text&url`) so the OS share sheet can pre-fill an expense (DEC-161). The hand-written service worker (`public/sw.js`) is network-first for navigations (SPA fallback to `index.html`, so shared routes work offline) and cache-first for hashed assets; bump `CACHE_NAME` to push a new manifest/SW to installed clients via the update toast (DEC-082).
 
 ## Deployment
 

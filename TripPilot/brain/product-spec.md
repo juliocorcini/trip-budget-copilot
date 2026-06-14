@@ -322,6 +322,28 @@ The guarantees the user can rely on, even when the device storage misbehaves:
 - At a trip's end, the app offers to **save what it learned** for next time.
 - **Save a trip as a template** (phases, profiles, typical values) and **start a new trip from a template** — the structure and learned values come pre-filled, while the new trip re-learns its own prices.
 
+### Feature Expansion Package 3 — Location & Time, Multi-Currency, Data Safety & Sharing (v0.13.x–v0.14.x)
+
+**Where & when (opt-in location — DEC-157):**
+- Turn on location and each expense can remember **where** it happened — a friendly place name (reverse-geocoded once, then offline) you can always edit by hand.
+- The last place is **sticky** so a string of expenses at the same spot needs no retyping, and your **recent places** come back as one-tap chips (works offline).
+- See **spend by place** and the time of each expense. Location is **off by default**, asked for only when you opt in, and an expense **always saves** even if the GPS or naming fails.
+
+**Multi-currency (DEC-158):**
+- Log an expense in a **foreign currency** (e.g. `300 CZK`) while your budget stays in the trip's **base currency**. The app converts with a rate you control and shows **"300 CZK (≈ €12)"** everywhere.
+- The **original amount and currency are kept forever**; only the base value touches your budget and wallets. You can **freeze a rate** per currency (opt-in) so the trip's math doesn't drift with the market.
+
+**On-device daily safety net (DEC-159):**
+- The app quietly keeps **rolling daily restore points on the device** (the last several days). If something goes wrong you can **restore to yesterday** in one step — separate from, and on top of, your own JSON backups. These snapshots **never leave the device** and are not part of a backup file.
+
+**Backup sharing & read-only report (DEC-160):**
+- Send your backup **anywhere via the system share sheet** (cloud drive, chat, email) instead of only saving a file, with the usual **backup-age reminder**.
+- Generate a **self-contained HTML trip report** — a read-only summary you can open in any browser and share, with no app required.
+
+**App lock & share-into-app (DEC-161):**
+- Optional **PIN lock at startup** (off by default). The PIN is stored only as a secure hash (never in clear), and **recovery/onboarding screens are never locked**, so a forgotten PIN can never trap your data. Biometric unlock is deferred (PIN is the baseline).
+- **Share text into TripPilot** from any app (a receipt total, a message) and the **QuickAdd form opens pre-filled** for review — it never saves on its own.
+
 ## V1 — Explicitly NOT in Scope
 
 - Login / user accounts / authentication
