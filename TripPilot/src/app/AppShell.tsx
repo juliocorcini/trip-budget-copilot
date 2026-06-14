@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router';
 import { BottomNav } from '@/components/BottomNav';
+import { ActiveOutingBar } from '@/components/ActiveOutingBar';
 
 // Theme/language live application moved to RootLayout (DEC-083 / GAP-R2-003)
 // so routes outside the shell are also covered.
@@ -10,6 +11,7 @@ export function AppShell() {
       <main className="px-[var(--page-padding-x)]">
         <Outlet />
       </main>
+      <ActiveOutingBar />
       <BottomNav />
     </div>
   );

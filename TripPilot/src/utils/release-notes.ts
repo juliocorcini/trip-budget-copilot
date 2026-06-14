@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.17',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Saída ativa agora te acompanha: enquanto um rolê está rolando, uma marca flutuante aparece nas outras telas mostrando o nome e o total gasto na hora — toque para voltar direto pra saída.',
+        'Antes, ao sair da tela da saída, era fácil esquecer que ela estava aberta. Agora você sempre sabe.',
+      ],
+      en: [
+        'Active outing now follows you: while a session is running, a floating chip appears on the other screens showing its name and live total — tap it to jump straight back to the outing.',
+        'Before, leaving the outing screen made it easy to forget it was still open. Now you always know.',
+      ],
+      es: [
+        'La salida activa ahora te acompaña: mientras una salida está en curso, aparece una marca flotante en las demás pantallas con su nombre y el total en vivo — tócala para volver directo a la salida.',
+        'Antes, al salir de la pantalla de la salida era fácil olvidar que seguía abierta. Ahora siempre lo sabes.',
+      ],
+    },
+  },
+  {
     version: '0.14.16',
     date: '2026-06-14',
     items: {

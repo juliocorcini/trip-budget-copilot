@@ -694,6 +694,7 @@
   },
   "outing": {
     "start_title": "Iniciar salida",
+    "resume_active": "Volver a la salida activa",
     "choose_type": "Elige el tipo de salida:",
     "safe_value_hint": "El valor seguro es cuánto puedes gastar sin romper el presupuesto de la fase.",
     "safe_value": "Valor seguro",

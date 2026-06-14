@@ -397,6 +397,18 @@ Mais uma leva ("continuar com as outras melhorias"). Simulei mais fluxos e achei
 
 821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v26.
 
+### Gate Q — barra de sessão ativa persistente (continuidade) → 0.14.17 ✅
+
+Ideia estrutural do conselho (Connector, "Spotify now-playing"). Usuário pulou a pergunta de direção → segui com minha recomendação. Problema: ao sair da tela da saída, era fácil esquecer que uma sessão estava aberta (sem indicador nas outras telas).
+
+- **Q1 — `<ActiveOutingBar>` (chip flutuante)**: novo componente em `components/`, montado no `AppShell` (acima do `BottomNav`). Consulta `sessionRepository.getActive(trip.id)` no mount + em cada `APP_DATA_CHANGED_EVENT`/refresh; mostra ponto pulsante + nome da sessão + **total ao vivo** (`calculateSessionTotal` filtrando `tx.sessionId`). Toque → `/outings/active`. i18n ×3 (`outing.resume_active`).
+- **Posicionamento**: pílula `fixed bottom-[92px] right-3 z-30` — canto inferior-direito, acima da nav e **livre do FAB central** (sem barra full-width que colidiria com o FAB que sobe no centro).
+- **Anti-redundância**: oculto em `/dashboard` (que já tem card dedicado de "SAÍDA ATIVA") via `useLocation`; aparece nas demais abas (gastos, planejar, mais, carteiras, viagem), que é onde não havia indicador. Fora do AppShell (quick-add, outing, simulator) não renderiza.
+
+**Visual** `scripts/ux-session-bar.mjs`: inicia rolê → em /expenses o chip aparece ("Restaurante €0,00"), em /dashboard fica oculto (card já cobre), e o toque retorna para `/outings/active`. RESULT: PASS. ✅
+
+821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v27.
+
 ---
 
 ## Reverts
