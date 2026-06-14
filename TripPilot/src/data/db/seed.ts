@@ -1,5 +1,6 @@
 import { createSyncMetadata } from '@/utils/entity-factory';
 import { DEFAULT_QUICK_ADD_VALUES_CENTS } from '@/domain/outing';
+import { DEFAULT_COLLAPSED_CARDS } from '@/domain/dashboard/dashboard-cards';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { Device } from '@/domain/types/device';
 
@@ -30,6 +31,8 @@ export function createDefaultAppSettings(): AppSettings {
     // DEC-119 (R-10): configurable home screen defaults.
     hiddenDashboardCards: [],
     dashboardCardOrder: [],
+    // UX polish (D3): the read-only analytics drawer starts collapsed.
+    collapsedDashboardCards: [...DEFAULT_COLLAPSED_CARDS],
     // DEC-124 (R-11 v2): outing notification opt-out lives in Settings.
     outingNotificationEnabled: true,
     // DEC-128: mental currency anchor — off until the traveler sets a rate.

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.2',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Painel mais limpo: as análises da viagem (resumo de ontem, ritmo da fase e mapa do mês) agora ficam juntas num cartão "Análise da viagem" que você abre quando quiser.',
+        'Menos avisos repetidos no topo: aparece só o aviso de backup mais importante de cada vez.',
+      ],
+      en: [
+        'Cleaner home: your trip analytics (yesterday recap, phase pace and month map) are now grouped into a single "Trip analytics" card you open when you want.',
+        'Fewer repeated banners at the top: only the most important backup notice shows at a time.',
+      ],
+      es: [
+        'Panel más limpio: los análisis del viaje (resumen de ayer, ritmo de la fase y mapa del mes) ahora están juntos en una tarjeta "Análisis del viaje" que abres cuando quieras.',
+        'Menos avisos repetidos arriba: aparece solo el aviso de copia más importante a la vez.',
+      ],
+    },
+  },
+  {
     version: '0.14.1',
     date: '2026-06-13',
     items: {

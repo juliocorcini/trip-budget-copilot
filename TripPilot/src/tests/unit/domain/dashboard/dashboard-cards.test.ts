@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   DASHBOARD_CARD_CATALOG,
+  DEFAULT_COLLAPSED_CARDS,
   resolveDashboardCardSequence,
   isDashboardCardHidden,
   toggleDashboardCardHidden,
+  isDashboardCardCollapsed,
+  toggleDashboardCardCollapsed,
   moveDashboardCard,
 } from '@/domain/dashboard';
 
@@ -34,13 +37,11 @@ describe('resolveDashboardCardSequence', () => {
       'daily_checkin',
       'savings_goal',
       'piggy_bank',
-      'yesterday_recap',
       'occasion_counters',
-      'phase_burndown',
-      'spend_heatmap',
       'amigo_sincero',
       'pending_shares',
       'funds_summary',
+      'trip_analytics',
     ]);
   });
 
@@ -69,14 +70,13 @@ describe('moveDashboardCard', () => {
   it('moves a card up among the movable cards', () => {
     const order = moveDashboardCard(undefined, 'occasion_counters', 'up');
     // Default movable order: today_events, daily_checkin, savings_goal,
-    // piggy_bank, yesterday_recap, occasion_counters, …
+    // piggy_bank, occasion_counters, insights, …
     expect(order[0]).toBe('today_events');
     expect(order[1]).toBe('daily_checkin');
     expect(order[2]).toBe('savings_goal');
-    expect(order[3]).toBe('piggy_bank');
-    // occasion_counters swaps up past yesterday_recap.
-    expect(order[4]).toBe('occasion_counters');
-    expect(order[5]).toBe('yesterday_recap');
+    // occasion_counters swaps up past piggy_bank.
+    expect(order[3]).toBe('occasion_counters');
+    expect(order[4]).toBe('piggy_bank');
   });
 
   it('does not move past the edges', () => {
@@ -88,7 +88,40 @@ describe('moveDashboardCard', () => {
     const order = moveDashboardCard(undefined, 'recent_expenses', 'up');
     const sequence = resolveDashboardCardSequence(order);
     const movable = sequence.filter((id) => id !== 'active_outing' && id !== 'hero');
-    expect(movable[movable.length - 1]).toBe('funds_summary');
+    // recent_expenses is the last movable card; moving it up swaps with the
+    // trip_analytics drawer, which becomes last.
+    expect(movable[movable.length - 1]).toBe('trip_analytics');
     expect(movable[movable.length - 2]).toBe('recent_expenses');
+  });
+});
+
+// UX polish (D3): collapsible analytics drawer — closed by default.
+describe('collapse / expand', () => {
+  it('reports the trip_analytics drawer as collapsed by default', () => {
+    expect(DEFAULT_COLLAPSED_CARDS).toContain('trip_analytics');
+    // undefined settings fall back to the default collapsed set.
+    expect(isDashboardCardCollapsed('trip_analytics', undefined)).toBe(true);
+  });
+
+  it('honours an explicit empty collapsed list (user expanded it)', () => {
+    expect(isDashboardCardCollapsed('trip_analytics', [])).toBe(false);
+  });
+
+  it('never reports non-collapsible cards as collapsed', () => {
+    expect(isDashboardCardCollapsed('hero', undefined)).toBe(false);
+    expect(isDashboardCardCollapsed('recent_expenses', ['recent_expenses'])).toBe(false);
+  });
+
+  it('toggles the collapsed state for a collapsible card', () => {
+    // From the default (collapsed) → expand → collapse again.
+    const expanded = toggleDashboardCardCollapsed('trip_analytics', DEFAULT_COLLAPSED_CARDS);
+    expect(expanded).not.toContain('trip_analytics');
+    expect(isDashboardCardCollapsed('trip_analytics', expanded)).toBe(false);
+    const collapsedAgain = toggleDashboardCardCollapsed('trip_analytics', expanded);
+    expect(collapsedAgain).toContain('trip_analytics');
+  });
+
+  it('is a no-op for non-collapsible cards', () => {
+    expect(toggleDashboardCardCollapsed('hero', [])).toEqual([]);
   });
 });

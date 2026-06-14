@@ -14,14 +14,15 @@ export type DashboardCardId =
   | 'piggy_bank'
   | 'active_outing'
   | 'hero'
-  | 'yesterday_recap'
   | 'occasion_counters'
   | 'insights'
-  | 'phase_burndown'
-  | 'spend_heatmap'
   | 'amigo_sincero'
   | 'pending_shares'
   | 'funds_summary'
+  // UX polish (D3): the read-only review cards (yesterday recap, phase
+  // burn-down, month heatmap) collapse into ONE drawer, closed by default —
+  // fixes "too many cards open" without removing any of them.
+  | 'trip_analytics'
   | 'recent_expenses';
 
 export interface DashboardQuickAction {
@@ -36,9 +37,16 @@ export interface DashboardCardDescriptor {
   labelKey: string;
   /** Anchors of the app — rendered in place, never hidden nor reordered. */
   fixed: boolean;
+  /** UX polish (D3): card can be collapsed to a single header row, with the
+   * open/closed state persisted in settings (sibling of `hidden`). */
+  collapsible?: boolean;
   quickAction: DashboardQuickAction | null;
 }
 
+// UX polish (D2): default order favours hierarchy — urgent/contextual and the
+// beloved carousels (occasion counters + insights — ÂNCORA 10) stay high; the
+// read-only review drawer (trip_analytics) and the expense list sit at the
+// bottom. Users can still reorder/hide everything (DEC-119).
 export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   {
     id: 'today_events',
@@ -78,16 +86,7 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     quickAction: null,
   },
   {
-    id: 'yesterday_recap',
-    labelKey: 'dashboard.card_yesterday_recap',
-    fixed: false,
-    quickAction: {
-      route: '/expenses',
-      labelKey: 'dashboard.card_action_see_expenses',
-      icon: 'receipt_long',
-    },
-  },
-  {
+    // ÂNCORA 10: beloved horizontal-scroll carousel — kept prominent.
     id: 'occasion_counters',
     labelKey: 'dashboard.card_occasion_counters',
     fixed: false,
@@ -98,6 +97,7 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     },
   },
   {
+    // ÂNCORA 10: beloved insights carousel — kept prominent.
     id: 'insights',
     labelKey: 'dashboard.card_insights',
     fixed: false,
@@ -105,26 +105,6 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
       route: '/impact',
       labelKey: 'dashboard.card_action_see_impact',
       icon: 'insights',
-    },
-  },
-  {
-    id: 'phase_burndown',
-    labelKey: 'dashboard.card_phase_burndown',
-    fixed: false,
-    quickAction: {
-      route: '/impact',
-      labelKey: 'dashboard.card_action_see_impact',
-      icon: 'monitoring',
-    },
-  },
-  {
-    id: 'spend_heatmap',
-    labelKey: 'dashboard.card_spend_heatmap',
-    fixed: false,
-    quickAction: {
-      route: '/expenses',
-      labelKey: 'dashboard.card_action_see_expenses',
-      icon: 'calendar_month',
     },
   },
   {
@@ -158,6 +138,19 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     },
   },
   {
+    // D3: collapsible drawer grouping yesterday recap + phase burn-down +
+    // month heatmap. Collapsed by default (DEFAULT_COLLAPSED_CARDS).
+    id: 'trip_analytics',
+    labelKey: 'dashboard.card_trip_analytics',
+    fixed: false,
+    collapsible: true,
+    quickAction: {
+      route: '/impact',
+      labelKey: 'dashboard.card_action_see_impact',
+      icon: 'monitoring',
+    },
+  },
+  {
     id: 'recent_expenses',
     labelKey: 'dashboard.card_recent_expenses',
     fixed: false,
@@ -168,6 +161,13 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     },
   },
 ];
+
+/**
+ * D3: cards collapsed by default (closed drawer). A user toggle persists the
+ * full collapsed-id list in settings; until then this default applies to both
+ * fresh installs and existing users (whose settings predate the field).
+ */
+export const DEFAULT_COLLAPSED_CARDS: DashboardCardId[] = ['trip_analytics'];
 
 const CATALOG_IDS = new Set(DASHBOARD_CARD_CATALOG.map((c) => c.id));
 
@@ -216,6 +216,24 @@ export function toggleDashboardCardHidden(
   if (getDashboardCard(id).fixed) return hidden ?? [];
   const current = hidden ?? [];
   return current.includes(id) ? current.filter((h) => h !== id) : [...current, id];
+}
+
+/** D3: a collapsed card shows only its header row; the body is revealed on tap. */
+export function isDashboardCardCollapsed(
+  id: DashboardCardId,
+  collapsed: string[] | undefined,
+): boolean {
+  if (!getDashboardCard(id).collapsible) return false;
+  return (collapsed ?? DEFAULT_COLLAPSED_CARDS).includes(id);
+}
+
+export function toggleDashboardCardCollapsed(
+  id: DashboardCardId,
+  collapsed: string[] | undefined,
+): string[] {
+  if (!getDashboardCard(id).collapsible) return collapsed ?? [...DEFAULT_COLLAPSED_CARDS];
+  const current = collapsed ?? DEFAULT_COLLAPSED_CARDS;
+  return current.includes(id) ? current.filter((c) => c !== id) : [...current, id];
 }
 
 /** Moves a movable card one position among the MOVABLE cards (↑/↓ in V1). */

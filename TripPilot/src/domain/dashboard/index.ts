@@ -1,9 +1,12 @@
 export {
   DASHBOARD_CARD_CATALOG,
+  DEFAULT_COLLAPSED_CARDS,
   getDashboardCard,
   resolveDashboardCardSequence,
   isDashboardCardHidden,
   toggleDashboardCardHidden,
+  isDashboardCardCollapsed,
+  toggleDashboardCardCollapsed,
   moveDashboardCard,
 } from './dashboard-cards';
 export type {

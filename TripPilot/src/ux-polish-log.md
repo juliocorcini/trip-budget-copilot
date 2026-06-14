@@ -6,16 +6,18 @@
 
 ## Current State
 
-- **Gate**: 1 concluído → iniciando Gate 2 (Dashboard)
-- **Telas analisadas**: 24/24 (21 rotas + welcome + Modo Simples + saída ativa) | **Telas melhoradas**: 0
+- **Gate**: 2 concluído (Dashboard) → iniciando Gate 3 (captura)
+- **Telas analisadas**: 24/24 (21 rotas + welcome + Modo Simples + saída ativa) | **Telas melhoradas**: 1 (dashboard + variações)
 - **Método de screenshot que funcionou**: **B (Playwright)** — `scripts/ux-shots.mjs`
   (chromium Pixel 5, semeia demo via botão, captura viewport + fullPage)
 - **Mock aplicado**: botão "Dados de demonstração" (`generateDemoData`) — contexto
   efêmero do Playwright, nunca persistido no repo
-- **Tests baseline**: **814 passed (98 files)** | **Typecheck**: 0 | **Build**: ✅ (maior chunk vendor-react 287 KB)
+- **Tests**: **819 passed (98 files)** (+5 colapso) | **Typecheck**: 0 | **Build**: ✅ (maior chunk vendor-react 287 KB)
 - **Dev server**: `npm run dev` em background → http://localhost:5173 (HTTP 200)
 - **Git**: branch `master` (push → origin/master). **Cloudflare Pages produção = `--branch=main`** (master puro = Preview). Repo único na raiz (`TripPilot/.git` é stub vazio órfão, ignorado pelo git)
-- **Versão atual**: 0.14.1
+- **Deploy comando**: `CLOUDFLARE_ACCOUNT_ID=e146e88b34b2694243b1d74cee8de743 npx wrangler pages deploy dist --project-name=trippilot --branch=main` (env var obrigatório — 2 contas, sem ele o picker trava o terminal)
+- **Release plumbing por deploy**: bump `package.json` + `src/utils/app-version.ts` + nova entrada em `src/utils/release-notes.ts` (newest first, pt/en/es) + `public/sw.js` CACHE_NAME (toast de update)
+- **Versão atual**: 0.14.2 (SW cache v12) — Gate 2 em PRODUÇÃO → https://412a81f0.trippilot.pages.dev (alias prod trippilot.pages.dev)
 
 ## Inventário de telas (Gate 1) — shots em `.ux-shots/gate1/` e `.ux-shots/gate1-scenarios/`
 
@@ -83,6 +85,24 @@
 |------|-------|---------|----------------------|
 | Carrossel de insights (DEC-077/091/150) | **Não** (planejado) | Charme aprovado; comportamento (swipe 1×1, dots, auto-rotação que pausa no toque) é intocável | Sim — só pode receber ajuste de espaçamento se necessário |
 | Carrossel de contadores de ocasiões / scroll horizontal (DEC-076) | **Não** (planejado) | "Menu de ações com scroll horizontal" que o Julio gosta; ordenação por uso aprovada | Sim — preservar snap + 3 visíveis |
+
+## Gate 2 — Dashboard (concluído) → 0.14.2 ✅
+
+**Shots**: ANTES `.ux-shots/gate1/dashboard.full.png` · DEPOIS `.ux-shots/gate2-after/dashboard.full.png`
+· colapsado/expandido `.ux-shots/gate2-expanded/` · cenários `.ux-shots/gate2-after-scenarios/`.
+
+| Mudança | Arquivos | Resultado (antes→depois) |
+|---------|----------|--------------------------|
+| **D1** Consolidar alertas de topo (1 por vez: eviction-risk vence; senão backup) | `DashboardPage.tsx` | 2 banners empilhados → **1 banner**; hero sobe |
+| **D2** Reordenar catálogo: contextual/ação no topo, analytics no fim | `domain/dashboard/dashboard-cards.ts` | analytics deixam de furar a hierarquia |
+| **D3** Disclosure progressivo: recap+burndown+heatmap num drawer `trip_analytics` colapsável (fechado por padrão, estado persistido em `collapsedDashboardCards`) | `dashboard-cards.ts`, `DashboardCards.tsx`, `DashboardPage.tsx`, `types/app-settings.ts`, `data/db/seed.ts`, `domain/dashboard/index.ts`, i18n pt/en/es | 3 cards sempre abertos (~3 telas de scroll) → **1 cabeçalho "Análise da viagem"** que abre quando o usuário quiser. **Nada removido.** |
+| **D4** Ritmo vertical | — | after já consistente; nenhuma mudança de espaçamento (evitar risco sem necessidade) |
+
+**Verificação**: tap no header expande e renderiza os 3 analytics (recap "Ontem", Ritmo da fase, Mapa do mês) — confirmado por screenshot. **Zona protegida intocada**: carrosséis de insights (DEC-077/091/150) e contadores de ocasião (DEC-076) sem mudança de comportamento.
+
+**Testes**: 819 verdes (+5 dos helpers `isDashboardCardCollapsed`/`toggleDashboardCardCollapsed` e ordem do catálogo atualizada em `dashboard-cards.test.ts`; fixtures de backup ganharam `collapsedDashboardCards: []`). Typecheck 0. Build sem chunk novo > 500 KB.
+
+**Deploy**: PRODUÇÃO `--branch=main` → https://412a81f0.trippilot.pages.dev (atualiza `trippilot.pages.dev`). SW cache v12 → toast de update p/ instalados na 0.14.1.
 
 ## Reverts
 

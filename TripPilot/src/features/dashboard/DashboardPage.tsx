@@ -10,7 +10,11 @@ import { isBackupReminderDue } from '@/domain/backup';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
-import { toggleDashboardCardHidden, type DashboardCardId } from '@/domain/dashboard';
+import {
+  toggleDashboardCardHidden,
+  toggleDashboardCardCollapsed,
+  type DashboardCardId,
+} from '@/domain/dashboard';
 import { postponeOccurrence } from '@/domain/planning';
 import {
   resolveShareConfirmation,
@@ -83,6 +87,15 @@ export function DashboardPage() {
       hiddenDashboardCards: toggleDashboardCardHidden(id, settings?.hiddenDashboardCards),
     });
     setConfigCardId(null);
+    await reload();
+  };
+
+  // D3 (UX polish): collapse/expand a card drawer — persisted like hide, a
+  // sibling of DEC-119's configurable cards. ZERO removal: closed = one tap away.
+  const handleToggleCollapse = async (id: DashboardCardId) => {
+    await appSettingsRepository.update({
+      collapsedDashboardCards: toggleDashboardCardCollapsed(id, settings?.collapsedDashboardCards),
+    });
     await reload();
   };
 
@@ -234,6 +247,15 @@ export function DashboardPage() {
     MODE_REVEAL_MIN_EXPENSES,
   );
 
+  // UX polish (D1): the storage-eviction warning and the backup reminder are
+  // redundant when both fire (both protect data and both open /settings/backup).
+  // Show at most one — the urgent eviction-risk warning wins; otherwise the
+  // softer backup reminder. Keeps both behaviors, removes the stacked banners.
+  const showStorageWarning =
+    model.storageNotPersisted && !(isIosDevice() && isStandaloneDisplayMode());
+  const showBackupReminder =
+    !showStorageWarning && isBackupReminderDue(settings, Date.now()) && transactions.length > 0;
+
   return (
     <div className="flex flex-col pb-6">
       {/* DEMO BANNER */}
@@ -247,7 +269,7 @@ export function DashboardPage() {
           iOS Safari cannot grant persistence programmatically — the honest
           advice there is installing to the home screen; installed iOS PWAs are
           already protected, so no alarm at all. */}
-      {model.storageNotPersisted && !(isIosDevice() && isStandaloneDisplayMode()) && (() => {
+      {showStorageWarning && (() => {
         // BUG-002: with real data to lose off iOS, make the CTA a direct, urgent
         // call to back up now rather than a soft pointer to Settings.
         const strongBackupCta = !isIosDevice() && transactions.length > 0;
@@ -274,8 +296,9 @@ export function DashboardPage() {
         );
       })()}
 
-      {/* BACKUP REMINDER (DEC-057 / decision D-J) — discreet, tap → backup */}
-      {isBackupReminderDue(settings, Date.now()) && transactions.length > 0 && (
+      {/* BACKUP REMINDER (DEC-057 / decision D-J) — discreet, tap → backup.
+          D1: suppressed while the storage-eviction warning is showing. */}
+      {showBackupReminder && (
         <button
           onClick={() => navigate('/settings/backup')}
           className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
@@ -358,6 +381,7 @@ export function DashboardPage() {
             onInsightTap={handleInsightTap}
             onSelectHeatmapDay={setHeatmapDayIso}
             onSelectCheckIn={handleSelectCheckIn}
+            onToggleCollapse={handleToggleCollapse}
           />
 
           {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}

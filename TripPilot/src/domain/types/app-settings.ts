@@ -32,6 +32,11 @@ export interface AppSettings {
   /** DEC-119 (R-10): configurable home screen (non-indexed — no migration). */
   hiddenDashboardCards: string[];
   dashboardCardOrder: string[];
+  /** UX polish (D3): ids of dashboard cards collapsed to a header row (closed
+   * drawer). Sibling of `hiddenDashboardCards`. undefined = use the default
+   * collapsed set, so existing installs also open with the analytics drawer
+   * closed (non-indexed — no migration). */
+  collapsedDashboardCards: string[];
   /** DEC-124 (R-11 v2): user toggle for the active-outing notification. */
   outingNotificationEnabled: boolean;
   /** DEC-128: mental anchor currency ("think in R$"). null = off. */

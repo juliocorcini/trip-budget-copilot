@@ -8,6 +8,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import {
   resolveDashboardCardSequence,
   isDashboardCardHidden,
+  isDashboardCardCollapsed,
   getDashboardCard,
   shiftMonth,
   type DashboardCardId,
@@ -46,6 +47,7 @@ interface DashboardCardsProps {
   onInsightTap: (insight: DashboardInsight) => void;
   onSelectHeatmapDay: (iso: string) => void;
   onSelectCheckIn: (intent: CheckInIntent) => void;
+  onToggleCollapse: (id: DashboardCardId) => void;
 }
 
 // BUG-008: the home cards moved out of the 1.6k-line DashboardPage into one
@@ -62,6 +64,7 @@ export function DashboardCards({
   onInsightTap,
   onSelectHeatmapDay,
   onSelectCheckIn,
+  onToggleCollapse,
 }: DashboardCardsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -398,30 +401,64 @@ export function DashboardCards({
             )}
           </>
         );
-      case 'yesterday_recap':
-        // DEC-129: hidden until there is a past day worth recapping.
-        return model.recap ? (
-          <RecapCard recap={model.recap} currency={trip.baseCurrency} onOpen={() => navigate('/expenses')} />
-        ) : null;
-      case 'phase_burndown':
-        // DEC-130: needs an active phase with a positive budget envelope.
-        return model.burndown ? (
-          <BurndownCard burndown={model.burndown} currency={trip.baseCurrency} onOpen={() => navigate('/impact')} />
-        ) : null;
-      case 'spend_heatmap':
-        // DEC-131: pointless before the first registered expense.
-        return model.hasTransactions ? (
-          <HeatmapCard
-            heatmap={model.heatmap}
-            currency={trip.baseCurrency}
-            todayIso={model.todayIso}
-            canPrev={heatmapMonth > model.tripStartMonth}
-            canNext={heatmapMonth < model.currentMonth}
-            onPrev={() => setHeatmapMonth((m) => shiftMonth(m, -1))}
-            onNext={() => setHeatmapMonth((m) => shiftMonth(m, 1))}
-            onSelectDay={onSelectHeatmapDay}
-          />
-        ) : null;
+      case 'trip_analytics': {
+        // D3: collapsible drawer grouping the read-only review cards (yesterday
+        // recap DEC-129 + phase burn-down DEC-130 + month heatmap DEC-131).
+        // Closed by default — fixes "too many cards open" without removing any.
+        // Each inner card keeps its own "hidden until relevant" guard.
+        const hasHeatmap = model.hasTransactions;
+        if (!model.recap && !model.burndown && !hasHeatmap) return null;
+        const collapsed = isDashboardCardCollapsed('trip_analytics', settings.collapsedDashboardCards);
+        return (
+          <div className="mt-4">
+            <button
+              onClick={() => onToggleCollapse('trip_analytics')}
+              aria-expanded={!collapsed}
+              className="w-full px-4 py-3 rounded-2xl bg-surface-container flex items-center gap-3 btn-press text-left"
+            >
+              <Icon name="monitoring" size={18} className="text-on-surface-dim" />
+              <span className="text-sm font-semibold text-on-surface flex-1">
+                {t('dashboard.card_trip_analytics')}
+              </span>
+              <Icon
+                name={collapsed ? 'expand_more' : 'expand_less'}
+                size={20}
+                className="text-on-surface-faint"
+              />
+            </button>
+            {!collapsed && (
+              <>
+                {model.recap && (
+                  <RecapCard
+                    recap={model.recap}
+                    currency={trip.baseCurrency}
+                    onOpen={() => navigate('/expenses')}
+                  />
+                )}
+                {model.burndown && (
+                  <BurndownCard
+                    burndown={model.burndown}
+                    currency={trip.baseCurrency}
+                    onOpen={() => navigate('/impact')}
+                  />
+                )}
+                {hasHeatmap && (
+                  <HeatmapCard
+                    heatmap={model.heatmap}
+                    currency={trip.baseCurrency}
+                    todayIso={model.todayIso}
+                    canPrev={heatmapMonth > model.tripStartMonth}
+                    canNext={heatmapMonth < model.currentMonth}
+                    onPrev={() => setHeatmapMonth((m) => shiftMonth(m, -1))}
+                    onNext={() => setHeatmapMonth((m) => shiftMonth(m, 1))}
+                    onSelectDay={onSelectHeatmapDay}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        );
+      }
       case 'occasion_counters':
         return (
           <>
