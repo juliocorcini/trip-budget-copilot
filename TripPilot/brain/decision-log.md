@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-13 (v0.14.1 — Feature Expansion Package 3: location & time + multi-currency + data security & sharing + Share Target; DEC-157..161)
+> Last updated: 2026-06-14 (v0.14.5 — UX Polish Pass: dashboard density, QuickAdd sticky bar, settings groups, nav consistency; DEC-162..165)
 
 ## Format
 
@@ -1150,6 +1150,34 @@
 - **Decision**: (App lock) An opt-in PIN asked at boot. `AppSettings` gains non-indexed `appLockEnabled` (default false), `appLockPinHash`, `appLockPinSalt` (backfilled, no migration). The PIN is NEVER stored in clear: `utils/app-lock.ts` derives a PBKDF2-SHA256 hash (100k iterations, random 16-byte salt) via Web Crypto; `hashPin`/`verifyPin` (timing-safe hex compare, never throws) + `isValidPin` (4–8 digits). `AppLockGate` (in `RootLayout`, below `AppDataProvider`) shows a `LockScreen` that only verifies the PIN — it cannot read or export the data behind it — and NEVER locks the recovery/onboarding allowlist (`/`, `/welcome`, `/onboarding`, `/rescue`, `/sync`); an evicted/empty DB has no settings so the lock simply cannot engage (ÂNCORA 12: recovery is never trapped). A session that starts WITHOUT a lock stays unlocked (enabling mid-session never locks the current screen); cold start with the lock on asks for the PIN. Biometrics (WebAuthn) were CUT — PIN-only shipped (sanctioned cut). (Share Target) The static `manifest.json` gains `share_target` (GET → `/quick-add`, params `title/text/url`); the pure `parseSharedExpense` extracts the first money-like token (locale-tolerant) as the amount + a description, and QuickAdd pre-fills both. It only PRE-FILLS, never auto-saves (ÂNCORA 13). The SW already serves `/quick-add` offline (navigation network-first → SPA fallback to index.html); `CACHE_NAME` bumped v9→v10 so the new manifest reaches installed clients via the update toast (DEC-082).
 - **Rationale**: Financial data on a phone deserves an optional lock, but a local-first app must never let a forgotten PIN trap the user's data — hence a verify-only screen, an always-open recovery path, and a PIN hash that never persists in clear. Share Target is a near-free, offline capture entry point that respects the "never auto-save" anchor.
 - **Alternatives**: Mandatory lock (rejected: off by default — most travelers won't want friction), storing the PIN/comparing in clear (rejected: security), locking every route including recovery (rejected: ÂNCORA 12 — would brick a forgotten PIN), WebAuthn now (deferred: PIN is the baseline; biometrics is a later enhancement), Share Target that auto-creates the expense (rejected: ÂNCORA 13 — review before saving)
+
+### DEC-162 — Dashboard Density: Consolidated Alerts + Card Reorder + Collapsible Trip-Analytics Drawer (UX Polish Pass, v0.14.2 — Gate 2)
+- **Date**: 2026-06-14
+- **Status**: APPROVED
+- **Decision**: Reduce dashboard clutter WITHOUT removing anything. (D1) The two stacked data-safety banners (non-persistent-storage warning + backup reminder) become mutually exclusive — at most one shows at a time (eviction-risk wins; otherwise the backup nudge), so the hero rises. (D2) The default `DASHBOARD_CARD_CATALOG` order puts contextual/actionable cards on top and read-only analytics near "recent expenses". (D3) The three always-open analytics cards (yesterday recap, phase burndown, spend heatmap) are grouped into ONE collapsible `trip_analytics` drawer, collapsed by default and persisted per-user in non-indexed `AppSettings.collapsedDashboardCards` (helpers `isDashboardCardCollapsed`/`toggleDashboardCardCollapsed`, `DEFAULT_COLLAPSED_CARDS=['trip_analytics']`; default seeded in `createDefaultAppSettings`). No Dexie migration (non-indexed field, ÂNCORA 18). PROTECTED ZONE untouched: the insights carousel (DEC-077/091/150) and occasion counters (DEC-076) keep their exact behavior.
+- **Rationale**: The hero ("free to spend") was pushed below the fold by redundant alerts and a stack of read-only analytics; progressive disclosure (collapse the read-only, keep the actionable) restores hierarchy while preserving every feature and the charm Julio approved.
+- **Alternatives**: Removing analytics cards (rejected: ZERO functionality removed), collapsing each analytics card individually (rejected: one "Trip analytics" drawer is cleaner), a new Dexie column for the collapsed set (rejected: non-indexed AppSettings field needs no migration)
+
+### DEC-163 — QuickAdd Sticky Action Bar (UX Polish Pass, v0.14.3 — Gate 3)
+- **Date**: 2026-06-14
+- **Status**: APPROVED
+- **Decision**: The QuickAdd Cancel/Save buttons move from the end of a long scrolling form to a `sticky bottom-0` action bar (full-bleed via `-mx-5 px-5`, `var(--surface)` background + `var(--border-faint)` top border, safe-area bottom padding) — same bottom-bar idiom as `SelectionBar`/`BottomNav`. The page scrolls under it; the form's trailing `pb-4` is dropped so the bar sits flush. ZERO behavior change: identical buttons and `disabled` rules (amount>0, fund, rate, valid transfer).
+- **Rationale**: Saving an expense is the app's most frequent action; requiring a scroll to reach Save added friction on a long form — pinning it removes the friction without changing any logic.
+- **Alternatives**: A floating Save FAB (rejected: clashes with the global FAB), shortening the form (rejected: every field is opt-in already and removing fields loses function)
+
+### DEC-164 — Settings Grouped Into Labeled Sections (UX Polish Pass, v0.14.4 — Gate 5)
+- **Date**: 2026-06-14
+- **Status**: APPROVED
+- **Decision**: The flat "wall of sections" in Settings gains seven discreet group headers (presentational `GroupHeader`, same `text-xs uppercase tracking-wider text-on-surface-faint` idiom as the More page): Preferences · Notifications & privacy · Money & goals · Home screen · Backup & security · Device & capture · About. Inserted at the EXISTING natural boundaries — NOTHING reordered, hidden or removed; i18n `settings.group_*` in pt/en/es. Backup, Shared, About, More and Dashboard-config were reviewed and left unchanged (already card-based / already grouped).
+- **Rationale**: A long undifferentiated list is hard to scan; labeling the existing blocks adds findability with zero risk and no change to any option's place or behavior.
+- **Alternatives**: Collapsible setting groups (rejected: adds taps for low-frequency-but-quick settings; labels suffice), reordering for "logical" grouping (rejected: would break muscle memory — order preserved)
+
+### DEC-165 — Unified Back-Button & Header Style Across Screens (UX Polish Pass, v0.14.5 — Gate 6)
+- **Date**: 2026-06-14
+- **Status**: APPROVED
+- **Decision**: Two back-button/header styles existed: 16 sub-pages used a bare back button (`btn-press p-1`, icon 24) + `text-heading font-bold` title, while NotificationsPage and ImpactDetailPage used a circular back button (`w-10 h-10 rounded-full bg-surface-container`, icon 20) + `text-xl font-extrabold` title. The two outliers are aligned to the dominant bare style. Their `page-sticky-header` wrapper + `useScrolled` sticky behavior is PRESERVED (sticky stays the pattern for primary scrollable pages — dashboard/expenses/planner); only the button/title styling changed. Purely visual; `navigate(-1)` unchanged. Bottom nav (single `BottomNav` component), side padding (`--page-padding-x`) and empty states (shared `bg-surface-container` card + 32px icon) were audited and already consistent — left untouched.
+- **Rationale**: Consistency over preference — one back-button look everywhere is more coherent than two; converging the 2 outliers to the 16-page majority is the lowest-risk way to achieve it (a full sticky+circular refactor of 16 screens was rejected as high-risk for no proportional gain).
+- **Alternatives**: Converging everything UP to circular+sticky via a shared `PageHeader` (rejected: 18-file refactor with layout-shift risk overnight), removing sticky from the 2 outliers (rejected: ImpactDetail is long — sticky helps; kept it)
 
 ---
 

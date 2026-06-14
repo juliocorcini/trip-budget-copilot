@@ -1,10 +1,21 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-13 (v0.14.1 — Feature Expansion Package 3: location & time + multi-currency + data security & sharing + Share Target — V1 EXPANDED COMPLETE)
+> Last updated: 2026-06-14 (v0.14.5 — UX Polish Pass: dashboard density, QuickAdd sticky bar, settings groups, navigation consistency — reorganize-only, ZERO features removed)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) + UX Polish Pass v0.14.2→v0.14.5 deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
+
+### UX Polish Pass (Gates 0–7) — 2026-06-14 ✅ SHIPPED TO PRODUCTION
+- **Mandate**: reorganize for clarity/density/hierarchy — **ZERO functionality removed**, design system untouched, protected zone (insights carousel DEC-077/091/150 + occasion counters DEC-076) preserved. Visual loop: Playwright mobile screenshots BEFORE/AFTER per change (`src/ux-polish-log.md` is the full state file with the BEFORE×AFTER table).
+- **Gate 2 (Dashboard)** v0.14.2 (DEC-162): consolidated the two data-safety banners to one-at-a-time; reordered cards (actionable on top); grouped the 3 read-only analytics into one collapsible "Trip analytics" drawer (collapsed by default, persisted in `AppSettings.collapsedDashboardCards`, no migration).
+- **Gate 3 (Capture)** v0.14.3 (DEC-163): QuickAdd Cancel/Save pinned to a sticky bottom bar (no scroll to save). Active outing / `/outings/new` / expense-list density reviewed, left as-is.
+- **Gate 4 (Planning/finance)**: planner, simulator, funds, wallets reviewed — already clean, NO change (no bump).
+- **Gate 5 (Secondary)** v0.14.4 (DEC-164): Settings flat list grouped into 7 labeled sections (order preserved). Backup/Shared/About/More/Dashboard-config already consistent, left as-is.
+- **Gate 6 (Navigation)** v0.14.5 (DEC-165): unified the back-button + title style of the 2 outliers (Notifications, ImpactDetail) to the 16-page majority (sticky preserved). Bottom nav, padding token, empty states audited — already consistent.
+- **Gate 7 (Verification)**: final screenshot pass over all 21 routes (no screen worse than Gate 1 baseline); 9/9 interaction smoke checks green (analytics collapse persists across reload; bottom nav reaches every tab; simple↔complete toggles advanced surfaces); mock lives only in the ephemeral Playwright IndexedDB — never in the build/deploy.
+- **Quality**: 819 unit tests green (+5 dashboard-collapse helpers vs Package 3's 814); tsc 0; build no chunk >500KB; i18n ×3 for every new string.
+- **Deploy**: EVERY gate with code shipped to **Production** via `--branch=main` → `trippilot.pages.dev`: 0.14.2 (SW v12), 0.14.3 (v13), 0.14.4 (v14), 0.14.5 (v15). Latest production deploy: https://65c3082b.trippilot.pages.dev
 
 ### Feature Expansion Package 3 (Phases 5 & 6) — 2026-06-13 ✅ SHIPPED TO PRODUCTION
 - **Phase 5 (location & time + multi-currency)** v0.12.2→v0.13.0: opt-in on-device location + sticky place + nearby reverse-geocode (online) + offline recents + manual name + time/place on list/detail + spend-by-place (DEC-157); multi-currency expenses (original preserved + base-currency budget), currency-aware wallet debit, opt-in frozen FX snapshot (DEC-158).
@@ -26,7 +37,7 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 161 decisions (DEC-001 to DEC-161); DEC-063 superseded by DEC-071 |
+| Decision log | ✅ DONE | 165 decisions (DEC-001 to DEC-165); DEC-063 superseded by DEC-071; DEC-162..165 = UX Polish Pass |
 | Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) + Feature Expansion Phases 1–6 (V1 expanded complete) |
 | Data model | ✅ DONE | 24 entities + `localSnapshots` (device-local restore points); Dexie schema **v5** (peerLinks, mirroredStatements, linkedActorId, localSnapshots); backup **v5** (location fields); non-indexed expense location + multi-currency (`baseCurrencyAmountCents`/`exchangeRate`) + app-lock fields |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
@@ -41,8 +52,8 @@
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (recovery/restore/PWA-update keys added in v0.8.2) |
-| Tests | ✅ DONE | 814 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2; +106 in Package 3: Phases 5 & 6) |
-| Deploy | ✅ DONE | v0.14.1 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast (CACHE_NAME v11). IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 3: EVERY gate (0.12.2→0.14.1) shipped to Production via `--branch=main` |
+| Tests | ✅ DONE | 819 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2; +106 in Package 3; +5 UX Polish dashboard-collapse helpers) |
+| Deploy | ✅ DONE | v0.14.5 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast (CACHE_NAME v15). IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 3 (0.12.2→0.14.1) + UX Polish Pass (0.14.2→0.14.5) all shipped to Production via `--branch=main` |
 | Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
 ## Gap-Fix Session R2 (2026-06-09)

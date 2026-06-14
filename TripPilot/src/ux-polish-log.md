@@ -172,6 +172,51 @@ Reavaliação dos shots `.ux-shots/gate1/{planner,simulator,funds,wallets}.full.
 **Testes**: 819 verdes (apresentacional). Typecheck 0. Build OK.
 **Deploy**: PRODUÇÃO `--branch=main`. SW cache v15.
 
+## Gate 7 — Verificação final + entrega ✅
+
+**Shots**: pass final completo `.ux-shots/gate7-final/` (21 rotas, com mock). Nenhuma tela pior que o baseline do Gate 1.
+
+**Smoke de interação** (`scripts/ux-verify.mjs`, Playwright) — **9/9 PASS**:
+1. analytics colapsado por padrão ✅ · 2. expande no toque ✅ · 3. **expansão persiste após reload** ✅ (estado em `appSettings`) · 4-7. bottom nav → expenses/planner/more/dashboard ✅ · 8. modo simples esconde nav avançada (Planejar) ✅ · 9. modo completo restaura ✅
+
+**Qualidade**: 819 testes verdes (baseline Package 3 = 814; +5 helpers de colapso) · `tsc --noEmit` 0 · build sem chunk > 500 KB · i18n ×3 em toda string nova.
+
+**Mock limpo**: o mock vive só no IndexedDB efêmero do Playwright; a "demonstração" é feature real do app (botão), não injeção no build. `dist/` (deploy) e `.ux-shots/` + `scripts/ux-*.mjs` (ignorados) → nada de mock no deploy.
+
+**Brain atualizado**: `decision-log.md` (DEC-162..165) + `project-status.md` (seção UX Polish Pass, contagens, deploy).
+
+**Sem bump no Gate 7**: nenhuma mudança de código de app (só verificação + docs do brain, que não entram no build). Versão final em produção = **0.14.5** (Gate 6). Bump redundante só invalidaria cache dos instalados sem ganho.
+
+### Entrega — ANTES × DEPOIS por tela
+
+| Tela | Antes | Depois | Gate |
+|------|-------|--------|------|
+| Dashboard | 2 banners empilhados + 3 analytics sempre abertos empurravam o hero | 1 banner por vez · cards reordenados · analytics num drawer "Análise da viagem" colapsado | 2 |
+| QuickAdd | Salvar só no fim do form (muito scroll) | barra Cancelar/Salvar **fixa** na base | 3 |
+| Planner/Simulator/Funds/Wallets | já limpas | sem mudança (evitar risco sem ganho) | 4 |
+| Settings | parede de ~20 seções sem rótulo | **7 grupos** rotulados (ordem preservada) | 5 |
+| Backup/Shared/About/More | já organizadas | sem mudança | 5 |
+| Notifications / Impact | voltar **circular** (destoava das 16 sub-páginas) | voltar **pelado** padrão (sticky preservado) | 6 |
+| Bottom nav / padding / empty states | já consistentes | auditados, sem mudança | 6 |
+
+### Decisões de UX (resumo) — DEC-162..165
+D1-D3 densidade do dashboard (DEC-162) · D-sticky QuickAdd (DEC-163) · D-grupos Settings (DEC-164) · D5 unificar voltar/título (DEC-165). Detalhe completo nas tabelas de cada gate acima.
+
+### Zona protegida — preservada integralmente
+Carrossel de insights (DEC-077/091/150) e contadores de ocasião / scroll horizontal (DEC-076): **comportamento intocado** em todos os gates. Nenhuma alteração de swipe/auto-rotação/snap.
+
+### Contagens
+- Telas inventariadas/percorridas: **21 rotas** · melhoradas: **4** (dashboard, quick-add, settings, notifications+impact) · revisadas-sem-mudança: as demais
+- Componentes tocados: `DashboardPage`, `DashboardCards`, `QuickAddPage`, `SettingsPage`, `NotificationsPage`, `ImpactDetailPage` + domínio `dashboard-cards` + tipos/seed/i18n
+- Reverts: **0** · Funcionalidade removida: **0**
+- Testes: **819** verdes · Versões: 0.14.2→0.14.5 · SW cache: v12→v15
+
+### Deploys (produção `--branch=main` → `trippilot.pages.dev`)
+- 0.14.2 → https://412a81f0.trippilot.pages.dev
+- 0.14.3 → https://58763c5d.trippilot.pages.dev
+- 0.14.4 → https://a98841a9.trippilot.pages.dev
+- 0.14.5 → https://65c3082b.trippilot.pages.dev (**produção atual**)
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |
