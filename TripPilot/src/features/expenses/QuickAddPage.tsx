@@ -43,6 +43,7 @@ import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/
 import { requestPersistentStorage } from '@/utils/pwa';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
+import { recordDailyLocalSnapshot } from '@/utils/local-snapshot';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -451,6 +452,8 @@ export function QuickAddPage() {
     requestPersistentStorage();
     // BUG-002: refresh the emergency snapshot every few expenses (best-effort).
     void recordExpenseForSnapshot();
+    // E6 (M14): capture at most one daily restore point (best-effort, deduped).
+    void recordDailyLocalSnapshot();
   };
 
   const finishAndGoHome = async () => {

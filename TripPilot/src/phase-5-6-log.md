@@ -1,9 +1,9 @@
 # Pacote 3 — Local & Hora + Multi-moeda + Segurança & Sharing — Log
 
 ## Current State
-- Fase: 5 ✅ COMPLETA | Gate: 3 ✅ | Milestone: M13 done | Done: 13/24 | Tests: 774 (+26 no gate; +66 na Fase 5 vs baseline 708) | Versão: 0.13.0 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.13.0) | Build: ✅
-- Dexie SCHEMA_VERSION=4 (próxima migração = v5 no M14, ÚNICA do pacote). BACKUP_VERSION=5 ✅ (bumped no M1).
-- PRÓXIMO: FASE 6 / GATE 4 / M14 (tabela de snapshots — ÚNICA migração Dexie do pacote → v5) → 0.13.1.
+- Fase: 6 🔄 | Gate: 4 ✅ | Milestone: M16 done | Done: 16/24 | Tests: 786 (+12 no gate; +78 vs baseline 708) | Versão: 0.13.1 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.13.1) | Build: ✅
+- Dexie SCHEMA_VERSION=5 ✅ (M14 — a ÚNICA migração do pacote, já feita: tabela localSnapshots). BACKUP_VERSION=5 ✅ (bumped no M1). NÃO migrar Dexie nos próximos gates.
+- PRÓXIMO: FASE 6 / GATE 5 / M17 (cofre pra nuvem via share sheet + lembrete) → 0.13.2.
 
 ## Decisões tomadas durante a execução
 - Deploy em PRODUÇÃO (--branch=main → trippilot.pages.dev) a cada gate, a pedido do Julio (supera o "preview" do pacote).
@@ -22,11 +22,17 @@
 - M11: boundary `utils/exchange-rates.ts` (open.er-api.com, sem chave) — opt-in/online-only/timeout/fallback null; inverte "estrangeira por base" → "base por estrangeira" (ratesToBase). `AppSettings.frozenRates` (não-indexado, backfill+seed). Settings ganha seção "Câmbio" (atualizar taxas + data/contagem). Reusa `isOnline` de places.
 - M12: i18n pt/en/es de tudo do gate (expenses.currency_*/exchange_rate_*, settings.fx_*).
 - M13: +26 testes no gate — exchange.ts (convert/personal-base/resolveFrozen/listCurrencies/poolSpent multi-moeda), carteira 3 casos (base→convertido, mesma→original, edge→original), boundary fx (mock fetch: sucesso inverte, offline/erro/!ok/result≠success→null). Fase 5 total +66 vs baseline (alvo do M13 era ≥18).
+- M14 (ÚNICA migração Dexie do pacote): SCHEMA_VERSION 4→5, SCHEMA_V5={...V4, localSnapshots:'id, createdAt'}; `this.version(5).stores(SCHEMA_V5)` SEM upgrade() (tabela nova → Dexie cria e preserva dados existentes — padrão confirmado). Tabela LOCAL-only: NÃO está em BACKUP_TABLE_KEYS, então buildFullBackup não a exporta e importBackup não a toca.
+- M14: tipo `LocalSnapshot {id(=dia YYYY-MM-DD), createdAt(ISO), expenseCount, json}` — NÃO é SyncMetadata, repo standalone (sem BaseRepository). id=dia → put dedup natural 1×/dia. Puros em `domain/local-snapshots` (snapshotDayId, sortNewestFirst, hasSnapshotForDay, selectSnapshotsToPrune, parseSnapshotJson). Boundary `utils/local-snapshot.ts`: recordDailyLocalSnapshot (best-effort, dedup por dia, buildFullBackup→put→poda os além de N=7) + restoreLocalSnapshot (parseSnapshotJson→importBackup 'replace'→true; json inválido→false, DB intacto).
+- M14: gatilho reusa o de recordExpenseForSnapshot — chamado no QuickAdd (persistExpense) E no fim da saída (OutingPage), ambos `void` best-effort e dedup por dia (custo zero em dias repetidos).
+- M15: Settings ganha seção "Avançado" → lista os pontos (data via formatDate(id) + hora local + nº de gastos) → toque abre BottomSheet de confirmação (aviso "substitui e não desfaz") → restoreLocalSnapshot → reload()+toast+navega pro dashboard. Reusa o fluxo de import atômico (mesmo padrão do BackupPage).
+- M16: +12 testes — puros (poda mantém N mais novos, cap custom, sort não-mutante, hasSnapshotForDay, snapshotDayId, parse inválido→null) + integração via fake-indexeddb (sem trip→nada; 1×/dia; poda 7+1→7 dropando o mais antigo; restore replace dropa drift; json ruim→false sem tocar DB).
 
 ## Deploys
 - 0.12.2 (GATE 1) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://544a59ad.trippilot.pages.dev)
 - 0.12.3 (GATE 2) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://b11f228e.trippilot.pages.dev)
-- 0.13.0 (GATE 3 — FASE 5 COMPLETA) → PRODUÇÃO https://trippilot.pages.dev (deploy id: ver abaixo)
+- 0.13.0 (GATE 3 — FASE 5 COMPLETA) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://507ef5b3.trippilot.pages.dev)
+- 0.13.1 (GATE 4) → PRODUÇÃO https://trippilot.pages.dev (deploy id: ver após deploy)
 
 ## GATE 0 — Baseline (sem deploy)
 - [x] Node 22.22.3 confirmado
@@ -71,11 +77,11 @@
 
 ## FASE 6 — SEGURANÇA, COMPARTILHAMENTO & SHARE TARGET
 
-### GATE 4 — Histórico de snapshots → 0.13.1
-- [ ] M14 Tabela de snapshots (ÚNICA migração Dexie → v5)
-- [ ] M15 Restaurar "para ontem"
-- [ ] M16 Testes (poda, leitura/escrita, restore)
-- [ ] Checkpoint: 0.13.1 + commit
+### GATE 4 — Histórico de snapshots → 0.13.1 ✅
+- [x] M14 Tabela de snapshots (ÚNICA migração Dexie → v5) + repo + gatilho diário + poda
+- [x] M15 Restaurar "para ontem" (Settings › Avançado, BottomSheet de confirmação, import atômico)
+- [x] M16 Testes (+12: poda, leitura/escrita, restore via import)
+- [x] Checkpoint: 0.13.1 + deploy PRODUÇÃO + commit (786 testes, tsc 0, build sem chunk>500KB)
 
 ### GATE 5 — Cofre + viewer → 0.13.2
 - [ ] M17 Cofre pra nuvem via share sheet + lembrete

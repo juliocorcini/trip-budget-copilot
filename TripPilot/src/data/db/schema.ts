@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -54,4 +54,13 @@ export const SCHEMA_V4: Record<string, string> = {
   ...SCHEMA_V3,
   peerLinks: 'id, actorId, participantId, deletedAt',
   mirroredStatements: 'id, peerActorId, deletedAt',
+};
+
+// V5 (E6 — M14): local-only daily restore points ("restore to yesterday").
+// Adding a brand-new table requires no upgrade() callback — Dexie creates it on
+// open and leaves every existing table/row untouched. This table is LOCAL-only
+// and never participates in BackupData (it is not in BACKUP_TABLE_KEYS).
+export const SCHEMA_V5: Record<string, string> = {
+  ...SCHEMA_V4,
+  localSnapshots: 'id, createdAt',
 };

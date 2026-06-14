@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { appSettingsRepository, walletRepository } from '@/data/repositories';
+import { appSettingsRepository, walletRepository, localSnapshotRepository } from '@/data/repositories';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { buildTripTemplate, summarizeTemplate } from '@/domain/templates';
 import { saveTripTemplate, deleteTripTemplate } from '@/domain/orchestrators';
 import { fromCents, toCents, formatAnchorHint, formatMoney } from '@/domain/money';
+import { formatDate } from '@/domain/dates';
+import { restoreLocalSnapshot } from '@/utils/local-snapshot';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
+import type { LocalSnapshot } from '@/domain/types/local-snapshot';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import {
   getOutingNotificationPermission,
@@ -53,6 +57,14 @@ export function SettingsPage() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   // E9 (M11): pulling the FX snapshot is opt-in and online-only.
   const [fetchingRates, setFetchingRates] = useState(false);
+  // E6 (M15): local daily restore points + the confirm-before-restore sheet.
+  const [snapshots, setSnapshots] = useState<LocalSnapshot[]>([]);
+  const [restoreTarget, setRestoreTarget] = useState<LocalSnapshot | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  useEffect(() => {
+    void localSnapshotRepository.getAll().then(setSnapshots);
+  }, []);
 
   if (!settings) return null;
 
@@ -174,6 +186,28 @@ export function SettingsPage() {
       }
     } finally {
       setFetchingRates(false);
+    }
+  };
+
+  // M15: restore the DB to a chosen daily point, reusing the atomic backup
+  // import (replace). Confirmed via the sheet; never silently drops data.
+  const handleConfirmRestore = async () => {
+    if (!restoreTarget || restoring) return;
+    setRestoring(true);
+    try {
+      const ok = await restoreLocalSnapshot(restoreTarget);
+      if (!ok) {
+        showToast(t('settings.restore_failed'), 'danger');
+        return;
+      }
+      setRestoreTarget(null);
+      await reload();
+      showToast(t('settings.restore_done'), 'success');
+      navigate('/dashboard');
+    } catch {
+      showToast(t('settings.restore_failed'), 'danger');
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -558,6 +592,40 @@ export function SettingsPage() {
         )}
       </Section>
 
+      {/* E6 (M15): local daily restore points — "restore to yesterday". Each
+          point is a full local backup; restoring reuses the atomic import. */}
+      <Section title={t('settings.advanced_title')}>
+        <p className="text-xs text-on-surface-faint mb-3">{t('settings.restore_hint')}</p>
+        {snapshots.length === 0 ? (
+          <p className="text-sm text-on-surface-dim">{t('settings.restore_empty')}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {snapshots.map((snap) => (
+              <button
+                key={snap.id}
+                onClick={() => setRestoreTarget(snap)}
+                className="w-full flex items-center gap-3 bg-surface-high rounded-lg px-3 py-2 btn-press text-left"
+              >
+                <Icon name="history" size={16} className="text-on-surface-dim shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-on-surface">{formatDate(snap.id)}</p>
+                  <p className="text-[11px] text-on-surface-faint">
+                    {t('settings.restore_point_meta', {
+                      time: new Date(snap.createdAt).toLocaleTimeString(i18n.language, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }),
+                      count: snap.expenseCount,
+                    })}
+                  </p>
+                </div>
+                <Icon name="restore" size={16} className="text-on-surface-faint shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+      </Section>
+
       <Section title={t('settings.device_name')}>
         <input
           type="text"
@@ -691,6 +759,45 @@ export function SettingsPage() {
         <p className="text-sm text-on-surface">TripPilot v{APP_VERSION}</p>
         <p className="text-xs text-on-surface-faint mt-1">{t('settings.about_desc')}</p>
       </Section>
+
+      {/* M15: confirm before replacing the current data with a restore point. */}
+      <BottomSheet
+        open={restoreTarget !== null}
+        onClose={() => {
+          if (!restoring) setRestoreTarget(null);
+        }}
+        title={t('settings.restore_confirm_title')}
+      >
+        {restoreTarget && (
+          <>
+            <p className="text-sm text-on-surface-dim mb-2">
+              {t('settings.restore_confirm_body', {
+                date: formatDate(restoreTarget.id),
+                count: restoreTarget.expenseCount,
+              })}
+            </p>
+            <p className="text-xs mb-5" style={{ color: 'var(--error)' }}>
+              {t('settings.restore_confirm_warning')}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setRestoreTarget(null)}
+                disabled={restoring}
+                className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim text-sm font-medium btn-press disabled:opacity-50"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleConfirmRestore}
+                disabled={restoring}
+                className="flex-1 py-3 rounded-xl bg-primary text-on-surface text-sm font-semibold btn-press disabled:opacity-50"
+              >
+                {restoring ? t('common.loading') : t('settings.restore_confirm_cta')}
+              </button>
+            </div>
+          </>
+        )}
+      </BottomSheet>
     </div>
   );
 }

@@ -56,6 +56,7 @@ import {
 import { requestPersistentStorage } from '@/utils/pwa';
 import { setActiveOuting, takePendingReload } from '@/utils/sw-reload';
 import { writeEmergencySnapshot } from '@/utils/emergency-snapshot';
+import { recordDailyLocalSnapshot } from '@/utils/local-snapshot';
 import {
   isOutingNotificationSupported,
   wasOutingNotificationPrompted,
@@ -999,6 +1000,8 @@ export function OutingPage() {
 
     // BUG-002: a finished outing is a natural checkpoint — refresh the snapshot.
     void writeEmergencySnapshot();
+    // E6 (M14): also capture a daily restore point (best-effort, deduped by day).
+    void recordDailyLocalSnapshot();
 
     showToast(t('outing.session_ended'), 'success');
     setReviewing(false);

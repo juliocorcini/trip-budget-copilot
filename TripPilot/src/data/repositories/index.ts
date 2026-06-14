@@ -18,3 +18,4 @@ export { plannedOccurrenceRepository } from './planned-occurrence-repository';
 export { forecastSnapshotRepository } from './forecast-snapshot-repository';
 export { peerLinkRepository } from './peer-link-repository';
 export { mirroredStatementRepository } from './mirrored-statement-repository';
+export { localSnapshotRepository } from './local-snapshot-repository';

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.13.1',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Pontos de restauração diários: o app guarda os últimos 7 dias só neste aparelho.',
+        'Em Ajustes › Avançado, escolha um dia e volte o app àquele estado (com confirmação, sem perda silenciosa).',
+      ],
+      en: [
+        'Daily restore points: the app keeps the last 7 days on this device only.',
+        'In Settings › Advanced, pick a day to roll the app back to that state (with confirmation, no silent loss).',
+      ],
+      es: [
+        'Puntos de restauración diarios: la app guarda los últimos 7 días solo en este dispositivo.',
+        'En Ajustes › Avanzado, elige un día para volver la app a ese estado (con confirmación, sin pérdida silenciosa).',
+      ],
+    },
+  },
+  {
     version: '0.13.0',
     date: '2026-06-13',
     items: {

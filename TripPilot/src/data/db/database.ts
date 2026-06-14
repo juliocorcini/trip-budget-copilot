@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4 } from './schema';
+import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import type { Trip } from '@/domain/types/trip';
 import type { Phase } from '@/domain/types/phase';
@@ -23,6 +23,7 @@ import type { AppSettings } from '@/domain/types/app-settings';
 import type { Device } from '@/domain/types/device';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { MirroredStatement } from '@/domain/types/mirrored-statement';
+import type { LocalSnapshot } from '@/domain/types/local-snapshot';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -49,6 +50,7 @@ export class TripPilotDB extends Dexie {
   devices!: EntityTable<Device, 'id'>;
   peerLinks!: EntityTable<PeerLink, 'id'>;
   mirroredStatements!: EntityTable<MirroredStatement, 'id'>;
+  localSnapshots!: EntityTable<LocalSnapshot, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -85,6 +87,10 @@ export class TripPilotDB extends Dexie {
           if (participant.linkedActorId === undefined) participant.linkedActorId = null;
         });
       });
+
+    // E6 (M14): local daily restore points. A new table needs no upgrade()
+    // callback — existing tables/rows are preserved untouched on open.
+    this.version(5).stores(SCHEMA_V5);
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {
