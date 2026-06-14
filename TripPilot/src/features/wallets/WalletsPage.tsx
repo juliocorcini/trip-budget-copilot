@@ -233,6 +233,7 @@ export function WalletsPage() {
       >
         {reconcilingWallet && (
           <div className="flex flex-col gap-3">
+            <p className="text-xs text-on-surface-faint">{t('wallets.reconcile_hint')}</p>
             <p className="text-xs text-on-surface-dim">
               {t('wallets.expected_balance')}:{' '}
               <span className="font-bold tabular text-on-surface">

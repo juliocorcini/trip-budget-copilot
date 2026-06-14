@@ -332,9 +332,21 @@ O conselho (4 papéis, paralelos) **convergiu** e validou que as causas-raiz já
 
 Quick-add nascia sempre em **"Outros"**, forçando trocar em quase todo gasto. Agora lembra a **última categoria usada** (`appSettings.lastExpenseCategory`, não-indexado, backfill no repo — mesma família do `currentPlace`). Aplicado 1× ao abrir, só quando a URL não fixou `?cat=`/`?type=`; persistido junto com o place em **uma única escrita** (Core Rule 2.5). **Visual** (`scripts/ux-sticky.mjs`): gravou um gasto "Bar" → reabriu o quick-add → "Bar" já selecionado. ✅
 
-**Pendente/avaliar**: data nativa `mm/dd/yyyy` (locale do input nativo — exige date picker custom; alto esforço/baixo valor); banners do topo do dashboard (demo + backup).
-
 821 verdes (+2), typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v21.
+
+### Gate I — "tudo tem motivo": explicar antes de agir → 0.14.12 ✅
+
+Segunda leva (foco em *sentido antes da ação* + estados vazios que não ensinam). Tour das interações que faltaram (FAB menu, detalhe do gasto via `scripts/ux-interact.mjs`) confirmou que FAB e detalhe estão limpos; achados reais:
+
+- **Check-in explica antes de tocar**: `checkin_prompt` "Como vai ser o dia?" → "Como vai ser o dia? **Escolha e veja quanto faz sentido gastar.**" — o motivo do toque fica claro antes mesmo do resultado. i18n ×3.
+- **Reconciliar deixou de ser termo solto**: o sheet de reconciliação agora abre com 1 linha ("Conte o dinheiro de verdade e digite o valor — o app ajusta o saldo pra bater com a realidade") antes do "Saldo esperado". i18n ×3 (`wallets.reconcile_hint`).
+- **Simulador vazio ensina**: abaixo dos chips, quando o valor é 0, "Digite quanto pretende gastar pra ver na hora se cabe no orçamento" — preenche o vazio com orientação. i18n ×3 (`simulator.empty_hint`).
+
+**Visual** (`scripts/ux-batch2.mjs`): simulador com hint + sheet de reconciliação com explicação confirmados. ✅
+
+**Pendente/avaliar** (fora desta leva, por custo/risco): data nativa `mm/dd/yyyy` no input de data/hora (locale do input nativo — exigiria date picker custom; a formatação própria do app já é dd/mm); banners empilhados do topo do dashboard (são demo-only — usuário real vê 1 banner); flash do spinner full-screen no 1º acesso a cada rota lazy (chunk cacheia depois).
+
+821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v22.
 
 ---
 

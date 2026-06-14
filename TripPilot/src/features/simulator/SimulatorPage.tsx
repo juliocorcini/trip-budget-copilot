@@ -261,6 +261,9 @@ export function SimulatorPage() {
             </button>
           ))}
         </div>
+        {amountCents === 0 && (
+          <p className="text-xs text-on-surface-faint mt-3">{t('simulator.empty_hint')}</p>
+        )}
       </div>
 
       {/* DEC-116: WHERE will you spend? — profiles + events + other */}

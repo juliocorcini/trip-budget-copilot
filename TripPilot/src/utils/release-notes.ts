@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.12',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Mais explicações onde fazia falta: o check-in do dia agora diz pra que serve antes de você escolher, o simulador mostra o que fazer quando está vazio, e a tela de reconciliar carteira explica o que ela faz.',
+      ],
+      en: [
+        "More explanations where they were missing: the daily check-in now says what it's for before you pick, the simulator shows what to do when it's empty, and the wallet reconcile screen explains what it does.",
+      ],
+      es: [
+        'Más explicaciones donde faltaban: el check-in del día ahora dice para qué sirve antes de elegir, el simulador muestra qué hacer cuando está vacío, y la pantalla de reconciliar billetera explica qué hace.',
+      ],
+    },
+  },
+  {
     version: '0.14.11',
     date: '2026-06-14',
     items: {
