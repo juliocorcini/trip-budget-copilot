@@ -33,3 +33,7 @@ coverage/
 # Temporary
 tmp/
 temp/
+
+# UX polish screenshots + tooling (analysis only, never committed)
+.ux-shots/
+TripPilot/scripts/ux-shots.mjs
