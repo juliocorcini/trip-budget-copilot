@@ -25,6 +25,15 @@
       "purpose": "maskable"
     }
   ],
+  "share_target": {
+    "action": "/quick-add",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "shortcuts": [
     {
       "name": "Registrar gasto",

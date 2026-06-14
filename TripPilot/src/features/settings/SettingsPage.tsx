@@ -9,6 +9,7 @@ import { saveTripTemplate, deleteTripTemplate } from '@/domain/orchestrators';
 import { fromCents, toCents, formatAnchorHint, formatMoney } from '@/domain/money';
 import { formatDate } from '@/domain/dates';
 import { restoreLocalSnapshot } from '@/utils/local-snapshot';
+import { hashPin, isValidPin } from '@/utils/app-lock';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
@@ -61,6 +62,13 @@ export function SettingsPage() {
   const [snapshots, setSnapshots] = useState<LocalSnapshot[]>([]);
   const [restoreTarget, setRestoreTarget] = useState<LocalSnapshot | null>(null);
   const [restoring, setRestoring] = useState(false);
+  // E6 (M20): app lock — the set-PIN sheet collects a new PIN twice before it is
+  // hashed (the PIN itself never touches storage).
+  const [pinSheetOpen, setPinSheetOpen] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [savingPin, setSavingPin] = useState(false);
 
   useEffect(() => {
     void localSnapshotRepository.getAll().then(setSnapshots);
@@ -208,6 +216,47 @@ export function SettingsPage() {
       showToast(t('settings.restore_failed'), 'danger');
     } finally {
       setRestoring(false);
+    }
+  };
+
+  // E6 (M20): toggle the app lock. Turning it on opens the set-PIN sheet; turning
+  // it off clears the stored hash/salt (Settings is already behind the lock, so
+  // the traveler proved they know the PIN by getting here).
+  const handleToggleLock = () => {
+    if (settings.appLockEnabled) {
+      void updateSetting({ appLockEnabled: false, appLockPinHash: null, appLockPinSalt: null });
+      showToast(t('settings.lock_disabled'), 'info');
+      return;
+    }
+    setNewPin('');
+    setConfirmPin('');
+    setPinError(null);
+    setPinSheetOpen(true);
+  };
+
+  // E6 (M20): validate the PIN pair, hash it via Web Crypto, then persist.
+  const handleSavePin = async () => {
+    if (savingPin) return;
+    if (!isValidPin(newPin)) {
+      setPinError(t('settings.lock_pin_invalid'));
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinError(t('settings.lock_pin_mismatch'));
+      return;
+    }
+    setSavingPin(true);
+    try {
+      const { saltHex, hashHex } = await hashPin(newPin);
+      await updateSetting({
+        appLockEnabled: true,
+        appLockPinHash: hashHex,
+        appLockPinSalt: saltHex,
+      });
+      setPinSheetOpen(false);
+      showToast(t('settings.lock_saved'), 'success');
+    } finally {
+      setSavingPin(false);
     }
   };
 
@@ -592,6 +641,30 @@ export function SettingsPage() {
         )}
       </Section>
 
+      {/* E6 (M20): opt-in app lock — a PIN asked at boot. Off by default; the
+          PIN is stored only as a hash. Recovery is never trapped (ÂNCORA 12). */}
+      <Section title={t('settings.lock_title')}>
+        <ToggleRow
+          label={t('settings.lock_enable')}
+          enabled={settings.appLockEnabled}
+          onChange={handleToggleLock}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('settings.lock_hint')}</p>
+        {settings.appLockEnabled && (
+          <button
+            onClick={() => {
+              setNewPin('');
+              setConfirmPin('');
+              setPinError(null);
+              setPinSheetOpen(true);
+            }}
+            className="mt-3 px-3 py-2 rounded-lg bg-surface-high text-on-surface text-xs font-medium btn-press"
+          >
+            {t('settings.lock_change_pin')}
+          </button>
+        )}
+      </Section>
+
       {/* E6 (M15): local daily restore points — "restore to yesterday". Each
           point is a full local backup; restoring reuses the atomic import. */}
       <Section title={t('settings.advanced_title')}>
@@ -797,6 +870,65 @@ export function SettingsPage() {
             </div>
           </>
         )}
+      </BottomSheet>
+
+      {/* E6 (M20): set / change the PIN. Collected twice; only the hash is saved. */}
+      <BottomSheet
+        open={pinSheetOpen}
+        onClose={() => {
+          if (!savingPin) setPinSheetOpen(false);
+        }}
+        title={t('settings.lock_set_title')}
+      >
+        <div className="flex flex-col gap-3">
+          <input
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            value={newPin}
+            onChange={(e) => {
+              setNewPin(e.target.value.replace(/\D/g, '').slice(0, 8));
+              setPinError(null);
+            }}
+            placeholder={t('settings.lock_new_pin')}
+            aria-label={t('settings.lock_new_pin')}
+            className="bg-surface-high text-on-surface text-center text-lg tracking-[0.4em] font-bold rounded-lg px-3 py-3 outline-none"
+          />
+          <input
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            value={confirmPin}
+            onChange={(e) => {
+              setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 8));
+              setPinError(null);
+            }}
+            placeholder={t('settings.lock_confirm_pin')}
+            aria-label={t('settings.lock_confirm_pin')}
+            className="bg-surface-high text-on-surface text-center text-lg tracking-[0.4em] font-bold rounded-lg px-3 py-3 outline-none"
+          />
+          {pinError && (
+            <p className="text-xs font-semibold" style={{ color: 'var(--error)' }}>
+              {pinError}
+            </p>
+          )}
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => setPinSheetOpen(false)}
+              disabled={savingPin}
+              className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim text-sm font-medium btn-press disabled:opacity-50"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleSavePin}
+              disabled={savingPin}
+              className="flex-1 py-3 rounded-xl bg-primary text-on-surface text-sm font-semibold btn-press disabled:opacity-50"
+            >
+              {savingPin ? t('common.loading') : t('common.save')}
+            </button>
+          </div>
+        </div>
       </BottomSheet>
     </div>
   );

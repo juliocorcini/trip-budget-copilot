@@ -44,6 +44,7 @@ import { requestPersistentStorage } from '@/utils/pwa';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
 import { recordDailyLocalSnapshot } from '@/utils/local-snapshot';
+import { parseSharedExpense } from '@/domain/sharing';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -75,14 +76,25 @@ export function QuickAddPage() {
   const isWithdrawal = txType === 'withdrawal';
   const isTransferLike = isTransfer || isWithdrawal;
 
-  // R6-21: the simulator CTA pre-fills the amount (?amount=).
+  // E6 (M21): Web Share Target — the OS shares into TripPilot as a GET to
+  // /quick-add?title&text&url. We only PRE-FILL (never auto-save — ÂNCORA 13).
+  const sharedIntake = parseSharedExpense({
+    title: searchParams.get('title'),
+    text: searchParams.get('text'),
+    url: searchParams.get('url'),
+  });
+
+  // R6-21: the simulator CTA pre-fills the amount (?amount=); a Share Target
+  // intent pre-fills it from the shared text instead.
   const [amount, setAmount] = useState(() => {
     const prefill = searchParams.get('amount');
-    if (!prefill) return '';
-    const parsed = parseFloat(prefill);
-    return Number.isNaN(parsed) || parsed <= 0 ? '' : String(parsed);
+    if (prefill) {
+      const parsed = parseFloat(prefill);
+      if (!Number.isNaN(parsed) && parsed > 0) return String(parsed);
+    }
+    return sharedIntake.amount !== null ? String(sharedIntake.amount) : '';
   });
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(() => sharedIntake.description);
   const [category, setCategory] = useState(initialCategory);
   const [walletId, setWalletId] = useState<string | null>(null);
   const [targetWalletId, setTargetWalletId] = useState<string | null>(null);

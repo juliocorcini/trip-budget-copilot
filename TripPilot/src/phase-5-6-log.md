@@ -1,9 +1,9 @@
 # Pacote 3 — Local & Hora + Multi-moeda + Segurança & Sharing — Log
 
 ## Current State
-- Fase: 6 🔄 | Gate: 5 ✅ | Milestone: M19 done | Done: 19/24 | Tests: 797 (+11 no gate; +89 vs baseline 708) | Versão: 0.13.2 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.13.2) | Build: ✅
-- Dexie SCHEMA_VERSION=5 ✅ (M14 — a ÚNICA migração do pacote, já feita: tabela localSnapshots). BACKUP_VERSION=5 ✅ (bumped no M1). NÃO migrar Dexie nos próximos gates.
-- PRÓXIMO: FASE 6 / GATE 6 / M20 (lock PIN/biometria off por padrão) → 0.14.0 (Fase 6 completa).
+- Fase: 6 ✅ COMPLETA | Gate: 6 ✅ | Milestone: M23 done | Done: 23/24 | Tests: 814 (+17 no gate; +106 vs baseline 708) | Versão: 0.14.0 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.14.0) | Build: ✅ (SW cache v10)
+- Dexie SCHEMA_VERSION=5 ✅ (M14 — a ÚNICA migração do pacote, já feita: tabela localSnapshots). BACKUP_VERSION=5 ✅ (bumped no M1). NÃO migrar Dexie no GATE 7.
+- PRÓXIMO: GATE 7 (testes finais + brain DECs + deploy final) → 0.14.1.
 
 ## Decisões tomadas durante a execução
 - Deploy em PRODUÇÃO (--branch=main → trippilot.pages.dev) a cada gate, a pedido do Julio (supera o "preview" do pacote).
@@ -30,13 +30,20 @@
 - M17: `downloadFile` (csv-export.ts) JÁ faz share-first (navigator.share com File) + fallback download — então o "enviar backup" reusa esse boundary (DRY, sem refatorar). BackupPage: botão primário re-enquadrado como "Enviar backup" (ícone ios_share, chama handleExport que já marca lastBackupDate) + banner de lembrete reusando `isBackupReminderDue(settings, Date.now())`. Sem segundo botão redundante.
 - M18: `domain/sharing/trip-report.ts` — `buildTripReport` (puro) agrega TUDO em BASE via `transactionBasePersonalCostCents` (consistente com o orçamento): total gasto/orçamento/%, por fase (ordem cronológica), por categoria e por lugar (desc), nº de saídas + total das saídas, nº de gastos. `renderTripReportHtml(report, labels)` gera HTML self-contained (CSS inline, ZERO rede/script, escapeHtml em todo texto do usuário; labels injetadas p/ i18n). BackupPage: botão "Exportar resumo (HTML)" → carrega sessions, monta labels via t(), downloadFile text/html.
 - M19: +11 testes — trip-report (totais base incl. estrangeiro convertido, exclui deletado/não-gasto, categorias/lugares/fases, saídas, %; HTML é doc completo com totais certos, offline sem 'http'/script, escapa injeção) + download-file (share quando suportado, fallback download sem Web Share, fallback quando share rejeita não-abort).
+- M20 (lock): `AppSettings` ganha `appLockEnabled`(off default)+`appLockPinHash`+`appLockPinSalt` (não-indexados → SEM migração Dexie; backfill no repo + seed). Boundary `utils/app-lock.ts`: PBKDF2-SHA256 (100k iter, salt 16B aleatório) via Web Crypto — PIN NUNCA em claro; `hashPin/verifyPin` (compare timing-safe em hex, nunca lança) + `isValidPin` (4–8 dígitos). `LockScreen` (features/security) só verifica o PIN, não lê/exporta dados. `AppLockGate` (app/, abaixo do AppDataProvider em RootLayout) tranca o Outlet quando lock on + não desbloqueado; allowlist NUNCA trancada: `/ /welcome /onboarding /rescue /sync` (BootGate decide recuperação no `/`; DB evicted não tem settings → lock não engata — ÂNCORA 12). Sessão que começa SEM lock fica destrancada (ativar mid-sessão não tranca na hora); cold start com lock → pede PIN. Re-lock em background NÃO implementado (evita atrito/bug; boot-only atende o "abrir pede PIN"). Settings: toggle + sheet definir/alterar PIN (coleta 2×, valida, hash, salva). Desativar/alterar não re-pede PIN (já está atrás do lock).
+- M20 (corte sancionado): biometria/WebAuthn ADIADA — entregue PIN-only (o pacote permite o corte). Registrar em DEC no GATE 7.
+- M20: cast `salt as BufferSource` no deriveBits (TS DOM lib tipa salt sobre ArrayBuffer puro; mesmo padrão de sync/crypto.ts).
+- M21 (Share Target): `manifest.json` (estático) ganha `share_target` {method GET, action /quick-add, params title/text/url}. Parser puro `domain/sharing/share-intake.ts` `parseSharedExpense` → 1º token monetário (regex + parseLocaleNumber, aceita 1.234,56 e 1,234.56) vira valor (>0; senão null) + descrição (title→text→url). QuickAdd lê os params nos initializers de amount/description (só PRÉ-PREENCHE, nunca salva — ÂNCORA 13). SW já serve /quick-add offline (networkFirst nav → fallback index.html); bump CACHE_NAME v9→v10 pra o manifest novo (cacheFirst) chegar aos instalados via toast de update (DEC-082).
+- M22: i18n pt/en/es — `settings.lock_*` (título/toggle/hint/alterar/definir/novo/confirmar/inválido/divergente/salvo/desativado) + namespace `lock` (title/subtitle/pin_placeholder/wrong_pin/unlock/recovery_hint). Mesmo commit (ÂNCORA 16).
+- M23: +17 testes (alvo ≥12) — app-lock (isValidPin 4–8; hash hex 64/salt 32, PIN não aparece; verify certo/errado; salt único + reprodução com mesmo salt; malformado→false sem lançar), share-intake (decimal ponto/vírgula, milhar nos 2 formatos, 1º token de title+text, sem número→null, zero→null, URL só descrição nunca valor, vazio→''), app-lock-gate (lock off→children; lock on rota protegida→PIN screen; allowlist recuperação NUNCA trancada; settings carregando→children). Total 814 verde, tsc 0, build sem chunk>500KB.
 
 ## Deploys
 - 0.12.2 (GATE 1) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://544a59ad.trippilot.pages.dev)
 - 0.12.3 (GATE 2) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://b11f228e.trippilot.pages.dev)
 - 0.13.0 (GATE 3 — FASE 5 COMPLETA) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://507ef5b3.trippilot.pages.dev)
 - 0.13.1 (GATE 4) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://9f9f8f1e.trippilot.pages.dev)
-- 0.13.2 (GATE 5) → PRODUÇÃO https://trippilot.pages.dev (deploy id: ver após deploy)
+- 0.13.2 (GATE 5) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://d7a41f20.trippilot.pages.dev)
+- 0.14.0 (GATE 6 — FASE 6 COMPLETA) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://10466c6c.trippilot.pages.dev)
 
 ## GATE 0 — Baseline (sem deploy)
 - [x] Node 22.22.3 confirmado
@@ -93,12 +100,12 @@
 - [x] M19 Testes (+11: share fallback, geração HTML, agregação base)
 - [x] Checkpoint: 0.13.2 + deploy PRODUÇÃO + commit (797 testes, tsc 0, build sem chunk>500KB)
 
-### GATE 6 — Lock + Share Target + i18n + testes → FASE 6 COMPLETA → 0.14.0
-- [ ] M20 Bloqueio PIN/biometria (off por padrão)
-- [ ] M21 Web Share Target (manifest + rota)
-- [ ] M22 i18n Fase 6
-- [ ] M23 Testes Fase 6 (≥12 novos)
-- [ ] Checkpoint: 0.14.0 + commit
+### GATE 6 — Lock + Share Target + i18n + testes → FASE 6 COMPLETA → 0.14.0 ✅
+- [x] M20 Bloqueio PIN (off por padrão; PBKDF2/Web Crypto; recuperação nunca trancada) — biometria ADIADA (corte sancionado)
+- [x] M21 Web Share Target (manifest share_target + parser puro + QuickAdd pré-preenche; SW cache v10)
+- [x] M22 i18n Fase 6 (settings.lock_* + namespace lock; mesmo commit)
+- [x] M23 Testes Fase 6 (+17 no gate, ≥12 exigidos: PIN hash, share-target parser, lock gating)
+- [x] Checkpoint: 0.14.0 + deploy PRODUÇÃO + commit (814 testes, tsc 0, build sem chunk>500KB)
 
 ## GATE 7 — Testes finais + brain + deploy final → 0.14.1
 - [ ] Testes todos verdes (≥30 novos)

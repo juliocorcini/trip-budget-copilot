@@ -53,6 +53,10 @@ export function createDefaultAppSettings(): AppSettings {
     currentPlace: null,
     // E9 (M11): no frozen exchange rates until the traveler pulls them once.
     frozenRates: null,
+    // E6 (M20): app lock is opt-in — off with no PIN until the traveler sets one.
+    appLockEnabled: false,
+    appLockPinHash: null,
+    appLockPinSalt: null,
   };
 }
 

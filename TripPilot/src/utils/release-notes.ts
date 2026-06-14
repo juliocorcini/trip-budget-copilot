@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.0',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Bloqueio do app por PIN (opcional): ative em Ajustes e o app pede o PIN ao abrir. Fica tudo neste aparelho — a recuperação por backup nunca trava.',
+        'Compartilhar para o TripPilot: envie um texto de outro app e o registro de gasto já abre preenchido com valor e descrição (você confere antes de salvar).',
+      ],
+      en: [
+        'App lock with a PIN (optional): turn it on in Settings and the app asks for the PIN on open. Everything stays on this device — backup recovery is never locked out.',
+        'Share to TripPilot: send text from another app and the expense form opens pre-filled with the amount and description (you review before saving).',
+      ],
+      es: [
+        'Bloqueo de la app con PIN (opcional): actívalo en Ajustes y la app pide el PIN al abrir. Todo queda en este dispositivo — la recuperación por copia nunca se bloquea.',
+        'Compartir a TripPilot: envía un texto desde otra app y el registro de gasto se abre con el importe y la descripción ya rellenados (lo revisas antes de guardar).',
+      ],
+    },
+  },
+  {
     version: '0.13.2',
     date: '2026-06-13',
     items: {

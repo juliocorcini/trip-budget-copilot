@@ -45,6 +45,10 @@ class AppSettingsRepository {
       currentPlace: settings.currentPlace ?? null,
       // E9 (M11): records predating multi-currency have no frozen rates.
       frozenRates: settings.frozenRates ?? null,
+      // E6 (M20): records predating the app lock default to off / no PIN.
+      appLockEnabled: settings.appLockEnabled ?? false,
+      appLockPinHash: settings.appLockPinHash ?? null,
+      appLockPinSalt: settings.appLockPinSalt ?? null,
     };
   }
 

@@ -40,6 +40,9 @@ const settings: AppSettings = {
   locationCaptureEnabled: false,
   currentPlace: null,
   frozenRates: null,
+  appLockEnabled: false,
+  appLockPinHash: null,
+  appLockPinSalt: null,
 };
 
 const mkTrip = (): Trip => ({

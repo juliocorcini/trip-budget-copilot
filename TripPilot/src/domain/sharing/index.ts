@@ -7,3 +7,5 @@ export type {
   ReportLineTotal,
   TripReportLabels,
 } from './trip-report';
+export { parseSharedExpense } from './share-intake';
+export type { SharedExpenseIntake } from './share-intake';

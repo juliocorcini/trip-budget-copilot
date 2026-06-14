@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
+import { AppLockGate } from '@/app/AppLockGate';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
 
@@ -73,9 +74,13 @@ export function RootLayout() {
   useLanguage(settings);
   useBackButtonGuard();
   // BUG-007: a single AppDataProvider above every route.
+  // E6 (M20): the lock gate sits just below it so the PIN screen can read live
+  // settings while still protecting every route once enabled.
   return (
     <AppDataProvider>
-      <Outlet />
+      <AppLockGate>
+        <Outlet />
+      </AppLockGate>
     </AppDataProvider>
   );
 }

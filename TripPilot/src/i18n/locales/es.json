@@ -505,6 +505,17 @@
     "restore_confirm_cta": "Restaurar",
     "restore_done": "App restaurada.",
     "restore_failed": "No se pudo restaurar este punto.",
+    "lock_title": "Bloqueo de la app",
+    "lock_enable": "Pedir PIN al abrir",
+    "lock_hint": "Protege tus datos con un PIN al abrir la app. Todo queda en este dispositivo — si olvidas el PIN, recupera reinstalando e importando una copia de seguridad.",
+    "lock_change_pin": "Cambiar PIN",
+    "lock_set_title": "Definir PIN",
+    "lock_new_pin": "Nuevo PIN",
+    "lock_confirm_pin": "Confirma el PIN",
+    "lock_pin_invalid": "Usa de 4 a 8 dígitos.",
+    "lock_pin_mismatch": "Los PIN no coinciden.",
+    "lock_saved": "PIN definido.",
+    "lock_disabled": "Bloqueo desactivado.",
     "templates_title": "Plantillas de viaje",
     "templates_hint": "Guarda la estructura de este viaje (fases + valores aprendidos) para reutilizarla en el próximo.",
     "template_save_current": "Guardar viaje actual como plantilla",
@@ -516,6 +527,14 @@
     "version_label": "Versión {{version}}",
     "check_update": "Buscar actualización",
     "checking_update": "Comprobando…"
+  },
+  "lock": {
+    "title": "App bloqueada",
+    "subtitle": "Introduce tu PIN para continuar",
+    "pin_placeholder": "PIN",
+    "wrong_pin": "PIN incorrecto.",
+    "unlock": "Desbloquear",
+    "recovery_hint": "¿Olvidaste el PIN? Reinstala TripPilot e importa tu última copia de seguridad para recuperar tus datos."
   },
   "sharing": {
     "report_title": "Resumen del viaje",

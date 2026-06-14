@@ -505,6 +505,17 @@
     "restore_confirm_cta": "Restore",
     "restore_done": "App restored.",
     "restore_failed": "Couldn't restore this point.",
+    "lock_title": "App lock",
+    "lock_enable": "Ask for PIN on open",
+    "lock_hint": "Protects your data with a PIN when the app opens. It all stays on this device — if you forget the PIN, recover by reinstalling and importing a backup.",
+    "lock_change_pin": "Change PIN",
+    "lock_set_title": "Set PIN",
+    "lock_new_pin": "New PIN",
+    "lock_confirm_pin": "Confirm PIN",
+    "lock_pin_invalid": "Use 4 to 8 digits.",
+    "lock_pin_mismatch": "PINs don't match.",
+    "lock_saved": "PIN set.",
+    "lock_disabled": "Lock turned off.",
     "templates_title": "Trip templates",
     "templates_hint": "Save this trip's structure (phases + learned values) to reuse on a future one.",
     "template_save_current": "Save current trip as template",
@@ -516,6 +527,14 @@
     "version_label": "Version {{version}}",
     "check_update": "Check for update",
     "checking_update": "Checking…"
+  },
+  "lock": {
+    "title": "App locked",
+    "subtitle": "Enter your PIN to continue",
+    "pin_placeholder": "PIN",
+    "wrong_pin": "Wrong PIN.",
+    "unlock": "Unlock",
+    "recovery_hint": "Forgot your PIN? Reinstall TripPilot and import your latest backup to recover your data."
   },
   "sharing": {
     "report_title": "Trip summary",

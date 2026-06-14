@@ -70,4 +70,12 @@ export interface AppSettings {
    * default conversion when logging a foreign-currency expense. null until the
    * traveler pulls it once while online (non-indexed — no migration). */
   frozenRates: FrozenExchangeRates | null;
+  /** E6 (M20): opt-in app lock. Default false — the app never asks for a PIN
+   * until the traveler turns this on (non-indexed — no migration). */
+  appLockEnabled: boolean;
+  /** E6 (M20): PBKDF2 hash of the PIN (hex). NEVER the PIN in clear. null when
+   * no PIN is set. */
+  appLockPinHash: string | null;
+  /** E6 (M20): random per-PIN salt (hex) used with the hash above. */
+  appLockPinSalt: string | null;
 }
