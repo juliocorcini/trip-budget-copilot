@@ -6,8 +6,8 @@
 
 ## Current State
 
-- **Gate**: 2 concluído (Dashboard) → iniciando Gate 3 (captura)
-- **Telas analisadas**: 24/24 (21 rotas + welcome + Modo Simples + saída ativa) | **Telas melhoradas**: 1 (dashboard + variações)
+- **Gate**: 3 concluído (Captura) → iniciando Gate 4 (planejamento/finanças)
+- **Telas analisadas**: 24/24 (21 rotas + welcome + Modo Simples + saída ativa) | **Telas melhoradas**: 2 (dashboard + quick-add)
 - **Método de screenshot que funcionou**: **B (Playwright)** — `scripts/ux-shots.mjs`
   (chromium Pixel 5, semeia demo via botão, captura viewport + fullPage)
 - **Mock aplicado**: botão "Dados de demonstração" (`generateDemoData`) — contexto
@@ -17,7 +17,7 @@
 - **Git**: branch `master` (push → origin/master). **Cloudflare Pages produção = `--branch=main`** (master puro = Preview). Repo único na raiz (`TripPilot/.git` é stub vazio órfão, ignorado pelo git)
 - **Deploy comando**: `CLOUDFLARE_ACCOUNT_ID=e146e88b34b2694243b1d74cee8de743 npx wrangler pages deploy dist --project-name=trippilot --branch=main` (env var obrigatório — 2 contas, sem ele o picker trava o terminal)
 - **Release plumbing por deploy**: bump `package.json` + `src/utils/app-version.ts` + nova entrada em `src/utils/release-notes.ts` (newest first, pt/en/es) + `public/sw.js` CACHE_NAME (toast de update)
-- **Versão atual**: 0.14.2 (SW cache v12) — Gate 2 em PRODUÇÃO → https://412a81f0.trippilot.pages.dev (alias prod trippilot.pages.dev)
+- **Versão atual**: 0.14.3 (SW cache v13) — Gate 3 em PRODUÇÃO → https://58763c5d.trippilot.pages.dev (alias prod trippilot.pages.dev). Gate 2 = 0.14.2 (https://412a81f0.trippilot.pages.dev)
 
 ## Inventário de telas (Gate 1) — shots em `.ux-shots/gate1/` e `.ux-shots/gate1-scenarios/`
 
@@ -104,6 +104,22 @@
 
 **Deploy**: PRODUÇÃO `--branch=main` → https://412a81f0.trippilot.pages.dev (atualiza `trippilot.pages.dev`). SW cache v12 → toast de update p/ instalados na 0.14.1.
 
+## Gate 3 — Captura (concluído) → 0.14.3 ✅
+
+**Shots**: ANTES viewport `.ux-shots/gate1/quick-add.png` · DEPOIS viewport `.ux-shots/gate3-after/quick-add.png`.
+
+| Mudança | Arquivo | Resultado (antes→depois) |
+|---------|---------|--------------------------|
+| **Barra de ação sticky** no QuickAdd (Cancelar/Salvar fixos na base) | `features/expenses/QuickAddPage.tsx` | viewport antes terminava em "Carteira" (Salvar só no fim, muito scroll) → **Salvar sempre visível** no rodapé sem rolar. Conteúdo rola por baixo (borda + fundo da página). |
+
+**Como**: `sticky bottom-0 z-10 -mx-5 px-5` + `pb-[calc(env(safe-area-inset-bottom)+0.75rem)]`, fundo `var(--surface)` + `border-top var(--border-faint)` — mesmo padrão de barras inferiores do app (`SelectionBar`/`BottomNav`). Página rola no body (fora do `AppShell`, sem bottom nav) → sticky fixa na viewport. Removido `pb-4` do container p/ a barra ficar rente.
+**ZERO mudança de comportamento**: mesmos botões, mesmas regras de `disabled` (valor>0, fundo, taxa, transfer válido).
+
+**Não mexido** (rated 🟢 no Gate 1, evitar risco): saída ativa (`/outings/active`), `/outings/new`, densidade da linha em `/expenses`.
+
+**Testes**: 819 verdes (mudança só apresentacional). Typecheck 0. Build sem chunk novo > 500 KB.
+**Deploy**: PRODUÇÃO `--branch=main` → https://58763c5d.trippilot.pages.dev. SW cache v13.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |
@@ -115,4 +131,6 @@
 - Screenshots: `cd TripPilot && node scripts/ux-shots.mjs <label> [rota...]` → `.ux-shots/<label>/`
 - Rotas conhecidas: dashboard, expenses, quick-add, planner, simulator, funds, wallets, profiles, trip, trip-edit, shared, more, settings, settings-backup, settings-dashboard, about, notifications, impact, rescue, outings-new (+ welcome antes do seed)
 - Testes: `npx vitest run` | Typecheck: `npx tsc --noEmit` | Build: `npm run build`
-- Deploy produção: `npx wrangler pages deploy dist --project-name=trippilot --branch=main`
+- Deploy produção: `CLOUDFLARE_ACCOUNT_ID=e146e88b34b2694243b1d74cee8de743 npx wrangler pages deploy dist --project-name=trippilot --branch=main`
+- **⚠️ COMMIT WORKAROUND (git 2.25.1)**: o shell do agente injeta `git commit --trailer 'Co-authored-by: …'`, que o git 2.25.1 NÃO suporta → todo `git commit` falha com `unknown option 'trailer'`. `status`/`log`/`push` funcionam normal. Solução (sem mexer em config nem `--no-verify`): commit via plumbing —
+  `git add -A && tree=$(git write-tree) && c=$(git commit-tree "$tree" -p HEAD -F /tmp/msg.txt) && git update-ref HEAD "$c"` (incluir a linha `Co-authored-by:` no fim do /tmp/msg.txt). Depois `git push origin master`.

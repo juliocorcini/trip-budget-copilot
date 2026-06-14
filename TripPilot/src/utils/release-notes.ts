@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.3',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'No registro de gasto, os botões Cancelar e Salvar agora ficam fixos na base da tela — dá pra salvar sem rolar até o fim.',
+      ],
+      en: [
+        'On the expense form, the Cancel and Save buttons now stay pinned at the bottom — you can save without scrolling to the end.',
+      ],
+      es: [
+        'En el registro de gasto, los botones Cancelar y Guardar ahora quedan fijos abajo — puedes guardar sin desplazarte hasta el final.',
+      ],
+    },
+  },
+  {
     version: '0.14.2',
     date: '2026-06-14',
     items: {

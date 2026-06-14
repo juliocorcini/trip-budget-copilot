@@ -570,7 +570,7 @@ export function QuickAddPage() {
   if (!trip || !settings?.onboardingCompleted) return null;
 
   return (
-    <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 px-5">
+    <div className="max-w-[430px] mx-auto flex flex-col gap-4 px-5">
       <div className="flex items-center justify-between pt-2">
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
@@ -1183,7 +1183,14 @@ export function QuickAddPage() {
         </div>
       )}
 
-      <div className="flex gap-3">
+      {/* UX polish (Gate 3): the save/cancel row sticks to the bottom so a user
+          in a hurry can confirm without scrolling past every optional field.
+          ZERO behavior change — same buttons, same disabled rules; content
+          scrolls cleanly under it (page is body-scrolled, no bottom nav here). */}
+      <div
+        className="sticky bottom-0 z-10 -mx-5 px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] flex gap-3"
+        style={{ background: 'var(--surface)', borderTop: '1px solid var(--border-faint)' }}
+      >
         <button
           onClick={() => navigate(-1)}
           className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim font-medium btn-press"
