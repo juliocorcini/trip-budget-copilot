@@ -301,6 +301,8 @@ export function SettingsPage() {
         <h1 className="text-heading font-bold text-on-surface">{t('settings.title')}</h1>
       </div>
 
+      <GroupHeader label={t('settings.group_preferences')} />
+
       {/* M21: app mode — simple hides advanced surfaces; complete shows all */}
       <Section title={t('settings.mode_title')}>
         <div className="flex gap-2">
@@ -394,6 +396,8 @@ export function SettingsPage() {
         />
       </Section>
 
+      <GroupHeader label={t('settings.group_notifications')} />
+
       {/* DEC-124 (R-11 v2): outing notification — discoverable + reactivatable */}
       <Section title={t('settings.notifications')}>
         {notifPermission === 'unsupported' ? (
@@ -428,6 +432,8 @@ export function SettingsPage() {
         />
         <p className="text-xs text-on-surface-faint mt-2">{t('settings.location_hint')}</p>
       </Section>
+
+      <GroupHeader label={t('settings.group_money')} />
 
       {/* DEC-128: mental currency anchor — manual offline rate, no network */}
       <Section title={t('settings.anchor_title')}>
@@ -563,6 +569,8 @@ export function SettingsPage() {
         )}
       </Section>
 
+      <GroupHeader label={t('settings.group_home')} />
+
       {/* M22 (E7): save this trip's structure (phases + learned typicals) as a
           reusable template, applied on the next trip's onboarding. */}
       <Section title={t('settings.templates_title')}>
@@ -618,6 +626,8 @@ export function SettingsPage() {
           <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
         </button>
       </Section>
+
+      <GroupHeader label={t('settings.group_data_security')} />
 
       <Section title={t('settings.backup_reminder')}>
         <ToggleRow
@@ -698,6 +708,8 @@ export function SettingsPage() {
           </div>
         )}
       </Section>
+
+      <GroupHeader label={t('settings.group_device')} />
 
       <Section title={t('settings.device_name')}>
         <input
@@ -798,6 +810,8 @@ export function SettingsPage() {
           </div>
         )}
       </Section>
+
+      <GroupHeader label={t('settings.group_about')} />
 
       {/* DEC-135: install + update controls */}
       <Section title={t('settings.app_section')}>
@@ -931,6 +945,17 @@ export function SettingsPage() {
         </div>
       </BottomSheet>
     </div>
+  );
+}
+
+// UX polish (Gate 5): segments the long flat settings list into labeled groups
+// (same group-header pattern as the More page). Purely visual — no option is
+// removed, hidden or reordered; the headers only break the "wall of sections".
+function GroupHeader({ label }: { label: string }) {
+  return (
+    <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1 mt-2 first:mt-0">
+      {label}
+    </p>
   );
 }
 

@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.4',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Ajustes mais fáceis de navegar: as opções agora ficam agrupadas por tema (Preferências, Notificações, Dinheiro, Tela inicial, Backup e segurança, Dispositivo e Sobre).',
+      ],
+      en: [
+        'Settings are easier to scan: options are now grouped by theme (Preferences, Notifications, Money, Home screen, Backup & security, Device and About).',
+      ],
+      es: [
+        'Ajustes más fáciles de recorrer: las opciones ahora están agrupadas por tema (Preferencias, Notificaciones, Dinero, Pantalla de inicio, Copia y seguridad, Dispositivo y Acerca de).',
+      ],
+    },
+  },
+  {
     version: '0.14.3',
     date: '2026-06-14',
     items: {

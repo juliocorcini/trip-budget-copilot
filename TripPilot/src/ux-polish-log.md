@@ -133,6 +133,25 @@ Reavaliação dos shots `.ux-shots/gate1/{planner,simulator,funds,wallets}.full.
 
 **Decisão**: nenhuma alteração de código (regra de ouro: só reorganizar quando há ganho real; evitar risco). Sem bump/deploy neste gate.
 
+## Gate 5 — Telas secundárias (concluído) → 0.14.4 ✅
+
+**Shots**: DEPOIS `.ux-shots/gate5-after/{settings,settings-backup,shared,about,more,settings-dashboard}.full.png` (ANTES = `.ux-shots/gate1/`).
+
+| Tela | Veredito | Mudança |
+|------|----------|---------|
+| `/settings` | **mudou** | "Parede de seções" → **7 grupos rotulados** (cabeçalho discreto, mesmo padrão do `/more`): Preferências · Notificações e privacidade · Dinheiro e metas · Tela inicial · Backup e segurança · Dispositivo e captura · Sobre o app |
+| `/settings/backup` | 🟢 | Já é card-based com ícones e hierarquia clara; sem mudança |
+| `/shared` | 🟢 | Já tem cabeçalhos de grupo (participantes/gastos/dívidas/liquidações); sem mudança |
+| `/about` | 🟢 | Tela de novidades + versão; sem densidade; sem mudança |
+| `/more`, `/settings/dashboard` | 🟢 | Já organizadas; sem mudança |
+
+**Como**: novo componente `GroupHeader` em `SettingsPage.tsx` (puro apresentacional, `text-xs uppercase tracking-wider text-on-surface-faint`), 7 instâncias inseridas nos **limites naturais já existentes**. **NADA reordenado, removido ou escondido** — só rótulos visuais entre blocos. i18n `settings.group_*` em pt/en/es.
+
+**ZERO mudança de comportamento**: toda opção permanece no mesmo lugar e ordem; apenas ganham títulos de seção.
+
+**Testes**: 819 verdes (mudança apresentacional + i18n). Typecheck 0. Build sem chunk novo > 500 KB (`SettingsPage` 22.34 kB).
+**Deploy**: PRODUÇÃO `--branch=main`. SW cache v14.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |

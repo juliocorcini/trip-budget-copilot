@@ -442,6 +442,13 @@
   },
   "settings": {
     "title": "Settings",
+    "group_preferences": "Preferences",
+    "group_notifications": "Notifications & privacy",
+    "group_money": "Money & goals",
+    "group_home": "Home screen",
+    "group_data_security": "Backup & security",
+    "group_device": "Device & capture",
+    "group_about": "About the app",
     "mode_title": "App mode",
     "mode_simple": "Simple",
     "mode_complete": "Complete",
