@@ -6,7 +6,7 @@
 
 ## Current State
 
-- **Gate**: 3 concluído (Captura) → iniciando Gate 4 (planejamento/finanças)
+- **Gate**: 4 concluído (Planejamento/finanças — revisado, sem mudanças) → iniciando Gate 5 (secundárias)
 - **Telas analisadas**: 24/24 (21 rotas + welcome + Modo Simples + saída ativa) | **Telas melhoradas**: 2 (dashboard + quick-add)
 - **Método de screenshot que funcionou**: **B (Playwright)** — `scripts/ux-shots.mjs`
   (chromium Pixel 5, semeia demo via botão, captura viewport + fullPage)
@@ -119,6 +119,19 @@
 
 **Testes**: 819 verdes (mudança só apresentacional). Typecheck 0. Build sem chunk novo > 500 KB.
 **Deploy**: PRODUÇÃO `--branch=main` → https://58763c5d.trippilot.pages.dev. SW cache v13.
+
+## Gate 4 — Planejamento/finanças (revisado — SEM mudanças) ✅
+
+Reavaliação dos shots `.ux-shots/gate1/{planner,simulator,funds,wallets}.full.png`:
+
+| Tela | Veredito | Por que sem mudança |
+|------|----------|---------------------|
+| `/planner` | 🟢 | Raiz `pb-4` dentro do `AppShell` (`pb-[100px]`) → presets têm folga ampla acima da nav fixa. O "overlap presets×nav" no fullPage é **artefato do Playwright** (elemento `fixed` capturado no meio do canvas), não overlap real (funds/wallets confirmam o mesmo padrão com folga). |
+| `/simulator` | 🟢 | Input-first; já traz chips €5/€10/€20 como exemplo. Espaço vazio abaixo é aceitável; enchê-lo seria over-engineering. |
+| `/funds` | 🟢 | Limpo, bem espaçado, CTA claro. |
+| `/wallets` | 🟢 | Limpo, ações por carteira claras. |
+
+**Decisão**: nenhuma alteração de código (regra de ouro: só reorganizar quando há ganho real; evitar risco). Sem bump/deploy neste gate.
 
 ## Reverts
 
