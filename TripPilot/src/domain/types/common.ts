@@ -45,11 +45,14 @@ export interface DailyCheckIn {
  * the traveler is not asked for the location on every entry — only re-asked
  * when the GPS reports a move beyond a threshold, or when they tap the name.
  * Coordinates are 100% local and never leave the device (ÂNCORA 8).
+ *
+ * E8 (M4): coordinates are nullable — a place can be known by name only (typed
+ * manually or reused from history) when GPS is denied or unavailable.
  */
 export interface CurrentPlace {
   label: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   placeId: string | null;
 }
 

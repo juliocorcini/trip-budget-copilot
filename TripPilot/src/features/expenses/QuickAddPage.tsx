@@ -17,8 +17,12 @@ import {
   coordsLabel,
   placeToTransactionFields,
   placesEqual,
+  deriveRecentPlaces,
+  toCurrentPlace,
 } from '@/domain/location';
+import type { RecentPlace } from '@/domain/location';
 import { getCurrentCoords } from '@/utils/geolocation';
+import { reverseGeocodePlace, isOnline } from '@/utils/places';
 import { appSettingsRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
@@ -97,6 +101,8 @@ export function QuickAddPage() {
   const [place, setPlace] = useState<CurrentPlace | null>(null);
   const [editingPlace, setEditingPlace] = useState(false);
   const [placeLabelInput, setPlaceLabelInput] = useState('');
+  // M4: opt-in online name lookup state (never blocks; offline → manual/recents).
+  const [findingName, setFindingName] = useState(false);
   const placeCapturedRef = useRef(false);
 
   // Inherit the remembered place once settings load (until GPS says otherwise).
@@ -123,6 +129,15 @@ export function QuickAddPage() {
     };
   }, [locationEnabled, settings?.currentPlace]);
 
+  // M4: recent places derived purely from history (offline). Ordered by
+  // proximity when the current coordinates are known, else by recency.
+  const placeCoords =
+    place?.lat != null && place?.lng != null ? { lat: place.lat, lng: place.lng } : null;
+  const recentPlaces = locationEnabled ? deriveRecentPlaces(transactions, placeCoords) : [];
+  const recentSuggestions = recentPlaces.filter((rp) => rp.label !== place?.label);
+  // The online name lookup needs real coordinates and a connection.
+  const canFindName = locationEnabled && placeCoords !== null && isOnline();
+
   const startRenamePlace = () => {
     setPlaceLabelInput(place?.label ?? '');
     setEditingPlace(true);
@@ -130,8 +145,9 @@ export function QuickAddPage() {
 
   const confirmRenamePlace = () => {
     const label = placeLabelInput.trim();
-    if (label !== '' && place !== null) {
-      setPlace({ ...place, label });
+    if (label !== '') {
+      // M4: typing a name works even without GPS (coords stay null).
+      setPlace(place ? { ...place, label } : { label, lat: null, lng: null, placeId: null });
     }
     setEditingPlace(false);
   };
@@ -139,6 +155,28 @@ export function QuickAddPage() {
   const clearPlace = () => {
     setPlace(null);
     setEditingPlace(false);
+  };
+
+  // M4: apply a place reused from history (1 tap, fully offline).
+  const applyRecentPlace = (recent: RecentPlace) => {
+    setPlace(toCurrentPlace(recent));
+    setEditingPlace(false);
+  };
+
+  // M4: resolve a real name for the current coordinates (opt-in, online-only).
+  const findNameOnline = async () => {
+    if (placeCoords === null || findingName) return;
+    setFindingName(true);
+    try {
+      const result = await reverseGeocodePlace(placeCoords);
+      if (result !== null) {
+        setPlace((prev) =>
+          prev ? { ...prev, label: result.label, placeId: result.placeId } : prev,
+        );
+      }
+    } finally {
+      setFindingName(false);
+    }
   };
 
   // BUG-002 (R6-02): never fall back to phases[0] — resolveActivePhase picks
@@ -625,27 +663,59 @@ export function QuickAddPage() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={place ? startRenamePlace : undefined}
-              className="flex items-center gap-2 min-w-0 btn-press text-left flex-1"
-            >
-              <Icon name="location_on" size={16} className="text-on-surface-dim shrink-0" />
-              <span className="text-sm text-on-surface truncate">
-                {place ? place.label : t('expenses.location_detecting')}
-              </span>
-              {place && <Icon name="edit" size={14} className="text-on-surface-faint shrink-0" />}
-            </button>
-            {place && (
+          <>
+            <div className="flex items-center justify-between gap-2">
               <button
-                onClick={clearPlace}
-                className="btn-press p-1 shrink-0"
-                aria-label={t('common.clear')}
+                onClick={startRenamePlace}
+                className="flex items-center gap-2 min-w-0 btn-press text-left flex-1"
               >
-                <Icon name="close" size={16} className="text-on-surface-faint" />
+                <Icon name="location_on" size={16} className="text-on-surface-dim shrink-0" />
+                <span className="text-sm text-on-surface truncate">
+                  {place ? place.label : t('expenses.location_add_manual')}
+                </span>
+                <Icon name="edit" size={14} className="text-on-surface-faint shrink-0" />
+              </button>
+              {place && (
+                <button
+                  onClick={clearPlace}
+                  className="btn-press p-1 shrink-0"
+                  aria-label={t('common.clear')}
+                >
+                  <Icon name="close" size={16} className="text-on-surface-faint" />
+                </button>
+              )}
+            </div>
+
+            {/* M4: resolve a real name from the coordinates (opt-in, online-only). */}
+            {canFindName && (
+              <button
+                onClick={findNameOnline}
+                disabled={findingName}
+                className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-high btn-press disabled:opacity-50"
+              >
+                <Icon name="travel_explore" size={14} className="text-on-surface-dim" />
+                <span className="text-xs text-on-surface-dim">
+                  {findingName ? t('expenses.location_searching') : t('expenses.location_find_online')}
+                </span>
               </button>
             )}
-          </div>
+
+            {/* M4: places reused from history — fully offline, one tap. */}
+            {recentSuggestions.length > 0 && (
+              <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {recentSuggestions.map((recent) => (
+                  <button
+                    key={recent.placeId ?? recent.label}
+                    onClick={() => applyRecentPlace(recent)}
+                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-high text-on-surface-dim btn-press"
+                  >
+                    <Icon name="history" size={12} className="text-on-surface-faint" />
+                    <span className="text-xs">{recent.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
         <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.location_privacy_hint')}</p>
       </div>

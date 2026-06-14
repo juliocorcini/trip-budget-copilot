@@ -7,7 +7,8 @@ import { useMultiSelect, type MultiSelect } from '@/hooks/useMultiSelect';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { formatMoney, sumCents } from '@/domain/money';
-import { formatShortDate, localDayOf } from '@/domain/dates';
+import { formatShortDate, localDayOf, localClockTime } from '@/domain/dates';
+import { aggregateByPlace } from '@/domain/location';
 import { getUnassignedTransactionCount } from '@/domain/wallets';
 import { calculateSessionTotal, formatSessionDuration } from '@/domain/outing';
 import {
@@ -48,10 +49,12 @@ export function ExpenseListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { trip, transactions, pools, wallets, loading, reload } = useAppData();
-  // FIELD-14: the list can arrive pre-filtered by URL (?profile=<id> / ?category=<cat>).
+  // FIELD-14: the list can arrive pre-filtered by URL (?profile=<id> / ?category=<cat> / ?place=<label>).
   const [filterCategory, setFilterCategory] = useState<FilterCategory>(searchParams.get('category'));
   const [filterProfileId, setFilterProfileId] = useState<string | null>(searchParams.get('profile'));
   const [filterWalletNull, setFilterWalletNull] = useState(false);
+  // E8 (M7): filter the list by place ("gastos por lugar").
+  const [filterPlace, setFilterPlace] = useState<string | null>(searchParams.get('place'));
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   // DEC-079 (FIELD-09): outings ARE grouped expenses — they live in this screen.
   const [tab, setTabState] = useState<ListTab>(searchParams.get('tab') === 'outings' ? 'outings' : 'expenses');
@@ -83,6 +86,7 @@ export function ExpenseListPage() {
     .filter((tx) => !filterCategory || tx.category === filterCategory)
     .filter((tx) => !filterProfileId || tx.activityProfileId === filterProfileId)
     .filter((tx) => !filterWalletNull || tx.walletId === null)
+    .filter((tx) => !filterPlace || tx.placeLabel === filterPlace)
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const totalCents = sumCents(expenses.map((tx) => tx.amountCents));
@@ -92,6 +96,15 @@ export function ExpenseListPage() {
   const walletMap = new Map(wallets.map((w) => [w.id, w.name]));
 
   const categories = [...new Set(transactions.filter((tx) => tx.category).map((tx) => tx.category!))];
+  // E8 (M7): places ranked by spend — drive the "by place" filter chips.
+  const placeTotals = aggregateByPlace(transactions);
+
+  const clearFilters = () => {
+    setFilterCategory(null);
+    setFilterProfileId(null);
+    setFilterWalletNull(false);
+    setFilterPlace(null);
+  };
 
   const finishBatch = async (messageKey: string) => {
     setBatchSheet(null);
@@ -211,8 +224,8 @@ export function ExpenseListPage() {
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             <FilterChip
               label={t('expenses.title')}
-              active={!filterCategory && !filterProfileId && !filterWalletNull}
-              onClick={() => { setFilterCategory(null); setFilterProfileId(null); setFilterWalletNull(false); }}
+              active={!filterCategory && !filterProfileId && !filterWalletNull && !filterPlace}
+              onClick={clearFilters}
             />
             {filterProfile && (
               <FilterChip
@@ -234,6 +247,16 @@ export function ExpenseListPage() {
                 label={t(`categories.${cat}` as never)}
                 active={filterCategory === cat}
                 onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+              />
+            ))}
+            {/* E8 (M7): one chip per place, ranked by spend. */}
+            {placeTotals.map((p) => (
+              <FilterChip
+                key={p.placeId ?? p.label}
+                label={p.label}
+                icon="location_on"
+                active={filterPlace === p.label}
+                onClick={() => setFilterPlace(filterPlace === p.label ? null : p.label)}
               />
             ))}
           </div>
@@ -261,6 +284,19 @@ export function ExpenseListPage() {
           </p>
           <p className="text-xs text-warning/70 mt-0.5">{t('expenses.review_now')}</p>
         </button>
+      )}
+
+      {/* M7: header for the active place filter — reinforces "gastos por lugar". */}
+      {filterPlace && (
+        <div className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon name="location_on" size={16} className="text-primary shrink-0" />
+            <span className="text-sm text-on-surface truncate">{filterPlace}</span>
+          </div>
+          <span className="text-xs text-on-surface-dim shrink-0">
+            {t('expenses.place_count', { count: expenses.length })}
+          </span>
+        </div>
       )}
 
       {expenses.length === 0 ? (
@@ -294,14 +330,22 @@ export function ExpenseListPage() {
                 <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
                   <span>{tx.category ? t(`categories.${tx.category}` as never) : ''}</span>
                   <span>·</span>
-                  <span>{formatShortDate(localDayOf(tx.date))}</span>
+                  {/* M5: date + local wall-clock time of the expense. */}
+                  <span className="shrink-0">{formatShortDate(localDayOf(tx.date))} {localClockTime(tx.date)}</span>
                   {tx.budgetPoolId && (
                     <>
                       <span>·</span>
-                      <span>{poolMap.get(tx.budgetPoolId) ?? ''}</span>
+                      <span className="truncate">{poolMap.get(tx.budgetPoolId) ?? ''}</span>
                     </>
                   )}
                 </div>
+                {/* M5: place line — only rendered when the expense has a location. */}
+                {tx.placeLabel && (
+                  <div className="flex items-center gap-1 text-xs text-on-surface-faint mt-0.5 min-w-0">
+                    <Icon name="location_on" size={12} className="text-on-surface-faint shrink-0" />
+                    <span className="truncate">{tx.placeLabel}</span>
+                  </div>
+                )}
                 {tx.walletId === null && (
                   <p className="text-xs text-warning mt-0.5">{t('expenses.wallet_not_set')}</p>
                 )}
@@ -495,16 +539,27 @@ function OutingHistoryList({ sessions, transactions, profiles, currency, onOpen,
   );
 }
 
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function FilterChip({
+  label,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  icon?: string;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium btn-press transition-colors ${
+      className={`shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium btn-press transition-colors ${
         active
           ? 'bg-primary text-on-surface'
           : 'bg-surface-high text-on-surface-dim'
       }`}
     >
+      {icon && <Icon name={icon} size={12} className={active ? 'text-on-surface' : 'text-on-surface-faint'} />}
       {label}
     </button>
   );

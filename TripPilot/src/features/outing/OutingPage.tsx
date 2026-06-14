@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -38,6 +38,8 @@ import { createExpenseTransaction } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
+import { placeToTransactionFields, shouldReaskPlace, coordsLabel } from '@/domain/location';
+import { getCurrentCoords } from '@/utils/geolocation';
 import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
 import { createPlannedOccurrence } from '@/domain/planning';
 import {
@@ -68,14 +70,14 @@ import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { phaseProfileSettingRepository } from '@/data/repositories/phase-profile-setting-repository';
 import { plannedOccurrenceRepository } from '@/data/repositories/planned-occurrence-repository';
-import { transactionRepository, participantShareRepository } from '@/data/repositories';
+import { transactionRepository, participantShareRepository, appSettingsRepository } from '@/data/repositories';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
-import type { ShareType } from '@/domain/types/common';
+import type { ShareType, CurrentPlace } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -312,6 +314,47 @@ export function OutingPage() {
     }
   }, [sessionActive]);
 
+  // E8 (M6): the outing uses the same "sticky" place as quick-add. Capture GPS
+  // once when the active session opens (opt-in) and refresh the place only after
+  // a real move (ÂNCORA 9/10). Coordinates work offline and never block.
+  const locationEnabled = !!settings?.locationCaptureEnabled;
+  const stickyPlace = settings?.currentPlace ?? null;
+  const outingPlaceCapturedRef = useRef(false);
+  useEffect(() => {
+    if (!sessionActive || !locationEnabled || outingPlaceCapturedRef.current) return;
+    outingPlaceCapturedRef.current = true;
+    let active = true;
+    void getCurrentCoords().then((coords) => {
+      if (!active || coords === null) return;
+      if (!shouldReaskPlace(settings?.currentPlace ?? null, coords)) return;
+      void appSettingsRepository
+        .update({
+          currentPlace: { label: coordsLabel(coords), lat: coords.lat, lng: coords.lng, placeId: null },
+        })
+        .then(() => reloadAppData());
+    });
+    return () => {
+      active = false;
+    };
+  }, [sessionActive, locationEnabled, settings?.currentPlace, reloadAppData]);
+
+  // M6: rename/clear the sticky place from the active session header.
+  const handleRenameOutingPlace = async (label: string) => {
+    const trimmed = label.trim();
+    if (trimmed === '') return;
+    const base = settings?.currentPlace ?? null;
+    const next: CurrentPlace = base
+      ? { ...base, label: trimmed }
+      : { label: trimmed, lat: null, lng: null, placeId: null };
+    await appSettingsRepository.update({ currentPlace: next });
+    await reloadAppData();
+  };
+
+  const handleClearOutingPlace = async () => {
+    await appSettingsRepository.update({ currentPlace: null });
+    await reloadAppData();
+  };
+
   // DEC-120 (R-11): permission asked at the FIRST session start, with an
   // explanation sheet — never on app boot.
   const maybeOfferNotification = () => {
@@ -542,6 +585,8 @@ export function OutingPage() {
       description,
       sessionId: sess.id,
       activityProfileId: sess.activityProfileId,
+      // E8 (M6): session items inherit the sticky place.
+      ...placeToTransactionFields(settings?.currentPlace ?? null),
     });
     await transactionRepository.create(tx);
     await persistSessionItem(tx, [...sessionTxs, tx], sess, learnQuickValue ? amountCents : undefined);
@@ -879,6 +924,8 @@ export function OutingPage() {
       activityProfileId: sess.activityProfileId,
       isShared: true,
       paidByParticipantId: input.paidByParticipantId,
+      // E8 (M6): session items inherit the sticky place.
+      ...placeToTransactionFields(settings?.currentPlace ?? null),
     });
     // DEC-114 (R-04): single truth-table function for payer semantics.
     const resolution = resolvePayerExpense({
@@ -1168,6 +1215,10 @@ export function OutingPage() {
         onUpdateQuickValues={handleUpdateQuickValues}
         onEnd={() => setReviewing(true)}
         onBack={() => navigate(-1)}
+        place={stickyPlace}
+        locationEnabled={locationEnabled}
+        onRenamePlace={handleRenameOutingPlace}
+        onClearPlace={handleClearOutingPlace}
         anchorConfig={
           settings
             ? { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 }
@@ -1857,6 +1908,13 @@ interface ActiveSessionProps {
   onUpdateQuickValues: (valuesCents: number[]) => void;
   onEnd: () => void;
   onBack: () => void;
+  /** E8 (M6): the sticky place shown in the header (null = none yet). */
+  place: CurrentPlace | null;
+  /** E8 (M6): whether location capture is on (gates the "add place" affordance). */
+  locationEnabled: boolean;
+  /** E8 (M6): rename/clear the sticky place from the header. */
+  onRenamePlace: (label: string) => void;
+  onClearPlace: () => void;
   /** DEC-097 (R-15): re-opens the stepper for an item without subcategory. */
   onDetailItem: (tx: Transaction) => void;
   /** DEC-124: "enable notification" shortcut slot — rendered under the header. */
@@ -1871,11 +1929,13 @@ interface ActiveSessionProps {
   onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
-  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | 'round' | null>(null);
+  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | 'round' | 'place' | null>(null);
+  // E8 (M6): draft for renaming/typing the session place.
+  const [placeDraft, setPlaceDraft] = useState('');
   const [sheetAmount, setSheetAmount] = useState('');
   const [negativeConfirmed, setNegativeConfirmed] = useState(false);
   const [editValuesDraft, setEditValuesDraft] = useState<string[]>([]);
@@ -1919,6 +1979,22 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
     setRoundUnit(String(fromCents(defaultUnit)));
     setRoundSplit(false);
     setActiveSheet('round');
+  };
+
+  // E8 (M6): edit/clear the sticky place for the active session.
+  const openPlaceSheet = () => {
+    setPlaceDraft(place?.label ?? '');
+    setActiveSheet('place');
+  };
+
+  const confirmPlace = () => {
+    onRenamePlace(placeDraft);
+    closeSheet();
+  };
+
+  const clearPlaceFromSheet = () => {
+    onClearPlace();
+    closeSheet();
   };
 
   const handleSaveQuickValues = () => {
@@ -2059,6 +2135,18 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
             <p className="text-sm font-bold" style={{ color: 'var(--on-surface)' }}>
               {session.name}
             </p>
+            {/* E8 (M6): the active session shows (and edits) the sticky place. */}
+            {(place || locationEnabled) && (
+              <button
+                onClick={openPlaceSheet}
+                className="btn-press flex items-center gap-1 mt-0.5"
+              >
+                <Icon name="location_on" size={11} className="text-on-surface-dim shrink-0" />
+                <span className="text-[11px] truncate max-w-[180px]" style={{ color: 'var(--on-surface-dim)' }}>
+                  {place ? t('outing.in_place', { place: place.label }) : t('outing.add_place')}
+                </span>
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -2498,6 +2586,36 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         >
           {t('common.add')}
         </button>
+      </BottomSheet>
+
+      {/* E8 (M6): edit/clear the sticky place for the active session */}
+      <BottomSheet open={activeSheet === 'place'} onClose={closeSheet} title={t('outing.place_title')}>
+        <div className="flex flex-col gap-3">
+          <input
+            type="text"
+            value={placeDraft}
+            onChange={(e) => setPlaceDraft(e.target.value)}
+            placeholder={t('expenses.location_name_placeholder')}
+            className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2.5 outline-none w-full"
+            autoFocus
+          />
+          <button
+            onClick={confirmPlace}
+            disabled={placeDraft.trim() === ''}
+            className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
+          >
+            {t('common.save')}
+          </button>
+          {place && (
+            <button
+              onClick={clearPlaceFromSheet}
+              className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+            >
+              {t('common.clear')}
+            </button>
+          )}
+          <p className="text-[10px] text-on-surface-faint">{t('expenses.location_privacy_hint')}</p>
+        </div>
       </BottomSheet>
 
       {/* "Register current total" sheet — DEC-046: adjustment by difference */}

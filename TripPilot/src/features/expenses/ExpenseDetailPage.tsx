@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
 import { formatMoney, fromCents, toCents, formatAnchorHint } from '@/domain/money';
-import { formatDate, localDayOf, moveToLocalDay } from '@/domain/dates';
+import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
 import { transactionRepository, participantShareRepository } from '@/data/repositories';
 import { softDeleteTransactionsBatch, restoreTransactionsBatch } from '@/domain/orchestrators';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -45,6 +45,8 @@ export function ExpenseDetailPage() {
   const [editPoolId, setEditPoolId] = useState<string | null>(null);
   const [editWalletId, setEditWalletId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState('');
+  // M5: the place is editable as free text (rename or clear).
+  const [editPlace, setEditPlace] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -102,7 +104,23 @@ export function ExpenseDetailPage() {
     setEditPoolId(tx.budgetPoolId);
     setEditWalletId(tx.walletId);
     setEditDate(localDayOf(tx.date));
+    setEditPlace(tx.placeLabel ?? '');
     setEditing(true);
+  };
+
+  // M5: rename keeps coordinates; clearing the name drops the whole place; a
+  // changed name drops the provider id (it no longer matches that POI).
+  const resolveEditedPlaceFields = () => {
+    const trimmed = editPlace.trim();
+    if (trimmed === '') {
+      return { placeLabel: null, latitude: null, longitude: null, placeId: null };
+    }
+    return {
+      placeLabel: trimmed,
+      latitude: tx!.latitude,
+      longitude: tx!.longitude,
+      placeId: trimmed === (tx!.placeLabel ?? '') ? tx!.placeId : null,
+    };
   };
 
   const handleSaveEdit = async () => {
@@ -138,6 +156,7 @@ export function ExpenseDetailPage() {
         budgetPoolId: editPoolId,
         walletId: editWalletId,
         date: newDate,
+        ...resolveEditedPlaceFields(),
       });
       setTx(updated);
       setShares(newShares);
@@ -202,6 +221,9 @@ export function ExpenseDetailPage() {
               value={tx.category ? t(`categories.${tx.category}` as never) : '—'}
             />
             <DetailRow label={t('expenses.date')} value={formatDate(localDayOf(tx.date))} />
+            {/* M5: local wall-clock time + place (place row only when present). */}
+            <DetailRow label={t('expenses.time')} value={localClockTime(tx.date)} />
+            {tx.placeLabel && <DetailRow label={t('expenses.location_label')} value={tx.placeLabel} />}
             <DetailRow label={t('expenses.fund')} value={pool?.name ?? '—'} />
             <DetailRow
               label={t('expenses.wallet')}
@@ -340,6 +362,18 @@ export function ExpenseDetailPage() {
               type="date"
               value={editDate}
               onChange={(e) => setEditDate(e.target.value)}
+              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+            />
+          </div>
+
+          {/* M5: edit or clear the place (leave empty to remove the location). */}
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.location_label')}</label>
+            <input
+              type="text"
+              value={editPlace}
+              onChange={(e) => setEditPlace(e.target.value)}
+              placeholder={t('expenses.location_name_placeholder')}
               className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
             />
           </div>

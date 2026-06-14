@@ -53,6 +53,12 @@ describe('shouldReaskPlace (M3)', () => {
   it('default threshold is 150 m', () => {
     expect(DEFAULT_REASK_THRESHOLD_METERS).toBe(150);
   });
+
+  it('keeps a manually named place (no coordinates) instead of re-asking', () => {
+    // M4: a place known only by name must not be overwritten by a GPS reading.
+    const manual: CurrentPlace = { label: 'Hotel', lat: null, lng: null, placeId: null };
+    expect(shouldReaskPlace(manual, { lat: 41.1579, lng: -8.6291 })).toBe(false);
+  });
 });
 
 describe('coordsLabel', () => {

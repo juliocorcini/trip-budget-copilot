@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.12.3',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Hora e local aparecem em cada gasto, na lista e no detalhe — e dá pra editar o lugar.',
+        'Lugares recentes pra reusar com um toque (offline) e busca do nome pela internet (opcional).',
+        'Filtre seus gastos por lugar e veja o total gasto em cada um.',
+        'Na saída ativa, o lugar atual aparece no topo e você troca ali mesmo.',
+      ],
+      en: [
+        'Time and place now show on every expense, in the list and detail — and you can edit the place.',
+        'Recent places to reuse with one tap (offline) plus an optional online name lookup.',
+        'Filter your expenses by place and see the total spent at each one.',
+        'During an active outing the current place shows at the top and you can change it there.',
+      ],
+      es: [
+        'La hora y el lugar aparecen en cada gasto, en la lista y el detalle — y puedes editar el lugar.',
+        'Lugares recientes para reutilizar con un toque (sin conexión) y búsqueda del nombre en línea (opcional).',
+        'Filtra tus gastos por lugar y mira el total gastado en cada uno.',
+        'En la salida activa, el lugar actual aparece arriba y lo cambias ahí mismo.',
+      ],
+    },
+  },
+  {
     version: '0.12.2',
     date: '2026-06-13',
     items: {
