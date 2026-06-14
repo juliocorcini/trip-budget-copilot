@@ -3,5 +3,6 @@ export {
   getActiveCheckIn,
   createDailyCheckIn,
   shouldPromptCheckIn,
+  getCheckInFraming,
 } from './check-in';
-export type { CheckInIntentDescriptor } from './check-in';
+export type { CheckInIntentDescriptor, CheckInFramingDescriptor } from './check-in';

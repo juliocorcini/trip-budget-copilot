@@ -3,8 +3,10 @@ import {
   getActiveCheckIn,
   createDailyCheckIn,
   shouldPromptCheckIn,
+  getCheckInFraming,
   CHECK_IN_INTENT_CATALOG,
 } from '@/domain/check-in';
+import type { CheckInIntent } from '@/domain/types/common';
 
 describe('check-in domain helpers (E5 — M7)', () => {
   it('createDailyCheckIn stamps the date and intent', () => {
@@ -37,5 +39,18 @@ describe('check-in domain helpers (E5 — M7)', () => {
       expect(entry.icon.length).toBeGreaterThan(0);
       expect(entry.labelKey).toContain('dashboard.checkin_');
     }
+  });
+
+  it('getCheckInFraming returns a distinct icon + amount-aware message per intent', () => {
+    const intents: CheckInIntent[] = ['calm', 'outing', 'night'];
+    const messageKeys = new Set<string>();
+    for (const intent of intents) {
+      const framing = getCheckInFraming(intent);
+      expect(framing.icon.length).toBeGreaterThan(0);
+      expect(framing.messageKey).toBe(`dashboard.checkin_framing_${intent}`);
+      messageKeys.add(framing.messageKey);
+    }
+    // Each intent maps to its own message (no shared/placeholder copy).
+    expect(messageKeys.size).toBe(3);
   });
 });

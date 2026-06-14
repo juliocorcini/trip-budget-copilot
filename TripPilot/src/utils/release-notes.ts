@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.7',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'O check-in do dia agora responde: ao escolher Tranquilo, Passeio ou Noite, ele mostra na hora quanto você tem livre hoje e o que aquilo significa pro seu dia.',
+      ],
+      en: [
+        'The daily check-in now responds: pick Calm, Outing or Night and it instantly shows how much you have free today and what that means for your day.',
+      ],
+      es: [
+        'El check-in del día ahora responde: elige Tranquilo, Paseo o Noche y muestra al instante cuánto tienes libre hoy y qué significa para tu día.',
+      ],
+    },
+  },
+  {
     version: '0.14.6',
     date: '2026-06-14',
     items: {

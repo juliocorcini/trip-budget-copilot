@@ -14,7 +14,7 @@ import {
   type DashboardCardId,
 } from '@/domain/dashboard';
 import { useLongPress } from '@/hooks/useLongPress';
-import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn } from '@/domain/check-in';
+import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn, getCheckInFraming } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
 import type { AppSettings } from '@/domain/types/app-settings';
@@ -203,6 +203,28 @@ export function DashboardCards({
                 );
               })}
             </div>
+            {/* The tap's RESULT: the day's free money reframed by the chosen
+                intent (save / pace / enjoy + warn). Read-only — never changes
+                the budget. Keyed by intent so it re-animates on each switch. */}
+            {activeCheckIn &&
+              model.todayBudget &&
+              (() => {
+                const framing = getCheckInFraming(activeCheckIn.intent);
+                return (
+                  <div
+                    key={activeCheckIn.intent}
+                    className="checkin-reveal mt-3 pt-3 flex items-start gap-2"
+                    style={{ borderTop: '1px solid var(--border-faint)' }}
+                  >
+                    <Icon name={framing.icon} size={16} className="text-primary mt-0.5 shrink-0" />
+                    <p className="text-[12px] leading-snug text-on-surface-dim">
+                      {t(framing.messageKey as never, {
+                        amount: formatMoney(model.todayBudget.freeTodayCents, trip.baseCurrency),
+                      })}
+                    </p>
+                  </div>
+                );
+              })()}
           </div>
         );
       }

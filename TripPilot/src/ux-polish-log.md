@@ -237,6 +237,21 @@ Carrossel de insights (DEC-077/091/150) e contadores de ocasião / scroll horizo
 **Testes**: 819 verdes (testes de erro/throttle do `useAppData` compatíveis). Typecheck 0. Build OK.
 **Deploy**: PRODUÇÃO `--branch=main`. SW cache v16.
 
+### Gate B — Check-in do dia com RESULTADO visível e explicado → 0.14.7 ✅
+
+**Problema** (exemplo citado pelo Julio): "mexo no check-in e não vejo nada mudando". Confirmado: o `dailyCheckIn` só destacava o botão + mostrava "Intenção de hoje: X". O comentário do domínio prometia "color tone and the day's budget framing", mas isso **nunca foi implementado** → ação sem motivo nem resultado.
+
+**Correção** (read-only, ÂNCORA 12 — nunca mexe no "livre pra gastar"): ao escolher Tranquilo/Passeio/Noite, o card agora responde com uma linha contextual que **reusa o número real "livre pra usar hoje"** (`model.todayBudget.freeTodayCents`) e o reenquadra pelo tom do dia:
+- Tranquilo → economia ("segurando o ritmo, vira economia")
+- Passeio → ritmo ("vá no seu ritmo, eu aviso se apertar")
+- Noite → aproveitar + vigilância ("aproveite — eu marco o placar e aviso perto do limite")
+
+**Arquivos**: `domain/check-in/check-in.ts` (helper puro `getCheckInFraming` + descriptor data-driven, índice atualizado), `i18n` ×3 (`checkin_framing_*` com `{{amount}}`), `DashboardCards.tsx` (render da resposta com ícone + divisória, `key={intent}` re-anima ao trocar), `styles/globals.css` (`@keyframes checkin-reveal`, respeita `prefers-reduced-motion`).
+
+**Visual** (Playwright `scripts/ux-checkin.mjs`): "Noite! € 95,29 livres hoje. Aproveite — eu marco o placar e aviso quando chegar perto do limite." aparece com fade-in; trocar pra Tranquilo re-anima e troca a mensagem. ✅
+
+**Testes**: +1 (`getCheckInFraming` — ícone + mensagem distinta por intent), 820 verdes. Typecheck 0. Build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v17.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |
