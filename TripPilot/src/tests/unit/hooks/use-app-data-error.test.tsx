@@ -1,46 +1,89 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+
+// DEC-170: useAppData no longer dead-ends on a transient IndexedDB blip — it
+// runs the recovery ladder first (close+reopen, then a bounded reload) and only
+// surfaces `error` once recovery is exhausted. Here we drive that orchestration
+// with a controllable db-recovery layer; the real connection cycle + bounded
+// reload budget are covered in db-recovery.test.ts.
+vi.mock('@/data/db/db-recovery', () => ({
+  openWithWatchdog: vi.fn(async () => {}),
+  recoverConnection: vi.fn(async () => false),
+  escalateToReload: vi.fn(() => false),
+  clearHardReloadGuard: vi.fn(),
+}));
+
 import { useAppData } from '@/hooks/useAppData';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { appSettingsRepository } from '@/data/repositories';
+import {
+  openWithWatchdog,
+  recoverConnection,
+  escalateToReload,
+  clearHardReloadGuard,
+} from '@/data/db/db-recovery';
+
+const mockRecover = vi.mocked(recoverConnection);
+const mockEscalate = vi.mocked(escalateToReload);
+
+beforeEach(() => {
+  vi.mocked(openWithWatchdog).mockReset().mockResolvedValue(undefined);
+  vi.mocked(clearHardReloadGuard).mockReset();
+  mockRecover.mockReset().mockResolvedValue(false);
+  mockEscalate.mockReset().mockReturnValue(false);
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// BUG-007: useAppData now reads the shared context, so the hook is exercised
-// through its Provider — which is exactly what every route mounts at runtime.
-describe('useAppData failure handling (DEC-109 / R5-01)', () => {
-  it('flags error=true when the DB read rejects — never a fake empty state', async () => {
-    vi.spyOn(appSettingsRepository, 'get').mockRejectedValue(
-      new Error('InvalidStateError: connection is closing'),
-    );
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+describe('useAppData failure handling (DEC-109 / DEC-170)', () => {
+  it('self-heals a transient DB blip — recovers without ever surfacing an error', async () => {
+    const realGet = appSettingsRepository.get.bind(appSettingsRepository);
+    let calls = 0;
+    vi.spyOn(appSettingsRepository, 'get').mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('UnknownError: Connection to Indexed Database server lost');
+      return realGet();
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockRecover.mockResolvedValue(true); // close+reopen succeeds
 
     const { result } = renderHook(() => useAppData(), { wrapper: AppDataProvider });
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 3000 });
+    expect(result.current.error).toBe(false);
+    expect(result.current.settings).not.toBeNull();
+    expect(mockRecover).toHaveBeenCalled();
+  });
 
+  it('surfaces error=true when recovery is exhausted — never a fake empty state', async () => {
+    vi.spyOn(appSettingsRepository, 'get').mockRejectedValue(
+      new Error('InvalidStateError: the database connection is closing'),
+    );
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockRecover.mockResolvedValue(false); // reopen fails
+    mockEscalate.mockReturnValue(false); // reload budget spent
+
+    const { result } = renderHook(() => useAppData(), { wrapper: AppDataProvider });
+
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 3000 });
     expect(result.current.error).toBe(true);
     expect(consoleSpy).toHaveBeenCalled();
   });
 
-  it('recovers via retry once the DB responds again', async () => {
+  it('recovers via manual retry once the DB responds again', async () => {
     const getSpy = vi
       .spyOn(appSettingsRepository, 'get')
-      .mockRejectedValueOnce(new Error('boom'));
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      .mockRejectedValue(new Error('boom'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { result } = renderHook(() => useAppData(), { wrapper: AppDataProvider });
+    await waitFor(() => expect(result.current.error).toBe(true), { timeout: 3000 });
 
-    await waitFor(() => {
-      expect(result.current.error).toBe(true);
-    });
-
+    // DB responds again and the reopen now succeeds.
     getSpy.mockRestore();
-    consoleSpy.mockRestore();
+    mockRecover.mockResolvedValue(true);
     await act(async () => {
       await result.current.retry();
     });
@@ -66,7 +109,7 @@ describe('useAppData failure handling (DEC-109 / R5-01)', () => {
 
     const { result } = renderHook(() => useAppData(), { wrapper: AppDataProvider });
 
-    await waitFor(() => expect(result.current.error).toBe(true));
+    await waitFor(() => expect(result.current.error).toBe(true), { timeout: 3000 });
     expect(getSpy).toHaveBeenCalledTimes(1);
 
     for (let i = 0; i < 3; i++) {

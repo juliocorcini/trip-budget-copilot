@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.15.0',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Estabilidade: corrigimos a falha em que o banco local travava (um problema conhecido do iOS/Safari) e o app ficava preso em “não foi possível carregar seus dados”. Agora ele se recupera sozinho — reconecta em segundo plano e, se precisar, reinicia internamente, sem nunca te deixar numa tela sem saída.',
+        'Seus dados continuam sempre seguros no aparelho. Se mesmo assim algo travar, a tela de recuperação agora tenta reconectar sozinha, tem um botão de recarregar que funciona de verdade e deixa você exportar um backup na hora.',
+        'Nenhuma tela fica mais “carregando para sempre”: se algo demorar demais, o app oferece recarregar em vez de travar.',
+      ],
+      en: [
+        'Stability: we fixed the failure where the local database stalled (a known iOS/Safari bug) and the app got stuck on “couldn’t load your data”. It now recovers on its own — reconnecting in the background and, if needed, restarting internally, never leaving you on a dead-end screen.',
+        'Your data is always safe on the device. If something still stalls, the recovery screen now retries on its own, has a reload button that actually works, and lets you export a backup right away.',
+        'No screen stays “loading forever” anymore: if something takes too long, the app offers to reload instead of hanging.',
+      ],
+      es: [
+        'Estabilidad: corregimos la falla en que la base local se trababa (un problema conocido de iOS/Safari) y la app se quedaba en “no se pudieron cargar tus datos”. Ahora se recupera sola — reconecta en segundo plano y, si hace falta, se reinicia internamente, sin dejarte nunca en una pantalla sin salida.',
+        'Tus datos siempre están seguros en el dispositivo. Si aun así algo se traba, la pantalla de recuperación ahora reintenta sola, tiene un botón de recargar que funciona de verdad y te deja exportar una copia al instante.',
+        'Ninguna pantalla queda “cargando para siempre”: si algo tarda demasiado, la app ofrece recargar en vez de trabarse.',
+      ],
+    },
+  },
+  {
     version: '0.14.21',
     date: '2026-06-14',
     items: {

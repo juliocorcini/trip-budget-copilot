@@ -1180,8 +1180,19 @@
   },
   "data_error": {
     "title": "Não foi possível carregar seus dados",
-    "body": "Seus dados NÃO foram apagados — o banco local apenas não respondeu. Feche outras abas do app e tente de novo.",
-    "retry": "Tentar novamente"
+    "body": "Seus dados estão salvos neste aparelho — só a conexão com o banco local travou. Estou tentando reconectar sozinho.",
+    "reconnecting": "Reconectando…",
+    "auto_hint": "Vou tentar de novo a cada poucos segundos. Você também pode:",
+    "retry": "Tentar agora",
+    "reload": "Recarregar o app",
+    "export": "Exportar meus dados",
+    "exporting": "Exportando…",
+    "exported": "Backup baixado",
+    "export_failed": "Falhou — tente recarregar"
+  },
+  "loading": {
+    "slow": "Está demorando mais que o normal para abrir esta tela.",
+    "reload": "Recarregar o app"
   },
   "recovery": {
     "title": "Encontramos sua viagem",

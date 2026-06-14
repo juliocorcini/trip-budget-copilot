@@ -441,6 +441,16 @@ Auditoria scriptada (`scripts/ux-audit.mjs`) em 10 rotas: 0 erros de console, se
 
 847 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v31.
 
+### Gate Z — Estabilidade: fim do beco "Não foi possível carregar seus dados" → 0.15.0 (DEC-170) 🛟
+
+**Blocker do Julio** (prioridade máxima, antes de qualquer feature): excluir uma saída recém-encerrada travava o app em "Não foi possível carregar seus dados"; tudo ficava carregando pra sempre, "Tentar novamente" não fazia nada, e **nem fechar/reabrir o app recuperava**. Mandato: nunca chegar nisso; se acontecer, auto-resolver (reconectar / reiniciar por dentro / "piscar") e nunca deixar o user sem acesso aos dados.
+
+**Causa-raiz** (documento completo em `brain/documents/stability-fix-db-recovery-2026-06-14.md`): **não é** o código de excluir (transação Dexie atômica, limpa — auditada). É a família de bugs do IndexedDB no WebKit/iOS: (a) `Connection to Indexed Database server lost` (bugs 273827/277615, iOS 17.4+ — o SO mata o processo do IDB durante escrita/background) e (b) o `indexedDB.open()` que trava `pending` pra sempre sem disparar evento (bug 2021). O `retry()` antigo (`close()`+re-leitura) só resolve ~1/3 do caso (a) e nada de (b), e **não escalava pro reload** — único recovery confiável.
+
+**Correção** — uma escada de recuperação única (`data/db/db-recovery.ts`), com tudo passando por ela: **(1)** watchdog no `open` (8 s) e na carga (10 s) — nada gira pra sempre; **(2)** auto-cura silenciosa (`recoverConnection`: close→backoff→reopen→re-ler) no `useAppData`; **(3)** reload limitado (`escalateToReload`, orçamento de 3/90 s persistido em localStorage → loop impossível) = o "piscar/reinicia por dentro" que o Julio autorizou; **(4)** `DataErrorScreen` que nunca é beco: diz que os dados estão salvos, **re-tenta sozinho a cada 10 s** (cura na hora que o SO libera o IDB), botão de recarregar que funciona e **exportar backup de emergência** (no bundle principal); **(5)** guards `versionchange`/`blocked` no `database.ts`; **(6)** `lazyWithRetry` + watchdog de 12 s no `LoadingFallback` (mata o "Planejar fica carregando e nunca sai").
+
+**Verificação**: 19 testes novos/reescritos (db-recovery, DataErrorScreen, useAppData error) + suíte completa **863 verdes / 103 arquivos**, tsc 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v32.
+
 ---
 
 ## Reverts

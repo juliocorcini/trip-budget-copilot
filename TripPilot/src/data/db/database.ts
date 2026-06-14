@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
+import { recordCrash } from '@/utils/crash-log';
 import type { Trip } from '@/domain/types/trip';
 import type { Phase } from '@/domain/types/phase';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -101,3 +102,22 @@ export class TripPilotDB extends Dexie {
 }
 
 export const db = new TripPilotDB();
+
+// DEC-170: connection guards for the WebKit/multi-context failure family.
+// `versionchange` fires when another context (a second tab, or a new deploy)
+// needs to upgrade the schema. If we keep our older connection open it BLOCKS
+// that upgrade, which hangs `db.open()` everywhere ("the database didn't
+// respond"). Closing immediately lets the upgrade through; our next DB access
+// transparently reopens at the new version. `blocked` means OUR upgrade is the
+// one being held hostage — record it so the wedge is diagnosable in the crash
+// buffer (the recovery ladder in db-recovery.ts owns the actual healing).
+db.on('versionchange', () => {
+  try {
+    db.close();
+  } catch {
+    // Already closing — nothing to do.
+  }
+});
+db.on('blocked', () => {
+  recordCrash({ message: 'idb-blocked: schema upgrade held by another connection' });
+});

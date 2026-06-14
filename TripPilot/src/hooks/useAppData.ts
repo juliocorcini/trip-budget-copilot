@@ -10,7 +10,12 @@ import type { Participant } from '@/domain/types/participant';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import { tripRepository, phaseRepository, budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository, transactionRepository, walletRepository, participantRepository, appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
-import { db } from '@/data/db/database';
+import {
+  openWithWatchdog,
+  recoverConnection,
+  escalateToReload,
+  clearHardReloadGuard,
+} from '@/data/db/db-recovery';
 import { repairDemoTripIfNeeded } from '@/data/demo-repair';
 
 // DEC-109: if IndexedDB hangs (known WebKit issue in standalone PWAs after
@@ -136,6 +141,22 @@ export function useAppDataState(): AppData {
     setEnvelopes(allEnvelopes.flat());
   }, []);
 
+  // DEC-170: tier-1 self-heal — close the (possibly dead WebKit) handle, reopen
+  // it under the watchdog, then re-read. Shared by the automatic recovery path
+  // and the manual retry. Never reloads the page here; escalation is a bounded
+  // decision made by the caller. Returns true when the data is healthy again.
+  const reopenAndReload = useCallback(async (): Promise<boolean> => {
+    const reopened = await recoverConnection();
+    if (!reopened) return false;
+    try {
+      await withTimeout(loadAll());
+      return true;
+    } catch (err) {
+      console.error('[useAppData] reload after reopen failed:', err);
+      return false;
+    }
+  }, [loadAll]);
+
   // UX/continuity: a background refresh must NOT blank the screen. Only the
   // first load and explicit recovery flip `loading` (which gates the full-screen
   // loader); every in-page mutation reloads SILENTLY so the component tree stays
@@ -146,42 +167,60 @@ export function useAppDataState(): AppData {
       if (options?.showLoading) setLoading(true);
       setError(false);
       try {
+        // DEC-170: a hung WebKit `open()` must fail fast (watchdog) instead of
+        // spinning forever — the catch then runs the recovery ladder.
+        await openWithWatchdog();
         await withTimeout(loadAll());
         errorRef.current = false;
         // BUG-019: a healthy load reopens the auto-retry budget.
         autoRetryCountRef.current = 0;
-      } catch (err) {
-        // DEC-109: keep whatever data was already in memory; flag the failure
-        // so pages show the recovery screen instead of redirecting to /welcome.
-        console.error('[useAppData] load failed:', err);
-        errorRef.current = true;
-        setError(true);
-      } finally {
-        // Always clear loading: the initial load seeds loading=true via useState
-        // and must drop it even when reached through a silent reload.
+        // DEC-170: healthy → reopen the bounded auto-reload budget too.
+        clearHardReloadGuard();
         setLoading(false);
+      } catch (err) {
+        // DEC-109/DEC-170: don't dead-end. First self-heal (close+reopen+re-read);
+        // if that fails, escalate to a bounded `location.reload()` — per the
+        // WebKit IDB bug it is the only reliable recovery, it is invisible-ish
+        // ("blink"), and the budget guard makes a reload loop impossible. Only
+        // when even that is spent do we flag the error so the recovery screen
+        // shows (never a redirect to the destructive /welcome).
+        console.error('[useAppData] load failed:', err);
+        const healed = await reopenAndReload();
+        if (healed) {
+          errorRef.current = false;
+          autoRetryCountRef.current = 0;
+          clearHardReloadGuard();
+          setLoading(false);
+        } else if (escalateToReload()) {
+          // The page is reloading — keep the loader up so nothing flashes.
+        } else {
+          errorRef.current = true;
+          setError(true);
+          setLoading(false);
+        }
       }
     },
-    [loadAll],
+    [loadAll, reopenAndReload],
   );
 
   // Exposed refresh used by every in-page mutation — silent (no loader flash).
   const reload = useCallback(() => runLoad(), [runLoad]);
 
-  // DEC-109: manual recovery (DataErrorScreen button) is user-initiated, so the
-  // aggressive close+reopen of a hung Dexie connection is warranted here — and
-  // it resets the throttled auto-retry budget (BUG-019).
+  // DEC-109/DEC-170: manual recovery (DataErrorScreen "try again" + its silent
+  // background auto-retry). Close+reopen the connection and re-read; the page
+  // reload escape lives as an explicit button on the screen so this stays cheap
+  // and non-disruptive when fired repeatedly in the background.
   const retry = useCallback(async () => {
-    try {
-      if (db.isOpen()) db.close();
-    } catch {
-      // Closing a broken connection can throw — a fresh open follows anyway.
-    }
+    setLoading(true);
+    setError(false);
     lastAutoRetryAtRef.current = 0;
     autoRetryCountRef.current = 0;
-    // Recovery shows the loader (not the stale/error screen) while it reconnects.
-    await runLoad({ showLoading: true });
-  }, [runLoad]);
+    const healed = await reopenAndReload();
+    errorRef.current = !healed;
+    if (healed) clearHardReloadGuard();
+    setError(!healed);
+    setLoading(false);
+  }, [reopenAndReload]);
 
   useEffect(() => {
     // First load shows the full-screen loader.

@@ -1180,8 +1180,19 @@
   },
   "data_error": {
     "title": "No se pudieron cargar tus datos",
-    "body": "Tus datos NO fueron borrados — la base local simplemente no respondió. Cierra otras pestañas de la app e inténtalo de nuevo.",
-    "retry": "Intentar de nuevo"
+    "body": "Tus datos están guardados en este dispositivo — solo se trabó la conexión con la base local. Estoy reconectando solo.",
+    "reconnecting": "Reconectando…",
+    "auto_hint": "Voy a reintentar cada pocos segundos. También puedes:",
+    "retry": "Intentar ahora",
+    "reload": "Recargar la app",
+    "export": "Exportar mis datos",
+    "exporting": "Exportando…",
+    "exported": "Copia descargada",
+    "export_failed": "Falló — intenta recargar"
+  },
+  "loading": {
+    "slow": "Esta pantalla está tardando más de lo normal en abrir.",
+    "reload": "Recargar la app"
   },
   "recovery": {
     "title": "Encontramos tu viaje",

@@ -1180,8 +1180,19 @@
   },
   "data_error": {
     "title": "Could not load your data",
-    "body": "Your data was NOT deleted — the local database just failed to respond. Close other tabs of the app and try again.",
-    "retry": "Try again"
+    "body": "Your data is safe on this device — only the connection to the local database stalled. I'm reconnecting on my own.",
+    "reconnecting": "Reconnecting…",
+    "auto_hint": "I'll keep retrying every few seconds. You can also:",
+    "retry": "Try now",
+    "reload": "Reload the app",
+    "export": "Export my data",
+    "exporting": "Exporting…",
+    "exported": "Backup downloaded",
+    "export_failed": "Failed — try reloading"
+  },
+  "loading": {
+    "slow": "This screen is taking longer than usual to open.",
+    "reload": "Reload the app"
   },
   "recovery": {
     "title": "We found your trip",
