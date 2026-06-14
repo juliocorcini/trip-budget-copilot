@@ -59,7 +59,7 @@ export function SimulatorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences, loading, error, retry } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, loading, error, retry } = useAppData();
 
   const [amount, setAmount] = useState(() => {
     const prefill = searchParams.get('amount');
@@ -143,6 +143,7 @@ export function SimulatorPage() {
         links.filter((l) => l.budgetPoolId === primaryPool.id),
         activePhase.id,
         occurrences,
+        plannedPurchases,
       )
     : null;
 

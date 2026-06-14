@@ -56,6 +56,7 @@ const FTS_LABEL_KEYS: Record<Exclude<FtsBreakdownKey, 'free' | 'deficit'>, strin
   protected: 'dashboard.fts_protected',
   future_floor: 'dashboard.fts_future_floor',
   event_reserves: 'dashboard.fts_event_reserves',
+  planned_purchases: 'dashboard.fts_planned_purchases',
 };
 
 // BUG-008: the Dashboard's four bottom sheets, lifted out of the page. They read

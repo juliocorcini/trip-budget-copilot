@@ -64,7 +64,7 @@ type AppData = ReturnType<typeof useAppData>;
 // reads (sessions, profiles, shares, forecasts) are colocated here too. The
 // page keeps the UI state and the mutation handlers.
 export function useDashboardModel(appData: AppData, heatmapMonth: string, heatmapDayIso: string | null) {
-  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, settings } = appData;
+  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, plannedPurchases, settings } = appData;
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
@@ -188,6 +188,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         links.filter((l) => l.budgetPoolId === pool.id),
         phase.id,
         occurrences,
+        plannedPurchases,
       );
       const spentCents = calculatePoolSpent(phaseTxs);
       const daysOfData = Math.max(1, getDayNumber(phase.startDate));
@@ -209,7 +210,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       );
     };
     persist();
-  }, [trip, phases, pools, envelopes, links, transactions, occurrences]);
+  }, [trip, phases, pools, envelopes, links, transactions, occurrences, plannedPurchases]);
 
   // Heavy derivations — one memo over every real input, so UI-only re-renders
   // (sheets, carousels) never re-run the budget/insight/heatmap math.
@@ -229,6 +230,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             links.filter((l) => l.budgetPoolId === primaryPool.id),
             activePhase.id,
             occurrences,
+            plannedPurchases,
           )
         : null;
 
@@ -331,6 +333,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             links.filter((l) => l.budgetPoolId === primaryPool.id),
             leftoverTransition.next.id,
             occurrences,
+            plannedPurchases,
           ).freeToSpendCents
         : 0;
     const phaseLeftover = detectPhaseLeftover({
@@ -554,6 +557,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     transactions,
     participants,
     occurrences,
+    plannedPurchases,
     settings,
     activeSession,
     sessionTxs,

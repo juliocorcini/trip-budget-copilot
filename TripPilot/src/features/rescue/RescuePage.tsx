@@ -38,7 +38,7 @@ function formatWholeMoney(cents: number, currency: string): string {
 export function RescuePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences, loading, error, retry } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, loading, error, retry } = useAppData();
 
   const [amount, setAmount] = useState('');
   const [remainingOccasions, setRemainingOccasions] = useState<RescueOccasionInput[]>([]);
@@ -96,6 +96,7 @@ export function RescuePage() {
           links.filter((l) => l.budgetPoolId === primaryPool.id),
           activePhase.id,
           occurrences,
+          plannedPurchases,
         )
       : null;
 

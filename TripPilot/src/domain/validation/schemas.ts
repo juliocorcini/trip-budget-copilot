@@ -137,6 +137,7 @@ export const backupFileSchema = z.object({
   scenarioPlans: z.array(syncedRecordSchema).default([]),
   scenarioAllocationItems: z.array(syncedRecordSchema).default([]),
   plannedOccurrences: z.array(syncedRecordSchema).default([]),
+  plannedPurchases: z.array(syncedRecordSchema).default([]),
   phaseProfileSettings: z.array(syncedRecordSchema).default([]),
   forecastSnapshots: z.array(syncedRecordSchema).default([]),
   futurePhaseReservePolicies: z.array(syncedRecordSchema).default([]),

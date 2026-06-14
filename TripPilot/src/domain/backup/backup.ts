@@ -12,6 +12,7 @@ import type { Session, SessionItem } from '@/domain/types/session';
 import type { Settlement } from '@/domain/types/settlement';
 import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
+import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
 import type { ForecastSnapshot } from '@/domain/types/forecast-snapshot';
 import type { FuturePhaseReservePolicy } from '@/domain/types/future-phase-reserve-policy';
@@ -44,6 +45,7 @@ export interface BackupData {
   scenarioPlans: ScenarioPlan[];
   scenarioAllocationItems: ScenarioAllocationItem[];
   plannedOccurrences: PlannedOccurrence[];
+  plannedPurchases: PlannedPurchase[];
   phaseProfileSettings: PhaseProfileSetting[];
   forecastSnapshots: ForecastSnapshot[];
   futurePhaseReservePolicies: FuturePhaseReservePolicy[];
@@ -54,11 +56,11 @@ export interface BackupData {
 }
 
 /**
- * v5 (E8, Phase 5): adds Transaction location fields (placeLabel, latitude,
- * longitude, placeId — all nullable). v1-v4 files import with missing tables as
- * empty and missing fields normalized to the migration defaults (location null).
+ * v6 (DEC-175): adds the `plannedPurchases` table. Older files (v1-v5) import
+ * with the missing table normalized to an empty array (normalizeBackupToV6).
+ * v5 added Transaction location fields (placeLabel, latitude, longitude, placeId).
  */
-export const BACKUP_VERSION = 5;
+export const BACKUP_VERSION = 6;
 
 export type BackupTableKey = keyof Omit<
   BackupData,
@@ -82,6 +84,7 @@ export const BACKUP_TABLE_KEYS: BackupTableKey[] = [
   'scenarioPlans',
   'scenarioAllocationItems',
   'plannedOccurrences',
+  'plannedPurchases',
   'phaseProfileSettings',
   'forecastSnapshots',
   'futurePhaseReservePolicies',
@@ -233,10 +236,23 @@ export function normalizeBackupToV5(data: BackupData): BackupData {
 }
 
 /**
+ * DEC-175: normalizes pre-v6 backups — the `plannedPurchases` table simply did
+ * not exist, so it defaults to empty (the Zod schema already does this, but the
+ * explicit map keeps the chain symmetric and future-proof against shape drift).
+ */
+export function normalizeBackupToV6(data: BackupData): BackupData {
+  const v5 = normalizeBackupToV5(data);
+  return {
+    ...v5,
+    plannedPurchases: v5.plannedPurchases ?? [],
+  };
+}
+
+/**
  * GAP-029: validates the file against the Zod schemas before anything is
  * written. Malformed files yield a clear error and zero partial writes.
  * v1 files (missing tables) are normalized with empty arrays; older files get
- * the field defaults up to the current version (normalizeBackupToV5).
+ * the field defaults up to the current version (normalizeBackupToV6).
  */
 export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
   let raw: unknown;
@@ -254,7 +270,7 @@ export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
       error: first ? `${first.path.join('.')}: ${first.message}` : 'invalid_schema',
     };
   }
-  return { data: normalizeBackupToV5(result.data as unknown as BackupData), error: null };
+  return { data: normalizeBackupToV6(result.data as unknown as BackupData), error: null };
 }
 
 export function parseBackupFile(jsonString: string): BackupData | null {

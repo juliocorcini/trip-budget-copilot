@@ -7,6 +7,7 @@ export {
   normalizeBackupToV3,
   normalizeBackupToV4,
   normalizeBackupToV5,
+  normalizeBackupToV6,
   generateBackupFilename,
   isBackupReminderDue,
   BACKUP_VERSION,

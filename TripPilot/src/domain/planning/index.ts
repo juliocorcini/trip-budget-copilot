@@ -13,3 +13,13 @@ export {
   sumSpentInOccurrenceInterval,
 } from './occurrences';
 export type { CreatePlannedOccurrenceInput } from './occurrences';
+export {
+  createPlannedPurchase,
+  isPlannedPurchaseOpen,
+  plannedPurchaseSpentCents,
+  plannedPurchaseReservedRemainingCents,
+  calculatePlannedPurchaseReserves,
+  plannedPurchaseProgress,
+  linkTransactionToPlannedPurchase,
+} from './planned-purchases';
+export type { CreatePlannedPurchaseInput, PlannedPurchaseProgress } from './planned-purchases';

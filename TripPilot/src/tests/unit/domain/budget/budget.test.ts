@@ -17,6 +17,7 @@ import type { Envelope } from '@/domain/types/envelope';
 import type { Transaction } from '@/domain/types/transaction';
 import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
+import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 
 const baseMeta = {
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -116,7 +117,7 @@ describe('calculateFreeToSpend', () => {
       { ...baseMeta, id: 'l2', budgetPoolId: 'pool-1', phaseId: 'phase-2', futureFloorCents: 20000 },
     ];
 
-    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1', []);
+    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1', [], []);
     // 150000 - 43250 - 15000 - 20000 = 71750
     expect(result.freeToSpendCents).toBe(71750);
     expect(result.totalBudgetCents).toBe(150000);
@@ -130,7 +131,7 @@ describe('calculateFreeToSpend', () => {
     const txs = [mkTx('t1', 200000)];
     const links: BudgetPoolPhaseLink[] = [];
 
-    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1', []);
+    const result = calculateFreeToSpend(pool, envelopes, txs, links, 'phase-1', [], []);
     expect(result.freeToSpendCents).toBe(0);
   });
 
@@ -164,9 +165,66 @@ describe('calculateFreeToSpend', () => {
       occurrence({ id: 'o6', reservedCents: null }), // no reserve → nothing to deduct
     ];
 
-    const result = calculateFreeToSpend(pool, [], [], [], 'phase-1', occurrences);
+    const result = calculateFreeToSpend(pool, [], [], [], 'phase-1', occurrences, []);
     expect(result.eventReservesCents).toBe(5000);
     expect(result.freeToSpendCents).toBe(150000 - 5000);
+  });
+
+  it('deducts the still-reserved total of open planned purchases (DEC-175)', () => {
+    const purchase = (overrides: Partial<PlannedPurchase>): PlannedPurchase => ({
+      ...baseMeta,
+      id: 'pp-1',
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-1',
+      name: 'Skincare',
+      category: 'shopping',
+      estimatedCostCents: 10000,
+      reservedCents: 10000,
+      status: 'planned',
+      linkedTransactionIds: [],
+      store: null,
+      targetDate: null,
+      notes: null,
+      phaseId: null,
+      ...overrides,
+    });
+
+    const purchases = [
+      purchase({ id: 'pp-1', reservedCents: 10000 }), // open, full reserve → deducts 10000
+      purchase({ id: 'pp-2', reservedCents: 5000, status: 'bought' }), // bought → deducts nothing
+      purchase({ id: 'pp-3', reservedCents: 8000, budgetPoolId: 'pool-2' }), // other pool → ignored
+      purchase({ id: 'pp-4', reservedCents: null }), // track-only → deducts nothing
+    ];
+
+    const result = calculateFreeToSpend(pool, [], [], [], 'phase-1', [], purchases);
+    expect(result.plannedPurchasesCents).toBe(10000);
+    expect(result.freeToSpendCents).toBe(150000 - 10000);
+  });
+
+  it('shrinks the planned-purchase reserve by real linked spend, no double counting (DEC-175)', () => {
+    const linkedTx = mkTx('t1', 4000); // €40 already spent toward the plan
+    const purchase: PlannedPurchase = {
+      ...baseMeta,
+      id: 'pp-1',
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-1',
+      name: 'Creams',
+      category: 'shopping',
+      estimatedCostCents: 10000,
+      reservedCents: 10000,
+      status: 'planned',
+      linkedTransactionIds: ['t1'],
+      store: null,
+      targetDate: null,
+      notes: null,
+      phaseId: null,
+    };
+
+    const result = calculateFreeToSpend(pool, [], [linkedTx], [], 'phase-1', [], [purchase]);
+    // spent counts the 4000 once; reserve still holds 10000 - 4000 = 6000 → total impact 10000
+    expect(result.totalSpentCents).toBe(4000);
+    expect(result.plannedPurchasesCents).toBe(6000);
+    expect(result.freeToSpendCents).toBe(150000 - 4000 - 6000);
   });
 });
 

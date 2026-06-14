@@ -15,7 +15,7 @@ import { buildNotifications, type AppNotification } from '@/domain/insights';
  * and the notifications center — single source, pure domain builder.
  */
 export function useNotifications(): { notifications: AppNotification[]; ready: boolean } {
-  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, settings } =
+  const { trip, phases, pools, links, envelopes, transactions, participants, occurrences, plannedPurchases, settings } =
     useAppData();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [ready, setReady] = useState(false);
@@ -58,6 +58,7 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
               links.filter((l) => l.budgetPoolId === primaryPool.id),
               activePhase.id,
               occurrences,
+              plannedPurchases,
             )
           : null;
       const phaseBudgetCents = fts
@@ -89,7 +90,7 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
     return () => {
       cancelled = true;
     };
-  }, [trip, phases, pools, links, envelopes, transactions, participants, occurrences, settings]);
+  }, [trip, phases, pools, links, envelopes, transactions, participants, occurrences, plannedPurchases, settings]);
 
   return { notifications, ready };
 }

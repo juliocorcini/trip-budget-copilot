@@ -66,6 +66,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
   scenarioPlans: [],
   scenarioAllocationItems: [],
   plannedOccurrences: [],
+  plannedPurchases: [],
   phaseProfileSettings: [],
   forecastSnapshots: [],
   futurePhaseReservePolicies: [],
@@ -78,7 +79,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
 describe('createBackup', () => {
   it('adds version and export date', () => {
     const backup = createBackup(emptyBackup());
-    expect(backup.version).toBe(5);
+    expect(backup.version).toBe(6);
     expect(backup.exportedAt).toBeTruthy();
   });
 });
@@ -165,7 +166,7 @@ describe('parseBackupFile', () => {
     const backup = createBackup(emptyBackup());
     const result = parseBackupFile(JSON.stringify(backup));
     expect(result).not.toBeNull();
-    expect(result!.version).toBe(5);
+    expect(result!.version).toBe(6);
   });
 
   it('returns null for invalid JSON', () => {

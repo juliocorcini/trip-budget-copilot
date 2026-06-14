@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -63,4 +63,13 @@ export const SCHEMA_V4: Record<string, string> = {
 export const SCHEMA_V5: Record<string, string> = {
   ...SCHEMA_V4,
   localSnapshots: 'id, createdAt',
+};
+
+// V6 (DEC-175 — Planned Purchases): a brand-new table for intended future
+// purchases ("Planejados / Vou gastar"). Adding a new table needs no upgrade()
+// callback — Dexie creates it on open and leaves every existing table/row
+// untouched. Indexed by tripId (list query) and budgetPoolId (reserve sum).
+export const SCHEMA_V6: Record<string, string> = {
+  ...SCHEMA_V5,
+  plannedPurchases: 'id, tripId, budgetPoolId, status, deletedAt',
 };

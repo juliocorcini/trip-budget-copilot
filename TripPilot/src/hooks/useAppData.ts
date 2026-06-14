@@ -9,7 +9,8 @@ import type { Wallet } from '@/domain/types/wallet';
 import type { Participant } from '@/domain/types/participant';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
-import { tripRepository, phaseRepository, budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository, transactionRepository, walletRepository, participantRepository, appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
+import type { PlannedPurchase } from '@/domain/types/planned-purchase';
+import { tripRepository, phaseRepository, budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository, transactionRepository, walletRepository, participantRepository, appSettingsRepository, plannedOccurrenceRepository, plannedPurchaseRepository } from '@/data/repositories';
 import {
   openWithWatchdog,
   recoverConnection,
@@ -66,6 +67,7 @@ interface AppData {
   wallets: Wallet[];
   participants: Participant[];
   occurrences: PlannedOccurrence[];
+  plannedPurchases: PlannedPurchase[];
   loading: boolean;
   /** DEC-109: true when the DB read failed/hung — NEVER treat as empty data. */
   error: boolean;
@@ -88,6 +90,7 @@ export function useAppDataState(): AppData {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [occurrences, setOccurrences] = useState<PlannedOccurrence[]>([]);
+  const [plannedPurchases, setPlannedPurchases] = useState<PlannedPurchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const errorRef = useRef(false);
@@ -111,10 +114,11 @@ export function useAppDataState(): AppData {
       setWallets([]);
       setParticipants([]);
       setOccurrences([]);
+      setPlannedPurchases([]);
       return;
     }
 
-    const [t, ph, po, tx, wa, pa, occ] = await Promise.all([
+    const [t, ph, po, tx, wa, pa, occ, pp] = await Promise.all([
       tripRepository.getById(refreshedSettings.activeTrip),
       phaseRepository.getByTripId(refreshedSettings.activeTrip),
       budgetPoolRepository.getByTripId(refreshedSettings.activeTrip),
@@ -122,6 +126,7 @@ export function useAppDataState(): AppData {
       walletRepository.getByTripId(refreshedSettings.activeTrip),
       participantRepository.getByTripId(refreshedSettings.activeTrip),
       plannedOccurrenceRepository.getByTripId(refreshedSettings.activeTrip),
+      plannedPurchaseRepository.getByTripId(refreshedSettings.activeTrip),
     ]);
 
     setTrip(t ?? null);
@@ -131,6 +136,7 @@ export function useAppDataState(): AppData {
     setWallets(wa);
     setParticipants(pa);
     setOccurrences(occ);
+    setPlannedPurchases(pp);
 
     const poolIds = po.map((p) => p.id);
     const [allLinks, allEnvelopes] = await Promise.all([
@@ -256,7 +262,7 @@ export function useAppDataState(): AppData {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [runLoad]);
 
-  return { settings, trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, loading, error, reload, retry };
+  return { settings, trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, plannedPurchases, loading, error, reload, retry };
 }
 
 // BUG-007: single shared snapshot of app data. The Provider (in RootLayout)

@@ -29,7 +29,7 @@ export function ImpactDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const scrolled = useScrolled();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences, loading } =
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, loading } =
     useAppData();
 
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
@@ -80,6 +80,7 @@ export function ImpactDetailPage() {
           links.filter((l) => l.budgetPoolId === primaryPool.id),
           activePhase.id,
           occurrences,
+          plannedPurchases,
         )
       : null;
 

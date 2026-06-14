@@ -214,14 +214,14 @@ describe('motivation layer never touches free-to-spend', () => {
   const envelopes: Envelope[] = [];
 
   it('keeps freeToSpend identical regardless of any savings goal', () => {
-    const free = calculateFreeToSpend(pool, envelopes, [tx], [link], 'phase-1', []);
+    const free = calculateFreeToSpend(pool, envelopes, [tx], [link], 'phase-1', [], []);
 
     // The traveler sets, then doubles, then drops a goal — and computes the piggy.
     calculateSavingsGoalProgress({ goalCents: 20000, projectedSurplusCents: 30000 });
     calculateSavingsGoalProgress({ goalCents: 40000, projectedSurplusCents: 30000 });
     calculatePiggyBank({ totalBudgetCents: 100000, totalSpentCents: 20000, daysElapsed: 4, totalDays: 10 });
 
-    const freeAfter = calculateFreeToSpend(pool, envelopes, [tx], [link], 'phase-1', []);
+    const freeAfter = calculateFreeToSpend(pool, envelopes, [tx], [link], 'phase-1', [], []);
     expect(freeAfter).toEqual(free);
     // No protected reserve was created by the goal (it is not a real envelope).
     expect(freeAfter.protectedReserveCents).toBe(0);

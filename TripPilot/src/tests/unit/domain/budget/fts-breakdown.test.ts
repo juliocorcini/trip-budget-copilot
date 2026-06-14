@@ -9,6 +9,7 @@ function makeFts(partial: Partial<FreeToSpendResult>): FreeToSpendResult {
     protectedReserveCents: 0,
     futureFloorCents: 0,
     eventReservesCents: 0,
+    plannedPurchasesCents: 0,
     allocationsCents: 0,
     ...partial,
   };

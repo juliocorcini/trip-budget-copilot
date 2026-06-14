@@ -148,7 +148,7 @@ export function PlannerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const scrolled = useScrolled();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences, loading } =
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, loading } =
     useAppData();
 
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
@@ -365,9 +365,10 @@ export function PlannerPage() {
             links,
             selectedPhase.id,
             occurrences,
+            plannedPurchases,
           )
         : null,
-    [phasePool, selectedPhase, envelopes, poolTxs, links, occurrences],
+    [phasePool, selectedPhase, envelopes, poolTxs, links, occurrences, plannedPurchases],
   );
 
   const availableCents = fts?.freeToSpendCents ?? 0;

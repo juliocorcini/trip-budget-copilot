@@ -18,6 +18,7 @@ const EMPTY_TABLES = {
   scenarioPlans: [],
   scenarioAllocationItems: [],
   plannedOccurrences: [],
+  plannedPurchases: [],
   phaseProfileSettings: [],
   forecastSnapshots: [],
   futurePhaseReservePolicies: [],
@@ -39,8 +40,8 @@ function makeBackup(transactions: unknown[]): BackupData {
 }
 
 describe('normalizeBackupToV5 (M1)', () => {
-  it('bumps the backup version to 5', () => {
-    expect(BACKUP_VERSION).toBe(5);
+  it('bumps the backup version to 6 (planned purchases table — DEC-175)', () => {
+    expect(BACKUP_VERSION).toBe(6);
   });
 
   it('fills missing location fields with null on a v4 transaction', () => {

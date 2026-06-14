@@ -3,9 +3,11 @@ import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link'
 import type { Envelope } from '@/domain/types/envelope';
 import type { Transaction } from '@/domain/types/transaction';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
+import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { BudgetPoolScope } from '@/domain/types/common';
 import { sumCents } from '@/domain/money';
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
+import { calculatePlannedPurchaseReserves } from '@/domain/planning/planned-purchases';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
 export interface FreeToSpendResult {
@@ -15,6 +17,8 @@ export interface FreeToSpendResult {
   protectedReserveCents: number;
   futureFloorCents: number;
   eventReservesCents: number;
+  /** DEC-175: still-reserved total of OPEN planned purchases charged to this pool. */
+  plannedPurchasesCents: number;
   allocationsCents: number;
 }
 
@@ -46,6 +50,7 @@ export function calculateFreeToSpend(
   phaseLinks: BudgetPoolPhaseLink[],
   currentPhaseId: string,
   occurrences: PlannedOccurrence[],
+  plannedPurchases: PlannedPurchase[],
 ): FreeToSpendResult {
   const totalBudgetCents = pool.totalAmountCents;
 
@@ -67,9 +72,23 @@ export function calculateFreeToSpend(
     currentPhaseId,
   );
 
+  // DEC-175: still-reserved total of OPEN planned purchases charged to THIS pool.
+  // The reserve already shrinks by the real linked spend (counted in spent), so
+  // there is never double counting.
+  const plannedPurchasesCents = calculatePlannedPurchaseReserves(
+    plannedPurchases,
+    transactions,
+    pool.id,
+  );
+
   const freeToSpendCents = Math.max(
     0,
-    totalBudgetCents - totalSpentCents - protectedReserveCents - futureFloorCents - eventReservesCents,
+    totalBudgetCents -
+      totalSpentCents -
+      protectedReserveCents -
+      futureFloorCents -
+      eventReservesCents -
+      plannedPurchasesCents,
   );
 
   return {
@@ -79,6 +98,7 @@ export function calculateFreeToSpend(
     protectedReserveCents,
     futureFloorCents,
     eventReservesCents,
+    plannedPurchasesCents,
     allocationsCents,
   };
 }
@@ -103,6 +123,7 @@ export type FtsBreakdownKey =
   | 'protected'
   | 'future_floor'
   | 'event_reserves'
+  | 'planned_purchases'
   | 'free'
   | 'deficit';
 
@@ -121,6 +142,7 @@ export function buildFreeToSpendBreakdown(fts: FreeToSpendResult): FtsBreakdownL
     ['protected', fts.protectedReserveCents],
     ['future_floor', fts.futureFloorCents],
     ['event_reserves', fts.eventReservesCents],
+    ['planned_purchases', fts.plannedPurchasesCents],
   ];
   for (const [key, cents] of subtractions) {
     if (cents > 0) lines.push({ key, cents, kind: 'subtract' });
@@ -131,7 +153,8 @@ export function buildFreeToSpendBreakdown(fts: FreeToSpendResult): FtsBreakdownL
     fts.totalSpentCents -
     fts.protectedReserveCents -
     fts.futureFloorCents -
-    fts.eventReservesCents;
+    fts.eventReservesCents -
+    fts.plannedPurchasesCents;
 
   lines.push({ key: 'free', cents: Math.max(0, rawFreeCents), kind: 'total' });
   if (rawFreeCents < 0) lines.push({ key: 'deficit', cents: -rawFreeCents, kind: 'deficit' });

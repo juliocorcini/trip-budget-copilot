@@ -54,6 +54,7 @@ function appData(overrides: Partial<AppData>): AppData {
     wallets: [],
     participants: [],
     occurrences: [],
+    plannedPurchases: [],
     loading: false,
     error: false,
     reload: vi.fn(async () => {}),

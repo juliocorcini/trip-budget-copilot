@@ -75,7 +75,7 @@ export function QuickAddPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, settings, error, reload, retry } =
+  const { trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, plannedPurchases, settings, error, reload, retry } =
     useAppData();
 
   const initialCategory = searchParams.get('cat') ?? 'other';
@@ -331,6 +331,7 @@ export function QuickAddPage() {
           links.filter((l) => l.budgetPoolId === selectedPool.id),
           currentPhase.id,
           occurrences,
+          plannedPurchases,
         ).freeToSpendCents
       : null;
 
