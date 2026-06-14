@@ -43,6 +43,8 @@ class AppSettingsRepository {
       // E8 (M2/M3): records predating location capture default to off/no place.
       locationCaptureEnabled: settings.locationCaptureEnabled ?? false,
       currentPlace: settings.currentPlace ?? null,
+      // E9 (M11): records predating multi-currency have no frozen rates.
+      frozenRates: settings.frozenRates ?? null,
     };
   }
 

@@ -43,6 +43,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     tripPriorsHandled: [],
     locationCaptureEnabled: false,
     currentPlace: null,
+    frozenRates: null,
   },
   trips: [],
   phases: [],

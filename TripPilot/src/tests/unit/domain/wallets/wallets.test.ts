@@ -63,7 +63,7 @@ describe('calculateWalletBalance', () => {
       mkTx('t1', 5000, 'w1'),
       mkTx('t2', 3000, 'w1'),
     ];
-    const balance = calculateWalletBalance(wallet, txs);
+    const balance = calculateWalletBalance(wallet, txs, 'EUR');
     expect(balance.initialBalanceCents).toBe(100000);
     expect(balance.outgoingCents).toBe(8000);
     expect(balance.currentBalanceCents).toBe(92000);
@@ -73,9 +73,41 @@ describe('calculateWalletBalance', () => {
     const txs: Transaction[] = [
       { ...mkTx('t1', 10000, 'w2', 'transfer'), sourceWalletId: 'w2', targetWalletId: 'w1' },
     ];
-    const balance = calculateWalletBalance(wallet, txs);
+    const balance = calculateWalletBalance(wallet, txs, 'EUR');
     expect(balance.incomingCents).toBe(10000);
     expect(balance.currentBalanceCents).toBe(110000);
+  });
+});
+
+describe('calculateWalletBalance (multi-currency — E9 M10)', () => {
+  const eurWallet: Wallet = { ...wallet, id: 'eur', currency: 'EUR', initialBalanceCents: 100000 };
+  const czkWallet: Wallet = { ...wallet, id: 'czk', currency: 'CZK', initialBalanceCents: 500000 };
+  const gbpWallet: Wallet = { ...wallet, id: 'gbp', currency: 'GBP', initialBalanceCents: 100000 };
+
+  // 1000.00 CZK ≈ 40.00 EUR at rate 0.04 (base per 1 foreign).
+  const foreignExpense = (walletId: string): Transaction => ({
+    ...mkTx('fx', 100000, walletId),
+    currency: 'CZK',
+    baseCurrencyAmountCents: 4000,
+    exchangeRate: 0.04,
+  });
+
+  it('debits the CONVERTED base value from a base-currency wallet', () => {
+    const balance = calculateWalletBalance(eurWallet, [foreignExpense('eur')], 'EUR');
+    expect(balance.outgoingCents).toBe(4000);
+    expect(balance.currentBalanceCents).toBe(96000); // 100000 - 4000
+  });
+
+  it('debits the ORIGINAL amount when the wallet shares the expense currency', () => {
+    const balance = calculateWalletBalance(czkWallet, [foreignExpense('czk')], 'EUR');
+    expect(balance.outgoingCents).toBe(100000);
+    expect(balance.currentBalanceCents).toBe(400000); // 500000 - 100000
+  });
+
+  it('falls back to the original amount for the unsupported triple-edge wallet', () => {
+    // Wallet is neither the base (EUR) nor the expense currency (CZK).
+    const balance = calculateWalletBalance(gbpWallet, [foreignExpense('gbp')], 'EUR');
+    expect(balance.outgoingCents).toBe(100000);
   });
 });
 

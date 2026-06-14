@@ -1,4 +1,11 @@
-import type { AlertTone, AppMode, CurrentPlace, DailyCheckIn, ThemePreference } from './common';
+import type {
+  AlertTone,
+  AppMode,
+  CurrentPlace,
+  DailyCheckIn,
+  FrozenExchangeRates,
+  ThemePreference,
+} from './common';
 import type { TripTemplate } from './trip-template';
 
 export interface AppSettings {
@@ -59,4 +66,8 @@ export interface AppSettings {
    * traveler moves area or changes it. null when location is off/unknown
    * (non-indexed — no migration). */
   currentPlace: CurrentPlace | null;
+  /** E9 (M11): opt-in, frozen exchange-rate snapshot used offline as the
+   * default conversion when logging a foreign-currency expense. null until the
+   * traveler pulls it once while online (non-indexed — no migration). */
+  frozenRates: FrozenExchangeRates | null;
 }

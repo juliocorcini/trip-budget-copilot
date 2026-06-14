@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
-import { formatMoney, fromCents, toCents, formatAnchorHint } from '@/domain/money';
+import { formatMoney, fromCents, toCents, formatAnchorHint, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
 import { transactionRepository, participantShareRepository } from '@/data/repositories';
 import { softDeleteTransactionsBatch, restoreTransactionsBatch } from '@/domain/orchestrators';
@@ -149,7 +149,12 @@ export function ExpenseDetailPage() {
       const updated = await transactionRepository.update({
         ...tx,
         amountCents: newAmountCents,
-        baseCurrencyAmountCents: newAmountCents,
+        // E9 (M9): re-derive the base value with the frozen rate (foreign), else
+        // it equals the amount (same-currency). The currency/rate stay fixed.
+        baseCurrencyAmountCents:
+          tx.exchangeRate !== null
+            ? convertToBaseCents(newAmountCents, tx.exchangeRate)
+            : newAmountCents,
         personalCostCents: newPersonalCost,
         description: editDescription.trim() || tx.description,
         category: editCategory,
@@ -208,6 +213,12 @@ export function ExpenseDetailPage() {
             <p className="text-[32px] font-extrabold tabular text-on-surface leading-none">
               {formatMoney(tx.amountCents, tx.currency)}
             </p>
+            {/* E9 (M9): foreign expense — show the frozen base-currency equivalent. */}
+            {tx.exchangeRate !== null && tx.currency !== trip.baseCurrency && (
+              <p className="text-sm font-semibold text-on-surface-dim mt-1 tabular">
+                ≈ {formatMoney(tx.baseCurrencyAmountCents, trip.baseCurrency)}
+              </p>
+            )}
             {/* DEC-128: mental anchor under the amount ("≈ R$ 124") */}
             {anchorHint && (
               <p className="text-sm font-semibold text-on-surface-dim mt-1 tabular">{anchorHint}</p>

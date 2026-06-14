@@ -51,6 +51,8 @@ export function createDefaultAppSettings(): AppSettings {
     locationCaptureEnabled: false,
     // E8 (M3): no remembered place until the first located expense.
     currentPlace: null,
+    // E9 (M11): no frozen exchange rates until the traveler pulls them once.
+    frozenRates: null,
   };
 }
 

@@ -1,5 +1,6 @@
 export {
   calculateWalletBalance,
+  transactionWalletAmountCents,
   calculateCashReconciliation,
   getDefaultWallet,
   getUnassignedTransactionCount,

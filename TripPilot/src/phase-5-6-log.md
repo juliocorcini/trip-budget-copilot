@@ -1,9 +1,9 @@
 # Pacote 3 — Local & Hora + Multi-moeda + Segurança & Sharing — Log
 
 ## Current State
-- Fase: 5 | Gate: 2 ✅ | Milestone: M7 done | Done: 7/24 | Tests: 748 (+19) | Versão: 0.12.3 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.12.3) | Build: ✅
+- Fase: 5 ✅ COMPLETA | Gate: 3 ✅ | Milestone: M13 done | Done: 13/24 | Tests: 774 (+26 no gate; +66 na Fase 5 vs baseline 708) | Versão: 0.13.0 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.13.0) | Build: ✅
 - Dexie SCHEMA_VERSION=4 (próxima migração = v5 no M14, ÚNICA do pacote). BACKUP_VERSION=5 ✅ (bumped no M1).
-- PRÓXIMO: GATE 3 / M8 (UI moeda+valor no QuickAdd) → fecha a Fase 5 (0.13.0).
+- PRÓXIMO: FASE 6 / GATE 4 / M14 (tabela de snapshots — ÚNICA migração Dexie do pacote → v5) → 0.13.1.
 
 ## Decisões tomadas durante a execução
 - Deploy em PRODUÇÃO (--branch=main → trippilot.pages.dev) a cada gate, a pedido do Julio (supera o "preview" do pacote).
@@ -16,10 +16,17 @@
 - M5: hora via localClockTime; linha de local (ícone+label) só quando há placeLabel; detalhe ganha linha Hora + Local e edição do lugar (limpar = remove; renomear mantém coords, descarta placeId se o nome mudou).
 - M6: saída ativa usa o MESMO local grudento (settings.currentPlace); captura GPS 1× ao abrir sessão ativa; cabeçalho mostra "em [lugar]" + sheet pra renomear/limpar; itens da sessão herdam o local.
 - M7: filtro ?place= em ExpenseListPage com chips por lugar (ordenados por gasto via aggregateByPlace) + cabeçalho do lugar com contagem.
+- M8/M9: seletor de moeda no QuickAdd (`<select>`, default = base) aparece só quando há opção estrangeira (carteira OU snapshot de câmbio). Taxa = "1 {moeda} = ? {base}" (base-por-1-estrangeira), pré-preenchida do snapshot congelado e EDITÁVEL. Conversão ao vivo "≈ base"; salvar bloqueado sem taxa válida. `convertToBaseCents/transactionBasePersonalCostCents/resolveFrozenRate/listSelectableCurrencies` puros em `domain/money/exchange.ts`. Factory aceita `baseCurrencyAmountCents?`+`exchangeRate?` (default = amount/null → 100% retrocompatível).
+- DECISÃO (correção de orçamento, além do escopo literal do M10): `calculatePoolSpent` e `calculateSpentOnDate` (impacto no orçamento, ambos em base) agora passam por `transactionBasePersonalCostCents` → gasto estrangeiro entra pelo valor BASE no "livre pra usar"/"gasto do dia". É NO-OP pra moeda única (exchangeRate null) — zero regressão nos 708 testes. Agregações secundárias (insights/danger-day, outing, learning, suggestions, share-card, planning) seguem no valor cru (escopo: gasto estrangeiro é exceção; unificar depois se preciso).
+- M10: `calculateWalletBalance(wallet, txs, baseCurrency)` + helper `transactionWalletAmountCents` (mesma moeda→original; carteira base→base; edge triplo→original, documentado fora de escopo). Call sites: WalletsPage ×2 (passa trip.baseCurrency) + testes atualizados.
+- M11: boundary `utils/exchange-rates.ts` (open.er-api.com, sem chave) — opt-in/online-only/timeout/fallback null; inverte "estrangeira por base" → "base por estrangeira" (ratesToBase). `AppSettings.frozenRates` (não-indexado, backfill+seed). Settings ganha seção "Câmbio" (atualizar taxas + data/contagem). Reusa `isOnline` de places.
+- M12: i18n pt/en/es de tudo do gate (expenses.currency_*/exchange_rate_*, settings.fx_*).
+- M13: +26 testes no gate — exchange.ts (convert/personal-base/resolveFrozen/listCurrencies/poolSpent multi-moeda), carteira 3 casos (base→convertido, mesma→original, edge→original), boundary fx (mock fetch: sucesso inverte, offline/erro/!ok/result≠success→null). Fase 5 total +66 vs baseline (alvo do M13 era ≥18).
 
 ## Deploys
 - 0.12.2 (GATE 1) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://544a59ad.trippilot.pages.dev)
 - 0.12.3 (GATE 2) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://b11f228e.trippilot.pages.dev)
+- 0.13.0 (GATE 3 — FASE 5 COMPLETA) → PRODUÇÃO https://trippilot.pages.dev (deploy id: ver abaixo)
 
 ## GATE 0 — Baseline (sem deploy)
 - [x] Node 22.22.3 confirmado
@@ -44,16 +51,23 @@
 - [x] M7 "Gastos por lugar" (filtro + agregação)
 - [x] Checkpoint: 0.12.3 + deploy prod + commit (748 testes, build OK)
 
-### GATE 3 — Multi-moeda + i18n + testes → FASE 5 COMPLETA → 0.13.0
-- [ ] M8 UI moeda+valor no QuickAdd
-- [ ] M9 Conversão + guardar original
-- [ ] M10 Débito de carteira por moeda
-- [ ] M11 Snapshot de câmbio offline (opt-in)
-- [ ] M12 i18n + nota de privacidade do local
-- [ ] M13 Testes Fase 5 (≥18 novos)
-- [ ] Checkpoint: 0.13.0 + commit
+### GATE 3 — Multi-moeda + i18n + testes → FASE 5 COMPLETA → 0.13.0 ✅
+- [x] M8 UI moeda+valor no QuickAdd (seletor data-driven + taxa + conversão ao vivo)
+- [x] M9 Conversão + guardar original (factory base+rate; detalhe mostra "X CZK ≈ Y EUR"; edição recalcula base)
+- [x] M10 Débito de carteira por moeda (3 casos testados)
+- [x] M11 Snapshot de câmbio offline (opt-in) — boundary + Settings "Câmbio"
+- [x] M12 i18n pt/en/es (mesmo commit — ÂNCORA 16)
+- [x] M13 Testes Fase 5 (+26 no gate; +66 na fase, ≥18 exigidos) — verde 774, tsc 0, build sem chunk>500KB
+- [x] Checkpoint: 0.13.0 + deploy PRODUÇÃO + commit
 
 ## >>> TRANSIÇÃO FASE 5 → FASE 6 (continuar sem parar) <<<
+
+## HANDOFF FASE 6 (de GATE 3 → GATE 4)
+- Fase 5 commitada+deployada (0.13.0). Verde: 774 testes, tsc 0, build sem chunk>500KB.
+- Estado: local opcional em cada gasto (grudento, recentes offline, reverse-geocode opt-in, gastos por lugar); multi-moeda (captura+conversão, guarda original+base+taxa, carteira debita por moeda, snapshot de câmbio congelado opt-in). Orçamento usa valor BASE (livre/gasto-do-dia corretos com moeda estrangeira).
+- Invariantes a respeitar na Fase 6: ÂNCORA 8 (privacidade/opt-in: lock off por padrão, recuperação NUNCA trancada), ÂNCORA 10 (offline intacto: share/HTML/lock não dependem de rede), ÂNCORA 11 (original preservado), ÂNCORA 12 (Share Target pré-preenche, nunca salva sozinho), ÂNCORA 14 (campos não-indexados; SÓ o M14 migra Dexie → v5), ÂNCORA 15 (cents + teste), ÂNCORA 16 (i18n no mesmo commit).
+- Dexie ainda em SCHEMA_VERSION=4 — o M14 é a ÚNICA migração do pacote (sobe pra v5: tabela localSnapshots). Confirmar a versão atual no schema.ts antes de subir +1.
+- PRÓXIMO: GATE 4 / M14 (tabela de snapshots locais). Continuar sem pedir OK.
 
 ## FASE 6 — SEGURANÇA, COMPARTILHAMENTO & SHARE TARGET
 

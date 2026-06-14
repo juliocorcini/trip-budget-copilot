@@ -26,7 +26,17 @@ import { reverseGeocodePlace, isOnline } from '@/utils/places';
 import { appSettingsRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
-import { toCents, fromCents, formatMoney, formatAnchorHint, evaluateAmountExpression } from '@/domain/money';
+import {
+  toCents,
+  fromCents,
+  formatMoney,
+  formatAnchorHint,
+  evaluateAmountExpression,
+  convertToBaseCents,
+  resolveFrozenRate,
+  listSelectableCurrencies,
+  parseLocaleNumber,
+} from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
@@ -79,6 +89,11 @@ export function QuickAddPage() {
   // GAP-027: optional retroactive date/time (empty = now)
   const [customDate, setCustomDate] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // E9 (M8/M9): expense currency (default = trip base) + the conversion rate
+  // (seeded from the frozen snapshot, editable as a manual rate).
+  const [currency, setCurrency] = useState<string | null>(null);
+  const [manualRate, setManualRate] = useState('');
 
   const [isShared, setIsShared] = useState(false);
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
@@ -267,13 +282,46 @@ export function QuickAddPage() {
   const amountCentsPreview =
     evaluatedAmount !== null && evaluatedAmount > 0 ? toCents(evaluatedAmount) : 0;
 
+  // E9 (M8/M9): multi-currency — the entered amount is in `selectedCurrency`;
+  // a foreign one is converted to base via the frozen/manual rate. The base
+  // value drives the budget, anomaly and anchor (everything else is in base).
+  const baseCurrency = trip?.baseCurrency ?? '';
+  const selectedCurrency = currency ?? baseCurrency;
+  const isForeignCurrency =
+    !isTransferLike && selectedCurrency !== '' && selectedCurrency !== baseCurrency;
+  const currencyOptions = listSelectableCurrencies(baseCurrency, [
+    ...wallets.map((w) => w.currency),
+    ...Object.keys(settings?.frozenRates?.ratesToBase ?? {}),
+  ]);
+  const frozenRate = resolveFrozenRate(settings?.frozenRates ?? null, selectedCurrency, baseCurrency);
+  const manualRateValue = parseLocaleNumber(manualRate);
+  const effectiveRate = isForeignCurrency ? manualRateValue : null;
+  const needsRate = isForeignCurrency && (effectiveRate === null || effectiveRate <= 0);
+  const baseAmountCentsPreview =
+    effectiveRate !== null && effectiveRate > 0
+      ? convertToBaseCents(amountCentsPreview, effectiveRate)
+      : amountCentsPreview;
+
+  // E9 (M9): seed the rate field with the frozen snapshot (editable); the base
+  // currency needs none. Re-seeds only when the chosen currency changes.
+  useEffect(() => {
+    if (!isForeignCurrency) {
+      setManualRate('');
+      return;
+    }
+    setManualRate(frozenRate !== null ? String(Number(frozenRate.toPrecision(6))) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCurrency, isForeignCurrency]);
+
   // M2/M3/M5: capture helpers derived purely from existing transactions.
   const frequentExpenses = !isTransferLike ? getFrequentExpenses(transactions) : [];
   const descriptionSuggestion = !isTransferLike
     ? suggestFromDescription(transactions, description)
     : null;
   const categoryTypicalCents = !isTransferLike ? getCategoryTypicalCents(transactions, category) : 0;
-  const isAmountAnomaly = !isTransferLike && detectAmountAnomaly(amountCentsPreview, categoryTypicalCents);
+  // E9: compare the base value — the historical typical is in base currency.
+  const isAmountAnomaly =
+    !isTransferLike && detectAmountAnomaly(baseAmountCentsPreview, categoryTypicalCents);
 
   const applySuggestion = (suggestion: ExpenseSuggestion) => {
     setCategory(suggestion.category);
@@ -301,9 +349,9 @@ export function QuickAddPage() {
 
   // DEC-128: mental anchor while typing — "€20 ≈ R$ 124".
   const anchorHint =
-    settings && trip && amountCentsPreview > 0
+    settings && trip && baseAmountCentsPreview > 0
       ? formatAnchorHint(
-          amountCentsPreview,
+          baseAmountCentsPreview,
           { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 },
           trip.baseCurrency,
         )
@@ -335,13 +383,21 @@ export function QuickAddPage() {
   // it on demand lets M4 register an identical return trip with a fresh id.
   const buildExpense = () => {
     const amountCents = toCents(evaluatedAmount!);
+    // E9 (M9): keep the original currency/value; store the base equivalent + rate
+    // when foreign so every base-currency aggregation stays correct.
+    const baseCents =
+      isForeignCurrency && effectiveRate !== null
+        ? convertToBaseCents(amountCents, effectiveRate)
+        : amountCents;
     const tx = createExpenseTransaction({
       tripId: trip!.id,
       phaseId: currentPhase!.id,
       budgetPoolId: effectivePoolId,
       walletId: effectiveWalletId,
       amountCents,
-      currency: trip!.baseCurrency,
+      currency: isForeignCurrency ? selectedCurrency : trip!.baseCurrency,
+      baseCurrencyAmountCents: baseCents,
+      exchangeRate: isForeignCurrency ? effectiveRate : null,
       category,
       description: description || t(`categories.${category}` as never),
       date: customDate ? toSafeIsoDate(customDate) : undefined,
@@ -449,6 +505,8 @@ export function QuickAddPage() {
     }
 
     if (!effectivePoolId) return;
+    // E9 (M9): a foreign expense needs a positive conversion rate before saving.
+    if (needsRate) return;
 
     // M5: confirm an amount far above the category typical (never blocks — DEC-053).
     if (isAmountAnomaly) {
@@ -535,7 +593,7 @@ export function QuickAddPage() {
       <div className="bg-surface-container rounded-2xl p-5">
         <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.amount')}</label>
         <div className="flex items-baseline gap-1">
-          <span className="text-on-surface-dim text-lg">{trip.baseCurrency}</span>
+          <span className="text-on-surface-dim text-lg">{selectedCurrency}</span>
           <input
             type="text"
             inputMode="decimal"
@@ -546,6 +604,59 @@ export function QuickAddPage() {
             autoFocus
           />
         </div>
+
+        {/* E9 (M8): pick the expense currency — only when a foreign option exists
+            (from a wallet or a frozen-rate snapshot); default is the trip base. */}
+        {!isTransferLike && currencyOptions.length > 1 && (
+          <div className="mt-3 flex items-center gap-2">
+            <Icon name="payments" size={16} className="text-on-surface-faint shrink-0" />
+            <select
+              value={selectedCurrency}
+              onChange={(e) => setCurrency(e.target.value)}
+              aria-label={t('expenses.currency_label')}
+              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none flex-1"
+            >
+              {currencyOptions.map((code) => (
+                <option key={code} value={code}>
+                  {code === baseCurrency ? t('expenses.currency_base', { code }) : code}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* E9 (M9): foreign currency — manual/frozen rate + live base conversion. */}
+        {isForeignCurrency && (
+          <div className="mt-3 bg-surface-high rounded-lg p-3 flex flex-col gap-1">
+            <label className="text-[11px] text-on-surface-faint">
+              {t('expenses.exchange_rate_label', { currency: selectedCurrency, base: baseCurrency })}
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={manualRate}
+              onChange={(e) => setManualRate(e.target.value)}
+              placeholder="0,00"
+              className="bg-transparent text-sm font-semibold text-on-surface tabular outline-none w-full"
+            />
+            {frozenRate !== null && (
+              <span className="text-[10px] text-on-surface-faint">
+                {t('expenses.exchange_rate_frozen')}
+              </span>
+            )}
+            {amountCentsPreview > 0 && !needsRate && (
+              <p className="text-sm font-bold tabular text-primary mt-0.5">
+                ≈ {formatMoney(baseAmountCentsPreview, baseCurrency)}
+              </p>
+            )}
+            {needsRate && amountCentsPreview > 0 && (
+              <p className="text-xs font-semibold text-warning">
+                {t('expenses.exchange_rate_required')}
+              </p>
+            )}
+          </div>
+        )}
+
         {anchorHint && (
           <p className="text-sm font-semibold text-on-surface-dim mt-1 tabular">{anchorHint}</p>
         )}
@@ -850,7 +961,7 @@ export function QuickAddPage() {
               {!otherPaidSplit && amountCentsPreview > 0 && (
                 <p className="text-xs font-semibold text-warning mt-2">
                   {t('expenses.debt_full_hint', {
-                    amount: formatMoney(amountCentsPreview, trip.baseCurrency),
+                    amount: formatMoney(amountCentsPreview, selectedCurrency),
                     name: payerName,
                   })}
                 </p>
@@ -936,7 +1047,7 @@ export function QuickAddPage() {
                           {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
                         </span>
                         <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
-                          <span className="text-on-surface-faint text-xs">{trip.baseCurrency}</span>
+                          <span className="text-on-surface-faint text-xs">{selectedCurrency}</span>
                           <input
                             type="number"
                             inputMode="decimal"
@@ -954,7 +1065,7 @@ export function QuickAddPage() {
                   {customRemainingCents !== 0 && amountCentsPreview > 0 && (
                     <p className="text-xs text-warning">
                       {t('expenses.split_remaining', {
-                        amount: formatMoney(customRemainingCents, trip.baseCurrency),
+                        amount: formatMoney(customRemainingCents, selectedCurrency),
                       })}{' '}
                       {t('expenses.split_remainder_to_payer')}
                     </p>
@@ -968,14 +1079,14 @@ export function QuickAddPage() {
                   // DEC-114: my share stays my cost AND becomes a debt to the payer.
                   <p className="text-xs font-semibold text-warning">
                     {t('expenses.debt_share_hint', {
-                      amount: formatMoney(previewShareCents, trip.baseCurrency),
+                      amount: formatMoney(previewShareCents, selectedCurrency),
                       name: payerName,
                     })}
                   </p>
                 ) : (
                   <p className="text-xs font-semibold text-success">
                     {t('expenses.your_share', {
-                      amount: formatMoney(previewShareCents, trip.baseCurrency),
+                      amount: formatMoney(previewShareCents, selectedCurrency),
                     })}
                   </p>
                 ))}
@@ -1047,8 +1158,13 @@ export function QuickAddPage() {
         <div className="bg-surface-high rounded-xl p-3 text-center">
           <p className="text-xs text-on-surface-faint">{t('expenses.amount')}</p>
           <p className="text-lg font-bold tabular text-on-surface">
-            {formatMoney(amountCentsPreview, trip.baseCurrency)}
+            {formatMoney(amountCentsPreview, selectedCurrency)}
           </p>
+          {isForeignCurrency && !needsRate && (
+            <p className="text-xs text-on-surface-dim tabular mt-0.5">
+              ≈ {formatMoney(baseAmountCentsPreview, baseCurrency)}
+            </p>
+          )}
         </div>
       )}
 
@@ -1065,6 +1181,7 @@ export function QuickAddPage() {
             amountCentsPreview <= 0 ||
             saving ||
             !canSaveTransferLike ||
+            needsRate ||
             (!isTransferLike && !effectivePoolId)
           }
           className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
@@ -1111,7 +1228,7 @@ export function QuickAddPage() {
         <div className="flex flex-col gap-4">
           <p className="text-sm text-on-surface-dim">
             {t('expenses.anomaly_body', {
-              amount: formatMoney(amountCentsPreview, trip.baseCurrency),
+              amount: formatMoney(baseAmountCentsPreview, trip.baseCurrency),
               category: t(`categories.${category}` as never),
               typical: formatMoney(categoryTypicalCents, trip.baseCurrency),
             })}

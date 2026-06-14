@@ -39,6 +39,7 @@ const settings: AppSettings = {
   tripPriorsHandled: [],
   locationCaptureEnabled: false,
   currentPlace: null,
+  frozenRates: null,
 };
 
 const mkTrip = (): Trip => ({

@@ -2,6 +2,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { TransactionType, TransactionCategory } from '@/domain/types/common';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import { localDayOf } from '@/domain/dates';
+import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
 
 export interface CreateExpenseInput {
   tripId: string;
@@ -10,6 +11,11 @@ export interface CreateExpenseInput {
   walletId: string | null;
   amountCents: number;
   currency: string;
+  /** E9 (M9): base-currency equivalent of a foreign expense. Defaults to
+   * `amountCents` (same-currency expenses need no conversion). */
+  baseCurrencyAmountCents?: number;
+  /** E9 (M9): base units per 1 foreign unit; null for same-currency. */
+  exchangeRate?: number | null;
   category: string;
   subcategoryId?: string | null;
   placeLabel?: string | null;
@@ -47,8 +53,8 @@ export function createExpenseTransaction(input: CreateExpenseInput): Transaction
           ? null
           : input.amountCents,
     currency: input.currency,
-    baseCurrencyAmountCents: input.amountCents,
-    exchangeRate: null,
+    baseCurrencyAmountCents: input.baseCurrencyAmountCents ?? input.amountCents,
+    exchangeRate: input.exchangeRate ?? null,
     category: input.category,
     subcategoryId: input.subcategoryId ?? null,
     placeLabel: input.placeLabel ?? null,
@@ -210,7 +216,8 @@ export function getRecentTransactions(
 
 /**
  * DEC-088 (R-06): budget impact of a single local day ("YYYY-MM-DD") —
- * personal cost when available, same rule as calculatePoolSpent.
+ * personal cost when available, same rule as calculatePoolSpent. E9: foreign
+ * expenses contribute their base-currency value (the budget is in base).
  */
 export function calculateSpentOnDate(
   transactions: Transaction[],
@@ -223,7 +230,7 @@ export function calculateSpentOnDate(
         (t.type === 'expense' || t.type === 'adjustment') &&
         localDayOf(t.date) === dateIso,
     )
-    .reduce((sum, t) => sum + (t.personalCostCents ?? t.amountCents), 0);
+    .reduce((sum, t) => sum + transactionBasePersonalCostCents(t), 0);
 }
 
 export function groupTransactionsByCategory(

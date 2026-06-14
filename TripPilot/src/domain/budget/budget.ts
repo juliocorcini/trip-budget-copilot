@@ -5,6 +5,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { BudgetPoolScope } from '@/domain/types/common';
 import { sumCents } from '@/domain/money';
+import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
 export interface FreeToSpendResult {
@@ -85,6 +86,9 @@ export function calculateFreeToSpend(
 /**
  * Budget impact uses the personal cost when available (shared expenses):
  * the financial flow (amountCents) may include other participants' shares.
+ * E9: foreign-currency expenses contribute their base-currency value, so the
+ * pool (always in the trip's base currency) stays correct — same-currency rows
+ * are unaffected (exchangeRate null).
  */
 export function calculatePoolSpent(transactions: Transaction[]): number {
   return sumCents(
@@ -94,7 +98,7 @@ export function calculatePoolSpent(transactions: Transaction[]): number {
           t.deletedAt === null &&
           (t.type === 'expense' || t.type === 'adjustment'),
       )
-      .map((t) => t.personalCostCents ?? t.amountCents),
+      .map((t) => transactionBasePersonalCostCents(t)),
   );
 }
 

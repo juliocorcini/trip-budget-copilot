@@ -95,8 +95,8 @@ describe('createTransferTransaction (withdrawal + transfer flows)', () => {
       currency: 'EUR',
       description: 'ATM withdrawal',
     });
-    expect(calculateWalletBalance(bank, [tx]).currentBalanceCents).toBe(40000);
-    expect(calculateWalletBalance(cash, [tx]).currentBalanceCents).toBe(10000);
+    expect(calculateWalletBalance(bank, [tx], 'EUR').currentBalanceCents).toBe(40000);
+    expect(calculateWalletBalance(cash, [tx], 'EUR').currentBalanceCents).toBe(10000);
   });
 });
 
@@ -119,7 +119,7 @@ describe('createAdjustmentTransaction (cash reconciliation — DEC-052)', () => 
     expect(tx.type).toBe('adjustment');
     expect(tx.amountCents).toBe(1500);
     expect(tx.category).toBe('bar');
-    expect(calculateWalletBalance(cash, [tx]).currentBalanceCents).toBe(8500);
+    expect(calculateWalletBalance(cash, [tx], 'EUR').currentBalanceCents).toBe(8500);
   });
 
   it('surplus cash becomes a negative adjustment that credits the wallet', () => {
@@ -138,7 +138,7 @@ describe('createAdjustmentTransaction (cash reconciliation — DEC-052)', () => 
     expect(tx.amountCents).toBe(-1000);
     expect(tx.category).toBe('reconciliation');
     expect(tx.adjustmentReason).toBe('Found extra cash');
-    expect(calculateWalletBalance(cash, [tx]).currentBalanceCents).toBe(11000);
+    expect(calculateWalletBalance(cash, [tx], 'EUR').currentBalanceCents).toBe(11000);
   });
 });
 

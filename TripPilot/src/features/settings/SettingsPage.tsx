@@ -18,6 +18,7 @@ import {
 } from '@/utils/outing-notification';
 import { checkForAppUpdate } from '@/utils/pwa';
 import { getCurrentCoords } from '@/utils/geolocation';
+import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { APP_VERSION } from '@/utils/app-version';
@@ -50,6 +51,8 @@ export function SettingsPage() {
   // DEC-135: in-app install + manual "look for a new version" button.
   const { available: installAvailable, install } = useInstallPrompt();
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  // E9 (M11): pulling the FX snapshot is opt-in and online-only.
+  const [fetchingRates, setFetchingRates] = useState(false);
 
   if (!settings) return null;
 
@@ -152,6 +155,25 @@ export function SettingsPage() {
       await updateSetting({
         currentPlace: { label: coordsLabel(coords), lat: coords.lat, lng: coords.lng, placeId: null },
       });
+    }
+  };
+
+  // E9 (M11): pull today's rates once while online and freeze them for offline
+  // use. Opt-in, never blocks — failures (offline/timeout) just toast and keep
+  // the manual-rate fallback (ÂNCORA 10).
+  const handleFetchRates = async () => {
+    if (fetchingRates) return;
+    setFetchingRates(true);
+    try {
+      const rates = await fetchExchangeRates(baseCurrency);
+      if (rates) {
+        await updateSetting({ frozenRates: rates });
+        showToast(t('settings.fx_updated'), 'success');
+      } else {
+        showToast(t('settings.fx_failed'), 'danger');
+      }
+    } finally {
+      setFetchingRates(false);
     }
   };
 
@@ -388,6 +410,31 @@ export function SettingsPage() {
             )}
           </>
         )}
+      </Section>
+
+      {/* E9 (M11): opt-in FX snapshot — pulled once online, frozen for offline
+          use as the default rate when logging a foreign-currency expense */}
+      <Section title={t('settings.fx_title')}>
+        <p className="text-xs text-on-surface-faint mb-3">
+          {t('settings.fx_hint', { base: baseCurrency })}
+        </p>
+        {settings.frozenRates && settings.frozenRates.baseCurrency === baseCurrency ? (
+          <p className="text-xs text-on-surface-dim mb-3">
+            {t('settings.fx_last_updated', {
+              date: new Date(settings.frozenRates.fetchedAt).toLocaleDateString(i18n.language),
+              count: Object.keys(settings.frozenRates.ratesToBase).length,
+            })}
+          </p>
+        ) : (
+          <p className="text-xs text-on-surface-faint mb-3">{t('settings.fx_none')}</p>
+        )}
+        <button
+          onClick={handleFetchRates}
+          disabled={fetchingRates}
+          className="px-4 py-2 rounded-lg bg-primary text-on-surface text-sm font-semibold btn-press disabled:opacity-50"
+        >
+          {fetchingRates ? t('settings.fx_updating') : t('settings.fx_update')}
+        </button>
       </Section>
 
       {/* M14 (E6): savings goal — money to bring home. Read-only motivation,

@@ -11,11 +11,33 @@ export interface WalletBalance {
   currentBalanceCents: number;
 }
 
+/**
+ * E9 (M10): the amount a transaction moves in the WALLET's own currency. A
+ * wallet holds one currency, so a foreign expense cannot debit its raw number:
+ * - same currency as the wallet → the original amount;
+ * - wallet is in the base currency → the converted (base) amount;
+ * - triple-edge (wallet neither base nor the expense's currency) is out of
+ *   scope: we assume the wallet is in base or in the expense's currency and
+ *   fall back to the original amount (documented limitation — ÂNCORA 11/15).
+ */
+export function transactionWalletAmountCents(
+  transaction: Transaction,
+  walletCurrency: string,
+  baseCurrency: string,
+): number {
+  if (transaction.currency === walletCurrency) return transaction.amountCents;
+  if (walletCurrency === baseCurrency) return transaction.baseCurrencyAmountCents;
+  return transaction.amountCents;
+}
+
 export function calculateWalletBalance(
   wallet: Wallet,
   transactions: Transaction[],
+  baseCurrency: string,
 ): WalletBalance {
   const active = transactions.filter((t) => t.deletedAt === null);
+  const debit = (t: Transaction) =>
+    transactionWalletAmountCents(t, wallet.currency, baseCurrency);
 
   const outgoingCents = sumCents(
     active
@@ -24,7 +46,7 @@ export function calculateWalletBalance(
           t.walletId === wallet.id &&
           (t.type === 'expense' || t.type === 'adjustment'),
       )
-      .map((t) => t.amountCents),
+      .map(debit),
   );
 
   const transferOut = sumCents(
@@ -32,7 +54,7 @@ export function calculateWalletBalance(
       .filter(
         (t) => t.type === 'transfer' && t.sourceWalletId === wallet.id,
       )
-      .map((t) => t.amountCents),
+      .map(debit),
   );
 
   const transferIn = sumCents(
@@ -40,7 +62,7 @@ export function calculateWalletBalance(
       .filter(
         (t) => t.type === 'transfer' && t.targetWalletId === wallet.id,
       )
-      .map((t) => t.amountCents),
+      .map(debit),
   );
 
   const incomingCents = transferIn;

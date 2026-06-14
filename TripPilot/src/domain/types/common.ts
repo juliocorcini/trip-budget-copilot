@@ -56,6 +56,24 @@ export interface CurrentPlace {
   placeId: string | null;
 }
 
+/**
+ * E9 (Phase 5, M11): a one-time, opt-in snapshot of exchange rates pulled while
+ * online and then frozen for offline use (ÂNCORA 10 — never fetched silently).
+ * Used as the default conversion rate when logging a foreign-currency expense.
+ */
+export interface FrozenExchangeRates {
+  /** The trip/base currency these rates convert INTO (e.g. 'EUR'). */
+  baseCurrency: string;
+  /** ISO timestamp when the snapshot was fetched and frozen. */
+  fetchedAt: string;
+  /**
+   * Base-currency units per 1 unit of the keyed foreign currency
+   * (e.g. ratesToBase['CZK'] = 0.04 means 1 CZK = 0.04 EUR). The base currency
+   * itself is never a key.
+   */
+  ratesToBase: Record<string, number>;
+}
+
 export type TransactionCategory =
   | 'bar'
   | 'market'

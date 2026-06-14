@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.13.0',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Gastos em moeda estrangeira: escolha a moeda, informe a taxa e o app converte pra moeda da viagem guardando o valor original.',
+        'Baixe as taxas do dia uma vez (online) e use offline — ou informe a taxa manualmente a qualquer momento.',
+        'A carteira debita certo: na moeda dela quando coincide, no valor convertido quando é a moeda da viagem.',
+        'O detalhe do gasto mostra o valor original e o equivalente na moeda da viagem.',
+      ],
+      en: [
+        'Foreign-currency expenses: pick the currency, set the rate and the app converts to your trip currency while keeping the original amount.',
+        "Pull today's rates once (online) and use them offline — or enter the rate manually anytime.",
+        'Wallets debit correctly: in their own currency when it matches, in the converted value when they hold the trip currency.',
+        'The expense detail shows the original amount and its trip-currency equivalent.',
+      ],
+      es: [
+        'Gastos en moneda extranjera: elige la moneda, indica la tasa y la app convierte a la moneda del viaje guardando el importe original.',
+        'Descarga las tasas del día una vez (online) y úsalas sin conexión — o indica la tasa manualmente cuando quieras.',
+        'La billetera descuenta correctamente: en su propia moneda cuando coincide, en el valor convertido cuando tiene la moneda del viaje.',
+        'El detalle del gasto muestra el importe original y su equivalente en la moneda del viaje.',
+      ],
+    },
+  },
+  {
     version: '0.12.3',
     date: '2026-06-13',
     items: {

@@ -62,9 +62,11 @@ export function WalletsPage() {
     await reload();
   };
 
-  const expectedCents = reconcilingWallet
-    ? calculateWalletBalance(reconcilingWallet, transactions).currentBalanceCents
-    : 0;
+  const expectedCents =
+    reconcilingWallet && trip
+      ? calculateWalletBalance(reconcilingWallet, transactions, trip.baseCurrency)
+          .currentBalanceCents
+      : 0;
   const countedCents = countedBalance ? toCents(parseFloat(countedBalance.replace(',', '.'))) : null;
   const reconcileResult =
     countedCents !== null ? calculateCashReconciliation(expectedCents, countedCents) : null;
@@ -182,7 +184,7 @@ export function WalletsPage() {
 
       <div className="flex flex-col gap-2" data-help-anchor="wallets-list">
         {wallets.map((wallet) => {
-          const balance = calculateWalletBalance(wallet, transactions);
+          const balance = calculateWalletBalance(wallet, transactions, trip.baseCurrency);
           return (
             <div key={wallet.id} className="bg-surface-container rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
