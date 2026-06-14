@@ -10,6 +10,7 @@ import { walletRepository } from '@/data/repositories';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { HelpButton } from '@/components/HelpMode';
+import { AnimatedMoney } from '@/components/AnimatedMoney';
 import type { Wallet } from '@/domain/types/wallet';
 import type { WalletType, TransactionCategory } from '@/domain/types/common';
 import { Icon } from '@/components/Icon';
@@ -200,9 +201,11 @@ export function WalletsPage() {
           <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-faint">
             {t('wallets.total_balance')}
           </span>
-          <span className="text-lg font-extrabold tabular text-on-surface">
-            {formatMoney(totalWalletCents, trip.baseCurrency)}
-          </span>
+          <AnimatedMoney
+            cents={totalWalletCents}
+            currency={trip.baseCurrency}
+            className="text-lg font-extrabold tabular text-on-surface"
+          />
         </div>
       )}
 
@@ -225,7 +228,7 @@ export function WalletsPage() {
                   </p>
                 </div>
                 <p className="text-lg font-extrabold tabular text-on-surface">
-                  {formatMoney(balance.currentBalanceCents, wallet.currency)}
+                  <AnimatedMoney cents={balance.currentBalanceCents} currency={wallet.currency} />
                 </p>
               </div>
               <div className="flex gap-2 mt-3">

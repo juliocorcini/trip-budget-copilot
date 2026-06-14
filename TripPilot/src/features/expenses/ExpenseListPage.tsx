@@ -328,6 +328,14 @@ export function ExpenseListPage() {
         <div className="bg-surface-container rounded-xl p-6 text-center">
           <Icon name="receipt_long" size={32} className="text-on-surface-mute mx-auto mb-2" />
           <p className="text-sm text-on-surface-dim">{t('dashboard.no_expenses')}</p>
+          <button
+            type="button"
+            onClick={() => navigate('/quick-add')}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-surface btn-press"
+          >
+            <Icon name="add" size={16} />
+            {t('expenses.empty_cta')}
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-4">

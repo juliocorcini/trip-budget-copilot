@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.15',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'O mesmo "número que responde" do início agora vale no app todo: o cofrinho, o total das carteiras e o saldo de cada carteira animam até o novo valor quando mudam.',
+        'Adiar um evento agora confirma na hora ("{evento} adiado para {data}") — antes a ação era silenciosa.',
+        'A lista de gastos vazia agora tem um botão para registrar o primeiro gasto.',
+      ],
+      en: [
+        'The same "number that reacts" from the home screen now applies across the app: the piggy bank, the wallets total and each wallet balance animate to their new value when they change.',
+        'Postponing an event now confirms instantly ("{event} postponed to {date}") — the action used to be silent.',
+        'The empty expense list now has a button to log your first expense.',
+      ],
+      es: [
+        'El mismo "número que reacciona" de la pantalla de inicio ahora vale en toda la app: la hucha, el total de las carteras y el saldo de cada cartera se animan hasta su nuevo valor cuando cambian.',
+        'Aplazar un evento ahora confirma al instante ("{evento} aplazado al {fecha}") — antes la acción era silenciosa.',
+        'La lista de gastos vacía ahora tiene un botón para registrar el primer gasto.',
+      ],
+    },
+  },
+  {
     version: '0.14.14',
     date: '2026-06-14',
     items: {

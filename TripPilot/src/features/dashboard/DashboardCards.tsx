@@ -15,6 +15,7 @@ import {
 } from '@/domain/dashboard';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useCountUp } from '@/hooks/useCountUp';
+import { AnimatedMoney } from '@/components/AnimatedMoney';
 import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn, planCheckInDay } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
@@ -385,7 +386,7 @@ export function DashboardCards({
                 {t('dashboard.piggy_title')}
               </p>
               <p className="text-lg font-extrabold tabular text-success leading-tight">
-                {formatMoney(model.piggyBankCents, trip.baseCurrency)}
+                <AnimatedMoney cents={model.piggyBankCents} currency={trip.baseCurrency} />
               </p>
               <p className="text-[11px] font-semibold text-on-surface-dim mt-0.5">{t('dashboard.piggy_desc')}</p>
             </div>

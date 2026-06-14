@@ -373,6 +373,19 @@ Os 4 conselheiros (Visionary, Analyst, Connector, Simplifier) convergiram. **Ver
 
 821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v24.
 
+### Gate O — "o mesmo padrão no app todo": números que respondem + confirmar o que era mudo → 0.14.15 ✅
+
+Continuação direta do Gate N a pedido do usuário ("sim, continuar com as outras melhorias"). Foco em **espalhar o padrão** ("aplica o mesmo padrão em todo o aplicativo"). Mapeei gaps reais: o streak já existia (`recap_streak` na RecapCard) e quase todas as telas já tinham `showToast` — mas **adiar evento era 100% silencioso** e o "número que responde" só existia no herói.
+
+- **O1 — `<AnimatedMoney>` reutilizável + `usePrefersReducedMotion`**: extraí o count-up num componente (`components/AnimatedMoney.tsx`, usa `useCountUp`) e o detector de reduced-motion num hook (`hooks/usePrefersReducedMotion.ts`). Anima em mudança in-place, snap no 1º mount e sob reduced-motion. (Não refatorei o reduced-motion inline do DashboardCards — edição cirúrgica, herói já funcionava.)
+- **O2 — Padrão aplicado**: cofrinho no dashboard (`piggyBankCents`), **total das carteiras** + **saldo de cada carteira** (animam após reconciliar in-page). Read-only (ÂNCORA 11/12).
+- **O3 — Adiar evento confirma**: `handlePostponeEvent` agora mostra toast "{nome} adiado para {data}" (antes: nada). i18n ×3 (`dashboard.event_postponed`).
+- **O4 — Estado vazio acionável**: lista de gastos vazia ganhou botão "Registrar primeiro gasto" → `/quick-add` (convenção `bg-primary text-on-surface btn-press`). i18n ×3 (`expenses.empty_cta`).
+
+**Visual** `scripts/ux-gateO.mjs`: carteiras renderizam total €1.377,70 = €250,20 + €1.127,50 (soma confere, sem NaN), layout intacto. ✅
+
+821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v25.
+
 ---
 
 ## Reverts

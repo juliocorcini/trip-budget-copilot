@@ -213,7 +213,19 @@ export function DashboardPage() {
   const handlePostponeEvent = async (occurrenceId: string) => {
     const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
     if (!occurrence) return;
-    await plannedOccurrenceRepository.update(postponeOccurrence(occurrence));
+    const updated = postponeOccurrence(occurrence);
+    await plannedOccurrenceRepository.update(updated);
+    // Postponing used to be silent — confirm the new date so the tap has a
+    // visible result instead of the event just shifting somewhere off-screen.
+    if (updated.plannedDate) {
+      showToast(
+        t('dashboard.event_postponed', {
+          name: occurrence.name,
+          date: formatDate(updated.plannedDate, "d 'de' MMM"),
+        }),
+        'success',
+      );
+    }
     await reload();
   };
 
