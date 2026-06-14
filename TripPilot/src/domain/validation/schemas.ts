@@ -89,6 +89,11 @@ export const transactionSchema = syncMetadataSchema.extend({
   category: z.string().nullable(),
   // DEC-095 (R-13): added in v0.4.0 — default keeps older backups valid.
   subcategoryId: z.string().nullable().default(null),
+  // E8 (Phase 5): location context — defaults keep pre-v5 backups valid.
+  placeLabel: z.string().nullable().default(null),
+  latitude: z.number().nullable().default(null),
+  longitude: z.number().nullable().default(null),
+  placeId: z.string().nullable().default(null),
   description: z.string().min(1),
   date: z.string(),
   isShared: z.boolean(),

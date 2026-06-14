@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -12,6 +12,14 @@ import {
 } from '@/domain/transactions';
 import type { ExpenseSuggestion } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
+import {
+  shouldReaskPlace,
+  coordsLabel,
+  placeToTransactionFields,
+  placesEqual,
+} from '@/domain/location';
+import { getCurrentCoords } from '@/utils/geolocation';
+import { appSettingsRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
 import { toCents, fromCents, formatMoney, formatAnchorHint, evaluateAmountExpression } from '@/domain/money';
@@ -25,7 +33,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
-import type { ShareType } from '@/domain/types/common';
+import type { ShareType, CurrentPlace } from '@/domain/types/common';
 
 const CATEGORY_KEYS = [
   'bar',
@@ -83,6 +91,55 @@ export function QuickAddPage() {
   const [showRoundTrip, setShowRoundTrip] = useState(false);
   // M11: optional voice capture — only offered when the browser supports it.
   const [listening, setListening] = useState(false);
+
+  // E8 (M2/M3): opt-in location — a "sticky" place reused across expenses.
+  const locationEnabled = !!settings?.locationCaptureEnabled && !isTransferLike;
+  const [place, setPlace] = useState<CurrentPlace | null>(null);
+  const [editingPlace, setEditingPlace] = useState(false);
+  const [placeLabelInput, setPlaceLabelInput] = useState('');
+  const placeCapturedRef = useRef(false);
+
+  // Inherit the remembered place once settings load (until GPS says otherwise).
+  useEffect(() => {
+    setPlace((prev) => prev ?? settings?.currentPlace ?? null);
+  }, [settings?.currentPlace]);
+
+  // M2: capture coordinates once on open (best-effort — never blocks the save).
+  // M3: keep the current place while still in the area; re-detect after a move.
+  useEffect(() => {
+    if (!locationEnabled || placeCapturedRef.current) return;
+    placeCapturedRef.current = true;
+    let active = true;
+    void getCurrentCoords().then((coords) => {
+      if (!active || coords === null) return;
+      setPlace((prev) => {
+        const current = prev ?? settings?.currentPlace ?? null;
+        if (!shouldReaskPlace(current, coords)) return current;
+        return { label: coordsLabel(coords), lat: coords.lat, lng: coords.lng, placeId: null };
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, [locationEnabled, settings?.currentPlace]);
+
+  const startRenamePlace = () => {
+    setPlaceLabelInput(place?.label ?? '');
+    setEditingPlace(true);
+  };
+
+  const confirmRenamePlace = () => {
+    const label = placeLabelInput.trim();
+    if (label !== '' && place !== null) {
+      setPlace({ ...place, label });
+    }
+    setEditingPlace(false);
+  };
+
+  const clearPlace = () => {
+    setPlace(null);
+    setEditingPlace(false);
+  };
 
   // BUG-002 (R6-02): never fall back to phases[0] — resolveActivePhase picks
   // the nearest phase (current, else last past, else first future).
@@ -250,6 +307,7 @@ export function QuickAddPage() {
       category,
       description: description || t(`categories.${category}` as never),
       date: customDate ? toSafeIsoDate(customDate) : undefined,
+      ...placeToTransactionFields(place),
     });
 
     const splitActive =
@@ -291,6 +349,10 @@ export function QuickAddPage() {
   const persistExpense = async () => {
     const { transaction, shares } = buildExpense();
     await registerExpense({ transaction, shares });
+    // E8 (M3): remember the place so the next expense inherits it (sticky).
+    if (place !== null && !placesEqual(place, settings?.currentPlace ?? null)) {
+      await appSettingsRepository.update({ currentPlace: place });
+    }
     // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
     requestPersistentStorage();
     // BUG-002: refresh the emergency snapshot every few expenses (best-effort).
@@ -538,6 +600,54 @@ export function QuickAddPage() {
           className="bg-transparent text-sm text-on-surface outline-none w-full"
         />
         <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.date_time_hint')}</p>
+      </div>
+      )}
+
+      {/* E8 (M2/M3): opt-in location — sticky place, editable by tapping it. */}
+      {locationEnabled && (
+      <div className="bg-surface-container rounded-xl p-4">
+        <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.location_label')}</label>
+        {editingPlace ? (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={placeLabelInput}
+              onChange={(e) => setPlaceLabelInput(e.target.value)}
+              placeholder={t('expenses.location_name_placeholder')}
+              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none flex-1 min-w-0"
+              autoFocus
+            />
+            <button
+              onClick={confirmRenamePlace}
+              className="px-3 py-2 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={place ? startRenamePlace : undefined}
+              className="flex items-center gap-2 min-w-0 btn-press text-left flex-1"
+            >
+              <Icon name="location_on" size={16} className="text-on-surface-dim shrink-0" />
+              <span className="text-sm text-on-surface truncate">
+                {place ? place.label : t('expenses.location_detecting')}
+              </span>
+              {place && <Icon name="edit" size={14} className="text-on-surface-faint shrink-0" />}
+            </button>
+            {place && (
+              <button
+                onClick={clearPlace}
+                className="btn-press p-1 shrink-0"
+                aria-label={t('common.clear')}
+              >
+                <Icon name="close" size={16} className="text-on-surface-faint" />
+              </button>
+            )}
+          </div>
+        )}
+        <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.location_privacy_hint')}</p>
       </div>
       )}
 

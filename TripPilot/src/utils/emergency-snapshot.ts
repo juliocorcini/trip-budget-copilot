@@ -1,7 +1,7 @@
 import { safeLocalStorage } from '@/utils/safe-storage';
 import { appSettingsRepository } from '@/data/repositories';
 import { buildFullBackup } from '@/domain/orchestrators';
-import { normalizeBackupToV4, type BackupData } from '@/domain/backup';
+import { normalizeBackupToV5, type BackupData } from '@/domain/backup';
 
 // BUG-002: iOS can evict IndexedDB without warning. As a last line of defense
 // we keep a full JSON snapshot in localStorage (a separate storage area that
@@ -67,7 +67,7 @@ export function readEmergencySnapshot(): BackupData | null {
   const raw = safeLocalStorage.get(SNAPSHOT_KEY);
   if (!raw) return null;
   try {
-    return normalizeBackupToV4(JSON.parse(raw) as BackupData);
+    return normalizeBackupToV5(JSON.parse(raw) as BackupData);
   } catch {
     return null;
   }

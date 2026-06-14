@@ -54,11 +54,11 @@ export interface BackupData {
 }
 
 /**
- * v4 (R4): adds peerLinks + mirroredStatements + Participant.linkedActorId.
- * v1-v3 files import with missing tables as empty and missing fields
- * normalized to the migration defaults.
+ * v5 (E8, Phase 5): adds Transaction location fields (placeLabel, latitude,
+ * longitude, placeId — all nullable). v1-v4 files import with missing tables as
+ * empty and missing fields normalized to the migration defaults (location null).
  */
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 
 export type BackupTableKey = keyof Omit<
   BackupData,
@@ -214,10 +214,29 @@ export function normalizeBackupToV4(data: BackupData): BackupData {
 }
 
 /**
+ * Normalizes pre-v5 backup records — same defaults as the Phase 5 field
+ * additions: every transaction gets null location fields (placeLabel,
+ * latitude, longitude, placeId), so an older file never changes behavior.
+ */
+export function normalizeBackupToV5(data: BackupData): BackupData {
+  const v4 = normalizeBackupToV4(data);
+  return {
+    ...v4,
+    transactions: v4.transactions.map((t) => ({
+      ...t,
+      placeLabel: t.placeLabel ?? null,
+      latitude: t.latitude ?? null,
+      longitude: t.longitude ?? null,
+      placeId: t.placeId ?? null,
+    })),
+  };
+}
+
+/**
  * GAP-029: validates the file against the Zod schemas before anything is
  * written. Malformed files yield a clear error and zero partial writes.
- * v1 files (missing tables) are normalized with empty arrays; v2 files get
- * the v3 field defaults (normalizeBackupToV3).
+ * v1 files (missing tables) are normalized with empty arrays; older files get
+ * the field defaults up to the current version (normalizeBackupToV5).
  */
 export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
   let raw: unknown;
@@ -235,7 +254,7 @@ export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
       error: first ? `${first.path.join('.')}: ${first.message}` : 'invalid_schema',
     };
   }
-  return { data: normalizeBackupToV4(result.data as unknown as BackupData), error: null };
+  return { data: normalizeBackupToV5(result.data as unknown as BackupData), error: null };
 }
 
 export function parseBackupFile(jsonString: string): BackupData | null {

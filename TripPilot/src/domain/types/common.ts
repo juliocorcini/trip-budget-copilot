@@ -40,6 +40,19 @@ export interface DailyCheckIn {
   intent: CheckInIntent;
 }
 
+/**
+ * E8 (Phase 5, M3): the "sticky" current place. Remembered across expenses so
+ * the traveler is not asked for the location on every entry — only re-asked
+ * when the GPS reports a move beyond a threshold, or when they tap the name.
+ * Coordinates are 100% local and never leave the device (ÂNCORA 8).
+ */
+export interface CurrentPlace {
+  label: string;
+  lat: number;
+  lng: number;
+  placeId: string | null;
+}
+
 export type TransactionCategory =
   | 'bar'
   | 'market'

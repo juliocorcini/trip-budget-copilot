@@ -12,6 +12,10 @@ export interface CreateExpenseInput {
   currency: string;
   category: string;
   subcategoryId?: string | null;
+  placeLabel?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  placeId?: string | null;
   description: string;
   date?: string;
   type?: TransactionType;
@@ -47,6 +51,10 @@ export function createExpenseTransaction(input: CreateExpenseInput): Transaction
     exchangeRate: null,
     category: input.category,
     subcategoryId: input.subcategoryId ?? null,
+    placeLabel: input.placeLabel ?? null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    placeId: input.placeId ?? null,
     description: input.description,
     date: input.date ?? now,
     isShared: input.isShared ?? false,
@@ -90,6 +98,10 @@ export function createTransferTransaction(input: CreateTransferInput): Transacti
     exchangeRate: null,
     category: null,
     subcategoryId: null,
+    placeLabel: null,
+    latitude: null,
+    longitude: null,
+    placeId: null,
     description: input.description,
     date: input.date ?? now,
     isShared: false,
@@ -130,6 +142,10 @@ export function createAdjustmentTransaction(
     exchangeRate: null,
     category,
     subcategoryId: null,
+    placeLabel: null,
+    latitude: null,
+    longitude: null,
+    placeId: null,
     description: reason,
     date: new Date().toISOString(),
     isShared: false,

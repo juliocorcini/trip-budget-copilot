@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.12.2',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Local nos gastos (opcional): registre onde você gastou, com um toque pra nomear ou trocar o lugar.',
+        'O app lembra o lugar atual e só repergunta quando você muda de área.',
+        'Privacidade primeiro: o local usa o GPS só quando você ativa, fica 100% no aparelho e nunca é enviado.',
+      ],
+      en: [
+        'Location on expenses (optional): record where you spent, with one tap to name or change the place.',
+        'The app remembers your current place and only re-asks when you move to a new area.',
+        'Privacy first: location uses GPS only when you turn it on, stays 100% on your device and is never sent.',
+      ],
+      es: [
+        'Lugar en los gastos (opcional): registra dónde gastaste, con un toque para nombrarlo o cambiarlo.',
+        'La app recuerda tu lugar actual y solo vuelve a preguntar cuando cambias de zona.',
+        'Privacidad primero: la ubicación usa el GPS solo cuando la activas, queda 100% en el dispositivo y nunca se envía.',
+      ],
+    },
+  },
+  {
     version: '0.12.1',
     date: '2026-06-13',
     items: {

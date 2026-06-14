@@ -17,6 +17,8 @@ import {
   closeOutingNotifications,
 } from '@/utils/outing-notification';
 import { checkForAppUpdate } from '@/utils/pwa';
+import { getCurrentCoords } from '@/utils/geolocation';
+import { coordsLabel } from '@/domain/location';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { APP_VERSION } from '@/utils/app-version';
 import type { AlertTone, AppMode, ThemePreference } from '@/domain/types/common';
@@ -136,6 +138,21 @@ export function SettingsPage() {
   const handleDeleteTemplate = async (templateId: string) => {
     await deleteTripTemplate(templateId);
     await reload();
+  };
+
+  // E8 (M2): turning location on prompts for permission and, if granted,
+  // seeds the first place. Denial/timeout leaves capture on but place empty —
+  // expenses simply carry no location (ÂNCORA 8). Never blocks.
+  const handleToggleLocation = async () => {
+    const next = !settings.locationCaptureEnabled;
+    await updateSetting({ locationCaptureEnabled: next });
+    if (!next) return;
+    const coords = await getCurrentCoords();
+    if (coords) {
+      await updateSetting({
+        currentPlace: { label: coordsLabel(coords), lat: coords.lat, lng: coords.lng, placeId: null },
+      });
+    }
   };
 
   const handlePersistentStorage = async () => {
@@ -295,6 +312,16 @@ export function SettingsPage() {
             )}
           </>
         )}
+      </Section>
+
+      {/* E8 (M2): opt-in location capture — privacy first, 100% on-device */}
+      <Section title={t('settings.location_title')}>
+        <ToggleRow
+          label={t('settings.location_capture')}
+          enabled={settings.locationCaptureEnabled}
+          onChange={handleToggleLocation}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('settings.location_hint')}</p>
       </Section>
 
       {/* DEC-128: mental currency anchor — manual offline rate, no network */}

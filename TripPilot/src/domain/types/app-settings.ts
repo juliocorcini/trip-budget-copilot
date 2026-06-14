@@ -1,4 +1,4 @@
-import type { AlertTone, AppMode, DailyCheckIn, ThemePreference } from './common';
+import type { AlertTone, AppMode, CurrentPlace, DailyCheckIn, ThemePreference } from './common';
 import type { TripTemplate } from './trip-template';
 
 export interface AppSettings {
@@ -51,4 +51,12 @@ export interface AppSettings {
   /** E7 (M21): trip ids whose end-of-trip "save what you learned" offer was
    * already handled (saved or dismissed) — so it never reopens (non-indexed). */
   tripPriorsHandled: string[];
+  /** E8 (M2): opt-in flag for capturing the location of each expense. Default
+   * false — GPS is never read until the traveler turns this on (non-indexed,
+   * privacy first — ÂNCORA 8). */
+  locationCaptureEnabled: boolean;
+  /** E8 (M3): the remembered current place, reused across expenses until the
+   * traveler moves area or changes it. null when location is off/unknown
+   * (non-indexed — no migration). */
+  currentPlace: CurrentPlace | null;
 }

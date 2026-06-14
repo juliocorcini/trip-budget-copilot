@@ -109,6 +109,6 @@ describe('backup v3 → v4 import (normalizeBackupToV4)', () => {
     expect(normalized.participants[0]!.linkedActorId).toBeNull();
     expect(normalized.peerLinks).toEqual([]);
     expect(normalized.mirroredStatements).toEqual([]);
-    expect(BACKUP_VERSION).toBe(4);
+    expect(BACKUP_VERSION).toBe(5);
   });
 });

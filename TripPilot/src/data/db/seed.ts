@@ -47,6 +47,10 @@ export function createDefaultAppSettings(): AppSettings {
     tripTemplates: [],
     // M21: no end-of-trip priors offer handled yet.
     tripPriorsHandled: [],
+    // E8 (M2): location capture is opt-in — off until the traveler enables it.
+    locationCaptureEnabled: false,
+    // E8 (M3): no remembered place until the first located expense.
+    currentPlace: null,
   };
 }
 

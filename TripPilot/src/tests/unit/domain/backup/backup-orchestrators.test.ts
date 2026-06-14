@@ -37,6 +37,8 @@ const settings: AppSettings = {
   valueSuggestionsDismissed: [],
   tripTemplates: [],
   tripPriorsHandled: [],
+  locationCaptureEnabled: false,
+  currentPlace: null,
 };
 
 const mkTrip = (): Trip => ({

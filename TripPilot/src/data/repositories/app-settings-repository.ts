@@ -40,6 +40,9 @@ class AppSettingsRepository {
       tripTemplates: settings.tripTemplates ?? [],
       // M21: records predating the priors offer have nothing handled.
       tripPriorsHandled: settings.tripPriorsHandled ?? [],
+      // E8 (M2/M3): records predating location capture default to off/no place.
+      locationCaptureEnabled: settings.locationCaptureEnabled ?? false,
+      currentPlace: settings.currentPlace ?? null,
     };
   }
 
