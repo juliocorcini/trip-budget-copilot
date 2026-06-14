@@ -166,6 +166,12 @@ export function ExpenseDetailPage() {
       setTx(updated);
       setShares(newShares);
       setEditing(false);
+      // Editing used to close silently — confirm the change like every other
+      // mutation, with a soft tap when vibration is enabled.
+      if (settings?.vibrationEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(10);
+      }
+      showToast(t('expenses.edited_toast'), 'success');
       await reload();
     } finally {
       setSaving(false);

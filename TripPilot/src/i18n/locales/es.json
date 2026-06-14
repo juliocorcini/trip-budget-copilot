@@ -279,6 +279,7 @@
     "delete_confirm": "¿Eliminar este gasto? Esta acción puede deshacerse con la copia de seguridad.",
     "delete_title": "Eliminar gasto",
     "not_found": "Gasto no encontrado",
+    "edited_toast": "Gasto actualizado",
     "deleted_toast": "Gasto eliminado"
   },
   "categories": {

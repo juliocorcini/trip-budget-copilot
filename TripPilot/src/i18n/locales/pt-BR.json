@@ -279,6 +279,7 @@
     "delete_confirm": "Excluir este gasto? Essa ação pode ser desfeita pelo backup.",
     "delete_title": "Excluir gasto",
     "not_found": "Gasto não encontrado",
+    "edited_toast": "Gasto atualizado",
     "deleted_toast": "Gasto excluído"
   },
   "categories": {

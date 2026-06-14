@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { AppShell } from './AppShell';
 import { RootLayout } from './RootLayout';
@@ -32,6 +32,16 @@ const ImpactDetailPage = lazy(() => import('@/features/dashboard/ImpactDetailPag
 const SyncReceivePage = lazy(() => import('@/features/sync/SyncReceivePage').then(m => ({ default: m.SyncReceivePage })));
 
 function LoadingFallback() {
+  // Continuity: most lazy chunks resolve in a few ms once cached, so showing the
+  // spinner immediately just flashes it on every navigation ("page reloaded"
+  // feeling). Delay it — fast loads then show nothing; only a genuinely slow
+  // load surfaces the spinner.
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setShow(true), 220);
+    return () => clearTimeout(id);
+  }, []);
+  if (!show) return null;
   return (
     <div className="flex items-center justify-center h-screen bg-surface-base">
       <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />

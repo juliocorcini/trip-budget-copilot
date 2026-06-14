@@ -386,6 +386,17 @@ Continuação direta do Gate N a pedido do usuário ("sim, continuar com as outr
 
 821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v25.
 
+### Gate P — feedback no editar + fluidez de navegação → 0.14.16 ✅
+
+Mais uma leva ("continuar com as outras melhorias"). Simulei mais fluxos e achei 2 gaps reais (o resto já tinha feedback: delete tem toast+undo, funds/profiles têm `updated`, planner não fica em branco):
+
+- **P1 — Editar gasto confirma**: `handleSaveEdit` (ExpenseDetailPage) fechava em silêncio; agora mostra toast "Gasto atualizado" + vibração suave (gated `vibrationEnabled`), igual ao resto das mutações. i18n ×3 (`expenses.edited_toast`).
+- **P2 — Spinner de rota com atraso (fluidez)**: `LoadingFallback` (router) era um spinner fullscreen imediato → piscava em TODA navegação lazy (sensação "recarregou"). Agora atrasa 220ms: chunk já cacheado (caso comum) não mostra nada; só load realmente lento revela o spinner. Mata o flash em todo o app.
+
+**Visual** `scripts/ux-gateP.mjs`: smoke de navegação (dashboard/expenses/wallets/planner/trip/more renderizam, sem branco → mudança no Suspense é segura) + fluxo de edição mostrando toast "atualizado". ✅
+
+821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v26.
+
 ---
 
 ## Reverts

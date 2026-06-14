@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.16',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Editar um gasto agora confirma na hora ("Gasto atualizado") com uma vibração suave — antes salvava em silêncio.',
+        'Navegar pelo app ficou mais fluido: o app não pisca mais o ícone de carregando ao trocar de tela (ele só aparece se algo realmente demorar).',
+      ],
+      en: [
+        'Editing an expense now confirms instantly ("Expense updated") with a soft tap — it used to save silently.',
+        'Navigating the app feels smoother: it no longer flashes the loading spinner when switching screens (it only appears if something genuinely takes a while).',
+      ],
+      es: [
+        'Editar un gasto ahora confirma al instante ("Gasto actualizado") con una vibración suave — antes guardaba en silencio.',
+        'Navegar por la app es más fluido: ya no parpadea el ícono de carga al cambiar de pantalla (solo aparece si algo realmente tarda).',
+      ],
+    },
+  },
+  {
     version: '0.14.15',
     date: '2026-06-14',
     items: {

@@ -279,6 +279,7 @@
     "delete_confirm": "Delete this expense? This action can be undone via backup.",
     "delete_title": "Delete expense",
     "not_found": "Expense not found",
+    "edited_toast": "Expense updated",
     "deleted_toast": "Expense deleted"
   },
   "categories": {
