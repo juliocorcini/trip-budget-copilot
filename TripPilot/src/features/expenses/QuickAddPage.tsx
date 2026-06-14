@@ -20,9 +20,10 @@ import {
   deriveRecentPlaces,
   toCurrentPlace,
 } from '@/domain/location';
-import type { RecentPlace } from '@/domain/location';
+import type { RecentPlace, NearbyPlace, Coords } from '@/domain/location';
 import { getCurrentCoords } from '@/utils/geolocation';
-import { reverseGeocodePlace, isOnline } from '@/utils/places';
+import { reverseGeocodePlace, searchNearbyPlaces, isOnline } from '@/utils/places';
+import { NearbyPlaceList } from '@/components/NearbyPlaceList';
 import { appSettingsRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
@@ -139,6 +140,12 @@ export function QuickAddPage() {
   // M4: opt-in online name lookup state (never blocks; offline → manual/recents).
   const [findingName, setFindingName] = useState(false);
   const placeCapturedRef = useRef(false);
+  // M4 (nearby): the raw GPS fix, kept separate from `place` so the nearby
+  // search keys off the real position and never loops when we pre-select a POI.
+  const [gpsCoords, setGpsCoords] = useState<Coords | null>(null);
+  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
+  const [loadingNearby, setLoadingNearby] = useState(false);
+  const nearbyKeyRef = useRef<string | null>(null);
 
   // Inherit the remembered place once settings load (until GPS says otherwise).
   useEffect(() => {
@@ -153,6 +160,7 @@ export function QuickAddPage() {
     let active = true;
     void getCurrentCoords().then((coords) => {
       if (!active || coords === null) return;
+      setGpsCoords(coords);
       setPlace((prev) => {
         const current = prev ?? settings?.currentPlace ?? null;
         if (!shouldReaskPlace(current, coords)) return current;
@@ -163,6 +171,42 @@ export function QuickAddPage() {
       active = false;
     };
   }, [locationEnabled, settings?.currentPlace]);
+
+  // M4 (nearby): with a GPS fix + a connection, auto-list the category's nearby
+  // establishments (opt-in, online-only — never blocks; offline → recents/manual).
+  // The closest is pre-selected as the default ONLY while the place is still the
+  // raw coordinate placeholder, so a sticky/typed/picked name is never overwritten.
+  useEffect(() => {
+    if (!locationEnabled || gpsCoords === null || !isOnline()) {
+      setNearbyPlaces([]);
+      return;
+    }
+    const key = `${gpsCoords.lat.toFixed(4)},${gpsCoords.lng.toFixed(4)}:${category}`;
+    if (nearbyKeyRef.current === key) return;
+    nearbyKeyRef.current = key;
+
+    let active = true;
+    setLoadingNearby(true);
+    void searchNearbyPlaces(gpsCoords, category)
+      .then((list) => {
+        if (!active) return;
+        setNearbyPlaces(list);
+        if (list.length === 0) return;
+        const placeholderLabel = coordsLabel(gpsCoords);
+        setPlace((prev) => {
+          const isPlaceholder = prev === null || (prev.placeId === null && prev.label === placeholderLabel);
+          if (!isPlaceholder) return prev;
+          const closest = list[0]!;
+          return { label: closest.label, lat: closest.lat, lng: closest.lng, placeId: closest.placeId };
+        });
+      })
+      .finally(() => {
+        if (active) setLoadingNearby(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [locationEnabled, gpsCoords, category]);
 
   // R3-H: open on the last-used category (sticky) so capture starts on the most
   // likely choice instead of always "other". Applied once, after settings load,
@@ -212,6 +256,17 @@ export function QuickAddPage() {
     setPlace(toCurrentPlace(recent));
     setEditingPlace(false);
   };
+
+  // M4 (nearby): pick one of the auto-listed nearby establishments.
+  const applyNearbyPlace = (nearby: NearbyPlace) => {
+    setPlace({ label: nearby.label, lat: nearby.lat, lng: nearby.lng, placeId: nearby.placeId });
+    setEditingPlace(false);
+  };
+
+  // Hide nearby options that already match the chosen place.
+  const nearbySuggestions = nearbyPlaces.filter(
+    (np) => np.placeId !== place?.placeId && np.label !== place?.label,
+  );
 
   // M4: resolve a real name for the current coordinates (opt-in, online-only).
   const findNameOnline = async () => {
@@ -881,6 +936,16 @@ export function QuickAddPage() {
                   <Icon name="close" size={16} className="text-on-surface-faint" />
                 </button>
               )}
+            </div>
+
+            {/* M4 (nearby): the category's nearby establishments, nearest first.
+                The closest is pre-selected above; these let the traveler switch. */}
+            <div className="mt-2">
+              <NearbyPlaceList
+                places={nearbySuggestions}
+                loading={loadingNearby}
+                onPick={applyNearbyPlace}
+              />
             </div>
 
             {/* M4: resolve a real name from the coordinates (opt-in, online-only). */}

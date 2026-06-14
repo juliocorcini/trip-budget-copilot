@@ -1,12 +1,13 @@
-import type { Coords } from '@/domain/location';
+import type { Coords, NearbyPlace } from '@/domain/location';
+import { buildOverpassQuery, parseOverpassPlaces } from '@/domain/location';
 
 /**
- * E8 (M4): the "nearby place name" boundary. Isolated so the domain stays pure
+ * E8 (M4): the "nearby place" boundary. Isolated so the domain stays pure
  * and offline-first (ÂNCORA 10): this is the ONLY place that touches the network
- * for locations, it is OPT-IN (the traveler taps "find name"), online-only, and
- * NEVER throws or blocks — it resolves null on offline/timeout/error so the
- * manual name + history fallback always works. Coordinates are sent for this one
- * explicit lookup only; raw GPS storage stays 100% local (ÂNCORA 8).
+ * for locations, it is OPT-IN, online-only, and NEVER throws or blocks — it
+ * resolves null/[] on offline/timeout/error so the manual name + history
+ * fallback always works. Coordinates are sent for this explicit lookup only;
+ * raw GPS storage stays 100% local (ÂNCORA 8).
  */
 
 export interface PlaceResult {
@@ -16,6 +17,50 @@ export interface PlaceResult {
 
 // OpenStreetMap Nominatim reverse geocoder (free, public, attribution: © OSM).
 const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
+
+// OpenStreetMap Overpass API for nearby POIs by category (free, no API key).
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+
+export interface NearbySearchOptions {
+  radiusMeters?: number;
+  limit?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * Lists named establishments of a category near the coordinate, nearest first.
+ * Opt-in / online-only: returns [] on offline, timeout, HTTP error, or an
+ * unparsable payload, so the manual name + recent places fallback always works
+ * and nothing ever blocks the capture.
+ */
+export async function searchNearbyPlaces(
+  coords: Coords,
+  category: string | null,
+  options: NearbySearchOptions = {},
+): Promise<NearbyPlace[]> {
+  const { radiusMeters = 300, limit = 12, timeoutMs = 9000 } = options;
+  if (!isOnline() || typeof fetch === 'undefined') return [];
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  try {
+    const query = buildOverpassQuery(coords, category, radiusMeters, limit * 4);
+    const response = await fetch(OVERPASS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: controller?.signal,
+    });
+    if (!response.ok) return [];
+    const data = (await response.json()) as unknown;
+    return parseOverpassPlaces(data, coords, limit);
+  } catch {
+    return [];
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 /** Best-effort connectivity check. Defaults to "online" when unknown. */
 export function isOnline(): boolean {

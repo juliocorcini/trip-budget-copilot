@@ -39,7 +39,10 @@ import { resolvePayerExpense } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
 import { placeToTransactionFields, shouldReaskPlace, coordsLabel } from '@/domain/location';
+import type { NearbyPlace, Coords } from '@/domain/location';
 import { getCurrentCoords } from '@/utils/geolocation';
+import { searchNearbyPlaces, isOnline } from '@/utils/places';
+import { NearbyPlaceList } from '@/components/NearbyPlaceList';
 import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
 import { createPlannedOccurrence } from '@/domain/planning';
 import {
@@ -321,12 +324,24 @@ export function OutingPage() {
   const locationEnabled = !!settings?.locationCaptureEnabled;
   const stickyPlace = settings?.currentPlace ?? null;
   const outingPlaceCapturedRef = useRef(false);
+  // M4 (nearby): raw GPS fix + the session's nearby establishments by category.
+  const [outingGpsCoords, setOutingGpsCoords] = useState<Coords | null>(null);
+  const [outingNearby, setOutingNearby] = useState<NearbyPlace[]>([]);
+  const [loadingOutingNearby, setLoadingOutingNearby] = useState(false);
+  const outingNearbyKeyRef = useRef<string | null>(null);
+  // The session inherits the activity profile's category — used to bias the search.
+  const sessionCategory =
+    session != null
+      ? (profiles.find((p) => p.id === session.activityProfileId)?.category ?? null)
+      : null;
+
   useEffect(() => {
     if (!sessionActive || !locationEnabled || outingPlaceCapturedRef.current) return;
     outingPlaceCapturedRef.current = true;
     let active = true;
     void getCurrentCoords().then((coords) => {
       if (!active || coords === null) return;
+      setOutingGpsCoords(coords);
       if (!shouldReaskPlace(settings?.currentPlace ?? null, coords)) return;
       void appSettingsRepository
         .update({
@@ -339,6 +354,44 @@ export function OutingPage() {
     };
   }, [sessionActive, locationEnabled, settings?.currentPlace, reloadAppData]);
 
+  // M4 (nearby): list the session category's nearby establishments (opt-in,
+  // online-only). Pre-select the closest as the sticky place ONLY while it is
+  // still the raw coordinate placeholder, so a typed/picked name is preserved.
+  useEffect(() => {
+    if (!sessionActive || !locationEnabled || outingGpsCoords === null || !isOnline()) {
+      setOutingNearby([]);
+      return;
+    }
+    const key = `${outingGpsCoords.lat.toFixed(4)},${outingGpsCoords.lng.toFixed(4)}:${sessionCategory}`;
+    if (outingNearbyKeyRef.current === key) return;
+    outingNearbyKeyRef.current = key;
+
+    let active = true;
+    setLoadingOutingNearby(true);
+    void searchNearbyPlaces(outingGpsCoords, sessionCategory)
+      .then(async (list) => {
+        if (!active) return;
+        setOutingNearby(list);
+        if (list.length === 0) return;
+        const placeholderLabel = coordsLabel(outingGpsCoords);
+        const current = settings?.currentPlace ?? null;
+        const isPlaceholder =
+          current === null || (current.placeId === null && current.label === placeholderLabel);
+        if (!isPlaceholder) return;
+        const closest = list[0]!;
+        await appSettingsRepository.update({
+          currentPlace: { label: closest.label, lat: closest.lat, lng: closest.lng, placeId: closest.placeId },
+        });
+        await reloadAppData();
+      })
+      .finally(() => {
+        if (active) setLoadingOutingNearby(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [sessionActive, locationEnabled, outingGpsCoords, sessionCategory, settings?.currentPlace, reloadAppData]);
+
   // M6: rename/clear the sticky place from the active session header.
   const handleRenameOutingPlace = async (label: string) => {
     const trimmed = label.trim();
@@ -348,6 +401,14 @@ export function OutingPage() {
       ? { ...base, label: trimmed }
       : { label: trimmed, lat: null, lng: null, placeId: null };
     await appSettingsRepository.update({ currentPlace: next });
+    await reloadAppData();
+  };
+
+  // M4 (nearby): pick one of the auto-listed nearby establishments (full coords).
+  const handlePickOutingPlace = async (nearby: NearbyPlace) => {
+    await appSettingsRepository.update({
+      currentPlace: { label: nearby.label, lat: nearby.lat, lng: nearby.lng, placeId: nearby.placeId },
+    });
     await reloadAppData();
   };
 
@@ -1221,6 +1282,9 @@ export function OutingPage() {
         onBack={() => navigate(-1)}
         place={stickyPlace}
         locationEnabled={locationEnabled}
+        nearbyPlaces={outingNearby}
+        loadingNearby={loadingOutingNearby}
+        onPickNearby={handlePickOutingPlace}
         onRenamePlace={handleRenameOutingPlace}
         onClearPlace={handleClearOutingPlace}
         anchorConfig={
@@ -1916,6 +1980,11 @@ interface ActiveSessionProps {
   place: CurrentPlace | null;
   /** E8 (M6): whether location capture is on (gates the "add place" affordance). */
   locationEnabled: boolean;
+  /** E8 (M4): nearby establishments for the session category (nearest first). */
+  nearbyPlaces: NearbyPlace[];
+  loadingNearby: boolean;
+  /** E8 (M4): pick a nearby establishment (sets label + coords + placeId). */
+  onPickNearby: (place: NearbyPlace) => void;
   /** E8 (M6): rename/clear the sticky place from the header. */
   onRenamePlace: (label: string) => void;
   onClearPlace: () => void;
@@ -1933,7 +2002,7 @@ interface ActiveSessionProps {
   onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, onPickNearby, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -2595,6 +2664,16 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
       {/* E8 (M6): edit/clear the sticky place for the active session */}
       <BottomSheet open={activeSheet === 'place'} onClose={closeSheet} title={t('outing.place_title')}>
         <div className="flex flex-col gap-3">
+          {/* M4 (nearby): the session category's nearby establishments, nearest
+              first. Picking one sets the sticky place (label + coords). */}
+          <NearbyPlaceList
+            places={nearbyPlaces}
+            loading={loadingNearby}
+            onPick={(np) => {
+              onPickNearby(np);
+              closeSheet();
+            }}
+          />
           <input
             type="text"
             value={placeDraft}

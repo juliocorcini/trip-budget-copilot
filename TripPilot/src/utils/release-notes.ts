@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.18',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Local automático: ao registrar um gasto ou durante uma saída, o app agora lista os estabelecimentos perto de você na categoria escolhida (restaurantes, bares, mercados…) e já deixa o mais próximo selecionado — toque para trocar.',
+        'Não achou na lista? É só digitar o nome, como antes. Tudo opcional e só com a localização ligada; offline, continua usando seus locais recentes.',
+      ],
+      en: [
+        'Automatic place: when logging an expense or during an outing, the app now lists the establishments near you in the chosen category (restaurants, bars, markets…) and pre-selects the closest one — tap to switch.',
+        "Not in the list? Just type the name, like before. All optional and only with location on; offline, it falls back to your recent places.",
+      ],
+      es: [
+        'Lugar automático: al registrar un gasto o durante una salida, la app ahora lista los establecimientos cerca de ti en la categoría elegida (restaurantes, bares, mercados…) y deja preseleccionado el más cercano — toca para cambiar.',
+        '¿No está en la lista? Solo escribe el nombre, como antes. Todo opcional y solo con la ubicación activada; sin conexión, usa tus lugares recientes.',
+      ],
+    },
+  },
+  {
     version: '0.14.17',
     date: '2026-06-14',
     items: {
