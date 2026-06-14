@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.5',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Navegação mais consistente: o botão de voltar e os títulos agora seguem o mesmo estilo em todas as telas (notificações e impacto incluídos).',
+      ],
+      en: [
+        'More consistent navigation: the back button and titles now follow the same style across every screen (notifications and impact included).',
+      ],
+      es: [
+        'Navegación más consistente: el botón de volver y los títulos ahora siguen el mismo estilo en todas las pantallas (notificaciones e impacto incluidos).',
+      ],
+    },
+  },
+  {
     version: '0.14.4',
     date: '2026-06-14',
     items: {

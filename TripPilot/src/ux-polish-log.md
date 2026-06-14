@@ -152,6 +152,26 @@ Reavaliação dos shots `.ux-shots/gate1/{planner,simulator,funds,wallets}.full.
 **Testes**: 819 verdes (mudança apresentacional + i18n). Typecheck 0. Build sem chunk novo > 500 KB (`SettingsPage` 22.34 kB).
 **Deploy**: PRODUÇÃO `--branch=main`. SW cache v14.
 
+## Gate 6 — Navegação + consistência (concluído) → 0.14.5 ✅
+
+**Shots**: pass completo `.ux-shots/gate6-pass/` · DEPOIS dos outliers `.ux-shots/gate6-after/{notifications,impact}.png`.
+
+**Auditoria de consistência** (bottom nav · cabeçalhos/voltar · espaçamento · estados vazios):
+
+| Item | Estado | Ação |
+|------|--------|------|
+| **Bottom nav** | ✅ já consistente | Componente único `BottomNav.tsx` (LEFT/RIGHT + FAB), ativo por `startsWith`. Sem mudança. |
+| **Espaçamento/padding** | ✅ já consistente | Token único `--page-padding-x` no `AppShell` (DEC-085); páginas em `gap-4/5 + pb-4 pt-2`. Sem mudança. |
+| **Estados vazios** | ✅ já consistente | Mesmo padrão `bg-surface-container rounded-xl p-6 text-center` + ícone 32px + texto em **todas** as listas (expenses, funds, wallets, profiles, outings). Sem mudança. |
+| **Cabeçalho + botão voltar** | ⚠️ **2 outliers** → corrigido (D5) | 16 sub-páginas usam voltar "pelado" (`btn-press p-1`, ícone 24) + título `text-heading font-bold`; **Notifications e ImpactDetail** usavam voltar **circular** (`w-10 h-10 rounded-full bg-surface-container`, ícone 20) + `text-xl font-extrabold`. |
+
+**D5 — Unificar botão voltar + título**: `NotificationsPage.tsx` e `ImpactDetailPage.tsx` passam ao estilo dominante (voltar pelado ícone 24 + `text-heading font-bold`). **Sticky preservado** (wrapper `page-sticky-header` + `useScrolled` intactos — sticky é o padrão das páginas principais dashboard/expenses/planner; só o estilo do botão/título foi alinhado). Puramente visual; `navigate(-1)` inalterado. `text-heading`=22px > `text-xl`=20px → título não encolheu.
+
+**Não mexido**: bottom nav, padding, empty states (já consistentes — evitar risco sem ganho). Sticky-vs-não-sticky das demais sub-páginas é pré-existente e defensável (páginas primárias longas recebem sticky); refatorar 16 telas seria risco alto sem ganho proporcional.
+
+**Testes**: 819 verdes (apresentacional). Typecheck 0. Build OK.
+**Deploy**: PRODUÇÃO `--branch=main`. SW cache v15.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |

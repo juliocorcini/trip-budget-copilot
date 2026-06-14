@@ -134,14 +134,10 @@ export function ImpactDetailPage() {
       <div
         className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-4 pb-3 flex items-center gap-3`}
       >
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full flex items-center justify-center btn-press bg-surface-container"
-          aria-label={t('common.back')}
-        >
-          <Icon name="arrow_back" size={20} className="text-on-surface" />
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
-        <h1 className="text-xl font-extrabold tracking-tight text-on-surface">
+        <h1 className="text-heading font-bold text-on-surface">
           {t('impact.title')}
         </h1>
       </div>
