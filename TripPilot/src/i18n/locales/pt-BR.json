@@ -517,9 +517,28 @@
     "check_update": "Buscar atualização",
     "checking_update": "Verificando…"
   },
+  "sharing": {
+    "report_title": "Resumo da viagem",
+    "report_generated_at": "Gerado em",
+    "report_spent": "Gasto",
+    "report_budget": "Orçamento",
+    "report_used": "Usado",
+    "report_expenses": "Gastos",
+    "report_by_phase": "Por fase",
+    "report_by_category": "Por categoria",
+    "report_by_place": "Por lugar",
+    "report_outings": "Saídas",
+    "report_outings_summary": "{{count}} saídas · {{total}} no total",
+    "report_no_data": "Sem dados"
+  },
   "backup": {
     "title": "Backup e dados",
     "export_json": "Exportar backup JSON",
+    "send_backup": "Enviar backup",
+    "send_backup_desc": "Pro Drive, Files ou e-mail — ou salva o arquivo.",
+    "export_html": "Exportar resumo (HTML)",
+    "export_html_desc": "Um infográfico da viagem que abre offline em qualquer navegador.",
+    "reminder_due": "Faz tempo que você não envia um backup. Que tal agora?",
     "import_json": "Importar backup JSON",
     "export_csv": "Exportar para planilha",
     "last_backup": "Último backup: {{date}}",

@@ -517,9 +517,28 @@
     "check_update": "Buscar actualización",
     "checking_update": "Comprobando…"
   },
+  "sharing": {
+    "report_title": "Resumen del viaje",
+    "report_generated_at": "Generado el",
+    "report_spent": "Gastado",
+    "report_budget": "Presupuesto",
+    "report_used": "Usado",
+    "report_expenses": "Gastos",
+    "report_by_phase": "Por fase",
+    "report_by_category": "Por categoría",
+    "report_by_place": "Por lugar",
+    "report_outings": "Salidas",
+    "report_outings_summary": "{{count}} salidas · {{total}} en total",
+    "report_no_data": "Sin datos"
+  },
   "backup": {
     "title": "Copia de seguridad y datos",
     "export_json": "Exportar copia JSON",
+    "send_backup": "Enviar copia",
+    "send_backup_desc": "A Drive, Files o email — o guarda el archivo.",
+    "export_html": "Exportar resumen (HTML)",
+    "export_html_desc": "Un infográfico del viaje que abre sin conexión en cualquier navegador.",
+    "reminder_due": "Hace tiempo que no envías una copia. ¿La envías ahora?",
     "import_json": "Importar copia JSON",
     "export_csv": "Exportar a hoja de cálculo",
     "last_backup": "Última copia: {{date}}",

@@ -6,10 +6,13 @@ import {
   parseBackupFileSafe,
   analyzeImport,
   generateBackupFilename,
+  isBackupReminderDue,
   transactionsToCsvRows,
   rowsToCsv,
   downloadFile,
 } from '@/domain/backup';
+import { buildTripReport, renderTripReportHtml } from '@/domain/sharing';
+import type { TripReportLabels } from '@/domain/sharing';
 import { buildFullBackup, importBackup } from '@/domain/orchestrators';
 import { appSettingsRepository, participantShareRepository } from '@/data/repositories';
 import { sessionRepository } from '@/data/repositories/session-repository';
@@ -98,6 +101,52 @@ export function BackupPage() {
     }
   };
 
+  // M18: export a self-contained, read-only HTML summary of the trip. Opens in
+  // any browser offline — no app install, no network. Reuses the report
+  // aggregation + the share-first downloadFile boundary.
+  const handleExportHtml = async () => {
+    if (!trip || busy) return;
+    setBusy(true);
+    try {
+      const sessions = await sessionRepository.getByTripId(trip.id);
+      const report = buildTripReport({
+        trip,
+        transactions,
+        pools,
+        phases,
+        sessions,
+        generatedAt: new Date().toISOString(),
+      });
+      const labels: TripReportLabels = {
+        documentTitle: t('sharing.report_title'),
+        generatedAt: t('sharing.report_generated_at'),
+        spent: t('sharing.report_spent'),
+        budget: t('sharing.report_budget'),
+        used: t('sharing.report_used'),
+        expenses: t('sharing.report_expenses'),
+        byPhase: t('sharing.report_by_phase'),
+        byCategory: t('sharing.report_by_category'),
+        byPlace: t('sharing.report_by_place'),
+        outings: t('sharing.report_outings'),
+        outingsSummary: t('sharing.report_outings_summary'),
+        noData: t('sharing.report_no_data'),
+      };
+      const html = renderTripReportHtml(report, labels);
+      await downloadFile(
+        html,
+        `trippilot-summary-${new Date().toISOString().slice(0, 10)}.html`,
+        'text/html;charset=utf-8',
+      );
+    } catch (err) {
+      console.error('[backup] HTML summary export failed:', err);
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const backupDue = settings ? isBackupReminderDue(settings, Date.now()) : false;
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -151,10 +200,33 @@ export function BackupPage() {
         </p>
       )}
 
+      {/* M17: surface the existing backup reminder right where the action is. */}
+      {backupDue && (
+        <div
+          className="rounded-xl p-3 flex items-center gap-3"
+          style={{ background: 'var(--highlight-subtle)' }}
+        >
+          <Icon name="cloud_off" size={20} className="text-warning shrink-0" />
+          <p className="text-xs text-on-surface">{t('backup.reminder_due')}</p>
+        </div>
+      )}
+
+      {/* M17: send the full backup to Drive/Files/email via the OS share sheet
+          (Web Share API), falling back to a file download where unsupported. */}
       <button onClick={handleExport} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40" data-help-anchor="backup-export">
-        <Icon name="cloud_upload" size={24} className="text-primary" />
+        <Icon name="ios_share" size={24} className="text-primary" />
         <div>
-          <p className="text-sm font-medium text-on-surface">{t('backup.export_json')}</p>
+          <p className="text-sm font-medium text-on-surface">{t('backup.send_backup')}</p>
+          <p className="text-xs text-on-surface-faint">{t('backup.send_backup_desc')}</p>
+        </div>
+      </button>
+
+      {/* M18: read-only HTML summary — opens offline in any browser. */}
+      <button onClick={handleExportHtml} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40">
+        <Icon name="summarize" size={24} className="text-success" />
+        <div>
+          <p className="text-sm font-medium text-on-surface">{t('backup.export_html')}</p>
+          <p className="text-xs text-on-surface-faint">{t('backup.export_html_desc')}</p>
         </div>
       </button>
 

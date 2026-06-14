@@ -1,9 +1,9 @@
 # Pacote 3 — Local & Hora + Multi-moeda + Segurança & Sharing — Log
 
 ## Current State
-- Fase: 6 🔄 | Gate: 4 ✅ | Milestone: M16 done | Done: 16/24 | Tests: 786 (+12 no gate; +78 vs baseline 708) | Versão: 0.13.1 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.13.1) | Build: ✅
+- Fase: 6 🔄 | Gate: 5 ✅ | Milestone: M19 done | Done: 19/24 | Tests: 797 (+11 no gate; +89 vs baseline 708) | Versão: 0.13.2 | Último deploy: PRODUÇÃO trippilot.pages.dev (0.13.2) | Build: ✅
 - Dexie SCHEMA_VERSION=5 ✅ (M14 — a ÚNICA migração do pacote, já feita: tabela localSnapshots). BACKUP_VERSION=5 ✅ (bumped no M1). NÃO migrar Dexie nos próximos gates.
-- PRÓXIMO: FASE 6 / GATE 5 / M17 (cofre pra nuvem via share sheet + lembrete) → 0.13.2.
+- PRÓXIMO: FASE 6 / GATE 6 / M20 (lock PIN/biometria off por padrão) → 0.14.0 (Fase 6 completa).
 
 ## Decisões tomadas durante a execução
 - Deploy em PRODUÇÃO (--branch=main → trippilot.pages.dev) a cada gate, a pedido do Julio (supera o "preview" do pacote).
@@ -27,12 +27,16 @@
 - M14: gatilho reusa o de recordExpenseForSnapshot — chamado no QuickAdd (persistExpense) E no fim da saída (OutingPage), ambos `void` best-effort e dedup por dia (custo zero em dias repetidos).
 - M15: Settings ganha seção "Avançado" → lista os pontos (data via formatDate(id) + hora local + nº de gastos) → toque abre BottomSheet de confirmação (aviso "substitui e não desfaz") → restoreLocalSnapshot → reload()+toast+navega pro dashboard. Reusa o fluxo de import atômico (mesmo padrão do BackupPage).
 - M16: +12 testes — puros (poda mantém N mais novos, cap custom, sort não-mutante, hasSnapshotForDay, snapshotDayId, parse inválido→null) + integração via fake-indexeddb (sem trip→nada; 1×/dia; poda 7+1→7 dropando o mais antigo; restore replace dropa drift; json ruim→false sem tocar DB).
+- M17: `downloadFile` (csv-export.ts) JÁ faz share-first (navigator.share com File) + fallback download — então o "enviar backup" reusa esse boundary (DRY, sem refatorar). BackupPage: botão primário re-enquadrado como "Enviar backup" (ícone ios_share, chama handleExport que já marca lastBackupDate) + banner de lembrete reusando `isBackupReminderDue(settings, Date.now())`. Sem segundo botão redundante.
+- M18: `domain/sharing/trip-report.ts` — `buildTripReport` (puro) agrega TUDO em BASE via `transactionBasePersonalCostCents` (consistente com o orçamento): total gasto/orçamento/%, por fase (ordem cronológica), por categoria e por lugar (desc), nº de saídas + total das saídas, nº de gastos. `renderTripReportHtml(report, labels)` gera HTML self-contained (CSS inline, ZERO rede/script, escapeHtml em todo texto do usuário; labels injetadas p/ i18n). BackupPage: botão "Exportar resumo (HTML)" → carrega sessions, monta labels via t(), downloadFile text/html.
+- M19: +11 testes — trip-report (totais base incl. estrangeiro convertido, exclui deletado/não-gasto, categorias/lugares/fases, saídas, %; HTML é doc completo com totais certos, offline sem 'http'/script, escapa injeção) + download-file (share quando suportado, fallback download sem Web Share, fallback quando share rejeita não-abort).
 
 ## Deploys
 - 0.12.2 (GATE 1) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://544a59ad.trippilot.pages.dev)
 - 0.12.3 (GATE 2) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://b11f228e.trippilot.pages.dev)
 - 0.13.0 (GATE 3 — FASE 5 COMPLETA) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://507ef5b3.trippilot.pages.dev)
-- 0.13.1 (GATE 4) → PRODUÇÃO https://trippilot.pages.dev (deploy id: ver após deploy)
+- 0.13.1 (GATE 4) → PRODUÇÃO https://trippilot.pages.dev (deploy id https://9f9f8f1e.trippilot.pages.dev)
+- 0.13.2 (GATE 5) → PRODUÇÃO https://trippilot.pages.dev (deploy id: ver após deploy)
 
 ## GATE 0 — Baseline (sem deploy)
 - [x] Node 22.22.3 confirmado
@@ -83,11 +87,11 @@
 - [x] M16 Testes (+12: poda, leitura/escrita, restore via import)
 - [x] Checkpoint: 0.13.1 + deploy PRODUÇÃO + commit (786 testes, tsc 0, build sem chunk>500KB)
 
-### GATE 5 — Cofre + viewer → 0.13.2
-- [ ] M17 Cofre pra nuvem via share sheet + lembrete
-- [ ] M18 Visualizador HTML read-only
-- [ ] M19 Testes (share fallback, geração HTML)
-- [ ] Checkpoint: 0.13.2 + commit
+### GATE 5 — Cofre + viewer → 0.13.2 ✅
+- [x] M17 Cofre pra nuvem via share sheet (Web Share + fallback download) + lembrete (isBackupReminderDue)
+- [x] M18 Visualizador HTML read-only (buildTripReport + renderTripReportHtml, self-contained/offline)
+- [x] M19 Testes (+11: share fallback, geração HTML, agregação base)
+- [x] Checkpoint: 0.13.2 + deploy PRODUÇÃO + commit (797 testes, tsc 0, build sem chunk>500KB)
 
 ### GATE 6 — Lock + Share Target + i18n + testes → FASE 6 COMPLETA → 0.14.0
 - [ ] M20 Bloqueio PIN/biometria (off por padrão)

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.13.2',
+    date: '2026-06-13',
+    items: {
+      'pt-BR': [
+        'Enviar backup pelo compartilhamento do sistema (Drive, Files, e-mail) — com aviso quando faz tempo que você não faz.',
+        'Exportar um resumo da viagem em HTML que abre offline em qualquer navegador (totais, fases, categorias, lugares, saídas).',
+      ],
+      en: [
+        'Send your backup through the system share sheet (Drive, Files, email) — with a nudge when it has been a while.',
+        'Export a trip summary as HTML that opens offline in any browser (totals, phases, categories, places, outings).',
+      ],
+      es: [
+        'Envía tu copia con el menú de compartir del sistema (Drive, Files, email) — con aviso cuando hace tiempo que no la haces.',
+        'Exporta un resumen del viaje en HTML que abre sin conexión en cualquier navegador (totales, fases, categorías, lugares, salidas).',
+      ],
+    },
+  },
+  {
     version: '0.13.1',
     date: '2026-06-13',
     items: {

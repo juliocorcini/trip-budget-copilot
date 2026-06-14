@@ -517,9 +517,28 @@
     "check_update": "Check for update",
     "checking_update": "Checking…"
   },
+  "sharing": {
+    "report_title": "Trip summary",
+    "report_generated_at": "Generated at",
+    "report_spent": "Spent",
+    "report_budget": "Budget",
+    "report_used": "Used",
+    "report_expenses": "Expenses",
+    "report_by_phase": "By phase",
+    "report_by_category": "By category",
+    "report_by_place": "By place",
+    "report_outings": "Outings",
+    "report_outings_summary": "{{count}} outings · {{total}} total",
+    "report_no_data": "No data"
+  },
   "backup": {
     "title": "Backup and data",
     "export_json": "Export JSON backup",
+    "send_backup": "Send backup",
+    "send_backup_desc": "To Drive, Files or email — or save the file.",
+    "export_html": "Export summary (HTML)",
+    "export_html_desc": "A trip infographic that opens offline in any browser.",
+    "reminder_due": "It's been a while since your last backup. Send one now?",
     "import_json": "Import JSON backup",
     "export_csv": "Export to spreadsheet",
     "last_backup": "Last backup: {{date}}",
