@@ -136,24 +136,37 @@ export function useAppDataState(): AppData {
     setEnvelopes(allEnvelopes.flat());
   }, []);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      await withTimeout(loadAll());
-      errorRef.current = false;
-      // BUG-019: a healthy load reopens the auto-retry budget.
-      autoRetryCountRef.current = 0;
-    } catch (err) {
-      // DEC-109: keep whatever data was already in memory; flag the failure
-      // so pages show the recovery screen instead of redirecting to /welcome.
-      console.error('[useAppData] load failed:', err);
-      errorRef.current = true;
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadAll]);
+  // UX/continuity: a background refresh must NOT blank the screen. Only the
+  // first load and explicit recovery flip `loading` (which gates the full-screen
+  // loader); every in-page mutation reloads SILENTLY so the component tree stays
+  // mounted and the scroll position is preserved — no "page reloaded / jumped to
+  // top" feeling. `loadAll`'s setState calls re-render the new data in place.
+  const runLoad = useCallback(
+    async (options?: { showLoading?: boolean }) => {
+      if (options?.showLoading) setLoading(true);
+      setError(false);
+      try {
+        await withTimeout(loadAll());
+        errorRef.current = false;
+        // BUG-019: a healthy load reopens the auto-retry budget.
+        autoRetryCountRef.current = 0;
+      } catch (err) {
+        // DEC-109: keep whatever data was already in memory; flag the failure
+        // so pages show the recovery screen instead of redirecting to /welcome.
+        console.error('[useAppData] load failed:', err);
+        errorRef.current = true;
+        setError(true);
+      } finally {
+        // Always clear loading: the initial load seeds loading=true via useState
+        // and must drop it even when reached through a silent reload.
+        setLoading(false);
+      }
+    },
+    [loadAll],
+  );
+
+  // Exposed refresh used by every in-page mutation — silent (no loader flash).
+  const reload = useCallback(() => runLoad(), [runLoad]);
 
   // DEC-109: manual recovery (DataErrorScreen button) is user-initiated, so the
   // aggressive close+reopen of a hung Dexie connection is warranted here — and
@@ -166,12 +179,14 @@ export function useAppDataState(): AppData {
     }
     lastAutoRetryAtRef.current = 0;
     autoRetryCountRef.current = 0;
-    await reload();
-  }, [reload]);
+    // Recovery shows the loader (not the stale/error screen) while it reconnects.
+    await runLoad({ showLoading: true });
+  }, [runLoad]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    // First load shows the full-screen loader.
+    runLoad({ showLoading: true });
+  }, [runLoad]);
 
   // DEC-126: refresh when another surface (undo toast, SW) changed the data.
   useEffect(() => {
@@ -195,11 +210,12 @@ export function useAppDataState(): AppData {
       lastAutoRetryAtRef.current = now;
       autoRetryCountRef.current += 1;
       // Prefer a plain re-load over close+reopen in the foreground (risky).
-      reload();
+      // Show the loader so a half-loaded error state never flashes /welcome.
+      runLoad({ showLoading: true });
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [reload]);
+  }, [runLoad]);
 
   return { settings, trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, loading, error, reload, retry };
 }

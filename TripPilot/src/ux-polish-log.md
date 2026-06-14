@@ -217,6 +217,26 @@ Carrossel de insights (DEC-077/091/150) e contadores de ocasião / scroll horizo
 - 0.14.4 → https://a98841a9.trippilot.pages.dev
 - 0.14.5 → https://65c3082b.trippilot.pages.dev (**produção atual**)
 
+## RODADA 2 — Feedback, Clareza & Continuidade (pedido do Julio)
+
+> Foco: "quero sentir que tudo que faço tem motivo e resultado — visual, explicado, sentido". E o bug de continuidade: clicar parece recarregar a página e volta pro topo. Rodada de brainstorm do conselho + varredura de ações sem feedback.
+
+### Gate A — Continuidade: fim do "recarregou e voltou pro topo" → 0.14.6 ✅
+
+**Causa-raiz** (afetava o app TODO): `useAppData.reload()` fazia `setLoading(true)` em TODA atualização. As páginas têm early-return `if (loading) return <loader>`. Como o `useAppData` é um **contexto compartilhado único**, qualquer ação que escreve e chama `await reload()` (colapsar card, check-in, esconder card, confirmar split, adiar evento, sugestão de valor…) ligava `loading`, **desmontava a árvore inteira e remontava no topo** → "parece que recarregou e perdi o scroll".
+
+**Correção** (`src/hooks/useAppData.ts`): separa **load inicial / recovery** (mostram o loader) de **refresh em background** (silencioso). Novo `runLoad({showLoading})`; `reload()` exposto = **silencioso** (não toca em `loading`) → o `setState` do `loadAll` re-renderiza os dados novos **no lugar**, scroll preservado. Mantêm o loader: 1º load, `retry` manual e auto-retry pós-erro (este também evita flash de `/welcome` durante recovery). `onDataChanged` segue silencioso.
+
+**Prova** (`scripts/ux-scroll.mjs`, Playwright, mede `window.scrollY`):
+- colapsar "Análise da viagem": scroll **1203 → 1203** (antes ia a 0), drawer abre ✅
+- check-in do dia: scroll **223 → 223** ✅
+- zero loader de tela cheia durante ações ✅
+
+**Impacto**: 1 correção na fonte conserta a continuidade de TODOS os handlers de TODAS as páginas (settings, wallets, funds, trip, shared, outing…), pois todos passam pelo mesmo `reload`. ZERO mudança de comportamento de dados.
+
+**Testes**: 819 verdes (testes de erro/throttle do `useAppData` compatíveis). Typecheck 0. Build OK.
+**Deploy**: PRODUÇÃO `--branch=main`. SW cache v16.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |

@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.6',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Mais fluido: tocar em coisas no app (abrir/fechar cards, check-in do dia e mais) agora responde na hora, sem recarregar a tela nem pular para o topo — você continua de onde estava.',
+      ],
+      en: [
+        'Smoother: tapping things in the app (open/close cards, the daily check-in and more) now responds instantly, without reloading the screen or jumping to the top — you stay right where you were.',
+      ],
+      es: [
+        'Más fluido: tocar cosas en la app (abrir/cerrar tarjetas, el check-in del día y más) ahora responde al instante, sin recargar la pantalla ni saltar arriba — te quedas donde estabas.',
+      ],
+    },
+  },
+  {
     version: '0.14.5',
     date: '2026-06-14',
     items: {
