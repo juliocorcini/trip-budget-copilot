@@ -423,6 +423,16 @@ A ideia estrutural mais subjetiva, aprovada pelo Julio. O modo do check-in passa
 
 842 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v29.
 
+### Gate T — Herói "de onde vem esse número" (estrutural, explicabilidade) → 0.14.20 (DEC-168) ✅
+
+A 2ª estrutural. O herói (livre para gastar) — o número nº 1 do app — vira **tocável** e abre uma sheet com a conta que reconcilia: **orçamento da fase − já gasto − reserva protegida − guardado p/ próximas fases − reservado p/ ocasiões = livre para gastar**. Domínio puro `buildFreeToSpendBreakdown(fts)` em `domain/budget/budget.ts` (omite termos zerados; linha de **déficit** quando os compromissos passam do orçamento, em vez de só travar em 0). Affordance discreto (ícone `help` + "de onde vem") no card; sheet via `BottomSheet` existente, wired pelo `DashboardPage`. Read-only (ÂNCORA 12): só explica um número já calculado. 5 testes novos.
+
+> Nota: a outra "estrutural" cogitada (streak) NÃO foi feita — `no_spend_streak` já existe (INV-131/DEC-077, no carrossel) e `product-spec.md:360` lista "gamification" fora de escopo; um card de streak seria duplicação + risco de gamificação. Entreguei a explicabilidade do herói como 2ª estrutural (alinhada ao tema central do Julio: "entender de onde vem / sentir o porquê").
+
+**Visual** `scripts/ux-hero-breakdown.mjs`: tap no herói → sheet com € 1.500,00 − € 101,80 − € 150,00 − € 200,00 = **€ 1.048,20** (reconcilia). RESULT: PASS. ✅
+
+847 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v30.
+
 ---
 
 ## Reverts

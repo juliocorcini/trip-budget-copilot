@@ -58,6 +58,7 @@ interface DashboardCardsProps {
   onSelectHeatmapDay: (iso: string) => void;
   onSelectCheckIn: (intent: CheckInIntent) => void;
   onToggleCollapse: (id: DashboardCardId) => void;
+  onOpenHeroBreakdown: () => void;
 }
 
 // The hero's previous amount is stashed in sessionStorage so it survives the
@@ -109,6 +110,7 @@ export function DashboardCards({
   onSelectHeatmapDay,
   onSelectCheckIn,
   onToggleCollapse,
+  onOpenHeroBreakdown,
 }: DashboardCardsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -505,14 +507,25 @@ export function DashboardCards({
       case 'hero':
         return (
           <>
-            {/* §7 pos. 5 — HERO CARD */}
+            {/* §7 pos. 5 — HERO CARD (DEC-168: tappable → "where this number comes from") */}
             {model.fts && model.heroMoney && (
-              <div className="mt-5 p-5 rounded-2xl bg-surface-container">
-                <p className="text-xs font-bold" style={{ color: '#C75B39aa' }}>
-                  {t('dashboard.free_to_spend', {
-                    date: model.activePhase ? formatDate(model.activePhase.endDate, "d 'de' MMMM") : '',
-                  })}
-                </p>
+              <button
+                type="button"
+                onClick={onOpenHeroBreakdown}
+                aria-label={t('dashboard.hero_breakdown_title')}
+                className="mt-5 p-5 rounded-2xl bg-surface-container w-full text-left btn-press block"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-bold" style={{ color: '#C75B39aa' }}>
+                    {t('dashboard.free_to_spend', {
+                      date: model.activePhase ? formatDate(model.activePhase.endDate, "d 'de' MMMM") : '',
+                    })}
+                  </p>
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-on-surface-faint flex-shrink-0 mt-0.5">
+                    <Icon name="help" size={13} className="text-on-surface-faint" />
+                    {t('dashboard.hero_breakdown_hint')}
+                  </span>
+                </div>
                 <p className="text-[44px] font-extrabold tracking-tight leading-none mt-2 tabular text-on-surface">
                   {(animatedHero ?? model.heroMoney).integer}
                   <span className="text-xl font-bold text-on-surface-dim">
@@ -593,7 +606,7 @@ export function DashboardCards({
                     </div>
                   )}
                 </div>
-              </div>
+              </button>
             )}
           </>
         );

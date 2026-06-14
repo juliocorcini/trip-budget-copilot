@@ -56,6 +56,7 @@ export function DashboardPage() {
   // DEC-131: heatmap month navigation + tapped-day sheet.
   const [heatmapMonth, setHeatmapMonth] = useState(() => localDateString(new Date()).slice(0, 7));
   const [heatmapDayIso, setHeatmapDayIso] = useState<string | null>(null);
+  const [heroBreakdownOpen, setHeroBreakdownOpen] = useState(false);
 
   const model = useDashboardModel(appData, heatmapMonth, heatmapDayIso);
 
@@ -424,6 +425,7 @@ export function DashboardPage() {
             onSelectHeatmapDay={setHeatmapDayIso}
             onSelectCheckIn={handleSelectCheckIn}
             onToggleCollapse={handleToggleCollapse}
+            onOpenHeroBreakdown={() => setHeroBreakdownOpen(true)}
           />
 
           {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}
@@ -457,6 +459,8 @@ export function DashboardPage() {
         onHideCard={handleHideCard}
         heatmapDayIso={heatmapDayIso}
         onCloseHeatmapDay={() => setHeatmapDayIso(null)}
+        heroBreakdownOpen={heroBreakdownOpen}
+        onCloseHeroBreakdown={() => setHeroBreakdownOpen(false)}
         phaseLeftover={isSimpleMode ? null : model.phaseLeftover}
         leftoverTargets={model.globalPoolSummaries.map((g) => g.pool)}
         onPhaseLeftover={handlePhaseLeftover}

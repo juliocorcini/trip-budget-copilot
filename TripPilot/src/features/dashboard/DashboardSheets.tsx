@@ -5,6 +5,7 @@ import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { formatMoney, sumCents } from '@/domain/money';
 import { formatDate } from '@/domain/dates';
+import { buildFreeToSpendBreakdown, type FtsBreakdownKey } from '@/domain/budget';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { getDashboardCard, type DashboardCardId } from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
@@ -32,6 +33,9 @@ interface DashboardSheetsProps {
   onHideCard: (id: DashboardCardId) => void;
   heatmapDayIso: string | null;
   onCloseHeatmapDay: () => void;
+  // DEC-168: "where this number comes from" — the hero's reconciling arithmetic
+  heroBreakdownOpen: boolean;
+  onCloseHeroBreakdown: () => void;
   // M9/M10: phase-leftover decision sheet (null = nothing to settle / simple mode)
   phaseLeftover: PhaseLeftover | null;
   leftoverTargets: BudgetPool[];
@@ -43,6 +47,16 @@ interface DashboardSheetsProps {
   tripPriors: TripPriorsOffer | null;
   onTripPriors: (accept: boolean) => void;
 }
+
+// DEC-168: each subtractable term of the free-to-spend formula maps to a label.
+// `free` (total) and `deficit` (overflow note) are rendered with bespoke styling.
+const FTS_LABEL_KEYS: Record<Exclude<FtsBreakdownKey, 'free' | 'deficit'>, string> = {
+  budget: 'dashboard.fts_budget',
+  spent: 'dashboard.fts_spent',
+  protected: 'dashboard.fts_protected',
+  future_floor: 'dashboard.fts_future_floor',
+  event_reserves: 'dashboard.fts_event_reserves',
+};
 
 // BUG-008: the Dashboard's four bottom sheets, lifted out of the page. They read
 // the shared DashboardModel and report intent back through callbacks.
@@ -61,6 +75,8 @@ export function DashboardSheets({
   onHideCard,
   heatmapDayIso,
   onCloseHeatmapDay,
+  heroBreakdownOpen,
+  onCloseHeroBreakdown,
   phaseLeftover,
   leftoverTargets,
   onPhaseLeftover,
@@ -214,6 +230,62 @@ export function DashboardSheets({
             </p>
           </div>
         </div>
+      </BottomSheet>
+
+      {/* DEC-168: "where this number comes from" — the hero is the app's #1
+          figure, so make its arithmetic visible: budget − spent − reserves = free.
+          The lines reconcile to the hero number; an over-budget deficit is shown
+          rather than hidden behind the clamped-at-zero total. */}
+      <BottomSheet
+        open={heroBreakdownOpen}
+        onClose={onCloseHeroBreakdown}
+        title={t('dashboard.hero_breakdown_title')}
+      >
+        {model.fts && (
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-on-surface-dim mb-2">{t('dashboard.hero_breakdown_intro')}</p>
+            {buildFreeToSpendBreakdown(model.fts).map((line) => {
+              if (line.kind === 'total') {
+                return (
+                  <div
+                    key={line.key}
+                    className="flex items-baseline justify-between pt-3 mt-1 border-t border-[var(--border-faint)]"
+                  >
+                    <span className="text-sm font-bold text-on-surface">{t('dashboard.fts_free')}</span>
+                    <span className="text-base font-extrabold tabular text-success">
+                      {formatMoney(line.cents, trip.baseCurrency)}
+                    </span>
+                  </div>
+                );
+              }
+              if (line.kind === 'deficit') {
+                return (
+                  <p key={line.key} className="text-[11px] font-semibold text-warning mt-2">
+                    {t('dashboard.fts_deficit', {
+                      amount: formatMoney(line.cents, trip.baseCurrency),
+                    })}
+                  </p>
+                );
+              }
+              const isSubtract = line.kind === 'subtract';
+              return (
+                <div key={line.key} className="flex items-baseline justify-between py-1">
+                  <span className="text-sm font-semibold text-on-surface-dim">
+                    {t(FTS_LABEL_KEYS[line.key as Exclude<FtsBreakdownKey, 'free' | 'deficit'>] as never)}
+                  </span>
+                  <span
+                    className={`text-sm font-bold tabular ${
+                      isSubtract ? 'text-on-surface-faint' : 'text-on-surface'
+                    }`}
+                  >
+                    {isSubtract ? '− ' : ''}
+                    {formatMoney(line.cents, trip.baseCurrency)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </BottomSheet>
 
       {/* M9/M10 (E5): a phase ended with money left — propose, never force.

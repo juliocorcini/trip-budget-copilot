@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.20',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'O número principal da tela inicial agora é tocável: toque no “livre para usar” e veja de onde ele vem — orçamento da fase menos o que já saiu, a reserva protegida, o que está guardado para as próximas fases e o reservado para ocasiões.',
+        'Se os compromissos passam do orçamento, o app mostra exatamente quanto, em vez de só travar em zero.',
+      ],
+      en: [
+        'The home screen’s main number is now tappable: tap “free to spend” to see where it comes from — phase budget minus what’s already gone, the protected reserve, what’s set aside for next phases and what’s reserved for occasions.',
+        'If commitments exceed the budget, the app shows exactly by how much instead of just clamping at zero.',
+      ],
+      es: [
+        'El número principal de la pantalla inicial ahora es tocable: toca “libre para gastar” y mira de dónde sale — presupuesto de la fase menos lo ya gastado, la reserva protegida, lo reservado para próximas fases y lo reservado para ocasiones.',
+        'Si los compromisos superan el presupuesto, la app muestra exactamente cuánto, en vez de quedarse en cero.',
+      ],
+    },
+  },
+  {
     version: '0.14.19',
     date: '2026-06-14',
     items: {

@@ -84,6 +84,62 @@ export function calculateFreeToSpend(
 }
 
 /**
+ * DEC-168: "where this number comes from" — the hero (free-to-spend) is the most
+ * important figure in the app, yet it was an opaque total. This breaks it into the
+ * exact terms of the freeToSpend formula so the user can SEE the arithmetic:
+ *
+ *   budget − spent − protected reserve − future floor − event reserves = free
+ *
+ * The lines reconcile to `fts.freeToSpendCents` whenever it isn't clamped. When the
+ * commitments exceed the budget (raw < 0) freeToSpend is floored at 0, so a `deficit`
+ * line surfaces the overflow instead of silently hiding it. Zero terms are dropped
+ * (a €0 protected reserve is noise, not information).
+ */
+export type FtsBreakdownKind = 'base' | 'subtract' | 'total' | 'deficit';
+
+export type FtsBreakdownKey =
+  | 'budget'
+  | 'spent'
+  | 'protected'
+  | 'future_floor'
+  | 'event_reserves'
+  | 'free'
+  | 'deficit';
+
+export interface FtsBreakdownLine {
+  key: FtsBreakdownKey;
+  /** Always a non-negative magnitude; `kind` carries the sign/role for display. */
+  cents: number;
+  kind: FtsBreakdownKind;
+}
+
+export function buildFreeToSpendBreakdown(fts: FreeToSpendResult): FtsBreakdownLine[] {
+  const lines: FtsBreakdownLine[] = [{ key: 'budget', cents: fts.totalBudgetCents, kind: 'base' }];
+
+  const subtractions: Array<[FtsBreakdownKey, number]> = [
+    ['spent', fts.totalSpentCents],
+    ['protected', fts.protectedReserveCents],
+    ['future_floor', fts.futureFloorCents],
+    ['event_reserves', fts.eventReservesCents],
+  ];
+  for (const [key, cents] of subtractions) {
+    if (cents > 0) lines.push({ key, cents, kind: 'subtract' });
+  }
+
+  const rawFreeCents =
+    fts.totalBudgetCents -
+    fts.totalSpentCents -
+    fts.protectedReserveCents -
+    fts.futureFloorCents -
+    fts.eventReservesCents;
+
+  lines.push({ key: 'free', cents: Math.max(0, rawFreeCents), kind: 'total' });
+  if (rawFreeCents < 0) lines.push({ key: 'deficit', cents: -rawFreeCents, kind: 'deficit' });
+
+  return lines;
+}
+
+/**
  * Budget impact uses the personal cost when available (shared expenses):
  * the financial flow (amountCents) may include other participants' shares.
  * E9: foreign-currency expenses contribute their base-currency value, so the

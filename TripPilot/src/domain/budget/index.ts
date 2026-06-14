@@ -1,5 +1,6 @@
 export {
   calculateFreeToSpend,
+  buildFreeToSpendBreakdown,
   calculateEventReserves,
   calculatePoolSpent,
   calculateFutureFloor,
@@ -42,6 +43,9 @@ export type {
 } from './motivation';
 export type {
   FreeToSpendResult,
+  FtsBreakdownLine,
+  FtsBreakdownKey,
+  FtsBreakdownKind,
   PoolSummary,
   LastOutingSavings,
   CreateBudgetPoolInput,
