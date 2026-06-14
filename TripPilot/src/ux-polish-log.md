@@ -278,6 +278,31 @@ i18n ×3 (`value_suggestion_applied`, `leftover_moved_reserve`, `leftover_moved_
 
 i18n ×3 (`expenses.saved_toast`; `common.undo`/`undo_done` já existiam). 820 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v19.
 
+### Gate E — Movimentação de dinheiro confirma + check-in instantâneo → 0.14.10 ✅
+
+> Varredura de consistência ("procure coisas semelhantes pelo app todo"): grep de `showToast` × mutações mostrou que **quase toda página que muta já tem feedback** — o grande "várias partes na mesma forma" era o scroll/reload, já resolvido app-wide no Gate A. Sobraram 2 lacunas reais.
+
+**E1 — Transferência/saque silenciosos** (`QuickAddPage.tsx`): mover dinheiro entre carteiras não dava retorno (mesma classe do save do Gate D). Agora confirma: "Transferência de {valor} registrada" / "Saque de {valor} registrado" (sem desfazer — transferências não estão na infra de undo em lote). i18n ×3.
+
+**E2 — Check-in com latência** (`DashboardCards.tsx`): o Gate B deu resultado ao check-in, mas ele só aparecia após o reload silencioso (~100-300ms do `loadAll`). Agora é **otimista**: `optimisticCheckIn` reflete o toque na hora e a leitura do dia (`getCheckInFraming` + `freeTodayCents`, read-only — ÂNCORA 12) aparece instantânea; reconcilia para `null` quando o `settings.dailyCheckIn` persistido alcança. "Quero ver mudar na hora" → muda na hora.
+
+**Visual** (Playwright `scripts/ux-checkin.mjs`): toque em "Tranquilo" → "Dia tranquilo. Você tem € 95,29 livres hoje — segurando o ritmo, isso vira economia pra frente." instantâneo. ✅
+
+820 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v20.
+
+---
+
+## Síntese — Rodada 2 (Gates A→E) + brainstorm do conselho
+
+O conselho (4 papéis, paralelos) **convergiu** e validou que as causas-raiz já tinham sido atacadas:
+- **Continuidade (scroll/reload)** → 1 linha em `useAppData.reload` (silent refresh). Gate A `0.14.6`. App inteiro.
+- **Check-in sem função** → linha de resultado read-only atrelada a `freeTodayCents`. Gate B `0.14.7` + instantâneo no Gate E.
+- **Ações sem feedback** → toasts de confirmação: sugestão de valor + sobra de fase (Gate C `0.14.8`), **salvar gasto + desfazer** (Gate D `0.14.9`, a ação #1 que era silenciosa), transferência/saque (Gate E `0.14.10`).
+
+**Tema unificador** entregue: *toda ação tem motivo, resultado visível, explicação e resposta imediata* — sem tocar na matemática honesta (ÂNCORA 12) nem criar infraestrutura nova (reuso de Toast/DEC-126).
+
+**Deixado de fora de propósito** (over-engineering / risco no número sagrado): count-up animado do hero (mostra valores transitórios no número mais importante, e o remount na navegação quebraria o gatilho principal), tone-engine/tema por intent, biblioteca de scroll-restoration.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |

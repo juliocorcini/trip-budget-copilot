@@ -541,6 +541,13 @@ export function QuickAddPage() {
             description || (isWithdrawal ? t('fab.register_withdrawal') : t('fab.register_transfer')),
         };
         await (isWithdrawal ? withdrawCash(input) : transferBetweenWallets(input));
+        // Money moved between wallets used to be silent — confirm what happened.
+        showToast(
+          t(isWithdrawal ? 'expenses.withdrawal_saved_toast' : 'expenses.transfer_saved_toast', {
+            amount: formatMoney(input.amountCents, trip.baseCurrency),
+          }),
+          'success',
+        );
         await finishAndGoHome();
       } finally {
         setSaving(false);

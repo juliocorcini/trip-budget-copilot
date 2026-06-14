@@ -189,6 +189,8 @@
     "title": "Gastos",
     "add": "Registrar gasto",
     "saved_toast": "Gasto de {{amount}} registrado",
+    "transfer_saved_toast": "Transferência de {{amount}} registrada",
+    "withdrawal_saved_toast": "Saque de {{amount}} registrado",
     "amount": "Valor",
     "description": "Descrição",
     "category": "Categoria",

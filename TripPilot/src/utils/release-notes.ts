@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.10',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Transferências e saques entre carteiras agora confirmam na tela ("Transferência de X registrada").',
+        'O check-in do dia responde na hora: a leitura do dia aparece no instante do toque, sem espera.',
+      ],
+      en: [
+        'Wallet transfers and withdrawals now confirm on screen ("X transfer recorded").',
+        'The daily check-in now responds instantly: the day\'s read appears the moment you tap, no wait.',
+      ],
+      es: [
+        'Las transferencias y retiros entre billeteras ahora confirman en pantalla ("Transferencia de X registrada").',
+        'El check-in del día responde al instante: la lectura del día aparece al tocar, sin espera.',
+      ],
+    },
+  },
+  {
     version: '0.14.9',
     date: '2026-06-14',
     items: {

@@ -189,6 +189,8 @@
     "title": "Expenses",
     "add": "Register expense",
     "saved_toast": "{{amount}} expense saved",
+    "transfer_saved_toast": "{{amount}} transfer recorded",
+    "withdrawal_saved_toast": "{{amount}} withdrawal recorded",
     "amount": "Amount",
     "description": "Description",
     "category": "Category",

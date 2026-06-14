@@ -88,6 +88,23 @@ export function DashboardCards({
     return () => mq.removeEventListener?.('change', onChange);
   }, []);
 
+  // E5 optimistic check-in: reflect the tapped intent INSTANTLY (before the
+  // silent reload round-trip) so the day's framing answers the tap with no
+  // perceptible lag. Read-only context (ÂNCORA 12) — a faster echo of what is
+  // being persisted, reconciled to null once the settings catch up.
+  const [optimisticCheckIn, setOptimisticCheckIn] = useState<CheckInIntent | null>(null);
+  const persistedCheckInIntent =
+    getActiveCheckIn(settings.dailyCheckIn, model.todayIso)?.intent ?? null;
+  useEffect(() => {
+    if (optimisticCheckIn && persistedCheckInIntent === optimisticCheckIn) {
+      setOptimisticCheckIn(null);
+    }
+  }, [optimisticCheckIn, persistedCheckInIntent]);
+  const handleCheckInTap = (intent: CheckInIntent) => {
+    setOptimisticCheckIn(intent);
+    onSelectCheckIn(intent);
+  };
+
   // M2: advance the insights carousel every few seconds, honoring pauses.
   const insightCount = model.insights.length;
   useEffect(() => {
@@ -161,26 +178,27 @@ export function DashboardCards({
         );
       case 'daily_checkin': {
         // M7 (E5): one-tap intent for the day — read-only context, never blocks.
-        const activeCheckIn = getActiveCheckIn(settings.dailyCheckIn, model.todayIso);
+        // Optimistic: the tapped intent shows instantly (Gate E), then settles.
+        const effectiveCheckInIntent = optimisticCheckIn ?? persistedCheckInIntent;
         return (
           <div className="mt-4 p-4 rounded-2xl bg-surface-container">
             <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
               {t('dashboard.checkin_title')}
             </p>
             <p className="text-[13px] font-semibold leading-snug mt-1 text-on-surface">
-              {activeCheckIn
+              {effectiveCheckInIntent
                 ? t('dashboard.checkin_active', {
-                    intent: t(`dashboard.checkin_${activeCheckIn.intent}`),
+                    intent: t(`dashboard.checkin_${effectiveCheckInIntent}`),
                   })
                 : t('dashboard.checkin_prompt')}
             </p>
             <div className="flex gap-2 mt-3">
               {CHECK_IN_INTENT_CATALOG.map((option) => {
-                const selected = activeCheckIn?.intent === option.intent;
+                const selected = effectiveCheckInIntent === option.intent;
                 return (
                   <button
                     key={option.intent}
-                    onClick={() => onSelectCheckIn(option.intent)}
+                    onClick={() => handleCheckInTap(option.intent)}
                     aria-pressed={selected}
                     className="flex-1 py-2.5 rounded-xl flex flex-col items-center gap-1 btn-press"
                     style={{
@@ -206,13 +224,13 @@ export function DashboardCards({
             {/* The tap's RESULT: the day's free money reframed by the chosen
                 intent (save / pace / enjoy + warn). Read-only — never changes
                 the budget. Keyed by intent so it re-animates on each switch. */}
-            {activeCheckIn &&
+            {effectiveCheckInIntent &&
               model.todayBudget &&
               (() => {
-                const framing = getCheckInFraming(activeCheckIn.intent);
+                const framing = getCheckInFraming(effectiveCheckInIntent);
                 return (
                   <div
-                    key={activeCheckIn.intent}
+                    key={effectiveCheckInIntent}
                     className="checkin-reveal mt-3 pt-3 flex items-start gap-2"
                     style={{ borderTop: '1px solid var(--border-faint)' }}
                   >
