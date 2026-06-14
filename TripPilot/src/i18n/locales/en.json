@@ -91,6 +91,11 @@
     "checkin_plan_calm": "Light target: keep it under {{primary}} today · the ~{{secondary}} left becomes slack for later.",
     "checkin_plan_outing": "Free pace: {{primary}} for today, within plan.",
     "checkin_plan_night": "Set aside {{primary}} for the night · ~{{secondary}} for the rest of the day before it.",
+    "checkin_stat_calm_primary": "Spend today",
+    "checkin_stat_calm_secondary": "Becomes slack",
+    "checkin_stat_outing_primary": "Free today",
+    "checkin_stat_night_primary": "Night reserve",
+    "checkin_stat_night_secondary": "Before the night",
     "checkin_notification_title": "How will the day go?",
     "checkin_notification_body": "Tap today's intent to tune the plan.",
     "event_today": "Today: {{name}}",
@@ -218,6 +223,8 @@
     "location_privacy_hint": "Location stays only on your device and is never sent.",
     "time": "Time",
     "place_count": "{{count}} expenses",
+    "day_today": "Today",
+    "day_yesterday": "Yesterday",
     "currency_label": "Currency",
     "currency_base": "{{code}} (trip currency)",
     "exchange_rate_label": "1 {{currency}} = ? {{base}}",
@@ -226,6 +233,8 @@
     "choose_pool_hint": "Choose a fund to register the expense.",
     "zero_budget_title": "Budget depleted",
     "zero_budget_body": "This fund's free-to-spend is at {{amount}}. Register anyway?",
+    "after_expense_left": "After this expense, {{amount}} left in {{fund}}.",
+    "after_expense_over": "After this expense, {{fund}} goes over plan by {{amount}}.",
     "zero_budget_confirm": "Register anyway",
     "fund": "Fund",
     "save": "Save",
@@ -299,6 +308,7 @@
     "reconcile": "Reconcile",
     "reconcile_match": "Balance matches the expected amount",
     "reconcile_hint": "Count the real money and type the amount — the app adjusts the balance to match reality.",
+    "total_balance": "Total across wallets",
     "expected_balance": "Expected balance",
     "counted_balance": "Counted balance",
     "difference": "Difference: {{amount}}",
@@ -894,7 +904,8 @@
     "confirm_all_done": "All confirmed!",
     "status_pending": "Pending",
     "status_confirmed": "Confirmed",
-    "status_rejected": "Rejected"
+    "status_rejected": "Rejected",
+    "status_hint": "Pending = the person hasn't confirmed their share yet. Confirmed = agreed."
   },
   "pwa": {
     "offline_ready": "Ready for offline use",
@@ -1272,6 +1283,7 @@
     "covered_full": "Skipping these covers the {{target}}.",
     "covered_partial": "Covers {{covered}} of {{target}} — the rest comes from daily spending.",
     "note": "Nothing is saved — rescue mode is a calculator.",
+    "empty_hint": "Enter how much you want to save to see your new daily limit and what to skip.",
     "entry_from_simulator": "I need to save — rescue mode"
   },
   "share": {

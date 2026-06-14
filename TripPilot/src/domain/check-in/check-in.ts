@@ -47,6 +47,10 @@ export interface CheckInDayPlan {
   primaryCents: number;
   /** The complement (saved for calm / earlier-day for night), or null. */
   secondaryCents: number | null;
+  /** Short label for the headline number (so the result reads as a stat). */
+  primaryLabelKey: string;
+  /** Short label for the complement number, or null when there is none. */
+  secondaryLabelKey: string | null;
 }
 
 /** Calm aims to spend this share of the day; the rest is kept as slack. */
@@ -69,6 +73,8 @@ export function planCheckInDay(intent: CheckInIntent, freeTodayCents: number): C
       messageKey: 'dashboard.checkin_plan_calm',
       primaryCents: primary,
       secondaryCents: free - primary,
+      primaryLabelKey: 'dashboard.checkin_stat_calm_primary',
+      secondaryLabelKey: 'dashboard.checkin_stat_calm_secondary',
     };
   }
   if (intent === 'night') {
@@ -79,6 +85,8 @@ export function planCheckInDay(intent: CheckInIntent, freeTodayCents: number): C
       messageKey: 'dashboard.checkin_plan_night',
       primaryCents: primary,
       secondaryCents: free - primary,
+      primaryLabelKey: 'dashboard.checkin_stat_night_primary',
+      secondaryLabelKey: 'dashboard.checkin_stat_night_secondary',
     };
   }
   return {
@@ -87,6 +95,8 @@ export function planCheckInDay(intent: CheckInIntent, freeTodayCents: number): C
     messageKey: 'dashboard.checkin_plan_outing',
     primaryCents: free,
     secondaryCents: null,
+    primaryLabelKey: 'dashboard.checkin_stat_outing_primary',
+    secondaryLabelKey: null,
   };
 }
 

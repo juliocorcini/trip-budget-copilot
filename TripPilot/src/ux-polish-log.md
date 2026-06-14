@@ -348,6 +348,22 @@ Segunda leva (foco em *sentido antes da ação* + estados vazios que não ensina
 
 821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v22.
 
+### Gates J+K+L+M — "ver o resultado na hora" + análise mais profunda → 0.14.13 ✅
+
+Terceira leva após feedback do usuário ("fez pouquíssimas coisas, faça mais, simule o uso, e o check-in continua igual — não importa o modo, o valor é o mesmo"). Re-minerei TODOS os screenshots do tour (`tour/`, `interact/`, `gateF/`) procurando fricção/sentido. Diagnóstico-chave do check-in: os 3 modos JÁ davam números diferentes (0.14.11), **mas o resultado estava enterrado** em texto cinza pequeno no rodapé enquanto o número gigante (que não muda, por design — ÂNCORA 12) dominava. Por isso "parecia igual".
+
+- **J — Preview de impacto ao vivo (quick-add)**: antes de salvar, mostra "Depois deste gasto, sobram €X em {fundo}" (verde) ou "{fundo} passa do planejado em €X" (vermelho + ícone de aviso). É o "sinto que faço e vejo o resultado" aplicado à ação nº1. Read-only (`selectedPoolFreeToSpendCents − baseAmountCentsPreview`). i18n ×3 (`expenses.after_expense_left/over`). **Visual** `scripts/ux-impact.mjs`: €25 → "sobram €1.023,20"; €99.999 → "passa do planejado em €98.950,80". ✅
+- **K1 — Check-in com resultado em destaque**: o domínio (`planCheckInDay`) agora devolve `primaryLabelKey`/`secondaryLabelKey`; o dashboard renderiza os números como **stats** (caixa primária `bg-primary/10` + complemento) em vez de uma frase cinza. Cada modo "estala" visualmente: Tranquilo→Gastar hoje/Vira folga, Passeio→Livre hoje, Noite→Reserva da noite/Antes da noite. i18n ×3 (5 chaves). +4 asserts no teste de domínio.
+- **K3 — Modo resgate com estado vazio**: hint abaixo dos chips quando valor=0 (consistente com o simulador). i18n ×3 (`rescue.empty_hint`).
+- **L1 — Lista de gastos agrupada por dia**: feed antes era uma parede plana; agora agrupa por dia local (Hoje/Ontem/data) com **subtotal do dia** ao lado. Projeção pura, ordem preservada. i18n ×3 (`expenses.day_today/yesterday`).
+- **L2 — Barras de progresso nos fundos (visão geral)**: cada fundo ganhou barra fina que escala de cor (success→warning≥85%→error se estourou). Saldo restante também muda de cor quando negativo.
+- **M1 — Status compartilhado explicado**: legenda sob "Gastos compartilhados" dizendo o que "Pendente/Confirmado" significam. i18n ×3 (`shared.status_hint`).
+- **M2 — Total das carteiras**: card de total somado no topo (só quando todas compartilham a moeda base — evita somar moedas diferentes). Saldos computados 1× e reusados (Core Rule 2.5). i18n ×3 (`wallets.total_balance`).
+
+**Visual** `scripts/ux-batch3.mjs`: check-in com stats destacados, lista agrupada com subtotais, barras nos fundos, hint do resgate, legenda do shared, total das carteiras — todos confirmados. ✅
+
+821 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v23.
+
 ---
 
 ## Reverts

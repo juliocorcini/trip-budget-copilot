@@ -65,6 +65,13 @@ describe('check-in domain helpers (E5 — M7)', () => {
     expect(night.primaryCents + (night.secondaryCents ?? 0)).toBe(free);
     // The headline numbers genuinely differ across modes (not the same value).
     expect(new Set([calm.primaryCents, outing.primaryCents, night.primaryCents]).size).toBe(3);
+
+    // K1: each mode carries stat labels so the result reads as numbers, not a
+    // sentence. Modes with a split expose a secondary label; outing does not.
+    expect(calm.primaryLabelKey).toContain('dashboard.checkin_stat_');
+    expect(calm.secondaryLabelKey).toContain('dashboard.checkin_stat_');
+    expect(night.secondaryLabelKey).toContain('dashboard.checkin_stat_');
+    expect(outing.secondaryLabelKey).toBeNull();
   });
 
   it('planCheckInDay clamps an already-over (negative) day to zeros', () => {

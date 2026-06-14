@@ -176,6 +176,12 @@ export function RescuePage() {
         </div>
       </div>
 
+      {amountCents === 0 && (
+        <p className="text-xs text-on-surface-faint text-center -mt-1">
+          {t('rescue.empty_hint')}
+        </p>
+      )}
+
       {plan && !plan.feasible && fts && (
         <div className="bg-surface-container rounded-xl p-5 text-center">
           <Icon name="warning" size={42} className="mx-auto mb-2 text-error" />

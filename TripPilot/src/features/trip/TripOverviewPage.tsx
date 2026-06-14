@@ -166,22 +166,46 @@ export function TripOverviewPage() {
         <div className="flex flex-col gap-2">
           {pools.map((pool) => {
             const summary = createPoolSummary(pool, filterTransactionsByPool(transactions, pool.id));
+            // L2: visualize how much of the fund is used. Color escalates with
+            // pressure (calm → warning → over) so the bar carries meaning, not
+            // just decoration.
+            const usedRatio =
+              summary.totalCents > 0 ? summary.spentCents / summary.totalCents : 0;
+            const pct = Math.min(100, Math.max(0, Math.round(usedRatio * 100)));
+            const over = summary.remainingCents < 0;
+            const barColor = over
+              ? 'var(--error)'
+              : usedRatio >= 0.85
+                ? 'var(--warning)'
+                : 'var(--success)';
             return (
               // R-26: fund cards lead to the funds screen.
               <button
                 key={pool.id}
                 onClick={() => navigate('/funds')}
-                className="bg-surface-container rounded-xl p-4 flex justify-between items-center w-full text-left btn-press"
+                className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
               >
-                <div>
-                  <p className="text-sm font-bold text-on-surface">{pool.name}</p>
-                  <p className="text-xs text-on-surface-faint mt-0.5">
-                    {formatMoney(summary.spentCents, pool.currency)} / {formatMoney(summary.totalCents, pool.currency)}
+                <div className="flex justify-between items-baseline gap-3">
+                  <p className="text-sm font-bold text-on-surface truncate">{pool.name}</p>
+                  <p
+                    className="text-sm font-extrabold tabular shrink-0"
+                    style={{ color: over ? 'var(--error)' : 'var(--success)' }}
+                  >
+                    {formatMoney(summary.remainingCents, pool.currency)}
                   </p>
                 </div>
-                <p className="text-sm font-extrabold tabular text-success">
-                  {formatMoney(summary.remainingCents, pool.currency)}
+                <p className="text-xs text-on-surface-faint mt-0.5">
+                  {formatMoney(summary.spentCents, pool.currency)} / {formatMoney(summary.totalCents, pool.currency)}
                 </p>
+                <div
+                  className="w-full h-1.5 rounded-full overflow-hidden mt-2"
+                  style={{ background: 'var(--surface-container-high)' }}
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500"
+                    style={{ width: `${pct}%`, background: barColor }}
+                  />
+                </div>
               </button>
             );
           })}

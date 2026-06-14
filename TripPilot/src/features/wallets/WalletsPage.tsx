@@ -117,6 +117,19 @@ export function WalletsPage() {
     return <Navigate to="/welcome" replace />;
   }
 
+  // M2: compute each balance once (reused by the total + the list). A combined
+  // total only reads true when every wallet shares the base currency, so it is
+  // suppressed for mixed-currency setups rather than summing apples to oranges.
+  const walletBalances = wallets.map((wallet) => ({
+    wallet,
+    balance: calculateWalletBalance(wallet, transactions, trip.baseCurrency),
+  }));
+  const allBaseCurrency =
+    wallets.length > 1 && wallets.every((w) => w.currency === trip.baseCurrency);
+  const totalWalletCents = allBaseCurrency
+    ? walletBalances.reduce((sum, { balance }) => sum + balance.currentBalanceCents, 0)
+    : null;
+
   return (
     <div className="flex flex-col gap-5 pb-4 pt-2">
       <div className="flex items-center justify-between">
@@ -182,9 +195,19 @@ export function WalletsPage() {
         </div>
       )}
 
+      {totalWalletCents !== null && (
+        <div className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-faint">
+            {t('wallets.total_balance')}
+          </span>
+          <span className="text-lg font-extrabold tabular text-on-surface">
+            {formatMoney(totalWalletCents, trip.baseCurrency)}
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2" data-help-anchor="wallets-list">
-        {wallets.map((wallet) => {
-          const balance = calculateWalletBalance(wallet, transactions, trip.baseCurrency);
+        {walletBalances.map(({ wallet, balance }) => {
           return (
             <div key={wallet.id} className="bg-surface-container rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">

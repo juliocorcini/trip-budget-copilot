@@ -348,8 +348,13 @@ export function SharedExpensesPage() {
         };
         return (
           <div>
-            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
+            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-1 px-1">
               {t('shared.shared_expenses_title')}
+            </p>
+            {/* M1: spell out what the status pills mean — "Pendente/Confirmado"
+                alone left people guessing what action (if any) was expected. */}
+            <p className="text-[11px] text-on-surface-faint leading-snug mb-2 px-1">
+              {t('shared.status_hint')}
             </p>
             {sharedTxs.map((tx) => {
               const txShares = shares.filter(

@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.13',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'O check-in do dia agora mostra os números em destaque: ao escolher um modo, você vê na hora quanto gastar hoje e quanto fica de reserva — não some mais em texto pequeno.',
+        'Antes de salvar um gasto, o app já mostra quanto vai sobrar no fundo ("depois deste gasto, sobram €X") — verde quando cabe, vermelho quando passa do plano.',
+        'A lista de gastos agora é agrupada por dia (Hoje, Ontem, datas) com o total de cada dia ao lado.',
+        'Na visão geral, cada fundo ganhou uma barra de progresso que muda de cor conforme o uso.',
+        'Carteiras mostram o total somado, o modo resgate explica o que fazer quando está vazio, e os gastos divididos explicam o que "Pendente" e "Confirmado" significam.',
+      ],
+      en: [
+        'The daily check-in now highlights the numbers: pick a mode and instantly see how much to spend today and how much is reserved — no longer buried in small text.',
+        'Before saving an expense, the app shows how much will remain in the fund ("after this expense, €X left") — green when it fits, red when it goes over plan.',
+        'The expense list is now grouped by day (Today, Yesterday, dates) with each day\'s total alongside.',
+        'In the overview, each fund now has a progress bar that shifts color with usage.',
+        'Wallets show a combined total, rescue mode explains what to do when empty, and shared expenses explain what "Pending" and "Confirmed" mean.',
+      ],
+      es: [
+        'El check-in del día ahora resalta los números: al elegir un modo ves al instante cuánto gastar hoy y cuánto queda en reserva — ya no se pierde en texto pequeño.',
+        'Antes de guardar un gasto, la app muestra cuánto quedará en el fondo ("después de este gasto, quedan €X") — verde cuando cabe, rojo cuando se pasa del plan.',
+        'La lista de gastos ahora se agrupa por día (Hoy, Ayer, fechas) con el total de cada día al lado.',
+        'En la vista general, cada fondo tiene una barra de progreso que cambia de color según el uso.',
+        'Las carteras muestran el total combinado, el modo rescate explica qué hacer cuando está vacío, y los gastos compartidos explican qué significan "Pendiente" y "Confirmado".',
+      ],
+    },
+  },
+  {
     version: '0.14.12',
     date: '2026-06-14',
     items: {

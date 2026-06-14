@@ -1244,6 +1244,37 @@ export function QuickAddPage() {
         </div>
       )}
 
+      {/* R3-J: live consequence of the action — "after this, you'll have X left
+          in the fund" — so the user SEES the result before saving (not only an
+          edge-case warning when the fund is already empty). Read-only preview. */}
+      {!isTransferLike &&
+        selectedPool &&
+        selectedPoolFreeToSpendCents !== null &&
+        baseAmountCentsPreview > 0 &&
+        (() => {
+          const afterCents = selectedPoolFreeToSpendCents - baseAmountCentsPreview;
+          const over = afterCents < 0;
+          return (
+            <div
+              className={`rounded-xl p-3 flex items-start gap-2 ${over ? 'bg-error/10' : 'bg-surface-high'}`}
+            >
+              <Icon
+                name={over ? 'warning' : 'account_balance_wallet'}
+                size={16}
+                className={`mt-0.5 shrink-0 ${over ? 'text-error' : 'text-success'}`}
+              />
+              <p
+                className={`text-xs font-semibold leading-snug ${over ? 'text-error' : 'text-on-surface'}`}
+              >
+                {t(over ? 'expenses.after_expense_over' : 'expenses.after_expense_left', {
+                  amount: formatMoney(Math.abs(afterCents), trip.baseCurrency),
+                  fund: selectedPool.name,
+                })}
+              </p>
+            </div>
+          );
+        })()}
+
       {/* UX polish (Gate 3): the save/cancel row sticks to the bottom so a user
           in a hurry can confirm without scrolling past every optional field.
           ZERO behavior change — same buttons, same disabled rules; content

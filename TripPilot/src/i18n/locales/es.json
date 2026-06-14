@@ -91,6 +91,11 @@
     "checkin_plan_calm": "Meta ligera: quédate en {{primary}} hoy · los ~{{secondary}} que sobran se vuelven margen para después.",
     "checkin_plan_outing": "Ritmo libre: {{primary}} para hoy, dentro del plan.",
     "checkin_plan_night": "Reserva {{primary}} para la noche · ~{{secondary}} para el resto del día antes.",
+    "checkin_stat_calm_primary": "Gastar hoy",
+    "checkin_stat_calm_secondary": "Queda de margen",
+    "checkin_stat_outing_primary": "Libre hoy",
+    "checkin_stat_night_primary": "Reserva noche",
+    "checkin_stat_night_secondary": "Antes de la noche",
     "checkin_notification_title": "¿Cómo va a ser el día?",
     "checkin_notification_body": "Toca la intención de hoy para ajustar el plan.",
     "event_today": "Hoy: {{name}}",
@@ -218,6 +223,8 @@
     "location_privacy_hint": "La ubicación queda solo en tu dispositivo y nunca se envía.",
     "time": "Hora",
     "place_count": "{{count}} gastos",
+    "day_today": "Hoy",
+    "day_yesterday": "Ayer",
     "currency_label": "Moneda",
     "currency_base": "{{code}} (moneda del viaje)",
     "exchange_rate_label": "1 {{currency}} = ? {{base}}",
@@ -226,6 +233,8 @@
     "choose_pool_hint": "Elige un fondo para registrar el gasto.",
     "zero_budget_title": "Presupuesto agotado",
     "zero_budget_body": "El libre para gastar de este fondo está en {{amount}}. ¿Registrar de todos modos?",
+    "after_expense_left": "Después de este gasto, quedan {{amount}} en {{fund}}.",
+    "after_expense_over": "Después de este gasto, {{fund}} se pasa del plan por {{amount}}.",
     "zero_budget_confirm": "Registrar de todos modos",
     "fund": "Fondo",
     "save": "Guardar",
@@ -299,6 +308,7 @@
     "reconcile": "Reconciliar",
     "reconcile_match": "El saldo coincide con lo esperado",
     "reconcile_hint": "Cuenta el dinero real y escribe el monto — la app ajusta el saldo para que cuadre con la realidad.",
+    "total_balance": "Total en carteras",
     "expected_balance": "Saldo esperado",
     "counted_balance": "Saldo contado",
     "difference": "Diferencia: {{amount}}",
@@ -894,7 +904,8 @@
     "confirm_all_done": "¡Todo confirmado!",
     "status_pending": "Pendiente",
     "status_confirmed": "Confirmado",
-    "status_rejected": "Rechazado"
+    "status_rejected": "Rechazado",
+    "status_hint": "Pendiente = la persona aún no confirmó su parte. Confirmado = acordado."
   },
   "pwa": {
     "offline_ready": "Listo para uso sin conexión",
@@ -1272,6 +1283,7 @@
     "covered_full": "Saltando esas ocasiones cubres los {{target}}.",
     "covered_partial": "Cubre {{covered}} de {{target}} — el resto sale del día a día.",
     "note": "No se guarda nada — el modo rescate es una calculadora.",
+    "empty_hint": "Escribe cuánto quieres guardar para ver tu nuevo límite diario y qué saltar.",
     "entry_from_simulator": "Necesito ahorrar — modo rescate"
   },
   "share": {

@@ -235,11 +235,35 @@ export function DashboardCards({
                 return (
                   <div
                     key={effectiveCheckInIntent}
-                    className="checkin-reveal mt-3 pt-3 flex items-start gap-2"
+                    className="checkin-reveal mt-3 pt-3"
                     style={{ borderTop: '1px solid var(--border-faint)' }}
                   >
-                    <Icon name={plan.icon} size={16} className="text-primary mt-0.5 shrink-0" />
-                    <p className="text-[12px] leading-snug text-on-surface-dim">
+                    {/* K1: surface the mode's numbers as real stats so the choice
+                        is FELT — the headline figure changes per mode, and the
+                        complement (slack / before-night) makes the split legible.
+                        Still read-only (ÂNCORA 12): the hero free-today is fixed. */}
+                    <div className="flex items-stretch gap-2">
+                      <div className="flex-1 rounded-xl px-3 py-2 bg-primary/10">
+                        <p className="text-[9px] font-bold tracking-[0.08em] uppercase text-primary/80 flex items-center gap-1">
+                          <Icon name={plan.icon} size={12} className="text-primary" />
+                          {t(plan.primaryLabelKey as never)}
+                        </p>
+                        <p className="text-[19px] font-extrabold tracking-tight leading-none mt-1 tabular text-on-surface">
+                          {formatMoney(plan.primaryCents, trip.baseCurrency)}
+                        </p>
+                      </div>
+                      {plan.secondaryCents !== null && plan.secondaryLabelKey && (
+                        <div className="flex-1 rounded-xl px-3 py-2 bg-surface-high">
+                          <p className="text-[9px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
+                            {t(plan.secondaryLabelKey as never)}
+                          </p>
+                          <p className="text-[19px] font-extrabold tracking-tight leading-none mt-1 tabular text-on-surface-dim">
+                            {formatMoney(plan.secondaryCents, trip.baseCurrency)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[11px] leading-snug text-on-surface-dim mt-2">
                       {t(plan.messageKey as never, {
                         primary: formatMoney(plan.primaryCents, trip.baseCurrency),
                         secondary: formatMoney(plan.secondaryCents ?? 0, trip.baseCurrency),

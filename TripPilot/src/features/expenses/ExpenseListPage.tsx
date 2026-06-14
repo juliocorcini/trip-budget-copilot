@@ -7,7 +7,7 @@ import { useMultiSelect, type MultiSelect } from '@/hooks/useMultiSelect';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { formatMoney, sumCents } from '@/domain/money';
-import { formatShortDate, localDayOf, localClockTime } from '@/domain/dates';
+import { formatShortDate, localDayOf, localClockTime, localDateString } from '@/domain/dates';
 import { aggregateByPlace } from '@/domain/location';
 import { getUnassignedTransactionCount } from '@/domain/wallets';
 import { calculateSessionTotal, formatSessionDuration } from '@/domain/outing';
@@ -98,6 +98,31 @@ export function ExpenseListPage() {
   const categories = [...new Set(transactions.filter((tx) => tx.category).map((tx) => tx.category!))];
   // E8 (M7): places ranked by spend — drive the "by place" filter chips.
   const placeTotals = aggregateByPlace(transactions);
+
+  // L1: group the (already date-desc) list by local day with a per-day subtotal,
+  // so the feed reads as "Today €X · Yesterday €Y" instead of one flat wall of
+  // rows. Pure projection — order is preserved from the sorted `expenses`.
+  const todayKey = localDateString();
+  const yesterdayKey = localDateString(new Date(Date.now() - 86_400_000));
+  const dayLabelOf = (day: string): string =>
+    day === todayKey
+      ? t('expenses.day_today')
+      : day === yesterdayKey
+        ? t('expenses.day_yesterday')
+        : formatShortDate(day);
+  const expenseGroups: { day: string; label: string; subtotalCents: number; items: Transaction[] }[] =
+    [];
+  for (const tx of expenses) {
+    const day = localDayOf(tx.date);
+    const last = expenseGroups[expenseGroups.length - 1];
+    const group = last && last.day === day ? last : null;
+    if (group) {
+      group.items.push(tx);
+      group.subtotalCents += tx.amountCents;
+    } else {
+      expenseGroups.push({ day, label: dayLabelOf(day), subtotalCents: tx.amountCents, items: [tx] });
+    }
+  }
 
   const clearFilters = () => {
     setFilterCategory(null);
@@ -305,8 +330,20 @@ export function ExpenseListPage() {
           <p className="text-sm text-on-surface-dim">{t('dashboard.no_expenses')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-1">
-          {expenses.map((tx) => (
+        <div className="flex flex-col gap-4">
+          {expenseGroups.map((group) => (
+            <div key={group.day} className="flex flex-col gap-1">
+              {/* L1: day header — relative label + the day's subtotal, so each
+                  block answers "what did I spend that day?" at a glance. */}
+              <div className="flex items-baseline justify-between px-1 pb-0.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-faint">
+                  {group.label}
+                </span>
+                <span className="text-[11px] font-semibold tabular text-on-surface-dim">
+                  {formatMoney(group.subtotalCents, trip.baseCurrency)}
+                </span>
+              </div>
+              {group.items.map((tx) => (
             <button
               key={tx.id}
               onClick={() => selection.handleTap(tx.id, () => navigate(`/expenses/${tx.id}`))}
@@ -364,6 +401,8 @@ export function ExpenseListPage() {
                 )}
               </div>
             </button>
+              ))}
+            </div>
           ))}
         </div>
       )}
