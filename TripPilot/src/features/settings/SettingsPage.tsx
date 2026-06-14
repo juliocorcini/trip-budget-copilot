@@ -641,6 +641,7 @@ export function SettingsPage() {
             <select
               value={settings.backupReminderDays}
               onChange={(e) => updateSetting({ backupReminderDays: Number(e.target.value) })}
+              aria-label={t('settings.backup_days')}
               className="bg-surface-high text-on-surface text-xs rounded-lg px-2 py-1 outline-none"
             >
               {[1, 2, 3, 5, 7, 14].map((d) => (
@@ -716,6 +717,7 @@ export function SettingsPage() {
           type="text"
           value={settings.deviceName}
           onChange={(e) => updateSetting({ deviceName: e.target.value })}
+          aria-label={t('settings.device_name')}
           className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
         />
       </Section>

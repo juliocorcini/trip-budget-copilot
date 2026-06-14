@@ -887,6 +887,7 @@ export function QuickAddPage() {
           type="datetime-local"
           value={customDate}
           onChange={(e) => setCustomDate(e.target.value)}
+          aria-label={t('expenses.date_time')}
           className="bg-transparent text-sm text-on-surface outline-none w-full"
         />
         <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.date_time_hint')}</p>

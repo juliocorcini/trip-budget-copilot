@@ -824,7 +824,7 @@ export function DashboardCards({
                           });
                         }}
                         aria-label={`${t('dashboard.insights_title')} ${i + 1}`}
-                        className="p-1 btn-press"
+                        className="p-2.5 btn-press"
                       >
                         <span
                           className="block w-1.5 h-1.5 rounded-full"

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.21',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Fluidez: a tela inicial não “treme” mais de lado — eliminamos um pequeno deslize horizontal que aparecia ao rolar.',
+        'Acessibilidade: campos de data, nome do dispositivo e lembrete de backup ganharam rótulos para leitores de tela, e os pontinhos do carrossel de insights ficaram mais fáceis de tocar.',
+      ],
+      en: [
+        'Fluidity: the home screen no longer “jiggles” sideways — we removed a small horizontal slip that showed up while scrolling.',
+        'Accessibility: the date, device-name and backup-reminder fields now have screen-reader labels, and the insight carousel dots are easier to tap.',
+      ],
+      es: [
+        'Fluidez: la pantalla inicial ya no “tiembla” de lado — quitamos un pequeño deslizamiento horizontal que aparecía al desplazar.',
+        'Accesibilidad: los campos de fecha, nombre del dispositivo y recordatorio de copia ahora tienen etiquetas para lectores de pantalla, y los puntitos del carrusel de insights son más fáciles de tocar.',
+      ],
+    },
+  },
+  {
     version: '0.14.20',
     date: '2026-06-14',
     items: {

@@ -433,6 +433,14 @@ A 2ª estrutural. O herói (livre para gastar) — o número nº 1 do app — vi
 
 847 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v30.
 
+### Gate U — Rodada de fluidez & a11y (auditoria por evidência) → 0.14.21 (DEC-169) ✅
+
+Auditoria scriptada (`scripts/ux-audit.mjs`) em 10 rotas: 0 erros de console, sem overflow em 9/10. Punch-list curta e concreta, toda corrigida: **(1)** dashboard tinha leak horizontal de ~14px (carrosséis de insight/ocasião) → `overflow-x-clip` no AppShell (mata o "treme de lado" sem quebrar `sticky`/`fixed`, sem cortar o full-bleed); **(2)** 3 inputs sem nome acessível (datetime do QuickAdd, `select` de backup e nome do dispositivo no Settings) → `aria-label` reusando a label visível; **(3)** dots de paginação dos insights ~14px → ≥24px (`p-1`→`p-2.5`, WCAG 2.2 AA; os dots de ocasião são `aria-hidden` decorativos). Sem novas chaves i18n.
+
+**Verificação** re-rodando a auditoria: dashboard `overflow=false` (scrollWidth 393=vw), `unlabInput=0` em TODAS as rotas, 0 erros. ✅
+
+847 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v31.
+
 ---
 
 ## Reverts
