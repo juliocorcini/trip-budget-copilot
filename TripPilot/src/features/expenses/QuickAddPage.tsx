@@ -56,6 +56,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { showToast } from '@/components/Toast';
 import type { ShareType, CurrentPlace } from '@/domain/types/common';
+import type { AppSettings } from '@/domain/types/app-settings';
 
 const CATEGORY_KEYS = [
   'bar',
@@ -162,6 +163,21 @@ export function QuickAddPage() {
       active = false;
     };
   }, [locationEnabled, settings?.currentPlace]);
+
+  // R3-H: open on the last-used category (sticky) so capture starts on the most
+  // likely choice instead of always "other". Applied once, after settings load,
+  // and only when the URL didn't pin a category (?cat=) or a transfer (?type=) —
+  // so it never fights an explicit intent or a later manual change.
+  const stickyCategoryAppliedRef = useRef(false);
+  useEffect(() => {
+    if (stickyCategoryAppliedRef.current || !settings) return;
+    stickyCategoryAppliedRef.current = true;
+    if (searchParams.get('cat') || searchParams.get('type')) return;
+    const last = settings.lastExpenseCategory;
+    if (last && (CATEGORY_KEYS as readonly string[]).includes(last)) {
+      setCategory(last);
+    }
+  }, [settings, searchParams]);
 
   // M4: recent places derived purely from history (offline). Ordered by
   // proximity when the current coordinates are known, else by recency.
@@ -462,9 +478,17 @@ export function QuickAddPage() {
   const persistExpense = async () => {
     const { transaction, shares } = buildExpense();
     await registerExpense({ transaction, shares });
-    // E8 (M3): remember the place so the next expense inherits it (sticky).
+    // Persist sticky preferences in a SINGLE write: the place (E8/M3) and the
+    // last category (R3-H), so the next expense inherits both.
+    const settingsPatch: Partial<AppSettings> = {};
     if (place !== null && !placesEqual(place, settings?.currentPlace ?? null)) {
-      await appSettingsRepository.update({ currentPlace: place });
+      settingsPatch.currentPlace = place;
+    }
+    if (category && category !== (settings?.lastExpenseCategory ?? null)) {
+      settingsPatch.lastExpenseCategory = category;
+    }
+    if (Object.keys(settingsPatch).length > 0) {
+      await appSettingsRepository.update(settingsPatch);
     }
     // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
     requestPersistentStorage();

@@ -3,10 +3,9 @@ import {
   getActiveCheckIn,
   createDailyCheckIn,
   shouldPromptCheckIn,
-  getCheckInFraming,
+  planCheckInDay,
   CHECK_IN_INTENT_CATALOG,
 } from '@/domain/check-in';
-import type { CheckInIntent } from '@/domain/types/common';
 
 describe('check-in domain helpers (E5 — M7)', () => {
   it('createDailyCheckIn stamps the date and intent', () => {
@@ -41,16 +40,36 @@ describe('check-in domain helpers (E5 — M7)', () => {
     }
   });
 
-  it('getCheckInFraming returns a distinct icon + amount-aware message per intent', () => {
-    const intents: CheckInIntent[] = ['calm', 'outing', 'night'];
-    const messageKeys = new Set<string>();
-    for (const intent of intents) {
-      const framing = getCheckInFraming(intent);
-      expect(framing.icon.length).toBeGreaterThan(0);
-      expect(framing.messageKey).toBe(`dashboard.checkin_framing_${intent}`);
-      messageKeys.add(framing.messageKey);
-    }
-    // Each intent maps to its own message (no shared/placeholder copy).
+  it('planCheckInDay gives each intent a DIFFERENT, read-only number plan', () => {
+    const free = 10000; // €100,00 free today
+    const calm = planCheckInDay('calm', free);
+    const outing = planCheckInDay('outing', free);
+    const night = planCheckInDay('night', free);
+
+    // Distinct messages + icons — picking a mode visibly changes the result.
+    const messageKeys = new Set([calm.messageKey, outing.messageKey, night.messageKey]);
     expect(messageKeys.size).toBe(3);
+
+    // Calm proposes a LIGHT target (spend less); the rest becomes slack.
+    expect(calm.primaryCents).toBe(6000);
+    expect(calm.secondaryCents).toBe(4000);
+    // Outing uses the FULL amount, no split.
+    expect(outing.primaryCents).toBe(free);
+    expect(outing.secondaryCents).toBeNull();
+    // Night reserves half for the night, the rest for earlier.
+    expect(night.primaryCents).toBe(5000);
+    expect(night.secondaryCents).toBe(5000);
+
+    // The two parts always reconstruct the honest free-today (read-only).
+    expect(calm.primaryCents + (calm.secondaryCents ?? 0)).toBe(free);
+    expect(night.primaryCents + (night.secondaryCents ?? 0)).toBe(free);
+    // The headline numbers genuinely differ across modes (not the same value).
+    expect(new Set([calm.primaryCents, outing.primaryCents, night.primaryCents]).size).toBe(3);
+  });
+
+  it('planCheckInDay clamps an already-over (negative) day to zeros', () => {
+    const calm = planCheckInDay('calm', -500);
+    expect(calm.primaryCents).toBe(0);
+    expect(calm.secondaryCents).toBe(0);
   });
 });

@@ -44,6 +44,7 @@ const settings: AppSettings = {
   appLockEnabled: false,
   appLockPinHash: null,
   appLockPinSalt: null,
+  lastExpenseCategory: null,
 };
 
 const mkTrip = (): Trip => ({

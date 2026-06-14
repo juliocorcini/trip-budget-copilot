@@ -49,6 +49,8 @@ class AppSettingsRepository {
       appLockEnabled: settings.appLockEnabled ?? false,
       appLockPinHash: settings.appLockPinHash ?? null,
       appLockPinSalt: settings.appLockPinSalt ?? null,
+      // R3-H: records predating sticky category have none remembered.
+      lastExpenseCategory: settings.lastExpenseCategory ?? null,
     };
   }
 

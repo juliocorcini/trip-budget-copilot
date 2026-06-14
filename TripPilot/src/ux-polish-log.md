@@ -303,6 +303,41 @@ O conselho (4 papéis, paralelos) **convergiu** e validou que as causas-raiz já
 
 **Deixado de fora de propósito** (over-engineering / risco no número sagrado): count-up animado do hero (mostra valores transitórios no número mais importante, e o remount na navegação quebraria o gatilho principal), tone-engine/tema por intent, biblioteca de scroll-restoration.
 
+---
+
+## RODADA 3 — análise profunda + "cada ação muda algo de verdade"
+
+> Feedback do Julio: a Rodada 2 mudou "pouquíssimas coisas"; quer **análise mais profunda**, **lista grande** e o **mesmo padrão** com mais melhorias. Crítica central: *"o modo de check-in não faz sentido — não importa qual dos 3 eu escolha, o valor é o mesmo"*. → O framing read-only do Gate B só mudava o **texto**, não o **número**. Tinha razão.
+
+**Método**: dev server + `scripts/ux-tour.mjs` (tour Playwright full-page por 24 rotas + interações) → leitura de todos os screenshots + código → lista priorizada (severidade × esforço).
+
+### Gate F — Check-in com PROPÓSITO (o número muda por modo) → 0.14.11 ✅
+
+**Problema-raiz**: `getCheckInFraming` reformulava o MESMO `freeTodayCents` em 3 frases — escolher não mudava nada visível. **Solução**: `planCheckInDay(intent, freeTodayCents)` (puro, read-only — ÂNCORA 12 intacta) divide o livre do dia em números DIFERENTES por modo:
+- **Tranquilo** → meta leve (60% do livre) + o resto (~40%) vira folga pra frente.
+- **Passeio** → ritmo livre (100%, sem divisão).
+- **Noite** → reserva metade pra noite + metade pro resto do dia.
+
+`primaryCents + secondaryCents = freeToday` sempre (camada de sugestão honesta; o hero segue mostrando o número real). `DashboardCards` renderiza o plano (ícone + 2 valores), `key={intent}` re-anima. i18n ×3 (`checkin_plan_*` com `{{primary}}/{{secondary}}`, substituindo `checkin_framing_*`). Teste reescrito: cada modo gera número distinto + clamp de dia estourado.
+
+**Visual** (`scripts/ux-checkin3.mjs`): Tranquilo `€57,17 (+€38,12)` · Passeio `€95,29` · Noite `€47,65 / €47,64` — três resultados diferentes. ✅
+
+### Gate G — Clareza/microcópia que explica → 0.14.11 ✅
+
+- **`amigo_no_plan`** reescrito (era "usou X% do que sobra livre. Não há plano…" — confuso) → "Esse gasto com {tipo} levou {X}% do seu dinheiro livre. Essa categoria ainda não tem plano." i18n ×3.
+- **Hero sem número repetido**: a "Média diária até o fim da fase" só aparece quando difere do "Livre hoje" em > €0,50 (no demo os dois davam €95,29 — dois números idênticos confundiam). 1 condição, zero risco.
+- **"Valor seguro"** (iniciar saída) ganhou 1 linha explicando o termo. i18n ×3 (`outing.safe_value_hint`).
+
+### Gate H — Menos fricção no registro (categoria sticky) → 0.14.11 ✅
+
+Quick-add nascia sempre em **"Outros"**, forçando trocar em quase todo gasto. Agora lembra a **última categoria usada** (`appSettings.lastExpenseCategory`, não-indexado, backfill no repo — mesma família do `currentPlace`). Aplicado 1× ao abrir, só quando a URL não fixou `?cat=`/`?type=`; persistido junto com o place em **uma única escrita** (Core Rule 2.5). **Visual** (`scripts/ux-sticky.mjs`): gravou um gasto "Bar" → reabriu o quick-add → "Bar" já selecionado. ✅
+
+**Pendente/avaliar**: data nativa `mm/dd/yyyy` (locale do input nativo — exige date picker custom; alto esforço/baixo valor); banners do topo do dashboard (demo + backup).
+
+821 verdes (+2), typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v21.
+
+---
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |

@@ -1102,6 +1102,7 @@ export function OutingPage() {
         </div>
 
         <p className="text-sm text-on-surface-dim px-1">{t('outing.choose_type')}</p>
+        <p className="text-xs text-on-surface-faint px-1 -mt-2">{t('outing.safe_value_hint')}</p>
         {startableProfiles.map((profile) => (
           <button
             key={profile.id}

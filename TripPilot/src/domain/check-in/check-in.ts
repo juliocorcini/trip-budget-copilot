@@ -25,27 +25,69 @@ export const CHECK_IN_INTENT_CATALOG: CheckInIntentDescriptor[] = [
 ];
 
 /**
- * The contextual response shown right after an intent is picked. It reframes the
- * SAME "free to use today" number through the day's intent so the tap produces a
- * visible, explained result — the check-in stops being a dead toggle. It is a
- * READ-ONLY signal: it never changes the budget (ÂNCORA 12), it only interprets
- * it with the right tone (save / pace / enjoy + warn).
+ * The check-in's RESULT: each intent turns the SAME honest "free today" into a
+ * DIFFERENT, concrete suggestion, so picking a mode visibly changes something —
+ * the whole point the dead toggle was missing.
+ *
+ * It stays a READ-ONLY suggestion layer (ÂNCORA 12): the real free-today number
+ * in the hero never moves; this only proposes how to USE it for the day:
+ *  - calm   → a light spending target; the rest becomes slack for later.
+ *  - outing → the full amount, balanced ("free pace").
+ *  - night  → reserve part of it for the night, the rest for earlier.
+ *
+ * `primaryCents` is the headline number for the mode and `secondaryCents` is its
+ * complement (saved / day-portion), so the two numbers always sum to free-today.
  */
-export interface CheckInFramingDescriptor {
+export interface CheckInDayPlan {
+  intent: CheckInIntent;
   icon: string;
-  /** i18n key with an {{amount}} placeholder = the day's free-to-use money. */
+  /** i18n key; message uses {{primary}} and (when present) {{secondary}}. */
   messageKey: string;
+  /** The amount the mode suggests for "today/now" (cents, ≥ 0). */
+  primaryCents: number;
+  /** The complement (saved for calm / earlier-day for night), or null. */
+  secondaryCents: number | null;
 }
 
-const CHECK_IN_FRAMING: Record<CheckInIntent, CheckInFramingDescriptor> = {
-  calm: { icon: 'savings', messageKey: 'dashboard.checkin_framing_calm' },
-  outing: { icon: 'directions_walk', messageKey: 'dashboard.checkin_framing_outing' },
-  night: { icon: 'nightlife', messageKey: 'dashboard.checkin_framing_night' },
-};
+/** Calm aims to spend this share of the day; the rest is kept as slack. */
+const CALM_SPEND_FACTOR = 0.6;
+/** Night reserves this share of the day's money for the night out. */
+const NIGHT_RESERVE_FACTOR = 0.5;
 
-/** The framing descriptor for an intent — the day's tone tied to real money. */
-export function getCheckInFraming(intent: CheckInIntent): CheckInFramingDescriptor {
-  return CHECK_IN_FRAMING[intent];
+/**
+ * Turns the day's free-to-use money into the chosen mode's concrete plan. Pure
+ * and read-only — never mutates the budget (ÂNCORA 12). Negatives are clamped so
+ * an already-over day yields zeros (the hero still shows the real over-budget).
+ */
+export function planCheckInDay(intent: CheckInIntent, freeTodayCents: number): CheckInDayPlan {
+  const free = Math.max(0, Math.round(freeTodayCents));
+  if (intent === 'calm') {
+    const primary = Math.round(free * CALM_SPEND_FACTOR);
+    return {
+      intent,
+      icon: 'savings',
+      messageKey: 'dashboard.checkin_plan_calm',
+      primaryCents: primary,
+      secondaryCents: free - primary,
+    };
+  }
+  if (intent === 'night') {
+    const primary = Math.round(free * NIGHT_RESERVE_FACTOR);
+    return {
+      intent,
+      icon: 'nightlife',
+      messageKey: 'dashboard.checkin_plan_night',
+      primaryCents: primary,
+      secondaryCents: free - primary,
+    };
+  }
+  return {
+    intent,
+    icon: 'directions_walk',
+    messageKey: 'dashboard.checkin_plan_outing',
+    primaryCents: free,
+    secondaryCents: null,
+  };
 }
 
 /** The check-in only counts when it belongs to today; older ones are stale. */

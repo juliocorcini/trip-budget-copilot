@@ -14,7 +14,7 @@ import {
   type DashboardCardId,
 } from '@/domain/dashboard';
 import { useLongPress } from '@/hooks/useLongPress';
-import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn, getCheckInFraming } from '@/domain/check-in';
+import { CHECK_IN_INTENT_CATALOG, getActiveCheckIn, planCheckInDay } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
 import type { AppSettings } from '@/domain/types/app-settings';
@@ -221,23 +221,28 @@ export function DashboardCards({
                 );
               })}
             </div>
-            {/* The tap's RESULT: the day's free money reframed by the chosen
-                intent (save / pace / enjoy + warn). Read-only — never changes
-                the budget. Keyed by intent so it re-animates on each switch. */}
+            {/* The tap's RESULT: each mode turns the day's free money into a
+                DIFFERENT, concrete suggestion (light target / night reserve /
+                free pace). Read-only — never changes the budget. Keyed by intent
+                so it re-animates on each switch. */}
             {effectiveCheckInIntent &&
               model.todayBudget &&
               (() => {
-                const framing = getCheckInFraming(effectiveCheckInIntent);
+                const plan = planCheckInDay(
+                  effectiveCheckInIntent,
+                  model.todayBudget.freeTodayCents,
+                );
                 return (
                   <div
                     key={effectiveCheckInIntent}
                     className="checkin-reveal mt-3 pt-3 flex items-start gap-2"
                     style={{ borderTop: '1px solid var(--border-faint)' }}
                   >
-                    <Icon name={framing.icon} size={16} className="text-primary mt-0.5 shrink-0" />
+                    <Icon name={plan.icon} size={16} className="text-primary mt-0.5 shrink-0" />
                     <p className="text-[12px] leading-snug text-on-surface-dim">
-                      {t(framing.messageKey as never, {
-                        amount: formatMoney(model.todayBudget.freeTodayCents, trip.baseCurrency),
+                      {t(plan.messageKey as never, {
+                        primary: formatMoney(plan.primaryCents, trip.baseCurrency),
+                        secondary: formatMoney(plan.secondaryCents ?? 0, trip.baseCurrency),
                       })}
                     </p>
                   </div>
@@ -392,12 +397,22 @@ export function DashboardCards({
                             amount: formatMoney(model.todayBudget.freeTodayCents, trip.baseCurrency),
                           })}
                     </p>
-                    {/* DEC-088: the recalculated average becomes a secondary, named metric */}
-                    <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
-                      {t('dashboard.avg_daily_until_end', {
-                        amount: formatMoney(model.todayBudget.avgDailyUntilEndCents, trip.baseCurrency),
-                      })}
-                    </p>
+                    {/* DEC-088: the recalculated average is a secondary metric — but
+                        when it lands within ~€0.50 of today's free amount it just
+                        repeats the line above (two identical numbers confuse), so
+                        only surface it when it actually says something different. */}
+                    {Math.abs(
+                      model.todayBudget.avgDailyUntilEndCents - model.todayBudget.freeTodayCents,
+                    ) > 50 && (
+                      <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
+                        {t('dashboard.avg_daily_until_end', {
+                          amount: formatMoney(
+                            model.todayBudget.avgDailyUntilEndCents,
+                            trip.baseCurrency,
+                          ),
+                        })}
+                      </p>
+                    )}
                   </>
                 )}
                 <div

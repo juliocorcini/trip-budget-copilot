@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.11',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'O check-in do dia agora muda de verdade: cada modo (Tranquilo, Passeio, Noite) vira um plano diferente do seu dinheiro de hoje — meta leve, ritmo livre ou reserva pra noite.',
+        'Registrar gasto abre direto na última categoria que você usou, em vez de "Outros".',
+        'Textos mais claros: o aviso do "amigo sincero" foi reescrito, "valor seguro" ganhou explicação e o painel não repete mais o mesmo número duas vezes.',
+      ],
+      en: [
+        "The daily check-in now truly changes things: each mode (Calm, Outing, Night) becomes a different plan for today's money — a light target, free pace, or a night reserve.",
+        'Add expense now opens on the last category you used, instead of "Other".',
+        'Clearer wording: the "honest friend" note was rewritten, "safe value" got an explanation, and the dashboard no longer repeats the same number twice.',
+      ],
+      es: [
+        'El check-in del día ahora cambia de verdad: cada modo (Tranquilo, Paseo, Noche) se vuelve un plan distinto de tu dinero de hoy — meta ligera, ritmo libre o reserva para la noche.',
+        'Registrar gasto abre en la última categoría que usaste, en vez de "Otros".',
+        'Textos más claros: la nota del "amigo sincero" se reescribió, "valor seguro" recibió una explicación y el panel ya no repite el mismo número dos veces.',
+      ],
+    },
+  },
+  {
     version: '0.14.10',
     date: '2026-06-14',
     items: {

@@ -48,6 +48,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     appLockEnabled: false,
     appLockPinHash: null,
     appLockPinSalt: null,
+    lastExpenseCategory: null,
   },
   trips: [],
   phases: [],

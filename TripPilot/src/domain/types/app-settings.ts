@@ -83,4 +83,8 @@ export interface AppSettings {
   appLockPinHash: string | null;
   /** E6 (M20): random per-PIN salt (hex) used with the hash above. */
   appLockPinSalt: string | null;
+  /** R3-H: the last expense category the traveler used, so QuickAdd opens on it
+   * instead of always defaulting to "other" (sticky, mirrors currentPlace).
+   * null until the first expense (non-indexed — no migration). */
+  lastExpenseCategory: string | null;
 }

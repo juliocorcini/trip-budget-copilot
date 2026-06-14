@@ -60,6 +60,8 @@ export function createDefaultAppSettings(): AppSettings {
     appLockEnabled: false,
     appLockPinHash: null,
     appLockPinSalt: null,
+    // R3-H: no remembered expense category until the first expense.
+    lastExpenseCategory: null,
   };
 }
 
