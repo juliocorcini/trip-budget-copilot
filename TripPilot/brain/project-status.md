@@ -1,10 +1,21 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-14 (v0.14.5 — UX Polish Pass: dashboard density, QuickAdd sticky bar, settings groups, navigation consistency — reorganize-only, ZERO features removed)
+> Last updated: 2026-06-14 (v0.14.10 — UX Feedback & Continuity Pass R2: app-wide silent refresh (no more scroll-jump/reload feeling), daily check-in with a visible + instant result, save/transfer confirmation toasts with undo — ZERO features removed, honest math untouched)
 
 ## Current Phase
 
-**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) + UX Polish Pass v0.14.2→v0.14.5 deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
+**Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) + UX Polish Pass v0.14.2→v0.14.5 + UX Feedback & Continuity Pass R2 v0.14.6→v0.14.10 deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
+
+### UX Feedback & Continuity Pass (Round 2, Gates A–E) — 2026-06-14 ✅ SHIPPED TO PRODUCTION
+- **Mandate** (Julio): "quero sentir que tudo que faço tem motivo e resultado — visual, explicado, sentido"; fix the page that "reloads and jumps to top" on in-page taps (e.g. the new collapse button); give the daily check-in a real, visible function ("mexo nele e não vejo nada mudando"). Informed by a 4-role council brainstorm (Visionary/Analyst/Connector/Simplifier) that converged on the same root causes. Full state file: `src/ux-polish-log.md` (RODADA 2).
+- **Gate A (continuity, app-wide)** v0.14.6: `useAppData.reload()` always flipped `loading=true`, so every in-page mutation remounted the page tree at the top (scroll jump + "reloaded" feeling). Split into `runLoad({showLoading})`: only the first load + explicit recovery show the loader; every in-page reload is now SILENT → component tree stays mounted, scroll preserved. One fix, whole app. (Playwright `ux-scroll.mjs`: scroll 1203→1203, no loader flash.)
+- **Gate B (check-in result)** v0.14.7: the check-in only highlighted a button (dead toggle). Added a read-only framing line (`getCheckInFraming`) that reframes the day's real `freeTodayCents` by intent (calm/outing/night) — never changes the budget (ÂNCORA 12). +CSS `checkin-reveal`.
+- **Gate C (invisible money actions)** v0.14.8: value-suggestion accept + phase-leftover move now fire contextual confirmation toasts (amount + destination).
+- **Gate D (the #1 action)** v0.14.9: saving an expense was SILENT (`QuickAddPage` was the only mutating page with no `showToast`). Now a success toast "<amount> registered" WITH undo (reuses DEC-126 `softDeleteTransactionsBatch`; `registerExpense` only inserts so the undo is symmetric); the dashboard already shows the new "free today" in place (Gate A).
+- **Gate E (consistency + instant)** v0.14.10: transfers/withdrawals confirm too; the check-in is now OPTIMISTIC (framing shows on tap, reconciles after persist). A consistency sweep confirmed nearly all other mutating pages already had toasts — the broad "várias partes na mesma forma" was the scroll/reload (Gate A).
+- **Deliberately NOT done** (over-engineering / honesty risk): animated hero count-up (shows transient false values on the most important number + the navigation remount breaks its main trigger), tone-engine per intent, scroll-restoration library.
+- **Quality**: 820 unit tests green (+1 check-in framing vs UX Polish's 819); tsc 0; lint 0; build no chunk >500KB; i18n ×3 for every string.
+- **Deploy**: EVERY gate shipped to **Production** via `--branch=main` → `trippilot.pages.dev`: 0.14.6 (SW v16), 0.14.7 (v17), 0.14.8 (v18), 0.14.9 (v19), 0.14.10 (v20). Latest production deploy: https://b5383138.trippilot.pages.dev
 
 ### UX Polish Pass (Gates 0–7) — 2026-06-14 ✅ SHIPPED TO PRODUCTION
 - **Mandate**: reorganize for clarity/density/hierarchy — **ZERO functionality removed**, design system untouched, protected zone (insights carousel DEC-077/091/150 + occasion counters DEC-076) preserved. Visual loop: Playwright mobile screenshots BEFORE/AFTER per change (`src/ux-polish-log.md` is the full state file with the BEFORE×AFTER table).
@@ -52,7 +63,7 @@
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (recovery/restore/PWA-update keys added in v0.8.2) |
-| Tests | ✅ DONE | 819 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2; +106 in Package 3; +5 UX Polish dashboard-collapse helpers) |
+| Tests | ✅ DONE | 820 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2; +106 in Package 3; +5 UX Polish dashboard-collapse helpers; +1 check-in framing R2) |
 | Deploy | ✅ DONE | v0.14.5 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast (CACHE_NAME v15). IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 3 (0.12.2→0.14.1) + UX Polish Pass (0.14.2→0.14.5) all shipped to Production via `--branch=main` |
 | Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
