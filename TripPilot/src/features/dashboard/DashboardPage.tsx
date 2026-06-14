@@ -5,6 +5,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDate, localDateString } from '@/domain/dates';
+import { formatMoney } from '@/domain/money';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import { isBackupReminderDue } from '@/domain/backup';
 import { Icon } from '@/components/Icon';
@@ -126,17 +127,37 @@ export function DashboardPage() {
     destination: PhaseLeftoverDestination,
     targetPoolId: string | null,
   ) => {
-    if (!model.phaseLeftover || !model.primaryPool) return;
+    if (!model.phaseLeftover || !model.primaryPool || !trip) return;
+    const leftoverCents = model.phaseLeftover.leftoverCents;
     await applyPhaseLeftover({
       endedPhaseId: model.phaseLeftover.endedPhaseId,
       sourcePoolId: model.primaryPool.id,
-      amountCents: model.phaseLeftover.leftoverCents,
+      amountCents: leftoverCents,
       destination,
       targetPoolId,
       reserveName: t('dashboard.leftover_reserve_name', {
         phase: model.phaseLeftover.endedPhaseName,
       }),
     });
+    // Confirm where the money went — the destination (reserve / another pool)
+    // is off-screen, so the choice must announce its result.
+    if (destination === 'reserve') {
+      showToast(
+        t('dashboard.leftover_moved_reserve', {
+          amount: formatMoney(leftoverCents, trip.baseCurrency),
+        }),
+        'success',
+      );
+    } else if (destination === 'shopping' && targetPoolId) {
+      const target = model.globalPoolSummaries.find((g) => g.pool.id === targetPoolId);
+      showToast(
+        t('dashboard.leftover_moved_pool', {
+          amount: formatMoney(leftoverCents, trip.baseCurrency),
+          pool: target?.pool.name ?? '',
+        }),
+        'success',
+      );
+    }
     await reload();
   };
 
@@ -144,13 +165,22 @@ export function DashboardPage() {
   // writes the new typical/safe to the profile; keep records the dismissal so it
   // never nags again this trip. ÂNCORA 12.
   const handleValueSuggestion = async (accept: boolean) => {
-    if (!model.valueSuggestion) return;
+    if (!model.valueSuggestion || !trip) return;
     if (accept) {
       await applyValueSuggestion({
         profileId: model.valueSuggestion.profileId,
         typicalValueCents: model.valueSuggestion.suggestedTypicalCents,
         safeValueCents: model.valueSuggestion.suggestedSafeCents,
       });
+      // The accepted value updates a stored profile the user can't see from the
+      // dashboard — confirm it so the action has a visible, explained result.
+      showToast(
+        t('dashboard.value_suggestion_applied', {
+          profile: model.valueSuggestion.profileName,
+          amount: formatMoney(model.valueSuggestion.suggestedTypicalCents, trip.baseCurrency),
+        }),
+        'success',
+      );
     } else {
       await dismissValueSuggestion(model.valueSuggestion.profileId);
     }

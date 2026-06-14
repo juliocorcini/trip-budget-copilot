@@ -252,6 +252,20 @@ Carrossel de insights (DEC-077/091/150) e contadores de ocasião / scroll horizo
 
 **Testes**: +1 (`getCheckInFraming` — ícone + mensagem distinta por intent), 820 verdes. Typecheck 0. Build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v17.
 
+### Gate C — Ações de dinheiro "invisíveis" agora confirmam o resultado → 0.14.8 ✅
+
+**Problema**: além do check-in, duas ações mudavam dados que o usuário NÃO vê na tela e não davam nenhum retorno (só `tripPriors` tinha toast):
+- **Aceitar valor sugerido** (`applyValueSuggestion`): atualizava o típico/seguro de um perfil → silêncio total.
+- **Destino da sobra de fase** (`applyPhaseLeftover`): guardava na reserva ou movia pra outro fundo → silêncio.
+
+**Correção** (`DashboardPage.tsx`, toasts de sucesso reusando o `formatMoney` + dados do model):
+- aceitar valor → "Valor típico de {perfil} atualizado para {valor}"
+- sobra → reserva → "{valor} guardado na reserva protegida"
+- sobra → outro fundo → "{valor} movido para {fundo}"
+- sobra → carry_next (passar pra próxima): sem toast (escolha passiva, evita ruído).
+
+i18n ×3 (`value_suggestion_applied`, `leftover_moved_reserve`, `leftover_moved_pool`). Zero mudança nas contas (ÂNCORA 11/13). 820 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v18.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |

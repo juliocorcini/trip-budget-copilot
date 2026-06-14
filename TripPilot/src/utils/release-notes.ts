@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.8',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Mais clareza: quando você aceita um valor sugerido ou decide o destino da sobra de uma fase, o app confirma na hora o que mudou e para onde o dinheiro foi.',
+      ],
+      en: [
+        'More clarity: when you accept a suggested value or choose where a phase leftover goes, the app now confirms what changed and where the money went.',
+      ],
+      es: [
+        'Más claridad: cuando aceptas un valor sugerido o eliges el destino del sobrante de una fase, la app confirma al instante qué cambió y a dónde fue el dinero.',
+      ],
+    },
+  },
+  {
     version: '0.14.7',
     date: '2026-06-14',
     items: {
