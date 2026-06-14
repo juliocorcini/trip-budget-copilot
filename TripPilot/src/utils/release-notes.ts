@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.9',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Registrar um gasto agora confirma na hora: aparece "Gasto de X registrado" com a opção Desfazer — e o painel já mostra o novo "livre para hoje".',
+      ],
+      en: [
+        'Saving an expense now confirms instantly: a "X expense saved" message with an Undo option — and the dashboard already shows your new "free today".',
+      ],
+      es: [
+        'Registrar un gasto ahora confirma al instante: aparece "Gasto de X registrado" con opción de Deshacer — y el panel ya muestra tu nuevo "libre para hoy".',
+      ],
+    },
+  },
+  {
     version: '0.14.8',
     date: '2026-06-14',
     items: {

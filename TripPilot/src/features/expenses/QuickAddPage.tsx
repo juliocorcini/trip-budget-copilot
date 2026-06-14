@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
-import { useAppData } from '@/hooks/useAppData';
+import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import {
   createExpenseTransaction,
   suggestFromDescription,
@@ -39,7 +39,12 @@ import {
 } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
-import { registerExpense, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
+import {
+  registerExpense,
+  transferBetweenWallets,
+  withdrawCash,
+  softDeleteTransactionsBatch,
+} from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
@@ -49,6 +54,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { showToast } from '@/components/Toast';
 import type { ShareType, CurrentPlace } from '@/domain/types/common';
 
 const CATEGORY_KEYS = [
@@ -466,6 +472,28 @@ export function QuickAddPage() {
     void recordExpenseForSnapshot();
     // E6 (M14): capture at most one daily restore point (best-effort, deduped).
     void recordDailyLocalSnapshot();
+    return transaction;
+  };
+
+  // The app's #1 action used to be silent. Confirm what was registered (in base
+  // currency, mirroring the hero) with a one-tap undo — the dashboard the user
+  // lands on already shows the resulting "free today", so this names the action.
+  const confirmExpenseSaved = (txId: string, baseCurrencyAmountCents: number) => {
+    if (!trip) return;
+    showToast(
+      t('expenses.saved_toast', { amount: formatMoney(baseCurrencyAmountCents, trip.baseCurrency) }),
+      'success',
+      {
+        actionLabel: t('common.undo'),
+        durationMs: 5000,
+        onTap: () => {
+          void softDeleteTransactionsBatch([txId]).then(() => {
+            notifyAppDataChanged();
+            showToast(t('common.undo_done'), 'info');
+          });
+        },
+      },
+    );
   };
 
   const finishAndGoHome = async () => {
@@ -480,7 +508,8 @@ export function QuickAddPage() {
     setShowZeroBudgetConfirm(false);
     setSaving(true);
     try {
-      await persistExpense();
+      const tx = await persistExpense();
+      confirmExpenseSaved(tx.id, tx.baseCurrencyAmountCents);
       // M4: a transport expense offers to log the return trip too.
       if (category === 'transport') {
         setShowRoundTrip(true);
@@ -552,7 +581,8 @@ export function QuickAddPage() {
     setShowRoundTrip(false);
     setSaving(true);
     try {
-      await persistExpense();
+      const tx = await persistExpense();
+      confirmExpenseSaved(tx.id, tx.baseCurrencyAmountCents);
       await finishAndGoHome();
     } finally {
       setSaving(false);

@@ -266,6 +266,18 @@ Carrossel de insights (DEC-077/091/150) e contadores de ocasião / scroll horizo
 
 i18n ×3 (`value_suggestion_applied`, `leftover_moved_reserve`, `leftover_moved_pool`). Zero mudança nas contas (ÂNCORA 11/13). 820 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v18.
 
+### Gate D — A ação #1 (salvar gasto) deixou de ser silenciosa → 0.14.9 ✅
+
+> Conselho (4 papéis) unânime: a causa-raiz da continuidade e o conserto do check-in eram **exatamente** o que eu já tinha entregue (Gates A e B). A maior lacuna restante apontada por 3 dos 4: **salvar um gasto não dava nenhum retorno** — `finishAndGoHome()` recarregava e navegava em silêncio; `QuickAddPage` era a única página que muta dados sem `showToast`.
+
+**Correção** (`QuickAddPage.tsx`): toast de sucesso ao registrar — "Gasto de {valor} registrado" (valor em moeda base, espelha o hero) **com Desfazer** reusando a infra DEC-126 (`softDeleteTransactionsBatch` → `notifyAppDataChanged`). `persistExpense` agora retorna a transação; `confirmExpenseSaved(id, baseCents)` dispara no commit (caminho normal + ida/volta de transporte). Transferência/saque ficam fora (não são gasto). `registerExpense` só insere (saldos derivados) → desfazer é simétrico e seguro.
+
+**Resultado**: a ação mais frequente agora se anuncia (nome do que aconteceu) + Desfazer (segurança), e o dashboard onde o user cai já mostra o novo "livre para hoje" (state). Motivo + resultado + segurança.
+
+**Visual** (Playwright `scripts/ux-savetoast.mjs`): salvar €18 → toast verde "Gasto de € 18,00 registrado" + chip DESFAZER; hero €1048→€1030, livre hoje €95,29→€77,29, tudo no lugar (continuidade do Gate A). ✅
+
+i18n ×3 (`expenses.saved_toast`; `common.undo`/`undo_done` já existiam). 820 verdes, typecheck 0, lint 0, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v19.
+
 ## Reverts
 
 | # | O que | Por que reverteu | Nova abordagem |

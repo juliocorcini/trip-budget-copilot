@@ -188,6 +188,7 @@
   "expenses": {
     "title": "Expenses",
     "add": "Register expense",
+    "saved_toast": "{{amount}} expense saved",
     "amount": "Amount",
     "description": "Description",
     "category": "Category",
