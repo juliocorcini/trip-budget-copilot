@@ -301,6 +301,26 @@ export function SettingsPage() {
         <h1 className="text-heading font-bold text-on-surface">{t('settings.title')}</h1>
       </div>
 
+      {/* G7: the gear is the catch-all menu now, so the feature guide gets a
+          prominent entry here — the main place users land to "find things". */}
+      <button
+        onClick={() => navigate('/guide')}
+        className="w-full flex items-center gap-3 btn-press text-left rounded-2xl p-4"
+        style={{ background: '#C75B3914', border: '1px solid #C75B3930' }}
+      >
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: '#C75B3920' }}
+        >
+          <Icon name="auto_awesome" size={20} className="text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-on-surface">{t('guide.title')}</p>
+          <p className="text-xs text-on-surface-dim leading-snug mt-0.5">{t('settings.guide_hint')}</p>
+        </div>
+        <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+      </button>
+
       <GroupHeader label={t('settings.group_preferences')} />
 
       {/* M21: app mode — simple hides advanced surfaces; complete shows all */}

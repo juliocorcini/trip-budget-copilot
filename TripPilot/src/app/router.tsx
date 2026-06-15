@@ -32,6 +32,7 @@ const PlannedPurchasesPage = lazyWithRetry(() => import('@/features/planned/Plan
 const ProfilesPage = lazyWithRetry(() => import('@/features/profiles/ProfilesPage').then(m => ({ default: m.ProfilesPage })));
 const ExpenseDetailPage = lazyWithRetry(() => import('@/features/expenses/ExpenseDetailPage').then(m => ({ default: m.ExpenseDetailPage })));
 const AboutPage = lazyWithRetry(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
+const GuidePage = lazyWithRetry(() => import('@/features/guide/GuidePage').then(m => ({ default: m.GuidePage })));
 const NotificationsPage = lazyWithRetry(() => import('@/features/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const ImpactDetailPage = lazyWithRetry(() => import('@/features/dashboard/ImpactDetailPage').then(m => ({ default: m.ImpactDetailPage })));
 const SyncReceivePage = lazyWithRetry(() => import('@/features/sync/SyncReceivePage').then(m => ({ default: m.SyncReceivePage })));
@@ -117,6 +118,9 @@ export const router = createBrowserRouter([
           { path: '/planned', element: <LazyRoute><PlannedPurchasesPage /></LazyRoute> },
           { path: '/profiles', element: <LazyRoute><ProfilesPage /></LazyRoute> },
           { path: '/about', element: <LazyRoute><AboutPage /></LazyRoute> },
+          // G7: "Tudo que dá pra fazer" — a catalog of every feature so nothing
+          // stays hidden behind a menu. Reachable from the gear and Copiloto.
+          { path: '/guide', element: <LazyRoute><GuidePage /></LazyRoute> },
           { path: '/notifications', element: <LazyRoute><NotificationsPage /></LazyRoute> },
           { path: '/impact', element: <LazyRoute><ImpactDetailPage /></LazyRoute> },
         ],

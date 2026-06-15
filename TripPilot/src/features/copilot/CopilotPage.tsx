@@ -131,6 +131,7 @@ export function CopilotPage() {
     { icon: 'analytics', label: t('copilot.impact'), desc: t('copilot.impact_desc'), path: '/impact' },
     { icon: 'calculate', label: t('copilot.simulate'), desc: t('copilot.simulate_desc'), path: '/simulator' },
     { icon: 'sos', label: t('copilot.rescue'), desc: t('copilot.rescue_desc'), path: '/rescue' },
+    { icon: 'auto_awesome', label: t('copilot.guide'), desc: t('copilot.guide_desc'), path: '/guide' },
   ];
 
   return (

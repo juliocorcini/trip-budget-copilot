@@ -2,15 +2,34 @@
 
 ## Current State
 - **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
-- **Active Milestone**: G6 DONE → G7 next
-- **Last Green Test Run**: G6 (0.25.0)
-- **Total Tests**: 917 pass / 0 fail
+- **Active Milestone**: G7 DONE → gate package complete (G1–G7)
+- **Last Green Test Run**: G7 (0.26.0)
+- **Total Tests**: 928 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
 
 ## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
 Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+
+### G7 — Guide "Tudo que dá pra fazer" ✅ (0.26.0, sw v43)
+- [x] Julio: "tem muita função que fica escondida — uma página falando todas as
+      funções, o que faz, como faz, e um atalho pra ir". Built as a data-driven
+      catalog so the page only renders (Core Rule 8).
+- [x] Domain `guide/guide-catalog.ts`: 6 sections / 21 entries (daily, planning,
+      trip & phases, people, copilot, settings). Each: icon + titleKey + descKey
+      + route. Routes are real router paths — unit-guarded.
+- [x] `GuidePage` (`/guide`, lazy, under AppShell): grouped tappable rows
+      (icon chip + title + one-line "what you can do" + chevron → navigate).
+- [x] Entry points: prominent highlighted card at the TOP of Settings (the gear =
+      catch-all menu now) + a row in the Copiloto tools footer (`copilot.guide`).
+- [x] i18n pt/en/es: full `guide.*` block (title, intro, 6 section titles, 21
+      title+desc pairs) + `settings.guide_hint` + `copilot.guide`/`guide_desc`.
+- [x] Test `guide-catalog.test.ts` (11): unique section/entry ids, every route is
+      registered in the actual router (traverses `router.routes`), every key
+      resolves to a string in all 3 locales.
+- Tests 928/0 · typecheck clean · build clean · Playwright OK
+  (`.ux-shots/g7/g7-guide.png`, `g7-settings-top.png`).
 
 ### G6 — Amigo sincero reconciled (category × phase slack) ✅ (0.25.0, sw v42)
 - [x] Root of Julio's confusion: amigo's `over_pace` count is CATEGORY-scoped

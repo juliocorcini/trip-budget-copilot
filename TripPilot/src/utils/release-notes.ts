@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.26.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Nova página “Tudo que dá pra fazer”: um guia com todas as funções do app, o que cada uma serve e um atalho pra abrir na hora — nada mais fica escondido dentro de menu.',
+        'Atalho em destaque dentro de Ajustes (na engrenagem) e também no rodapé do Copiloto.',
+        'Organizado por temas: dia a dia, planejamento, viagem e fases, dividir, análise (Copiloto) e ajustes.',
+      ],
+      en: [
+        'New “Everything you can do” page: a guide to every feature, what each is for and a one-tap shortcut to open it — nothing stays hidden in a menu anymore.',
+        'Highlighted shortcut inside Settings (the gear) and also in the Copilot footer.',
+        'Organized by themes: day-to-day, planning, trip & phases, splitting, analysis (Copilot) and settings.',
+      ],
+      es: [
+        'Nueva página “Todo lo que puedes hacer”: una guía con todas las funciones de la app, para qué sirve cada una y un atajo para abrirla al instante — ya nada queda escondido en un menú.',
+        'Atajo destacado dentro de Ajustes (el engranaje) y también en el pie del Copiloto.',
+        'Organizado por temas: día a día, planificación, viaje y fases, dividir, análisis (Copiloto) y ajustes.',
+      ],
+    },
+  },
+  {
     version: '0.25.0',
     date: '2026-06-15',
     items: {
