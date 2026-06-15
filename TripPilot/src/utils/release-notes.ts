@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.23.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Tela inicial mais clara: o título do valor livre agora diz “Livre para usar nesta fase” em vez de repetir a data que já aparece logo acima no cabeçalho.',
+        'O foco da inicial continua nos avisos rápidos (ritmo, divisões, compras planejadas) e nos insights que giram no topo; as análises mais profundas (mapa do mês, ritmo da fase, pra onde vai) vivem agora no Copiloto.',
+      ],
+      en: [
+        'Cleaner home: the free-amount title now reads “Free to spend this phase” instead of repeating the date already shown in the header above it.',
+        'The home stays focused on quick signals (pace, splits, planned purchases) and the rotating insights up top; the deeper analysis (month map, phase pace, where this is heading) now lives in the Copilot.',
+      ],
+      es: [
+        'Inicio más claro: el título del importe libre ahora dice “Libre para usar en esta fase” en vez de repetir la fecha que ya aparece arriba en el encabezado.',
+        'El inicio se mantiene enfocado en avisos rápidos (ritmo, divisiones, compras planificadas) y en los insights que rotan arriba; el análisis más profundo (mapa del mes, ritmo de la fase, hacia dónde va) ahora vive en el Copiloto.',
+      ],
+    },
+  },
+  {
     version: '0.22.0',
     date: '2026-06-15',
     items: {

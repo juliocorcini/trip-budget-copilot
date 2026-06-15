@@ -97,6 +97,7 @@
   },
   "dashboard": {
     "free_to_spend": "Libre para gastar hasta {{date}}",
+    "free_to_spend_phase": "Libre para usar en esta fase",
     "fund_balance": "Saldo restante del fondo",
     "protected_reserve": "Reserva protegida",
     "personal_shopping": "Compras personales",

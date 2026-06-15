@@ -97,6 +97,7 @@
   },
   "dashboard": {
     "free_to_spend": "Free to spend until {{date}}",
+    "free_to_spend_phase": "Free to spend this phase",
     "fund_balance": "Remaining fund balance",
     "protected_reserve": "Protected reserve",
     "personal_shopping": "Personal shopping",

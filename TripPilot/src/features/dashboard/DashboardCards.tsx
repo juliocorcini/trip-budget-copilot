@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { formatMoney } from '@/domain/money';
-import { formatDate } from '@/domain/dates';
 import { getCategoryIcon } from '@/utils/category-icons';
 import {
   resolveDashboardCardSequence,
@@ -517,10 +516,10 @@ export function DashboardCards({
                 className="mt-5 p-5 rounded-2xl bg-surface-container w-full text-left btn-press block"
               >
                 <div className="flex items-start justify-between gap-2">
+                  {/* G4: the overline frames the figure as the phase's free amount
+                      instead of repeating the end date already shown in the header. */}
                   <p className="text-xs font-bold" style={{ color: '#C75B39aa' }}>
-                    {t('dashboard.free_to_spend', {
-                      date: model.activePhase ? formatDate(model.activePhase.endDate, "d 'de' MMMM") : '',
-                    })}
+                    {t('dashboard.free_to_spend_phase')}
                   </p>
                   <span className="flex items-center gap-1 text-[10px] font-bold text-on-surface-faint flex-shrink-0 mt-0.5">
                     <Icon name="help" size={13} className="text-on-surface-faint" />

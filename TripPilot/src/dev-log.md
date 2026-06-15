@@ -2,8 +2,8 @@
 
 ## Current State
 - **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
-- **Active Milestone**: G3 DONE → G4 next
-- **Last Green Test Run**: G3 (0.22.0)
+- **Active Milestone**: G4 DONE → G5 next
+- **Last Green Test Run**: G4 (0.23.0)
 - **Total Tests**: 913 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
@@ -11,6 +11,26 @@
 ## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
 Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+
+### G4 — Início: focus + hero clarity ✅ (0.23.0, sw v40)
+- [x] Hero overline reframed: `dashboard.free_to_spend_phase` ("Livre para usar
+      nesta fase") instead of repeating the phase end date already shown in the
+      header (Julio: "ele repete 2× 25 de junho"). Robust to long phase names.
+- [x] Kept everything Julio asked to keep on the home: explicit "Livre para usar
+      hoje: €X", rotating INSIGHTS carousel, Amigo sincero (no colored side-bar —
+      verified none exists), divisões, compras pessoais, gastos recentes.
+- [x] Analytics focus: the deep analysis (month map, phase pace, projection) now
+      lives in Copiloto (G3). Home keeps the `trip_analytics` drawer COLLAPSED by
+      default (D3) — zero regression, recap preserved, one tap to peek.
+- [x] Backup advisory already correct (DEC-176): routine reminder is in the
+      notifications center; only the urgent eviction-risk warning stays on the
+      home, and only when storage isn't persisted (not the case on Julio's
+      device, persisted=true). No change needed.
+- Removed now-unused `formatDate` import from DashboardCards.
+- Tests 913/0 · typecheck clean · build clean · Playwright visual OK
+  (`.ux-shots/g4/g4-home.png`, `g4-home-top.png`).
+- Regression check: insights carousel intact (insight-rotation test green); card
+  catalog unchanged; no business logic touched.
 
 ### G3 — Copiloto (the intelligence) ✅ (0.22.0, sw v39)
 - [x] New pure domain module `src/domain/copilot/` (DEC-178): verdict, category
