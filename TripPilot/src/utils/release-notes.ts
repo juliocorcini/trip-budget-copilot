@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.32.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Central de notificações reorganizada em seções: "Precisa de você", "Hoje" e "Lembretes" — em vez de uma lista única e gigante.',
+        'No Copiloto, tocar em um dia do mapa do mês abre um cartão flutuante com os gastos daquele dia (sem sair da tela); o botão para ver tudo continua disponível.',
+        'Busca de gastos: nova barra para procurar por descrição, lugar ou categoria direto na lista de gastos.',
+      ],
+      en: [
+        'Notifications center reorganized into sections: "Needs you", "Today" and "Reminders" — instead of one giant flat list.',
+        'In the Copiloto, tapping a day on the month map opens a floating card with that day’s expenses (without leaving the screen); the full view is still one tap away.',
+        'Expense search: a new bar to find expenses by description, place or category right in the list.',
+      ],
+      es: [
+        'Centro de notificaciones reorganizado en secciones: "Te necesita", "Hoy" y "Recordatorios" — en vez de una sola lista enorme.',
+        'En el Copiloto, tocar un día del mapa del mes abre una tarjeta flotante con los gastos de ese día (sin salir de la pantalla); ver todo sigue a un toque.',
+        'Búsqueda de gastos: una nueva barra para buscar por descripción, lugar o categoría en la lista de gastos.',
+      ],
+    },
+  },
+  {
     version: '0.31.0',
     date: '2026-06-15',
     items: {

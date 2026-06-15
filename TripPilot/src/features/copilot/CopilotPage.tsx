@@ -5,11 +5,13 @@ import { useAppData } from '@/hooks/useAppData';
 import { useDashboardModel } from '@/features/dashboard/useDashboardModel';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { RecapCard } from '@/features/dashboard/cards/RecapCard';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
-import { formatMoney } from '@/domain/money';
+import { getCategoryIcon } from '@/utils/category-icons';
+import { formatMoney, sumCents } from '@/domain/money';
 import { sortPhasesByOrder, getTotalDays, localDateString, addDaysIso, formatDate } from '@/domain/dates';
 import { shiftMonth } from '@/domain/dashboard';
 import { calculatePoolSpent } from '@/domain/budget';
@@ -72,7 +74,10 @@ export function CopilotPage() {
   const { trip, transactions, participants, loading, error, settings, retry } = appData;
 
   const [heatmapMonth, setHeatmapMonth] = useState(() => localDateString(new Date()).slice(0, 7));
-  const model = useDashboardModel(appData, heatmapMonth, null);
+  // U4 (DEC-131 moved here): tapping a day on the month map opens a floating
+  // sheet with that day's expenses (no full navigation).
+  const [heatmapDayIso, setHeatmapDayIso] = useState<string | null>(null);
+  const model = useDashboardModel(appData, heatmapMonth, heatmapDayIso);
 
   const verdict = useMemo(() => buildCopilotVerdict(model.burndown), [model.burndown]);
   const projection = useMemo(
@@ -402,7 +407,7 @@ export function CopilotPage() {
             canNext={heatmapMonth < model.currentMonth}
             onPrev={() => setHeatmapMonth((m) => shiftMonth(m, -1))}
             onNext={() => setHeatmapMonth((m) => shiftMonth(m, 1))}
-            onSelectDay={() => navigate('/expenses')}
+            onSelectDay={(iso) => setHeatmapDayIso(iso)}
           />
           <div className="grid grid-cols-2 gap-2 mt-2">
             <div className="p-3 rounded-xl" style={{ background: 'var(--surface-container)' }}>
@@ -582,6 +587,50 @@ export function CopilotPage() {
           </button>
         ))}
       </div>
+
+      {/* U4: month-map day drill-down — the expenses of the tapped day */}
+      <BottomSheet
+        open={heatmapDayIso !== null}
+        onClose={() => setHeatmapDayIso(null)}
+        title={heatmapDayIso ? formatDate(heatmapDayIso, "d 'de' MMMM") : ''}
+      >
+        <div className="flex flex-col gap-2">
+          {model.heatmapDayTxs.map((tx) => (
+            <button
+              key={tx.id}
+              onClick={() => {
+                setHeatmapDayIso(null);
+                navigate(`/expenses/${tx.id}`);
+              }}
+              className="w-full p-3 rounded-xl bg-surface-high flex items-center gap-3 text-left btn-press"
+            >
+              <Icon name={getCategoryIcon(tx.category)} size={18} className="text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-on-surface truncate">{tx.description}</p>
+                <p className="text-xs text-on-surface-faint mt-0.5">
+                  {tx.category ? t(`categories.${tx.category}` as never) : '—'}
+                </p>
+              </div>
+              <p className="text-sm font-extrabold tabular text-on-surface">
+                {formatMoney(tx.personalCostCents ?? tx.amountCents, currency)}
+              </p>
+            </button>
+          ))}
+          {model.heatmapDayTxs.length === 0 ? (
+            <p className="text-sm text-on-surface-dim text-center py-4">{t('copilot.map_day_empty')}</p>
+          ) : (
+            <div className="flex justify-between items-center px-1 pt-2">
+              <p className="text-xs font-bold uppercase text-on-surface-faint">{t('common.total')}</p>
+              <p className="text-sm font-extrabold tabular text-on-surface">
+                {formatMoney(
+                  sumCents(model.heatmapDayTxs.map((tx) => tx.personalCostCents ?? tx.amountCents)),
+                  currency,
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+      </BottomSheet>
     </div>
   );
 }

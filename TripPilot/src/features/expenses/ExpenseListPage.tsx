@@ -61,6 +61,8 @@ export function ExpenseListPage() {
   const [tab, setTabState] = useState<ListTab>(searchParams.get('tab') === 'outings' ? 'outings' : 'expenses');
   const [completedSessions, setCompletedSessions] = useState<Session[]>([]);
   const [batchSheet, setBatchSheet] = useState<BatchSheet>(null);
+  // G2: free-text search across the expense feed (description / place / category).
+  const [query, setQuery] = useState('');
   const scrolled = useScrolled();
   // DEC-118 (R-09): hold to select, tap to add, batch action bar.
   const selection = useMultiSelect();
@@ -82,12 +84,21 @@ export function ExpenseListPage() {
     ? profiles.find((p) => p.id === filterProfileId) ?? null
     : null;
 
+  const searchQuery = query.trim().toLowerCase();
   const expenses = transactions
     .filter((tx) => tx.type === 'expense' && tx.deletedAt === null)
     .filter((tx) => !filterCategory || tx.category === filterCategory)
     .filter((tx) => !filterProfileId || tx.activityProfileId === filterProfileId)
     .filter((tx) => !filterWalletNull || tx.walletId === null)
     .filter((tx) => !filterPlace || tx.placeLabel === filterPlace)
+    // G2: match on description, place and the (translated) category label.
+    .filter((tx) => {
+      if (!searchQuery) return true;
+      const haystack = `${tx.description ?? ''} ${tx.placeLabel ?? ''} ${
+        tx.category ? t(`categories.${tx.category}` as never) : ''
+      }`.toLowerCase();
+      return haystack.includes(searchQuery);
+    })
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const totalCents = sumCents(expenses.map((tx) => tx.amountCents));
@@ -247,6 +258,32 @@ export function ExpenseListPage() {
         </div>
 
         {tab === 'expenses' && (
+          <div className="relative">
+            <Icon
+              name="search"
+              size={18}
+              className="text-on-surface-faint absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('expenses.search_placeholder')}
+              className="w-full bg-surface-container rounded-xl pl-10 pr-9 py-2.5 text-sm text-on-surface placeholder:text-on-surface-faint outline-none"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 btn-press"
+                aria-label={t('expenses.search_clear')}
+              >
+                <Icon name="close" size={16} className="text-on-surface-faint" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {tab === 'expenses' && (
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             <FilterChip
               label={t('expenses.title')}
@@ -326,12 +363,20 @@ export function ExpenseListPage() {
       )}
 
       {expenses.length === 0 ? (
-        <EmptyState
-          icon="receipt_long"
-          title={t('expenses.empty_title')}
-          body={t('expenses.empty_body')}
-          cta={{ label: t('expenses.empty_cta'), icon: 'add', onClick: () => navigate('/quick-add') }}
-        />
+        searchQuery ? (
+          <EmptyState
+            icon="search_off"
+            title={t('expenses.search_empty_title')}
+            body={t('expenses.search_empty_body', { query: query.trim() })}
+          />
+        ) : (
+          <EmptyState
+            icon="receipt_long"
+            title={t('expenses.empty_title')}
+            body={t('expenses.empty_body')}
+            cta={{ label: t('expenses.empty_cta'), icon: 'add', onClick: () => navigate('/quick-add') }}
+          />
+        )
       ) : (
         <div className="flex flex-col gap-4">
           {expenseGroups.map((group) => (

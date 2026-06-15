@@ -22,6 +22,27 @@ const TONE_CLASS: Record<AppNotification['tone'], string> = {
   error: 'text-error',
 };
 
+// U1 (DEC-090): the center used to be one long flat list. Group the derived
+// notifications into a few labeled sections so it reads as "what needs me /
+// what's today / reminders" instead of an undifferentiated wall.
+type NotificationGroup = 'action' | 'today' | 'reminders';
+
+const NOTIFICATION_GROUP: Record<AppNotificationKind, NotificationGroup> = {
+  pending_share: 'action',
+  phase_over_budget: 'action',
+  event_today: 'today',
+  long_outing: 'today',
+  backup_due: 'reminders',
+};
+
+const GROUP_ORDER: NotificationGroup[] = ['action', 'today', 'reminders'];
+
+const GROUP_LABEL_KEY: Record<NotificationGroup, string> = {
+  action: 'notifications.group_action',
+  today: 'notifications.group_today',
+  reminders: 'notifications.group_reminders',
+};
+
 function notificationText(
   notification: AppNotification,
   t: (key: string, options?: Record<string, string | number>) => string,
@@ -59,6 +80,12 @@ export function NotificationsPage() {
 
   const currency = trip?.baseCurrency ?? 'EUR';
 
+  // Group + keep only the sections that actually have something to show.
+  const groups = GROUP_ORDER.map((group) => ({
+    group,
+    items: notifications.filter((n) => NOTIFICATION_GROUP[n.kind] === group),
+  })).filter((section) => section.items.length > 0);
+
   return (
     <div className="flex flex-col pb-6">
       <div
@@ -85,28 +112,36 @@ export function NotificationsPage() {
         </div>
       )}
 
-      <div className="mt-3 flex flex-col gap-2">
-        {notifications.map((notification) => (
-          <button
-            key={notification.id}
-            onClick={() => navigate(notification.destination)}
-            className="bg-surface-container rounded-2xl p-4 flex items-center gap-3 btn-press text-left w-full"
-          >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-              style={{ background: 'var(--surface-container-high)' }}
-            >
-              <Icon
-                name={NOTIFICATION_ICONS[notification.kind]}
-                size={20}
-                className={TONE_CLASS[notification.tone]}
-              />
-            </div>
-            <p className="text-[13px] font-semibold leading-snug text-on-surface flex-1">
-              {notificationText(notification, t, currency)}
+      {/* U1: grouped sections — each part is a labeled block of cards. */}
+      <div className="mt-3 flex flex-col gap-5">
+        {groups.map((section) => (
+          <div key={section.group} className="flex flex-col gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-faint px-1">
+              {t(GROUP_LABEL_KEY[section.group])} · {section.items.length}
             </p>
-            <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
-          </button>
+            {section.items.map((notification) => (
+              <button
+                key={notification.id}
+                onClick={() => navigate(notification.destination)}
+                className="bg-surface-container rounded-2xl p-4 flex items-center gap-3 btn-press text-left w-full"
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--surface-container-high)' }}
+                >
+                  <Icon
+                    name={NOTIFICATION_ICONS[notification.kind]}
+                    size={20}
+                    className={TONE_CLASS[notification.tone]}
+                  />
+                </div>
+                <p className="text-[13px] font-semibold leading-snug text-on-surface flex-1">
+                  {notificationText(notification, t, currency)}
+                </p>
+                <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </div>

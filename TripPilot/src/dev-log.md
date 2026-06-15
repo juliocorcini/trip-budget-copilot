@@ -2,19 +2,42 @@
 
 ## Current State
 - **Active Delivery**: Post-APK Improvements — running all remaining phases (1C → 2 → 3 → 4), commit+deploy+APK per gate
-- **Active Milestone**: Gate 2A DONE (U5 analytics→Copiloto, U6 counters, U2 structure grid, U3 tools grid)
-- **Last Green Test Run**: Gate 2A (0.31.0) — 944 pass / 0 fail
-- **Total Tests**: 944 pass / 0 fail (108 files; +1 file occasion-counters, +5 tests)
+- **Active Milestone**: Gate 2B DONE (U1 notifications reorg, U4 month-map day sheet, G2 expense search)
+- **Last Green Test Run**: Gate 2B (0.32.0) — 944 pass / 0 fail
+- **Total Tests**: 944 pass / 0 fail (108 files)
 - **Build Status**: clean (web build + cap sync + type-check all green)
-- **APK**: `Downloads/TripPilot-0.31.0-debug.apk` (versionCode 5)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 + 0.30.0 + 0.31.0 live
-- **Next**: Gate 2B — U1 notifications reorg, U4 month-map day sheet, G2 expense search
-- **Confidence**: 88% (N5/N6/N7/N8 still [device]-pending; U6 counters model validated by unit tests)
+- **APK**: `Downloads/TripPilot-0.32.0-debug.apk` (versionCode 6)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.32.0 live
+- **Next**: Gate 3 — G1 swipe between tabs/phases, G3 fast-scroll/scrubber
+- **Confidence**: 88% (N5/N6/N7/N8 still [device]-pending; Gate 2B is pure web UI)
 
 ## Post-APK Improvements — Phase 1 (Native Shell Hardening)
 Master plan: `brain/documents/post-apk-improvements-plan-2026-06-15.md`
 Phase 1 package: `brain/documents/phase1-native-execution-package-2026-06-15.md`
 Live Update spec: `brain/documents/live-update-nowbar-technical-spec-2026-06-15.md`
+
+### Gate 2B — Notifications reorg + day sheet + expense search ✅ (0.32.0)
+Master plan §Phase 2 (U1, U4) + §Phase 3 (G2). Pure web/PWA UI (no native-only code).
+- [x] **U1 — Notifications center reorg (DEC-090)**: the flat list is now grouped into
+      labeled sections — `action` ("Precisa de você": pending_share, phase_over_budget),
+      `today` ("Hoje": event_today, long_outing), `reminders` ("Lembretes": backup_due).
+      Data-driven via `NOTIFICATION_GROUP`/`GROUP_ORDER`/`GROUP_LABEL_KEY`; empty groups are
+      dropped, each header shows a count. Cards keep icon/tone/destination behavior.
+- [x] **U4 — Month-map day sheet (DEC-131 moved to Copiloto)**: tapping a day on the
+      Copiloto month map opens a `BottomSheet` listing that day's expenses (reuses the model's
+      `heatmapDayTxs`, now fed by `heatmapDayIso` state) with per-item navigation + a day total,
+      instead of jumping straight to the expense list. Empty day → `copilot.map_day_empty`.
+- [x] **G2 — Expense search**: a search input atop the expenses tab filters the feed by
+      description / place / translated category (case-insensitive substring). Clear button +
+      a dedicated `search_off` empty state (`search_empty_title/body` with the query).
+- [x] **i18n**: added `notifications.group_action/today/reminders`, `copilot.map_day_empty`,
+      `expenses.search_placeholder/clear/search_empty_title/search_empty_body` (pt/en/es).
+- [x] **Verify**: 944 tests pass (108 files), tsc -b clean, web build + cap sync OK,
+      assembleDebug BUILD SUCCESSFUL, APK 0.32.0 → Downloads.
+- **Self-check / regression**: no domain logic changed (UI-only); `heatmapDayTxs` was already
+      in the shared model (was `[]` on Home, now actively used by the Copiloto sheet); expense
+      filters compose with the existing category/profile/wallet/place chips.
+- **Next (Gate 3)**: G1 swipe between tabs/phases, G3 fast-scroll/scrubber.
 
 ### Gate 2A — Home/Copiloto reorg + counters ✅ (0.31.0)
 Master plan §Phase 2 (U2, U3, U5, U6). Web/PWA + APK (no native-only code in this gate).
