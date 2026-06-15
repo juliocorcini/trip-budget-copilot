@@ -1,4 +1,4 @@
-import { parseISO, isWithinInterval, differenceInCalendarDays, format } from 'date-fns';
+import { parseISO, isWithinInterval, differenceInCalendarDays, format, addDays as addDaysFn } from 'date-fns';
 import { getActiveDateFnsLocale, translateDatePattern } from '@/domain/locale';
 import type { Phase } from '@/domain/types/phase';
 
@@ -46,6 +46,11 @@ export function getTotalDays(startDate: string, endDate: string): number {
 /** Local-timezone YYYY-MM-DD. Never use toISOString() for "today": it is UTC. */
 export function localDateString(date: Date = new Date()): string {
   return format(date, 'yyyy-MM-dd');
+}
+
+/** A YYYY-MM-DD `days` after the given local day — used for runway/ETA dates. */
+export function addDaysIso(iso: string, days: number): string {
+  return format(addDaysFn(parseISO(iso), days), 'yyyy-MM-dd');
 }
 
 /**

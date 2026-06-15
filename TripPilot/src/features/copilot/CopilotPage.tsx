@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -9,17 +9,24 @@ import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
 import { formatMoney } from '@/domain/money';
-import { sortPhasesByOrder, getTotalDays, localDateString } from '@/domain/dates';
+import { sortPhasesByOrder, getTotalDays, localDateString, addDaysIso, formatDate } from '@/domain/dates';
 import { shiftMonth } from '@/domain/dashboard';
 import { calculatePoolSpent } from '@/domain/budget';
 import { filterTransactionsByPhase } from '@/domain/transactions';
 import { calculateDebts } from '@/domain/splitting';
+import { calculateSessionTotal } from '@/domain/outing';
+import { forecastSnapshotRepository } from '@/data/repositories';
+import type { ForecastSnapshot } from '@/domain/types/forecast-snapshot';
 import {
   buildCopilotVerdict,
   summarizeByCategory,
   summarizeDailySpending,
   summarizeSocialVsSolo,
   comparePhasePace,
+  summarizeForecastTrend,
+  calculateRunway,
+  summarizeWeekdayPattern,
+  summarizeOutingEfficiency,
   type CopilotVerdictStatus,
 } from '@/domain/copilot';
 
@@ -108,6 +115,54 @@ export function CopilotPage() {
     );
     return result ? { ...result, previousName: previous.name } : null;
   }, [appData.phases, transactions, model.activePhase, model.dayNum]);
+
+  // DEC-181: forecast-snapshot series for the active phase — the one time
+  // series the app keeps. Loaded async (it's the only Copiloto datum not
+  // already in the dashboard model).
+  const [snapshots, setSnapshots] = useState<ForecastSnapshot[]>([]);
+  useEffect(() => {
+    if (!model.activePhase) {
+      setSnapshots([]);
+      return;
+    }
+    let alive = true;
+    forecastSnapshotRepository
+      .getByPhaseId(model.activePhase.id)
+      .then((rows) => {
+        if (alive) setSnapshots(rows);
+      })
+      .catch(() => {
+        if (alive) setSnapshots([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [model.activePhase, transactions]);
+
+  const forecastTrend = useMemo(() => summarizeForecastTrend(snapshots), [snapshots]);
+
+  // DEC-182: runway of the free-to-spend at the phase's daily pace.
+  const runway = useMemo(() => {
+    if (!model.fts || !model.activePhase || model.dayNum === null) return null;
+    const avgDailyCents = model.dayNum > 0 ? Math.round(model.fts.totalSpentCents / model.dayNum) : 0;
+    const totalDays = getTotalDays(model.activePhase.startDate, model.activePhase.endDate);
+    const daysLeft = totalDays - model.dayNum + 1;
+    return calculateRunway(model.fts.freeToSpendCents, avgDailyCents, daysLeft);
+  }, [model.fts, model.activePhase, model.dayNum]);
+
+  const weekday = useMemo(() => summarizeWeekdayPattern(transactions), [transactions]);
+
+  // DEC-184: efficiency across closed outings that set a target.
+  const outingEfficiency = useMemo(() => {
+    const outings = model.completedSessions
+      .filter((s) => s.targetCents !== null)
+      .map((s) => ({
+        targetCents: s.targetCents as number,
+        totalCents: calculateSessionTotal(transactions.filter((tx) => tx.sessionId === s.id)),
+      }))
+      .filter((o) => o.totalCents > 0);
+    return summarizeOutingEfficiency(outings);
+  }, [model.completedSessions, transactions]);
 
   if (loading) {
     return (
@@ -225,6 +280,71 @@ export function CopilotPage() {
         </>
       )}
 
+      {/* 2b · COURSE CORRECTION — trend of the projected close (DEC-181) */}
+      {forecastTrend && (
+        <>
+          <SectionLabel>{t('copilot.trend_title')}</SectionLabel>
+          <div
+            className="p-4 rounded-2xl flex items-center gap-3.5"
+            style={{ background: 'var(--surface-container)' }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+              <Icon
+                name={forecastTrend.direction === 'improving' ? 'trending_down' : 'trending_up'}
+                size={18}
+                style={{ color: forecastTrend.direction === 'improving' ? 'var(--success)' : 'var(--warning)' }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">
+                {t(`copilot.trend_${forecastTrend.direction}`)}
+              </p>
+              <p className="text-xs text-on-surface-faint mt-0.5">
+                {t(`copilot.trend_${forecastTrend.direction}_desc`, {
+                  days: forecastTrend.daysSpan,
+                  from: formatMoney(forecastTrend.firstProjectedCents, currency),
+                  to: formatMoney(forecastTrend.latestProjectedCents, currency),
+                  delta: formatMoney(Math.abs(forecastTrend.deltaCents), currency),
+                })}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 2c · RUNWAY — how long the free-to-spend lasts (DEC-182) */}
+      {runway && (
+        <>
+          <SectionLabel>{t('copilot.runway_title')}</SectionLabel>
+          <div
+            className="p-4 rounded-2xl flex items-center gap-3.5"
+            style={{ background: 'var(--surface-container)' }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+              <Icon
+                name={runway.coversRemaining ? 'check_circle' : 'schedule'}
+                size={18}
+                style={{ color: runway.coversRemaining ? 'var(--success)' : 'var(--warning)' }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">
+                {runway.coversRemaining
+                  ? t('copilot.runway_covers')
+                  : t('copilot.runway_until', { days: runway.days })}
+              </p>
+              <p className="text-xs text-on-surface-faint mt-0.5">
+                {runway.coversRemaining
+                  ? t('copilot.runway_covers_desc', { days: runway.days })
+                  : t('copilot.runway_until_desc', {
+                      date: formatDate(addDaysIso(model.todayIso, runway.days), "d 'de' MMMM"),
+                    })}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* 3 · AMIGO SINCERO — shared component, with the simulate action */}
       {model.amigoV2.kind !== 'none' && (
         <AmigoSinceroCard
@@ -294,6 +414,26 @@ export function CopilotPage() {
         </div>
       )}
 
+      {/* 5b · WEEKDAY PATTERN — weekend vs weekday day (DEC-183) */}
+      {weekday && (
+        <>
+          <SectionLabel>{t('copilot.weekday_title')}</SectionLabel>
+          <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
+            <p className="text-sm font-bold text-on-surface">
+              {weekday.weekendIsPricier
+                ? t('copilot.weekday_pricier', { ratio: weekday.ratio })
+                : t('copilot.weekday_calmer', { ratio: weekday.ratio })}
+            </p>
+            <p className="text-xs text-on-surface-faint mt-1">
+              {t('copilot.weekday_desc', {
+                weekend: formatMoney(weekday.weekendAvgCents, currency),
+                weekday: formatMoney(weekday.weekdayAvgCents, currency),
+              })}
+            </p>
+          </div>
+        </>
+      )}
+
       {/* 6 · PHASE PACE — burn-down (reused, titles itself "Ritmo da fase") */}
       {model.burndown && (
         <BurndownCard burndown={model.burndown} currency={currency} onOpen={() => navigate('/impact')} />
@@ -324,6 +464,39 @@ export function CopilotPage() {
                       phase: phaseComparison.previousName,
                     })}
             </p>
+          </div>
+        </>
+      )}
+
+      {/* 7b · OUTING EFFICIENCY — beat-target rate + avg saving (DEC-184) */}
+      {outingEfficiency && (
+        <>
+          <SectionLabel>{t('copilot.outings_title')}</SectionLabel>
+          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+              <Icon
+                name={outingEfficiency.avgSavingCents >= 0 ? 'savings' : 'local_bar'}
+                size={18}
+                style={{ color: outingEfficiency.avgSavingCents >= 0 ? 'var(--success)' : 'var(--warning)' }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">
+                {t('copilot.outings_summary', {
+                  within: outingEfficiency.withinTarget,
+                  total: outingEfficiency.total,
+                })}
+              </p>
+              <p className="text-xs text-on-surface-faint mt-0.5">
+                {outingEfficiency.avgSavingCents >= 0
+                  ? t('copilot.outings_saving', {
+                      amount: formatMoney(outingEfficiency.avgSavingCents, currency),
+                    })
+                  : t('copilot.outings_over', {
+                      amount: formatMoney(Math.abs(outingEfficiency.avgSavingCents), currency),
+                    })}
+              </p>
+            </div>
           </div>
         </>
       )}

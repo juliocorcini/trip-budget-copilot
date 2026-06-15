@@ -16,6 +16,16 @@ class ForecastSnapshotRepository extends BaseRepository<ForecastSnapshot> {
       .toArray();
     return snapshots[0];
   }
+
+  /** The phase's snapshot series, oldest→newest (DEC-181: forecast trend). */
+  async getByPhaseId(phaseId: string): Promise<ForecastSnapshot[]> {
+    const snapshots = await this.table
+      .where('phaseId')
+      .equals(phaseId)
+      .filter((s) => s.deletedAt === null)
+      .toArray();
+    return snapshots.sort((a, b) => a.snapshotDate.localeCompare(b.snapshotDate));
+  }
 }
 
 export const forecastSnapshotRepository = new ForecastSnapshotRepository();

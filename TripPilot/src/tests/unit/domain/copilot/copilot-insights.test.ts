@@ -6,11 +6,36 @@ import {
   summarizeDailySpending,
   summarizeSocialVsSolo,
   comparePhasePace,
+  summarizeForecastTrend,
+  calculateRunway,
+  summarizeWeekdayPattern,
+  summarizeOutingEfficiency,
 } from '@/domain/copilot';
 import { buildMonthHeatmap } from '@/domain/dashboard';
 import { createExpenseTransaction } from '@/domain/transactions';
+import { createForecastSnapshot } from '@/domain/insights';
 import type { PhaseBurndown } from '@/domain/dashboard';
 import type { Transaction } from '@/domain/types/transaction';
+import type { ForecastSnapshot } from '@/domain/types/forecast-snapshot';
+
+function mkSnapshot(
+  snapshotDate: string,
+  projectedEndSpendCents: number,
+  deleted = false,
+): ForecastSnapshot {
+  const snap = createForecastSnapshot({
+    tripId: 'trip-1',
+    phaseId: 'phase-1',
+    snapshotDate,
+    totalBudgetCents: 150000,
+    totalSpentCents: 0,
+    freeToSpendCents: 0,
+    avgDailySpendCents: 0,
+    projectedEndSpendCents,
+    daysOfData: 3,
+  });
+  return deleted ? { ...snap, deletedAt: new Date().toISOString() } : snap;
+}
 
 function mkBurndown(overrides: Partial<PhaseBurndown>): PhaseBurndown {
   return {
@@ -179,5 +204,118 @@ describe('comparePhasePace', () => {
     expect(comparePhasePace(0, 4, 400, 4)).toBeNull();
     expect(comparePhasePace(800, 0, 400, 4)).toBeNull();
     expect(comparePhasePace(800, 4, 0, 4)).toBeNull();
+  });
+});
+
+describe('summarizeForecastTrend', () => {
+  it('reads a falling projection as "improving" with the delta and span', () => {
+    // first 110000 → tolerance max(500, 3300) = 3300; latest 98000 → −12000.
+    const trend = summarizeForecastTrend([
+      mkSnapshot('2026-06-10', 110000),
+      mkSnapshot('2026-06-12', 104000),
+      mkSnapshot('2026-06-14', 98000),
+    ]);
+    expect(trend?.direction).toBe('improving');
+    expect(trend?.deltaCents).toBe(-12000);
+    expect(trend?.firstProjectedCents).toBe(110000);
+    expect(trend?.latestProjectedCents).toBe(98000);
+    expect(trend?.daysSpan).toBe(4);
+    expect(trend?.snapshotCount).toBe(3);
+  });
+
+  it('reads a rising projection as "worsening"', () => {
+    const trend = summarizeForecastTrend([
+      mkSnapshot('2026-06-10', 90000),
+      mkSnapshot('2026-06-13', 100000),
+    ]);
+    expect(trend?.direction).toBe('worsening');
+    expect(trend?.deltaCents).toBe(10000);
+  });
+
+  it('self-censors when the change is inside tolerance (flat)', () => {
+    // first 100000 → tolerance 3000; latest 101500 → +1500 is flat.
+    expect(
+      summarizeForecastTrend([mkSnapshot('2026-06-10', 100000), mkSnapshot('2026-06-14', 101500)]),
+    ).toBeNull();
+  });
+
+  it('needs at least two non-deleted, positive snapshots', () => {
+    expect(summarizeForecastTrend([mkSnapshot('2026-06-10', 100000)])).toBeNull();
+    expect(
+      summarizeForecastTrend([
+        mkSnapshot('2026-06-10', 100000),
+        mkSnapshot('2026-06-14', 80000, true), // deleted → ignored
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe('calculateRunway', () => {
+  it('floors free ÷ daily pace and flags when it covers the phase', () => {
+    // 60000 / 5000 = 12 days ≥ 8 left → covers.
+    expect(calculateRunway(60000, 5000, 8)).toEqual({ days: 12, coversRemaining: true });
+  });
+
+  it('flags when the free budget runs out before the phase ends', () => {
+    // 30000 / 5000 = 6 days < 10 left.
+    expect(calculateRunway(30000, 5000, 10)).toEqual({ days: 6, coversRemaining: false });
+  });
+
+  it('floors partial days', () => {
+    expect(calculateRunway(12000, 5000, 3)?.days).toBe(2); // 2.4 → 2
+  });
+
+  it('returns null without free budget, pace or days left', () => {
+    expect(calculateRunway(0, 5000, 8)).toBeNull();
+    expect(calculateRunway(60000, 0, 8)).toBeNull();
+    expect(calculateRunway(60000, 5000, 0)).toBeNull();
+  });
+});
+
+describe('summarizeWeekdayPattern', () => {
+  it('averages per distinct day and compares weekend vs weekday', () => {
+    // 06-10 Wed (2000+1000=3000) + 06-11 Thu (1000) → weekday avg 2000.
+    // 06-13 Sat (5000) + 06-14 Sun (3000) → weekend avg 4000. ratio 2.0.
+    const pattern = summarizeWeekdayPattern([
+      mkTx(2000, { date: '2026-06-10' }),
+      mkTx(1000, { date: '2026-06-10' }),
+      mkTx(1000, { date: '2026-06-11' }),
+      mkTx(5000, { date: '2026-06-13' }),
+      mkTx(3000, { date: '2026-06-14' }),
+    ]);
+    expect(pattern?.weekdayAvgCents).toBe(2000);
+    expect(pattern?.weekendAvgCents).toBe(4000);
+    expect(pattern?.ratio).toBe(2);
+    expect(pattern?.weekendIsPricier).toBe(true);
+  });
+
+  it('returns null until there is at least one weekend and one weekday', () => {
+    expect(summarizeWeekdayPattern([mkTx(1000, { date: '2026-06-10' })])).toBeNull(); // weekday only
+    expect(summarizeWeekdayPattern([mkTx(1000, { date: '2026-06-13' })])).toBeNull(); // weekend only
+  });
+});
+
+describe('summarizeOutingEfficiency', () => {
+  it('counts within-target outings and the average saving', () => {
+    // (5000−4000)=+1000 within; (6000−6500)=−500 over → avg 250, within 1/2.
+    const eff = summarizeOutingEfficiency([
+      { targetCents: 5000, totalCents: 4000 },
+      { targetCents: 6000, totalCents: 6500 },
+    ]);
+    expect(eff).toEqual({ total: 2, withinTarget: 1, avgSavingCents: 250 });
+  });
+
+  it('treats exactly on target as within target', () => {
+    const eff = summarizeOutingEfficiency([
+      { targetCents: 5000, totalCents: 5000 },
+      { targetCents: 5000, totalCents: 4000 },
+    ]);
+    expect(eff?.withinTarget).toBe(2);
+    expect(eff?.avgSavingCents).toBe(500); // (0 + 1000) / 2
+  });
+
+  it('needs at least two outings to be a pattern', () => {
+    expect(summarizeOutingEfficiency([{ targetCents: 5000, totalCents: 4000 }])).toBeNull();
+    expect(summarizeOutingEfficiency([])).toBeNull();
   });
 });

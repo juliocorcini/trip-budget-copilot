@@ -5,6 +5,7 @@ export {
   getDaysRemaining,
   getTotalDays,
   localDateString,
+  addDaysIso,
   localDayOf,
   localClockTime,
   moveToLocalDay,

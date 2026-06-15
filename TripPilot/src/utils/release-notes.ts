@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.27.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Copiloto mais inteligente: novo “Como vinha × como está” mostra se você corrigiu a rota — “há 4 dias projetava fechar em €1.100; agora €980”.',
+        'Novo “Quanto seu livre dura”: no ritmo de hoje, seu dinheiro livre dura ~X dias (e até que data) — ou avisa que cobre a fase toda com folga.',
+        'Novo “Dia da semana”: descobre quanto seu fim de semana custa em relação a um dia útil.',
+        'Nova “Eficiência das saídas”: em quantas saídas você ficou no alvo e quanto economizou em média.',
+        'Tudo aparece só quando há dados suficientes — sem poluir a tela quando a viagem está começando.',
+      ],
+      en: [
+        'Smarter Copilot: new “How it was heading vs now” shows whether you corrected course — “4 days ago you projected to close at €1,100; now €980”.',
+        'New “How long your free budget lasts”: at today’s pace your free money lasts ~X days (and until what date) — or it tells you it covers the whole phase with room to spare.',
+        'New “Day of the week”: discover how much your weekend costs compared to a weekday.',
+        'New “Outing efficiency”: how many outings you kept within target and how much you saved on average.',
+        'Everything shows only when there’s enough data — no clutter while the trip is just starting.',
+      ],
+      es: [
+        'Copiloto más inteligente: el nuevo “Cómo venía × cómo está” muestra si corregiste el rumbo — “hace 4 días proyectabas cerrar en €1.100; ahora €980”.',
+        'Nuevo “Cuánto dura tu libre”: al ritmo de hoy tu dinero libre dura ~X días (y hasta qué fecha) — o te avisa que cubre toda la fase con margen.',
+        'Nuevo “Día de la semana”: descubre cuánto cuesta tu fin de semana frente a un día laboral.',
+        'Nueva “Eficiencia de las salidas”: en cuántas salidas te mantuviste en el objetivo y cuánto ahorraste de media.',
+        'Todo aparece solo cuando hay datos suficientes — sin saturar la pantalla al empezar el viaje.',
+      ],
+    },
+  },
+  {
     version: '0.26.0',
     date: '2026-06-15',
     items: {

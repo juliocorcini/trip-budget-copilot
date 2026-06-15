@@ -1,16 +1,39 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
-- **Active Milestone**: G7 DONE → gate package complete (G1–G7)
-- **Last Green Test Run**: G7 (0.26.0)
-- **Total Tests**: 928 pass / 0 fail
+- **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G8)
+- **Active Milestone**: G8 DONE → Copiloto intelligence expanded
+- **Last Green Test Run**: G8 (0.27.0)
+- **Total Tests**: 941 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
 
-## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
+## Redesign 2026-06-15 — Navigation & Copiloto (G1–G8)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
-Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+Copiloto intelligence (G3): `brain/documents/copilot-intelligence-2026-06-15.md`
+Copiloto expansion (G8): `brain/documents/copilot-expansion-2026-06-15.md`
+
+### G8 — Copiloto intelligence expansion ✅ (0.27.0, sw v44)
+- [x] 2ª rodada de conselho (inline, 4 lentes brainstorm + priorização) →
+      `copilot-expansion-2026-06-15.md`. Auditou a matéria-prima subaproveitada;
+      escolheu 4 cruzamentos NOVOS que "mudam uma decisão" (regra do Simplificador).
+- [x] **Rota corrigindo** (DEC-181): `summarizeForecastTrend(snapshots)` sobre a
+      série de `forecast_snapshots` (a única série temporal do app, já persistida e
+      quase não exibida). "Há N dias projetava €X; agora €Y." Gate: ≥2 snapshots e
+      Δ acima da tolerância (3%, piso €5). Repo ganhou `getByPhaseId`.
+- [x] **Runway** (DEC-182): `calculateRunway(fts, avgDaily, daysLeft)` — "seu livre
+      dura ~N dias (até DATA)" ou "cobre a fase com folga". Reuso puro; sem dado novo.
+- [x] **Dia da semana** (DEC-183): `summarizeWeekdayPattern(tx)` — fds × dia útil
+      (média por dia distinto, bucket via localDayOf). Gate: ≥1 de cada com gasto.
+- [x] **Eficiência de saídas** (DEC-184): `summarizeOutingEfficiency(outings)` —
+      bateu o alvo + economia média. Gate: ≥2 saídas fechadas com alvo.
+- [x] Ordem na tela (conselho): trend+runway logo após "Pra onde vai"; weekday após
+      o mapa do mês; outings após a comparação de fases. Todos data-gated (anti-poluição).
+- [x] i18n pt/en/es: bloco copilot.{trend_*,runway_*,weekday_*,outings_*}. +`addDaysIso`.
+- [x] Tests: +13 em copilot-insights.test.ts (math verificada p/ cada fn) → 941 total.
+- Tests 941/0 · typecheck clean · build clean · Playwright OK
+  (`.ux-shots/g8/g8-copiloto.png`). Backlog (conselho): cash×cartão, total em R$,
+  hora/streak, Wrapped de fim de viagem.
 
 ### G7 — Guide "Tudo que dá pra fazer" ✅ (0.26.0, sw v43)
 - [x] Julio: "tem muita função que fica escondida — uma página falando todas as

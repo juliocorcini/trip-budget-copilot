@@ -5,6 +5,10 @@ export {
   summarizeDailySpending,
   summarizeSocialVsSolo,
   comparePhasePace,
+  summarizeForecastTrend,
+  calculateRunway,
+  summarizeWeekdayPattern,
+  summarizeOutingEfficiency,
 } from './copilot-insights';
 export type {
   CopilotVerdict,
@@ -13,4 +17,9 @@ export type {
   DailySpendingSummary,
   SocialVsSolo,
   PhasePaceComparison,
+  ForecastTrend,
+  Runway,
+  WeekdayPattern,
+  OutingResult,
+  OutingEfficiency,
 } from './copilot-insights';

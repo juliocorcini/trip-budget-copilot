@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-15 (v0.22.0 — Navigation redesign + Copiloto intelligence; DEC-176..180)
+> Last updated: 2026-06-15 (v0.27.0 — Navigation redesign + Copiloto intelligence & expansion; DEC-176..184)
 
 ## Format
 
@@ -1295,6 +1295,31 @@
 - **Status**: APPROVED.
 - **Decision**: Cross-cuts that need volume (compare-to-previous-phase needs both phases with real spend; the weekday pattern needs ≥7 days — deferred to a later gate) stay hidden until the data supports them. Each Copiloto module self-censors via its own data gate so the screen never shows a hollow or misleading card.
 - **Why**: Premature "intelligence" on three data points is noise; the council's anti-pollution rule keeps the screen trustworthy.
+
+### DEC-181 — Copiloto "course correction": trend over the forecast snapshots (v0.27.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED (2nd Copiloto council — `brain/documents/copilot-expansion-2026-06-15.md`).
+- **Decision**: The Copiloto reads the persisted `forecast_snapshots` series (the only time series the app keeps, recorded once per phase per day since M8.3 and barely surfaced) into "Como vinha × como está" — `summarizeForecastTrend(snapshots)`: the trend of the projected end-of-phase spend. Shows "há N dias projetava €X; agora €Y" with an improving/worsening read. Gate: ≥2 snapshots and Δ above tolerance (3%, floor €5); flat self-censors. Repository gained `getByPhaseId`.
+- **Why**: Directly answers Julio's "como era pra ser × como ficou / o que faço certo". Uses data we already collect — the highest-value, most differentiated new cross-cut.
+
+### DEC-182 — Copiloto runway: how long the free-to-spend lasts (v0.27.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED.
+- **Decision**: `calculateRunway(freeToSpendCents, avgDailyCents, daysLeftInPhase)` → whole days the free budget lasts at today's pace, and whether it outlasts the phase. The page shows "no ritmo de hoje, seu livre dura ~N dias (até DATA)" or a reassuring "cobre o resto da fase com folga". Pure reuse, no new data; null until there's both free budget and a real pace.
+- **Why**: Visceral, decision-changing ("can I spend today?") — the Waze-ETA of the budget.
+
+### DEC-183 — Copiloto weekday pattern enters with ≥1 weekend + ≥1 weekday (v0.27.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED (relaxes the ≥7-day defer in DEC-179: averaging per distinct day needs only one of each kind to be meaningful).
+- **Decision**: `summarizeWeekdayPattern(transactions)` buckets expenses by local day (BUG-001 `localDayOf`), then averages per distinct weekend vs weekday day, exposing the ratio ("fim de semana custa 2,1× um dia útil"). Gate: ≥1 weekend day and ≥1 weekday with spend.
+- **Why**: Classic, recognizable behavior insight (YNAB/Mint) that helps plan the weekend; cheap and grounded in `tx.date`.
+
+### DEC-184 — Copiloto outing efficiency: beat-target rate + average saving (v0.27.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED.
+- **Decision**: `summarizeOutingEfficiency(outings)` over closed outings that set a target — how many finished within target and the average saving. Gate: ≥2 such outings (one is not a pattern). Pure function + unit tests; the page maps closed sessions → {target, total} via `calculateSessionTotal`.
+- **Why**: Validates the outing feature and motivates the user who uses it.
+- **Backlog (council, not built)**: cash×card split (method reliability), total in home currency (anchor), peak hour / discipline streak, end-of-trip "Wrapped" (V2 — needs the trip closed).
 
 ---
 
