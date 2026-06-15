@@ -463,6 +463,20 @@ Retomada das 4 frentes que o Julio aprovou ("faça todas, em sequência, autôno
 
 **Verificação**: suíte completa **863 verdes / 103 arquivos**, tsc 0, lint 0 nos arquivos tocados, build OK. Deploy PRODUÇÃO `--branch=main`. SW cache v33.
 
+### Compras Planejadas — earmark de compras futuras conhecidas → 0.17.0 (DEC-175) 🛍️
+
+Pedido do Julio: "vou fazer uma compra que sei que preciso (cremes na farmácia/Primor/Druni, roupas)… colocar como algo que já vai sair do orçamento pra ver o que realmente posso gastar". Não havia lugar claro → ele se sentiu confuso como user. Direção escolhida: `lista_earmark`; escopo "função madura, completa". Processo completo: pesquisa (council 4-papéis) → design (`brain/documents/planned-purchases-design-2026-06-14.md`) → 6 milestones no mesmo gate, com commits/deploys ao final.
+
+- **M1 domínio+schema**: nova entidade `PlannedPurchase` (Dexie **V6**, backup **V6** com `normalizeBackupToV6`), repository, factory, lógica pura (`plannedPurchaseReservedRemainingCents` = `max(0, reservado − gastoVinculado)` → sem dupla contagem), em `useAppData`.
+- **M2 free-to-spend**: termo subtrativo `plannedPurchasesCents` no `calculateFreeToSpend` (7º param) + linha `planned_purchases` no breakdown "de onde vem". Só conta reservas (track-only não mexe no FTS). 9 call-sites + fixtures atualizados.
+- **M3 orquestradores**: criar/editar/status/excluir(soft)+restaurar; **"Comprei"** (`logPlannedPurchaseExpense`) cria `Transaction` reusando o caminho padrão de gasto/pagador, vincula, e fecha opcionalmente; `undoLogPlannedPurchaseExpense` (desfaz). Multi-loja first-class: track-only nunca auto-fecha; reservado abate a cada compra e fecha quando quiser.
+- **M4 página `/planned`**: lista, form add/editar com toggle de reserva, barra de progresso, breakdown `estimado − gasto = restante`, bucket "Concluídos" com reabrir; rota + entrada no Mais + ação no FAB ("Planejar compra" → `/planned?new=1`) + help (5 tópicos) + i18n ×3.
+- **M5 dashboard**: card `planned_purchases` (total reservado + top 3, some quando vazio) no catálogo (config/ordem/visibilidade automáticos). EmptyState e help já no M4.
+- **M6 simulador**: planejados com reserva viram **destino** do simulador, reusando o mecanismo e a cópia de reserva de evento (`SimulationReserveContext`, alvo `{kind:'planned'}` roteado pra `simulateEventTarget`) → zero novos verdict/fact/i18n. "Planejar pelo +" já no FAB (M4).
+- **Cortes**: rota paralela de QuickAdd pré-preenchido no "Comprei" **descartada** (redundante — a sheet in-page já lança+vincula+fecha com desfazer em menos toques); vincular gastos avulsos pré-existentes retroativamente fica adiado (o "Comprei" por loja já cobre multi-loja).
+
+**Verificação**: suíte completa **898 verdes** (+ domínio/orquestradores/FTS/simulador de planejados), tsc 0, lint 0 nos arquivos tocados, build OK (chunk PlannedPurchasesPage 17 kB). Deploy PRODUÇÃO `--branch=main`. SW cache v34.
+
 ---
 
 ## Reverts

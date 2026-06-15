@@ -46,6 +46,10 @@ import {
   detectPhaseLeftover,
 } from '@/domain/phases';
 import { isOccurrenceActiveToday } from '@/domain/planning';
+import {
+  isPlannedPurchaseOpen,
+  plannedPurchaseReservedRemainingCents,
+} from '@/domain/planning/planned-purchases';
 import { findPendingConfirmationShares, calculateDebts } from '@/domain/splitting';
 import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
 import { buildDashboardInsights, createForecastSnapshot } from '@/domain/insights';
@@ -343,6 +347,29 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       handledPhaseIds: settings?.phaseLeftoverHandled ?? [],
     });
 
+    // DEC-175: planned purchases summary — what's still set aside from
+    // free-to-spend, plus the top open buys for the dashboard card.
+    const openPlannedPurchases = plannedPurchases.filter(isPlannedPurchaseOpen);
+    const plannedPurchasesSummary = {
+      openCount: openPlannedPurchases.length,
+      totalReservedCents: openPlannedPurchases.reduce(
+        (sum, p) => sum + plannedPurchaseReservedRemainingCents(p, transactions),
+        0,
+      ),
+      items: openPlannedPurchases
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          remainingCents:
+            p.reservedCents !== null
+              ? plannedPurchaseReservedRemainingCents(p, transactions)
+              : null,
+        }))
+        .sort((a, b) => (b.remainingCents ?? 0) - (a.remainingCents ?? 0))
+        .slice(0, 3),
+    };
+
     // Global pools (e.g. personal shopping) are detected by scope (GAP-017).
     const globalPools = pools.filter((p) => p.scope === 'global' && p.deletedAt === null);
     const globalPoolSummaries = globalPools.map((pool) => ({
@@ -529,6 +556,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       insights,
       phaseLeftover,
       globalPoolSummaries,
+      plannedPurchasesSummary,
       progressPercent,
       heroMoney,
       todayBudget,

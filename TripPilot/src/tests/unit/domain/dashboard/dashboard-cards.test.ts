@@ -41,6 +41,7 @@ describe('resolveDashboardCardSequence', () => {
       'amigo_sincero',
       'pending_shares',
       'funds_summary',
+      'planned_purchases',
       'trip_analytics',
     ]);
   });

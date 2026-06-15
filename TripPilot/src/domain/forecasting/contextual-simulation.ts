@@ -10,6 +10,7 @@
 export type SimulationTarget =
   | { kind: 'profile'; profileId: string }
   | { kind: 'event'; occurrenceId: string }
+  | { kind: 'planned'; plannedPurchaseId: string }
   | { kind: 'other' };
 
 export interface SimulationProfileContext {
@@ -30,6 +31,17 @@ export interface SimulationEventContext {
   reservedCents: number;
 }
 
+/**
+ * DEC-175: a named reserve source the simulator can spend against. Planned
+ * purchases reuse the event reserve mechanic — their reserve is already
+ * deducted from free-to-spend upfront, exactly like event reserves (DEC-072).
+ */
+export interface SimulationReserveContext {
+  id: string;
+  name: string;
+  reservedCents: number;
+}
+
 export interface ContextualSimulationInput {
   amountCents: number;
   target: SimulationTarget;
@@ -38,6 +50,7 @@ export interface ContextualSimulationInput {
   todayAllowanceCents: number | null;
   profiles: SimulationProfileContext[];
   events: SimulationEventContext[];
+  planned: SimulationReserveContext[];
 }
 
 /** Every fact carries the numbers ALREADY named — the UI only formats them. */
@@ -262,7 +275,7 @@ function simulateProfileTarget(
 
 function simulateEventTarget(
   input: ContextualSimulationInput,
-  event: SimulationEventContext,
+  event: { name: string; reservedCents: number },
 ): ContextualSimulation {
   // Fully covered: the money is already set aside — the free margin is
   // untouched (reserves deduct from freeToSpend upfront, DEC-072).
@@ -333,6 +346,12 @@ export function simulateContextualSpend(
     const targetId = input.target.occurrenceId;
     const event = input.events.find((e) => e.occurrenceId === targetId);
     if (event) return simulateEventTarget(input, event);
+  }
+  // DEC-175: planned purchases share the event reserve mechanic and copy.
+  if (input.target.kind === 'planned') {
+    const targetId = input.target.plannedPurchaseId;
+    const planned = input.planned.find((p) => p.id === targetId);
+    if (planned) return simulateEventTarget(input, planned);
   }
   return simulateAgainstFree(
     input.amountCents,

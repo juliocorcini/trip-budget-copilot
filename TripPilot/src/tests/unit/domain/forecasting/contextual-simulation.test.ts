@@ -4,6 +4,7 @@ import {
   type ContextualSimulationInput,
   type SimulationProfileContext,
   type SimulationEventContext,
+  type SimulationReserveContext,
 } from '@/domain/forecasting';
 
 // DEC-116 (R-07): Simulator v3 — contextual engine tests.
@@ -32,6 +33,12 @@ const concertEvent: SimulationEventContext = {
   reservedCents: 10000, // €100 reserved
 };
 
+const creamsPlanned: SimulationReserveContext = {
+  id: 'pp-creams',
+  name: 'Cremes skincare',
+  reservedCents: 8000, // €80 reserved
+};
+
 function buildInput(overrides: Partial<ContextualSimulationInput>): ContextualSimulationInput {
   return {
     amountCents: 2000,
@@ -40,6 +47,7 @@ function buildInput(overrides: Partial<ContextualSimulationInput>): ContextualSi
     todayAllowanceCents: null,
     profiles: [dinnerProfile, noPlanProfile],
     events: [concertEvent],
+    planned: [creamsPlanned],
     ...overrides,
   };
 }
@@ -207,6 +215,63 @@ describe('simulateContextualSpend — event target', () => {
       }),
     );
     expect(result.facts[0]).toEqual({ kind: 'event_no_reserve', eventName: 'Passeio de barco' });
+    expect(result.verdict).toEqual({ tone: 'ok', reason: 'fits_free' });
+  });
+});
+
+describe('simulateContextualSpend — planned purchase target (DEC-175)', () => {
+  it('is calm when the planned reserve covers the amount', () => {
+    const result = simulateContextualSpend(
+      buildInput({
+        amountCents: 6000,
+        target: { kind: 'planned', plannedPurchaseId: 'pp-creams' },
+      }),
+    );
+    expect(result.verdict).toEqual({
+      tone: 'ok',
+      reason: 'reserve_covers',
+      eventName: 'Cremes skincare',
+    });
+    expect(result.facts).toEqual([
+      {
+        kind: 'event_reserve_covers',
+        eventName: 'Cremes skincare',
+        reservedCents: 8000,
+        leftCents: 2000,
+      },
+    ]);
+  });
+
+  it('warns when the planned reserve is short and the rest fits free', () => {
+    const result = simulateContextualSpend(
+      buildInput({
+        amountCents: 10000, // €20 over the €80 reserve
+        freeToSpendCents: 50000,
+        target: { kind: 'planned', plannedPurchaseId: 'pp-creams' },
+      }),
+    );
+    expect(result.verdict).toMatchObject({ reason: 'reserve_short', missingCents: 2000 });
+    expect(result.facts[0]).toMatchObject({
+      kind: 'event_reserve_short',
+      reservedCents: 8000,
+      missingCents: 2000,
+    });
+  });
+
+  it('falls back to the free margin for a track-only purchase (no reserve)', () => {
+    const trackOnly: SimulationReserveContext = {
+      id: 'pp-clothes',
+      name: 'Roupas',
+      reservedCents: 0,
+    };
+    const result = simulateContextualSpend(
+      buildInput({
+        amountCents: 2000,
+        planned: [trackOnly],
+        target: { kind: 'planned', plannedPurchaseId: 'pp-clothes' },
+      }),
+    );
+    expect(result.facts[0]).toEqual({ kind: 'event_no_reserve', eventName: 'Roupas' });
     expect(result.verdict).toEqual({ tone: 'ok', reason: 'fits_free' });
   });
 });

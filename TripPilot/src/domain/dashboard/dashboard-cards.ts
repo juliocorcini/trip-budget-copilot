@@ -19,6 +19,7 @@ export type DashboardCardId =
   | 'amigo_sincero'
   | 'pending_shares'
   | 'funds_summary'
+  | 'planned_purchases'
   // UX polish (D3): the read-only review cards (yesterday recap, phase
   // burn-down, month heatmap) collapse into ONE drawer, closed by default —
   // fixes "too many cards open" without removing any of them.
@@ -135,6 +136,17 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
       route: '/funds',
       labelKey: 'dashboard.card_action_open_funds',
       icon: 'account_balance',
+    },
+  },
+  {
+    // DEC-175: earmarked future buys — what's already set aside from free-to-spend.
+    id: 'planned_purchases',
+    labelKey: 'dashboard.card_planned_purchases',
+    fixed: false,
+    quickAction: {
+      route: '/planned',
+      labelKey: 'dashboard.card_action_open_planned',
+      icon: 'shopping_bag',
     },
   },
   {

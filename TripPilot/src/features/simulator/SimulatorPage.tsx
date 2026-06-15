@@ -12,11 +12,13 @@ import {
   type SimulationTarget,
   type SimulationProfileContext,
   type SimulationEventContext,
+  type SimulationReserveContext,
   type SimulationFact,
   type ContextualVerdict,
   type ContextualVerdictTone,
 } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
+import { isPlannedPurchaseOpen, plannedPurchaseReservedRemainingCents } from '@/domain/planning';
 import { toCents, fromCents, formatMoney } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -135,6 +137,17 @@ export function SimulatorPage() {
       reservedCents: o.reservedCents ?? 0,
     }));
 
+  // DEC-175: planned purchases with a live reserve are simulator targets too —
+  // they share the event reserve mechanic (reserve already out of free-to-spend).
+  const plannedChips: SimulationReserveContext[] = plannedPurchases
+    .filter((p) => isPlannedPurchaseOpen(p) && p.reservedCents !== null)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      reservedCents: plannedPurchaseReservedRemainingCents(p, transactions),
+    }))
+    .filter((p) => p.reservedCents > 0);
+
   const fts = primaryPool && activePhase
     ? calculateFreeToSpend(
         primaryPool,
@@ -173,6 +186,7 @@ export function SimulatorPage() {
           todayAllowanceCents,
           profiles: profileChips,
           events: eventChips,
+          planned: plannedChips,
         })
       : null;
 
@@ -200,6 +214,9 @@ export function SimulatorPage() {
     }
     if (target.kind === 'event' && candidate.kind === 'event') {
       return target.occurrenceId === candidate.occurrenceId;
+    }
+    if (target.kind === 'planned' && candidate.kind === 'planned') {
+      return target.plannedPurchaseId === candidate.plannedPurchaseId;
     }
     return true;
   };
@@ -305,6 +322,26 @@ export function SimulatorPage() {
                 >
                   <Icon name="event" size={14} />
                   {event.name}
+                </button>
+              );
+            })}
+            {plannedChips.map((planned) => {
+              const candidate: SimulationTarget = {
+                kind: 'planned',
+                plannedPurchaseId: planned.id,
+              };
+              return (
+                <button
+                  key={planned.id}
+                  onClick={() => setTarget(candidate)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium btn-press flex items-center gap-1.5 ${
+                    isTargetSelected(candidate)
+                      ? 'bg-primary text-on-surface'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  <Icon name="shopping_bag" size={14} />
+                  {planned.name}
                 </button>
               );
             })}

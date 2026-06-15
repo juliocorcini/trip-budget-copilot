@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.17.0',
+    date: '2026-06-14',
+    items: {
+      'pt-BR': [
+        'Novo: Compras planejadas. Aquela compra que você já sabe que vai fazer (cremes na farmácia, roupas, um presente) entra numa lista própria e, se você reservar, já sai do seu “livre para gastar” — então o número que sobra é o que dá pra gastar de verdade.',
+        'Comprou? Toque em “Comprei” e o app lança o gasto, abate da reserva e atualiza tudo sozinho — com opção de desfazer. Dá pra comprar em vários lugares (farmácia, Primor, Druni) e ir baixando a mesma reserva até fechar.',
+        'Dá também só para acompanhar sem reservar: útil quando você ainda não sabe o valor, mas quer registrar a intenção.',
+        'A reserva aparece no “de onde vem esse número?” do livre para gastar, num card no início e como destino no simulador (“cabe na reserva dos cremes?”). Planeje pelo botão + → “Planejar compra”.',
+      ],
+      en: [
+        'New: Planned purchases. That buy you already know is coming (creams at the pharmacy, clothes, a gift) gets its own list and, if you reserve it, it leaves your “free to spend” right away — so the number left is what you can really spend.',
+        'Bought it? Tap “Bought” and the app logs the expense, draws it from the reserve and updates everything for you — with an undo. You can buy across several stores and shrink the same reserve until it closes.',
+        'You can also just track without reserving: handy when you don’t know the amount yet but want to record the intention.',
+        'The reserve shows up in the “where does this number come from?” of free to spend, in a home card, and as a target in the simulator (“does it fit the creams reserve?”). Plan one from the + button → “Plan a purchase”.',
+      ],
+      es: [
+        'Nuevo: Compras planificadas. Esa compra que ya sabes que harás (cremas en la farmacia, ropa, un regalo) entra en su propia lista y, si la reservas, sale de tu “libre para gastar” de inmediato — así el número que queda es lo que puedes gastar de verdad.',
+        '¿La compraste? Toca “Compré” y la app registra el gasto, lo descuenta de la reserva y actualiza todo solo — con opción de deshacer. Puedes comprar en varias tiendas e ir bajando la misma reserva hasta cerrarla.',
+        'También puedes solo hacer seguimiento sin reservar: útil cuando aún no sabes el monto pero quieres registrar la intención.',
+        'La reserva aparece en el “¿de dónde viene este número?” del libre para gastar, en una tarjeta del inicio y como destino en el simulador (“¿cabe en la reserva de las cremas?”). Planifica desde el botón + → “Planificar compra”.',
+      ],
+    },
+  },
+  {
     version: '0.16.0',
     date: '2026-06-14',
     items: {

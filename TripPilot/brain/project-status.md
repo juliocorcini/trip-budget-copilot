@@ -1,10 +1,21 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-14 (v0.14.10 — UX Feedback & Continuity Pass R2: app-wide silent refresh (no more scroll-jump/reload feeling), daily check-in with a visible + instant result, save/transfer confirmation toasts with undo — ZERO features removed, honest math untouched)
+> Last updated: 2026-06-14 (v0.17.0 — Planned Purchases: earmark known future buys (skincare, clothes) that leave free-to-spend immediately when reserved, with a "Comprei" flow that logs+links+closes with undo and multi-store draw-down — built on the stability hardening v0.15.0 + UX Gates V–Y v0.16.0)
 
 ## Current Phase
 
 **Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) + UX Polish Pass v0.14.2→v0.14.5 + UX Feedback & Continuity Pass R2 v0.14.6→v0.14.10 deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
+
+### Planned Purchases — earmark known future buys (v0.17.0, DEC-175) — 2026-06-14 ✅ SHIPPED TO PRODUCTION
+- **Mandate** (Julio): "vou fazer uma compra que sei que preciso… colocar como algo que já vai sair do orçamento para ver o que realmente posso gastar" — creams across pharmacy/Primor/Druni, clothes "at some point". No clean home existed; the user was confused as a user. Chose direction `lista_earmark`, scope "função madura, completa".
+- **What shipped**: a new `PlannedPurchase` entity (Dexie **V6**, backup **V6**) with two modes via one toggle — **Reserve ON** subtracts the estimate from free-to-spend now (new `plannedPurchasesCents` term + FTS breakdown line; reserve shrinks by real linked spend, no double count) and **Track only** records the intention without touching FTS. **"Comprei"** logs a real expense (standard expense/payer path), links it, optionally closes — with **undo**; multi-store is first-class (tap per store, keep open, reserve draws down). Surfaces: `/planned` page (list, add/edit, progress, `estimated − spent = remaining` breakdown, Done bucket), dashboard card `planned_purchases` (hidden when empty), FAB "Plan a purchase", More-menu entry, 5-topic help screen, and a **simulator target** reusing the event-reserve mechanic & copy (no new verdict/fact kinds).
+- **Reuse, not reinvention**: FTS deduction (event reserves DEC-072), `Breakdown` (DEC-172), `EmptyState` (DEC-171), expense orchestration. **Cut**: a redundant QuickAdd-prefill route for "Comprei" (the in-page sheet is fewer taps and already links+closes); retroactive linking of arbitrary pre-existing expenses deferred.
+- **Quality**: 898 unit tests green (+ planned-purchases domain/orchestrator/FTS/simulator suites); tsc 0; build OK (PlannedPurchasesPage chunk 17 kB). i18n ×3 for every string.
+- **Deploy**: shipped to **Production** via `--branch=main` → `trippilot.pages.dev` as 0.17.0 (SW cache `trippilot-v34`).
+
+### Stability hardening + UX Gates V–Y (v0.15.0 / v0.16.0) — 2026-06-14 ✅ SHIPPED TO PRODUCTION
+- **v0.15.0 (DEC-170)**: permanent mitigation for the critical "Não foi possível carregar seus dados" lockup (WebKit/Safari IndexedDB stalls) — layered self-healing (watchdog timeouts, background reconnect, internal restart, working retry/reload, emergency backup) so the user never hits a dead-end recovery screen.
+- **v0.16.0 (DEC-171/172/173/174 — Gates V·W·X·Y)**: interaction feedback with undo (edit/delete expense, outing rounds, wallet reconcile); spread the "where this number comes from" breakdown (funds, planner margin); friendly first-use empty states (`EmptyState`); deepened active-outing + end-of-outing recap. app-lock crypto test pinned to the node env.
 
 ### UX Feedback & Continuity Pass (Round 2, Gates A–E) — 2026-06-14 ✅ SHIPPED TO PRODUCTION
 - **Mandate** (Julio): "quero sentir que tudo que faço tem motivo e resultado — visual, explicado, sentido"; fix the page that "reloads and jumps to top" on in-page taps (e.g. the new collapse button); give the daily check-in a real, visible function ("mexo nele e não vejo nada mudando"). Informed by a 4-role council brainstorm (Visionary/Analyst/Connector/Simplifier) that converged on the same root causes. Full state file: `src/ux-polish-log.md` (RODADA 2).

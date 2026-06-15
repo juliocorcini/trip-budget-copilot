@@ -998,6 +998,66 @@ export function DashboardCards({
             ))}
           </>
         );
+      case 'planned_purchases': {
+        // DEC-175: only surfaces when there is something planned — an empty card
+        // would be noise (ÂNCORA: every card must earn its place).
+        const planned = model.plannedPurchasesSummary;
+        if (planned.openCount === 0) return null;
+        return (
+          <button
+            onClick={() => navigate('/planned')}
+            className="mt-5 p-4 rounded-2xl bg-surface-container w-full text-left btn-press"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: '#C75B3918' }}
+              >
+                <Icon name="shopping_bag" size={18} className="text-primary" />
+              </div>
+              <p className="text-sm font-bold text-on-surface">
+                {t('dashboard.card_planned_purchases')}
+              </p>
+              <Icon name="chevron_right" size={16} className="text-on-surface-faint ml-auto" />
+            </div>
+            {planned.totalReservedCents > 0 ? (
+              <>
+                <p className="text-[28px] font-extrabold tracking-tight leading-none tabular text-primary">
+                  {formatMoney(planned.totalReservedCents, trip.baseCurrency)}
+                </p>
+                <p className="text-[11px] font-semibold mt-1 text-on-surface-dim">
+                  {t('dashboard.planned_card_hint')}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-on-surface-dim">
+                {t('planned.tracking_badge')} · {planned.openCount}
+              </p>
+            )}
+            {planned.items.length > 0 && (
+              <div className="flex flex-col gap-1.5 mt-3">
+                {planned.items.map((it) => (
+                  <div key={it.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon
+                        name={getCategoryIcon(it.category)}
+                        size={14}
+                        className="text-on-surface-faint"
+                      />
+                      <span className="text-xs text-on-surface truncate">{it.name}</span>
+                    </div>
+                    {it.remainingCents !== null && (
+                      <span className="text-xs font-semibold tabular text-on-surface-dim">
+                        {formatMoney(it.remainingCents, trip.baseCurrency)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </button>
+        );
+      }
       case 'recent_expenses':
         return (
           <>

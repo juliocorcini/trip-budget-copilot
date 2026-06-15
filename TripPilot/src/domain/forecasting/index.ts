@@ -22,6 +22,7 @@ export type {
   SimulationTarget,
   SimulationProfileContext,
   SimulationEventContext,
+  SimulationReserveContext,
   ContextualSimulationInput,
   ContextualSimulation,
   ContextualVerdict,
