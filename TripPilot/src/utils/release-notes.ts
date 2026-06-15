@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.21.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Aba Viagem agora é um hub completo: troque entre “Todas as fases” e cada fase ali no topo para ver e planejar qualquer fase — passada, atual ou futura — sem sair da página.',
+        'Em “Todas as fases” você vê o resumo da viagem (orçamento × gasto) e um card por fase com o que já gastou e o que está livre. Ao escolher uma fase, aparece o plano dela (livre e por categoria) com atalho pra editar.',
+        'Compras planejadas, fundos (com uma explicação do que é um fundo) e toda a estrutura da viagem (fases, perfis, pessoas, carteiras, histórico) ficam reunidos na mesma tela.',
+      ],
+      en: [
+        'The Trip tab is now a full hub: switch between “All phases” and each phase at the top to view and plan any phase — past, current or future — without leaving the page.',
+        'In “All phases” you get the trip summary (budget × spent) and a card per phase with what you’ve spent and what’s free. Pick a phase to see its plan (free and by category) with a shortcut to edit it.',
+        'Planned purchases, funds (with a plain explanation of what a fund is) and the whole trip structure (phases, profiles, people, wallets, history) are gathered on the same screen.',
+      ],
+      es: [
+        'La pestaña Viaje ahora es un hub completo: cambia entre “Todas las fases” y cada fase arriba para ver y planificar cualquier fase — pasada, actual o futura — sin salir de la página.',
+        'En “Todas las fases” ves el resumen del viaje (presupuesto × gastado) y una tarjeta por fase con lo gastado y lo libre. Al elegir una fase aparece su plan (libre y por categoría) con un atajo para editarlo.',
+        'Compras planificadas, fondos (con una explicación de qué es un fondo) y toda la estructura del viaje (fases, perfiles, personas, carteras, historial) quedan reunidos en la misma pantalla.',
+      ],
+    },
+  },
+  {
     version: '0.20.0',
     date: '2026-06-15',
     items: {

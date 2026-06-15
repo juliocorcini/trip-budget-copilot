@@ -2,8 +2,8 @@
 
 ## Current State
 - **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
-- **Active Milestone**: G1 DONE → G2 next
-- **Last Green Test Run**: G1 (0.20.0)
+- **Active Milestone**: G2 DONE → G3 next
+- **Last Green Test Run**: G2 (0.21.0)
 - **Total Tests**: 898 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
@@ -11,6 +11,16 @@
 ## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
 Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+
+### G2 — Viagem hub + cross-phase ✅ (0.21.0, sw v38)
+- [x] Phase selector at top (chips): `Todas as fases` × each phase — filters the whole page. Lets user view/plan past, current or future phases.
+- [x] "All phases" view: trip summary card (budget × spent) + a card per phase (spent / free), funds, structure.
+- [x] Specific-phase view: inline planning preview (free-to-spend + per-category allocation from forecasts) with "Editar plano" → `/planner`.
+- [x] Planned purchases section (open items + reserved remaining) — conditional render.
+- [x] Funds section context-aware (selected phase pool or all), with plain microcopy explaining what a fund is + "Gerenciar fundos".
+- [x] Structure links: overview, phases, profiles, participants, wallets, outing history. Nothing lost vs old Mais/Planner.
+- Tests 898/0 · typecheck clean · build clean · Playwright visual OK (phase + all views).
+- Regression check: reuses existing domain fns (calculateFreeToSpend, createPoolSummary, calculateOccasionForecasts, plannedPurchase helpers); no new shared modules.
 
 ### G1 — Navigation & Settings entry ✅ (0.20.0, sw v37)
 - [x] Bottom bar: removed "Mais"/"Planejar"; now `Início · Gastos · ( + ) · Viagem · Copiloto`.
