@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.35.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Notificações corrigidas: um erro fazia o app travar em loop ao verificar/ativar notificações no Android — agora a permissão e a notificação contínua da saída funcionam de verdade.',
+        'Barra de status: o topo agora tem uma faixa sólida na cor do app, então o conteúdo não passa mais por trás da barra transparente. Vale para TODAS as telas — o botão de voltar no registro de gasto e na saída não fica mais embaixo da barra.',
+        'Barra inferior com folga: os 4 botões não ficam mais colados na borda de baixo do celular.',
+        'Vibração mais suave: o feedback ao tocar nos botões ficou bem mais discreto.',
+      ],
+      en: [
+        'Notifications fixed: a bug crash-looped the app while checking/enabling notifications on Android — permission and the ongoing outing notification now actually work.',
+        'Status bar: the top now has a solid band in the app color, so content no longer shows through the transparent bar. Applies to EVERY screen — the back button on expense entry and outings no longer hides under the bar.',
+        'Bottom bar spacing: the 4 buttons no longer sit flush against the bottom edge of the phone.',
+        'Softer vibration: tap feedback on buttons is now much more discreet.',
+      ],
+      es: [
+        'Notificaciones corregidas: un error hacía que la app se colgara en bucle al comprobar/activar notificaciones en Android — ahora el permiso y la notificación continua de la salida funcionan de verdad.',
+        'Barra de estado: la parte superior ahora tiene una franja sólida del color de la app, así el contenido ya no se ve por detrás de la barra transparente. Aplica a TODAS las pantallas — el botón de volver en el registro de gasto y en las salidas ya no queda debajo de la barra.',
+        'Barra inferior con holgura: los 4 botones ya no quedan pegados al borde inferior del teléfono.',
+        'Vibración más suave: la respuesta al tocar los botones es ahora mucho más discreta.',
+      ],
+    },
+  },
+  {
     version: '0.34.0',
     date: '2026-06-15',
     items: {

@@ -1,15 +1,37 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Post-APK Improvements — ALL planned phases (1C → 2 → 3 → 4) DELIVERED
-- **Active Milestone**: Gate 4 DONE (B1/B2 Android 16 Live Update + Now Bar for the active outing)
-- **Last Green Test Run**: Gate 4 (0.34.0) — 944 pass / 0 fail
-- **Total Tests**: 944 pass / 0 fail (108 files)
+- **Active Delivery**: Post-APK Improvements — planned phases (1C → 2 → 3 → 4) DELIVERED + **Hotfix 0.35.0** (device feedback)
+- **Active Milestone**: Hotfix 0.35.0 — notification crash, edge-to-edge safe areas, bottom-nav spacing, softer haptics
+- **Last Green Test Run**: Hotfix 0.35.0 — (see Gate H1 entry)
 - **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green)
-- **APK**: `Downloads/TripPilot-0.34.0-debug.apk` (versionCode 8)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.34.0 live
-- **Next**: device validation pass (Android 16 device/emulator) for B1/B2 + the [device]-pending N5–N8 / Gate 3 gestures; optional B1.1+ refinements (foreground service, broadcast actions, segments/points)
-- **Confidence**: 84% (all logic green + APK builds; native Live Update visuals/promotion + gestures are [device]-pending by design)
+- **APK**: `Downloads/TripPilot-0.35.0-debug.apk` (versionCode 9)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.35.0 live
+- **Next**: device validation pass (Android 16) for B1/B2 + the [device]-pending N5–N8 / Gate 3 gestures; confirm 0.35.0 notification permission flow + safe areas on the S23 (Android 15)
+- **Confidence**: 85% (all logic green + APK builds; the crash root cause is fixed and the safe-area fix is CSS-driven so it works regardless of OS edge-to-edge enforcement)
+
+### Hotfix Gate H1 — device feedback (0.35.0)
+Source: user diagnostics on SM-S918B / Android 15 (0.29.0 build) — `"LocalNotifications.then()" is not implemented on android` crash loop + UI feedback.
+- [x] **Notification crash (root cause)**: `utils/native/notifications.ts` `loadPlugin()` returned the
+      Capacitor `registerPlugin` proxy **from an async function**. The proxy traps every property get, so
+      it looks thenable (`plugin.then` → a function); the Promise machinery then calls `.then()` on it and
+      Capacitor throws `"LocalNotifications.then()" is not implemented`. Fired on every permission probe /
+      visibility sync → the ~0.5s crash loop that left notifications permanently broken. Fix: `loadPlugin`
+      now resolves a **plain holder** `{ plugin }` (non-thenable); all 5 callers updated. Permission
+      request + ongoing outing notification now actually run.
+- [x] **N1 redo — edge-to-edge safe areas (ALL screens)**: Android 15 forces a transparent overlaid status
+      bar that `StatusBar.setOverlaysWebView({overlay:false})` can't fully cancel, so content bled behind it
+      and standalone-screen back buttons (expense entry, outing) slid under it. Fix is CSS-driven:
+      `--safe-bottom` token added; `.app-status-band` (fixed, `height:var(--safe-top)`, `var(--surface)`,
+      z-45, pointer-events:none) paints the inset opaque so nothing shows through; `.app-safe-top` pads
+      content. Both live in **RootLayout** so EVERY route (in and out of the shell) is covered. AppShell
+      drops its own `pt` (now from RootLayout) and uses `min-h-[calc(100dvh-var(--safe-top))]` to avoid a
+      phantom scroll. Toasts offset to `calc(var(--safe-top)+1rem)`.
+- [x] **Bottom nav spacing**: `BottomNav` gets `paddingBottom: max(var(--safe-bottom),10px)` (lifts the 4
+      buttons above the gesture bar / off the bottom edge); AppShell bottom padding bumped to
+      `calc(100px+var(--safe-bottom))` so content still clears the taller bar.
+- [x] **Haptics softer (N8 tuning)**: `utils/haptics.ts` impact tiers softened one step (medium→Light,
+      heavy→Medium; Light stays Light) and web-vibrate durations reduced — a discrete tick, not a buzz.
 
 ## Post-APK Improvements — Phase 1 (Native Shell Hardening)
 Master plan: `brain/documents/post-apk-improvements-plan-2026-06-15.md`

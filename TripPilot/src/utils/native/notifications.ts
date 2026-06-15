@@ -20,14 +20,25 @@ const OUTING_ROUTE = '/outings/active';
 
 type LocalNotificationsPlugin = typeof import('@capacitor/local-notifications')['LocalNotifications'];
 
+// Capacitor's registerPlugin proxy traps EVERY property access, so the plugin
+// object looks "thenable" (`plugin.then` resolves to a function). Returning it
+// directly from an async function makes the Promise machinery call `.then()` on
+// it, and Capacitor throws `"LocalNotifications.then()" is not implemented on
+// android`. That was the boot/visibility crash loop that left notifications
+// permanently broken. Wrapping the plugin in a plain holder keeps the resolved
+// value non-thenable.
+interface PluginHolder {
+  plugin: LocalNotificationsPlugin;
+}
+
 let cachedPermission: NotificationPermission = 'default';
 let actionListenerBound = false;
 
-async function loadPlugin(): Promise<LocalNotificationsPlugin | null> {
+async function loadPlugin(): Promise<PluginHolder | null> {
   if (!isNativeApp()) return null;
   try {
     const mod = await import('@capacitor/local-notifications');
-    return mod.LocalNotifications;
+    return { plugin: mod.LocalNotifications };
   } catch {
     return null;
   }
@@ -44,10 +55,10 @@ export function getCachedNotificationPermission(): NotificationPermission {
 }
 
 export async function refreshNotificationPermission(): Promise<NotificationPermission> {
-  const plugin = await loadPlugin();
-  if (!plugin) return cachedPermission;
+  const holder = await loadPlugin();
+  if (!holder) return cachedPermission;
   try {
-    const status = await plugin.checkPermissions();
+    const status = await holder.plugin.checkPermissions();
     cachedPermission = mapDisplayState(status.display);
   } catch {
     // keep the previous value — never throw from a permission probe.
@@ -56,10 +67,10 @@ export async function refreshNotificationPermission(): Promise<NotificationPermi
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  const plugin = await loadPlugin();
-  if (!plugin) return cachedPermission;
+  const holder = await loadPlugin();
+  if (!holder) return cachedPermission;
   try {
-    const status = await plugin.requestPermissions();
+    const status = await holder.plugin.requestPermissions();
     cachedPermission = mapDisplayState(status.display);
   } catch {
     // keep the previous value.
@@ -74,8 +85,9 @@ export async function hasNotificationPermission(): Promise<boolean> {
 
 /** Shows or updates (same id) the ongoing active-outing notification. */
 export async function showOutingNotification(payload: OutingNotificationPayload): Promise<void> {
-  const plugin = await loadPlugin();
-  if (!plugin) return;
+  const holder = await loadPlugin();
+  if (!holder) return;
+  const plugin = holder.plugin;
   const openTitle = payload.actions.find((a) => a.action === 'open')?.title ?? 'Open';
   try {
     await plugin.registerActionTypes({
@@ -99,10 +111,10 @@ export async function showOutingNotification(payload: OutingNotificationPayload)
 }
 
 export async function closeOutingNotification(): Promise<void> {
-  const plugin = await loadPlugin();
-  if (!plugin) return;
+  const holder = await loadPlugin();
+  if (!holder) return;
   try {
-    await plugin.cancel({ notifications: [{ id: OUTING_NOTIFICATION_ID }] });
+    await holder.plugin.cancel({ notifications: [{ id: OUTING_NOTIFICATION_ID }] });
   } catch {
     // nothing to cancel — ignore.
   }
@@ -113,13 +125,13 @@ export async function closeOutingNotification(): Promise<void> {
  * so tapping the notification (body or "open") brings the active outing up.
  */
 export async function initNativeNotifications(): Promise<void> {
-  const plugin = await loadPlugin();
-  if (!plugin) return;
+  const holder = await loadPlugin();
+  if (!holder) return;
   void refreshNotificationPermission();
   if (actionListenerBound) return;
   actionListenerBound = true;
   try {
-    await plugin.addListener('localNotificationActionPerformed', () => {
+    await holder.plugin.addListener('localNotificationActionPerformed', () => {
       if (window.location.pathname !== OUTING_ROUTE) {
         window.location.assign(OUTING_ROUTE);
       }

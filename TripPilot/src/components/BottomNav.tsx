@@ -71,7 +71,14 @@ export function BottomNav() {
 
       <nav
         className={`fixed bottom-0 left-0 right-0 ${isFabOpen ? 'z-[60]' : 'z-40'} glass border-t`}
-        style={{ background: 'var(--nav-bar)', borderColor: 'var(--border-hairline)' }}
+        style={{
+          background: 'var(--nav-bar)',
+          borderColor: 'var(--border-hairline)',
+          // DEC-192: lift the buttons above the gesture bar (and keep a small
+          // breathing gap on devices without one) so the nav never sits flush
+          // against the bottom edge.
+          paddingBottom: 'max(var(--safe-bottom), 10px)',
+        }}
       >
         <div className="max-w-[430px] mx-auto flex justify-around items-center px-3 py-1.5">
           {LEFT_NAV.map(renderNavItem)}

@@ -37,6 +37,9 @@
   /* DEC-192: top safe-area inset. 0 in the browser and when the native status
      bar is non-overlay; only non-zero if the OS forces edge-to-edge. */
   --safe-top: env(safe-area-inset-top, 0px);
+  /* DEC-192: bottom safe-area inset (the gesture navigation bar). 0 in the
+     browser; keeps the bottom nav from sitting flush against the screen edge. */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* ── Spacing ── */
   --space-xs: 4px;

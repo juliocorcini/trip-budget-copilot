@@ -33,19 +33,17 @@ async function impact(weight: ImpactWeight): Promise<void> {
   if (isNativeApp()) {
     try {
       const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
-      const style =
-        weight === 'light'
-          ? ImpactStyle.Light
-          : weight === 'heavy'
-            ? ImpactStyle.Heavy
-            : ImpactStyle.Medium;
+      // N8 tuning: medium/heavy taps felt too strong on real devices, so every
+      // tier is softened one step — Light is the OS's curated discrete tick;
+      // only the rare "heavy" trigger keeps a slightly firmer Medium.
+      const style = weight === 'heavy' ? ImpactStyle.Medium : ImpactStyle.Light;
       await Haptics.impact({ style });
     } catch {
       // plugin unavailable — silently skip.
     }
     return;
   }
-  webVibrate(weight === 'light' ? 8 : weight === 'heavy' ? 22 : 14);
+  webVibrate(weight === 'heavy' ? 12 : weight === 'medium' ? 7 : 5);
 }
 
 async function notify(kind: NotifyKind): Promise<void> {
@@ -65,7 +63,7 @@ async function notify(kind: NotifyKind): Promise<void> {
     }
     return;
   }
-  webVibrate(kind === 'error' ? [18, 40, 18] : kind === 'warning' ? 18 : 12);
+  webVibrate(kind === 'error' ? [12, 30, 12] : kind === 'warning' ? 12 : 8);
 }
 
 /** Light tap — tab switch, list selection, toggles, picking an action. */

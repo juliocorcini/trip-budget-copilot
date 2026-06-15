@@ -96,8 +96,15 @@ export function RootLayout() {
   // settings while still protecting every route once enabled.
   return (
     <AppDataProvider>
+      {/* DEC-192: opaque band over the (transparent, edge-to-edge) status bar —
+          rendered above the lock gate so it covers every screen, including the
+          PIN screen. No-op when --safe-top is 0. */}
+      <div className="app-status-band" aria-hidden />
       <AppLockGate>
-        <Outlet />
+        {/* Pads ALL routes (inside and outside the shell) below the status bar. */}
+        <div className="app-safe-top">
+          <Outlet />
+        </div>
       </AppLockGate>
     </AppDataProvider>
   );

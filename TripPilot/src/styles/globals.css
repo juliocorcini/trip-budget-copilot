@@ -91,6 +91,29 @@
   box-shadow: 0 4px 16px -8px var(--scrim);
 }
 
+/* DEC-192 hardening: Android 15+ forces a transparent, overlaid status bar that
+   the StatusBar plugin can no longer fully opt out of (edge-to-edge). Two pieces
+   make every screen behave:
+   1. `.app-status-band` paints the top inset in the theme surface color so page
+      content (and sticky headers) never show through the transparent bar.
+   2. `.app-safe-top` pads the routed content below the bar so back buttons and
+      headers on the standalone screens (expense entry, outing…) stop sliding
+      under it.
+   Both collapse to a no-op when `--safe-top` is 0 (web, or a non-overlay bar). */
+.app-status-band {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background: var(--surface);
+  z-index: 45;
+  pointer-events: none;
+}
+.app-safe-top {
+  padding-top: var(--safe-top);
+}
+
 /* DEC-087 (R-05): no pull-to-refresh in the installed PWA — browser keeps it. */
 @media (display-mode: standalone) {
   html,

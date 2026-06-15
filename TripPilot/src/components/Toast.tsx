@@ -85,7 +85,10 @@ export function ToastHost() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-full max-w-[400px] px-4 flex flex-col gap-2 pointer-events-none">
+    <div
+      className="fixed left-1/2 -translate-x-1/2 z-[60] w-full max-w-[400px] px-4 flex flex-col gap-2 pointer-events-none"
+      style={{ top: 'calc(var(--safe-top) + 1rem)' }}
+    >
       {toasts.map((toast) => {
         const style = VARIANT_STYLE[toast.variant];
         const isInteractive = toast.persistent || Boolean(toast.onTap);
