@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.34.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Notificação "viva" da saída (Android 16+): enquanto uma saída está ativa, ela aparece como notificação contínua com a cor do app, o total ao vivo e barra de progresso até a meta — e na barra de status (e Now Bar da Samsung, onde houver). Em versões anteriores, segue a notificação contínua de antes.',
+      ],
+      en: [
+        'Live outing notification (Android 16+): while an outing is active it shows as an ongoing notification in the app color, with the live total and a progress bar toward the target — plus the status-bar chip (and Samsung Now Bar where available). Older versions keep the previous ongoing notification.',
+      ],
+      es: [
+        'Notificación "viva" de la salida (Android 16+): mientras una salida está activa aparece como notificación continua con el color de la app, el total en vivo y barra de progreso hacia la meta — y en la barra de estado (y Now Bar de Samsung donde exista). En versiones anteriores se mantiene la notificación continua previa.',
+      ],
+    },
+  },
+  {
     version: '0.33.0',
     date: '2026-06-15',
     items: {

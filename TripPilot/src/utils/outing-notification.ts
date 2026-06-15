@@ -11,6 +11,7 @@ import { appSettingsRepository } from '@/data/repositories/app-settings-reposito
 import { getInstallationId } from '@/utils/entity-factory';
 import { safeLocalStorage } from '@/utils/safe-storage';
 import { isNativeApp } from '@/utils/native/platform';
+import { formatMoney } from '@/domain/money';
 import {
   showOutingNotification as showNativeOutingNotification,
   closeOutingNotification as closeNativeOutingNotification,
@@ -19,6 +20,11 @@ import {
   refreshNotificationPermission as refreshNativeNotificationPermission,
   getCachedNotificationPermission as getCachedNativeNotificationPermission,
 } from '@/utils/native/notifications';
+import {
+  isLiveOutingSupported,
+  syncLiveOuting,
+  endLiveOuting,
+} from '@/utils/native/live-outing';
 import type { Session } from '@/domain/types/session';
 import type { OutingNotificationStrings } from '@/domain/outing';
 
@@ -154,6 +160,19 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
   // N6: the APK renders the notification natively; the Web/PWA keeps the
   // Service Worker path (rich actions handled entirely by the SW).
   if (isNativeApp()) {
+    // B1/B2 (Gate 4): on Android 16+ the active outing is owned by the Live
+    // Update (promoted ongoing + status-bar chip + Now Bar). Older devices fall
+    // back to the proven LocalNotifications path — no regression.
+    if (await isLiveOutingSupported()) {
+      await syncLiveOuting({
+        title: payload.title,
+        body: payload.body,
+        statusText: formatMoney(input.totalCents, input.currency),
+        totalCents: input.totalCents,
+        targetCents: payload.data.targetCents,
+      });
+      return;
+    }
     await showNativeOutingNotification(payload);
     return;
   }
@@ -182,6 +201,10 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
 
 export async function closeOutingNotifications(): Promise<void> {
   if (isNativeApp()) {
+    if (await isLiveOutingSupported()) {
+      await endLiveOuting();
+      return;
+    }
     await closeNativeOutingNotification();
     return;
   }

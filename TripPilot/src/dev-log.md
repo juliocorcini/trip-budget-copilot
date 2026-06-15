@@ -1,20 +1,46 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Post-APK Improvements — running all remaining phases (1C → 2 → 3 → 4), commit+deploy+APK per gate
-- **Active Milestone**: Gate 3 DONE (G1 swipe tabs/phases, G3 day fast-scroller)
-- **Last Green Test Run**: Gate 3 (0.33.0) — 944 pass / 0 fail
+- **Active Delivery**: Post-APK Improvements — ALL planned phases (1C → 2 → 3 → 4) DELIVERED
+- **Active Milestone**: Gate 4 DONE (B1/B2 Android 16 Live Update + Now Bar for the active outing)
+- **Last Green Test Run**: Gate 4 (0.34.0) — 944 pass / 0 fail
 - **Total Tests**: 944 pass / 0 fail (108 files)
-- **Build Status**: clean (web build + cap sync + type-check all green)
-- **APK**: `Downloads/TripPilot-0.33.0-debug.apk` (versionCode 7)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.33.0 live
-- **Next**: Gate 4 — B1 Live Update (foreground service / ProgressStyle), B2 Now Bar (native)
-- **Confidence**: 86% (N5/N6/N7/N8 + Gate 3 gestures still [device]-pending; logic green)
+- **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green)
+- **APK**: `Downloads/TripPilot-0.34.0-debug.apk` (versionCode 8)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.34.0 live
+- **Next**: device validation pass (Android 16 device/emulator) for B1/B2 + the [device]-pending N5–N8 / Gate 3 gestures; optional B1.1+ refinements (foreground service, broadcast actions, segments/points)
+- **Confidence**: 84% (all logic green + APK builds; native Live Update visuals/promotion + gestures are [device]-pending by design)
 
 ## Post-APK Improvements — Phase 1 (Native Shell Hardening)
 Master plan: `brain/documents/post-apk-improvements-plan-2026-06-15.md`
 Phase 1 package: `brain/documents/phase1-native-execution-package-2026-06-15.md`
 Live Update spec: `brain/documents/live-update-nowbar-technical-spec-2026-06-15.md`
+
+### Gate 4 — Android 16 Live Update + Now Bar ✅ (0.34.0) — [device]-pending: promotion/visual on real A16
+Master plan Track B / Phase 4 (B1, B2). Spec: `live-update-nowbar-technical-spec-2026-06-15.md`.
+- [x] **B1/B2 — Live Update for the active outing**: new custom Capacitor plugin
+      `android/.../LiveOutingPlugin.java` (`isSupported`/`update`/`end`, registered in
+      `MainActivity`). Posts a **promoted ongoing** notification via `NotificationManagerCompat`
+      with `NotificationCompat.ProgressStyle` (a single app-colored segment, spend→target),
+      `setRequestPromotedOngoing(true)`, `setShortCriticalText` (status-bar chip), `setColor`
+      (app accent), ongoing, dedicated `outing_live` channel (IMPORTANCE_DEFAULT so it can be
+      promoted), and an "open" content intent. On One UI 8 this surfaces in the **Now Bar**
+      for free (consumes Android 16 Live Updates — no Samsung SDK needed, per spec §3).
+- [x] **Adapter + integration (domain stays pure)**: `utils/native/live-outing.ts` wraps the
+      plugin (cached `isSupported`, reads `--primary` for the accent, no-op on Web). The
+      existing active-outing **notification bridge** (`utils/outing-notification.ts`) now routes
+      to the Live Update when supported, else the proven LocalNotifications path.
+- [x] **Gating = zero regression**: `isSupported()` returns true only on **API ≥ 36**. On the
+      user's current (pre-16) device the LocalNotifications path is untouched; the Live Update
+      lights up only where Android 16 exists. Manifest: `POST_PROMOTED_NOTIFICATIONS`. Pinned
+      `androidx.core:core:1.17.0` for the Live Update NotificationCompat APIs.
+- [x] **Verify**: 944 tests pass (108 files), tsc -b clean, web build + cap sync OK,
+      **assembleDebug BUILD SUCCESSFUL** (native compiles against core 1.17.0), APK 0.34.0.
+- **Self-check / regression**: domain untouched; only the infra notification boundary changed,
+      behind `isNativeApp()` + `isSupported()`. Web/PWA + tests never load native code.
+- **[device]-pending (next)**: real Android 16 validation of promotion (chip), live updates,
+      color, Now Bar on Samsung One UI 8; optional B1.1+ (foreground service to survive process
+      death, broadcast actions "+ rodada"/"encerrar", richer segments/points per the spec).
 
 ### Gate 3 — Gesture navigation + day fast-scroller ✅ (0.33.0) — [device]-pending: G1, G3 feel
 Master plan §Phase 3 (G1, G3). Pure web/PWA UI (no native-only code).

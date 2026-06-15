@@ -45,4 +45,7 @@
 
     <!-- N6: active-outing notifications (Capacitor LocalNotifications, Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- B1/B2 (Gate 4): Live Update / Now Bar — promoted ongoing notification (Android 16+). -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
 </manifest>
