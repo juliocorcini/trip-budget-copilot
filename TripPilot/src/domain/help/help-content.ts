@@ -11,6 +11,7 @@
 export type HelpScreenId =
   | 'funds'
   | 'planner'
+  | 'planned'
   | 'wallets'
   | 'phase_edit'
   | 'outing'
@@ -40,6 +41,13 @@ export const HELP_CONTENT: Record<HelpScreenId, HelpTopic[]> = {
     topic('categories', 'planner-categories'),
     topic('quantities', 'planner-categories'),
     topic('recommendation'),
+  ],
+  planned: [
+    topic('what'),
+    topic('reserve', 'planned-list'),
+    topic('tracking', 'planned-add'),
+    topic('bought', 'planned-buy'),
+    topic('multi_store', 'planned-list'),
   ],
   wallets: [
     topic('what'),

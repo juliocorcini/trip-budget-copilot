@@ -27,6 +27,7 @@ const TripOverviewPage = lazyWithRetry(() => import('@/features/trip/TripOvervie
 const TripEditPage = lazyWithRetry(() => import('@/features/trip/TripEditPage').then(m => ({ default: m.TripEditPage })));
 const WalletsPage = lazyWithRetry(() => import('@/features/wallets/WalletsPage').then(m => ({ default: m.WalletsPage })));
 const FundsPage = lazyWithRetry(() => import('@/features/funds/FundsPage').then(m => ({ default: m.FundsPage })));
+const PlannedPurchasesPage = lazyWithRetry(() => import('@/features/planned/PlannedPurchasesPage').then(m => ({ default: m.PlannedPurchasesPage })));
 const ProfilesPage = lazyWithRetry(() => import('@/features/profiles/ProfilesPage').then(m => ({ default: m.ProfilesPage })));
 const ExpenseDetailPage = lazyWithRetry(() => import('@/features/expenses/ExpenseDetailPage').then(m => ({ default: m.ExpenseDetailPage })));
 const AboutPage = lazyWithRetry(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
@@ -107,6 +108,7 @@ export const router = createBrowserRouter([
           { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },
           { path: '/wallets', element: <LazyRoute><WalletsPage /></LazyRoute> },
           { path: '/funds', element: <LazyRoute><FundsPage /></LazyRoute> },
+          { path: '/planned', element: <LazyRoute><PlannedPurchasesPage /></LazyRoute> },
           { path: '/profiles', element: <LazyRoute><ProfilesPage /></LazyRoute> },
           { path: '/about', element: <LazyRoute><AboutPage /></LazyRoute> },
           { path: '/notifications', element: <LazyRoute><NotificationsPage /></LazyRoute> },

@@ -54,6 +54,15 @@ const FAB_ACTIONS: FabAction[] = [
     iconColorClass: 'text-success',
   },
   {
+    icon: 'shopping_bag',
+    labelKey: 'fab.plan_purchase',
+    descKey: 'fab.plan_purchase_desc',
+    path: '/planned?new=1',
+    itemBg: 'var(--surface-container)',
+    iconBg: '#6B8F7118',
+    iconColorClass: 'text-success',
+  },
+  {
     icon: 'swap_horiz',
     labelKey: 'fab.register_transfer',
     descKey: 'fab.register_transfer_desc',

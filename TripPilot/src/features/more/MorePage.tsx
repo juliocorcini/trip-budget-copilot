@@ -16,6 +16,7 @@ const SECTIONS: { titleKey: string; items: MenuItem[] }[] = [
       { icon: 'map', labelKey: 'more.overview', path: '/trip' },
       { icon: 'timeline', labelKey: 'more.edit_phases', path: '/trip/edit' },
       { icon: 'account_balance_wallet', labelKey: 'more.funds', path: '/funds' },
+      { icon: 'shopping_bag', labelKey: 'more.planned', path: '/planned' },
       { icon: 'tune', labelKey: 'more.profiles', path: '/profiles' },
       { icon: 'groups', labelKey: 'more.participants', path: '/shared' },
       { icon: 'credit_card', labelKey: 'more.wallets', path: '/wallets' },
