@@ -9,11 +9,12 @@ interface DataErrorScreenProps {
   onRetry: () => Promise<void>;
 }
 
-// DEC-170: keep reconnecting on its own while the user reads the screen. The
-// moment the OS frees the IndexedDB process the close+reopen succeeds and this
-// screen disappears with no action needed. Calm cadence so the loader does not
-// flicker constantly.
-const AUTO_RETRY_INTERVAL_MS = 10000;
+// DEC-170/DEC-176: keep reconnecting on its own while the user reads the
+// screen. The moment the OS frees the IndexedDB process (or a bfcache restore
+// settles) the close+reopen succeeds and this screen disappears with no action
+// needed. Backoff cadence: try quickly first (most transient wedges clear in a
+// couple seconds) then ease off so the loader does not flicker forever.
+const AUTO_RETRY_BACKOFF_MS = [1500, 3000, 6000, 10000];
 
 type ExportState = 'idle' | 'working' | 'done' | 'failed';
 
@@ -46,10 +47,18 @@ export function DataErrorScreen({ onRetry }: DataErrorScreenProps) {
   }, [onRetry]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') void runRetry();
-    }, AUTO_RETRY_INTERVAL_MS);
-    return () => clearInterval(id);
+    let timer: ReturnType<typeof setTimeout>;
+    let attempt = 0;
+    const schedule = () => {
+      const delay = AUTO_RETRY_BACKOFF_MS[Math.min(attempt, AUTO_RETRY_BACKOFF_MS.length - 1)]!;
+      timer = setTimeout(async () => {
+        if (document.visibilityState === 'visible') await runRetry();
+        attempt += 1;
+        schedule();
+      }, delay);
+    };
+    schedule();
+    return () => clearTimeout(timer);
   }, [runRetry]);
 
   const handleExport = async () => {

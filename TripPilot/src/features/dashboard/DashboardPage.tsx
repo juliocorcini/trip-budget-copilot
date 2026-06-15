@@ -7,7 +7,6 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { formatDate, localDateString } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
-import { isBackupReminderDue } from '@/domain/backup';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
@@ -290,14 +289,12 @@ export function DashboardPage() {
     MODE_REVEAL_MIN_EXPENSES,
   );
 
-  // UX polish (D1): the storage-eviction warning and the backup reminder are
-  // redundant when both fire (both protect data and both open /settings/backup).
-  // Show at most one — the urgent eviction-risk warning wins; otherwise the
-  // softer backup reminder. Keeps both behaviors, removes the stacked banners.
+  // UX polish: the urgent storage-eviction warning (real data-loss risk) stays
+  // on the home. DEC-176: the routine backup REMINDER was removed from the home
+  // — it now lives in the notifications center, so it no longer greets the user
+  // on the first screen (Julio's request).
   const showStorageWarning =
     model.storageNotPersisted && !(isIosDevice() && isStandaloneDisplayMode());
-  const showBackupReminder =
-    !showStorageWarning && isBackupReminderDue(settings, Date.now()) && transactions.length > 0;
 
   return (
     <div className="flex flex-col pb-6">
@@ -338,24 +335,6 @@ export function DashboardPage() {
           </button>
         );
       })()}
-
-      {/* BACKUP REMINDER (DEC-057 / decision D-J) — discreet, tap → backup.
-          D1: suppressed while the storage-eviction warning is showing. */}
-      {showBackupReminder && (
-        <button
-          onClick={() => navigate('/settings/backup')}
-          className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
-          style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
-        >
-          <Icon name="cloud_upload" size={16} className="text-on-surface-dim" />
-          <p className="text-xs font-semibold text-on-surface-dim flex-1">
-            {settings.lastBackupDate
-              ? t('dashboard.backup_reminder', { days: settings.backupReminderDays })
-              : t('dashboard.backup_reminder_never')}
-          </p>
-          <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
-        </button>
-      )}
 
       {/* HEADER — DEC-084 (R-01): fixed at the top, content scrolls beneath */}
       {activePhase && dayNum !== null && (

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.19.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Estabilidade (Android): tratamos a volta do app do segundo plano, que podia deixar a conexão com o banco “velha” e travar o carregamento sem motivo. Agora o app reconecta sozinho nesse momento, antes de você tocar em qualquer coisa.',
+        'Qualquer travamento do banco agora deixa rastro do motivo exato (mesmo quando o app se recupera sozinho) e a reconexão automática ficou mais rápida.',
+        'A tela inicial não mostra mais o lembrete de backup — ele continua no sino de notificações.',
+      ],
+      en: [
+        'Stability (Android): we now handle returning the app from the background, which could leave the database connection stale and stall loading for no reason. The app reconnects on its own at that moment, before you tap anything.',
+        'Any database stall now leaves a trace of the exact cause (even when the app recovers on its own), and automatic reconnection is faster.',
+        'The home screen no longer shows the backup reminder — it stays in the notifications bell.',
+      ],
+      es: [
+        'Estabilidad (Android): ahora gestionamos el regreso de la app desde segundo plano, que podía dejar la conexión con la base de datos “vieja” y trabar la carga sin motivo. La app se reconecta sola en ese momento, antes de que toques nada.',
+        'Cualquier bloqueo de la base de datos ahora deja rastro de la causa exacta (incluso cuando la app se recupera sola), y la reconexión automática es más rápida.',
+        'La pantalla de inicio ya no muestra el recordatorio de copia de seguridad — sigue en la campana de notificaciones.',
+      ],
+    },
+  },
+  {
     version: '0.18.0',
     date: '2026-06-15',
     items: {

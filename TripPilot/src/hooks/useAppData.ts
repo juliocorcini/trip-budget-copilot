@@ -17,6 +17,7 @@ import {
   escalateToReload,
   clearHardReloadGuard,
 } from '@/data/db/db-recovery';
+import { recordCrash, describeError } from '@/utils/crash-log';
 import { repairDemoTripIfNeeded } from '@/data/demo-repair';
 
 // DEC-109: if IndexedDB hangs (known WebKit issue in standalone PWAs after
@@ -191,6 +192,16 @@ export function useAppDataState(): AppData {
         // when even that is spent do we flag the error so the recovery screen
         // shows (never a redirect to the destructive /welcome).
         console.error('[useAppData] load failed:', err);
+        // DEC-176: ALWAYS leave a trace. The old ladder only recorded a crash
+        // when a reopen FAILED, so a transient wedge that self-healed left the
+        // diagnostics empty — which is exactly why a recurring incident was
+        // invisible. Record the real error name+message up front so the next
+        // "Copy diagnostics" shows the actual cause even when recovery wins.
+        const described = describeError(err);
+        recordCrash({
+          message: `idb load failed: ${described.message}`,
+          stack: described.stack,
+        });
         const healed = await reopenAndReload();
         if (healed) {
           errorRef.current = false;
@@ -200,6 +211,7 @@ export function useAppDataState(): AppData {
         } else if (escalateToReload()) {
           // The page is reloading — keep the loader up so nothing flashes.
         } else {
+          recordCrash({ message: 'idb load: recovery exhausted — showing recovery screen' });
           errorRef.current = true;
           setError(true);
           setLoading(false);
@@ -261,6 +273,22 @@ export function useAppDataState(): AppData {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [runLoad]);
+
+  // DEC-176 (Android stability): when a page is restored from the back/forward
+  // cache, Chrome has CLOSED our IndexedDB connection while the JS still thinks
+  // it is open — the next read then fails ("couldn't load your data") even
+  // though the DB is perfectly healthy. This is the most likely cause of the
+  // recurring transient wedge on installed Android PWAs. A `pageshow` with
+  // `persisted` means a bfcache restore: re-read SILENTLY so the ladder
+  // (open watchdog → close+reopen) revives the stale handle before the user
+  // ever taps anything. No loader flash; healthy data returns in place.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) reload();
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, [reload]);
 
   return { settings, trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, plannedPurchases, loading, error, reload, retry };
 }
