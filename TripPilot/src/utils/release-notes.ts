@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.33.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Navegação por gestos: deslize para os lados na lista de gastos para alternar entre "Gastos" e "Saídas", e na Viagem para passar pelas fases.',
+        'Rolagem rápida nos gastos: quando a lista fica longa, aparece uma alça lateral — segure e arraste para voar pelos dias, com um balão mostrando a data atual (estilo Google Fotos).',
+      ],
+      en: [
+        'Gesture navigation: swipe sideways on the expense list to switch between "Expenses" and "Outings", and on the Trip page to move through phases.',
+        'Fast scroll on expenses: when the list gets long, a side handle appears — hold and drag to fly through days, with a bubble showing the current date (Google-Photos style).',
+      ],
+      es: [
+        'Navegación por gestos: desliza de lado en la lista de gastos para cambiar entre "Gastos" y "Salidas", y en el Viaje para pasar por las fases.',
+        'Desplazamiento rápido en gastos: cuando la lista se hace larga, aparece un tirador lateral — mantén y arrastra para volar por los días, con un globo que muestra la fecha actual (estilo Google Fotos).',
+      ],
+    },
+  },
+  {
     version: '0.32.0',
     date: '2026-06-15',
     items: {

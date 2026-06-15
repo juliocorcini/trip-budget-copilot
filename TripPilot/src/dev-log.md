@@ -2,19 +2,42 @@
 
 ## Current State
 - **Active Delivery**: Post-APK Improvements — running all remaining phases (1C → 2 → 3 → 4), commit+deploy+APK per gate
-- **Active Milestone**: Gate 2B DONE (U1 notifications reorg, U4 month-map day sheet, G2 expense search)
-- **Last Green Test Run**: Gate 2B (0.32.0) — 944 pass / 0 fail
+- **Active Milestone**: Gate 3 DONE (G1 swipe tabs/phases, G3 day fast-scroller)
+- **Last Green Test Run**: Gate 3 (0.33.0) — 944 pass / 0 fail
 - **Total Tests**: 944 pass / 0 fail (108 files)
 - **Build Status**: clean (web build + cap sync + type-check all green)
-- **APK**: `Downloads/TripPilot-0.32.0-debug.apk` (versionCode 6)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.32.0 live
-- **Next**: Gate 3 — G1 swipe between tabs/phases, G3 fast-scroll/scrubber
-- **Confidence**: 88% (N5/N6/N7/N8 still [device]-pending; Gate 2B is pure web UI)
+- **APK**: `Downloads/TripPilot-0.33.0-debug.apk` (versionCode 7)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.33.0 live
+- **Next**: Gate 4 — B1 Live Update (foreground service / ProgressStyle), B2 Now Bar (native)
+- **Confidence**: 86% (N5/N6/N7/N8 + Gate 3 gestures still [device]-pending; logic green)
 
 ## Post-APK Improvements — Phase 1 (Native Shell Hardening)
 Master plan: `brain/documents/post-apk-improvements-plan-2026-06-15.md`
 Phase 1 package: `brain/documents/phase1-native-execution-package-2026-06-15.md`
 Live Update spec: `brain/documents/live-update-nowbar-technical-spec-2026-06-15.md`
+
+### Gate 3 — Gesture navigation + day fast-scroller ✅ (0.33.0) — [device]-pending: G1, G3 feel
+Master plan §Phase 3 (G1, G3). Pure web/PWA UI (no native-only code).
+- [x] **G1 — Swipe between tabs/phases**: new reusable `hooks/useHorizontalSwipe.ts`
+      (decision on touch-end, no preventDefault, requires horizontal dominance 1.5× +
+      60px threshold so vertical scroll is never hijacked). Wired into ExpenseListPage
+      (swipe ↔ Gastos/Saídas) and TripHubPage (swipe through `['all', ...phases]`,
+      clamped at the ends — cross-section bottom-nav swipe stays deferred per the plan).
+      The horizontally-scrollable chip rows stop-propagate touch so they keep their own
+      scroll instead of paging.
+- [x] **G3 — Day fast-scroller (Google-Photos style)**: new `features/expenses/FastScroller.tsx`.
+      Window-scrolled feed → a fixed right-edge rail that only mounts when the feed is long
+      (≥8 day groups AND >800px overflow). Only the thumb is interactive
+      (`pointer-events-none` rail so row taps pass through); grabbing it scrubs the page via
+      `window.scrollTo` and a floating bubble shows the day currently under the finger, read
+      live from the list's `[data-expense-day]` anchors. ResizeObserver keeps it synced when
+      filters/search change the content height.
+- [x] **Verify**: 944 tests pass (108 files), tsc -b clean, web build + cap sync OK,
+      assembleDebug BUILD SUCCESSFUL, APK 0.33.0 → Downloads.
+- **Self-check / regression**: no domain logic touched; expense list grouping/anchors are a
+      pure DOM addition (`data-expense-*`); swipe + scrubber are additive. Filters/search/
+      selection bar untouched. `[device]`-pending: gesture feel (thresholds) on real hardware.
+- **Next (Gate 4)**: B1 Live Update (foreground service / ProgressStyle), B2 Now Bar.
 
 ### Gate 2B — Notifications reorg + day sheet + expense search ✅ (0.32.0)
 Master plan §Phase 2 (U1, U4) + §Phase 3 (G2). Pure web/PWA UI (no native-only code).

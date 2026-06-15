@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { useMultiSelect, type MultiSelect } from '@/hooks/useMultiSelect';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { formatMoney, sumCents } from '@/domain/money';
@@ -22,6 +23,7 @@ import {
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
+import { FastScroller } from '@/features/expenses/FastScroller';
 import { SelectionBar, type SelectionAction } from '@/components/SelectionBar';
 import { showToast } from '@/components/Toast';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -66,6 +68,21 @@ export function ExpenseListPage() {
   const scrolled = useScrolled();
   // DEC-118 (R-09): hold to select, tap to add, batch action bar.
   const selection = useMultiSelect();
+  // G1: swipe left/right to page between the two tabs (expenses ↔ outings).
+  const tabSwipe = useHorizontalSwipe({
+    onSwipeLeft: () => {
+      if (tab === 'expenses') {
+        selection.clear();
+        setTabState('outings');
+      }
+    },
+    onSwipeRight: () => {
+      if (tab === 'outings') {
+        selection.clear();
+        setTabState('expenses');
+      }
+    },
+  });
 
   useEffect(() => {
     if (!trip) return;
@@ -225,7 +242,7 @@ export function ExpenseListPage() {
         ];
 
   return (
-    <div className={`flex flex-col gap-4 ${selection.active ? 'pb-24' : 'pb-4'}`}>
+    <div className={`flex flex-col gap-4 ${selection.active ? 'pb-24' : 'pb-4'}`} {...tabSwipe}>
       {/* DEC-084 (R-01): header + tabs + filter bar fixed — only the list scrolls */}
       <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-2 pb-2 flex flex-col gap-4`}>
         <div className="flex items-center justify-between">
@@ -284,7 +301,11 @@ export function ExpenseListPage() {
         )}
 
         {tab === 'expenses' && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <div
+            className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             <FilterChip
               label={t('expenses.title')}
               active={!filterCategory && !filterProfileId && !filterWalletNull && !filterPlace}
@@ -380,7 +401,12 @@ export function ExpenseListPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {expenseGroups.map((group) => (
-            <div key={group.day} className="flex flex-col gap-1">
+            <div
+              key={group.day}
+              className="flex flex-col gap-1"
+              data-expense-day={group.day}
+              data-expense-label={group.label}
+            >
               {/* L1: day header — relative label + the day's subtotal, so each
                   block answers "what did I spend that day?" at a glance. */}
               <div className="flex items-baseline justify-between px-1 pb-0.5">
@@ -454,6 +480,8 @@ export function ExpenseListPage() {
           ))}
         </div>
       )}
+      {/* G3: day scrubber — only mounts itself when the feed is long enough. */}
+      <FastScroller dayCount={expenseGroups.length} />
         </>
       )}
 

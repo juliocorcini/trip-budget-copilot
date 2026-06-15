@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { sortPhasesByOrder, findActivePhase, formatDate } from '@/domain/dates';
 import {
   calculateTotalBudget,
@@ -59,6 +60,24 @@ export function TripHubPage() {
   // derived value (not an effect) keeps it correct even if phases load late.
   const selected: Selection = selectedPhaseId ?? activePhaseId ?? 'all';
   const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+
+  // G1: swipe left/right to page through the phase selector ("Todas" → phases in
+  // order). Clamped at the ends (cross-section swipe is a separate experiment).
+  const phaseSequence = useMemo<Selection[]>(
+    () => ['all', ...sortedPhases.map((p) => p.id)],
+    [sortedPhases],
+  );
+  const phaseSwipe = useHorizontalSwipe({
+    onSwipeLeft: () => {
+      const next = phaseSequence[phaseSequence.indexOf(selected) + 1];
+      if (next !== undefined) setSelectedPhaseId(next);
+    },
+    onSwipeRight: () => {
+      const i = phaseSequence.indexOf(selected);
+      const prev = i > 0 ? phaseSequence[i - 1] : undefined;
+      if (prev !== undefined) setSelectedPhaseId(prev);
+    },
+  });
 
   useEffect(() => {
     if (!trip) return;
@@ -158,7 +177,7 @@ export function TripHubPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 pb-4 pt-2">
+    <div className="flex flex-col gap-5 pb-4 pt-2" {...phaseSwipe}>
       <div>
         <h1 className="text-heading font-bold text-on-surface">{t('trip_hub.title')}</h1>
         <p className="text-sm text-on-surface-dim mt-0.5">{t('trip_hub.subtitle')}</p>
@@ -166,7 +185,11 @@ export function TripHubPage() {
 
       {/* Phase selector — the single source of context for this page */}
       {sortedPhases.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
+        <div
+          className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           <SelectorChip
             label={t('trip_hub.all_phases')}
             active={selected === 'all'}
