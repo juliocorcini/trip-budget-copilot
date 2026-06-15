@@ -14,6 +14,9 @@ let initialized = false;
 export function initNativeShell(): void {
   if (initialized || !isNativeApp()) return;
   initialized = true;
+  // N7: tag the document so native-only calibration (e.g. the WebView zoom that
+  // counters Android's smaller default rendering) applies without touching web.
+  document.documentElement.classList.add('cap-native');
   void initNativeStatusBar();
   initBackButton();
   void initNativeNotifications();

@@ -1,4 +1,5 @@
 import { useRef, useCallback } from 'react';
+import { hapticImpact } from '@/utils/haptics';
 
 const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE_PX = 12;
@@ -39,7 +40,8 @@ export function useLongPress(onLongPress: (id: string) => void): (id: string) =>
         timerRef.current = window.setTimeout(() => {
           timerRef.current = null;
           firedRef.current = true;
-          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10);
+          // N8: native-aware haptic (the WebView ignores navigator.vibrate).
+          hapticImpact();
           onLongPress(id);
         }, LONG_PRESS_MS);
       },

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Icon } from './Icon';
 import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
+import { hapticSelection } from '@/utils/haptics';
 
 interface FabAction extends ModeAware {
   icon: string;
@@ -99,6 +100,7 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
   const actions = visibleInMode(FAB_ACTIONS, settings?.appMode ?? 'complete');
 
   const handleAction = (path: string) => {
+    hapticSelection();
     onClose();
     navigate(path);
   };

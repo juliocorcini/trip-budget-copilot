@@ -14,6 +14,7 @@ import {
 } from '@/domain/dashboard';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useCountUp } from '@/hooks/useCountUp';
+import { hapticSelection } from '@/utils/haptics';
 import { AnimatedMoney } from '@/components/AnimatedMoney';
 import {
   CHECK_IN_INTENT_CATALOG,
@@ -184,10 +185,8 @@ export function DashboardCards({
   const avgRoundCents = deriveAvgRoundCents(model.profiles);
   const handleCheckInTap = (intent: CheckInIntent) => {
     // Council ("sensed result"): a soft tap so choosing a mode is FELT, not just
-    // seen — gated by the user's vibration setting, progressive enhancement.
-    if (settings.vibrationEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(8);
-    }
+    // seen — native-aware boundary, gated by the user's vibration setting (N8).
+    hapticSelection();
     setOptimisticCheckIn(intent);
     onSelectCheckIn(intent);
   };

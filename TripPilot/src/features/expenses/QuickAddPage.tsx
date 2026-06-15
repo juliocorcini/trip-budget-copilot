@@ -555,20 +555,12 @@ export function QuickAddPage() {
     return transaction;
   };
 
-  // Council ("sensed result"): a soft tap on a successful save so the #1 action
-  // is FELT, not just seen — gated by the user's vibration setting.
-  const triggerSaveHaptic = () => {
-    if (settings?.vibrationEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(10);
-    }
-  };
-
   // The app's #1 action used to be silent. Confirm what was registered (in base
   // currency, mirroring the hero) with a one-tap undo — the dashboard the user
   // lands on already shows the resulting "free today", so this names the action.
+  // N8: the success toast now carries the confirmation haptic (native-aware).
   const confirmExpenseSaved = (txId: string, baseCurrencyAmountCents: number) => {
     if (!trip) return;
-    triggerSaveHaptic();
     showToast(
       t('expenses.saved_toast', { amount: formatMoney(baseCurrencyAmountCents, trip.baseCurrency) }),
       'success',
@@ -630,8 +622,8 @@ export function QuickAddPage() {
             description || (isWithdrawal ? t('fab.register_withdrawal') : t('fab.register_transfer')),
         };
         await (isWithdrawal ? withdrawCash(input) : transferBetweenWallets(input));
-        triggerSaveHaptic();
-        // Money moved between wallets used to be silent — confirm what happened.
+        // Money moved between wallets used to be silent — confirm what happened
+        // (the success toast carries the haptic).
         showToast(
           t(isWithdrawal ? 'expenses.withdrawal_saved_toast' : 'expenses.transfer_saved_toast', {
             amount: formatMoney(input.amountCents, trip.baseCurrency),

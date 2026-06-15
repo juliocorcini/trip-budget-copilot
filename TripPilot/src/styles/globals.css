@@ -98,3 +98,17 @@
     overscroll-behavior-y: none;
   }
 }
+
+/* N7 (Gate 1C): the Android WebView renders noticeably smaller than the
+   installed PWA (Chrome applies the user's page-zoom/font preferences; a fresh
+   WebView does not), so the whole UI looked shrunk on device. A single, tunable
+   zoom on the app root restores a comfortable size and scales px + rem uniformly
+   (root font-size can't, since the design mixes both). The .cap-native class is
+   added only inside the Capacitor shell, so web/PWA is untouched. Tuning knob:
+   --native-zoom — validate on a real device, may need one more pass. */
+html.cap-native {
+  --native-zoom: 1.06;
+}
+html.cap-native #root {
+  zoom: var(--native-zoom);
+}

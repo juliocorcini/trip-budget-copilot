@@ -157,13 +157,6 @@ const ALERT_VARIANT: Record<OutingAlert['type'], ToastVariant> = {
   critical: 'danger',
 };
 
-const ALERT_VIBRATION: Record<OutingAlert['type'], number[]> = {
-  info: [80],
-  warning: [120, 60, 120],
-  danger: [200, 80, 200],
-  critical: [300, 100, 300, 100, 300],
-};
-
 // DEC-053(b): over-max confirmation is remembered for 15 minutes.
 const OVER_MAX_REMEMBER_MS = 15 * 60 * 1000;
 
@@ -575,13 +568,11 @@ export function OutingPage() {
     if (newAlerts.length === 0) return currentSession;
 
     const topAlert = newAlerts[newAlerts.length - 1]!;
+    // N8: the alert toast variant (warning/danger) now carries the haptic.
     showToast(
       t(`outing.alerts.${settings.alertTone}.${topAlert.message}` as never),
       ALERT_VARIANT[topAlert.type],
     );
-    if (settings.vibrationEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(ALERT_VIBRATION[topAlert.type]);
-    }
 
     const updated = await sessionRepository.update({
       ...currentSession,

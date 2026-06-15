@@ -5,6 +5,7 @@ import { Icon } from './Icon';
 import { FABMenu } from './FAB';
 import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
+import { hapticSelection, hapticImpact } from '@/utils/haptics';
 
 interface NavItem extends ModeAware {
   path: string;
@@ -41,7 +42,10 @@ export function BottomNav() {
     return (
       <button
         key={item.path}
-        onClick={() => navigate(item.path)}
+        onClick={() => {
+          if (!isActive) hapticSelection();
+          navigate(item.path);
+        }}
         className="flex flex-col items-center gap-0.5 py-1 px-2 btn-press"
       >
         <Icon
@@ -74,7 +78,10 @@ export function BottomNav() {
 
           <div className="flex flex-col items-center px-2 -mt-3">
             <button
-              onClick={() => setIsFabOpen((prev) => !prev)}
+              onClick={() => {
+                hapticImpact();
+                setIsFabOpen((prev) => !prev);
+              }}
               className="btn-press w-14 h-14 rounded-2xl flex items-center justify-center"
               style={{
                 background: 'var(--primary)',

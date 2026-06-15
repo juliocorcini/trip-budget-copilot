@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@/components/Icon';
+import { hapticSuccess, hapticWarning, hapticError } from '@/utils/haptics';
 
 export type ToastVariant = 'info' | 'success' | 'warning' | 'danger';
 
@@ -40,6 +41,11 @@ export function showToast(message: string, variant: ToastVariant = 'info', optio
     actionLabel: options?.actionLabel,
     durationMs: options?.durationMs ?? TOAST_DURATION_MS,
   };
+  // N8: a toast is a result — confirm it with a matching haptic (info stays
+  // silent to avoid buzzing on every passive message).
+  if (variant === 'success') hapticSuccess();
+  else if (variant === 'warning') hapticWarning();
+  else if (variant === 'danger') hapticError();
   listeners.forEach((l) => l(toast));
 }
 

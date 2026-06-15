@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.30.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Vibração de toque (haptics) que funciona no app: confirmações ao salvar/editar um gasto, ao receber um alerta, ao abrir o menu “+”, ao trocar de aba e ao segurar para selecionar. Antes a vibração não funcionava no aplicativo instalado.',
+        'Tudo respeita o botão “Vibração” nas configurações — desligou, silencia todas as vibrações.',
+        'Tamanho da interface no Android: ajuste para o app não ficar “miudinho” como se estivesse com zoom menor — agora abre num tamanho mais confortável.',
+      ],
+      en: [
+        'Haptic feedback that actually works in the app: confirmations when you save/edit an expense, on alerts, when opening the “+” menu, switching tabs, and on long-press to select. Before, vibration did nothing in the installed app.',
+        'Everything honors the “Vibration” switch in settings — turn it off and all haptics go silent.',
+        'Android UI size: a calibration so the app no longer looks “shrunk” as if zoomed out — it now opens at a more comfortable size.',
+      ],
+      es: [
+        'Vibración táctil (haptics) que sí funciona en la app: confirmaciones al guardar/editar un gasto, en las alertas, al abrir el menú “+”, al cambiar de pestaña y al mantener pulsado para seleccionar. Antes la vibración no funcionaba en la app instalada.',
+        'Todo respeta el interruptor “Vibración” de ajustes — al apagarlo, se silencian todas las vibraciones.',
+        'Tamaño de la interfaz en Android: un ajuste para que la app no se vea “diminuta” como con menos zoom — ahora abre a un tamaño más cómodo.',
+      ],
+    },
+  },
+  {
     version: '0.29.0',
     date: '2026-06-15',
     items: {

@@ -1,19 +1,52 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Post-APK Improvements — Phase 1 (Native Shell Hardening)
-- **Active Milestone**: Gate 1B DONE → native persistence reality + GPS permission + native notifications
-- **Last Green Test Run**: Gate 1B (0.29.0) — 941 pass / 0 fail
+- **Active Delivery**: Post-APK Improvements — running all remaining phases (1C → 2 → 3 → 4), commit+deploy+APK per gate
+- **Active Milestone**: Gate 1C DONE → Phase 1 COMPLETE (N7 DPI calibration + N8 haptics)
+- **Last Green Test Run**: Gate 1C (0.30.0) — 941 pass / 0 fail
 - **Total Tests**: 941 pass / 0 fail
-- **Build Status**: clean (web build + cap sync 4 plugins + type-check all green)
-- **APK**: `Downloads/TripPilot-0.29.0-debug.apk` (versionCode 3)
-- **Next**: Gate 1C — N7 DPI/scaling calibration + N8 haptics
-- **Confidence**: 90% (N5/N6 are [device]-pending validation)
+- **Build Status**: clean (web build + cap sync 5 plugins + type-check all green)
+- **APK**: `Downloads/TripPilot-0.30.0-debug.apk` (versionCode 4)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 + 0.30.0 live
+- **Next**: Gate 2A — U5 analytics→Copiloto, U6 occasion counters, U2 structure grid, U3 tools grid
+- **Confidence**: 88% (N5/N6/N7/N8 are [device]-pending validation; N7 zoom may need one tuning pass)
 
 ## Post-APK Improvements — Phase 1 (Native Shell Hardening)
 Master plan: `brain/documents/post-apk-improvements-plan-2026-06-15.md`
 Phase 1 package: `brain/documents/phase1-native-execution-package-2026-06-15.md`
 Live Update spec: `brain/documents/live-update-nowbar-technical-spec-2026-06-15.md`
+
+### Gate 1C — DPI calibration + haptics ✅ (0.30.0) — Phase 1 COMPLETE — [device]-pending: N7, N8
+- [x] **M1C.1 — Haptics boundary (N8)**: new `utils/haptics.ts` — native uses
+      `@capacitor/haptics` (lazy import: `impact` light/medium, `notification`
+      success/warning/error); Web/PWA falls back to `navigator.vibrate`. Honors the
+      "Vibration" setting via `setHapticsEnabled`, synced live in RootLayout
+      (`useHapticsPreference`). Curated triggers: long-press select (`useLongPress`),
+      FAB open + tab switch (`BottomNav`), action pick (`FAB`), and every
+      success/warning/danger toast (`Toast.showToast` — the single source, info stays
+      silent). Migrated the 4 old `navigator.vibrate` sites (didn't fire in the WebView)
+      to the boundary and removed the now-redundant `triggerSaveHaptic` + `ALERT_VIBRATION`
+      (toast carries those). Fixes "no vibration in the app".
+- [x] **M1C.2 — UI scale calibration (N7)** [device]: the WebView rendered ~smaller
+      than the installed PWA (Chrome applies the user's page-zoom/font prefs, a fresh
+      WebView doesn't). `initNativeShell` tags `<html class="cap-native">`; CSS applies a
+      single tunable `zoom: var(--native-zoom)` (default 1.06) on `#root` — scales px+rem
+      uniformly (root font-size can't, the design mixes both). No-op on web (class never
+      added). Knob lives in `globals.css` for a fast second pass after device check.
+- [x] **Verify**: 941 tests pass, type-check (tsc -b) clean, web build OK, `cap sync`
+      reports 5 plugins (app, geolocation, haptics, local-notifications, status-bar),
+      `assembleDebug` BUILD SUCCESSFUL, APK copied to Downloads.
+- **Self-check / regression**: haptics gated by `enabled` flag (off → fully silent) and
+      `isNativeApp()` for the plugin branch; web bundle keeps the plugin out via lazy
+      `import()`. Toast haptic only on success/warning/danger (no buzz on info). N7 zoom
+      scoped to `.cap-native #root` → zero web impact. Changes confined to `utils/haptics.ts`,
+      `useLongPress`, `BottomNav`, `FAB`, `Toast`, `RootLayout`, `utils/native/index.ts`,
+      `globals.css`, and the 4 migrated feature files (QuickAdd, ExpenseDetail, Outing,
+      DashboardCards), plus version files.
+- **[device] pending**: N8 real haptic patterns + toggle on a real phone; N7 final zoom
+      value (1.06 is a measured-guess — confirm/tune on device).
+- **Next (Gate 2A)**: U5 daily analytics → Copiloto, U6 occasion counters model, U2
+      structure grid, U3 tools grid.
 
 ### Gate 1B — Permissions & services ✅ (0.29.0) — [device]-pending: N5, N6
 - [x] **M1B.1 — Native persistence reality (N4)**: storage is app-private in the

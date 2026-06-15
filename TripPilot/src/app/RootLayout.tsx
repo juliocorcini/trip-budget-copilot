@@ -4,6 +4,7 @@ import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
 import { isNativeApp, applyNativeStatusBar } from '@/utils/native';
+import { setHapticsEnabled } from '@/utils/haptics';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
 
@@ -37,6 +38,15 @@ function useTheme(settings: AppSettings | undefined) {
     }
     applyTheme(pref === 'light' ? 'light' : 'dark');
   }, [pref]);
+}
+
+// N8: keep the haptics boundary in sync with the "Vibration" preference so the
+// toggle turns ALL feedback on/off app-wide (default on until settings load).
+function useHapticsPreference(settings: AppSettings | undefined) {
+  const vibration = settings?.vibrationEnabled ?? true;
+  useEffect(() => {
+    setHapticsEnabled(vibration);
+  }, [vibration]);
 }
 
 // GAP-014: persisted language is applied live (and restored on boot).
@@ -79,6 +89,7 @@ export function RootLayout() {
   const settings = useLiveSettings();
   useTheme(settings);
   useLanguage(settings);
+  useHapticsPreference(settings);
   useBackButtonGuard();
   // BUG-007: a single AppDataProvider above every route.
   // E6 (M20): the lock gate sits just below it so the PIN screen can read live
