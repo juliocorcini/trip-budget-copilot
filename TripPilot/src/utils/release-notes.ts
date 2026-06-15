@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.25.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Amigo sincero reconciliado: quando você passa do ritmo de uma categoria (ex.: bares) mas a fase ainda tem folga, ele agora explica os dois lados — “no plano de bares cabem só 3, mas a fase tem €X livres: o resto cabe sem culpa; pra seguir o plano, segura 1”.',
+        'Acabou a sensação de contradição entre “você está sobrando” e “só cabem 3 dos 4”: o limite é do plano da categoria, não da viagem — e isso agora fica claro na própria mensagem.',
+        'A mesma mensagem aparece igual no Início e no Copiloto (uma única fonte) e sem a barrinha colorida.',
+      ],
+      en: [
+        'Honest friend reconciled: when you outpace a category (e.g. bars) but the phase still has slack, it now explains both sides — “your bar plan only fits 3, but the phase has €X free: the rest fits guilt-free; to stay on plan, hold 1”.',
+        'No more apparent contradiction between “you have a surplus” and “only 3 of 4 fit”: the limit is the category plan, not the trip — and the message now says so.',
+        'The same message reads identically on Home and Copilot (one source) and without the colored side-bar.',
+      ],
+      es: [
+        'Amigo sincero reconciliado: cuando superas el ritmo de una categoría (p. ej. bares) pero la fase aún tiene margen, ahora explica ambos lados — “en el plan de bares solo caben 3, pero la fase tiene €X libres: el resto cabe sin culpa; para seguir el plan, aguanta 1”.',
+        'Se acabó la sensación de contradicción entre “te sobra” y “solo caben 3 de 4”: el límite es del plan de la categoría, no del viaje — y ahora el mensaje lo dice.',
+        'El mismo mensaje se ve igual en Inicio y en Copiloto (una sola fuente) y sin la barrita de color.',
+      ],
+    },
+  },
+  {
     version: '0.24.0',
     date: '2026-06-15',
     items: {

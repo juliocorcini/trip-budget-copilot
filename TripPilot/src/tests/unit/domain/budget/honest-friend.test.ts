@@ -85,6 +85,40 @@ describe('buildHonestFriendV2 (DEC-093 / R-11)', () => {
     }
   });
 
+  it('G6: over_pace reconciles the category limit with phase slack', () => {
+    // Category tight: 3 of 6 fit (3 overflow × €3 = €9 over the bar plan).
+    // Phase free €50 comfortably covers €9 → overflow fits, guilt-free.
+    const withSlack = buildHonestFriendV2(
+      baseInput({
+        plannedQuantity: 10,
+        doneQuantity: 4,
+        categorySpentCents: 2_100,
+        freeToSpendCents: 5_000,
+      }),
+    );
+    expect(withSlack.kind).toBe('over_pace');
+    if (withSlack.kind === 'over_pace') {
+      expect(withSlack.overflowCount).toBe(3); // 6 remaining − 3 that fit
+      expect(withSlack.phaseFreeCents).toBe(5_000);
+      expect(withSlack.overflowFitsPhase).toBe(true); // €50 ≥ 3 × €3
+    }
+
+    // Same category pressure, but the phase is nearly tapped (€6 free < €9
+    // overflow) → the slack reconciliation must NOT claim it fits.
+    const noSlack = buildHonestFriendV2(
+      baseInput({
+        plannedQuantity: 10,
+        doneQuantity: 4,
+        categorySpentCents: 2_100,
+        freeToSpendCents: 600,
+      }),
+    );
+    if (noSlack.kind === 'over_pace') {
+      expect(noSlack.overflowCount).toBe(3);
+      expect(noSlack.overflowFitsPhase).toBe(false); // €6 < 3 × €3
+    }
+  });
+
   it('DEC-115 (R-06): done > planned NEVER reads as "within plan"', () => {
     // The field bug: "20 of 5 occasions — within plan". Must be over_plan.
     const result = buildHonestFriendV2(

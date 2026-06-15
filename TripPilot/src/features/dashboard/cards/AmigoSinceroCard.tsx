@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { formatDate } from '@/domain/dates';
+import { formatMoney } from '@/domain/money';
 import type { HonestFriendV2 } from '@/domain/budget';
 
 interface AmigoSinceroCardProps {
   amigo: HonestFriendV2;
+  /** Base currency, to format the phase-slack reconciliation (G6). */
+  currency: string;
   /** Opens the full impact breakdown. */
   onSeeImpact: () => void;
   /** Copiloto adds a "simulate a spend" action next to "see impact". */
@@ -20,12 +23,23 @@ interface AmigoSinceroCardProps {
  */
 export function AmigoSinceroCard({
   amigo,
+  currency,
   onSeeImpact,
   onSimulate,
   marginClass = 'mt-5',
 }: AmigoSinceroCardProps) {
   const { t } = useTranslation();
   if (amigo.kind === 'none') return null;
+
+  // G6: when over the category pace but the phase still covers the overflow, the
+  // honest move is to reconcile both — "your bar plan is tight, but the phase has
+  // room: do it guilt-free, or hold N to stay on plan". Otherwise the reserve-date
+  // warning still applies (the tight case).
+  const showPhaseSlack = amigo.kind === 'over_pace' && amigo.overflowFitsPhase;
+  const showReserveDate =
+    (amigo.kind === 'over_pace' || amigo.kind === 'over_plan') &&
+    amigo.reserveStartDate !== null &&
+    !showPhaseSlack;
 
   return (
     <div
@@ -62,14 +76,25 @@ export function AmigoSinceroCard({
                 percent: amigo.impactPercent,
               })}
           </p>
-          {(amigo.kind === 'over_pace' || amigo.kind === 'over_plan') &&
-            amigo.reserveStartDate && (
-              <p className="text-xs font-bold text-warning mt-2">
-                {t('dashboard.amigo_reserve_date', {
-                  date: formatDate(amigo.reserveStartDate, "d 'de' MMMM"),
+          {showPhaseSlack && amigo.kind === 'over_pace' && (
+            <p className="text-xs font-semibold mt-2 flex items-start gap-1.5 text-on-surface-dim">
+              <Icon name="check_circle" size={14} className="text-success mt-0.5 flex-shrink-0" filled />
+              <span>
+                {t('dashboard.amigo_over_pace_slack', {
+                  free: formatMoney(amigo.phaseFreeCents, currency),
+                  type: amigo.profileName.toLowerCase(),
+                  hold: amigo.overflowCount,
                 })}
-              </p>
-            )}
+              </span>
+            </p>
+          )}
+          {showReserveDate && amigo.reserveStartDate && (
+            <p className="text-xs font-bold text-warning mt-2">
+              {t('dashboard.amigo_reserve_date', {
+                date: formatDate(amigo.reserveStartDate, "d 'de' MMMM"),
+              })}
+            </p>
+          )}
           <div className="flex items-center gap-2 mt-3">
             {onSimulate && (
               <button

@@ -890,7 +890,11 @@ export function DashboardCards({
           <>
             {/* §7 pos. 8 — AMIGO SINCERO v2 (DEC-093 / R-11): plan-based.
                 Shared with the Copiloto via AmigoSinceroCard (one source). */}
-            <AmigoSinceroCard amigo={model.amigoV2} onSeeImpact={() => navigate('/impact')} />
+            <AmigoSinceroCard
+              amigo={model.amigoV2}
+              currency={trip.baseCurrency}
+              onSeeImpact={() => navigate('/impact')}
+            />
           </>
         );
       case 'pending_shares':

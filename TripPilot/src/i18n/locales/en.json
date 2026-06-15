@@ -224,6 +224,7 @@
     "amigo_over_plan": "You planned {{planned}} {{type}} occasions and already did {{done}} — over plan. Each new one comes out of other categories.",
     "amigo_no_plan": "This {{type}} spend took {{percent}}% of your free money. This category doesn't have a plan yet.",
     "amigo_reserve_date": "At this pace, the reserve starts being used on {{date}}.",
+    "amigo_over_pace_slack": "But the phase has {{free}} free — the rest fits, guilt-free. To stay on your {{type}} plan, hold {{hold}}.",
     "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings.",
     "storage_backup_now": "Your data may be lost by the system. Back it up now.",
     "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen).",

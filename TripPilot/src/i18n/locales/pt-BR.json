@@ -224,6 +224,7 @@
     "amigo_over_plan": "Você planejou {{planned}} ocasiões de {{type}} e já fez {{done}} — acima do plano. Cada nova sai de outras categorias.",
     "amigo_no_plan": "Esse gasto com {{type}} levou {{percent}}% do seu dinheiro livre. Essa categoria ainda não tem plano.",
     "amigo_reserve_date": "Mantendo o ritmo, a reserva começa a ser usada em {{date}}.",
+    "amigo_over_pace_slack": "Mas a fase tem {{free}} livres — o resto cabe sem culpa. Pra seguir o plano de {{type}}, segura {{hold}}.",
     "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações.",
     "storage_backup_now": "Seus dados podem ser perdidos pelo sistema. Faça backup agora.",
     "storage_install_ios": "Instale o TripPilot na tela inicial para proteger seus dados (Compartilhar → Adicionar à Tela de Início).",

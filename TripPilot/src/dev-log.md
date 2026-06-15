@@ -2,15 +2,32 @@
 
 ## Current State
 - **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
-- **Active Milestone**: G5 DONE → G6 next
-- **Last Green Test Run**: G5 (0.24.0)
-- **Total Tests**: 916 pass / 0 fail
+- **Active Milestone**: G6 DONE → G7 next
+- **Last Green Test Run**: G6 (0.25.0)
+- **Total Tests**: 917 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
 
 ## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
 Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+
+### G6 — Amigo sincero reconciled (category × phase slack) ✅ (0.25.0, sw v42)
+- [x] Root of Julio's confusion: amigo's `over_pace` count is CATEGORY-scoped
+      ("only 3 of 4 bars fit") while the phase shows slack ("€115 under plan") —
+      both true, but unreconciled they read as broken.
+- [x] Domain (honest-friend `over_pace`): added `overflowCount`, `phaseFreeCents`,
+      `overflowFitsPhase` (phase slack ≥ overflow × typical). Pure; +1 test
+      asserting both the with-slack and no-slack branches.
+- [x] Shared `AmigoSinceroCard` (one source for Home + Copiloto, plan §4): when
+      `overflowFitsPhase`, shows `amigo_over_pace_slack` — "no plano de {type}
+      cabem só {fit}; mas a fase tem €X livres — o resto cabe sem culpa; pra
+      seguir o plano, segura {hold}". Else keeps the reserve-date warning (tight
+      case). Card now takes `currency` (threaded from Dashboard + Copiloto).
+- [x] i18n pt/en/es: `amigo_over_pace_slack`. No colored side-bar (already).
+- Tests 917/0 · typecheck clean · build clean · Playwright OK (Copiloto amigo
+  renders + simulate button; `.ux-shots/g6/g6-copiloto.png`). over_pace copy
+  path is unit-verified (demo seed shows the `no_plan` state).
 
 ### G5 — Check-in: real effect + 'Sem gastos' + microcopy ✅ (0.24.0, sw v41)
 - [x] Micro-explanation on the prompt: "Diz como vai ser o dia que eu mostro

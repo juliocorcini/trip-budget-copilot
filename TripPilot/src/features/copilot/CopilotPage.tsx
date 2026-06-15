@@ -228,6 +228,7 @@ export function CopilotPage() {
       {model.amigoV2.kind !== 'none' && (
         <AmigoSinceroCard
           amigo={model.amigoV2}
+          currency={currency}
           onSeeImpact={() => navigate('/impact')}
           onSimulate={() => navigate('/simulator')}
         />

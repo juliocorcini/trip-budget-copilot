@@ -58,6 +58,15 @@ export type HonestFriendV2 =
       fitCount: number;
       /** Estimated date the protected reserve starts being used (or null). */
       reserveStartDate: string | null;
+      // G6: reconcile the CATEGORY limit with the PHASE slack. The category plan
+      // can be tight ("only 3 of 4 fit") while the phase still has room — which
+      // read as a contradiction. These let the card say both truths honestly.
+      /** Occasions beyond the category budget (remainingPlanned − fitCount, ≥ 1). */
+      overflowCount: number;
+      /** Phase free margin after the triggering spend (the "folga", ≥ 0). */
+      phaseFreeCents: number;
+      /** True when that slack covers every overflow occasion → they fit, guilt-free. */
+      overflowFitsPhase: boolean;
     }
   | {
       kind: 'no_plan';
@@ -182,6 +191,14 @@ export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 
       };
     }
 
+    // G6: the occasions the CATEGORY budget can't absorb, and whether the
+    // PHASE free margin (folga) can — so the card never reads as a contradiction
+    // ("only 3 fit" vs "you're under budget"). Both are true; we say so.
+    const overflowCount = remainingPlanned - fitCount;
+    const phaseFreeCents = Math.max(0, input.freeToSpendCents);
+    const overflowFitsPhase =
+      phaseFreeCents > 0 && phaseFreeCents >= overflowCount * input.typicalValueCents;
+
     return {
       kind: 'over_pace',
       profileId: input.profileId,
@@ -196,6 +213,9 @@ export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 
         input.phaseSpentCents,
         input.phaseBudgetCents,
       ),
+      overflowCount,
+      phaseFreeCents,
+      overflowFitsPhase,
     };
   }
 
