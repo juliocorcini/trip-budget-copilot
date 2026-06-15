@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.18.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Nova ferramenta de diagnóstico: se o app travar ao carregar seus dados, a tela de recuperação agora tem um botão “Copiar diagnóstico” que mostra a causa exata do travamento — sem expor seus gastos. Isso nos deixa corrigir problemas de estabilidade de verdade, em vez de adivinhar.',
+        'O mesmo diagnóstico também está em Mais → Sobre, para quando o app abre mas parece instável.',
+      ],
+      en: [
+        'New diagnostics tool: if the app ever stalls loading your data, the recovery screen now has a “Copy diagnostics” button that reveals the exact cause of the stall — without exposing your expenses. This lets us fix stability issues for real instead of guessing.',
+        'The same diagnostics are also under More → About, for when the app opens but feels unstable.',
+      ],
+      es: [
+        'Nueva herramienta de diagnóstico: si la app se traba al cargar tus datos, la pantalla de recuperación ahora tiene un botón “Copiar diagnóstico” que muestra la causa exacta del bloqueo — sin exponer tus gastos. Así podemos corregir los problemas de estabilidad de verdad, en vez de adivinar.',
+        'El mismo diagnóstico también está en Más → Acerca de, para cuando la app abre pero se siente inestable.',
+      ],
+    },
+  },
+  {
     version: '0.17.0',
     date: '2026-06-14',
     items: {

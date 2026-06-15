@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { hardReloadApp } from '@/data/db/db-recovery';
 import { downloadEmergencyBackup } from '@/utils/emergency-backup';
+import { collectDiagnostics } from '@/utils/diagnostics';
 
 interface DataErrorScreenProps {
   onRetry: () => Promise<void>;
@@ -28,6 +29,8 @@ export function DataErrorScreen({ onRetry }: DataErrorScreenProps) {
   const { t } = useTranslation();
   const [retrying, setRetrying] = useState(false);
   const [exportState, setExportState] = useState<ExportState>('idle');
+  const [diagnostics, setDiagnostics] = useState<string | null>(null);
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
   const retryingRef = useRef(false);
 
   const runRetry = useCallback(async () => {
@@ -53,6 +56,21 @@ export function DataErrorScreen({ onRetry }: DataErrorScreenProps) {
     setExportState('working');
     const ok = await downloadEmergencyBackup();
     setExportState(ok ? 'done' : 'failed');
+  };
+
+  // DEC-176: surface real evidence from the wedged state. Reads only localStorage
+  // + Storage API + a read-only IDB probe, so it works while the DB is wedged.
+  // Always reveals a selectable textarea (clipboard is often blocked on mobile
+  // PWAs), and best-effort copies to the clipboard on top of that.
+  const handleDiagnostics = async () => {
+    const text = await collectDiagnostics();
+    setDiagnostics(text);
+    try {
+      await navigator.clipboard.writeText(text);
+      setDiagnosticsCopied(true);
+    } catch {
+      setDiagnosticsCopied(false);
+    }
   };
 
   const exportLabel: Record<ExportState, string> = {
@@ -99,7 +117,34 @@ export function DataErrorScreen({ onRetry }: DataErrorScreenProps) {
         >
           {exportLabel[exportState]}
         </button>
+        <button
+          onClick={handleDiagnostics}
+          className="btn-press px-6 py-2 rounded-xl text-xs font-semibold"
+          style={{ background: 'transparent', color: 'var(--on-surface-faint)' }}
+        >
+          {diagnosticsCopied ? t('data_error.diagnostics_copied') : t('data_error.diagnostics')}
+        </button>
       </div>
+
+      {diagnostics !== null && (
+        <div className="w-full max-w-xs flex flex-col gap-1">
+          <p className="text-[11px] text-on-surface-faint leading-relaxed">
+            {t('data_error.diagnostics_hint')}
+          </p>
+          <textarea
+            readOnly
+            value={diagnostics}
+            onFocus={(e) => e.currentTarget.select()}
+            rows={8}
+            className="w-full text-[10px] font-mono rounded-lg p-2 outline-none"
+            style={{
+              background: 'var(--surface-container)',
+              color: 'var(--on-surface-dim)',
+              border: '1px solid var(--surface-container-high)',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

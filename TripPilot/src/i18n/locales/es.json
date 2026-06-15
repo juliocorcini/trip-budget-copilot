@@ -1267,7 +1267,10 @@
     "export": "Exportar mis datos",
     "exporting": "Exportando…",
     "exported": "Copia descargada",
-    "export_failed": "Falló — intenta recargar"
+    "export_failed": "Falló — intenta recargar",
+    "diagnostics": "Copiar diagnóstico",
+    "diagnostics_copied": "Diagnóstico copiado ✓",
+    "diagnostics_hint": "Selecciona el texto de abajo y cópialo para enviármelo (muestra la causa exacta del bloqueo — no contiene tus gastos)."
   },
   "loading": {
     "slow": "Esta pantalla está tardando más de lo normal en abrir.",

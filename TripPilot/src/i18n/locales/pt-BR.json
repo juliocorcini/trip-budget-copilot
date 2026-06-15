@@ -1267,7 +1267,10 @@
     "export": "Exportar meus dados",
     "exporting": "Exportando…",
     "exported": "Backup baixado",
-    "export_failed": "Falhou — tente recarregar"
+    "export_failed": "Falhou — tente recarregar",
+    "diagnostics": "Copiar diagnóstico",
+    "diagnostics_copied": "Diagnóstico copiado ✓",
+    "diagnostics_hint": "Selecione o texto abaixo e copie para me enviar (ele mostra a causa exata do travamento — não contém seus gastos)."
   },
   "loading": {
     "slow": "Está demorando mais que o normal para abrir esta tela.",

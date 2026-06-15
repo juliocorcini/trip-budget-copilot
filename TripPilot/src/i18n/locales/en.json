@@ -1267,7 +1267,10 @@
     "export": "Export my data",
     "exporting": "Exporting…",
     "exported": "Backup downloaded",
-    "export_failed": "Failed — try reloading"
+    "export_failed": "Failed — try reloading",
+    "diagnostics": "Copy diagnostics",
+    "diagnostics_copied": "Diagnostics copied ✓",
+    "diagnostics_hint": "Select the text below and copy it to send me (it shows the exact cause of the stall — it does NOT contain your expenses)."
   },
   "loading": {
     "slow": "This screen is taking longer than usual to open.",

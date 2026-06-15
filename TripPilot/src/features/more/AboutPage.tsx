@@ -4,12 +4,28 @@ import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { APP_VERSION } from '@/utils/app-version';
 import { findReleaseNote, getPreviousReleaseNotes, getReleaseNoteItems } from '@/utils/release-notes';
+import { collectDiagnostics } from '@/utils/diagnostics';
 
 // DEC-059 (GAP-023, decision D-D): dedicated About entry — no Reports in D1/D2.
 export function AboutPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [showPrevious, setShowPrevious] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<string | null>(null);
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+
+  // DEC-176: same self-service diagnostics as the recovery screen, reachable
+  // in the normal state for the "loads but feels unstable" case.
+  const handleDiagnostics = async () => {
+    const text = await collectDiagnostics();
+    setDiagnostics(text);
+    try {
+      await navigator.clipboard.writeText(text);
+      setDiagnosticsCopied(true);
+    } catch {
+      setDiagnosticsCopied(false);
+    }
+  };
 
   const currentNote = findReleaseNote(APP_VERSION);
   const previousNotes = getPreviousReleaseNotes(APP_VERSION);
@@ -93,6 +109,32 @@ export function AboutPage() {
         <span className="text-sm text-on-surface flex-1">{t('about.backup_link')}</span>
         <Icon name="chevron_right" size={18} className="text-on-surface-faint" />
       </button>
+
+      <button
+        onClick={handleDiagnostics}
+        className="bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 btn-press text-left"
+      >
+        <Icon name="bug_report" size={20} className="text-on-surface-dim" />
+        <span className="text-sm text-on-surface flex-1">
+          {diagnosticsCopied ? t('data_error.diagnostics_copied') : t('data_error.diagnostics')}
+        </span>
+        <Icon name="content_copy" size={18} className="text-on-surface-faint" />
+      </button>
+
+      {diagnostics !== null && (
+        <textarea
+          readOnly
+          value={diagnostics}
+          onFocus={(e) => e.currentTarget.select()}
+          rows={10}
+          className="w-full text-[10px] font-mono rounded-lg p-2 outline-none"
+          style={{
+            background: 'var(--surface-container)',
+            color: 'var(--on-surface-dim)',
+            border: '1px solid var(--surface-container-high)',
+          }}
+        />
+      )}
 
       <p className="text-[10px] text-on-surface-faint text-center px-6">{t('about.local_first')}</p>
     </div>
