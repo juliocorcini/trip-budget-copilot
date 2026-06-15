@@ -3,10 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
-import { formatMoney, sumCents } from '@/domain/money';
-import { formatDate } from '@/domain/dates';
+import { formatMoney } from '@/domain/money';
 import { buildFreeToSpendBreakdown, type FtsBreakdownKey } from '@/domain/budget';
-import { getCategoryIcon } from '@/utils/category-icons';
 import { getDashboardCard, type DashboardCardId } from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
 import type { PhaseLeftover } from '@/domain/phases';
@@ -31,8 +29,6 @@ interface DashboardSheetsProps {
   configCardId: DashboardCardId | null;
   onCloseConfig: () => void;
   onHideCard: (id: DashboardCardId) => void;
-  heatmapDayIso: string | null;
-  onCloseHeatmapDay: () => void;
   // DEC-168: "where this number comes from" — the hero's reconciling arithmetic
   heroBreakdownOpen: boolean;
   onCloseHeroBreakdown: () => void;
@@ -74,8 +70,6 @@ export function DashboardSheets({
   configCardId,
   onCloseConfig,
   onHideCard,
-  heatmapDayIso,
-  onCloseHeatmapDay,
   heroBreakdownOpen,
   onCloseHeroBreakdown,
   phaseLeftover,
@@ -191,46 +185,6 @@ export function DashboardSheets({
             </button>
           </div>
         )}
-      </BottomSheet>
-
-      {/* DEC-131: heatmap day drill-down — the expenses of the tapped day */}
-      <BottomSheet
-        open={heatmapDayIso !== null}
-        onClose={onCloseHeatmapDay}
-        title={heatmapDayIso ? formatDate(heatmapDayIso, "d 'de' MMMM") : ''}
-      >
-        <div className="flex flex-col gap-2">
-          {model.heatmapDayTxs.map((tx) => (
-            <button
-              key={tx.id}
-              onClick={() => {
-                onCloseHeatmapDay();
-                navigate(`/expenses/${tx.id}`);
-              }}
-              className="w-full p-3 rounded-xl bg-surface-high flex items-center gap-3 text-left btn-press"
-            >
-              <Icon name={getCategoryIcon(tx.category)} size={18} className="text-primary" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-on-surface truncate">{tx.description}</p>
-                <p className="text-xs text-on-surface-faint mt-0.5">
-                  {tx.category ? t(`categories.${tx.category}` as never) : '—'}
-                </p>
-              </div>
-              <p className="text-sm font-extrabold tabular text-on-surface">
-                {formatMoney(tx.personalCostCents ?? tx.amountCents, trip.baseCurrency)}
-              </p>
-            </button>
-          ))}
-          <div className="flex justify-between items-center px-1 pt-2">
-            <p className="text-xs font-bold uppercase text-on-surface-faint">{t('common.total')}</p>
-            <p className="text-sm font-extrabold tabular text-on-surface">
-              {formatMoney(
-                sumCents(model.heatmapDayTxs.map((tx) => tx.personalCostCents ?? tx.amountCents)),
-                trip.baseCurrency,
-              )}
-            </p>
-          </div>
-        </div>
       </BottomSheet>
 
       {/* DEC-168: "where this number comes from" — the hero is the app's #1

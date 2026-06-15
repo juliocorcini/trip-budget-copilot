@@ -7,6 +7,7 @@ import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { Icon } from '@/components/Icon';
 import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
+import { RecapCard } from '@/features/dashboard/cards/RecapCard';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
 import { formatMoney } from '@/domain/money';
 import { sortPhasesByOrder, getTotalDays, localDateString, addDaysIso, formatDate } from '@/domain/dates';
@@ -250,6 +251,12 @@ export function CopilotPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 1b · YESTERDAY — daily recap, moved from the home (U5 / DEC-180): all
+          intelligence now lives in the Copiloto. */}
+      {model.recap && (
+        <RecapCard recap={model.recap} currency={currency} onOpen={() => navigate('/expenses')} />
       )}
 
       {/* 2 · WHERE IT'S HEADING — projection + reserve */}
@@ -555,25 +562,23 @@ export function CopilotPage() {
         </>
       )}
 
-      {/* 10 · TOOLS — always available (council rodapé) */}
+      {/* 10 · TOOLS — always available (council rodapé). U3: a 2-column grid of
+          cards (icon + label + description) instead of a long list. */}
       <SectionLabel>{t('copilot.tools')}</SectionLabel>
-      <div className="bg-surface-container rounded-xl overflow-hidden">
-        {tools.map((tool, i) => (
+      <div className="grid grid-cols-2 gap-2">
+        {tools.map((tool) => (
           <button
             key={tool.path}
             onClick={() => navigate(tool.path)}
-            className={`w-full flex items-center gap-3 px-4 py-3 btn-press text-left ${
-              i < tools.length - 1 ? 'border-b border-on-surface-mute' : ''
-            }`}
+            className="bg-surface-container rounded-xl p-3.5 btn-press text-left flex flex-col gap-2 h-full"
           >
             <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-surface-high">
               <Icon name={tool.icon} size={18} className="text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-on-surface">{tool.label}</p>
-              <p className="text-[11px] text-on-surface-faint mt-0.5">{tool.desc}</p>
+              <p className="text-[11px] text-on-surface-faint mt-0.5 leading-snug">{tool.desc}</p>
             </div>
-            <Icon name="chevron_right" size={18} className="text-on-surface-faint ml-auto shrink-0" />
           </button>
         ))}
       </div>

@@ -20,7 +20,6 @@ import {
 import {
   getRecentTransactions,
   filterTransactionsByPool,
-  groupTransactionsByCategory,
   calculateSpentOnDate,
 } from '@/domain/transactions';
 import { sumCents } from '@/domain/money';
@@ -37,7 +36,12 @@ import {
   settlementRepository,
   forecastSnapshotRepository,
 } from '@/data/repositories';
-import { buildYesterdayRecap, buildPhaseBurndown, buildMonthHeatmap } from '@/domain/dashboard';
+import {
+  buildYesterdayRecap,
+  buildPhaseBurndown,
+  buildMonthHeatmap,
+  buildOccasionCounters,
+} from '@/domain/dashboard';
 import { isProfileEnabledInPhase, detectValueSuggestion } from '@/domain/profiles';
 import { detectTripPriorsOffer } from '@/domain/templates';
 import {
@@ -238,12 +242,6 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           )
         : null;
 
-    const categoryGroups = groupTransactionsByCategory(transactions);
-    const barCount = categoryGroups['bar']?.length ?? 0;
-    const marketCount = categoryGroups['market']?.length ?? 0;
-    const restaurantCount = categoryGroups['restaurant']?.length ?? 0;
-    const hasOccasionData = barCount > 0 || marketCount > 0 || restaurantCount > 0;
-
     // Local date, not UTC — toISOString() would skip to tomorrow after 21:00 in UTC-3.
     const todayIso = localDateString(new Date());
     const todayEvents = activePhase
@@ -404,6 +402,20 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           })
         : null;
 
+    // U6 (DEC-180): unified occasion counters — planned metas (remaining/done)
+    // first, then per-category item counts for everything else. Scoped to the
+    // active phase, mirroring the forecasts ("o que foi feito nessa fase").
+    const phaseExpenseTxs = activePhase
+      ? transactions.filter(
+          (tx) => tx.phaseId === activePhase.id && tx.type === 'expense' && tx.deletedAt === null,
+        )
+      : [];
+    const occasionCounters = buildOccasionCounters({
+      forecasts,
+      profiles,
+      transactions: phaseExpenseTxs,
+    });
+
     // DEC-092 (R-10): savings refer to the LAST closed outing.
     const savings = calculateLastOutingSavings(completedSessions, transactions, profiles, Date.now());
 
@@ -543,10 +555,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       hasTransactions: transactions.length > 0,
       primaryPool,
       fts,
-      barCount,
-      marketCount,
-      restaurantCount,
-      hasOccasionData,
+      occasionCounters,
       todayIso,
       todayEvents,
       hasPendingExpenses,

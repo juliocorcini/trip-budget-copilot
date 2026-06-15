@@ -20,3 +20,10 @@ export { buildPhaseBurndown } from './burndown';
 export type { PhaseBurndown, BurndownPoint, BuildPhaseBurndownInput } from './burndown';
 export { buildMonthHeatmap, shiftMonth } from './heatmap';
 export type { MonthHeatmap, HeatmapDay, HeatmapIntensity } from './heatmap';
+export { buildOccasionCounters } from './occasion-counters';
+export type {
+  OccasionCounterItem,
+  PlannedOccasionCounter,
+  ActivityOccasionCounter,
+  BuildOccasionCountersInput,
+} from './occasion-counters';

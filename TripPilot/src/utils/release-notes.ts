@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.31.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Início mais enxuto: a análise (recap de ontem, ritmo da fase, mapa do mês) saiu da tela inicial e foi toda para o Copiloto, onde fica a inteligência do app.',
+        'Contadores da tela inicial repensados: primeiro as suas metas (quantos faltam / quantos já feitos) e, em seguida, os gastos por categoria de tudo o que não tem meta — com rótulo dizendo que é contagem de gastos. Antes só apareciam 3 categorias fixas.',
+        'Estrutura da Viagem agora é uma grade de atalhos (em vez de lista), mais fácil de tocar.',
+        'Ferramentas do Copiloto reorganizadas em grade de 2 colunas com descrição em cada uma.',
+      ],
+      en: [
+        'Leaner Home: the analytics (yesterday recap, phase pace, month map) left the home screen and moved entirely to the Copiloto, where the app’s intelligence lives.',
+        'Rethought home counters: your goals first (how many left / already done), then per-category spend counts for everything without a goal — labeled so it’s clear it’s a spend count. Before, only 3 fixed categories showed.',
+        'Trip structure is now a grid of shortcuts (instead of a list), easier to tap.',
+        'Copiloto tools reorganized into a 2-column grid, each with a description.',
+      ],
+      es: [
+        'Inicio más limpio: el análisis (resumen de ayer, ritmo de la fase, mapa del mes) salió de la pantalla de inicio y pasó por completo al Copiloto, donde está la inteligencia de la app.',
+        'Contadores de inicio repensados: primero tus metas (cuántas faltan / ya hechas) y luego los gastos por categoría de todo lo que no tiene meta — con una etiqueta que aclara que es conteo de gastos. Antes solo aparecían 3 categorías fijas.',
+        'La estructura del Viaje ahora es una cuadrícula de accesos (en vez de lista), más fácil de tocar.',
+        'Herramientas del Copiloto reorganizadas en una cuadrícula de 2 columnas, cada una con descripción.',
+      ],
+    },
+  },
+  {
     version: '0.30.0',
     date: '2026-06-15',
     items: {

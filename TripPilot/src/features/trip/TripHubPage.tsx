@@ -427,23 +427,25 @@ export function TripHubPage() {
         </button>
       </div>
 
-      {/* Structure — every destination keeps a tile (nothing lost) */}
+      {/* Structure — every destination keeps a tile (nothing lost). U2: a grid
+          of tiles instead of a list (Julio: "podia ser um grid com 6 opções"). */}
       <div>
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
           {t('trip_hub.section_structure')}
         </p>
-        <div className="bg-surface-container rounded-xl overflow-hidden">
-          {structureItems.map((item, i) => (
+        <div className="grid grid-cols-3 gap-2">
+          {structureItems.map((item) => (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 btn-press text-left ${
-                i < structureItems.length - 1 ? 'border-b border-on-surface-mute' : ''
-              }`}
+              className="bg-surface-container rounded-xl p-3 btn-press flex flex-col items-center text-center gap-2 h-full"
             >
-              <Icon name={item.icon} size={20} className="text-on-surface-dim shrink-0" />
-              <span className="text-sm text-on-surface flex-1">{item.label}</span>
-              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-surface-high">
+                <Icon name={item.icon} size={20} className="text-on-surface-dim" />
+              </div>
+              <span className="text-[11px] font-semibold text-on-surface leading-tight line-clamp-2">
+                {item.label}
+              </span>
             </button>
           ))}
         </div>

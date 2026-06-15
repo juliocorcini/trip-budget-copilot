@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode, type Dispatch, type SetStateAction } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
@@ -7,9 +7,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import {
   resolveDashboardCardSequence,
   isDashboardCardHidden,
-  isDashboardCardCollapsed,
   getDashboardCard,
-  shiftMonth,
   type DashboardCardId,
 } from '@/domain/dashboard';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -30,9 +28,6 @@ import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { CheckInIntent } from '@/domain/types/common';
-import { RecapCard } from '@/features/dashboard/cards/RecapCard';
-import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
-import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
 import { OccasionCounter } from '@/features/dashboard/cards/OccasionCounter';
 import {
@@ -52,15 +47,11 @@ interface DashboardCardsProps {
   model: DashboardModel;
   trip: Trip;
   settings: AppSettings;
-  heatmapMonth: string;
-  setHeatmapMonth: Dispatch<SetStateAction<string>>;
   onOpenConfirmSheet: () => void;
   onConfigCard: (id: DashboardCardId) => void;
   onPostponeEvent: (occurrenceId: string) => void;
   onInsightTap: (insight: DashboardInsight) => void;
-  onSelectHeatmapDay: (iso: string) => void;
   onSelectCheckIn: (intent: CheckInIntent) => void;
-  onToggleCollapse: (id: DashboardCardId) => void;
   onOpenHeroBreakdown: () => void;
 }
 
@@ -104,15 +95,11 @@ export function DashboardCards({
   model,
   trip,
   settings,
-  heatmapMonth,
-  setHeatmapMonth,
   onOpenConfirmSheet,
   onConfigCard,
   onPostponeEvent,
   onInsightTap,
-  onSelectHeatmapDay,
   onSelectCheckIn,
-  onToggleCollapse,
   onOpenHeroBreakdown,
 }: DashboardCardsProps) {
   const { t } = useTranslation();
@@ -172,7 +159,7 @@ export function DashboardCards({
   const piggyVisible =
     model.piggyBankCents > 0 && !isDashboardCardHidden('piggy_bank', settings.hiddenDashboardCards);
   const occasionsVisible =
-    (model.forecasts.length > 0 || model.hasOccasionData) &&
+    model.occasionCounters.length > 0 &&
     !isDashboardCardHidden('occasion_counters', settings.hiddenDashboardCards);
   const focusAvailable =
     lens?.focusCardId === 'piggy_bank'
@@ -633,68 +620,14 @@ export function DashboardCards({
             )}
           </>
         );
-      case 'trip_analytics': {
-        // D3: collapsible drawer grouping the read-only review cards (yesterday
-        // recap DEC-129 + phase burn-down DEC-130 + month heatmap DEC-131).
-        // Closed by default — fixes "too many cards open" without removing any.
-        // Each inner card keeps its own "hidden until relevant" guard.
-        const hasHeatmap = model.hasTransactions;
-        if (!model.recap && !model.burndown && !hasHeatmap) return null;
-        const collapsed = isDashboardCardCollapsed('trip_analytics', settings.collapsedDashboardCards);
-        return (
-          <div className="mt-4">
-            <button
-              onClick={() => onToggleCollapse('trip_analytics')}
-              aria-expanded={!collapsed}
-              className="w-full px-4 py-3 rounded-2xl bg-surface-container flex items-center gap-3 btn-press text-left"
-            >
-              <Icon name="monitoring" size={18} className="text-on-surface-dim" />
-              <span className="text-sm font-semibold text-on-surface flex-1">
-                {t('dashboard.card_trip_analytics')}
-              </span>
-              <Icon
-                name={collapsed ? 'expand_more' : 'expand_less'}
-                size={20}
-                className="text-on-surface-faint"
-              />
-            </button>
-            {!collapsed && (
-              <>
-                {model.recap && (
-                  <RecapCard
-                    recap={model.recap}
-                    currency={trip.baseCurrency}
-                    onOpen={() => navigate('/expenses')}
-                  />
-                )}
-                {model.burndown && (
-                  <BurndownCard
-                    burndown={model.burndown}
-                    currency={trip.baseCurrency}
-                    onOpen={() => navigate('/impact')}
-                  />
-                )}
-                {hasHeatmap && (
-                  <HeatmapCard
-                    heatmap={model.heatmap}
-                    currency={trip.baseCurrency}
-                    todayIso={model.todayIso}
-                    canPrev={heatmapMonth > model.tripStartMonth}
-                    canNext={heatmapMonth < model.currentMonth}
-                    onPrev={() => setHeatmapMonth((m) => shiftMonth(m, -1))}
-                    onNext={() => setHeatmapMonth((m) => shiftMonth(m, 1))}
-                    onSelectDay={onSelectHeatmapDay}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        );
-      }
       case 'occasion_counters': {
-        // §7 pos. 6 — OCCASION COUNTERS — carousel (DEC-076), done-count fallback.
-        if (model.forecasts.length === 0 && !model.hasOccasionData) return null;
+        // §7 pos. 6 — OCCASION COUNTERS (U6 / DEC-180): one carousel — planned
+        // metas first (remaining/done), then per-category item counts with an
+        // explicit unit label ("gastos"). ÂNCORA 10, beloved card.
+        const counters = model.occasionCounters;
+        if (counters.length === 0) return null;
         const occasionsFocused = activeFocusCardId === 'occasion_counters';
+        const pageCount = Math.ceil(counters.length / 3);
         return (
           <div className="mt-4">
             {/* E5 lens: when "outing" is the day's mode, the counters are spotlighted. */}
@@ -703,82 +636,68 @@ export function DashboardCards({
                 <LensChip label={t('dashboard.lens_in_focus')} />
               </div>
             )}
-            {model.forecasts.length > 0 ? (
-              <>
-                {/* DEC-076/DEC-122 (R-01): pure-CSS scroll-snap carousel, ~3 visible */}
-                <div
-                  className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] scroll-pl-[var(--page-padding-x)] scroll-pr-[var(--page-padding-x)] snap-x snap-mandatory"
-                  onScroll={(e) => {
-                    const el = e.currentTarget;
-                    const pageCount = Math.ceil(model.forecasts.length / 3);
-                    const maxScroll = el.scrollWidth - el.clientWidth;
-                    if (maxScroll <= 0) return;
-                    const page = Math.round((el.scrollLeft / maxScroll) * (pageCount - 1));
-                    if (page !== carouselPage) setCarouselPage(page);
-                  }}
-                >
-                  {model.forecasts.map((forecast) => {
-                    const profile = model.profiles.find((p) => p.id === forecast.profileId);
-                    const accent = counterAccent(profile?.category);
-                    return (
-                      <div
-                        key={forecast.profileId}
-                        // R6-11 (R-02) / DEC-122: exactly 3 cards per page, snap-always.
-                        className="snap-start snap-always shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
-                      >
-                        <OccasionCounter
-                          icon={profile?.iconName ?? getCategoryIcon(profile?.category ?? 'other')}
-                          count={forecast.remaining}
-                          label={t('dashboard.occasion_remaining', { name: forecast.profileName })}
-                          sublabel={t('dashboard.occasion_done', { count: forecast.spent })}
-                          iconBg={accent.bg}
-                          iconColor={accent.color}
-                          onClick={() => navigate(`/expenses?profile=${forecast.profileId}`)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                {model.forecasts.length > 3 && (
-                  <div className="flex justify-center gap-1.5 mt-2" aria-hidden="true">
-                    {Array.from({ length: Math.ceil(model.forecasts.length / 3) }).map((_, i) => (
-                      <span
-                        key={i}
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{
-                          background: i === carouselPage ? 'var(--primary)' : 'var(--surface-container-high)',
-                        }}
+            {/* DEC-076/DEC-122 (R-01): pure-CSS scroll-snap carousel, ~3 visible */}
+            <div
+              className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] scroll-pl-[var(--page-padding-x)] scroll-pr-[var(--page-padding-x)] snap-x snap-mandatory"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const maxScroll = el.scrollWidth - el.clientWidth;
+                if (maxScroll <= 0) return;
+                const page = Math.round((el.scrollLeft / maxScroll) * (pageCount - 1));
+                if (page !== carouselPage) setCarouselPage(page);
+              }}
+            >
+              {counters.map((counter) => {
+                const accent = counterAccent(counter.category);
+                if (counter.kind === 'planned') {
+                  const profile = model.profiles.find((p) => p.id === counter.profileId);
+                  return (
+                    <div
+                      key={counter.key}
+                      // R6-11 (R-02) / DEC-122: exactly 3 cards per page, snap-always.
+                      className="snap-start snap-always shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
+                    >
+                      <OccasionCounter
+                        icon={profile?.iconName ?? getCategoryIcon(counter.category)}
+                        count={counter.remaining}
+                        label={t('dashboard.occasion_remaining', { name: counter.name })}
+                        sublabel={t('dashboard.occasion_done', { count: counter.done })}
+                        iconBg={accent.bg}
+                        iconColor={accent.color}
+                        onClick={() => navigate(`/expenses?profile=${counter.profileId}`)}
                       />
-                    ))}
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={counter.key}
+                    className="snap-start snap-always shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
+                  >
+                    <OccasionCounter
+                      icon={getCategoryIcon(counter.category)}
+                      count={counter.itemCount}
+                      label={t(`categories.${counter.category}` as never)}
+                      sublabel={t('dashboard.occasion_items')}
+                      iconBg={accent.bg}
+                      iconColor={accent.color}
+                      onClick={() => navigate(`/expenses?category=${counter.category}`)}
+                    />
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="grid grid-cols-3 gap-3">
-                <OccasionCounter
-                  icon="local_bar"
-                  count={model.barCount}
-                  label={t('dashboard.occasion_bar')}
-                  iconBg="#C75B3918"
-                  iconColor="var(--primary)"
-                  onClick={() => navigate('/expenses?category=bar')}
-                />
-                <OccasionCounter
-                  icon="shopping_cart"
-                  count={model.marketCount}
-                  label={t('dashboard.occasion_market')}
-                  iconBg="#6B8F7118"
-                  iconColor="var(--success)"
-                  onClick={() => navigate('/expenses?category=market')}
-                />
-                <OccasionCounter
-                  icon="restaurant"
-                  count={model.restaurantCount}
-                  label={t('dashboard.occasion_restaurant')}
-                  iconBg="#D4A84318"
-                  iconColor="var(--warning)"
-                  onClick={() => navigate('/expenses?category=restaurant')}
-                />
+                );
+              })}
+            </div>
+            {counters.length > 3 && (
+              <div className="flex justify-center gap-1.5 mt-2" aria-hidden="true">
+                {Array.from({ length: pageCount }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: i === carouselPage ? 'var(--primary)' : 'var(--surface-container-high)',
+                    }}
+                  />
+                ))}
               </div>
             )}
           </div>

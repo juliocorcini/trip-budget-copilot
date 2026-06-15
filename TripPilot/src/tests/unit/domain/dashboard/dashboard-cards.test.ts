@@ -42,7 +42,6 @@ describe('resolveDashboardCardSequence', () => {
       'pending_shares',
       'funds_summary',
       'planned_purchases',
-      'trip_analytics',
     ]);
   });
 
@@ -90,39 +89,27 @@ describe('moveDashboardCard', () => {
     const sequence = resolveDashboardCardSequence(order);
     const movable = sequence.filter((id) => id !== 'active_outing' && id !== 'hero');
     // recent_expenses is the last movable card; moving it up swaps with the
-    // trip_analytics drawer, which becomes last.
-    expect(movable[movable.length - 1]).toBe('trip_analytics');
+    // planned_purchases tile, which becomes last.
+    expect(movable[movable.length - 1]).toBe('planned_purchases');
     expect(movable[movable.length - 2]).toBe('recent_expenses');
   });
 });
 
-// UX polish (D3): collapsible analytics drawer — closed by default.
-describe('collapse / expand', () => {
-  it('reports the trip_analytics drawer as collapsed by default', () => {
-    expect(DEFAULT_COLLAPSED_CARDS).toContain('trip_analytics');
-    // undefined settings fall back to the default collapsed set.
-    expect(isDashboardCardCollapsed('trip_analytics', undefined)).toBe(true);
+// U6 (DEC-180): the analytics drawer (the only collapsible card) moved to the
+// Copiloto. The collapse machinery stays as dormant, generic infra — no catalog
+// card is collapsible anymore.
+describe('collapse / expand (dormant)', () => {
+  it('has nothing collapsed by default', () => {
+    expect(DEFAULT_COLLAPSED_CARDS).toEqual([]);
   });
 
-  it('honours an explicit empty collapsed list (user expanded it)', () => {
-    expect(isDashboardCardCollapsed('trip_analytics', [])).toBe(false);
-  });
-
-  it('never reports non-collapsible cards as collapsed', () => {
+  it('never reports a card as collapsed (none are collapsible)', () => {
     expect(isDashboardCardCollapsed('hero', undefined)).toBe(false);
     expect(isDashboardCardCollapsed('recent_expenses', ['recent_expenses'])).toBe(false);
   });
 
-  it('toggles the collapsed state for a collapsible card', () => {
-    // From the default (collapsed) → expand → collapse again.
-    const expanded = toggleDashboardCardCollapsed('trip_analytics', DEFAULT_COLLAPSED_CARDS);
-    expect(expanded).not.toContain('trip_analytics');
-    expect(isDashboardCardCollapsed('trip_analytics', expanded)).toBe(false);
-    const collapsedAgain = toggleDashboardCardCollapsed('trip_analytics', expanded);
-    expect(collapsedAgain).toContain('trip_analytics');
-  });
-
   it('is a no-op for non-collapsible cards', () => {
     expect(toggleDashboardCardCollapsed('hero', [])).toEqual([]);
+    expect(toggleDashboardCardCollapsed('recent_expenses', [])).toEqual([]);
   });
 });

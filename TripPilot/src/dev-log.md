@@ -2,19 +2,55 @@
 
 ## Current State
 - **Active Delivery**: Post-APK Improvements — running all remaining phases (1C → 2 → 3 → 4), commit+deploy+APK per gate
-- **Active Milestone**: Gate 1C DONE → Phase 1 COMPLETE (N7 DPI calibration + N8 haptics)
-- **Last Green Test Run**: Gate 1C (0.30.0) — 941 pass / 0 fail
-- **Total Tests**: 941 pass / 0 fail
-- **Build Status**: clean (web build + cap sync 5 plugins + type-check all green)
-- **APK**: `Downloads/TripPilot-0.30.0-debug.apk` (versionCode 4)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 + 0.30.0 live
-- **Next**: Gate 2A — U5 analytics→Copiloto, U6 occasion counters, U2 structure grid, U3 tools grid
-- **Confidence**: 88% (N5/N6/N7/N8 are [device]-pending validation; N7 zoom may need one tuning pass)
+- **Active Milestone**: Gate 2A DONE (U5 analytics→Copiloto, U6 counters, U2 structure grid, U3 tools grid)
+- **Last Green Test Run**: Gate 2A (0.31.0) — 944 pass / 0 fail
+- **Total Tests**: 944 pass / 0 fail (108 files; +1 file occasion-counters, +5 tests)
+- **Build Status**: clean (web build + cap sync + type-check all green)
+- **APK**: `Downloads/TripPilot-0.31.0-debug.apk` (versionCode 5)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 + 0.30.0 + 0.31.0 live
+- **Next**: Gate 2B — U1 notifications reorg, U4 month-map day sheet, G2 expense search
+- **Confidence**: 88% (N5/N6/N7/N8 still [device]-pending; U6 counters model validated by unit tests)
 
 ## Post-APK Improvements — Phase 1 (Native Shell Hardening)
 Master plan: `brain/documents/post-apk-improvements-plan-2026-06-15.md`
 Phase 1 package: `brain/documents/phase1-native-execution-package-2026-06-15.md`
 Live Update spec: `brain/documents/live-update-nowbar-technical-spec-2026-06-15.md`
+
+### Gate 2A — Home/Copiloto reorg + counters ✅ (0.31.0)
+Master plan §Phase 2 (U2, U3, U5, U6). Web/PWA + APK (no native-only code in this gate).
+- [x] **U5 — Daily analytics → Copiloto (DEC-180 G4)**: removed the `trip_analytics`
+      collapsible drawer (yesterday recap + phase burn-down + month heatmap) from the
+      Home. Copiloto already rendered the burn-down + month map; added the `RecapCard`
+      (yesterday) there too, so ALL intelligence lives in the Copiloto. Removed the Home
+      heatmap month/day state, the day-drill `BottomSheet` (DashboardSheets), and the
+      `onToggleCollapse`/heatmap props through DashboardPage→DashboardCards. The collapse
+      machinery (`isDashboardCardCollapsed`/`toggleDashboardCardCollapsed`/`collapsible`/
+      `DEFAULT_COLLAPSED_CARDS=[]`) stays as dormant generic infra (still exported + tested;
+      `collapsedDashboardCards` settings field kept → no migration).
+- [x] **U6 — Unified occasion counters (DEC-180)**: new pure domain
+      `domain/dashboard/occasion-counters.ts` → `buildOccasionCounters` returns ONE
+      ordered list: planned metas first (forecasts with `totalPlanned>0` → remaining/done,
+      occasion-counted per DEC-115), then per-category ITEM counts for every other category
+      with expenses (phase-scoped), each with the unit label "gastos". A category covered by
+      a meta is excluded from the activity counts (no double-count). Replaces the old
+      forecast-only carousel + the hardcoded 3-cell bar/market/restaurant fallback. Model
+      drops `barCount/marketCount/restaurantCount/hasOccasionData`, adds `occasionCounters`.
+      5 unit tests (ordering, exclusion, unplanned-as-activity, expense-only, empty).
+- [x] **U2 — Trip structure grid**: `TripHubPage` "Estrutura" is now a 3-col grid of icon
+      tiles (6 destinations) instead of a vertical list.
+- [x] **U3 — Copiloto tools grid**: the bottom "Ferramentas" list is now a 2-col grid of
+      cards (icon + label + description).
+- [x] **i18n**: added `dashboard.occasion_items` (pt/en/es); removed the now-unused
+      `occasion_bar/market/restaurant`. `card_trip_analytics` left dormant (no catalog ref).
+- [x] **Verify**: 944 tests pass (108 files), type-check (tsc -b) clean, web build + cap
+      sync OK, `assembleDebug` BUILD SUCCESSFUL, APK 0.31.0 → Downloads.
+- **Self-check / regression**: dashboard card sequence/hide/move tests updated (catalog no
+      longer has `trip_analytics`); occasion card visibility now keys on
+      `occasionCounters.length`; the model still computes recap/burndown/heatmap (Copiloto
+      consumes them) — only the Home rendering moved. `heatmapDayTxs` left in the model
+      (always `[]` now; harmless) to avoid reshaping the shared model.
+- **Next (Gate 2B)**: U1 notifications center reorg (cards/groups), U4 month-map day sheet
+      in the Copiloto, G2 expense search.
 
 ### Gate 1C — DPI calibration + haptics ✅ (0.30.0) — Phase 1 COMPLETE — [device]-pending: N7, N8
 - [x] **M1C.1 — Haptics boundary (N8)**: new `utils/haptics.ts` — native uses

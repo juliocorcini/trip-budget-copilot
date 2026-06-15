@@ -20,10 +20,6 @@ export type DashboardCardId =
   | 'pending_shares'
   | 'funds_summary'
   | 'planned_purchases'
-  // UX polish (D3): the read-only review cards (yesterday recap, phase
-  // burn-down, month heatmap) collapse into ONE drawer, closed by default —
-  // fixes "too many cards open" without removing any of them.
-  | 'trip_analytics'
   | 'recent_expenses';
 
 export interface DashboardQuickAction {
@@ -46,8 +42,9 @@ export interface DashboardCardDescriptor {
 
 // UX polish (D2): default order favours hierarchy — urgent/contextual and the
 // beloved carousels (occasion counters + insights — ÂNCORA 10) stay high; the
-// read-only review drawer (trip_analytics) and the expense list sit at the
-// bottom. Users can still reorder/hide everything (DEC-119).
+// expense list sits at the bottom. U6 (DEC-180): the read-only analytics drawer
+// (recap/burn-down/heatmap) moved to the Copiloto intelligence tab. Users can
+// still reorder/hide everything (DEC-119).
 export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   {
     id: 'today_events',
@@ -150,19 +147,6 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     },
   },
   {
-    // D3: collapsible drawer grouping yesterday recap + phase burn-down +
-    // month heatmap. Collapsed by default (DEFAULT_COLLAPSED_CARDS).
-    id: 'trip_analytics',
-    labelKey: 'dashboard.card_trip_analytics',
-    fixed: false,
-    collapsible: true,
-    quickAction: {
-      route: '/impact',
-      labelKey: 'dashboard.card_action_see_impact',
-      icon: 'monitoring',
-    },
-  },
-  {
     id: 'recent_expenses',
     labelKey: 'dashboard.card_recent_expenses',
     fixed: false,
@@ -175,11 +159,11 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
 ];
 
 /**
- * D3: cards collapsed by default (closed drawer). A user toggle persists the
- * full collapsed-id list in settings; until then this default applies to both
- * fresh installs and existing users (whose settings predate the field).
+ * D3: cards collapsed by default (closed drawer). U6 (DEC-180) removed the only
+ * collapsible card (the analytics drawer moved to the Copiloto), so the default
+ * is now empty — the collapse machinery stays as dormant, generic infra.
  */
-export const DEFAULT_COLLAPSED_CARDS: DashboardCardId[] = ['trip_analytics'];
+export const DEFAULT_COLLAPSED_CARDS: DashboardCardId[] = [];
 
 const CATALOG_IDS = new Set(DASHBOARD_CARD_CATALOG.map((c) => c.id));
 

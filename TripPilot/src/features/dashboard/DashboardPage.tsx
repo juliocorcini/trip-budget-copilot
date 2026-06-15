@@ -11,11 +11,7 @@ import { isNativeApp } from '@/utils/native/platform';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
-import {
-  toggleDashboardCardHidden,
-  toggleDashboardCardCollapsed,
-  type DashboardCardId,
-} from '@/domain/dashboard';
+import { toggleDashboardCardHidden, type DashboardCardId } from '@/domain/dashboard';
 import { postponeOccurrence } from '@/domain/planning';
 import {
   resolveShareConfirmation,
@@ -53,12 +49,12 @@ export function DashboardPage() {
   const [shareDrafts, setShareDrafts] = useState<Record<string, string>>({});
   const [detailInsight, setDetailInsight] = useState<DashboardInsight | null>(null);
   const [configCardId, setConfigCardId] = useState<DashboardCardId | null>(null);
-  // DEC-131: heatmap month navigation + tapped-day sheet.
-  const [heatmapMonth, setHeatmapMonth] = useState(() => localDateString(new Date()).slice(0, 7));
-  const [heatmapDayIso, setHeatmapDayIso] = useState<string | null>(null);
   const [heroBreakdownOpen, setHeroBreakdownOpen] = useState(false);
 
-  const model = useDashboardModel(appData, heatmapMonth, heatmapDayIso);
+  // U6 (DEC-180): the month heatmap + its day drill-down moved to the Copiloto,
+  // so the home no longer drives heatmap month/day state — the model still gets
+  // the current month for the derivations the home cards reuse.
+  const model = useDashboardModel(appData, localDateString(new Date()).slice(0, 7), null);
 
   // DEC-090 (R-08): the notifications center deep-links into the confirm sheet.
   useEffect(() => {
@@ -89,15 +85,6 @@ export function DashboardPage() {
       hiddenDashboardCards: toggleDashboardCardHidden(id, settings?.hiddenDashboardCards),
     });
     setConfigCardId(null);
-    await reload();
-  };
-
-  // D3 (UX polish): collapse/expand a card drawer — persisted like hide, a
-  // sibling of DEC-119's configurable cards. ZERO removal: closed = one tap away.
-  const handleToggleCollapse = async (id: DashboardCardId) => {
-    await appSettingsRepository.update({
-      collapsedDashboardCards: toggleDashboardCardCollapsed(id, settings?.collapsedDashboardCards),
-    });
     await reload();
   };
 
@@ -416,15 +403,11 @@ export function DashboardPage() {
             model={model}
             trip={trip}
             settings={settings}
-            heatmapMonth={heatmapMonth}
-            setHeatmapMonth={setHeatmapMonth}
             onOpenConfirmSheet={() => setConfirmSheetOpen(true)}
             onConfigCard={setConfigCardId}
             onPostponeEvent={handlePostponeEvent}
             onInsightTap={handleInsightTap}
-            onSelectHeatmapDay={setHeatmapDayIso}
             onSelectCheckIn={handleSelectCheckIn}
-            onToggleCollapse={handleToggleCollapse}
             onOpenHeroBreakdown={() => setHeroBreakdownOpen(true)}
           />
 
@@ -457,8 +440,6 @@ export function DashboardPage() {
         configCardId={configCardId}
         onCloseConfig={() => setConfigCardId(null)}
         onHideCard={handleHideCard}
-        heatmapDayIso={heatmapDayIso}
-        onCloseHeatmapDay={() => setHeatmapDayIso(null)}
         heroBreakdownOpen={heroBreakdownOpen}
         onCloseHeroBreakdown={() => setHeroBreakdownOpen(false)}
         phaseLeftover={isSimpleMode ? null : model.phaseLeftover}
