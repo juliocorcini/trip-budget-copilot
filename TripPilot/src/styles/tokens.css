@@ -34,6 +34,9 @@
 
   /* ── Layout (DEC-085: single page side padding for ALL pages) ── */
   --page-padding-x: 16px;
+  /* DEC-192: top safe-area inset. 0 in the browser and when the native status
+     bar is non-overlay; only non-zero if the OS forces edge-to-edge. */
+  --safe-top: env(safe-area-inset-top, 0px);
 
   /* ── Spacing ── */
   --space-xs: 4px;

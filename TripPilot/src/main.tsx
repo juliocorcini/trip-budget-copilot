@@ -15,6 +15,7 @@ import {
 } from './utils/check-in-notification';
 import { appSettingsRepository } from './data/repositories';
 import { recordCrash, describeError } from './utils/crash-log';
+import { initNativeShell } from './utils/native';
 import i18n from './i18n';
 import './styles/globals.css';
 
@@ -27,6 +28,10 @@ window.addEventListener('error', (event) => {
 window.addEventListener('unhandledrejection', (event) => {
   recordCrash(describeError(event.reason));
 });
+
+// DEC-191/192/193: one-time native shell setup (status bar overlay + hardware
+// back button). No-op on the web build.
+initNativeShell();
 
 registerServiceWorker();
 

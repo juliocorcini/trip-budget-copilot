@@ -17,6 +17,45 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.29.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Permissão de GPS de verdade: ao ligar “registrar o local dos gastos”, o app agora pede a permissão do Android e avisa com clareza se ela for negada (antes ficava em silêncio).',
+        'Notificações nativas no Android: acabou o “navegador não suporta”. A saída ativa gera uma notificação real e contínua, com o total da rodada e botão para abrir o app.',
+        'Armazenamento: no app instalado seus dados já ficam guardados de forma permanente — então o aviso de “dados podem ser perdidos” e o botão de ativar armazenamento não aparecem mais (eram coisas só do navegador).',
+      ],
+      en: [
+        'Real GPS permission: when you turn on “record the location of expenses”, the app now asks for the Android permission and clearly warns you if it is denied (it used to fail silently).',
+        'Native Android notifications: no more “browser does not support”. An active outing now shows a real, ongoing notification with the round total and a button to open the app.',
+        'Storage: the installed app already keeps your data permanently — so the “data may be lost” warning and the enable-storage button no longer appear (they were browser-only).',
+      ],
+      es: [
+        'Permiso de GPS real: al activar “registrar el lugar de los gastos”, la app ahora pide el permiso de Android y avisa con claridad si se deniega (antes fallaba en silencio).',
+        'Notificaciones nativas en Android: se acabó el “el navegador no soporta”. La salida activa muestra una notificación real y continua, con el total de la ronda y un botón para abrir la app.',
+        'Almacenamiento: la app instalada ya guarda tus datos de forma permanente — así que el aviso de “los datos pueden perderse” y el botón de activar almacenamiento ya no aparecen (eran solo del navegador).',
+      ],
+    },
+  },
+  {
+    version: '0.28.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'App Android nativo: a barra de status agora acompanha o tema — fundo na cor do app e ícones legíveis no claro e no escuro — e o conteúdo (títulos e botões) não fica mais escondido atrás dela.',
+        'O botão Voltar do Android agora funciona dentro do app: fecha o que estiver aberto, volta uma tela e só sai do app na tela inicial (com um segundo toque para confirmar).',
+      ],
+      en: [
+        'Native Android app: the status bar now follows the theme — app-colored background and legible icons in light and dark — and content (titles and buttons) no longer hides behind it.',
+        'The Android Back button now works inside the app: it closes what’s open, goes back one screen, and only leaves the app from the home screen (a second tap confirms).',
+      ],
+      es: [
+        'App Android nativa: la barra de estado ahora acompaña el tema — fondo del color de la app e iconos legibles en claro y oscuro — y el contenido (títulos y botones) ya no queda escondido detrás.',
+        'El botón Atrás de Android ahora funciona dentro de la app: cierra lo que esté abierto, vuelve una pantalla y solo sale de la app desde la pantalla de inicio (un segundo toque confirma).',
+      ],
+    },
+  },
+  {
     version: '0.27.0',
     date: '2026-06-15',
     items: {

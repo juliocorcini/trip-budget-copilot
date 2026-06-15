@@ -73,7 +73,10 @@
    full-bleed across the page padding, subtle elevation once scrolled. */
 .page-sticky-header {
   position: sticky;
-  top: 0;
+  /* DEC-192: stick below the status bar when the OS forces edge-to-edge.
+     --safe-top is 0 on web and on the non-overlay native bar, so this is a
+     no-op there (identical to top: 0). */
+  top: var(--safe-top);
   z-index: 30;
   background: var(--surface);
   margin-left: calc(var(--page-padding-x) * -1);

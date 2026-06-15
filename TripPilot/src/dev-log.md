@@ -1,12 +1,73 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G8)
-- **Active Milestone**: G8 DONE → Copiloto intelligence expanded
-- **Last Green Test Run**: G8 (0.27.0)
+- **Active Delivery**: Post-APK Improvements — Phase 1 (Native Shell Hardening)
+- **Active Milestone**: Gate 1B DONE → native persistence reality + GPS permission + native notifications
+- **Last Green Test Run**: Gate 1B (0.29.0) — 941 pass / 0 fail
 - **Total Tests**: 941 pass / 0 fail
-- **Build Status**: clean
-- **Confidence**: 95%
+- **Build Status**: clean (web build + cap sync 4 plugins + type-check all green)
+- **APK**: `Downloads/TripPilot-0.29.0-debug.apk` (versionCode 3)
+- **Next**: Gate 1C — N7 DPI/scaling calibration + N8 haptics
+- **Confidence**: 90% (N5/N6 are [device]-pending validation)
+
+## Post-APK Improvements — Phase 1 (Native Shell Hardening)
+Master plan: `brain/documents/post-apk-improvements-plan-2026-06-15.md`
+Phase 1 package: `brain/documents/phase1-native-execution-package-2026-06-15.md`
+Live Update spec: `brain/documents/live-update-nowbar-technical-spec-2026-06-15.md`
+
+### Gate 1B — Permissions & services ✅ (0.29.0) — [device]-pending: N5, N6
+- [x] **M1B.1 — Native persistence reality (N4)**: storage is app-private in the
+      APK (no browser eviction), so the data-loss warning + the persistent-storage
+      Settings section are gated behind `!isNativeApp()`. Dashboard `showStorageWarning`
+      and the Settings section hidden natively; Web/PWA unchanged; manual backup intact.
+- [x] **M1B.2 — Native GPS permission (N5)** [device]: `utils/geolocation.ts` is now
+      native-aware — `ensureLocationPermission()` calls Capacitor Geolocation
+      (check/request) on the APK; `getCurrentCoords()` reads via the plugin natively
+      and via `navigator.geolocation` on the Web (unchanged → existing tests pass).
+      Settings location toggle requests permission BEFORE enabling and toasts on
+      denial (`settings.location_denied`, 3 locales). Manifest gains
+      `ACCESS_FINE/COARSE_LOCATION`.
+- [x] **M1B.3 — Native notification base (N6)** [device]: new `utils/native/notifications.ts`
+      (Capacitor LocalNotifications, lazy-imported). `outing-notification.ts` routes to
+      the native path when `isNativeApp()` — permission (kills "browser does not support"),
+      ongoing active-outing notification reusing the domain payload (`buildOutingNotificationPayload`,
+      rich body), and a working "open" action (listener → `/outings/active`). Quick-add
+      action buttons that WRITE to the DB are deferred to Track B (Live Update / foreground
+      service). Web/PWA keeps the SW path untouched. Manifest gains `POST_NOTIFICATIONS`.
+      Settings refreshes the async native permission on mount.
+- [x] **Verify**: 941 tests pass, type-check (tsc -b) clean, web build OK,
+      `cap sync` reports 4 plugins (app, geolocation, local-notifications, status-bar).
+- **Self-check / regression**: every native path guarded by `isNativeApp()`; Web bundle
+      keeps the plugins out via lazy `import()`; geolocation/outing-notification unit
+      tests still green (web branch unchanged). Changes confined to `utils/geolocation.ts`,
+      `utils/native/notifications.ts`, `utils/native/index.ts`, `utils/outing-notification.ts`,
+      `SettingsPage`, `DashboardPage`, manifest, locales, version files.
+- **[device] pending**: N5 OS dialog + coords on a real phone; N6 permission prompt +
+      ongoing notification + open action on a real phone.
+- **Next (Gate 1C)**: N7 DPI/scaling calibration (measure APK vs PWA), N8 haptics.
+
+### Gate 1A — Native shell foundations ✅ (0.28.0)
+- [x] **M1A.0 — Native boundary (N0)**: installed `@capacitor/status-bar@8` +
+      `@capacitor/app@8`. New `src/utils/native/` module isolates all native calls
+      behind `isNativeApp()` (Capacitor.isNativePlatform). Bootstrap via
+      `initNativeShell()` in `main.tsx` — no-op on web, so PWA/domain stay pure.
+- [x] **M1A.1 — Safe-area top (N1)**: `--safe-top` token = `env(safe-area-inset-top)`.
+      AppShell pads `pt-[var(--safe-top)]`; sticky headers use `top: var(--safe-top)`.
+      Fixes content (titles/back button) hiding behind the status bar.
+- [x] **M1A.2 — Status bar follows theme (N2)** (DEC-192): `applyNativeStatusBar()`
+      runs on every theme change in RootLayout — sets bar background to app color and
+      icon style (Light/Dark) so icons stay legible in light theme.
+- [x] **M1A.3 — Native back button (N3)** (DEC-193): `@capacitor/app` backButton
+      listener → LIFO overlay-dismiss registry (BottomSheet registers on open) →
+      `history.back()` → on home, double-tap-to-exit toast (`common.press_again_to_exit`,
+      3 locales). PWA `useBackButtonGuard` history hack gated off when native.
+- [x] **Verify**: tsc clean, 941 tests pass, web build OK, cap sync OK,
+      `assembleDebug` BUILD SUCCESSFUL, APK copied to Downloads.
+- **Self-check / regression**: changes confined to `utils/native/*`, `overlay-dismiss.ts`,
+      `AppShell`, `RootLayout`, `BottomSheet`, tokens/globals CSS, locales, version files.
+      Web behavior unchanged (every native path guarded by `isNativeApp()`).
+- **Next (Gate 1B)**: N4 persistence reality (hide banner/toggle), N5 native GPS
+      permission, N7 DPI/scaling calibration, N8 haptics.
 
 ## Redesign 2026-06-15 — Navigation & Copiloto (G1–G8)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`

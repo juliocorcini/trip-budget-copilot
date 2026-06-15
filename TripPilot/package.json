@@ -1,7 +1,7 @@
 {
   "name": "trippilot",
   "private": true,
-  "version": "0.27.0",
+  "version": "0.29.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.0",
+    "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/local-notifications": "^8.2.0",
+    "@capacitor/status-bar": "^8.0.2",
     "date-fns": "^4.1.0",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",

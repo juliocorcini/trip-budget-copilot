@@ -15,14 +15,16 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import type { LocalSnapshot } from '@/domain/types/local-snapshot';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
+import { isNativeApp } from '@/utils/native/platform';
 import {
   getOutingNotificationPermission,
+  refreshOutingNotificationPermission,
   requestOutingNotificationPermission,
   syncActiveOutingNotification,
   closeOutingNotifications,
 } from '@/utils/outing-notification';
 import { checkForAppUpdate } from '@/utils/pwa';
-import { getCurrentCoords } from '@/utils/geolocation';
+import { getCurrentCoords, ensureLocationPermission } from '@/utils/geolocation';
 import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
@@ -72,6 +74,13 @@ export function SettingsPage() {
 
   useEffect(() => {
     void localSnapshotRepository.getAll().then(setSnapshots);
+  }, []);
+
+  // N6: native notification permission is async — sync the section state once
+  // so the APK shows the real toggle instead of the "unsupported" message.
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    void refreshOutingNotificationPermission().then(setNotifPermission);
   }, []);
 
   if (!settings) return null;
@@ -168,6 +177,16 @@ export function SettingsPage() {
   // expenses simply carry no location (ÂNCORA 8). Never blocks.
   const handleToggleLocation = async () => {
     const next = !settings.locationCaptureEnabled;
+    // N5: ask the OS BEFORE enabling. Denial gives clear feedback (no silence)
+    // and leaves the toggle off. On the Web this is a no-op — the browser still
+    // prompts on the first getCurrentCoords below.
+    if (next) {
+      const permission = await ensureLocationPermission();
+      if (permission === 'denied') {
+        showToast(t('settings.location_denied'), 'danger');
+        return;
+      }
+    }
     await updateSetting({ locationCaptureEnabled: next });
     if (!next) return;
     const coords = await getCurrentCoords();
@@ -819,6 +838,9 @@ export function SettingsPage() {
         </div>
       </Section>
 
+      {/* N4: native storage is app-private and not subject to browser eviction,
+          so the persistence prompt is meaningless in the APK — Web/PWA only. */}
+      {!isNativeApp() && (
       <Section title={t('settings.persistent_storage')}>
         {/* R6-13 (R5-03): on iOS the "activate" button can never work —
             navigator.storage.persist() silently returns false. Show honest
@@ -848,6 +870,7 @@ export function SettingsPage() {
           </div>
         )}
       </Section>
+      )}
 
       <GroupHeader label={t('settings.group_about')} />
 

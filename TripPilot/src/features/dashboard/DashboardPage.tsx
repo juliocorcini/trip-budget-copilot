@@ -7,6 +7,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { formatDate, localDateString } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
+import { isNativeApp } from '@/utils/native/platform';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
@@ -293,8 +294,12 @@ export function DashboardPage() {
   // on the home. DEC-176: the routine backup REMINDER was removed from the home
   // — it now lives in the notifications center, so it no longer greets the user
   // on the first screen (Julio's request).
+  // N4: the APK uses app-private storage (no browser eviction), so the
+  // data-loss warning never applies natively — Web/PWA keeps it.
   const showStorageWarning =
-    model.storageNotPersisted && !(isIosDevice() && isStandaloneDisplayMode());
+    !isNativeApp() &&
+    model.storageNotPersisted &&
+    !(isIosDevice() && isStandaloneDisplayMode());
 
   return (
     <div className="flex flex-col pb-6">

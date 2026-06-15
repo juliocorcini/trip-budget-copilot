@@ -10,6 +10,15 @@ import { getActiveIntlLocale } from '@/domain/locale';
 import { appSettingsRepository } from '@/data/repositories/app-settings-repository';
 import { getInstallationId } from '@/utils/entity-factory';
 import { safeLocalStorage } from '@/utils/safe-storage';
+import { isNativeApp } from '@/utils/native/platform';
+import {
+  showOutingNotification as showNativeOutingNotification,
+  closeOutingNotification as closeNativeOutingNotification,
+  hasNotificationPermission as hasNativeNotificationPermission,
+  requestNotificationPermission as requestNativeNotificationPermission,
+  refreshNotificationPermission as refreshNativeNotificationPermission,
+  getCachedNotificationPermission as getCachedNativeNotificationPermission,
+} from '@/utils/native/notifications';
 import type { Session } from '@/domain/types/session';
 import type { OutingNotificationStrings } from '@/domain/outing';
 
@@ -43,6 +52,9 @@ interface SwNotificationOptions {
 }
 
 export function isOutingNotificationSupported(): boolean {
+  // N6: the APK serves notifications natively (LocalNotifications), so the
+  // WebView's missing Notification API no longer means "unsupported".
+  if (isNativeApp()) return true;
   return (
     'serviceWorker' in navigator &&
     'Notification' in window &&
@@ -51,8 +63,17 @@ export function isOutingNotificationSupported(): boolean {
 }
 
 export function getOutingNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (isNativeApp()) return getCachedNativeNotificationPermission();
   if (!isOutingNotificationSupported()) return 'unsupported';
   return Notification.permission;
+}
+
+/** N6: native permission is async — refresh the cache and report it (Settings). */
+export async function refreshOutingNotificationPermission(): Promise<
+  NotificationPermission | 'unsupported'
+> {
+  if (isNativeApp()) return refreshNativeNotificationPermission();
+  return getOutingNotificationPermission();
 }
 
 export function wasOutingNotificationPrompted(): boolean {
@@ -65,14 +86,16 @@ export function markOutingNotificationPrompted(): void {
 
 export async function requestOutingNotificationPermission(): Promise<NotificationPermission> {
   markOutingNotificationPrompted();
+  if (isNativeApp()) return requestNativeNotificationPermission();
   return Notification.requestPermission();
 }
 
 /** DEC-124: permission AND the user toggle in Settings must both allow it. */
 async function canNotify(): Promise<boolean> {
-  if (!isOutingNotificationSupported() || Notification.permission !== 'granted') return false;
   const settings = await appSettingsRepository.get();
-  return settings.outingNotificationEnabled;
+  if (!settings.outingNotificationEnabled) return false;
+  if (isNativeApp()) return hasNativeNotificationPermission();
+  return isOutingNotificationSupported() && Notification.permission === 'granted';
 }
 
 async function getReadyRegistration(): Promise<ServiceWorkerRegistration | null> {
@@ -115,8 +138,6 @@ export interface SyncOutingNotificationInput {
 /** Shows/updates (same tag, silent) the persistent active-outing notification. */
 export async function syncOutingNotification(input: SyncOutingNotificationInput): Promise<void> {
   if (!(await canNotify())) return;
-  const registration = await getReadyRegistration();
-  if (!registration) return;
 
   const locale = getActiveIntlLocale();
   const payload = buildOutingNotificationPayload({
@@ -129,6 +150,16 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
     deviceId: getInstallationId(),
     locale,
   });
+
+  // N6: the APK renders the notification natively; the Web/PWA keeps the
+  // Service Worker path (rich actions handled entirely by the SW).
+  if (isNativeApp()) {
+    await showNativeOutingNotification(payload);
+    return;
+  }
+
+  const registration = await getReadyRegistration();
+  if (!registration) return;
 
   const options: SwNotificationOptions = {
     tag: payload.tag,
@@ -150,6 +181,10 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
 }
 
 export async function closeOutingNotifications(): Promise<void> {
+  if (isNativeApp()) {
+    await closeNativeOutingNotification();
+    return;
+  }
   if (!('serviceWorker' in navigator)) return;
   const registration = await getReadyRegistration();
   if (!registration) return;

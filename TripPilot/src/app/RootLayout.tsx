@@ -3,6 +3,7 @@ import { Outlet } from 'react-router';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
+import { isNativeApp, applyNativeStatusBar } from '@/utils/native';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
 
@@ -13,10 +14,13 @@ const THEME_COLOR: Record<'dark' | 'light', string> = {
 
 function applyTheme(resolved: 'dark' | 'light'): void {
   document.documentElement.setAttribute('data-theme', resolved);
-  // DEC-083: Android status bar follows the active theme.
+  // DEC-083: Android status bar follows the active theme (web/PWA via meta tag).
   document
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute('content', THEME_COLOR[resolved]);
+  // DEC-192: in the native shell the meta tag does nothing — drive the real
+  // status bar (color + icon contrast) through the plugin. No-op on the web.
+  void applyNativeStatusBar(resolved);
 }
 
 // GAP-013 (D-F) + GAP-R2-003 (DEC-083): theme reacts live to settings changes
@@ -57,6 +61,9 @@ const HOME_PATHS = new Set(['/', '/dashboard']);
 
 function useBackButtonGuard() {
   useEffect(() => {
+    // DEC-193: the native shell owns the back button via @capacitor/app
+    // (initNativeShell). This web-only history hack would fight it, so skip it.
+    if (isNativeApp()) return;
     const seedBuffer = () => window.history.pushState(window.history.state, '');
     seedBuffer();
     const onPopState = () => {

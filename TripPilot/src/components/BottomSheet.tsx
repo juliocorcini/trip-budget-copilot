@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { registerOverlayDismiss } from '@/utils/overlay-dismiss';
 
 interface BottomSheetProps {
   open: boolean;
@@ -20,7 +21,12 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // DEC-193: the native back button closes the open sheet before navigating.
+    const unregisterBack = registerOverlayDismiss(onClose);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      unregisterBack();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
