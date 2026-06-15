@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-14 (v0.14.5 — UX Polish Pass: dashboard density, QuickAdd sticky bar, settings groups, nav consistency; DEC-162..165)
+> Last updated: 2026-06-15 (v0.22.0 — Navigation redesign + Copiloto intelligence; DEC-176..180)
 
 ## Format
 
@@ -1265,6 +1265,36 @@
 - **Why this shape**: maximizes reuse (FTS deduction pattern from event reserves DEC-072; `Breakdown` component DEC-172; `EmptyState` DEC-171; standard expense orchestration) and keeps semantics clean (a purchase is not an occasion). Track-vs-reserve in one toggle covers both "I know the amount, hold it" and "I'll buy eventually, just remember".
 - **Cuts / deferred**: a parallel QuickAdd-prefill route for "Comprei" was **dropped as redundant** — the in-page buy sheet logs + links + closes with undo in fewer taps and is the superior UX. Linking *pre-existing* arbitrary expenses to a planned purchase retroactively is deferred (the per-store "Comprei" tap already covers the multi-store case).
 - **Verification**: full suite green (898), `tsc` clean, production build OK. Shipped as **0.17.0** (sw cache `trippilot-v34`).
+
+### DEC-176 — Android stability: bfcache recovery + always-on wedge telemetry (v0.18.0–0.19.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED (Julio reported recurring "Não foi possível carregar seus dados" on the Android PWA).
+- **Decision**: (1) In-app diagnostics screen (`utils/diagnostics.ts`, surfaced in About) so a wedge can be inspected without a cable. (2) `useAppData` reconnects the Dexie handle on `pageshow` (bfcache restore) before any read, and **always records the exact failure cause** in a crash log (even when the app self-recovers). (3) `DataErrorScreen` retries with exponential backoff instead of a single immediate retry.
+- **Why**: Returning the PWA from the background could leave the IndexedDB connection stale and stall loading for no reason; the failure was invisible. The app now self-heals at the bfcache moment and leaves a trace when it can't.
+
+### DEC-180 — Navigation redesign: "Mais" → Viagem + Copiloto, gear for Settings (v0.20.0–0.21.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED (Julio: the "Mais" tab hid too many functions; an icon to enter a 4-option menu is too costly for one of five prime slots).
+- **Decision**: Replace the bottom bar's `Mais` + `Planejar` with two purposeful tabs — **Viagem** (`/viagem`, the plan + structure: cross-phase selector, planning preview, planned purchases, funds, phases, wallets, profiles, people, outing history) and **Copiloto** (`/copiloto`, intelligence; `advanced`). Settings moves to a **gear** next to the bell on the home header; backup/CSV export/About live inside it. `/more` redirects to `/viagem`; `MorePage` deleted. Nothing was removed — only reorganized for discoverability. The Viagem phase selector also delivers Julio's cross-phase ask (view/plan any phase from one screen).
+- **Why**: Surfaces buried functions naturally and frees the nav from a generic "More" bucket; settings-type items don't deserve a prime tab.
+
+### DEC-177 — Copiloto is the trip's intelligence screen: 3 questions + data-gated modules (v0.22.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED (Julio: the most interesting/important part of the app can't hide; the Início must keep its key insights, Copiloto holds the processed story).
+- **Decision**: The Copiloto answers three questions at the top, one line each — **Estou bem?** (verdict from the burn-down delta), **Pra onde vou?** (the existing `phase_projection` insight: "neste ritmo fecha em ~€X, €Y abaixo/acima · reserva") and **O que faria?** (the shared Amigo Sincero with a "simular" shortcut). It then deepens by module — De onde veio (categories), Mapa do mês (+ biggest day / avg), Ritmo (burn-down), vs previous phase, Social×solo, Settlements — and a Tools footer (simulate · rescue · impact). **Every module is data-gated** (renders only with real signal); a fresh trip shows a short warming-up invite, never an empty screen. The Início keeps its rotating insights and key cards (no regression); analytics that were heavy on the home now also live here.
+- **Why**: The app collects a lot; the Copiloto cross-references it into information the user can't read at a glance ("am I doing well? where is this going? how did it turn out vs how it should have?"). Reuses the dashboard model end-to-end — no recomputation.
+
+### DEC-178 — Copiloto cross-cuts live in `src/domain/copilot/` (pure + tested) (v0.22.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED.
+- **Decision**: New calculations the Copiloto needs (`buildCopilotVerdict`, `summarizeByCategory`, `summarizeDailySpending`, `summarizeSocialVsSolo`, `comparePhasePace`) are pure functions in `src/domain/copilot/` with unit tests (math-verified); the page only orchestrates and presents. The Amigo Sincero rendering was extracted to `cards/AmigoSinceroCard.tsx` so Home and Copiloto share one source (its copy is reconciled once, in G6).
+- **Why**: Keeps business logic out of the UI layer (engineering guideline) and the new intelligence honestly testable.
+
+### DEC-179 — Phase comparison & weekday signals appear only with enough data (v0.22.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED.
+- **Decision**: Cross-cuts that need volume (compare-to-previous-phase needs both phases with real spend; the weekday pattern needs ≥7 days — deferred to a later gate) stay hidden until the data supports them. Each Copiloto module self-censors via its own data gate so the screen never shows a hollow or misleading card.
+- **Why**: Premature "intelligence" on three data points is noise; the council's anti-pollution rule keeps the screen trustworthy.
 
 ---
 

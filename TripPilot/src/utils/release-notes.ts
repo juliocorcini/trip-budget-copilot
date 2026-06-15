@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.22.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Copiloto virou a inteligência da viagem: no topo, em uma frase, ele diz se você está no controle, pra onde a viagem vai (“neste ritmo, fecha em ~€X”) e o que faria agora — o amigo sincero com atalho pra simular.',
+        'Mais abaixo: de onde veio o dinheiro (por categoria), o mapa do mês com o maior dia e a média/dia, o ritmo da fase, e — quando há dado — quanto você dividiu vs gastou sozinho, a comparação com a fase anterior e seus acertos.',
+        'Cada bloco só aparece quando há dado suficiente pra ele fazer sentido; viagem nova mostra um convite curto em vez de tela vazia. As ferramentas (simular, resgate, impacto) ficam reunidas no rodapé.',
+      ],
+      en: [
+        'Copilot is now the trip’s intelligence: up top, in one line, it tells you whether you’re in control, where the trip is heading (“at this pace it closes at ~€X”) and what it would do now — the honest friend with a shortcut to simulate.',
+        'Below: where the money came from (by category), the month map with the biggest day and the daily average, the phase pace, and — when there’s data — how much you split vs spent alone, the comparison to the previous phase, and your settlements.',
+        'Each block only shows when there’s enough data to be meaningful; a fresh trip shows a short invite instead of an empty screen. The tools (simulate, rescue, impact) are gathered at the bottom.',
+      ],
+      es: [
+        'Copiloto ahora es la inteligencia del viaje: arriba, en una frase, te dice si tienes el control, hacia dónde va el viaje (“a este ritmo cierra en ~€X”) y qué haría ahora — el amigo sincero con atajo para simular.',
+        'Más abajo: de dónde vino el dinero (por categoría), el mapa del mes con el mayor día y la media/día, el ritmo de la fase, y — cuando hay datos — cuánto dividiste vs gastaste solo, la comparación con la fase anterior y tus cuentas.',
+        'Cada bloque solo aparece cuando hay datos suficientes para que tenga sentido; un viaje nuevo muestra una invitación corta en vez de una pantalla vacía. Las herramientas (simular, rescate, impacto) quedan reunidas abajo.',
+      ],
+    },
+  },
+  {
     version: '0.21.0',
     date: '2026-06-15',
     items: {

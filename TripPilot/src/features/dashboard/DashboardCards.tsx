@@ -31,6 +31,7 @@ import type { CheckInIntent } from '@/domain/types/common';
 import { RecapCard } from '@/features/dashboard/cards/RecapCard';
 import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
+import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
 import { OccasionCounter } from '@/features/dashboard/cards/OccasionCounter';
 import {
   counterAccent,
@@ -864,61 +865,9 @@ export function DashboardCards({
       case 'amigo_sincero':
         return (
           <>
-            {/* §7 pos. 8 — AMIGO SINCERO v2 (DEC-093 / R-11): plan-based */}
-            {model.amigoV2.kind !== 'none' && (
-              <div
-                className="mt-5 p-4 rounded-2xl"
-                style={{ background: '#C75B3910', border: '1px solid #C75B3918' }}
-              >
-                <div className="flex items-start gap-3">
-                  <Icon name="chat_bubble" className="text-primary mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-xs font-bold text-primary">{t('dashboard.amigo_sincero')}</p>
-                    <p className="text-[13px] mt-1.5 leading-snug font-semibold text-on-surface">
-                      {model.amigoV2.kind === 'over_pace' &&
-                        t('dashboard.amigo_over_pace', {
-                          planned: model.amigoV2.plannedQuantity,
-                          type: model.amigoV2.profileName.toLowerCase(),
-                          fit: model.amigoV2.fitCount,
-                          remaining: model.amigoV2.remainingPlanned,
-                        })}
-                      {model.amigoV2.kind === 'on_plan' &&
-                        t('dashboard.amigo_on_plan', {
-                          type: model.amigoV2.profileName.toLowerCase(),
-                          done: model.amigoV2.doneQuantity,
-                          planned: model.amigoV2.plannedQuantity,
-                        })}
-                      {model.amigoV2.kind === 'over_plan' &&
-                        t('dashboard.amigo_over_plan', {
-                          type: model.amigoV2.profileName.toLowerCase(),
-                          done: model.amigoV2.doneQuantity,
-                          planned: model.amigoV2.plannedQuantity,
-                        })}
-                      {model.amigoV2.kind === 'no_plan' &&
-                        t('dashboard.amigo_no_plan', {
-                          type: model.amigoV2.profileName.toLowerCase(),
-                          percent: model.amigoV2.impactPercent,
-                        })}
-                    </p>
-                    {(model.amigoV2.kind === 'over_pace' || model.amigoV2.kind === 'over_plan') &&
-                      model.amigoV2.reserveStartDate && (
-                        <p className="text-xs font-bold text-warning mt-2">
-                          {t('dashboard.amigo_reserve_date', {
-                            date: formatDate(model.amigoV2.reserveStartDate, "d 'de' MMMM"),
-                          })}
-                        </p>
-                      )}
-                    <button
-                      onClick={() => navigate('/impact')}
-                      className="btn-press mt-3 px-4 py-2 rounded-lg text-xs font-bold"
-                      style={{ background: '#C75B3918', color: 'var(--primary)' }}
-                    >
-                      {t('dashboard.amigo_see_impact')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* §7 pos. 8 — AMIGO SINCERO v2 (DEC-093 / R-11): plan-based.
+                Shared with the Copiloto via AmigoSinceroCard (one source). */}
+            <AmigoSinceroCard amigo={model.amigoV2} onSeeImpact={() => navigate('/impact')} />
           </>
         );
       case 'pending_shares':

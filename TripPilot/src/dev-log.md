@@ -2,15 +2,34 @@
 
 ## Current State
 - **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
-- **Active Milestone**: G2 DONE → G3 next
-- **Last Green Test Run**: G2 (0.21.0)
-- **Total Tests**: 898 pass / 0 fail
+- **Active Milestone**: G3 DONE → G4 next
+- **Last Green Test Run**: G3 (0.22.0)
+- **Total Tests**: 913 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
 
 ## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
 Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+
+### G3 — Copiloto (the intelligence) ✅ (0.22.0, sw v39)
+- [x] New pure domain module `src/domain/copilot/` (DEC-178): verdict, category
+      summary, daily-spend summary, social×solo, phase-pace comparison. 15 unit
+      tests (math-verified).
+- [x] `CopilotPage` rewritten to orchestrate `useDashboardModel` + the new
+      module into the council narrative (DEC-177): Verdict → Where it's heading
+      (reuses phase_projection insight) → Amigo (shared card) → Where it came
+      from (category bars) → Month map (HeatmapCard + biggest day/avg) → Phase
+      pace (BurndownCard) → vs previous phase → Social×solo → Settlements →
+      Tools. Each module data-gated; empty trip shows a warming-up invite.
+- [x] Extracted `cards/AmigoSinceroCard.tsx` so Home + Copiloto share ONE source
+      (G6 reconciles the copy once). Dashboard refactored to use it.
+- [x] i18n: full `copilot.*` block (verdict/where/from/map/rhythm/social/debts/
+      compare/empty) in pt-BR, en, es.
+- Tests 913/0 · typecheck clean · build clean · Playwright visual OK (all
+  modules render with demo data).
+- Regression check: Dashboard amigo unchanged (same keys via shared card); no
+  new routes; reuses existing derivations; no business logic in the page.
 
 ### G2 — Viagem hub + cross-phase ✅ (0.21.0, sw v38)
 - [x] Phase selector at top (chips): `Todas as fases` × each phase — filters the whole page. Lets user view/plan past, current or future phases.
