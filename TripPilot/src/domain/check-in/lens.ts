@@ -8,10 +8,11 @@ import type { DashboardCardId } from '@/domain/dashboard';
  *
  * This is pure framing — READ-ONLY (ÂNCORA 12). Nothing here touches the budget;
  * it only decides which already-present card the day's intent should spotlight:
- *  - calm   → the piggy bank (what the trip is quietly saving).
- *  - outing → the occasion counters (how many occasions are still planned).
- *  - night  → no card focus; the night reserve projects into "≈ rounds" instead,
- *             shown inline on the check-in card itself.
+ *  - calm     → the piggy bank (what the trip is quietly saving).
+ *  - outing   → the occasion counters (how many occasions are still planned).
+ *  - night    → no card focus; the night reserve projects into "≈ rounds" instead,
+ *               shown inline on the check-in card itself.
+ *  - no_spend → the piggy bank too (a zero-spend day is pure saving).
  */
 export interface CheckInLens {
   intent: CheckInIntent;
@@ -23,6 +24,8 @@ const LENS_BY_INTENT: Record<CheckInIntent, CheckInLens> = {
   calm: { intent: 'calm', focusCardId: 'piggy_bank' },
   outing: { intent: 'outing', focusCardId: 'occasion_counters' },
   night: { intent: 'night', focusCardId: null },
+  // A no-spend day is pure saving → spotlight the piggy bank, like calm.
+  no_spend: { intent: 'no_spend', focusCardId: 'piggy_bank' },
 };
 
 /** Data-driven lookup so the UI only renders (Core Rule 8). */

@@ -2,15 +2,39 @@
 
 ## Current State
 - **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
-- **Active Milestone**: G4 DONE → G5 next
-- **Last Green Test Run**: G4 (0.23.0)
-- **Total Tests**: 913 pass / 0 fail
+- **Active Milestone**: G5 DONE → G6 next
+- **Last Green Test Run**: G5 (0.24.0)
+- **Total Tests**: 916 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
 
 ## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
 Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
 Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+
+### G5 — Check-in: real effect + 'Sem gastos' + microcopy ✅ (0.24.0, sw v41)
+- [x] Micro-explanation on the prompt: "Diz como vai ser o dia que eu mostro
+      quanto dá pra gastar e ajusto o ritmo dos próximos dias" — answers Julio's
+      "pra que serve / o que significa".
+- [x] New `no_spend` intent (CheckInIntent + catalog + lens + planCheckInDay):
+      a no-spend day → primary €0, the whole free amount carries forward.
+- [x] "Efeito real" (still READ-ONLY — ÂNCORA 12 preserved, per plan §3): new pure
+      `projectDailyBoostCents(saved, effDaysAfterToday)`. Calm & no-spend now show
+      "Guardando €X hoje, seus próximos dias ganham +€Y/dia" (trending_up). Page
+      derives effDaysAfter from the phase weights (`calculateEffectiveSpendingDays
+      − getDaySpendingWeight`). Verified math: €38,12/10d ≈ +€3,81/d; €95,29/10d
+      ≈ +€9,53/d.
+- [x] 4 modes fit one row (Tranquilo/Passeio/Noite/Sem gastos) — no wrap.
+- [x] i18n pt/en/es: checkin_no_spend, checkin_plan_no_spend, stat labels,
+      checkin_redistribute, reworded checkin_prompt.
+- [x] Tests: catalog now 4 intents; +no_spend plan asserts; +3
+      `projectDailyBoostCents` tests (916 total).
+- Tests 916/0 · typecheck clean · build clean · Playwright OK
+  (`.ux-shots/g5/g5-no-spend.png`, `g5-calm.png`, `g5-night.png`).
+- ÂNCORA 12 note: the check-in stays a projection/lens — it never writes an
+  expense nor moves the hero's free-today (plan §3: "projeção/realce, reversível,
+  nunca grava gasto"). Julio's "muda o livre dos outros dias" is shown AS a
+  projection, not by mutating data.
 
 ### G4 — Início: focus + hero clarity ✅ (0.23.0, sw v40)
 - [x] Hero overline reframed: `dashboard.free_to_spend_phase` ("Livre para usar

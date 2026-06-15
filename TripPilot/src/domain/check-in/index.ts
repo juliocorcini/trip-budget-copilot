@@ -4,6 +4,7 @@ export {
   createDailyCheckIn,
   shouldPromptCheckIn,
   planCheckInDay,
+  projectDailyBoostCents,
 } from './check-in';
 export type { CheckInIntentDescriptor, CheckInDayPlan } from './check-in';
 export { getCheckInLens, estimateNightRounds, deriveAvgRoundCents } from './lens';

@@ -32,7 +32,7 @@ export type AlertType = 'budget_threshold' | 'backup_reminder' | 'session_limit'
  * E5 (M7): the day's intent — a one-tap context that colors tone/budget
  * (read-only; never writes a user value — ÂNCORA 12).
  */
-export type CheckInIntent = 'calm' | 'outing' | 'night';
+export type CheckInIntent = 'calm' | 'outing' | 'night' | 'no_spend';
 
 /** E5 (M7): the active check-in, scoped to a single local date. */
 export interface DailyCheckIn {

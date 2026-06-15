@@ -19,10 +19,12 @@ import {
   CHECK_IN_INTENT_CATALOG,
   getActiveCheckIn,
   planCheckInDay,
+  projectDailyBoostCents,
   getCheckInLens,
   estimateNightRounds,
   deriveAvgRoundCents,
 } from '@/domain/check-in';
+import { calculateEffectiveSpendingDays, getDaySpendingWeight } from '@/domain/phases';
 import type { DashboardInsight } from '@/domain/insights';
 import type { Trip } from '@/domain/types/trip';
 import type { AppSettings } from '@/domain/types/app-settings';
@@ -354,6 +356,28 @@ export function DashboardCards({
                         secondary: formatMoney(plan.secondaryCents ?? 0, trip.baseCurrency),
                       })}
                     </p>
+                    {/* G5 "real effect" (read-only — ÂNCORA 12): the money saved
+                        by a calm / no-spend day doesn't vanish — it lifts every day
+                        still ahead in the phase. Shown only when it lands ≥ +€1/day. */}
+                    {(effectiveCheckInIntent === 'calm' || effectiveCheckInIntent === 'no_spend') &&
+                      model.activePhase &&
+                      (() => {
+                        const savedCents = plan.secondaryCents ?? 0;
+                        const effAfterToday =
+                          calculateEffectiveSpendingDays(model.activePhase, model.todayIso) -
+                          getDaySpendingWeight(model.activePhase, model.todayIso);
+                        const boost = projectDailyBoostCents(savedCents, effAfterToday);
+                        if (boost === null) return null;
+                        return (
+                          <p className="text-[11px] font-bold text-primary mt-2 flex items-center gap-1">
+                            <Icon name="trending_up" size={13} className="text-primary" />
+                            {t('dashboard.checkin_redistribute', {
+                              saved: formatMoney(savedCents, trip.baseCurrency),
+                              perDay: formatMoney(boost, trip.baseCurrency),
+                            })}
+                          </p>
+                        );
+                      })()}
                     {/* The "lens" payoff: the mode reshapes the home — night
                         projects rounds; calm/outing spotlight a card below. */}
                     {(() => {

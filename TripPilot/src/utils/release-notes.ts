@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.24.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Check-in do dia agora tem efeito de verdade: escolha “Tranquilo” ou o novo “Sem gastos” e veja na hora quanto isso devolve pros próximos dias (ex.: “guardando €38 hoje, seus próximos dias ganham +€3,81/dia”).',
+        'Novo modo “Sem gastos” pra quando você não vai gastar nada — todo o valor de hoje vira folga pra frente.',
+        'A pergunta ficou mais clara: “Diz como vai ser o dia que eu mostro quanto dá pra gastar e ajusto o ritmo.” (continua só uma projeção — nada é gravado nem altera seu orçamento).',
+      ],
+      en: [
+        'The day check-in now has a real effect: pick “Calm” or the new “No spending” and instantly see how much it hands back to the days ahead (e.g. “keeping €38 today, your next days gain +€3.81/day”).',
+        'New “No spending” mode for days you won’t spend anything — the whole of today’s amount becomes slack for later.',
+        'The question is clearer: “Tell me how the day looks and I’ll show how much you can spend and tune the pace.” (still just a projection — nothing is saved nor changes your budget).',
+      ],
+      es: [
+        'El check-in del día ahora tiene efecto real: elige “Tranquilo” o el nuevo “Sin gastos” y mira al instante cuánto devuelve a los próximos días (ej.: “guardando €38 hoy, tus próximos días ganan +€3,81/día”).',
+        'Nuevo modo “Sin gastos” para los días en que no vas a gastar nada — todo el importe de hoy se vuelve margen para después.',
+        'La pregunta quedó más clara: “Dime cómo será el día y te muestro cuánto puedes gastar y ajusto el ritmo.” (sigue siendo solo una proyección — nada se guarda ni cambia tu presupuesto).',
+      ],
+    },
+  },
+  {
     version: '0.23.0',
     date: '2026-06-15',
     items: {

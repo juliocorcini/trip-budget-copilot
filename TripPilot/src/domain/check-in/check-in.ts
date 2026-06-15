@@ -22,6 +22,8 @@ export const CHECK_IN_INTENT_CATALOG: CheckInIntentDescriptor[] = [
   { intent: 'calm', icon: 'self_improvement', labelKey: 'dashboard.checkin_calm' },
   { intent: 'outing', icon: 'directions_walk', labelKey: 'dashboard.checkin_outing' },
   { intent: 'night', icon: 'nightlife', labelKey: 'dashboard.checkin_night' },
+  // G5 (Julio): a no-spend day — its whole free amount carries to later days.
+  { intent: 'no_spend', icon: 'savings', labelKey: 'dashboard.checkin_no_spend' },
 ];
 
 /**
@@ -59,6 +61,24 @@ const CALM_SPEND_FACTOR = 0.6;
 const NIGHT_RESERVE_FACTOR = 0.5;
 
 /**
+ * G5 "real effect" (still read-only — ÂNCORA 12): when a mode saves part of
+ * today's money (calm slack / a no-spend day), that amount doesn't vanish — it
+ * spreads over the days still ahead in the phase. This projects the per-day
+ * boost so the user FEELS the payoff ("+€Y/day from here on"), without ever
+ * mutating the budget. Returns null when nothing was saved or no days remain
+ * after today (so the UI just omits the line — never "+€0/day").
+ */
+export function projectDailyBoostCents(
+  savedTodayCents: number,
+  effectiveDaysAfterToday: number,
+): number | null {
+  const saved = Math.round(savedTodayCents);
+  if (saved <= 0 || effectiveDaysAfterToday < 1) return null;
+  const perDay = Math.round(saved / effectiveDaysAfterToday);
+  return perDay >= 1 ? perDay : null;
+}
+
+/**
  * Turns the day's free-to-use money into the chosen mode's concrete plan. Pure
  * and read-only — never mutates the budget (ÂNCORA 12). Negatives are clamped so
  * an already-over day yields zeros (the hero still shows the real over-budget).
@@ -87,6 +107,18 @@ export function planCheckInDay(intent: CheckInIntent, freeTodayCents: number): C
       secondaryCents: free - primary,
       primaryLabelKey: 'dashboard.checkin_stat_night_primary',
       secondaryLabelKey: 'dashboard.checkin_stat_night_secondary',
+    };
+  }
+  if (intent === 'no_spend') {
+    // Nothing for today; the whole free amount becomes slack carried forward.
+    return {
+      intent,
+      icon: 'savings',
+      messageKey: 'dashboard.checkin_plan_no_spend',
+      primaryCents: 0,
+      secondaryCents: free,
+      primaryLabelKey: 'dashboard.checkin_stat_no_spend_primary',
+      secondaryLabelKey: 'dashboard.checkin_stat_no_spend_secondary',
     };
   }
   return {
