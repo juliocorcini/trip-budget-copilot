@@ -3,7 +3,29 @@
     "dashboard": "Inicio",
     "expenses": "Gastos",
     "plan": "Planificar",
-    "more": "Más"
+    "more": "Más",
+    "trip": "Viaje",
+    "copilot": "Copiloto"
+  },
+  "trip_hub": {
+    "title": "Viaje",
+    "subtitle": "Tu plan y la estructura del viaje",
+    "section_planning": "Planificación",
+    "section_structure": "Estructura",
+    "planner": "Planificar",
+    "planner_desc": "Escenarios, margen y cuánto va a cada categoría",
+    "planned_desc": "Lo que reservaste para comprar"
+  },
+  "copilot": {
+    "title": "Copiloto",
+    "subtitle": "Cómo va y hacia dónde va tu viaje",
+    "tools": "Herramientas",
+    "impact": "Ver análisis de impacto",
+    "impact_desc": "Planeado vs gastado, proyección y reserva",
+    "simulate": "¿Puedo gastar?",
+    "simulate_desc": "Simula una compra antes de gastar",
+    "rescue": "Rescate",
+    "rescue_desc": "¿Te pasaste? La app rehace tu plan"
   },
   "fab": {
     "register_expense": "Registrar gasto",

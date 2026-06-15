@@ -3,7 +3,29 @@
     "dashboard": "Home",
     "expenses": "Expenses",
     "plan": "Plan",
-    "more": "More"
+    "more": "More",
+    "trip": "Trip",
+    "copilot": "Copilot"
+  },
+  "trip_hub": {
+    "title": "Trip",
+    "subtitle": "Your plan and the trip structure",
+    "section_planning": "Planning",
+    "section_structure": "Structure",
+    "planner": "Plan",
+    "planner_desc": "Scenarios, margin and how much goes to each category",
+    "planned_desc": "What you set aside to buy"
+  },
+  "copilot": {
+    "title": "Copilot",
+    "subtitle": "How your trip is doing and where it's heading",
+    "tools": "Tools",
+    "impact": "See impact analysis",
+    "impact_desc": "Planned vs spent, projection and reserve",
+    "simulate": "Can I spend?",
+    "simulate_desc": "Simulate a purchase before spending",
+    "rescue": "Rescue",
+    "rescue_desc": "Over budget? The app rebuilds your plan"
   },
   "fab": {
     "register_expense": "Register expense",

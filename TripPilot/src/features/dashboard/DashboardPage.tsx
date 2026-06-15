@@ -353,29 +353,45 @@ export function DashboardPage() {
               {activePhase.name || trip.name}
             </h1>
           </button>
-          {/* DEC-090 (R-08): bell opens the notifications center — never /shared */}
-          <button
-            onClick={() => navigate('/notifications')}
-            className="relative btn-press"
-            aria-label={t('notifications.title')}
-          >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: 'var(--surface-container)' }}
+          {/* Redesign (G1): bell stays the prominent action (primary); the gear
+              is the quieter Settings entry that replaces the old "Mais" tab. */}
+          <div className="flex items-center gap-2">
+            {/* DEC-090 (R-08): bell opens the notifications center — never /shared */}
+            <button
+              onClick={() => navigate('/notifications')}
+              className="relative btn-press"
+              aria-label={t('notifications.title')}
             >
-              <Icon name="notifications" size={20} className="text-primary" />
-            </div>
-            {notifications.length > 0 && (
               <div
-                className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--primary)' }}
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: 'var(--surface-container)' }}
               >
-                <span className="text-[9px] font-extrabold" style={{ color: 'var(--surface)' }}>
-                  {notifications.length}
-                </span>
+                <Icon name="notifications" size={20} className="text-primary" />
               </div>
-            )}
-          </button>
+              {notifications.length > 0 && (
+                <div
+                  className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--primary)' }}
+                >
+                  <span className="text-[9px] font-extrabold" style={{ color: 'var(--surface)' }}>
+                    {notifications.length}
+                  </span>
+                </div>
+              )}
+            </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="btn-press"
+              aria-label={t('settings.title')}
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <Icon name="settings" size={20} className="text-on-surface-dim" />
+              </div>
+            </button>
+          </div>
         </div>
       )}
 

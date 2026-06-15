@@ -17,9 +17,13 @@ const LEFT_NAV: NavItem[] = [
   { path: '/expenses', icon: 'receipt_long', labelKey: 'nav.expenses' },
 ];
 
+// Redesign (G1): "Mais" e "Planejar" deixam a barra. Planejar mora em Viagem;
+// as funções do "Mais" viram a aba Viagem (estrutura/plano) + Copiloto
+// (inteligência) + a engrenagem de Ajustes no header. Copiloto é avançado:
+// no modo simples a barra fica enxuta (Início · Gastos · + · Viagem).
 const RIGHT_NAV: NavItem[] = [
-  { path: '/planner', icon: 'tune', labelKey: 'nav.plan', advanced: true },
-  { path: '/more', icon: 'more_horiz', labelKey: 'nav.more' },
+  { path: '/viagem', icon: 'explore', labelKey: 'nav.trip' },
+  { path: '/copiloto', icon: 'insights', labelKey: 'nav.copilot', advanced: true },
 ];
 
 export function BottomNav() {

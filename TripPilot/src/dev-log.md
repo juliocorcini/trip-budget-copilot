@@ -1,12 +1,25 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: D6 COMPLETE — ALL DELIVERIES DONE
-- **Active Milestone**: NONE
-- **Last Green Test Run**: D6 final
-- **Total Tests**: 80 pass / 0 fail
+- **Active Delivery**: Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
+- **Active Milestone**: G1 DONE → G2 next
+- **Last Green Test Run**: G1 (0.20.0)
+- **Total Tests**: 898 pass / 0 fail
 - **Build Status**: clean
 - **Confidence**: 95%
+
+## Redesign 2026-06-15 — Navigation & Copiloto (G1–G7)
+Plan: `brain/documents/navigation-redesign-plan-2026-06-15.md`
+Copiloto intelligence: `brain/documents/copilot-intelligence-2026-06-15.md`
+
+### G1 — Navigation & Settings entry ✅ (0.20.0, sw v37)
+- [x] Bottom bar: removed "Mais"/"Planejar"; now `Início · Gastos · ( + ) · Viagem · Copiloto`.
+- [x] New `/viagem` hub (TripHubPage): Planning (planner, planned) + Structure (overview, phases, funds, wallets, profiles, people, outing history). Nothing lost.
+- [x] New `/copiloto` (CopilotPage): tools (impact, simulator, rescue). Narrative lands in G3.
+- [x] Gear in Início header → `/settings`; Settings now exposes backup/CSV export + About (the old "Mais → Dados/App").
+- [x] `/more` → redirect to `/viagem`; MorePage.tsx deleted (superseded). Copiloto is `advanced` (hidden in simple mode).
+- Tests 898/0 · typecheck clean · build clean · Playwright visual OK.
+- Regression check: nav routes intact, no other `/more` references, demo data renders all screens.
 
 ## Completed
 

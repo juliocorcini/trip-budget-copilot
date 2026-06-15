@@ -629,6 +629,22 @@ export function SettingsPage() {
 
       <GroupHeader label={t('settings.group_data_security')} />
 
+      {/* Redesign (G1): the old "Mais → Dados" lives here now that the gear is
+          the single Settings entry. Backup/import and CSV export stay reachable. */}
+      <Section title={t('more.section_data')}>
+        <LinkRow
+          icon="cloud_upload"
+          label={t('more.backup')}
+          onClick={() => navigate('/settings/backup')}
+        />
+        <div className="h-px bg-on-surface-mute my-1" />
+        <LinkRow
+          icon="download"
+          label={t('more.export_csv')}
+          onClick={() => navigate('/settings/backup?csv=true')}
+        />
+      </Section>
+
       <Section title={t('settings.backup_reminder')}>
         <ToggleRow
           label={t('settings.backup_reminder')}
@@ -846,7 +862,14 @@ export function SettingsPage() {
 
       <Section title={t('settings.about')}>
         <p className="text-sm text-on-surface">TripPilot v{APP_VERSION}</p>
-        <p className="text-xs text-on-surface-faint mt-1">{t('settings.about_desc')}</p>
+        <p className="text-xs text-on-surface-faint mt-1 mb-3">{t('settings.about_desc')}</p>
+        {/* Redesign (G1): the full About page (release notes + diagnostics)
+            used to sit under "Mais"; the gear keeps it reachable. */}
+        <LinkRow
+          icon="info"
+          label={t('more.about')}
+          onClick={() => navigate('/about')}
+        />
       </Section>
 
       {/* M15: confirm before replacing the current data with a restore point. */}
@@ -967,6 +990,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <p className="text-xs text-on-surface-faint font-semibold mb-3">{title}</p>
       {children}
     </div>
+  );
+}
+
+// Redesign (G1): a navigation row (icon + label + chevron) for entries that
+// open another page from Settings — the gear now hosts what "Mais" used to.
+function LinkRow({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="w-full flex items-center gap-3 btn-press text-left py-1">
+      <Icon name={icon} size={18} className="text-on-surface-dim shrink-0" />
+      <span className="text-sm text-on-surface flex-1">{label}</span>
+      <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+    </button>
   );
 }
 

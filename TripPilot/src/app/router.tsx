@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState } from 'react';
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from './AppShell';
 import { RootLayout } from './RootLayout';
@@ -11,7 +11,8 @@ const DashboardPage = lazyWithRetry(() => import('@/features/dashboard/Dashboard
 const ExpenseListPage = lazyWithRetry(() => import('@/features/expenses/ExpenseListPage').then(m => ({ default: m.ExpenseListPage })));
 const QuickAddPage = lazyWithRetry(() => import('@/features/expenses/QuickAddPage').then(m => ({ default: m.QuickAddPage })));
 const PlannerPage = lazyWithRetry(() => import('@/features/planning/PlannerPage').then(m => ({ default: m.PlannerPage })));
-const MorePage = lazyWithRetry(() => import('@/features/more/MorePage').then(m => ({ default: m.MorePage })));
+const TripHubPage = lazyWithRetry(() => import('@/features/trip/TripHubPage').then(m => ({ default: m.TripHubPage })));
+const CopilotPage = lazyWithRetry(() => import('@/features/copilot/CopilotPage').then(m => ({ default: m.CopilotPage })));
 const SettingsPage = lazyWithRetry(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const BackupPage = lazyWithRetry(() => import('@/features/backup/BackupPage').then(m => ({ default: m.BackupPage })));
 const DashboardConfigPage = lazyWithRetry(() => import('@/features/settings/DashboardConfigPage').then(m => ({ default: m.DashboardConfigPage })));
@@ -99,7 +100,12 @@ export const router = createBrowserRouter([
           { path: '/expenses/:id', element: <LazyRoute><ExpenseDetailPage /></LazyRoute> },
           { path: '/outings/:id/review', element: <LazyRoute><OutingReviewPage /></LazyRoute> },
           { path: '/planner', element: <LazyRoute><ModeGuard><PlannerPage /></ModeGuard></LazyRoute> },
-          { path: '/more', element: <LazyRoute><MorePage /></LazyRoute> },
+          // Redesign (G1): the new IA. "Viagem" = plan/structure hub, "Copiloto"
+          // = intelligence. The old "/more" route redirects into Viagem so any
+          // bookmark or deep link still lands somewhere sensible.
+          { path: '/viagem', element: <LazyRoute><TripHubPage /></LazyRoute> },
+          { path: '/copiloto', element: <LazyRoute><CopilotPage /></LazyRoute> },
+          { path: '/more', element: <Navigate to="/viagem" replace /> },
           { path: '/settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
           { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
           { path: '/settings/dashboard', element: <LazyRoute><DashboardConfigPage /></LazyRoute> },

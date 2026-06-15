@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.20.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Navegação repensada: o menu “Mais” deu lugar a duas abas — Viagem (seu plano e a estrutura: planejar, fundos, fases, carteiras, perfis, pessoas) e Copiloto (a inteligência da viagem). Nada saiu do app, só ficou mais fácil de achar.',
+        'Ajustes agora abre direto pela engrenagem no topo da tela inicial (ao lado do sino). Backup, exportar planilha e “Sobre” ficam lá dentro.',
+      ],
+      en: [
+        'Rethought navigation: the “More” menu became two tabs — Trip (your plan and structure: planning, funds, phases, wallets, profiles, people) and Copilot (the trip’s intelligence). Nothing was removed, it’s just easier to find.',
+        'Settings now opens straight from the gear at the top of the home screen (next to the bell). Backup, CSV export and “About” live there.',
+      ],
+      es: [
+        'Navegación repensada: el menú “Más” pasó a ser dos pestañas — Viaje (tu plan y la estructura: planificar, fondos, fases, carteras, perfiles, personas) y Copiloto (la inteligencia del viaje). No se quitó nada, solo es más fácil de encontrar.',
+        'Ajustes ahora se abre directo desde el engranaje arriba en la pantalla de inicio (al lado de la campana). Copia de seguridad, exportar a hoja de cálculo y “Acerca de” están ahí.',
+      ],
+    },
+  },
+  {
     version: '0.19.0',
     date: '2026-06-15',
     items: {
