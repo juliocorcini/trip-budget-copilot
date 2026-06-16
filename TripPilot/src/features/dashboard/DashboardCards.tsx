@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { formatMoney } from '@/domain/money';
+import { formatShortDate, localDayOf } from '@/domain/dates';
 import { getCategoryIcon } from '@/utils/category-icons';
 import {
   resolveDashboardCardSequence,
@@ -958,7 +959,7 @@ export function DashboardCards({
             {/* §7 pos. 10 — RECENT EXPENSES */}
             {model.recent.length > 0 && (
               <div className="mt-5">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-semibold text-on-surface">{t('dashboard.recent_expenses')}</p>
                   <button
                     onClick={() => navigate('/expenses')}
@@ -967,26 +968,29 @@ export function DashboardCards({
                     {t('common.view_all')}
                   </button>
                 </div>
-                <div className="flex flex-col gap-1">
-                  {/* FIELD-13: recent items navigate to the expense detail */}
-                  {model.recent.map((tx) => (
+                {/* FIELD-15: compact preview — one card with dense rows (max 3),
+                    not a tall wall of full-size cards. The complete list is one
+                    tap away via "ver todos". */}
+                <div className="bg-surface-container rounded-2xl divide-y divide-on-surface-mute">
+                  {model.recent.slice(0, 3).map((tx) => (
                     <button
                       key={tx.id}
                       onClick={() => navigate(`/expenses/${tx.id}`)}
-                      className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full"
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 btn-press text-left"
                     >
-                      <div>
-                        <p className="text-sm text-on-surface font-semibold">{tx.description}</p>
-                        <p className="text-xs text-on-surface-faint">
-                          {tx.category ? t(`categories.${tx.category}` as never) : ''}
+                      <div className="w-8 h-8 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                        <Icon name={getCategoryIcon(tx.category)} size={16} className="text-on-surface-dim" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-on-surface truncate">{tx.description}</p>
+                        <p className="text-[11px] text-on-surface-faint truncate">
+                          {formatShortDate(localDayOf(tx.date))}
+                          {tx.category ? ` · ${t(`categories.${tx.category}` as never)}` : ''}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold tabular text-on-surface">
-                          {formatMoney(tx.amountCents, tx.currency)}
-                        </p>
-                        <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
-                      </div>
+                      <p className="text-sm font-semibold tabular text-on-surface shrink-0">
+                        {formatMoney(tx.amountCents, tx.currency)}
+                      </p>
                     </button>
                   ))}
                 </div>

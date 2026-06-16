@@ -106,7 +106,7 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
   const [primary, ...secondary] = actions;
 
   return (
-    <div className="fixed inset-0 z-50" onClick={onClose}>
+    <div className="fixed inset-0 z-50" data-no-tab-swipe onClick={onClose}>
       <div
         className="absolute inset-0"
         style={{

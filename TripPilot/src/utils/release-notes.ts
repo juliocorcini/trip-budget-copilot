@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.41.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Deslize em qualquer lugar da tela — até no fundo — para trocar de aba: Início, Gastos, Viagem e Copiloto. Carrosséis e listas que rolam de lado continuam funcionando normalmente.',
+        'As telas agora abrem sempre no topo: o título e o botão de voltar não ficam mais escondidos ao abrir Compras pessoais, planejadas e outras.',
+        'Gastos recentes na tela inicial em formato compacto — uma prévia enxuta, com a lista completa a um toque.',
+      ],
+      en: [
+        'Swipe anywhere on the screen — even the empty background — to switch tabs: Início, Gastos, Viagem and Copiloto. Side-scrolling carousels and lists keep working as before.',
+        'Screens now always open at the top: the title and back button are no longer hidden when opening Personal/Planned purchases and other pages.',
+        'Recent expenses on the home screen are now compact — a tidy preview, with the full list one tap away.',
+      ],
+      es: [
+        'Desliza en cualquier parte de la pantalla — incluso el fondo vacío — para cambiar de pestaña: Início, Gastos, Viagem y Copiloto. Los carruseles y listas horizontales siguen funcionando igual.',
+        'Las pantallas ahora se abren siempre arriba: el título y el botón de volver ya no quedan ocultos al abrir Compras personales, planificadas y otras.',
+        'Gastos recientes en la pantalla de inicio en formato compacto — una vista previa ordenada, con la lista completa a un toque.',
+      ],
+    },
+  },
+  {
     version: '0.40.0',
     date: '2026-06-15',
     items: {

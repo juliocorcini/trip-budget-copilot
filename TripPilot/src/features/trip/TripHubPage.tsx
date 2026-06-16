@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
+import { useTabPaging } from '@/hooks/useTabPaging';
 import { sortPhasesByOrder, findActivePhase, formatDate } from '@/domain/dates';
 import {
   calculateTotalBudget,
@@ -80,15 +81,20 @@ export function TripHubPage() {
       return next;
     });
   };
+  // FIELD-02: at the ends of the phase sequence the swipe hands off to the
+  // neighbouring app tab (first ⇠ Gastos · last ⇢ Copiloto when visible).
+  const tabPaging = useTabPaging();
   const phaseSwipe = useHorizontalSwipe({
     onSwipeLeft: () => {
       const next = phaseSequence[phaseSequence.indexOf(selected) + 1];
       if (next !== undefined) selectPhase(next);
+      else tabPaging.goNextTab();
     },
     onSwipeRight: () => {
       const i = phaseSequence.indexOf(selected);
       const prev = i > 0 ? phaseSequence[i - 1] : undefined;
       if (prev !== undefined) selectPhase(prev);
+      else tabPaging.goPrevTab();
     },
   });
 
@@ -190,7 +196,7 @@ export function TripHubPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 pb-4 pt-2" {...phaseSwipe}>
+    <div className="flex flex-col gap-5 pb-4 pt-2" data-inpage-swipe {...phaseSwipe}>
       <div>
         <h1 className="text-heading font-bold text-on-surface">{t('trip_hub.title')}</h1>
         <p className="text-sm text-on-surface-dim mt-0.5">{t('trip_hub.subtitle')}</p>

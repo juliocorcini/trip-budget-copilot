@@ -1,14 +1,24 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Post-animation fixes + Wise import — plan `brain/documents/post-animation-fixes-and-wise-import-plan-2026-06-15.md` (DEC-195…201), 4 gates (0.37 → 0.40)
-- **Active Milestone**: Gate 4 (0.40.0) — Wise CSV import (parser + classify + dedupe + commit + review UI) — DONE
-- **Last Green Test Run**: Gate 4 0.40.0 — 968 tests pass (110 files), tsc -b clean (24 new import tests)
-- **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green; native Java compiles)
-- **APK**: `Downloads/TripPilot-0.40.0-debug.apk` (versionCode 14)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.40.0 live (`main.trippilot.pages.dev`)
-- **Next**: device validation on One UI 7 (Gate 3 no-open notification taps) + real Wise import dry-run; brain status sync
-- **Confidence**: 88% (all logic green incl. 24 import tests against the 3 real statements + APK builds; the importer's same-currency path is exact for the EUR trip, multi-currency is the documented no-rate fallback).
+- **Active Delivery**: Field Feedback Round — plan `brain/documents/improvements-master-plan-2026-06-16.md` (18 items, 7 gates G1→G7, 0.41 → …)
+- **Active Milestone**: G1 (0.41.0) — global swipe w/ handoff + ScrollRestoration + compact recents — DONE
+- **Last Green Test Run**: G1 0.41.0 — 970 tests pass (111 files), tsc -b clean (+2 nav-tabs tests)
+- **Build Status**: clean (web build + type-check green; cap sync/APK deferred to native gates G6/G7)
+- **APK**: `Downloads/TripPilot-0.40.0-debug.apk` (versionCode 14) — no native change yet this round
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.41.0
+- **Next**: G2 — home numbers (true free-to-spend, check-in lens, focus card under check-in)
+- **Confidence**: 90% (G1 is web-only navigation/UX; pure-fn order locked by tests; carousels/chip rows immune via overflow-x + data-inpage-swipe).
+
+### Field Feedback Round — plan `improvements-master-plan-2026-06-16.md`
+
+#### G1 — Navigation & continuity (0.41.0)
+Source: Julio field feedback items 1, 2, 12, 15. Swipe must work from the empty background and page between the bottom-nav tabs; sub-pages opened scrolled; recents too tall.
+- [x] **Global swipe pager (items 1+2)**: detector lifted to `AppShell` (full-height container) so a swipe from the background pages the tabs. Order is the single source `app/nav-tabs.ts` (Início · Gastos · Viagem · Copiloto; Copiloto drops in simple mode) via new `useTabPaging`. Gestures starting inside a horizontal scroller (carousels, chip rows — detected by computed `overflow-x` + real overflow) or a `data-inpage-swipe`/`data-no-tab-swipe` region are ignored, so carousels/insights keep their natural gesture. FAB overlay marked `data-no-tab-swipe`.
+- [x] **In-page handoff**: Expenses (expenses↔outings) and Viagem (phase sequence) keep their internal swipe but, at the first/last sub-tab, hand the gesture to the neighbouring app tab — full bidirectional chain across all 4 tabs. Their swipe roots are tagged `data-inpage-swipe` so the shell pager defers to them (no double-fire).
+- [x] **ScrollRestoration (item 12)**: `<ScrollRestoration/>` added in `RootLayout` — forward navigations reset to top (title + back button visible), back restores. Fixes Compras pessoais/planejadas etc. opening pre-scrolled.
+- [x] **Compact recents (item 15)**: home "Gastos recentes" card is now one container with dense divided rows (icon + description + date·category + amount), max 3, "ver todos" → full list. Was a tall stack of full-size cards.
+- [x] **Verify**: 970 tests pass (111 files; +2 `nav-tabs` order tests), tsc -b clean, web build green. No domain/logic changes, no new deps, no schema change. Deployed to Production (0.41.0).
 
 ### Gate 4 — Wise CSV statement import (0.40.0)
 Source: user request — import the Wise card statements (3 real .csv files; file 1 == file 2, file 3 empty) as expenses, "best use of the data, without duplicating what already exists". Plan/council DEC-200. Wise = a wallet; the statement is where the card purchases live.

@@ -5,6 +5,7 @@ import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { useMultiSelect, type MultiSelect } from '@/hooks/useMultiSelect';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
+import { useTabPaging } from '@/hooks/useTabPaging';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { formatMoney, sumCents } from '@/domain/money';
@@ -83,10 +84,19 @@ export function ExpenseListPage() {
       return next;
     });
   };
-  // G1: swipe left/right to page between the two tabs (expenses ↔ outings).
+  // G1 + FIELD-02: swipe pages the inner tabs; at the edges it hands the gesture
+  // off to the neighbouring app tab (expenses ⇠ Início · outings ⇢ Viagem) so
+  // the whole bottom bar is reachable by swiping.
+  const tabPaging = useTabPaging();
   const tabSwipe = useHorizontalSwipe({
-    onSwipeLeft: () => changeTab('outings'),
-    onSwipeRight: () => changeTab('expenses'),
+    onSwipeLeft: () => {
+      if (tab === 'expenses') changeTab('outings');
+      else tabPaging.goNextTab();
+    },
+    onSwipeRight: () => {
+      if (tab === 'outings') changeTab('expenses');
+      else tabPaging.goPrevTab();
+    },
   });
 
   useEffect(() => {
@@ -242,7 +252,11 @@ export function ExpenseListPage() {
         ];
 
   return (
-    <div className={`flex flex-col gap-4 ${selection.active ? 'pb-24' : 'pb-4'}`} {...tabSwipe}>
+    <div
+      className={`flex flex-col gap-4 ${selection.active ? 'pb-24' : 'pb-4'}`}
+      data-inpage-swipe
+      {...tabSwipe}
+    >
       {/* DEC-084 (R-01): header + tabs + filter bar fixed — only the list scrolls */}
       <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-2 pb-2 flex flex-col gap-4`}>
         <div className="flex items-center justify-between">

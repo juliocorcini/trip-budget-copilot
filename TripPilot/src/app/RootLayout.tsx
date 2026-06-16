@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Outlet, useLocation } from 'react-router';
+import { Outlet, ScrollRestoration, useLocation } from 'react-router';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
@@ -115,6 +115,12 @@ export function RootLayout() {
   // settings while still protecting every route once enabled.
   return (
     <AppDataProvider>
+      {/* FIELD-12: reset scroll to the top on every forward navigation and
+          restore it on back. Without this, React Router keeps the previous
+          window scrollY, so a taller sub-page (Compras pessoais/planejadas…)
+          opened from a scrolled list appeared already scrolled — hiding its
+          title and back button. */}
+      <ScrollRestoration />
       {/* DEC-192: opaque band over the (transparent, edge-to-edge) status bar —
           rendered above the lock gate so it covers every screen, including the
           PIN screen. No-op when --safe-top is 0. */}
