@@ -362,6 +362,7 @@
     "after_expense_over": "After this expense, {{fund}} goes over plan by {{amount}}.",
     "empty_cta": "Log your first expense",
     "search_placeholder": "Search expenses",
+    "import_statement": "Import expenses and transfers",
     "search_clear": "Clear search",
     "search_empty_title": "Nothing found",
     "search_empty_body": "No expense matches \"{{query}}\". Try another term.",

@@ -259,13 +259,25 @@ export function ExpenseListPage() {
     >
       {/* DEC-084 (R-01): header + tabs + filter bar fixed — only the list scrolls */}
       <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-2 pb-2 flex flex-col gap-4`}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h1 className="text-heading font-bold text-on-surface">{t('expenses.title')}</h1>
-          {tab === 'expenses' && (
-            <p className="text-sm font-semibold tabular text-on-surface">
-              {formatMoney(totalCents, trip.baseCurrency)}
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            {tab === 'expenses' && (
+              <p className="text-sm font-semibold tabular text-on-surface">
+                {formatMoney(totalCents, trip.baseCurrency)}
+              </p>
+            )}
+            {/* FIELD-13: statement import was buried inside Wallets — surface it at
+                the top of the expenses screen (still kept in Wallets too). */}
+            <button
+              onClick={() => navigate('/import/wise')}
+              className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center btn-press shrink-0"
+              aria-label={t('expenses.import_statement')}
+              title={t('expenses.import_statement')}
+            >
+              <Icon name="upload_file" size={18} className="text-on-surface-dim" />
+            </button>
+          </div>
         </div>
 
         {/* DEC-079: segmented control Expenses | Outings */}

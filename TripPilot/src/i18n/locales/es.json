@@ -362,6 +362,7 @@
     "after_expense_over": "Después de este gasto, {{fund}} se pasa del plan por {{amount}}.",
     "empty_cta": "Registrar el primer gasto",
     "search_placeholder": "Buscar gastos",
+    "import_statement": "Importar gastos y movimientos",
     "search_clear": "Limpiar búsqueda",
     "search_empty_title": "Nada encontrado",
     "search_empty_body": "Ningún gasto coincide con \"{{query}}\". Prueba otro término.",

@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.43.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Importar extrato agora fica à mão: um botão no topo da tela de Gastos abre a importação (continua também na Carteira).',
+      ],
+      en: [
+        'Statement import is now within reach: a button at the top of the Expenses screen opens the importer (still available in Wallets too).',
+      ],
+      es: [
+        'Importar extracto ahora está a mano: un botón en la parte superior de la pantalla de Gastos abre la importación (sigue también en Billetera).',
+      ],
+    },
+  },
+  {
     version: '0.42.0',
     date: '2026-06-16',
     items: {

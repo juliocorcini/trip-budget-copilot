@@ -2,15 +2,21 @@
 
 ## Current State
 - **Active Delivery**: Field Feedback Round — plan `brain/documents/improvements-master-plan-2026-06-16.md` (18 items, 7 gates G1→G7, 0.41 → …)
-- **Active Milestone**: G2 (0.42.0) — true free-to-spend + check-in real lens (compact) + focus under check-in — DONE
-- **Last Green Test Run**: G2 0.42.0 — 977 tests pass (112 files), tsc --noEmit clean (+7 true-free tests)
+- **Active Milestone**: G3a (0.43.0) — Wise import made visible (item 13) — DONE. G3b (item 14, transfer intelligence + split) — BLOCKED on Julio's financial-mapping decisions (AskQuestion sent).
+- **Last Green Test Run**: G3a 0.43.0 — 977 tests pass (112 files), tsc --noEmit clean (no domain change in 13)
 - **Build Status**: clean (web build + type-check green; cap sync/APK deferred to native gates G6/G7)
 - **APK**: `Downloads/TripPilot-0.40.0-debug.apk` (versionCode 14) — no native change yet this round
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.42.0
-- **Next**: G3 — Wise import visible (top of Gastos) + transfer intelligence with split (debts/wallets)
-- **Confidence**: 88% (G2 reframes pure read-only numbers — trueFree/check-in are pure fns locked by tests; ÂNCORA 12 respected: budget never mutates, only the framing).
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.43.0
+- **Next**: G3b — Wise TRANSFER intelligence (detect person, match participant, pay-debt settlement / wallet transfer / expense, split one transfer into many) — awaiting answers.
+- **Confidence**: G3a 95% (pure UI entry point, no logic). G3b held deliberately: new financial WRITE paths from import (settlements / wallet transfers) are high-impact (SWE-guideline 6.2) — confirming mapping before building.
 
 ### Field Feedback Round — plan `improvements-master-plan-2026-06-16.md`
+
+#### G3a — Wise import made visible (0.43.0)
+Source: Julio field feedback item 13 — the statement importer was buried inside Wallets ("muito escondida"); wanted it at the top of Gastos, kept in Wallets too.
+- [x] **Entry on Gastos (item 13)**: an `upload_file` icon button in the Expenses header (visible on both sub-tabs) → `/import/wise`. Kept the existing Wallets entry untouched. Copy `expenses.import_statement` ("Importar gastos e movimentações") pt/en/es.
+- [x] **Verify**: 977 tests pass (112 files; no new tests — pure UI entry), tsc --noEmit clean, web build green. No domain/schema/dep change. Deployed to Production (0.43.0).
+- [ ] **item 14 (transfer intelligence) — held**: needs Julio's call on how a TRANSFER-to-a-person maps to money (settle existing debt vs. also create the expense; wallet-to-wallet via `transferBetweenWallets`; split one transfer across targets). All primitives exist (`createSettlement`, `transferBetweenWallets`/`withdrawCash`, payer-expense). AskQuestion sent.
 
 #### G2 — Home numbers: truly-free + real check-in lens (0.42.0)
 Source: Julio field feedback items 18, 17, 9. The hero "livre na fase" (988) ignored the planner reserve (alocado 414 → margem 574); the check-in was a read-only suggestion that didn't visibly change "free today"; and the piggy bank always sat under the check-in even when it wasn't the day's focus.
