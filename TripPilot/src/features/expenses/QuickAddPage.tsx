@@ -24,7 +24,7 @@ import type { RecentPlace, NearbyPlace, Coords } from '@/domain/location';
 import { getCurrentCoords } from '@/utils/geolocation';
 import { reverseGeocodePlace, searchNearbyPlaces, isOnline } from '@/utils/places';
 import { NearbyPlaceList } from '@/components/NearbyPlaceList';
-import { appSettingsRepository } from '@/data/repositories';
+import { appSettingsRepository, attachmentRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
 import {
@@ -51,6 +51,9 @@ import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-
 import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
 import { recordDailyLocalSnapshot } from '@/utils/local-snapshot';
 import { parseSharedExpense } from '@/domain/sharing';
+import { v4 as uuidv4 } from 'uuid';
+import { compressImageFile, type CompressedImage } from '@/utils/image/compress';
+import { newAttachment } from '@/features/attachments/attachment-utils';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -470,6 +473,30 @@ export function QuickAddPage() {
       effectiveTargetWalletId !== null &&
       effectiveSourceWalletId !== effectiveTargetWalletId);
 
+  // DEC-206 (G1): photos picked during creation have no transaction id yet, so
+  // we compress them now, buffer them, and persist them once the expense is saved.
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImages, setPendingImages] = useState<{ id: string; image: CompressedImage }[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  const handleAddPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const compressed = await compressImageFile(file);
+      setPendingImages((prev) => [...prev, { id: uuidv4(), image: compressed }]);
+    } catch {
+      showToast(t('attachments.add_failed'), 'danger');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePendingPhoto = (id: string) =>
+    setPendingImages((prev) => prev.filter((entry) => entry.id !== id));
+
   // Builds the expense transaction + shares from the current form state. Reading
   // it on demand lets M4 register an identical return trip with a fresh id.
   const buildExpense = () => {
@@ -534,6 +561,16 @@ export function QuickAddPage() {
   const persistExpense = async () => {
     const { transaction, shares } = buildExpense();
     await registerExpense({ transaction, shares });
+    // DEC-206 (G1): persist photos buffered during creation, now that the
+    // transaction has an id. Cleared so a round-trip persist never reattaches them.
+    if (pendingImages.length > 0) {
+      await Promise.all(
+        pendingImages.map((entry) =>
+          attachmentRepository.add(newAttachment(entry.image, { transactionId: transaction.id })),
+        ),
+      );
+      setPendingImages([]);
+    }
     // Persist sticky preferences in a SINGLE write: the place (E8/M3) and the
     // last category (R3-H), so the next expense inherits both.
     const settingsPatch: Partial<AppSettings> = {};
@@ -1343,6 +1380,59 @@ export function QuickAddPage() {
             </div>
           );
         })()}
+
+      {/* DEC-206 (G1): attach receipt/proof photos while creating the expense.
+          Buffered in memory (compressed) and saved with the new transaction id on
+          commit. Hidden for transfers/withdrawals, which never persist via this path. */}
+      {!isTransferLike && (
+        <div className="mt-1">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider">
+              {t('attachments.title')}
+            </p>
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoBusy}
+              className="flex items-center gap-1 text-xs font-semibold text-primary btn-press disabled:opacity-40"
+            >
+              <Icon name="add_a_photo" size={16} className="text-primary" />
+              {photoBusy ? t('attachments.adding') : t('attachments.add')}
+            </button>
+          </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAddPhoto}
+          />
+          {pendingImages.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {pendingImages.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="relative aspect-square rounded-xl overflow-hidden bg-surface-container"
+                >
+                  <img
+                    src={entry.image.thumbnailDataUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePendingPhoto(entry.id)}
+                    aria-label={t('common.delete')}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center btn-press"
+                  >
+                    <Icon name="close" size={14} className="text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* UX polish (Gate 3): the save/cancel row sticks to the bottom so a user
           in a hurry can confirm without scrolling past every optional field.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { attachmentRepository } from '@/data/repositories';
 import { compressImageFile } from '@/utils/image/compress';
+import { newAttachment } from './attachment-utils';
 import type { Attachment } from '@/domain/types/attachment';
 
 export interface UseAttachmentsTarget {
@@ -48,18 +48,7 @@ export function useAttachments(target: UseAttachmentsTarget): UseAttachmentsResu
       setBusy(true);
       try {
         const compressed = await compressImageFile(file);
-        const attachment: Attachment = {
-          id: uuidv4(),
-          transactionId,
-          sessionId,
-          mimeType: compressed.mimeType,
-          blob: compressed.blob,
-          thumbnailDataUrl: compressed.thumbnailDataUrl,
-          width: compressed.width,
-          height: compressed.height,
-          byteSize: compressed.byteSize,
-          createdAt: new Date().toISOString(),
-        };
+        const attachment = newAttachment(compressed, { transactionId, sessionId });
         await attachmentRepository.add(attachment);
         await load();
         return true;

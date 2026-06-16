@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.52.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Atualização do app corrigida no Android: o aplicativo agora detecta e instala novas versões automaticamente (a checagem estava travada e mostrava sempre a versão antiga).',
+        'Fotos em mais lugares: além dos gastos já cadastrados, agora dá para anexar fotos ao criar um gasto novo e durante ou na finalização de uma saída.',
+      ],
+      en: [
+        'App update fixed on Android: the app now detects and installs new versions automatically (the check was stuck and always showed the old version).',
+        'Photos in more places: besides existing expenses, you can now attach photos while creating a new expense and during or when finishing an outing.',
+      ],
+      es: [
+        'Actualización corregida en Android: la app ahora detecta e instala nuevas versiones automáticamente (la comprobación estaba bloqueada y mostraba siempre la versión antigua).',
+        'Fotos en más lugares: además de los gastos existentes, ahora puedes adjuntar fotos al crear un gasto nuevo y durante o al finalizar una salida.',
+      ],
+    },
+  },
+  {
     version: '0.51.0',
     date: '2026-06-16',
     items: {

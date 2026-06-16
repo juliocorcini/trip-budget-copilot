@@ -1,0 +1,13 @@
+# Cloudflare Pages headers.
+#
+# DEC-206 fix: the native app runs at https://localhost (androidScheme: 'https'),
+# so its fetch of the version manifest on this host is cross-origin. Without an
+# Access-Control-Allow-Origin header the WebView blocks the response, the app can
+# never see a newer bundle, and the OTA self-update never fires. Allowing any
+# origin on the manifest (and the OTA bundles) unblocks the live-update check.
+/version.json
+  Access-Control-Allow-Origin: *
+  Cache-Control: no-store
+
+/bundles/*
+  Access-Control-Allow-Origin: *

@@ -1,7 +1,7 @@
 {
-  "version": "0.51.0",
+  "version": "0.52.0",
   "requiredNativeVersion": "0.50.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.51.0.zip",
-  "notes": "Agora dá para anexar fotos (recibo/comprovante) a qualquer gasto, pela câmera ou galeria. As imagens ficam só no seu aparelho."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.52.0.zip",
+  "notes": "Atualização automática do app corrigida no Android. Agora também dá para anexar fotos ao criar um gasto novo e durante ou na finalização de uma saída."
 }

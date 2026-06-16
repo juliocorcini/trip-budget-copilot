@@ -71,6 +71,7 @@ import {
   OUTING_CHANGED_EVENT,
 } from '@/utils/outing-notification';
 import { sessionRepository } from '@/data/repositories/session-repository';
+import { AttachmentSection } from '@/features/attachments/AttachmentSection';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { phaseProfileSettingRepository } from '@/data/repositories/phase-profile-setting-repository';
 import { plannedOccurrenceRepository } from '@/data/repositories/planned-occurrence-repository';
@@ -1331,6 +1332,7 @@ export function OutingPage() {
             />
           )
         }
+        photosSlot={<AttachmentSection sessionId={session.id} />}
       />
 
       {/* DEC-120 (R-11): notification offer at first session start */}
@@ -1961,6 +1963,9 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
         </button>
       </div>
 
+      {/* DEC-206 (G1): attach receipt/proof photos to the outing at finalization. */}
+      <AttachmentSection sessionId={session.id} />
+
       <button
         onClick={handleConfirm}
         disabled={saving}
@@ -2025,6 +2030,8 @@ interface ActiveSessionProps {
   notificationBanner: React.ReactNode;
   /** Post-add enrichment stepper slot (DEC-078) — rendered above quick-add. */
   enrichStepper: React.ReactNode;
+  /** DEC-206 (G1): receipt/proof photos for this outing — rendered above quick-add. */
+  photosSlot: React.ReactNode;
   /** DEC-128: mental anchor config (null = off). */
   anchorConfig: AnchorConfig | null;
   /** DEC-127: fullscreen Bar Mode controls (state lives in OutingPage). */
@@ -2033,7 +2040,7 @@ interface ActiveSessionProps {
   onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, onPickNearby, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, onPickNearby, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, photosSlot, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -2600,6 +2607,9 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
 
       {/* 10b. POST-ADD ENRICHMENT STEPPER (DEC-078) */}
       {enrichStepper}
+
+      {/* 10c. DEC-206 (G1): attach photos mid-outing (receipts/proof). */}
+      {photosSlot && <div className="px-5 mb-2">{photosSlot}</div>}
 
       {/* 11. QUICK-ADD BUTTONS (highlight = closest to avg drink, DEC-045) */}
       {/* DEC-198 (N4): clear the system gesture bar on fullscreen (no bottom nav here). */}
