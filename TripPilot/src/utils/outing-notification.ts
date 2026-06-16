@@ -13,18 +13,22 @@ import { safeLocalStorage } from '@/utils/safe-storage';
 import { isNativeApp } from '@/utils/native/platform';
 import { formatMoney } from '@/domain/money';
 import {
-  showOutingNotification as showNativeOutingNotification,
-  closeOutingNotification as closeNativeOutingNotification,
   hasNotificationPermission as hasNativeNotificationPermission,
   requestNotificationPermission as requestNativeNotificationPermission,
   refreshNotificationPermission as refreshNativeNotificationPermission,
   getCachedNotificationPermission as getCachedNativeNotificationPermission,
 } from '@/utils/native/notifications';
 import {
+  showOutingNotifier,
+  cancelOutingNotifier,
+  drainOutingQuickAdds,
+} from '@/utils/native/outing-notifier';
+import {
   isLiveOutingSupported,
   syncLiveOuting,
   endLiveOuting,
 } from '@/utils/native/live-outing';
+import { quickAddSessionExpense } from '@/domain/orchestrators';
 import type { Session } from '@/domain/types/session';
 import type { OutingNotificationStrings } from '@/domain/outing';
 
@@ -41,9 +45,20 @@ import type { OutingNotificationStrings } from '@/domain/outing';
  */
 
 const PROMPTED_KEY = 'trippilot-outing-notification-prompted';
+const DEFAULT_NOTIFICATION_ACCENT = '#C75B39';
 
 /** Fired after a notification-originated data change so open pages reload. */
 export const OUTING_CHANGED_EVENT = 'trippilot:outing-changed';
+
+/** Reads the live theme accent (--primary) for the native notification color. */
+function readNotificationAccent(): string {
+  try {
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    return value || DEFAULT_NOTIFICATION_ACCENT;
+  } catch {
+    return DEFAULT_NOTIFICATION_ACCENT;
+  }
+}
 
 interface SwNotificationOptions {
   tag: string;
@@ -162,7 +177,7 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
   if (isNativeApp()) {
     // B1/B2 (Gate 4): on Android 16+ the active outing is owned by the Live
     // Update (promoted ongoing + status-bar chip + Now Bar). Older devices fall
-    // back to the proven LocalNotifications path — no regression.
+    // back to the rich OutingNotifier with quick-add value buttons (N5/N6).
     if (await isLiveOutingSupported()) {
       await syncLiveOuting({
         title: payload.title,
@@ -173,7 +188,31 @@ export async function syncOutingNotification(input: SyncOutingNotificationInput)
       });
       return;
     }
-    await showNativeOutingNotification(payload);
+    // N5: the notification carries up to 3 of the session's quick-add values —
+    // the SAME amounts as the active-outing screen — so a tap logs an expense
+    // without opening the app. Capped at 3 (Android's action-button budget);
+    // the SW payload still uses 2 (it must keep room for "open").
+    const quickValues = input.session.quickAddValuesCents
+      .filter((v) => v > 0)
+      .filter((v, i, arr) => arr.indexOf(v) === i)
+      .slice(0, 3);
+    await showOutingNotifier({
+      title: payload.title,
+      accentColor: readNotificationAccent(),
+      totalCents: input.totalCents,
+      targetCents: payload.data.targetCents ?? -1,
+      avgDrinkCents: payload.data.avgDrinkPriceCents ?? -1,
+      locale,
+      currency: input.currency,
+      tplNoTarget: payload.data.strings.bodyNoTarget,
+      tplUnder: payload.data.strings.bodyUnderTarget,
+      tplOver: payload.data.strings.bodyOverTarget,
+      tplDrinks: payload.data.strings.drinksToTarget,
+      quickAdds: quickValues.map((value) => ({
+        amountCents: value,
+        label: `+${formatMoney(value, input.currency, locale)}`,
+      })),
+    });
     return;
   }
 
@@ -205,7 +244,10 @@ export async function closeOutingNotifications(): Promise<void> {
       await endLiveOuting();
       return;
     }
-    await closeNativeOutingNotification();
+    // Drain any last button taps into real expenses before tearing the
+    // notification down, so a tap right before "end outing" is never lost.
+    await reconcileOutingQuickAdds();
+    await cancelOutingNotifier();
     return;
   }
   if (!('serviceWorker' in navigator)) return;
@@ -260,33 +302,85 @@ export async function syncActiveOutingNotification(): Promise<void> {
   }
 }
 
+/**
+ * N5/N6: drains the queue of quick-add taps the active-outing notification
+ * logged while the app was backgrounded (or killed) and persists each as a real
+ * session expense via the canonical orchestrator, then re-syncs the notification
+ * with the authoritative total. No-op on the web or when nothing was queued.
+ */
+export async function reconcileOutingQuickAdds(): Promise<void> {
+  if (!isNativeApp()) return;
+  try {
+    const items = await drainOutingQuickAdds();
+    if (items.length === 0) return;
+    const ctx = await getActiveSessionContext();
+    if (!ctx) return;
+    for (const item of items) {
+      if (item.amountCents > 0) {
+        await quickAddSessionExpense({
+          session: ctx.session,
+          amountCents: item.amountCents,
+          // Background taps follow the session's own phase (no boundary UI here).
+          phaseId: ctx.session.phaseId,
+          currency: ctx.currency,
+          profileCategory: ctx.profileCategory,
+        });
+      }
+    }
+    window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
+    await syncActiveOutingNotification();
+  } catch {
+    // reconciliation must never break the app flow.
+  }
+}
+
 let bridgeRegistered = false;
 
 /**
  * Listens for SW broadcasts (data changed by a notification action) and
  * re-syncs state when the tab returns to the foreground — Android freezes
- * background tabs, so messages sent meanwhile may only land now.
+ * background tabs, so messages sent meanwhile may only land now. On the native
+ * app it also drains the notification's quick-add queue on every resume.
  */
 export function registerOutingNotificationBridge(): void {
-  if (bridgeRegistered || !('serviceWorker' in navigator)) return;
+  if (bridgeRegistered) return;
   bridgeRegistered = true;
 
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    const data = event.data;
-    if (!data || typeof data !== 'object') return;
-    if (data.type === 'OUTING_DATA_CHANGED') {
-      window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
-    } else if (
-      data.type === 'OUTING_NOTIFICATION_NAVIGATE' &&
-      typeof data.url === 'string' &&
-      window.location.pathname !== data.url
-    ) {
-      window.location.assign(data.url);
-    }
-  });
+  // Native: reconcile any notification button taps on boot and on every resume
+  // (the activity may stay resumed when the shade is pulled, so also on
+  // visibility changes below). The drain is atomic, so double calls are safe.
+  if (isNativeApp()) {
+    void reconcileOutingQuickAdds();
+    void import('@capacitor/app')
+      .then(({ App }) => {
+        void App.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) void reconcileOutingQuickAdds();
+        });
+      })
+      .catch(() => {
+        // App plugin unavailable — visibilitychange below still covers resume.
+      });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+      if (data.type === 'OUTING_DATA_CHANGED') {
+        window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
+      } else if (
+        data.type === 'OUTING_NOTIFICATION_NAVIGATE' &&
+        typeof data.url === 'string' &&
+        window.location.pathname !== data.url
+      ) {
+        window.location.assign(data.url);
+      }
+    });
+  }
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
+      if (isNativeApp()) void reconcileOutingQuickAdds();
       window.dispatchEvent(new CustomEvent(OUTING_CHANGED_EVENT));
       syncActiveOutingNotification();
     }

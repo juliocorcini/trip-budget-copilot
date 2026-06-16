@@ -2,13 +2,21 @@
 
 ## Current State
 - **Active Delivery**: Post-animation fixes + Wise import — plan `brain/documents/post-animation-fixes-and-wise-import-plan-2026-06-15.md` (DEC-195…201), 4 gates (0.37 → 0.40)
-- **Active Milestone**: Gate 2 (0.38.0) — active-outing height (N4) + FAB UI redesign (N7)
-- **Last Green Test Run**: Gate 2 0.38.0 — 944 tests pass (108 files), tsc -b clean
-- **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green)
-- **APK**: `Downloads/TripPilot-0.38.0-debug.apk` (versionCode 12)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.38.0 live
-- **Next**: Gate 3 (0.39.0) — active-outing notification (N5/N6: value buttons + rich fallback); then Gate 4 Wise import
-- **Confidence**: 88% (logic green + APK builds; Gate 2 is layout/CSS only, no domain changes). Device-pending: visual feel of the FAB sheet + outing fit on the S23.
+- **Active Milestone**: Gate 3 (0.39.0) — active-outing notification (N5/N6: value buttons that log without opening the app + rich fallback)
+- **Last Green Test Run**: Gate 3 0.39.0 — 944 tests pass (108 files), tsc -b clean
+- **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green; native Java compiles)
+- **APK**: `Downloads/TripPilot-0.39.0-debug.apk` (versionCode 13)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.39.0 live
+- **Next**: Gate 4 (0.40.0) — Wise CSV import (parser + classify + dedupe + commit + UI)
+- **Confidence**: 86% (logic green + APK builds; the no-open notification taps + queue reconciliation are device-pending on One UI 7 — JS reconciliation reuses the tested quickAddSessionExpense orchestrator).
+
+### Gate 3 — active-outing notification: value buttons + rich fallback (0.39.0)
+Source: user report on One UI 7 (Android 15, no Live Update) — the fallback notification regressed: no value buttons, "visually not nice", and it should let you log an expense WITHOUT opening the app, using the SAME quick-add values as the outing screen. Plan/council DEC-199.
+- [x] **Native plugin `OutingNotifier`** (`OutingNotificationPlugin.java`): a styled ongoing notification (accent color + colorized + BigTextStyle body computed from the i18n templates) with one action button per quick-add value. State (title, accent, base total, target, avg-drink, locale/currency, templates, the quick list, and the pending queue) lives in SharedPreferences so it can re-render with no WebView.
+- [x] **Background tap → no app launch** (`OutingActionReceiver.java`): each button is a broadcast PendingIntent. The receiver enqueues `{amountCents, ts}`, bumps the running total and re-posts the notification — even if the process was killed (Android cold-starts it for the broadcast). Registered in the manifest (`exported=false`).
+- [x] **JS reconciliation** (`utils/outing-notification.ts` + `utils/native/outing-notifier.ts`): the fallback branch now calls `OutingNotifier.show(...)` with the first 3 distinct session quick values (Android's action budget) + accent + body templates. `reconcileOutingQuickAdds()` drains the native queue on boot, on `appStateChange(isActive)` and on visibility-visible, persists each via the canonical `quickAddSessionExpense` orchestrator (same record the in-app quick-add and the SW produce), fires `OUTING_CHANGED_EVENT` (open OutingPage reloads) and re-syncs the authoritative total. End-of-outing drains before cancel so a last-second tap is never lost.
+- [x] **Cleanup**: `utils/native/notifications.ts` reduced to the permission flow only (the old `LocalNotifications` outing notification + its open-only action listener are replaced by the plugin). `MainActivity` registers the new plugin.
+- [x] **Verify**: 944 tests pass (108 files), tsc -b clean, web build + cap sync + assembleDebug green (native Java compiles), APK 0.39.0 (versionCode 13). Domain untouched; reconciliation reuses the tested orchestrator. Device-pending: tap-to-log on One UI 7.
 
 ### Gate 2 — active-outing height + FAB redesign (0.38.0)
 Source: user report — (N4) the active-outing screen "lacks height mid-page", pushing quick-add buttons/values below the fold and forcing a scroll despite empty space; (N7) the "+" menu should look "more beautiful, perfect — what you expect from a FAB". Plan/council DEC-198 + DEC-201.

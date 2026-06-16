@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.39.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Notificação da saída ativa repaginada: agora tem botões com os mesmos valores do quick-add da tela de saída — toque e o gasto é registrado na hora, sem nem abrir o app.',
+        'Visual bem melhor: cor de destaque, total e quanto falta para a meta (e ≈ quantas bebidas) em texto expandido, mesmo nos Androids sem o recurso de "Live Update".',
+        'O total na notificação atualiza a cada toque; ao abrir o app, os lançamentos são reconciliados automaticamente (funciona até se o app foi fechado).',
+      ],
+      en: [
+        'Active-outing notification revamped: it now has buttons with the same quick-add values as the outing screen — tap one and the expense is logged instantly, without even opening the app.',
+        'Much better looking: accent color, total and how much is left to the target (and ≈ how many drinks) in expanded text, even on Androids without the "Live Update" feature.',
+        'The notification total updates on every tap; when you open the app, the entries are reconciled automatically (works even if the app was closed).',
+      ],
+      es: [
+        'Notificación de salida activa renovada: ahora tiene botones con los mismos valores del quick-add de la pantalla de salida — toca uno y el gasto se registra al instante, sin siquiera abrir la app.',
+        'Mucho mejor visualmente: color de acento, total y cuánto falta para la meta (y ≈ cuántas bebidas) en texto expandido, incluso en Android sin la función de "Live Update".',
+        'El total de la notificación se actualiza con cada toque; al abrir la app, los registros se reconcilian automáticamente (funciona incluso si la app se cerró).',
+      ],
+    },
+  },
+  {
     version: '0.38.0',
     date: '2026-06-15',
     items: {

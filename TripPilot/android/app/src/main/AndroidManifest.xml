@@ -33,6 +33,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- N5/N6 (Gate 3): background handler for the active-outing notification's
+             quick-add value buttons. exported=false — only the app's own
+             PendingIntents reach it. -->
+        <receiver
+            android:name=".OutingActionReceiver"
+            android:exported="false" />
     </application>
 
     <!-- Permissions -->
