@@ -78,6 +78,20 @@ function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
 }
 
 /**
+ * Read a Blob as a base64 data URL. DEC-206 (G2): the cloud OCR boundary sends
+ * the FULL compressed receipt (not the tiny thumbnail) to the Worker, so it
+ * needs the downscaled blob serialised as a `data:image/...;base64,...` string.
+ */
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('blob_read_failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
  * Downscale + re-encode a picked image to a storable JPEG plus an inline
  * thumbnail. Compatible with mobile Safari (uses HTMLImageElement, not
  * createImageBitmap). Revokes the temporary object URL once decoded.

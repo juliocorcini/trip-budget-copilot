@@ -267,6 +267,15 @@ export function ExpenseListPage() {
                 {formatMoney(totalCents, trip.baseCurrency)}
               </p>
             )}
+            {/* DEC-206 (G2): scan a receipt → read items → split → outing. */}
+            <button
+              onClick={() => navigate('/receipt/scan')}
+              className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center btn-press shrink-0"
+              aria-label={t('receiptScan.entry')}
+              title={t('receiptScan.entry')}
+            >
+              <Icon name="document_scanner" size={18} className="text-on-surface-dim" />
+            </button>
             {/* FIELD-13: statement import was buried inside Wallets — surface it at
                 the top of the expenses screen (still kept in Wallets too). */}
             <button

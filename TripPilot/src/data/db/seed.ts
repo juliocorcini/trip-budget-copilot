@@ -68,6 +68,9 @@ export function createDefaultAppSettings(): AppSettings {
     deviceIdentity: null,
     // FIELD item 8: mailbox drains on open by default (user choice).
     mailboxEnabled: true,
+    // DEC-206 (G2): cloud receipt OCR is opt-in — the photo never leaves the
+    // device until the traveler turns this on (privacy first).
+    cloudReceiptOcrEnabled: false,
   };
 }
 

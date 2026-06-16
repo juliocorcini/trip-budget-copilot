@@ -85,7 +85,7 @@ const SETTINGS_GROUPS: { id: string; labelKey: string; keywords: string }[] = [
     id: 'data_security',
     labelKey: 'settings.group_data_security',
     keywords:
-      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar caixa postal mailbox mensagens messages sincronizar sync worker pareamento',
+      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar caixa postal mailbox mensagens messages sincronizar sync worker pareamento nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items',
   },
   {
     id: 'device',
@@ -917,6 +917,17 @@ export function SettingsPage() {
           onChange={() => updateSetting({ mailboxEnabled: !settings.mailboxEnabled })}
         />
         <p className="text-xs text-on-surface-faint mt-2">{t('mailbox.setting_hint')}</p>
+      </Section>
+
+      {/* DEC-206 (G2): cloud receipt OCR — opt-in. The photo only leaves the
+          device after this is on (privacy first; the model does not train on it). */}
+      <Section title={t('receiptScan.setting_title')}>
+        <ToggleRow
+          label={t('receiptScan.setting_label')}
+          enabled={settings.cloudReceiptOcrEnabled}
+          onChange={() => updateSetting({ cloudReceiptOcrEnabled: !settings.cloudReceiptOcrEnabled })}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('receiptScan.setting_hint')}</p>
       </Section>
 
       <Section title={t('settings.backup_reminder')}>

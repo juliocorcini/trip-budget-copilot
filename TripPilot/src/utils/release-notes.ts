@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.53.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Escanear nota: tire uma foto da nota (mercado, bar, restaurante), a IA lê os itens e você revisa, edita, divide entre pessoas e salva tudo como uma saída de uma vez.',
+        'Leitura por IA é opt-in: a foto só sai do aparelho depois que você ativa (Ajustes). O serviço não treina com seus dados. Sem foto ou offline, dá para adicionar os itens na mão.',
+      ],
+      en: [
+        'Scan a receipt: snap a photo (grocery, bar, restaurant), the AI reads the items, and you review, edit, split between people, and save it all as one outing.',
+        'AI reading is opt-in: the photo only leaves your device after you turn it on (Settings). The service does not train on your data. With no photo or offline, you can add items by hand.',
+      ],
+      es: [
+        'Escanear recibo: toma una foto (supermercado, bar, restaurante), la IA lee los artículos y tú revisas, editas, divides entre personas y lo guardas todo como una salida.',
+        'La lectura con IA es opt-in: la foto solo sale de tu dispositivo cuando la activas (Ajustes). El servicio no entrena con tus datos. Sin foto o sin conexión, puedes agregar los artículos a mano.',
+      ],
+    },
+  },
+  {
     version: '0.52.0',
     date: '2026-06-16',
     items: {

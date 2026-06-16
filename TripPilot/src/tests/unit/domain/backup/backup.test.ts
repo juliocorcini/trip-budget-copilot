@@ -52,6 +52,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     lastExpenseCategory: null,
     deviceIdentity: null,
     mailboxEnabled: true,
+    cloudReceiptOcrEnabled: false,
   },
   trips: [],
   phases: [],

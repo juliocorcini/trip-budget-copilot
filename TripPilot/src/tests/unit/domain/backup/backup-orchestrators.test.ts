@@ -48,6 +48,7 @@ const settings: AppSettings = {
   lastExpenseCategory: null,
   deviceIdentity: null,
   mailboxEnabled: true,
+  cloudReceiptOcrEnabled: false,
 };
 
 const mkTrip = (): Trip => ({

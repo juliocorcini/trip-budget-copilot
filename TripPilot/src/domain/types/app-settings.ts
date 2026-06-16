@@ -99,6 +99,11 @@ export interface AppSettings {
    * Default true (user choice "ligado por padrão"). Toggle in Settings to stop
    * contacting the worker (non-indexed — no migration). */
   mailboxEnabled: boolean;
+  /** DEC-206 (G2): opt-in to read receipts with cloud AI. Default FALSE — the
+   * receipt photo only leaves the device after explicit consent (the image is
+   * sent to the Worker /ocr proxy → Groq, which does not train on it). Privacy
+   * first, like locationCaptureEnabled (ÂNCORA 8; non-indexed — no migration). */
+  cloudReceiptOcrEnabled: boolean;
 }
 
 /**

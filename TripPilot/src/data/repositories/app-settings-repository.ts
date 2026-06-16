@@ -57,6 +57,9 @@ class AppSettingsRepository {
       // default to draining on open (user choice "ligado por padrão").
       deviceIdentity: settings.deviceIdentity ?? null,
       mailboxEnabled: settings.mailboxEnabled ?? true,
+      // DEC-206 (G2): records predating cloud receipt OCR default to OFF
+      // (opt-in — the photo never leaves the device until enabled).
+      cloudReceiptOcrEnabled: settings.cloudReceiptOcrEnabled ?? false,
     };
   }
 

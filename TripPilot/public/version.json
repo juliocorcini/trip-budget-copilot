@@ -1,7 +1,7 @@
 {
-  "version": "0.52.0",
+  "version": "0.53.0",
   "requiredNativeVersion": "0.50.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.52.0.zip",
-  "notes": "Atualização automática do app corrigida no Android. Agora também dá para anexar fotos ao criar um gasto novo e durante ou na finalização de uma saída."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.53.0.zip",
+  "notes": "Escanear nota: tire uma foto da nota, a IA lê os itens, você edita/divide e salva como uma saída. Leitura por IA é opt-in (Ajustes)."
 }

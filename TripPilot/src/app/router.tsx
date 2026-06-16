@@ -37,6 +37,7 @@ const NotificationsPage = lazyWithRetry(() => import('@/features/notifications/N
 const ImpactDetailPage = lazyWithRetry(() => import('@/features/dashboard/ImpactDetailPage').then(m => ({ default: m.ImpactDetailPage })));
 const SyncReceivePage = lazyWithRetry(() => import('@/features/sync/SyncReceivePage').then(m => ({ default: m.SyncReceivePage })));
 const WiseImportPage = lazyWithRetry(() => import('@/features/import/WiseImportPage').then(m => ({ default: m.WiseImportPage })));
+const ReceiptScanPage = lazyWithRetry(() => import('@/features/receipt/ReceiptScanPage').then(m => ({ default: m.ReceiptScanPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -153,6 +154,7 @@ export const router = createBrowserRouter([
       { path: '/rescue', element: <LazyRoute><RescuePage /></LazyRoute> },
       { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
       { path: '/import/wise', element: <LazyRoute><ModeGuard><WiseImportPage /></ModeGuard></LazyRoute> },
+      { path: '/receipt/scan', element: <LazyRoute><ReceiptScanPage /></LazyRoute> },
     ],
   },
 ]);
