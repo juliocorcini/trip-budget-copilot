@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7 } from './schema';
+import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import { recordCrash } from '@/utils/crash-log';
 import type { Trip } from '@/domain/types/trip';
@@ -27,6 +27,7 @@ import type { MirroredStatement } from '@/domain/types/mirrored-statement';
 import type { LocalSnapshot } from '@/domain/types/local-snapshot';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { MailboxQueueItem } from '@/domain/types/mailbox';
+import type { Attachment } from '@/domain/types/attachment';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -56,6 +57,7 @@ export class TripPilotDB extends Dexie {
   localSnapshots!: EntityTable<LocalSnapshot, 'id'>;
   plannedPurchases!: EntityTable<PlannedPurchase, 'id'>;
   mailboxQueue!: EntityTable<MailboxQueueItem, 'id'>;
+  attachments!: EntityTable<Attachment, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -104,6 +106,10 @@ export class TripPilotDB extends Dexie {
     // FIELD item 8: local-only mailbox queue. New table → no upgrade() callback;
     // existing data is preserved untouched on open.
     this.version(7).stores(SCHEMA_V7);
+
+    // DEC-206 (G1): device-local image attachments. New table → no upgrade()
+    // callback; existing data is preserved untouched on open.
+    this.version(8).stores(SCHEMA_V8);
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {

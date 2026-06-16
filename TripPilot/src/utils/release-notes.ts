@@ -17,6 +17,42 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.51.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Fotos nos gastos: agora dá para anexar fotos (recibo, comprovante, etiqueta) a qualquer gasto — pela câmera ou pela galeria. Abra o gasto, toque em "Fotos" e adicione. As imagens ficam só no seu aparelho.',
+      ],
+      en: [
+        'Photos on expenses: you can now attach photos (receipt, proof, label) to any expense — from the camera or the gallery. Open the expense, tap "Photos" and add. Images stay only on your device.',
+      ],
+      es: [
+        'Fotos en los gastos: ahora puedes adjuntar fotos (recibo, comprobante, etiqueta) a cualquier gasto — desde la cámara o la galería. Abre el gasto, toca "Fotos" y añade. Las imágenes quedan solo en tu dispositivo.',
+      ],
+    },
+  },
+  {
+    version: '0.50.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Câmera do leitor de QR liberada: a permissão de câmera agora é pedida corretamente para ler o QR de pareamento.',
+        'Backup salvo direto na pasta Downloads do aparelho.',
+        'Fim do efeito de "esticar" a tela ao rolar além do fim (overscroll) no app Android.',
+      ],
+      en: [
+        'QR scanner camera enabled: the camera permission is now requested correctly to read the pairing QR.',
+        "Backup saved straight to the device's Downloads folder.",
+        'No more screen "stretch" when scrolling past the end (overscroll) in the Android app.',
+      ],
+      es: [
+        'Cámara del lector de QR habilitada: el permiso de cámara ahora se solicita correctamente para leer el QR de emparejamiento.',
+        'Copia guardada directamente en la carpeta de Descargas del dispositivo.',
+        'Fin del efecto de "estirar" la pantalla al desplazarse más allá del final (overscroll) en la app Android.',
+      ],
+    },
+  },
+  {
     version: '0.49.0',
     date: '2026-06-16',
     items: {

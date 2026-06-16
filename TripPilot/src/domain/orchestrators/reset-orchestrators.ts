@@ -17,6 +17,9 @@ export const TRANSACTIONAL_TABLE_NAMES = [
   'forecastSnapshots',
   'mirroredStatements',
   'mailboxQueue',
+  // DEC-206 (G1): images belong to recorded activity, so a keep-structure reset
+  // drops them too (avoids orphan photos pointing at cleared expenses/outings).
+  'attachments',
 ] as const;
 
 /**

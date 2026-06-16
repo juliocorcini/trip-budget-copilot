@@ -1,4 +1,15 @@
 {
+  "attachments": {
+    "title": "Photos",
+    "add": "Add",
+    "adding": "Attaching…",
+    "empty": "Tap to attach a photo",
+    "added_toast": "Photo attached",
+    "add_failed": "Could not attach the photo",
+    "delete_confirm": "Delete this photo?",
+    "deleted_toast": "Photo deleted",
+    "close": "Close"
+  },
   "nav": {
     "dashboard": "Home",
     "expenses": "Expenses",

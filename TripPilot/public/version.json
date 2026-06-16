@@ -1,7 +1,7 @@
 {
-  "version": "0.50.0",
+  "version": "0.51.0",
   "requiredNativeVersion": "0.50.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.50.0.zip",
-  "notes": "Câmera do leitor de QR liberada, backup salvo direto na pasta Downloads e fim do efeito de esticar a tela (overscroll)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.51.0.zip",
+  "notes": "Agora dá para anexar fotos (recibo/comprovante) a qualquer gasto, pela câmera ou galeria. As imagens ficam só no seu aparelho."
 }

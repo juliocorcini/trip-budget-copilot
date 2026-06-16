@@ -11,6 +11,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
+import { AttachmentSection } from '@/features/attachments/AttachmentSection';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 
@@ -300,6 +301,9 @@ export function ExpenseDetailPage() {
               <p className="text-sm text-on-surface">{tx.notes}</p>
             </div>
           )}
+
+          {/* DEC-206 (G1): attach receipt/proof photos to this expense. */}
+          <AttachmentSection transactionId={tx.id} />
 
           <div className="flex gap-3">
             <button

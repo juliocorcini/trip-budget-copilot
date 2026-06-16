@@ -1,4 +1,15 @@
 {
+  "attachments": {
+    "title": "Fotos",
+    "add": "Añadir",
+    "adding": "Adjuntando…",
+    "empty": "Toca para adjuntar una foto",
+    "added_toast": "Foto adjuntada",
+    "add_failed": "No se pudo adjuntar la foto",
+    "delete_confirm": "¿Eliminar esta foto?",
+    "deleted_toast": "Foto eliminada",
+    "close": "Cerrar"
+  },
   "nav": {
     "dashboard": "Inicio",
     "expenses": "Gastos",

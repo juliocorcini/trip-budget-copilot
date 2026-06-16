@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -82,4 +82,15 @@ export const SCHEMA_V6: Record<string, string> = {
 export const SCHEMA_V7: Record<string, string> = {
   ...SCHEMA_V6,
   mailboxQueue: 'id, direction, status, createdAt',
+};
+
+// V8 (DEC-206 — G1: attach photos to expenses/outings): a brand-new device-local
+// table for images (receipts, proofs). Brand-new table → no upgrade() callback;
+// Dexie creates it on open and leaves every existing table/row untouched.
+// LOCAL-only: it never participates in BackupData (not in BACKUP_TABLE_KEYS).
+// Indexed by transactionId and sessionId for the two ownership lookups (exactly
+// one is set per row; the null one is simply absent from its index).
+export const SCHEMA_V8: Record<string, string> = {
+  ...SCHEMA_V7,
+  attachments: 'id, transactionId, sessionId, createdAt',
 };
