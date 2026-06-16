@@ -5,10 +5,19 @@ import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository, localSnapshotRepository } from '@/data/repositories';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { buildTripTemplate, summarizeTemplate } from '@/domain/templates';
-import { saveTripTemplate, deleteTripTemplate } from '@/domain/orchestrators';
+import {
+  saveTripTemplate,
+  deleteTripTemplate,
+  buildFullBackup,
+  resetKeepStructure,
+  resetWipeAll,
+} from '@/domain/orchestrators';
+import { generateBackupFilename, downloadFile } from '@/domain/backup';
+import { snapshotDayId } from '@/domain/local-snapshots';
 import { fromCents, toCents, formatAnchorHint, formatMoney } from '@/domain/money';
 import { formatDate } from '@/domain/dates';
 import { restoreLocalSnapshot } from '@/utils/local-snapshot';
+import { clearEmergencySnapshot } from '@/utils/emergency-snapshot';
 import { hashPin, isValidPin } from '@/utils/app-lock';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -24,6 +33,7 @@ import {
   closeOutingNotifications,
 } from '@/utils/outing-notification';
 import { checkForAppUpdate } from '@/utils/pwa';
+import { resolveAppVersionStatus, getNativeAppVersion } from '@/utils/app-update';
 import { getCurrentCoords, ensureLocationPermission } from '@/utils/geolocation';
 import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
@@ -124,6 +134,9 @@ export function SettingsPage() {
   // DEC-135: in-app install + manual "look for a new version" button.
   const { available: installAvailable, install } = useInstallPrompt();
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  // FIELD item 20 (G8a): the installed APK version (native shell), shown in
+  // "About" next to the web bundle version so the two are never conflated.
+  const [nativeVersion, setNativeVersion] = useState<string | null>(null);
   // E9 (M11): pulling the FX snapshot is opt-in and online-only.
   const [fetchingRates, setFetchingRates] = useState(false);
   // E6 (M15): local daily restore points + the confirm-before-restore sheet.
@@ -137,6 +150,11 @@ export function SettingsPage() {
   const [confirmPin, setConfirmPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [savingPin, setSavingPin] = useState(false);
+  // FIELD item 3: "zerar o app" — pick a mode then type-to-confirm.
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetChoice, setResetChoice] = useState<'wipe' | 'keep' | null>(null);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
   // FIELD item 4: live search across the settings groups.
   const [query, setQuery] = useState('');
 
@@ -149,6 +167,12 @@ export function SettingsPage() {
   useEffect(() => {
     if (!isNativeApp()) return;
     void refreshOutingNotificationPermission().then(setNotifPermission);
+  }, []);
+
+  // FIELD item 20 (G8a): read the installed APK version once (native only).
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    void getNativeAppVersion().then(setNativeVersion);
   }, []);
 
   if (!settings) return null;
@@ -185,12 +209,37 @@ export function SettingsPage() {
     await updateSetting({ language: lang });
   };
 
-  // DEC-135: force the SW to look for a new version right now. Covers the
-  // "Chrome has the new version but the installed app is stale" case.
+  // DEC-135 + FIELD item 20 (G8a): "look for a new version".
+  // - PWA/browser: force the service worker to fetch the latest (unchanged).
+  // - Native APK: the SW path is a no-op (assets are bundled), so instead ask
+  //   the published manifest and answer honestly — up to date, a web update is
+  //   available (OTA-eligible), or the installed APK is too old to run it.
+  const handleCheckUpdateNative = async () => {
+    const status = await resolveAppVersionStatus();
+    if (status.kind === 'apk_outdated') {
+      showToast(t('settings.update_apk_outdated', { version: status.latestWeb }), 'danger', {
+        persistent: true,
+        ...(status.apkUrl
+          ? { onTap: () => window.open(status.apkUrl as string, '_blank', 'noopener') }
+          : {}),
+      });
+    } else if (status.kind === 'web_update_available') {
+      showToast(t('settings.update_web_available', { version: status.latestWeb }), 'success');
+    } else if (status.kind === 'up_to_date') {
+      showToast(t('pwa.up_to_date'), 'info');
+    } else {
+      showToast(t('pwa.update_check_failed'), 'danger');
+    }
+  };
+
   const handleCheckUpdate = async () => {
     if (checkingUpdate) return;
     setCheckingUpdate(true);
     try {
+      if (isNativeApp()) {
+        await handleCheckUpdateNative();
+        return;
+      }
       const result = await checkForAppUpdate();
       if (result === 'updating') {
         // SKIP_WAITING was sent; controllerchange reloads the app in a moment.
@@ -351,6 +400,43 @@ export function SettingsPage() {
     if (navigator.storage?.persist) {
       const granted = await navigator.storage.persist();
       await updateSetting({ persistentStorageGranted: granted });
+    }
+  };
+
+  // FIELD item 3: always exports a backup file first; keep-structure also writes
+  // a restore point (so it is undoable from the restore list), while wipe-all
+  // clears the emergency snapshot and hard-reloads into onboarding.
+  const resetConfirmWord = t('reset.confirm_word');
+  const resetCanConfirm =
+    resetConfirmText.trim().toUpperCase() === resetConfirmWord.toUpperCase();
+
+  const handleReset = async () => {
+    if (!settings || resetBusy || !resetChoice || !resetCanConfirm) return;
+    setResetBusy(true);
+    try {
+      const backup = await buildFullBackup(settings);
+      await downloadFile(JSON.stringify(backup, null, 2), generateBackupFilename(), 'application/json');
+      if (resetChoice === 'keep') {
+        await localSnapshotRepository.put({
+          id: snapshotDayId(),
+          createdAt: new Date().toISOString(),
+          expenseCount: backup.transactions?.length ?? 0,
+          json: JSON.stringify(backup),
+        });
+        await resetKeepStructure();
+        setResetOpen(false);
+        setResetChoice(null);
+        setResetConfirmText('');
+        showToast(t('reset.keep_done'), 'success');
+        await reload();
+      } else {
+        clearEmergencySnapshot();
+        await resetWipeAll();
+        window.location.reload();
+      }
+    } catch {
+      showToast(t('reset.failed'), 'danger');
+      setResetBusy(false);
     }
   };
 
@@ -905,6 +991,24 @@ export function SettingsPage() {
         )}
       </Section>
 
+      {/* FIELD item 3: "zerar o app" — always backs up first, then either a full
+          factory reset (→ onboarding) or a structure-keeping ledger wipe. */}
+      <Section title={t('reset.title')}>
+        <p className="text-xs text-on-surface-faint mb-3">{t('reset.intro')}</p>
+        <button
+          onClick={() => {
+            setResetChoice(null);
+            setResetConfirmText('');
+            setResetOpen(true);
+          }}
+          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 btn-press text-left"
+          style={{ background: 'var(--error-subtle, rgba(244,67,54,0.12))' }}
+        >
+          <Icon name="restart_alt" size={18} className="text-error shrink-0" />
+          <span className="text-sm font-semibold text-error">{t('reset.open')}</span>
+        </button>
+      </Section>
+
       </CollapsibleGroup>
 
       <CollapsibleGroup {...groupProps('device')}>
@@ -1045,6 +1149,13 @@ export function SettingsPage() {
             {checkingUpdate ? t('settings.checking_update') : t('settings.check_update')}
           </button>
         </div>
+        {/* FIELD item 20 (G8a): in the APK, the native shell version is distinct
+            from the web bundle — show both so "version" is never ambiguous. */}
+        {isNativeApp() && nativeVersion && (
+          <p className="text-xs text-on-surface-faint mt-2">
+            {t('settings.version_native_label', { version: nativeVersion })}
+          </p>
+        )}
       </Section>
 
       <Section title={t('settings.about')}>
@@ -1156,6 +1267,74 @@ export function SettingsPage() {
               {savingPin ? t('common.loading') : t('common.save')}
             </button>
           </div>
+        </div>
+      </BottomSheet>
+
+      {/* FIELD item 3: reset flow — pick a mode, then type-to-confirm. */}
+      <BottomSheet
+        open={resetOpen}
+        onClose={() => {
+          if (!resetBusy) setResetOpen(false);
+        }}
+        title={t('reset.title')}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-on-surface-faint">{t('reset.sheet_intro')}</p>
+
+          <button
+            onClick={() => {
+              setResetChoice('keep');
+              setResetConfirmText('');
+            }}
+            className={`w-full text-left rounded-xl p-3 btn-press border ${
+              resetChoice === 'keep' ? 'border-primary bg-surface-high' : 'border-transparent bg-surface-high'
+            }`}
+          >
+            <p className="text-sm font-semibold text-on-surface">{t('reset.keep_title')}</p>
+            <p className="text-xs text-on-surface-faint mt-0.5">{t('reset.keep_desc')}</p>
+          </button>
+
+          <button
+            onClick={() => {
+              setResetChoice('wipe');
+              setResetConfirmText('');
+            }}
+            className={`w-full text-left rounded-xl p-3 btn-press border ${
+              resetChoice === 'wipe' ? 'border-error bg-surface-high' : 'border-transparent bg-surface-high'
+            }`}
+          >
+            <p className="text-sm font-semibold text-error">{t('reset.wipe_title')}</p>
+            <p className="text-xs text-on-surface-faint mt-0.5">{t('reset.wipe_desc')}</p>
+          </button>
+
+          {resetChoice && (
+            <>
+              <p className="text-xs text-on-surface-dim mt-1">
+                {t('reset.confirm_prompt', { word: resetConfirmWord })}
+              </p>
+              <input
+                type="text"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                placeholder={resetConfirmWord}
+                aria-label={t('reset.confirm_prompt', { word: resetConfirmWord })}
+                className="bg-surface-high text-on-surface text-center text-base font-bold tracking-widest rounded-lg px-3 py-3 outline-none"
+              />
+              <button
+                onClick={handleReset}
+                disabled={resetBusy || !resetCanConfirm}
+                className={`w-full py-3 rounded-xl text-sm font-semibold btn-press disabled:opacity-40 ${
+                  resetChoice === 'wipe' ? 'bg-error text-on-surface' : 'bg-primary text-on-surface'
+                }`}
+              >
+                {resetBusy
+                  ? t('common.loading')
+                  : resetChoice === 'wipe'
+                    ? t('reset.wipe_confirm')
+                    : t('reset.keep_confirm')}
+              </button>
+            </>
+          )}
         </div>
       </BottomSheet>
     </div>

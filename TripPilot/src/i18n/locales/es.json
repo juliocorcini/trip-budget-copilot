@@ -827,8 +827,11 @@
     "install_app": "Añadir a la pantalla de inicio",
     "install_app_hint": "Instala la app para abrirla directo y usarla offline",
     "version_label": "Versión {{version}}",
+    "version_native_label": "App instalada (APK): {{version}}",
     "check_update": "Buscar actualización",
-    "checking_update": "Comprobando…"
+    "checking_update": "Comprobando…",
+    "update_web_available": "Nueva versión {{version}} disponible. Se descargará por internet.",
+    "update_apk_outdated": "Hay una nueva versión ({{version}}), pero tu app instalada está desactualizada. Toca para descargar el nuevo APK."
   },
   "lock": {
     "title": "App bloqueada",
@@ -1447,6 +1450,22 @@
     "generic_entry": "Entrada",
     "generic_souvenir": "Souvenir",
     "generic_other": "Otros"
+  },
+  "reset": {
+    "title": "Reiniciar la app",
+    "intro": "Empieza desde cero. Antes de nada, descargamos una copia completa de tu dispositivo.",
+    "open": "Reiniciar la app…",
+    "sheet_intro": "Descargaremos una copia automáticamente antes de reiniciar. Elige cómo empezar de nuevo:",
+    "keep_title": "Mantener el viaje, limpiar los registros",
+    "keep_desc": "Mantiene viaje, fases, fondos, billeteras y participantes. Borra gastos, salidas y liquidaciones. Reversible con el punto de restauración.",
+    "wipe_title": "Borrar todo",
+    "wipe_desc": "Borra absolutamente todo y vuelve al inicio (onboarding). Solo la copia descargada recupera los datos.",
+    "confirm_prompt": "Para confirmar, escribe {{word}}",
+    "confirm_word": "BORRAR",
+    "keep_confirm": "Limpiar registros",
+    "wipe_confirm": "Borrar todo",
+    "keep_done": "Registros limpiados. La estructura del viaje se mantuvo.",
+    "failed": "No pude reiniciar ahora. No se cambió nada."
   },
   "mailbox": {
     "sent": "Entregado en el buzón",

@@ -827,8 +827,11 @@
     "install_app": "Adicionar à tela inicial",
     "install_app_hint": "Instale o app para abrir direto e funcionar offline",
     "version_label": "Versão {{version}}",
+    "version_native_label": "App instalado (APK): {{version}}",
     "check_update": "Buscar atualização",
-    "checking_update": "Verificando…"
+    "checking_update": "Verificando…",
+    "update_web_available": "Nova versão {{version}} disponível. Será baixada pela internet.",
+    "update_apk_outdated": "Há uma nova versão ({{version}}), mas seu app instalado está desatualizado. Toque para baixar o novo APK."
   },
   "lock": {
     "title": "App bloqueado",
@@ -1447,6 +1450,22 @@
     "generic_entry": "Entrada",
     "generic_souvenir": "Lembrancinha",
     "generic_other": "Outros"
+  },
+  "reset": {
+    "title": "Zerar o app",
+    "intro": "Recomeça do zero. Antes de qualquer coisa, baixamos um backup completo do seu aparelho.",
+    "open": "Zerar o app…",
+    "sheet_intro": "Vamos baixar um backup automaticamente antes de zerar. Escolha como quer recomeçar:",
+    "keep_title": "Manter a viagem, limpar os lançamentos",
+    "keep_desc": "Mantém viagem, fases, fundos, carteiras e participantes. Apaga gastos, rolês e acertos. Dá pra desfazer pelo ponto de restauração.",
+    "wipe_title": "Apagar tudo",
+    "wipe_desc": "Apaga absolutamente tudo e volta para o início (onboarding). Só o backup baixado recupera os dados.",
+    "confirm_prompt": "Para confirmar, digite {{word}}",
+    "confirm_word": "ZERAR",
+    "keep_confirm": "Limpar lançamentos",
+    "wipe_confirm": "Apagar tudo",
+    "keep_done": "Lançamentos limpos. A estrutura da viagem foi mantida.",
+    "failed": "Não consegui zerar agora. Nada foi alterado."
   },
   "mailbox": {
     "sent": "Entregue na caixa postal",

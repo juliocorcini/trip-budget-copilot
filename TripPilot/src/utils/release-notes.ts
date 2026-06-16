@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.48.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Zerar o app: em Configurações → Dados e segurança você pode recomeçar do zero. Antes de qualquer coisa baixamos um backup completo. Escolha entre apagar tudo (volta ao início) ou manter a viagem e só limpar os lançamentos.',
+        'Consciência de versão: a tela "Sobre o app" agora mostra a versão interna e, no Android, também a versão do app instalado. "Buscar atualização" passa a dar uma resposta honesta — se há novidade pela internet ou se o app instalado precisa ser atualizado.',
+      ],
+      en: [
+        'Reset the app: in Settings → Data & security you can start over. We download a full backup first. Choose between erasing everything (back to the start) or keeping the trip and only clearing the entries.',
+        'Version awareness: the "About" screen now shows the internal version and, on Android, the installed app version too. "Check for update" now gives an honest answer — whether there is news over the internet or the installed app needs updating.',
+      ],
+      es: [
+        'Reiniciar la app: en Ajustes → Datos y seguridad puedes empezar de cero. Antes descargamos una copia completa. Elige entre borrar todo (vuelve al inicio) o mantener el viaje y solo limpiar los registros.',
+        'Conciencia de versión: la pantalla "Acerca de" ahora muestra la versión interna y, en Android, también la versión de la app instalada. "Buscar actualización" da una respuesta honesta — si hay novedades por internet o si la app instalada necesita actualizarse.',
+      ],
+    },
+  },
+  {
     version: '0.47.0',
     date: '2026-06-16',
     items: {

@@ -827,8 +827,11 @@
     "install_app": "Add to home screen",
     "install_app_hint": "Install the app to launch it directly and work offline",
     "version_label": "Version {{version}}",
+    "version_native_label": "Installed app (APK): {{version}}",
     "check_update": "Check for update",
-    "checking_update": "Checking…"
+    "checking_update": "Checking…",
+    "update_web_available": "New version {{version}} available. It will download over the internet.",
+    "update_apk_outdated": "There's a new version ({{version}}), but your installed app is outdated. Tap to download the new APK."
   },
   "lock": {
     "title": "App locked",
@@ -1447,6 +1450,22 @@
     "generic_entry": "Entry",
     "generic_souvenir": "Souvenir",
     "generic_other": "Other"
+  },
+  "reset": {
+    "title": "Reset the app",
+    "intro": "Start over from scratch. Before anything, we download a full backup of your device.",
+    "open": "Reset the app…",
+    "sheet_intro": "We'll download a backup automatically before resetting. Choose how to start over:",
+    "keep_title": "Keep the trip, clear the entries",
+    "keep_desc": "Keeps the trip, phases, funds, wallets and participants. Clears expenses, outings and settlements. Undoable via the restore point.",
+    "wipe_title": "Erase everything",
+    "wipe_desc": "Erases absolutely everything and returns to the start (onboarding). Only the downloaded backup can recover the data.",
+    "confirm_prompt": "To confirm, type {{word}}",
+    "confirm_word": "RESET",
+    "keep_confirm": "Clear entries",
+    "wipe_confirm": "Erase everything",
+    "keep_done": "Entries cleared. The trip structure was kept.",
+    "failed": "Couldn't reset right now. Nothing was changed."
   },
   "mailbox": {
     "sent": "Delivered to the mailbox",
