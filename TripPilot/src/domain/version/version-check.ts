@@ -16,6 +16,12 @@ export interface VersionManifest {
   version: string;
   /** Minimum native APK version required to run that web bundle. */
   requiredNativeVersion?: string;
+  /**
+   * The versionName of the APK currently published at `apkUrl`. Lets the app
+   * tell the traveler a newer APK exists even when it is not strictly required
+   * by the bundle (DEC-210 — native self-update).
+   */
+  latestNativeVersion?: string;
   /** Where to download a fresh APK when the installed one is too old. */
   apkUrl?: string;
   /** Where the OTA web bundle (dist.zip) for `version` lives — G8b live-update. */
@@ -49,8 +55,17 @@ export interface VersionStatus {
   latestWeb: string;
   /** APK version required by the latest bundle, when declared. */
   requiredNative: string | null;
+  /** Latest published APK versionName per the manifest, when declared. */
+  latestNative: string | null;
   /** The installed APK version, when known. */
   nativeVersion: string | null;
+  /**
+   * True when running inside an APK whose installed version is older than the
+   * latest published APK — i.e. a fresh APK can be installed (DEC-210). This is
+   * orthogonal to `kind`: a newer APK may exist even while the web bundle is
+   * up to date, so the UI can offer "update the app" independently.
+   */
+  nativeUpdateAvailable: boolean;
   /** APK download link, when the manifest declares one. */
   apkUrl: string | null;
   /** OTA web-bundle (dist.zip) link, when the manifest declares one (G8b). */
@@ -101,22 +116,34 @@ export function evaluateVersionStatus(input: AppVersionInput): VersionStatus {
       kind: 'unknown',
       latestWeb: webVersion,
       requiredNative: null,
+      latestNative: null,
       nativeVersion,
+      nativeUpdateAvailable: false,
       apkUrl: null,
       bundleUrl: null,
     };
   }
 
   const requiredNative = manifest.requiredNativeVersion ?? null;
+  const latestNative = manifest.latestNativeVersion ?? null;
   const apkUrl = manifest.apkUrl ?? null;
   const bundleUrl = manifest.bundleUrl ?? null;
+
+  // A fresh APK can be installed when we know our installed version, the
+  // manifest names a published one, and that one is strictly newer.
+  const nativeUpdateAvailable =
+    nativeVersion !== null &&
+    latestNative !== null &&
+    compareSemver(latestNative, nativeVersion) > 0;
 
   if (!isNewerVersion(manifest.version, webVersion)) {
     return {
       kind: 'up_to_date',
       latestWeb: manifest.version,
       requiredNative,
+      latestNative,
       nativeVersion,
+      nativeUpdateAvailable,
       apkUrl,
       bundleUrl,
     };
@@ -133,7 +160,9 @@ export function evaluateVersionStatus(input: AppVersionInput): VersionStatus {
     kind: apkTooOld ? 'apk_outdated' : 'web_update_available',
     latestWeb: manifest.version,
     requiredNative,
+    latestNative,
     nativeVersion,
+    nativeUpdateAvailable,
     apkUrl,
     bundleUrl,
   };
@@ -149,6 +178,9 @@ export function parseVersionManifest(raw: unknown): VersionManifest | null {
   const manifest: VersionManifest = { version: candidate.version.trim() };
   if (typeof candidate.requiredNativeVersion === 'string') {
     manifest.requiredNativeVersion = candidate.requiredNativeVersion.trim();
+  }
+  if (typeof candidate.latestNativeVersion === 'string') {
+    manifest.latestNativeVersion = candidate.latestNativeVersion.trim();
   }
   if (typeof candidate.apkUrl === 'string') {
     manifest.apkUrl = candidate.apkUrl.trim();

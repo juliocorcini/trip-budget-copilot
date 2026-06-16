@@ -15,6 +15,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(OutingNotificationPlugin.class);
         // FIELD R2 item 1: save backups straight to the public Downloads folder.
         registerPlugin(DeviceFilePlugin.class);
+        // DEC-210: in-app APK self-update (download + system installer hand-off).
+        registerPlugin(ApkInstallerPlugin.class);
         super.onCreate(savedInstanceState);
         // FIELD R2 item 13: remove the Android 12+ stretch overscroll glow on the
         // WebView — CSS overscroll-behavior cannot suppress the native edge effect.

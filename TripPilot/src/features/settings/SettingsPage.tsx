@@ -35,6 +35,7 @@ import {
 import { checkForAppUpdate } from '@/utils/pwa';
 import { resolveAppVersionStatus, getNativeAppVersion } from '@/utils/app-update';
 import { downloadAndApplyBundle } from '@/utils/native/live-update';
+import { downloadAndInstallApk, isApkInstallSupported } from '@/utils/native/apk-installer';
 import { getCurrentCoords, ensureLocationPermission } from '@/utils/geolocation';
 import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
@@ -216,15 +217,36 @@ export function SettingsPage() {
   //   the published manifest and answer honestly — and, when a newer web bundle
   //   is OTA-eligible, pull it over the air and swap it in (G8b live-update). If
   //   the installed APK is too old, point the traveler at a fresh APK instead.
+  // DEC-210 — one-tap APK self-update: download the published APK and hand it to
+  // the system installer. Falls back to the browser download on older shells (no
+  // installer bridge) or any failure, so the traveler is never stuck.
+  const runApkUpdate = async (apkUrl: string | null, version: string) => {
+    if (!apkUrl) {
+      showToast(t('pwa.update_check_failed'), 'danger');
+      return;
+    }
+    if (!isApkInstallSupported()) {
+      window.open(apkUrl, '_blank', 'noopener');
+      return;
+    }
+    showToast(t('settings.update_native_downloading', { version }), 'info', { durationMs: 9000 });
+    const result = await downloadAndInstallApk(apkUrl, version);
+    if (result === 'permission') {
+      showToast(t('settings.update_native_permission'), 'warning', { persistent: true });
+    } else if (result === 'failed' || result === 'unsupported') {
+      showToast(t('settings.update_native_failed'), 'danger', {
+        persistent: true,
+        onTap: () => window.open(apkUrl, '_blank', 'noopener'),
+      });
+    }
+    // 'installing' → the OS install screen is up; nothing more to announce.
+  };
+
   const handleCheckUpdateNative = async () => {
     const status = await resolveAppVersionStatus();
     if (status.kind === 'apk_outdated') {
-      showToast(t('settings.update_apk_outdated', { version: status.latestWeb }), 'danger', {
-        persistent: true,
-        ...(status.apkUrl
-          ? { onTap: () => window.open(status.apkUrl as string, '_blank', 'noopener') }
-          : {}),
-      });
+      // The web bundle requires a newer shell — install the APK directly.
+      await runApkUpdate(status.apkUrl, status.latestNative ?? status.latestWeb);
     } else if (status.kind === 'web_update_available') {
       if (status.bundleUrl) {
         // OTA path: download + apply now (set() reloads into the new bundle).
@@ -235,7 +257,12 @@ export function SettingsPage() {
         showToast(t('settings.update_web_available', { version: status.latestWeb }), 'success');
       }
     } else if (status.kind === 'up_to_date') {
-      showToast(t('pwa.up_to_date'), 'info');
+      // The web bundle is current, but a newer APK shell may still exist.
+      if (status.nativeUpdateAvailable) {
+        await runApkUpdate(status.apkUrl, status.latestNative ?? status.latestWeb);
+      } else {
+        showToast(t('pwa.up_to_date'), 'info');
+      }
     } else {
       showToast(t('pwa.update_check_failed'), 'danger');
     }

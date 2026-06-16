@@ -180,6 +180,39 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
                 </button>
               )}
 
+              {/* DEC-206: our first AI feature — featured full-width, with a distinct
+                  indigo "smart" accent + sparkle so it stands apart from the orange
+                  hero and feels inviting rather than hidden. */}
+              <button
+                key="/receipt/scan"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction('/receipt/scan');
+                }}
+                className="btn-press col-span-2 p-4 rounded-2xl flex items-center gap-3.5 text-left"
+                style={{ background: '#6366F11A', border: '1px solid #6366F140' }}
+              >
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 relative"
+                  style={{ background: '#6366F126' }}
+                >
+                  <Icon name="document_scanner" size={24} className="text-[#818CF8]" />
+                  <span
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                    style={{ background: '#6366F1' }}
+                  >
+                    <Icon name="auto_awesome" size={9} className="text-[#ffffff]" />
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-extrabold text-on-surface">{t('fab.scan_receipt')}</p>
+                  <p className="text-[11px] font-semibold text-on-surface-dim">
+                    {t('fab.scan_receipt_desc')}
+                  </p>
+                </div>
+                <Icon name="auto_awesome" size={18} className="text-[#818CF8] shrink-0" />
+              </button>
+
               {secondary.map((action) => (
                 <button
                   key={action.path}

@@ -61,4 +61,8 @@
 
     <!-- B1/B2 (Gate 4): Live Update / Now Bar — promoted ongoing notification (Android 16+). -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+
+    <!-- DEC-210: in-app APK self-update — download the new APK and hand it to the
+         system package installer (the OS still shows its own confirm screen). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

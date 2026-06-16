@@ -38,6 +38,12 @@ type ListTab = 'expenses' | 'outings';
 const TAB_ORDER: readonly ListTab[] = ['expenses', 'outings'];
 type BatchSheet = 'deleteExpenses' | 'movePool' | 'changeCategory' | 'deleteOutings' | null;
 
+// DEC-206 (rollup): a feed row is either a standalone expense or a collapsed
+// session (receipt/outing) standing in for its N member transactions.
+type FeedEntry =
+  | { kind: 'tx'; date: string; tx: Transaction }
+  | { kind: 'session'; date: string; session: Session; txs: Transaction[]; totalCents: number };
+
 const CATEGORY_KEYS = [
   'bar',
   'restaurant',
@@ -64,7 +70,9 @@ export function ExpenseListPage() {
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   // DEC-079 (FIELD-09): outings ARE grouped expenses — they live in this screen.
   const [tab, setTabState] = useState<ListTab>(searchParams.get('tab') === 'outings' ? 'outings' : 'expenses');
-  const [completedSessions, setCompletedSessions] = useState<Session[]>([]);
+  // DEC-206 (rollup): all trip sessions, so the Expenses feed can collapse a
+  // receipt/outing's N transactions into ONE row instead of flooding the list.
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [batchSheet, setBatchSheet] = useState<BatchSheet>(null);
   // G2: free-text search across the expense feed (description / place / category).
   const [query, setQuery] = useState('');
@@ -102,7 +110,7 @@ export function ExpenseListPage() {
   useEffect(() => {
     if (!trip) return;
     activityProfileRepository.getByTripId(trip.id).then(setProfiles);
-    sessionRepository.getCompleted(trip.id).then(setCompletedSessions);
+    sessionRepository.getByTripId(trip.id).then(setAllSessions);
   }, [trip, transactions]);
 
   if (loading || !trip) return <p className="p-4 text-on-surface-dim">{t('common.loading')}</p>;
@@ -131,6 +139,13 @@ export function ExpenseListPage() {
   const totalCents = sumCents(expenses.map((tx) => tx.amountCents));
   const unassigned = getUnassignedTransactionCount(transactions);
 
+  // DEC-206 (rollup): a receipt/outing is ONE session holding N transactions.
+  // Derive the session lookup + the completed-history list from the single load.
+  const sessionById = new Map(allSessions.map((s) => [s.id, s]));
+  const completedSessions = allSessions
+    .filter((s) => s.status === 'completed' && s.endedAt !== null)
+    .sort((a, b) => (b.endedAt ?? '').localeCompare(a.endedAt ?? ''));
+
   const poolMap = new Map(pools.map((p) => [p.id, p.name]));
   const walletMap = new Map(wallets.map((w) => [w.id, w.name]));
 
@@ -149,17 +164,42 @@ export function ExpenseListPage() {
       : day === yesterdayKey
         ? t('expenses.day_yesterday')
         : formatShortDate(day);
-  const expenseGroups: { day: string; label: string; subtotalCents: number; items: Transaction[] }[] =
-    [];
+  // DEC-206 (rollup): while BROWSING (no search/filter), collapse a session's
+  // transactions into ONE feed entry positioned at its latest line — so a 40-item
+  // receipt reads as a single "Mercadona · 6 items · €X" row. When searching or
+  // filtering, the user wants the specific line, so we keep the list itemised.
+  const isBrowsing =
+    !searchQuery && !filterCategory && !filterProfileId && !filterWalletNull && !filterPlace;
+  const feed: FeedEntry[] = [];
+  const sessionEntryById = new Map<string, Extract<FeedEntry, { kind: 'session' }>>();
   for (const tx of expenses) {
-    const day = localDayOf(tx.date);
+    const session = isBrowsing && tx.sessionId ? sessionById.get(tx.sessionId) : undefined;
+    if (session) {
+      const existing = sessionEntryById.get(session.id);
+      if (existing) {
+        existing.txs.push(tx);
+        existing.totalCents += tx.amountCents;
+      } else {
+        const entry = { kind: 'session' as const, date: tx.date, session, txs: [tx], totalCents: tx.amountCents };
+        sessionEntryById.set(session.id, entry);
+        feed.push(entry);
+      }
+    } else {
+      feed.push({ kind: 'tx', date: tx.date, tx });
+    }
+  }
+
+  const expenseGroups: { day: string; label: string; subtotalCents: number; entries: FeedEntry[] }[] = [];
+  for (const entry of feed) {
+    const day = localDayOf(entry.date);
+    const amount = entry.kind === 'tx' ? entry.tx.amountCents : entry.totalCents;
     const last = expenseGroups[expenseGroups.length - 1];
     const group = last && last.day === day ? last : null;
     if (group) {
-      group.items.push(tx);
-      group.subtotalCents += tx.amountCents;
+      group.entries.push(entry);
+      group.subtotalCents += amount;
     } else {
-      expenseGroups.push({ day, label: dayLabelOf(day), subtotalCents: tx.amountCents, items: [tx] });
+      expenseGroups.push({ day, label: dayLabelOf(day), subtotalCents: amount, entries: [entry] });
     }
   }
 
@@ -260,21 +300,24 @@ export function ExpenseListPage() {
       {/* DEC-084 (R-01): header + tabs + filter bar fixed — only the list scrolls */}
       <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-2 pb-2 flex flex-col gap-4`}>
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-heading font-bold text-on-surface">{t('expenses.title')}</h1>
-          <div className="flex items-center gap-2">
+          <h1 className="text-heading font-bold text-on-surface truncate min-w-0">{t('expenses.title')}</h1>
+          <div className="flex items-center gap-2 shrink-0">
             {tab === 'expenses' && (
               <p className="text-sm font-semibold tabular text-on-surface">
                 {formatMoney(totalCents, trip.baseCurrency)}
               </p>
             )}
-            {/* DEC-206 (G2): scan a receipt → read items → split → outing. */}
+            {/* DEC-206: first AI feature — an accented, labelled entry (indigo
+                "smart" accent), not a hidden grey glyph. */}
             <button
               onClick={() => navigate('/receipt/scan')}
-              className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center btn-press shrink-0"
+              className="h-9 pl-2.5 pr-3 rounded-full flex items-center gap-1.5 btn-press shrink-0"
+              style={{ background: '#6366F11F', border: '1px solid #6366F140' }}
               aria-label={t('receiptScan.entry')}
               title={t('receiptScan.entry')}
             >
-              <Icon name="document_scanner" size={18} className="text-on-surface-dim" />
+              <Icon name="document_scanner" size={16} className="text-[#818CF8]" />
+              <span className="text-xs font-bold text-[#818CF8]">{t('receiptScan.entry_short')}</span>
             </button>
             {/* FIELD-13: statement import was buried inside Wallets — surface it at
                 the top of the expenses screen (still kept in Wallets too). */}
@@ -455,7 +498,22 @@ export function ExpenseListPage() {
                   {formatMoney(group.subtotalCents, trip.baseCurrency)}
                 </span>
               </div>
-              {group.items.map((tx) => (
+              {group.entries.map((entry) => {
+                if (entry.kind === 'session') {
+                  return (
+                    <SessionRollupRow
+                      key={entry.session.id}
+                      session={entry.session}
+                      txs={entry.txs}
+                      totalCents={entry.totalCents}
+                      currency={trip.baseCurrency}
+                      profiles={profiles}
+                      onOpen={() => navigate(`/outings/${entry.session.id}/review`)}
+                    />
+                  );
+                }
+                const tx = entry.tx;
+                return (
             <button
               key={tx.id}
               onClick={() => selection.handleTap(tx.id, () => navigate(`/expenses/${tx.id}`))}
@@ -513,7 +571,8 @@ export function ExpenseListPage() {
                 )}
               </div>
             </button>
-              ))}
+                );
+              })}
             </div>
           ))}
         </div>
@@ -693,6 +752,69 @@ function OutingHistoryList({ sessions, transactions, profiles, currency, onOpen,
         );
       })}
     </div>
+  );
+}
+
+/* DEC-206 (rollup): a receipt/outing collapsed into one feed row. Mirrors the
+   Outings-tab row so the two screens read consistently; taps open the same
+   review page. A receipt carries a small AI mark (our first AI-made record). */
+function SessionRollupRow({
+  session,
+  txs,
+  totalCents,
+  currency,
+  profiles,
+  onOpen,
+}: {
+  session: Session;
+  txs: Transaction[];
+  totalCents: number;
+  currency: string;
+  profiles: ActivityProfile[];
+  onOpen: () => void;
+}) {
+  const { t } = useTranslation();
+  const isReceipt = txs.some((tx) => tx.externalRef?.startsWith('receipt:'));
+  const profile = profiles.find((p) => p.id === session.activityProfileId) ?? null;
+  const icon = isReceipt ? 'receipt_long' : (profile?.iconName ?? getCategoryIcon(profile?.category ?? null));
+  const badge = isReceipt ? t('expenses.receipt_badge') : (profile?.name ?? t('expenses.outing_one_off'));
+  const when = session.endedAt ?? session.startedAt ?? txs[0]?.date ?? '';
+
+  return (
+    <button
+      onClick={onOpen}
+      className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full"
+    >
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="w-9 h-9 rounded-xl bg-surface-high flex items-center justify-center shrink-0 relative">
+          <Icon name={icon} size={18} className="text-on-surface-dim" />
+          {isReceipt && (
+            <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+              <Icon name="auto_awesome" size={9} className="text-on-surface" />
+            </span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-on-surface truncate">{session.name}</p>
+          <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
+            <span>{t('expenses.outing_items', { count: txs.length })}</span>
+            {when && (
+              <>
+                <span>·</span>
+                <span className="shrink-0">{formatShortDate(localDayOf(when))}</span>
+              </>
+            )}
+          </div>
+          <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-high text-on-surface-dim">
+            {badge}
+          </span>
+        </div>
+      </div>
+      <div className="text-right ml-3 flex items-center gap-2 shrink-0">
+        <p className="text-sm font-semibold tabular text-on-surface">{formatMoney(totalCents, currency)}</p>
+        <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+      </div>
+    </button>
   );
 }
 

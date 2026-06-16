@@ -62,6 +62,8 @@ export function ReceiptScanPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // DEC-209: cloud AI (Groq) is the only scan engine — on-device OCR was removed
+  // because heuristic text parsing of raw OCR could not match the vision model.
   const cloudEnabled = settings?.cloudReceiptOcrEnabled ?? false;
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
   const baseCurrency = trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR';
@@ -74,22 +76,21 @@ export function ReceiptScanPage() {
   );
   const reconciliation = useMemo(() => (plan ? reconcileReceipt(plan, 0) : null), [plan]);
 
-  // G4 — receipt-level split: presets that split the WHOLE bill at once (the
-  // restaurant/round case) plus a single payer, while the per-item sheet stays
-  // the override. Only meaningful once there is someone to split with.
   const allParticipantIds = useMemo(() => participants.map((p) => p.id), [participants]);
   const splittable = participants.length >= 2;
 
-  const splitMode = useMemo<'personal' | 'equal' | 'custom'>(() => {
-    if (included.length === 0) return 'personal';
-    if (included.every((i) => i.participantIds.length === 0)) return 'personal';
-    const wholeGroup = included.every(
-      (i) =>
-        i.participantIds.length === allParticipantIds.length &&
-        allParticipantIds.every((id) => i.participantIds.includes(id)),
-    );
-    return wholeGroup ? 'equal' : 'custom';
-  }, [included, allParticipantIds]);
+  // DEC-208 — the receipt-level split is now an EXPLICIT participant picker: the
+  // current split set is the (uniform) set the included items share; toggling a
+  // chip rewrites the whole receipt. `custom` means the user fine-tuned items
+  // individually so there is no single receipt-level set to show.
+  const splitState = useMemo(() => {
+    if (included.length === 0) return { ids: [] as string[], custom: false };
+    const norm = (a: string[]) => [...a].sort().join(',');
+    const firstKey = norm(included[0]!.participantIds);
+    const uniform = included.every((i) => norm(i.participantIds) === firstKey);
+    return { ids: uniform ? included[0]!.participantIds : [], custom: !uniform };
+  }, [included]);
+  const receiptSplitIds = splitState.ids;
 
   const receiptPayerId = useMemo(() => {
     const ownerId = owner?.id ?? null;
@@ -99,32 +100,41 @@ export function ReceiptScanPage() {
     return split.every((i) => (i.paidByParticipantId ?? ownerId) === first) ? first : null;
   }, [included, owner]);
 
-  const applyEqualSplit = () =>
+  // Apply a chosen participant set to every included line at once (DEC-208).
+  const setSplitParticipants = (ids: string[]) => {
+    const payer = ids.length > 0 ? (receiptPayerId ?? owner?.id ?? null) : null;
     setPlan((p) =>
       p
         ? {
             ...p,
             items: p.items.map((i) =>
               i.include && i.amountCents > 0
-                ? { ...i, participantIds: allParticipantIds, paidByParticipantId: receiptPayerId }
+                ? { ...i, participantIds: ids, paidByParticipantId: payer }
                 : i,
             ),
           }
         : p,
     );
-  const applyAllPersonal = () =>
-    setPlan((p) =>
-      p
-        ? {
-            ...p,
-            items: p.items.map((i) =>
-              i.include && i.amountCents > 0
-                ? { ...i, participantIds: [], paidByParticipantId: null }
-                : i,
-            ),
-          }
-        : p,
-    );
+  };
+
+  const toggleSplitParticipant = (id: string) => {
+    const cur = receiptSplitIds;
+    let next: string[];
+    if (cur.includes(id)) {
+      next = cur.filter((x) => x !== id);
+    } else if (cur.length === 0 && owner && id !== owner.id) {
+      // First pick of someone else implies "you + them".
+      next = [owner.id, id];
+    } else {
+      next = [...cur, id];
+    }
+    // A split that is only the owner is effectively personal.
+    if (next.length === 1 && owner && next[0] === owner.id) next = [];
+    setSplitParticipants(next);
+  };
+
+  const selectEveryone = () => setSplitParticipants(allParticipantIds);
+  const clearSplit = () => setSplitParticipants([]);
   const setReceiptPayer = (id: string | null) =>
     setPlan((p) =>
       p
@@ -133,9 +143,9 @@ export function ReceiptScanPage() {
     );
   const applyMatchTotal = () => setPlan((p) => (p ? { ...p, items: matchItemsToReadTotal(p) } : p));
 
-  const segClass = (active: boolean) =>
-    `flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-semibold btn-press ${
-      active ? 'bg-primary text-on-surface' : 'bg-surface-container text-on-surface-dim'
+  const chipClass = (active: boolean) =>
+    `px-3 py-2 rounded-xl text-xs font-medium btn-press flex items-center gap-1 ${
+      active ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
     }`;
 
   const openPicker = () => fileRef.current?.click();
@@ -296,7 +306,8 @@ export function ReceiptScanPage() {
         </div>
       </div>
 
-      {/* CAPTURE — consent gate (opt-in) or the picker. */}
+      {/* CAPTURE — cloud AI scan (opt-in once) with manual entry as the always-
+          available fallback. On-device OCR was removed (DEC-209). */}
       {phase === 'capture' && (
         <div className="flex flex-col gap-3">
           {!cloudEnabled ? (
@@ -317,39 +328,33 @@ export function ReceiptScanPage() {
               >
                 {t('receiptScan.consent_enable')}
               </button>
-              <button
-                onClick={startManual}
-                className="w-full py-2.5 rounded-2xl bg-surface-high text-on-surface-dim font-semibold text-sm btn-press"
-              >
-                {t('receiptScan.add_manually')}
-              </button>
             </div>
           ) : (
-            <>
-              <button
-                onClick={openPicker}
-                className="rounded-2xl border border-dashed p-6 flex flex-col items-center gap-2 btn-press"
-                style={{ borderColor: 'var(--surface-high)', background: 'var(--surface-container)' }}
+            <button
+              onClick={openPicker}
+              className="rounded-2xl p-4 flex items-center gap-3 btn-press text-left"
+              style={{ background: 'var(--surface-container)' }}
+            >
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(124,160,255,0.16)' }}
               >
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                  style={{ background: 'rgba(124,160,255,0.16)' }}
-                >
-                  <Icon name="document_scanner" size={24} className="text-primary" />
-                </div>
-                <span className="text-sm font-bold text-on-surface">{t('receiptScan.pick')}</span>
-                <span className="text-[11px] text-on-surface-faint text-center leading-relaxed">
-                  {t('receiptScan.pick_hint')}
-                </span>
-              </button>
-              <button
-                onClick={startManual}
-                className="self-center text-[11px] font-semibold text-on-surface-faint btn-press"
-              >
-                {t('receiptScan.add_manually')}
-              </button>
-            </>
+                <Icon name="auto_awesome" size={24} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="block text-sm font-bold text-on-surface">{t('receiptScan.scan_ai')}</span>
+                <span className="block text-[11px] text-on-surface-faint">{t('receiptScan.scan_ai_hint')}</span>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
           )}
+
+          <button
+            onClick={startManual}
+            className="self-center mt-1 text-[11px] font-semibold text-on-surface-faint btn-press"
+          >
+            {t('receiptScan.add_manually')}
+          </button>
         </div>
       )}
 
@@ -408,43 +413,61 @@ export function ReceiptScanPage() {
             </div>
           )}
 
-          {/* G4 — split the whole receipt at once (market / restaurant-round). */}
+          {/* DEC-208 — pick exactly WHO splits this receipt (not auto-everyone). */}
           {splittable && (
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-on-surface">
-                {t('receiptScan.split_modes_label')}
-              </label>
-              <div className="flex gap-1.5">
-                <button onClick={applyAllPersonal} className={segClass(splitMode === 'personal')}>
-                  <Icon name="person" size={13} />
-                  {t('receiptScan.mode_personal')}
-                </button>
-                <button onClick={applyEqualSplit} className={segClass(splitMode === 'equal')}>
-                  <Icon name="groups" size={13} />
-                  {t('receiptScan.mode_equal')}
-                </button>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-on-surface">
+                  {t('receiptScan.split_with_label')}
+                </label>
+                {receiptSplitIds.length > 0 ? (
+                  <button
+                    onClick={clearSplit}
+                    className="text-[11px] font-semibold text-on-surface-faint btn-press flex items-center gap-1"
+                  >
+                    <Icon name="person" size={12} />
+                    {t('receiptScan.mode_personal')}
+                  </button>
+                ) : (
+                  <button
+                    onClick={selectEveryone}
+                    className="text-[11px] font-semibold text-primary btn-press flex items-center gap-1"
+                  >
+                    <Icon name="groups" size={12} />
+                    {t('receiptScan.split_everyone')}
+                  </button>
+                )}
               </div>
-              {splitMode === 'custom' && (
+              <div className="flex gap-1.5 flex-wrap">
+                {participants.map((p) => {
+                  const on = receiptSplitIds.includes(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => toggleSplitParticipant(p.id)}
+                      className={chipClass(on)}
+                    >
+                      {on && <Icon name="check" size={13} />}
+                      {p.isOwner ? t('receiptScan.you') : p.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {splitState.custom && (
                 <p className="text-[11px] text-on-surface-faint flex items-center gap-1">
                   <Icon name="tune" size={12} />
                   {t('receiptScan.mode_custom_hint')}
                 </p>
               )}
-              {splitMode !== 'personal' && (
+              {receiptSplitIds.length > 0 && (
                 <>
-                  <p className="text-[11px] text-on-surface-faint mt-1">
-                    {t('receiptScan.paid_by_label')}
-                  </p>
+                  <p className="text-[11px] text-on-surface-faint mt-1">{t('receiptScan.paid_by_label')}</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {participants.map((p) => (
                       <button
                         key={p.id}
                         onClick={() => setReceiptPayer(p.isOwner ? null : p.id)}
-                        className={`px-3 py-2 rounded-xl text-xs font-medium btn-press ${
-                          (receiptPayerId ?? owner?.id) === p.id
-                            ? 'bg-primary text-on-surface'
-                            : 'bg-surface-high text-on-surface-dim'
-                        }`}
+                        className={chipClass((receiptPayerId ?? owner?.id) === p.id)}
                       >
                         {p.isOwner ? t('receiptScan.you') : p.name}
                       </button>
@@ -500,6 +523,7 @@ export function ReceiptScanPage() {
           currency={currency}
           participants={participants}
           ownerId={owner?.id ?? null}
+          defaultSplitIds={receiptSplitIds}
           onPatch={(patch) => patchItem(editingItem.id, patch)}
           onRemove={() => {
             removeItem(editingItem.id);
@@ -622,6 +646,7 @@ function ItemEditSheet({
   currency,
   participants,
   ownerId,
+  defaultSplitIds,
   onPatch,
   onRemove,
   onClose,
@@ -630,6 +655,7 @@ function ItemEditSheet({
   currency: string;
   participants: Participant[];
   ownerId: string | null;
+  defaultSplitIds: string[];
   onPatch: (patch: Partial<ReceiptDraftItem>) => void;
   onRemove: () => void;
   onClose: () => void;
@@ -654,11 +680,10 @@ function ItemEditSheet({
   };
 
   const enableSplit = () => {
-    // Default to splitting equally among everyone, paid by the owner.
-    onPatch({
-      participantIds: participants.map((p) => p.id),
-      paidByParticipantId: ownerId,
-    });
+    // DEC-208 — seed from the receipt-level selection (or just the owner), never
+    // the whole roster. The traveler then adds/removes people below.
+    const base = defaultSplitIds.length > 0 ? defaultSplitIds : ownerId ? [ownerId] : [];
+    onPatch({ participantIds: base, paidByParticipantId: ownerId });
   };
   const disableSplit = () => onPatch({ participantIds: [], paidByParticipantId: null });
 
@@ -714,7 +739,8 @@ function ItemEditSheet({
           </div>
         </div>
 
-        {/* Split — personal by default; toggling on splits equally (DEC-114). */}
+        {/* Split — personal by default; toggling on seeds from the receipt-level
+            selection, then the traveler picks exactly who shares (DEC-208). */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-on-surface">{t('receiptScan.split_label')}</label>
@@ -736,12 +762,13 @@ function ItemEditSheet({
                   <button
                     key={p.id}
                     onClick={() => toggleParticipant(p.id)}
-                    className={`px-3 py-2 rounded-xl text-xs font-medium btn-press ${
+                    className={`px-3 py-2 rounded-xl text-xs font-medium btn-press flex items-center gap-1 ${
                       item.participantIds.includes(p.id)
                         ? 'bg-primary text-on-surface'
                         : 'bg-surface-high text-on-surface-dim'
                     }`}
                   >
+                    {item.participantIds.includes(p.id) && <Icon name="check" size={13} />}
                     {p.isOwner ? t('receiptScan.you') : p.name}
                   </button>
                 ))}

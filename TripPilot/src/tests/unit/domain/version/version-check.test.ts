@@ -59,6 +59,11 @@ describe('parseVersionManifest', () => {
     expect(parseVersionManifest({ version: '0.48.0' })).toEqual({ version: '0.48.0' });
   });
 
+  it('parses the published APK version (latestNativeVersion)', () => {
+    const parsed = parseVersionManifest({ version: '0.56.0', latestNativeVersion: ' 0.56.0 ' });
+    expect(parsed?.latestNativeVersion).toBe('0.56.0');
+  });
+
   it('rejects payloads without a usable version', () => {
     expect(parseVersionManifest(null)).toBeNull();
     expect(parseVersionManifest('0.48.0')).toBeNull();
@@ -115,5 +120,40 @@ describe('evaluateVersionStatus', () => {
     const noGate: VersionManifest = { version: '0.48.0' };
     const status = evaluateVersionStatus({ webVersion: '0.47.0', nativeVersion: '0.10.0', manifest: noGate });
     expect(status.kind).toBe('web_update_available');
+  });
+
+  describe('nativeUpdateAvailable (DEC-210 — APK self-update)', () => {
+    const withApk: VersionManifest = {
+      version: '0.56.0',
+      requiredNativeVersion: '0.50.0',
+      latestNativeVersion: '0.56.0',
+      apkUrl: 'https://x/app.apk',
+      bundleUrl: 'https://x/bundles/0.56.0.zip',
+    };
+
+    it('is true when the installed APK is older than the published APK', () => {
+      const status = evaluateVersionStatus({ webVersion: '0.56.0', nativeVersion: '0.55.0', manifest: withApk });
+      expect(status.nativeUpdateAvailable).toBe(true);
+      expect(status.latestNative).toBe('0.56.0');
+      // Orthogonal to the web bundle being current.
+      expect(status.kind).toBe('up_to_date');
+    });
+
+    it('is false when the installed APK already matches the published APK', () => {
+      const status = evaluateVersionStatus({ webVersion: '0.56.0', nativeVersion: '0.56.0', manifest: withApk });
+      expect(status.nativeUpdateAvailable).toBe(false);
+    });
+
+    it('is false on the PWA (no installed APK to compare)', () => {
+      const status = evaluateVersionStatus({ webVersion: '0.56.0', nativeVersion: null, manifest: withApk });
+      expect(status.nativeUpdateAvailable).toBe(false);
+    });
+
+    it('is false when the manifest omits the published APK version', () => {
+      const noNative: VersionManifest = { version: '0.56.0', apkUrl: 'https://x/app.apk' };
+      const status = evaluateVersionStatus({ webVersion: '0.56.0', nativeVersion: '0.50.0', manifest: noNative });
+      expect(status.nativeUpdateAvailable).toBe(false);
+      expect(status.latestNative).toBeNull();
+    });
   });
 });

@@ -17,6 +17,48 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.56.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Escolha com quem dividir a nota: ao escanear, você seleciona exatamente quais pessoas entram no rateio (uma, duas, as que quiser) — não entra mais todo mundo automaticamente.',
+        'Leitura da nota só por IA: a leitura na nuvem ficou perfeita e virou o único modo de escanear; a leitura local foi removida porque não lia direito. Cadastro manual continua disponível.',
+        'O app se atualiza sozinho no Android: ao buscar atualização (ou ao abrir o app), ele baixa a nova versão e abre a instalação com um toque — sem precisar caçar o APK. O APK também vai sempre para a pasta Downloads.',
+      ],
+      en: [
+        'Choose who splits the receipt: when scanning, you pick exactly which people are in the split (one, two, whoever you want) — it no longer adds everyone automatically.',
+        'AI-only receipt reading: cloud reading turned out perfect and is now the only scan engine; on-device reading was removed because it did not read well. Manual entry stays available.',
+        'The app updates itself on Android: when you check for updates (or open the app), it downloads the new version and opens the install with one tap — no more hunting for the APK. The APK also always lands in the Downloads folder.',
+      ],
+      es: [
+        'Elige con quién dividir el recibo: al escanear, seleccionas exactamente qué personas entran en el reparto (una, dos, las que quieras) — ya no entra todo el mundo automáticamente.',
+        'Lectura del recibo solo por IA: la lectura en la nube quedó perfecta y es ahora el único motor de escaneo; la lectura local se quitó porque no leía bien. La carga manual sigue disponible.',
+        'La app se actualiza sola en Android: al buscar actualizaciones (o al abrir la app), descarga la nueva versión y abre la instalación con un toque — sin tener que buscar el APK. El APK también va siempre a la carpeta de Descargas.',
+      ],
+    },
+  },
+  {
+    version: '0.55.1',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Leitura da nota no aparelho (privada): dá para ler a nota sem enviar a foto para a nuvem — no Android e iPhone o reconhecimento roda no próprio aparelho e funciona offline. A IA na nuvem segue disponível como a opção mais precisa.',
+        'Notas e saídas agrupadas: uma nota de mercado com 40 itens deixa de virar 40 gastos soltos — vira uma única linha ("loja · N itens · total") que você abre para ver os itens. Ao buscar ou filtrar, os itens aparecem um a um.',
+        'Escanear nota em destaque: a leitura de notas agora aparece no botão de adicionar (+) e no topo da aba Gastos, fácil de achar.',
+      ],
+      en: [
+        'On-device receipt reading (private): read a receipt without sending the photo to the cloud — on Android and iPhone the recognition runs on the device itself and works offline. Cloud AI stays available as the most accurate option.',
+        'Receipts & outings are grouped: a 40-item grocery receipt no longer becomes 40 loose expenses — it shows as a single row ("store · N items · total") you open to see the items. Searching or filtering still lists them one by one.',
+        'Scan receipt, front and center: receipt reading now lives in the add (+) menu and at the top of the Expenses tab, easy to find.',
+      ],
+      es: [
+        'Lectura del recibo en el dispositivo (privada): puedes leer el recibo sin enviar la foto a la nube — en Android e iPhone el reconocimiento se ejecuta en el propio dispositivo y funciona sin conexión. La IA en la nube sigue disponible como la opción más precisa.',
+        'Recibos y salidas agrupados: un recibo de supermercado con 40 artículos ya no se convierte en 40 gastos sueltos — se muestra como una sola fila ("tienda · N artículos · total") que abres para ver los artículos. Al buscar o filtrar, se listan uno por uno.',
+        'Escanear recibo, bien visible: la lectura de recibos ahora está en el menú de agregar (+) y en la parte superior de la pestaña Gastos, fácil de encontrar.',
+      ],
+    },
+  },
+  {
     version: '0.54.0',
     date: '2026-06-16',
     items: {

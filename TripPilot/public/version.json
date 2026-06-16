@@ -1,7 +1,8 @@
 {
-  "version": "0.54.0",
+  "version": "0.56.0",
   "requiredNativeVersion": "0.50.0",
+  "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.54.0.zip",
-  "notes": "Divisão da nota: divida a nota inteira de uma vez (mercado / restaurante / rodada) e ajuste itens ao total impresso (taxa, serviço, desconto) com um toque."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.56.0.zip",
+  "notes": "Rateio da nota: agora você escolhe com quem dividir (não entra todo mundo automático). Leitura por IA na nuvem virou o único motor (a leitura local saiu, não funcionava bem). E o app agora se atualiza sozinho no Android: baixa e instala a nova versão com um toque."
 }

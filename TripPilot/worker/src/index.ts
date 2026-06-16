@@ -48,18 +48,14 @@ const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // A data URL holds ~1.37 chars per source byte; ~9 MB of base64 ≈ a 6.5 MB image.
 // The client downscales receipts far below this, so the cap is a pure abuse guard.
 const OCR_MAX_IMAGE_CHARS = 9_000_000;
+// Lean extractor prompt (token-economical, no quality loss): pure JSON, no prose,
+// every semantic rule kept. The image stays at the client's 1600px/q0.82 downscale
+// — high enough for dense grocery receipts — so token spend is dominated by the
+// image + item count, not this prompt.
 const OCR_PROMPT = [
-  'You read a photo of a receipt or bill (supermarket, bar, restaurant, shop — any country).',
-  'Extract the purchased line items. Respond with ONLY a JSON object, no prose, exactly:',
-  '{"merchant": string|null, "currency": string|null, "total": number|null, "items": [{"description": string, "qty": number, "unitPrice": number, "lineTotal": number}]}',
-  'Rules:',
-  '- One entry per purchased product line.',
-  '- "lineTotal" = the printed amount for that line (already qty*unitPrice).',
-  '- "currency" = ISO 4217 code if visible (EUR, USD, BRL...), else null.',
-  '- Do NOT list subtotal, tax, tip, service, discount, change or payment lines as items.',
-  '- Set top-level "total" to the final amount paid if printed, else null.',
-  '- Numbers are plain decimals with a dot separator and no currency symbol.',
-  '- If the image is not a readable receipt, return {"merchant":null,"currency":null,"total":null,"items":[]}.',
+  'Read this receipt/bill photo (any shop, any country). Return ONLY this JSON, no prose, no markdown:',
+  '{"merchant":string|null,"currency":string|null,"total":number|null,"items":[{"description":string,"qty":number,"unitPrice":number,"lineTotal":number}]}',
+  'Rules: one entry per purchased product; lineTotal = the printed line amount (qty*unitPrice); currency = ISO 4217 code or null; total = final amount paid or null; numbers are plain dot-decimals with no symbols; never list subtotal/tax/tip/service/discount/change/payment as items; preserve product names as printed; do not invent items; if unreadable return {"merchant":null,"currency":null,"total":null,"items":[]}.',
 ].join('\n');
 
 function generateRoomCode(): string {
@@ -110,7 +106,10 @@ async function handleOcr(request: Request, env: Env): Promise<Response> {
       body: JSON.stringify({
         model: OCR_MODEL,
         temperature: 0,
-        max_tokens: 2048,
+        // Headroom for long grocery receipts (40+ items ≈ 1.5k tokens of JSON).
+        // A low cap would TRUNCATE big receipts into invalid JSON — the opposite
+        // of saving money. max_tokens only caps; unused budget costs nothing.
+        max_tokens: 4096,
         response_format: { type: 'json_object' },
         messages: [
           {

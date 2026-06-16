@@ -1,9 +1,12 @@
+import i18n from '@/i18n';
 import { resolveAppVersionStatus } from '@/utils/app-update';
 import {
   notifyLiveUpdateReady,
   downloadAndApplyBundle,
 } from '@/utils/native/live-update';
+import { downloadAndInstallApk, isApkInstallSupported } from '@/utils/native/apk-installer';
 import { isNativeApp } from '@/utils/native/platform';
+import { showToast } from '@/components/Toast';
 
 /**
  * FIELD item 20 (G8b): drives Capgo live-updates from outside React, mirroring
@@ -25,7 +28,22 @@ async function runLiveUpdateCheck(): Promise<void> {
   try {
     const status = await resolveAppVersionStatus();
     if (status.kind === 'web_update_available' && status.bundleUrl) {
+      // Web bundles apply silently (set() reloads into the new bundle).
       await downloadAndApplyBundle(status.bundleUrl, status.latestWeb);
+      return;
+    }
+    // DEC-210: a newer APK shell exists. We cannot install it silently (the OS
+    // requires the user's confirm), and a ~20 MB auto-download on every boot
+    // would be hostile — so we nudge with a one-tap toast instead.
+    if (status.nativeUpdateAvailable && status.apkUrl && isApkInstallSupported()) {
+      const apkUrl = status.apkUrl;
+      const version = status.latestNative ?? status.latestWeb;
+      showToast(i18n.t('settings.update_native_available'), 'info', {
+        durationMs: 12000,
+        onTap: () => {
+          void downloadAndInstallApk(apkUrl, version);
+        },
+      });
     }
   } catch {
     // Offline or manifest unreachable — try again on the next cold start.
