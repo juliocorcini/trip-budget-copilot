@@ -50,6 +50,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- FIELD R2 item 12: QR scanner camera (getUserMedia). Capacitor 8 requests
+         the runtime grant in onPermissionRequest, but only if it is declared here;
+         without this line Android denies the request before any prompt is shown. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <!-- N6: active-outing notifications (Capacitor LocalNotifications, Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

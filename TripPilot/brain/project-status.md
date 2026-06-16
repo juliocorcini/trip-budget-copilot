@@ -6,6 +6,13 @@
 
 **Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) + UX Polish Pass v0.14.2→v0.14.5 + UX Feedback & Continuity Pass R2 v0.14.6→v0.14.10 deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
 
+### Field Feedback Round 2 (v0.50.0 → …) — 2026-06-16 — 🚧 IN PROGRESS
+- **Mandate** (Julio): a 22-item field list (round 2). Plan `brain/documents/improvements-master-plan-2026-06-16-round2.md`; council ran inline; decisions locked via AskQuestion. Order **F→A→B→C→D→E** (native first). Per-wave detail in `src/dev-log.md`.
+- **Shipped (native APK, 0.50.0 — Wave F)**: **F12** QR camera permission (manifest `CAMERA`; Capacitor 8 already requests the runtime grant), **F1** backup → public Downloads (native `DeviceFile` plugin via `MediaStore.Downloads`, fallback Documents), **F13** no overscroll stretch (WebView `OVER_SCROLL_NEVER`). APK versionCode **16** / 0.50.0 (8.26 MB). `requiredNativeVersion` 0.50.0. See DEC-205.
+- **Next waves (web, OTA to the 0.50.0 APK)**: A (UX quick wins + interactive drag F10), B (phase calendar maps + per-day math F4/F20/F22), C (settings Samsung-style F11 + connection hub + link pairing F19), D (future-phase income F17 + phase preview F18), E (smart Wise import F16 + create-phase + CSV share-target F15).
+- **Quality**: 1038 unit tests green; tsc 0; web build + `cap sync` + `assembleDebug` green (**Node 22 required**).
+- **Build env note**: this machine defaults to Node v18 (no `globalThis.crypto.subtle` → 6 ecies tests fail); run tests/build/cap/gradle under Node 22 (`nvm`).
+
 ### Field Feedback Round (v0.41.0 → v0.49.0) — 2026-06-16 — ✅ ALL 20 ITEMS LANDED
 - **Mandate** (Julio): a 20-item field list after the native+Wise arc. Plan `brain/documents/improvements-master-plan-2026-06-16.md`; gates G1→G8. Detail per gate lives in `src/dev-log.md`.
 - **Shipped (web)**: G1 navigation/swipe/scroll/recents (0.41), G2 home numbers — true-free + check-in lens (0.42–0.43), G3 Wise import visibility + TRANSFER intelligence/split (0.43–0.44), FIELD-19 per-day allowance map (0.45), G4 settings overhaul + savings goal on card + 2-up grid (0.46), G5 P2P encrypted mailbox (0.47), G6 reset-app (item 3) + G8a version awareness (item 20) (0.48).

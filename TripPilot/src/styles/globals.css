@@ -122,6 +122,15 @@
   }
 }
 
+/* FIELD R2 item 13: in the native shell, stop the scroll-chain bounce. The
+   visible Android 12+ stretch glow is killed natively (WebView
+   OVER_SCROLL_NEVER in MainActivity); this prevents nested overscroll bleed on
+   the web layer. Web/PWA off-native is untouched (only `.cap-native` matches). */
+html.cap-native,
+html.cap-native body {
+  overscroll-behavior: none;
+}
+
 /* N7 (Gate 1C): the Android WebView renders noticeably smaller than the
    installed PWA (Chrome applies the user's page-zoom/font preferences; a fresh
    WebView does not), so the whole UI looked shrunk on device. A single, tunable

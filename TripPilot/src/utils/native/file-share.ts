@@ -1,4 +1,5 @@
 import { isNativeApp } from './platform';
+import { saveToDownloads } from './device-file';
 
 /**
  * FIELD items 6 & 7: native file boundary for the APK. In the Capacitor WebView
@@ -49,16 +50,20 @@ export async function shareFileNative(
 }
 
 /**
- * Save the content to the device's Documents folder (a real, user-reachable
- * file). Returns the file URI on success, or null on the web / on failure (the
+ * Save the content to a real, user-reachable file. Prefers the public Downloads
+ * folder (FIELD R2 item 1) via the native MediaStore plugin — the most
+ * discoverable place — and falls back to the app's Documents folder if that
+ * fails. Returns the file URI on success, or null on the web / on failure (the
  * caller then falls back to a browser download).
  */
 export async function saveFileToDevice(
   content: string,
   filename: string,
-  _mimeType: string,
+  mimeType: string,
 ): Promise<string | null> {
   if (!isNativeApp()) return null;
+  const downloadsUri = await saveToDownloads(content, filename, mimeType);
+  if (downloadsUri) return downloadsUri;
   try {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
     await Filesystem.writeFile({
