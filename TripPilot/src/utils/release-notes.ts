@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.54.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Divisão da nota inteira: ao escanear, escolha "Pessoal" ou "Dividir igual" para a nota toda de uma vez (o caso do restaurante/rodada) e defina quem pagou — sem precisar editar item por item.',
+        'Ajustar ao total: quando os itens não batem com o total impresso (taxa, serviço, gorjeta, desconto), um toque distribui a diferença proporcionalmente para fechar exatamente.',
+      ],
+      en: [
+        'Split the whole receipt: when scanning, pick "Personal" or "Split equally" for the entire bill at once (the restaurant/round case) and set who paid — no need to edit item by item.',
+        'Match to total: when the items don\u2019t add up to the printed total (tax, service, tip, discount), one tap spreads the difference proportionally so it balances exactly.',
+      ],
+      es: [
+        'Dividir todo el recibo: al escanear, elige "Personal" o "Dividir en partes iguales" para toda la cuenta de una vez (el caso del restaurante/ronda) y define quién pagó — sin editar ítem por ítem.',
+        'Ajustar al total: cuando los ítems no cuadran con el total impreso (impuesto, servicio, propina, descuento), un toque reparte la diferencia proporcionalmente para que cuadre exactamente.',
+      ],
+    },
+  },
+  {
     version: '0.53.0',
     date: '2026-06-16',
     items: {

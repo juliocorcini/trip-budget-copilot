@@ -1,7 +1,7 @@
 {
-  "version": "0.53.0",
+  "version": "0.54.0",
   "requiredNativeVersion": "0.50.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.53.0.zip",
-  "notes": "Escanear nota: tire uma foto da nota, a IA lê os itens, você edita/divide e salva como uma saída. Leitura por IA é opt-in (Ajustes)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.54.0.zip",
+  "notes": "Divisão da nota: divida a nota inteira de uma vez (mercado / restaurante / rodada) e ajuste itens ao total impresso (taxa, serviço, desconto) com um toque."
 }

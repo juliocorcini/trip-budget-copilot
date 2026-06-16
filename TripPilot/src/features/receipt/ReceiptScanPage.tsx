@@ -5,7 +5,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { compressImageFile, blobToDataUrl, type CompressedImage } from '@/utils/image/compress';
 import { extractReceiptViaCloud, type ReceiptOcrError } from '@/utils/ai-ocr';
-import { reconcileReceipt, type ReceiptPlan, type ReceiptDraftItem } from '@/domain/receipt';
+import {
+  reconcileReceipt,
+  matchItemsToReadTotal,
+  type ReceiptPlan,
+  type ReceiptDraftItem,
+} from '@/domain/receipt';
 import { commitReceipt, undoReceiptCommit } from '@/domain/orchestrators';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository } from '@/data/repositories';
@@ -68,6 +73,70 @@ export function ReceiptScanPage() {
     [plan],
   );
   const reconciliation = useMemo(() => (plan ? reconcileReceipt(plan, 0) : null), [plan]);
+
+  // G4 — receipt-level split: presets that split the WHOLE bill at once (the
+  // restaurant/round case) plus a single payer, while the per-item sheet stays
+  // the override. Only meaningful once there is someone to split with.
+  const allParticipantIds = useMemo(() => participants.map((p) => p.id), [participants]);
+  const splittable = participants.length >= 2;
+
+  const splitMode = useMemo<'personal' | 'equal' | 'custom'>(() => {
+    if (included.length === 0) return 'personal';
+    if (included.every((i) => i.participantIds.length === 0)) return 'personal';
+    const wholeGroup = included.every(
+      (i) =>
+        i.participantIds.length === allParticipantIds.length &&
+        allParticipantIds.every((id) => i.participantIds.includes(id)),
+    );
+    return wholeGroup ? 'equal' : 'custom';
+  }, [included, allParticipantIds]);
+
+  const receiptPayerId = useMemo(() => {
+    const ownerId = owner?.id ?? null;
+    const split = included.filter((i) => i.participantIds.length > 0);
+    if (split.length === 0) return ownerId;
+    const first = split[0]!.paidByParticipantId ?? ownerId;
+    return split.every((i) => (i.paidByParticipantId ?? ownerId) === first) ? first : null;
+  }, [included, owner]);
+
+  const applyEqualSplit = () =>
+    setPlan((p) =>
+      p
+        ? {
+            ...p,
+            items: p.items.map((i) =>
+              i.include && i.amountCents > 0
+                ? { ...i, participantIds: allParticipantIds, paidByParticipantId: receiptPayerId }
+                : i,
+            ),
+          }
+        : p,
+    );
+  const applyAllPersonal = () =>
+    setPlan((p) =>
+      p
+        ? {
+            ...p,
+            items: p.items.map((i) =>
+              i.include && i.amountCents > 0
+                ? { ...i, participantIds: [], paidByParticipantId: null }
+                : i,
+            ),
+          }
+        : p,
+    );
+  const setReceiptPayer = (id: string | null) =>
+    setPlan((p) =>
+      p
+        ? { ...p, items: p.items.map((i) => (i.participantIds.length > 0 ? { ...i, paidByParticipantId: id } : i)) }
+        : p,
+    );
+  const applyMatchTotal = () => setPlan((p) => (p ? { ...p, items: matchItemsToReadTotal(p) } : p));
+
+  const segClass = (active: boolean) =>
+    `flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-semibold btn-press ${
+      active ? 'bg-primary text-on-surface' : 'bg-surface-container text-on-surface-dim'
+    }`;
 
   const openPicker = () => fileRef.current?.click();
 
@@ -307,24 +376,82 @@ export function ReceiptScanPage() {
 
           {reconciliation && reconciliation.readTotalCents !== null && (
             <div
-              className="rounded-xl px-3 py-2.5 flex items-center justify-between text-[11px]"
+              className="rounded-xl px-3 py-2.5 flex flex-col gap-2"
               style={{ background: 'var(--surface-container)' }}
             >
-              <span className="text-on-surface-faint">
-                {t('receiptScan.read_total')} {formatMoney(reconciliation.readTotalCents, currency)}
-              </span>
-              <span
-                className="font-bold tabular"
-                style={{
-                  color: reconciliation.matches ? 'var(--success)' : 'var(--warning)',
-                }}
-              >
-                {reconciliation.matches
-                  ? t('receiptScan.reconciled')
-                  : t('receiptScan.diff', {
-                      amount: formatMoney(Math.abs(reconciliation.diffCents ?? 0), currency),
-                    })}
-              </span>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-on-surface-faint">
+                  {t('receiptScan.read_total')} {formatMoney(reconciliation.readTotalCents, currency)}
+                </span>
+                <span
+                  className="font-bold tabular"
+                  style={{
+                    color: reconciliation.matches ? 'var(--success)' : 'var(--warning)',
+                  }}
+                >
+                  {reconciliation.matches
+                    ? t('receiptScan.reconciled')
+                    : t('receiptScan.diff', {
+                        amount: formatMoney(Math.abs(reconciliation.diffCents ?? 0), currency),
+                      })}
+                </span>
+              </div>
+              {!reconciliation.matches && included.length > 0 && (
+                <button
+                  onClick={applyMatchTotal}
+                  className="self-start text-[11px] font-semibold text-primary btn-press flex items-center gap-1"
+                >
+                  <Icon name="balance" size={13} />
+                  {t('receiptScan.match_total')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* G4 — split the whole receipt at once (market / restaurant-round). */}
+          {splittable && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-on-surface">
+                {t('receiptScan.split_modes_label')}
+              </label>
+              <div className="flex gap-1.5">
+                <button onClick={applyAllPersonal} className={segClass(splitMode === 'personal')}>
+                  <Icon name="person" size={13} />
+                  {t('receiptScan.mode_personal')}
+                </button>
+                <button onClick={applyEqualSplit} className={segClass(splitMode === 'equal')}>
+                  <Icon name="groups" size={13} />
+                  {t('receiptScan.mode_equal')}
+                </button>
+              </div>
+              {splitMode === 'custom' && (
+                <p className="text-[11px] text-on-surface-faint flex items-center gap-1">
+                  <Icon name="tune" size={12} />
+                  {t('receiptScan.mode_custom_hint')}
+                </p>
+              )}
+              {splitMode !== 'personal' && (
+                <>
+                  <p className="text-[11px] text-on-surface-faint mt-1">
+                    {t('receiptScan.paid_by_label')}
+                  </p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {participants.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setReceiptPayer(p.isOwner ? null : p.id)}
+                        className={`px-3 py-2 rounded-xl text-xs font-medium btn-press ${
+                          (receiptPayerId ?? owner?.id) === p.id
+                            ? 'bg-primary text-on-surface'
+                            : 'bg-surface-high text-on-surface-dim'
+                        }`}
+                      >
+                        {p.isOwner ? t('receiptScan.you') : p.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 

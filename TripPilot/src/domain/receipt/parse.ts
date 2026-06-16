@@ -106,6 +106,36 @@ export function parseReceiptResponse(raw: unknown): ReceiptPlan {
 }
 
 /**
+ * G4 (DEC-206): proportionally adjust the INCLUDED items so they sum exactly to
+ * the printed receipt total — absorbing the tax, tip, service charge, discount
+ * and rounding that the itemised lines don't capture. Each included line is
+ * scaled by its weight in the current included subtotal and the last one absorbs
+ * the rounding remainder, so the sum is exact to the cent. Excluded lines and the
+ * original order are preserved. No-op when there is no printed total or nothing
+ * positive to scale (returns the same array reference so callers can skip a render).
+ */
+export function matchItemsToReadTotal(plan: ReceiptPlan): ReceiptDraftItem[] {
+  const target = plan.readTotalCents;
+  if (target === null || target <= 0) return plan.items;
+
+  const included = plan.items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.include && item.amountCents > 0);
+  const subtotal = included.reduce((sum, { item }) => sum + item.amountCents, 0);
+  if (subtotal <= 0 || subtotal === target) return plan.items;
+
+  const next = plan.items.slice();
+  let allocated = 0;
+  included.forEach(({ item, index }, i) => {
+    const isLast = i === included.length - 1;
+    const amountCents = isLast ? target - allocated : Math.round((item.amountCents / subtotal) * target);
+    allocated += amountCents;
+    next[index] = { ...item, amountCents };
+  });
+  return next;
+}
+
+/**
  * Compare the kept items against the printed total. Purely informational: the
  * difference is usually tax/discount lines we intentionally drop, so the UI
  * shows it as a hint rather than blocking the commit.

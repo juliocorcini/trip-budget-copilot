@@ -3,4 +3,4 @@ export type {
   ReceiptPlan,
   ReceiptReconciliation,
 } from './types';
-export { parseReceiptResponse, reconcileReceipt } from './parse';
+export { parseReceiptResponse, reconcileReceipt, matchItemsToReadTotal } from './parse';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseReceiptResponse, reconcileReceipt } from '@/domain/receipt';
+import { parseReceiptResponse, reconcileReceipt, matchItemsToReadTotal } from '@/domain/receipt';
 
 // DEC-206 (G2): the parser is the source of truth for normalising a loose,
 // decimal-based OCR response into a cents-based, reviewable ReceiptPlan. It must
@@ -136,5 +136,72 @@ describe('reconcileReceipt (DEC-206)', () => {
     expect(rec.readTotalCents).toBeNull();
     expect(rec.diffCents).toBeNull();
     expect(rec.matches).toBe(true);
+  });
+});
+
+describe('matchItemsToReadTotal (G4 · DEC-206)', () => {
+  it('distributes a service charge so the items sum exactly to the total', () => {
+    // Items sum to 9.00 but the receipt printed 10.00 (1.00 service/tax).
+    const plan = parseReceiptResponse({
+      total: 10.0,
+      items: [
+        { description: 'A', lineTotal: 4 },
+        { description: 'B', lineTotal: 5 },
+      ],
+    });
+    const next = matchItemsToReadTotal(plan);
+    const sum = next.reduce((s, i) => s + i.amountCents, 0);
+    expect(sum).toBe(1000);
+    // Proportional: 400/900 * 1000 = 444 (rounded); last absorbs the remainder.
+    expect(next[0]!.amountCents).toBe(444);
+    expect(next[1]!.amountCents).toBe(556);
+    // Reconciliation now reports a perfect match.
+    expect(reconcileReceipt({ ...plan, items: next }).matches).toBe(true);
+  });
+
+  it('scales down for a discount (total below the line subtotal)', () => {
+    const plan = parseReceiptResponse({
+      total: 8.0,
+      items: [
+        { description: 'A', lineTotal: 4 },
+        { description: 'B', lineTotal: 6 },
+      ],
+    });
+    const next = matchItemsToReadTotal(plan);
+    expect(next.reduce((s, i) => s + i.amountCents, 0)).toBe(800);
+    expect(next[0]!.amountCents).toBe(320); // 400/1000 * 800
+    expect(next[1]!.amountCents).toBe(480);
+  });
+
+  it('only touches included lines and keeps the original order', () => {
+    const base = parseReceiptResponse({
+      total: 10.0,
+      items: [
+        { description: 'Keep A', lineTotal: 4 },
+        { description: 'Dropped', lineTotal: 3 },
+        { description: 'Keep B', lineTotal: 5 },
+      ],
+    });
+    const plan = { ...base, items: base.items.map((i, idx) => (idx === 1 ? { ...i, include: false } : i)) };
+    const next = matchItemsToReadTotal(plan);
+    // Excluded middle line is untouched; included A+B now total 10.00.
+    expect(next[1]!.amountCents).toBe(300);
+    expect(next[1]!.include).toBe(false);
+    expect(next[0]!.amountCents + next[2]!.amountCents).toBe(1000);
+    expect(next.map((i) => i.description)).toEqual(['Keep A', 'Dropped', 'Keep B']);
+  });
+
+  it('makes a single included line equal the total', () => {
+    const plan = parseReceiptResponse({ total: 12.4, items: [{ description: 'Only', lineTotal: 9 }] });
+    const next = matchItemsToReadTotal(plan);
+    expect(next[0]!.amountCents).toBe(1240);
+  });
+
+  it('is a no-op without a printed total or when already matching', () => {
+    const noTotal = parseReceiptResponse({ items: [{ description: 'A', lineTotal: 4 }] });
+    expect(matchItemsToReadTotal(noTotal)).toBe(noTotal.items);
+
+    const exact = parseReceiptResponse({ total: 9.0, items: [{ description: 'A', lineTotal: 4 }, { description: 'B', lineTotal: 5 }] });
+    expect(matchItemsToReadTotal(exact)).toBe(exact.items);
   });
 });
