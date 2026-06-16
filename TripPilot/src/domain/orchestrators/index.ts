@@ -94,3 +94,12 @@ export type {
   CommitWiseTransfersResult,
   WiseTransferCommitSpec,
 } from './import-orchestrators';
+export {
+  sendPayloadToPeerMailbox,
+  flushOutbox,
+  drainMailboxIntoApp,
+  getInboxBackups,
+  applyInboxBackup,
+  dismissInboxItem,
+} from './mailbox-orchestrators';
+export type { SendToMailboxResult, DrainResult } from './mailbox-orchestrators';

@@ -4,6 +4,8 @@ import {
   mergeBackupData,
   BACKUP_TABLE_KEYS,
 } from '@/domain/backup';
+import { setInstallationId } from '@/utils/entity-factory';
+import { clearDeviceIdentityCache } from '@/data/sync/identity-crypto';
 import type { BackupData, BackupTableKey } from '@/domain/backup';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { SyncMetadata } from '@/domain/types/common';
@@ -41,6 +43,7 @@ export type ImportMode = 'merge' | 'replace';
  */
 export async function importBackup(incoming: BackupData, mode: ImportMode): Promise<void> {
   const tables = BACKUP_TABLE_KEYS.map(tableFor);
+  let adoptedActorId: string | null = null;
 
   await db.transaction('rw', [...tables, db.appSettings] as any, async () => {
     for (const key of BACKUP_TABLE_KEYS) {
@@ -59,15 +62,30 @@ export async function importBackup(incoming: BackupData, mode: ImportMode): Prom
       if (merged.length > 0) await table.bulkAdd(merged as any);
     }
 
-    if (incoming.appSettings.activeTrip) {
-      const settings = await db.appSettings.toCollection().first();
-      if (settings) {
-        await db.appSettings.put({
-          ...settings,
-          activeTrip: incoming.appSettings.activeTrip,
-          onboardingCompleted: true,
-        });
+    const settings = await db.appSettings.toCollection().first();
+    if (settings) {
+      const patch: Partial<AppSettings> = {};
+      if (incoming.appSettings.activeTrip) {
+        patch.activeTrip = incoming.appSettings.activeTrip;
+        patch.onboardingCompleted = true;
+      }
+      // FIELD item 8: a full restore (replace) adopts the backed-up device
+      // identity so the new phone keeps the old phone's mailbox address and
+      // pairing (user choice "restaurar mantém o pareamento").
+      if (mode === 'replace' && incoming.appSettings.deviceIdentity) {
+        patch.deviceIdentity = incoming.appSettings.deviceIdentity;
+        adoptedActorId = incoming.appSettings.deviceIdentity.actorId;
+      }
+      if (Object.keys(patch).length > 0) {
+        await db.appSettings.put({ ...settings, ...patch });
       }
     }
   });
+
+  // Outside the txn: adopt the restored install id so future writes + the
+  // mailbox address match the identity we just imported.
+  if (adoptedActorId) {
+    setInstallationId(adoptedActorId);
+    clearDeviceIdentityCache();
+  }
 }

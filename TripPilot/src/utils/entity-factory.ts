@@ -26,6 +26,15 @@ export function getInstallationId(): string {
   return getDeviceId();
 }
 
+/**
+ * FIELD item 8: adopt a device id from a restored backup so the new phone keeps
+ * the old phone's mailbox address and pairing (user choice "restaurar mantém o
+ * pareamento"). Only used on a replace-import — never during normal operation.
+ */
+export function setInstallationId(id: string): void {
+  safeLocalStorage.set(DEVICE_ID_KEY, id);
+}
+
 export function createSyncMetadata(overrides?: Partial<SyncMetadata>): SyncMetadata {
   const now = new Date().toISOString();
   return {

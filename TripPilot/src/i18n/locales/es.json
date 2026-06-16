@@ -1286,6 +1286,7 @@
     "success": "Éxito",
     "undo": "Deshacer",
     "undo_done": "Deshecho",
+    "dismiss": "Descartar",
     "total": "Total"
   },
   "profile_presets": {
@@ -1446,6 +1447,23 @@
     "generic_entry": "Entrada",
     "generic_souvenir": "Souvenir",
     "generic_other": "Otros"
+  },
+  "mailbox": {
+    "sent": "Entregado en el buzón",
+    "queued": "Sin conexión — se enviará al volver",
+    "send_failed": "No pude enviar ahora",
+    "send_statement": "Enviar por el buzón",
+    "received_statements": "{{count}} división recibida por el buzón",
+    "received_backups": "{{count}} copia recibida por el buzón",
+    "inbox_title": "Copias recibidas",
+    "inbox_from": "Copia de {{name}}",
+    "unknown_sender": "otro dispositivo",
+    "inbox_apply": "Aplicar",
+    "send_backup_title": "O envía por el buzón",
+    "send_backup_desc": "El otro dispositivo la recibe al abrir la app — no necesitan estar juntos.",
+    "setting_title": "Buzón",
+    "setting_label": "Buscar mensajes al abrir",
+    "setting_hint": "Al abrir, la app consulta al servidor por divisiones y copias enviadas a ti. Todo cifrado de extremo a extremo — el servidor nunca lee el contenido. Desactiva para no contactar al servidor."
   },
   "sync": {
     "send_to_device": "Enviar a otro dispositivo",

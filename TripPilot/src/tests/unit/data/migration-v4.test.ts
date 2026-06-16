@@ -56,6 +56,7 @@ describe('Dexie v4 migration (DEC-105/106)', () => {
         displayName: 'Debora',
         participantId: 'p-1',
         lastSyncAt: null,
+        publicKey: null,
       });
       await db.mirroredStatements.add({
         ...meta,

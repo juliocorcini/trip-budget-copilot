@@ -13,16 +13,30 @@ import {
 } from '@/domain/backup';
 import { buildTripReport, renderTripReportHtml } from '@/domain/sharing';
 import type { TripReportLabels } from '@/domain/sharing';
-import { buildFullBackup, importBackup } from '@/domain/orchestrators';
-import { appSettingsRepository, participantShareRepository } from '@/data/repositories';
+import {
+  buildFullBackup,
+  importBackup,
+  sendPayloadToPeerMailbox,
+  getInboxBackups,
+  applyInboxBackup,
+  dismissInboxItem,
+} from '@/domain/orchestrators';
+import {
+  appSettingsRepository,
+  participantShareRepository,
+  peerLinkRepository,
+} from '@/data/repositories';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import type { BackupData, ImportAnalysis } from '@/domain/backup';
+import type { PeerLink } from '@/domain/types/peer-link';
+import type { MailboxQueueItem } from '@/domain/types/mailbox';
 import { formatDate } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { BottomSheet } from '@/components/BottomSheet';
 import { HelpButton } from '@/components/HelpMode';
 import { buildMigrationPayload } from '@/domain/sync';
+import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 
 export function BackupPage() {
@@ -39,6 +53,64 @@ export function BackupPage() {
   // DEC-110: every async backup action gets a busy flag + error toast — a
   // failure can never leave the app in a stuck state.
   const [busy, setBusy] = useState(false);
+  // FIELD item 8: paired devices that can receive an async backup, and the
+  // backups already drained into this device's inbox awaiting a confirm.
+  const [mailboxPeers, setMailboxPeers] = useState<PeerLink[]>([]);
+  const [inbox, setInbox] = useState<MailboxQueueItem[]>([]);
+
+  const loadMailbox = async () => {
+    const [links, items] = await Promise.all([peerLinkRepository.getAll(), getInboxBackups()]);
+    setMailboxPeers(links.filter((link) => !!link.publicKey));
+    setInbox(items);
+  };
+
+  useEffect(() => {
+    void loadMailbox();
+    const onDrained = () => void loadMailbox();
+    window.addEventListener(MAILBOX_DRAINED_EVENT, onDrained);
+    return () => window.removeEventListener(MAILBOX_DRAINED_EVENT, onDrained);
+  }, []);
+
+  const handleSendBackupToPeer = async (peer: PeerLink) => {
+    if (!settings || busy) return;
+    setBusy(true);
+    try {
+      const backup = await buildFullBackup(settings);
+      const { delivered } = await sendPayloadToPeerMailbox(
+        peer,
+        'backup',
+        buildMigrationPayload(backup),
+      );
+      await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
+      setSendOpen(false);
+      showToast(delivered ? t('mailbox.sent') : t('mailbox.queued'), delivered ? 'success' : 'info');
+      await reload();
+    } catch {
+      showToast(t('mailbox.send_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApplyInbox = async (item: MailboxQueueItem) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const ok = await applyInboxBackup(item.id, mergeMode);
+      showToast(ok ? t('backup.import_done') : t('backup.operation_failed'), ok ? 'success' : 'danger');
+      await loadMailbox();
+      await reload();
+    } catch {
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDismissInbox = async (item: MailboxQueueItem) => {
+    await dismissInboxItem(item.id);
+    await loadMailbox();
+  };
 
   const exportCsv = async (advanced: boolean) => {
     if (!trip || busy) return;
@@ -211,6 +283,54 @@ export function BackupPage() {
         </div>
       )}
 
+      {/* FIELD item 8: backups that arrived through the encrypted mailbox. Never
+          applied automatically — the traveler picks merge/replace and confirms. */}
+      {inbox.length > 0 && (
+        <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Icon name="mark_email_unread" size={20} className="text-primary" />
+            <p className="text-sm font-semibold text-on-surface">{t('mailbox.inbox_title')}</p>
+          </div>
+          {inbox.map((item) => (
+            <div key={item.id} className="rounded-xl bg-surface-high p-3 flex flex-col gap-2">
+              <p className="text-sm text-on-surface">
+                {t('mailbox.inbox_from', { name: item.fromName ?? t('mailbox.unknown_sender') })}
+              </p>
+              <p className="text-xs text-on-surface-faint">{formatDate(item.createdAt)}</p>
+              <div className="flex gap-2 mt-1">
+                <button
+                  onClick={() => setMergeMode('merge')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${mergeMode === 'merge' ? 'bg-primary text-on-surface' : 'bg-surface-container text-on-surface-dim'}`}
+                >
+                  {t('backup.import_mode_merge')}
+                </button>
+                <button
+                  onClick={() => setMergeMode('replace')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${mergeMode === 'replace' ? 'bg-error text-on-surface' : 'bg-surface-container text-on-surface-dim'}`}
+                >
+                  {t('backup.import_mode_replace')}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleApplyInbox(item)}
+                  disabled={busy}
+                  className="flex-1 py-2.5 rounded-lg bg-primary text-on-surface text-sm font-semibold btn-press disabled:opacity-40"
+                >
+                  {t('mailbox.inbox_apply')}
+                </button>
+                <button
+                  onClick={() => handleDismissInbox(item)}
+                  className="px-4 py-2.5 rounded-lg bg-surface-container text-on-surface-dim text-sm btn-press"
+                >
+                  {t('common.dismiss')}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* M17: send the full backup to Drive/Files/email via the OS share sheet
           (Web Share API), falling back to a file download where unsupported. */}
       <button onClick={handleExport} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40" data-help-anchor="backup-export">
@@ -303,6 +423,25 @@ export function BackupPage() {
             onDone={() => setSendOpen(false)}
             onCancel={() => setSendOpen(false)}
           />
+        )}
+        {/* FIELD item 8: async alternative — drop the backup in a paired device's
+            mailbox; it lands in their inbox to confirm whenever they next open. */}
+        {sendOpen && mailboxPeers.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-surface-high flex flex-col gap-2">
+            <p className="text-xs font-semibold text-on-surface-dim">{t('mailbox.send_backup_title')}</p>
+            <p className="text-xs text-on-surface-faint">{t('mailbox.send_backup_desc')}</p>
+            {mailboxPeers.map((peer) => (
+              <button
+                key={peer.id}
+                onClick={() => handleSendBackupToPeer(peer)}
+                disabled={busy}
+                className="w-full py-3 rounded-xl bg-surface-high text-on-surface text-sm font-medium btn-press flex items-center gap-2 disabled:opacity-40"
+              >
+                <Icon name="mail" size={18} className="text-primary" />
+                {peer.displayName}
+              </button>
+            ))}
+          </div>
         )}
       </BottomSheet>
 

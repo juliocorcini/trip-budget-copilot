@@ -28,6 +28,7 @@ async function upsertPeerLink(
   actorId: string,
   displayName: string,
   participantId: string | null,
+  publicKey?: string | null,
 ): Promise<PeerLink> {
   const existing = await peerLinkRepository.getByActorId(actorId);
   if (existing) {
@@ -36,6 +37,9 @@ async function upsertPeerLink(
       displayName,
       participantId: participantId ?? existing.participantId,
       lastSyncAt: new Date().toISOString(),
+      // FIELD item 8: only overwrite the key when a fresh one arrives — a
+      // statement (no pk) must never wipe a key captured at QR pairing.
+      publicKey: publicKey ?? existing.publicKey ?? null,
     });
   }
   const link: PeerLink = {
@@ -44,6 +48,7 @@ async function upsertPeerLink(
     displayName,
     participantId,
     lastSyncAt: new Date().toISOString(),
+    publicKey: publicKey ?? null,
   };
   return peerLinkRepository.create(link);
 }
@@ -61,7 +66,7 @@ export async function pairParticipantFromIdentity(
   const participants = await participantRepository.getByTripId(tripId);
   const existing = participants.find((p) => p.linkedActorId === identity.actorId);
   if (existing) {
-    await upsertPeerLink(identity.actorId, identity.name, existing.id);
+    await upsertPeerLink(identity.actorId, identity.name, existing.id, identity.pk ?? null);
     return { status: 'already_paired', participant: existing };
   }
 
@@ -70,7 +75,7 @@ export async function pairParticipantFromIdentity(
     linkedActorId: identity.actorId,
   };
   await participantRepository.create(participant);
-  await upsertPeerLink(identity.actorId, identity.name, participant.id);
+  await upsertPeerLink(identity.actorId, identity.name, participant.id, identity.pk ?? null);
   return { status: 'created', participant };
 }
 
@@ -91,7 +96,7 @@ export async function linkParticipantToIdentity(
     ...participant,
     linkedActorId: identity.actorId,
   });
-  await upsertPeerLink(identity.actorId, identity.name, participantId);
+  await upsertPeerLink(identity.actorId, identity.name, participantId, identity.pk ?? null);
   return { status: 'linked', participant: updated };
 }
 

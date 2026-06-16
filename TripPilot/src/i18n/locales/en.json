@@ -1286,6 +1286,7 @@
     "success": "Success",
     "undo": "Undo",
     "undo_done": "Undone",
+    "dismiss": "Discard",
     "total": "Total"
   },
   "profile_presets": {
@@ -1446,6 +1447,23 @@
     "generic_entry": "Entry",
     "generic_souvenir": "Souvenir",
     "generic_other": "Other"
+  },
+  "mailbox": {
+    "sent": "Delivered to the mailbox",
+    "queued": "Offline — will send when you're back",
+    "send_failed": "Couldn't send right now",
+    "send_statement": "Send via mailbox",
+    "received_statements": "{{count}} split received via mailbox",
+    "received_backups": "{{count}} backup received via mailbox",
+    "inbox_title": "Received backups",
+    "inbox_from": "Backup from {{name}}",
+    "unknown_sender": "another device",
+    "inbox_apply": "Apply",
+    "send_backup_title": "Or send via the mailbox",
+    "send_backup_desc": "The other device gets it when it next opens — you don't have to be together.",
+    "setting_title": "Mailbox",
+    "setting_label": "Fetch messages on open",
+    "setting_hint": "On open, the app asks the server for splits and backups sent to you. Everything is end-to-end encrypted — the server never reads the contents. Turn off to never contact the server."
   },
   "sync": {
     "send_to_device": "Send to another device",

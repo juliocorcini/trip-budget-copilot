@@ -19,7 +19,8 @@ import { formatMoney, toCents } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
-import { participantRepository } from '@/data/repositories';
+import { participantRepository, peerLinkRepository } from '@/data/repositories';
+import type { PeerLink } from '@/domain/types/peer-link';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -39,8 +40,9 @@ import {
   pairParticipantFromIdentity,
   linkParticipantToIdentity,
   applyPeerResponses,
+  sendPayloadToPeerMailbox,
 } from '@/domain/orchestrators';
-import { waitForResponses } from '@/data/sync';
+import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 
@@ -89,14 +91,66 @@ export function SharedExpensesPage() {
   const [linkTarget, setLinkTarget] = useState<Participant | null>(null);
   const [sendTarget, setSendTarget] = useState<Participant | null>(null);
   const [statementQrText, setStatementQrText] = useState<string | null>(null);
+  // FIELD item 8: peer links keyed by participant — drives the "send via the
+  // mailbox" action (only available when the peer's public key is on file).
+  const [peerLinks, setPeerLinks] = useState<PeerLink[]>([]);
+  const [mailboxSending, setMailboxSending] = useState(false);
 
   const ownerParticipant = participants.find((p) => p.isOwner);
-  const myIdentityQr = encodeQrPayload(
-    buildIdentityQrPayload({
-      actorId: getInstallationId(),
-      displayName: ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot',
-    }),
-  );
+  // FIELD item 8: the identity QR now carries the device public key so a scan
+  // captures it for sealing async messages. Built async (key load), so it lives
+  // in state instead of being computed inline.
+  const [myIdentityQr, setMyIdentityQr] = useState('');
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const pk = await getDevicePublicKeyB64().catch(() => null);
+      if (!active) return;
+      setMyIdentityQr(
+        encodeQrPayload(
+          buildIdentityQrPayload(
+            {
+              actorId: getInstallationId(),
+              displayName: ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot',
+            },
+            pk,
+          ),
+        ),
+      );
+    })();
+    return () => {
+      active = false;
+    };
+  }, [ownerParticipant?.name, settings?.deviceName]);
+
+  useEffect(() => {
+    void peerLinkRepository.getAll().then(setPeerLinks);
+  }, [participants]);
+
+  const peerLinkFor = (participantId: string): PeerLink | undefined =>
+    peerLinks.find((link) => link.participantId === participantId && link.deletedAt === null);
+
+  // FIELD item 8: deliver the statement to the peer's mailbox — no need to be
+  // side by side. Reuses the exact payload the live transfer builds.
+  const handleSendViaMailbox = async (participant: Participant) => {
+    const link = peerLinkFor(participant.id);
+    if (!link?.publicKey || mailboxSending) return;
+    const payload = buildStatementForParticipant(participant);
+    if (!payload) return;
+    setMailboxSending(true);
+    try {
+      const { delivered } = await sendPayloadToPeerMailbox(link, 'statement', payload);
+      setSendTarget(null);
+      showToast(
+        delivered ? t('mailbox.sent') : t('mailbox.queued'),
+        delivered ? 'success' : 'info',
+      );
+    } catch {
+      showToast(t('mailbox.send_failed'), 'danger');
+    } finally {
+      setMailboxSending(false);
+    }
+  };
 
   const handlePairScan = async (text: string) => {
     if (!trip) return;
@@ -715,6 +769,18 @@ export function SharedExpensesPage() {
         )}
         {sendTarget && !statementQrText && (
           <div className="flex flex-col gap-3">
+            {/* FIELD item 8: async delivery — drop the statement in the peer's
+                encrypted mailbox so they get it whenever they next open the app. */}
+            {peerLinkFor(sendTarget.id)?.publicKey && (
+              <button
+                onClick={() => handleSendViaMailbox(sendTarget)}
+                disabled={mailboxSending}
+                className="w-full py-3 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Icon name="mail" size={18} className="text-primary" />
+                {t('mailbox.send_statement')}
+              </button>
+            )}
             <SyncTransferFlow
               mode="send"
               purpose="statement"

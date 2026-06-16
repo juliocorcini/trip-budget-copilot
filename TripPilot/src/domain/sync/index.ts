@@ -1,5 +1,7 @@
 export * from './identity';
 export * from './encoding';
+export * from './ecies';
+export * from './mailbox-envelope';
 export * from './protocol';
 export * from './qr-codec';
 export * from './statement-payload';

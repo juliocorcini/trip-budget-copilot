@@ -53,6 +53,10 @@ class AppSettingsRepository {
       appLockPinSalt: settings.appLockPinSalt ?? null,
       // R3-H: records predating sticky category have none remembered.
       lastExpenseCategory: settings.lastExpenseCategory ?? null,
+      // FIELD item 8: records predating the mailbox have no identity yet, and
+      // default to draining on open (user choice "ligado por padrão").
+      deviceIdentity: settings.deviceIdentity ?? null,
+      mailboxEnabled: settings.mailboxEnabled ?? true,
     };
   }
 

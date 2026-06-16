@@ -100,13 +100,26 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
   compactos adjacentes, opt-in e COM conteúdo; o card-foco do dia segue cheio).
   Tiles compactos uniformes + 20 testes (catálogo + grupos). 1012 testes verdes.
 
-### G5 — Caixa postal P2P [worker + web]
+### G5 — Caixa postal P2P [worker + web] — FEITO (0.47.0)
 - Worker: endpoints de mailbox por `actorId` (POST guarda blob cifrado + TTL via
   alarm; GET drena). DO com storage; caps de tamanho/quantidade.
 - Cliente: "enviar divisão"/"enviar backup" assíncrono p/ um par pareado; ao
   abrir o app, drena a caixa e aplica (preview p/ backup; confirmar p/ dívida).
 - AC: enviar com o outro offline; ele recebe ao abrir; E2E mantém (servidor só
   vê bytes); expira por TTL.
+- ENTREGUE: `Mailbox` Durable Object (`/mailbox/:actorId`, chunk 120 KB, caps
+  40/4MB/1MB, TTL 7d por `alarm`, guarda só ciphertext) — migration v2, deployado
+  + smoke-test curl. Cripto E2E `domain/sync/ecies.ts` (ECDH P-256 efêmero →
+  HKDF-SHA256 → AES-256-GCM); identidade extraível (JWK) em `AppSettings.deviceIdentity`
+  (viaja no backup → restaurar mantém pareamento, adota `actorId` via `setInstallationId`).
+  QR de identidade += `pk`; `PeerLink.publicKey`. Fila local `mailboxQueue` (schema v7,
+  fora do backup). Boot drena em `utils/mailbox-boot.ts` (boot+online+foreground, 30s
+  throttle). Decisões Julio: caixa LIGADA por padrão (toggle em Ajustes › Dados),
+  chave no backup, sempre preview/confirm. UI: enviar divisão em Compartilhados;
+  inbox de backup + enviar p/ aparelho em Backup. i18n pt/en/es. 1021 testes (+9 ECIES).
+- Nota V1: divisão e backup vão one-way (resposta de confirmação da divisão segue
+  no canal ao vivo); pares pareados antes da 0.47.0 precisam re-compartilhar o QR
+  uma vez para capturar a chave pública.
 
 ### G6 — Backup enviar/salvar + zerar [web + native → APK]
 - Instalar `@capacitor/share` + `@capacitor/filesystem`. `downloadFile`/novo util:

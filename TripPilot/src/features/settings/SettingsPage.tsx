@@ -74,7 +74,7 @@ const SETTINGS_GROUPS: { id: string; labelKey: string; keywords: string }[] = [
     id: 'data_security',
     labelKey: 'settings.group_data_security',
     keywords:
-      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar',
+      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar caixa postal mailbox mensagens messages sincronizar sync worker pareamento',
   },
   {
     id: 'device',
@@ -810,6 +810,18 @@ export function SettingsPage() {
           label={t('more.export_csv')}
           onClick={() => navigate('/settings/backup?csv=true')}
         />
+      </Section>
+
+      {/* FIELD item 8: the encrypted mailbox contacts the worker on open to
+          fetch split notifications and backups. Default on (user choice); turn
+          off to stop contacting the worker entirely (ÂNCORA 8 escape hatch). */}
+      <Section title={t('mailbox.setting_title')}>
+        <ToggleRow
+          label={t('mailbox.setting_label')}
+          enabled={settings.mailboxEnabled}
+          onChange={() => updateSetting({ mailboxEnabled: !settings.mailboxEnabled })}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('mailbox.setting_hint')}</p>
       </Section>
 
       <Section title={t('settings.backup_reminder')}>

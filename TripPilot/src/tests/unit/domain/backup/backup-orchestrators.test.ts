@@ -46,6 +46,8 @@ const settings: AppSettings = {
   appLockPinHash: null,
   appLockPinSalt: null,
   lastExpenseCategory: null,
+  deviceIdentity: null,
+  mailboxEnabled: true,
 };
 
 const mkTrip = (): Trip => ({

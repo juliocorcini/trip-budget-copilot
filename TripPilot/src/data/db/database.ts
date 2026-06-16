@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6 } from './schema';
+import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import { recordCrash } from '@/utils/crash-log';
 import type { Trip } from '@/domain/types/trip';
@@ -26,6 +26,7 @@ import type { PeerLink } from '@/domain/types/peer-link';
 import type { MirroredStatement } from '@/domain/types/mirrored-statement';
 import type { LocalSnapshot } from '@/domain/types/local-snapshot';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
+import type { MailboxQueueItem } from '@/domain/types/mailbox';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -54,6 +55,7 @@ export class TripPilotDB extends Dexie {
   mirroredStatements!: EntityTable<MirroredStatement, 'id'>;
   localSnapshots!: EntityTable<LocalSnapshot, 'id'>;
   plannedPurchases!: EntityTable<PlannedPurchase, 'id'>;
+  mailboxQueue!: EntityTable<MailboxQueueItem, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -98,6 +100,10 @@ export class TripPilotDB extends Dexie {
     // DEC-175: planned purchases ("Planejados"). New table → no upgrade()
     // callback; existing data is preserved untouched on open.
     this.version(6).stores(SCHEMA_V6);
+
+    // FIELD item 8: local-only mailbox queue. New table → no upgrade() callback;
+    // existing data is preserved untouched on open.
+    this.version(7).stores(SCHEMA_V7);
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {

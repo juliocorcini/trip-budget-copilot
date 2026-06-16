@@ -16,6 +16,7 @@ import {
 import { appSettingsRepository } from './data/repositories';
 import { recordCrash, describeError } from './utils/crash-log';
 import { initNativeShell } from './utils/native';
+import { registerMailboxSync } from './utils/mailbox-boot';
 import i18n from './i18n';
 import './styles/globals.css';
 
@@ -53,6 +54,11 @@ maybeShowCheckInPrompt();
 // DEC-111 (R5-03): ask for durable storage as early as possible — without it
 // the OS may evict IndexedDB and the user genuinely loses everything.
 requestPersistentStorage();
+
+// FIELD item 8: drain the encrypted mailbox on open (default-on) + whenever we
+// regain connectivity or focus, so split notifications and backups arrive
+// without both phones being online at once.
+registerMailboxSync();
 
 // GAP-014: restore the persisted language on boot (before most screens mount).
 appSettingsRepository.get().then((settings) => {

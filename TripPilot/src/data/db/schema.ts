@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -72,4 +72,14 @@ export const SCHEMA_V5: Record<string, string> = {
 export const SCHEMA_V6: Record<string, string> = {
   ...SCHEMA_V5,
   plannedPurchases: 'id, tripId, budgetPoolId, status, deletedAt',
+};
+
+// V7 (FIELD item 8 — async encrypted mailbox): a local-only queue for sealed
+// blobs waiting to be posted (out) and drained backups waiting for the
+// traveler's confirm (in). Brand-new table → no upgrade() callback; Dexie
+// creates it on open and leaves every existing table/row untouched. LOCAL-only:
+// it never participates in BackupData (not in BACKUP_TABLE_KEYS).
+export const SCHEMA_V7: Record<string, string> = {
+  ...SCHEMA_V6,
+  mailboxQueue: 'id, direction, status, createdAt',
 };

@@ -1286,6 +1286,7 @@
     "success": "Sucesso",
     "undo": "Desfazer",
     "undo_done": "Desfeito",
+    "dismiss": "Descartar",
     "total": "Total"
   },
   "profile_presets": {
@@ -1446,6 +1447,23 @@
     "generic_entry": "Entrada",
     "generic_souvenir": "Lembrancinha",
     "generic_other": "Outros"
+  },
+  "mailbox": {
+    "sent": "Entregue na caixa postal",
+    "queued": "Sem internet — vai enviar quando voltar",
+    "send_failed": "Não consegui enviar agora",
+    "send_statement": "Enviar pela caixa postal",
+    "received_statements": "{{count}} divisão recebida pela caixa postal",
+    "received_backups": "{{count}} backup recebido pela caixa postal",
+    "inbox_title": "Backups recebidos",
+    "inbox_from": "Backup de {{name}}",
+    "unknown_sender": "outro aparelho",
+    "inbox_apply": "Aplicar",
+    "send_backup_title": "Ou envie pela caixa postal",
+    "send_backup_desc": "O outro aparelho recebe quando abrir o app — não precisam estar juntos.",
+    "setting_title": "Caixa postal",
+    "setting_label": "Buscar mensagens ao abrir",
+    "setting_hint": "Ao abrir, o app consulta o servidor por divisões e backups enviados a você. Tudo criptografado ponta a ponta — o servidor nunca lê o conteúdo. Desligue para não contatar o servidor."
   },
   "sync": {
     "send_to_device": "Enviar para outro aparelho",

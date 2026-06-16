@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.47.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Caixa postal criptografada: agora dá pra mandar uma divisão para alguém pareado mesmo sem estarem juntos — a pessoa recebe quando abrir o app. Em Gastos compartilhados, toque em enviar e escolha "Enviar pela caixa postal".',
+        'Backup entre aparelhos sem estar lado a lado: envie o backup para um aparelho pareado pela caixa postal; ele aparece na tela de Backup para você conferir e aplicar (merge ou substituir). Nada é aplicado sozinho.',
+        'Tudo é cifrado ponta a ponta: o servidor só guarda um pacote embaralhado por até 7 dias e nunca lê o conteúdo. Dá pra desligar em Configurações → Caixa postal.',
+      ],
+      en: [
+        'Encrypted mailbox: you can now send a split to a paired person even when you are not together — they get it the next time they open the app. In Shared expenses, tap send and pick "Send via mailbox".',
+        'Backup between devices without being side by side: send the backup to a paired device through the mailbox; it shows up on the Backup screen for you to review and apply (merge or replace). Nothing is applied on its own.',
+        'Everything is end-to-end encrypted: the server only keeps a scrambled blob for up to 7 days and never reads the contents. You can turn it off in Settings → Mailbox.',
+      ],
+      es: [
+        'Buzón cifrado: ahora puedes enviar una división a alguien emparejado aunque no estén juntos — la recibe al abrir la app. En Gastos compartidos, toca enviar y elige "Enviar por el buzón".',
+        'Copia entre dispositivos sin estar al lado: envía la copia a un dispositivo emparejado por el buzón; aparece en la pantalla de Copia para que la revises y apliques (combinar o reemplazar). Nada se aplica solo.',
+        'Todo cifrado de extremo a extremo: el servidor solo guarda un paquete cifrado hasta 7 días y nunca lee el contenido. Puedes desactivarlo en Ajustes → Buzón.',
+      ],
+    },
+  },
+  {
     version: '0.46.0',
     date: '2026-06-16',
     items: {

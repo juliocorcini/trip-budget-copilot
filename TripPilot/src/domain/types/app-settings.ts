@@ -91,4 +91,23 @@ export interface AppSettings {
    * instead of always defaulting to "other" (sticky, mirrors currentPlace).
    * null until the first expense (non-indexed — no migration). */
   lastExpenseCategory: string | null;
+  /** FIELD item 8: long-lived device identity for the async encrypted mailbox.
+   * The keypair is EXTRACTABLE (JWK) so it travels inside the backup — restoring
+   * keeps the pairing (user choice). null until first use (non-indexed). */
+  deviceIdentity: DeviceIdentity | null;
+  /** FIELD item 8: when on, the app drains its mailbox from the worker on open.
+   * Default true (user choice "ligado por padrão"). Toggle in Settings to stop
+   * contacting the worker (non-indexed — no migration). */
+  mailboxEnabled: boolean;
+}
+
+/**
+ * FIELD item 8: account-less device identity for the end-to-end encrypted
+ * mailbox. `actorId` matches the install id; the ECDH P-256 keypair (stored as
+ * JWK) seals/opens messages — the worker only ever sees ciphertext.
+ */
+export interface DeviceIdentity {
+  actorId: string;
+  publicKeyJwk: JsonWebKey;
+  privateKeyJwk: JsonWebKey;
 }

@@ -64,6 +64,10 @@ export function createDefaultAppSettings(): AppSettings {
     appLockPinSalt: null,
     // R3-H: no remembered expense category until the first expense.
     lastExpenseCategory: null,
+    // FIELD item 8: device identity created lazily on first mailbox use.
+    deviceIdentity: null,
+    // FIELD item 8: mailbox drains on open by default (user choice).
+    mailboxEnabled: true,
   };
 }
 
