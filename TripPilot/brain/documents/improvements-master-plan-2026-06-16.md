@@ -122,12 +122,15 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
   uma vez para capturar a chave pública.
 
 ### G6 — Backup enviar/salvar + zerar [web + native → APK]
-- Instalar `@capacitor/share` + `@capacitor/filesystem`. `downloadFile`/novo util:
-  nativo escreve em Cache + Share (abre menu do celular); botão "Salvar no
-  aparelho" → `Directory.Documents`. Web mantém share/download.
-- Zerar app: em Ajustes › Dados — cria restore point + exporta backup, depois
-  oferece "apagar tudo (→onboarding)" OU "manter estrutura e limpar lançamentos",
-  com confirmação forte (digitar p/ confirmar).
+- **Zerar app — FEITO (0.48.0, fatia web)**: em Ajustes › Dados e segurança —
+  sempre exporta um backup JSON primeiro; "manter estrutura" também grava um
+  restore point. Duas opções: "apagar tudo (→onboarding)" OU "manter estrutura e
+  limpar lançamentos", com digitar-p/-confirmar. Orquestradores puros
+  `resetKeepStructure`/`resetWipeAll` (1 transação Dexie) + 3 testes.
+- **Enviar/salvar nativo — no lote do APK**: instalar `@capacitor/share` +
+  `@capacitor/filesystem`. `downloadFile`/novo util: nativo escreve em Cache +
+  Share (abre menu do celular); botão "Salvar no aparelho" → `Directory.Documents`.
+  Web mantém share/download.
 - AC: enviar abre o menu nativo; salvar grava arquivo; zerar faz backup antes e
   executa a opção escolhida atomicamente.
 
@@ -141,11 +144,14 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
 ### G8 — Atualização OTA + consciência de versão (item 20) [web + native → APK]
 > Pendente da decisão de abordagem (AskQuestion). Plano para a opção recomendada
 > (Capgo self-hosted), em duas partes:
-- **G8a (web, sem dep nativa)**: manifesto `version.json`/`latest.json` no Pages
-  (`version`, `requiredNativeVersion`, `notes`). Em nativo, `App.getInfo()` lê o
-  build do APK; "Sobre o app" mostra versão interna (web) × versão do APK e o
-  estado honesto: "nova versão web disponível", "seu APK está desatualizado para
-  a versão X" (com link do APK), ou "tudo em dia".
+- **G8a (web, sem dep nativa) — FEITO (0.48.0)**: manifesto `public/version.json`
+  no Pages (`version`, `requiredNativeVersion`, `apkUrl`, `notes`). Domínio puro
+  `domain/version/version-check.ts` (`compareSemver`, `evaluateVersionStatus` →
+  up_to_date / web_update_available / apk_outdated / unknown) + 14 testes.
+  Boundary `utils/app-update.ts` (`App.getInfo()` lê o APK; fetch absoluto do
+  manifesto). "Sobre o app" mostra versão interna (web) × versão do APK; "Buscar
+  atualização" no nativo responde honesto (novidade web / APK desatualizado com
+  link / em dia); no PWA segue o fluxo do service worker.
 - **G8b (native → APK)**: instalar `@capgo/capacitor-updater`; no boot/`atBackground`
   buscar o manifesto, baixar o `dist.zip` e trocar o bundle (offline-first
   preservado, com rollback). Gate por `requiredNativeVersion`: se o APK for mais
@@ -157,8 +163,20 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
 
 ## Pós-gates
 - Worker deploy (G5) `wrangler deploy` em `worker/`.
-- APK único cobrindo G6+G7 (+G8b) (`npm run build` → `npx cap sync` → `assembleDebug`).
+- APK único cobrindo G6(nativo)+G7 (+G8b) (`npm run build` → `npx cap sync` → `assembleDebug`).
 - Atualizar `project-status.md`, `decision-log.md` (novos DEC), `dev-log.md`.
+
+## ⚠️ Correção de topologia de deploy (descoberta na 0.48.0)
+- A branch de **produção** do projeto Cloudflare Pages é **`master`** (conectado
+  ao Git), servida no apex **`trippilot.pages.dev`**. Deploys via CLI usando
+  `--branch=main` caem como **Preview** (`main.trippilot.pages.dev`).
+- Resultado: o apex de produção tinha ficado CONGELADO em `trippilot-v35`
+  enquanto os builds reais (até v47) iam para o alias `main.` de Preview.
+- Corrigido: a 0.48.0 foi publicada com `--branch=master` → o apex agora serve
+  v48 + `/version.json`. O manifesto de versão (G8a) aponta para o apex.
+- Daqui pra frente: deploy de produção com `--branch=master` (ou dar push do
+  `master` local p/ o origin — local está 11 commits à frente — para o build do
+  Git bater com o apex).
 
 ## Anti-regressão (verificar a cada gate)
 - Insights = carrossel rotativo (DEC-091/077); ocasiões = carrossel; hero
