@@ -23,5 +23,6 @@ export {
   transactionsToCsvRows,
   rowsToCsv,
   downloadFile,
+  saveFile,
 } from './csv-export';
 export type { CsvExportContext } from './csv-export';

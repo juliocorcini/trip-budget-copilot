@@ -1,4 +1,4 @@
-import { registerPlugin } from '@capacitor/core';
+import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { isNativeApp } from './platform';
 
 /**
@@ -46,6 +46,11 @@ interface OutingNotifierPlugin {
   show(options: OutingNotifierState): Promise<void>;
   cancel(): Promise<void>;
   drainQueue(): Promise<{ items: OutingQuickAddItem[] }>;
+  /** FIELD item 10: fired natively when a quick-add button is tapped live. */
+  addListener(
+    eventName: 'quickAdd',
+    listener: (data: { amountCents: number }) => void,
+  ): Promise<PluginListenerHandle>;
 }
 
 const OutingNotifier = registerPlugin<OutingNotifierPlugin>('OutingNotifier');
@@ -81,5 +86,22 @@ export async function drainOutingQuickAdds(): Promise<OutingQuickAddItem[]> {
     return Array.isArray(items) ? items : [];
   } catch {
     return [];
+  }
+}
+
+/**
+ * FIELD item 10: subscribe to live quick-add taps (button pressed while the app
+ * is open). The native side queues the tap regardless; this event just lets the
+ * foreground app drain + refresh immediately instead of waiting for a resume.
+ * No-op on the web.
+ */
+export async function addOutingQuickAddListener(
+  onTap: () => void,
+): Promise<PluginListenerHandle | null> {
+  if (!isNativeApp()) return null;
+  try {
+    return await OutingNotifier.addListener('quickAdd', onTap);
+  } catch {
+    return null;
   }
 }

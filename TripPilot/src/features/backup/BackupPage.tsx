@@ -10,6 +10,7 @@ import {
   transactionsToCsvRows,
   rowsToCsv,
   downloadFile,
+  saveFile,
 } from '@/domain/backup';
 import { buildTripReport, renderTripReportHtml } from '@/domain/sharing';
 import type { TripReportLabels } from '@/domain/sharing';
@@ -167,6 +168,28 @@ export function BackupPage() {
       await reload();
     } catch (err) {
       console.error('[backup] JSON export failed:', err);
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // FIELD item 7: "salvar o backup no aparelho" — write the JSON straight to the
+  // device Documents folder (native) instead of opening the share sheet. On the
+  // web this falls back to a normal download. Still records lastBackupDate so the
+  // dashboard reminder treats it as a real backup.
+  const handleSaveToDevice = async () => {
+    if (!settings || busy) return;
+    setBusy(true);
+    try {
+      const data = await buildFullBackup(settings);
+      const json = JSON.stringify(data, null, 2);
+      const uri = await saveFile(json, generateBackupFilename(), 'application/json');
+      await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
+      await reload();
+      showToast(uri ? t('backup.save_device_done') : t('backup.save_device_web'), 'success');
+    } catch (err) {
+      console.error('[backup] save to device failed:', err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);
@@ -332,12 +355,22 @@ export function BackupPage() {
       )}
 
       {/* M17: send the full backup to Drive/Files/email via the OS share sheet
-          (Web Share API), falling back to a file download where unsupported. */}
+          (Web Share API on web, native Share plugin in the APK — FIELD item 6). */}
       <button onClick={handleExport} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40" data-help-anchor="backup-export">
         <Icon name="ios_share" size={24} className="text-primary" />
         <div>
           <p className="text-sm font-medium text-on-surface">{t('backup.send_backup')}</p>
           <p className="text-xs text-on-surface-faint">{t('backup.send_backup_desc')}</p>
+        </div>
+      </button>
+
+      {/* FIELD item 7: save the backup straight to the device (Documents folder
+          on native; Downloads on web) without going through the share sheet. */}
+      <button onClick={handleSaveToDevice} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40">
+        <Icon name="save" size={24} className="text-primary" />
+        <div>
+          <p className="text-sm font-medium text-on-surface">{t('backup.save_device')}</p>
+          <p className="text-xs text-on-surface-faint">{t('backup.save_device_desc')}</p>
         </div>
       </button>
 

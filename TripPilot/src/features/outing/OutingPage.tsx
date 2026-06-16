@@ -2202,7 +2202,16 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         // grid below the fold — forcing a scroll even with empty space mid-page.
         // Fitting to the *remaining* dynamic viewport keeps header → quick-add on
         // one screen; the flex spacer absorbs only the genuine leftover.
-        minHeight: 'calc(100dvh - var(--safe-top))',
+        //
+        // FIELD item 11: on native, `.cap-native #root` is painted with
+        // `zoom: var(--native-zoom)` (1.06), which scales this box AND the
+        // ancestor safe-top padding by Z. With a plain `100dvh - safe-top` the
+        // painted total became `100dvh × Z` → 6% taller than the screen, so the
+        // "fit one screen" page overflowed and rubber-banded ("samba") on drag
+        // until a later reflow settled it. Dividing the viewport height by the
+        // zoom makes the painted height land exactly on the viewport again
+        // (web/PWA: --native-zoom is unset → fallback 1 → unchanged).
+        minHeight: 'calc(100dvh / var(--native-zoom, 1) - var(--safe-top))',
       }}
     >
       {/* DEC-127: fullscreen Bar Mode overlay (portal, OLED black) */}

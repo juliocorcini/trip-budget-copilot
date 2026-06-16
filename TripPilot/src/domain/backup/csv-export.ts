@@ -8,6 +8,7 @@ import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import { fromCents, formatMoney } from '@/domain/money';
 import { localDayOf, localClockTime } from '@/domain/dates';
+import { isNativeApp } from '@/utils/native/platform';
 
 export interface CsvExportContext {
   transactions: Transaction[];
@@ -166,6 +167,15 @@ function escapeCsv(value: string): string {
 // the native share sheet on mobile; fall back to an anchor that opens a new
 // context and only revoke after the navigation had time to complete.
 export async function downloadFile(content: string, filename: string, mimeType: string): Promise<void> {
+  // FIELD item 6: inside the Capacitor APK neither `navigator.share({files})`
+  // nor `<a download>` opens the OS share sheet reliably, so "Enviar backup"
+  // appeared to do nothing. Route through the native Share plugin first; only
+  // fall back to the web path when not native or when the native write failed.
+  if (isNativeApp()) {
+    const { shareFileNative } = await import('@/utils/native/file-share');
+    if (await shareFileNative(content, filename, mimeType)) return;
+  }
+
   const blob = new Blob([content], { type: mimeType });
 
   if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
@@ -194,4 +204,25 @@ export async function downloadFile(content: string, filename: string, mimeType: 
   // Deferred revoke: browsers without `download` support need the blob URL
   // alive while the new tab/viewer loads it.
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/**
+ * FIELD item 7: "salvar o backup no aparelho". On native, writes the file to the
+ * Documents folder and returns its URI (a real, user-reachable file). On the web
+ * a Documents folder makes no sense, so it falls back to the normal download
+ * (which saves to the browser's Downloads) and returns null. Returns the saved
+ * URI on native success so the caller can confirm where it landed.
+ */
+export async function saveFile(
+  content: string,
+  filename: string,
+  mimeType: string,
+): Promise<string | null> {
+  if (isNativeApp()) {
+    const { saveFileToDevice } = await import('@/utils/native/file-share');
+    const uri = await saveFileToDevice(content, filename, mimeType);
+    if (uri) return uri;
+  }
+  await downloadFile(content, filename, mimeType);
+  return null;
 }

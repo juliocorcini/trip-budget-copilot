@@ -17,6 +17,7 @@ import { appSettingsRepository } from './data/repositories';
 import { recordCrash, describeError } from './utils/crash-log';
 import { initNativeShell } from './utils/native';
 import { registerMailboxSync } from './utils/mailbox-boot';
+import { registerLiveUpdate } from './utils/live-update-boot';
 import i18n from './i18n';
 import './styles/globals.css';
 
@@ -59,6 +60,11 @@ requestPersistentStorage();
 // regain connectivity or focus, so split notifications and backups arrive
 // without both phones being online at once.
 registerMailboxSync();
+
+// FIELD item 20 (G8b): on a native cold start, confirm the running OTA bundle is
+// healthy and pull a newer web bundle from Pages when one is published (no-op on
+// web/PWA — the service worker handles those).
+registerLiveUpdate();
 
 // GAP-014: restore the persisted language on boot (before most screens mount).
 appSettingsRepository.get().then((settings) => {

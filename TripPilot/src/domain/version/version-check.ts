@@ -18,6 +18,8 @@ export interface VersionManifest {
   requiredNativeVersion?: string;
   /** Where to download a fresh APK when the installed one is too old. */
   apkUrl?: string;
+  /** Where the OTA web bundle (dist.zip) for `version` lives — G8b live-update. */
+  bundleUrl?: string;
   /** Short human note about the release. */
   notes?: string;
 }
@@ -51,6 +53,8 @@ export interface VersionStatus {
   nativeVersion: string | null;
   /** APK download link, when the manifest declares one. */
   apkUrl: string | null;
+  /** OTA web-bundle (dist.zip) link, when the manifest declares one (G8b). */
+  bundleUrl: string | null;
 }
 
 /**
@@ -99,11 +103,13 @@ export function evaluateVersionStatus(input: AppVersionInput): VersionStatus {
       requiredNative: null,
       nativeVersion,
       apkUrl: null,
+      bundleUrl: null,
     };
   }
 
   const requiredNative = manifest.requiredNativeVersion ?? null;
   const apkUrl = manifest.apkUrl ?? null;
+  const bundleUrl = manifest.bundleUrl ?? null;
 
   if (!isNewerVersion(manifest.version, webVersion)) {
     return {
@@ -112,6 +118,7 @@ export function evaluateVersionStatus(input: AppVersionInput): VersionStatus {
       requiredNative,
       nativeVersion,
       apkUrl,
+      bundleUrl,
     };
   }
 
@@ -128,6 +135,7 @@ export function evaluateVersionStatus(input: AppVersionInput): VersionStatus {
     requiredNative,
     nativeVersion,
     apkUrl,
+    bundleUrl,
   };
 }
 
@@ -144,6 +152,9 @@ export function parseVersionManifest(raw: unknown): VersionManifest | null {
   }
   if (typeof candidate.apkUrl === 'string') {
     manifest.apkUrl = candidate.apkUrl.trim();
+  }
+  if (typeof candidate.bundleUrl === 'string') {
+    manifest.bundleUrl = candidate.bundleUrl.trim();
   }
   if (typeof candidate.notes === 'string') {
     manifest.notes = candidate.notes;

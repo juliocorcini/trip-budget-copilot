@@ -24,5 +24,9 @@ public class OutingActionReceiver extends BroadcastReceiver {
         Context ctx = context.getApplicationContext();
         OutingNotificationPlugin.enqueue(ctx, amount);
         OutingNotificationPlugin.postNotification(ctx);
+        // FIELD item 10: if the app is open, push the tap to JS now so the active
+        // outing screen updates immediately (otherwise it only refreshed on the
+        // next resume). No-op when the WebView is not alive.
+        OutingNotificationPlugin.notifyQuickAdd(amount);
     }
 }

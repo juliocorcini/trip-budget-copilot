@@ -831,6 +831,7 @@
     "check_update": "Check for update",
     "checking_update": "Checking…",
     "update_web_available": "New version {{version}} available. It will download over the internet.",
+    "update_web_applying": "Downloading version {{version}} over the internet… the app will reload.",
     "update_apk_outdated": "There's a new version ({{version}}), but your installed app is outdated. Tap to download the new APK."
   },
   "lock": {
@@ -860,6 +861,10 @@
     "export_json": "Export JSON backup",
     "send_backup": "Send backup",
     "send_backup_desc": "To Drive, Files or email — or save the file.",
+    "save_device": "Save to device",
+    "save_device_desc": "Writes the backup straight to Documents, without the share sheet.",
+    "save_device_done": "Backup saved to the device's Documents.",
+    "save_device_web": "Backup downloaded.",
     "export_html": "Export summary (HTML)",
     "export_html_desc": "A trip infographic that opens offline in any browser.",
     "reminder_due": "It's been a while since your last backup. Send one now?",

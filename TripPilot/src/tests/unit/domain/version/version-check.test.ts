@@ -43,12 +43,14 @@ describe('parseVersionManifest', () => {
       version: ' 0.48.0 ',
       requiredNativeVersion: ' 0.40.0 ',
       apkUrl: ' https://x/app.apk ',
+      bundleUrl: ' https://x/bundles/0.48.0.zip ',
       notes: 'hi',
     });
     expect(parsed).toEqual({
       version: '0.48.0',
       requiredNativeVersion: '0.40.0',
       apkUrl: 'https://x/app.apk',
+      bundleUrl: 'https://x/bundles/0.48.0.zip',
       notes: 'hi',
     });
   });
@@ -71,6 +73,7 @@ describe('evaluateVersionStatus', () => {
     version: '0.48.0',
     requiredNativeVersion: '0.45.0',
     apkUrl: 'https://x/app.apk',
+    bundleUrl: 'https://x/bundles/0.48.0.zip',
   };
 
   it('returns unknown when the manifest is missing', () => {
@@ -94,9 +97,10 @@ describe('evaluateVersionStatus', () => {
     expect(status.latestWeb).toBe('0.48.0');
   });
 
-  it('allows the OTA update when the APK is recent enough', () => {
+  it('allows the OTA update when the APK is recent enough (and carries the bundle url)', () => {
     const status = evaluateVersionStatus({ webVersion: '0.47.0', nativeVersion: '0.46.0', manifest });
     expect(status.kind).toBe('web_update_available');
+    expect(status.bundleUrl).toBe('https://x/bundles/0.48.0.zip');
   });
 
   it('flags the APK as outdated when it predates the required native version', () => {
@@ -104,6 +108,7 @@ describe('evaluateVersionStatus', () => {
     expect(status.kind).toBe('apk_outdated');
     expect(status.requiredNative).toBe('0.45.0');
     expect(status.apkUrl).toBe('https://x/app.apk');
+    expect(status.bundleUrl).toBe('https://x/bundles/0.48.0.zip');
   });
 
   it('cannot gate on the APK when the manifest omits the required native version', () => {

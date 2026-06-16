@@ -831,6 +831,7 @@
     "check_update": "Buscar atualização",
     "checking_update": "Verificando…",
     "update_web_available": "Nova versão {{version}} disponível. Será baixada pela internet.",
+    "update_web_applying": "Baixando a versão {{version}} pela internet… o app vai recarregar.",
     "update_apk_outdated": "Há uma nova versão ({{version}}), mas seu app instalado está desatualizado. Toque para baixar o novo APK."
   },
   "lock": {
@@ -860,6 +861,10 @@
     "export_json": "Exportar backup JSON",
     "send_backup": "Enviar backup",
     "send_backup_desc": "Pro Drive, Files ou e-mail — ou salva o arquivo.",
+    "save_device": "Salvar no aparelho",
+    "save_device_desc": "Grava o backup direto nos Documentos, sem abrir o menu de compartilhar.",
+    "save_device_done": "Backup salvo nos Documentos do aparelho.",
+    "save_device_web": "Backup baixado.",
     "export_html": "Exportar resumo (HTML)",
     "export_html_desc": "Um infográfico da viagem que abre offline em qualquer navegador.",
     "reminder_due": "Faz tempo que você não envia um backup. Que tal agora?",

@@ -1,6 +1,7 @@
 {
-  "version": "0.48.0",
-  "requiredNativeVersion": "0.40.0",
+  "version": "0.49.0",
+  "requiredNativeVersion": "0.49.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "notes": "Zerar o app, consciência de versão e correções da saída ativa."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.49.0.zip",
+  "notes": "Enviar/salvar backup nativo, saída ativa sem zoom e com valor na hora, e atualização pela internet (live-update)."
 }

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.49.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Enviar e salvar backup no Android: "Enviar backup" agora abre mesmo o menu de compartilhar do celular, e há um novo "Salvar no aparelho" que grava o arquivo direto na pasta Documentos.',
+        'Saída ativa sem zoom: a tela não abre mais "ampliada" nem fica tremendo ao arrastar; e o valor adicionado pelo botão da notificação aparece na hora na saída ativa, sem precisar reabrir.',
+        'Atualização pela internet: o app instalado passa a receber as melhorias só-da-web sem reinstalar — ao abrir, ele busca a versão nova e se atualiza sozinho. Quando uma mudança exige um novo APK, ele avisa com o link.',
+      ],
+      en: [
+        'Send and save backup on Android: "Send backup" now actually opens the phone\'s share sheet, and a new "Save to device" writes the file straight to the Documents folder.',
+        'Active outing without zoom: the screen no longer opens "zoomed in" or shakes while you drag; and the amount added from the notification button shows up on the active outing right away, no reopening needed.',
+        'Over-the-internet updates: the installed app now receives web-only improvements without reinstalling — on open it fetches the new version and updates itself. When a change needs a new APK, it tells you with a link.',
+      ],
+      es: [
+        'Enviar y guardar copia en Android: "Enviar copia" ahora sí abre el menú de compartir del teléfono, y un nuevo "Guardar en el dispositivo" escribe el archivo directo en la carpeta Documentos.',
+        'Salida activa sin zoom: la pantalla ya no abre "ampliada" ni tiembla al arrastrar; y el importe añadido desde el botón de la notificación aparece al instante en la salida activa, sin reabrir.',
+        'Actualización por internet: la app instalada ahora recibe las mejoras solo-web sin reinstalar — al abrir, busca la nueva versión y se actualiza sola. Cuando un cambio necesita un nuevo APK, te avisa con el enlace.',
+      ],
+    },
+  },
+  {
     version: '0.48.0',
     date: '2026-06-16',
     items: {

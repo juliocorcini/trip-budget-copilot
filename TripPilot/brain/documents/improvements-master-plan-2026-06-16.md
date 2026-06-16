@@ -121,24 +121,28 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
   no canal ao vivo); pares pareados antes da 0.47.0 precisam re-compartilhar o QR
   uma vez para capturar a chave pública.
 
-### G6 — Backup enviar/salvar + zerar [web + native → APK]
+### G6 — Backup enviar/salvar + zerar [web + native → APK] — **FEITO (0.48.0 web + 0.49.0 nativo)**
 - **Zerar app — FEITO (0.48.0, fatia web)**: em Ajustes › Dados e segurança —
   sempre exporta um backup JSON primeiro; "manter estrutura" também grava um
   restore point. Duas opções: "apagar tudo (→onboarding)" OU "manter estrutura e
   limpar lançamentos", com digitar-p/-confirmar. Orquestradores puros
   `resetKeepStructure`/`resetWipeAll` (1 transação Dexie) + 3 testes.
-- **Enviar/salvar nativo — no lote do APK**: instalar `@capacitor/share` +
-  `@capacitor/filesystem`. `downloadFile`/novo util: nativo escreve em Cache +
-  Share (abre menu do celular); botão "Salvar no aparelho" → `Directory.Documents`.
-  Web mantém share/download.
+- **Enviar/salvar nativo — FEITO (0.49.0, APK)**: `@capacitor/share` +
+  `@capacitor/filesystem` instalados. Fronteira `utils/native/file-share.ts`:
+  `shareFileNative` (escreve em Cache + abre o menu do celular) e
+  `saveFileToDevice` (`Directory.Documents`). `downloadFile` roteia pelo share
+  nativo primeiro (fallback web); novo `saveFile` + botão "Salvar no aparelho".
 - AC: enviar abre o menu nativo; salvar grava arquivo; zerar faz backup antes e
-  executa a opção escolhida atomicamente.
+  executa a opção escolhida atomicamente. (Enviar/salvar = `[device]`.)
 
-### G7 — Saída ativa [native → APK]
+### G7 — Saída ativa [native → APK] — **FEITO (0.49.0)**
 - Valor do botão da notificação chega na tela ativa: ponte nativa drena +
-  dispara evento imediatamente (não só no resume).
-- Zoom/sambando: corrigir overflow/viewport na OutingPage (provável interação com
-  `#root { zoom }`); travar largura ao viewport.
+  dispara evento imediatamente (não só no resume). FEITO: `OutingNotificationPlugin`
+  emite evento `quickAdd` (static `liveInstance` + `notifyQuickAdd`),
+  `OutingActionReceiver` dispara no tap, JS reconcilia na hora.
+- Zoom/sambando: corrigir overflow/viewport na OutingPage (interação com
+  `#root { zoom }`). FEITO: `minHeight` agora `calc(100dvh / var(--native-zoom,1)
+  - var(--safe-top))` (pré-divide pela mesma escala; web = 1 → sem efeito).
 - AC `[device]`: tap na notif reflete na tela na hora; tela cheia sem zoom/folga.
 
 ### G8 — Atualização OTA + consciência de versão (item 20) [web + native → APK]
@@ -152,19 +156,37 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
   manifesto). "Sobre o app" mostra versão interna (web) × versão do APK; "Buscar
   atualização" no nativo responde honesto (novidade web / APK desatualizado com
   link / em dia); no PWA segue o fluxo do service worker.
-- **G8b (native → APK)**: instalar `@capgo/capacitor-updater`; no boot/`atBackground`
-  buscar o manifesto, baixar o `dist.zip` e trocar o bundle (offline-first
-  preservado, com rollback). Gate por `requiredNativeVersion`: se o APK for mais
-  antigo que o exigido pelo bundle novo, NÃO troca às cegas — avisa para baixar o
-  APK. Build step para gerar/publicar o zip + manifesto a cada release web.
+- **G8b (native → APK) — FEITO (0.49.0)**: `@capgo/capacitor-updater@8.49.3`
+  instalado; `capacitor.config.ts` → `CapacitorUpdater { autoUpdate:false,
+  resetWhenUpdate:true }` (self-hosted/manual; nunca fala com a nuvem do Capgo).
+  Fronteira `utils/native/live-update.ts` (tudo guardado por `isNativeApp()` e
+  import dinâmico): `notifyLiveUpdateReady` (commita o bundle → sem rollback),
+  `downloadAndApplyBundle` (pula se já está na versão → download → set/reload).
+  Boot `utils/live-update-boot.ts` (cold start): confirma o bundle e, em
+  `web_update_available` + `bundleUrl`, baixa o zip e troca. `apk_outdated`
+  fica silencioso no boot (Configurações explica + link do APK). Manifesto
+  `version.json` ganhou `bundleUrl`; script `scripts/make-ota-bundle.mjs` gera o
+  zip a cada release.
 - AC: release só-web chega no APK pela internet sem reinstalar; ao precisar de
-  nativo, o app avisa "APK desatualizado (interno 45, APK exige 45, você tem 40)";
-  rollback se o bundle quebrar; PWA do navegador segue igual.
+  nativo, o app avisa "APK desatualizado" com link; cold-start only (sem reload
+  no meio da sessão); PWA do navegador segue igual. (Download/troca = `[device]`.)
 
 ## Pós-gates
-- Worker deploy (G5) `wrangler deploy` em `worker/`.
-- APK único cobrindo G6(nativo)+G7 (+G8b) (`npm run build` → `npx cap sync` → `assembleDebug`).
-- Atualizar `project-status.md`, `decision-log.md` (novos DEC), `dev-log.md`.
+- Worker deploy (G5) `wrangler deploy` em `worker/` — FEITO (0.47.0).
+- **APK único cobrindo G6(nativo)+G7+G8b — FEITO (0.49.0)**: `npm run build` →
+  `npx cap sync android` (8 plugins) → `assembleDebug` SUCCESSFUL (versionCode
+  15). Publicado: `dist/version.json` (0.49.0, `bundleUrl`, `requiredNativeVersion`
+  0.49.0), `dist/bundles/0.49.0.zip` (OTA), `dist/trippilot.apk` (8.2 MB).
+- Atualizar `project-status.md`, `decision-log.md` (novos DEC), `dev-log.md` — FEITO.
+
+## Próxima release só-web (sem APK novo)
+1. bump versão (`package.json`, `app-version.ts`, `sw.js` cache, `release-notes.ts`)
+2. atualizar `public/version.json` (`version`; manter `requiredNativeVersion` em
+   0.49.0 se não mexer no nativo; novo `bundleUrl`)
+3. `npm run build` → `npx cap sync android` → `node scripts/make-ota-bundle.mjs`
+4. deploy `wrangler pages deploy dist --branch=master` (apex). Os APKs ≥0.49.0
+   pegam o bundle novo ao abrir; só gera APK de novo quando mexer em nativo
+   (aí sobe `requiredNativeVersion` + versionCode).
 
 ## ⚠️ Correção de topologia de deploy (descoberta na 0.48.0)
 - A branch de **produção** do projeto Cloudflare Pages é **`master`** (conectado

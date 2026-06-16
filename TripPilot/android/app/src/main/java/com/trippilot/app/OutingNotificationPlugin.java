@@ -67,6 +67,44 @@ public class OutingNotificationPlugin extends Plugin {
 
     private static final String DEFAULT_ACCENT = "#C75B39";
 
+    // FIELD item 10: a weak handle to the live plugin instance (set while the
+    // WebView is attached) so a quick-add tap received by the background
+    // receiver can be pushed to JS immediately when the app is open — not only
+    // drained on the next resume. Null when the process was started just to
+    // deliver the broadcast (no WebView), in which case the queue + resume drain
+    // still covers it.
+    private static OutingNotificationPlugin liveInstance;
+
+    @Override
+    public void load() {
+        liveInstance = this;
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (liveInstance == this) {
+            liveInstance = null;
+        }
+    }
+
+    /**
+     * FIELD item 10: if the WebView is alive, emit a {@code quickAdd} event so the
+     * open active-outing screen reconciles and re-renders right away. No-op when
+     * there is no live instance (the resume drain handles that case).
+     */
+    static void notifyQuickAdd(long amountCents) {
+        OutingNotificationPlugin plugin = liveInstance;
+        if (plugin == null) return;
+        try {
+            JSObject data = new JSObject();
+            data.put("amountCents", amountCents);
+            plugin.notifyListeners("quickAdd", data);
+        } catch (Exception ignored) {
+            // Event delivery is best-effort — the queue + resume drain is the
+            // source of truth, so a failed notify never loses the tap.
+        }
+    }
+
     @PluginMethod
     public void isSupported(PluginCall call) {
         JSObject ret = new JSObject();

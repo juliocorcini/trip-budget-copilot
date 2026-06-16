@@ -22,6 +22,7 @@ import {
   showOutingNotifier,
   cancelOutingNotifier,
   drainOutingQuickAdds,
+  addOutingQuickAddListener,
 } from '@/utils/native/outing-notifier';
 import {
   isLiveOutingSupported,
@@ -351,6 +352,12 @@ export function registerOutingNotificationBridge(): void {
   // visibility changes below). The drain is atomic, so double calls are safe.
   if (isNativeApp()) {
     void reconcileOutingQuickAdds();
+    // FIELD item 10: reconcile the instant a notification button is tapped while
+    // the app is open (the native event), so the active-outing screen reflects
+    // the value immediately instead of only on the next resume.
+    void addOutingQuickAddListener(() => {
+      void reconcileOutingQuickAdds();
+    });
     void import('@capacitor/app')
       .then(({ App }) => {
         void App.addListener('appStateChange', ({ isActive }) => {

@@ -34,6 +34,7 @@ import {
 } from '@/utils/outing-notification';
 import { checkForAppUpdate } from '@/utils/pwa';
 import { resolveAppVersionStatus, getNativeAppVersion } from '@/utils/app-update';
+import { downloadAndApplyBundle } from '@/utils/native/live-update';
 import { getCurrentCoords, ensureLocationPermission } from '@/utils/geolocation';
 import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
@@ -209,11 +210,12 @@ export function SettingsPage() {
     await updateSetting({ language: lang });
   };
 
-  // DEC-135 + FIELD item 20 (G8a): "look for a new version".
+  // DEC-135 + FIELD item 20 (G8a/G8b): "look for a new version".
   // - PWA/browser: force the service worker to fetch the latest (unchanged).
   // - Native APK: the SW path is a no-op (assets are bundled), so instead ask
-  //   the published manifest and answer honestly — up to date, a web update is
-  //   available (OTA-eligible), or the installed APK is too old to run it.
+  //   the published manifest and answer honestly — and, when a newer web bundle
+  //   is OTA-eligible, pull it over the air and swap it in (G8b live-update). If
+  //   the installed APK is too old, point the traveler at a fresh APK instead.
   const handleCheckUpdateNative = async () => {
     const status = await resolveAppVersionStatus();
     if (status.kind === 'apk_outdated') {
@@ -224,7 +226,14 @@ export function SettingsPage() {
           : {}),
       });
     } else if (status.kind === 'web_update_available') {
-      showToast(t('settings.update_web_available', { version: status.latestWeb }), 'success');
+      if (status.bundleUrl) {
+        // OTA path: download + apply now (set() reloads into the new bundle).
+        showToast(t('settings.update_web_applying', { version: status.latestWeb }), 'info');
+        const applied = await downloadAndApplyBundle(status.bundleUrl, status.latestWeb);
+        if (!applied) showToast(t('pwa.update_check_failed'), 'danger');
+      } else {
+        showToast(t('settings.update_web_available', { version: status.latestWeb }), 'success');
+      }
     } else if (status.kind === 'up_to_date') {
       showToast(t('pwa.up_to_date'), 'info');
     } else {
