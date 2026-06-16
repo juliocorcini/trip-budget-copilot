@@ -53,6 +53,7 @@ const FTS_LABEL_KEYS: Record<Exclude<FtsBreakdownKey, 'free' | 'deficit'>, strin
   future_floor: 'dashboard.fts_future_floor',
   event_reserves: 'dashboard.fts_event_reserves',
   planned_purchases: 'dashboard.fts_planned_purchases',
+  plan: 'dashboard.fts_plan',
 };
 
 // BUG-008: the Dashboard's four bottom sheets, lifted out of the page. They read
@@ -199,7 +200,7 @@ export function DashboardSheets({
         {model.fts && (
           <div className="flex flex-col gap-1">
             <p className="text-xs text-on-surface-dim mb-2">{t('dashboard.hero_breakdown_intro')}</p>
-            {buildFreeToSpendBreakdown(model.fts).map((line) => {
+            {buildFreeToSpendBreakdown(model.fts, model.trueFree?.planReservedCents ?? 0).map((line) => {
               if (line.kind === 'total') {
                 return (
                   <div

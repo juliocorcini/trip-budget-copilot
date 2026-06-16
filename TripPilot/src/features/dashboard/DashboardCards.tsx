@@ -128,14 +128,14 @@ export function DashboardCards({
   // Council ("money responds"): the hero free-to-spend tweens to its new value
   // after any change, so the budget visibly reacts to what you just did. This
   // only animates how an already-correct number (ÂNCORA 12) is displayed.
-  const heroTargetCents = model.fts?.freeToSpendCents ?? 0;
-  const heroSeedRef = useRef<number | null>(model.fts ? readHeroPrevCents() : null);
+  const heroTargetCents = model.trueFree?.trueFreeCents ?? 0;
+  const heroSeedRef = useRef<number | null>(model.trueFree ? readHeroPrevCents() : null);
   const animatedHeroCents = useCountUp(heroTargetCents, !reducedMotion, heroSeedRef.current);
   useEffect(() => {
-    if (model.fts) writeHeroPrevCents(heroTargetCents);
-  }, [heroTargetCents, model.fts]);
+    if (model.trueFree) writeHeroPrevCents(heroTargetCents);
+  }, [heroTargetCents, model.trueFree]);
   const animatedHero =
-    model.fts && model.heroMoney
+    model.trueFree && model.heroMoney
       ? splitMoneyDisplay(animatedHeroCents, trip.baseCurrency)
       : null;
 
@@ -171,6 +171,18 @@ export function DashboardCards({
   const activeFocusCardId = focusAvailable ? lens!.focusCardId : null;
   // Night projection: rounds the night reserve buys at the traveler's own price.
   const avgRoundCents = deriveAvgRoundCents(model.profiles);
+
+  // FIELD-17: the check-in reframes the prominent "free today" number itself
+  // (calm trims it, night reserves part, no-spend zeroes it) instead of only
+  // suggesting on its own card. Read-only projection (ÂNCORA 12): the hero
+  // "truly free" and the budget never move; only today's framing changes. An
+  // already-over day (base ≤ 0) keeps its real negative — no mode hides it.
+  const baseFreeTodayCents = model.todayBudget?.freeTodayCents ?? 0;
+  const checkInTodayPlan =
+    effectiveCheckInIntent && model.todayBudget && baseFreeTodayCents > 0
+      ? planCheckInDay(effectiveCheckInIntent, baseFreeTodayCents)
+      : null;
+  const displayFreeTodayCents = checkInTodayPlan ? checkInTodayPlan.primaryCents : baseFreeTodayCents;
   const handleCheckInTap = (intent: CheckInIntent) => {
     // Council ("sensed result"): a soft tap so choosing a mode is FELT, not just
     // seen — native-aware boundary, gated by the user's vibration setting (N8).
@@ -312,36 +324,18 @@ export function DashboardCards({
                     className="checkin-reveal mt-3 pt-3"
                     style={{ borderTop: '1px solid var(--border-faint)' }}
                   >
-                    {/* K1: surface the mode's numbers as real stats so the choice
-                        is FELT — the headline figure changes per mode, and the
-                        complement (slack / before-night) makes the split legible.
-                        Still read-only (ÂNCORA 12): the hero free-today is fixed. */}
-                    <div className="flex items-stretch gap-2">
-                      <div className="flex-1 rounded-xl px-3 py-2 bg-primary/10">
-                        <p className="text-[9px] font-bold tracking-[0.08em] uppercase text-primary/80 flex items-center gap-1">
-                          <Icon name={plan.icon} size={12} className="text-primary" />
-                          {t(plan.primaryLabelKey as never)}
-                        </p>
-                        <p className="text-[19px] font-extrabold tracking-tight leading-none mt-1 tabular text-on-surface">
-                          {formatMoney(plan.primaryCents, trip.baseCurrency)}
-                        </p>
-                      </div>
-                      {plan.secondaryCents !== null && plan.secondaryLabelKey && (
-                        <div className="flex-1 rounded-xl px-3 py-2 bg-surface-high">
-                          <p className="text-[9px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
-                            {t(plan.secondaryLabelKey as never)}
-                          </p>
-                          <p className="text-[19px] font-extrabold tracking-tight leading-none mt-1 tabular text-on-surface-dim">
-                            {formatMoney(plan.secondaryCents, trip.baseCurrency)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-[11px] leading-snug text-on-surface-dim mt-2">
-                      {t(plan.messageKey as never, {
-                        primary: formatMoney(plan.primaryCents, trip.baseCurrency),
-                        secondary: formatMoney(plan.secondaryCents ?? 0, trip.baseCurrency),
-                      })}
+                    {/* FIELD-17: compact result. The mode's numbers now live on the
+                        hero ("free today" + its complement), so the card keeps only
+                        a one-line summary plus the redistribute/lens payoff — no more
+                        tall stat boxes. Read-only framing (ÂNCORA 12). */}
+                    <p className="text-[11px] leading-snug text-on-surface-dim flex items-start gap-1">
+                      <Icon name={plan.icon} size={13} className="text-primary shrink-0 mt-px" />
+                      <span>
+                        {t(plan.messageKey as never, {
+                          primary: formatMoney(plan.primaryCents, trip.baseCurrency),
+                          secondary: formatMoney(plan.secondaryCents ?? 0, trip.baseCurrency),
+                        })}
+                      </span>
                     </p>
                     {/* G5 "real effect" (read-only — ÂNCORA 12): the money saved
                         by a calm / no-spend day doesn't vanish — it lifts every day
@@ -519,7 +513,7 @@ export function DashboardCards({
         return (
           <>
             {/* §7 pos. 5 — HERO CARD (DEC-168: tappable → "where this number comes from") */}
-            {model.fts && model.heroMoney && (
+            {model.fts && model.trueFree && model.heroMoney && (
               <button
                 type="button"
                 onClick={onOpenHeroBreakdown}
@@ -543,11 +537,21 @@ export function DashboardCards({
                     {(animatedHero ?? model.heroMoney).decimal}
                   </span>
                 </p>
+                {/* FIELD-18: the truly-free hero, explained — the phase total and the
+                    part already earmarked in the plan (trueFree + plan = na fase). */}
+                {model.trueFree.planReservedCents > 0 && (
+                  <p className="text-[11px] font-semibold mt-1 text-on-surface-faint">
+                    {t('dashboard.hero_phase_total', {
+                      total: formatMoney(model.trueFree.phaseFreeCents, trip.baseCurrency),
+                      plan: formatMoney(model.trueFree.planReservedCents, trip.baseCurrency),
+                    })}
+                  </p>
+                )}
                 {model.todayBudget && model.todayBudget.todayAllowanceCents > 0 && (
                   <>
                     <p
                       className={`text-xs font-bold mt-1.5 ${
-                        model.todayBudget.freeTodayCents < 0
+                        baseFreeTodayCents < 0
                           ? 'text-error'
                           : model.todayBudget.isPeakDay
                             ? 'text-warning'
@@ -556,28 +560,41 @@ export function DashboardCards({
                     >
                       {model.todayBudget.isPeakDay
                         ? t('dashboard.peak_day_free', {
-                            amount: formatMoney(model.todayBudget.freeTodayCents, trip.baseCurrency),
+                            amount: formatMoney(displayFreeTodayCents, trip.baseCurrency),
                           })
                         : t('dashboard.free_per_day', {
-                            amount: formatMoney(model.todayBudget.freeTodayCents, trip.baseCurrency),
+                            amount: formatMoney(displayFreeTodayCents, trip.baseCurrency),
                           })}
                     </p>
+                    {/* FIELD-17: when a check-in reframes today, show the complement
+                        (saved for later / reserved for the night) so the smaller
+                        number is legible — the difference is FELT, not confusing. */}
+                    {checkInTodayPlan &&
+                      checkInTodayPlan.secondaryCents !== null &&
+                      checkInTodayPlan.secondaryCents > 0 &&
+                      checkInTodayPlan.secondaryLabelKey && (
+                        <p className="text-[11px] font-semibold mt-0.5 text-primary">
+                          {t(checkInTodayPlan.secondaryLabelKey as never)}:{' '}
+                          {formatMoney(checkInTodayPlan.secondaryCents, trip.baseCurrency)}
+                        </p>
+                      )}
                     {/* DEC-088: the recalculated average is a secondary metric — but
                         when it lands within ~€0.50 of today's free amount it just
                         repeats the line above (two identical numbers confuse), so
-                        only surface it when it actually says something different. */}
-                    {Math.abs(
-                      model.todayBudget.avgDailyUntilEndCents - model.todayBudget.freeTodayCents,
-                    ) > 50 && (
-                      <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
-                        {t('dashboard.avg_daily_until_end', {
-                          amount: formatMoney(
-                            model.todayBudget.avgDailyUntilEndCents,
-                            trip.baseCurrency,
-                          ),
-                        })}
-                      </p>
-                    )}
+                        only surface it when it differs AND no check-in reframes today. */}
+                    {!checkInTodayPlan &&
+                      Math.abs(
+                        model.todayBudget.avgDailyUntilEndCents - model.todayBudget.freeTodayCents,
+                      ) > 50 && (
+                        <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
+                          {t('dashboard.avg_daily_until_end', {
+                            amount: formatMoney(
+                              model.todayBudget.avgDailyUntilEndCents,
+                              trip.baseCurrency,
+                            ),
+                          })}
+                        </p>
+                      )}
                   </>
                 )}
                 <div
@@ -613,6 +630,18 @@ export function DashboardCards({
                       </span>
                       <span className="text-xs font-bold tabular" style={{ color: 'var(--primary-dim)' }}>
                         {formatMoney(model.fts.eventReservesCents, trip.baseCurrency)}
+                      </span>
+                    </div>
+                  )}
+                  {/* FIELD-18: the scenario plan still reserved ahead — the term
+                      that turns "na fase" into "truly free". */}
+                  {model.trueFree.planReservedCents > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-xs font-semibold text-on-surface-dim">
+                        {t('dashboard.reserved_plan')}
+                      </span>
+                      <span className="text-xs font-bold tabular" style={{ color: 'var(--primary-dim)' }}>
+                        {formatMoney(model.trueFree.planReservedCents, trip.baseCurrency)}
                       </span>
                     </div>
                   )}
@@ -1013,20 +1042,39 @@ export function DashboardCards({
 
   const cardSequence = resolveDashboardCardSequence(settings.dashboardCardOrder);
 
+  // FIELD-09: the day's focus (chosen by the check-in lens) renders right under
+  // the check-in card, so what sits below it is the day's focus — not always the
+  // piggy bank. Only repositions a card that is already visible (ÂNCORA 9 —
+  // nothing is hidden or removed, just moved for the day).
+  let visibleSequence = cardSequence.filter(
+    (id) => !isDashboardCardHidden(id, settings.hiddenDashboardCards),
+  );
+  if (
+    activeFocusCardId &&
+    visibleSequence.includes(activeFocusCardId) &&
+    visibleSequence.includes('daily_checkin')
+  ) {
+    const withoutFocus = visibleSequence.filter((id) => id !== activeFocusCardId);
+    const checkInIdx = withoutFocus.indexOf('daily_checkin');
+    visibleSequence = [
+      ...withoutFocus.slice(0, checkInIdx + 1),
+      activeFocusCardId,
+      ...withoutFocus.slice(checkInIdx + 1),
+    ];
+  }
+
   // DEC-119 (R-10): configurable home screen — order + visibility.
   return (
     <>
-      {cardSequence
-        .filter((id) => !isDashboardCardHidden(id, settings.hiddenDashboardCards))
-        .map((id) =>
-          getDashboardCard(id).fixed ? (
-            <div key={id}>{renderDashboardCard(id)}</div>
-          ) : (
-            <div key={id} {...getCardLongPress(id)}>
-              {renderDashboardCard(id)}
-            </div>
-          ),
-        )}
+      {visibleSequence.map((id) =>
+        getDashboardCard(id).fixed ? (
+          <div key={id}>{renderDashboardCard(id)}</div>
+        ) : (
+          <div key={id} {...getCardLongPress(id)}>
+            {renderDashboardCard(id)}
+          </div>
+        ),
+      )}
     </>
   );
 }

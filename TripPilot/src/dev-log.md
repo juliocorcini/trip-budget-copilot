@@ -2,15 +2,22 @@
 
 ## Current State
 - **Active Delivery**: Field Feedback Round — plan `brain/documents/improvements-master-plan-2026-06-16.md` (18 items, 7 gates G1→G7, 0.41 → …)
-- **Active Milestone**: G1 (0.41.0) — global swipe w/ handoff + ScrollRestoration + compact recents — DONE
-- **Last Green Test Run**: G1 0.41.0 — 970 tests pass (111 files), tsc -b clean (+2 nav-tabs tests)
+- **Active Milestone**: G2 (0.42.0) — true free-to-spend + check-in real lens (compact) + focus under check-in — DONE
+- **Last Green Test Run**: G2 0.42.0 — 977 tests pass (112 files), tsc --noEmit clean (+7 true-free tests)
 - **Build Status**: clean (web build + type-check green; cap sync/APK deferred to native gates G6/G7)
 - **APK**: `Downloads/TripPilot-0.40.0-debug.apk` (versionCode 14) — no native change yet this round
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.41.0
-- **Next**: G2 — home numbers (true free-to-spend, check-in lens, focus card under check-in)
-- **Confidence**: 90% (G1 is web-only navigation/UX; pure-fn order locked by tests; carousels/chip rows immune via overflow-x + data-inpage-swipe).
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.42.0
+- **Next**: G3 — Wise import visible (top of Gastos) + transfer intelligence with split (debts/wallets)
+- **Confidence**: 88% (G2 reframes pure read-only numbers — trueFree/check-in are pure fns locked by tests; ÂNCORA 12 respected: budget never mutates, only the framing).
 
 ### Field Feedback Round — plan `improvements-master-plan-2026-06-16.md`
+
+#### G2 — Home numbers: truly-free + real check-in lens (0.42.0)
+Source: Julio field feedback items 18, 17, 9. The hero "livre na fase" (988) ignored the planner reserve (alocado 414 → margem 574); the check-in was a read-only suggestion that didn't visibly change "free today"; and the piggy bank always sat under the check-in even when it wasn't the day's focus.
+- [x] **Truly-free hero (item 18)**: new pure `calculateTrueFree(phaseFree, allocated, allocatedSpent)` in `domain/budget` subtracts only the *remaining* planner reserve (`allocated − allocatedSpent`, ≥0) so already-spent plan money isn't double-counted. `useDashboardModel` accumulates `allocatedCents`/`allocatedSpentCents` per planned profile (spent capped at planned) and exposes `model.trueFree`; hero number + today budget now derive from `trueFree.trueFreeCents`. Secondary line under the big number ("de €X na fase · €Y no plano") + a "Reservado p/ planejador" row in the hero mini-breakdown and in the tap-through sheet (`buildFreeToSpendBreakdown(fts, planReserved)` now reconciles to trueFree).
+- [x] **Check-in real lens, compact (item 17)**: the hero "livre hoje" is now reframed by the active mode via existing pure `planCheckInDay` (calm trims, night reserves part, no-spend → 0); the complement ("guardado"/"antes da noite") shows as a small primary line. Read-only (ÂNCORA 12): trueFree hero + budget never move, only today's framing; an already-over day (base ≤ 0) keeps its real negative. The check-in result card lost its two tall stat boxes — now a one-line summary + the redistribute/lens payoff.
+- [x] **Focus under check-in (item 9)**: `DashboardCards` reorders the *visible* sequence so the lens `focusCardId` (piggy bank / counters) renders right under `daily_checkin` — what sits below the check-in is the day's focus, not always the piggy bank. Pure reposition of an already-visible card (ÂNCORA 9: nothing hidden/removed).
+- [x] **Verify**: 977 tests pass (112 files; +7 `true-free` tests covering the 988→574 example, anti-double-count, zero-reserve, negative clamp), tsc --noEmit clean, web build green. No schema change, no new deps, no budget mutation. Deployed to Production (0.42.0).
 
 #### G1 — Navigation & continuity (0.41.0)
 Source: Julio field feedback items 1, 2, 12, 15. Swipe must work from the empty background and page between the bottom-nav tabs; sub-pages opened scrolled; recents too tall.

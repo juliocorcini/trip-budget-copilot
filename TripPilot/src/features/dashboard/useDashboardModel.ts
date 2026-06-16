@@ -9,6 +9,7 @@ import {
 } from '@/domain/dates';
 import {
   calculateFreeToSpend,
+  calculateTrueFree,
   createPoolSummary,
   calculateLastOutingSavings,
   buildHonestFriendV2,
@@ -273,7 +274,13 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       : [];
     // M4: per-category plan (planned occasions × typical value) vs real spend,
     // grouped by the profile's category — feeds the "category rhythm" builder.
+    // FIELD-18: the same loop accumulates the phase's scenario allocation
+    // (Σ planned, matching the Planner) and the real spend already made on those
+    // planned profiles (capped per profile so an overspend on one never offsets
+    // another's reserve) — the inputs for the hero's "truly free" number.
     const categoryRhythmMap = new Map<string, { plannedCents: number; spentCents: number }>();
+    let allocatedCents = 0;
+    let allocatedSpentCents = 0;
     for (const profile of profiles) {
       const forecast = forecasts.find((f) => f.profileId === profile.id);
       if (!forecast) continue;
@@ -283,6 +290,10 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           .filter((tx) => tx.activityProfileId === profile.id && tx.type === 'expense')
           .map((tx) => tx.personalCostCents ?? tx.amountCents),
       );
+      if (plannedCents > 0) {
+        allocatedCents += plannedCents;
+        allocatedSpentCents += Math.min(spentCents, plannedCents);
+      }
       if (plannedCents <= 0 && spentCents <= 0) continue;
       const prev = categoryRhythmMap.get(profile.category) ?? { plannedCents: 0, spentCents: 0 };
       categoryRhythmMap.set(profile.category, {
@@ -290,6 +301,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         spentCents: prev.spentCents + spentCents,
       });
     }
+    // FIELD-18: phaseFree (the old hero) minus the plan still reserved ahead.
+    const trueFree = fts ? calculateTrueFree(fts.freeToSpendCents, allocatedCents, allocatedSpentCents) : null;
     const categoryRhythm = [...categoryRhythmMap.entries()].map(([category, v]) => ({
       category,
       ...v,
@@ -380,14 +393,18 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         ? Math.round((fts.totalSpentCents / fts.totalBudgetCents) * 100)
         : 0;
 
-    const heroMoney = fts && trip ? splitMoneyDisplay(fts.freeToSpendCents, trip.baseCurrency) : null;
+    // FIELD-18: the hero shows the TRULY free amount (phase free − plan reserved
+    // ahead); the phase total stays visible as the secondary "na fase".
+    const heroMoney =
+      trueFree && trip ? splitMoneyDisplay(trueFree.trueFreeCents, trip.baseCurrency) : null;
 
-    // DEC-088 (R-06): subtractive "free to use today".
+    // DEC-088 (R-06): subtractive "free to use today" — now spread from the TRULY
+    // free amount, so the daily number excludes the plan the traveler already made.
     const primaryPoolTxs = primaryPool ? filterTransactionsByPool(transactions, primaryPool.id) : [];
     const todaySpentCents = primaryPool ? calculateSpentOnDate(primaryPoolTxs, todayIso) : 0;
     const todayBudget =
-      fts && activePhase
-        ? calculateTodayFreeBudget(fts.freeToSpendCents, todaySpentCents, activePhase, todayIso)
+      trueFree && activePhase
+        ? calculateTodayFreeBudget(trueFree.trueFreeCents, todaySpentCents, activePhase, todayIso)
         : null;
 
     // DEC-129: yesterday recap mirrors the hero math (pool-scoped, add-back).
@@ -555,6 +572,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       hasTransactions: transactions.length > 0,
       primaryPool,
       fts,
+      trueFree,
       occasionCounters,
       todayIso,
       todayEvents,

@@ -124,6 +124,7 @@ export type FtsBreakdownKey =
   | 'future_floor'
   | 'event_reserves'
   | 'planned_purchases'
+  | 'plan'
   | 'free'
   | 'deficit';
 
@@ -134,15 +135,21 @@ export interface FtsBreakdownLine {
   kind: FtsBreakdownKind;
 }
 
-export function buildFreeToSpendBreakdown(fts: FreeToSpendResult): FtsBreakdownLine[] {
+export function buildFreeToSpendBreakdown(
+  fts: FreeToSpendResult,
+  planReservedCents = 0,
+): FtsBreakdownLine[] {
   const lines: FtsBreakdownLine[] = [{ key: 'budget', cents: fts.totalBudgetCents, kind: 'base' }];
 
+  // FIELD-18: the scenario plan still reserved ahead is the LAST subtraction, so
+  // the breakdown reconciles to the "truly free" hero (budget − … − plan = free).
   const subtractions: Array<[FtsBreakdownKey, number]> = [
     ['spent', fts.totalSpentCents],
     ['protected', fts.protectedReserveCents],
     ['future_floor', fts.futureFloorCents],
     ['event_reserves', fts.eventReservesCents],
     ['planned_purchases', fts.plannedPurchasesCents],
+    ['plan', Math.max(0, planReservedCents)],
   ];
   for (const [key, cents] of subtractions) {
     if (cents > 0) lines.push({ key, cents, kind: 'subtract' });
@@ -154,12 +161,53 @@ export function buildFreeToSpendBreakdown(fts: FreeToSpendResult): FtsBreakdownL
     fts.protectedReserveCents -
     fts.futureFloorCents -
     fts.eventReservesCents -
-    fts.plannedPurchasesCents;
+    fts.plannedPurchasesCents -
+    Math.max(0, planReservedCents);
 
   lines.push({ key: 'free', cents: Math.max(0, rawFreeCents), kind: 'total' });
   if (rawFreeCents < 0) lines.push({ key: 'deficit', cents: -rawFreeCents, kind: 'deficit' });
 
   return lines;
+}
+
+/**
+ * FIELD-18: the hero's "truly free" number. The phase free-to-spend (the old
+ * hero) still includes the scenario plan the traveler already committed to in
+ * the Planner. This subtracts the plan STILL reserved ahead — the allocation
+ * minus what was already spent on those profiles — so it never double-counts
+ * spend that `phaseFreeCents` already removed. Pure integer-cents math; the
+ * three numbers reconcile as phaseFree = trueFree + planReserved.
+ */
+export interface TrueFreeResult {
+  /** Free-to-spend for the phase BEFORE the plan (the secondary "na fase"). */
+  phaseFreeCents: number;
+  /** Full scenario allocation for the phase (Σ quantity × typical). */
+  allocatedCents: number;
+  /** Real spend already made on the allocated profiles this phase. */
+  allocatedSpentCents: number;
+  /** Plan still reserved ahead = max(0, allocated − allocatedSpent). */
+  planReservedCents: number;
+  /** Truly loose money = max(0, phaseFree − planReserved). */
+  trueFreeCents: number;
+}
+
+export function calculateTrueFree(
+  phaseFreeCents: number,
+  allocatedCents: number,
+  allocatedSpentCents: number,
+): TrueFreeResult {
+  const phaseFree = Math.round(phaseFreeCents);
+  const allocated = Math.max(0, Math.round(allocatedCents));
+  const allocatedSpent = Math.max(0, Math.round(allocatedSpentCents));
+  const planReservedCents = Math.max(0, allocated - allocatedSpent);
+  const trueFreeCents = Math.max(0, phaseFree - planReservedCents);
+  return {
+    phaseFreeCents: phaseFree,
+    allocatedCents: allocated,
+    allocatedSpentCents: allocatedSpent,
+    planReservedCents,
+    trueFreeCents,
+  };
 }
 
 /**

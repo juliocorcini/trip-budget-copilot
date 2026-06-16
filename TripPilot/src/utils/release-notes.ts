@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.42.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'O "livre para usar" da tela inicial agora é o livre de verdade: já desconta também o que está reservado no planejador. Abaixo do número grande você vê quanto é o total da fase e quanto está no plano.',
+        'Check-in do dia com efeito real e compacto: o modo escolhido reenquadra o "livre hoje" no card principal (tranquilo reduz, noite reserva parte, dia sem gastos zera) — sempre como projeção, sem mexer no orçamento.',
+        'Logo abaixo do check-in aparece o foco do dia (e não sempre o cofrinho): o card que o seu modo do dia destaca sobe para perto do check-in.',
+      ],
+      en: [
+        'The home "free to spend" is now the truly-free amount: it also subtracts what is reserved in the planner. Below the big number you see the phase total and how much is in the plan.',
+        'Daily check-in with a real, compact effect: the chosen mode reframes "free today" on the main card (calm trims it, night reserves part, no-spend zeroes it) — always a projection, never touching the budget.',
+        'Right below the check-in the day\'s focus now appears (not always the piggy bank): the card your day mode spotlights moves up next to the check-in.',
+      ],
+      es: [
+        'El "libre para usar" de inicio ahora es el libre de verdad: también descuenta lo reservado en el planificador. Debajo del número grande ves el total de la fase y cuánto está en el plan.',
+        'Check-in del día con efecto real y compacto: el modo elegido reencuadra el "libre hoy" en la tarjeta principal (tranquilo lo reduce, noche reserva parte, sin gastos lo deja en cero) — siempre como proyección, sin tocar el presupuesto.',
+        'Justo debajo del check-in aparece el foco del día (y no siempre la alcancía): la tarjeta que tu modo del día destaca sube cerca del check-in.',
+      ],
+    },
+  },
+  {
     version: '0.41.0',
     date: '2026-06-16',
     items: {
