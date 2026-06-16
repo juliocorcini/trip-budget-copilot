@@ -24,6 +24,18 @@ Bugs (sem pergunta): 1 (swipe do fundo), 6 (enviar backup nativo), 7 (salvar
 backup), 9 (foco abaixo do check-in), 10 (valor da notif na saída), 11 (zoom da
 saída), 12 (telas abrem roladas), 15 (recentes compactos).
 
+## Rodada 2 — feedback de campo (2026-06-16, pós-G3)
+
+| # | Item | Decisão / status |
+|---|------|------------------|
+| 19 | Mapa diário | **FEITO (0.45.0)**. Ao tocar no hero ("livre nesta fase"), a sheet do breakdown ganha um mapa por dia: barra proporcional por dia restante da fase (picos do fim de semana maiores), valor livre do dia, reservas datadas (eventos/compras com data) por baixo e planejados sem data à parte. Mesma matemática do `calculateTodayFreeBudget` (base = trueFree + gasto de hoje, distribuída pelos pesos de ritmo). Copy do hero virou "X na fase − Y no plano" (subtração explícita). Domínio puro `buildPhaseAllowanceMap` + 8 testes. |
+| 20 | Atualização OTA | **PENDENTE DE DECISÃO** (ver G8). Hoje o APK serve assets locais (sem `server.url`), então deploy web no Cloudflare NÃO chega no app instalado — a versão interna fica congelada no build. "Buscar atualização" só funciona no PWA do navegador. |
+
+### Diagnóstico OTA (item 20) — confirmado no código
+- `capacitor.config.ts`: sem `server.url` → WebView carrega `dist` empacotado (`https://localhost`). `checkForAppUpdate()` (`utils/pwa.ts`) chama `reg.update()`, que rebusca o `/sw.js` LOCAL → nunca muda. Por isso a versão interna não sobe no APK.
+- `@capacitor/app` (já instalado) expõe `App.getInfo()` → `version`/`build` nativos do APK — base para detectar "APK desatualizado".
+- Solução OTA real e offline-first: plugin live-update `@capgo/capacitor-updater` (MPL-2.0, Capacitor 8, self-hosted). Hospedar `dist.zip` + manifesto `latest.json` (com `version`, `url`, `requiredNativeVersion`) no próprio Pages. OTA cobre só HTML/CSS/JS; mudança nativa exige novo APK → o manifesto declara o `requiredNativeVersion` e o app avisa quando o APK instalado é mais antigo. Custa 1 APK para introduzir o plugin; depois, releases só-web sobem pela internet.
+
 ## Causas-raiz confirmadas
 
 - **1/2 swipe**: `useHorizontalSwipe` preso ao conteúdo (Gastos/Viagem). Fundo é do `AppShell` (sem handler). → subir paginação de abas pro `AppShell`.
@@ -102,9 +114,26 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
   `#root { zoom }`); travar largura ao viewport.
 - AC `[device]`: tap na notif reflete na tela na hora; tela cheia sem zoom/folga.
 
+### G8 — Atualização OTA + consciência de versão (item 20) [web + native → APK]
+> Pendente da decisão de abordagem (AskQuestion). Plano para a opção recomendada
+> (Capgo self-hosted), em duas partes:
+- **G8a (web, sem dep nativa)**: manifesto `version.json`/`latest.json` no Pages
+  (`version`, `requiredNativeVersion`, `notes`). Em nativo, `App.getInfo()` lê o
+  build do APK; "Sobre o app" mostra versão interna (web) × versão do APK e o
+  estado honesto: "nova versão web disponível", "seu APK está desatualizado para
+  a versão X" (com link do APK), ou "tudo em dia".
+- **G8b (native → APK)**: instalar `@capgo/capacitor-updater`; no boot/`atBackground`
+  buscar o manifesto, baixar o `dist.zip` e trocar o bundle (offline-first
+  preservado, com rollback). Gate por `requiredNativeVersion`: se o APK for mais
+  antigo que o exigido pelo bundle novo, NÃO troca às cegas — avisa para baixar o
+  APK. Build step para gerar/publicar o zip + manifesto a cada release web.
+- AC: release só-web chega no APK pela internet sem reinstalar; ao precisar de
+  nativo, o app avisa "APK desatualizado (interno 45, APK exige 45, você tem 40)";
+  rollback se o bundle quebrar; PWA do navegador segue igual.
+
 ## Pós-gates
 - Worker deploy (G5) `wrangler deploy` em `worker/`.
-- APK único cobrindo G6+G7 (`npm run build` → `npx cap sync` → `assembleDebug`).
+- APK único cobrindo G6+G7 (+G8b) (`npm run build` → `npx cap sync` → `assembleDebug`).
 - Atualizar `project-status.md`, `decision-log.md` (novos DEC), `dev-log.md`.
 
 ## Anti-regressão (verificar a cada gate)

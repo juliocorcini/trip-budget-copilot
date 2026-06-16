@@ -47,6 +47,7 @@ import { isProfileEnabledInPhase, detectValueSuggestion } from '@/domain/profile
 import { detectTripPriorsOffer } from '@/domain/templates';
 import {
   calculateTodayFreeBudget,
+  buildPhaseAllowanceMap,
   findEndedPhaseWithSuccessor,
   detectPhaseLeftover,
 } from '@/domain/phases';
@@ -407,6 +408,25 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         ? calculateTodayFreeBudget(trueFree.trueFreeCents, todaySpentCents, activePhase, todayIso)
         : null;
 
+    // FIELD-19: per-day allowance map — same start-of-day base/weights as the
+    // hero, projected over every remaining day so "free today" reads as a point
+    // on a distribution, not an absolute. Dated reserves overlay their day.
+    const phaseDayMap =
+      trueFree && activePhase
+        ? buildPhaseAllowanceMap({
+            trueFreeCents: trueFree.trueFreeCents,
+            todaySpentCents,
+            phase: activePhase,
+            todayIso,
+            occurrences: occurrences.filter(
+              (o) => o.phaseId === activePhase.id && o.deletedAt === null,
+            ),
+            plannedPurchases: plannedPurchases.filter(
+              (p) => p.deletedAt === null && (p.phaseId === activePhase.id || p.phaseId === null),
+            ),
+          })
+        : null;
+
     // DEC-129: yesterday recap mirrors the hero math (pool-scoped, add-back).
     const recap =
       fts && activePhase
@@ -587,6 +607,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       progressPercent,
       heroMoney,
       todayBudget,
+      phaseDayMap,
       recap,
       savings,
       savingsGoal,

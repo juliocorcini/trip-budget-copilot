@@ -5,6 +5,7 @@ import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { formatMoney } from '@/domain/money';
 import { buildFreeToSpendBreakdown, type FtsBreakdownKey } from '@/domain/budget';
+import type { PhaseAllowanceMap } from '@/domain/phases';
 import { getDashboardCard, type DashboardCardId } from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
 import type { PhaseLeftover } from '@/domain/phases';
@@ -55,6 +56,117 @@ const FTS_LABEL_KEYS: Record<Exclude<FtsBreakdownKey, 'free' | 'deficit'>, strin
   planned_purchases: 'dashboard.fts_planned_purchases',
   plan: 'dashboard.fts_plan',
 };
+
+// FIELD-19: the per-day allowance "map" inside the hero breakdown sheet. Each
+// row is a remaining day of the phase: a proportional bar (peak days are taller)
+// and the money free that day, with any dated reserves listed beneath it. Today
+// is highlighted so "free today" reads as one point on the distribution.
+function PhaseDayMapSection({ map, currency }: { map: PhaseAllowanceMap; currency: string }) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'pt-BR';
+  const formatDayParts = (iso: string) => {
+    const date = new Date(`${iso.slice(0, 10)}T12:00:00`);
+    return {
+      weekday: date.toLocaleDateString(lang, { weekday: 'short' }).replace('.', ''),
+      day: date.toLocaleDateString(lang, { day: '2-digit', month: 'short' }).replace('.', ''),
+    };
+  };
+
+  return (
+    <div className="mt-5 pt-4 border-t border-[var(--border-faint)]">
+      <p className="text-sm font-bold text-on-surface">{t('dashboard.day_map_title')}</p>
+      <p className="text-xs text-on-surface-dim mt-0.5 mb-3">{t('dashboard.day_map_intro')}</p>
+
+      <div className="flex flex-col gap-2">
+        {map.days.map((d) => {
+          const barPct = Math.max(4, Math.round((d.allowanceCents / map.maxAllowanceCents) * 100));
+          const barColor = d.isToday
+            ? 'var(--primary)'
+            : d.isPeakDay
+              ? 'var(--warning)'
+              : 'var(--success)';
+          const parts = formatDayParts(d.dateIso);
+          return (
+            <div key={d.dateIso} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-14 flex-shrink-0">
+                  <p
+                    className={`text-[11px] font-bold uppercase leading-tight ${
+                      d.isToday
+                        ? 'text-primary'
+                        : d.isPeakDay
+                          ? 'text-warning'
+                          : 'text-on-surface-dim'
+                    }`}
+                  >
+                    {d.isToday ? t('dashboard.day_map_today') : parts.weekday}
+                  </p>
+                  <p className="text-[10px] text-on-surface-faint leading-tight">{parts.day}</p>
+                </div>
+                <div
+                  className="flex-1 h-2.5 rounded-full overflow-hidden"
+                  style={{ background: 'var(--surface-container-high)' }}
+                >
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${barPct}%`, background: barColor, opacity: d.isToday ? 1 : 0.85 }}
+                  />
+                </div>
+                <span
+                  className={`w-16 text-right text-xs font-bold tabular flex-shrink-0 ${
+                    d.freeCents < 0 ? 'text-error' : 'text-on-surface'
+                  }`}
+                >
+                  {formatMoney(d.freeCents, currency)}
+                </span>
+              </div>
+              {d.planItems.length > 0 && (
+                <div className="ml-[4.1rem] flex flex-wrap gap-1">
+                  {d.planItems.map((item) => (
+                    <span
+                      key={item.id}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                      style={{ background: 'var(--surface-container-high)', color: 'var(--primary-dim)' }}
+                    >
+                      <Icon name={item.kind === 'occurrence' ? 'event' : 'shopping_bag'} size={11} />
+                      {item.name} · {formatMoney(item.amountCents, currency)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {map.undatedPlanItems.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-[var(--border-faint)]">
+          <p className="text-[11px] font-semibold text-on-surface-dim mb-1.5">
+            {t('dashboard.day_map_undated', {
+              amount: formatMoney(map.undatedPlanTotalCents, currency),
+            })}
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {map.undatedPlanItems.map((item) => (
+              <span
+                key={item.id}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                style={{ background: 'var(--surface-container-high)', color: 'var(--primary-dim)' }}
+              >
+                <Icon name="shopping_bag" size={11} />
+                {item.name} · {formatMoney(item.amountCents, currency)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[10px] text-on-surface-faint mt-3 leading-snug">
+        {t('dashboard.day_map_legend')}
+      </p>
+    </div>
+  );
+}
 
 // BUG-008: the Dashboard's four bottom sheets, lifted out of the page. They read
 // the shared DashboardModel and report intent back through callbacks.
@@ -240,6 +352,11 @@ export function DashboardSheets({
                 </div>
               );
             })}
+            {/* FIELD-19: the per-day allowance map — "where the daily number sits
+                across the rest of the phase" (weekday low, weekend peaks high). */}
+            {model.phaseDayMap && model.phaseDayMap.days.length > 0 && (
+              <PhaseDayMapSection map={model.phaseDayMap} currency={trip.baseCurrency} />
+            )}
           </div>
         )}
       </BottomSheet>

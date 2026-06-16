@@ -14,12 +14,12 @@ const RHYTHM_BASE_WEIGHT: Record<PhaseRhythmPreset, number> = {
   custom: 1.0,
 };
 
-function parseLocalDate(isoDate: string): Date {
+export function parseLocalDate(isoDate: string): Date {
   // Date-only strings parse as UTC; anchor at noon to avoid TZ day shifts.
   return new Date(`${isoDate.slice(0, 10)}T12:00:00`);
 }
 
-function toLocalIsoDay(date: Date): string {
+export function toLocalIsoDay(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;

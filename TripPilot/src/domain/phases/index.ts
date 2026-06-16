@@ -6,8 +6,18 @@ export {
   calculateEffectiveSpendingDays,
   calculateFreeToSpendPerDay,
   calculateTodayFreeBudget,
+  parseLocalDate,
+  toLocalIsoDay,
 } from './rhythm';
 export type { FreeToSpendPerDay, TodayFreeBudget } from './rhythm';
+export { buildPhaseAllowanceMap } from './allowance-map';
+export type {
+  PhaseAllowanceMap,
+  PhaseAllowanceDay,
+  DayPlanItem,
+  DayPlanItemKind,
+  BuildPhaseAllowanceMapInput,
+} from './allowance-map';
 export {
   findEndedPhaseWithSuccessor,
   detectPhaseLeftover,

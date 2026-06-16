@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.45.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Toque em "livre para usar nesta fase" e veja um mapa por dia: quanto sobra livre em cada dia até o fim da fase (dias de pico do fim de semana aparecem maiores) e o que você já planejou em cada data.',
+        'A linha embaixo do número grande agora deixa a conta clara: "X na fase − Y no plano", para você ver de onde vem o livre de verdade.',
+      ],
+      en: [
+        'Tap "free to spend this phase" to see a per-day map: how much is free each day until the phase ends (weekend peak days show taller) and what you already planned on each date.',
+        'The line under the big number now spells out the math: "X this phase − Y in plan", so you see where the truly-free amount comes from.',
+      ],
+      es: [
+        'Toca "libre para usar en esta fase" y verás un mapa por día: cuánto queda libre cada día hasta el fin de la fase (los días de pico del fin de semana se ven más altos) y lo que ya planeaste en cada fecha.',
+        'La línea bajo el número grande ahora deja clara la cuenta: "X en la fase − Y en el plan", para que veas de dónde sale el libre de verdad.',
+      ],
+    },
+  },
+  {
     version: '0.44.0',
     date: '2026-06-16',
     items: {

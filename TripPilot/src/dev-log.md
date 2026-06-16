@@ -1,16 +1,26 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Field Feedback Round — plan `brain/documents/improvements-master-plan-2026-06-16.md` (18 items, 7 gates G1→G7, 0.41 → …)
-- **Active Milestone**: G3 DONE — G3a (0.43.0) Wise import visible (item 13) + G3b (0.44.0) Wise TRANSFER intelligence + split (item 14). Next gate: G4.
-- **Last Green Test Run**: G3b 0.44.0 — 996 tests pass (113 files; +18 `wise-transfer` tests, +1 `wise-import` transfer-classification test), tsc --noEmit clean
-- **Build Status**: clean (web build + type-check green; cap sync/APK deferred to native gates G6/G7)
+- **Active Delivery**: Field Feedback Round — plan `brain/documents/improvements-master-plan-2026-06-16.md` (20 items, gates G1→G8, 0.41 → …)
+- **Active Milestone**: FIELD-19 per-day allowance map DONE (0.45.0). G3 DONE earlier. Next gates: G4 + OTA decision (G8).
+- **Last Green Test Run**: 0.45.0 — 1004 tests pass (114 files; +8 `allowance-map` tests), tsc --noEmit clean
+- **Build Status**: clean (web build + type-check green; cap sync/APK deferred to native gates G6/G7/G8b)
 - **APK**: `Downloads/TripPilot-0.40.0-debug.apk` (versionCode 14) — no native change yet this round
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.44.0
-- **Next**: G4 — Settings searchable/collapsible (item 4) + savings goal editable on its card (item 5) + curated 2-cards-per-row layout (item 16).
-- **Confidence**: G3b 90% — new financial WRITE paths from import (settlements / wallet transfers / reimbursed expense) are high-impact but reuse tested primitives (`createSettlement`, `transferBetweenWallets`, `resolvePayerExpense`); covered by 18 domain tests incl. debt-neutrality + undo. Incoming "wallet inflow" deferred (no income transaction type — would be a schema change); incoming settle-back shipped.
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.45.0
+- **Next**: (a) await Julio's OTA approach decision (G8 — recommended: Capgo self-hosted); (b) G4 — Settings searchable/collapsible (item 4) + savings goal editable on its card (item 5) + curated 2-cards-per-row layout (item 16).
+- **Confidence**: FIELD-19 95% — pure projection reusing the exact hero math (`buildPhaseAllowanceMap` shares base/weights/denominator with `calculateTodayFreeBudget`; a test pins today-cell == hero), no schema/dep/mutation change. OTA (G8) blocked on a product decision (native dependency + hosting scheme).
 
 ### Field Feedback Round — plan `improvements-master-plan-2026-06-16.md`
+
+#### FIELD-19 — Per-day allowance map + clearer hero math (0.45.0)
+Source: Julio field feedback round 2 — "livre hoje €3.96" was scary in isolation (is that every day, or just this weekday?); he wanted a Copilot-map-like view of how much is free *per day* across the phase, plus the planned items per day, and the hero secondary line spelled out as a subtraction.
+- [x] **Per-day map domain (`domain/phases/allowance-map.ts`, pure)**: `buildPhaseAllowanceMap` projects the SAME start-of-day base (`trueFree + todaySpent`) over every remaining day using the rhythm weights/effective-days denominator — so the today cell equals `calculateTodayFreeBudget` exactly (pinned by a test), and future weekend peaks read taller than weekdays. Dated reserves overlay their day (occurrences by `plannedDate` unless linked; planned buys by `targetDate`, status `planned`); trip-wide undated planned buys returned apart. Exposed via `model.phaseDayMap`.
+- [x] **UI (hero breakdown sheet)**: below the existing "where this number comes from" lines, a `PhaseDayMapSection` — one row per remaining day with a proportional bar (purple=today, orange=peak, green=normal), the day's free amount, dated reserve chips beneath, an "undated planned" group, and a legend. Lives where Julio already looks (tap the hero), as he asked.
+- [x] **Hero copy (item 18 follow-up)**: `dashboard.hero_phase_total` changed from "de X na fase · Y no plano" to "X na fase − Y no plano" (pt/en/es) so the 522 − 356 = 166 math is explicit.
+- [x] **Verify**: 1004 tests pass (114 files; +8 `allowance-map`: even split, today==hero, peak>weekday, dated reserve placement, undated separation, bought/cancelled/linked ignored, phase-over empty, estimated fallback), tsc --noEmit clean, web build green. No schema/dep change, no budget mutation (ÂNCORA 12). Deployed to Production (0.45.0).
+
+#### Item 20 — OTA update + version awareness (PLANNED — awaiting decision, G8)
+Source: Julio field feedback round 2 — the installed APK never updates its internal version from web deploys; he wants web-only releases to update over the air without rebuilding the APK, and to be warned when a web bundle needs a newer APK. Diagnosis confirmed: no `server.url` → APK serves bundled `dist`, so `reg.update()` re-fetches the local `sw.js` (never changes). Recommended path documented in the master plan (G8): `@capgo/capacitor-updater` self-hosted (zip + `latest.json` with `requiredNativeVersion` on Pages), with `@capacitor/app` (already installed) reading the native APK build for the "APK outdated" warning. Blocked on Julio's approach choice (adds a native dependency + hosting scheme → one APK rebuild).
 
 #### G3b — Wise TRANSFER intelligence + split (0.44.0)
 Source: Julio field feedback item 14 + AskQuestion decisions — a `detailsType=TRANSFER` row to a PERSON (e.g. "Enviou dinheiro para Bruno Pessoa de Oliveira", −44€) is not a card purchase: it can pay a debt, reimburse an expense the person paid for me, move money between my wallets, or be my own expense — and one transfer can mix several (his real case: 30€ owed back + 14€ of outing expenses Bruno covered). Decisions: split into pay_debt / person_paid_expense / wallet_transfer / my_expense; suggest the most likely participant pre-selected (I confirm); incoming = offer "they paid me back" (settles what they owe me).
