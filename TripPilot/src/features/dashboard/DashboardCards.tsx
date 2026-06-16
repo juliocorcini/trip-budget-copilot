@@ -467,7 +467,7 @@ export function DashboardCards({
                 {t('dashboard.piggy_title')}
               </p>
               <p className="text-lg font-extrabold tabular text-success leading-tight">
-                <AnimatedMoney cents={model.piggyBankCents} currency={trip.baseCurrency} />
+                <AnimatedMoney cents={model.piggyBankCents} currency={trip.baseCurrency} pulseOnChange />
               </p>
               <p className="text-[11px] font-semibold text-on-surface-dim mt-0.5">{t('dashboard.piggy_desc')}</p>
             </div>

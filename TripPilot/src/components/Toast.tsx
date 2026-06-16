@@ -103,7 +103,7 @@ export function ToastHost() {
             style={{
               background: style.bg,
               border: `1px solid ${style.border}`,
-              animation: 'toast-in 0.2s ease-out',
+              animation: 'toast-in var(--motion-base) var(--ease-out) both',
             }}
           >
             <Icon name={style.icon} size={18} style={{ color: style.color }} />
@@ -121,9 +121,6 @@ export function ToastHost() {
           </div>
         );
       })}
-      <style>{`
-        @keyframes toast-in { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-      `}</style>
     </div>
   );
 }

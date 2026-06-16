@@ -210,6 +210,7 @@ export function WalletsPage() {
             cents={totalWalletCents}
             currency={trip.baseCurrency}
             className="text-lg font-extrabold tabular text-on-surface"
+            pulseOnChange
           />
         </div>
       )}
@@ -233,7 +234,7 @@ export function WalletsPage() {
                   </p>
                 </div>
                 <p className="text-lg font-extrabold tabular text-on-surface">
-                  <AnimatedMoney cents={balance.currentBalanceCents} currency={wallet.currency} />
+                  <AnimatedMoney cents={balance.currentBalanceCents} currency={wallet.currency} pulseOnChange />
                 </p>
               </div>
               <div className="flex gap-2 mt-3">

@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.36.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Animações em todo o app: ao trocar de tela o conteúdo desliza e aparece (e volta para o lado contrário quando você usa o "voltar") — dá a sensação de abrir uma página, com a barra de baixo e o topo parados.',
+        'Menu do "+" repaginado: os atalhos surgem em sequência e somem ao fechar — e foi corrigido o posicionamento (os de baixo não ficam mais em cima da barra inferior; a lista rola quando há muitos).',
+        'Detalhes que reagem: as folhas que sobem de baixo agora também fecham animadas, os avisos (toasts) entram suaves, a aba ativa ganha um indicador e valores como o cofrinho e o saldo das carteiras dão um "pulo" quando mudam.',
+        'Tudo respeita "reduzir movimento" do sistema e foi feito para rodar a 60fps, sem exageros.',
+      ],
+      en: [
+        'Animations across the app: switching screens slides the content in (and the other way when you go back) — it feels like opening a page, while the bottom bar and the top stay put.',
+        'Revamped "+" menu: the shortcuts appear in sequence and fade out on close — and the positioning is fixed (the lower ones no longer sit on top of the bottom bar; the list scrolls when there are many).',
+        'Details that react: bottom sheets now also animate closed, toasts ease in, the active tab gets an indicator, and figures like the piggy bank and wallet balances "pop" when they change.',
+        'Everything honors the system "reduce motion" setting and is built to run at 60fps, without overdoing it.',
+      ],
+      es: [
+        'Animaciones en toda la app: al cambiar de pantalla el contenido se desliza y aparece (y al revés cuando vuelves) — se siente como abrir una página, mientras la barra de abajo y la parte superior quedan fijas.',
+        'Menú "+" renovado: los accesos aparecen en secuencia y se desvanecen al cerrar — y se corrigió la posición (los de abajo ya no quedan sobre la barra inferior; la lista se desplaza cuando hay muchos).',
+        'Detalles que reaccionan: las hojas inferiores ahora también se cierran animadas, los avisos (toasts) entran suaves, la pestaña activa tiene un indicador y cifras como la alcancía y el saldo de las carteras dan un "salto" cuando cambian.',
+        'Todo respeta el "reducir movimiento" del sistema y está hecho para ir a 60fps, sin excesos.',
+      ],
+    },
+  },
+  {
     version: '0.35.0',
     date: '2026-06-15',
     items: {

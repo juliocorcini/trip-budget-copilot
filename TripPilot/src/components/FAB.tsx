@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 import { hapticSelection } from '@/utils/haptics';
+import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 
 interface FabAction extends ModeAware {
   icon: string;
@@ -92,8 +93,11 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { settings } = useAppData();
+  // DEC-194: keep the menu mounted through its exit so it visibly closes.
+  const { mounted, state } = useAnimatedPresence(isOpen, 180);
 
-  if (!isOpen) return null;
+  if (!mounted) return null;
+  const closing = state === 'closing';
 
   // M19: simple mode keeps only the capture actions; advanced ones stay
   // reachable via their full pages (ÂNCORA 9 — hide, never delete).
@@ -107,10 +111,28 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
 
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
-      <div className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'var(--scrim)',
+          animation: closing
+            ? 'fab-scrim-out 160ms var(--ease-accelerate) both'
+            : 'fab-scrim-in 200ms var(--ease-out) both',
+        }}
+      />
 
-      <div className="relative flex flex-col justify-end min-h-screen pb-[88px]">
-        <div className="px-5 pb-5 space-y-2">
+      <div className="relative flex flex-col justify-end min-h-[100dvh]">
+        {/* DEC-194 fix: the actions clear the (taller, safe-area-aware) bottom nav
+            AND the protruding center button, and the list scrolls internally when
+            every action is shown — so the lowest item never lands on the bar. */}
+        <div
+          className={`px-5 space-y-2 overflow-y-auto no-scrollbar ${closing ? 'fab-panel-out' : 'stagger'}`}
+          style={{
+            paddingTop: 'calc(var(--safe-top) + 12px)',
+            paddingBottom: 'calc(112px + var(--safe-bottom))',
+            maxHeight: '100dvh',
+          }}
+        >
           <p className="text-[10px] tracking-[0.15em] uppercase font-bold mb-2 text-on-surface-faint">
             {t('fab.quick_actions')}
           </p>

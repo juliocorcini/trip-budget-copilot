@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '@/domain/money';
 import { useCountUp } from '@/hooks/useCountUp';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
@@ -6,6 +7,13 @@ interface AnimatedMoneyProps {
   cents: number;
   currency: string;
   className?: string;
+  /**
+   * DEC-194: briefly pop the figure when it changes in place (e.g. a drink
+   * added bumps the live total). Only fires on a real change while mounted —
+   * never on mount or on a route remount — so it stays a deliberate "reacted to
+   * your action" cue, not decoration.
+   */
+  pulseOnChange?: boolean;
 }
 
 /**
@@ -15,8 +23,25 @@ interface AnimatedMoneyProps {
  * under prefers-reduced-motion. Read-only: animates only the display of an
  * already-correct number.
  */
-export function AnimatedMoney({ cents, currency, className }: AnimatedMoneyProps) {
+export function AnimatedMoney({ cents, currency, className, pulseOnChange = false }: AnimatedMoneyProps) {
   const reducedMotion = usePrefersReducedMotion();
   const value = useCountUp(cents, !reducedMotion);
-  return <span className={className}>{formatMoney(value, currency)}</span>;
+  const prev = useRef(cents);
+  const [pulsing, setPulsing] = useState(false);
+
+  useEffect(() => {
+    if (cents === prev.current) return;
+    prev.current = cents;
+    if (!pulseOnChange || reducedMotion) return;
+    setPulsing(true);
+    const timer = window.setTimeout(() => setPulsing(false), 320);
+    return () => window.clearTimeout(timer);
+  }, [cents, pulseOnChange, reducedMotion]);
+
+  // Stable inline-block when pulsing is possible, so toggling the animation
+  // never reflows the baseline.
+  const classes = [className, pulseOnChange ? 'inline-block' : '', pulsing ? 'money-pulse' : '']
+    .filter(Boolean)
+    .join(' ');
+  return <span className={classes || undefined}>{formatMoney(value, currency)}</span>;
 }

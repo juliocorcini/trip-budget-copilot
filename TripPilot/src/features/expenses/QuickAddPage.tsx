@@ -689,7 +689,7 @@ export function QuickAddPage() {
   if (!trip || !settings?.onboardingCompleted) return null;
 
   return (
-    <div className="max-w-[430px] mx-auto flex flex-col gap-4 px-5">
+    <div className="route-view max-w-[430px] mx-auto flex flex-col gap-4 px-5">
       <div className="flex items-center justify-between pt-2">
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />

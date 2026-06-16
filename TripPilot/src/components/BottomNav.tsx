@@ -46,8 +46,10 @@ export function BottomNav() {
           if (!isActive) hapticSelection();
           navigate(item.path);
         }}
-        className="flex flex-col items-center gap-0.5 py-1 px-2 btn-press"
+        className="relative flex flex-col items-center gap-0.5 py-1 px-2 btn-press"
       >
+        {/* DEC-194: active-tab indicator — grows in on the selected tab. */}
+        <span className={`nav-ind ${isActive ? 'is-active' : ''}`} aria-hidden />
         <Icon
           name={item.icon}
           size={22}
@@ -101,6 +103,9 @@ export function BottomNav() {
                 style={{
                   color: 'var(--surface)',
                   fontVariationSettings: "'wght' 600",
+                  // DEC-194: spin the glyph as it toggles add ↔ close.
+                  transform: isFabOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform var(--motion-base) var(--ease-out)',
                 }}
               >
                 {isFabOpen ? 'close' : 'add'}

@@ -70,6 +70,16 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Motion (DEC-194) ── Material-3-aligned curves + a small duration scale.
+     Entrances/expansions use the decelerating `--ease-out`; exits use
+     `--ease-accelerate` and run faster than their entrance. `--ease-spring` is
+     reserved for rare delight moments. Honor prefers-reduced-motion (globals). */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --motion-fast: 120ms;   /* instant feedback: press, toggle, tab indicator */
+  --motion-base: 220ms;   /* state changes: menu, sheet, reveal, stagger item */
+  --motion-slow: 320ms;   /* page / layout transitions */
 }
 
 [data-theme='light'] {
@@ -143,10 +153,10 @@ a,
 }
 
 .btn-press:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 .btn-press {
-  transition: transform 100ms var(--ease-out);
+  transition: transform var(--motion-fast) var(--ease-out);
   cursor: pointer;
 }
 

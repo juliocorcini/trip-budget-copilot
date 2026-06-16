@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { useEffect, useRef } from 'react';
+import { Outlet, useLocation } from 'react-router';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
@@ -84,6 +84,24 @@ function useBackButtonGuard() {
   }, []);
 }
 
+// DEC-194: the page transition needs a direction so a "back" (in-app button or
+// the hardware/gesture back) animates the opposite way from a "forward". React
+// Router stores a monotonically increasing `idx` on history.state for every
+// entry; comparing it to the previous value classifies the navigation without
+// touching any of the dozens of navigate() call sites. Exposed to CSS as a data
+// attribute on <html> so the keyframe selection is a pure styling concern.
+function useNavDirection() {
+  const location = useLocation();
+  const lastIdx = useRef<number>(
+    (window.history.state?.idx as number | undefined) ?? 0,
+  );
+  useEffect(() => {
+    const idx = (window.history.state?.idx as number | undefined) ?? 0;
+    document.documentElement.dataset.nav = idx < lastIdx.current ? 'back' : 'forward';
+    lastIdx.current = idx;
+  }, [location]);
+}
+
 /** Root route element: wraps ALL routes (inside and outside the AppShell). */
 export function RootLayout() {
   const settings = useLiveSettings();
@@ -91,6 +109,7 @@ export function RootLayout() {
   useLanguage(settings);
   useHapticsPreference(settings);
   useBackButtonGuard();
+  useNavDirection();
   // BUG-007: a single AppDataProvider above every route.
   // E6 (M20): the lock gate sits just below it so the PIN screen can read live
   // settings while still protecting every route once enabled.

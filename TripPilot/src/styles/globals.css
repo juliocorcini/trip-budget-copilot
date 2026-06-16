@@ -135,3 +135,120 @@ html.cap-native {
 html.cap-native #root {
   zoom: var(--native-zoom);
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Motion system (DEC-194). CSS-first: every animation is transform/opacity only
+   (GPU-composited, 60fps in the Capacitor WebView, 0 KB JS). Entrances use the
+   decelerating --ease-out; exits use --ease-accelerate and are shorter.
+   prefers-reduced-motion is honored globally at the bottom of this file.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Page transition — the routed content slides+fades in while the app chrome
+   (status band, bottom nav) stays put, so a navigation feels like "opening a
+   page". Direction comes from <html data-nav> (history index, set in
+   RootLayout), so the hardware/gesture back animates the opposite way. */
+.route-view {
+  animation: page-in-fwd var(--motion-slow) var(--ease-out) both;
+}
+[data-nav='back'] .route-view {
+  animation-name: page-in-back;
+}
+@keyframes page-in-fwd {
+  from { opacity: 0; transform: translate3d(16px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes page-in-back {
+  from { opacity: 0; transform: translate3d(-16px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* Generic staggered list reveal — add `.stagger` to a container and its direct
+   children rise in sequence. Capped at 10 to bound paint cost. */
+.stagger > * {
+  animation: motion-rise var(--motion-base) var(--ease-out) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 20ms; }
+.stagger > *:nth-child(2) { animation-delay: 55ms; }
+.stagger > *:nth-child(3) { animation-delay: 90ms; }
+.stagger > *:nth-child(4) { animation-delay: 125ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 195ms; }
+.stagger > *:nth-child(7) { animation-delay: 230ms; }
+.stagger > *:nth-child(8) { animation-delay: 265ms; }
+.stagger > *:nth-child(9) { animation-delay: 300ms; }
+.stagger > *:nth-child(n + 10) { animation-delay: 335ms; }
+@keyframes motion-rise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* FAB speed-dial menu — scrim fades, actions rise (via .stagger), and the whole
+   panel drops away on close (the user feels it open AND close). */
+@keyframes fab-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fab-scrim-out { from { opacity: 1; } to { opacity: 0; } }
+.fab-panel-out {
+  animation: fab-panel-out 160ms var(--ease-accelerate) both;
+}
+@keyframes fab-panel-out {
+  from { opacity: 1; transform: translate3d(0, 0, 0); }
+  to { opacity: 0; transform: translate3d(0, 16px, 0); }
+}
+
+/* Bottom sheet — slide up on open, drop on close. */
+@keyframes sheet-up { from { transform: translate3d(0, 28px, 0); opacity: 0; } to { transform: translate3d(0, 0, 0); opacity: 1; } }
+@keyframes sheet-down { from { transform: translate3d(0, 0, 0); opacity: 1; } to { transform: translate3d(0, 28px, 0); opacity: 0; } }
+@keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* Toast — drops in from the top edge. */
+@keyframes toast-in {
+  from { opacity: 0; transform: translate3d(0, -14px, 0) scale(0.97); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* Bottom-nav active indicator — a short bar at the top edge of the active tab
+   that grows in (and shrinks out on the previously-active tab), so switching
+   tabs reads as the indicator moving across the bar. */
+.nav-ind {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 22px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--primary);
+  transform: translateX(-50%) scaleX(0);
+  transform-origin: center;
+  transition: transform var(--motion-base) var(--ease-out);
+}
+.nav-ind.is-active {
+  transform: translateX(-50%) scaleX(1);
+}
+
+/* "Money responds" — a value pops when it changes in place (e.g. a drink added
+   bumps the total). Pairs with the count-up tween in <AnimatedMoney>. */
+.money-pulse {
+  display: inline-block;
+  animation: money-pulse var(--motion-slow) var(--ease-out);
+}
+@keyframes money-pulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+/* Accessibility baseline (animate skill / WCAG): users who ask the OS for less
+   motion get near-instant state changes everywhere — no translation or scale,
+   just the final state. Opacity-only fades remain comfortable, so we keep them
+   effectively instant rather than removing them. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

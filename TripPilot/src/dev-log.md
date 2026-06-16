@@ -1,14 +1,24 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Post-APK Improvements — planned phases (1C → 2 → 3 → 4) DELIVERED + **Hotfix 0.35.0** (device feedback)
-- **Active Milestone**: Hotfix 0.35.0 — notification crash, edge-to-edge safe areas, bottom-nav spacing, softer haptics
-- **Last Green Test Run**: Hotfix 0.35.0 — (see Gate H1 entry)
+- **Active Delivery**: Post-APK Improvements — planned phases (1C → 2 → 3 → 4) DELIVERED + Hotfix 0.35.0 + **Motion System 0.36.0**
+- **Active Milestone**: Motion System 0.36.0 — app-wide animation pass (page transitions, FAB fix+anim, sheet/toast/nav/money micro-interactions)
+- **Last Green Test Run**: Motion 0.36.0 — 944 tests pass (108 files), tsc -b clean (see Gate M1 entry)
 - **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green)
-- **APK**: `Downloads/TripPilot-0.35.0-debug.apk` (versionCode 9)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.35.0 live
-- **Next**: device validation pass (Android 16) for B1/B2 + the [device]-pending N5–N8 / Gate 3 gestures; confirm 0.35.0 notification permission flow + safe areas on the S23 (Android 15)
-- **Confidence**: 85% (all logic green + APK builds; the crash root cause is fixed and the safe-area fix is CSS-driven so it works regardless of OS edge-to-edge enforcement)
+- **APK**: `Downloads/TripPilot-0.36.0-debug.apk` (versionCode 10)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.36.0 live
+- **Next**: device validation of the motion feel on the S23 (Android 15) — page slide, FAB stagger, tab indicator, reduced-motion; still [device]-pending: A16 B1/B2 + N5–N8 / Gate 3 gestures
+- **Confidence**: 88% (all logic green + APK builds; motion is CSS-first/transform-opacity only, reduced-motion honored globally, no domain changes)
+
+### Motion Gate M1 — app-wide animation system (0.36.0)
+Source: user request — "quero que o app tenha transições/animações, que eu me sinta abrindo uma página, componentes animados, fluido e profissional, sem exagero" + bug: FAB "+" shortcuts overlapping the bottom bar. Council (inline) + research → spec `brain/documents/animation-system-spec-2026-06-15.md` (DEC-194). CSS-first (View Transitions API rejected for global/hardware-back fragility; Framer Motion rejected for ~50KB + main-thread cost on mid-tier Android). Every animation is transform/opacity only.
+- [x] **Motion tokens** (`styles/tokens.css`): `--motion-fast/base/slow` (120/220/320ms) + M3 curves `--ease-standard`, `--ease-accelerate` (exits) alongside the existing `--ease-out`/`--ease-spring`. `.btn-press` retuned to the token (scale 0.96).
+- [x] **Foundation** (`styles/globals.css`): page keyframes (`page-in-fwd`/`page-in-back`), `.stagger` (nth-child cascade), FAB/sheet/toast keyframes, `.nav-ind` active-tab indicator, `.money-pulse`, and a **global `prefers-reduced-motion` reset** (animate skill / WCAG baseline).
+- [x] **Page transition (the "open a page" feel)**: `RootLayout` `useNavDirection()` sets `<html data-nav=forward|back>` from `history.state.idx` (covers hardware/gesture back without touching navigate() call sites). `AppShell` wraps the Outlet in `<div key={pathname} class="route-view">` so only the routed content remounts+animates while the chrome stays put. Standalone task pages (QuickAdd, Simulator) get `route-view` on their root (mount-fresh). Outing skipped on purpose (multiple return branches + fullscreen Bar Mode).
+- [x] **FAB fix + animation** (`components/FAB.tsx`): bug fixed — actions now clear the taller safe-area nav (`paddingBottom: calc(112px+var(--safe-bottom))`) AND the protruding center button, and the list scrolls internally (`max-h:100dvh`, `overflow-y-auto`) so the lowest item never lands on the bar. Enter = scrim fade + `.stagger`; exit = scrim-out + `.fab-panel-out`, kept mounted via new `useAnimatedPresence` hook.
+- [x] **Sheet / toast / nav / money**: `BottomSheet` now animates **closed** too (presence hook, `sheet-up`/`sheet-down`); `Toast` reuses the shared `toast-in`; `BottomNav` active-tab indicator (`.nav-ind`) + `+`/`close` glyph spin; `AnimatedMoney` gains `pulseOnChange` (fires only on a real in-place change) — enabled on the piggy bank + wallet balances (the "money reacts" moment).
+- [x] **Reusable hook**: `hooks/useAnimatedPresence.ts` keeps an overlay mounted through its exit (`{mounted, state}`); used by FAB + BottomSheet.
+- [x] **Verify**: 944 tests pass (108 files), tsc -b clean, web build + cap sync + assembleDebug green, APK 0.36.0. No domain/logic changes; no new deps.
 
 ### Hotfix Gate H1 — device feedback (0.35.0)
 Source: user diagnostics on SM-S918B / Android 15 (0.29.0 build) — `"LocalNotifications.then()" is not implemented on android` crash loop + UI feedback.

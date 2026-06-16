@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { registerOverlayDismiss } from '@/utils/overlay-dismiss';
+import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 
 interface BottomSheetProps {
   open: boolean;
@@ -15,6 +16,8 @@ interface BottomSheetProps {
  */
 export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
   const { t } = useTranslation();
+  // DEC-194: keep the sheet mounted through its drop-out animation.
+  const { mounted, state } = useAnimatedPresence(open, 200);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -29,7 +32,8 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!mounted) return null;
+  const closing = state === 'closing';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
@@ -37,24 +41,28 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
       <button
         aria-label={t('common.close')}
         className="absolute inset-0 bg-black/60 cursor-default"
-        style={{ animation: 'sheet-fade 0.15s ease-out' }}
+        style={{
+          animation: closing
+            ? 'sheet-fade-out 180ms var(--ease-accelerate) both'
+            : 'sheet-fade var(--motion-base) var(--ease-out) both',
+        }}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className="relative w-full max-w-[430px] bg-surface-container rounded-t-2xl p-5 max-h-[85vh] overflow-y-auto"
-        style={{ animation: 'sheet-up 0.2s ease-out' }}
+        style={{
+          animation: closing
+            ? 'sheet-down 200ms var(--ease-accelerate) both'
+            : 'sheet-up var(--motion-base) var(--ease-out) both',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-1 rounded-full bg-surface-high mx-auto mb-4" />
         {title && <p className="text-sm font-bold text-on-surface mb-4">{title}</p>}
         {children}
       </div>
-      <style>{`
-        @keyframes sheet-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
-      `}</style>
     </div>
   );
 }
