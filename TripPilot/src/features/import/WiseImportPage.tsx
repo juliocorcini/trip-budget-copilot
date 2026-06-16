@@ -1,24 +1,72 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { parseWiseCsv } from '@/domain/import/wise-csv';
 import { classifyWiseRows } from '@/domain/import/wise-import';
-import type { WiseImportPlan, WiseImportDraft, WiseDraftStatus } from '@/domain/import';
-import { commitWiseImport, softDeleteTransactionsBatch } from '@/domain/orchestrators';
+import type {
+  WiseImportPlan,
+  WiseImportDraft,
+  WiseDraftStatus,
+  WiseAllocation,
+  WiseAllocationKind,
+} from '@/domain/import';
+import {
+  matchParticipantByName,
+  buildDefaultAllocations,
+  transferAllocationStatus,
+  newAllocationId,
+  OUTGOING_ALLOCATION_KINDS,
+  INCOMING_ALLOCATION_KINDS,
+  PARTICIPANT_ALLOCATION_KINDS,
+  WALLET_ALLOCATION_KINDS,
+  EXPENSE_ALLOCATION_KINDS,
+} from '@/domain/import';
+import {
+  commitWiseImport,
+  commitWiseTransfers,
+  undoWiseImportBatch,
+  type WiseTransferCommitSpec,
+} from '@/domain/orchestrators';
 import { resolveActivePhase, formatShortDate } from '@/domain/dates';
 import { getDefaultWallet } from '@/domain/wallets';
-import { formatMoney, sumCents } from '@/domain/money';
-import { walletRepository } from '@/data/repositories';
+import { formatMoney, sumCents, toCents } from '@/domain/money';
+import { calculateDebts, createParticipant, type DebtSummary } from '@/domain/splitting';
+import {
+  walletRepository,
+  participantRepository,
+  participantShareRepository,
+  settlementRepository,
+} from '@/data/repositories';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import { getCategoryIcon } from '@/utils/category-icons';
 import type { Wallet } from '@/domain/types/wallet';
+import type { Participant } from '@/domain/types/participant';
 import { Icon } from '@/components/Icon';
 import { EmptyState } from '@/components/EmptyState';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 
 type TargetWallet = string | 'new';
+
+/** Per-transfer classification state (the user's split + matched person). */
+interface TransferClassification {
+  participantId: string | null;
+  allocations: WiseAllocation[];
+}
+
+/** Curated categories offered when an allocation slice is an expense. */
+const TRANSFER_EXPENSE_CATEGORIES = [
+  'restaurant',
+  'bar',
+  'market',
+  'transport',
+  'accommodation',
+  'entertainment',
+  'gifts',
+  'other',
+];
 
 const STATUS_STYLE: Record<WiseDraftStatus, { bg: string; color: string }> = {
   new: { bg: 'rgba(124,160,255,0.16)', color: 'var(--primary)' },
@@ -29,7 +77,8 @@ const STATUS_STYLE: Record<WiseDraftStatus, { bg: string; color: string }> = {
 export function WiseImportPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, wallets, transactions, loading, error, retry, reload } = useAppData();
+  const { trip, phases, pools, wallets, transactions, participants, loading, error, retry, reload } =
+    useAppData();
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [plan, setPlan] = useState<WiseImportPlan | null>(null);
@@ -37,8 +86,118 @@ export function WiseImportPage() {
   const [included, setIncluded] = useState<Set<string>>(new Set());
   const [target, setTarget] = useState<TargetWallet | null>(null);
   const [busy, setBusy] = useState(false);
+  // FIELD-14: transfer intelligence — debts to suggest, per-transfer split state.
+  const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
+  const [transferState, setTransferState] = useState<Record<string, TransferClassification>>({});
+  const [activeTransferId, setActiveTransferId] = useState<string | null>(null);
 
   const baseCurrency = trip?.baseCurrency ?? 'EUR';
+  const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
+
+  const transferDrafts = useMemo(
+    () =>
+      plan
+        ? plan.drafts.filter((d) => d.kind === 'transfer' && d.status !== 'duplicate_import')
+        : [],
+    [plan],
+  );
+
+  // Load debts once a statement with transfers is on screen — powers the
+  // "you owe X / they owe you Y" suggestions and the default split.
+  useEffect(() => {
+    if (!trip || !owner || transferDrafts.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const txIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
+      const [shares, settlements] = await Promise.all([
+        participantShareRepository.getAllForTrip(txIds),
+        settlementRepository.getByTripId(trip.id),
+      ]);
+      if (cancelled) return;
+      setDebtSummary(calculateDebts(transactions, shares, participants, settlements, owner.id));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [trip, owner, transactions, participants, transferDrafts.length]);
+
+  const debtFor = (participantId: string | null): { iOweCents: number; theyOweCents: number } => {
+    if (!participantId || !debtSummary || !owner) return { iOweCents: 0, theyOweCents: 0 };
+    let iOweCents = 0;
+    let theyOweCents = 0;
+    for (const d of debtSummary.debts) {
+      if (d.debtorId === owner.id && d.creditorId === participantId) iOweCents += d.amountCents;
+      if (d.debtorId === participantId && d.creditorId === owner.id) theyOweCents += d.amountCents;
+    }
+    return { iOweCents, theyOweCents };
+  };
+
+  // Seed each transfer with a suggested participant + default split the first
+  // time we see it (re-seeds after debts arrive so the cap is accurate).
+  useEffect(() => {
+    if (transferDrafts.length === 0) return;
+    setTransferState((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const draft of transferDrafts) {
+        if (next[draft.rowId]) continue;
+        const match = matchParticipantByName(draft.counterpartyName, participants);
+        const participantId = match?.participantId ?? null;
+        const debt = debtFor(participantId);
+        next[draft.rowId] = {
+          participantId,
+          allocations: buildDefaultAllocations({
+            direction: draft.direction,
+            transferAmountCents: draft.amountCents,
+            debtToPersonCents: debt.iOweCents,
+            debtFromPersonCents: debt.theyOweCents,
+            hasParticipant: participantId !== null,
+            defaultCategory: draft.category,
+          }),
+        };
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transferDrafts, participants, debtSummary]);
+
+  const isTransferReady = (rowId: string): boolean => {
+    const st = transferState[rowId];
+    const draft = transferDrafts.find((d) => d.rowId === rowId);
+    if (!st || !draft) return false;
+    const status = transferAllocationStatus(draft.amountCents, st.allocations);
+    if (!status.balanced || !status.amountsValid) return false;
+    return st.allocations.every((a) => {
+      if (a.kind === 'ignore') return true;
+      if (PARTICIPANT_ALLOCATION_KINDS.has(a.kind) && !st.participantId) return false;
+      if (WALLET_ALLOCATION_KINDS.has(a.kind) && !a.targetWalletId) return false;
+      if (EXPENSE_ALLOCATION_KINDS.has(a.kind) && !a.category) return false;
+      return true;
+    });
+  };
+
+  const readyTransferIds = useMemo(
+    () => transferDrafts.filter((d) => isTransferReady(d.rowId)).map((d) => d.rowId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transferDrafts, transferState],
+  );
+
+  const patchTransfer = (rowId: string, patch: Partial<TransferClassification>) => {
+    setTransferState((prev) => {
+      const current = prev[rowId];
+      if (!current) return prev;
+      return { ...prev, [rowId]: { ...current, ...patch } };
+    });
+  };
+
+  const createParticipantInline = async (name: string): Promise<string | null> => {
+    if (!trip || name.trim().length === 0) return null;
+    const participant = createParticipant(trip.id, name.trim(), null);
+    await participantRepository.create(participant);
+    await reload();
+    return participant.id;
+  };
 
   const selectedDrafts = useMemo(
     () =>
@@ -95,7 +254,9 @@ export function WiseImportPage() {
 
   const handleCommit = async () => {
     if (!trip || busy) return;
-    if (selectedDrafts.length === 0) {
+    const hasExpenses = selectedDrafts.length > 0;
+    const hasTransfers = readyTransferIds.length > 0;
+    if (!hasExpenses && !hasTransfers) {
       showToast(t('wiseImport.commit_empty'), 'warning');
       return;
     }
@@ -124,21 +285,47 @@ export function WiseImportPage() {
         walletId = wallet.id;
       }
 
-      const result = await commitWiseImport({
-        drafts: selectedDrafts,
-        tripId: trip.id,
-        budgetPoolId: operationalPool.id,
-        walletId,
-        fallbackPhaseId: fallbackPhase.id,
-      });
+      const transactionIds: string[] = [];
+      const settlementIds: string[] = [];
+
+      if (hasExpenses) {
+        const result = await commitWiseImport({
+          drafts: selectedDrafts,
+          tripId: trip.id,
+          budgetPoolId: operationalPool.id,
+          walletId,
+          fallbackPhaseId: fallbackPhase.id,
+        });
+        transactionIds.push(...result.transactionIds);
+      }
+
+      if (hasTransfers && owner) {
+        const specs: WiseTransferCommitSpec[] = readyTransferIds.map((rowId) => {
+          const st = transferState[rowId]!;
+          const draft = transferDrafts.find((d) => d.rowId === rowId)!;
+          return { draft, participantId: st.participantId, allocations: st.allocations };
+        });
+        const result = await commitWiseTransfers({
+          specs,
+          tripId: trip.id,
+          ownerId: owner.id,
+          budgetPoolId: operationalPool.id,
+          sourceWalletId: walletId,
+          fallbackPhaseId: fallbackPhase.id,
+          baseCurrency,
+        });
+        transactionIds.push(...result.transactionIds);
+        settlementIds.push(...result.settlementIds);
+      }
+
       await reload();
 
-      const ids = result.transactionIds;
-      showToast(t('wiseImport.imported_toast', { count: ids.length }), 'success', {
+      const count = transactionIds.length + settlementIds.length;
+      showToast(t('wiseImport.imported_toast', { count }), 'success', {
         durationMs: 8000,
         actionLabel: t('common.undo'),
         onTap: () => {
-          void softDeleteTransactionsBatch(ids).then(() => {
+          void undoWiseImportBatch({ transactionIds, settlementIds }).then(() => {
             notifyAppDataChanged();
             showToast(t('common.undo_done'), 'info');
           });
@@ -220,6 +407,9 @@ export function WiseImportPage() {
           <div className="bg-surface-container rounded-2xl p-4 grid grid-cols-2 gap-y-2.5 gap-x-3">
             <Stat label={t('wiseImport.found')} value={plan.summary.uniqueRows} />
             <Stat label={t('wiseImport.new')} value={plan.summary.newCount} accent />
+            {plan.summary.transferCount > 0 && (
+              <Stat label={t('wiseImport.transfers')} value={plan.summary.transferCount} accent />
+            )}
             {plan.summary.duplicateImportCount > 0 && (
               <Stat label={t('wiseImport.already_imported')} value={plan.summary.duplicateImportCount} />
             )}
@@ -256,32 +446,86 @@ export function WiseImportPage() {
             <p className="text-[11px] text-on-surface-faint">{t('wiseImport.target_wallet_hint')}</p>
           </div>
 
-          {/* Review list */}
-          <div className="flex items-center justify-between mt-1">
-            <p className="text-xs font-semibold text-on-surface">{t('wiseImport.review_title')}</p>
-            <div className="flex gap-3">
-              <button onClick={includeAllNew} className="text-[11px] font-semibold text-primary btn-press">
-                {t('wiseImport.include_all')}
-              </button>
-              <button onClick={excludeAll} className="text-[11px] font-semibold text-on-surface-faint btn-press">
-                {t('wiseImport.exclude_all')}
-              </button>
+          {/* FIELD-14: transfers to people — classified, not auto-imported. */}
+          {transferDrafts.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 mt-1">
+                <Icon name="swap_horiz" size={16} className="text-primary" />
+                <p className="text-xs font-semibold text-on-surface">
+                  {t('wiseImport.transfers_title')}
+                </p>
+              </div>
+              <p className="text-[11px] text-on-surface-faint -mt-1">
+                {t('wiseImport.transfers_hint')}
+              </p>
+              {transferDrafts.map((draft) => (
+                <TransferRow
+                  key={draft.rowId}
+                  draft={draft}
+                  classification={transferState[draft.rowId]}
+                  participants={participants}
+                  ready={isTransferReady(draft.rowId)}
+                  baseCurrency={baseCurrency}
+                  onOpen={() => setActiveTransferId(draft.rowId)}
+                />
+              ))}
             </div>
-          </div>
+          )}
 
-          <div className="flex flex-col gap-2">
-            {plan.drafts.map((draft) => (
-              <DraftRow
-                key={draft.rowId}
-                draft={draft}
-                checked={included.has(draft.rowId)}
-                onToggle={() => toggle(draft.rowId)}
-                baseCurrency={baseCurrency}
-              />
-            ))}
-          </div>
+          {/* Review list (plain expenses + fees; transfers/credits handled apart) */}
+          {plan.drafts.some((d) => d.kind !== 'transfer') && (
+            <>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs font-semibold text-on-surface">{t('wiseImport.review_title')}</p>
+                <div className="flex gap-3">
+                  <button onClick={includeAllNew} className="text-[11px] font-semibold text-primary btn-press">
+                    {t('wiseImport.include_all')}
+                  </button>
+                  <button onClick={excludeAll} className="text-[11px] font-semibold text-on-surface-faint btn-press">
+                    {t('wiseImport.exclude_all')}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {plan.drafts
+                  .filter((d) => d.kind !== 'transfer')
+                  .map((draft) => (
+                    <DraftRow
+                      key={draft.rowId}
+                      draft={draft}
+                      checked={included.has(draft.rowId)}
+                      onToggle={() => toggle(draft.rowId)}
+                      baseCurrency={baseCurrency}
+                    />
+                  ))}
+              </div>
+            </>
+          )}
         </>
       )}
+
+      {/* FIELD-14: transfer classification sheet (match person + split). */}
+      {activeTransferId &&
+        (() => {
+          const draft = transferDrafts.find((d) => d.rowId === activeTransferId);
+          const classification = transferState[activeTransferId];
+          if (!draft || !classification) return null;
+          return (
+            <TransferClassifySheet
+              draft={draft}
+              classification={classification}
+              participants={participants}
+              wallets={wallets}
+              sourceWalletId={typeof target === 'string' && target !== 'new' ? target : null}
+              debt={debtFor(classification.participantId)}
+              baseCurrency={baseCurrency}
+              onPatch={(patch) => patchTransfer(draft.rowId, patch)}
+              onCreateParticipant={createParticipantInline}
+              onClose={() => setActiveTransferId(null)}
+            />
+          );
+        })()}
 
       {hasDrafts && (
         <div
@@ -291,17 +535,21 @@ export function WiseImportPage() {
           <div className="max-w-[430px] mx-auto">
             <button
               onClick={handleCommit}
-              disabled={busy || selectedDrafts.length === 0}
+              disabled={busy || (selectedDrafts.length === 0 && readyTransferIds.length === 0)}
               className="w-full py-3.5 rounded-2xl bg-primary text-on-surface font-bold btn-press disabled:opacity-40"
             >
               {busy
                 ? t('common.loading')
-                : selectedDrafts.length === 0
+                : selectedDrafts.length === 0 && readyTransferIds.length === 0
                   ? t('wiseImport.commit_empty')
-                  : t('wiseImport.commit', {
-                      count: selectedDrafts.length,
-                      total: formatMoney(selectedTotalCents, baseCurrency),
-                    })}
+                  : readyTransferIds.length > 0
+                    ? t('wiseImport.commit_items', {
+                        count: selectedDrafts.length + readyTransferIds.length,
+                      })
+                    : t('wiseImport.commit', {
+                        count: selectedDrafts.length,
+                        total: formatMoney(selectedTotalCents, baseCurrency),
+                      })}
             </button>
           </div>
         </div>
@@ -425,5 +673,429 @@ function DraftRow({
         )}
       </span>
     </button>
+  );
+}
+
+/* ────────────────────── FIELD-14: transfer UI ────────────────────── */
+
+const ALLOCATION_KIND_ICON: Record<WiseAllocationKind, string> = {
+  pay_debt: 'paid',
+  person_paid_expense: 'handshake',
+  wallet_transfer: 'account_balance_wallet',
+  my_expense: 'receipt_long',
+  settle_incoming: 'savings',
+  ignore: 'block',
+};
+
+function participantName(participants: Participant[], id: string | null): string {
+  if (!id) return '';
+  return participants.find((p) => p.id === id)?.name ?? '';
+}
+
+function allocationSummary(
+  allocations: WiseAllocation[],
+  t: (k: string) => string,
+  currency: string,
+): string {
+  const parts = allocations
+    .filter((a) => a.kind !== 'ignore' && a.amountCents > 0)
+    .map((a) => `${t(`wiseImport.alloc_${a.kind}`)} ${formatMoney(a.amountCents, currency)}`);
+  return parts.join(' · ');
+}
+
+function TransferRow({
+  draft,
+  classification,
+  participants,
+  ready,
+  baseCurrency,
+  onOpen,
+}: {
+  draft: WiseImportDraft;
+  classification: TransferClassification | undefined;
+  participants: Participant[];
+  ready: boolean;
+  baseCurrency: string;
+  onOpen: () => void;
+}) {
+  const { t } = useTranslation();
+  const currency = draft.currency || baseCurrency;
+  const matchedName = participantName(participants, classification?.participantId ?? null);
+  const summary = classification ? allocationSummary(classification.allocations, t, currency) : '';
+  const sign = draft.direction === 'in' ? '+' : '−';
+
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left bg-surface-container rounded-xl p-3 flex items-center gap-3 btn-press"
+    >
+      <span
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: 'rgba(124,160,255,0.16)' }}
+      >
+        <Icon name="swap_horiz" size={18} className="text-primary" />
+      </span>
+
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-on-surface truncate">
+          {draft.counterpartyName ?? draft.description}
+        </span>
+        <span className="block text-[11px] text-on-surface-faint truncate">
+          {summary.length > 0
+            ? summary
+            : matchedName
+              ? t('wiseImport.transfer_tap_classify')
+              : t('wiseImport.transfer_tap_classify')}
+        </span>
+      </span>
+
+      <span className="flex flex-col items-end gap-1 shrink-0">
+        <span
+          className={`text-sm font-extrabold tabular ${draft.direction === 'in' ? 'text-success' : 'text-on-surface'}`}
+        >
+          {sign}
+          {formatMoney(draft.amountCents, currency).replace(/^[-−+]/, '')}
+        </span>
+        <span
+          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1"
+          style={{
+            background: ready ? 'rgba(106,196,140,0.18)' : 'var(--warning-surface, rgba(212,160,80,0.18))',
+            color: ready ? 'var(--success)' : 'var(--warning)',
+          }}
+        >
+          <Icon name={ready ? 'check_circle' : 'tune'} size={10} />
+          {ready ? t('wiseImport.transfer_ready') : t('wiseImport.transfer_review')}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function TransferClassifySheet({
+  draft,
+  classification,
+  participants,
+  wallets,
+  sourceWalletId,
+  debt,
+  baseCurrency,
+  onPatch,
+  onCreateParticipant,
+  onClose,
+}: {
+  draft: WiseImportDraft;
+  classification: TransferClassification;
+  participants: Participant[];
+  wallets: Wallet[];
+  sourceWalletId: string | null;
+  debt: { iOweCents: number; theyOweCents: number };
+  baseCurrency: string;
+  onPatch: (patch: Partial<TransferClassification>) => void;
+  onCreateParticipant: (name: string) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const currency = draft.currency || baseCurrency;
+  const [showNewInput, setShowNewInput] = useState(false);
+  const [newName, setNewName] = useState('');
+  const others = participants.filter((p) => !p.isOwner);
+  const suggested = matchParticipantByName(draft.counterpartyName, participants);
+  const matchedName = participantName(participants, classification.participantId);
+
+  const status = transferAllocationStatus(draft.amountCents, classification.allocations);
+  const remainingColor =
+    status.remainingCents === 0 ? 'var(--success)' : status.remainingCents > 0 ? 'var(--warning)' : 'var(--error)';
+
+  const updateAlloc = (id: string, patch: Partial<WiseAllocation>) =>
+    onPatch({
+      allocations: classification.allocations.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+    });
+  const removeAlloc = (id: string) =>
+    onPatch({ allocations: classification.allocations.filter((a) => a.id !== id) });
+  const addAlloc = () => {
+    const remaining = status.remainingCents > 0 ? status.remainingCents : 0;
+    const kind: WiseAllocationKind = draft.direction === 'out' ? 'my_expense' : 'ignore';
+    onPatch({
+      allocations: [
+        ...classification.allocations,
+        {
+          id: newAllocationId(),
+          kind,
+          amountCents: remaining,
+          category: draft.direction === 'out' ? draft.category : undefined,
+        },
+      ],
+    });
+  };
+
+  const handleCreate = async () => {
+    const id = await onCreateParticipant(newName);
+    if (id) {
+      onPatch({ participantId: id });
+      setShowNewInput(false);
+      setNewName('');
+    }
+  };
+
+  return (
+    <BottomSheet open onClose={onClose} title={t('wiseImport.transfer_sheet_title')}>
+      <div className="flex flex-col gap-4 pb-2">
+        {/* Header: who + how much */}
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-on-surface truncate">
+              {draft.counterpartyName ?? draft.description}
+            </p>
+            <p className="text-[11px] text-on-surface-faint">
+              {formatShortDate(draft.localDay)} ·{' '}
+              {draft.direction === 'in'
+                ? t('wiseImport.transfer_incoming')
+                : t('wiseImport.transfer_outgoing')}
+            </p>
+          </div>
+          <p className="text-lg font-extrabold tabular text-on-surface shrink-0">
+            {formatMoney(draft.amountCents, currency)}
+          </p>
+        </div>
+
+        {/* Participant match */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-on-surface">{t('wiseImport.transfer_person')}</p>
+          <div className="flex gap-2 flex-wrap">
+            {others.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => onPatch({ participantId: p.id })}
+                className={`px-3 py-2 rounded-xl text-xs font-medium btn-press flex items-center gap-1.5 ${
+                  classification.participantId === p.id
+                    ? 'bg-primary text-on-surface'
+                    : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                {p.name}
+                {suggested?.participantId === p.id && (
+                  <span className="text-[9px] font-bold opacity-80">
+                    · {t('wiseImport.transfer_suggested')}
+                  </span>
+                )}
+              </button>
+            ))}
+            {showNewInput ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder={t('wiseImport.transfer_new_person')}
+                  className="px-3 py-2 rounded-xl text-xs bg-surface-high text-on-surface w-32 outline-none"
+                />
+                <button
+                  onClick={handleCreate}
+                  disabled={newName.trim().length === 0}
+                  className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center btn-press disabled:opacity-40"
+                >
+                  <Icon name="check" size={16} className="text-on-surface" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewInput(true)}
+                className="px-3 py-2 rounded-xl text-xs font-medium btn-press flex items-center gap-1 bg-surface-high text-on-surface-dim"
+              >
+                <Icon name="add" size={14} />
+                {t('wiseImport.transfer_new_person')}
+              </button>
+            )}
+          </div>
+          {classification.participantId && (debt.iOweCents > 0 || debt.theyOweCents > 0) && (
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--primary-dim)' }}>
+              {debt.iOweCents > 0
+                ? t('wiseImport.transfer_you_owe', {
+                    name: matchedName,
+                    amount: formatMoney(debt.iOweCents, currency),
+                  })
+                : t('wiseImport.transfer_they_owe', {
+                    name: matchedName,
+                    amount: formatMoney(debt.theyOweCents, currency),
+                  })}
+            </p>
+          )}
+        </div>
+
+        {/* Allocations */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-on-surface">{t('wiseImport.transfer_split')}</p>
+            <span className="text-[11px] font-bold tabular" style={{ color: remainingColor }}>
+              {t('wiseImport.transfer_remaining', {
+                amount: formatMoney(status.remainingCents, currency),
+              })}
+            </span>
+          </div>
+          {classification.allocations.map((alloc) => (
+            <AllocationEditorRow
+              key={alloc.id}
+              alloc={alloc}
+              direction={draft.direction}
+              wallets={wallets}
+              sourceWalletId={sourceWalletId}
+              baseCurrency={currency}
+              draftCategory={draft.category}
+              canRemove={classification.allocations.length > 1}
+              onChange={(patch) => updateAlloc(alloc.id, patch)}
+              onRemove={() => removeAlloc(alloc.id)}
+            />
+          ))}
+          <button
+            onClick={addAlloc}
+            className="self-start text-[11px] font-semibold text-primary btn-press flex items-center gap-1 mt-0.5"
+          >
+            <Icon name="add" size={14} />
+            {t('wiseImport.transfer_add_slice')}
+          </button>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full py-3 rounded-2xl bg-primary text-on-surface font-bold btn-press mt-1"
+        >
+          {status.balanced && status.amountsValid
+            ? t('wiseImport.transfer_done')
+            : t('wiseImport.transfer_keep_editing')}
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
+function AllocationEditorRow({
+  alloc,
+  direction,
+  wallets,
+  sourceWalletId,
+  baseCurrency,
+  draftCategory,
+  canRemove,
+  onChange,
+  onRemove,
+}: {
+  alloc: WiseAllocation;
+  direction: WiseImportDraft['direction'];
+  wallets: Wallet[];
+  sourceWalletId: string | null;
+  baseCurrency: string;
+  draftCategory: string;
+  canRemove: boolean;
+  onChange: (patch: Partial<WiseAllocation>) => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  const kinds = direction === 'out' ? OUTGOING_ALLOCATION_KINDS : INCOMING_ALLOCATION_KINDS;
+  const otherWallets = wallets.filter((w) => w.id !== sourceWalletId);
+  const [amountStr, setAmountStr] = useState((alloc.amountCents / 100).toFixed(2));
+
+  // Re-sync only when the value changed from OUTSIDE (e.g. "add slice" fills the
+  // remainder) — never while the user is typing (parsed === stored ⇒ skip).
+  useEffect(() => {
+    const parsed = Number(amountStr.replace(',', '.'));
+    const localCents = Number.isFinite(parsed) && parsed > 0 ? toCents(parsed) : 0;
+    if (localCents !== alloc.amountCents) setAmountStr((alloc.amountCents / 100).toFixed(2));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alloc.amountCents]);
+
+  const handleAmount = (value: string) => {
+    setAmountStr(value);
+    const parsed = Number(value.replace(',', '.'));
+    onChange({ amountCents: Number.isFinite(parsed) && parsed > 0 ? toCents(parsed) : 0 });
+  };
+
+  const changeKind = (kind: WiseAllocationKind) => {
+    onChange({
+      kind,
+      category: EXPENSE_ALLOCATION_KINDS.has(kind) ? (alloc.category ?? draftCategory) : undefined,
+      targetWalletId: WALLET_ALLOCATION_KINDS.has(kind)
+        ? (alloc.targetWalletId ?? otherWallets[0]?.id ?? null)
+        : undefined,
+    });
+  };
+
+  return (
+    <div className="bg-surface-high rounded-xl p-2.5 flex flex-col gap-2">
+      {/* Kind + amount + remove */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto no-scrollbar" data-no-tab-swipe>
+          {kinds.map((k) => (
+            <button
+              key={k}
+              onClick={() => changeKind(k)}
+              className={`px-2 py-1 rounded-lg text-[10px] font-semibold btn-press flex items-center gap-1 shrink-0 ${
+                alloc.kind === k ? 'bg-primary text-on-surface' : 'bg-surface-container text-on-surface-dim'
+              }`}
+            >
+              <Icon name={ALLOCATION_KIND_ICON[k]} size={12} />
+              {t(`wiseImport.alloc_${k}`)}
+            </button>
+          ))}
+        </div>
+        {canRemove && (
+          <button onClick={onRemove} className="btn-press p-1 shrink-0" aria-label={t('common.delete')}>
+            <Icon name="close" size={16} className="text-on-surface-faint" />
+          </button>
+        )}
+      </div>
+
+      {alloc.kind !== 'ignore' && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-on-surface-faint shrink-0">{baseCurrency}</span>
+          <input
+            inputMode="decimal"
+            value={amountStr}
+            onChange={(e) => handleAmount(e.target.value)}
+            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg text-sm tabular bg-surface-container text-on-surface outline-none"
+          />
+        </div>
+      )}
+
+      {/* Category picker for expense slices */}
+      {EXPENSE_ALLOCATION_KINDS.has(alloc.kind) && (
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar" data-no-tab-swipe>
+          {TRANSFER_EXPENSE_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => onChange({ category: cat })}
+              className={`px-2 py-1 rounded-lg text-[10px] font-medium btn-press flex items-center gap-1 shrink-0 ${
+                alloc.category === cat ? 'bg-primary text-on-surface' : 'bg-surface-container text-on-surface-dim'
+              }`}
+            >
+              <Icon name={getCategoryIcon(cat)} size={12} />
+              {t(`categories.${cat}`)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Target wallet picker for wallet moves */}
+      {WALLET_ALLOCATION_KINDS.has(alloc.kind) && (
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar" data-no-tab-swipe>
+          {otherWallets.length === 0 ? (
+            <span className="text-[10px] text-on-surface-faint">{t('wiseImport.transfer_no_wallet')}</span>
+          ) : (
+            otherWallets.map((w) => (
+              <button
+                key={w.id}
+                onClick={() => onChange({ targetWalletId: w.id })}
+                className={`px-2 py-1 rounded-lg text-[10px] font-medium btn-press shrink-0 ${
+                  alloc.targetWalletId === w.id
+                    ? 'bg-primary text-on-surface'
+                    : 'bg-surface-container text-on-surface-dim'
+                }`}
+              >
+                {w.name}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,10 +1,16 @@
 import type { Transaction } from '@/domain/types/transaction';
+import type { Settlement } from '@/domain/types/settlement';
 import type { Phase } from '@/domain/types/phase';
 import { resolveActivePhase } from '@/domain/dates';
 import type { WiseStatementRow } from './wise-csv';
+import type { WiseTransferDirection } from './wise-transfer';
 
-/** What a row becomes when imported. Credits are shown but never imported. */
-export type WiseDraftKind = 'expense' | 'fee' | 'credit';
+/**
+ * What a row becomes when imported. Credits are shown but never imported.
+ * FIELD-14: `transfer` = a TRANSFER to/from a PERSON — handled by the dedicated
+ * classification flow (debt / wallet move / expense / split), not as an expense.
+ */
+export type WiseDraftKind = 'expense' | 'fee' | 'credit' | 'transfer';
 
 /** Relationship of a row to what already exists on the device. */
 export type WiseDraftStatus = 'new' | 'duplicate_import' | 'possible_manual_dup';
@@ -28,6 +34,10 @@ export interface WiseImportDraft {
   currency: string;
   description: string;
   merchant: string | null;
+  /** FIELD-14: counterparty person of a TRANSFER row (the payee), else null. */
+  counterpartyName: string | null;
+  /** FIELD-14: 'out' (I sent money) or 'in' (I received) — drives transfer kinds. */
+  direction: WiseTransferDirection;
   /** Best-effort city pulled from the trailing UPPERCASE token(s) of merchant. */
   city: string | null;
   /** A {@link import('@/domain/types/common').TransactionCategory} value. */
@@ -54,6 +64,8 @@ export interface WiseImportSummary {
   creditCount: number;
   feeCount: number;
   expenseCount: number;
+  /** FIELD-14: actionable (non-duplicate) TRANSFER rows to classify. */
+  transferCount: number;
 }
 
 export interface WiseImportPlan {
@@ -64,6 +76,9 @@ export interface WiseImportPlan {
 export interface ClassifyWiseContext {
   /** Active transactions of the trip — for both dedupe paths. */
   existingTransactions: Transaction[];
+  /** FIELD-14: existing settlements — so a re-imported transfer that only paid
+   *  a debt (settlement, no transaction) is still recognized as duplicate. */
+  existingSettlements?: Settlement[];
   phases: Phase[];
 }
 
@@ -130,6 +145,11 @@ export function extractCity(merchant: string | null): string | null {
 }
 
 function classifyKind(row: WiseStatementRow): WiseDraftKind {
+  // FIELD-14: a TRANSFER with a named counterparty is a person-to-person move
+  // (either direction) — never a plain card purchase. Checked first so an
+  // incoming transfer is a `transfer`, not a generic `credit`.
+  const hasCounterparty = (row.payeeName?.trim().length ?? 0) > 0;
+  if (row.detailsType.includes('TRANSFER') && hasCounterparty) return 'transfer';
   if (row.signedAmountCents > 0) return 'credit';
   if (row.detailsType.includes('ACCRUAL') || /\b(tarifa|fee|charge|comision|comissao)\b/.test(normalizeText(row.description))) {
     return 'fee';
@@ -186,6 +206,14 @@ export function classifyWiseRows(
       manualByKey.set(manualDupKey(tx.date.slice(0, 10), tx.amountCents), tx.id);
     }
   }
+  // FIELD-14: a transfer that only settled a debt leaves no transaction — its
+  // ref lives on the settlement, so include those to dedupe re-imports.
+  for (const settlement of ctx.existingSettlements ?? []) {
+    if (settlement.deletedAt !== null) continue;
+    if (typeof settlement.externalRef === 'string' && settlement.externalRef.length > 0) {
+      importedRefs.add(settlement.externalRef);
+    }
+  }
 
   const summary: WiseImportSummary = {
     totalRowsParsed,
@@ -196,6 +224,7 @@ export function classifyWiseRows(
     creditCount: 0,
     feeCount: 0,
     expenseCount: 0,
+    transferCount: 0,
   };
 
   const drafts: WiseImportDraft[] = uniqueRows.map((row) => {
@@ -208,7 +237,9 @@ export function classifyWiseRows(
     let manualDupTxId: string | null = null;
     if (importedRefs.has(externalRef)) {
       status = 'duplicate_import';
-    } else if (kind !== 'credit') {
+    } else if (kind === 'expense' || kind === 'fee') {
+      // The "looks like a manual entry" hint is for plain card purchases only —
+      // a transfer (which the user classifies by hand) should never be flagged.
       const dupId = manualByKey.get(manualDupKey(row.localDay, amountCents));
       if (dupId !== undefined) {
         status = 'possible_manual_dup';
@@ -216,12 +247,16 @@ export function classifyWiseRows(
       }
     }
 
-    const importable = kind !== 'credit';
+    // FIELD-14: transfers are committed through the classification flow, so they
+    // are not "importable" as plain expenses (the expense commit path skips them).
+    const importable = kind === 'expense' || kind === 'fee';
     const includeByDefault = importable && status === 'new';
 
     if (kind === 'credit') summary.creditCount++;
     else if (kind === 'fee') summary.feeCount++;
-    else summary.expenseCount++;
+    else if (kind === 'transfer') {
+      if (status !== 'duplicate_import') summary.transferCount++;
+    } else summary.expenseCount++;
     if (status === 'new' && importable) summary.newCount++;
     else if (status === 'duplicate_import') summary.duplicateImportCount++;
     else if (status === 'possible_manual_dup') summary.possibleManualDupCount++;
@@ -236,6 +271,8 @@ export function classifyWiseRows(
       currency: row.currency,
       description: buildDescription(row),
       merchant: row.merchant,
+      counterpartyName: kind === 'transfer' ? (row.payeeName?.trim() || null) : null,
+      direction: row.signedAmountCents < 0 ? 'out' : 'in',
       city: extractCity(row.merchant),
       category: kind === 'credit' ? 'other' : guessCategory(row.merchant, row.description),
       dateIso: row.dateIso,

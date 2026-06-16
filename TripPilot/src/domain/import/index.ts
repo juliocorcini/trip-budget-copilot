@@ -15,3 +15,23 @@ export type {
   WiseDraftStatus,
   ClassifyWiseContext,
 } from './wise-import';
+export {
+  matchParticipantByName,
+  allocationsTotalCents,
+  transferAllocationStatus,
+  buildDefaultAllocations,
+  newAllocationId,
+  OUTGOING_ALLOCATION_KINDS,
+  INCOMING_ALLOCATION_KINDS,
+  PARTICIPANT_ALLOCATION_KINDS,
+  WALLET_ALLOCATION_KINDS,
+  EXPENSE_ALLOCATION_KINDS,
+} from './wise-transfer';
+export type {
+  WiseTransferDirection,
+  WiseAllocationKind,
+  WiseAllocation,
+  ParticipantMatch,
+  TransferAllocationStatus,
+  DefaultAllocationContext,
+} from './wise-transfer';

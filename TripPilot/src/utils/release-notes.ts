@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.44.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Transferências para pessoas no extrato da Wise agora são inteligentes: o app reconhece o nome, sugere o participante e mostra a dívida que você tem com ele.',
+        'Uma transferência pode ser dividida em várias partes: pagar dívida, gasto que a pessoa pagou por você, transferência entre carteiras ou gasto seu — a soma precisa fechar com o valor.',
+        'Pagar uma dívida pelo extrato já registra a quitação; quando a pessoa te pagou de volta, dá para abater o que ela te devia. Transferências não viram mais um gasto solto sem querer.',
+      ],
+      en: [
+        'Transfers to people in the Wise statement are now smart: the app recognizes the name, suggests the participant and shows the debt you have with them.',
+        'One transfer can be split into several parts: pay a debt, an expense they paid for you, a wallet-to-wallet move, or your own expense — the split must add up to the amount.',
+        'Paying a debt from the statement records the settlement; when they paid you back, you can clear what they owed you. Transfers are no longer accidentally booked as a stray expense.',
+      ],
+      es: [
+        'Las transferencias a personas en el extracto de Wise ahora son inteligentes: la app reconoce el nombre, sugiere al participante y muestra la deuda que tienes con él.',
+        'Una transferencia puede dividirse en varias partes: pagar una deuda, un gasto que la persona pagó por ti, un movimiento entre billeteras o un gasto tuyo — la suma debe cuadrar con el importe.',
+        'Pagar una deuda desde el extracto registra la liquidación; cuando te pagó de vuelta, puedes descontar lo que te debía. Las transferencias ya no se registran por error como un gasto suelto.',
+      ],
+    },
+  },
+  {
     version: '0.43.0',
     date: '2026-06-16',
     items: {

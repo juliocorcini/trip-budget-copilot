@@ -1,7 +1,15 @@
 import { db } from '@/data/db/database';
 import type { Transaction } from '@/domain/types/transaction';
-import type { WiseImportDraft } from '@/domain/import';
-import { createExpenseTransaction } from '@/domain/transactions/transactions';
+import type { ParticipantShare } from '@/domain/types/participant-share';
+import type { Settlement } from '@/domain/types/settlement';
+import type { WiseImportDraft, WiseAllocation } from '@/domain/import';
+import { wiseExternalRef } from '@/domain/import';
+import {
+  createExpenseTransaction,
+  createTransferTransaction,
+} from '@/domain/transactions/transactions';
+import { createSettlement, resolvePayerExpense } from '@/domain/splitting';
+import { softDelete } from '@/utils/entity-factory';
 
 export interface CommitWiseImportInput {
   /** Only the drafts the user chose to import (already filtered + importable). */
@@ -65,4 +73,202 @@ export async function commitWiseImport(
   });
 
   return { transactionIds: transactions.map((tx) => tx.id) };
+}
+
+/* ─────────────────── FIELD-14: Wise TRANSFER commit ─────────────────── */
+
+export interface WiseTransferCommitSpec {
+  /** The TRANSFER draft being committed. */
+  draft: WiseImportDraft;
+  /** Matched/confirmed participant (required for debt & person-paid kinds). */
+  participantId: string | null;
+  /** Split slices — already validated to sum to the transfer amount. */
+  allocations: WiseAllocation[];
+}
+
+export interface CommitWiseTransfersInput {
+  specs: WiseTransferCommitSpec[];
+  tripId: string;
+  /** Owner participant id (the user) — debtor/creditor anchor for settlements. */
+  ownerId: string;
+  /** Operational pool that owns any expense slice's budget. */
+  budgetPoolId: string;
+  /** The Wise wallet money leaves from (out) / lands in (wallet moves). */
+  sourceWalletId: string;
+  fallbackPhaseId: string;
+  baseCurrency: string;
+}
+
+export interface CommitWiseTransfersResult {
+  transactionIds: string[];
+  settlementIds: string[];
+}
+
+/**
+ * FIELD-14 (DEC-200): turns classified Wise transfers into real records — a
+ * single transfer can fan out into a debt settlement, a reimbursed expense (the
+ * person paid → expense + settlement), a wallet-to-wallet move, and/or a plain
+ * expense. Every record carries the transfer's `externalRef` so a re-import is
+ * recognized and an undo can reverse the whole group. Atomic across the three
+ * affected tables.
+ *
+ * Money semantics (Core Rule 3 / DEC-052 / DEC-114):
+ *  - pay_debt          → settlement(I → person): clears what I owe; no budget hit.
+ *  - person_paid_expense → expense paid by the person (my full cost, budget hit)
+ *                          + settlement(I → person): the debt is born and paid.
+ *  - wallet_transfer   → Wise → other wallet; never touches the budget.
+ *  - my_expense        → plain expense from the Wise wallet; budget hit.
+ *  - settle_incoming   → settlement(person → me): clears what they owe me.
+ */
+export async function commitWiseTransfers(
+  input: CommitWiseTransfersInput,
+): Promise<CommitWiseTransfersResult> {
+  const transactions: Transaction[] = [];
+  const shares: ParticipantShare[] = [];
+  const settlements: Settlement[] = [];
+
+  for (const spec of input.specs) {
+    const { draft, participantId, allocations } = spec;
+    const ref = wiseExternalRef(draft.rowId);
+    const phaseId = draft.phaseId ?? input.fallbackPhaseId;
+    const currency = draft.currency || input.baseCurrency;
+
+    for (const alloc of allocations) {
+      if (alloc.kind === 'ignore' || alloc.amountCents <= 0) continue;
+
+      if (alloc.kind === 'pay_debt') {
+        if (!participantId) continue;
+        settlements.push({
+          ...createSettlement(input.tripId, input.ownerId, participantId, alloc.amountCents, currency),
+          externalRef: ref,
+        });
+      } else if (alloc.kind === 'settle_incoming') {
+        if (!participantId) continue;
+        settlements.push({
+          ...createSettlement(input.tripId, participantId, input.ownerId, alloc.amountCents, currency),
+          externalRef: ref,
+        });
+      } else if (alloc.kind === 'wallet_transfer') {
+        if (!alloc.targetWalletId || alloc.targetWalletId === input.sourceWalletId) continue;
+        const tx = createTransferTransaction({
+          tripId: input.tripId,
+          phaseId,
+          sourceWalletId: input.sourceWalletId,
+          targetWalletId: alloc.targetWalletId,
+          amountCents: alloc.amountCents,
+          currency,
+          description: draft.description,
+          date: draft.dateIso,
+        });
+        tx.externalRef = ref;
+        transactions.push(tx);
+      } else if (alloc.kind === 'my_expense') {
+        transactions.push(
+          createExpenseTransaction({
+            tripId: input.tripId,
+            phaseId,
+            budgetPoolId: input.budgetPoolId,
+            walletId: input.sourceWalletId,
+            amountCents: alloc.amountCents,
+            currency,
+            baseCurrencyAmountCents: alloc.amountCents,
+            exchangeRate: null,
+            category: alloc.category ?? draft.category,
+            description: draft.description,
+            date: draft.dateIso,
+            externalRef: ref,
+            excludeFromLearning: true,
+          }),
+        );
+      } else if (alloc.kind === 'person_paid_expense') {
+        if (!participantId) continue;
+        // The person paid for my expense → record it as mine (paid by them) so it
+        // hits my budget and is born as a debt to them, then settle that debt now
+        // (this transfer IS the reimbursement). Net debt: zero; budget: +expense.
+        const tx = createExpenseTransaction({
+          tripId: input.tripId,
+          phaseId,
+          budgetPoolId: input.budgetPoolId,
+          walletId: null,
+          amountCents: alloc.amountCents,
+          currency,
+          baseCurrencyAmountCents: alloc.amountCents,
+          exchangeRate: null,
+          category: alloc.category ?? draft.category,
+          description: draft.description,
+          date: draft.dateIso,
+          isShared: true,
+          paidByParticipantId: participantId,
+          externalRef: ref,
+          excludeFromLearning: true,
+        });
+        const resolution = resolvePayerExpense({
+          transactionId: tx.id,
+          amountCents: alloc.amountCents,
+          ownerId: input.ownerId,
+          payerId: participantId,
+          didSplit: false,
+          participantIds: [input.ownerId],
+          shareType: 'equal',
+          customAmountsCents: {},
+        });
+        tx.personalCostCents = resolution.personalCostCents;
+        transactions.push(tx);
+        shares.push(...resolution.shares);
+        settlements.push({
+          ...createSettlement(input.tripId, input.ownerId, participantId, alloc.amountCents, currency),
+          externalRef: ref,
+        });
+      }
+    }
+  }
+
+  if (transactions.length === 0 && settlements.length === 0) {
+    return { transactionIds: [], settlementIds: [] };
+  }
+
+  await db.transaction(
+    'rw',
+    [db.transactions, db.participantShares, db.settlements],
+    async () => {
+      if (transactions.length > 0) await db.transactions.bulkAdd(transactions);
+      if (shares.length > 0) await db.participantShares.bulkAdd(shares);
+      if (settlements.length > 0) await db.settlements.bulkAdd(settlements);
+    },
+  );
+
+  return {
+    transactionIds: transactions.map((tx) => tx.id),
+    settlementIds: settlements.map((s) => s.id),
+  };
+}
+
+/**
+ * Undo for an import that may have created settlements (transfers) on top of
+ * transactions. Soft-deletes the transactions (and their shares, via the batch
+ * helper) plus the settlements — fully reversing {@link commitWiseTransfers}.
+ */
+export async function undoWiseImportBatch(ids: {
+  transactionIds: string[];
+  settlementIds: string[];
+}): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.transactions, db.participantShares, db.settlements],
+    async () => {
+      if (ids.transactionIds.length > 0) {
+        const txs = await db.transactions.bulkGet(ids.transactionIds);
+        await db.transactions.bulkPut(txs.filter((t) => t !== undefined).map((t) => softDelete(t!)));
+        const shares = await db.participantShares
+          .where('transactionId')
+          .anyOf(ids.transactionIds)
+          .toArray();
+        await db.participantShares.bulkPut(shares.map((s) => softDelete(s)));
+      }
+      if (ids.settlementIds.length > 0) {
+        const ss = await db.settlements.bulkGet(ids.settlementIds);
+        await db.settlements.bulkPut(ss.filter((s) => s !== undefined).map((s) => softDelete(s!)));
+      }
+    },
+  );
 }

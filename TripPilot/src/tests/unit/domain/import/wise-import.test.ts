@@ -85,17 +85,33 @@ describe('classifyWiseRows', () => {
     expect(plan.drafts).toHaveLength(7);
   });
 
-  it('classifies kinds: 6 debits as expense, the accrual as fee, no credits', () => {
+  it('classifies kinds: 5 card debits as expense, the accrual as fee, the person transfer as transfer', () => {
     const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
       existingTransactions: [],
       phases: PHASES,
     });
-    expect(plan.summary.expenseCount).toBe(6);
+    expect(plan.summary.expenseCount).toBe(5);
     expect(plan.summary.feeCount).toBe(1);
+    expect(plan.summary.transferCount).toBe(1);
     expect(plan.summary.creditCount).toBe(0);
-    expect(plan.summary.newCount).toBe(7);
-    expect(plan.drafts.every((d) => d.importable)).toBe(true);
+    // newCount counts only importable-as-expense rows (5 cards + 1 fee).
+    expect(plan.summary.newCount).toBe(6);
+    expect(plan.drafts.filter((d) => d.kind !== 'transfer').every((d) => d.importable)).toBe(true);
     expect(plan.drafts.every((d) => d.phaseId === 'phase-jun')).toBe(true);
+  });
+
+  it('classifies the TRANSFER-to-a-person row as a non-importable transfer', () => {
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    const transfer = plan.drafts.find((d) => d.rowId === 'TRANSFER-2188321339');
+    expect(transfer?.kind).toBe('transfer');
+    expect(transfer?.importable).toBe(false);
+    expect(transfer?.includeByDefault).toBe(false);
+    expect(transfer?.direction).toBe('out');
+    expect(transfer?.counterpartyName).toBe('Bruno Pessoa de Oliveira');
+    expect(transfer?.amountCents).toBe(4400);
   });
 
   it('flags an already-imported row as duplicate_import (re-import safe)', () => {
@@ -121,7 +137,7 @@ describe('classifyWiseRows', () => {
     expect(dup?.status).toBe('duplicate_import');
     expect(dup?.includeByDefault).toBe(false);
     expect(plan.summary.duplicateImportCount).toBe(1);
-    expect(plan.summary.newCount).toBe(6);
+    expect(plan.summary.newCount).toBe(5);
   });
 
   it('flags a same day+amount manual expense as possible_manual_dup (unchecked)', () => {
@@ -168,9 +184,10 @@ describe('commitWiseImport', () => {
       fallbackPhaseId: 'phase-jun',
     });
 
-    expect(result.transactionIds).toHaveLength(7);
+    // The person transfer is NOT imported as an expense (5 cards + 1 fee).
+    expect(result.transactionIds).toHaveLength(6);
     const stored = await db.transactions.toArray();
-    expect(stored).toHaveLength(7);
+    expect(stored).toHaveLength(6);
     expect(stored.every((t) => t.walletId === 'wise-wallet')).toBe(true);
     expect(stored.every((t) => t.externalRef?.startsWith('wise:'))).toBe(true);
     expect(stored.every((t) => t.excludeFromLearning)).toBe(true);
@@ -198,7 +215,7 @@ describe('commitWiseImport', () => {
       existingTransactions: stored,
       phases: PHASES,
     });
-    expect(second.summary.duplicateImportCount).toBe(7);
+    expect(second.summary.duplicateImportCount).toBe(6);
     expect(second.summary.newCount).toBe(0);
     expect(second.drafts.every((d) => d.includeByDefault === false)).toBe(true);
   });
