@@ -1,0 +1,125 @@
+import { v4 as uuidv4 } from 'uuid';
+import { toCents } from '@/domain/money';
+import { guessCategory, extractCity } from '@/domain/import/wise-import';
+import type { ReceiptDraftItem, ReceiptPlan, ReceiptReconciliation } from './types';
+
+const CURRENCY_CODE_RE = /^[A-Z]{3}$/;
+
+/**
+ * Coerce an OCR numeric field into a finite number. The prompt asks for plain
+ * dot-decimals, but vision models occasionally emit currency symbols, spaces or
+ * a comma decimal — strip those defensively. Returns null when not a number.
+ */
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  let cleaned = value.replace(/[^\d.,-]/g, '').trim();
+  if (cleaned === '') return null;
+  // No dot but a comma → comma is the decimal separator (e.g. "3,50").
+  if (!cleaned.includes('.') && cleaned.includes(',')) cleaned = cleaned.replace(',', '.');
+  else cleaned = cleaned.replace(/,/g, '');
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function coerceString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function coerceCurrency(value: unknown): string | null {
+  const code = coerceString(value);
+  if (code === null) return null;
+  const upper = code.toUpperCase();
+  return CURRENCY_CODE_RE.test(upper) ? upper : null;
+}
+
+/** A positive quantity defaulting to 1; receipts rarely print fractional counts. */
+function coerceQty(value: unknown): number {
+  const qty = coerceNumber(value);
+  if (qty === null || qty <= 0) return 1;
+  return qty;
+}
+
+/**
+ * Resolve a single line's cents amount: prefer the printed line total, fall back
+ * to unitPrice * qty. Returns null when neither yields a positive amount, so the
+ * line is dropped instead of creating a €0 expense.
+ */
+function resolveAmountCents(rawItem: Record<string, unknown>, qty: number): number | null {
+  const lineTotal = coerceNumber(rawItem.lineTotal ?? rawItem.total);
+  if (lineTotal !== null && lineTotal > 0) return toCents(lineTotal);
+  const unitPrice = coerceNumber(rawItem.unitPrice ?? rawItem.price);
+  if (unitPrice !== null && unitPrice > 0) return toCents(unitPrice * qty);
+  return null;
+}
+
+function buildDraftItem(rawItem: Record<string, unknown>, merchant: string | null): ReceiptDraftItem | null {
+  const qty = coerceQty(rawItem.qty ?? rawItem.quantity);
+  const amountCents = resolveAmountCents(rawItem, qty);
+  if (amountCents === null || amountCents <= 0) return null;
+  const description = coerceString(rawItem.description ?? rawItem.name) ?? 'Item';
+  return {
+    id: uuidv4(),
+    description,
+    qty,
+    amountCents,
+    category: guessCategory(merchant, description),
+    include: true,
+    participantIds: [],
+    paidByParticipantId: null,
+  };
+}
+
+/**
+ * DEC-206 (G2): normalise a raw OCR response (cloud or device) into a cents-based
+ * `ReceiptPlan`. Pure and defensive — any malformed field is coerced or the line
+ * is skipped, so a noisy model response never throws. Accepts either the full
+ * object shape or a bare items array.
+ */
+export function parseReceiptResponse(raw: unknown): ReceiptPlan {
+  const root: Record<string, unknown> = Array.isArray(raw)
+    ? { items: raw }
+    : typeof raw === 'object' && raw !== null
+      ? (raw as Record<string, unknown>)
+      : {};
+
+  const merchant = coerceString(root.merchant);
+  const rawItems = Array.isArray(root.items) ? root.items : [];
+
+  const items: ReceiptDraftItem[] = [];
+  for (const entry of rawItems) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const draft = buildDraftItem(entry as Record<string, unknown>, merchant);
+    if (draft !== null) items.push(draft);
+  }
+
+  const readTotal = coerceNumber(root.total);
+  return {
+    merchant,
+    placeLabel: extractCity(merchant),
+    currency: coerceCurrency(root.currency),
+    readTotalCents: readTotal !== null && readTotal > 0 ? toCents(readTotal) : null,
+    items,
+  };
+}
+
+/**
+ * Compare the kept items against the printed total. Purely informational: the
+ * difference is usually tax/discount lines we intentionally drop, so the UI
+ * shows it as a hint rather than blocking the commit.
+ */
+export function reconcileReceipt(plan: ReceiptPlan, toleranceCents = 0): ReceiptReconciliation {
+  const itemsTotalCents = plan.items
+    .filter((item) => item.include)
+    .reduce((sum, item) => sum + item.amountCents, 0);
+  const readTotalCents = plan.readTotalCents;
+  const diffCents = readTotalCents === null ? null : itemsTotalCents - readTotalCents;
+  return {
+    itemsTotalCents,
+    readTotalCents,
+    diffCents,
+    matches: diffCents === null ? true : Math.abs(diffCents) <= toleranceCents,
+  };
+}

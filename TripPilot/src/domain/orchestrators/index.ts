@@ -86,6 +86,8 @@ export {
   createTripFromTemplate,
 } from './template-orchestrators';
 export type { CreateTripFromTemplateInput } from './template-orchestrators';
+export { commitReceipt, undoReceiptCommit } from './receipt-orchestrators';
+export type { CommitReceiptInput, CommitReceiptResult } from './receipt-orchestrators';
 export { commitWiseImport, commitWiseTransfers, undoWiseImportBatch } from './import-orchestrators';
 export type {
   CommitWiseImportInput,

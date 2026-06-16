@@ -10,6 +10,12 @@
 export interface Env {
   SYNC_ROOM: DurableObjectNamespace;
   MAILBOX: DurableObjectNamespace;
+  /**
+   * DEC-206 (G2): Groq API key for cloud receipt OCR. Lives ONLY here as a
+   * Worker secret — it never reaches the client. Absent in dev/preview, where
+   * the /ocr route reports `ocr_not_configured` so the app degrades gracefully.
+   */
+  GROQ_API_KEY?: string;
 }
 
 /** No ambiguous chars (0/O, 1/I/L) — codes are sometimes read aloud. */
@@ -34,6 +40,28 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+// DEC-206 (G2): cloud receipt OCR. The client posts a single receipt image and
+// gets back STRUCTURED line items. The image is forwarded to Groq's vision model
+// and the response is relayed verbatim — nothing is persisted or logged here.
+const OCR_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+// A data URL holds ~1.37 chars per source byte; ~9 MB of base64 ≈ a 6.5 MB image.
+// The client downscales receipts far below this, so the cap is a pure abuse guard.
+const OCR_MAX_IMAGE_CHARS = 9_000_000;
+const OCR_PROMPT = [
+  'You read a photo of a receipt or bill (supermarket, bar, restaurant, shop — any country).',
+  'Extract the purchased line items. Respond with ONLY a JSON object, no prose, exactly:',
+  '{"merchant": string|null, "currency": string|null, "total": number|null, "items": [{"description": string, "qty": number, "unitPrice": number, "lineTotal": number}]}',
+  'Rules:',
+  '- One entry per purchased product line.',
+  '- "lineTotal" = the printed amount for that line (already qty*unitPrice).',
+  '- "currency" = ISO 4217 code if visible (EUR, USD, BRL...), else null.',
+  '- Do NOT list subtotal, tax, tip, service, discount, change or payment lines as items.',
+  '- Set top-level "total" to the final amount paid if printed, else null.',
+  '- Numbers are plain decimals with a dot separator and no currency symbol.',
+  '- If the image is not a readable receipt, return {"merchant":null,"currency":null,"total":null,"items":[]}.',
+].join('\n');
+
 function generateRoomCode(): string {
   const bytes = new Uint8Array(CODE_LENGTH);
   crypto.getRandomValues(bytes);
@@ -47,6 +75,77 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
+}
+
+/**
+ * DEC-206 (G2): relay a single receipt image to Groq vision and return the
+ * model's raw JSON ({merchant, currency, total, items}). The client's domain
+ * parser is the source of truth for normalisation, so the worker stays a thin,
+ * stateless boundary. Every failure maps to a stable status the client can act
+ * on (503 not configured, 429 rate limited, 502 upstream/parse failure).
+ */
+async function handleOcr(request: Request, env: Env): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'ocr_not_configured' }, 503);
+
+  let body: { imageDataUrl?: unknown };
+  try {
+    body = (await request.json()) as { imageDataUrl?: unknown };
+  } catch {
+    return json({ error: 'bad_json' }, 400);
+  }
+  const imageDataUrl = body.imageDataUrl;
+  if (typeof imageDataUrl !== 'string' || !imageDataUrl.startsWith('data:image/')) {
+    return json({ error: 'bad_image' }, 400);
+  }
+  if (imageDataUrl.length > OCR_MAX_IMAGE_CHARS) return json({ error: 'image_too_large' }, 413);
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OCR_MODEL,
+        temperature: 0,
+        max_tokens: 2048,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: OCR_PROMPT },
+              { type: 'image_url', image_url: { url: imageDataUrl } },
+            ],
+          },
+        ],
+      }),
+    });
+  } catch {
+    return json({ error: 'ocr_upstream_unreachable' }, 502);
+  }
+
+  if (upstream.status === 429) return json({ error: 'ocr_rate_limited' }, 429);
+  if (!upstream.ok) return json({ error: 'ocr_upstream_error', upstreamStatus: upstream.status }, 502);
+
+  let payload: { choices?: { message?: { content?: unknown } }[] };
+  try {
+    payload = (await upstream.json()) as typeof payload;
+  } catch {
+    return json({ error: 'ocr_unparseable' }, 502);
+  }
+  const content = payload.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') return json({ error: 'ocr_empty' }, 502);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return json({ error: 'ocr_unparseable' }, 502);
+  }
+  return json(parsed);
 }
 
 export default {
@@ -68,6 +167,11 @@ export default {
     if (request.method === 'GET' && wsMatch) {
       const stub = env.SYNC_ROOM.get(env.SYNC_ROOM.idFromName(wsMatch[1]!));
       return stub.fetch(request);
+    }
+
+    // DEC-206 (G2) — cloud receipt OCR. Stateless proxy to Groq vision.
+    if (request.method === 'POST' && url.pathname === '/ocr') {
+      return handleOcr(request, env);
     }
 
     // FIELD item 8 — async mailbox addressed by the recipient's actorId.
