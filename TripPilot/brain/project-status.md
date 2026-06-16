@@ -1,10 +1,20 @@
 # TripPilot — Project Status
 
-> Last updated: 2026-06-14 (v0.17.0 — Planned Purchases: earmark known future buys (skincare, clothes) that leave free-to-spend immediately when reserved, with a "Comprei" flow that logs+links+closes with undo and multi-store draw-down — built on the stability hardening v0.15.0 + UX Gates V–Y v0.16.0)
+> Last updated: 2026-06-15 (v0.40.0 — Wise CSV statement import: turn each card purchase into an expense with category/city/phase guessed, cross-source dedupe via `externalRef`, editable review + undo. Caps the native-Android arc v0.28.0→v0.40.0: Capacitor shell + safe-areas + back-button + haptics + permissions, app-wide motion system, the post-animation regression fixes, the active-outing height + FAB redesign, and the rich active-outing notification with no-open quick-add buttons.)
 
 ## Current Phase
 
 **Implementation — D1–D5 + gap-fix R1..R3 + P2P sync R4 + reliability R5 + full-fix R6 + field review R4 + field feedback fixes + brainstorm features v0.8.0/v0.8.1 + stability hardening v0.8.2 + Feature Expansion Package 1 v0.8.3→v0.10.1 (Phases 1 & 2) + Feature Expansion Package 2 v0.10.2→v0.12.1 (Phases 3 & 4) + Feature Expansion Package 3 v0.12.2→v0.14.1 (Phases 5 & 6) + UX Polish Pass v0.14.2→v0.14.5 + UX Feedback & Continuity Pass R2 v0.14.6→v0.14.10 deployed** ✅ — **V1 EXPANDED COMPLETE** (Fase 7 = V2)
+
+### Native Android arc + Wise import (v0.28.0 → v0.40.0) — 2026-06-15 ✅ SHIPPED TO PRODUCTION
+- **Mandate** (Julio): make the web PWA a real Android app for the Play Store, with first-class native touches (widgets, Spotify/Samsung-Now-Bar-style notifications), then a fluid/professional motion layer, then fix the regressions it introduced, and finally import the real Wise card statements as expenses. Delivered gate-by-gate (commit → deploy → APK) per the team workflow.
+- **Native shell (v0.28.0→v0.35.0)**: Capacitor 8 Android wrapper; CSS-driven safe-areas (`--safe-top/--safe-bottom`, opaque status band, light/dark icons); hardware back-button stack; softened haptics; runtime GPS + notification permission flows; persistent storage; DPI/zoom pass. Native Live Update (Android 16 `ProgressStyle`) + a rich fallback path. Crash fix: `LocalNotifications.then()` (plugin proxy made non-thenable).
+- **Motion system (v0.36.0, DEC-194)**: CSS-first page transitions (transform/opacity only, M3 curves, global `prefers-reduced-motion`), staggered lists, FAB/sheet/toast/nav/money micro-interactions; FAB shortcut overlap fixed.
+- **Post-animation fixes (v0.37.0→v0.39.0, DEC-195…199/201)**: detail sheets back at the viewport bottom (portal + `transform:none` rest); first-entry transition (RouteView inside Suspense); bidirectional swipe with directional slide (Expenses + Viagem); active-outing fits one screen; FAB speed-dial redesign; active-outing notification with quick-add **value buttons that log without opening the app** (native `OutingNotifier` plugin + broadcast receiver + queue reconciliation) and a rich fallback.
+- **Wise import (v0.40.0, DEC-200)**: `/import/wise` — pick the .csv files, the app parses (RFC4180, locale-robust amounts), dedupes cross-file by `TransferWise ID`, guesses category/city, assigns phase by date, flags already-imported / possible-manual-dup, and commits atomically with undo. Additive `Transaction.externalRef` (no migration). i18n ×3.
+- **Quality**: 968 unit tests green (110 files; +24 import tests against the 3 real statements); tsc -b 0; web build + cap sync + `assembleDebug` all green; APK `Downloads/TripPilot-0.40.0-debug.apk` (versionCode 14).
+- **Deploy**: every gate to **Production** via `--branch=main` → `trippilot.pages.dev` (latest `main.trippilot.pages.dev`), 0.29.0 → 0.40.0 live.
+- **Device-pending** (by design, needs a physical Android): Android 16 Live Update promotion visuals + the One UI 7 no-open notification tap-to-log; motion feel on the S23.
 
 ### Planned Purchases — earmark known future buys (v0.17.0, DEC-175) — 2026-06-14 ✅ SHIPPED TO PRODUCTION
 - **Mandate** (Julio): "vou fazer uma compra que sei que preciso… colocar como algo que já vai sair do orçamento para ver o que realmente posso gastar" — creams across pharmacy/Primor/Druni, clothes "at some point". No clean home existed; the user was confused as a user. Chose direction `lista_earmark`, scope "função madura, completa".

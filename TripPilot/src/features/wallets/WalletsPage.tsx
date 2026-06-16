@@ -146,6 +146,14 @@ export function WalletsPage() {
         <div className="flex items-center gap-1">
           <HelpButton screenId="wallets" />
           <button
+            onClick={() => navigate('/import/wise')}
+            className="w-9 h-9 rounded-xl bg-surface-high flex items-center justify-center btn-press"
+            aria-label={t('wallets.import_statement')}
+            title={t('wallets.import_statement')}
+          >
+            <Icon name="upload_file" size={18} className="text-on-surface-dim" />
+          </button>
+          <button
             onClick={() => setShowAdd((v) => !v)}
             className="px-3 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
           >

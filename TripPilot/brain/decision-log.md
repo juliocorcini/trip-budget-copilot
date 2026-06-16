@@ -1321,6 +1321,12 @@
 - **Why**: Validates the outing feature and motivates the user who uses it.
 - **Backlog (council, not built)**: cash×card split (method reliability), total in home currency (anchor), peak hour / discipline streak, end-of-trip "Wrapped" (V2 — needs the trip closed).
 
+### DEC-200 — Wise CSV statement import (v0.40.0)
+- **Date**: 2026-06-15
+- **Status**: APPROVED & SHIPPED (Julio provided 3 real Wise card statements; plan `brain/documents/post-animation-fixes-and-wise-import-plan-2026-06-15.md`).
+- **Decision**: Import Wise card statements as expenses. (1) **Schema** is additive only — `Transaction.externalRef?: string|null` (non-indexed, no Dexie migration) stores `wise:<TransferWise ID>` as the dedupe key; imports also set `excludeFromLearning` so a historical batch never skews quick-value learning. (2) **Pure domain** in `src/domain/import/`: an RFC4180 parser (locale-robust amounts — rightmost `.`/`,` is the decimal; DD-MM-YYYY dates) and a classifier that dedupes cross-file by ID, guesses category from merchant/description keywords, extracts the city from the trailing UPPERCASE token(s), assigns the phase by date, and flags each row `new` / `duplicate_import` (ref already on device) / `possible_manual_dup` (same day+amount as a MANUAL expense → shown unchecked). Credits are shown but never imported; fees import as `other`. (3) **Atomic commit** (`commitWiseImport`, one Dexie transaction) with undo via the existing `softDeleteTransactionsBatch`. (4) **UI** `/import/wise` (entry from the Wallets header): multi-file picker → summary → target wallet (existing or one-tap "Wise EUR") → editable per-row review → "Import N · total" + undo. i18n pt-BR/en/es.
+- **Why**: Turns the card statement (where the real per-purchase spend lives) into TripPilot expenses with the least manual work, while the `externalRef` + manual-dup heuristic guarantee "no duplicating what already exists". The importer never invents FX rates: base = original amount (exact for the EUR wallet on the EUR trip; documented fallback otherwise). 968 tests (24 new, run against the 3 real statements).
+
 ---
 
 *New decisions will be added as the project progresses.*

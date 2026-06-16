@@ -86,3 +86,5 @@ export {
   createTripFromTemplate,
 } from './template-orchestrators';
 export type { CreateTripFromTemplateInput } from './template-orchestrators';
+export { commitWiseImport } from './import-orchestrators';
+export type { CommitWiseImportInput, CommitWiseImportResult } from './import-orchestrators';

@@ -33,6 +33,10 @@ export interface CreateExpenseInput {
   sourceWalletId?: string | null;
   targetWalletId?: string | null;
   notes?: string | null;
+  /** DEC-200: imported records carry the source ref (e.g. `wise:CARD-…`). */
+  externalRef?: string | null;
+  /** DEC-200: imported values must not pollute the quick-value learning. */
+  excludeFromLearning?: boolean;
 }
 
 export function createExpenseTransaction(input: CreateExpenseInput): Transaction {
@@ -67,12 +71,13 @@ export function createExpenseTransaction(input: CreateExpenseInput): Transaction
     paidByParticipantId: input.paidByParticipantId ?? null,
     activityProfileId: input.activityProfileId ?? null,
     isSpecialOccasion: false,
-    excludeFromLearning: false,
+    excludeFromLearning: input.excludeFromLearning ?? false,
     sourceWalletId: input.sourceWalletId ?? null,
     targetWalletId: input.targetWalletId ?? null,
     settlementId: null,
     adjustmentReason: null,
     notes: input.notes ?? null,
+    externalRef: input.externalRef ?? null,
   };
 }
 

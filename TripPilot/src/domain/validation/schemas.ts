@@ -106,6 +106,9 @@ export const transactionSchema = syncMetadataSchema.extend({
   settlementId: z.string().uuid().nullable(),
   adjustmentReason: z.string().nullable(),
   notes: z.string().nullable(),
+  // DEC-200 (Wise import): optional provenance ref — older backups omit it
+  // (defaults to absent/null), newer ones round-trip it.
+  externalRef: z.string().nullable().optional(),
 });
 
 /**

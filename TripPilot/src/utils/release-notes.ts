@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.40.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Importar extrato da Wise: selecione os arquivos .csv e o app transforma cada compra do cartão em um gasto, já com categoria, cidade e fase sugeridas.',
+        'Nada de duplicado: o que já foi importado antes é reconhecido e ignorado, e gastos que parecem iguais a lançamentos manuais (mesmo dia e valor) vêm desmarcados para você decidir.',
+        'Revisão antes de salvar: confira a lista, escolha a carteira de destino (ou crie a "Wise EUR" na hora) e importe — com desfazer logo após.',
+      ],
+      en: [
+        'Wise statement import: pick the .csv files and the app turns each card purchase into an expense, with category, city and phase already suggested.',
+        'No duplicates: anything imported before is recognized and skipped, and expenses that look like manual entries (same day and amount) come unchecked for you to decide.',
+        'Review before saving: check the list, choose the target wallet (or create "Wise EUR" on the spot) and import — with undo right after.',
+      ],
+      es: [
+        'Importar extracto de Wise: elige los archivos .csv y la app convierte cada compra con tarjeta en un gasto, con categoría, ciudad y fase ya sugeridas.',
+        'Sin duplicados: lo ya importado antes se reconoce y se omite, y los gastos que parecen registros manuales (mismo día e importe) vienen desmarcados para que decidas.',
+        'Revisión antes de guardar: revisa la lista, elige la billetera de destino (o crea "Wise EUR" al momento) e importa — con deshacer justo después.',
+      ],
+    },
+  },
+  {
     version: '0.39.0',
     date: '2026-06-15',
     items: {

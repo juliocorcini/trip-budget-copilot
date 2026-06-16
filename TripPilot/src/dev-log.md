@@ -2,13 +2,22 @@
 
 ## Current State
 - **Active Delivery**: Post-animation fixes + Wise import — plan `brain/documents/post-animation-fixes-and-wise-import-plan-2026-06-15.md` (DEC-195…201), 4 gates (0.37 → 0.40)
-- **Active Milestone**: Gate 3 (0.39.0) — active-outing notification (N5/N6: value buttons that log without opening the app + rich fallback)
-- **Last Green Test Run**: Gate 3 0.39.0 — 944 tests pass (108 files), tsc -b clean
+- **Active Milestone**: Gate 4 (0.40.0) — Wise CSV import (parser + classify + dedupe + commit + review UI) — DONE
+- **Last Green Test Run**: Gate 4 0.40.0 — 968 tests pass (110 files), tsc -b clean (24 new import tests)
 - **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green; native Java compiles)
-- **APK**: `Downloads/TripPilot-0.39.0-debug.apk` (versionCode 13)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.39.0 live
-- **Next**: Gate 4 (0.40.0) — Wise CSV import (parser + classify + dedupe + commit + UI)
-- **Confidence**: 86% (logic green + APK builds; the no-open notification taps + queue reconciliation are device-pending on One UI 7 — JS reconciliation reuses the tested quickAddSessionExpense orchestrator).
+- **APK**: `Downloads/TripPilot-0.40.0-debug.apk` (versionCode 14)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.40.0 live (`main.trippilot.pages.dev`)
+- **Next**: device validation on One UI 7 (Gate 3 no-open notification taps) + real Wise import dry-run; brain status sync
+- **Confidence**: 88% (all logic green incl. 24 import tests against the 3 real statements + APK builds; the importer's same-currency path is exact for the EUR trip, multi-currency is the documented no-rate fallback).
+
+### Gate 4 — Wise CSV statement import (0.40.0)
+Source: user request — import the Wise card statements (3 real .csv files; file 1 == file 2, file 3 empty) as expenses, "best use of the data, without duplicating what already exists". Plan/council DEC-200. Wise = a wallet; the statement is where the card purchases live.
+- [x] **Additive schema (no migration)**: `Transaction.externalRef?: string|null` (non-indexed) + `excludeFromLearning?` on `CreateExpenseInput`/`createExpenseTransaction`; zod `externalRef: z.string().nullable().optional()`. A historical batch never skews quick-value learning and a re-import is recognized by ref.
+- [x] **Parser `domain/import/wise-csv.ts`**: RFC4180 tokenizer (quoted fields, escaped quotes, embedded newlines), `parseAmountCents` locale-robust (rightmost `.`/`,` is the decimal → handles `1.234,56` and `1,234.56`), `parseWiseDate` (DD-MM-YYYY[+time] → ISO), `parseWiseCsv` maps headers→`WiseStatementRow`, skips malformed/empty.
+- [x] **Classifier `domain/import/wise-import.ts`**: cross-file dedupe by `TransferWise ID` (collapses the duplicated file), `guessCategory` (data-driven keyword rules, accent/case-insensitive, stems match inflections while short tokens like `bar`/`pub` stay whole-word), `extractCity` (trailing UPPERCASE merchant tokens), kind = expense|fee|credit (credits shown, never imported), status = new | duplicate_import (ref already on device) | possible_manual_dup (same day+amount as a MANUAL expense → shown unchecked), phase-by-date via `resolveActivePhase`.
+- [x] **Orchestrator `commitWiseImport`**: atomic `bulkAdd` of the chosen drafts as expenses (externalRef `wise:<id>`, excludeFromLearning, exchangeRate null → base = amount, exact for the EUR wallet/EUR trip), returns ids for the undo toast (reuses `softDeleteTransactionsBatch`).
+- [x] **UI `features/import/WiseImportPage.tsx`** (route `/import/wise`, entry from the Wallets header): multi-file picker → summary (found / new / already-imported / possible-dup / fees / credits) → target wallet chips (existing or one-tap "Wise EUR" creation) → per-row review (checkbox, category icon, merchant, day·city, signed amount, status chip) with select-new / clear-all → sticky "Import N · total" → undo. i18n pt-BR/en/es (`wiseImport.*` + `wallets.import_statement`).
+- [x] **Verify**: 968 tests pass (110 files; +24 import tests run against the 3 real statements), tsc -b clean, web build (`WiseImportPage` chunk 15.96 kB) + cap sync + assembleDebug green, APK 0.40.0 (versionCode 14). Deployed to `main.trippilot.pages.dev`.
 
 ### Gate 3 — active-outing notification: value buttons + rich fallback (0.39.0)
 Source: user report on One UI 7 (Android 15, no Live Update) — the fallback notification regressed: no value buttons, "visually not nice", and it should let you log an expense WITHOUT opening the app, using the SAME quick-add values as the outing screen. Plan/council DEC-199.

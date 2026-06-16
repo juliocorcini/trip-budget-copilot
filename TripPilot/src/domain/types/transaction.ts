@@ -37,4 +37,12 @@ export interface Transaction extends SyncMetadata {
   settlementId: string | null;
   adjustmentReason: string | null;
   notes: string | null;
+  /**
+   * DEC-200 (Wise import): provenance of an externally imported record, e.g.
+   * `wise:CARD-3927313014`. The cross-source dedupe key. Optional + NOT indexed
+   * → additive, no Dexie migration; records predating the import feature read
+   * back `undefined` (treated as "no external source"). Rides along in backups
+   * via the transaction schema's `.passthrough()`.
+   */
+  externalRef?: string | null;
 }
