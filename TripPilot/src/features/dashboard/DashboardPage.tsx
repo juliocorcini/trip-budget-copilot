@@ -11,7 +11,11 @@ import { isNativeApp } from '@/utils/native/platform';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
-import { toggleDashboardCardHidden, type DashboardCardId } from '@/domain/dashboard';
+import {
+  toggleDashboardCardHidden,
+  toggleDashboardCardPaired,
+  type DashboardCardId,
+} from '@/domain/dashboard';
 import { postponeOccurrence } from '@/domain/planning';
 import {
   resolveShareConfirmation,
@@ -50,6 +54,8 @@ export function DashboardPage() {
   const [detailInsight, setDetailInsight] = useState<DashboardInsight | null>(null);
   const [configCardId, setConfigCardId] = useState<DashboardCardId | null>(null);
   const [heroBreakdownOpen, setHeroBreakdownOpen] = useState(false);
+  // FIELD item 5: the savings goal is editable straight from its home card.
+  const [savingsGoalOpen, setSavingsGoalOpen] = useState(false);
 
   // U6 (DEC-180): the month heatmap + its day drill-down moved to the Copiloto,
   // so the home no longer drives heatmap month/day state — the model still gets
@@ -88,6 +94,15 @@ export function DashboardPage() {
     await reload();
   };
 
+  // FIELD item 16: opt a compact card in/out of the 2-up grid (share a row).
+  const handleTogglePairCard = async (id: DashboardCardId) => {
+    await appSettingsRepository.update({
+      dashboardPairedCards: toggleDashboardCardPaired(id, settings?.dashboardPairedCards),
+    });
+    setConfigCardId(null);
+    await reload();
+  };
+
   // M22: accepting the adaptive offer switches to complete mode (explicit user
   // action — ÂNCORA 10) and never asks again; dismissing only silences it.
   const handleRevealAccept = async () => {
@@ -106,6 +121,14 @@ export function DashboardPage() {
       dailyCheckIn: createDailyCheckIn(intent, localDateString(new Date())),
     });
     await reload();
+  };
+
+  // FIELD item 5: save / clear the savings goal from its card (ÂNCORA 11: the
+  // goal is read-only motivation — it never touches the budget).
+  const handleSaveSavingsGoal = async (cents: number | null) => {
+    await appSettingsRepository.update({ savingsGoalCents: cents });
+    await reload();
+    setSavingsGoalOpen(false);
   };
 
   // M9/M10 (E5): the chosen leftover decision runs through the atomic
@@ -409,6 +432,7 @@ export function DashboardPage() {
             onInsightTap={handleInsightTap}
             onSelectCheckIn={handleSelectCheckIn}
             onOpenHeroBreakdown={() => setHeroBreakdownOpen(true)}
+            onEditSavingsGoal={() => setSavingsGoalOpen(true)}
           />
 
           {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}
@@ -440,8 +464,14 @@ export function DashboardPage() {
         configCardId={configCardId}
         onCloseConfig={() => setConfigCardId(null)}
         onHideCard={handleHideCard}
+        onTogglePairCard={handleTogglePairCard}
+        pairedCards={settings.dashboardPairedCards}
         heroBreakdownOpen={heroBreakdownOpen}
         onCloseHeroBreakdown={() => setHeroBreakdownOpen(false)}
+        savingsGoalOpen={savingsGoalOpen}
+        savingsGoalCents={settings.savingsGoalCents ?? null}
+        onCloseSavingsGoal={() => setSavingsGoalOpen(false)}
+        onSaveSavingsGoal={handleSaveSavingsGoal}
         phaseLeftover={isSimpleMode ? null : model.phaseLeftover}
         leftoverTargets={model.globalPoolSummaries.map((g) => g.pool)}
         onPhaseLeftover={handlePhaseLeftover}

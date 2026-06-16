@@ -8,6 +8,8 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import {
   resolveDashboardCardSequence,
   isDashboardCardHidden,
+  isDashboardCardPaired,
+  groupDashboardRows,
   getDashboardCard,
   type DashboardCardId,
 } from '@/domain/dashboard';
@@ -54,6 +56,7 @@ interface DashboardCardsProps {
   onInsightTap: (insight: DashboardInsight) => void;
   onSelectCheckIn: (intent: CheckInIntent) => void;
   onOpenHeroBreakdown: () => void;
+  onEditSavingsGoal: () => void;
 }
 
 // The hero's previous amount is stashed in sessionStorage so it survives the
@@ -102,6 +105,7 @@ export function DashboardCards({
   onInsightTap,
   onSelectCheckIn,
   onOpenHeroBreakdown,
+  onEditSavingsGoal,
 }: DashboardCardsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -404,7 +408,8 @@ export function DashboardCards({
         const pct = Math.round(goal.progressRatio * 100);
         return (
           <button
-            onClick={() => navigate('/settings')}
+            onClick={onEditSavingsGoal}
+            aria-label={t('dashboard.goal_edit')}
             className="w-full mt-4 p-4 rounded-2xl bg-surface-container text-left btn-press"
           >
             <div className="flex items-center gap-2.5">
@@ -420,6 +425,7 @@ export function DashboardCards({
               <span className="text-xs font-bold tabular text-on-surface-dim">
                 {t('dashboard.goal_target', { amount: formatMoney(goal.goalCents, trip.baseCurrency) })}
               </span>
+              <Icon name="edit" size={13} className="text-on-surface-faint" />
             </div>
             <p className="text-[26px] font-extrabold tracking-tight leading-none mt-2 tabular text-on-surface">
               {formatMoney(Math.max(0, goal.projectedSurplusCents), trip.baseCurrency)}
@@ -1040,6 +1046,125 @@ export function DashboardCards({
     }
   };
 
+  // FIELD item 16: a pairable card has content right now (an empty one never
+  // pairs — it would leave a blank half-row). Mirrors each card's own render
+  // guard so the geometry and the content stay in lockstep.
+  const pairableHasContent = (id: DashboardCardId): boolean => {
+    switch (id) {
+      case 'savings_goal':
+        return Boolean(model.savingsGoal);
+      case 'piggy_bank':
+        return model.piggyBankCents > 0;
+      case 'planned_purchases':
+        return model.plannedPurchasesSummary.openCount > 0;
+      case 'funds_summary':
+        // Half width fits exactly one pool cleanly; with several it stays full.
+        return model.globalPoolSummaries.length === 1;
+      default:
+        return false;
+    }
+  };
+
+  // FIELD item 16: the half-width compact tile of a pairable card — a uniform
+  // icon + label + single number, so two sit cleanly side by side. The full
+  // card (its rich body) still renders when the card is on its own row.
+  const COMPACT_TILE_CLASS =
+    'w-full h-full p-3.5 rounded-2xl bg-surface-container text-left btn-press flex flex-col gap-1';
+  const renderCompactCard = (id: DashboardCardId): ReactNode => {
+    switch (id) {
+      case 'savings_goal': {
+        const goal = model.savingsGoal;
+        if (!goal) return null;
+        const pct = Math.round(goal.progressRatio * 100);
+        return (
+          <button onClick={onEditSavingsGoal} aria-label={t('dashboard.goal_edit')} className={COMPACT_TILE_CLASS}>
+            <div className="flex items-center gap-1.5">
+              <Icon name="flag" size={15} filled className={goal.onTrack ? 'text-success' : 'text-warning'} />
+              <span className="text-[10px] font-bold tracking-[0.08em] uppercase text-on-surface-faint truncate">
+                {t('dashboard.goal_title')}
+              </span>
+            </div>
+            <p className="text-xl font-extrabold tracking-tight leading-none mt-0.5 tabular text-on-surface">
+              {formatMoney(Math.max(0, goal.projectedSurplusCents), trip.baseCurrency)}
+            </p>
+            <p className="text-[10px] font-semibold text-on-surface-faint truncate">{t('dashboard.goal_projected')}</p>
+            <div
+              className="w-full h-1.5 rounded-full overflow-hidden mt-auto"
+              style={{ background: 'var(--surface-container-high)' }}
+            >
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${pct}%`, background: goal.onTrack ? 'var(--success)' : 'var(--warning)' }}
+              />
+            </div>
+          </button>
+        );
+      }
+      case 'piggy_bank':
+        return model.piggyBankCents > 0 ? (
+          <div className={COMPACT_TILE_CLASS} style={{ background: '#6B8F7112', border: '1px solid #6B8F7118' }}>
+            <div className="flex items-center gap-1.5">
+              <Icon name="savings" size={15} filled className="text-success" />
+              <span className="text-[10px] font-bold tracking-[0.08em] uppercase text-on-surface-faint truncate">
+                {t('dashboard.piggy_title')}
+              </span>
+            </div>
+            <p className="text-xl font-extrabold tabular text-success leading-none mt-0.5">
+              <AnimatedMoney cents={model.piggyBankCents} currency={trip.baseCurrency} pulseOnChange />
+            </p>
+            <p className="text-[10px] font-semibold text-on-surface-faint truncate">{t('dashboard.piggy_desc')}</p>
+          </div>
+        ) : null;
+      case 'planned_purchases': {
+        const planned = model.plannedPurchasesSummary;
+        if (planned.openCount === 0) return null;
+        return (
+          <button onClick={() => navigate('/planned')} className={COMPACT_TILE_CLASS}>
+            <div className="flex items-center gap-1.5">
+              <Icon name="shopping_bag" size={15} className="text-primary" />
+              <span className="text-[10px] font-bold tracking-[0.08em] uppercase text-on-surface-faint truncate">
+                {t('dashboard.card_planned_purchases')}
+              </span>
+            </div>
+            {planned.totalReservedCents > 0 ? (
+              <p className="text-xl font-extrabold tracking-tight leading-none mt-0.5 tabular text-primary">
+                {formatMoney(planned.totalReservedCents, trip.baseCurrency)}
+              </p>
+            ) : (
+              <p className="text-xl font-extrabold leading-none mt-0.5 tabular text-on-surface">{planned.openCount}</p>
+            )}
+            <p className="text-[10px] font-semibold text-on-surface-faint truncate">
+              {planned.totalReservedCents > 0
+                ? t('dashboard.planned_card_hint')
+                : `${t('planned.tracking_badge')} · ${planned.openCount}`}
+            </p>
+          </button>
+        );
+      }
+      case 'funds_summary': {
+        const entry = model.globalPoolSummaries[0];
+        if (!entry) return null;
+        const { pool, summary } = entry;
+        return (
+          <button onClick={() => navigate('/funds')} className={COMPACT_TILE_CLASS}>
+            <div className="flex items-center gap-1.5">
+              <Icon name="shopping_bag" size={15} className="text-primary" />
+              <span className="text-[10px] font-bold tracking-[0.08em] uppercase text-on-surface-faint truncate">
+                {pool.name}
+              </span>
+            </div>
+            <p className="text-xl font-extrabold tracking-tight leading-none mt-0.5 tabular text-on-surface">
+              {formatMoney(summary.remainingCents, pool.currency)}
+            </p>
+            <p className="text-[10px] font-semibold text-on-surface-faint truncate">{t('dashboard.remaining')}</p>
+          </button>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
   const cardSequence = resolveDashboardCardSequence(settings.dashboardCardOrder);
 
   // FIELD-09: the day's focus (chosen by the check-in lens) renders right under
@@ -1063,15 +1188,39 @@ export function DashboardCards({
     ];
   }
 
+  // FIELD item 16: cards the traveler opted into the 2-up grid, that have
+  // content and are not the day's spotlighted focus (the focus keeps full width
+  // with its lens chip). groupDashboardRows then folds the sequence into rows.
+  const pairableNow = new Set<DashboardCardId>(
+    visibleSequence.filter(
+      (id) =>
+        id !== activeFocusCardId &&
+        isDashboardCardPaired(id, settings.dashboardPairedCards) &&
+        pairableHasContent(id),
+    ),
+  );
+  const rows = groupDashboardRows(visibleSequence, pairableNow);
+
   // DEC-119 (R-10): configurable home screen — order + visibility.
+  // FIELD item 16: paired rows render two compact tiles side by side.
   return (
     <>
-      {visibleSequence.map((id) =>
-        getDashboardCard(id).fixed ? (
-          <div key={id}>{renderDashboardCard(id)}</div>
+      {rows.map((row) =>
+        row.kind === 'full' ? (
+          getDashboardCard(row.id).fixed ? (
+            <div key={row.id}>{renderDashboardCard(row.id)}</div>
+          ) : (
+            <div key={row.id} {...getCardLongPress(row.id)}>
+              {renderDashboardCard(row.id)}
+            </div>
+          )
         ) : (
-          <div key={id} {...getCardLongPress(id)}>
-            {renderDashboardCard(id)}
+          <div key={row.ids.join('+')} className="flex gap-3 mt-4 items-stretch">
+            {row.ids.map((id) => (
+              <div key={id} className="flex-1 min-w-0" {...getCardLongPress(id)}>
+                {renderCompactCard(id)}
+              </div>
+            ))}
           </div>
         ),
       )}

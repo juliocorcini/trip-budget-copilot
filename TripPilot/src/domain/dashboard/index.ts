@@ -7,12 +7,17 @@ export {
   toggleDashboardCardHidden,
   isDashboardCardCollapsed,
   toggleDashboardCardCollapsed,
+  isDashboardCardPairable,
+  isDashboardCardPaired,
+  toggleDashboardCardPaired,
+  groupDashboardRows,
   moveDashboardCard,
 } from './dashboard-cards';
 export type {
   DashboardCardId,
   DashboardCardDescriptor,
   DashboardQuickAction,
+  DashboardRow,
 } from './dashboard-cards';
 export { buildYesterdayRecap } from './recap';
 export type { YesterdayRecap, BuildYesterdayRecapInput } from './recap';

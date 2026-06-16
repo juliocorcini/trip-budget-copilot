@@ -42,6 +42,72 @@ const CURRENCY_OPTIONS = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'
 /** DEC-128: currencies offered as mental anchor (the traveler's "home" money). */
 const ANCHOR_CURRENCY_OPTIONS = ['BRL', 'USD', 'EUR', 'GBP'];
 
+// FIELD item 4: the long flat list became hard to use. Groups are now
+// collapsible accordions + a search field. Keywords are intentionally
+// multilingual (pt/en/es) so search finds an option regardless of UI language.
+const SETTINGS_GROUPS: { id: string; labelKey: string; keywords: string }[] = [
+  {
+    id: 'preferences',
+    labelKey: 'settings.group_preferences',
+    keywords:
+      'modo mode simples simple completo complete tema theme escuro dark claro light idioma language lingua moeda currency vibração vibration tom alerta tone amigo sincero',
+  },
+  {
+    id: 'notifications',
+    labelKey: 'settings.group_notifications',
+    keywords:
+      'notificação notificacao notification notificaciones saída ativa outing salida localização location ubicacion gps lugar place',
+  },
+  {
+    id: 'money',
+    labelKey: 'settings.group_money',
+    keywords:
+      'âncora ancora anchor câmbio cambio fx taxa rate cotação meta economia savings goal objetivo ahorro guardar dinheiro casa',
+  },
+  {
+    id: 'home',
+    labelKey: 'settings.group_home',
+    keywords:
+      'template modelo plantilla viagem trip cards card home início inicio tela screen configurar dashboard organizar',
+  },
+  {
+    id: 'data_security',
+    labelKey: 'settings.group_data_security',
+    keywords:
+      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar',
+  },
+  {
+    id: 'device',
+    labelKey: 'settings.group_device',
+    keywords:
+      'dispositivo device aparelho nome name carteira wallet billetera padrão default quick add atalho valores armazenamento storage persistência',
+  },
+  {
+    id: 'about',
+    labelKey: 'settings.group_about',
+    keywords:
+      'versão version atualização update actualizar sobre about app instalar install informações',
+  },
+];
+
+const SETTINGS_GROUPS_OPEN_KEY = 'tp.settingsGroupsOpen';
+
+function readSettingsGroupsOpen(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_GROUPS_OPEN_KEY) || '{}') as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+function writeSettingsGroupsOpen(state: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(SETTINGS_GROUPS_OPEN_KEY, JSON.stringify(state));
+  } catch {
+    // localStorage unavailable (private mode) — collapse state is non-critical.
+  }
+}
+
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -71,6 +137,8 @@ export function SettingsPage() {
   const [confirmPin, setConfirmPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [savingPin, setSavingPin] = useState(false);
+  // FIELD item 4: live search across the settings groups.
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     void localSnapshotRepository.getAll().then(setSnapshots);
@@ -310,6 +378,26 @@ export function SettingsPage() {
     baseCurrency,
   );
 
+  // FIELD item 4: a group's props (label + multilingual keywords) — single
+  // source shared by the rendered accordions and the "no results" check.
+  const groupProps = (id: string) => {
+    const group = SETTINGS_GROUPS.find((g) => g.id === id);
+    return {
+      id,
+      label: group ? t(group.labelKey as never) : id,
+      keywords: group?.keywords ?? '',
+      query,
+    };
+  };
+  const normalizedQuery = query.trim().toLowerCase();
+  const noSearchResults =
+    normalizedQuery.length > 0 &&
+    !SETTINGS_GROUPS.some(
+      (g) =>
+        t(g.labelKey as never).toLowerCase().includes(normalizedQuery) ||
+        g.keywords.toLowerCase().includes(normalizedQuery),
+    );
+
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
       {/* R5-08: same back-button header pattern as the other "More" subpages. */}
@@ -340,7 +428,39 @@ export function SettingsPage() {
         <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
       </button>
 
-      <GroupHeader label={t('settings.group_preferences')} />
+      {/* FIELD item 4: search across all settings groups (multilingual keywords). */}
+      <div className="relative">
+        <Icon
+          name="search"
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-faint pointer-events-none"
+        />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('settings.search_placeholder')}
+          aria-label={t('settings.search_placeholder')}
+          className="w-full bg-surface-container text-on-surface text-sm rounded-xl pl-10 pr-9 py-3 outline-none"
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 btn-press p-0.5"
+            aria-label={t('common.clear')}
+          >
+            <Icon name="close" size={16} className="text-on-surface-faint" />
+          </button>
+        )}
+      </div>
+
+      {noSearchResults && (
+        <p className="text-sm text-on-surface-dim text-center py-6">
+          {t('settings.search_no_results', { query })}
+        </p>
+      )}
+
+      <CollapsibleGroup {...groupProps('preferences')}>
 
       {/* M21: app mode — simple hides advanced surfaces; complete shows all */}
       <Section title={t('settings.mode_title')}>
@@ -435,7 +555,9 @@ export function SettingsPage() {
         />
       </Section>
 
-      <GroupHeader label={t('settings.group_notifications')} />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup {...groupProps('notifications')}>
 
       {/* DEC-124 (R-11 v2): outing notification — discoverable + reactivatable */}
       <Section title={t('settings.notifications')}>
@@ -472,7 +594,9 @@ export function SettingsPage() {
         <p className="text-xs text-on-surface-faint mt-2">{t('settings.location_hint')}</p>
       </Section>
 
-      <GroupHeader label={t('settings.group_money')} />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup {...groupProps('money')}>
 
       {/* DEC-128: mental currency anchor — manual offline rate, no network */}
       <Section title={t('settings.anchor_title')}>
@@ -608,7 +732,9 @@ export function SettingsPage() {
         )}
       </Section>
 
-      <GroupHeader label={t('settings.group_home')} />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup {...groupProps('home')}>
 
       {/* M22 (E7): save this trip's structure (phases + learned typicals) as a
           reusable template, applied on the next trip's onboarding. */}
@@ -666,7 +792,9 @@ export function SettingsPage() {
         </button>
       </Section>
 
-      <GroupHeader label={t('settings.group_data_security')} />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup {...groupProps('data_security')}>
 
       {/* Redesign (G1): the old "Mais → Dados" lives here now that the gear is
           the single Settings entry. Backup/import and CSV export stay reachable. */}
@@ -765,7 +893,9 @@ export function SettingsPage() {
         )}
       </Section>
 
-      <GroupHeader label={t('settings.group_device')} />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup {...groupProps('device')}>
 
       <Section title={t('settings.device_name')}>
         <input
@@ -872,7 +1002,9 @@ export function SettingsPage() {
       </Section>
       )}
 
-      <GroupHeader label={t('settings.group_about')} />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup {...groupProps('about')}>
 
       {/* DEC-135: install + update controls */}
       <Section title={t('settings.app_section')}>
@@ -914,6 +1046,8 @@ export function SettingsPage() {
           onClick={() => navigate('/about')}
         />
       </Section>
+
+      </CollapsibleGroup>
 
       {/* M15: confirm before replacing the current data with a restore point. */}
       <BottomSheet
@@ -1016,14 +1150,64 @@ export function SettingsPage() {
   );
 }
 
-// UX polish (Gate 5): segments the long flat settings list into labeled groups
-// (same group-header pattern as the More page). Purely visual — no option is
-// removed, hidden or reordered; the headers only break the "wall of sections".
-function GroupHeader({ label }: { label: string }) {
+// FIELD item 4: each settings group is a collapsible accordion. Collapsed by
+// default (persisted in localStorage) so the page reads as ~7 headers instead of
+// a wall of sections; while searching it force-expands and self-hides when the
+// query matches neither its label nor its (multilingual) keywords. Nothing is
+// ever removed — every option lives one tap (or one search) away (ÂNCORA 9).
+function CollapsibleGroup({
+  id,
+  label,
+  keywords,
+  query,
+  children,
+}: {
+  id: string;
+  label: string;
+  keywords: string;
+  query: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState<boolean>(() => readSettingsGroupsOpen()[id] ?? false);
+  const normalized = query.trim().toLowerCase();
+  const searching = normalized.length > 0;
+  const matches =
+    !searching ||
+    label.toLowerCase().includes(normalized) ||
+    keywords.toLowerCase().includes(normalized);
+
+  if (searching && !matches) return null;
+
+  const expanded = searching ? true : open;
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    const state = readSettingsGroupsOpen();
+    state[id] = next;
+    writeSettingsGroupsOpen(state);
+  };
+
   return (
-    <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1 mt-2 first:mt-0">
-      {label}
-    </p>
+    <div className="flex flex-col gap-3">
+      <button
+        onClick={searching ? undefined : toggle}
+        disabled={searching}
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between px-1 mt-1 first:mt-0 btn-press"
+      >
+        <span className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider">
+          {label}
+        </span>
+        {!searching && (
+          <Icon
+            name={expanded ? 'expand_less' : 'expand_more'}
+            size={18}
+            className="text-on-surface-faint"
+          />
+        )}
+      </button>
+      {expanded && <div className="flex flex-col gap-3">{children}</div>}
+    </div>
   );
 }
 

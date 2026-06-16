@@ -80,7 +80,7 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
 - AC: TRANSFER não vira gasto automático; match sugere participante; marcar
   dívida paga gera settlement; split soma exatamente o valor da transferência.
 
-### G4 — Configurações + Meta + Layout [web]
+### G4 — Configurações + Meta + Layout [web] — **FEITO (0.46.0)**
 - Configurações: página única com campo de busca (filtra seções) + seções
   recolhíveis (estado persistido). Nada removido.
 - Meta de economia: editável pelo card `savings_goal` (sheet) + atalho em Ajustes.
@@ -88,6 +88,17 @@ saída), 12 (telas abrem roladas), 15 (recentes compactos).
   grid quando 2 compactos adjacentes estão marcados como par.
 - AC: toda config achável; meta editável da home; pares aparecem 2/linha,
   responsivo, sem quebrar os cards ricos.
+- **Entregue**: `SettingsPage` virou página única — header de busca multilíngue
+  (label + keywords por seção) + 7 grupos recolhíveis `CollapsibleGroup` (estado
+  em `localStorage`, abre forçado e auto-oculta na busca; "nada encontrado" com a
+  query). Card `savings_goal` abre `SavingsGoalSheet` (editar/remover; ÂNCORA 11,
+  read-only — nunca toca no orçamento); atalho em Ajustes › Dinheiro intacto.
+  Grade 2-up curada: flag `pairable` no catálogo (`savings_goal`, `piggy_bank`,
+  `planned_purchases`, `funds_summary`), opt-in por card
+  (`dashboardPairedCards` em AppSettings; backfill/seed) via long-press e
+  "Configurar tela inicial". Domínio puro `groupDashboardRows` (só pareia
+  compactos adjacentes, opt-in e COM conteúdo; o card-foco do dia segue cheio).
+  Tiles compactos uniformes + 20 testes (catálogo + grupos). 1012 testes verdes.
 
 ### G5 — Caixa postal P2P [worker + web]
 - Worker: endpoints de mailbox por `actorId` (POST guarda blob cifrado + TTL via

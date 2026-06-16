@@ -6,6 +6,9 @@ import {
   resolveDashboardCardSequence,
   getDashboardCard,
   toggleDashboardCardHidden,
+  toggleDashboardCardPaired,
+  isDashboardCardPairable,
+  isDashboardCardPaired,
   moveDashboardCard,
   type DashboardCardId,
 } from '@/domain/dashboard';
@@ -48,6 +51,15 @@ export function DashboardConfigPage() {
     );
   };
 
+  // FIELD item 16: opt a compact card in/out of the 2-up grid.
+  const handleTogglePair = async (id: DashboardCardId) => {
+    setSettings(
+      await appSettingsRepository.update({
+        dashboardPairedCards: toggleDashboardCardPaired(id, settings.dashboardPairedCards),
+      }),
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4 pb-6 pt-2">
       <div className="flex items-center gap-3">
@@ -80,6 +92,28 @@ export function DashboardConfigPage() {
                 </span>
               ) : (
                 <div className="flex items-center gap-1">
+                  {/* FIELD item 16: compact cards can opt into the 2-up grid. */}
+                  {isDashboardCardPairable(id) && (
+                    <button
+                      onClick={() => handleTogglePair(id)}
+                      className="btn-press w-8 h-8 rounded-lg flex items-center justify-center bg-surface-high"
+                      aria-label={
+                        isDashboardCardPaired(id, settings.dashboardPairedCards)
+                          ? t('dashboard.card_pair_off')
+                          : t('dashboard.card_pair_on')
+                      }
+                    >
+                      <Icon
+                        name="view_column"
+                        size={14}
+                        className={
+                          isDashboardCardPaired(id, settings.dashboardPairedCards)
+                            ? 'text-primary'
+                            : 'text-on-surface-faint'
+                        }
+                      />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleMove(id, 'up')}
                     disabled={movableIndex <= 0}

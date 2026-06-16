@@ -32,6 +32,10 @@ export interface AppSettings {
   /** DEC-119 (R-10): configurable home screen (non-indexed — no migration). */
   hiddenDashboardCards: string[];
   dashboardCardOrder: string[];
+  /** FIELD item 16: ids of (pairable) cards the traveler opted into the 2-up
+   * grid, so two compact cards share a row. Empty = everything full width
+   * (non-indexed — no migration). */
+  dashboardPairedCards: string[];
   /** UX polish (D3): ids of dashboard cards collapsed to a header row (closed
    * drawer). Sibling of `hiddenDashboardCards`. undefined = use the default
    * collapsed set, so existing installs also open with the analytics drawer

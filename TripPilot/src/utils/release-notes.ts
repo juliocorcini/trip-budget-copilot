@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.46.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Configurações repaginadas: agora é uma página só com busca no topo e seções que abrem e fecham. Nada sumiu — está tudo a um toque (ou uma busca) de distância.',
+        'A meta de economia virou editável direto pelo card da tela inicial: toque no card para ajustar ou remover (o atalho nas Configurações continua lá).',
+        'Tela inicial mais compacta: você pode juntar dois cards na mesma linha (Cofrinho, Meta, Planejadas, Compras). Segure o card ou use "Configurar tela inicial" e ative "Mostrar 2 por linha".',
+      ],
+      en: [
+        'Redesigned Settings: now a single page with search at the top and sections that expand and collapse. Nothing was removed — it is all one tap (or one search) away.',
+        'The savings goal is now editable straight from its home card: tap the card to adjust or remove it (the Settings shortcut is still there).',
+        'More compact home: you can place two cards on the same row (Piggy bank, Goal, Planned, Shopping). Long-press the card or use "Configure home" and turn on "Show 2 per row".',
+      ],
+      es: [
+        'Ajustes renovados: ahora es una sola página con búsqueda arriba y secciones que se abren y cierran. Nada desapareció — todo está a un toque (o una búsqueda) de distancia.',
+        'La meta de ahorro ahora se edita directamente desde su card en la pantalla de inicio: toca el card para ajustarla o quitarla (el atajo en Ajustes sigue ahí).',
+        'Inicio más compacto: puedes juntar dos cards en la misma fila (Alcancía, Meta, Planificadas, Compras). Mantén pulsado el card o usa "Configurar inicio" y activa "Mostrar 2 por fila".',
+      ],
+    },
+  },
+  {
     version: '0.45.0',
     date: '2026-06-16',
     items: {

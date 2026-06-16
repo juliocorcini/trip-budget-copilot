@@ -25,6 +25,8 @@ class AppSettingsRepository {
       simpleRevealDismissed: settings.simpleRevealDismissed ?? false,
       hiddenDashboardCards: settings.hiddenDashboardCards ?? [],
       dashboardCardOrder: settings.dashboardCardOrder ?? [],
+      // FIELD item 16: records predating the 2-up grid have nothing paired.
+      dashboardPairedCards: settings.dashboardPairedCards ?? [],
       outingNotificationEnabled: settings.outingNotificationEnabled ?? true,
       anchorCurrency: settings.anchorCurrency ?? null,
       anchorRatePer1: settings.anchorRatePer1 ?? null,

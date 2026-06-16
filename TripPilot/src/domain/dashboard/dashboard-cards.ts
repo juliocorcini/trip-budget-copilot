@@ -37,6 +37,10 @@ export interface DashboardCardDescriptor {
   /** UX polish (D3): card can be collapsed to a single header row, with the
    * open/closed state persisted in settings (sibling of `hidden`). */
   collapsible?: boolean;
+  /** FIELD item 16: compact single-number card that the traveler can opt into
+   * rendering at half width, so two of them share a row (curated 2-up grid).
+   * Rich cards (hero, check-in, carousels, recents) stay full width. */
+  pairable?: boolean;
   quickAction: DashboardQuickAction | null;
 }
 
@@ -70,6 +74,7 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     id: 'savings_goal',
     labelKey: 'dashboard.card_savings_goal',
     fixed: false,
+    pairable: true,
     quickAction: {
       route: '/settings',
       labelKey: 'dashboard.card_action_edit_goal',
@@ -81,6 +86,7 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     id: 'piggy_bank',
     labelKey: 'dashboard.card_piggy_bank',
     fixed: false,
+    pairable: true,
     quickAction: null,
   },
   {
@@ -129,6 +135,7 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     id: 'funds_summary',
     labelKey: 'dashboard.card_funds_summary',
     fixed: false,
+    pairable: true,
     quickAction: {
       route: '/funds',
       labelKey: 'dashboard.card_action_open_funds',
@@ -140,6 +147,7 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     id: 'planned_purchases',
     labelKey: 'dashboard.card_planned_purchases',
     fixed: false,
+    pairable: true,
     quickAction: {
       route: '/planned',
       labelKey: 'dashboard.card_action_open_planned',
@@ -230,6 +238,72 @@ export function toggleDashboardCardCollapsed(
   if (!getDashboardCard(id).collapsible) return collapsed ?? [...DEFAULT_COLLAPSED_CARDS];
   const current = collapsed ?? DEFAULT_COLLAPSED_CARDS;
   return current.includes(id) ? current.filter((c) => c !== id) : [...current, id];
+}
+
+/** FIELD item 16: only compact single-number cards may share a row. */
+export function isDashboardCardPairable(id: DashboardCardId): boolean {
+  return getDashboardCard(id).pairable === true;
+}
+
+/** FIELD item 16: did the traveler opt this (pairable) card into the 2-up grid? */
+export function isDashboardCardPaired(
+  id: DashboardCardId,
+  paired: string[] | undefined,
+): boolean {
+  if (!isDashboardCardPairable(id)) return false;
+  return (paired ?? []).includes(id);
+}
+
+/** FIELD item 16: toggle a pairable card's opt-in (no-op for non-pairable). */
+export function toggleDashboardCardPaired(
+  id: DashboardCardId,
+  paired: string[] | undefined,
+): string[] {
+  const current = paired ?? [];
+  if (!isDashboardCardPairable(id)) return current;
+  return current.includes(id) ? current.filter((p) => p !== id) : [...current, id];
+}
+
+/**
+ * FIELD item 16: a render row is either a full-width card or a side-by-side
+ * pair of two compact cards.
+ */
+export type DashboardRow =
+  | { kind: 'full'; id: DashboardCardId }
+  | { kind: 'pair'; ids: [DashboardCardId, DashboardCardId] };
+
+/**
+ * FIELD item 16: fold a visible card sequence into rows. A card is paired only
+ * when it is in `pairableNow` (pairable + opted-in + actually has content), and
+ * two of them pair up only when ADJACENT in the visible order — a full-width
+ * card between them keeps each on its own row. Pure (data-driven, no UI), so the
+ * "curated 2-up grid" is fully unit-testable. ÂNCORA 9: nothing is added or
+ * removed, only the row geometry changes.
+ */
+export function groupDashboardRows(
+  sequence: DashboardCardId[],
+  pairableNow: ReadonlySet<DashboardCardId>,
+): DashboardRow[] {
+  const rows: DashboardRow[] = [];
+  let pending: DashboardCardId | null = null;
+  for (const id of sequence) {
+    if (pairableNow.has(id)) {
+      if (pending !== null) {
+        rows.push({ kind: 'pair', ids: [pending, id] });
+        pending = null;
+      } else {
+        pending = id;
+      }
+      continue;
+    }
+    if (pending !== null) {
+      rows.push({ kind: 'full', id: pending });
+      pending = null;
+    }
+    rows.push({ kind: 'full', id });
+  }
+  if (pending !== null) rows.push({ kind: 'full', id: pending });
+  return rows;
 }
 
 /** Moves a movable card one position among the MOVABLE cards (↑/↓ in V1). */

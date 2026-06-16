@@ -28,6 +28,7 @@ const settings: AppSettings = {
   quickAddDefaultValuesCents: [300, 500, 700, 1000, 1500],
   hiddenDashboardCards: [],
   dashboardCardOrder: [],
+  dashboardPairedCards: [],
   collapsedDashboardCards: [],
   outingNotificationEnabled: true,
   anchorCurrency: null,

@@ -1,12 +1,17 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
-import { formatMoney } from '@/domain/money';
+import { formatMoney, fromCents, toCents } from '@/domain/money';
 import { buildFreeToSpendBreakdown, type FtsBreakdownKey } from '@/domain/budget';
 import type { PhaseAllowanceMap } from '@/domain/phases';
-import { getDashboardCard, type DashboardCardId } from '@/domain/dashboard';
+import {
+  getDashboardCard,
+  isDashboardCardPairable,
+  isDashboardCardPaired,
+  type DashboardCardId,
+} from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
 import type { PhaseLeftover } from '@/domain/phases';
 import type { ValueSuggestion } from '@/domain/profiles';
@@ -30,9 +35,17 @@ interface DashboardSheetsProps {
   configCardId: DashboardCardId | null;
   onCloseConfig: () => void;
   onHideCard: (id: DashboardCardId) => void;
+  // FIELD item 16: opt a compact card in/out of the 2-up grid (share a row)
+  onTogglePairCard: (id: DashboardCardId) => void;
+  pairedCards: string[];
   // DEC-168: "where this number comes from" — the hero's reconciling arithmetic
   heroBreakdownOpen: boolean;
   onCloseHeroBreakdown: () => void;
+  // FIELD item 5: savings goal edited from its home card (read-only motivation)
+  savingsGoalOpen: boolean;
+  savingsGoalCents: number | null;
+  onCloseSavingsGoal: () => void;
+  onSaveSavingsGoal: (cents: number | null) => void;
   // M9/M10: phase-leftover decision sheet (null = nothing to settle / simple mode)
   phaseLeftover: PhaseLeftover | null;
   leftoverTargets: BudgetPool[];
@@ -56,6 +69,69 @@ const FTS_LABEL_KEYS: Record<Exclude<FtsBreakdownKey, 'free' | 'deficit'>, strin
   planned_purchases: 'dashboard.fts_planned_purchases',
   plan: 'dashboard.fts_plan',
 };
+
+// FIELD item 5: edit the savings goal from its home card. Read-only motivation
+// (ÂNCORA 11) — it never affects the budget; this only sets/clears the target.
+function SavingsGoalSheet({
+  open,
+  currentCents,
+  currency,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  currentCents: number | null;
+  currency: string;
+  onClose: () => void;
+  onSave: (cents: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    if (open) setInput(currentCents != null ? String(fromCents(currentCents)) : '');
+  }, [open, currentCents]);
+
+  const save = () => {
+    const cents = toCents(parseFloat(input.replace(',', '.')));
+    if (Number.isFinite(cents) && cents > 0) onSave(cents);
+  };
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title={t('dashboard.goal_edit')}>
+      <div className="flex flex-col gap-3">
+        <p className="text-xs text-on-surface-dim">{t('settings.goal_hint')}</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="200"
+            aria-label={t('dashboard.goal_edit')}
+            className="bg-surface-high text-on-surface text-base rounded-lg px-3 py-2.5 outline-none flex-1 min-w-0"
+          />
+          <span className="text-xs font-semibold text-on-surface-dim">{currency}</span>
+        </div>
+        <button
+          onClick={save}
+          className="w-full py-3 rounded-xl bg-primary text-on-surface text-sm font-semibold btn-press"
+        >
+          {t('common.save')}
+        </button>
+        {currentCents != null && (
+          <button
+            onClick={() => onSave(null)}
+            className="w-full py-2 text-xs text-on-surface-faint btn-press"
+          >
+            {t('settings.goal_remove')}
+          </button>
+        )}
+      </div>
+    </BottomSheet>
+  );
+}
 
 // FIELD-19: the per-day allowance "map" inside the hero breakdown sheet. Each
 // row is a remaining day of the phase: a proportional bar (peak days are taller)
@@ -183,8 +259,14 @@ export function DashboardSheets({
   configCardId,
   onCloseConfig,
   onHideCard,
+  onTogglePairCard,
+  pairedCards,
   heroBreakdownOpen,
   onCloseHeroBreakdown,
+  savingsGoalOpen,
+  savingsGoalCents,
+  onCloseSavingsGoal,
+  onSaveSavingsGoal,
   phaseLeftover,
   leftoverTargets,
   onPhaseLeftover,
@@ -279,6 +361,24 @@ export function DashboardSheets({
                 </span>
               </button>
             )}
+            {/* FIELD item 16: compact cards can share a row with the next one. */}
+            {isDashboardCardPairable(configCard.id) && (
+              <button
+                onClick={() => onTogglePairCard(configCard.id)}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon
+                  name={isDashboardCardPaired(configCard.id, pairedCards) ? 'view_agenda' : 'view_column'}
+                  size={18}
+                  className="text-primary"
+                />
+                <span className="text-sm font-semibold text-on-surface">
+                  {isDashboardCardPaired(configCard.id, pairedCards)
+                    ? t('dashboard.card_pair_off')
+                    : t('dashboard.card_pair_on')}
+                </span>
+              </button>
+            )}
             <button
               onClick={() => onHideCard(configCard.id)}
               className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
@@ -360,6 +460,15 @@ export function DashboardSheets({
           </div>
         )}
       </BottomSheet>
+
+      {/* FIELD item 5: edit the savings goal straight from its home card. */}
+      <SavingsGoalSheet
+        open={savingsGoalOpen}
+        currentCents={savingsGoalCents}
+        currency={trip.baseCurrency}
+        onClose={onCloseSavingsGoal}
+        onSave={onSaveSavingsGoal}
+      />
 
       {/* M9/M10 (E5): a phase ended with money left — propose, never force.
           Closing (dismiss) carries the leftover into the next phase and marks
