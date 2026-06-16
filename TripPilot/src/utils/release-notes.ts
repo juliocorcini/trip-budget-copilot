@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.38.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Tela de saída ativa: agora tudo cabe em uma tela só — os botões e os valores do quick-add não ficam mais escondidos exigindo rolagem.',
+        'Menu do "+" repaginado: abre como uma folha com a ação principal ("Registrar gasto") em destaque e as demais em uma grade limpa, com ícones coloridos por tipo.',
+      ],
+      en: [
+        'Active outing screen: everything now fits on a single screen — the buttons and quick-add values are no longer hidden below the fold.',
+        'Revamped "+" menu: opens as a sheet with the primary action ("Add expense") highlighted and the rest in a clean grid with color-coded icons.',
+      ],
+      es: [
+        'Pantalla de salida activa: ahora todo cabe en una sola pantalla — los botones y los valores del quick-add ya no quedan ocultos obligando a desplazar.',
+        'Menú "+" renovado: se abre como una hoja con la acción principal ("Registrar gasto") destacada y el resto en una cuadrícula limpia, con iconos por tipo.',
+      ],
+    },
+  },
+  {
     version: '0.37.0',
     date: '2026-06-15',
     items: {

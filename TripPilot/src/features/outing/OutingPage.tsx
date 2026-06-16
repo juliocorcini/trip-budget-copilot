@@ -2194,7 +2194,16 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   return (
     <div
       className="max-w-[430px] mx-auto flex flex-col"
-      style={{ background: 'var(--surface-deep)', minHeight: '100vh' }}
+      style={{
+        background: 'var(--surface-deep)',
+        // DEC-198 (N4): the page is rendered below the safe-top band (RootLayout's
+        // `.app-safe-top` adds padding-top: var(--safe-top)), so a full 100vh
+        // overflowed the viewport by exactly that band and pushed the quick-add
+        // grid below the fold — forcing a scroll even with empty space mid-page.
+        // Fitting to the *remaining* dynamic viewport keeps header → quick-add on
+        // one screen; the flex spacer absorbs only the genuine leftover.
+        minHeight: 'calc(100dvh - var(--safe-top))',
+      }}
     >
       {/* DEC-127: fullscreen Bar Mode overlay (portal, OLED black) */}
       {barMode && (
@@ -2584,7 +2593,12 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
       {enrichStepper}
 
       {/* 11. QUICK-ADD BUTTONS (highlight = closest to avg drink, DEC-045) */}
-      <div className="px-5 pb-3" data-help-anchor="outing-quick-add">
+      {/* DEC-198 (N4): clear the system gesture bar on fullscreen (no bottom nav here). */}
+      <div
+        className="px-5"
+        data-help-anchor="outing-quick-add"
+        style={{ paddingBottom: 'calc(var(--safe-bottom) + 12px)' }}
+      >
         <div className="flex justify-end mb-1.5">
           <button
             onClick={openEditValuesSheet}

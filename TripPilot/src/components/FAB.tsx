@@ -11,7 +11,6 @@ interface FabAction extends ModeAware {
   labelKey: string;
   descKey: string;
   path: string;
-  itemBg: string;
   iconBg: string;
   iconColorClass: string;
 }
@@ -22,7 +21,6 @@ const FAB_ACTIONS: FabAction[] = [
     labelKey: 'fab.register_expense',
     descKey: 'fab.register_expense_desc',
     path: '/quick-add',
-    itemBg: '#C75B3918',
     iconBg: '#C75B3925',
     iconColorClass: 'text-primary',
   },
@@ -31,7 +29,6 @@ const FAB_ACTIONS: FabAction[] = [
     labelKey: 'fab.start_outing',
     descKey: 'fab.start_outing_desc',
     path: '/outings/new',
-    itemBg: 'var(--surface-container)',
     iconBg: '#C75B3918',
     iconColorClass: 'text-primary',
     advanced: true,
@@ -41,7 +38,6 @@ const FAB_ACTIONS: FabAction[] = [
     labelKey: 'fab.simulate_purchase',
     descKey: 'fab.simulate_purchase_desc',
     path: '/simulator',
-    itemBg: 'var(--surface-container)',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
     advanced: true,
@@ -51,7 +47,6 @@ const FAB_ACTIONS: FabAction[] = [
     labelKey: 'fab.register_market',
     descKey: 'fab.register_market_desc',
     path: '/quick-add?cat=market',
-    itemBg: 'var(--surface-container)',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
   },
@@ -60,7 +55,6 @@ const FAB_ACTIONS: FabAction[] = [
     labelKey: 'fab.plan_purchase',
     descKey: 'fab.plan_purchase_desc',
     path: '/planned?new=1',
-    itemBg: 'var(--surface-container)',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
   },
@@ -69,7 +63,6 @@ const FAB_ACTIONS: FabAction[] = [
     labelKey: 'fab.register_transfer',
     descKey: 'fab.register_transfer_desc',
     path: '/quick-add?type=transfer',
-    itemBg: 'var(--surface-container)',
     iconBg: '#D4A84318',
     iconColorClass: 'text-warning',
   },
@@ -78,7 +71,6 @@ const FAB_ACTIONS: FabAction[] = [
     labelKey: 'fab.register_withdrawal',
     descKey: 'fab.register_withdrawal_desc',
     path: '/quick-add?type=withdrawal',
-    itemBg: 'var(--surface-container)',
     iconBg: '#D4A84318',
     iconColorClass: 'text-warning',
   },
@@ -109,6 +101,10 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
     navigate(path);
   };
 
+  // DEC-201 (N7): the first action ("Registrar gasto") is the hero — full width,
+  // accented; the rest read as a clean tonal grid below it.
+  const [primary, ...secondary] = actions;
+
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
@@ -121,48 +117,97 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
         }}
       />
 
-      <div className="relative flex flex-col justify-end min-h-[100dvh]">
-        {/* DEC-194 fix: the actions clear the (taller, safe-area-aware) bottom nav
-            AND the protruding center button, and the list scrolls internally when
-            every action is shown — so the lowest item never lands on the bar. */}
+      {/* Anchor the sheet to the bottom, clearing the (taller, safe-area-aware)
+          bottom nav + protruding center button so the panel floats above them. */}
+      <div
+        className="absolute inset-x-0 bottom-0 flex flex-col justify-end"
+        style={{
+          paddingTop: 'calc(var(--safe-top) + 12px)',
+          paddingBottom: 'calc(104px + var(--safe-bottom))',
+          maxHeight: '100dvh',
+        }}
+      >
         <div
-          className={`px-5 space-y-2 overflow-y-auto no-scrollbar ${closing ? 'fab-panel-out' : 'stagger'}`}
+          onClick={(e) => e.stopPropagation()}
+          className="mx-3 rounded-[28px] flex flex-col overflow-hidden"
           style={{
-            paddingTop: 'calc(var(--safe-top) + 12px)',
-            paddingBottom: 'calc(112px + var(--safe-bottom))',
-            maxHeight: '100dvh',
+            background: 'var(--surface-container)',
+            border: '1px solid var(--surface-high)',
+            boxShadow: '0 18px 48px -12px rgba(0,0,0,0.55)',
+            maxHeight: '100%',
+            animation: closing
+              ? 'sheet-down 180ms var(--ease-accelerate) both'
+              : 'sheet-up 240ms var(--ease-spring) both',
           }}
         >
-          <p className="text-[10px] tracking-[0.15em] uppercase font-bold mb-2 text-on-surface-faint">
-            {t('fab.quick_actions')}
-          </p>
+          {/* Grabber + title — the "this is a sheet you can dismiss" affordance. */}
+          <div className="pt-3 pb-1 flex justify-center shrink-0">
+            <div className="w-9 h-1 rounded-full" style={{ background: 'var(--surface-high)' }} />
+          </div>
+          <div className="px-5 pt-1 pb-3 shrink-0">
+            <p className="text-[11px] tracking-[0.14em] uppercase font-bold text-on-surface-faint">
+              {t('fab.quick_actions')}
+            </p>
+          </div>
 
-          {actions.map((action) => (
-            <button
-              key={action.path}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAction(action.path);
-              }}
-              className="btn-press w-full p-4 rounded-xl flex items-center gap-3 text-left"
-              style={{ background: action.itemBg }}
-            >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: action.iconBg }}
-              >
-                <Icon name={action.icon} className={action.iconColorClass} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-on-surface">
-                  {t(action.labelKey)}
-                </p>
-                <p className="text-[11px] font-semibold text-on-surface-dim">
-                  {t(action.descKey)}
-                </p>
-              </div>
-            </button>
-          ))}
+          {/* Actions — a 2-col grid where the hero spans both columns. `.stagger`
+              cascades each cell; the grid scrolls internally if it ever overflows. */}
+          <div className="px-3 pb-3 overflow-y-auto no-scrollbar">
+            <div className="grid grid-cols-2 gap-2.5 stagger">
+              {primary && (
+                <button
+                  key={primary.path}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAction(primary.path);
+                  }}
+                  className="btn-press col-span-2 p-4 rounded-2xl flex items-center gap-3.5 text-left"
+                  style={{ background: '#C75B3922', border: '1px solid #C75B3940' }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                    style={{ background: '#C75B3933' }}
+                  >
+                    <Icon name={primary.icon} size={24} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-extrabold text-on-surface">{t(primary.labelKey)}</p>
+                    <p className="text-[11px] font-semibold text-on-surface-dim">
+                      {t(primary.descKey)}
+                    </p>
+                  </div>
+                  <Icon name="arrow_forward" size={18} className="text-primary shrink-0" />
+                </button>
+              )}
+
+              {secondary.map((action) => (
+                <button
+                  key={action.path}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAction(action.path);
+                  }}
+                  className="btn-press p-3.5 rounded-2xl flex flex-col gap-2 text-left h-full"
+                  style={{ background: 'var(--surface-high)' }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: action.iconBg }}
+                  >
+                    <Icon name={action.icon} size={20} className={action.iconColorClass} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-on-surface leading-tight">
+                      {t(action.labelKey)}
+                    </p>
+                    <p className="text-[10px] font-semibold text-on-surface-dim leading-snug line-clamp-1 mt-0.5">
+                      {t(action.descKey)}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

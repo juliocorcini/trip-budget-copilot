@@ -2,13 +2,19 @@
 
 ## Current State
 - **Active Delivery**: Post-animation fixes + Wise import — plan `brain/documents/post-animation-fixes-and-wise-import-plan-2026-06-15.md` (DEC-195…201), 4 gates (0.37 → 0.40)
-- **Active Milestone**: Gate 1 (0.37.0) — N1 floating-menu position, N2 first-entry transition, N3 bidirectional swipe + slide
-- **Last Green Test Run**: Gate 1 0.37.0 — 944 tests pass (108 files), tsc -b clean (see Gate 1 entry)
+- **Active Milestone**: Gate 2 (0.38.0) — active-outing height (N4) + FAB UI redesign (N7)
+- **Last Green Test Run**: Gate 2 0.38.0 — 944 tests pass (108 files), tsc -b clean
 - **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green)
-- **APK**: `Downloads/TripPilot-0.37.0-debug.apk` (versionCode 11)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.37.0 live
-- **Next**: Gate 2 (0.38.0) — active-outing height (N4) + FAB UI redesign (N7); then Gate 3 notification (N5/N6), Gate 4 Wise import
-- **Confidence**: 88% (all logic green + APK builds; Gate 1 is CSS/portal/keying only, no domain changes, reduced-motion still honored)
+- **APK**: `Downloads/TripPilot-0.38.0-debug.apk` (versionCode 12)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.38.0 live
+- **Next**: Gate 3 (0.39.0) — active-outing notification (N5/N6: value buttons + rich fallback); then Gate 4 Wise import
+- **Confidence**: 88% (logic green + APK builds; Gate 2 is layout/CSS only, no domain changes). Device-pending: visual feel of the FAB sheet + outing fit on the S23.
+
+### Gate 2 — active-outing height + FAB redesign (0.38.0)
+Source: user report — (N4) the active-outing screen "lacks height mid-page", pushing quick-add buttons/values below the fold and forcing a scroll despite empty space; (N7) the "+" menu should look "more beautiful, perfect — what you expect from a FAB". Plan/council DEC-198 + DEC-201.
+- [x] **N4 — outing fits one screen (DEC-198)**: root cause = the active-session container used `minHeight: 100vh`, but every route renders inside RootLayout's `.app-safe-top` (padding-top: var(--safe-top)), so the page overflowed the viewport by exactly the status-bar band and the bottom `flex-1` spacer pushed the quick-add grid off-screen. Fix: container → `minHeight: calc(100dvh - var(--safe-top))` (matches the AppShell pattern) and the quick-add block clears the system gesture bar with `padding-bottom: calc(var(--safe-bottom) + 12px)`. Header → quick-add now live on one screen.
+- [x] **N7 — FAB speed-dial redesign (DEC-201)**: `components/FAB.tsx` reworked into a titled, sheet-like floating panel (grabber + "Ações rápidas" header, rounded 28px, surface card, shadow). The hero action ("Registrar gasto") spans full width with the primary accent (tint bg + ring + 48px chip + forward arrow); the rest read as a clean 2-col grid of tonal tiles (icon chip + label + 1-line desc). Reuses `sheet-up`/`sheet-down` (panel), `.stagger` (per-cell cascade) and the existing scrim. Still clears the (taller, safe-area) nav + center button. Dead `itemBg` field removed from the action model.
+- [x] **Verify**: 944 tests pass (108 files), tsc -b clean, web build + cap sync + assembleDebug green, APK 0.38.0 (versionCode 12). No domain/logic changes; no new deps.
 
 ### Gate 1 — post-animation regressions (0.37.0)
 Source: user report after 0.36.0 motion — (N1) floating detail sheets opening off-viewport at the page bottom; (N2) page transitions only animating from the 2nd visit; (N3) swipe working one way only and without animation, on Expenses + Trip. Plan/council: `post-animation-fixes-and-wise-import-plan-2026-06-15.md`.
