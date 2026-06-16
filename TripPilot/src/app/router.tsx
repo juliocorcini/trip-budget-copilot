@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from './AppShell';
 import { RootLayout } from './RootLayout';
@@ -81,10 +81,27 @@ function LoadingFallback() {
   );
 }
 
+// DEC-196 (N2 fix): the page-transition wrapper lives INSIDE the Suspense
+// boundary. A suspending lazy child does not commit its parent until it
+// resolves, so this `.route-view` mounts WITH content present and its enter
+// animation always plays — on the first visit too (previously the wrapper
+// mounted empty during the 220 ms Suspense gap and the animation finished before
+// the chunk arrived, so only the cached second visit looked animated). Keyed by
+// pathname so the animation replays on every navigation; direction comes from
+// <html data-nav> (RootLayout).
+function RouteView({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  return (
+    <div key={location.pathname} className="route-view">
+      {children}
+    </div>
+  );
+}
+
 function LazyRoute({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<LoadingFallback />}>
-      {children}
+      <RouteView>{children}</RouteView>
     </Suspense>
   );
 }

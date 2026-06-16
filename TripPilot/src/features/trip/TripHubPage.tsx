@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -67,15 +67,28 @@ export function TripHubPage() {
     () => ['all', ...sortedPhases.map((p) => p.id)],
     [sortedPhases],
   );
+  // DEC-197 (N3): central phase selector — records the slide direction so the
+  // keyed content pane animates in from the matching side, for both swipe and
+  // tap. Bidirectional and clamped at the ends.
+  const phaseDirRef = useRef<'next' | 'prev'>('next');
+  const selectPhase = (next: Selection) => {
+    setSelectedPhaseId((cur) => {
+      const curSel: Selection = cur ?? activePhaseId ?? 'all';
+      if (next === curSel) return cur;
+      phaseDirRef.current =
+        phaseSequence.indexOf(next) > phaseSequence.indexOf(curSel) ? 'next' : 'prev';
+      return next;
+    });
+  };
   const phaseSwipe = useHorizontalSwipe({
     onSwipeLeft: () => {
       const next = phaseSequence[phaseSequence.indexOf(selected) + 1];
-      if (next !== undefined) setSelectedPhaseId(next);
+      if (next !== undefined) selectPhase(next);
     },
     onSwipeRight: () => {
       const i = phaseSequence.indexOf(selected);
       const prev = i > 0 ? phaseSequence[i - 1] : undefined;
-      if (prev !== undefined) setSelectedPhaseId(prev);
+      if (prev !== undefined) selectPhase(prev);
     },
   });
 
@@ -193,19 +206,22 @@ export function TripHubPage() {
           <SelectorChip
             label={t('trip_hub.all_phases')}
             active={selected === 'all'}
-            onClick={() => setSelectedPhaseId('all')}
+            onClick={() => selectPhase('all')}
           />
           {sortedPhases.map((phase) => (
             <SelectorChip
               key={phase.id}
               label={phase.name}
               active={selected === phase.id}
-              onClick={() => setSelectedPhaseId(phase.id)}
+              onClick={() => selectPhase(phase.id)}
             />
           ))}
         </div>
       )}
 
+      {/* DEC-197 (N3): keyed pane — slides in from the side matching the
+          swipe/tap direction whenever the selected phase changes. */}
+      <div key={String(selected)} className={phaseDirRef.current === 'next' ? 'pane-next' : 'pane-prev'}>
       {selected === 'all' ? (
         <>
           {/* Trip summary */}
@@ -249,7 +265,7 @@ export function TripHubPage() {
                 return (
                   <button
                     key={phase.id}
-                    onClick={() => setSelectedPhaseId(phase.id)}
+                    onClick={() => selectPhase(phase.id)}
                     className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
                     style={isCurrent ? { border: '1px solid #C75B3925' } : undefined}
                   >
@@ -346,6 +362,7 @@ export function TripHubPage() {
           </>
         )
       )}
+      </div>
 
       {/* Planned purchases — trip-level planning */}
       {openPlanned.length > 0 && (

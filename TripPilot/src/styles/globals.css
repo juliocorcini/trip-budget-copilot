@@ -153,13 +153,32 @@ html.cap-native #root {
 [data-nav='back'] .route-view {
   animation-name: page-in-back;
 }
+/* N1 fix (DEC-195): the end state is `transform: none` (not translate3d(0)) so a
+   settled page NEVER keeps a transform. A non-none transform turns the element
+   into the containing block for its `position: fixed` descendants, which dropped
+   every in-page BottomSheet to the bottom of the (tall) page instead of the
+   viewport. Sheets are also portaled out of the page now — defense in depth. */
 @keyframes page-in-fwd {
   from { opacity: 0; transform: translate3d(16px, 0, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes page-in-back {
   from { opacity: 0; transform: translate3d(-16px, 0, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Paged content (DEC-197): tab/phase changes (Expenses, Viagem) slide the new
+   pane in from the side that matches the navigation direction, so a swipe — or a
+   tab tap — reads as moving through pages. Driven by a key change on the pane. */
+.pane-next { animation: pane-in-right var(--motion-base) var(--ease-out) both; }
+.pane-prev { animation: pane-in-left var(--motion-base) var(--ease-out) both; }
+@keyframes pane-in-right {
+  from { opacity: 0; transform: translate3d(24px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pane-in-left {
+  from { opacity: 0; transform: translate3d(-24px, 0, 0); }
+  to { opacity: 1; transform: none; }
 }
 
 /* Generic staggered list reveal — add `.stagger` to a container and its direct

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
@@ -33,6 +33,8 @@ import type { Transaction } from '@/domain/types/transaction';
 
 type FilterCategory = string | null;
 type ListTab = 'expenses' | 'outings';
+// DEC-197 (N3): tab order — index drives swipe/slide direction (left = forward).
+const TAB_ORDER: readonly ListTab[] = ['expenses', 'outings'];
 type BatchSheet = 'deleteExpenses' | 'movePool' | 'changeCategory' | 'deleteOutings' | null;
 
 const CATEGORY_KEYS = [
@@ -68,20 +70,23 @@ export function ExpenseListPage() {
   const scrolled = useScrolled();
   // DEC-118 (R-09): hold to select, tap to add, batch action bar.
   const selection = useMultiSelect();
+  // DEC-197 (N3): one ordered list of tabs drives both the swipe direction and
+  // the slide animation. Swiping left advances (→ rightmost tab), swiping right
+  // goes back; `paneDirRef` records the last direction so the keyed pane below
+  // can slide in from the matching side. The whole thing is bidirectional.
+  const paneDirRef = useRef<'next' | 'prev'>('next');
+  const changeTab = (next: ListTab) => {
+    selection.clear();
+    setTabState((cur) => {
+      if (next === cur) return cur;
+      paneDirRef.current = TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(cur) ? 'next' : 'prev';
+      return next;
+    });
+  };
   // G1: swipe left/right to page between the two tabs (expenses ↔ outings).
   const tabSwipe = useHorizontalSwipe({
-    onSwipeLeft: () => {
-      if (tab === 'expenses') {
-        selection.clear();
-        setTabState('outings');
-      }
-    },
-    onSwipeRight: () => {
-      if (tab === 'outings') {
-        selection.clear();
-        setTabState('expenses');
-      }
-    },
+    onSwipeLeft: () => changeTab('outings'),
+    onSwipeRight: () => changeTab('expenses'),
   });
 
   useEffect(() => {
@@ -91,11 +96,6 @@ export function ExpenseListPage() {
   }, [trip, transactions]);
 
   if (loading || !trip) return <p className="p-4 text-on-surface-dim">{t('common.loading')}</p>;
-
-  const setTab = (next: ListTab) => {
-    selection.clear();
-    setTabState(next);
-  };
 
   const filterProfile = filterProfileId
     ? profiles.find((p) => p.id === filterProfileId) ?? null
@@ -257,7 +257,7 @@ export function ExpenseListPage() {
         {/* DEC-079: segmented control Expenses | Outings */}
         <div className="flex bg-surface-container rounded-xl p-1">
           <button
-            onClick={() => setTab('expenses')}
+            onClick={() => changeTab('expenses')}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
               tab === 'expenses' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
             }`}
@@ -265,7 +265,7 @@ export function ExpenseListPage() {
             {t('expenses.tab_expenses')}
           </button>
           <button
-            onClick={() => setTab('outings')}
+            onClick={() => changeTab('outings')}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
               tab === 'outings' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
             }`}
@@ -347,6 +347,9 @@ export function ExpenseListPage() {
         )}
       </div>
 
+      {/* DEC-197 (N3): keyed pane — remounts on tab change and slides in from the
+          side matching the swipe/tap direction (bidirectional). */}
+      <div key={tab} className={paneDirRef.current === 'next' ? 'pane-next' : 'pane-prev'}>
       {tab === 'outings' ? (
         <OutingHistoryList
           sessions={completedSessions}
@@ -484,6 +487,7 @@ export function ExpenseListPage() {
       <FastScroller dayCount={expenseGroups.length} />
         </>
       )}
+      </div>
 
       {/* DEC-118 (R-09): batch action bar */}
       {selection.active && (

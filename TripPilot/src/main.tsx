@@ -65,6 +65,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <RouterProvider router={router} />
+      {/* DEC-195: overlay host for portaled sheets — INSIDE #root so it keeps the
+          cap-native zoom, but OUTSIDE the routed page so the page transition's
+          transform can never trap a `position: fixed` sheet at the page bottom. */}
+      <div id="app-overlay-root" />
       <ToastHost />
     </ErrorBoundary>
   </StrictMode>,

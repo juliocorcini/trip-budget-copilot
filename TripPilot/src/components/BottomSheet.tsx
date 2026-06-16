@@ -1,7 +1,14 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { registerOverlayDismiss } from '@/utils/overlay-dismiss';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
+
+/** DEC-195: portal target — the overlay host inside #root (keeps cap-native zoom),
+ *  falling back to <body> if it isn't mounted yet (tests, very early render). */
+function overlayHost(): HTMLElement {
+  return document.getElementById('app-overlay-root') ?? document.body;
+}
 
 interface BottomSheetProps {
   open: boolean;
@@ -35,7 +42,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
   if (!mounted) return null;
   const closing = state === 'closing';
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
       {/* GAP-R2-008: scrim is the close affordance — expose it to a11y tree */}
       <button
@@ -63,6 +70,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
         {title && <p className="text-sm font-bold text-on-surface mb-4">{title}</p>}
         {children}
       </div>
-    </div>
+    </div>,
+    overlayHost(),
   );
 }

@@ -1,14 +1,21 @@
 # Dev Log — TripPilot Implementation
 
 ## Current State
-- **Active Delivery**: Post-APK Improvements — planned phases (1C → 2 → 3 → 4) DELIVERED + Hotfix 0.35.0 + **Motion System 0.36.0**
-- **Active Milestone**: Motion System 0.36.0 — app-wide animation pass (page transitions, FAB fix+anim, sheet/toast/nav/money micro-interactions)
-- **Last Green Test Run**: Motion 0.36.0 — 944 tests pass (108 files), tsc -b clean (see Gate M1 entry)
+- **Active Delivery**: Post-animation fixes + Wise import — plan `brain/documents/post-animation-fixes-and-wise-import-plan-2026-06-15.md` (DEC-195…201), 4 gates (0.37 → 0.40)
+- **Active Milestone**: Gate 1 (0.37.0) — N1 floating-menu position, N2 first-entry transition, N3 bidirectional swipe + slide
+- **Last Green Test Run**: Gate 1 0.37.0 — 944 tests pass (108 files), tsc -b clean (see Gate 1 entry)
 - **Build Status**: clean (web build + cap sync + type-check + assembleDebug all green)
-- **APK**: `Downloads/TripPilot-0.36.0-debug.apk` (versionCode 10)
-- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.36.0 live
-- **Next**: device validation of the motion feel on the S23 (Android 15) — page slide, FAB stagger, tab indicator, reduced-motion; still [device]-pending: A16 B1/B2 + N5–N8 / Gate 3 gestures
-- **Confidence**: 88% (all logic green + APK builds; motion is CSS-first/transform-opacity only, reduced-motion honored globally, no domain changes)
+- **APK**: `Downloads/TripPilot-0.37.0-debug.apk` (versionCode 11)
+- **Deploy**: each gate shipped to Production via `wrangler pages deploy dist --branch=main` → `trippilot.pages.dev`; 0.29.0 → 0.37.0 live
+- **Next**: Gate 2 (0.38.0) — active-outing height (N4) + FAB UI redesign (N7); then Gate 3 notification (N5/N6), Gate 4 Wise import
+- **Confidence**: 88% (all logic green + APK builds; Gate 1 is CSS/portal/keying only, no domain changes, reduced-motion still honored)
+
+### Gate 1 — post-animation regressions (0.37.0)
+Source: user report after 0.36.0 motion — (N1) floating detail sheets opening off-viewport at the page bottom; (N2) page transitions only animating from the 2nd visit; (N3) swipe working one way only and without animation, on Expenses + Trip. Plan/council: `post-animation-fixes-and-wise-import-plan-2026-06-15.md`.
+- [x] **N1 — sheets back at the viewport bottom (DEC-195)**: root cause = `.route-view` page animation kept a `transform` at rest (`translate3d(0,0,0)` via `fill-mode: both`), and a non-`none` transform makes the element the containing block for its `position: fixed` descendants → every in-page `BottomSheet` anchored to the tall page bottom instead of the viewport. Fix: (a) page keyframes now end at `transform: none`; (b) `BottomSheet` is `createPortal`-ed to a new `#app-overlay-root` mounted **inside `#root`** (keeps the `cap-native` zoom) but **outside** the routed page (defense in depth). `main.tsx` adds the host.
+- [x] **N2 — first-entry transition (DEC-196)**: root cause = `.route-view` wrapper lived in `AppShell`, so on the first visit it mounted empty during the lazy-chunk `Suspense` gap and the enter animation finished before the content arrived (only the cached 2nd visit looked animated). Fix: moved the wrapper into a new `RouteView` **inside** `LazyRoute`'s `Suspense` boundary — a suspending child doesn't commit its parent until resolved, so the wrapper always mounts with content. Removed the duplicate `route-view` from `AppShell` + QuickAdd/Simulator roots.
+- [x] **N3 — bidirectional swipe + slide (DEC-197)**: `useHorizontalSwipe` already detected both directions; the gap was zero visual feedback (instant swap) and one-sided guards. Added `.pane-next`/`.pane-prev` keyframes (slide from the side matching travel) and a `paneDir` ref + ordered tab list driving both swipe and tap. `ExpenseListPage` (Expenses ↔ Outings) and `TripHubPage` (phase paging) now wrap their swappable content in a keyed pane that animates on every change, both ways.
+- [x] **Verify**: 944 tests pass (108 files), tsc -b clean, web build + cap sync + assembleDebug green, APK 0.37.0 (versionCode 11). No domain/logic changes; no new deps.
 
 ### Motion Gate M1 — app-wide animation system (0.36.0)
 Source: user request — "quero que o app tenha transições/animações, que eu me sinta abrindo uma página, componentes animados, fluido e profissional, sem exagero" + bug: FAB "+" shortcuts overlapping the bottom bar. Council (inline) + research → spec `brain/documents/animation-system-spec-2026-06-15.md` (DEC-194). CSS-first (View Transitions API rejected for global/hardware-back fragility; Framer Motion rejected for ~50KB + main-thread cost on mid-tier Android). Every animation is transform/opacity only.

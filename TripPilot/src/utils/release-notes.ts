@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.37.0',
+    date: '2026-06-15',
+    items: {
+      'pt-BR': [
+        'Corrigido: ao tocar em cards com detalhes, o painel volta a abrir na parte de baixo da tela visível (depois das animações ele estava abrindo fora da área visível).',
+        'As transições de tela agora animam já na primeira vez que você entra — antes só animavam a partir da segunda visita.',
+        'Deslizar para os lados funciona nos dois sentidos: em Gastos (Gastos ↔ Saídas) e em Viagem (entre as fases), com uma animação que acompanha o movimento.',
+      ],
+      en: [
+        'Fixed: tapping cards with details opens the panel at the bottom of the visible screen again (after the animations it was opening off-screen).',
+        'Screen transitions now animate on the very first time you open a screen — previously they only animated from the second visit.',
+        'Side swipes work both ways now: in Expenses (Expenses ↔ Outings) and in Trip (between phases), with a slide animation that follows the gesture.',
+      ],
+      es: [
+        'Corregido: al tocar tarjetas con detalles, el panel vuelve a abrirse en la parte inferior de la pantalla visible (tras las animaciones se abría fuera del área visible).',
+        'Las transiciones de pantalla ahora se animan desde la primera vez que entras — antes solo se animaban a partir de la segunda visita.',
+        'Deslizar a los lados funciona en ambos sentidos: en Gastos (Gastos ↔ Salidas) y en Viaje (entre las fases), con una animación que acompaña el gesto.',
+      ],
+    },
+  },
+  {
     version: '0.36.0',
     date: '2026-06-15',
     items: {
