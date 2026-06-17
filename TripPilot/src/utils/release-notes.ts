@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.63.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Importação da Wise mais inteligente: quando uma entrada parece reembolso de uma compra (Bianca te manda 100 logo depois do Paylogic de 150), o app sugere vincular — registra a compra como dividida e já quita a dívida com a entrada, tudo de uma vez.',
+        'Compras especiais reconhecidas: bilheterias e festivais (Paylogic, Eventim, Ticketmaster, Tomorrowland…) entram automaticamente como "lazer/ingresso", não mais como "outros".',
+        'Caiu uma compra fora de qualquer fase? Crie a fase ali na hora da importação (ex.: um fim de semana de festival) — sem sair da tela.',
+      ],
+      en: [
+        'Smarter Wise import: when an incoming amount looks like a refund for a purchase (Bianca sends you 100 right after a 150 Paylogic charge), the app suggests linking them — it records the purchase as split and settles the debt with the incoming money, all at once.',
+        'Special purchases recognized: ticketing and festivals (Paylogic, Eventim, Ticketmaster, Tomorrowland…) now land automatically as "entertainment/tickets" instead of "other".',
+        'A purchase outside every phase? Create the phase right there during import (e.g. a festival weekend) — without leaving the screen.',
+      ],
+      es: [
+        'Importación de Wise más inteligente: cuando una entrada parece el reembolso de una compra (Bianca te envía 100 justo después de un cargo de 150 en Paylogic), la app sugiere vincularlas — registra la compra como dividida y salda la deuda con la entrada, todo de una vez.',
+        'Compras especiales reconocidas: boleterías y festivales (Paylogic, Eventim, Ticketmaster, Tomorrowland…) entran automáticamente como "ocio/entradas" en vez de "otros".',
+        '¿Una compra fuera de toda fase? Crea la fase ahí mismo durante la importación (p. ej. un fin de semana de festival) — sin salir de la pantalla.',
+      ],
+    },
+  },
+  {
     version: '0.62.0',
     date: '2026-06-17',
     items: {

@@ -11,6 +11,19 @@ import {
 import { createSettlement, resolvePayerExpense } from '@/domain/splitting';
 import { softDelete } from '@/utils/entity-factory';
 
+/**
+ * F16 (round 2): a purchase split on import via the reimbursement bridge. The
+ * owner paid the whole card charge; `participantId` owes `shareAmountCents` of
+ * it. The matching incoming transfer is committed separately as `settle_incoming`
+ * for the same amount, so the debt is born and immediately repaid.
+ */
+export interface WiseExpenseBridge {
+  /** Participant who owes a slice of this purchase (already persisted). */
+  participantId: string;
+  /** What that participant owes of the purchase, in cents (< amount). */
+  shareAmountCents: number;
+}
+
 export interface CommitWiseImportInput {
   /** Only the drafts the user chose to import (already filtered + importable). */
   drafts: WiseImportDraft[];
@@ -21,6 +34,10 @@ export interface CommitWiseImportInput {
   walletId: string;
   /** Fallback phase when a draft could not be matched to one by date. */
   fallbackPhaseId: string;
+  /** Owner participant id — required only when `bridges` is provided. */
+  ownerId?: string;
+  /** F16: draft.rowId → split-on-import bridge. The purchase becomes shared. */
+  bridges?: Record<string, WiseExpenseBridge>;
 }
 
 export interface CommitWiseImportResult {
@@ -45,12 +62,16 @@ export async function commitWiseImport(
   const importable = input.drafts.filter((d) => d.importable);
   if (importable.length === 0) return { transactionIds: [] };
 
-  const transactions: Transaction[] = importable.map((draft) =>
+  const transactions: Transaction[] = [];
+  const shares: ParticipantShare[] = [];
+
+  for (const draft of importable) {
+    const bridge = input.bridges?.[draft.rowId];
     // The importer never invents exchange rates: the base-currency value equals
     // the original amount (exchangeRate null). For a same-currency statement
     // (the common case — an EUR wallet on an EUR trip) this is exact; a foreign
     // statement keeps its own number as the documented multi-currency fallback.
-    createExpenseTransaction({
+    const tx = createExpenseTransaction({
       tripId: input.tripId,
       phaseId: draft.phaseId ?? input.fallbackPhaseId,
       budgetPoolId: input.budgetPoolId,
@@ -65,11 +86,43 @@ export async function commitWiseImport(
       placeLabel: draft.city,
       externalRef: draft.externalRef,
       excludeFromLearning: true,
-    }),
-  );
+      // F16 bridge: the owner paid the whole card charge, split with the person.
+      isShared: bridge !== undefined,
+      paidByParticipantId: bridge && input.ownerId ? input.ownerId : null,
+    });
 
-  await db.transaction('rw', [db.transactions], async () => {
+    if (bridge && input.ownerId) {
+      // Owner paid, person owes their slice (custom split). The owner's own
+      // share is born confirmed so the debt exists immediately (DEC-114/071).
+      const resolution = resolvePayerExpense({
+        transactionId: tx.id,
+        amountCents: draft.amountCents,
+        ownerId: input.ownerId,
+        payerId: input.ownerId,
+        didSplit: true,
+        participantIds: [input.ownerId, bridge.participantId],
+        shareType: 'custom',
+        customAmountsCents: {
+          [bridge.participantId]: bridge.shareAmountCents,
+          [input.ownerId]: draft.amountCents - bridge.shareAmountCents,
+        },
+      });
+      tx.personalCostCents = resolution.personalCostCents;
+      // The person already paid this share back (the incoming transfer settles it
+      // in the same batch), so the debt is acknowledged now — born confirmed, not
+      // pending cross-device confirmation. Without this the settlement would not
+      // net to zero (DEC-071: only confirmed shares consolidate into debts).
+      shares.push(
+        ...resolution.shares.map((s) => ({ ...s, confirmationStatus: 'confirmed' as const })),
+      );
+    }
+
+    transactions.push(tx);
+  }
+
+  await db.transaction('rw', [db.transactions, db.participantShares], async () => {
     await db.transactions.bulkAdd(transactions);
+    if (shares.length > 0) await db.participantShares.bulkAdd(shares);
   });
 
   return { transactionIds: transactions.map((tx) => tx.id) };

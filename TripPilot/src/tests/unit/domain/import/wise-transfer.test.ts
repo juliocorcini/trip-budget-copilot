@@ -51,6 +51,7 @@ const transferDraft = (overrides: Partial<WiseImportDraft> = {}): WiseImportDraf
   dateIso: '2026-06-12T16:25:15.000Z',
   localDay: '2026-06-12',
   phaseId: 'phase-jun',
+  inPhase: true,
   manualDupTxId: null,
   importable: false,
   includeByDefault: false,

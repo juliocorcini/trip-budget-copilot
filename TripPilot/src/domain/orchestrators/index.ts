@@ -95,6 +95,7 @@ export type {
   CommitWiseTransfersInput,
   CommitWiseTransfersResult,
   WiseTransferCommitSpec,
+  WiseExpenseBridge,
 } from './import-orchestrators';
 export {
   sendPayloadToPeerMailbox,

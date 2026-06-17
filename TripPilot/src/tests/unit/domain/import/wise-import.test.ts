@@ -7,8 +7,11 @@ import {
   extractCity,
   wiseExternalRef,
 } from '@/domain/import/wise-import';
-import { commitWiseImport } from '@/domain/orchestrators';
+import { commitWiseImport, commitWiseTransfers } from '@/domain/orchestrators';
+import { detectReimbursementBridges } from '@/domain/import/reimbursement-bridge';
 import { createExpenseTransaction } from '@/domain/transactions';
+import { calculateDebts, createParticipant } from '@/domain/splitting';
+import { newAllocationId } from '@/domain/import';
 import type { Phase } from '@/domain/types/phase';
 import type { Transaction } from '@/domain/types/transaction';
 
@@ -60,6 +63,21 @@ describe('guessCategory', () => {
   it('falls back to "other" for an unrecognized merchant', () => {
     expect(guessCategory('Dulcycor VILLATORO', '')).toBe('other');
     expect(guessCategory(null, 'Enviou dinheiro para Bruno')).toBe('other');
+  });
+
+  it('F16c: maps ticketing platforms and festivals to entertainment', () => {
+    expect(guessCategory('Paylogic AMSTERDAM', '')).toBe('entertainment');
+    expect(guessCategory('PAYLOGIC.COM', '')).toBe('entertainment');
+    expect(guessCategory('Eventim BERLIN', '')).toBe('entertainment');
+    expect(guessCategory('Ticketmaster', '')).toBe('entertainment');
+    expect(guessCategory('See Tickets', '')).toBe('entertainment');
+    expect(guessCategory('Tomorrowland BOOM', '')).toBe('entertainment');
+    expect(guessCategory(null, 'DICE event ticket')).toBe('entertainment');
+  });
+
+  it('F16c: ticketing keywords never shadow a clearer category', () => {
+    // "fever" is whole-word only, so it must not fire inside another token.
+    expect(guessCategory('Feverish Cafe BURGOS', '')).toBe('restaurant');
   });
 });
 
@@ -164,6 +182,20 @@ describe('classifyWiseRows', () => {
     expect(draft?.includeByDefault).toBe(false);
     expect(plan.summary.possibleManualDupCount).toBe(1);
   });
+
+  it('F16b: flags rows outside every phase as not inPhase (fallback still attaches)', () => {
+    const narrow = [phase({ startDate: '2026-06-13', endDate: '2026-06-30' })];
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: narrow,
+    });
+    const inside = plan.drafts.find((d) => d.rowId === 'CARD-3927313014'); // 15-06
+    const outside = plan.drafts.find((d) => d.rowId === 'CARD-3914350459'); // 12-06
+    expect(inside?.inPhase).toBe(true);
+    expect(outside?.inPhase).toBe(false);
+    // Fallback still attaches the out-of-phase row to the nearest phase.
+    expect(outside?.phaseId).toBe('phase-jun');
+  });
 });
 
 describe('commitWiseImport', () => {
@@ -195,6 +227,135 @@ describe('commitWiseImport', () => {
     const dulcycor = stored.find((t) => t.externalRef === wiseExternalRef('CARD-3927313014'));
     expect(dulcycor?.amountCents).toBe(739);
     expect(dulcycor?.placeLabel).toBe('Villatoro');
+  });
+
+  it('F16 bridge: commits a purchase as split (owner paid, person owes a slice)', async () => {
+    await db.participantShares.clear();
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    // Pea Recreativa Castellan BURGOS — 9.00 EUR card purchase.
+    const purchase = plan.drafts.find((d) => d.rowId === 'CARD-3914350459')!;
+    expect(purchase.amountCents).toBe(900);
+
+    const result = await commitWiseImport({
+      drafts: plan.drafts,
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'wise-wallet',
+      fallbackPhaseId: 'phase-jun',
+      ownerId: 'owner-1',
+      bridges: { 'CARD-3914350459': { participantId: 'bianca', shareAmountCents: 400 } },
+    });
+    expect(result.transactionIds).toHaveLength(6);
+
+    const stored = await db.transactions.toArray();
+    const bridged = stored.find((t) => t.externalRef === wiseExternalRef('CARD-3914350459'))!;
+    expect(bridged.isShared).toBe(true);
+    expect(bridged.paidByParticipantId).toBe('owner-1');
+    expect(bridged.personalCostCents).toBe(500); // 900 − 400
+
+    const shares = await db.participantShares.where('transactionId').equals(bridged.id).toArray();
+    expect(shares).toHaveLength(2);
+    expect(shares.every((s) => s.confirmationStatus === 'confirmed')).toBe(true);
+    const biancaShare = shares.find((s) => s.participantId === 'bianca')!;
+    expect(biancaShare.shareAmountCents).toBe(400);
+    expect(biancaShare.isPaid).toBe(false);
+
+    // The other 5 expenses stay plain (not shared).
+    expect(stored.filter((t) => t.isShared)).toHaveLength(1);
+  });
+
+  it('F16 bridge: split + incoming settlement net to zero debt (end to end)', async () => {
+    await db.participantShares.clear();
+    await db.settlements.clear();
+    const participants = [
+      createParticipant('trip-1', 'Me', null),
+      { ...createParticipant('trip-1', 'Bianca', null), id: 'bianca' },
+    ];
+    const owner = { ...participants[0]!, isOwner: true };
+    const allParticipants = [owner, participants[1]!];
+
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    const purchase = plan.drafts.find((d) => d.rowId === 'CARD-3914350459')!; // 900
+
+    // Commit the purchase split: Bianca owes 400 of 900.
+    await commitWiseImport({
+      drafts: [purchase],
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'wise-wallet',
+      fallbackPhaseId: 'phase-jun',
+      ownerId: owner.id,
+      bridges: { 'CARD-3914350459': { participantId: 'bianca', shareAmountCents: 400 } },
+    });
+
+    // The incoming repayment settles Bianca's 400.
+    const incoming = { ...purchase, rowId: 'INCOMING-1', direction: 'in' as const, kind: 'transfer' as const };
+    await commitWiseTransfers({
+      specs: [
+        {
+          draft: incoming,
+          participantId: 'bianca',
+          allocations: [{ id: newAllocationId(), kind: 'settle_incoming', amountCents: 400 }],
+        },
+      ],
+      tripId: 'trip-1',
+      ownerId: owner.id,
+      budgetPoolId: 'pool-1',
+      sourceWalletId: 'wise-wallet',
+      fallbackPhaseId: 'phase-jun',
+      baseCurrency: 'EUR',
+    });
+
+    const txs = await db.transactions.toArray();
+    const shares = await db.participantShares.toArray();
+    const settlements = await db.settlements.toArray();
+    const debts = calculateDebts(txs, shares, allParticipants, settlements, owner.id);
+    // Born (Bianca owes 400) and immediately repaid → no outstanding debt.
+    expect(debts.totalDebtCents).toBe(0);
+  });
+
+  it('F16 bridge: detector → commit wiring links the lone purchase', async () => {
+    await db.participantShares.clear();
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    const purchase = plan.drafts.find((d) => d.rowId === 'CARD-3914350459')!; // 900 @ 06-12
+    const incoming = {
+      ...purchase,
+      rowId: 'INCOMING-9',
+      kind: 'transfer' as const,
+      direction: 'in' as const,
+      counterpartyName: 'Bianca',
+      amountCents: 400,
+      localDay: '2026-06-13',
+      importable: false,
+    };
+    // Only the purchase + its repayment in scope → unambiguous link.
+    const bridges = detectReimbursementBridges({ drafts: [purchase, incoming] });
+    expect(bridges).toHaveLength(1);
+    expect(bridges[0]!.candidate.rowId).toBe('CARD-3914350459');
+    expect(bridges[0]!.ownerShareCents).toBe(500);
+
+    const { participantId } = { participantId: 'bianca' };
+    const result = await commitWiseImport({
+      drafts: [purchase],
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'wise-wallet',
+      fallbackPhaseId: 'phase-jun',
+      ownerId: 'owner-1',
+      bridges: { [bridges[0]!.candidate.rowId]: { participantId, shareAmountCents: bridges[0]!.transferAmountCents } },
+    });
+    expect(result.transactionIds).toHaveLength(1);
+    const shares = await db.participantShares.toArray();
+    expect(shares.find((s) => s.participantId === 'bianca')?.shareAmountCents).toBe(400);
   });
 
   it('re-importing the same statement finds everything already imported', async () => {

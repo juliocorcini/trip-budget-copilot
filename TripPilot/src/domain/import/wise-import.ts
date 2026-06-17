@@ -1,7 +1,7 @@
 import type { Transaction } from '@/domain/types/transaction';
 import type { Settlement } from '@/domain/types/settlement';
 import type { Phase } from '@/domain/types/phase';
-import { resolveActivePhase } from '@/domain/dates';
+import { resolveActivePhase, findActivePhase } from '@/domain/dates';
 import type { WiseStatementRow } from './wise-csv';
 import type { WiseTransferDirection } from './wise-transfer';
 
@@ -45,6 +45,9 @@ export interface WiseImportDraft {
   dateIso: string;
   localDay: string;
   phaseId: string | null;
+  /** F16b: true when the date falls INSIDE a real phase; false when it was only
+   *  attached to the nearest phase by fallback (offers "create a phase"). */
+  inPhase: boolean;
   /** Existing manual transaction this row looks like a duplicate of, if any. */
   manualDupTxId: string | null;
   /** Importable rows can be committed; credits are display-only. */
@@ -99,7 +102,10 @@ const CATEGORY_RULES: ReadonlyArray<readonly [string, RegExp]> = [
   ['market', /super|market|mercad|aliment|grocer|carrefour|mercadona|lidl|aldi|\bspar\b|eroski|consum|alcampo|hipercor|coviran/],
   ['bar', /\bbar\b|\bpub\b|cerv|brew|tasca|taberna|bodega|cocktail|nightclub|recreativ|discotec/],
   ['restaurant', /rest|asador|meson|pizz|burger|kebab|comida|\bfood\b|dining|cocina|grill|tapas|cafeter|confiter|pasteler|panaderi|bakery|cafe|coffee|brunch|churr|heladeri|gelat/],
-  ['entertainment', /museo|museum|\btour\b|monument|catedral|palacio|castillo|teatro|theat|cinema|\bcine\b|entrada|ticket|festival|concert|\bpark\b|\bzoo\b|aquarium/],
+  // F16c: ticketing platforms + festival/venue terms — a "Paylogic" or "Eventim"
+  // charge is an event ticket, not a generic "other" (Julio's Tomorrowland case).
+  // Distinctive brands match as stems; short ambiguous tokens stay whole-word.
+  ['entertainment', /museo|museum|\btour\b|monument|catedral|palacio|castillo|teatro|theat|cinema|\bcine\b|entrada|ticket|festival|concert|\bpark\b|\bzoo\b|aquarium|paylogic|eventim|ticketmaster|ticketone|ticketek|see ?tickets|ticketswap|ticombo|viagogo|stubhub|eventbrite|wegow|tomorrowland|\bdice\b|\bfever\b|\baxs\b|ra\.co|resident ?advisor|ingresse|sympla/],
   ['clothing', /\bzara\b|h&m|primark|decathlon|nike|adidas|tienda|\bstore\b|\bshop\b|boutique|\bmoda\b|apparel|clothes|\bropa\b|calzado|\bshoe/],
 ];
 
@@ -231,7 +237,10 @@ export function classifyWiseRows(
     const kind = classifyKind(row);
     const amountCents = Math.abs(row.signedAmountCents);
     const externalRef = wiseExternalRef(row.id);
-    const phase = resolveActivePhase(ctx.phases, new Date(row.dateIso));
+    const rowDate = new Date(row.dateIso);
+    const phase = resolveActivePhase(ctx.phases, rowDate);
+    // F16b: strict membership — null when the row is only attached by fallback.
+    const inPhase = findActivePhase(ctx.phases, rowDate) !== null;
 
     let status: WiseDraftStatus = 'new';
     let manualDupTxId: string | null = null;
@@ -278,6 +287,7 @@ export function classifyWiseRows(
       dateIso: row.dateIso,
       localDay: row.localDay,
       phaseId: phase?.id ?? null,
+      inPhase,
       manualDupTxId,
       importable,
       includeByDefault,

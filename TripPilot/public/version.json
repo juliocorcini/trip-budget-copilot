@@ -1,8 +1,8 @@
 {
-  "version": "0.62.0",
+  "version": "0.63.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.62.0.zip",
-  "notes": "Visão de futuro das fases: abra qualquer fase (na Viagem) e veja, como se fosse o dia 1, quanto dá pra gastar por dia — num calendário, com as reservas já marcadas. E agora dá pra informar uma renda planejada por fase (aquele dinheiro que você SABE que vai entrar): ela entra só nessa visão de futuro e nunca mexe no seu livre de hoje."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.63.0.zip",
+  "notes": "Importação Wise mais inteligente: quando alguém te paga de volta logo depois de uma compra (Bianca +100 perto de Paylogic −150), o app sugere vincular — registra a compra como dividida e quita a dívida de uma vez. Reconhece bilheterias/festivais (Paylogic, Eventim…) como ingresso. E se uma compra cair fora de qualquer fase, dá pra criar a fase ali na hora (ex.: Tomorrowland)."
 }

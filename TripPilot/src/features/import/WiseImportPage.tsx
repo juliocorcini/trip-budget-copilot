@@ -10,18 +10,22 @@ import type {
   WiseDraftStatus,
   WiseAllocation,
   WiseAllocationKind,
+  ReimbursementBridge,
+  WiseStatementRow,
 } from '@/domain/import';
 import {
   matchParticipantByName,
   buildDefaultAllocations,
   transferAllocationStatus,
   newAllocationId,
+  detectReimbursementBridges,
   OUTGOING_ALLOCATION_KINDS,
   INCOMING_ALLOCATION_KINDS,
   PARTICIPANT_ALLOCATION_KINDS,
   WALLET_ALLOCATION_KINDS,
   EXPENSE_ALLOCATION_KINDS,
 } from '@/domain/import';
+import type { WiseExpenseBridge } from '@/domain/orchestrators';
 import {
   commitWiseImport,
   commitWiseTransfers,
@@ -30,6 +34,7 @@ import {
 } from '@/domain/orchestrators';
 import { resolveActivePhase, formatShortDate } from '@/domain/dates';
 import { getDefaultWallet } from '@/domain/wallets';
+import { createPhase, getNextPhaseOrder } from '@/domain/phases';
 import { formatMoney, sumCents, toCents } from '@/domain/money';
 import { calculateDebts, createParticipant, type DebtSummary } from '@/domain/splitting';
 import {
@@ -37,6 +42,7 @@ import {
   participantRepository,
   participantShareRepository,
   settlementRepository,
+  phaseRepository,
 } from '@/data/repositories';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -82,6 +88,9 @@ export function WiseImportPage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [plan, setPlan] = useState<WiseImportPlan | null>(null);
+  // F16b: keep the parsed rows so a freshly created phase can re-classify them.
+  const [rows, setRows] = useState<WiseStatementRow[]>([]);
+  const [showCreatePhase, setShowCreatePhase] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [included, setIncluded] = useState<Set<string>>(new Set());
   const [target, setTarget] = useState<TargetWallet | null>(null);
@@ -90,6 +99,12 @@ export function WiseImportPage() {
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
   const [transferState, setTransferState] = useState<Record<string, TransferClassification>>({});
   const [activeTransferId, setActiveTransferId] = useState<string | null>(null);
+  // F16: reimbursement bridges — purchase.rowId → confirmed split + the transfer
+  // that repays it. Built from suggestions, always user-confirmed.
+  const [bridgeState, setBridgeState] = useState<
+    Record<string, WiseExpenseBridge & { transferRowId: string }>
+  >({});
+  const [activeBridge, setActiveBridge] = useState<ReimbursementBridge | null>(null);
 
   const baseCurrency = trip?.baseCurrency ?? 'EUR';
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
@@ -199,6 +214,89 @@ export function WiseImportPage() {
     return participant.id;
   };
 
+  // F16: suggested purchase ↔ incoming-repayment links, minus ones already linked.
+  const bridgeSuggestions = useMemo<ReimbursementBridge[]>(
+    () => (plan ? detectReimbursementBridges({ drafts: plan.drafts }) : []),
+    [plan],
+  );
+
+  // F16b: importable rows whose date is outside every phase (only fallback-attached).
+  const outOfPhaseDrafts = useMemo(
+    () =>
+      plan
+        ? plan.drafts.filter((d) => !d.inPhase && d.importable && d.status !== 'duplicate_import')
+        : [],
+    [plan],
+  );
+  const outOfPhaseRange = useMemo(() => {
+    if (outOfPhaseDrafts.length === 0) return null;
+    const days = outOfPhaseDrafts.map((d) => d.localDay).sort();
+    return { start: days[0]!, end: days[days.length - 1]! };
+  }, [outOfPhaseDrafts]);
+
+  /**
+   * F16b: creates a phase inline and re-classifies the parsed rows against it, so
+   * the out-of-phase purchases (e.g. a festival weekend) land in the new phase.
+   * Selection/transfer/bridge state is keyed by rowId, so it survives the rebuild.
+   */
+  const createPhaseInline = async (name: string, startDate: string, endDate: string) => {
+    if (!trip) return;
+    const phase = createPhase({
+      tripId: trip.id,
+      name: name.trim(),
+      startDate,
+      endDate,
+      order: getNextPhaseOrder(phases),
+    });
+    await phaseRepository.create(phase);
+    setPlan(classifyWiseRows(rows, { existingTransactions: transactions, phases: [...phases, phase] }));
+    setShowCreatePhase(false);
+    showToast(t('wiseImport.phase_created', { name: name.trim() }), 'success');
+    await reload();
+  };
+
+  /**
+   * Applies a confirmed bridge: the purchase becomes a split (the person owes
+   * `shareAmountCents`) and the incoming transfer is pre-classified to settle
+   * exactly that — so the debt is born and repaid in the same import.
+   */
+  const applyBridge = (
+    bridge: ReimbursementBridge,
+    participantId: string,
+    shareAmountCents: number,
+  ) => {
+    const settleCents = Math.min(shareAmountCents, bridge.transferAmountCents);
+    const remainder = bridge.transferAmountCents - settleCents;
+    const allocations: WiseAllocation[] = [
+      { id: newAllocationId(), kind: 'settle_incoming', amountCents: settleCents },
+    ];
+    if (remainder > 0) {
+      allocations.push({ id: newAllocationId(), kind: 'ignore', amountCents: remainder });
+    }
+    setBridgeState((prev) => ({
+      ...prev,
+      [bridge.candidate.rowId]: {
+        participantId,
+        shareAmountCents,
+        transferRowId: bridge.transferRowId,
+      },
+    }));
+    setTransferState((prev) => ({
+      ...prev,
+      [bridge.transferRowId]: { participantId, allocations },
+    }));
+    setIncluded((prev) => new Set(prev).add(bridge.candidate.rowId));
+    setActiveBridge(null);
+  };
+
+  const removeBridge = (purchaseRowId: string) => {
+    setBridgeState((prev) => {
+      const next = { ...prev };
+      delete next[purchaseRowId];
+      return next;
+    });
+  };
+
   const selectedDrafts = useMemo(
     () =>
       plan
@@ -220,8 +318,9 @@ export function WiseImportPage() {
     setParsing(true);
     try {
       const texts = await Promise.all(files.map((f) => f.text()));
-      const rows = texts.flatMap((text) => parseWiseCsv(text));
-      const built = classifyWiseRows(rows, { existingTransactions: transactions, phases });
+      const parsedRows = texts.flatMap((text) => parseWiseCsv(text));
+      const built = classifyWiseRows(parsedRows, { existingTransactions: transactions, phases });
+      setRows(parsedRows);
       setPlan(built);
       setIncluded(new Set(built.drafts.filter((d) => d.includeByDefault).map((d) => d.rowId)));
       const preferred =
@@ -289,12 +388,20 @@ export function WiseImportPage() {
       const settlementIds: string[] = [];
 
       if (hasExpenses) {
+        // F16: only forward bridges whose purchase is actually being imported.
+        const bridges: Record<string, WiseExpenseBridge> = {};
+        for (const draft of selectedDrafts) {
+          const b = bridgeState[draft.rowId];
+          if (b) bridges[draft.rowId] = { participantId: b.participantId, shareAmountCents: b.shareAmountCents };
+        }
+        const hasBridges = Object.keys(bridges).length > 0;
         const result = await commitWiseImport({
           drafts: selectedDrafts,
           tripId: trip.id,
           budgetPoolId: operationalPool.id,
           walletId,
           fallbackPhaseId: fallbackPhase.id,
+          ...(hasBridges && owner ? { ownerId: owner.id, bridges } : {}),
         });
         transactionIds.push(...result.transactionIds);
       }
@@ -446,6 +553,56 @@ export function WiseImportPage() {
             <p className="text-[11px] text-on-surface-faint">{t('wiseImport.target_wallet_hint')}</p>
           </div>
 
+          {/* F16b: rows outside every phase — offer to create the missing phase. */}
+          {outOfPhaseDrafts.length > 0 && (
+            <div
+              className="rounded-2xl p-3 flex items-start gap-3"
+              style={{ background: 'var(--warning-surface, rgba(212,160,80,0.14))' }}
+            >
+              <Icon name="event_busy" size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-on-surface">
+                  {t('wiseImport.out_of_phase_title', { count: outOfPhaseDrafts.length })}
+                </p>
+                <p className="text-[11px] text-on-surface-faint mt-0.5">
+                  {t('wiseImport.out_of_phase_hint')}
+                </p>
+                <button
+                  onClick={() => setShowCreatePhase(true)}
+                  className="mt-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-on-surface btn-press inline-flex items-center gap-1"
+                >
+                  <Icon name="add" size={14} />
+                  {t('wiseImport.create_phase')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* F16: reimbursement bridges — link an incoming repayment to a purchase. */}
+          {bridgeSuggestions.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 mt-1">
+                <Icon name="hub" size={16} className="text-primary" />
+                <p className="text-xs font-semibold text-on-surface">{t('wiseImport.bridge_title')}</p>
+              </div>
+              <p className="text-[11px] text-on-surface-faint -mt-1">{t('wiseImport.bridge_hint')}</p>
+              {bridgeSuggestions.map((b) => (
+                <BridgeRow
+                  key={`${b.candidate.rowId}-${b.transferRowId}`}
+                  bridge={b}
+                  linkedName={
+                    bridgeState[b.candidate.rowId]
+                      ? participantName(participants, bridgeState[b.candidate.rowId]!.participantId)
+                      : null
+                  }
+                  baseCurrency={baseCurrency}
+                  onOpen={() => setActiveBridge(b)}
+                  onRemove={() => removeBridge(b.candidate.rowId)}
+                />
+              ))}
+            </div>
+          )}
+
           {/* FIELD-14: transfers to people — classified, not auto-imported. */}
           {transferDrafts.length > 0 && (
             <div className="flex flex-col gap-2">
@@ -497,12 +654,39 @@ export function WiseImportPage() {
                       checked={included.has(draft.rowId)}
                       onToggle={() => toggle(draft.rowId)}
                       baseCurrency={baseCurrency}
+                      linkedName={
+                        bridgeState[draft.rowId]
+                          ? participantName(participants, bridgeState[draft.rowId]!.participantId)
+                          : null
+                      }
                     />
                   ))}
               </div>
             </>
           )}
         </>
+      )}
+
+      {/* F16b: create-phase sheet (pre-filled with the out-of-phase date range). */}
+      {showCreatePhase && outOfPhaseRange && (
+        <CreatePhaseSheet
+          defaultStart={outOfPhaseRange.start}
+          defaultEnd={outOfPhaseRange.end}
+          onCreate={createPhaseInline}
+          onClose={() => setShowCreatePhase(false)}
+        />
+      )}
+
+      {/* F16: bridge confirmation sheet (pick/create person + confirm the share). */}
+      {activeBridge && (
+        <BridgeConfirmSheet
+          bridge={activeBridge}
+          participants={participants}
+          baseCurrency={baseCurrency}
+          onApply={applyBridge}
+          onCreateParticipant={createParticipantInline}
+          onClose={() => setActiveBridge(null)}
+        />
       )}
 
       {/* FIELD-14: transfer classification sheet (match person + split). */}
@@ -598,11 +782,13 @@ function DraftRow({
   checked,
   onToggle,
   baseCurrency,
+  linkedName,
 }: {
   draft: WiseImportDraft;
   checked: boolean;
   onToggle: () => void;
   baseCurrency: string;
+  linkedName?: string | null;
 }) {
   const { t } = useTranslation();
   const canToggle = draft.importable && draft.status !== 'duplicate_import';
@@ -654,6 +840,13 @@ function DraftRow({
           {formatShortDate(draft.localDay)}
           {draft.city ? ` · ${draft.city}` : ''}
         </span>
+        {linkedName && (
+          <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: 'rgba(124,160,255,0.16)', color: 'var(--primary)' }}>
+            <Icon name="hub" size={10} />
+            {t('wiseImport.bridge_split_with', { name: linkedName })}
+          </span>
+        )}
       </span>
 
       <span className="flex flex-col items-end gap-1 shrink-0">
@@ -673,6 +866,265 @@ function DraftRow({
         )}
       </span>
     </button>
+  );
+}
+
+/* ────────────────────── F16b: create-phase-on-import UI ────────────────────── */
+
+function CreatePhaseSheet({
+  defaultStart,
+  defaultEnd,
+  onCreate,
+  onClose,
+}: {
+  defaultStart: string;
+  defaultEnd: string;
+  onCreate: (name: string, startDate: string, endDate: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState('');
+  const [start, setStart] = useState(defaultStart);
+  const [end, setEnd] = useState(defaultEnd);
+  const valid = name.trim().length > 0 && start <= end;
+
+  return (
+    <BottomSheet open onClose={onClose} title={t('wiseImport.create_phase_title')}>
+      <div className="flex flex-col gap-3 pb-2">
+        <p className="text-[11px] text-on-surface-faint">{t('wiseImport.create_phase_hint')}</p>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-semibold text-on-surface">{t('wiseImport.phase_name')}</span>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('wiseImport.phase_name_ph')}
+            className="px-3 py-2.5 rounded-xl text-sm bg-surface-high text-on-surface outline-none"
+          />
+        </label>
+        <div className="flex gap-2">
+          <label className="flex-1 flex flex-col gap-1">
+            <span className="text-xs font-semibold text-on-surface">{t('wiseImport.phase_start')}</span>
+            <input
+              type="date"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="px-3 py-2.5 rounded-xl text-sm bg-surface-high text-on-surface outline-none"
+            />
+          </label>
+          <label className="flex-1 flex flex-col gap-1">
+            <span className="text-xs font-semibold text-on-surface">{t('wiseImport.phase_end')}</span>
+            <input
+              type="date"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="px-3 py-2.5 rounded-xl text-sm bg-surface-high text-on-surface outline-none"
+            />
+          </label>
+        </div>
+        <button
+          onClick={() => valid && onCreate(name, start, end)}
+          disabled={!valid}
+          className="w-full py-3 rounded-2xl bg-primary text-on-surface font-bold btn-press mt-1 disabled:opacity-40"
+        >
+          {t('wiseImport.create_phase')}
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
+/* ────────────────────── F16: reimbursement bridge UI ────────────────────── */
+
+function BridgeRow({
+  bridge,
+  linkedName,
+  baseCurrency,
+  onOpen,
+  onRemove,
+}: {
+  bridge: ReimbursementBridge;
+  linkedName: string | null;
+  baseCurrency: string;
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  const linked = linkedName !== null;
+  return (
+    <div className="w-full bg-surface-container rounded-xl p-3 flex items-center gap-3">
+      <span
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: linked ? 'rgba(106,196,140,0.18)' : 'rgba(124,160,255,0.16)' }}
+      >
+        <Icon
+          name={linked ? 'check_circle' : 'hub'}
+          size={18}
+          className={linked ? 'text-success' : 'text-primary'}
+        />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-on-surface truncate">
+          {bridge.candidate.description}
+        </span>
+        <span className="block text-[11px] text-on-surface-faint">
+          {linked
+            ? t('wiseImport.bridge_linked', {
+                name: linkedName,
+                share: formatMoney(bridge.transferAmountCents, baseCurrency),
+              })
+            : t('wiseImport.bridge_suggestion', {
+                name: bridge.counterpartyName ?? t('wiseImport.bridge_someone'),
+                in: formatMoney(bridge.transferAmountCents, baseCurrency),
+                total: formatMoney(bridge.candidate.amountCents, baseCurrency),
+              })}
+        </span>
+      </span>
+      {linked ? (
+        <button onClick={onRemove} className="btn-press p-1 shrink-0" aria-label={t('common.delete')}>
+          <Icon name="close" size={16} className="text-on-surface-faint" />
+        </button>
+      ) : (
+        <button
+          onClick={onOpen}
+          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-on-surface btn-press shrink-0"
+        >
+          {t('wiseImport.bridge_review')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function BridgeConfirmSheet({
+  bridge,
+  participants,
+  baseCurrency,
+  onApply,
+  onCreateParticipant,
+  onClose,
+}: {
+  bridge: ReimbursementBridge;
+  participants: Participant[];
+  baseCurrency: string;
+  onApply: (bridge: ReimbursementBridge, participantId: string, shareAmountCents: number) => void;
+  onCreateParticipant: (name: string) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const suggested = matchParticipantByName(bridge.counterpartyName, participants);
+  const others = participants.filter((p) => !p.isOwner);
+  const [participantId, setParticipantId] = useState<string | null>(suggested?.participantId ?? null);
+  const [showNewInput, setShowNewInput] = useState(false);
+  const [newName, setNewName] = useState(bridge.counterpartyName ?? '');
+  const share = bridge.transferAmountCents;
+
+  const handleCreate = async () => {
+    const id = await onCreateParticipant(newName);
+    if (id) {
+      setParticipantId(id);
+      setShowNewInput(false);
+    }
+  };
+
+  return (
+    <BottomSheet open onClose={onClose} title={t('wiseImport.bridge_sheet_title')}>
+      <div className="flex flex-col gap-4 pb-2">
+        {/* The pair: purchase vs incoming repayment. */}
+        <div className="bg-surface-container rounded-2xl p-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-on-surface truncate">
+              {bridge.candidate.description}
+            </span>
+            <span className="text-sm font-extrabold tabular text-on-surface shrink-0">
+              −{formatMoney(bridge.candidate.amountCents, baseCurrency).replace(/^[-−+]/, '')}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-on-surface-faint">
+              {bridge.counterpartyName ?? t('wiseImport.bridge_someone')} ·{' '}
+              {t('wiseImport.bridge_days_apart', { count: bridge.daysApart })}
+            </span>
+            <span className="text-sm font-extrabold tabular text-success shrink-0">
+              +{formatMoney(bridge.transferAmountCents, baseCurrency).replace(/^[-−+]/, '')}
+            </span>
+          </div>
+        </div>
+
+        {/* Person picker (suggested + create). */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-on-surface">{t('wiseImport.transfer_person')}</p>
+          <div className="flex gap-2 flex-wrap">
+            {others.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setParticipantId(p.id)}
+                className={`px-3 py-2 rounded-xl text-xs font-medium btn-press flex items-center gap-1.5 ${
+                  participantId === p.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                {p.name}
+                {suggested?.participantId === p.id && (
+                  <span className="text-[9px] font-bold opacity-80">
+                    · {t('wiseImport.transfer_suggested')}
+                  </span>
+                )}
+              </button>
+            ))}
+            {showNewInput ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder={t('wiseImport.transfer_new_person')}
+                  className="px-3 py-2 rounded-xl text-xs bg-surface-high text-on-surface w-32 outline-none"
+                />
+                <button
+                  onClick={handleCreate}
+                  disabled={newName.trim().length === 0}
+                  className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center btn-press disabled:opacity-40"
+                >
+                  <Icon name="check" size={16} className="text-on-surface" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewInput(true)}
+                className="px-3 py-2 rounded-xl text-xs font-medium btn-press flex items-center gap-1 bg-surface-high text-on-surface-dim"
+              >
+                <Icon name="add" size={14} />
+                {t('wiseImport.transfer_new_person')}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* What this means, in money. */}
+        <div className="rounded-2xl p-3 flex flex-col gap-1.5" style={{ background: 'rgba(124,160,255,0.10)' }}>
+          <p className="text-[11px] text-on-surface-dim leading-relaxed">
+            {t('wiseImport.bridge_explainer', {
+              name: participantName(participants, participantId) || (bridge.counterpartyName ?? t('wiseImport.bridge_someone')),
+              share: formatMoney(share, baseCurrency),
+              total: formatMoney(bridge.candidate.amountCents, baseCurrency),
+            })}
+          </p>
+          <p className="text-[11px] font-semibold" style={{ color: 'var(--primary-dim)' }}>
+            {t('wiseImport.bridge_my_cost', {
+              amount: formatMoney(bridge.ownerShareCents, baseCurrency),
+            })}
+          </p>
+        </div>
+
+        <button
+          onClick={() => participantId && onApply(bridge, participantId, share)}
+          disabled={!participantId}
+          className="w-full py-3 rounded-2xl bg-primary text-on-surface font-bold btn-press mt-1 disabled:opacity-40"
+        >
+          {t('wiseImport.bridge_confirm')}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 

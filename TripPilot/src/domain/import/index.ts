@@ -35,3 +35,9 @@ export type {
   TransferAllocationStatus,
   DefaultAllocationContext,
 } from './wise-transfer';
+export { detectReimbursementBridges } from './reimbursement-bridge';
+export type {
+  ReimbursementBridge,
+  BridgeCandidate,
+  DetectReimbursementBridgesInput,
+} from './reimbursement-bridge';
