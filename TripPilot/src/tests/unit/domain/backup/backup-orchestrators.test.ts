@@ -46,6 +46,8 @@ const settings: AppSettings = {
   appLockEnabled: false,
   appLockPinHash: null,
   appLockPinSalt: null,
+  appLockBiometricEnabled: false,
+  appLockBiometricCredentialId: null,
   lastExpenseCategory: null,
   deviceIdentity: null,
   mailboxEnabled: true,

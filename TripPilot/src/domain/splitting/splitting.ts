@@ -560,3 +560,31 @@ export function calculateParticipantBalances(debts: DebtEntry[]): Map<string, nu
   }
   return balances;
 }
+
+/**
+ * B5 — from a freshly-resolved set of shares, the distinct non-owner
+ * participants who now owe a positive amount. These are the people the owner
+ * should nudge to open their shared `/s` link so the split lands on the other
+ * phone. Owner shares, zero/negative shares, soft-deleted shares and unknown or
+ * soft-deleted participants are excluded. The result preserves the order of
+ * `participants` so the nudge reads predictably.
+ */
+export function collectSplitNotifyTargets(
+  shares: ParticipantShare[],
+  participants: Participant[],
+  ownerId: string,
+): Participant[] {
+  const owedParticipantIds = new Set<string>();
+  for (const share of shares) {
+    if (share.deletedAt !== null) continue;
+    if (share.participantId === ownerId) continue;
+    if (share.shareAmountCents <= 0) continue;
+    owedParticipantIds.add(share.participantId);
+  }
+  return participants.filter(
+    (participant) =>
+      participant.deletedAt === null &&
+      !participant.isOwner &&
+      owedParticipantIds.has(participant.id),
+  );
+}

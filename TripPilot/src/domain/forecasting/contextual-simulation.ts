@@ -23,6 +23,14 @@ export interface SimulationProfileContext {
   /** Occasions still remaining in the plan. */
   remaining: number;
   typicalValueCents: number;
+  /**
+   * B12 (R7): cents already spent in this category in the phase. The money plan
+   * (`plannedQuantity * typicalValueCents`) can be blown even while occasions
+   * remain — e.g. each occasion cost far more than typical. The simulator
+   * weights its verdict up when this spend pushes the category past its money
+   * plan. Defaults to 0 (no overspend) for callers that don't track it.
+   */
+  categorySpentCents: number;
 }
 
 export interface SimulationEventContext {
@@ -68,6 +76,17 @@ export type SimulationFact =
       typicalValueCents: number;
     }
   | { kind: 'plan_over'; profileName: string; planned: number; done: number }
+  | {
+      /** B12 (R7): this spend pushes the category past its money plan. */
+      kind: 'category_over_budget';
+      profileName: string;
+      /** Cents already spent in the category before this spend. */
+      spentCents: number;
+      /** The category money plan (`plannedQuantity * typicalValueCents`). */
+      budgetCents: number;
+      /** Cents over the plan AFTER this spend (projected − budget, ≥ 1). */
+      overByCents: number;
+    }
   | { kind: 'event_reserve_covers'; eventName: string; reservedCents: number; leftCents: number }
   | { kind: 'event_reserve_short'; eventName: string; reservedCents: number; missingCents: number }
   | { kind: 'event_no_reserve'; eventName: string };
@@ -83,6 +102,13 @@ export type ContextualVerdict =
   | { tone: 'attention' | 'risk'; reason: 'reserve_short'; eventName: string; missingCents: number }
   | { tone: 'attention' | 'risk'; reason: 'many_days'; days: number }
   | { tone: 'attention'; reason: 'large_share'; percent: number }
+  | {
+      /** B12 (R7): the category money plan is (or is now) overspent. */
+      tone: 'attention' | 'risk';
+      reason: 'category_over_budget';
+      profileName: string;
+      overByCents: number;
+    }
   | { tone: 'risk'; reason: 'consumes_whole_plan'; profileName: string; remaining: number }
   | { tone: 'risk'; reason: 'over_plan'; profileName: string; planned: number; done: number }
   | { tone: 'risk'; reason: 'exceeds_free'; missingCents: number };
@@ -238,37 +264,90 @@ function simulateProfileTarget(
   }
 
   // Fits as roughly one planned occasion (20% tolerance) → planned money.
-  if (occasions <= 1.2) {
-    return {
-      facts,
-      verdict: {
-        tone: 'ok',
-        reason: 'fits_plan',
-        profileName: profile.profileName,
-        remaining: profile.remaining,
-      },
-    };
-  }
+  const base: ContextualSimulation =
+    occasions <= 1.2
+      ? {
+          facts,
+          verdict: {
+            tone: 'ok',
+            reason: 'fits_plan',
+            profileName: profile.profileName,
+            remaining: profile.remaining,
+          },
+        }
+      : occasions >= profile.remaining
+        ? {
+            facts,
+            verdict: {
+              tone: 'risk',
+              reason: 'consumes_whole_plan',
+              profileName: profile.profileName,
+              remaining: profile.remaining,
+            },
+          }
+        : {
+            facts,
+            verdict: {
+              tone: 'attention',
+              reason: 'consumes_occasions',
+              profileName: profile.profileName,
+              occasions,
+            },
+          };
 
-  if (occasions >= profile.remaining) {
-    return {
-      facts,
-      verdict: {
-        tone: 'risk',
-        reason: 'consumes_whole_plan',
-        profileName: profile.profileName,
-        remaining: profile.remaining,
-      },
-    };
+  // B12 (R7): weight the verdict up when this spend pushes the category past
+  // its money plan, even though planned occasions remain.
+  return weightProfileByCategoryBudget(base, input, profile);
+}
+
+const TONE_ORDER: Record<ContextualVerdictTone, number> = { ok: 0, attention: 1, risk: 2 };
+
+/**
+ * B12 (R7): a category can blow its money plan while occasions still remain —
+ * each occasion simply cost more than typical. When this spend takes the
+ * category past `plannedQuantity * typicalValueCents`, surface the fact and
+ * escalate the tone. The weighting is monotonic: it never weakens a stronger
+ * base verdict (e.g. `consumes_whole_plan`) and never fires when the category
+ * is still within its money plan — so existing outcomes stay identical.
+ */
+function weightProfileByCategoryBudget(
+  base: ContextualSimulation,
+  input: ContextualSimulationInput,
+  profile: SimulationProfileContext,
+): ContextualSimulation {
+  const budgetCents = profile.plannedQuantity * profile.typicalValueCents;
+  if (budgetCents <= 0) return base;
+
+  const projectedCents = profile.categorySpentCents + input.amountCents;
+  if (projectedCents <= budgetCents) return base;
+
+  const overByCents = projectedCents - budgetCents;
+  const facts: SimulationFact[] = [
+    {
+      kind: 'category_over_budget',
+      profileName: profile.profileName,
+      spentCents: profile.categorySpentCents,
+      budgetCents,
+      overByCents,
+    },
+    ...base.facts,
+  ];
+
+  // Already over before this spend → risk; this spend merely tips it over →
+  // attention. Escalate only; keep the base reason when it is already as strong.
+  const alreadyOver = profile.categorySpentCents >= budgetCents;
+  const weightedTone: ContextualVerdictTone = alreadyOver ? 'risk' : 'attention';
+  if (TONE_ORDER[base.verdict.tone] >= TONE_ORDER[weightedTone]) {
+    return { facts, verdict: base.verdict };
   }
 
   return {
     facts,
     verdict: {
-      tone: 'attention',
-      reason: 'consumes_occasions',
+      tone: weightedTone,
+      reason: 'category_over_budget',
       profileName: profile.profileName,
-      occasions,
+      overByCents,
     },
   };
 }

@@ -1,8 +1,8 @@
 {
-  "version": "0.64.0",
+  "version": "0.70.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.64.0.zip",
-  "notes": "Local da saída ativa com a mesma inteligência do registro de gasto: além dos lugares próximos, agora aparecem os lugares que você já usou (mesmo offline) e dá pra pesquisar por nome — é só digitar pra filtrar ou nomear um lugar novo. Botão 'buscar nome (online)' para resolver o ponto atual."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.70.0.zip",
+  "notes": "Melhorias de estabilidade: criar um fundo com fases agora é salvo de uma vez só, sem risco de ficar pela metade se algo falhar no meio."
 }

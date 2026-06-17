@@ -67,6 +67,7 @@ interface DashboardSheetsProps {
 // `free` (total) and `deficit` (overflow note) are rendered with bespoke styling.
 const FTS_LABEL_KEYS: Record<Exclude<FtsBreakdownKey, 'free' | 'deficit'>, string> = {
   budget: 'dashboard.fts_budget',
+  income: 'dashboard.fts_income',
   spent: 'dashboard.fts_spent',
   protected: 'dashboard.fts_protected',
   future_floor: 'dashboard.fts_future_floor',
@@ -351,6 +352,7 @@ export function DashboardSheets({
                 );
               }
               const isSubtract = line.kind === 'subtract';
+              const isAdd = line.kind === 'add';
               return (
                 <div key={line.key} className="flex items-baseline justify-between py-1">
                   <span className="text-sm font-semibold text-on-surface-dim">
@@ -358,10 +360,10 @@ export function DashboardSheets({
                   </span>
                   <span
                     className={`text-sm font-bold tabular ${
-                      isSubtract ? 'text-on-surface-faint' : 'text-on-surface'
+                      isSubtract ? 'text-on-surface-faint' : isAdd ? 'text-success' : 'text-on-surface'
                     }`}
                   >
-                    {isSubtract ? '− ' : ''}
+                    {isSubtract ? '− ' : isAdd ? '+ ' : ''}
                     {formatMoney(line.cents, trip.baseCurrency)}
                   </span>
                 </div>

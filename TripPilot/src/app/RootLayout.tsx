@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Outlet, ScrollRestoration, useLocation } from 'react-router';
+import { Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
 import { isNativeApp, applyNativeStatusBar } from '@/utils/native';
+import { initDeepLinks } from '@/utils/native/deep-link';
+import { hasPendingSharedCsv, setSharedCsvNavHandler } from '@/utils/native/share-target';
 import { setHapticsEnabled } from '@/utils/haptics';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
@@ -102,6 +104,28 @@ function useNavDirection() {
   }, [location]);
 }
 
+// B1 + B2 (Onda 4 / DEC-215): route native entry points into the SPA.
+//  - App Links (`/pair`, `/s/:id`) → navigate preserving the `#fragment`.
+//  - A shared `.csv` → open the Wise import preview (`?shared=1`).
+// Native-only: every boundary is guarded by `isNativeApp()` inside the utils,
+// so the web/PWA build is untouched (links resolve in the browser as before).
+const SHARED_IMPORT_ROUTE = '/import/wise?shared=1';
+
+function useNativeIntents() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    const disposeDeepLinks = initDeepLinks((to) => navigate(to));
+    setSharedCsvNavHandler(() => navigate(SHARED_IMPORT_ROUTE));
+    // The app may have been cold-started by a share before this mounted.
+    if (hasPendingSharedCsv()) navigate(SHARED_IMPORT_ROUTE);
+    return () => {
+      disposeDeepLinks();
+      setSharedCsvNavHandler(null);
+    };
+  }, [navigate]);
+}
+
 /** Root route element: wraps ALL routes (inside and outside the AppShell). */
 export function RootLayout() {
   const settings = useLiveSettings();
@@ -110,6 +134,7 @@ export function RootLayout() {
   useHapticsPreference(settings);
   useBackButtonGuard();
   useNavDirection();
+  useNativeIntents();
   // BUG-007: a single AppDataProvider above every route.
   // E6 (M20): the lock gate sits just below it so the PIN screen can read live
   // settings while still protecting every route once enabled.

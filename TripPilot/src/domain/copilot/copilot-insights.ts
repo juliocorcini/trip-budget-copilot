@@ -1,4 +1,5 @@
 import type { Transaction } from '@/domain/types/transaction';
+import type { WalletType } from '@/domain/types/common';
 import type { PhaseBurndown, MonthHeatmap } from '@/domain/dashboard';
 import type { ForecastSnapshot } from '@/domain/types/forecast-snapshot';
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
@@ -297,4 +298,178 @@ export function summarizeOutingEfficiency(outings: OutingResult[]): OutingEffici
     withinTarget,
     avgSavingCents: Math.round(savingSum / outings.length),
   };
+}
+
+/* ─────────────── B10 (DEC-184 backlog): four more data-gated cross-cuts ─────────────── */
+
+export interface PaymentMix {
+  cashCents: number;
+  cardCents: number;
+  /** Spend on `other`-typed wallets or with no wallet — not classifiable. */
+  untrackedCents: number;
+  /** cash + card — the base for the ratio. */
+  classifiedCents: number;
+  /** 0–100 share of classified spend paid in cash. */
+  cashPercent: number;
+}
+
+const CASH_WALLET_TYPES: ReadonlySet<WalletType> = new Set<WalletType>(['cash']);
+const CARD_WALLET_TYPES: ReadonlySet<WalletType> = new Set<WalletType>([
+  'debit_card',
+  'credit_card',
+  'digital',
+]);
+
+/**
+ * "Dinheiro × cartão" (B10) — how the spend splits between cash and card, the
+ * reliability angle (cash leaks from the ledger more easily than card). A mix
+ * needs BOTH sides, so it self-censors until there's cash AND card spend.
+ */
+export function summarizePaymentMix(
+  transactions: Transaction[],
+  walletTypeById: Map<string, WalletType>,
+): PaymentMix | null {
+  let cashCents = 0;
+  let cardCents = 0;
+  let untrackedCents = 0;
+  for (const tx of transactions) {
+    if (tx.deletedAt !== null || tx.type !== 'expense') continue;
+    const cents = transactionBasePersonalCostCents(tx);
+    if (cents <= 0) continue;
+    const type = tx.walletId ? walletTypeById.get(tx.walletId) : undefined;
+    if (type && CASH_WALLET_TYPES.has(type)) cashCents += cents;
+    else if (type && CARD_WALLET_TYPES.has(type)) cardCents += cents;
+    else untrackedCents += cents;
+  }
+  if (cashCents <= 0 || cardCents <= 0) return null;
+  const classifiedCents = cashCents + cardCents;
+  return {
+    cashCents,
+    cardCents,
+    untrackedCents,
+    classifiedCents,
+    cashPercent: Math.round((cashCents / classifiedCents) * 100),
+  };
+}
+
+export interface HomeCurrencyTotal {
+  /** Whole-trip personal spend, in the trip's base (home) currency. */
+  totalCents: number;
+  expenseCount: number;
+}
+
+/**
+ * "No total, na sua moeda" (B10) — the single anchor number: everything spent so
+ * far, converted to the home currency. Null until there's any real spend.
+ */
+export function summarizeHomeCurrencyTotal(transactions: Transaction[]): HomeCurrencyTotal | null {
+  let totalCents = 0;
+  let expenseCount = 0;
+  for (const tx of transactions) {
+    if (tx.deletedAt !== null || tx.type !== 'expense') continue;
+    const cents = transactionBasePersonalCostCents(tx);
+    if (cents <= 0) continue;
+    totalCents += cents;
+    expenseCount += 1;
+  }
+  if (totalCents <= 0) return null;
+  return { totalCents, expenseCount };
+}
+
+export interface PeakHour {
+  /** 0–23 local hour with the most spend. */
+  hour: number;
+  hourCents: number;
+  /** Expenses that landed in that hour. */
+  hourCount: number;
+  /** 0–100 share of total spend in that hour. */
+  sharePercent: number;
+}
+
+/**
+ * "Hora de pico" (B10) — the local hour of day when the most money goes out.
+ * Buckets expenses by their local hour; null until there's a real sample (≥3
+ * expenses) and a non-zero peak.
+ */
+export function summarizePeakHour(transactions: Transaction[]): PeakHour | null {
+  const centsByHour = new Array<number>(24).fill(0);
+  const countByHour = new Array<number>(24).fill(0);
+  let totalCents = 0;
+  let expenseCount = 0;
+  for (const tx of transactions) {
+    if (tx.deletedAt !== null || tx.type !== 'expense') continue;
+    const cents = transactionBasePersonalCostCents(tx);
+    if (cents <= 0) continue;
+    const hour = new Date(tx.date).getHours();
+    if (Number.isNaN(hour)) continue;
+    centsByHour[hour] = (centsByHour[hour] ?? 0) + cents;
+    countByHour[hour] = (countByHour[hour] ?? 0) + 1;
+    totalCents += cents;
+    expenseCount += 1;
+  }
+  if (expenseCount < 3 || totalCents <= 0) return null;
+  let hour = 0;
+  for (let h = 1; h < 24; h += 1) {
+    if (centsByHour[h]! > centsByHour[hour]!) hour = h;
+  }
+  const hourCents = centsByHour[hour]!;
+  if (hourCents <= 0) return null;
+  return {
+    hour,
+    hourCents,
+    hourCount: countByHour[hour]!,
+    sharePercent: Math.round((hourCents / totalCents) * 100),
+  };
+}
+
+export interface DisciplineStreak {
+  /** Consecutive most-recent spending days at or under the daily target. */
+  currentStreak: number;
+  /** Best run of disciplined spending days in the period. */
+  longestStreak: number;
+  /** Distinct spending days considered. */
+  activeDays: number;
+  dailyTargetCents: number;
+}
+
+/**
+ * "Sequência de disciplina" (B10) — how many spending days in a row stayed at or
+ * under the daily target (the phase's ideal per-day pace). Counts only days that
+ * had spend (a zero-spend day neither breaks nor extends the run). Null until
+ * there's a real target and at least a 2-day run to celebrate.
+ */
+export function summarizeDisciplineStreak(
+  transactions: Transaction[],
+  dailyTargetCents: number,
+): DisciplineStreak | null {
+  if (dailyTargetCents <= 0) return null;
+  const byDay = new Map<string, number>();
+  for (const tx of transactions) {
+    if (tx.deletedAt !== null || tx.type !== 'expense') continue;
+    const cents = transactionBasePersonalCostCents(tx);
+    if (cents <= 0) continue;
+    const dayIso = localDayOf(tx.date);
+    byDay.set(dayIso, (byDay.get(dayIso) ?? 0) + cents);
+  }
+  const days = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  if (days.length < 2) return null;
+
+  let longestStreak = 0;
+  let run = 0;
+  for (const [, cents] of days) {
+    if (cents <= dailyTargetCents) {
+      run += 1;
+      if (run > longestStreak) longestStreak = run;
+    } else {
+      run = 0;
+    }
+  }
+  if (longestStreak < 2) return null;
+
+  let currentStreak = 0;
+  for (let i = days.length - 1; i >= 0; i -= 1) {
+    if (days[i]![1] <= dailyTargetCents) currentStreak += 1;
+    else break;
+  }
+  return { currentStreak, longestStreak, activeDays: days.length, dailyTargetCents };
 }

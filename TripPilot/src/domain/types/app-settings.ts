@@ -92,6 +92,14 @@ export interface AppSettings {
   appLockPinHash: string | null;
   /** E6 (M20): random per-PIN salt (hex) used with the hash above. */
   appLockPinSalt: string | null;
+  /** B6 (DEC-213): opt-in biometric unlock layered OVER the PIN. Default false.
+   * Can only be on when a PIN exists; the PIN is always the fallback so the user
+   * is never trapped (ÂNCORA 12; non-indexed — no migration). */
+  appLockBiometricEnabled: boolean;
+  /** B6 (DEC-213): WebAuthn platform credential id (base64url) bound to THIS
+   * device. Device-local — useless after a restore to another device, where the
+   * PIN simply takes over. null until biometrics are enabled. */
+  appLockBiometricCredentialId: string | null;
   /** R3-H: the last expense category the traveler used, so QuickAdd opens on it
    * instead of always defaulting to "other" (sticky, mirrors currentPlace).
    * null until the first expense (non-indexed — no migration). */

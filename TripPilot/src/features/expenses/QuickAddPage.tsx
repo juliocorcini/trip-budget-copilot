@@ -11,7 +11,7 @@ import {
   parseVoiceExpense,
 } from '@/domain/transactions';
 import type { ExpenseSuggestion } from '@/domain/transactions';
-import { resolvePayerExpense } from '@/domain/splitting';
+import { resolvePayerExpense, collectSplitNotifyTargets } from '@/domain/splitting';
 import {
   shouldReaskPlace,
   coordsLabel,
@@ -26,6 +26,7 @@ import { reverseGeocodePlace, searchNearbyPlaces, isOnline } from '@/utils/place
 import { NearbyPlaceList } from '@/components/NearbyPlaceList';
 import { appSettingsRepository, attachmentRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
+import type { Transaction } from '@/domain/types/transaction';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
 import {
   toCents,
@@ -61,6 +62,8 @@ import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { showToast } from '@/components/Toast';
 import type { ShareType, CurrentPlace } from '@/domain/types/common';
 import type { AppSettings } from '@/domain/types/app-settings';
+import type { Participant } from '@/domain/types/participant';
+import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
 
 const CATEGORY_KEYS = [
   'bar',
@@ -132,6 +135,8 @@ export function QuickAddPage() {
   const [showAnomalyConfirm, setShowAnomalyConfirm] = useState(false);
   // M4: offer to duplicate a transport expense as a round trip.
   const [showRoundTrip, setShowRoundTrip] = useState(false);
+  // B5: after a split, prompt to send each debtor their shared link.
+  const [splitNudge, setSplitNudge] = useState<Participant[]>([]);
   // M11: optional voice capture — only offered when the browser supports it.
   const [listening, setListening] = useState(false);
 
@@ -558,7 +563,7 @@ export function QuickAddPage() {
     return { transaction: tx, shares: finalShares };
   };
 
-  const persistExpense = async () => {
+  const persistExpense = async (): Promise<{ transaction: Transaction; shares: ParticipantShare[] }> => {
     const { transaction, shares } = buildExpense();
     await registerExpense({ transaction, shares });
     // DEC-206 (G1): persist photos buffered during creation, now that the
@@ -589,7 +594,7 @@ export function QuickAddPage() {
     void recordExpenseForSnapshot();
     // E6 (M14): capture at most one daily restore point (best-effort, deduped).
     void recordDailyLocalSnapshot();
-    return transaction;
+    return { transaction, shares };
   };
 
   // The app's #1 action used to be silent. Confirm what was registered (in base
@@ -626,11 +631,18 @@ export function QuickAddPage() {
     setShowZeroBudgetConfirm(false);
     setSaving(true);
     try {
-      const tx = await persistExpense();
+      const { transaction: tx, shares } = await persistExpense();
       confirmExpenseSaved(tx.id, tx.baseCurrencyAmountCents);
       // M4: a transport expense offers to log the return trip too.
       if (category === 'transport') {
         setShowRoundTrip(true);
+        return;
+      }
+      // B5: if this split gave someone a slice, nudge to send their link before
+      // leaving — the slice only reaches the other phone when they open it.
+      const notifyTargets = owner ? collectSplitNotifyTargets(shares, participants, owner.id) : [];
+      if (notifyTargets.length > 0) {
+        setSplitNudge(notifyTargets);
         return;
       }
       await finishAndGoHome();
@@ -707,7 +719,7 @@ export function QuickAddPage() {
     setShowRoundTrip(false);
     setSaving(true);
     try {
-      const tx = await persistExpense();
+      const { transaction: tx } = await persistExpense();
       confirmExpenseSaved(tx.id, tx.baseCurrencyAmountCents);
       await finishAndGoHome();
     } finally {
@@ -1550,6 +1562,16 @@ export function QuickAddPage() {
           </div>
         </div>
       </BottomSheet>
+
+      {/* B5: nudge to send each debtor their shared link after a split. */}
+      <SplitShareNudgeSheet
+        open={splitNudge.length > 0}
+        participants={splitNudge}
+        onClose={() => {
+          setSplitNudge([]);
+          void finishAndGoHome();
+        }}
+      />
     </div>
   );
 }

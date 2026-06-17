@@ -4,7 +4,9 @@ export {
   calculateTrueFree,
   calculateEventReserves,
   calculatePoolSpent,
+  calculatePoolIncome,
   calculateFutureFloor,
+  calculateRecommendedFloor,
   calculatePoolRemaining,
   createPoolSummary,
   calculateTotalBudget,
@@ -60,4 +62,6 @@ export type {
   AvailablePools,
   CreateEnvelopeInput,
   PoolTransferResult,
+  RecommendedFloorInput,
+  RecommendedFloor,
 } from './budget';

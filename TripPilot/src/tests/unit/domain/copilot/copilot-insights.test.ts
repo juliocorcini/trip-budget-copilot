@@ -10,7 +10,12 @@ import {
   calculateRunway,
   summarizeWeekdayPattern,
   summarizeOutingEfficiency,
+  summarizePaymentMix,
+  summarizeHomeCurrencyTotal,
+  summarizePeakHour,
+  summarizeDisciplineStreak,
 } from '@/domain/copilot';
+import type { WalletType } from '@/domain/types/common';
 import { buildMonthHeatmap } from '@/domain/dashboard';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { createForecastSnapshot } from '@/domain/insights';
@@ -317,5 +322,206 @@ describe('summarizeOutingEfficiency', () => {
   it('needs at least two outings to be a pattern', () => {
     expect(summarizeOutingEfficiency([{ targetCents: 5000, totalCents: 4000 }])).toBeNull();
     expect(summarizeOutingEfficiency([])).toBeNull();
+  });
+});
+
+/* ─────────────── B10 — four new data-gated cross-cuts ─────────────── */
+
+// A local-time datetime (no Z) so getHours()/localDayOf are deterministic
+// regardless of the runner's timezone.
+function mkExpenseAt(
+  amountCents: number,
+  localDateTime: string,
+  walletId: string | null = null,
+): Transaction {
+  const tx = createExpenseTransaction({
+    tripId: 'trip-1',
+    phaseId: 'phase-1',
+    budgetPoolId: 'pool-1',
+    walletId,
+    amountCents,
+    currency: 'EUR',
+    category: 'bar',
+    description: 'test',
+  });
+  return { ...tx, date: localDateTime };
+}
+
+describe('summarizePaymentMix', () => {
+  const walletTypes = new Map<string, WalletType>([
+    ['cash-1', 'cash'],
+    ['card-1', 'credit_card'],
+    ['debit-1', 'debit_card'],
+    ['wise-1', 'digital'],
+    ['other-1', 'other'],
+  ]);
+
+  it('splits classified spend into cash vs card and computes the cash share', () => {
+    const mix = summarizePaymentMix(
+      [
+        mkExpenseAt(3000, '2026-06-10T12:00:00', 'cash-1'),
+        mkExpenseAt(1000, '2026-06-10T13:00:00', 'cash-1'),
+        mkExpenseAt(4000, '2026-06-10T14:00:00', 'card-1'),
+        mkExpenseAt(2000, '2026-06-10T15:00:00', 'wise-1'),
+      ],
+      walletTypes,
+    );
+    // cash 4000, card 4000 + 2000 = 6000, classified 10000 → 40% cash.
+    expect(mix).toEqual({
+      cashCents: 4000,
+      cardCents: 6000,
+      untrackedCents: 0,
+      classifiedCents: 10000,
+      cashPercent: 40,
+    });
+  });
+
+  it('counts `other`-typed and wallet-less spend as untracked, not in the ratio', () => {
+    const mix = summarizePaymentMix(
+      [
+        mkExpenseAt(5000, '2026-06-10T12:00:00', 'cash-1'),
+        mkExpenseAt(5000, '2026-06-10T13:00:00', 'card-1'),
+        mkExpenseAt(2500, '2026-06-10T14:00:00', 'other-1'),
+        mkExpenseAt(1500, '2026-06-10T15:00:00', null),
+      ],
+      walletTypes,
+    );
+    expect(mix?.untrackedCents).toBe(4000);
+    expect(mix?.classifiedCents).toBe(10000);
+    expect(mix?.cashPercent).toBe(50);
+  });
+
+  it('self-censors until there is both cash and card spend', () => {
+    expect(
+      summarizePaymentMix([mkExpenseAt(5000, '2026-06-10T12:00:00', 'cash-1')], walletTypes),
+    ).toBeNull();
+    expect(
+      summarizePaymentMix([mkExpenseAt(5000, '2026-06-10T12:00:00', 'card-1')], walletTypes),
+    ).toBeNull();
+    expect(summarizePaymentMix([], walletTypes)).toBeNull();
+  });
+
+  it('ignores deleted and non-expense transactions', () => {
+    const deleted = { ...mkExpenseAt(9999, '2026-06-10T12:00:00', 'cash-1'), deletedAt: '2026-06-11T00:00:00.000Z' };
+    const transfer = { ...mkExpenseAt(9999, '2026-06-10T12:00:00', 'cash-1'), type: 'transfer' as const };
+    const mix = summarizePaymentMix(
+      [deleted, transfer, mkExpenseAt(1000, '2026-06-10T12:00:00', 'cash-1'), mkExpenseAt(1000, '2026-06-10T13:00:00', 'card-1')],
+      walletTypes,
+    );
+    expect(mix?.classifiedCents).toBe(2000);
+  });
+});
+
+describe('summarizeHomeCurrencyTotal', () => {
+  it('sums personal spend in the base currency and counts the expenses', () => {
+    const total = summarizeHomeCurrencyTotal([
+      mkExpenseAt(2500, '2026-06-10T12:00:00'),
+      mkExpenseAt(1500, '2026-06-11T12:00:00'),
+      mkExpenseAt(6000, '2026-06-12T12:00:00'),
+    ]);
+    expect(total).toEqual({ totalCents: 10000, expenseCount: 3 });
+  });
+
+  it('ignores deleted and non-expense rows', () => {
+    const total = summarizeHomeCurrencyTotal([
+      mkExpenseAt(5000, '2026-06-10T12:00:00'),
+      { ...mkExpenseAt(9999, '2026-06-10T12:00:00'), deletedAt: '2026-06-11T00:00:00.000Z' },
+      { ...mkExpenseAt(9999, '2026-06-10T12:00:00'), type: 'transfer' as const },
+    ]);
+    expect(total).toEqual({ totalCents: 5000, expenseCount: 1 });
+  });
+
+  it('returns null when there is no spend', () => {
+    expect(summarizeHomeCurrencyTotal([])).toBeNull();
+  });
+});
+
+describe('summarizePeakHour', () => {
+  it('finds the local hour with the most spend and its share', () => {
+    // 20h: 5000 + 3000 = 8000; 13h: 2000; total 10000 → peak 20h, 80%.
+    const peak = summarizePeakHour([
+      mkExpenseAt(5000, '2026-06-10T20:00:00'),
+      mkExpenseAt(3000, '2026-06-11T20:30:00'),
+      mkExpenseAt(2000, '2026-06-12T13:00:00'),
+    ]);
+    expect(peak?.hour).toBe(20);
+    expect(peak?.hourCents).toBe(8000);
+    expect(peak?.hourCount).toBe(2);
+    expect(peak?.sharePercent).toBe(80);
+  });
+
+  it('self-censors below a real sample (fewer than 3 expenses)', () => {
+    expect(
+      summarizePeakHour([
+        mkExpenseAt(5000, '2026-06-10T20:00:00'),
+        mkExpenseAt(3000, '2026-06-11T20:00:00'),
+      ]),
+    ).toBeNull();
+  });
+
+  it('ignores deleted and non-expense transactions', () => {
+    const peak = summarizePeakHour([
+      mkExpenseAt(1000, '2026-06-10T09:00:00'),
+      mkExpenseAt(1000, '2026-06-11T09:00:00'),
+      mkExpenseAt(1000, '2026-06-12T09:00:00'),
+      { ...mkExpenseAt(99999, '2026-06-13T22:00:00'), deletedAt: '2026-06-14T00:00:00.000Z' },
+      { ...mkExpenseAt(99999, '2026-06-13T22:00:00'), type: 'settlement' as const },
+    ]);
+    expect(peak?.hour).toBe(9);
+  });
+});
+
+describe('summarizeDisciplineStreak', () => {
+  // target 5000/day. Days: 10(4000 ok) 11(3000 ok) 12(7000 over) 13(2000 ok) 14(1000 ok)
+  const days = [
+    mkExpenseAt(4000, '2026-06-10T12:00:00'),
+    mkExpenseAt(3000, '2026-06-11T12:00:00'),
+    mkExpenseAt(7000, '2026-06-12T12:00:00'),
+    mkExpenseAt(2000, '2026-06-13T12:00:00'),
+    mkExpenseAt(1000, '2026-06-14T12:00:00'),
+  ];
+
+  it('counts the current and longest run of days within the daily target', () => {
+    const streak = summarizeDisciplineStreak(days, 5000);
+    // longest = 10–11 (2) and 13–14 (2) → 2; current (from 14 back) = 13,14 → 2.
+    expect(streak).toEqual({ currentStreak: 2, longestStreak: 2, activeDays: 5, dailyTargetCents: 5000 });
+  });
+
+  it('treats spend exactly on target as disciplined', () => {
+    const streak = summarizeDisciplineStreak(
+      [
+        mkExpenseAt(5000, '2026-06-10T12:00:00'),
+        mkExpenseAt(5000, '2026-06-11T12:00:00'),
+        mkExpenseAt(5000, '2026-06-12T12:00:00'),
+      ],
+      5000,
+    );
+    expect(streak?.currentStreak).toBe(3);
+    expect(streak?.longestStreak).toBe(3);
+  });
+
+  it('breaks the current streak when the most recent day is over target', () => {
+    const streak = summarizeDisciplineStreak(
+      [
+        mkExpenseAt(1000, '2026-06-10T12:00:00'),
+        mkExpenseAt(1000, '2026-06-11T12:00:00'),
+        mkExpenseAt(9000, '2026-06-12T12:00:00'),
+      ],
+      5000,
+    );
+    expect(streak?.currentStreak).toBe(0);
+    expect(streak?.longestStreak).toBe(2);
+  });
+
+  it('returns null without a positive target, enough days, or a 2-day run', () => {
+    expect(summarizeDisciplineStreak(days, 0)).toBeNull();
+    expect(summarizeDisciplineStreak([mkExpenseAt(1000, '2026-06-10T12:00:00')], 5000)).toBeNull();
+    // every active day over target → no run of 2 → null
+    expect(
+      summarizeDisciplineStreak(
+        [mkExpenseAt(9000, '2026-06-10T12:00:00'), mkExpenseAt(9000, '2026-06-11T12:00:00')],
+        5000,
+      ),
+    ).toBeNull();
   });
 });

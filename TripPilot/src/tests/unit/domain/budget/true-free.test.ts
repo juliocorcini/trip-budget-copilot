@@ -51,6 +51,7 @@ describe('buildFreeToSpendBreakdown with the plan line (FIELD-18)', () => {
   const fts: FreeToSpendResult = {
     freeToSpendCents: 98800,
     totalBudgetCents: 100000,
+    totalIncomeCents: 0,
     totalSpentCents: 1200,
     protectedReserveCents: 0,
     futureFloorCents: 0,

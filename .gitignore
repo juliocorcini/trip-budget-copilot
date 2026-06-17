@@ -32,6 +32,12 @@ yarn-error.log*
 # Test coverage
 coverage/
 
+# Playwright (E2E) artifacts — generated locally and in CI (B15)
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
 # Temporary
 tmp/
 temp/

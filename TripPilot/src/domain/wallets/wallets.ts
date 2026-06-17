@@ -65,7 +65,15 @@ export function calculateWalletBalance(
       .map(debit),
   );
 
-  const incomingCents = transferIn;
+  // B8 (DEC-212): real income credits the wallet it lands in — additive, so a
+  // wallet with no income reads exactly as before.
+  const incomeIn = sumCents(
+    active
+      .filter((t) => t.type === 'income' && t.walletId === wallet.id)
+      .map(debit),
+  );
+
+  const incomingCents = transferIn + incomeIn;
   const totalOutgoing = outgoingCents + transferOut;
   const currentBalanceCents =
     wallet.initialBalanceCents + incomingCents - totalOutgoing;

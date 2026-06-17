@@ -2,12 +2,17 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { createPoolSummary, createBudgetPool, createBudgetPoolPhaseLink, createEnvelope } from '@/domain/budget';
+import {
+  createPoolSummary,
+  createEnvelope,
+  calculateRecommendedFloor,
+} from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { formatMoney } from '@/domain/money';
 import { sortPhasesByOrder } from '@/domain/dates';
+import type { Phase } from '@/domain/types/phase';
 import { budgetPoolRepository, budgetPoolPhaseLinkRepository, envelopeRepository } from '@/data/repositories';
-import { deleteBudgetPool } from '@/domain/orchestrators';
+import { createBudgetPoolWithPhaseLinks, deleteBudgetPool } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
@@ -54,6 +59,7 @@ export function FundsPage() {
 
   const sortedPhases = sortPhasesByOrder(phases);
   const phaseNameById = new Map(phases.map((p) => [p.id, p.name]));
+  const phaseById = new Map(phases.map((p) => [p.id, p]));
 
   const togglePhase = (phaseId: string) => {
     setSelectedPhaseIds((prev) =>
@@ -169,24 +175,21 @@ export function FundsPage() {
     if (!isValid) return;
     setSaving(true);
     try {
-      const pool = createBudgetPool({
+      // DEC-067 (B13): pool + phase links persisted atomically by the orchestrator.
+      await createBudgetPoolWithPhaseLinks({
         tripId: trip.id,
         name: name.trim(),
         scope,
         totalAmountCents: Math.round(parsedAmount * 100),
         currency: trip.baseCurrency,
+        phaseLinks:
+          scope === 'linked_phases'
+            ? selectedPhaseIds.map((phaseId) => ({
+                phaseId,
+                floorCents: parseEurosToCents(phaseFloors[phaseId] ?? ''),
+              }))
+            : [],
       });
-      await budgetPoolRepository.create(pool);
-      if (scope === 'linked_phases') {
-        await Promise.all(
-          selectedPhaseIds.map((phaseId) => {
-            const floorCents = parseEurosToCents(phaseFloors[phaseId] ?? '');
-            return budgetPoolPhaseLinkRepository.create(
-              createBudgetPoolPhaseLink(pool.id, phaseId, floorCents !== null && floorCents > 0 ? floorCents : null),
-            );
-          }),
-        );
-      }
       await reload();
       resetForm();
       showToast(t('funds.created'), 'success');
@@ -221,6 +224,10 @@ export function FundsPage() {
           const linkedNames = poolLinks
             .map((l) => phaseNameById.get(l.phaseId))
             .filter((n): n is string => !!n);
+          // B7: phases linked to this pool — the basis for the recommended floor.
+          const poolLinkedPhases = poolLinks
+            .map((l) => phaseById.get(l.phaseId))
+            .filter((p): p is Phase => p !== undefined);
           const poolEnvelopes = envelopes.filter(
             (e) => e.budgetPoolId === pool.id && e.deletedAt === null,
           );
@@ -342,32 +349,72 @@ export function FundsPage() {
                             floorDrafts[link.id] ??
                             (link.futureFloorCents !== null ? (link.futureFloorCents / 100).toString() : '');
                           const isDirty = floorDrafts[link.id] !== undefined;
+                          // B7 (DEC-016): rhythm-weighted suggestion, never imposed.
+                          const futurePhase = phaseById.get(link.phaseId);
+                          const recommended = futurePhase
+                            ? calculateRecommendedFloor({
+                                poolTotalCents: pool.totalAmountCents,
+                                futurePhase,
+                                linkedPhases: poolLinkedPhases,
+                              })
+                            : null;
+                          const floorTiers =
+                            recommended && recommended.recommendedCents > 0
+                              ? ([
+                                  ['essential', recommended.essentialCents],
+                                  ['recommended', recommended.recommendedCents],
+                                  ['comfortable', recommended.comfortableCents],
+                                ] as const)
+                              : [];
                           return (
-                            <div key={link.id} className="flex items-center gap-2">
-                              <span className="text-xs text-on-surface-dim flex-1 truncate">
-                                {phaseNameById.get(link.phaseId) ?? '—'}
-                              </span>
-                              <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
-                                <span className="text-on-surface-faint text-xs">{pool.currency}</span>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  step="0.01"
-                                  value={draft}
-                                  onChange={(e) =>
-                                    setFloorDrafts((prev) => ({ ...prev, [link.id]: e.target.value }))
-                                  }
-                                  placeholder="0,00"
-                                  className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
-                                />
+                            <div key={link.id} className="flex flex-col gap-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-on-surface-dim flex-1 truncate">
+                                  {phaseNameById.get(link.phaseId) ?? '—'}
+                                </span>
+                                <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
+                                  <span className="text-on-surface-faint text-xs">{pool.currency}</span>
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.01"
+                                    value={draft}
+                                    onChange={(e) =>
+                                      setFloorDrafts((prev) => ({ ...prev, [link.id]: e.target.value }))
+                                    }
+                                    placeholder="0,00"
+                                    className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => handleSaveFloor(link.id)}
+                                  disabled={!isDirty}
+                                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold btn-press bg-primary text-on-surface disabled:opacity-30"
+                                >
+                                  {t('common.save')}
+                                </button>
                               </div>
-                              <button
-                                onClick={() => handleSaveFloor(link.id)}
-                                disabled={!isDirty}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold btn-press bg-primary text-on-surface disabled:opacity-30"
-                              >
-                                {t('common.save')}
-                              </button>
+                              {floorTiers.length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] text-on-surface-faint">
+                                    {t('funds.floor_suggest_label')}
+                                  </span>
+                                  {floorTiers.map(([tierKey, tierCents]) => (
+                                    <button
+                                      key={tierKey}
+                                      onClick={() =>
+                                        setFloorDrafts((prev) => ({
+                                          ...prev,
+                                          [link.id]: (tierCents / 100).toString(),
+                                        }))
+                                      }
+                                      className="px-2 py-1 rounded-md text-[10px] font-semibold btn-press bg-surface-high text-on-surface-dim"
+                                    >
+                                      {t(`funds.floor_tier_${tierKey}`)} · {formatMoney(tierCents, pool.currency)}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}

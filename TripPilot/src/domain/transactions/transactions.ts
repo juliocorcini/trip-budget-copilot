@@ -81,6 +81,66 @@ export function createExpenseTransaction(input: CreateExpenseInput): Transaction
   };
 }
 
+export interface CreateIncomeInput {
+  tripId: string;
+  phaseId: string;
+  /** The pool this income grows. */
+  budgetPoolId: string;
+  /** The wallet credited (null when the money isn't held in a tracked wallet). */
+  walletId: string | null;
+  amountCents: number;
+  currency: string;
+  /** E9: base-currency equivalent of a foreign-currency income; defaults to amount. */
+  baseCurrencyAmountCents?: number;
+  exchangeRate?: number | null;
+  description: string;
+  date?: string;
+}
+
+/**
+ * B8 (DEC-212): real income received mid-trip — a reimbursement, a paycheck, a
+ * top-up. Unlike F17's planned income (projection only), this is a REAL
+ * transaction that GROWS the pool (`calculatePoolIncome`) and CREDITS its wallet
+ * (`calculateWalletBalance`). It is never a personal cost and NEVER feeds value
+ * learning (`excludeFromLearning` is always true — income is not an expense
+ * pattern). Category is null (income isn't categorized like spending).
+ */
+export function createIncomeTransaction(input: CreateIncomeInput): Transaction {
+  const now = new Date().toISOString();
+  return {
+    ...createSyncMetadata(),
+    tripId: input.tripId,
+    phaseId: input.phaseId,
+    budgetPoolId: input.budgetPoolId,
+    walletId: input.walletId,
+    sessionId: null,
+    type: 'income' as TransactionType,
+    amountCents: input.amountCents,
+    personalCostCents: null,
+    currency: input.currency,
+    baseCurrencyAmountCents: input.baseCurrencyAmountCents ?? input.amountCents,
+    exchangeRate: input.exchangeRate ?? null,
+    category: null,
+    subcategoryId: null,
+    placeLabel: null,
+    latitude: null,
+    longitude: null,
+    placeId: null,
+    description: input.description,
+    date: input.date ?? now,
+    isShared: false,
+    paidByParticipantId: null,
+    activityProfileId: null,
+    isSpecialOccasion: false,
+    excludeFromLearning: true,
+    sourceWalletId: null,
+    targetWalletId: null,
+    settlementId: null,
+    adjustmentReason: null,
+    notes: null,
+  };
+}
+
 export interface CreateTransferInput {
   tripId: string;
   phaseId: string;

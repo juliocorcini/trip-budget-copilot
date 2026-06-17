@@ -19,6 +19,7 @@ import { formatDate } from '@/domain/dates';
 import { restoreLocalSnapshot } from '@/utils/local-snapshot';
 import { clearEmergencySnapshot } from '@/utils/emergency-snapshot';
 import { hashPin, isValidPin } from '@/utils/app-lock';
+import { isBiometricSupported, registerBiometricCredential } from '@/utils/biometric-unlock';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
@@ -161,6 +162,10 @@ export function SettingsPage() {
   const [confirmPin, setConfirmPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [savingPin, setSavingPin] = useState(false);
+  // B6 (DEC-213): biometric unlock — device support is detected at runtime, and
+  // enabling it runs a WebAuthn registration. The PIN stays the fallback.
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
   // FIELD item 3: "zerar o app" — pick a mode then type-to-confirm.
   const [resetOpen, setResetOpen] = useState(false);
   const [resetChoice, setResetChoice] = useState<'wipe' | 'keep' | null>(null);
@@ -171,6 +176,12 @@ export function SettingsPage() {
 
   useEffect(() => {
     void localSnapshotRepository.getAll().then(setSnapshots);
+  }, []);
+
+  // B6 (DEC-213): only surface the biometric toggle on devices that actually
+  // expose a user-verifying platform authenticator.
+  useEffect(() => {
+    void isBiometricSupported().then(setBiometricSupported);
   }, []);
 
   // N6: native notification permission is async — sync the section state once
@@ -405,7 +416,14 @@ export function SettingsPage() {
   // the traveler proved they know the PIN by getting here).
   const handleToggleLock = () => {
     if (settings.appLockEnabled) {
-      void updateSetting({ appLockEnabled: false, appLockPinHash: null, appLockPinSalt: null });
+      // B6: turning the PIN off also drops the biometric layer that sat on it.
+      void updateSetting({
+        appLockEnabled: false,
+        appLockPinHash: null,
+        appLockPinSalt: null,
+        appLockBiometricEnabled: false,
+        appLockBiometricCredentialId: null,
+      });
       showToast(t('settings.lock_disabled'), 'info');
       return;
     }
@@ -413,6 +431,33 @@ export function SettingsPage() {
     setConfirmPin('');
     setPinError(null);
     setPinSheetOpen(true);
+  };
+
+  // B6 (DEC-213): toggle the biometric layer over the PIN. Enabling runs a
+  // WebAuthn registration; on cancel/failure nothing changes and the PIN stays
+  // the only unlock path (ÂNCORA 12 — never trapped).
+  const handleToggleBiometric = async () => {
+    if (biometricBusy) return;
+    if (settings.appLockBiometricEnabled) {
+      await updateSetting({ appLockBiometricEnabled: false, appLockBiometricCredentialId: null });
+      showToast(t('settings.lock_biometric_disabled'), 'info');
+      return;
+    }
+    setBiometricBusy(true);
+    try {
+      const credentialId = await registerBiometricCredential();
+      if (!credentialId) {
+        showToast(t('settings.lock_biometric_failed'), 'warning');
+        return;
+      }
+      await updateSetting({
+        appLockBiometricEnabled: true,
+        appLockBiometricCredentialId: credentialId,
+      });
+      showToast(t('settings.lock_biometric_enabled'), 'success');
+    } finally {
+      setBiometricBusy(false);
+    }
   };
 
   // E6 (M20): validate the PIN pair, hash it via Web Crypto, then persist.
@@ -1061,6 +1106,19 @@ export function SettingsPage() {
             {t('settings.lock_change_pin')}
           </button>
         )}
+        {/* B6 (DEC-213): biometric shortcut over the PIN — only on supported
+            devices, and only once a PIN exists. The PIN is always the fallback. */}
+        {settings.appLockEnabled && biometricSupported && (
+          <div className="mt-4 pt-4 border-t border-outline-variant">
+            <ToggleRow
+              label={t('settings.lock_biometric')}
+              enabled={settings.appLockBiometricEnabled}
+              onChange={() => void handleToggleBiometric()}
+              disabled={biometricBusy}
+            />
+            <p className="text-xs text-on-surface-faint mt-2">{t('settings.lock_biometric_hint')}</p>
+          </div>
+        )}
       </Section>
 
       {/* E6 (M15): local daily restore points — "restore to yesterday". Each
@@ -1547,9 +1605,23 @@ function LinkRow({ icon, label, onClick }: { icon: string; label: string; onClic
   );
 }
 
-function ToggleRow({ label, enabled, onChange }: { label: string; enabled: boolean; onChange: () => void }) {
+function ToggleRow({
+  label,
+  enabled,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  enabled: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <button onClick={onChange} className="w-full flex items-center justify-between btn-press">
+    <button
+      onClick={onChange}
+      disabled={disabled}
+      className="w-full flex items-center justify-between btn-press disabled:opacity-50"
+    >
       <span className="text-sm text-on-surface">{label}</span>
       <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${enabled ? 'bg-primary' : 'bg-surface-high'}`}>
         <div className={`w-5 h-5 rounded-full bg-on-surface transition-transform ${enabled ? 'translate-x-4' : ''}`} />

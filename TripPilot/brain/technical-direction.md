@@ -1,6 +1,6 @@
 # TripPilot — Technical Direction
 
-> Last updated: 2026-06-10 (R4 — P2P sync channel + signaling Worker)
+> Last updated: 2026-06-17 (reconciled: native arc, receipt epic, shared-link backend, schema v9; corrected stale stack rows)
 
 ## Stack (LOCKED — DEC-003)
 
@@ -11,13 +11,13 @@
 | Build Tool | Vite | Fast dev server, optimized builds |
 | Styling | Tailwind CSS | Utility-first, mobile-friendly |
 | Local DB | IndexedDB via Dexie | Structured storage, reactive queries |
-| State | Zustand | Lightweight, no boilerplate |
-| Forms | React Hook Form + Zod | Validation + type inference |
+| State | React Context (`AppDataProvider` + `useAppData`) + repositories | Zustand was removed in D1 (DEC-068) — no global store |
+| Forms | Controlled React state + Zod (`domain/validation/schemas.ts`) | Zod used for validation; React Hook Form NOT adopted |
 | Dates | date-fns | Tree-shakeable, no moment.js weight |
 | Unit Tests | Vitest | Vite-native, fast |
 | Component Tests | React Testing Library | User-centric testing |
 | E2E Tests | Playwright | Cross-browser PWA testing |
-| PWA | vite-plugin-pwa (Workbox) | Service worker, manifest, offline cache |
+| PWA | Hand-written service worker (`public/sw.js`) + static `manifest.json` | Network-first nav + cache-first assets; Workbox/vite-plugin-pwa NOT used (DEC-082) |
 | Hosting | Cloudflare Pages | Free tier, auto-deploy, Functions support |
 | IDs | UUID v4 | Globally unique, merge-safe |
 | Router | React Router v7 (Data Mode) | createBrowserRouter, sufficient for MVP |
@@ -78,15 +78,27 @@ src/
 Trip, Phase, BudgetPool, BudgetPoolPhaseLink, Envelope, Participant, Wallet, Transaction, ParticipantShare, Session, ActivityProfile, PlannedOccurrence, Settlement, ForecastSnapshot, AlertRule, AppSettings, ScenarioPlan, FuturePhaseReservePolicy, Device, Actor
 
 ### Device-local Entities (not in user backup, not synced)
-LocalSnapshot — rolling 7-day on-device restore points (DEC-159)
+LocalSnapshot — rolling 7-day on-device restore points (DEC-159); PlannedPurchase (DEC-175);
+MailboxQueue (async encrypted outbox); Attachment — receipt photos (DEC-206);
+ShareLink — owner-side AES key + write token for a shared participant link (DEC-207)
 
 ### Future Entities (types defined, not persisted yet)
 UserAccount, Group, GroupMembership, SharedExpenseConfirmation
 
-### Schema Version — Dexie v5 / backup v5 (as of Package 3, v0.14.x)
-- Dexie **v5** stores: P2P added `peerLinks`, `mirroredStatements` (v4); Package 3 added `localSnapshots: 'id, createdAt'` (the ONE migration of Package 3 — a new table, no `upgrade()` callback, existing data untouched — DEC-159). `localSnapshots` is device-local: excluded from `BACKUP_TABLE_KEYS`, never exported or imported.
-- Backup **v5** (`normalizeBackupToV5`, chains v1→v4): adds the non-indexed `Transaction` location fields (`placeLabel`, `latitude`, `longitude`, `placeId`, backfilled null — DEC-157).
-- Other Package 3 additions are NON-indexed (no migration): `Transaction.baseCurrencyAmountCents` + `exchangeRate` (DEC-158); `AppSettings.currentPlace`, `locationCaptureEnabled`, `frozenRates`, `appLockEnabled`, `appLockPinHash`, `appLockPinSalt` (DEC-157/158/161). App-lock PIN is stored only as a PBKDF2-SHA256 hash + salt via Web Crypto — never in clear.
+### Schema Version — Dexie v9 (as of 2026-06-17)
+- Dexie **v9**. Device-local tables added since v5 (each a brand-new table, no `upgrade()` callback;
+  NONE in `BACKUP_TABLE_KEYS`, so they never travel in backup/restore): `localSnapshots` (v5,
+  restore-to-yesterday — DEC-159), `plannedPurchases` (v6 — DEC-175), `mailboxQueue` (v7, async
+  encrypted mailbox), `attachments` (v8, receipt photos — DEC-206), `shareLinks` (v9, owner-side
+  shared-link AES key + write token — DEC-207).
+- Backup format advanced to **v6** (`normalizeBackupToV6`, chains from v1); planned-purchases
+  included; the device-local tables above are excluded by design.
+- Many additions are NON-indexed (no migration — ÂNCORA 18): `Transaction.externalRef` (Wise
+  dedupe — DEC-200), location fields (DEC-157), `baseCurrencyAmountCents`/`exchangeRate` (DEC-158),
+  app-lock fields (DEC-161, PIN stored only as a PBKDF2-SHA256 hash + salt), planned-income per
+  phase (DEC-211 Wave D).
+- `TransactionType = 'expense' | 'transfer' | 'settlement' | 'adjustment'` — there is **no `income`
+  type yet**; a real money-in is planned as a new type (master-fix plan B8, DECIDED 2026-06-17).
 
 ### Key Design Rules
 - All entities have SyncMetadata (id, createdAt, updatedAt, deletedAt, revision, sourceDeviceId) — except device-local `LocalSnapshot` (standalone, keyed by day)
@@ -104,7 +116,9 @@ React + Vite → Build → Cloudflare Pages (static)
                     IndexedDB local storage
 ```
 
-No server, no monthly cost, no remote database.
+Local-first: all user data lives in IndexedDB. A small, portable, zero-cost edge layer exists for
+opt-in features only (see "Edge/Server Layer" below) — it is never the source of truth and is E2E
+wherever it touches user data (it sees ciphertext only).
 
 ## P2P Sync Layer (R4 — DEC-103..108)
 
@@ -128,13 +142,38 @@ Phone A (PWA)  ──QR (room code + E2E key)──▶  Phone B (PWA)
 - Dexie v4: `peerLinks`, `mirroredStatements`; `Participant.linkedActorId` (non-indexed)
 - Backup format v4 (includes the new tables; v1–v3 files normalize on import)
 
+## Edge/Server Layer (opt-in, E2E, zero-cost) — DEC-206/207
+
+The same `worker/` project now exposes more than P2P signaling. It stays free-tier and never
+holds plaintext user data:
+
+- **Shared participant link** — `POST/GET/DELETE` over Cloudflare **KV** (`SHARE_STORE`). The
+  owner uploads AES-GCM **ciphertext** of one participant's slice; the AES key lives only in the
+  link `#fragment` (never sent to the server). TTL + revoke (delete) supported. The recipient is a
+  no-install web view that pulls and decrypts client-side; "live" updates are best-effort while the
+  owner app is open, otherwise async pull (DEC-207).
+- **Receipt OCR `/ocr`** — proxies an opt-in image to Groq (no-train provider) and returns parsed
+  items; disclosed in-app; manual entry always available; nothing is persisted server-side
+  (DEC-206/209).
+
+## Native Layer (Capacitor) — DELIVERED (DEC-204/205/210)
+
+- **Capacitor 8** Android shell wrapping the same React build → installable **APK** (sideload-first;
+  Play Store optional/future — B5 2026-06-17).
+- Native local notifications with **no-open quick-add** value buttons; runtime permissions for
+  GPS/notifications/camera; CSS safe-areas; hardware back-button; softened haptics.
+- **Capgo** self-hosted **OTA**: web-only releases reach installed APKs without a new APK; an
+  in-app self-update flow exists for full APK bumps. Web/OTA version (0.64.0) runs ahead of the
+  latest packaged APK (0.56.0; minimum required 0.50.0) by design.
+
 ## Future Expansion Path
 
-1. **Capacitor** → Same React codebase → APK with local notifications (DEC-017)
-2. **Cloudflare Functions** → API endpoints when backend is needed
-3. **Supabase/D1** → Remote DB for multi-user sync
-4. **Multi-currency** → Data model already supports it (DEC-021)
+1. ✅ **Capacitor** → APK with native notifications + OTA (DEC-204/205/210) — DONE
+2. ✅ **Cloudflare edge endpoints** → shared-link KV + OCR proxy (DEC-206/207) — DONE (opt-in, E2E)
+3. **Remote multi-user GROUP sync** → still open (DEC-108 deferrals); 1:1 slice sharing done
+4. ✅ **Multi-currency** → shipped frozen/manual FX (DEC-158)
 5. **P2P V2** → group merge, real-time split, settlement handshake (DEC-108 deferrals)
+6. **Money-in** → new `TransactionType = 'income'` (master-fix plan B8, DECIDED 2026-06-17)
 
 ## Testing Strategy (from Delivery 1)
 

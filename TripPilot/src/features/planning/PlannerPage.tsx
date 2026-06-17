@@ -31,6 +31,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { BreakdownSheet } from '@/components/Breakdown';
+import { EmptyState } from '@/components/EmptyState';
 import { showToast } from '@/components/Toast';
 import { HelpButton } from '@/components/HelpMode';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
@@ -655,6 +656,36 @@ export function PlannerPage() {
   );
 
   /* ── loading ── */
+
+  // DEC-171 (B17): a trip with no phases can never hydrate a scenario (the
+  // Planner is phase-scoped), so the bare loading guard below would spin
+  // forever. Show a calm, actionable empty state pointing at where phases are
+  // created instead of an endless spinner.
+  if (!loading && trip && phases.length === 0) {
+    return (
+      <div className="flex flex-col pb-4 pt-6">
+        <p
+          className="text-[11px] tracking-[0.15em] uppercase font-bold"
+          style={{ color: '#C75B39aa' }}
+        >
+          {t('planner.title')}
+        </p>
+        <h1 className="text-xl font-extrabold tracking-tight mt-1 mb-5 text-on-surface">
+          {t('planner.scenarios')}
+        </h1>
+        <EmptyState
+          icon="calendar_month"
+          title={t('planner.no_phases_title')}
+          body={t('planner.no_phases_body')}
+          cta={{
+            label: t('planner.no_phases_cta'),
+            icon: 'add',
+            onClick: () => navigate('/trip'),
+          }}
+        />
+      </div>
+    );
+  }
 
   if (loading || !trip || !ready) {
     return (

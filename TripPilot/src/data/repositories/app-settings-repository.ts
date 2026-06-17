@@ -53,6 +53,10 @@ class AppSettingsRepository {
       appLockEnabled: settings.appLockEnabled ?? false,
       appLockPinHash: settings.appLockPinHash ?? null,
       appLockPinSalt: settings.appLockPinSalt ?? null,
+      // B6 (DEC-213): records predating biometric unlock default to off / no
+      // credential — the PIN keeps working untouched.
+      appLockBiometricEnabled: settings.appLockBiometricEnabled ?? false,
+      appLockBiometricCredentialId: settings.appLockBiometricCredentialId ?? null,
       // R3-H: records predating sticky category have none remembered.
       lastExpenseCategory: settings.lastExpenseCategory ?? null,
       // FIELD item 8: records predating the mailbox have no identity yet, and

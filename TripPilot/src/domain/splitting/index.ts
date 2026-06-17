@@ -14,6 +14,7 @@ export {
   buildParticipantStatement,
   resolvePayerExpense,
   isPaidByOwner,
+  collectSplitNotifyTargets,
 } from './splitting';
 export type {
   DebtEntry,

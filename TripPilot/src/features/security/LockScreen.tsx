@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { verifyPin } from '@/utils/app-lock';
+import {
+  isBiometricSupported,
+  verifyBiometricCredential,
+  isBiometricUnlockReady,
+} from '@/utils/biometric-unlock';
 
 interface LockScreenProps {
   saltHex: string;
   hashHex: string;
   onUnlock: () => void;
+  /** B6 (DEC-213): biometric layer over the PIN. The PIN below always works. */
+  biometricEnabled?: boolean;
+  biometricCredentialId?: string | null;
 }
 
 /**
@@ -14,12 +22,63 @@ interface LockScreenProps {
  * verifies the PIN — it can never export or read the data behind it, so a
  * forgotten PIN is recovered by importing a backup into a fresh install
  * (ÂNCORA 12: an evicted/empty DB has no lock, so recovery is never trapped).
+ *
+ * B6 (DEC-213): when biometrics are enabled, it offers a device-biometric
+ * shortcut (WebAuthn) ON TOP of the PIN. Biometrics can never trap the user —
+ * the PIN field stays available and any biometric failure falls back to it.
  */
-export function LockScreen({ saltHex, hashHex, onUnlock }: LockScreenProps) {
+export function LockScreen({
+  saltHex,
+  hashHex,
+  onUnlock,
+  biometricEnabled = false,
+  biometricCredentialId = null,
+}: LockScreenProps) {
   const { t } = useTranslation();
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [biometricReady, setBiometricReady] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const autoPromptedRef = useRef(false);
+
+  const biometricConfigured = isBiometricUnlockReady({
+    appLockEnabled: true,
+    biometricEnabled,
+    credentialId: biometricCredentialId,
+  });
+
+  const runBiometric = async () => {
+    if (biometricBusy || !biometricCredentialId) return;
+    setBiometricBusy(true);
+    const ok = await verifyBiometricCredential(biometricCredentialId);
+    if (ok) {
+      onUnlock();
+      return;
+    }
+    // Failure/cancel is silent — the PIN below is the fallback (ÂNCORA 12).
+    setBiometricBusy(false);
+  };
+
+  // Detect platform support at runtime (it is device-bound, not a stored flag),
+  // then auto-offer biometrics once so the common case is a single tap/scan.
+  useEffect(() => {
+    if (!biometricConfigured) return;
+    let cancelled = false;
+    void (async () => {
+      const supported = await isBiometricSupported();
+      if (cancelled || !supported) return;
+      setBiometricReady(true);
+      if (!autoPromptedRef.current) {
+        autoPromptedRef.current = true;
+        void runBiometric();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [biometricConfigured]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -72,6 +131,17 @@ export function LockScreen({ saltHex, hashHex, onUnlock }: LockScreenProps) {
         >
           {checking ? t('common.loading') : t('lock.unlock')}
         </button>
+        {biometricReady && (
+          <button
+            type="button"
+            onClick={runBiometric}
+            disabled={biometricBusy}
+            className="w-full py-3 rounded-xl bg-surface-container text-on-surface font-semibold btn-press disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            <Icon name="fingerprint" size={20} className="text-primary" />
+            {t('lock.use_biometric')}
+          </button>
+        )}
       </form>
 
       <p className="text-xs text-on-surface-faint text-center mt-8 max-w-[320px]">

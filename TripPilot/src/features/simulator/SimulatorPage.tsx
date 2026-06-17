@@ -19,7 +19,7 @@ import {
 } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { isPlannedPurchaseOpen, plannedPurchaseReservedRemainingCents } from '@/domain/planning';
-import { toCents, fromCents, formatMoney } from '@/domain/money';
+import { toCents, fromCents, formatMoney, sumCents } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
@@ -104,6 +104,19 @@ export function SimulatorPage() {
       setProfileChips(
         enabled.map((profile) => {
           const forecast = forecasts.find((f) => f.profileId === profile.id);
+          // B12 (R7): cents already spent in this category in the phase — lets
+          // the engine catch a blown money plan even while occasions remain.
+          const categorySpentCents = sumCents(
+            transactions
+              .filter(
+                (tx) =>
+                  tx.deletedAt === null &&
+                  tx.type === 'expense' &&
+                  tx.phaseId === activePhase.id &&
+                  tx.activityProfileId === profile.id,
+              )
+              .map((tx) => tx.personalCostCents ?? tx.amountCents),
+          );
           return {
             profileId: profile.id,
             profileName: profile.name,
@@ -112,6 +125,7 @@ export function SimulatorPage() {
             doneQuantity: forecast?.spent ?? 0,
             remaining: forecast?.remaining ?? 0,
             typicalValueCents: profile.typicalValueCents,
+            categorySpentCents,
           };
         }),
       );
@@ -469,6 +483,13 @@ function formatFact(fact: SimulationFact, currency: string, t: TFn): string {
         done: fact.done,
         planned: fact.planned,
       });
+    case 'category_over_budget':
+      return t('simulator.fact_category_over_budget', {
+        name: fact.profileName.toLowerCase(),
+        spent: formatMoney(fact.spentCents, currency),
+        budget: formatMoney(fact.budgetCents, currency),
+        over: formatMoney(fact.overByCents, currency),
+      });
     case 'event_reserve_covers':
       return t('simulator.fact_event_reserve_covers', {
         reserved: formatMoney(fact.reservedCents, currency),
@@ -518,6 +539,11 @@ function formatVerdictReason(verdict: ContextualVerdict, currency: string, t: TF
       });
     case 'over_plan':
       return t('simulator.reason_over_plan', { name: verdict.profileName.toLowerCase() });
+    case 'category_over_budget':
+      return t('simulator.reason_category_over_budget', {
+        name: verdict.profileName.toLowerCase(),
+        over: formatMoney(verdict.overByCents, currency),
+      });
     case 'exceeds_free':
       return t('simulator.reason_exceeds_free', {
         missing: formatMoney(verdict.missingCents, currency),

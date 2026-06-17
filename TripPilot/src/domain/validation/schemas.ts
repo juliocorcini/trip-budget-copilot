@@ -80,7 +80,7 @@ export const transactionSchema = syncMetadataSchema.extend({
   budgetPoolId: z.string().uuid().nullable(),
   walletId: z.string().uuid().nullable(),
   sessionId: z.string().uuid().nullable(),
-  type: z.enum(['expense', 'transfer', 'settlement', 'adjustment']),
+  type: z.enum(['expense', 'transfer', 'settlement', 'adjustment', 'income']),
   amountCents: z.number().int(),
   personalCostCents: z.number().int().nullable(),
   currency: z.string().length(3),

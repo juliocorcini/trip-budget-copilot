@@ -9,6 +9,10 @@ export {
   calculateRunway,
   summarizeWeekdayPattern,
   summarizeOutingEfficiency,
+  summarizePaymentMix,
+  summarizeHomeCurrencyTotal,
+  summarizePeakHour,
+  summarizeDisciplineStreak,
 } from './copilot-insights';
 export type {
   CopilotVerdict,
@@ -22,4 +26,8 @@ export type {
   WeekdayPattern,
   OutingResult,
   OutingEfficiency,
+  PaymentMix,
+  HomeCurrencyTotal,
+  PeakHour,
+  DisciplineStreak,
 } from './copilot-insights';

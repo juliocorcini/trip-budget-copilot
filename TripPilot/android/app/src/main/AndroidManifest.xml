@@ -22,6 +22,42 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- B2 (Onda 4 / DEC-215): App Links — open /pair and /s/:id inside the
+                 app. autoVerify pairs with /.well-known/assetlinks.json served at
+                 the apex (trippilot.pages.dev). The #fragment carries the /s key
+                 and the /pair identity; verified to survive on device. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="trippilot.pages.dev" android:pathPrefix="/pair" />
+                <data android:scheme="https" android:host="trippilot.pages.dev" android:pathPrefix="/s/" />
+            </intent-filter>
+
+            <!-- B1 (Onda 4 / DEC-215): receive a .csv shared from another app
+                 (Wise/Files "Share"). CSV-specific MIME types only, so generic
+                 text shares are NOT hijacked. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="text/comma-separated-values" />
+                <data android:mimeType="application/csv" />
+            </intent-filter>
+
+            <!-- B1: open a .csv directly from a file manager ("Open with"). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="text/csv" />
+                <data android:scheme="file" android:mimeType="text/csv" />
+                <data android:scheme="content" android:mimeType="text/comma-separated-values" />
+                <data android:scheme="file" android:mimeType="text/comma-separated-values" />
+                <data android:scheme="content" android:mimeType="application/csv" />
+                <data android:scheme="file" android:mimeType="application/csv" />
+            </intent-filter>
+
         </activity>
 
         <provider

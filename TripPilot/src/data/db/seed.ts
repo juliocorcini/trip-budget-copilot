@@ -65,6 +65,10 @@ export function createDefaultAppSettings(): AppSettings {
     appLockEnabled: false,
     appLockPinHash: null,
     appLockPinSalt: null,
+    // B6 (DEC-213): biometric unlock is opt-in and layered over the PIN — off
+    // with no credential until the traveler enables it.
+    appLockBiometricEnabled: false,
+    appLockBiometricCredentialId: null,
     // R3-H: no remembered expense category until the first expense.
     lastExpenseCategory: null,
     // FIELD item 8: device identity created lazily on first mailbox use.

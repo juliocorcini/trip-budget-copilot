@@ -4,7 +4,7 @@ export {
   reconcileWallet,
 } from './wallet-orchestrators';
 export type { TransferInput, ReconcileWalletInput } from './wallet-orchestrators';
-export { registerExpense, enrichTransactionShares } from './expense-orchestrators';
+export { registerExpense, registerIncome, enrichTransactionShares } from './expense-orchestrators';
 export type { RegisterExpenseInput, EnrichTransactionSharesInput } from './expense-orchestrators';
 export {
   endOutingSession,
@@ -39,7 +39,16 @@ export {
 } from './batch-orchestrators';
 export { resolveShareConfirmation } from './share-orchestrators';
 export type { ResolveShareInput } from './share-orchestrators';
-export { deleteBudgetPool, deletePhase, swapPhaseOrder } from './crud-orchestrators';
+export {
+  createBudgetPoolWithPhaseLinks,
+  deleteBudgetPool,
+  deletePhase,
+  swapPhaseOrder,
+} from './crud-orchestrators';
+export type {
+  CreateBudgetPoolWithLinksInput,
+  CreatePoolPhaseLinkInput,
+} from './crud-orchestrators';
 export {
   createProfileEnabledInPhase,
   setProfileEnabledInPhase,
@@ -74,10 +83,14 @@ export {
   restorePlannedPurchase,
   logPlannedPurchaseExpense,
   undoLogPlannedPurchaseExpense,
+  linkExistingExpenseToPlannedPurchase,
+  undoLinkExistingExpense,
 } from './planned-purchase-orchestrators';
 export type {
   LogPlannedPurchaseExpenseInput,
   LogPlannedPurchaseExpenseResult,
+  LinkExistingExpenseInput,
+  LinkExistingExpenseResult,
 } from './planned-purchase-orchestrators';
 export {
   saveTripTemplate,

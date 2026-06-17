@@ -1,0 +1,62 @@
+name: CI
+
+# B15 (DEC-054): the Playwright E2E suite used to run only locally. This brings
+# typecheck + unit + build AND the browser E2E into CI so the safety net runs on
+# every push/PR. The app lives in TripPilot/ (git root is the repo root).
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+# Supersede in-flight runs on the same ref to save runner minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: TripPilot
+
+jobs:
+  unit:
+    name: Typecheck + unit + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22: the suite needs Web Crypto (crypto.subtle) for the app-lock
+          # and sync-crypto tests.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: TripPilot/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: TripPilot/package-lock.json
+      - run: npm ci
+      - name: Install Playwright browser (chromium)
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E
+        # playwright.config.ts starts its own dev server in CI
+        # (reuseExistingServer is off when CI=true) and sets retries/workers.
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: TripPilot/playwright-report/
+          retention-days: 7

@@ -91,9 +91,9 @@
 | Product spec | ✅ DONE | Full MVP specification + R2 features (events, rhythm, per-phase activities) |
 | Technical direction | ✅ DONE | Stack locked: React/TS/Vite/Dexie/Cloudflare + Router v7 + i18next |
 | Competitive analysis | ✅ DONE | TravelSpend gap analysis, positioning defined |
-| Decision log | ✅ DONE | 165 decisions (DEC-001 to DEC-165); DEC-063 superseded by DEC-071; DEC-162..165 = UX Polish Pass |
-| Implementation phases | ✅ DONE | 6 deliveries defined (~50h Tier 3) + Feature Expansion Phases 1–6 (V1 expanded complete) |
-| Data model | ✅ DONE | 24 entities + `localSnapshots` (device-local restore points); Dexie schema **v5** (peerLinks, mirroredStatements, linkedActorId, localSnapshots); backup **v5** (location fields); non-indexed expense location + multi-currency (`baseCurrencyAmountCents`/`exchangeRate`) + app-lock fields |
+| Decision log | ✅ DONE | DEC-001..DEC-211 logged (gap DEC-185–199/201 = native arc — see reconciliation note in decision-log.md); superseded: DEC-063→071, DEC-059/064→180, DEC-164→211 |
+| Implementation phases | ✅ DONE | D1–D6 delivered (D6 = native arc v0.28→v0.50) + Expansion Phases 1–6 + field rounds 1–2 (V1 expanded complete) |
+| Data model | ✅ DONE | Dexie schema **v9**; device-local tables (not in backup): `localSnapshots` (v5), `plannedPurchases` (v6), `mailboxQueue` (v7), `attachments` (v8), `shareLinks` (v9); non-indexed location + multi-currency + app-lock + planned-income fields. `TransactionType = expense\|transfer\|settlement\|adjustment` (no income type — see master-fix plan B8) |
 | Domain rules | ✅ DONE | Forecasting, three-limit system, learning, rhythm weighting, event reserves, insights |
 | Design system | ✅ DONE | Theme v4; BottomSheet/Toast primitives; zero native dialogs; zero hardcoded colors (tokens only) |
 | Implementation D1–D6 | ✅ DONE | All deliveries implemented and deployed to Cloudflare Pages |
@@ -106,8 +106,8 @@
 | Field review R4 2026-06-11 | ✅ DONE | 12/12 requirements in 10 gates: payer truth table, occasions=sessions, simulator v3 contextual, outing zones, multi-select, configurable dashboard, PWA notification, help mode (see `src/gap-fix-log-r4.md`); DEC-114..123 |
 | Brainstorm features 2026-06-12 | ✅ DONE | 9/9 features (F1–F9): bar mode + wake lock, universal undo, PWA shortcuts, mental anchor, burndown card, heatmap card, recap card, rescue mode, share card; DEC-126..134 |
 | i18n | ✅ DONE | pt-BR + en + es complete and synchronized (recovery/restore/PWA-update keys added in v0.8.2) |
-| Tests | ✅ DONE | 820 unit tests + 29 Playwright e2e, all green (+110 in Package 1; +94 in Package 2; +106 in Package 3; +5 UX Polish dashboard-collapse helpers; +1 check-in framing R2) |
-| Deploy | ✅ DONE | v0.14.5 on Cloudflare Pages + `trippilot-sync` Worker; SW network-first + update toast (CACHE_NAME v15). IMPORTANT: production branch is `main` — deploy with `--branch=main` to update `trippilot.pages.dev`; plain `master` lands as Preview (alias `master.trippilot.pages.dev`). Package 3 (0.12.2→0.14.1) + UX Polish Pass (0.14.2→0.14.5) all shipped to Production via `--branch=main` |
+| Tests | ✅ DONE | **1147 unit tests (128 files) + 34 Playwright e2e**, all green (Node 22 required — 6 ecies tests need `crypto.subtle`) |
+| Deploy | ✅ DONE | **v0.64.0** web/OTA on Cloudflare Pages (apex) + `trippilot-sync` Worker + KV `SHARE_STORE`; latest APK **0.56.0** (min required 0.50.0; web/OTA runs ahead of the APK by design). ⚠️ Production branch is **`master`** (apex `trippilot.pages.dev`); `--branch=main` lands as Preview (DEC-203). Deploy production with **`--branch=master`** |
 | Repository | ✅ DONE | GitHub `juliocorcini/trip-budget-copilot` (ssh) |
 
 ## Gap-Fix Session R2 (2026-06-09)
@@ -399,32 +399,27 @@ new" entry per gate. Highlights:
 | SW precache via build plugin | GAP-036 | Current approach parses index.html at install; a Workbox/Vite plugin would be more robust |
 | E2E (Playwright) in CI | DEC-054 | 29 e2e tests run locally; CI requires browser install |
 | Biometric app lock (WebAuthn) | DEC-161 (M20 cut) | PIN-only shipped; WebAuthn platform authenticator deferred — PIN is the baseline |
-| Nearby POI list (Overpass) | DEC-157 (M4 cut) | Reverse-geocode + offline recents + manual name shipped; a full POI picker is deferred |
+| ~~Nearby POI list (Overpass)~~ | DEC-157 → DEC-166 | DONE — nearby establishments picker shipped (DEC-166); row kept for history |
 
 ## Next Steps
 
-0. Julio field-tests v0.14.1 (Production `trippilot.pages.dev`) — Package 3 golden path:
-   expense with sticky location (offline still logs); foreign-currency expense (original kept,
-   wallet debits right); daily snapshot accumulates + restore-to-yesterday; send backup via
-   share + open the HTML summary offline; turn the PIN lock on → it asks at boot, recovery
-   never trapped; share text into the app → QuickAdd opens pre-filled (never auto-saves).
-1. Julio re-tests v0.10.1 in the field at `trippilot.pages.dev` (now Production) —
-   Package 1 golden path: one-question onboarding → simple → lean dashboard; capture
-   with calculator + memory/favorites; outing with last values, round, projection;
-   switch to complete → planner/outing/simulator return; adaptive reveal after a few
-   expenses; About shows v0.10.1 + accumulated "what's new"
-2. Julio tests v0.8.0 in the field — focus on bar mode at night, undo toasts,
-   anchor hints with his real BRL rate, the three new dashboard cards, rescue
-   calculator and the share card on his Samsung
-3. Re-test v0.7.1 items still pending field validation — payer math (debts after
-   "someone else paid"), occasion counters, contextual simulator verdicts,
-   notification quick-add
-4. Real-data seed (julio-europa-2026) when trip data is ready
-5. D6 / V2 features per `implementation-phases.md` (native layer, reports, automatic
-   future floor); Capacitor package now also carries the ongoing-notification item
-   (DEC-120 research)
-6. P2P V2 deferrals per DEC-108 (live split, group sync, settlement handshake)
-7. R7 candidate: per-category simulation weighting (product decision pending)
+**The active plan is `documents/master-fix-and-skipped-features-plan-2026-06-17.md`** — a full
+repasse of the brain + code cataloguing everything skipped/deferred/stale, with per-item fix
+plans, inline council and gates. Locked decisions (2026-06-17):
+
+1. **Brain hygiene (Onda 0) — applied 2026-06-17**: README, project-status, implementation-phases,
+   product-spec, technical-direction and decision-log reconciled (this update is part of it).
+2. **Quick wins (Onda 1, web/OTA)**: B9 link existing expense to a planned purchase; B12 R7
+   per-category simulation; B17 Planner empty state; B7 automatic future-floor suggestion.
+3. **Income type (B8) — DECIDED: build a full `TransactionType = 'income'`** that grows the
+   budget (its own gate; touches FTS/breakdown/wallet/backup/learning — invariance tests required).
+4. **Push posture (B5) — DECIDED: sideload-first, no FCM**; "money lands on the other phone" is
+   served by a share/copy-link nudge + the async pull floor + S7 (app-open). The app does not
+   assume the Play Store.
+5. **Native batch (Onda 4, 1 APK + device session)**: B1 receive `.csv`, B2 App Links
+   `/pair`+`/s/:id`, B3 native GPS grant, and validate the `[device]`-pending backlog (B18).
+6. **Shared link (B4) — DECIDED: leave as-is for now** (Julio will rework it; no S9 work yet).
+7. Deferred by design: P2P V2 (DEC-108), close-connection-on-background (DEC-170 prevention).
 
 ## Blockers
 

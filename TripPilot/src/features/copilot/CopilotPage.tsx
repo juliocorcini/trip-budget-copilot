@@ -30,6 +30,10 @@ import {
   calculateRunway,
   summarizeWeekdayPattern,
   summarizeOutingEfficiency,
+  summarizePaymentMix,
+  summarizeHomeCurrencyTotal,
+  summarizePeakHour,
+  summarizeDisciplineStreak,
   type CopilotVerdictStatus,
 } from '@/domain/copilot';
 
@@ -71,7 +75,7 @@ export function CopilotPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const appData = useAppData();
-  const { trip, transactions, participants, loading, error, settings, retry } = appData;
+  const { trip, transactions, participants, wallets, loading, error, settings, retry } = appData;
 
   const [heatmapMonth, setHeatmapMonth] = useState(() => localDateString(new Date()).slice(0, 7));
   // U4 (DEC-131 moved here): tapping a day on the month map opens a floating
@@ -170,6 +174,23 @@ export function CopilotPage() {
     return summarizeOutingEfficiency(outings);
   }, [model.completedSessions, transactions]);
 
+  // B10: four more data-gated cross-cuts (DEC-184 backlog). Each self-censors.
+  const homeTotal = useMemo(() => summarizeHomeCurrencyTotal(transactions), [transactions]);
+  const peakHour = useMemo(() => summarizePeakHour(transactions), [transactions]);
+  const paymentMix = useMemo(() => {
+    const walletTypeById = new Map(wallets.map((w) => [w.id, w.walletType]));
+    return summarizePaymentMix(transactions, walletTypeById);
+  }, [transactions, wallets]);
+  // Discipline streak vs the phase's ideal per-day pace (budget ÷ phase days).
+  const disciplineStreak = useMemo(() => {
+    if (!model.fts || !model.activePhase) return null;
+    const days = getTotalDays(model.activePhase.startDate, model.activePhase.endDate);
+    if (days <= 0) return null;
+    const dailyTargetCents = Math.round(model.fts.totalBudgetCents / days);
+    const phaseTxs = filterTransactionsByPhase(transactions, model.activePhase.id);
+    return summarizeDisciplineStreak(phaseTxs, dailyTargetCents);
+  }, [model.fts, model.activePhase, transactions]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -186,7 +207,7 @@ export function CopilotPage() {
     : 0;
   const maxCategoryCents = categories[0]?.cents ?? 0;
   const hasMap = model.heatmap.monthTotalCents > 0;
-  const hasAnySignal = verdict !== null || categories.length > 0 || hasMap;
+  const hasAnySignal = verdict !== null || categories.length > 0 || hasMap || homeTotal !== null;
 
   const tools: ToolItem[] = [
     { icon: 'analytics', label: t('copilot.impact'), desc: t('copilot.impact_desc'), path: '/impact' },
@@ -357,6 +378,38 @@ export function CopilotPage() {
         </>
       )}
 
+      {/* 2d · DISCIPLINE STREAK — days in a row within the daily target (B10) */}
+      {disciplineStreak && (
+        <>
+          <SectionLabel>{t('copilot.streak_title')}</SectionLabel>
+          <div
+            className="p-4 rounded-2xl flex items-center gap-3.5"
+            style={{ background: 'var(--surface-container)' }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+              <Icon
+                name={disciplineStreak.currentStreak >= 2 ? 'local_fire_department' : 'military_tech'}
+                size={18}
+                style={{ color: disciplineStreak.currentStreak >= 2 ? 'var(--success)' : 'var(--warning)' }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">
+                {disciplineStreak.currentStreak >= 2
+                  ? t('copilot.streak_current', { days: disciplineStreak.currentStreak })
+                  : t('copilot.streak_broken')}
+              </p>
+              <p className="text-xs text-on-surface-faint mt-0.5">
+                {t('copilot.streak_desc', {
+                  best: disciplineStreak.longestStreak,
+                  target: formatMoney(disciplineStreak.dailyTargetCents, currency),
+                })}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* 3 · AMIGO SINCERO — shared component, with the simulate action */}
       {model.amigoV2.kind !== 'none' && (
         <AmigoSinceroCard
@@ -365,6 +418,26 @@ export function CopilotPage() {
           onSeeImpact={() => navigate('/impact')}
           onSimulate={() => navigate('/simulator')}
         />
+      )}
+
+      {/* 3b · HOME-CURRENCY ANCHOR — the whole trip in one number (B10) */}
+      {homeTotal && (
+        <>
+          <SectionLabel>{t('copilot.anchor_title')}</SectionLabel>
+          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+              <Icon name="account_balance" size={18} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xl font-extrabold tabular text-on-surface leading-none">
+                {formatMoney(homeTotal.totalCents, currency)}
+              </p>
+              <p className="text-xs text-on-surface-faint mt-1">
+                {t('copilot.anchor_desc', { count: homeTotal.expenseCount, currency })}
+              </p>
+            </div>
+          </div>
+        </>
       )}
 
       {/* 4 · WHERE IT CAME FROM — category bars */}
@@ -442,6 +515,29 @@ export function CopilotPage() {
                 weekday: formatMoney(weekday.weekdayAvgCents, currency),
               })}
             </p>
+          </div>
+        </>
+      )}
+
+      {/* 5c · PEAK HOUR — the local hour the money leaves (B10) */}
+      {peakHour && (
+        <>
+          <SectionLabel>{t('copilot.peak_title')}</SectionLabel>
+          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+              <Icon name="schedule" size={18} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">
+                {t('copilot.peak_hour', { hour: peakHour.hour })}
+              </p>
+              <p className="text-xs text-on-surface-faint mt-0.5">
+                {t('copilot.peak_desc', {
+                  amount: formatMoney(peakHour.hourCents, currency),
+                  percent: peakHour.sharePercent,
+                })}
+              </p>
+            </div>
           </div>
         </>
       )}
@@ -529,6 +625,30 @@ export function CopilotPage() {
             </p>
             <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
               <span className="block h-full rounded-full" style={{ width: `${social.sharedPercent}%`, background: 'var(--primary)' }} />
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* 8b · PAYMENT MIX — cash vs card reliability (B10) */}
+      {paymentMix && (
+        <>
+          <SectionLabel>{t('copilot.method_title')}</SectionLabel>
+          <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
+            <p className="text-sm font-bold text-on-surface">
+              {t('copilot.method_cash', { percent: paymentMix.cashPercent })}
+            </p>
+            <p className="text-xs text-on-surface-faint mt-1">
+              {t('copilot.method_desc', {
+                cash: formatMoney(paymentMix.cashCents, currency),
+                card: formatMoney(paymentMix.cardCents, currency),
+              })}
+              {paymentMix.untrackedCents > 0
+                ? ` · ${t('copilot.method_untracked', { amount: formatMoney(paymentMix.untrackedCents, currency) })}`
+                : ''}
+            </p>
+            <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
+              <span className="block h-full rounded-full" style={{ width: `${paymentMix.cashPercent}%`, background: 'var(--warning)' }} />
             </span>
           </div>
         </>

@@ -74,6 +74,15 @@ const FAB_ACTIONS: FabAction[] = [
     iconBg: '#D4A84318',
     iconColorClass: 'text-warning',
   },
+  {
+    icon: 'savings',
+    labelKey: 'fab.register_income',
+    descKey: 'fab.register_income_desc',
+    path: '/income',
+    iconBg: '#6B8F7118',
+    iconColorClass: 'text-success',
+    advanced: true,
+  },
 ];
 
 interface FABMenuProps {

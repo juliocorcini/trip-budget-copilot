@@ -1,5 +1,6 @@
 package com.trippilot.app;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.WebView;
@@ -17,6 +18,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(DeviceFilePlugin.class);
         // DEC-210: in-app APK self-update (download + system installer hand-off).
         registerPlugin(ApkInstallerPlugin.class);
+        // B1 (Onda 4 / DEC-215): receive a shared/opened .csv (Wise → TripPilot).
+        registerPlugin(ShareTargetPlugin.class);
         super.onCreate(savedInstanceState);
         // FIELD R2 item 13: remove the Android 12+ stretch overscroll glow on the
         // WebView — CSS overscroll-behavior cannot suppress the native edge effect.
@@ -24,5 +27,17 @@ public class MainActivity extends BridgeActivity {
         if (webView != null) {
             webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         }
+        // B1 (Onda 4): the app may be cold-started by a CSV share/open.
+        ShareTargetPlugin.handleIntent(this, getIntent());
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        // launchMode=singleTask: a warm CSV share/open (B1) or App Link (B2)
+        // arrives here. super.onNewIntent lets Capacitor's bridge fire the
+        // appUrlOpen event the deep-link listener consumes.
+        super.onNewIntent(intent);
+        setIntent(intent);
+        ShareTargetPlugin.handleIntent(this, intent);
     }
 }

@@ -10,6 +10,7 @@ import { hardReloadApp } from '@/data/db/db-recovery';
 const DashboardPage = lazyWithRetry(() => import('@/features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const ExpenseListPage = lazyWithRetry(() => import('@/features/expenses/ExpenseListPage').then(m => ({ default: m.ExpenseListPage })));
 const QuickAddPage = lazyWithRetry(() => import('@/features/expenses/QuickAddPage').then(m => ({ default: m.QuickAddPage })));
+const IncomePage = lazyWithRetry(() => import('@/features/income/IncomePage').then(m => ({ default: m.IncomePage })));
 const PlannerPage = lazyWithRetry(() => import('@/features/planning/PlannerPage').then(m => ({ default: m.PlannerPage })));
 const TripHubPage = lazyWithRetry(() => import('@/features/trip/TripHubPage').then(m => ({ default: m.TripHubPage })));
 const CopilotPage = lazyWithRetry(() => import('@/features/copilot/CopilotPage').then(m => ({ default: m.CopilotPage })));
@@ -160,6 +161,7 @@ export const router = createBrowserRouter([
       { path: '/welcome', element: <LazyRoute><WelcomePage /></LazyRoute> },
       { path: '/onboarding', element: <LazyRoute><OnboardingPage /></LazyRoute> },
       { path: '/quick-add', element: <LazyRoute><QuickAddPage /></LazyRoute> },
+      { path: '/income', element: <LazyRoute><IncomePage /></LazyRoute> },
       { path: '/outings/new', element: <LazyRoute><ModeGuard><OutingPage /></ModeGuard></LazyRoute> },
       { path: '/outings/active', element: <LazyRoute><ModeGuard><OutingPage /></ModeGuard></LazyRoute> },
       { path: '/simulator', element: <LazyRoute><ModeGuard><SimulatorPage /></ModeGuard></LazyRoute> },

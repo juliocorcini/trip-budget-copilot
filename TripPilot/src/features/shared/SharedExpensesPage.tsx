@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useNavigate } from 'react-router';
+import { Navigate, useNavigate, useLocation } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   calculateDebts,
@@ -51,6 +51,7 @@ import { ShareLinkSheet } from './ShareLinkSheet';
 export function SharedExpensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { trip, transactions, participants, settings, loading, error, retry, reload } = useAppData();
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -130,6 +131,22 @@ export function SharedExpensesPage() {
   useEffect(() => {
     void peerLinkRepository.getAll().then(setPeerLinks);
   }, [participants]);
+
+  // B5: arriving from the post-split nudge — open the share sheet for that
+  // person once their participant record is loaded, then clear the nav state so
+  // closing the sheet (or navigating back) never re-pops it.
+  const nudgeOpenedRef = useRef(false);
+  useEffect(() => {
+    if (nudgeOpenedRef.current) return;
+    const targetId = (location.state as { shareWithParticipantId?: string } | null)
+      ?.shareWithParticipantId;
+    if (!targetId || participants.length === 0) return;
+    const target = participants.find((p) => p.id === targetId && !p.isOwner);
+    if (!target) return;
+    nudgeOpenedRef.current = true;
+    setShareTarget(target);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, participants, navigate]);
 
   const peerLinkFor = (participantId: string): PeerLink | undefined =>
     peerLinks.find((link) => link.participantId === participantId && link.deletedAt === null);

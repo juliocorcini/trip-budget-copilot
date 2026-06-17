@@ -101,6 +101,51 @@ export async function logPlannedPurchaseExpense(
   return { transaction, purchase: next, previousPurchase };
 }
 
+export interface LinkExistingExpenseInput {
+  purchase: PlannedPurchase;
+  /** An expense that already exists on the device, recorded before the plan. */
+  transaction: Transaction;
+}
+
+export interface LinkExistingExpenseResult {
+  purchase: PlannedPurchase;
+  /** The pre-link purchase, for the undo toast. */
+  previousPurchase: PlannedPurchase;
+}
+
+/**
+ * DEC-175 (B9): attribute an ALREADY-recorded expense to a planned purchase
+ * ("I bought this before I created the plan"). Unlike "Comprei", it creates NO
+ * new transaction — it only links the existing one, so the reserve shrinks by
+ * the linked spend exactly once (no double counting). Reuses the same pure link
+ * (auto-closes when the reserve is fully consumed). Returns the pre-link
+ * snapshot for an undo.
+ */
+export async function linkExistingExpenseToPlannedPurchase(
+  input: LinkExistingExpenseInput,
+): Promise<LinkExistingExpenseResult> {
+  const previousPurchase = input.purchase;
+  // The auto-close decision must see prior linked spend plus this expense, so a
+  // partially-spent or track-only purchase behaves like the "Comprei" path.
+  const priorLinked =
+    previousPurchase.linkedTransactionIds.length > 0
+      ? await transactionRepository.getByIds(previousPurchase.linkedTransactionIds)
+      : [];
+  const linkContext = [...priorLinked, input.transaction];
+  const next = linkTransactionToPlannedPurchase(
+    previousPurchase,
+    input.transaction.id,
+    linkContext,
+  );
+  const saved = await plannedPurchaseRepository.update(next);
+  return { purchase: saved, previousPurchase };
+}
+
+/** DEC-175 (B9): undo an existing-expense link by restoring the pre-link snapshot. */
+export async function undoLinkExistingExpense(previousPurchase: PlannedPurchase): Promise<void> {
+  await db.plannedPurchases.put(markUpdated(previousPurchase));
+}
+
 /**
  * DEC-175: undo a logged purchase expense — soft-delete the created transaction
  * (and its shares) and restore the purchase to its pre-buy snapshot.

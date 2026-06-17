@@ -1090,7 +1090,11 @@ export function DashboardCards({
                         className="w-full flex items-center gap-3 px-3.5 py-2.5 btn-press text-left"
                       >
                         <div className="w-8 h-8 rounded-full bg-surface-high flex items-center justify-center shrink-0">
-                          <Icon name={getCategoryIcon(tx.category)} size={16} className="text-on-surface-dim" />
+                          <Icon
+                            name={tx.type === 'income' ? 'savings' : getCategoryIcon(tx.category)}
+                            size={16}
+                            className={tx.type === 'income' ? 'text-success' : 'text-on-surface-dim'}
+                          />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-on-surface truncate">{tx.description}</p>
@@ -1099,7 +1103,12 @@ export function DashboardCards({
                             {tx.category ? ` · ${t(`categories.${tx.category}` as never)}` : ''}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold tabular text-on-surface shrink-0">
+                        <p
+                          className={`text-sm font-semibold tabular shrink-0 ${
+                            tx.type === 'income' ? 'text-success' : 'text-on-surface'
+                          }`}
+                        >
+                          {tx.type === 'income' ? '+ ' : ''}
                           {formatMoney(tx.amountCents, tx.currency)}
                         </p>
                       </button>

@@ -5,6 +5,7 @@ function makeFts(partial: Partial<FreeToSpendResult>): FreeToSpendResult {
   return {
     freeToSpendCents: 0,
     totalBudgetCents: 0,
+    totalIncomeCents: 0,
     totalSpentCents: 0,
     protectedReserveCents: 0,
     futureFloorCents: 0,

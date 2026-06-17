@@ -37,6 +37,8 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
       <LockScreen
         saltHex={settings!.appLockPinSalt!}
         hashHex={settings!.appLockPinHash!}
+        biometricEnabled={settings!.appLockBiometricEnabled}
+        biometricCredentialId={settings!.appLockBiometricCredentialId}
         onUnlock={() => setUnlocked(true)}
       />
     );

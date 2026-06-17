@@ -1,3 +1,6 @@
+// @vitest-environment node
+// Exercises real AES-GCM (DEC-207) end to end; jsdom ships only a
+// non-functional SubtleCrypto stub, so this cycle runs in node.
 import { describe, it, expect } from 'vitest';
 import {
   buildStatementPayload,

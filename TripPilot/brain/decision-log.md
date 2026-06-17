@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-15 (v0.27.0 — Navigation redesign + Copiloto intelligence & expansion; DEC-176..184)
+> Last updated: 2026-06-17 (Wave 5 shipped: DEC-216 E2E-in-CI (B15) + FundsPage atomic pool-creation (B13), web/OTA v0.70.0. Wave 4 code-complete: DEC-215 native batch B1+B2+B3, APK 0.69.0 built but NOT promoted — device session pending. Wave 3: DEC-213 biometric + DEC-214 Copilot v3, v0.68.0. NOTE: the numbers DEC-185–199 and DEC-201 were never written — see the reconciliation block between DEC-184 and DEC-200. Next new id = DEC-217.)
 
 ## Format
 
@@ -424,7 +424,7 @@
 
 ### DEC-059 — "Mais" Tab: Sectioned List
 - **Date**: 2026-06-08
-- **Status**: APPROVED
+- **Status**: SUPERSEDED by DEC-180 (2026-06-15) — the "Mais" tab became **Viagem + Copiloto** and `MorePage` was deleted; its sections were redistributed, nothing removed (ÂNCORA 9). [reconciled 2026-06-17]
 - **Decision**: "Mais" tab opens a list with sections: Viagem (Visão geral, Editar fases, Fundos, Perfis, Participantes e dívidas, Carteiras), Dados (Relatórios, Exportar para planilha, Backup e importação), Aplicativo (Configurações, Sobre)
 - **Rationale**: Clean organization by category. Avoids dumping everything into a flat settings page
 - **Alternatives**: Card-based layout (heavier), flat list (harder to scan)
@@ -459,7 +459,7 @@
 
 ### DEC-064 — "Mais" Menu: About Without Reports (was D-D)
 - **Date**: 2026-06-09
-- **Status**: APPROVED
+- **Status**: SUPERSEDED by DEC-180 (2026-06-15) — Settings/About moved to the home **gear**; the "Mais" menu no longer exists (replaced by Viagem + Copiloto). [reconciled 2026-06-17]
 - **Decision**: "Mais" gets a dedicated "Sobre" item (version, backup link) under Aplicativo. "Relatórios" is NOT added — it is D3+ scope. This amends the screen list in DEC-059
 - **Rationale**: implementation-phases.md wins over v1-screen-list.md
 - **Alternatives**: Add a stub Reports entry (dead UI)
@@ -1167,7 +1167,7 @@
 
 ### DEC-164 — Settings Grouped Into Labeled Sections (UX Polish Pass, v0.14.4 — Gate 5)
 - **Date**: 2026-06-14
-- **Status**: APPROVED
+- **Status**: SUPERSEDED by DEC-211 (Wave C / F11, 2026-06-17) — Settings moved from one labeled list to a **category list → per-category subpages** (Samsung-style); the seven group labels live on as the category set, nothing removed (ÂNCORA 9). [reconciled 2026-06-17]
 - **Decision**: The flat "wall of sections" in Settings gains seven discreet group headers (presentational `GroupHeader`, same `text-xs uppercase tracking-wider text-on-surface-faint` idiom as the More page): Preferences · Notifications & privacy · Money & goals · Home screen · Backup & security · Device & capture · About. Inserted at the EXISTING natural boundaries — NOTHING reordered, hidden or removed; i18n `settings.group_*` in pt/en/es. Backup, Shared, About, More and Dashboard-config were reviewed and left unchanged (already card-based / already grouped).
 - **Rationale**: A long undifferentiated list is hard to scan; labeling the existing blocks adds findability with zero risk and no change to any option's place or behavior.
 - **Alternatives**: Collapsible setting groups (rejected: adds taps for low-frequency-but-quick settings; labels suffice), reordering for "logical" grouping (rejected: would break muscle memory — order preserved)
@@ -1321,6 +1321,38 @@
 - **Why**: Validates the outing feature and motivates the user who uses it.
 - **Backlog (council, not built)**: cash×card split (method reliability), total in home currency (anchor), peak hour / discipline streak, end-of-trip "Wrapped" (V2 — needs the trip closed).
 
+---
+
+> ### Numbering reconciliation — DEC-185…199 and DEC-201 (added 2026-06-17)
+>
+> **No formal entry for these IDs was ever written into THIS log — but the IDs are NOT free and the
+> work they name DID ship.** The log jumps DEC-184 → DEC-200 → DEC-202 because, during the fast
+> native + animation arc (web v0.28.0 → v0.40.0), the numbers were assigned *in narration*
+> (`project-status.md` and `src/dev-log.md`) without back-filling a formal block here. This note
+> records that mapping so the canon stays honest (Truth Policy) and so nobody reuses a "free" slot.
+>
+> **Canonical record for these IDs = `project-status.md` § "Native Android arc + Wise import
+> (v0.28.0 → v0.40.0)" + `src/dev-log.md` + the dated plans in `documents/`.** Mapping:
+> - **DEC-185…193 — Capacitor native shell (v0.28.0→v0.35.0)**: Android wrapper, CSS safe-areas,
+>   hardware back-button, softened haptics, runtime GPS/notification permissions, persistent
+>   storage, native live-update scaffolding. Sources: `documents/android-native-strategy-2026-06-15.md`,
+>   `documents/phase1-native-execution-package-2026-06-15.md`.
+> - **DEC-194 — Motion system (v0.36.0)**: CSS-first page transitions, staggered lists, FAB/sheet/
+>   toast/nav micro-interactions. Source: `documents/animation-system-spec-2026-06-15.md`.
+> - **DEC-195…199, 201 — Post-animation fixes (v0.37.0→v0.39.0)**: detail-sheet portal rest,
+>   first-entry transition, bidirectional swipe, one-screen active outing, FAB speed-dial, and the
+>   no-open quick-add notification. Sources: `documents/post-apk-improvements-plan-2026-06-15.md`,
+>   `documents/live-update-nowbar-technical-spec-2026-06-15.md`.
+> - Adjacent, properly-logged work in the same window: **DEC-180** (navigation redesign), **DEC-177,
+>   178, 179, 181, 182, 183, 184** (Copiloto — note these sit *after* DEC-180 in the file: history,
+>   not error), **DEC-200** (Wise import), **DEC-204/205/210** (later native decisions).
+>
+> **Policy going forward:** the next NEW decision id is **DEC-212**. Do not reuse 185–199/201 for
+> anything else — they belong to the native/animation arc above. If that arc ever needs a fully
+> formal entry, write it as a NEW id (≥212) that back-references the sources here.
+
+---
+
 ### DEC-200 — Wise CSV statement import (v0.40.0)
 - **Date**: 2026-06-15
 - **Status**: APPROVED & SHIPPED (Julio provided 3 real Wise card statements; plan `brain/documents/post-animation-fixes-and-wise-import-plan-2026-06-15.md`).
@@ -1421,6 +1453,48 @@
   6. **F14 web (0.64.0)** — outing place-picker parity: the active-outing place sheet now has the **same place intelligence as the expense quick-add** — a pure `buildPlaceSuggestions` unifies online **nearby** + offline **recent history** into one **searchable** list (accent-insensitive; the field both searches and names), plus a reverse-geocode "find name (online)". The web part the plan had deferred from waves A/B (only the native GPS grant was Wave F, already shipped). Expense flow untouched (zero regression).
 - **Guardrails**: every wave gated on full unit suite + tsc + web build + E2E + Playwright visual QA, then OTA deploy `--branch=master` (apex). Web/pure only → no new APK; `requiredNativeVersion` 0.50.0, `latestNativeVersion` 0.56.0 unchanged. Final state: **1147 tests / 128 files**, HEAD `8a6c923` (0.64.0).
 - **Deferred (by design, next native APK batch)**: native App Links for `/pair` + `/s/:id` (need device cert verification); F15 receive-`.csv` intent; F14 **native GPS-grant** part only (the web search/recents/find-online shipped in 0.64.0). F10 was delivered in Wave A per Julio's accept-the-cost decision.
+
+### DEC-212 — Real income transaction type (B8, v0.67.0, OTA)
+- **Date**: 2026-06-17
+- **Status**: APPROVED & SHIPPED. Plan: `brain/documents/master-fix-and-skipped-features-plan-2026-06-17.md` (Wave 2-B). Per-wave detail in `src/dev-log.md`.
+- **Context**: until now money could only LEAVE (expense/transfer/withdrawal) or be projected (F17 planned income = projection only, ÂNCORA 11). Field need: money that really arrives mid-trip — a reimbursement, someone paying you back, an unexpected extra — had nowhere to go, so users faked it (a negative expense, or editing the fund total) which corrupted "spent", learning, and history.
+- **Decision**: add a fifth `TransactionType` = **`income`** — a REAL transaction that **grows the chosen pool** (`calculatePoolIncome`, additive to budget in `calculateFreeToSpend`) and **credits the chosen wallet** (`calculateWalletBalance`). It is **never** a personal cost (`personalCostCents: null`), **never** counted as spend (`calculatePoolSpent` stays expense+adjustment only), **never** categorized (`category: null`), and **always** excluded from value learning (`excludeFromLearning: true` — income is not a spending pattern). New dedicated `IncomePage` (FAB → "Registrar entrada") so the critical expense flow (`QuickAddPage`) is untouched. Surfaced as a green "+" additive line in the FTS hero breakdown ("Entradas recebidas") and a green/savings row in recent activity.
+- **Invariance (proven by `income.test.ts`, 18 cases)**: with **zero** income transactions every downstream number is **bit-identical** to before income existed — FTS, pool remaining, pool-summary %used, wallet balance, breakdown lines (the income line is omitted entirely when 0). Math verified end-to-end via E2E: 1500 + 250 − 101.80 − 150 − 200 = 1298.20.
+- **Scope (V1)**: income is recorded in the **trip base currency** (foreign-currency income via `baseCurrencyAmountCents` is supported by the factory/domain but the dedicated page collects base only — documented limitation, deferrable). `ExpenseDetailPage` views/edits/deletes income generically (no type-specific UI yet — consistent with how transfers/adjustments already render there).
+- **Guardrails**: additive only; gated on full unit suite (1187 tests / 132 files) + tsc + web build + E2E Playwright visual QA, then OTA deploy `--branch=master`. Web/pure → no new APK; `requiredNativeVersion` 0.50.0 / `latestNativeVersion` 0.56.0 unchanged.
+
+### DEC-213 — Biometric unlock as a layer over the PIN (B6, v0.68.0, OTA)
+- **Date**: 2026-06-17
+- **Status**: APPROVED & SHIPPED. Plan: `master-fix-and-skipped-features-plan-2026-06-17.md` (Wave 3). Per-wave detail in `src/dev-log.md`.
+- **Context**: the app lock (DEC-161 / E6 M20) shipped PIN-only (PBKDF2-SHA256, salt+hash, never the PIN in clear). The plan's B6 asked for biometric unlock as a **convenience layer on top of** the PIN, never a replacement, with recovery never trapped (ÂNCORA 12).
+- **Decision**: on web/PWA, add a **WebAuthn platform authenticator** unlock (`navigator.credentials` boundary in `utils/biometric-unlock.ts`). Enabling it (Settings → app lock → "Desbloquear com biometria", only shown when `isUserVerifyingPlatformAuthenticatorAvailable()` is true and a PIN exists) **registers a local platform credential** and stores only its id (base64url). The lock screen offers a biometric shortcut (auto-prompt once + button) and, on success, unlocks. There is **no server**, so the assertion signature is not verified — the value is purely the OS user-verification ceremony for a device-bound credential; the **PIN remains the real secret and the always-available fallback**.
+- **ÂNCORA 12 (never trapped)**: biometrics can only be ON when a PIN is set; turning the PIN off clears biometrics; any biometric failure/cancel/unsupported device silently falls back to the PIN field; the credential id is device-local (useless after a backup restore to another device, where the PIN simply takes over). Settings fields `appLockBiometricEnabled` / `appLockBiometricCredentialId` are non-indexed, default off/null, backfilled in the repository.
+- **Verification**: pure parts unit-tested (`biometric-unlock.test.ts`: base64url round-trip + the `isBiometricUnlockReady` gate). Full flow E2E with a **CDP virtual authenticator**: enable → register → reload → (a) biometrics FORCED to fail → PIN still unlocks (ÂNCORA 12 proven), (b) biometrics succeed → auto-unlock. Screenshots reviewed (settings toggle, lock screen with "Usar biometria"). Native biometric (Capacitor plugin) intentionally **deferred to the native batch (Wave 4)** — this wave is web/OTA only.
+- **Guardrails**: additive, opt-in; gated on full suite (1208 tests / 133 files) + tsc + web build + E2E + OTA deploy `--branch=master`. Web/pure → no new APK; native versions unchanged.
+
+### DEC-214 — Copilot v3 data-gated cross-cuts (B10, v0.68.0, OTA)
+- **Date**: 2026-06-17
+- **Status**: APPROVED & SHIPPED. Backlog of DEC-184 (Copilot intelligence). Plan: Wave 3.
+- **Decision**: add four more **pure, self-censoring** Copilot reads in `domain/copilot/copilot-insights.ts`, wired into `CopilotPage` as memos that render only when their function returns non-null: **`summarizeHomeCurrencyTotal`** (whole-trip anchor in the home currency), **`summarizePaymentMix`** (cash vs card, where card = debit/credit/digital and `other`/wallet-less is "untracked"; needs BOTH sides), **`summarizePeakHour`** (local hour with the most spend; needs ≥3 expenses), **`summarizeDisciplineStreak`** (consecutive spending days at/under the phase's per-day pace; needs a positive target and a ≥2-day run). All ignore deleted/non-expense rows and use `transactionBasePersonalCostCents`.
+- **Rationale**: more "honest friend" signal without clutter — every module hides itself when the data is thin, consistent with the existing data-gated sections. No new dependencies, no schema change.
+- **Verification**: 16 new unit cases (`copilot-insights.test.ts`, total 42) covering math, tie-breaks, exact-on-target, deleted/non-expense exclusion, and the self-censor thresholds. E2E screenshot of `/copiloto` on demo data shows all four rendering.
+
+### DEC-215 — Native batch: receive `.csv` + App Links + native GPS (B1+B2+B3, APK 0.69.0, device-pending)
+- **Date**: 2026-06-17
+- **Status**: CODE-COMPLETE, NOT PROMOTED — APK built (versionCode 22 / 0.69.0) and all CI gates green, but **not shipped to `apkUrl` and `version.json` unchanged** because the acceptance criteria are `[device]` and there is no physical Android in this session. Plan: `master-fix-and-skipped-features-plan-2026-06-17.md` (Wave 4 / Bloco 1). Per-wave detail in `src/dev-log.md`.
+- **Context**: three features were blocked only on the native shell: **B1** receive a `.csv` shared from another app (Wise/Files → TripPilot), **B2** open `/pair` and `/s/:id` App Links inside the app (today they only resolve in the browser/PWA), **B3** the native GPS permission grant (the F14 web search/recents/find-online shipped in 0.64.0; only the runtime grant was left). The plan groups them into **one APK** since the expensive part is the device cycle, not the code.
+- **Decision (B1 — shared CSV)**: a native `ShareTargetPlugin` (`@CapacitorPlugin("ShareTarget")`) reads the CSV from the launch/`onNewIntent` intent (ACTION_SEND `EXTRA_STREAM`/`EXTRA_TEXT`, or ACTION_VIEW `content://`/`file://`, CSV MIME types only so generic text shares are not hijacked) and buffers it. JS boundary `utils/native/share-target.ts` keeps the CSV **in memory** (not the URL — a statement is too big for a query string), `RootLayout` routes the user to `/import/wise?shared=1`, and `WiseImportPage` drains it through the **exact same pure `parseWiseCsv` path** as a manual upload (refactored into one `ingestCsvTexts`). Manifest intent-filters for `text/csv` / `text/comma-separated-values` / `application/csv`.
+- **Decision (B2 — App Links)**: `public/.well-known/assetlinks.json` published at the apex with the **debug keystore SHA-256** (`C9:D3:…:AC`); manifest `<intent-filter android:autoVerify="true">` for `https://trippilot.pages.dev/pair` and `/s/*`; `utils/native/deep-link.ts` parses the incoming URL and navigates **preserving the `#fragment`** (where the `/s/:id` key `#k=` and the `/pair` identity live). Pure `parseDeepLink` is unit-tested; only our host + `/pair`/`/s/` prefixes are owned (foreign hosts rejected). **Open risk to verify on device**: whether Android delivers the fragment — if it is stripped, the honest fallback (already documented in the plan) is App Links for `/pair` only and keep QR/scan for `/s/:id` (the key must never go to the query string where it would leak).
+- **Decision (B3 — native GPS)**: already code-complete — `ensureLocationPermission()` (`utils/geolocation.ts`) does the native `checkPermissions`/`requestPermissions` via `@capacitor/geolocation` and `SettingsPage` calls it before capture; the manifest already declares `ACCESS_FINE/COARSE_LOCATION`. No code change; only the runtime grant prompt needs device confirmation.
+- **Anti-regression**: every native entry point is guarded by `isNativeApp()`, so the web/PWA build is byte-for-byte unaffected — the PWA Web Share Target (DEC-161, `/quick-add`) and all web routes are untouched. Proven green: tsc 0, **1221 unit tests / 135 files** (incl. 13 new: 9 `deep-link` + 4 `share-target`), web build, `cap sync`, `assembleDebug` (8.35 MB), **E2E 33/33** (regression guard for the shared `RootLayout`/`WiseImportPage` edits).
+- **Why not promoted**: shipping App Links without a device is exactly the "opens but doesn't navigate" bug the plan warns against, and an unverified APK at `apkUrl` would push an untested shell to users. So `version.json` keeps `latestNativeVersion` 0.56.0 / `requiredNativeVersion` 0.50.0; the built APK waits at `android/app/build/outputs/apk/debug/app-debug.apk` for the device session (which also validates the B18 backlog). `assetlinks.json` ships with the next web deploy (Wave 5) so it is live at the apex before the device check. **Release-keystore SHA-256 must be appended to `assetlinks.json` when a release build is signed** (the array already accepts multiple fingerprints; this environment has no `keystore.properties`).
+
+### DEC-216 — E2E in CI (B15) + FundsPage atomic pool creation (B13), v0.70.0 (web/OTA)
+- **Date**: 2026-06-17
+- **Status**: APPROVED & SHIPPED. Plan: `master-fix-and-skipped-features-plan-2026-06-17.md` (Wave 5). Per-wave detail in `src/dev-log.md`.
+- **B15 (E2E in CI)**: the Playwright suite used to run only locally (DEC-054). Added `.github/workflows/ci.yml` (repo root; the app lives in `TripPilot/`) with two jobs on push/PR — **unit** (Node 22 `npm ci` → `typecheck` → `test` → `build`) and **e2e** (`npx playwright install --with-deps chromium` → `npm run test:e2e`, uploading the HTML report as an artifact). Node 22 because the suite needs Web Crypto. `playwright.config.ts` already self-starts the dev server and tightens retries/workers when `CI=true`, so no config change was needed. `.gitignore` now excludes `playwright-report/` / `test-results/`.
+- **B13 (orchestrator, opportunistic per DEC-067)**: `FundsPage.handleSave` created a budget pool and then its phase links in **separate** repository calls — a failure between them could leave an orphan pool or partial links. Extracted **`createBudgetPoolWithPhaseLinks`** into `crud-orchestrators.ts` (symmetric to the existing `deleteBudgetPool`), which builds the pool + links via the domain factories and persists them in **one Dexie `rw` transaction**; `global` pools ignore any links, `linked_phases` normalize a `<= 0`/null floor to null. FundsPage now calls the orchestrator and no longer imports the entity factories. Behaviour-preserving (3 new unit tests lock the contract). The remaining DEC-067 debt (other pages doing single-table writes / settings updates — low atomicity risk) is left as documented opportunistic follow-up; a sweeping refactor was deliberately NOT done (out of scope + regression risk).
+- **Guardrails**: gated on full unit suite (**1224 tests / 136 files**, +9 deep-link +4 share-target from Wave 4 in-tree + 3 new orchestrator), tsc 0, web build, **E2E 33/33**, then OTA deploy `--branch=master` → apex **0.70.0** verified (version.json `no-store`+CORS, `bundles/0.70.0.zip` 200, **`/.well-known/assetlinks.json` now real JSON** `application/json`, `/trippilot.apk` preserved byte-identical at the verified 0.56.0 shell — 8,283,527 B — re-fetched from the live apex so the unverified 0.69.0 native APK was NOT promoted, `/pair` + `/s/:id` SPA 200). Web/pure → no new APK; `requiredNativeVersion` 0.50.0 / `latestNativeVersion` 0.56.0 unchanged. Web version bumped to **0.70.0** (0.69.0 reserved for the device-pending native APK).
 
 ---
 

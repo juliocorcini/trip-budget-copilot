@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
+import { isNativeApp } from '@/utils/native/platform';
+import { takePendingSharedCsv } from '@/utils/native/share-target';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { parseWiseCsv } from '@/domain/import/wise-csv';
 import { classifyWiseRows } from '@/domain/import/wise-import';
@@ -311,28 +313,55 @@ export function WiseImportPage() {
     [selectedDrafts],
   );
 
+  // Single ingestion path reused by the manual upload AND the native shared
+  // CSV (B1 / DEC-215): parse → classify → preselect → pick the target wallet.
+  const ingestCsvTexts = useCallback(
+    (texts: string[]) => {
+      const nonEmpty = texts.filter((text) => text.trim().length > 0);
+      if (nonEmpty.length === 0) return;
+      setParsing(true);
+      try {
+        const parsedRows = nonEmpty.flatMap((text) => parseWiseCsv(text));
+        const built = classifyWiseRows(parsedRows, { existingTransactions: transactions, phases });
+        setRows(parsedRows);
+        setPlan(built);
+        setIncluded(new Set(built.drafts.filter((d) => d.includeByDefault).map((d) => d.rowId)));
+        const preferred =
+          wallets.find((w) => /wise/i.test(w.name)) ??
+          getDefaultWallet(wallets) ??
+          wallets[0] ??
+          null;
+        setTarget(preferred ? preferred.id : 'new');
+      } catch (err) {
+        console.error('[wise-import] parse failed', err);
+        showToast(t('wiseImport.parse_error'), 'danger');
+      } finally {
+        setParsing(false);
+      }
+    },
+    [transactions, phases, wallets, t],
+  );
+
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
     if (files.length === 0) return;
-    setParsing(true);
-    try {
-      const texts = await Promise.all(files.map((f) => f.text()));
-      const parsedRows = texts.flatMap((text) => parseWiseCsv(text));
-      const built = classifyWiseRows(parsedRows, { existingTransactions: transactions, phases });
-      setRows(parsedRows);
-      setPlan(built);
-      setIncluded(new Set(built.drafts.filter((d) => d.includeByDefault).map((d) => d.rowId)));
-      const preferred =
-        wallets.find((w) => /wise/i.test(w.name)) ?? getDefaultWallet(wallets) ?? wallets[0] ?? null;
-      setTarget(preferred ? preferred.id : 'new');
-    } catch (err) {
-      console.error('[wise-import] parse failed', err);
-      showToast(t('wiseImport.parse_error'), 'danger');
-    } finally {
-      setParsing(false);
-    }
+    const texts = await Promise.all(files.map((f) => f.text()));
+    ingestCsvTexts(texts);
   };
+
+  // B1 (Onda 4 / DEC-215): a `.csv` shared from another app (Wise/Files) into
+  // the native shell lands here. RootLayout routes the user to `?shared=1`; we
+  // drain the in-memory CSV once the trip data is loaded and reuse the exact
+  // same preview path as a manual upload. Native-only; no-op on web/PWA.
+  const sharedHandledRef = useRef(false);
+  useEffect(() => {
+    if (sharedHandledRef.current || loading || !isNativeApp()) return;
+    const csv = takePendingSharedCsv();
+    if (!csv) return;
+    sharedHandledRef.current = true;
+    ingestCsvTexts([csv]);
+  }, [loading, ingestCsvTexts]);
 
   const toggle = (rowId: string) => {
     setIncluded((prev) => {

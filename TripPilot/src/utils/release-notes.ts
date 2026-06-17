@@ -17,6 +17,99 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.70.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Melhorias de estabilidade: criar um fundo com fases agora é salvo de uma vez só, sem risco de ficar pela metade se algo falhar no meio.',
+      ],
+      en: [
+        'Stability improvements: creating a fund with phases is now saved in one go, with no risk of being left half-written if something fails midway.',
+      ],
+      es: [
+        'Mejoras de estabilidad: crear un fondo con fases ahora se guarda de una sola vez, sin riesgo de quedar a medias si algo falla en el proceso.',
+      ],
+    },
+  },
+  {
+    version: '0.68.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'O Copiloto ganhou quatro leituras novas: o total da viagem na sua moeda de casa, a divisão entre dinheiro e cartão, a hora do dia em que você mais gasta e a sua sequência de dias dentro do ritmo. Cada uma só aparece quando já há dados suficientes — nada de cartão vazio.',
+        'Quem protege o app com PIN agora pode desbloquear com a biometria do aparelho (digital ou rosto). É um atalho por cima do PIN — o PIN continua funcionando sempre, então você nunca fica trancado para fora.',
+      ],
+      en: [
+        'The Copilot gained four new reads: your whole trip in your home currency, the cash-vs-card split, the hour of day you spend the most, and your streak of days on pace. Each one only appears once there is enough data — no empty cards.',
+        'If you lock the app with a PIN, you can now unlock with your device biometrics (fingerprint or face). It is a shortcut on top of the PIN — the PIN always keeps working, so you are never locked out.',
+      ],
+      es: [
+        'El Copiloto sumó cuatro lecturas nuevas: el total del viaje en tu moneda de casa, la división entre efectivo y tarjeta, la hora del día en que más gastas y tu racha de días dentro del ritmo. Cada una aparece solo cuando hay datos suficientes — sin tarjetas vacías.',
+        'Si proteges la app con PIN, ahora puedes desbloquear con la biometría del dispositivo (huella o rostro). Es un atajo sobre el PIN — el PIN siempre sigue funcionando, así que nunca te quedas afuera.',
+      ],
+    },
+  },
+  {
+    version: '0.67.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Chegou o registro de entradas: aquele dinheiro que entra no meio da viagem (um reembolso, alguém te pagou de volta, um extra que caiu) agora tem lugar — toque no + e escolha "Registrar entrada".',
+        'A entrada aumenta o fundo que você escolher e cai na carteira indicada — sem virar gasto. No "De onde vem esse número" ela aparece em verde, somando ao que você tem livre.',
+      ],
+      en: [
+        'Income is here: money that comes in mid-trip (a refund, someone paying you back, an unexpected extra) finally has a home — tap + and pick "Record income".',
+        'It grows the fund you choose and lands in the wallet you pick — never counted as a spend. In "Where this number comes from" it shows in green, adding to what you have free.',
+      ],
+      es: [
+        'Llegaron los ingresos: ese dinero que entra a mitad del viaje (un reembolso, alguien que te paga, un extra inesperado) ya tiene lugar — toca + y elige "Registrar ingreso".',
+        'Aumenta el fondo que elijas y cae en la billetera indicada — sin contar como gasto. En "De dónde viene este número" aparece en verde, sumando a lo que tienes libre.',
+      ],
+    },
+  },
+  {
+    version: '0.66.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Dividiu um gasto? Na hora aparece um atalho para mandar a cada pessoa o link da parte dela — ela abre no navegador, sem precisar do app, e vê o que vocês dividiram.',
+        'É a forma simples de fazer a divisão "chegar no outro celular": um toque em "Compartilhar com {fulano}" já leva ao link pronto pra enviar.',
+      ],
+      en: [
+        'Split an expense? A shortcut now pops up right away to send each person their slice as a link — they open it in the browser, no app needed, and see what you split.',
+        'It\u2019s the simple way to make the split "reach the other phone": one tap on "Share with {name}" takes you straight to a ready-to-send link.',
+      ],
+      es: [
+        '\u00bfDividiste un gasto? Aparece al instante un atajo para enviar a cada persona su parte como enlace — lo abre en el navegador, sin necesidad de la app, y ve lo que dividieron.',
+        'Es la forma simple de que la división "llegue al otro celular": un toque en "Compartir con {nombre}" te lleva directo a un enlace listo para enviar.',
+      ],
+    },
+  },
+  {
+    version: '0.65.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Reservas por fase agora vêm com sugestão automática (Essencial / Recomendado / Confortável): o app divide o fundo entre as fases pelo ritmo de cada uma — você toca e escolhe, ou digita à mão como antes.',
+        'Vincular um gasto que você já registrou a uma compra planejada: "comprei isso antes de criar o planejado" virou um toque — sem criar um gasto novo.',
+        'Simulador mais honesto por categoria: se o dinheiro daquela categoria já estourou o plano, ele avisa — mesmo quando o gasto ainda "caberia" como mais uma ocasião.',
+        'Planejador com uma tela de boas-vindas quando a viagem ainda não tem fases (antes podia ficar carregando).',
+      ],
+      en: [
+        'Per-phase reserves now come with an automatic suggestion (Essential / Recommended / Comfortable): the app splits the fund across phases by each one\u2019s rhythm — tap to pick, or type it by hand as before.',
+        'Link an expense you already recorded to a planned purchase: "I bought this before I planned it" is now one tap — without creating a new expense.',
+        'A more honest simulator per category: if that category\u2019s money is already over plan, it warns you — even when the spend would still "fit" as one more occasion.',
+        'The Planner now shows a friendly welcome when the trip has no phases yet (it could get stuck loading before).',
+      ],
+      es: [
+        'Las reservas por fase ahora traen una sugerencia automática (Esencial / Recomendado / Cómodo): la app reparte el fondo entre las fases según el ritmo de cada una — toca para elegir, o escríbelo a mano como antes.',
+        'Vincula un gasto que ya registraste a una compra planificada: "compré esto antes de planificarlo" ahora es un toque — sin crear un gasto nuevo.',
+        'Un simulador más honesto por categoría: si el dinero de esa categoría ya se desbordó del plan, te avisa — incluso cuando el gasto aún "cabría" como una ocasión más.',
+        'El Planificador ahora muestra una bienvenida cuando el viaje todavía no tiene fases (antes podía quedarse cargando).',
+      ],
+    },
+  },
+  {
     version: '0.64.0',
     date: '2026-06-17',
     items: {

@@ -1,3 +1,6 @@
+// @vitest-environment node
+// Real WebCrypto (ECDH/HKDF/AES-GCM) is required here; jsdom only ships a
+// non-functional SubtleCrypto stub, so this pure crypto suite runs in node.
 import { describe, it, expect } from 'vitest';
 import {
   generateIdentityKeyPair,

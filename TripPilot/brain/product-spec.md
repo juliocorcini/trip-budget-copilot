@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-06-13 (Feature Expansion Package 2 — insights v2, phase cycle, motivation, trip continuity)
+> Last updated: 2026-06-17 (reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207 — the old "NOT in scope" list was contradicting shipped features)
 
 ## What is TripPilot?
 
@@ -344,23 +344,35 @@ The guarantees the user can rely on, even when the device storage misbehaves:
 - Optional **PIN lock at startup** (off by default). The PIN is stored only as a secure hash (never in clear), and **recovery/onboarding screens are never locked**, so a forgotten PIN can never trap your data. Biometric unlock is deferred (PIN is the baseline).
 - **Share text into TripPilot** from any app (a receipt total, a message) and the **QuickAdd form opens pre-filled** for review — it never saves on its own.
 
+## V1 — In Scope With Constraints (reconciled 2026-06-17)
+
+These were once "not in scope" but shipped under explicit, honest constraints (this section
+fulfills the DEC-207 mandate to rewrite the old "no remote database" line):
+
+- **Minimal portable backend (E2E)** — the shared-link epic stores **ciphertext only** (TTL +
+  revoke) in Cloudflare KV (`SHARE_STORE`); the AES key rides in the link `#fragment` and never
+  reaches the server; portable by design, no vendor lock-in (DEC-207). The DEC-107 signaling
+  Worker still relays opaque bytes for live P2P.
+- **Receipt import (photo → items → split)** — attach a photo to any expense, read it into items,
+  split among chosen people (DEC-206/208). Images are device-local, never in the backup.
+- **AI/LLM (opt-in, no-train provider)** — the receipt reader uses Groq behind the Worker `/ocr`,
+  opt-in with disclosure; the provider does not train on data; manual entry is the always-available
+  fallback (DEC-206/209). On-device OCR was removed (DEC-209).
+
 ## V1 — Explicitly NOT in Scope
 
 - Login / user accounts / authentication
-- Remote database or backend (the DEC-107 signaling Worker relays opaque bytes only —
-  it stores nothing and never sees plaintext)
-- Automatic background sync between devices (R4 sync is user-initiated, session-based)
-- Bank integration (Wise API, etc.)
-- PDF/receipt import
-- AI/LLM features inside the app
-- Play Store / App Store publication
-- Native iOS app
+- Automatic always-on background sync (R4 sync is user-initiated; the shared link is async pull +
+  best-effort live with the app open — DEC-207)
+- Bank integration via API (Wise is CSV statement import only — DEC-200 — not the Wise API)
+- Play Store / App Store publication (sideload-first; may or may not reach the Play Store later)
+- Native iOS app (iOS users are web/PWA)
 - Android widget
-- Remote push notifications
+- Remote push with the app CLOSED (needs FCM/Play Services — against the sideload-first posture)
 - Social features / gamification
-- Map visualization
+- Geographic map visualization (the phase "map" is a per-day calendar, not a geo map — DEC-211 Wave B)
 - Subscription/monetization system
-- Kotlin native implementation
+- Kotlin-only native implementation
 
 ## Core Rules
 

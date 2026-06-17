@@ -1,6 +1,60 @@
 import { db } from '@/data/db/database';
 import { markUpdated, softDelete } from '@/utils/entity-factory';
 import { sortPhasesByOrder } from '@/domain/dates';
+import { createBudgetPool, createBudgetPoolPhaseLink } from '@/domain/budget';
+import type { BudgetPool } from '@/domain/types/budget-pool';
+import type { BudgetPoolScope } from '@/domain/types/common';
+
+export interface CreatePoolPhaseLinkInput {
+  phaseId: string;
+  /** Future floor for this phase; null or <= 0 means "no floor". */
+  floorCents: number | null;
+}
+
+export interface CreateBudgetPoolWithLinksInput {
+  tripId: string;
+  name: string;
+  scope: BudgetPoolScope;
+  totalAmountCents: number;
+  currency: string;
+  /** Phase links to create — only used when scope === 'linked_phases'. */
+  phaseLinks: CreatePoolPhaseLinkInput[];
+}
+
+/**
+ * DEC-067 (B13): creates a fund AND its phase links in ONE atomic transaction.
+ * FundsPage used to `create` the pool and then the links in separate repository
+ * calls, so a failure between them could leave an orphan pool or partial links.
+ * A `linked_phases` pool persists its links; a `global` pool ignores any.
+ */
+export async function createBudgetPoolWithPhaseLinks(
+  input: CreateBudgetPoolWithLinksInput,
+): Promise<BudgetPool> {
+  const pool = createBudgetPool({
+    tripId: input.tripId,
+    name: input.name,
+    scope: input.scope,
+    totalAmountCents: input.totalAmountCents,
+    currency: input.currency,
+  });
+  const links =
+    input.scope === 'linked_phases'
+      ? input.phaseLinks.map((link) =>
+          createBudgetPoolPhaseLink(
+            pool.id,
+            link.phaseId,
+            link.floorCents !== null && link.floorCents > 0 ? link.floorCents : null,
+          ),
+        )
+      : [];
+  await db.transaction('rw', [db.budgetPools, db.budgetPoolPhaseLinks], async () => {
+    await db.budgetPools.add(pool);
+    for (const link of links) {
+      await db.budgetPoolPhaseLinks.add(link);
+    }
+  });
+  return pool;
+}
 
 export type DeletePoolResult =
   | { ok: true }

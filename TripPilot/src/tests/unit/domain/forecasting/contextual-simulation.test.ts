@@ -16,6 +16,7 @@ const dinnerProfile: SimulationProfileContext = {
   doneQuantity: 2,
   remaining: 3,
   typicalValueCents: 2000, // €20 typical dinner
+  categorySpentCents: 4000, // 2 typical dinners spent (well within the €100 plan)
 };
 
 const noPlanProfile: SimulationProfileContext = {
@@ -25,6 +26,7 @@ const noPlanProfile: SimulationProfileContext = {
   doneQuantity: 0,
   remaining: 0,
   typicalValueCents: 0,
+  categorySpentCents: 0,
 };
 
 const concertEvent: SimulationEventContext = {
@@ -121,6 +123,100 @@ describe('simulateContextualSpend — profile target with plan', () => {
       done: 5,
     });
     expect(result.facts[0]).toMatchObject({ kind: 'plan_over', planned: 5, done: 5 });
+  });
+});
+
+describe('simulateContextualSpend — category money-plan weighting (B12/R7)', () => {
+  // €100 dining plan (5 × €20). Occasions remain, but the money is gone.
+  it('escalates an otherwise-ok spend when it tips the category over its money plan', () => {
+    const blownDinner: SimulationProfileContext = {
+      ...dinnerProfile,
+      doneQuantity: 1,
+      remaining: 4, // plenty of occasions left
+      categorySpentCents: 9500, // €95 already spent of the €100 plan
+    };
+    const result = simulateContextualSpend(
+      buildInput({
+        amountCents: 2000, // one typical dinner — normally ok/fits_plan
+        profiles: [blownDinner],
+        target: { kind: 'profile', profileId: 'p-dinner' },
+      }),
+    );
+    // €95 + €20 = €115 → €15 over the €100 plan; tips over now → attention.
+    expect(result.verdict).toEqual({
+      tone: 'attention',
+      reason: 'category_over_budget',
+      profileName: 'Jantar fora',
+      overByCents: 1500,
+    });
+    expect(result.facts[0]).toEqual({
+      kind: 'category_over_budget',
+      profileName: 'Jantar fora',
+      spentCents: 9500,
+      budgetCents: 10000,
+      overByCents: 1500,
+    });
+  });
+
+  it('flags risk when the category was already over its money plan', () => {
+    const overDinner: SimulationProfileContext = {
+      ...dinnerProfile,
+      doneQuantity: 2,
+      remaining: 3,
+      categorySpentCents: 11000, // already €10 over the €100 plan
+    };
+    const result = simulateContextualSpend(
+      buildInput({
+        amountCents: 2000,
+        profiles: [overDinner],
+        target: { kind: 'profile', profileId: 'p-dinner' },
+      }),
+    );
+    expect(result.verdict).toEqual({
+      tone: 'risk',
+      reason: 'category_over_budget',
+      profileName: 'Jantar fora',
+      overByCents: 3000, // €110 + €20 − €100
+    });
+  });
+
+  it('keeps the stronger consumes_whole_plan verdict but still surfaces the money fact', () => {
+    const overDinner: SimulationProfileContext = {
+      ...dinnerProfile,
+      doneQuantity: 2,
+      remaining: 3,
+      categorySpentCents: 9000,
+    };
+    const result = simulateContextualSpend(
+      buildInput({
+        amountCents: 6000, // 3 dinners = whole remaining plan → risk
+        profiles: [overDinner],
+        target: { kind: 'profile', profileId: 'p-dinner' },
+      }),
+    );
+    expect(result.verdict).toEqual({
+      tone: 'risk',
+      reason: 'consumes_whole_plan',
+      profileName: 'Jantar fora',
+      remaining: 3,
+    });
+    expect(result.facts.some((f) => f.kind === 'category_over_budget')).toBe(true);
+  });
+
+  it('does NOT weight when the category stays within its money plan', () => {
+    const result = simulateContextualSpend(
+      buildInput({
+        amountCents: 2000, // €40 + €20 = €60 ≤ €100 plan
+        target: { kind: 'profile', profileId: 'p-dinner' },
+      }),
+    );
+    expect(result.verdict).toEqual({
+      tone: 'ok',
+      reason: 'fits_plan',
+      profileName: 'Jantar fora',
+      remaining: 3,
+    });
+    expect(result.facts.some((f) => f.kind === 'category_over_budget')).toBe(false);
   });
 });
 

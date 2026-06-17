@@ -18,7 +18,10 @@ import {
   restorePlannedPurchase,
   logPlannedPurchaseExpense,
   undoLogPlannedPurchaseExpense,
+  linkExistingExpenseToPlannedPurchase,
+  undoLinkExistingExpense,
 } from '@/domain/orchestrators';
+import { getActiveIntlLocale } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
@@ -29,6 +32,15 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import type { TransactionCategory } from '@/domain/types/common';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
+import type { Transaction } from '@/domain/types/transaction';
+
+/** B9: short, locale-aware date for the existing-expense picker rows. */
+function formatPickerDate(dateIso: string): string {
+  const safe = dateIso.length <= 10 ? `${dateIso}T12:00:00` : dateIso;
+  const d = new Date(safe);
+  if (Number.isNaN(d.getTime())) return dateIso;
+  return d.toLocaleDateString(getActiveIntlLocale(), { day: '2-digit', month: 'short' });
+}
 
 // Shopping-leaning order (the common reason to plan a buy), but the full
 // taxonomy stays reachable so "Comprei" always produces a valid expense
@@ -289,6 +301,8 @@ export function PlannedPurchasesPage() {
   const [buyTarget, setBuyTarget] = useState<PlannedPurchase | null>(null);
   const [buyAmount, setBuyAmount] = useState('');
   const [buyClose, setBuyClose] = useState(true);
+  // B9: link an already-recorded expense (bought before the plan existed).
+  const [linkTarget, setLinkTarget] = useState<PlannedPurchase | null>(null);
 
   const currency = trip?.baseCurrency ?? 'EUR';
   const currentPhase = resolveActivePhase(phases);
@@ -317,6 +331,30 @@ export function PlannedPurchasesPage() {
       ),
     [openPurchases, transactions],
   );
+
+  // B9: every transaction already attributed to ANY planned purchase — so a
+  // single expense is never double-earmarked across two plans.
+  const alreadyLinkedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of plannedPurchases) for (const id of p.linkedTransactionIds) ids.add(id);
+    return ids;
+  }, [plannedPurchases]);
+
+  // B9: candidate expenses to link — real expenses charged to the same fund,
+  // not deleted and not already linked. Newest first, capped for the picker.
+  const linkCandidates = useMemo(() => {
+    if (!linkTarget) return [];
+    return transactions
+      .filter(
+        (tx) =>
+          tx.deletedAt === null &&
+          tx.type === 'expense' &&
+          tx.budgetPoolId === linkTarget.budgetPoolId &&
+          !alreadyLinkedIds.has(tx.id),
+      )
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 50);
+  }, [linkTarget, transactions, alreadyLinkedIds]);
 
   if (loading || !trip) {
     return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
@@ -440,6 +478,28 @@ export function PlannedPurchasesPage() {
           transactionId: result.transaction.id,
           previousPurchase: result.previousPurchase,
         }).then(() => {
+          notifyAppDataChanged();
+          showToast(t('common.undo_done'), 'info');
+        });
+      },
+    });
+  };
+
+  // B9: attribute an EXISTING expense to this purchase (no new transaction).
+  const handleLinkExisting = async (tx: Transaction) => {
+    if (!linkTarget) return;
+    const result = await linkExistingExpenseToPlannedPurchase({
+      purchase: linkTarget,
+      transaction: tx,
+    });
+    setLinkTarget(null);
+    setExpandedId(null);
+    await reload();
+    showToast(t('planned.linked_toast'), 'success', {
+      actionLabel: t('common.undo'),
+      durationMs: 6000,
+      onTap: () => {
+        void undoLinkExistingExpense(result.previousPurchase).then(() => {
           notifyAppDataChanged();
           showToast(t('common.undo_done'), 'info');
         });
@@ -575,6 +635,15 @@ export function PlannedPurchasesPage() {
                     >
                       <Icon name="shopping_cart_checkout" size={18} className="text-on-surface" />
                       {t('planned.bought')}
+                    </button>
+
+                    {/* B9: attribute an expense already recorded before the plan */}
+                    <button
+                      onClick={() => setLinkTarget(p)}
+                      className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-semibold text-sm btn-press flex items-center justify-center gap-2"
+                    >
+                      <Icon name="link" size={18} className="text-on-surface-dim" />
+                      {t('planned.link_existing')}
                     </button>
 
                     <div>
@@ -741,6 +810,55 @@ export function PlannedPurchasesPage() {
             >
               {t('planned.buy_confirm')}
             </button>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* B9: pick an existing expense to attribute to this planned purchase */}
+      <BottomSheet
+        open={linkTarget !== null}
+        onClose={() => setLinkTarget(null)}
+        title={linkTarget ? t('planned.link_sheet_title', { name: linkTarget.name }) : ''}
+      >
+        {linkTarget && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-on-surface-faint leading-relaxed mb-1">
+              {t('planned.link_sheet_hint')}
+            </p>
+            {linkCandidates.length === 0 ? (
+              <p className="text-sm text-on-surface-dim py-6 text-center">
+                {t('planned.link_empty')}
+              </p>
+            ) : (
+              linkCandidates.map((tx) => (
+                <button
+                  key={tx.id}
+                  onClick={() => handleLinkExisting(tx)}
+                  className="w-full text-left bg-surface-high rounded-lg px-3 py-2.5 btn-press flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+                      <Icon
+                        name={getCategoryIcon(tx.category ?? 'other')}
+                        size={16}
+                        className="text-on-surface-dim"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-on-surface truncate">
+                        {tx.description || (t(`categories.${tx.category}` as never) as string)}
+                      </p>
+                      <p className="text-[11px] text-on-surface-faint mt-0.5">
+                        {formatPickerDate(tx.date)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-bold tabular text-on-surface shrink-0">
+                    {formatMoney(tx.amountCents, tx.currency)}
+                  </p>
+                </button>
+              ))
+            )}
           </div>
         )}
       </BottomSheet>

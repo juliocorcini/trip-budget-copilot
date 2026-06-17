@@ -5,14 +5,18 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { BudgetPoolScope } from '@/domain/types/common';
+import type { Phase } from '@/domain/types/phase';
 import { sumCents } from '@/domain/money';
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
 import { calculatePlannedPurchaseReserves } from '@/domain/planning/planned-purchases';
+import { calculateEffectiveSpendingDays } from '@/domain/phases/rhythm';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
 export interface FreeToSpendResult {
   freeToSpendCents: number;
   totalBudgetCents: number;
+  /** B8 (DEC-212): real income received against this pool — GROWS the budget. */
+  totalIncomeCents: number;
   totalSpentCents: number;
   protectedReserveCents: number;
   futureFloorCents: number;
@@ -54,6 +58,11 @@ export function calculateFreeToSpend(
 ): FreeToSpendResult {
   const totalBudgetCents = pool.totalAmountCents;
 
+  // B8 (DEC-212): real income received against this pool grows the available
+  // money. Purely additive — with zero income transactions this is 0, so every
+  // downstream number stays bit-identical to before income existed.
+  const totalIncomeCents = calculatePoolIncome(transactions);
+
   const totalSpentCents = calculatePoolSpent(transactions);
 
   const protectedReserveCents = envelopes
@@ -83,7 +92,8 @@ export function calculateFreeToSpend(
 
   const freeToSpendCents = Math.max(
     0,
-    totalBudgetCents -
+    totalBudgetCents +
+      totalIncomeCents -
       totalSpentCents -
       protectedReserveCents -
       futureFloorCents -
@@ -94,6 +104,7 @@ export function calculateFreeToSpend(
   return {
     freeToSpendCents,
     totalBudgetCents,
+    totalIncomeCents,
     totalSpentCents,
     protectedReserveCents,
     futureFloorCents,
@@ -115,10 +126,11 @@ export function calculateFreeToSpend(
  * line surfaces the overflow instead of silently hiding it. Zero terms are dropped
  * (a €0 protected reserve is noise, not information).
  */
-export type FtsBreakdownKind = 'base' | 'subtract' | 'total' | 'deficit';
+export type FtsBreakdownKind = 'base' | 'add' | 'subtract' | 'total' | 'deficit';
 
 export type FtsBreakdownKey =
   | 'budget'
+  | 'income'
   | 'spent'
   | 'protected'
   | 'future_floor'
@@ -141,6 +153,12 @@ export function buildFreeToSpendBreakdown(
 ): FtsBreakdownLine[] {
   const lines: FtsBreakdownLine[] = [{ key: 'budget', cents: fts.totalBudgetCents, kind: 'base' }];
 
+  // B8 (DEC-212): real income adds to the base, right after the budget. Zero
+  // income drops the line, so a no-income breakdown is byte-identical to before.
+  if (fts.totalIncomeCents > 0) {
+    lines.push({ key: 'income', cents: fts.totalIncomeCents, kind: 'add' });
+  }
+
   // FIELD-18: the scenario plan still reserved ahead is the LAST subtraction, so
   // the breakdown reconciles to the "truly free" hero (budget − … − plan = free).
   const subtractions: Array<[FtsBreakdownKey, number]> = [
@@ -156,7 +174,8 @@ export function buildFreeToSpendBreakdown(
   }
 
   const rawFreeCents =
-    fts.totalBudgetCents -
+    fts.totalBudgetCents +
+    fts.totalIncomeCents -
     fts.totalSpentCents -
     fts.protectedReserveCents -
     fts.futureFloorCents -
@@ -229,6 +248,20 @@ export function calculatePoolSpent(transactions: Transaction[]): number {
   );
 }
 
+/**
+ * B8 (DEC-212): real income credited to a pool, in the trip's base currency. A
+ * separate, additive total (never mixed with spent) so it can GROW the budget
+ * without ever being mistaken for spending. Income carries no personal-cost
+ * semantics — its base-currency amount is the value that lands in the pool.
+ */
+export function calculatePoolIncome(transactions: Transaction[]): number {
+  return sumCents(
+    transactions
+      .filter((t) => t.deletedAt === null && t.type === 'income')
+      .map((t) => t.baseCurrencyAmountCents),
+  );
+}
+
 export function calculateFutureFloor(
   phaseLinks: BudgetPoolPhaseLink[],
   currentPhaseId: string,
@@ -243,11 +276,70 @@ export function calculateFutureFloor(
     .reduce((sum, pl) => sum + (pl.futureFloorCents ?? 0), 0);
 }
 
+/**
+ * B7 (DEC-016): a recommended future floor for a linked phase, so the user does
+ * not have to guess the number by hand. The pool budget is split across its
+ * linked phases by their rhythm-weighted spending days (DEC-075), giving each
+ * phase its fair share; three tiers let the user reserve leaner or safer.
+ *
+ * This is a SUGGESTION only (ÂNCORA 10): the tier the user picks is written to
+ * `BudgetPoolPhaseLink.futureFloorCents` exactly like a manual entry, so
+ * `calculateFutureFloor` and free-to-spend are unchanged — only the ORIGIN of
+ * the number moves from hand-typed to suggested.
+ */
+export interface RecommendedFloorInput {
+  poolTotalCents: number;
+  /** The future phase the reserve protects. */
+  futurePhase: Phase;
+  /** Every phase linked to the pool (the future one included). */
+  linkedPhases: Phase[];
+}
+
+export interface RecommendedFloor {
+  /** Leanest reserve — 0.8× the fair share. */
+  essentialCents: number;
+  /** The fair share of the pool for this phase (rhythm-weighted). */
+  recommendedCents: number;
+  /** Safer reserve — 1.2× the fair share. */
+  comfortableCents: number;
+}
+
+const FLOOR_TIER_FACTORS = { essential: 0.8, recommended: 1, comfortable: 1.2 } as const;
+
+export function calculateRecommendedFloor(input: RecommendedFloorInput): RecommendedFloor {
+  const zero: RecommendedFloor = {
+    essentialCents: 0,
+    recommendedCents: 0,
+    comfortableCents: 0,
+  };
+  if (input.poolTotalCents <= 0) return zero;
+
+  const totalEffectiveDays = input.linkedPhases.reduce(
+    (sum, phase) => sum + calculateEffectiveSpendingDays(phase, phase.startDate),
+    0,
+  );
+  if (totalEffectiveDays <= 0) return zero;
+
+  const futureEffectiveDays = calculateEffectiveSpendingDays(
+    input.futurePhase,
+    input.futurePhase.startDate,
+  );
+  if (futureEffectiveDays <= 0) return zero;
+
+  const fairShareCents = (input.poolTotalCents * futureEffectiveDays) / totalEffectiveDays;
+  return {
+    essentialCents: Math.round(fairShareCents * FLOOR_TIER_FACTORS.essential),
+    recommendedCents: Math.round(fairShareCents * FLOOR_TIER_FACTORS.recommended),
+    comfortableCents: Math.round(fairShareCents * FLOOR_TIER_FACTORS.comfortable),
+  };
+}
+
 export function calculatePoolRemaining(
   pool: BudgetPool,
   transactions: Transaction[],
 ): number {
-  return pool.totalAmountCents - calculatePoolSpent(transactions);
+  // B8 (DEC-212): income grows the pool's effective size before subtracting spend.
+  return pool.totalAmountCents + calculatePoolIncome(transactions) - calculatePoolSpent(transactions);
 }
 
 export interface PoolSummary {
@@ -255,6 +347,8 @@ export interface PoolSummary {
   poolName: string;
   scope: string;
   totalCents: number;
+  /** B8 (DEC-212): real income credited to this pool (0 when none). */
+  incomeCents: number;
   spentCents: number;
   remainingCents: number;
   percentUsed: number;
@@ -265,17 +359,22 @@ export function createPoolSummary(
   transactions: Transaction[],
 ): PoolSummary {
   const spentCents = calculatePoolSpent(transactions);
-  const remainingCents = pool.totalAmountCents - spentCents;
+  // B8 (DEC-212): income raises the effective total, so % used reflects the real
+  // capacity and a pool topped up mid-trip can drop back below 100%.
+  const incomeCents = calculatePoolIncome(transactions);
+  const effectiveTotalCents = pool.totalAmountCents + incomeCents;
+  const remainingCents = effectiveTotalCents - spentCents;
   const percentUsed =
-    pool.totalAmountCents === 0
+    effectiveTotalCents === 0
       ? 0
-      : Math.round((spentCents / pool.totalAmountCents) * 10000) / 100;
+      : Math.round((spentCents / effectiveTotalCents) * 10000) / 100;
 
   return {
     poolId: pool.id,
     poolName: pool.name,
     scope: pool.scope,
     totalCents: pool.totalAmountCents,
+    incomeCents,
     spentCents,
     remainingCents,
     percentUsed,

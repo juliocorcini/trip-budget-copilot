@@ -1,7 +1,7 @@
 # TripPilot — Implementation Phases
 
-> Last updated: 2026-06-10 (R6 housekeeping)
-> Delivery status: D1–D5 DELIVERED (v0.6.0 on Cloudflare Pages). D6 (Native Layer) not started.
+> Last updated: 2026-06-17
+> Delivery status: D1–D6 DELIVERED. D6 (Native Layer) shipped as the Capacitor arc v0.28.0→v0.56.0 (APK, native notifications, Capgo OTA, runtime permissions — DEC-204/205/210); web/OTA continues ahead at v0.64.0. After D5 the project moved to ROUND-BASED delivery (R1–R6, field reviews, Expansion Packages 1–3, receipt & shared-link epics, field rounds 1–2). See project-status.md, src/dev-log.md and documents/master-fix-and-skipped-features-plan-2026-06-17.md.
 > Implementation notes: D1 shipped without Zustand — removed in favor of `useAppData` + repositories (DEC-068).
 > D5 shipped with a custom service worker (network-first + update toast) instead of Workbox (DEC-082).
 
@@ -157,6 +157,13 @@ Six deliveries, ordered by user value. Each builds on the previous. The first de
 
 ## Delivery 6 — Native Layer (Post-MVP)
 
+> ✅ DELIVERED as the Capacitor native arc (v0.28.0→v0.56.0): Capacitor 8 Android shell, APK,
+> CSS safe-areas, hardware back-button, softened haptics, runtime permissions (GPS/notif/camera),
+> native notifications with no-open quick-add value buttons, Capgo self-hosted OTA, in-app APK
+> self-update (DEC-204/205/210). Remaining native items live in
+> `documents/master-fix-and-skipped-features-plan-2026-06-17.md` (B1 receive `.csv`, B2 App Links,
+> B3 GPS grant, B18 device-validation backlog).
+
 **Goal**: Android APK with reliable local notifications
 
 **Scope**:
@@ -184,21 +191,24 @@ Six deliveries, ordered by user value. Each builds on the previous. The first de
 | 3 — Forecasting | 35h | ~12h | ✅ DELIVERED |
 | 4 — Outing Mode | 20h | ~7h | ✅ DELIVERED |
 | 5 — Production PWA | 15h | ~5h | ✅ DELIVERED (custom SW — DEC-082) |
-| 6 — Native Layer | 15h | ~5h | NOT STARTED |
+| 6 — Native Layer | 15h | ~5h | ✅ DELIVERED (Capacitor arc v0.28→v0.56; DEC-204/205/210) |
 | **Total** | **150h** | **~50h** | — |
 
 ## V2 Roadmap (Post-MVP)
 
+**Still V2 (not built):**
 - Login + user accounts
-- Remote sync (Supabase or Cloudflare D1)
-- Multi-user groups with shared expenses
-- Multi-currency with live rates
-- Wise CSV/PDF import
-- Receipt scanning
+- Remote multi-user sync (a portable, E2E, zero-cost edge backend already exists for the shared
+  link — KV/Workers, DEC-207)
+- Multi-user GROUP sync (DEC-108 deferred; the shared-link epic covers 1:1 slices)
 - Android widget
-- Remote push notifications
-- Spending insights with patterns
-- Trip templates/presets
+- Remote push with the app CLOSED (needs FCM/Play Services — out of scope while sideload-first, B5)
+
+**✅ Already shipped in V1-expanded (moved out of V2):**
+- Multi-currency (frozen/manual FX — DEC-158)
+- Wise CSV import (DEC-200); Receipt scanning via cloud AI (DEC-206/209)
+- Spending insights with patterns (insights v2 + Copiloto — DEC-150, DEC-177..184)
+- Trip templates/presets (DEC-148/156)
 
 ---
 

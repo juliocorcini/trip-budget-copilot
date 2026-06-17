@@ -2,6 +2,7 @@ import { isNativeApp } from './platform';
 import { initNativeStatusBar } from './status-bar';
 import { initBackButton } from './back-button';
 import { initNativeNotifications } from './notifications';
+import { initShareTarget } from './share-target';
 
 let initialized = false;
 
@@ -20,6 +21,9 @@ export function initNativeShell(): void {
   void initNativeStatusBar();
   initBackButton();
   void initNativeNotifications();
+  // B1 (Onda 4 / DEC-215): subscribe to shared `.csv` files and drain any the
+  // app was cold-started with. RootLayout owns the navigation side.
+  void initShareTarget();
 }
 
 export { isNativeApp } from './platform';

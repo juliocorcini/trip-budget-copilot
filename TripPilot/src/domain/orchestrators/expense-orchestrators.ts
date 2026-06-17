@@ -22,6 +22,16 @@ export async function registerExpense(input: RegisterExpenseInput): Promise<Tran
   return input.transaction;
 }
 
+/**
+ * B8 (DEC-212): persists a real income transaction. It carries no shares, so a
+ * single add is enough; kept as its own orchestrator (not `registerExpense`) so
+ * the call site reads honestly as "income", not "expense".
+ */
+export async function registerIncome(transaction: Transaction): Promise<Transaction> {
+  await db.transactions.add(transaction);
+  return transaction;
+}
+
 export interface EnrichTransactionSharesInput {
   transaction: Transaction;
   shares: ParticipantShare[];

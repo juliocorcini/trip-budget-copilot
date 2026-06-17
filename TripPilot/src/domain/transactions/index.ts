@@ -2,6 +2,7 @@ export {
   createExpenseTransaction,
   createTransferTransaction,
   createAdjustmentTransaction,
+  createIncomeTransaction,
   filterTransactionsByPool,
   filterTransactionsByPhase,
   filterTransactionsByCategory,
@@ -10,7 +11,7 @@ export {
   groupTransactionsByCategory,
   calculateSpentOnDate,
 } from './transactions';
-export type { CreateExpenseInput, CreateTransferInput } from './transactions';
+export type { CreateExpenseInput, CreateTransferInput, CreateIncomeInput } from './transactions';
 export {
   suggestFromDescription,
   getFrequentExpenses,

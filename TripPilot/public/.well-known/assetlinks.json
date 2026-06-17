@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.trippilot.app",
+      "sha256_cert_fingerprints": [
+        "C9:D3:09:C5:17:BC:2D:32:61:1C:3D:6A:4F:F0:85:B4:01:EF:CB:8D:CB:51:54:B9:3E:69:4B:EB:36:8D:71:AC"
+      ]
+    }
+  }
+]
