@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
-import { verifyPin } from '@/utils/app-lock';
+import { verifyPin, isValidPin } from '@/utils/app-lock';
 import {
   isBiometricSupported,
   verifyBiometricCredential,
@@ -41,6 +41,9 @@ export function LockScreen({
   const [biometricReady, setBiometricReady] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState(false);
   const autoPromptedRef = useRef(false);
+  // Mirrors `pin` synchronously so an async auto-verify can tell whether the
+  // field still holds the value it checked (D-IMP-06 staleness guard).
+  const pinRef = useRef('');
 
   const biometricConfigured = isBiometricUnlockReady({
     appLockEnabled: true,
@@ -80,6 +83,29 @@ export function LockScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [biometricConfigured]);
 
+  const setPinValue = (next: string) => {
+    pinRef.current = next;
+    setPin(next);
+  };
+
+  // D-IMP-06: verify as the user types so a complete, correct PIN unlocks with no
+  // extra tap. While the PIN is incomplete OR wrong this stays SILENT — it never
+  // shows an error or clears the field mid-typing (the length isn't stored, so a
+  // 4-digit attempt of a 6-digit PIN must not wipe the field). The explicit
+  // button below is the loud fallback that reports a wrong PIN. ÂNCORA 12: the
+  // button always works, so a PIN can never trap the user.
+  const autoUnlock = async (candidate: string) => {
+    const ok = await verifyPin(candidate, saltHex, hashHex);
+    if (ok && pinRef.current === candidate) onUnlock();
+  };
+
+  const handleChange = (raw: string) => {
+    const next = raw.replace(/\D/g, '').slice(0, 8);
+    setPinValue(next);
+    setError(false);
+    if (isValidPin(next)) void autoUnlock(next);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (checking || pin === '') return;
@@ -90,7 +116,7 @@ export function LockScreen({
       return;
     }
     setError(true);
-    setPin('');
+    setPinValue('');
     setChecking(false);
   };
 
@@ -111,10 +137,7 @@ export function LockScreen({
           autoComplete="off"
           autoFocus
           value={pin}
-          onChange={(e) => {
-            setPin(e.target.value.replace(/\D/g, '').slice(0, 8));
-            setError(false);
-          }}
+          onChange={(e) => handleChange(e.target.value)}
           placeholder={t('lock.pin_placeholder')}
           aria-label={t('lock.pin_placeholder')}
           className="bg-surface-container text-on-surface text-center text-2xl tracking-[0.5em] font-bold rounded-xl px-4 py-4 outline-none w-full"

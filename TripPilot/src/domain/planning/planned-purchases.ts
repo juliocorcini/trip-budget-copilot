@@ -43,6 +43,26 @@ export function isPlannedPurchaseOpen(purchase: PlannedPurchase): boolean {
 }
 
 /**
+ * D-IMP-03: planned purchases an EXISTING expense can be attributed to, from the
+ * expense side. A purchase is compatible when it is open (still reserving), sits
+ * in the SAME fund as the expense, and has not already linked this expense. Only
+ * real expenses qualify (income is never a planned-purchase buy). Pure mirror of
+ * the picker filter on the Planned screen so both directions agree.
+ */
+export function compatiblePlannedPurchasesForExpense(
+  expense: Transaction,
+  purchases: PlannedPurchase[],
+): PlannedPurchase[] {
+  if (expense.type !== 'expense') return [];
+  return purchases.filter(
+    (purchase) =>
+      isPlannedPurchaseOpen(purchase) &&
+      purchase.budgetPoolId === expense.budgetPoolId &&
+      !purchase.linkedTransactionIds.includes(expense.id),
+  );
+}
+
+/**
  * DEC-175: real money already spent toward this purchase = the base personal
  * cost of its linked, non-deleted expense transactions. Mirrors pool spent
  * (`transactionBasePersonalCostCents`) so shared/foreign-currency rows agree.

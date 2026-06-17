@@ -475,7 +475,12 @@
     "delete_title": "Delete expense",
     "not_found": "Expense not found",
     "edited_toast": "Expense updated",
-    "deleted_toast": "Expense deleted"
+    "deleted_toast": "Expense deleted",
+    "link_planned": "Link to a planned purchase",
+    "link_planned_sheet_title": "Link this expense",
+    "link_planned_hint": "Pick the planned purchase this expense fulfills. It creates no new expense — it just counts this one toward the purchase.",
+    "link_planned_empty": "No compatible planned purchase in this fund.",
+    "linked_planned_label": "Counts toward planned purchase"
   },
   "categories": {
     "bar": "Bar",

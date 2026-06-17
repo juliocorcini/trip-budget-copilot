@@ -436,6 +436,20 @@ export function SharedExpensesPage() {
         )}
       </div>
 
+      {/* D-BUG-20: receive a statement/connection from another device — the SAME
+          /sync flow as Backup → import, surfaced here (next to the statements it
+          produces) so "receber de outro aparelho" isn't buried in Backup. */}
+      <button
+        onClick={() => navigate('/sync')}
+        className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
+      >
+        <Icon name="qr_code_scanner" size={22} className="text-success shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-on-surface">{t('sync.receive_from_device')}</p>
+          <p className="text-xs text-on-surface-faint">{t('sync.receive_from_device_desc')}</p>
+        </div>
+      </button>
+
       {/* DEC-106 (P2P-13): statements received from paired owner devices */}
       <MirroredStatementsSection />
 

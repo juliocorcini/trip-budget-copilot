@@ -3,6 +3,7 @@ import {
   toCents,
   fromCents,
   formatMoney,
+  formatMoneyCompact,
   splitEqually,
   sumCents,
   percentOf,
@@ -25,6 +26,33 @@ describe('fromCents', () => {
     expect(fromCents(0)).toBe(0);
     expect(fromCents(10000)).toBe(100);
     expect(fromCents(1)).toBe(0.01);
+  });
+});
+
+describe('formatMoneyCompact (D-IMP-01 — calendar/heatmap cell labels)', () => {
+  it('shows whole units, no symbol, under 1k', () => {
+    expect(formatMoneyCompact(4600, 'en-US')).toBe('46');
+    expect(formatMoneyCompact(4600, 'pt-BR')).toBe('46');
+    expect(formatMoneyCompact(0, 'en-US')).toBe('0');
+    expect(formatMoneyCompact(99, 'en-US')).toBe('1'); // €0,99 rounds to 1
+  });
+
+  it('collapses thousands to "k" with one decimal only while it informs', () => {
+    expect(formatMoneyCompact(120000, 'en-US')).toBe('1.2k');
+    expect(formatMoneyCompact(120000, 'pt-BR')).toBe('1,2k');
+    expect(formatMoneyCompact(1200000, 'en-US')).toBe('12k'); // ≥10k drops the decimal
+    expect(formatMoneyCompact(99900000, 'en-US')).toBe('999k');
+  });
+
+  it('collapses millions to "M"', () => {
+    expect(formatMoneyCompact(100000000, 'en-US')).toBe('1M');
+    expect(formatMoneyCompact(150000000, 'pt-BR')).toBe('1,5M');
+  });
+
+  it('keeps the sign for negative values and never crosses the 1k boundary wrong', () => {
+    expect(formatMoneyCompact(-4600, 'en-US')).toBe('-46');
+    // €999,60 rounds to 1000 → must read as "1k", not "1.000".
+    expect(formatMoneyCompact(99960, 'en-US')).toBe('1k');
   });
 });
 

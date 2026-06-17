@@ -2,6 +2,7 @@ export {
   toCents,
   fromCents,
   formatMoney,
+  formatMoneyCompact,
   splitEqually,
   sumCents,
   percentOf,

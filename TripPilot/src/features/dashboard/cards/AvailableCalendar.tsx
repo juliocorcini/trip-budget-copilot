@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { formatMoney } from '@/domain/money';
+import { formatMoney, formatMoneyCompact } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import type { PhaseAllowanceDay, PhaseAllowanceMap } from '@/domain/phases';
 import { weekdayLetters, monthLabel } from './calendar-utils';
@@ -111,16 +111,29 @@ export function AvailableCalendar({ map, currency, selectedDayIso, onSelectDay }
                   }}
                   aria-label={`${day.dateIso}: ${formatMoney(day.dayTotalCents, currency)}`}
                 >
-                  <span
-                    className={`text-[10px] tabular ${
-                      intensity >= 1 ? 'font-bold text-on-surface' : 'font-medium text-on-surface-faint'
-                    }`}
-                  >
-                    {dom}
+                  {/* D-IMP-01: day number on top, the day's € total compact below
+                      so the value reads at a glance (no tap needed). */}
+                  <span className="flex flex-col items-center justify-center leading-none">
+                    <span
+                      className={`text-[8px] tabular ${
+                        intensity >= 1 ? 'font-semibold text-on-surface' : 'text-on-surface-faint'
+                      }`}
+                    >
+                      {dom}
+                    </span>
+                    {day.dayTotalCents > 0 && (
+                      <span
+                        className={`text-[9px] tabular leading-none mt-px ${
+                          intensity >= 1 ? 'font-bold text-on-surface' : 'font-medium text-on-surface-faint'
+                        }`}
+                      >
+                        {formatMoneyCompact(day.dayTotalCents, locale)}
+                      </span>
+                    )}
                   </span>
                   {day.planItems.length > 0 && (
                     <span
-                      className="absolute bottom-0.5 w-1 h-1 rounded-full"
+                      className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full"
                       style={{ background: 'var(--primary)' }}
                     />
                   )}

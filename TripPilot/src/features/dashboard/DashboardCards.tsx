@@ -1058,7 +1058,7 @@ export function DashboardCards({
         return (
           <>
             {/* §7 pos. 10 — RECENT EXPENSES */}
-            {model.recent.length > 0 && (
+            {model.recentFeed.length > 0 && (
               <div className="mt-5">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-semibold text-on-surface">{t('dashboard.recent_expenses')}</p>
@@ -1073,16 +1073,52 @@ export function DashboardCards({
                     not a tall wall of full-size cards. The complete list is one
                     tap away via "ver todos". FIELD R2 (F7): each row reads as a
                     relative day + wall-clock time ("Hoje 19:42 · Bar") so the
-                    most recent activity is legible at a glance. */}
+                    most recent activity is legible at a glance. D-BUG-13: a
+                    browsed session collapses into ONE "Bar · N itens" row here
+                    too (same rollup as the full list), never loose rounds. */}
                 <div className="bg-surface-container rounded-2xl divide-y divide-on-surface-mute">
-                  {model.recent.slice(0, 3).map((tx) => {
-                    const day = localDayOf(tx.date);
+                  {model.recentFeed.map((entry) => {
+                    const day = localDayOf(entry.date);
                     const dayLabel =
                       day === localDateString()
                         ? t('expenses.day_today')
                         : day === localDateString(new Date(Date.now() - 86_400_000))
                           ? t('expenses.day_yesterday')
                           : formatShortDate(day);
+                    if (entry.kind === 'session') {
+                      const { session, txs, totalCents } = entry;
+                      const isReceipt = txs.some((tx) => tx.externalRef?.startsWith('receipt:'));
+                      const profile = model.profiles.find((p) => p.id === session.activityProfileId);
+                      const icon = isReceipt
+                        ? 'receipt_long'
+                        : (profile?.iconName ?? getCategoryIcon(profile?.category ?? null));
+                      return (
+                        <button
+                          key={session.id}
+                          onClick={() => navigate(`/outings/${session.id}/review`)}
+                          className="w-full flex items-center gap-3 px-3.5 py-2.5 btn-press text-left"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-surface-high flex items-center justify-center shrink-0 relative">
+                            <Icon name={icon} size={16} className="text-on-surface-dim" />
+                            {isReceipt && (
+                              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
+                                <Icon name="auto_awesome" size={8} className="text-on-surface" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-on-surface truncate">{session.name}</p>
+                            <p className="text-[11px] text-on-surface-faint truncate">
+                              {dayLabel} · {t('expenses.outing_items', { count: txs.length })}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold tabular shrink-0 text-on-surface">
+                            {formatMoney(totalCents, txs[0]?.currency ?? trip.baseCurrency)}
+                          </p>
+                        </button>
+                      );
+                    }
+                    const tx = entry.tx;
                     return (
                       <button
                         key={tx.id}
@@ -1118,7 +1154,7 @@ export function DashboardCards({
               </div>
             )}
 
-            {model.recent.length === 0 && (
+            {model.recentFeed.length === 0 && (
               <div className="mt-5">
                 <div className="bg-surface-container rounded-xl p-6 text-center">
                   <Icon name="receipt_long" size={32} className="text-on-surface-mute mx-auto mb-2" />

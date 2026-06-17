@@ -6,7 +6,16 @@ import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitti
 import { formatMoney, fromCents, toCents, formatAnchorHint, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
 import { transactionRepository, participantShareRepository } from '@/data/repositories';
-import { softDeleteTransactionsBatch, restoreTransactionsBatch } from '@/domain/orchestrators';
+import {
+  softDeleteTransactionsBatch,
+  restoreTransactionsBatch,
+  linkExistingExpenseToPlannedPurchase,
+  undoLinkExistingExpense,
+} from '@/domain/orchestrators';
+import {
+  compatiblePlannedPurchasesForExpense,
+  plannedPurchaseReservedRemainingCents,
+} from '@/domain/planning/planned-purchases';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -15,6 +24,7 @@ import { AttachmentSection } from '@/features/attachments/AttachmentSection';
 import { PlaceField } from '@/features/location/PlaceField';
 import { placeToTransactionFields } from '@/domain/location';
 import type { Transaction } from '@/domain/types/transaction';
+import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { CurrentPlace } from '@/domain/types/common';
 
@@ -34,7 +44,7 @@ export function ExpenseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { trip, pools, wallets, participants, transactions, settings, loading, reload } =
+  const { trip, pools, wallets, participants, transactions, plannedPurchases, settings, loading, reload } =
     useAppData();
 
   const [tx, setTx] = useState<Transaction | null>(null);
@@ -43,6 +53,9 @@ export function ExpenseDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // D-IMP-03: link this already-recorded expense to a planned purchase, from the
+  // expense side (the reverse of the picker on the Planned Purchases screen).
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
 
   const [editAmount, setEditAmount] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -90,6 +103,17 @@ export function ExpenseDetailPage() {
 
   const pool = pools.find((p) => p.id === tx.budgetPoolId) ?? null;
   const wallet = wallets.find((w) => w.id === tx.walletId) ?? null;
+  // D-IMP-03: a single expense is attributed to at most one planned purchase.
+  // The link lives on the purchase (`linkedTransactionIds`), so we resolve both
+  // the current link and the compatible (same-fund, open, not-yet-linked here)
+  // candidates from the expense side. Income is never a planned-purchase buy.
+  const linkedPurchase =
+    tx.type === 'expense'
+      ? (plannedPurchases.find((p) => p.linkedTransactionIds.includes(tx.id)) ?? null)
+      : null;
+  const linkCandidates = linkedPurchase
+    ? []
+    : compatiblePlannedPurchasesForExpense(tx, plannedPurchases);
   const participantById = new Map(participants.map((p) => [p.id, p]));
   const payer = tx.paidByParticipantId ? participantById.get(tx.paidByParticipantId) : null;
   const owner = participants.find((p) => p.isOwner) ?? null;
@@ -168,6 +192,25 @@ export function ExpenseDetailPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // D-IMP-03: attribute THIS expense to a planned purchase — reuses the exact
+  // orchestrator the Planned screen uses (no new transaction, reserve shrinks
+  // once). Undo restores the pre-link purchase snapshot.
+  const handleLinkToPlanned = async (purchase: PlannedPurchase) => {
+    const result = await linkExistingExpenseToPlannedPurchase({ purchase, transaction: tx });
+    setLinkPickerOpen(false);
+    await reload();
+    showToast(t('planned.linked_toast'), 'success', {
+      actionLabel: t('common.undo'),
+      durationMs: 6000,
+      onTap: () => {
+        void undoLinkExistingExpense(result.previousPurchase).then(() => {
+          notifyAppDataChanged();
+          showToast(t('common.undo_done'), 'info');
+        });
+      },
+    });
   };
 
   // DEC-126: single delete goes through the same batch orchestrator (shares
@@ -298,6 +341,33 @@ export function ExpenseDetailPage() {
 
           {/* DEC-206 (G1): attach receipt/proof photos to this expense. */}
           <AttachmentSection transactionId={tx.id} />
+
+          {/* D-IMP-03: planned-purchase link from the expense side. */}
+          {linkedPurchase ? (
+            <button
+              onClick={() => navigate('/planned')}
+              className="w-full bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 btn-press text-left"
+            >
+              <div className="w-9 h-9 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                <Icon name="link" size={18} className="text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-on-surface-faint">{t('expenses.linked_planned_label')}</p>
+                <p className="text-sm font-semibold text-on-surface truncate">{linkedPurchase.name}</p>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          ) : (
+            linkCandidates.length > 0 && (
+              <button
+                onClick={() => setLinkPickerOpen(true)}
+                className="w-full py-2.5 rounded-xl bg-surface-container text-on-surface-dim font-semibold text-sm btn-press flex items-center justify-center gap-2"
+              >
+                <Icon name="link" size={18} className="text-on-surface-dim" />
+                {t('expenses.link_planned')}
+              </button>
+            )
+          )}
 
           <div className="flex gap-3">
             <button
@@ -450,6 +520,56 @@ export function ExpenseDetailPage() {
           </div>
         </>
       )}
+
+      {/* D-IMP-03: pick a compatible planned purchase for this expense. */}
+      <BottomSheet
+        open={linkPickerOpen}
+        onClose={() => setLinkPickerOpen(false)}
+        title={t('expenses.link_planned_sheet_title')}
+      >
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-on-surface-faint leading-relaxed mb-1">
+            {t('expenses.link_planned_hint')}
+          </p>
+          {linkCandidates.length === 0 ? (
+            <p className="text-sm text-on-surface-dim py-6 text-center">
+              {t('expenses.link_planned_empty')}
+            </p>
+          ) : (
+            linkCandidates.map((p) => {
+              const remaining = plannedPurchaseReservedRemainingCents(p, transactions);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleLinkToPlanned(p)}
+                  className="w-full text-left bg-surface-high rounded-lg px-3 py-2.5 btn-press flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+                      <Icon name={getCategoryIcon(p.category)} size={16} className="text-on-surface-dim" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-on-surface truncate">{p.name}</p>
+                      {p.store && (
+                        <p className="text-[11px] text-on-surface-faint mt-0.5 truncate">{p.store}</p>
+                      )}
+                    </div>
+                  </div>
+                  {p.reservedCents !== null ? (
+                    <p className="text-sm font-bold tabular text-primary shrink-0">
+                      {formatMoney(remaining, trip.baseCurrency)}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] font-semibold text-on-surface-faint shrink-0">
+                      {t('planned.tracking_badge')}
+                    </p>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </BottomSheet>
 
       {/* GAP-025: design-system confirmation instead of window.confirm */}
       <BottomSheet

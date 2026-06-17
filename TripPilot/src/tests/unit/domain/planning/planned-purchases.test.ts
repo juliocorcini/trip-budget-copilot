@@ -7,6 +7,7 @@ import {
   calculatePlannedPurchaseReserves,
   plannedPurchaseProgress,
   linkTransactionToPlannedPurchase,
+  compatiblePlannedPurchasesForExpense,
 } from '@/domain/planning/planned-purchases';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { Transaction } from '@/domain/types/transaction';
@@ -243,5 +244,40 @@ describe('linkTransactionToPlannedPurchase (DEC-175)', () => {
     pp = linkTransactionToPlannedPurchase(pp, 't3', txs);
     expect(pp.status).toBe('planned');
     expect(pp.linkedTransactionIds).toEqual(['t1', 't2', 't3']);
+  });
+});
+
+describe('compatiblePlannedPurchasesForExpense (D-IMP-03 — link from the expense side)', () => {
+  it('offers an open, same-fund purchase that has not linked this expense yet', () => {
+    const tx = mkTx('t1', 3000);
+    const here = mkPurchase({ id: 'a' });
+    const result = compatiblePlannedPurchasesForExpense(tx, [here]);
+    expect(result.map((p) => p.id)).toEqual(['a']);
+  });
+
+  it('excludes purchases in a different fund', () => {
+    const tx = mkTx('t1', 3000); // pool-1
+    const elsewhere = mkPurchase({ id: 'b', budgetPoolId: 'pool-2' });
+    expect(compatiblePlannedPurchasesForExpense(tx, [elsewhere])).toEqual([]);
+  });
+
+  it('excludes bought, cancelled and deleted purchases (not open)', () => {
+    const tx = mkTx('t1', 3000);
+    const bought = mkPurchase({ id: 'a', status: 'bought' });
+    const cancelled = mkPurchase({ id: 'b', status: 'cancelled' });
+    const deleted = mkPurchase({ id: 'c', deletedAt: '2026-01-03T00:00:00.000Z' });
+    expect(compatiblePlannedPurchasesForExpense(tx, [bought, cancelled, deleted])).toEqual([]);
+  });
+
+  it('excludes a purchase that already links this exact expense (no double-link)', () => {
+    const tx = mkTx('t1', 3000);
+    const already = mkPurchase({ id: 'a', linkedTransactionIds: ['t1'] });
+    const other = mkPurchase({ id: 'b', linkedTransactionIds: ['t9'] });
+    expect(compatiblePlannedPurchasesForExpense(tx, [already, other]).map((p) => p.id)).toEqual(['b']);
+  });
+
+  it('never offers a planned purchase for an income row', () => {
+    const income = { ...mkTx('t1', 3000), type: 'income' as const };
+    expect(compatiblePlannedPurchasesForExpense(income, [mkPurchase()])).toEqual([]);
   });
 });

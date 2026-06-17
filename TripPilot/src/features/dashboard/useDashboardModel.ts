@@ -19,12 +19,12 @@ import {
   calculatePiggyBank,
 } from '@/domain/budget';
 import {
-  getRecentTransactions,
   filterTransactionsByPool,
   calculateSpentOnDate,
 } from '@/domain/transactions';
 import { sumCents } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
+import { buildSessionFeed } from '@/features/expenses/expense-feed';
 import { splitMoneyDisplay } from './dashboard-format';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
@@ -227,7 +227,19 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
   const derived = useMemo(() => {
     const activePhase = resolveActivePhase(phases);
     const dayNum = activePhase ? getDayNumber(activePhase.startDate) : null;
-    const recent = getRecentTransactions(transactions, 5);
+    // D-BUG-13: roll up sessions in the Home preview exactly like the expenses
+    // list (a bar night reads as "Bar · N itens", not loose rounds). Built over
+    // ALL expenses so a session's count/total is complete, then sliced to 3.
+    const recentSessionById = new Map<string, Session>();
+    for (const s of completedSessions) recentSessionById.set(s.id, s);
+    if (activeSession) recentSessionById.set(activeSession.id, activeSession);
+    const recentFeed = buildSessionFeed(
+      transactions
+        .filter((tx) => tx.type === 'expense' && tx.deletedAt === null)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+      recentSessionById,
+      true,
+    ).slice(0, 3);
 
     const linkedPools = pools.filter((p) => p.scope === 'linked_phases');
     const primaryPool = linkedPools[0];
@@ -588,7 +600,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       forecasts,
       activePhase,
       dayNum,
-      recent,
+      recentFeed,
       hasTransactions: transactions.length > 0,
       primaryPool,
       fts,

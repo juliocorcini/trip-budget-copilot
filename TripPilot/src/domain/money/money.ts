@@ -54,6 +54,40 @@ export function formatMoney(
   }
 }
 
+// D-IMP-01: a tight, currency-symbol-less money label for calendar/heatmap cells
+// where a full "€46,00" never fits. Whole units under 1k ("46"), then "k"/"M"
+// with one decimal only while it adds information ("1,2k", "12k", "1,5M"). The
+// decimal separator follows the locale (pt/es comma, en dot). Never throws.
+const COMPACT_THOUSAND = 1000;
+const COMPACT_MILLION = 1_000_000;
+
+export function formatMoneyCompact(
+  cents: number,
+  locale: string = getActiveIntlLocale(),
+): string {
+  const sign = cents < 0 ? '-' : '';
+  const value = Math.abs(fromCents(cents));
+  const format = (n: number, maxFractionDigits: number): string => {
+    try {
+      return new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: maxFractionDigits,
+      }).format(n);
+    } catch {
+      return maxFractionDigits === 0 ? String(Math.round(n)) : n.toFixed(maxFractionDigits);
+    }
+  };
+
+  const rounded = Math.round(value);
+  if (rounded < COMPACT_THOUSAND) return sign + format(rounded, 0);
+  if (value < COMPACT_MILLION) {
+    const thousands = value / COMPACT_THOUSAND;
+    return sign + format(thousands, thousands < 10 ? 1 : 0) + 'k';
+  }
+  const millions = value / COMPACT_MILLION;
+  return sign + format(millions, millions < 10 ? 1 : 0) + 'M';
+}
+
 export function splitEqually(totalCents: number, parts: number): number[] {
   if (parts <= 0) return [];
   const base = Math.floor(totalCents / parts);

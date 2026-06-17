@@ -475,7 +475,12 @@
     "delete_title": "Excluir gasto",
     "not_found": "Gasto não encontrado",
     "edited_toast": "Gasto atualizado",
-    "deleted_toast": "Gasto excluído"
+    "deleted_toast": "Gasto excluído",
+    "link_planned": "Vincular a uma compra planejada",
+    "link_planned_sheet_title": "Vincular este gasto",
+    "link_planned_hint": "Escolha a compra planejada que este gasto realiza. Não cria um novo gasto — só conta este aqui na compra.",
+    "link_planned_empty": "Nenhuma compra planejada compatível neste fundo.",
+    "linked_planned_label": "Conta na compra planejada"
   },
   "categories": {
     "bar": "Bar",

@@ -1,4 +1,4 @@
-import { formatMoney } from '@/domain/money';
+import { formatMoney, formatMoneyCompact } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import type { MonthHeatmap, HeatmapIntensity } from '@/domain/dashboard';
 import { weekdayLetters } from './calendar-utils';
@@ -67,12 +67,24 @@ export function HeatmapGrid({
             }}
             aria-label={`${day.dayIso}: ${formatMoney(day.totalCents, currency)}`}
           >
-            <span
-              className={`text-[10px] tabular ${
-                day.intensity >= 1 ? 'font-bold text-on-surface' : 'font-medium text-on-surface-faint'
-              }`}
-            >
-              {day.dayOfMonth}
+            {/* D-IMP-01: day number on top, the day's spend compact below. */}
+            <span className="flex flex-col items-center justify-center leading-none">
+              <span
+                className={`text-[8px] tabular ${
+                  day.intensity >= 1 ? 'font-semibold text-on-surface' : 'text-on-surface-faint'
+                }`}
+              >
+                {day.dayOfMonth}
+              </span>
+              {day.totalCents > 0 && (
+                <span
+                  className={`text-[9px] tabular leading-none mt-px ${
+                    day.intensity >= 1 ? 'font-bold text-on-surface' : 'font-medium text-on-surface-faint'
+                  }`}
+                >
+                  {formatMoneyCompact(day.totalCents, locale)}
+                </span>
+              )}
             </span>
           </button>
         );
