@@ -1408,6 +1408,19 @@
   3. Build pipeline always **copies the freshly built APK to `/mnt/c/Users/julio/Downloads/TripPilot-<version>.apk`** so it is one place away even if the in-app path is skipped.
 - **Guardrails**: honest — "one-tap install" (user still confirms in the OS dialog), never silent; no Play Services/FCM assumed; fully degrades to the existing "download link" when the installer is unavailable (older shells).
 
+### DEC-211 — Field Round 2 web waves A–E shipped (v0.59.0 → v0.63.0, OTA)
+- **Date**: 2026-06-17
+- **Status**: APPROVED & SHIPPED. Plan: `brain/documents/improvements-master-plan-2026-06-16-round2.md` (decisions locked in its §4; Wave F native was DEC-205). Per-wave detail in `src/dev-log.md`.
+- **Context**: Julio's second field list after the 0.50.0 native APK. Locked order F→A→B→C→D→E; non-negotiable **zero regression** (nothing removed — ÂNCORA 9; meta/cofrinho/renda-futura read-only — ÂNCORA 11; check-in never writes — ÂNCORA 12).
+- **Decision (delivered)**:
+  1. **Wave A (0.59.0)** — home/UX quick wins: global scrollbar hidden (FastScroller kept), BottomSheet drag-to-close, recent-expenses relative day/time, Amigo Sincero recolored by tone + `on_plan` hidden on home, Gastos swipe-bug fix, contextual+pinnable piggy bank, check-in fused into the hero, amigo/divisions not paired, **F10 interactive drag page transition**.
+  2. **Wave B (0.60.0)** — phase map: one card, two visible tabs ("Disponível por dia" calendar default + "Gastos por dia" heatmap, no auto-rotate); each day total = **free + reserved** with a tap-to-breakdown; math stays consistent with `calculateTodayFreeBudget`.
+  3. **Wave C (0.61.0)** — Settings as Samsung-style category list → focused subpages (global search kept); pair **by link** (`/pair#<identity>` open-and-confirm) + a Connections hub. Native App Links deferred to a device-verified native batch.
+  4. **Wave D (0.62.0)** — future vision: read-only **phase preview** ("dia 1") reusing the live allowance math + **planned income per phase** that feeds ONLY the projection (ÂNCORA 11 invariance proven by test).
+  5. **Wave E (0.63.0)** — smart Wise import, all three F16 intelligences, suggestion-only: **F16a** reimbursement bridge (link an incoming repayment to a near purchase → split + settle in one import), **F16b** create-phase inline for out-of-phase rows, **F16c** ticketing/festival category guess (Paylogic/Eventim/Tomorrowland → entertainment).
+- **Guardrails**: every wave gated on full unit suite + tsc + web build + E2E 33/33 + Playwright visual QA, then OTA deploy `--branch=master` (apex). Web/pure only → no new APK; `requiredNativeVersion` 0.50.0, `latestNativeVersion` 0.56.0 unchanged. Final state: **1139 tests / 127 files**, HEAD `09804cd`.
+- **Deferred (by design)**: native App Links for `/pair` + `/s/:id` (need device cert verification); F15 receive-`.csv` intent (native, next APK batch). F10 was delivered in Wave A per Julio's accept-the-cost decision.
+
 ---
 
 *New decisions will be added as the project progresses.*

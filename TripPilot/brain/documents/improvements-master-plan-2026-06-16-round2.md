@@ -193,4 +193,41 @@
 - Deploy `--branch=master` (apex serve version.json/apk/bundle). APK em `dist/trippilot.apk` + `/mnt/c/Users/julio/Downloads/TripPilot-0.50.0-debug.apk`. DEC-205.
 - `[device]` pendente: ler QR (câmera), salvar backup (cai em Downloads), rolar além do fim (sem esticar).
 
-### ⏭️ Próxima: Wave A (web, OTA) — F2 · F3 · F7 · F21 · F9 · F5 · F8 · F6 · F10.
+### ✅ Wave A — UX/home quick wins 0.59.0 (web, OTA) — ENTREGUE
+- F2 scrollbar global escondida (FastScroller mantido) · F3 BottomSheet arrasta-p/-fechar · F7 recentes com dia/hora relativos.
+- F21 Amigo Sincero recolorido por tom + `on_plan` escondido na home · F9 fix do bug de swipe em Gastos (lista curta → pager global).
+- F5 cofrinho contextual + fixável · F8 check-in fundido no hero (compacto/recolhível) · F6 amigo + divisões não pareados (tile `pending_shares`).
+- **F10 drag interativo completo** (dedo acompanha a transição de página) — Julio aceitou o custo; sem regressão de scroll/paging.
+- commit `b9155bb` · deploy `--branch=master` · screenshots Playwright OK.
+
+### ✅ Wave B — Mapa de fase 0.60.0 (web, OTA) — ENTREGUE
+- F20: total do dia = **livre + reservado** (domínio `dayTotalCents`/`maxDayTotalCents` + testes) consistente com `calculateTodayFreeBudget` (anti-regressão §5).
+- F4: mapa vira calendário/agenda; tocar no dia abre o breakdown.
+- F22: **1 card, 2 abas visíveis** ("Disponível por dia" padrão + "Gastos por dia" heatmap), **sem** auto-alternar.
+- i18n pt/en/es · 1106 testes · commit `9d6de17` · deploy apex · screenshots OK.
+
+### ✅ Wave C — Configurações Samsung + pareamento por link 0.61.0 (web, OTA) — ENTREGUE
+- F11: Configurações como lista de categorias (ícone+título+descrição) → subpáginas, com busca global.
+- F19-web: rota `/pair` (decodifica identidade + confirma ao abrir) + copiar/compartilhar + **hub de conexões** repaginado.
+- i18n pt/en/es · 1115 testes · commit `716f420` · deploy apex · screenshots OK.
+- `[deferred]` F19 App Links (link nativo) → 2º APK (depende da rota `/pair`, já entregue).
+
+### ✅ Wave D — Visão de futuro 0.62.0 (web, OTA) — ENTREGUE
+- F17: **renda planejada por fase** que alimenta SÓ a projeção (ÂNCORA 11 provada por teste de invariância do free-to-spend).
+- F18: **prévia read-only de fase** ("dia 1") reusando a matemática viva de allowance.
+- i18n pt/en/es · 1123 testes · commit `6550006` · deploy apex · screenshots OK.
+
+### ✅ Wave E — Import Wise inteligente 0.63.0 (web, OTA) — ENTREGUE
+- F16c: `guessCategory` reconhece bilheteiras/festivais (Paylogic, Eventim, Ticketmaster, Tomorrowland…) → `entertainment`.
+- F16a: **ponte de reembolso** — `detectReimbursementBridges` (puro) liga uma entrada de reembolso a uma compra próxima (valor ≤ compra, janela ±21d, 1:1 guloso); `commitWiseImport` ganha `ownerId` + `bridges` → registra a compra como dividida (share já `confirmed`) e a entrada correspondente quita a dívida no mesmo import. UI "Sugestões inteligentes" + sheet de confirmação (escolher/criar pessoa) + badge "Dividido c/".
+- F16b: `WiseImportDraft.inPhase` (via `findActivePhase` estrito) revela banner fora-de-fase → sheet criar-fase → re-classifica (seleção/transfer/bridge preservados).
+- i18n pt/en/es · **1139 testes / 127 arquivos** · E2E 33/33 · commit `09804cd` · deploy apex · screenshots Playwright OK.
+- `[deferred]` F15 (receber `.csv` por intent) → próximo lote nativo.
+
+---
+
+## 7. Fechamento (2026-06-17)
+
+**Todas as waves da Rodada 2 entregues** (F nativo + A·B·C·D·E web/OTA). Versão final **0.63.0** (apex `trippilot.pages.dev`, bundle OTA para o APK 0.50.0). Qualidade final: **1139 testes verdes / 127 arquivos**, tsc 0, build limpo, **E2E 33/33**. Brain atualizado: **DEC-211** (waves web A–E) + `project-status.md` + `src/dev-log.md`.
+
+**Pendências por design (próximo APK nativo):** F15 (intent `.csv`), F19 App Links (`/pair`+`/s/:id`), F14 parte que depende da permissão de localização nativa.
