@@ -1096,6 +1096,8 @@
     "in_place": "at {{place}}",
     "add_place": "Add a place",
     "place_title": "Outing place",
+    "place_search_placeholder": "Search or name the place",
+    "place_no_matches": "No known place — save \"{{query}}\" as new.",
     "end_button": "End",
     "personal_spent": "Personal spending",
     "comfort_remaining": "You can still spend comfortably: {{amount}}",

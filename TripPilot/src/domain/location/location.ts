@@ -1,5 +1,6 @@
 import type { CurrentPlace } from '@/domain/types/common';
 import type { Transaction } from '@/domain/types/transaction';
+import type { NearbyPlace } from './nearby';
 
 export interface Coords {
   lat: number;
@@ -199,6 +200,91 @@ export function deriveRecentPlaces(
   }
 
   return list.slice(0, limit);
+}
+
+/**
+ * F14: a place option offered while choosing the current/outing place. Unifies
+ * the online "nearby" results with the offline "recent" history into a single
+ * searchable list so the location affordance behaves the same in the expense
+ * quick-add and in the active outing.
+ */
+export interface PlaceSuggestion {
+  label: string;
+  lat: number | null;
+  lng: number | null;
+  placeId: string | null;
+  /** Distance to the current position, when known (else null). */
+  distanceMeters: number | null;
+  /** Where the option came from — drives the icon (pin vs history). */
+  source: 'nearby' | 'recent';
+}
+
+/** Accent-insensitive, lower-cased, trimmed — mirrors the import/suggestion search. */
+function normalizePlaceQuery(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** Dedupe key: a stable provider id, else the normalized label. */
+function suggestionKey(placeId: string | null, label: string): string {
+  return placeId ?? normalizePlaceQuery(label);
+}
+
+/**
+ * F14: builds the unified, searchable place-picker list. Nearby establishments
+ * (online, nearest-first) come before places reused from history (offline);
+ * de-dupes by provider id / normalized label (nearby wins), drops the
+ * already-selected place, and — when a query is typed — keeps only
+ * accent-insensitive substring matches, so the SAME field both searches the
+ * known places and (via the caller's manual save) names a brand-new one. Pure:
+ * no GPS, no network; callers pass both lists pre-sorted and their order is kept.
+ */
+export function buildPlaceSuggestions(
+  nearby: NearbyPlace[],
+  recent: RecentPlace[],
+  query: string,
+  currentLabel: string | null = null,
+  limit = 8,
+): PlaceSuggestion[] {
+  const q = normalizePlaceQuery(query);
+  const currentKey = currentLabel === null ? null : normalizePlaceQuery(currentLabel);
+  const seen = new Set<string>();
+  const out: PlaceSuggestion[] = [];
+
+  const consider = (suggestion: PlaceSuggestion): void => {
+    const key = suggestionKey(suggestion.placeId, suggestion.label);
+    if (seen.has(key)) return;
+    if (currentKey !== null && key === currentKey) return;
+    if (q !== '' && !normalizePlaceQuery(suggestion.label).includes(q)) return;
+    seen.add(key);
+    out.push(suggestion);
+  };
+
+  for (const place of nearby) {
+    consider({
+      label: place.label,
+      lat: place.lat,
+      lng: place.lng,
+      placeId: place.placeId,
+      distanceMeters: place.distanceMeters,
+      source: 'nearby',
+    });
+  }
+  for (const place of recent) {
+    consider({
+      label: place.label,
+      lat: place.lat,
+      lng: place.lng,
+      placeId: place.placeId,
+      distanceMeters: place.distanceMeters,
+      source: 'recent',
+    });
+  }
+
+  return out.slice(0, limit);
 }
 
 /**

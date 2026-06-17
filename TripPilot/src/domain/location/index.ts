@@ -6,10 +6,11 @@ export {
   placesEqual,
   toCurrentPlace,
   deriveRecentPlaces,
+  buildPlaceSuggestions,
   aggregateByPlace,
   DEFAULT_REASK_THRESHOLD_METERS,
 } from './location';
-export type { Coords, TransactionPlaceFields, RecentPlace, PlaceTotal } from './location';
+export type { Coords, TransactionPlaceFields, RecentPlace, PlaceTotal, PlaceSuggestion } from './location';
 export {
   osmFiltersForCategory,
   buildOverpassQuery,

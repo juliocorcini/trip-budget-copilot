@@ -38,11 +38,17 @@ import { createExpenseTransaction } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
-import { placeToTransactionFields, shouldReaskPlace, coordsLabel } from '@/domain/location';
-import type { NearbyPlace, Coords } from '@/domain/location';
+import {
+  placeToTransactionFields,
+  shouldReaskPlace,
+  coordsLabel,
+  deriveRecentPlaces,
+  buildPlaceSuggestions,
+  formatDistanceShort,
+} from '@/domain/location';
+import type { NearbyPlace, Coords, RecentPlace, PlaceSuggestion } from '@/domain/location';
 import { getCurrentCoords } from '@/utils/geolocation';
-import { searchNearbyPlaces, isOnline } from '@/utils/places';
-import { NearbyPlaceList } from '@/components/NearbyPlaceList';
+import { searchNearbyPlaces, reverseGeocodePlace, isOnline } from '@/utils/places';
 import { createCustomActivityProfile, isProfileEnabledInPhase } from '@/domain/profiles';
 import { createPlannedOccurrence } from '@/domain/planning';
 import {
@@ -180,7 +186,7 @@ export function OutingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, wallets, participants, settings, loading, error, retry, reload: reloadAppData } = useAppData();
+  const { trip, phases, pools, wallets, participants, settings, transactions, loading, error, retry, reload: reloadAppData } = useAppData();
 
   const [session, setSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
@@ -398,18 +404,47 @@ export function OutingPage() {
     await reloadAppData();
   };
 
-  // M4 (nearby): pick one of the auto-listed nearby establishments (full coords).
-  const handlePickOutingPlace = async (nearby: NearbyPlace) => {
+  // F14: set the sticky place from any picker option — a nearby establishment
+  // (online) or a place reused from history (offline). Same write path for both.
+  const handlePickOutingPlace = async (pick: {
+    label: string;
+    lat: number | null;
+    lng: number | null;
+    placeId: string | null;
+  }) => {
     await appSettingsRepository.update({
-      currentPlace: { label: nearby.label, lat: nearby.lat, lng: nearby.lng, placeId: nearby.placeId },
+      currentPlace: { label: pick.label, lat: pick.lat, lng: pick.lng, placeId: pick.placeId },
     });
     await reloadAppData();
+  };
+
+  // F14: resolve a real name for the current GPS fix (opt-in, online-only —
+  // never blocks; offline/no-fix simply does nothing and the manual name stays).
+  const handleFindOutingPlaceName = async (): Promise<void> => {
+    if (outingGpsCoords === null || !isOnline()) return;
+    const result = await reverseGeocodePlace(outingGpsCoords);
+    if (result === null) return;
+    await handlePickOutingPlace({
+      label: result.label,
+      lat: outingGpsCoords.lat,
+      lng: outingGpsCoords.lng,
+      placeId: result.placeId,
+    });
   };
 
   const handleClearOutingPlace = async () => {
     await appSettingsRepository.update({ currentPlace: null });
     await reloadAppData();
   };
+
+  // F14: places reused from history (offline, no network) — ordered by proximity
+  // to the current GPS fix when known, else by recency. Memoized so the session
+  // timer's re-renders don't re-scan every transaction.
+  const outingRecentPlaces = useMemo<RecentPlace[]>(
+    () => (locationEnabled ? deriveRecentPlaces(transactions, outingGpsCoords) : []),
+    [locationEnabled, transactions, outingGpsCoords],
+  );
+  const canFindOutingPlaceName = locationEnabled && outingGpsCoords !== null && isOnline();
 
   // DEC-120 (R-11): permission asked at the FIRST session start, with an
   // explanation sheet — never on app boot.
@@ -1276,7 +1311,10 @@ export function OutingPage() {
         locationEnabled={locationEnabled}
         nearbyPlaces={outingNearby}
         loadingNearby={loadingOutingNearby}
-        onPickNearby={handlePickOutingPlace}
+        recentPlaces={outingRecentPlaces}
+        onPickPlace={handlePickOutingPlace}
+        canFindPlaceName={canFindOutingPlaceName}
+        onFindPlaceName={handleFindOutingPlaceName}
         onRenamePlace={handleRenameOutingPlace}
         onClearPlace={handleClearOutingPlace}
         anchorConfig={
@@ -2019,8 +2057,14 @@ interface ActiveSessionProps {
   /** E8 (M4): nearby establishments for the session category (nearest first). */
   nearbyPlaces: NearbyPlace[];
   loadingNearby: boolean;
-  /** E8 (M4): pick a nearby establishment (sets label + coords + placeId). */
-  onPickNearby: (place: NearbyPlace) => void;
+  /** F14: places reused from history (offline, no network). */
+  recentPlaces: RecentPlace[];
+  /** F14: pick any place option — nearby or recent (sets label + coords + id). */
+  onPickPlace: (place: { label: string; lat: number | null; lng: number | null; placeId: string | null }) => void;
+  /** F14: whether the online name lookup is available (GPS fix + connection). */
+  canFindPlaceName: boolean;
+  /** F14: resolve a real name for the current GPS fix (opt-in, online-only). */
+  onFindPlaceName: () => Promise<void>;
   /** E8 (M6): rename/clear the sticky place from the header. */
   onRenamePlace: (label: string) => void;
   onClearPlace: () => void;
@@ -2040,13 +2084,16 @@ interface ActiveSessionProps {
   onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, onPickNearby, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, photosSlot, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, recentPlaces, onPickPlace, canFindPlaceName, onFindPlaceName, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, photosSlot, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
   const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | 'round' | 'place' | null>(null);
-  // E8 (M6): draft for renaming/typing the session place.
+  // E8 (M6) / F14: the place field doubles as a free-text SEARCH (filters the
+  // suggestions) and as the manual NAME used when saving a brand-new place.
   const [placeDraft, setPlaceDraft] = useState('');
+  // F14: loading state for the opt-in online name lookup.
+  const [findingName, setFindingName] = useState(false);
   const [sheetAmount, setSheetAmount] = useState('');
   const [negativeConfirmed, setNegativeConfirmed] = useState(false);
   const [editValuesDraft, setEditValuesDraft] = useState<string[]>([]);
@@ -2092,9 +2139,10 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
     setActiveSheet('round');
   };
 
-  // E8 (M6): edit/clear the sticky place for the active session.
+  // E8 (M6) / F14: open the place sheet empty so it reads as a search box
+  // (full nearby + recent lists shown); typing both filters and names.
   const openPlaceSheet = () => {
-    setPlaceDraft(place?.label ?? '');
+    setPlaceDraft('');
     setActiveSheet('place');
   };
 
@@ -2107,6 +2155,32 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
     onClearPlace();
     closeSheet();
   };
+
+  // F14: pick any suggestion (nearby or recent) — sets the sticky place + closes.
+  const pickPlaceSuggestion = (suggestion: PlaceSuggestion) => {
+    onPickPlace(suggestion);
+    closeSheet();
+  };
+
+  // F14: opt-in online name lookup with a local busy state (never blocks).
+  const findPlaceNameNow = async () => {
+    if (findingName) return;
+    setFindingName(true);
+    try {
+      await onFindPlaceName();
+      closeSheet();
+    } finally {
+      setFindingName(false);
+    }
+  };
+
+  // F14: the unified, searchable picker list shared with the expense flow.
+  const placeSuggestions = buildPlaceSuggestions(
+    nearbyPlaces,
+    recentPlaces,
+    placeDraft,
+    place?.label ?? null,
+  );
 
   const handleSaveQuickValues = () => {
     const parsed = editValuesDraft.map(parseAmountToCents);
@@ -2728,24 +2802,73 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
       {/* E8 (M6): edit/clear the sticky place for the active session */}
       <BottomSheet open={activeSheet === 'place'} onClose={closeSheet} title={t('outing.place_title')}>
         <div className="flex flex-col gap-3">
-          {/* M4 (nearby): the session category's nearby establishments, nearest
-              first. Picking one sets the sticky place (label + coords). */}
-          <NearbyPlaceList
-            places={nearbyPlaces}
-            loading={loadingNearby}
-            onPick={(np) => {
-              onPickNearby(np);
-              closeSheet();
-            }}
-          />
+          {/* F14: the field doubles as a free-text SEARCH (filters the suggestions
+              below) and as the manual NAME used when saving a brand-new place —
+              the same place intelligence as the expense quick-add. */}
           <input
             type="text"
             value={placeDraft}
             onChange={(e) => setPlaceDraft(e.target.value)}
-            placeholder={t('expenses.location_name_placeholder')}
+            placeholder={t('outing.place_search_placeholder')}
             className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2.5 outline-none w-full"
             autoFocus
           />
+
+          {/* F14: nearby still loading and nothing to show yet. */}
+          {loadingNearby && placeSuggestions.length === 0 && placeDraft.trim() === '' && (
+            <p className="flex items-center gap-1.5 text-[11px] text-on-surface-faint">
+              <Icon name="travel_explore" size={12} className="text-on-surface-faint" />
+              {t('expenses.location_searching_nearby')}
+            </p>
+          )}
+
+          {/* F14: unified suggestions — nearby establishments (pin) first, then
+              places reused from history (clock). One tap sets the sticky place. */}
+          {placeSuggestions.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {placeSuggestions.map((suggestion) => (
+                <button
+                  key={`${suggestion.source}:${suggestion.placeId ?? suggestion.label}`}
+                  onClick={() => pickPlaceSuggestion(suggestion)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-high btn-press text-left"
+                >
+                  <Icon
+                    name={suggestion.source === 'nearby' ? 'location_on' : 'history'}
+                    size={14}
+                    className="text-on-surface-faint shrink-0"
+                  />
+                  <span className="text-xs text-on-surface-dim flex-1 truncate">{suggestion.label}</span>
+                  {suggestion.distanceMeters !== null && (
+                    <span className="text-[10px] text-on-surface-faint shrink-0 tabular">
+                      {formatDistanceShort(suggestion.distanceMeters)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* F14: typed a name no known place matches → it is saved as new. */}
+          {placeDraft.trim() !== '' && placeSuggestions.length === 0 && !loadingNearby && (
+            <p className="text-[11px] text-on-surface-faint">
+              {t('outing.place_no_matches', { query: placeDraft.trim() })}
+            </p>
+          )}
+
+          {/* F14: resolve a real name for the current GPS fix (opt-in, online). */}
+          {canFindPlaceName && (
+            <button
+              onClick={findPlaceNameNow}
+              disabled={findingName}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-high btn-press disabled:opacity-50 self-start"
+            >
+              <Icon name="travel_explore" size={14} className="text-on-surface-dim" />
+              <span className="text-xs text-on-surface-dim">
+                {findingName ? t('expenses.location_searching') : t('expenses.location_find_online')}
+              </span>
+            </button>
+          )}
+
           <button
             onClick={confirmPlace}
             disabled={placeDraft.trim() === ''}

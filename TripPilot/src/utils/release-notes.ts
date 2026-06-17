@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.64.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Local da saída ativa agora tem a mesma inteligência do registro de gasto: além dos lugares próximos, aparecem os lugares que você já usou (funciona offline) e dá pra pesquisar digitando o nome.',
+        'O campo de local virou busca: digite para filtrar os lugares conhecidos ou para nomear um lugar novo na hora.',
+        'Botão "buscar nome (online)" para resolver o nome do ponto onde você está.',
+      ],
+      en: [
+        'The active outing place now has the same intelligence as the expense flow: on top of nearby places, it shows places you have used before (works offline) and lets you search by typing the name.',
+        'The place field became a search box: type to filter the known places or to name a brand-new one on the spot.',
+        'A "find name (online)" button resolves the name of where you currently are.',
+      ],
+      es: [
+        'El lugar de la salida activa ahora tiene la misma inteligencia que el registro de gasto: además de los lugares cercanos, muestra los lugares que ya usaste (funciona sin conexión) y permite buscar escribiendo el nombre.',
+        'El campo de lugar se volvió un buscador: escribe para filtrar los lugares conocidos o para nombrar uno nuevo al instante.',
+        'Botón "buscar nombre (en línea)" para resolver el nombre del punto donde estás.',
+      ],
+    },
+  },
+  {
     version: '0.63.0',
     date: '2026-06-17',
     items: {

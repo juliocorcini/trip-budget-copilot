@@ -1096,6 +1096,8 @@
     "in_place": "en {{place}}",
     "add_place": "Agregar lugar",
     "place_title": "Lugar de la salida",
+    "place_search_placeholder": "Buscar o nombrar el lugar",
+    "place_no_matches": "Ningún lugar conocido — guardar \"{{query}}\" como nuevo.",
     "end_button": "Finalizar",
     "personal_spent": "Gasto personal",
     "comfort_remaining": "Aún puedes gastar con tranquilidad: {{amount}}",

@@ -1,8 +1,8 @@
 {
-  "version": "0.63.0",
+  "version": "0.64.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.63.0.zip",
-  "notes": "Importação Wise mais inteligente: quando alguém te paga de volta logo depois de uma compra (Bianca +100 perto de Paylogic −150), o app sugere vincular — registra a compra como dividida e quita a dívida de uma vez. Reconhece bilheterias/festivais (Paylogic, Eventim…) como ingresso. E se uma compra cair fora de qualquer fase, dá pra criar a fase ali na hora (ex.: Tomorrowland)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.64.0.zip",
+  "notes": "Local da saída ativa com a mesma inteligência do registro de gasto: além dos lugares próximos, agora aparecem os lugares que você já usou (mesmo offline) e dá pra pesquisar por nome — é só digitar pra filtrar ou nomear um lugar novo. Botão 'buscar nome (online)' para resolver o ponto atual."
 }
