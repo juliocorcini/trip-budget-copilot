@@ -9,3 +9,4 @@ export * from './migration-payload';
 export * from './mirrored';
 export * from './share-link';
 export * from './share-response';
+export * from './pair-link';

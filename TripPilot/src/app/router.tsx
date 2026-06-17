@@ -40,6 +40,7 @@ const WiseImportPage = lazyWithRetry(() => import('@/features/import/WiseImportP
 const ReceiptScanPage = lazyWithRetry(() => import('@/features/receipt/ReceiptScanPage').then(m => ({ default: m.ReceiptScanPage })));
 const SharedLinkPage = lazyWithRetry(() => import('@/features/shared/SharedLinkPage').then(m => ({ default: m.SharedLinkPage })));
 const SharedWithMePage = lazyWithRetry(() => import('@/features/shared/SharedWithMePage').then(m => ({ default: m.SharedWithMePage })));
+const PairPage = lazyWithRetry(() => import('@/features/shared/PairPage').then(m => ({ default: m.PairPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -129,9 +130,14 @@ export const router = createBrowserRouter([
           { path: '/copiloto', element: <LazyRoute><CopilotPage /></LazyRoute> },
           { path: '/more', element: <Navigate to="/viagem" replace /> },
           { path: '/settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
+          // F11: a focused single-category settings subpage (Samsung-style).
+          { path: '/settings/c/:categoryId', element: <LazyRoute><SettingsPage /></LazyRoute> },
           { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
           { path: '/settings/dashboard', element: <LazyRoute><DashboardConfigPage /></LazyRoute> },
           { path: '/shared', element: <LazyRoute><SharedExpensesPage /></LazyRoute> },
+          // F19: device pairing via a shared link — the recipient (an owner with a
+          // trip) confirms before the sender's identity is paired into their trip.
+          { path: '/pair', element: <LazyRoute><PairPage /></LazyRoute> },
           { path: '/trip', element: <LazyRoute><TripOverviewPage /></LazyRoute> },
           { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },
           { path: '/wallets', element: <LazyRoute><WalletsPage /></LazyRoute> },

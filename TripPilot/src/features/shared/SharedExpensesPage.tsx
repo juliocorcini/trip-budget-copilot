@@ -34,6 +34,7 @@ import {
   decodeQrPayload,
   fitsInSingleQr,
   buildStatementPayload,
+  pairLinkFromEncoded,
 } from '@/domain/sync';
 import { getInstallationId } from '@/utils/entity-factory';
 import {
@@ -183,6 +184,35 @@ export function SharedExpensesPage() {
       showToast(t('sync.linked_done', { name: result.participant.name }), 'success');
     }
     await reload();
+  };
+
+  // F19: the same identity the QR encodes, shared as a `/pair` link so the other
+  // person can connect without a camera. `navigator.share` opens the OS share
+  // sheet when available; otherwise we fall back to the clipboard.
+  const canShareLink = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  const copyPairLink = async () => {
+    if (!myIdentityQr) return;
+    const url = pairLinkFromEncoded(window.location.origin, myIdentityQr);
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast(t('sync.link_copied'), 'success');
+    } catch {
+      showToast(t('sync.link_copy_failed'), 'danger');
+    }
+  };
+
+  const sharePairLink = async () => {
+    if (!myIdentityQr) return;
+    const url = pairLinkFromEncoded(window.location.origin, myIdentityQr);
+    try {
+      await navigator.share({ title: t('sync.share_link_title'), url });
+    } catch (err) {
+      // User dismissed the share sheet — nothing to do. Any other failure falls
+      // back to copying so the link is never lost.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      await copyPairLink();
+    }
   };
 
   const buildStatementForParticipant = (participant: Participant) => {
@@ -726,11 +756,39 @@ export function SharedExpensesPage() {
         })()}
       </BottomSheet>
 
-      {/* DEC-105: my identity QR */}
+      {/* DEC-105: my identity QR + F19: the same identity as a shareable link */}
       <BottomSheet open={showMyQr} onClose={() => setShowMyQr(false)} title={t('sync.my_qr')}>
         <div className="flex flex-col gap-3">
           <QrCodeDisplay value={myIdentityQr} />
           <p className="text-xs text-on-surface-dim text-center">{t('sync.my_qr_hint')}</p>
+
+          {/* F19: no camera? send a link instead — opens straight to the
+              pairing confirmation on the other device. */}
+          <div className="flex items-center gap-2 pt-1">
+            <div className="flex-1 h-px bg-[var(--border-faint)]" />
+            <span className="text-[10px] uppercase tracking-wider text-on-surface-faint">
+              {t('sync.or_share_link')}
+            </span>
+            <div className="flex-1 h-px bg-[var(--border-faint)]" />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={copyPairLink}
+              className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface font-medium text-sm btn-press flex items-center justify-center gap-2"
+            >
+              <Icon name="content_copy" size={16} className="text-primary" />
+              {t('sync.copy_link')}
+            </button>
+            {canShareLink && (
+              <button
+                onClick={sharePairLink}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-on-surface font-medium text-sm btn-press flex items-center justify-center gap-2"
+              >
+                <Icon name="share" size={16} />
+                {t('sync.share_link')}
+              </button>
+            )}
+          </div>
         </div>
       </BottomSheet>
 

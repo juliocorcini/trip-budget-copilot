@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.61.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Configurações repaginadas (estilo Samsung): em vez de uma lista enorme, agora são categorias. Toque numa categoria pra abrir só ela, numa subpágina focada — nada foi removido, tudo continua a um toque.',
+        'A busca continua no topo das configurações e mostra na hora as opções que combinam com o que você digitou.',
+        'Conectar com outra pessoa por link: além do QR, dá pra "Copiar link" (ou compartilhar) em Pessoas e dívidas. A outra pessoa abre o link, confirma "conectar com o aparelho de fulano?" e pronto.',
+        'Atalho de Conexões dentro de Backup e segurança, pra achar tudo de "meus dados e meus aparelhos" no mesmo lugar.',
+      ],
+      en: [
+        'Settings, redesigned (Samsung-style): instead of one huge list, it is now categories. Tap a category to open just it, in a focused subpage — nothing was removed, everything is still one tap away.',
+        'Search stays at the top of Settings and instantly shows the options that match what you type.',
+        'Connect with someone via a link: besides the QR, you can now "Copy link" (or share) in People & debts. The other person opens the link, confirms "connect with so-and-so\'s device?" and that is it.',
+        'A Connections shortcut inside Backup & security, so everything about "my data and my devices" lives in one place.',
+      ],
+      es: [
+        'Ajustes renovados (estilo Samsung): en vez de una lista enorme, ahora son categorías. Toca una categoría para abrir solo esa, en una subpágina enfocada — no se quitó nada, todo sigue a un toque.',
+        'La búsqueda sigue arriba en Ajustes y muestra al instante las opciones que coinciden con lo que escribes.',
+        'Conectar con alguien por enlace: además del QR, ahora puedes "Copiar enlace" (o compartir) en Personas y deudas. La otra persona abre el enlace, confirma "¿conectar con el dispositivo de fulano?" y listo.',
+        'Un acceso a Conexiones dentro de Copia y seguridad, para tener todo de "mis datos y mis dispositivos" en un mismo lugar.',
+      ],
+    },
+  },
+  {
     version: '0.60.0',
     date: '2026-06-17',
     items: {

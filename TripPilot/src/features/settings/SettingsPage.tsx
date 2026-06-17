@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository, localSnapshotRepository } from '@/data/repositories';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
@@ -57,72 +57,81 @@ const ANCHOR_CURRENCY_OPTIONS = ['BRL', 'USD', 'EUR', 'GBP'];
 // FIELD item 4: the long flat list became hard to use. Groups are now
 // collapsible accordions + a search field. Keywords are intentionally
 // multilingual (pt/en/es) so search finds an option regardless of UI language.
-const SETTINGS_GROUPS: { id: string; labelKey: string; keywords: string }[] = [
+// F11: settings are organized as a category list (Samsung-style). Each category
+// is a tappable card on `/settings` that opens a focused subpage at
+// `/settings/c/:id`. `keywords` powers the global search on the list page; `icon`
+// and `descKey` drive the category card.
+const SETTINGS_GROUPS: {
+  id: string;
+  labelKey: string;
+  descKey: string;
+  icon: string;
+  keywords: string;
+}[] = [
   {
     id: 'preferences',
     labelKey: 'settings.group_preferences',
+    descKey: 'settings.cat_desc_preferences',
+    icon: 'tune',
     keywords:
       'modo mode simples simple completo complete tema theme escuro dark claro light idioma language lingua moeda currency vibração vibration tom alerta tone amigo sincero',
   },
   {
     id: 'notifications',
     labelKey: 'settings.group_notifications',
+    descKey: 'settings.cat_desc_notifications',
+    icon: 'notifications',
     keywords:
       'notificação notificacao notification notificaciones saída ativa outing salida localização location ubicacion gps lugar place',
   },
   {
     id: 'money',
     labelKey: 'settings.group_money',
+    descKey: 'settings.cat_desc_money',
+    icon: 'payments',
     keywords:
       'âncora ancora anchor câmbio cambio fx taxa rate cotação meta economia savings goal objetivo ahorro guardar dinheiro casa',
   },
   {
     id: 'home',
     labelKey: 'settings.group_home',
+    descKey: 'settings.cat_desc_home',
+    icon: 'home',
     keywords:
       'template modelo plantilla viagem trip cards card home início inicio tela screen configurar dashboard organizar',
   },
   {
     id: 'data_security',
     labelKey: 'settings.group_data_security',
+    descKey: 'settings.cat_desc_data_security',
+    icon: 'shield',
     keywords:
-      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar caixa postal mailbox mensagens messages sincronizar sync worker pareamento nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items',
+      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar caixa postal mailbox mensagens messages sincronizar sync worker pareamento nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items conexão conexao connection conectar link',
   },
   {
     id: 'device',
     labelKey: 'settings.group_device',
+    descKey: 'settings.cat_desc_device',
+    icon: 'smartphone',
     keywords:
       'dispositivo device aparelho nome name carteira wallet billetera padrão default quick add atalho valores armazenamento storage persistência',
   },
   {
     id: 'about',
     labelKey: 'settings.group_about',
+    descKey: 'settings.cat_desc_about',
+    icon: 'info',
     keywords:
       'versão version atualização update actualizar sobre about app instalar install informações',
   },
 ];
 
-const SETTINGS_GROUPS_OPEN_KEY = 'tp.settingsGroupsOpen';
-
-function readSettingsGroupsOpen(): Record<string, boolean> {
-  try {
-    return JSON.parse(localStorage.getItem(SETTINGS_GROUPS_OPEN_KEY) || '{}') as Record<string, boolean>;
-  } catch {
-    return {};
-  }
-}
-
-function writeSettingsGroupsOpen(state: Record<string, boolean>): void {
-  try {
-    localStorage.setItem(SETTINGS_GROUPS_OPEN_KEY, JSON.stringify(state));
-  } catch {
-    // localStorage unavailable (private mode) — collapse state is non-critical.
-  }
-}
-
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  // F11: when a category is open (`/settings/c/:categoryId`) we render only that
+  // category's sections; the bare `/settings` route shows the category list.
+  const { categoryId } = useParams<{ categoryId?: string }>();
   const { settings, wallets, trip, phases, reload } = useAppData();
   const [quickAddInput, setQuickAddInput] = useState('');
   // M22: saving a template loads the trip's profiles on demand (not in useAppData).
@@ -500,8 +509,20 @@ export function SettingsPage() {
     baseCurrency,
   );
 
+  // F11: an unknown category id falls back to the list (defensive against a
+  // stale/typo'd deep link). `isSubpage` toggles the focused single-category view.
+  const activeCategory = categoryId && SETTINGS_GROUPS.some((g) => g.id === categoryId)
+    ? categoryId
+    : null;
+  const isSubpage = activeCategory !== null;
+  const activeGroup = activeCategory
+    ? SETTINGS_GROUPS.find((g) => g.id === activeCategory)
+    : null;
+
   // FIELD item 4: a group's props (label + multilingual keywords) — single
-  // source shared by the rendered accordions and the "no results" check.
+  // source shared by the rendered sections and the "no results" check. F11 adds
+  // `activeCategory` so each group renders only when it is the open subpage (or
+  // when it matches the live search on the list page).
   const groupProps = (id: string) => {
     const group = SETTINGS_GROUPS.find((g) => g.id === id);
     return {
@@ -509,77 +530,105 @@ export function SettingsPage() {
       label: group ? t(group.labelKey as never) : id,
       keywords: group?.keywords ?? '',
       query,
+      activeCategory,
     };
   };
   const normalizedQuery = query.trim().toLowerCase();
+  const searching = normalizedQuery.length > 0;
   const noSearchResults =
-    normalizedQuery.length > 0 &&
+    searching &&
     !SETTINGS_GROUPS.some(
       (g) =>
         t(g.labelKey as never).toLowerCase().includes(normalizedQuery) ||
         g.keywords.toLowerCase().includes(normalizedQuery),
     );
+  // F11: the category cards shown on the bare `/settings` route.
+  const categories = SETTINGS_GROUPS.map((g) => ({
+    id: g.id,
+    label: t(g.labelKey as never),
+    desc: t(g.descKey as never),
+    icon: g.icon,
+  }));
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
-      {/* R5-08: same back-button header pattern as the other "More" subpages. */}
+      {/* R5-08 / F11: a category subpage backs to the category list; the list
+          backs to wherever the user came from. */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
+        <button
+          onClick={() => (isSubpage ? navigate('/settings') : navigate(-1))}
+          className="btn-press p-1"
+          aria-label={t('common.back')}
+        >
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
-        <h1 className="text-heading font-bold text-on-surface">{t('settings.title')}</h1>
+        <h1 className="text-heading font-bold text-on-surface">
+          {isSubpage && activeGroup ? t(activeGroup.labelKey as never) : t('settings.title')}
+        </h1>
       </div>
 
-      {/* G7: the gear is the catch-all menu now, so the feature guide gets a
-          prominent entry here — the main place users land to "find things". */}
-      <button
-        onClick={() => navigate('/guide')}
-        className="w-full flex items-center gap-3 btn-press text-left rounded-2xl p-4"
-        style={{ background: '#C75B3914', border: '1px solid #C75B3930' }}
-      >
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: '#C75B3920' }}
-        >
-          <Icon name="auto_awesome" size={20} className="text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-on-surface">{t('guide.title')}</p>
-          <p className="text-xs text-on-surface-dim leading-snug mt-0.5">{t('settings.guide_hint')}</p>
-        </div>
-        <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
-      </button>
-
-      {/* FIELD item 4: search across all settings groups (multilingual keywords). */}
-      <div className="relative">
-        <Icon
-          name="search"
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-faint pointer-events-none"
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('settings.search_placeholder')}
-          aria-label={t('settings.search_placeholder')}
-          className="w-full bg-surface-container text-on-surface text-sm rounded-xl pl-10 pr-9 py-3 outline-none"
-        />
-        {query && (
+      {/* F11: the guide, global search and category cards only exist on the bare
+          `/settings` list — a subpage is a single focused category. */}
+      {!isSubpage && (
+        <>
+          {/* G7: the gear is the catch-all menu now, so the feature guide gets a
+              prominent entry here — the main place users land to "find things". */}
           <button
-            onClick={() => setQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 btn-press p-0.5"
-            aria-label={t('common.clear')}
+            onClick={() => navigate('/guide')}
+            className="w-full flex items-center gap-3 btn-press text-left rounded-2xl p-4"
+            style={{ background: '#C75B3914', border: '1px solid #C75B3930' }}
           >
-            <Icon name="close" size={16} className="text-on-surface-faint" />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: '#C75B3920' }}
+            >
+              <Icon name="auto_awesome" size={20} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">{t('guide.title')}</p>
+              <p className="text-xs text-on-surface-dim leading-snug mt-0.5">{t('settings.guide_hint')}</p>
+            </div>
+            <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
           </button>
-        )}
-      </div>
 
-      {noSearchResults && (
-        <p className="text-sm text-on-surface-dim text-center py-6">
-          {t('settings.search_no_results', { query })}
-        </p>
+          {/* FIELD item 4: search across all settings groups (multilingual keywords). */}
+          <div className="relative">
+            <Icon
+              name="search"
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-faint pointer-events-none"
+            />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('settings.search_placeholder')}
+              aria-label={t('settings.search_placeholder')}
+              className="w-full bg-surface-container text-on-surface text-sm rounded-xl pl-10 pr-9 py-3 outline-none"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 btn-press p-0.5"
+                aria-label={t('common.clear')}
+              >
+                <Icon name="close" size={16} className="text-on-surface-faint" />
+              </button>
+            )}
+          </div>
+
+          {noSearchResults && (
+            <p className="text-sm text-on-surface-dim text-center py-6">
+              {t('settings.search_no_results', { query })}
+            </p>
+          )}
+
+          {/* F11: category cards (hidden while a search is active — search shows
+              the matching sections inline instead). */}
+          {!searching && (
+            <CategoryList categories={categories} onOpen={(id) => navigate(`/settings/c/${id}`)} />
+          )}
+        </>
       )}
 
       <CollapsibleGroup {...groupProps('preferences')}>
@@ -931,6 +980,16 @@ export function SettingsPage() {
           icon="download"
           label={t('more.export_csv')}
           onClick={() => navigate('/settings/backup?csv=true')}
+        />
+      </Section>
+
+      {/* F19: connections live next to backup so "my data + my devices" is one
+          hub. Pairing, links and the split ledger all open from here. */}
+      <Section title={t('settings.connections_title')}>
+        <LinkRow
+          icon="devices"
+          label={t('settings.connections_link')}
+          onClick={() => navigate('/shared')}
         />
       </Section>
 
@@ -1388,63 +1447,81 @@ export function SettingsPage() {
   );
 }
 
-// FIELD item 4: each settings group is a collapsible accordion. Collapsed by
-// default (persisted in localStorage) so the page reads as ~7 headers instead of
-// a wall of sections; while searching it force-expands and self-hides when the
-// query matches neither its label nor its (multilingual) keywords. Nothing is
-// ever removed — every option lives one tap (or one search) away (ÂNCORA 9).
+// F11: settings are a category list → focused subpages (Samsung-style). A group
+// renders its sections in exactly two situations: (1) it is the open subpage
+// (`activeCategory === id`), or (2) a live search on the list page matches its
+// label or its (multilingual) keywords — then it shows under a small header for
+// context. On the bare list with no search it renders nothing (the category
+// cards stand in). Nothing is ever removed — every option is one tap (or one
+// search) away (ÂNCORA 9).
 function CollapsibleGroup({
   id,
   label,
   keywords,
   query,
+  activeCategory,
   children,
 }: {
   id: string;
   label: string;
   keywords: string;
   query: string;
+  activeCategory: string | null;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState<boolean>(() => readSettingsGroupsOpen()[id] ?? false);
   const normalized = query.trim().toLowerCase();
   const searching = normalized.length > 0;
-  const matches =
-    !searching ||
-    label.toLowerCase().includes(normalized) ||
-    keywords.toLowerCase().includes(normalized);
 
-  if (searching && !matches) return null;
-
-  const expanded = searching ? true : open;
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    const state = readSettingsGroupsOpen();
-    state[id] = next;
-    writeSettingsGroupsOpen(state);
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <button
-        onClick={searching ? undefined : toggle}
-        disabled={searching}
-        aria-expanded={expanded}
-        className="w-full flex items-center justify-between px-1 mt-1 first:mt-0 btn-press"
-      >
-        <span className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider">
+  if (searching) {
+    const matches =
+      label.toLowerCase().includes(normalized) || keywords.toLowerCase().includes(normalized);
+    if (!matches) return null;
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1 mt-1 first:mt-0">
           {label}
-        </span>
-        {!searching && (
-          <Icon
-            name={expanded ? 'expand_less' : 'expand_more'}
-            size={18}
-            className="text-on-surface-faint"
-          />
-        )}
-      </button>
-      {expanded && <div className="flex flex-col gap-3">{children}</div>}
+        </p>
+        {children}
+      </div>
+    );
+  }
+
+  if (activeCategory === id) {
+    return <div className="flex flex-col gap-3">{children}</div>;
+  }
+
+  return null;
+}
+
+// F11: the tappable category cards rendered on the bare `/settings` route.
+function CategoryList({
+  categories,
+  onOpen,
+}: {
+  categories: { id: string; label: string; desc: string; icon: string }[];
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {categories.map((c) => (
+        <button
+          key={c.id}
+          onClick={() => onOpen(c.id)}
+          className="w-full flex items-center gap-3 btn-press text-left rounded-2xl p-4 bg-surface-container"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: '#C75B3914' }}
+          >
+            <Icon name={c.icon} size={20} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-on-surface">{c.label}</p>
+            <p className="text-xs text-on-surface-dim leading-snug mt-0.5">{c.desc}</p>
+          </div>
+          <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+        </button>
+      ))}
     </div>
   );
 }
