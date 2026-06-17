@@ -18,6 +18,8 @@ export type {
   DayPlanItemKind,
   BuildPhaseAllowanceMapInput,
 } from './allowance-map';
+export { buildPhasePreview } from './phase-preview';
+export type { PhasePreview, PhasePreviewInput } from './phase-preview';
 export {
   findEndedPhaseWithSuccessor,
   detectPhaseLeftover,

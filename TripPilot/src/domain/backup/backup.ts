@@ -187,6 +187,8 @@ export function normalizeBackupToV3(data: BackupData): BackupData {
       ...p,
       rhythmPreset: p.rhythmPreset ?? null,
       peakDays: p.peakDays ?? null,
+      // F17: planned income defaults to 0 for backups written before the field.
+      plannedIncomeCents: p.plannedIncomeCents ?? 0,
     })),
     plannedOccurrences: data.plannedOccurrences.map((o) => ({
       ...o,

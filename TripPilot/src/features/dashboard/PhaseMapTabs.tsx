@@ -149,22 +149,28 @@ export function PhaseMapTabs({ map, heatmap, currency, todayIso }: PhaseMapTabsP
 /**
  * F20: the open "why is today this much" — €X free + each reserve = €Y total.
  * The reserve already left `trueFree`; surfacing it here is display-only.
+ *
+ * F18: the phase preview reuses this same breakdown. There the first day is the
+ * phase's "day one", not the real today, so `hideToday` keeps the date label
+ * instead of the "Hoje" tag.
  */
-function DayBreakdown({
+export function DayBreakdown({
   day,
   currency,
   label,
+  hideToday = false,
 }: {
   day: PhaseAllowanceDay;
   currency: string;
   label: string;
+  hideToday?: boolean;
 }) {
   const { t } = useTranslation();
   return (
     <div className="mt-3 p-3 rounded-xl bg-surface-container">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-bold text-on-surface">
-          {day.isToday ? t('dashboard.day_map_today') : label}
+          {day.isToday && !hideToday ? t('dashboard.day_map_today') : label}
         </p>
         <p className="text-sm font-bold tabular text-on-surface">
           {formatMoney(day.dayTotalCents, currency)}

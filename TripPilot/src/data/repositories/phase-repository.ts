@@ -8,11 +8,14 @@ class PhaseRepository extends BaseRepository<Phase> {
   }
 
   async getByTripId(tripId: string): Promise<Phase[]> {
-    return this.table
+    const phases = await this.table
       .where('tripId')
       .equals(tripId)
       .filter((p) => p.deletedAt === null)
       .sortBy('order');
+    // F17: backfill the non-indexed planned-income field for rows written before
+    // it existed (ÂNCORA 14 — no migration), so callers always see a number.
+    return phases.map((p) => ({ ...p, plannedIncomeCents: p.plannedIncomeCents ?? 0 }));
   }
 }
 

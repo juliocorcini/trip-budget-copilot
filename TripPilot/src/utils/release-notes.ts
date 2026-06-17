@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.62.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Visão de futuro das fases: na Viagem, toque em "Ver prévia da fase" para planejar qualquer fase como se fosse o dia 1 — sem mexer no presente.',
+        '"Disponível por dia" da fase num calendário (igual ao do dia a dia): cada dia mostra quanto dá pra gastar, já com as reservas marcadas. Toque num dia pra ver o detalhe (livre + reservado).',
+        'Renda planejada por fase: informe aquele dinheiro que você SABE que vai entrar durante a fase (um reembolso, um salário). Ele entra só na visão de futuro da fase — nunca no seu "livre hoje".',
+      ],
+      en: [
+        'Future vision for phases: in Trip, tap "See phase preview" to plan any phase as if it were day one — without touching the present.',
+        'The phase\'s "available per day" as a calendar (like the day-to-day one): each day shows how much you can spend, with reserves already marked. Tap a day for the breakdown (free + reserved).',
+        'Planned income per phase: enter the money you KNOW will arrive during the phase (a reimbursement, a paycheck). It feeds only the phase\'s future vision — never your "free today".',
+      ],
+      es: [
+        'Visión de futuro de las fases: en Viaje, toca "Ver vista previa de la fase" para planificar cualquier fase como si fuera el día 1 — sin tocar el presente.',
+        'El "disponible por día" de la fase en un calendario (como el del día a día): cada día muestra cuánto puedes gastar, con las reservas ya marcadas. Toca un día para ver el desglose (libre + reservado).',
+        'Ingreso planificado por fase: indica ese dinero que SABES que llegará durante la fase (un reembolso, un sueldo). Alimenta solo la visión de futuro de la fase — nunca tu "libre de hoy".',
+      ],
+    },
+  },
+  {
     version: '0.61.0',
     date: '2026-06-17',
     items: {

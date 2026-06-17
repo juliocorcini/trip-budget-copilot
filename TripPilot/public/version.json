@@ -1,8 +1,8 @@
 {
-  "version": "0.61.0",
+  "version": "0.62.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.61.0.zip",
-  "notes": "Configurações estilo Samsung: a tela vira uma lista de categorias, cada uma abre numa subpágina focada (a busca global continua no topo). E conectar com outra pessoa ficou mais fácil — além do QR, agora dá pra mandar um link de conexão: a outra pessoa abre, confirma e pronto."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.62.0.zip",
+  "notes": "Visão de futuro das fases: abra qualquer fase (na Viagem) e veja, como se fosse o dia 1, quanto dá pra gastar por dia — num calendário, com as reservas já marcadas. E agora dá pra informar uma renda planejada por fase (aquele dinheiro que você SABE que vai entrar): ela entra só nessa visão de futuro e nunca mexe no seu livre de hoje."
 }

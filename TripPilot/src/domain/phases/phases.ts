@@ -20,6 +20,7 @@ export function createPhase(input: CreatePhaseInput): Phase {
     rhythmPreset: null,
     peakDays: null,
     notes: null,
+    plannedIncomeCents: 0,
   };
 }
 

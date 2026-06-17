@@ -26,6 +26,7 @@ const SimulatorPage = lazyWithRetry(() => import('@/features/simulator/Simulator
 const RescuePage = lazyWithRetry(() => import('@/features/rescue/RescuePage').then(m => ({ default: m.RescuePage })));
 const TripOverviewPage = lazyWithRetry(() => import('@/features/trip/TripOverviewPage').then(m => ({ default: m.TripOverviewPage })));
 const TripEditPage = lazyWithRetry(() => import('@/features/trip/TripEditPage').then(m => ({ default: m.TripEditPage })));
+const PhasePreviewPage = lazyWithRetry(() => import('@/features/phases/PhasePreviewPage').then(m => ({ default: m.PhasePreviewPage })));
 const WalletsPage = lazyWithRetry(() => import('@/features/wallets/WalletsPage').then(m => ({ default: m.WalletsPage })));
 const FundsPage = lazyWithRetry(() => import('@/features/funds/FundsPage').then(m => ({ default: m.FundsPage })));
 const PlannedPurchasesPage = lazyWithRetry(() => import('@/features/planned/PlannedPurchasesPage').then(m => ({ default: m.PlannedPurchasesPage })));
@@ -140,6 +141,9 @@ export const router = createBrowserRouter([
           { path: '/pair', element: <LazyRoute><PairPage /></LazyRoute> },
           { path: '/trip', element: <LazyRoute><TripOverviewPage /></LazyRoute> },
           { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },
+          // F17 + F18: read-only "future vision" preview of a phase (day-one
+          // projection + planned income), reached from the trip's phase list.
+          { path: '/phase-preview/:phaseId', element: <LazyRoute><PhasePreviewPage /></LazyRoute> },
           { path: '/wallets', element: <LazyRoute><WalletsPage /></LazyRoute> },
           { path: '/funds', element: <LazyRoute><FundsPage /></LazyRoute> },
           { path: '/planned', element: <LazyRoute><PlannedPurchasesPage /></LazyRoute> },

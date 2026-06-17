@@ -125,35 +125,48 @@ export function TripOverviewPage() {
               .reduce((sum, tx) => sum + tx.amountCents, 0);
 
             return (
-              // R-26: phase cards lead to the phase editor.
-              <button
+              <div
                 key={phase.id}
-                onClick={() => navigate('/trip/edit')}
-                className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
+                className="bg-surface-container rounded-xl p-4 w-full"
                 style={isCurrent ? { border: '1px solid #C75B3925' } : undefined}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-bold text-on-surface">{phase.name}</p>
-                    <p className="text-xs text-on-surface-faint mt-0.5">
-                      {formatDate(phase.startDate)} — {formatDate(phase.endDate)}
-                    </p>
+                {/* R-26: tapping the phase body opens the editor. */}
+                <button
+                  onClick={() => navigate('/trip/edit')}
+                  className="w-full text-left btn-press"
+                  aria-label={t('trip.edit_trip')}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">{phase.name}</p>
+                      <p className="text-xs text-on-surface-faint mt-0.5">
+                        {formatDate(phase.startDate)} — {formatDate(phase.endDate)}
+                      </p>
+                    </div>
+                    {isCurrent && (
+                      <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/15 text-primary">
+                        {t('trip.phase_active')}
+                      </span>
+                    )}
+                    {!isCurrent && isActive && (
+                      <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-warning/15 text-warning">
+                        {t('trip.phase_nearest')}
+                      </span>
+                    )}
                   </div>
-                  {isCurrent && (
-                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/15 text-primary">
-                      {t('trip.phase_active')}
-                    </span>
-                  )}
-                  {!isCurrent && isActive && (
-                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-warning/15 text-warning">
-                      {t('trip.phase_nearest')}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs font-semibold text-on-surface-dim mt-3">
-                  {t('trip.phase_spent', { amount: formatMoney(phaseSpent, trip.baseCurrency) })}
-                </p>
-              </button>
+                  <p className="text-xs font-semibold text-on-surface-dim mt-3">
+                    {t('trip.phase_spent', { amount: formatMoney(phaseSpent, trip.baseCurrency) })}
+                  </p>
+                </button>
+                {/* F18: future-vision preview of this phase (day-one projection). */}
+                <button
+                  onClick={() => navigate(`/phase-preview/${phase.id}`)}
+                  className="mt-3 pt-3 border-t border-[var(--border-faint)] w-full inline-flex items-center gap-1.5 text-xs font-semibold text-primary btn-press"
+                >
+                  <Icon name="calendar_month" size={14} className="text-primary" />
+                  {t('trip.phase_preview_cta')}
+                </button>
+              </div>
             );
           })}
         </div>
