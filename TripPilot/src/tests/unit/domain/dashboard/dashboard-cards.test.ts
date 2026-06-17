@@ -10,6 +10,10 @@ import {
   isDashboardCardPairable,
   isDashboardCardPaired,
   toggleDashboardCardPaired,
+  isDashboardCardContextual,
+  isDashboardCardPinned,
+  toggleDashboardCardPinned,
+  shouldRenderContextualCard,
   groupDashboardRows,
   moveDashboardCard,
   type DashboardCardId,
@@ -107,11 +111,15 @@ describe('pairable cards (2-up grid)', () => {
     expect(isDashboardCardPairable('piggy_bank')).toBe(true);
     expect(isDashboardCardPairable('planned_purchases')).toBe(true);
     expect(isDashboardCardPairable('funds_summary')).toBe(true);
+    // FIELD R2 item 6 (F6): the divisions card (count + value) is pairable too.
+    expect(isDashboardCardPairable('pending_shares')).toBe(true);
     // Rich cards and anchors stay full width.
     expect(isDashboardCardPairable('hero')).toBe(false);
     expect(isDashboardCardPairable('daily_checkin')).toBe(false);
     expect(isDashboardCardPairable('recent_expenses')).toBe(false);
     expect(isDashboardCardPairable('insights')).toBe(false);
+    // F6: the text-heavy amigo sincero is deliberately NOT pairable.
+    expect(isDashboardCardPairable('amigo_sincero')).toBe(false);
   });
 
   it('toggles a pairable card in and out of the opted-in set', () => {
@@ -176,6 +184,51 @@ describe('groupDashboardRows', () => {
       { kind: 'full', id: 'funds_summary' },
       { kind: 'full', id: 'piggy_bank' },
     ]);
+  });
+});
+
+// FIELD R2 item 5 (F5): contextual cards (piggy bank) — surfaced by the
+// check-in lens or a pin, never as permanent wallpaper.
+describe('contextual cards (F5)', () => {
+  it('marks only the piggy bank as contextual', () => {
+    expect(isDashboardCardContextual('piggy_bank')).toBe(true);
+    expect(isDashboardCardContextual('savings_goal')).toBe(false);
+    expect(isDashboardCardContextual('hero')).toBe(false);
+    expect(isDashboardCardContextual('occasion_counters')).toBe(false);
+  });
+
+  it('toggles a contextual card in and out of the pinned set', () => {
+    const pinned = toggleDashboardCardPinned('piggy_bank', []);
+    expect(pinned).toEqual(['piggy_bank']);
+    expect(isDashboardCardPinned('piggy_bank', pinned)).toBe(true);
+    expect(toggleDashboardCardPinned('piggy_bank', pinned)).toEqual([]);
+  });
+
+  it('only reports contextual cards as pinned', () => {
+    // A non-contextual id is never considered pinned even if present in the list.
+    expect(isDashboardCardPinned('savings_goal', ['savings_goal'])).toBe(false);
+    expect(isDashboardCardPinned('piggy_bank', undefined)).toBe(false);
+  });
+
+  it('is a no-op to pin a non-contextual card', () => {
+    expect(toggleDashboardCardPinned('savings_goal', [])).toEqual([]);
+    expect(toggleDashboardCardPinned('hero', ['hero'])).toEqual(['hero']);
+  });
+
+  it('always renders non-contextual cards regardless of focus/pin', () => {
+    expect(shouldRenderContextualCard('savings_goal', [], null)).toBe(true);
+    expect(shouldRenderContextualCard('hero', undefined, null)).toBe(true);
+  });
+
+  it('renders a contextual card only when focused or pinned', () => {
+    // Neither focused nor pinned → stays out of the permanent flow.
+    expect(shouldRenderContextualCard('piggy_bank', [], null)).toBe(false);
+    // The check-in lens spotlights it → it surfaces.
+    expect(shouldRenderContextualCard('piggy_bank', [], 'piggy_bank')).toBe(true);
+    // Pinned → it surfaces even without a lens focus.
+    expect(shouldRenderContextualCard('piggy_bank', ['piggy_bank'], null)).toBe(true);
+    // A focus on a different card does not surface the piggy bank.
+    expect(shouldRenderContextualCard('piggy_bank', [], 'occasion_counters')).toBe(false);
   });
 });
 

@@ -14,6 +14,7 @@ import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repos
 import {
   toggleDashboardCardHidden,
   toggleDashboardCardPaired,
+  toggleDashboardCardPinned,
   type DashboardCardId,
 } from '@/domain/dashboard';
 import { postponeOccurrence } from '@/domain/planning';
@@ -98,6 +99,16 @@ export function DashboardPage() {
   const handleTogglePairCard = async (id: DashboardCardId) => {
     await appSettingsRepository.update({
       dashboardPairedCards: toggleDashboardCardPaired(id, settings?.dashboardPairedCards),
+    });
+    setConfigCardId(null);
+    await reload();
+  };
+
+  // FIELD R2 item 5 (F5): pin/unpin a contextual card (the piggy bank) so it
+  // either lives permanently on the home or returns to lens-only surfacing.
+  const handleTogglePinCard = async (id: DashboardCardId) => {
+    await appSettingsRepository.update({
+      dashboardPinnedCards: toggleDashboardCardPinned(id, settings?.dashboardPinnedCards),
     });
     setConfigCardId(null);
     await reload();
@@ -465,7 +476,9 @@ export function DashboardPage() {
         onCloseConfig={() => setConfigCardId(null)}
         onHideCard={handleHideCard}
         onTogglePairCard={handleTogglePairCard}
+        onTogglePinCard={handleTogglePinCard}
         pairedCards={settings.dashboardPairedCards}
+        pinnedCards={settings.dashboardPinnedCards}
         heroBreakdownOpen={heroBreakdownOpen}
         onCloseHeroBreakdown={() => setHeroBreakdownOpen(false)}
         savingsGoalOpen={savingsGoalOpen}

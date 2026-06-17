@@ -22,8 +22,14 @@ export {
   buildHonestFriendV2,
   projectReserveStartDate,
   evaluateBorrowFromTomorrow,
+  getHonestFriendTone,
 } from './honest-friend';
-export type { HonestFriendV2, HonestFriendV2Input, BorrowFromTomorrow } from './honest-friend';
+export type {
+  HonestFriendV2,
+  HonestFriendV2Input,
+  BorrowFromTomorrow,
+  HonestFriendTone,
+} from './honest-friend';
 export { buildRescuePlan } from './rescue';
 export type {
   RescuePlan,

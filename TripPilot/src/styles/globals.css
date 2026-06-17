@@ -122,6 +122,20 @@
   }
 }
 
+/* FIELD R2 item 2 (F2): hide every native scrollbar app-wide — the content
+   stays fully scrollable, only the visual bar is gone. The Expenses day
+   FastScroller is a separate overlay (plain divs, not a native scrollbar), so
+   it is unaffected and remains the one visible scroll affordance. */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* FIELD R2 item 13: in the native shell, stop the scroll-chain bounce. The
    visible Android 12+ stretch glow is killed natively (WebView
    OVER_SCROLL_NEVER in MainActivity); this prevents nested overscroll bleed on

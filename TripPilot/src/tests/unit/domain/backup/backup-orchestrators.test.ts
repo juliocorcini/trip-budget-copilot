@@ -29,6 +29,7 @@ const settings: AppSettings = {
   hiddenDashboardCards: [],
   dashboardCardOrder: [],
   dashboardPairedCards: [],
+  dashboardPinnedCards: [],
   collapsedDashboardCards: [],
   outingNotificationEnabled: true,
   anchorCurrency: null,

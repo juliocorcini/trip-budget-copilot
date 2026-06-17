@@ -17,6 +17,36 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.59.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Tela inicial mais limpa: o check-in do dia agora é um controle discreto logo abaixo do "livre hoje" — toque pra abrir e trocar o clima do dia, sem ocupar um cartão inteiro. A barra de rolagem some pra não poluir.',
+        'Cofrinho na hora certa: ele aparece nos momentos calmos ou "sem gastos" e no copiloto, em vez de ficar sempre na tela. Quem gosta de ver sempre pode fixar nas opções do cartão.',
+        'Amigo sincero com cor por tom: fica verde quando está tudo dentro do plano (em vez de laranja de "alerta" o tempo todo) e some da home quando não há nada a ajustar.',
+        'Trocar de aba arrastando: a tela acompanha o dedo enquanto você arrasta de uma aba pra outra, com volta suave se desistir no meio.',
+        'Fechar cartão flutuante arrastando: puxe a alça do cartão pra baixo pra fechar.',
+        'Correções: o swipe na tela de Gastos não pula mais pra Início sem querer; divisões aguardando confirmação viram um bloco compacto; gastos recentes mostram "hoje/ontem" + horário.',
+      ],
+      en: [
+        'Cleaner home: the daily check-in is now a compact control right under "free today" — tap to open and switch the mood of the day, without taking a whole card. The scrollbar is hidden for a tidier look.',
+        'Piggy bank at the right moment: it shows up in calm or "no-spend" moments and in the copilot, instead of always sitting on screen. Prefer it always visible? Pin it from the card options.',
+        'Honest friend colored by tone: turns green when everything is on plan (instead of an "alert" orange all the time) and disappears from the home when there is nothing to adjust.',
+        'Drag to switch tabs: the screen follows your finger as you drag from one tab to the next, springing back if you change your mind.',
+        'Close a floating card by dragging: pull the card handle down to dismiss it.',
+        'Fixes: the swipe on the Expenses screen no longer jumps to Home by accident; pending splits become a compact tile; recent expenses show "today/yesterday" + time.',
+      ],
+      es: [
+        'Pantalla de inicio más limpia: el check-in del día ahora es un control discreto justo debajo de "libre hoy" — toca para abrir y cambiar el ánimo del día, sin ocupar una tarjeta entera. La barra de desplazamiento se oculta.',
+        'Alcancía en el momento justo: aparece en los momentos tranquilos o "sin gastos" y en el copiloto, en vez de estar siempre en pantalla. ¿La prefieres siempre visible? Fíjala en las opciones de la tarjeta.',
+        'Amigo sincero con color por tono: se pone verde cuando todo está dentro del plan (en lugar de un naranja de "alerta" todo el tiempo) y desaparece de la home cuando no hay nada que ajustar.',
+        'Cambiar de pestaña arrastrando: la pantalla sigue tu dedo mientras arrastras de una pestaña a otra, y vuelve suavemente si te arrepientes.',
+        'Cerrar una tarjeta flotante arrastrando: tira del asa de la tarjeta hacia abajo para cerrarla.',
+        'Correcciones: el swipe en la pantalla de Gastos ya no salta a Inicio sin querer; las divisiones pendientes se vuelven un bloque compacto; los gastos recientes muestran "hoy/ayer" + hora.',
+      ],
+    },
+  },
+  {
     version: '0.58.0',
     date: '2026-06-16',
     items: {

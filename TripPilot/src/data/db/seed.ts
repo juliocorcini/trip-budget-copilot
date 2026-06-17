@@ -33,6 +33,9 @@ export function createDefaultAppSettings(): AppSettings {
     dashboardCardOrder: [],
     // FIELD item 16: no cards paired into the 2-up grid until the traveler opts in.
     dashboardPairedCards: [],
+    // FIELD R2 item 5 (F5): contextual cards (piggy bank) are surfaced by the
+    // check-in lens by default — none pinned to always-on until the traveler opts in.
+    dashboardPinnedCards: [],
     // UX polish (D3): the read-only analytics drawer starts collapsed.
     collapsedDashboardCards: [...DEFAULT_COLLAPSED_CARDS],
     // DEC-124 (R-11 v2): outing notification opt-out lives in Settings.

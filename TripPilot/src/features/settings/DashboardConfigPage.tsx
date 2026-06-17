@@ -7,8 +7,11 @@ import {
   getDashboardCard,
   toggleDashboardCardHidden,
   toggleDashboardCardPaired,
+  toggleDashboardCardPinned,
   isDashboardCardPairable,
   isDashboardCardPaired,
+  isDashboardCardContextual,
+  isDashboardCardPinned,
   moveDashboardCard,
   type DashboardCardId,
 } from '@/domain/dashboard';
@@ -60,6 +63,15 @@ export function DashboardConfigPage() {
     );
   };
 
+  // FIELD R2 item 5 (F5): pin a contextual card so it always shows on the home.
+  const handleTogglePin = async (id: DashboardCardId) => {
+    setSettings(
+      await appSettingsRepository.update({
+        dashboardPinnedCards: toggleDashboardCardPinned(id, settings.dashboardPinnedCards),
+      }),
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4 pb-6 pt-2">
       <div className="flex items-center gap-3">
@@ -82,8 +94,17 @@ export function DashboardConfigPage() {
               className="bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3"
               style={isHidden ? { opacity: 0.55 } : undefined}
             >
-              <span className="text-sm font-semibold text-on-surface flex-1 min-w-0 truncate">
-                {t(card.labelKey as never)}
+              <span className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-semibold text-on-surface truncate">
+                  {t(card.labelKey as never)}
+                </span>
+                {/* FIELD R2 item 5 (F5): explain why a contextual card isn't always on. */}
+                {isDashboardCardContextual(id) &&
+                  !isDashboardCardPinned(id, settings.dashboardPinnedCards) && (
+                    <span className="text-[10px] font-semibold text-on-surface-faint truncate">
+                      {t('dashboard.card_contextual_hint')}
+                    </span>
+                  )}
               </span>
               {card.fixed ? (
                 <span className="flex items-center gap-1 text-[10px] font-bold text-on-surface-faint">
@@ -92,6 +113,29 @@ export function DashboardConfigPage() {
                 </span>
               ) : (
                 <div className="flex items-center gap-1">
+                  {/* FIELD R2 item 5 (F5): contextual cards can be pinned to always-on. */}
+                  {isDashboardCardContextual(id) && (
+                    <button
+                      onClick={() => handleTogglePin(id)}
+                      className="btn-press w-8 h-8 rounded-lg flex items-center justify-center bg-surface-high"
+                      aria-label={
+                        isDashboardCardPinned(id, settings.dashboardPinnedCards)
+                          ? t('dashboard.card_pin_off')
+                          : t('dashboard.card_pin_on')
+                      }
+                    >
+                      <Icon
+                        name="keep"
+                        size={14}
+                        filled={isDashboardCardPinned(id, settings.dashboardPinnedCards)}
+                        className={
+                          isDashboardCardPinned(id, settings.dashboardPinnedCards)
+                            ? 'text-primary'
+                            : 'text-on-surface-faint'
+                        }
+                      />
+                    </button>
+                  )}
                   {/* FIELD item 16: compact cards can opt into the 2-up grid. */}
                   {isDashboardCardPairable(id) && (
                     <button

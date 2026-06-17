@@ -36,6 +36,11 @@ export interface AppSettings {
    * grid, so two compact cards share a row. Empty = everything full width
    * (non-indexed — no migration). */
   dashboardPairedCards: string[];
+  /** FIELD R2 item 5 (F5): ids of CONTEXTUAL cards the traveler pinned so they
+   * always show on the home (e.g. the piggy bank, which is otherwise surfaced
+   * only by the calm/no-spend check-in lens). Empty = contextual-only
+   * (non-indexed — no migration). */
+  dashboardPinnedCards: string[];
   /** UX polish (D3): ids of dashboard cards collapsed to a header row (closed
    * drawer). Sibling of `hiddenDashboardCards`. undefined = use the default
    * collapsed set, so existing installs also open with the analytics drawer

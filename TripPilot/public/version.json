@@ -1,8 +1,8 @@
 {
-  "version": "0.58.0",
+  "version": "0.59.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.58.0.zip",
-  "notes": "Tempo real no link compartilhado: com a outra pessoa olhando o link, o que você atualiza aparece na hora no aparelho dela, com aviso. E quando ela confirma ou marca como pago, chega na hora pra você. Tudo criptografado ponta a ponta; se cair a conexão, nada se perde."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.59.0.zip",
+  "notes": "Tela inicial mais limpa e enxuta: o check-in do dia virou um controle discreto logo abaixo do 'livre hoje' (toque pra abrir e trocar) e a barra de rolagem some. Cofrinho aparece nos momentos certos (e dá pra fixar). Amigo sincero muda de cor pelo tom — verde quando está tudo no plano — e some da home quando não há nada a ajustar. Trocar de aba arrastando: a tela acompanha o dedo. Fechar cartão flutuante: arraste a alça pra baixo. Correções no swipe da tela de Gastos e gastos recentes com hoje/ontem + horário."
 }

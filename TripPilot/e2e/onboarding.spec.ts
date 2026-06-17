@@ -23,32 +23,21 @@ test.describe('Onboarding flow', () => {
     await createButton.click();
     await page.waitForURL('/onboarding');
 
-    const textInputs = page.locator('input[type="text"]');
-    await textInputs.first().fill('Europa 2026');
-    const dateInputs = page.locator('input[type="date"]');
-    await dateInputs.first().fill('2026-07-01');
-    await dateInputs.last().fill('2026-07-15');
+    // M16: the default path is the 1-question "quick" flow — only the amount and
+    // the end date are required, everything else is defaulted/optional.
+    await page.locator('input[type="number"]').first().fill('3000');
+    await page.locator('input[type="date"]').first().fill('2026-07-15');
+    await page.locator('input[type="text"]').first().fill('Europa 2026');
 
+    // The CTA only enables once amount + end date are present.
     const nextButton = page.getByRole('button', { name: /próximo|next/i });
+    await expect(nextButton).toBeEnabled();
     await nextButton.click();
 
-    // R5-05: phase details step (dates prefilled, rhythm optional) — skip.
-    await page.waitForTimeout(500);
-    await nextButton.click();
-
-    await page.waitForTimeout(500);
-    const amountInput = page.locator('input[type="number"]').first();
-    await amountInput.fill('3000');
-
-    // Steps: trip → phase → budget → owner → wallets (R5-05 / DEC-051).
-    await nextButton.click();
-    await page.waitForTimeout(500);
-    await nextButton.click();
-    await page.waitForTimeout(500);
-
-    const finishButton = page.getByRole('button', { name: /começar|finalizar|finish/i });
-    await expect(finishButton).toBeVisible({ timeout: 5000 });
-    await finishButton.click();
+    // Closing step: choose the UX mode — this is what finishes onboarding.
+    const simpleMode = page.getByRole('button', { name: /começar simples|simple/i });
+    await expect(simpleMode).toBeVisible({ timeout: 5000 });
+    await simpleMode.click();
 
     await page.waitForURL('/dashboard', { timeout: 15000 });
   });

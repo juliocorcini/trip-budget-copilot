@@ -19,25 +19,21 @@ test.describe('App navigation', () => {
     await expect(links).toHaveCount(5);
   });
 
-  test('should navigate to planner', async ({ page }) => {
-    const plannerTab = page.locator('nav').getByText(/planejar|planner/i);
-    await plannerTab.click();
-    await page.waitForURL('/planner');
+  test('should navigate to viagem', async ({ page }) => {
+    const viagemTab = page.locator('nav').getByText(/viagem|trip/i);
+    await viagemTab.click();
+    await page.waitForURL('/viagem');
   });
 
-  test('should navigate to more/settings', async ({ page }) => {
-    const moreTab = page.locator('nav button').last();
-    await moreTab.click();
-    await page.waitForURL('/more');
+  test('should navigate to copiloto', async ({ page }) => {
+    const copilotoTab = page.locator('nav').getByText(/copiloto|copilot/i);
+    await copilotoTab.click();
+    await page.waitForURL('/copiloto');
   });
 
-  test('should navigate to settings from more page', async ({ page }) => {
-    await page.goto('/more');
-    const settingsLink = page.getByText(/config/i);
-    if (await settingsLink.isVisible()) {
-      await settingsLink.click();
-      await page.waitForURL('/settings');
-    }
+  test('should open settings', async ({ page }) => {
+    await page.goto('/settings');
+    await expect(page).toHaveURL('/settings');
   });
 
   test('should navigate to simulator', async ({ page }) => {

@@ -293,7 +293,14 @@ export function ExpenseListPage() {
 
   return (
     <div
-      className={`flex flex-col gap-4 ${selection.active ? 'pb-24' : 'pb-4'}`}
+      // FIELD R2 item 9 (F9): the in-page swipe region must FILL the screen, not
+      // just hug a short list. Otherwise a swipe on the empty area below a short
+      // list lands on the AppShell's global pager (which ignores the sub-tab) and
+      // jumps to Início instead of handing off Saídas ⇠ Gastos. The min-height
+      // mirrors the AppShell content area (divided by --native-zoom for the
+      // native WebView; defaults to 1 on web — DEC note G7/N4), so the whole
+      // visible area belongs to this region's tab swipe.
+      className={`flex flex-col gap-4 min-h-[calc(100dvh/var(--native-zoom,1)-var(--safe-top)-var(--safe-bottom)-7rem)] ${selection.active ? 'pb-24' : 'pb-4'}`}
       data-inpage-swipe
       {...tabSwipe}
     >

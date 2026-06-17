@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { formatMoney } from '@/domain/money';
-import { formatShortDate, localDayOf } from '@/domain/dates';
+import { formatShortDate, localDayOf, localDateString, localClockTime } from '@/domain/dates';
 import { getCategoryIcon } from '@/utils/category-icons';
 import {
   resolveDashboardCardSequence,
   isDashboardCardHidden,
   isDashboardCardPaired,
+  shouldRenderContextualCard,
   groupDashboardRows,
   getDashboardCard,
   type DashboardCardId,
@@ -112,6 +113,9 @@ export function DashboardCards({
   // DEC-091 (R-09): swipe carousel of insights; DEC-076: occasion carousel page.
   const [insightIndex, setInsightIndex] = useState(0);
   const [carouselPage, setCarouselPage] = useState(0);
+  // FIELD R2 item 8 (F8): the check-in fused under the hero is compact — once a
+  // mode is chosen it collapses to a single chip; tapping it re-opens the picker.
+  const [checkInExpanded, setCheckInExpanded] = useState(false);
   const insightScrollRef = useRef<HTMLDivElement>(null);
   // M2: auto-rotation — paused (timestamp) while the user is interacting, and
   // gated by reduced-motion. Self-scrolls never re-pause (only pointer/wheel).
@@ -267,54 +271,113 @@ export function DashboardCards({
           </>
         );
       case 'daily_checkin': {
-        // M7 (E5): one-tap intent for the day — read-only context, never blocks.
-        // Optimistic: the tapped intent shows instantly (Gate E), then settles.
-        // `effectiveCheckInIntent` is hoisted to component scope (drives the lens).
+        // M7 (E5) + FIELD R2 item 8 (F8): the check-in is the lever that reframes
+        // the hero's "free today" (FIELD-17), so it sits right under the hero as a
+        // COMPACT, collapsible control instead of a tall card. Read-only context
+        // (ÂNCORA 12) — it never writes the budget; the optimistic echo settles via
+        // `effectiveCheckInIntent`. Once a mode is chosen the picker collapses to a
+        // single chip; tapping it re-opens the picker to switch.
+        const showPicker = !effectiveCheckInIntent || checkInExpanded;
+        const activeOption = effectiveCheckInIntent
+          ? (CHECK_IN_INTENT_CATALOG.find((o) => o.intent === effectiveCheckInIntent) ?? null)
+          : null;
         return (
-          <div className="mt-4 p-4 rounded-2xl bg-surface-container">
-            <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
-              {t('dashboard.checkin_title')}
-            </p>
-            <p className="text-[13px] font-semibold leading-snug mt-1 text-on-surface">
-              {effectiveCheckInIntent
-                ? t('dashboard.checkin_active', {
-                    intent: t(`dashboard.checkin_${effectiveCheckInIntent}`),
-                  })
-                : t('dashboard.checkin_prompt')}
-            </p>
-            <div className="flex gap-2 mt-3">
-              {CHECK_IN_INTENT_CATALOG.map((option) => {
-                const selected = effectiveCheckInIntent === option.intent;
-                return (
-                  <button
-                    key={option.intent}
-                    onClick={() => handleCheckInTap(option.intent)}
-                    aria-pressed={selected}
-                    className="flex-1 py-2.5 rounded-xl flex flex-col items-center gap-1 btn-press"
-                    style={{
-                      background: selected ? 'var(--primary)' : 'var(--surface-high)',
-                      border: selected ? '1px solid var(--primary)' : '1px solid var(--border-faint)',
-                    }}
-                  >
-                    <Icon
-                      name={option.icon}
-                      size={20}
-                      filled={selected}
-                      className={selected ? 'text-surface' : 'text-on-surface-dim'}
-                    />
-                    <span
-                      className={`text-[11px] font-bold ${selected ? 'text-surface' : 'text-on-surface-dim'}`}
+          <div className="mt-3 p-3 rounded-2xl bg-surface-container">
+            {showPicker ? (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                    {t('dashboard.checkin_title')}
+                  </p>
+                  {/* Changing an already-set mode: a way back to the chip. */}
+                  {effectiveCheckInIntent && (
+                    <button
+                      onClick={() => setCheckInExpanded(false)}
+                      className="btn-press -m-1 p-1"
+                      aria-label={t('common.close')}
                     >
-                      {t(option.labelKey as never)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                      <Icon name="expand_less" size={16} className="text-on-surface-faint" />
+                    </button>
+                  )}
+                </div>
+                {/* Only prompt before the first choice — once chosen the chips
+                    are self-explanatory, so the long prompt copy is dropped. */}
+                {!effectiveCheckInIntent && (
+                  <p className="text-[13px] font-semibold leading-snug mt-1 text-on-surface">
+                    {t('dashboard.checkin_prompt')}
+                  </p>
+                )}
+                <div className="flex gap-1.5 mt-2.5">
+                  {CHECK_IN_INTENT_CATALOG.map((option) => {
+                    const selected = effectiveCheckInIntent === option.intent;
+                    return (
+                      <button
+                        key={option.intent}
+                        onClick={() => {
+                          handleCheckInTap(option.intent);
+                          setCheckInExpanded(false);
+                        }}
+                        aria-pressed={selected}
+                        className="flex-1 py-2 rounded-xl flex flex-col items-center gap-0.5 btn-press"
+                        style={{
+                          background: selected ? 'var(--primary)' : 'var(--surface-high)',
+                          border: selected
+                            ? '1px solid var(--primary)'
+                            : '1px solid var(--border-faint)',
+                        }}
+                      >
+                        <Icon
+                          name={option.icon}
+                          size={18}
+                          filled={selected}
+                          className={selected ? 'text-surface' : 'text-on-surface-dim'}
+                        />
+                        <span
+                          className={`text-[10px] font-bold ${selected ? 'text-surface' : 'text-on-surface-dim'}`}
+                        >
+                          {t(option.labelKey as never)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              // Collapsed: one small chip naming the active mode; tap to switch.
+              <button
+                onClick={() => setCheckInExpanded(true)}
+                className="w-full flex items-center gap-2.5 btn-press text-left"
+                aria-label={t('dashboard.checkin_change')}
+              >
+                <span
+                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--primary)' }}
+                >
+                  <Icon
+                    name={activeOption?.icon ?? 'mood'}
+                    size={16}
+                    filled
+                    className="text-surface"
+                  />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                    {t('dashboard.checkin_title')}
+                  </span>
+                  <span className="block text-[13px] font-bold text-on-surface leading-tight truncate">
+                    {t('dashboard.checkin_active', {
+                      intent: t(`dashboard.checkin_${effectiveCheckInIntent}`),
+                    })}
+                  </span>
+                </span>
+                <Icon name="edit" size={14} className="text-on-surface-faint shrink-0" />
+              </button>
+            )}
             {/* The tap's RESULT: each mode turns the day's free money into a
                 DIFFERENT, concrete suggestion (light target / night reserve /
                 free pace). Read-only — never changes the budget. Keyed by intent
-                so it re-animates on each switch. */}
+                so it re-animates on each switch. Kept visible even when collapsed
+                so the lens connection to the hero + spotlighted card stays clear. */}
             {effectiveCheckInIntent &&
               model.todayBudget &&
               (() => {
@@ -325,7 +388,7 @@ export function DashboardCards({
                 return (
                   <div
                     key={effectiveCheckInIntent}
-                    className="checkin-reveal mt-3 pt-3"
+                    className="checkin-reveal mt-2.5 pt-2.5"
                     style={{ borderTop: '1px solid var(--border-faint)' }}
                   >
                     {/* FIELD-17: compact result. The mode's numbers now live on the
@@ -843,11 +906,14 @@ export function DashboardCards({
         return (
           <>
             {/* §7 pos. 8 — AMIGO SINCERO v2 (DEC-093 / R-11): plan-based.
-                Shared with the Copiloto via AmigoSinceroCard (one source). */}
+                Shared with the Copiloto via AmigoSinceroCard (one source).
+                FIELD R2 (F21): colored by tone; the Home hides the reassuring
+                "on plan" state so it only shows when there's something to act on. */}
             <AmigoSinceroCard
               amigo={model.amigoV2}
               currency={trip.baseCurrency}
               onSeeImpact={() => navigate('/impact')}
+              hideOnPlan
             />
           </>
         );
@@ -1005,29 +1071,40 @@ export function DashboardCards({
                 </div>
                 {/* FIELD-15: compact preview — one card with dense rows (max 3),
                     not a tall wall of full-size cards. The complete list is one
-                    tap away via "ver todos". */}
+                    tap away via "ver todos". FIELD R2 (F7): each row reads as a
+                    relative day + wall-clock time ("Hoje 19:42 · Bar") so the
+                    most recent activity is legible at a glance. */}
                 <div className="bg-surface-container rounded-2xl divide-y divide-on-surface-mute">
-                  {model.recent.slice(0, 3).map((tx) => (
-                    <button
-                      key={tx.id}
-                      onClick={() => navigate(`/expenses/${tx.id}`)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 btn-press text-left"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-surface-high flex items-center justify-center shrink-0">
-                        <Icon name={getCategoryIcon(tx.category)} size={16} className="text-on-surface-dim" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-on-surface truncate">{tx.description}</p>
-                        <p className="text-[11px] text-on-surface-faint truncate">
-                          {formatShortDate(localDayOf(tx.date))}
-                          {tx.category ? ` · ${t(`categories.${tx.category}` as never)}` : ''}
+                  {model.recent.slice(0, 3).map((tx) => {
+                    const day = localDayOf(tx.date);
+                    const dayLabel =
+                      day === localDateString()
+                        ? t('expenses.day_today')
+                        : day === localDateString(new Date(Date.now() - 86_400_000))
+                          ? t('expenses.day_yesterday')
+                          : formatShortDate(day);
+                    return (
+                      <button
+                        key={tx.id}
+                        onClick={() => navigate(`/expenses/${tx.id}`)}
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 btn-press text-left"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                          <Icon name={getCategoryIcon(tx.category)} size={16} className="text-on-surface-dim" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-on-surface truncate">{tx.description}</p>
+                          <p className="text-[11px] text-on-surface-faint truncate">
+                            {dayLabel} {localClockTime(tx.date)}
+                            {tx.category ? ` · ${t(`categories.${tx.category}` as never)}` : ''}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold tabular text-on-surface shrink-0">
+                          {formatMoney(tx.amountCents, tx.currency)}
                         </p>
-                      </div>
-                      <p className="text-sm font-semibold tabular text-on-surface shrink-0">
-                        {formatMoney(tx.amountCents, tx.currency)}
-                      </p>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1055,6 +1132,10 @@ export function DashboardCards({
         return Boolean(model.savingsGoal);
       case 'piggy_bank':
         return model.piggyBankCents > 0;
+      // FIELD R2 item 6 (F6): the divisions tile only pairs when there's a
+      // pending confirmation to surface (an empty one never leaves a blank half).
+      case 'pending_shares':
+        return model.hasPendingExpenses;
       case 'planned_purchases':
         return model.plannedPurchasesSummary.openCount > 0;
       case 'funds_summary':
@@ -1115,6 +1196,30 @@ export function DashboardCards({
             <p className="text-[10px] font-semibold text-on-surface-faint truncate">{t('dashboard.piggy_desc')}</p>
           </div>
         ) : null;
+      case 'pending_shares':
+        // FIELD R2 item 6 (F6): the divisions card as a compact tile — count of
+        // shares awaiting confirmation + their net impact, opening the same
+        // confirm sheet as the full card.
+        return model.hasPendingExpenses ? (
+          <button
+            onClick={onOpenConfirmSheet}
+            className={COMPACT_TILE_CLASS}
+            style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}
+          >
+            <div className="flex items-center gap-1.5">
+              <Icon name="group" size={15} className="text-warning" />
+              <span className="text-[10px] font-bold tracking-[0.08em] uppercase text-on-surface-faint truncate">
+                {t('dashboard.card_pending_shares')}
+              </span>
+            </div>
+            <p className="text-xl font-extrabold leading-none mt-0.5 tabular text-warning">
+              {model.pendingShares.length}
+            </p>
+            <p className="text-[10px] font-semibold truncate" style={{ color: '#D4A843aa' }}>
+              {formatMoney(model.pendingImpactCents, trip.baseCurrency)}
+            </p>
+          </button>
+        ) : null;
       case 'planned_purchases': {
         const planned = model.plannedPurchasesSummary;
         if (planned.openCount === 0) return null;
@@ -1171,8 +1276,14 @@ export function DashboardCards({
   // the check-in card, so what sits below it is the day's focus — not always the
   // piggy bank. Only repositions a card that is already visible (ÂNCORA 9 —
   // nothing is hidden or removed, just moved for the day).
+  // FIELD R2 item 5 (F5): contextual cards (the piggy bank) stay OUT of the
+  // permanent flow — they surface only when the day's lens spotlights them or
+  // the traveler pinned them, so the reward keeps its punch (ÂNCORA 12 — purely
+  // a framing/visibility decision, the amount itself never changes).
   let visibleSequence = cardSequence.filter(
-    (id) => !isDashboardCardHidden(id, settings.hiddenDashboardCards),
+    (id) =>
+      !isDashboardCardHidden(id, settings.hiddenDashboardCards) &&
+      shouldRenderContextualCard(id, settings.dashboardPinnedCards, activeFocusCardId),
   );
   if (
     activeFocusCardId &&

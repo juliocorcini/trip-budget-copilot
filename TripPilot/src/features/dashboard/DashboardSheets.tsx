@@ -10,6 +10,8 @@ import {
   getDashboardCard,
   isDashboardCardPairable,
   isDashboardCardPaired,
+  isDashboardCardContextual,
+  isDashboardCardPinned,
   type DashboardCardId,
 } from '@/domain/dashboard';
 import type { DashboardInsight } from '@/domain/insights';
@@ -38,6 +40,9 @@ interface DashboardSheetsProps {
   // FIELD item 16: opt a compact card in/out of the 2-up grid (share a row)
   onTogglePairCard: (id: DashboardCardId) => void;
   pairedCards: string[];
+  // FIELD R2 item 5 (F5): pin a contextual card (piggy bank) to the home flow
+  onTogglePinCard: (id: DashboardCardId) => void;
+  pinnedCards: string[];
   // DEC-168: "where this number comes from" — the hero's reconciling arithmetic
   heroBreakdownOpen: boolean;
   onCloseHeroBreakdown: () => void;
@@ -261,6 +266,8 @@ export function DashboardSheets({
   onHideCard,
   onTogglePairCard,
   pairedCards,
+  onTogglePinCard,
+  pinnedCards,
   heroBreakdownOpen,
   onCloseHeroBreakdown,
   savingsGoalOpen,
@@ -376,6 +383,25 @@ export function DashboardSheets({
                   {isDashboardCardPaired(configCard.id, pairedCards)
                     ? t('dashboard.card_pair_off')
                     : t('dashboard.card_pair_on')}
+                </span>
+              </button>
+            )}
+            {/* FIELD R2 item 5 (F5): contextual cards (piggy bank) can be pinned
+                so they stay on the home instead of only when the lens calls them. */}
+            {isDashboardCardContextual(configCard.id) && (
+              <button
+                onClick={() => onTogglePinCard(configCard.id)}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon
+                  name={isDashboardCardPinned(configCard.id, pinnedCards) ? 'keep_off' : 'keep'}
+                  size={18}
+                  className="text-primary"
+                />
+                <span className="text-sm font-semibold text-on-surface">
+                  {isDashboardCardPinned(configCard.id, pinnedCards)
+                    ? t('dashboard.card_pin_off')
+                    : t('dashboard.card_pin_on')}
                 </span>
               </button>
             )}

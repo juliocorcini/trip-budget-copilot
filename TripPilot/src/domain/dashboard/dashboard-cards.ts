@@ -41,6 +41,11 @@ export interface DashboardCardDescriptor {
    * rendering at half width, so two of them share a row (curated 2-up grid).
    * Rich cards (hero, check-in, carousels, recents) stay full width. */
   pairable?: boolean;
+  /** FIELD R2 item 5 (F5): card that does NOT belong in the permanent flow —
+   * it surfaces only when the day's context calls for it (the check-in lens),
+   * or when the traveler pins it. The piggy bank is the canonical example: a
+   * permanent reward becomes wallpaper and loses its effect. */
+  contextual?: boolean;
   quickAction: DashboardQuickAction | null;
 }
 
@@ -82,11 +87,14 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     },
   },
   {
-    // M15: piggy bank — accumulated under-spend (read-only).
+    // M15: piggy bank — accumulated under-spend (read-only). FIELD R2 (F5):
+    // contextual — shown by the calm/no-spend check-in lens (or when pinned),
+    // not permanently, so the reward stays a "moment" instead of wallpaper.
     id: 'piggy_bank',
     labelKey: 'dashboard.card_piggy_bank',
     fixed: false,
     pairable: true,
+    contextual: true,
     quickAction: null,
   },
   {
@@ -125,6 +133,10 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
     id: 'pending_shares',
     labelKey: 'dashboard.card_pending_shares',
     fixed: false,
+    // FIELD R2 item 6 (F6): the divisions card is a count + value — compact
+    // enough to opt into the 2-up grid (instead of pairing the text-heavy
+    // amigo sincero, which the council ruled out as illegible at half width).
+    pairable: true,
     quickAction: {
       route: '/shared',
       labelKey: 'dashboard.card_action_open_shared',
@@ -243,6 +255,44 @@ export function toggleDashboardCardCollapsed(
 /** FIELD item 16: only compact single-number cards may share a row. */
 export function isDashboardCardPairable(id: DashboardCardId): boolean {
   return getDashboardCard(id).pairable === true;
+}
+
+/** FIELD R2 item 5 (F5): contextual cards stay out of the permanent flow. */
+export function isDashboardCardContextual(id: DashboardCardId): boolean {
+  return getDashboardCard(id).contextual === true;
+}
+
+/** FIELD R2 item 5 (F5): did the traveler pin this contextual card to always-on? */
+export function isDashboardCardPinned(
+  id: DashboardCardId,
+  pinned: string[] | undefined,
+): boolean {
+  if (!isDashboardCardContextual(id)) return false;
+  return (pinned ?? []).includes(id);
+}
+
+/** FIELD R2 item 5 (F5): toggle a contextual card's pin (no-op for non-contextual). */
+export function toggleDashboardCardPinned(
+  id: DashboardCardId,
+  pinned: string[] | undefined,
+): string[] {
+  const current = pinned ?? [];
+  if (!isDashboardCardContextual(id)) return current;
+  return current.includes(id) ? current.filter((p) => p !== id) : [...current, id];
+}
+
+/**
+ * FIELD R2 item 5 (F5): should a contextual card render in the permanent flow?
+ * Yes when pinned, or when the day's check-in lens is spotlighting it. A
+ * non-contextual card always renders (this only gates contextual ones).
+ */
+export function shouldRenderContextualCard(
+  id: DashboardCardId,
+  pinned: string[] | undefined,
+  activeFocusCardId: DashboardCardId | null,
+): boolean {
+  if (!isDashboardCardContextual(id)) return true;
+  return activeFocusCardId === id || isDashboardCardPinned(id, pinned);
 }
 
 /** FIELD item 16: did the traveler opt this (pairable) card into the 2-up grid? */

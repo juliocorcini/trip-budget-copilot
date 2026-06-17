@@ -22,10 +22,16 @@ test.describe('Shared expenses confirmation + settle (DEC-071)', () => {
     const sheet = page.getByRole('dialog');
     await expect(sheet).toBeVisible();
     const confirmButtons = sheet.getByRole('button', { name: /^confirmar$/i });
-    const total = await confirmButtons.count();
-    for (let i = 0; i < total; i++) {
-      // List shrinks as shares get confirmed — always click the first remaining
+    // Wait for at least one share row to render before confirming — the model
+    // loads pending shares asynchronously, so a bare count() can race to zero.
+    await expect(confirmButtons.first()).toBeVisible();
+    // The list shrinks (and the model reloads) after each confirmation, so keep
+    // confirming the first remaining row and wait for the count to drop by one.
+    let remaining = await confirmButtons.count();
+    while (remaining > 0) {
       await confirmButtons.first().click();
+      await expect(confirmButtons).toHaveCount(remaining - 1);
+      remaining -= 1;
     }
 
     // Card must disappear once nothing is pending

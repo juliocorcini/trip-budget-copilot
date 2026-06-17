@@ -15,9 +15,10 @@ test.describe('Backup export/import round-trip (GAP-R2-009)', () => {
   test('export JSON then import the same file (merge)', async ({ page }) => {
     await page.goto('/settings/backup');
 
-    // Export → capture the downloaded file
+    // Export → capture the downloaded file. "Enviar backup" builds the full JSON
+    // and, on web, falls through to an anchor download (no Web Share in headless).
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: /exportar backup json/i }).click();
+    await page.getByRole('button', { name: /enviar backup/i }).click();
     const download = await downloadPromise;
     const filePath = await download.path();
     expect(filePath).toBeTruthy();

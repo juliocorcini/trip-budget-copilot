@@ -77,6 +77,34 @@ export type HonestFriendV2 =
     };
 
 /**
+ * FIELD R2 item 21 (F21): the honest-friend tone, so the card is colored by
+ * MEANING instead of always reading as the orange "alert" accent. The reserve
+ * date (the pace will start eating the protected reserve) is the strongest
+ * signal, so a `kind` that projects one escalates to `alert`.
+ *  - positive → within plan, or the phase slack absorbs the overflow (reassuring)
+ *  - caution  → over the category pace / over the plan, reserve still safe
+ *  - alert    → over plan/pace AND the pace projects into the protected reserve
+ *  - neutral  → no plan for the category (informational impact %, nothing to alarm)
+ */
+export type HonestFriendTone = 'positive' | 'caution' | 'alert' | 'neutral';
+
+export function getHonestFriendTone(amigo: HonestFriendV2): HonestFriendTone {
+  switch (amigo.kind) {
+    case 'on_plan':
+      return 'positive';
+    case 'over_pace':
+      if (amigo.overflowFitsPhase) return 'positive';
+      return amigo.reserveStartDate !== null ? 'alert' : 'caution';
+    case 'over_plan':
+      return amigo.reserveStartDate !== null ? 'alert' : 'caution';
+    case 'no_plan':
+      return 'neutral';
+    default:
+      return 'neutral';
+  }
+}
+
+/**
  * E2 (M12): "borrow from tomorrow" — an honest warning, never a block
  * (DEC-053). Triggered when a spend overflows TODAY's allowance but still
  * fits the phase's free-to-spend: the money has to come from another day.

@@ -33,6 +33,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     hiddenDashboardCards: [],
     dashboardCardOrder: [],
     dashboardPairedCards: [],
+    dashboardPinnedCards: [],
     collapsedDashboardCards: [],
     outingNotificationEnabled: true,
     anchorCurrency: null,

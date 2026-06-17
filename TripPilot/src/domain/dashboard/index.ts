@@ -10,6 +10,10 @@ export {
   isDashboardCardPairable,
   isDashboardCardPaired,
   toggleDashboardCardPaired,
+  isDashboardCardContextual,
+  isDashboardCardPinned,
+  toggleDashboardCardPinned,
+  shouldRenderContextualCard,
   groupDashboardRows,
   moveDashboardCard,
 } from './dashboard-cards';

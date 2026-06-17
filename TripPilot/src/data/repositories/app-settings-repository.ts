@@ -27,6 +27,8 @@ class AppSettingsRepository {
       dashboardCardOrder: settings.dashboardCardOrder ?? [],
       // FIELD item 16: records predating the 2-up grid have nothing paired.
       dashboardPairedCards: settings.dashboardPairedCards ?? [],
+      // FIELD R2 item 5 (F5): records predating contextual pinning have none.
+      dashboardPinnedCards: settings.dashboardPinnedCards ?? [],
       outingNotificationEnabled: settings.outingNotificationEnabled ?? true,
       anchorCurrency: settings.anchorCurrency ?? null,
       anchorRatePer1: settings.anchorRatePer1 ?? null,
