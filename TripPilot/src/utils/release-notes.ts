@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.71.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Corrigimos os links de compartilhar (divisão de gastos e conexão entre aparelhos): no app instalado eles vinham como "localhost" e não abriam — agora geram o endereço certo e funcionam.',
+        'Acabou o zoom que ficava preso ao tocar num campo no iPhone, a busca de gastos voltou a ter um só botão de limpar (×) e a barra de rolagem sumiu de novo dentro do app.',
+      ],
+      en: [
+        'Fixed share links (expense split and device pairing): in the installed app they came out as "localhost" and opened nowhere — now they build the right address and work.',
+        'No more stuck zoom when tapping a field on iPhone, the expenses search shows a single clear (×) button again, and the scrollbar is hidden again inside the app.',
+      ],
+      es: [
+        'Arreglamos los enlaces para compartir (división de gastos y conexión entre dispositivos): en la app instalada salían como "localhost" y no abrían — ahora generan la dirección correcta y funcionan.',
+        'Se acabó el zoom atascado al tocar un campo en iPhone, la búsqueda de gastos vuelve a tener un solo botón de limpiar (×) y la barra de desplazamiento se oculta de nuevo dentro de la app.',
+      ],
+    },
+  },
+  {
     version: '0.70.0',
     date: '2026-06-17',
     items: {

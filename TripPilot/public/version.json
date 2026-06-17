@@ -1,8 +1,8 @@
 {
-  "version": "0.70.0",
+  "version": "0.71.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.70.0.zip",
-  "notes": "Melhorias de estabilidade: criar um fundo com fases agora é salvo de uma vez só, sem risco de ficar pela metade se algo falhar no meio."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.71.0.zip",
+  "notes": "Os links de compartilhar (divisão e conexão entre aparelhos) voltaram a funcionar no app instalado — antes vinham como 'localhost' e não abriam."
 }

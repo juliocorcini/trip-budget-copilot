@@ -136,6 +136,16 @@ html {
   display: none;
 }
 
+/* D-BUG-14: a `type="search"` input renders a native clear (×) button in
+   WebKit/Chromium on top of our own clear button — two ×s. Suppress the native
+   one app-wide; the custom button stays the single clear affordance. */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 /* FIELD R2 item 13: in the native shell, stop the scroll-chain bounce. The
    visible Android 12+ stretch glow is killed natively (WebView
    OVER_SCROLL_NEVER in MainActivity); this prevents nested overscroll bleed on
@@ -157,6 +167,22 @@ html.cap-native {
 }
 html.cap-native #root {
   zoom: var(--native-zoom);
+}
+
+/* D-BUG-07: on some Android System WebView builds a `zoom`ed element re-exposes
+   its scrollbar because the bar is painted in the zoomed coordinate space and
+   the universal `::-webkit-scrollbar { display:none }` is not reliably applied
+   across that boundary. Re-assert the hide directly on the zoomed root (higher
+   specificity) so no native bar leaks back in. Real fix confirmation is
+   device-pending (Onda 5). */
+html.cap-native #root {
+  scrollbar-width: none;
+}
+html.cap-native #root::-webkit-scrollbar,
+html.cap-native #root *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import type { StatementPayload } from '@/domain/sync';
 import type { ShareLink } from '@/domain/types/share-link';
 import type { ShareSettleProposal } from '@/domain/sync';
 import { formatMoney } from '@/domain/money';
+import { getShareOrigin } from '@/utils/native/public-origin';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 
@@ -58,7 +59,7 @@ export function ShareLinkSheet({
       setLink(existing ?? null);
       if (existing) {
         const { buildShareUrl } = await import('@/domain/sync');
-        setUrl(buildShareUrl(window.location.origin, existing.id, existing.key));
+        setUrl(buildShareUrl(getShareOrigin(), existing.id, existing.key));
       }
       setLoading(false);
     })();
@@ -95,7 +96,7 @@ export function ShareLinkSheet({
       const { url: newUrl, shareLink } = await createShareLink(
         participantId,
         statement,
-        window.location.origin,
+        getShareOrigin(),
       );
       setLink(shareLink);
       setUrl(newUrl);

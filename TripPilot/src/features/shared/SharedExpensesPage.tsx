@@ -44,6 +44,7 @@ import {
   sendPayloadToPeerMailbox,
 } from '@/domain/orchestrators';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
+import { getShareOrigin } from '@/utils/native/public-origin';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
@@ -210,7 +211,7 @@ export function SharedExpensesPage() {
 
   const copyPairLink = async () => {
     if (!myIdentityQr) return;
-    const url = pairLinkFromEncoded(window.location.origin, myIdentityQr);
+    const url = pairLinkFromEncoded(getShareOrigin(), myIdentityQr);
     try {
       await navigator.clipboard.writeText(url);
       showToast(t('sync.link_copied'), 'success');
@@ -221,7 +222,7 @@ export function SharedExpensesPage() {
 
   const sharePairLink = async () => {
     if (!myIdentityQr) return;
-    const url = pairLinkFromEncoded(window.location.origin, myIdentityQr);
+    const url = pairLinkFromEncoded(getShareOrigin(), myIdentityQr);
     try {
       await navigator.share({ title: t('sync.share_link_title'), url });
     } catch (err) {
