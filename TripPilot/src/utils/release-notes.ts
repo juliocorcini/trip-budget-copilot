@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.72.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'A câmera do leitor de QR voltou ao normal: o botão alterna só entre a câmera de trás e a da frente (não fica mais passando por todas as lentes), e o zoom 1×/2×/3× da traseira reapareceu.',
+        'Ao abrir uma foto anexada você agora pode dar zoom nela (toque duplo ou pinça) e o fundo combina com o tema do app. As fotos também aparecem quando você revê uma saída já encerrada, e na saída ativa o bloco de fotos ficou compacto pra não empurrar os botões pra baixo.',
+      ],
+      en: [
+        'The QR scanner camera is back to normal: the switch button only flips between the back and front camera (no more cycling through every lens), and the rear 1×/2×/3× zoom is back.',
+        'When you open an attached photo you can now zoom it (double-tap or pinch) and the background matches the app theme. Photos also show up when you review a finished outing, and on the active outing the photo block is now compact so it no longer pushes the buttons down.',
+      ],
+      es: [
+        'La cámara del lector de QR volvió a la normalidad: el botón solo alterna entre la cámara trasera y la frontal (ya no recorre todas las lentes), y el zoom 1×/2×/3× de la trasera reapareció.',
+        'Al abrir una foto adjunta ahora puedes ampliarla (doble toque o pellizco) y el fondo combina con el tema de la app. Las fotos también aparecen cuando revisas una salida ya finalizada, y en la salida activa el bloque de fotos quedó compacto para no empujar los botones hacia abajo.',
+      ],
+    },
+  },
+  {
     version: '0.71.0',
     date: '2026-06-17',
     items: {

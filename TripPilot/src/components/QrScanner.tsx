@@ -2,15 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import jsQR from 'jsqr';
 import { Icon } from '@/components/Icon';
-import { safeLocalStorage } from '@/utils/safe-storage';
 
 interface QrScannerProps {
   onScan: (text: string) => void;
 }
 
 const SCAN_INTERVAL_MS = 100;
-const PREFERRED_CAMERA_KEY = 'trippilot.qr-camera-id';
-const ZOOM_PRESETS = [1, 2, 3];
+export const ZOOM_PRESETS = [1, 2, 3];
+
+type Facing = 'environment' | 'user';
 
 /** lib.dom omits the zoom capability/constraint — narrow casts in one place. */
 interface ZoomCapabilities {
@@ -20,27 +20,28 @@ interface ZoomConstraint {
   zoom: number;
 }
 
-interface ZoomState {
+export interface ZoomState {
   min: number;
   max: number;
   current: number;
 }
 
-function readPreferredCameraId(): string | null {
-  return safeLocalStorage.get(PREFERRED_CAMERA_KEY);
-}
-
-function savePreferredCameraId(deviceId: string): void {
-  // BUG-018: storage unavailable — safeLocalStorage keeps it in memory so
-  // switching still works for this session.
-  safeLocalStorage.set(PREFERRED_CAMERA_KEY, deviceId);
+/**
+ * Pure: which preset zoom buttons (1×/2×/3×) to show for a camera's reported
+ * zoom range. Extracted so the gating is unit-testable without a real camera.
+ */
+export function computeZoomLevels(zoom: ZoomState | null): number[] {
+  if (!zoom) return [];
+  return ZOOM_PRESETS.filter((level) => level >= zoom.min && level <= zoom.max);
 }
 
 /**
  * Camera QR scanner: getUserMedia → canvas sampling → jsQR.
- * R6-08/R6-09 (P2P-06): multi-lens phones can pick a camera that will not
- * focus a dense/near QR — the scanner now supports cycling through cameras
- * (remembering the last choice) and optical zoom when the track supports it.
+ *
+ * D-BUG-03: the switch button is a plain front↔back toggle (`facingMode`), not a
+ * round-robin over every physical lens, and the rear camera's optical/digital
+ * zoom presets are re-derived from each stream (so they never vanish on switch).
+ * This restores the simple "rear with 1×/2×/3× + a front toggle" behavior.
  */
 export function QrScanner({ onScan }: QrScannerProps) {
   const { t } = useTranslation();
@@ -50,8 +51,8 @@ export function QrScanner({ onScan }: QrScannerProps) {
   const streamRef = useRef<MediaStream | null>(null);
 
   const [error, setError] = useState<'denied' | 'unavailable' | null>(null);
-  const [cameraIds, setCameraIds] = useState<string[]>([]);
-  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(readPreferredCameraId);
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [facing, setFacing] = useState<Facing>('environment');
   const [zoom, setZoom] = useState<ZoomState | null>(null);
 
   useEffect(() => {
@@ -85,30 +86,27 @@ export function QrScanner({ onScan }: QrScannerProps) {
       const track = mediaStream.getVideoTracks()[0];
       if (!track) return;
 
-      const settings = track.getSettings();
-      if (settings.deviceId) setActiveDeviceId(settings.deviceId);
-
       const capabilities = (track.getCapabilities?.() ?? {}) as ZoomCapabilities;
       if (capabilities.zoom && capabilities.zoom.max > capabilities.zoom.min) {
-        setZoom({ min: capabilities.zoom.min, max: capabilities.zoom.max, current: capabilities.zoom.min });
+        setZoom({
+          min: capabilities.zoom.min,
+          max: capabilities.zoom.max,
+          current: capabilities.zoom.min,
+        });
       } else {
         setZoom(null);
       }
 
+      // Only to decide whether to offer the front/back toggle at all.
       void navigator.mediaDevices.enumerateDevices().then((devices) => {
         if (cancelled) return;
-        setCameraIds(devices.filter((d) => d.kind === 'videoinput').map((d) => d.deviceId));
+        setHasMultipleCameras(devices.filter((d) => d.kind === 'videoinput').length > 1);
       });
     };
 
-    const constraintsFor = (deviceId: string | null): MediaStreamConstraints =>
-      deviceId
-        ? { video: { deviceId: { exact: deviceId } } }
-        : { video: { facingMode: 'environment' } };
-
     const start = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraintsFor(activeDeviceId));
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing } });
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
           return;
@@ -116,9 +114,10 @@ export function QrScanner({ onScan }: QrScannerProps) {
         attachStream(stream);
       } catch (err: unknown) {
         const name = err instanceof DOMException ? err.name : '';
-        if (name === 'OverconstrainedError' && activeDeviceId) {
-          // Stale remembered camera — fall back to the environment default.
-          setActiveDeviceId(null);
+        // No camera matching the requested side (e.g. no front camera) — fall
+        // back to the rear default once instead of erroring out.
+        if (name === 'OverconstrainedError' && facing === 'user') {
+          setFacing('environment');
           return;
         }
         setError(name === 'NotAllowedError' ? 'denied' : 'unavailable');
@@ -133,17 +132,13 @@ export function QrScanner({ onScan }: QrScannerProps) {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-    // Restart the stream whenever the chosen camera changes.
-  }, [activeDeviceId]);
+    // Restart the stream whenever the chosen side changes.
+  }, [facing]);
 
   const switchCamera = useCallback(() => {
-    if (cameraIds.length < 2) return;
-    const currentIndex = activeDeviceId ? cameraIds.indexOf(activeDeviceId) : -1;
-    const nextId = cameraIds[(currentIndex + 1) % cameraIds.length]!;
-    savePreferredCameraId(nextId);
     setZoom(null);
-    setActiveDeviceId(nextId);
-  }, [cameraIds, activeDeviceId]);
+    setFacing((prev) => (prev === 'environment' ? 'user' : 'environment'));
+  }, []);
 
   const applyZoom = useCallback((level: number) => {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -165,9 +160,7 @@ export function QrScanner({ onScan }: QrScannerProps) {
     );
   }
 
-  const zoomLevels = zoom
-    ? ZOOM_PRESETS.filter((level) => level >= zoom.min && level <= zoom.max)
-    : [];
+  const zoomLevels = computeZoomLevels(zoom);
 
   return (
     <div className="relative rounded-2xl overflow-hidden bg-black aspect-square">
@@ -179,10 +172,11 @@ export function QrScanner({ onScan }: QrScannerProps) {
           style={{ border: '3px solid var(--primary)', boxShadow: '0 0 0 9999px rgba(0,0,0,0.35)' }}
         />
       </div>
-      {cameraIds.length > 1 && (
+      {hasMultipleCameras && (
         <button
           onClick={switchCamera}
           aria-label={t('sync.switch_camera')}
+          aria-pressed={facing === 'user'}
           className="absolute top-3 right-3 w-11 h-11 rounded-full flex items-center justify-center btn-press"
           style={{ background: 'rgba(0,0,0,0.55)', color: '#fff' }}
         >

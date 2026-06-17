@@ -9,6 +9,7 @@ import { calculateSessionTotal, formatSessionDuration, findSubcategory } from '@
 import { formatMoney } from '@/domain/money';
 import { formatShortDate, localDayOf } from '@/domain/dates';
 import { Icon } from '@/components/Icon';
+import { AttachmentSection } from '@/features/attachments/AttachmentSection';
 import { getCategoryIcon } from '@/utils/category-icons';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -165,6 +166,12 @@ export function OutingReviewPage() {
             <p className="text-xs text-on-surface-faint">{t('outing.review_no_items')}</p>
           )}
         </div>
+      </div>
+
+      {/* D-BUG-05: receipts/photos attached to the outing are read/added here too
+          (they live on the session, so a finished outing must surface them). */}
+      <div className="bg-surface-container rounded-xl p-4">
+        <AttachmentSection sessionId={session.id} />
       </div>
 
       {/* Limits vs final total */}

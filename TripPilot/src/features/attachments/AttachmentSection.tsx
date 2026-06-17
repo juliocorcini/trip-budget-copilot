@@ -3,11 +3,25 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { useAttachments } from './useAttachments';
+import {
+  clampOffset,
+  clampScale,
+  distance,
+  nextDoubleTapScale,
+  type Point,
+  type Size,
+} from './attachment-zoom';
 import type { Attachment } from '@/domain/types/attachment';
 
 interface AttachmentSectionProps {
   transactionId?: string | null;
   sessionId?: string | null;
+  /**
+   * D-BUG-16: render as a single horizontal row (small add chip + thumbnails)
+   * instead of the full title + grid. Used in the active outing, where the tall
+   * empty-state block was pushing the quick-add below the fold.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -17,7 +31,7 @@ interface AttachmentSectionProps {
  * stored inline data URL; tapping one opens a full-screen viewer backed by an
  * object URL created on demand and revoked on close.
  */
-export function AttachmentSection({ transactionId, sessionId }: AttachmentSectionProps) {
+export function AttachmentSection({ transactionId, sessionId, compact = false }: AttachmentSectionProps) {
   const { t } = useTranslation();
   const { attachments, busy, addFromFile, remove } = useAttachments({ transactionId, sessionId });
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,6 +48,57 @@ export function AttachmentSection({ transactionId, sessionId }: AttachmentSectio
     );
   };
 
+  const openPicker = () => inputRef.current?.click();
+
+  const hiddenInput = (
+    <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handlePick} />
+  );
+
+  const viewerEl = viewer && (
+    <AttachmentViewer
+      attachment={viewer}
+      onClose={() => setViewer(null)}
+      onDelete={async () => {
+        await remove(viewer.id);
+        setViewer(null);
+        showToast(t('attachments.deleted_toast'), 'success');
+      }}
+    />
+  );
+
+  if (compact) {
+    return (
+      <div>
+        {hiddenInput}
+        <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 py-0.5">
+          <button
+            onClick={openPicker}
+            disabled={busy}
+            className="shrink-0 h-12 px-3 rounded-xl bg-surface-container flex items-center gap-1.5 text-xs font-semibold text-primary btn-press disabled:opacity-40"
+          >
+            <Icon name="add_a_photo" size={18} className="text-primary" />
+            {attachments.length === 0 ? (busy ? t('attachments.adding') : t('attachments.add')) : null}
+          </button>
+          {attachments.map((attachment) => (
+            <button
+              key={attachment.id}
+              onClick={() => setViewer(attachment)}
+              className="shrink-0 w-12 h-12 rounded-xl overflow-hidden bg-surface-container btn-press"
+            >
+              <img
+                src={attachment.thumbnailDataUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          ))}
+        </div>
+        {viewerEl}
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2 px-1">
@@ -41,7 +106,7 @@ export function AttachmentSection({ transactionId, sessionId }: AttachmentSectio
           {t('attachments.title')}
         </p>
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={openPicker}
           disabled={busy}
           className="flex items-center gap-1 text-xs font-semibold text-primary btn-press disabled:opacity-40"
         >
@@ -50,17 +115,11 @@ export function AttachmentSection({ transactionId, sessionId }: AttachmentSectio
         </button>
       </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handlePick}
-      />
+      {hiddenInput}
 
       {attachments.length === 0 ? (
         <button
-          onClick={() => inputRef.current?.click()}
+          onClick={openPicker}
           disabled={busy}
           className="w-full bg-surface-container rounded-xl py-6 flex flex-col items-center gap-2 btn-press disabled:opacity-40"
         >
@@ -86,17 +145,7 @@ export function AttachmentSection({ transactionId, sessionId }: AttachmentSectio
         </div>
       )}
 
-      {viewer && (
-        <AttachmentViewer
-          attachment={viewer}
-          onClose={() => setViewer(null)}
-          onDelete={async () => {
-            await remove(viewer.id);
-            setViewer(null);
-            showToast(t('attachments.deleted_toast'), 'success');
-          }}
-        />
-      )}
+      {viewerEl}
     </div>
   );
 }
@@ -113,30 +162,138 @@ function AttachmentViewer({
   const { t } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const pointers = useRef<Map<number, Point>>(new Map());
+  const pinchStart = useRef<{ dist: number; scale: number } | null>(null);
+  const panStart = useRef<{ pointer: Point; offset: Point } | null>(null);
+  const lastTap = useRef(0);
 
   useEffect(() => {
+    // New photo opened: reset the zoom transform, then mount its blob URL.
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
     const objectUrl = URL.createObjectURL(attachment.blob);
     setUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [attachment]);
 
+  const measure = (): { container: Size; content: Size } => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const img = imgRef.current;
+    return {
+      container: { width: rect?.width ?? 0, height: rect?.height ?? 0 },
+      content: { width: img?.offsetWidth ?? 0, height: img?.offsetHeight ?? 0 },
+    };
+  };
+
+  const zoomTo = (nextScale: number, recenter = false) => {
+    const clamped = clampScale(nextScale);
+    setScale(clamped);
+    setOffset((prev) => {
+      if (clamped === 1) return { x: 0, y: 0 };
+      const { container, content } = measure();
+      return clampOffset(recenter ? { x: 0, y: 0 } : prev, clamped, container, content);
+    });
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinchStart.current = { dist: distance(a!, b!), scale };
+      panStart.current = null;
+      return;
+    }
+    panStart.current = scale > 1 ? { pointer: { x: e.clientX, y: e.clientY }, offset } : null;
+    const now = Date.now();
+    if (now - lastTap.current < 300) {
+      zoomTo(nextDoubleTapScale(scale), true);
+      lastTap.current = 0;
+    } else {
+      lastTap.current = now;
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2 && pinchStart.current) {
+      const [a, b] = [...pointers.current.values()];
+      const ratio = distance(a!, b!) / (pinchStart.current.dist || 1);
+      zoomTo(pinchStart.current.scale * ratio);
+      return;
+    }
+    if (pointers.current.size === 1 && panStart.current) {
+      const dx = e.clientX - panStart.current.pointer.x;
+      const dy = e.clientY - panStart.current.pointer.y;
+      const { container, content } = measure();
+      setOffset(
+        clampOffset(
+          { x: panStart.current.offset.x + dx, y: panStart.current.offset.y + dy },
+          scale,
+          container,
+          content,
+        ),
+      );
+    }
+  };
+
+  const handlePointerEnd = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinchStart.current = null;
+    if (pointers.current.size === 0) panStart.current = null;
+  };
+
+  const interacting = pointers.current.size > 0;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex flex-col"
+      role="dialog"
+      aria-modal="true"
+      style={{ background: 'var(--scrim)' }}
+    >
       <div className="flex items-center justify-between p-4" style={{ paddingTop: 'var(--safe-top, 16px)' }}>
         <button onClick={onClose} className="btn-press p-1" aria-label={t('attachments.close')}>
-          <Icon name="close" size={26} className="text-white" />
+          <Icon name="close" size={26} className="text-on-surface" />
         </button>
         <button
           onClick={() => setConfirmDelete(true)}
           className="btn-press p-1"
           aria-label={t('common.delete')}
         >
-          <Icon name="delete" size={24} className="text-white" />
+          <Icon name="delete" size={24} className="text-on-surface" />
         </button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center overflow-hidden p-2">
-        {url && <img src={url} alt="" className="max-w-full max-h-full object-contain" />}
+      <div
+        ref={containerRef}
+        className="flex-1 flex items-center justify-center overflow-hidden p-2 touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+      >
+        {url && (
+          <img
+            ref={imgRef}
+            src={url}
+            alt=""
+            draggable={false}
+            className="max-w-full max-h-full object-contain select-none"
+            style={{
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+              transition: interacting ? 'none' : 'transform 0.18s var(--ease-out, ease-out)',
+              willChange: 'transform',
+              touchAction: 'none',
+            }}
+          />
+        )}
       </div>
 
       {confirmDelete && (

@@ -1370,7 +1370,7 @@ export function OutingPage() {
             />
           )
         }
-        photosSlot={<AttachmentSection sessionId={session.id} />}
+        photosSlot={<AttachmentSection sessionId={session.id} compact />}
       />
 
       {/* DEC-120 (R-11): notification offer at first session start */}

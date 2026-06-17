@@ -1,8 +1,8 @@
 {
-  "version": "0.71.0",
+  "version": "0.72.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.71.0.zip",
-  "notes": "Os links de compartilhar (divisão e conexão entre aparelhos) voltaram a funcionar no app instalado — antes vinham como 'localhost' e não abriam."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.72.0.zip",
+  "notes": "A câmera do QR voltou ao normal (alterna frente/trás + zoom 1×/2×/3×), agora dá pra dar zoom nas fotos anexadas e elas aparecem na revisão da saída encerrada."
 }
