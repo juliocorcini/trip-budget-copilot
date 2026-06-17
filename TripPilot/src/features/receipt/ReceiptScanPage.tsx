@@ -8,6 +8,7 @@ import { extractReceiptViaCloud, type ReceiptOcrError } from '@/utils/ai-ocr';
 import {
   reconcileReceipt,
   matchItemsToReadTotal,
+  dominantReceiptCategory,
   type ReceiptPlan,
   type ReceiptDraftItem,
 } from '@/domain/receipt';
@@ -69,6 +70,14 @@ export function ReceiptScanPage() {
   const baseCurrency = trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR';
   const currency = plan?.currency ?? baseCurrency;
   const defaultName = t('receiptScan.default_name');
+
+  // D-IMP-05: when the vision model read items but no merchant name, title the
+  // note after what it mostly is (dominant category, e.g. "Mercado") instead of
+  // the bare "Nota" the user complained about. The user can still rename freely.
+  const receiptFallbackName = (items: ReceiptDraftItem[]): string => {
+    const category = dominantReceiptCategory(items);
+    return category ? t(`categories.${category}`) : defaultName;
+  };
 
   const included = useMemo(
     () => (plan ? plan.items.filter((i) => i.include && i.amountCents > 0) : []),
@@ -177,7 +186,7 @@ export function ReceiptScanPage() {
       const outcome = await extractReceiptViaCloud(dataUrl);
       if (outcome.ok) {
         setPlan(outcome.plan);
-        setName(outcome.plan.merchant ?? defaultName);
+        setName(outcome.plan.merchant ?? receiptFallbackName(outcome.plan.items));
         setPhase('review');
         if (outcome.plan.items.length === 0) {
           showToast(t('receiptScan.no_items_found'), 'warning', { durationMs: 6000 });

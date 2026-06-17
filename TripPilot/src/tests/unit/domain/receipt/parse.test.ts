@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseReceiptResponse, reconcileReceipt, matchItemsToReadTotal } from '@/domain/receipt';
+import {
+  parseReceiptResponse,
+  reconcileReceipt,
+  matchItemsToReadTotal,
+  dominantReceiptCategory,
+} from '@/domain/receipt';
+import type { ReceiptDraftItem } from '@/domain/receipt';
 
 // DEC-206 (G2): the parser is the source of truth for normalising a loose,
 // decimal-based OCR response into a cents-based, reviewable ReceiptPlan. It must
@@ -203,5 +209,60 @@ describe('matchItemsToReadTotal (G4 · DEC-206)', () => {
 
     const exact = parseReceiptResponse({ total: 9.0, items: [{ description: 'A', lineTotal: 4 }, { description: 'B', lineTotal: 5 }] });
     expect(matchItemsToReadTotal(exact)).toBe(exact.items);
+  });
+});
+
+// D-IMP-05: name a merchant-less receipt after its dominant category so the user
+// no longer sees a bare "Nota". The picker must weigh by spend, ignore noise
+// (excluded / zero / `other` lines), and break ties deterministically.
+describe('dominantReceiptCategory (D-IMP-05)', () => {
+  const item = (category: string, amountCents: number, extra: Partial<ReceiptDraftItem> = {}): ReceiptDraftItem => ({
+    id: `${category}-${amountCents}-${extra.description ?? ''}`,
+    description: extra.description ?? category,
+    qty: 1,
+    amountCents,
+    category,
+    include: extra.include ?? true,
+    participantIds: [],
+    paidByParticipantId: null,
+  });
+
+  it('returns null for an empty list', () => {
+    expect(dominantReceiptCategory([])).toBeNull();
+  });
+
+  it('returns the only meaningful category present', () => {
+    expect(dominantReceiptCategory([item('market', 240), item('market', 100)])).toBe('market');
+  });
+
+  it('weighs by spend, not by line count', () => {
+    // restaurant wins on total spend (3000) despite market having more lines.
+    const items = [item('market', 200), item('market', 300), item('market', 100), item('restaurant', 3000)];
+    expect(dominantReceiptCategory(items)).toBe('restaurant');
+  });
+
+  it('ignores excluded and zero-amount lines', () => {
+    const items = [
+      item('restaurant', 5000, { include: false }),
+      item('market', 0),
+      item('bar', 700),
+    ];
+    expect(dominantReceiptCategory(items)).toBe('bar');
+  });
+
+  it('never picks the uninformative "other" bucket', () => {
+    const items = [item('other', 9000), item('market', 500)];
+    expect(dominantReceiptCategory(items)).toBe('market');
+  });
+
+  it('returns null when only "other" (or no positive) lines exist', () => {
+    expect(dominantReceiptCategory([item('other', 9000), item('other', 100)])).toBeNull();
+  });
+
+  it('breaks a spend tie by line count, then first appearance', () => {
+    // Equal spend (1000 each): market has 2 lines vs bar's 1 → market wins.
+    expect(dominantReceiptCategory([item('bar', 1000), item('market', 500), item('market', 500)])).toBe('market');
+    // Equal spend AND equal count → the category that appeared first wins.
+    expect(dominantReceiptCategory([item('transport', 800), item('restaurant', 800)])).toBe('transport');
   });
 });

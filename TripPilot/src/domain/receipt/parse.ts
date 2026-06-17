@@ -106,6 +106,46 @@ export function parseReceiptResponse(raw: unknown): ReceiptPlan {
 }
 
 /**
+ * D-IMP-05: pick the category that dominates a receipt's INCLUDED lines by spend,
+ * so a receipt the vision model could read items from but NOT a merchant name can
+ * still be titled after what it mostly is ("Mercado", "Restaurante") instead of a
+ * generic "Nota". The uninformative `other` bucket never wins — a note named
+ * "Outros" is no better than "Nota" — so it is ignored unless it is the only
+ * thing present (in which case we still return null and let the caller fall back).
+ * Ties break toward the larger line count, then first appearance. Pure.
+ */
+export function dominantReceiptCategory(items: ReceiptDraftItem[]): string | null {
+  const tally = new Map<string, { cents: number; count: number; order: number }>();
+  let order = 0;
+  for (const item of items) {
+    if (!item.include || item.amountCents <= 0) continue;
+    if (item.category === 'other') continue;
+    const current = tally.get(item.category);
+    if (current === undefined) {
+      tally.set(item.category, { cents: item.amountCents, count: 1, order: order++ });
+    } else {
+      current.cents += item.amountCents;
+      current.count += 1;
+    }
+  }
+
+  let best: string | null = null;
+  let bestStats: { cents: number; count: number; order: number } | null = null;
+  for (const [category, stats] of tally) {
+    if (
+      bestStats === null ||
+      stats.cents > bestStats.cents ||
+      (stats.cents === bestStats.cents && stats.count > bestStats.count) ||
+      (stats.cents === bestStats.cents && stats.count === bestStats.count && stats.order < bestStats.order)
+    ) {
+      best = category;
+      bestStats = stats;
+    }
+  }
+  return best;
+}
+
+/**
  * G4 (DEC-206): proportionally adjust the INCLUDED items so they sum exactly to
  * the printed receipt total — absorbing the tax, tip, service charge, discount
  * and rounding that the itemised lines don't capture. Each included line is

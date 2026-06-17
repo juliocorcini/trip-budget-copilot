@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.75.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Ao escanear uma nota, se o app não conseguir ler o nome do estabelecimento ele passa a dar um nome pela categoria predominante (ex.: "Mercado", "Restaurante") em vez de só "Nota".',
+      ],
+      en: [
+        'When you scan a receipt and the app can\'t read the store name, it now titles the note by its main category (e.g. "Market", "Restaurant") instead of a bare "Note".',
+      ],
+      es: [
+        'Al escanear una cuenta, si la app no puede leer el nombre del establecimiento ahora le pone un nombre según la categoría predominante (p. ej. "Mercado", "Restaurante") en vez de solo "Nota".',
+      ],
+    },
+  },
+  {
     version: '0.74.0',
     date: '2026-06-17',
     items: {
