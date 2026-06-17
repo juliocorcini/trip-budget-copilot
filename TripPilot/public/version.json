@@ -1,8 +1,8 @@
 {
-  "version": "0.59.0",
+  "version": "0.60.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.59.0.zip",
-  "notes": "Tela inicial mais limpa e enxuta: o check-in do dia virou um controle discreto logo abaixo do 'livre hoje' (toque pra abrir e trocar) e a barra de rolagem some. Cofrinho aparece nos momentos certos (e dá pra fixar). Amigo sincero muda de cor pelo tom — verde quando está tudo no plano — e some da home quando não há nada a ajustar. Trocar de aba arrastando: a tela acompanha o dedo. Fechar cartão flutuante: arraste a alça pra baixo. Correções no swipe da tela de Gastos e gastos recentes com hoje/ontem + horário."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.60.0.zip",
+  "notes": "Mapa da fase repaginado: agora é um cartão com duas abas dentro de 'de onde vem esse número'. 'Disponível por dia' virou um calendário — cada dia colore conforme quanto você tem, toque num dia pra ver de onde vem (livre + o que está reservado pra ele = total do dia). 'Gastos por dia' é o mapa de gastos do mês. As duas abas ficam sempre à vista, sem trocar sozinhas."
 }

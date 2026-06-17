@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.60.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Mapa da fase repaginado: dentro de "de onde vem esse número" agora há um cartão com duas abas, sempre à vista (sem trocar sozinhas).',
+        '"Disponível por dia" virou um calendário, como no copiloto: cada dia fica mais verde quanto mais você tem pra gastar naquele dia. Toque num dia pra ver o detalhe.',
+        'Total do dia com o reservado somado: ao tocar num dia, você vê "livre no dia + o que está reservado pra ele = total do dia" (ex.: €63 livre + €60 do creme = €123) — sem mexer no seu orçamento, é só pra explicar o número.',
+        '"Gastos por dia" é o mapa de gastos do mês ali do lado, na mesma carta — uma olhada mostra os dias que mais pesaram.',
+      ],
+      en: [
+        'Phase map, redesigned: inside "where this number comes from" there is now a card with two tabs, always visible (they never auto-switch).',
+        '"Available per day" is now a calendar, like in the copilot: each day gets greener the more you have to spend that day. Tap a day to see the detail.',
+        'Day total includes what is reserved: tapping a day shows "free that day + what is reserved for it = day total" (e.g. €63 free + €60 for the cream = €123) — it never changes your budget, it just explains the number.',
+        '"Spending per day" is the month spending map right next to it, in the same card — one glance shows the days that hit hardest.',
+      ],
+      es: [
+        'Mapa de la fase renovado: dentro de "de dónde sale este número" ahora hay una tarjeta con dos pestañas, siempre a la vista (no cambian solas).',
+        '"Disponible por día" ahora es un calendario, como en el copiloto: cada día se pone más verde cuanto más tienes para gastar ese día. Toca un día para ver el detalle.',
+        'El total del día incluye lo reservado: al tocar un día ves "libre ese día + lo que está reservado para él = total del día" (ej.: €63 libre + €60 de la crema = €123) — no cambia tu presupuesto, solo explica el número.',
+        '"Gastos por día" es el mapa de gastos del mes justo al lado, en la misma tarjeta — un vistazo muestra los días que más pesaron.',
+      ],
+    },
+  },
+  {
     version: '0.59.0',
     date: '2026-06-17',
     items: {

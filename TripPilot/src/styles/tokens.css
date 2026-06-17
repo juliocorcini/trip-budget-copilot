@@ -21,6 +21,13 @@
   --warning: #D4A843;
   --error: #D94040;
 
+  /* ── Phase "available per day" calendar intensity (Wave B / F22) ──
+     Sage-green ramp mirroring the heatmap's alpha steps (33/59/80/B3). */
+  --avail-1: #6B8F7133;
+  --avail-2: #6B8F7159;
+  --avail-3: #6B8F7180;
+  --avail-4: #6B8F71B3;
+
   /* ── Translucent layers (theme-aware, DEC-083) ── */
   --nav-bar: #0F1419e6;
   --scrim: #0A0F14f0;
@@ -100,6 +107,11 @@
   --success: #4A7050;
   --warning: #B38B2D;
   --error: #C23030;
+
+  --avail-1: #4A705033;
+  --avail-2: #4A705059;
+  --avail-3: #4A705080;
+  --avail-4: #4A7050B3;
 
   --nav-bar: #F5F0EBe6;
   --scrim: #F5F0EBf0;

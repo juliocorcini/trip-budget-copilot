@@ -224,3 +224,87 @@ describe('buildPhaseAllowanceMap (FIELD-19 — per-day allowance map)', () => {
     expect(friday?.planTotalCents).toBe(3_300);
   });
 });
+
+describe('buildPhaseAllowanceMap — F20 day total (free + reserved)', () => {
+  it('sums free and reserved into the day total (€63 free + €60 cream = €123)', () => {
+    const phase = mkPhase(null, null);
+    // From Thu → Sun = 4 uniform days; 25_200 / 4 = 6_300 free per day.
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 25_200,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-11',
+      occurrences: [],
+      plannedPurchases: [
+        mkPurchase({ id: 'pp-cream', name: 'Face cream', targetDate: '2026-06-12', reservedCents: 6_000 }),
+      ],
+    });
+
+    const creamDay = map.days.find((d) => d.dateIso === '2026-06-12');
+    expect(creamDay?.freeCents).toBe(6_300);
+    expect(creamDay?.planTotalCents).toBe(6_000);
+    expect(creamDay?.dayTotalCents).toBe(12_300);
+    // The total is exactly free + reserved — never more (no double counting).
+    expect(creamDay?.dayTotalCents).toBe((creamDay?.freeCents ?? 0) + (creamDay?.planTotalCents ?? 0));
+  });
+
+  it('day total equals free on days with no reserves', () => {
+    const phase = mkPhase(null, null);
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-11',
+      occurrences: [],
+      plannedPurchases: [],
+    });
+
+    map.days.forEach((d) => {
+      expect(d.planTotalCents).toBe(0);
+      expect(d.dayTotalCents).toBe(d.freeCents);
+    });
+  });
+
+  it('maxDayTotalCents tracks the largest single-day total (free + reserved)', () => {
+    const phase = mkPhase(null, null); // 4 uniform days → 10_000 free each
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-11',
+      occurrences: [
+        mkOccurrence({ id: 'occ-sat', plannedDate: '2026-06-13', reservedCents: 9_000 }),
+      ],
+      plannedPurchases: [],
+    });
+
+    const saturday = map.days.find((d) => d.dateIso === '2026-06-13');
+    expect(saturday?.dayTotalCents).toBe(19_000); // 10_000 free + 9_000 reserved
+    expect(map.maxDayTotalCents).toBe(19_000);
+  });
+
+  it("today's reserve layers on top without changing free (ÂNCORA: free == hero)", () => {
+    const phase = mkPhase('moderate', [5, 6]);
+    const trueFreeCents = 52_300;
+    const todaySpentCents = 1_840;
+    const todayIso = '2026-06-11';
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents,
+      todaySpentCents,
+      phase,
+      todayIso,
+      occurrences: [
+        mkOccurrence({ id: 'occ-today', plannedDate: todayIso, reservedCents: 3_000 }),
+      ],
+      plannedPurchases: [],
+    });
+    const today = calculateTodayFreeBudget(trueFreeCents, todaySpentCents, phase, todayIso);
+    const td = map.days[0];
+
+    expect(td?.isToday).toBe(true);
+    // Reserving money does NOT change today's free — it still equals the hero.
+    expect(td?.freeCents).toBe(today.freeTodayCents);
+    // The day total simply re-surfaces the reserve for display.
+    expect(td?.dayTotalCents).toBe(today.freeTodayCents + 3_000);
+  });
+});

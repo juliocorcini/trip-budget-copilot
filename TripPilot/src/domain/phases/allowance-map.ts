@@ -49,6 +49,13 @@ export interface PhaseAllowanceDay {
   /** Dated reserves (events / dated planned buys) landing on this day. */
   planItems: DayPlanItem[];
   planTotalCents: number;
+  /**
+   * F20: the total amount moving through the day = free + reserved
+   * ("€63 free + €60 cream = €123"). The reserve already left `trueFree` once,
+   * so layering it back here is a DISPLAY total only — it never re-enters the
+   * budget and `freeCents` stays equal to the hero's free-today.
+   */
+  dayTotalCents: number;
 }
 
 export interface PhaseAllowanceMap {
@@ -60,6 +67,8 @@ export interface PhaseAllowanceMap {
   baseFreeCents: number;
   /** Largest single-day allowance — for proportional bar scaling (≥ 1). */
   maxAllowanceCents: number;
+  /** Largest single-day total (free + reserved) — for calendar intensity (≥ 1). */
+  maxDayTotalCents: number;
 }
 
 export interface BuildPhaseAllowanceMapInput {
@@ -134,6 +143,7 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
 
   const days: PhaseAllowanceDay[] = [];
   let maxAllowanceCents = 1;
+  let maxDayTotalCents = 1;
 
   const start = parseLocalDate(todayIso);
   const end = parseLocalDate(phase.endDate);
@@ -149,6 +159,8 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
     const spentCents = isToday ? todaySpentCents : 0;
     const planItems = planByDay.get(dateIso) ?? [];
     const planTotalCents = planItems.reduce((acc, i) => acc + i.amountCents, 0);
+    const freeCents = allowanceCents - spentCents;
+    const dayTotalCents = freeCents + planTotalCents;
 
     days.push({
       dateIso,
@@ -158,12 +170,14 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
       weight,
       allowanceCents,
       spentCents,
-      freeCents: allowanceCents - spentCents,
+      freeCents,
       planItems,
       planTotalCents,
+      dayTotalCents,
     });
 
     if (allowanceCents > maxAllowanceCents) maxAllowanceCents = allowanceCents;
+    if (dayTotalCents > maxDayTotalCents) maxDayTotalCents = dayTotalCents;
     cursor.setDate(cursor.getDate() + 1);
   }
 
@@ -173,5 +187,6 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
     undatedPlanTotalCents,
     baseFreeCents,
     maxAllowanceCents,
+    maxDayTotalCents,
   };
 }
