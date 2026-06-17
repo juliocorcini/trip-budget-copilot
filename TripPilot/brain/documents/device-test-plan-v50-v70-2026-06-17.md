@@ -1,4 +1,4 @@
-# Roteiro de Teste em Celular — TripPilot v0.50 → v0.70
+# Roteiro de Teste em Celular — TripPilot v0.50 → v0.75
 
 > **Como usar:** abra este arquivo no PC e vá marcando `[x]` enquanto testa no celular. O roteiro **não**
 > segue a ordem das versões — segue o **melhor fluxo** (por tela, reaproveitando os mesmos dados, com as
@@ -12,9 +12,10 @@
 ## Resumo da estratégia (leia antes de começar)
 
 1. **Um app só testa tudo.** Instale o **APK 0.69.0 debug**. Ele traz a casca nativa nova (CSV, App Links, GPS)
-   e, ao abrir, **se atualiza sozinho para o web 0.70.0 via OTA**. Como o `latestNativeVersion` publicado (0.56) é
+   e, ao abrir, **se atualiza sozinho para o web 0.75.0 via OTA**. Como o `latestNativeVersion` publicado (0.56) é
    *mais antigo* que o 0.69 instalado, o app **não** vai te encher pedindo "atualize o app". Ou seja: com esse APK
-   você testa **as features web de 0.50→0.70 E as nativas de 0.69** no mesmo lugar.
+   você testa **as features web de 0.50→0.75 E as nativas de 0.69** no mesmo lugar.
+   *(O **Bloco L** no fim cobre, em bloco, tudo que entrou em **0.71→0.75** — rode-o como passada de regressão depois da demo.)*
 2. **Dados em 2 cliques.** Em vez de cadastrar tudo na mão, use **"Carregar demonstração"** na tela inicial: cria
    uma viagem rica (2 fases, 2 carteiras dinheiro+digital, 2 pessoas, ~13 gastos, sessão de bar, divisão com dívida,
    liquidação). Isso já cobre Home, Copiloto, Planejador, Pessoas, Carteiras, Saídas etc.
@@ -43,8 +44,8 @@ APK: `TripPilot/android/app/build/outputs/apk/debug/app-debug.apk` (8,35 MB, ver
 
 - [ ] ⚡ **Instalar o APK 0.69.0** (sideload). Copie para o celular e abra; permita "instalar de fonte desconhecida" se pedir.
 - [ ] ⚡ **Abrir o app e deixar atualizar:** na primeira abertura com internet ele busca o `version.json` e aplica o
-      bundle web 0.70.0. `[0.49 OTA]`
-- [ ] **About / Sobre o app:** confirme **versão web = 0.70.0** e **versão nativa (APK) = 0.69.0**; "Buscar atualização"
+      bundle web 0.75.0. `[0.49 OTA]`
+- [ ] **About / Sobre o app:** confirme **versão web = 0.75.0** e **versão nativa (APK) = 0.69.0**; "Buscar atualização"
       deve responder **"está em dia"** (não deve pedir novo APK). `[0.48/0.50/0.52/0.56]`
 - [ ] ⚡ **Permissão de câmera:** vá em conectar com outro aparelho / ler QR (Pessoas e dívidas → conectar, ou
       Ajustes → Conexões) e dispare o **leitor de QR** → o Android deve **pedir a permissão de câmera** e a câmera abrir. `[0.50]`
@@ -251,6 +252,74 @@ TRANSFER-2001,17-06-2026,100.00,EUR,From Ana,,Ana,,,,CREDIT,TRANSFER
 
 ---
 
+## Bloco L — Lote de correções do teste em campo (0.71 → 0.75) ⚡ web via OTA
+
+> O que entrou **depois** do seu último teste, já no bundle **0.75.0** que o APK 0.69 baixa sozinho. Rode como uma
+> **passada de regressão** reaproveitando a demo (Bloco B). Cada item traz `[0.xx / D-ID]`. Quase tudo é **comportamento
+> web** (chega pela OTA); os ⚡ no fim são confirmações que **só** dá pra fechar no aparelho.
+
+**Início / Home**
+- [ ] **Gastos recentes = 1 linha por sessão** `[0.74 / D-BUG-13]`: uma saída/sessão navegada aparece como **uma linha** nos
+      recentes da Home (igual à lista completa), não várias soltas.
+- [ ] **Animação de aba segue a ordem** `[0.74 / D-BUG-10]`: Início→Viagem anima **pra frente**; **voltar** (Viagem→Início)
+      anima **pro contrário** (antes era sempre "pra frente").
+- [ ] **Amigo sincero não mente verde** `[0.73 / D-BUG-11]`: quando "só N de M cabem", o card fica num tom **calmo de aviso**
+      (azul-acinzentado "steady"), **não** verde de "tudo certo".
+- [ ] **Fechar folha arrastando pelo corpo** `[0.74 / D-BUG-12]`: numa folha (ex.: menu "+"), com a lista **no topo**, um
+      arrasto pra baixo **no corpo** (não só na alça) fecha; rolar a lista no meio **não** fecha.
+
+**Gastos / Entrada**
+- [ ] **Um só "×" na busca** `[0.71 / D-BUG-14]`: o campo de busca de Gastos mostra **um** botão limpar (×), não dois.
+- [ ] **Entrada (income) aparece na lista** `[0.73 / D-BUG-04]`: a entrada vira uma **linha verde com "+"** na lista de Gastos,
+      mas o **total do topo e os subtotais do dia continuam só de gastos** (a entrada não infla o "gasto").
+- [ ] **Local/GPS ao EDITAR um gasto** `[0.73 / D-BUG-08]`: abrir um gasto existente → editar → tem o mesmo campo de lugar
+      (usar minha localização / próximos / buscar online), sem forçar "agora".
+- [ ] ⚡ **Visor de foto com zoom** `[0.72 / D-BUG-17]`: abra a foto de um gasto → **pinça / duplo-toque** dá zoom e arrasta;
+      fundo e ícones ficam **legíveis no tema claro e no escuro** (não mais preto puro).
+
+**Saídas / Sessão / Nota**
+- [ ] ⚡ **Câmera: frente/trás + zoom** `[0.72 / D-BUG-03]`: no leitor de QR / câmera, o botão **frente↔trás** funciona e os
+      presets **1×/2×/3×** voltam a aparecer (antes ciclava a ultrawide e perdia o zoom).
+- [ ] **Foto não empurra a saída ativa** `[0.72 / D-BUG-16]`: na saída ativa, o bloco de fotos é uma **fileira compacta**
+      (chip + miniaturas); o quick-add continua **acima da dobra**.
+- [ ] **Fotos da saída na revisão** `[0.72 / D-BUG-05]`: ao abrir uma saída concluída (revisão), as **fotos aparecem**.
+- [ ] **Microcopy da divisão da nota mais clara** `[0.74 / D-BUG-18]`: no editor de item da nota — **"Dividir este item?"**,
+      **"Dividido" / "Só meu"**, **"Dividir com quem?"**, **"Quem pagou?"** (mais direto que antes).
+- [ ] **Nota sem nome do estabelecimento ganha nome pela categoria** `[0.75 / D-IMP-05]`: se a IA lê os **itens** mas **não** o
+      nome da loja, a nota é nomeada pela **categoria predominante** (ex.: **"Mercado"**, **"Restaurante"**) em vez de "Nota".
+      *(você pode renomear normalmente.)*
+
+**Viagem / Planejador**
+- [ ] **€ compacto no calendário/mapa** `[0.74 / D-IMP-01]`: nas células do calendário "disponível por dia" e no mapa de
+      gastos, aparece o valor do dia **compacto** (`46`, `1,2k`) sob o número.
+- [ ] **Vincular gasto ao planejado pelo detalhe do gasto** `[0.74 / D-IMP-03]`: dá pra ligar um gasto já lançado a uma compra
+      planejada **abrindo o gasto** (além do caminho pelo Planejador), sem criar gasto novo.
+- [ ] **"Ver prévia da fase" na aba Viagem** `[0.74 / D-IMP-02]`: a porta de **prévia da fase** aparece direto na aba
+      **Viagem** (antes só via Início → visão geral).
+
+**Pessoas / Dívidas / Link**
+- [ ] **CRÍTICO — link não é mais `localhost`** `[0.71 / D-BUG-01]`: gerando um link de divisão **pelo APK**, a URL é
+      **`https://trippilot.pages.dev/s/…`** (não `https://localhost/…`). Esse era o bug que quebrava abrir-link, tempo real e
+      "compartilhadas comigo" no app instalado — **confira a URL** antes de rodar os Blocos H/J.
+- [ ] **CSV: crédito puro importa como entrada** `[0.73 / D-BUG-06]`: no import do Wise, um **crédito sem contraparte** (ex.:
+      estorno) agora é **importável** e entra como **entrada** (cresce o fundo / credita a carteira), com dedupe na reimportação.
+- [ ] **Compartilhar link nativo** `[0.74 / D-IMP-04]`: depois de dividir, **"Compartilhar"** abre a **bandeja nativa** do
+      Android; **cancelar** a bandeja **não** copia escondido; só uma falha real cai pro "copiado".
+- [ ] **Porta "receber de outro aparelho / QR" em Pessoas e dívidas** `[0.74 / D-BUG-20]`: existe uma entrada para **receber
+      conexão / ler QR** dentro de Pessoas e dívidas (reusa o fluxo de conexão `/sync`).
+
+**Ajustes / Segurança**
+- [ ] **PIN desbloqueia sozinho ao acertar** `[0.74 / D-IMP-06]`: com PIN ligado, ao digitar o **último dígito correto** o app
+      **desbloqueia na hora** (sem apertar botão); PIN errado mostra erro e o botão continua como reforço.
+
+**Confirmações só de aparelho (⚡ ainda nunca rodaram em celular)**
+- [ ] ⚡ **iOS — sem zoom ao focar um campo** `[0.71 / D-BUG-02]`: (só iPhone) tocar num input **não** dá aquele zoom preso.
+- [ ] ⚡ **Sem barra de rolagem fantasma** `[0.71 / D-BUG-07]`: na casca nativa não aparece scrollbar sobreposta.
+- [ ] ⚡ **Margem lateral da saída ativa** `[0.72 / D-BUG-15]`: confirme que nenhum elemento "vaza" até a borda (não
+      reproduzido no emulador — só confirmação de aparelho).
+
+---
+
 ## Mapa de cobertura (versão → onde testar)
 
 | Versão | O que entrou | Bloco |
@@ -276,6 +345,11 @@ TRANSFER-2001,17-06-2026,100.00,EUR,From Ana,,Ana,,,,CREDIT,TRANSFER
 | 0.68 | Copiloto v3: 4 módulos (B10) + biometria sobre PIN (B6) | G, K |
 | 0.69 | ⚡ **nativo**: receber CSV (B1), App Links (B2), GPS nativo (B3) | I, J, A/D |
 | 0.70 | criação de fundo atômica (B13) — estabilidade interna | F* |
+| 0.71 | link sem `localhost` (D-BUG-01), 1 só × na busca (D-BUG-14), iOS sem zoom (D-BUG-02)⚡, scrollbar (D-BUG-07)⚡ | L, H |
+| 0.72 | câmera frente/trás+zoom (D-BUG-03), visor de foto com zoom (D-BUG-17), foto compacta (D-BUG-16), fotos na revisão (D-BUG-05); margem lateral (D-BUG-15)⚡ | L, E |
+| 0.73 | amigo sincero "steady" (D-BUG-11), entrada na lista (D-BUG-04), CSV crédito→entrada (D-BUG-06), local ao editar (D-BUG-08) | L, D, I |
+| 0.74 | Home 1 linha/sessão (D-BUG-13), PIN auto-desbloqueio (D-IMP-06), vincular pelo detalhe (D-IMP-03), € compacto (D-IMP-01), receber/QR em Pessoas (D-BUG-20), animação por ordem (D-BUG-10), drag-to-close pelo corpo (D-BUG-12), microcopy divisão (D-BUG-18), prévia da fase na Viagem (D-IMP-02), share nativo (D-IMP-04) | L |
+| 0.75 | nota sem loja nomeada pela categoria predominante (D-IMP-05) | L, E |
 
 \* *0.55.1 leitura on-device foi **removida** na 0.56 (IA-only) — não precisa testar.*
 \* *0.70 (B13) é mudança interna sem UI nova: o teste é funcional — criar um **fundo com fases** no Planejador e
@@ -293,5 +367,7 @@ confirmar que salva inteiro (pool + reservas das fases de uma vez). Cobre no Blo
 
 ---
 
-*Roteiro gerado em 2026-06-17. Fonte da verdade das mudanças: `src/utils/release-notes.ts` (0.50→0.70) +
-`waves-final-report-2026-06-17.md`. APK de teste: `android/app/build/outputs/apk/debug/app-debug.apk` (0.69.0).*
+*Roteiro gerado em 2026-06-17 (revisado p/ OTA 0.75.0). Fonte da verdade das mudanças: `src/utils/release-notes.ts`
+(0.50→0.75) + `waves-final-report-2026-06-17.md`; o lote 0.71→0.75 (Bloco L) detalhado em
+`device-test-fixes-masterplan-2026-06-17.md`. APK de teste: `android/app/build/outputs/apk/debug/app-debug.apk` (0.69.0),
+que se atualiza sozinho para o **web 0.75.0** via OTA.*
