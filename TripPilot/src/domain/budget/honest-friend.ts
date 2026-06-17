@@ -81,19 +81,25 @@ export type HonestFriendV2 =
  * MEANING instead of always reading as the orange "alert" accent. The reserve
  * date (the pace will start eating the protected reserve) is the strongest
  * signal, so a `kind` that projects one escalates to `alert`.
- *  - positive → within plan, or the phase slack absorbs the overflow (reassuring)
- *  - caution  → over the category pace / over the plan, reserve still safe
- *  - alert    → over plan/pace AND the pace projects into the protected reserve
+ *  - positive → within plan (genuinely on track — green)
+ *  - steady   → over the category pace, but the phase slack absorbs the overflow
+ *               (D-BUG-11 / D-DEC-E: a calm "heads up, but you're fine" — blue/teal,
+ *               NOT green, because the message still says "only N of M fit")
+ *  - caution  → over the category pace / over the plan, reserve still safe (amber)
+ *  - alert    → over plan/pace AND the pace projects into the protected reserve (red)
  *  - neutral  → no plan for the category (informational impact %, nothing to alarm)
  */
-export type HonestFriendTone = 'positive' | 'caution' | 'alert' | 'neutral';
+export type HonestFriendTone = 'positive' | 'steady' | 'caution' | 'alert' | 'neutral';
 
 export function getHonestFriendTone(amigo: HonestFriendV2): HonestFriendTone {
   switch (amigo.kind) {
     case 'on_plan':
       return 'positive';
     case 'over_pace':
-      if (amigo.overflowFitsPhase) return 'positive';
+      // D-BUG-11: the slack covers the overflow, but the card still tells the
+      // user "only N of the M left fit" — a green light contradicts that copy.
+      // `steady` keeps it reassuring without pretending everything is on plan.
+      if (amigo.overflowFitsPhase) return 'steady';
       return amigo.reserveStartDate !== null ? 'alert' : 'caution';
     case 'over_plan':
       return amigo.reserveStartDate !== null ? 'alert' : 'caution';

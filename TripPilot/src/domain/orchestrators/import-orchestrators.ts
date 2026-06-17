@@ -6,6 +6,7 @@ import type { WiseImportDraft, WiseAllocation } from '@/domain/import';
 import { wiseExternalRef } from '@/domain/import';
 import {
   createExpenseTransaction,
+  createIncomeTransaction,
   createTransferTransaction,
 } from '@/domain/transactions/transactions';
 import { createSettlement, resolvePayerExpense } from '@/domain/splitting';
@@ -66,6 +67,28 @@ export async function commitWiseImport(
   const shares: ParticipantShare[] = [];
 
   for (const draft of importable) {
+    // D-BUG-06: a pure credit (positive amount, no counterparty) is real income.
+    // It grows the operational pool and credits the Wise wallet, reusing the income
+    // factory (category null, excludeFromLearning true). It carries the same
+    // `externalRef` as an expense so a re-import is recognized as a duplicate.
+    if (draft.kind === 'credit') {
+      const income = createIncomeTransaction({
+        tripId: input.tripId,
+        phaseId: draft.phaseId ?? input.fallbackPhaseId,
+        budgetPoolId: input.budgetPoolId,
+        walletId: input.walletId,
+        amountCents: draft.amountCents,
+        currency: draft.currency,
+        baseCurrencyAmountCents: draft.amountCents,
+        exchangeRate: null,
+        description: draft.description,
+        date: draft.dateIso,
+      });
+      income.externalRef = draft.externalRef;
+      transactions.push(income);
+      continue;
+    }
+
     const bridge = input.bridges?.[draft.rowId];
     // The importer never invents exchange rates: the base-currency value equals
     // the original amount (exchangeRate null). For a same-currency statement

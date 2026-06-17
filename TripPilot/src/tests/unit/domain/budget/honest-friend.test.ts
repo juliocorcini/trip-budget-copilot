@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildHonestFriendV2,
+  getHonestFriendTone,
   projectReserveStartDate,
   evaluateBorrowFromTomorrow,
+  type HonestFriendV2,
   type HonestFriendV2Input,
 } from '@/domain/budget';
 import type { Phase } from '@/domain/types/phase';
@@ -150,6 +152,81 @@ describe('buildHonestFriendV2 (DEC-093 / R-11)', () => {
 
   it('no recent spend → no card', () => {
     expect(buildHonestFriendV2(baseInput({ recentSpendCents: 0 })).kind).toBe('none');
+  });
+});
+
+describe('getHonestFriendTone (D-BUG-11 / D-DEC-E)', () => {
+  const overPace = (over: Partial<Extract<HonestFriendV2, { kind: 'over_pace' }>> = {}): HonestFriendV2 => ({
+    kind: 'over_pace',
+    profileId: 'p',
+    profileName: 'Bar',
+    plannedQuantity: 10,
+    doneQuantity: 4,
+    remainingPlanned: 6,
+    fitCount: 3,
+    reserveStartDate: null,
+    overflowCount: 3,
+    phaseFreeCents: 5_000,
+    overflowFitsPhase: true,
+    ...over,
+  });
+
+  it('within plan → positive (green)', () => {
+    expect(
+      getHonestFriendTone({
+        kind: 'on_plan',
+        profileId: 'p',
+        profileName: 'Bar',
+        plannedQuantity: 10,
+        doneQuantity: 4,
+        remainingPlanned: 6,
+      }),
+    ).toBe('positive');
+  });
+
+  it('over pace but the phase slack absorbs the overflow → steady, NOT positive', () => {
+    expect(getHonestFriendTone(overPace({ overflowFitsPhase: true }))).toBe('steady');
+  });
+
+  it('steady wins even when a reserve date is projected (slack still covers it)', () => {
+    expect(
+      getHonestFriendTone(overPace({ overflowFitsPhase: true, reserveStartDate: '2026-06-15' })),
+    ).toBe('steady');
+  });
+
+  it('over pace, slack does NOT cover, reserve safe → caution (amber)', () => {
+    expect(
+      getHonestFriendTone(overPace({ overflowFitsPhase: false, reserveStartDate: null })),
+    ).toBe('caution');
+  });
+
+  it('over pace, slack does NOT cover, reserve at risk → alert (red)', () => {
+    expect(
+      getHonestFriendTone(overPace({ overflowFitsPhase: false, reserveStartDate: '2026-06-15' })),
+    ).toBe('alert');
+  });
+
+  it('over plan escalates by the reserve date', () => {
+    const base = {
+      kind: 'over_plan' as const,
+      profileId: 'p',
+      profileName: 'Bar',
+      plannedQuantity: 5,
+      doneQuantity: 8,
+    };
+    expect(getHonestFriendTone({ ...base, reserveStartDate: null })).toBe('caution');
+    expect(getHonestFriendTone({ ...base, reserveStartDate: '2026-06-15' })).toBe('alert');
+  });
+
+  it('no plan → neutral', () => {
+    expect(
+      getHonestFriendTone({
+        kind: 'no_plan',
+        profileId: 'p',
+        profileName: 'Bar',
+        impactPercent: 20,
+      }),
+    ).toBe('neutral');
   });
 });
 

@@ -28,6 +28,7 @@ import { FastScroller } from '@/features/expenses/FastScroller';
 import { SelectionBar, type SelectionAction } from '@/components/SelectionBar';
 import { showToast } from '@/components/Toast';
 import { getCategoryIcon } from '@/utils/category-icons';
+import { buildSessionFeed, groupFeedByDay } from './expense-feed';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -37,12 +38,6 @@ type ListTab = 'expenses' | 'outings';
 // DEC-197 (N3): tab order — index drives swipe/slide direction (left = forward).
 const TAB_ORDER: readonly ListTab[] = ['expenses', 'outings'];
 type BatchSheet = 'deleteExpenses' | 'movePool' | 'changeCategory' | 'deleteOutings' | null;
-
-// DEC-206 (rollup): a feed row is either a standalone expense or a collapsed
-// session (receipt/outing) standing in for its N member transactions.
-type FeedEntry =
-  | { kind: 'tx'; date: string; tx: Transaction }
-  | { kind: 'session'; date: string; session: Session; txs: Transaction[]; totalCents: number };
 
 const CATEGORY_KEYS = [
   'bar',
@@ -120,21 +115,31 @@ export function ExpenseListPage() {
     : null;
 
   const searchQuery = query.trim().toLowerCase();
-  const expenses = transactions
-    .filter((tx) => tx.type === 'expense' && tx.deletedAt === null)
-    .filter((tx) => !filterCategory || tx.category === filterCategory)
-    .filter((tx) => !filterProfileId || tx.activityProfileId === filterProfileId)
-    .filter((tx) => !filterWalletNull || tx.walletId === null)
-    .filter((tx) => !filterPlace || tx.placeLabel === filterPlace)
-    // G2: match on description, place and the (translated) category label.
-    .filter((tx) => {
-      if (!searchQuery) return true;
-      const haystack = `${tx.description ?? ''} ${tx.placeLabel ?? ''} ${
-        tx.category ? t(`categories.${tx.category}` as never) : ''
-      }`.toLowerCase();
-      return haystack.includes(searchQuery);
-    })
-    .sort((a, b) => b.date.localeCompare(a.date));
+  // G2: match on description, place and the (translated) category label.
+  const matchesQuery = (tx: Transaction): boolean => {
+    if (!searchQuery) return true;
+    const haystack = `${tx.description ?? ''} ${tx.placeLabel ?? ''} ${
+      tx.category ? t(`categories.${tx.category}` as never) : ''
+    }`.toLowerCase();
+    return haystack.includes(searchQuery);
+  };
+  // The scope filters apply to every feed transaction. D-BUG-04: income carries
+  // no category/profile/place, so an active chip naturally excludes it — income
+  // only surfaces while browsing or in a description search, exactly as planned.
+  const matchesScope = (tx: Transaction): boolean =>
+    tx.deletedAt === null &&
+    (!filterCategory || tx.category === filterCategory) &&
+    (!filterProfileId || tx.activityProfileId === filterProfileId) &&
+    (!filterWalletNull || tx.walletId === null) &&
+    (!filterPlace || tx.placeLabel === filterPlace) &&
+    matchesQuery(tx);
+
+  const byDateDesc = (a: Transaction, b: Transaction) => b.date.localeCompare(a.date);
+  const expenses = transactions.filter((tx) => tx.type === 'expense' && matchesScope(tx)).sort(byDateDesc);
+  // D-BUG-04 (D-DEC-D): income shows in the feed as a distinct line, but NEVER in
+  // the "total gasto" — the header total and the day subtotals stay expense-only
+  // (ÂNCORA 11 invariance: with zero income everything is bit-identical).
+  const incomes = transactions.filter((tx) => tx.type === 'income' && matchesScope(tx)).sort(byDateDesc);
 
   const totalCents = sumCents(expenses.map((tx) => tx.amountCents));
   const unassigned = getUnassignedTransactionCount(transactions);
@@ -170,38 +175,12 @@ export function ExpenseListPage() {
   // filtering, the user wants the specific line, so we keep the list itemised.
   const isBrowsing =
     !searchQuery && !filterCategory && !filterProfileId && !filterWalletNull && !filterPlace;
-  const feed: FeedEntry[] = [];
-  const sessionEntryById = new Map<string, Extract<FeedEntry, { kind: 'session' }>>();
-  for (const tx of expenses) {
-    const session = isBrowsing && tx.sessionId ? sessionById.get(tx.sessionId) : undefined;
-    if (session) {
-      const existing = sessionEntryById.get(session.id);
-      if (existing) {
-        existing.txs.push(tx);
-        existing.totalCents += tx.amountCents;
-      } else {
-        const entry = { kind: 'session' as const, date: tx.date, session, txs: [tx], totalCents: tx.amountCents };
-        sessionEntryById.set(session.id, entry);
-        feed.push(entry);
-      }
-    } else {
-      feed.push({ kind: 'tx', date: tx.date, tx });
-    }
-  }
-
-  const expenseGroups: { day: string; label: string; subtotalCents: number; entries: FeedEntry[] }[] = [];
-  for (const entry of feed) {
-    const day = localDayOf(entry.date);
-    const amount = entry.kind === 'tx' ? entry.tx.amountCents : entry.totalCents;
-    const last = expenseGroups[expenseGroups.length - 1];
-    const group = last && last.day === day ? last : null;
-    if (group) {
-      group.entries.push(entry);
-      group.subtotalCents += amount;
-    } else {
-      expenseGroups.push({ day, label: dayLabelOf(day), subtotalCents: amount, entries: [entry] });
-    }
-  }
+  // D-BUG-04: merge income into the date-ordered feed (only re-sort when there
+  // IS income, so a trip with none stays byte-identical to the expense-only feed).
+  const feedTransactions =
+    incomes.length === 0 ? expenses : [...expenses, ...incomes].sort(byDateDesc);
+  const feed = buildSessionFeed(feedTransactions, sessionById, isBrowsing);
+  const expenseGroups = groupFeedByDay(feed);
 
   const clearFilters = () => {
     setFilterCategory(null);
@@ -310,7 +289,7 @@ export function ExpenseListPage() {
           <h1 className="text-heading font-bold text-on-surface truncate min-w-0">{t('expenses.title')}</h1>
           <div className="flex items-center gap-2 shrink-0">
             {tab === 'expenses' && (
-              <p className="text-sm font-semibold tabular text-on-surface">
+              <p data-expense-total className="text-sm font-semibold tabular text-on-surface">
                 {formatMoney(totalCents, trip.baseCurrency)}
               </p>
             )}
@@ -471,7 +450,7 @@ export function ExpenseListPage() {
         </div>
       )}
 
-      {expenses.length === 0 ? (
+      {feedTransactions.length === 0 ? (
         searchQuery ? (
           <EmptyState
             icon="search_off"
@@ -493,13 +472,13 @@ export function ExpenseListPage() {
               key={group.day}
               className="flex flex-col gap-1"
               data-expense-day={group.day}
-              data-expense-label={group.label}
+              data-expense-label={dayLabelOf(group.day)}
             >
               {/* L1: day header — relative label + the day's subtotal, so each
                   block answers "what did I spend that day?" at a glance. */}
               <div className="flex items-baseline justify-between px-1 pb-0.5">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-faint">
-                  {group.label}
+                  {dayLabelOf(group.day)}
                 </span>
                 <span className="text-[11px] font-semibold tabular text-on-surface-dim">
                   {formatMoney(group.subtotalCents, trip.baseCurrency)}
@@ -520,6 +499,16 @@ export function ExpenseListPage() {
                   );
                 }
                 const tx = entry.tx;
+                if (tx.type === 'income') {
+                  return (
+                    <IncomeRow
+                      key={tx.id}
+                      tx={tx}
+                      walletName={tx.walletId ? walletMap.get(tx.walletId) : undefined}
+                      onOpen={() => navigate(`/expenses/${tx.id}`)}
+                    />
+                  );
+                }
                 return (
             <button
               key={tx.id}
@@ -819,6 +808,59 @@ function SessionRollupRow({
       </div>
       <div className="text-right ml-3 flex items-center gap-2 shrink-0">
         <p className="text-sm font-semibold tabular text-on-surface">{formatMoney(totalCents, currency)}</p>
+        <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+      </div>
+    </button>
+  );
+}
+
+/* D-BUG-04 (D-DEC-D): income shows in the expenses feed as a distinct, green
+   "+€X" line (savings icon) — it is money received, never a spend, so it has its
+   own row treatment and is not part of multi-select batch actions. Tapping opens
+   the same ExpenseDetailPage, which already views/edits/deletes income. */
+function IncomeRow({
+  tx,
+  walletName,
+  onOpen,
+}: {
+  tx: Transaction;
+  walletName: string | undefined;
+  onOpen: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={onOpen}
+      data-income-row={tx.id}
+      className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full"
+    >
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: 'rgba(107,143,113,.12)' }}
+        >
+          <Icon name="savings" size={18} style={{ color: 'var(--success)' }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-on-surface truncate">
+            {tx.description || t('income.default_description')}
+          </p>
+          <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
+            <span style={{ color: 'var(--success)' }}>{t('income.default_description')}</span>
+            <span>·</span>
+            <span className="shrink-0">
+              {formatShortDate(localDayOf(tx.date))} {localClockTime(tx.date)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="text-right ml-3 flex items-center gap-2 shrink-0">
+        <div>
+          <p className="text-sm font-bold tabular" style={{ color: 'var(--success)' }}>
+            +{formatMoney(tx.amountCents, tx.currency)}
+          </p>
+          {walletName && <p className="text-xs text-on-surface-faint">{walletName}</p>}
+        </div>
         <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
       </div>
     </button>

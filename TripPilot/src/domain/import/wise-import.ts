@@ -6,7 +6,8 @@ import type { WiseStatementRow } from './wise-csv';
 import type { WiseTransferDirection } from './wise-transfer';
 
 /**
- * What a row becomes when imported. Credits are shown but never imported.
+ * What a row becomes when imported. D-BUG-06: a `credit` (money received, no
+ * counterparty) now commits as INCOME (DEC-212), not display-only.
  * FIELD-14: `transfer` = a TRANSFER to/from a PERSON — handled by the dedicated
  * classification flow (debt / wallet move / expense / split), not as an expense.
  */
@@ -50,7 +51,7 @@ export interface WiseImportDraft {
   inPhase: boolean;
   /** Existing manual transaction this row looks like a duplicate of, if any. */
   manualDupTxId: string | null;
-  /** Importable rows can be committed; credits are display-only. */
+  /** Importable rows can be committed (expense/fee as spend, credit as income). */
   importable: boolean;
   /** Whether the row starts checked in the review list. */
   includeByDefault: boolean;
@@ -258,7 +259,9 @@ export function classifyWiseRows(
 
     // FIELD-14: transfers are committed through the classification flow, so they
     // are not "importable" as plain expenses (the expense commit path skips them).
-    const importable = kind === 'expense' || kind === 'fee';
+    // D-BUG-06: a pure credit (positive, no counterparty) IS importable now — it
+    // commits as income (DEC-212). Transfers with a person stay on their own flow.
+    const importable = kind === 'expense' || kind === 'fee' || kind === 'credit';
     const includeByDefault = importable && status === 'new';
 
     if (kind === 'credit') summary.creditCount++;

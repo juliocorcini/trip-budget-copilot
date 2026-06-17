@@ -1,0 +1,114 @@
+import { describe, it, expect } from 'vitest';
+import { buildSessionFeed, groupFeedByDay } from '@/features/expenses/expense-feed';
+import type { Transaction } from '@/domain/types/transaction';
+import type { Session } from '@/domain/types/session';
+
+const tx = (over: Partial<Transaction>): Transaction =>
+  ({
+    id: 'tx',
+    type: 'expense',
+    amountCents: 1_000,
+    currency: 'EUR',
+    sessionId: null,
+    date: '2026-06-10T12:00:00.000Z',
+    deletedAt: null,
+    ...over,
+  }) as unknown as Transaction;
+
+const session = (id: string): Session => ({ id }) as unknown as Session;
+
+describe('buildSessionFeed (DEC-206 rollup + D-BUG-04)', () => {
+  it('collapses a browsed session into one entry and keeps standalone tx rows', () => {
+    const sessionById = new Map([['s1', session('s1')]]);
+    const feed = buildSessionFeed(
+      [
+        tx({ id: 'a', sessionId: 's1', amountCents: 300 }),
+        tx({ id: 'b', sessionId: 's1', amountCents: 700 }),
+        tx({ id: 'c', sessionId: null, amountCents: 1_500 }),
+      ],
+      sessionById,
+      true,
+    );
+    expect(feed).toHaveLength(2);
+    const rollup = feed[0];
+    expect(rollup?.kind).toBe('session');
+    if (rollup?.kind === 'session') {
+      expect(rollup.txs).toHaveLength(2);
+      expect(rollup.totalCents).toBe(1_000); // 300 + 700
+    }
+    expect(feed[1]?.kind).toBe('tx');
+  });
+
+  it('income (no sessionId) is always a standalone tx entry, never rolled up', () => {
+    const sessionById = new Map([['s1', session('s1')]]);
+    const feed = buildSessionFeed(
+      [
+        tx({ id: 'exp', sessionId: 's1' }),
+        tx({ id: 'inc', type: 'income', sessionId: null, amountCents: 5_000 }),
+      ],
+      sessionById,
+      true,
+    );
+    expect(feed).toHaveLength(2);
+    const incomeEntry = feed.find((e) => e.kind === 'tx' && e.tx.id === 'inc');
+    expect(incomeEntry?.kind).toBe('tx');
+  });
+
+  it('does NOT roll up sessions when not browsing (search/filter active)', () => {
+    const sessionById = new Map([['s1', session('s1')]]);
+    const feed = buildSessionFeed(
+      [tx({ id: 'a', sessionId: 's1' }), tx({ id: 'b', sessionId: 's1' })],
+      sessionById,
+      false,
+    );
+    expect(feed).toHaveLength(2);
+    expect(feed.every((e) => e.kind === 'tx')).toBe(true);
+  });
+});
+
+describe('groupFeedByDay (D-BUG-04 invariance)', () => {
+  it('income shows in the day but NEVER adds to the subtotal', () => {
+    const groups = groupFeedByDay([
+      { kind: 'tx', date: '2026-06-10T12:00:00.000Z', tx: tx({ id: 'e', amountCents: 2_000 }) },
+      {
+        kind: 'tx',
+        date: '2026-06-10T13:00:00.000Z',
+        tx: tx({ id: 'i', type: 'income', amountCents: 9_000 }),
+      },
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.entries).toHaveLength(2); // income IS listed
+    expect(groups[0]?.subtotalCents).toBe(2_000); // but only the expense counts
+  });
+
+  it('session rollups count toward the subtotal at their total', () => {
+    const groups = groupFeedByDay([
+      {
+        kind: 'session',
+        date: '2026-06-10T12:00:00.000Z',
+        session: session('s1'),
+        txs: [tx({ amountCents: 300 }), tx({ amountCents: 700 })],
+        totalCents: 1_000,
+      },
+      { kind: 'tx', date: '2026-06-10T13:00:00.000Z', tx: tx({ amountCents: 500 }) },
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.subtotalCents).toBe(1_500);
+  });
+
+  it('a feed with zero income subtotals exactly as the expense sum (ÂNCORA 11)', () => {
+    const groups = groupFeedByDay([
+      { kind: 'tx', date: '2026-06-10T12:00:00.000Z', tx: tx({ amountCents: 1_200 }) },
+      { kind: 'tx', date: '2026-06-10T13:00:00.000Z', tx: tx({ amountCents: 800 }) },
+    ]);
+    expect(groups[0]?.subtotalCents).toBe(2_000);
+  });
+
+  it('splits entries into one group per local day', () => {
+    const groups = groupFeedByDay([
+      { kind: 'tx', date: '2026-06-10T12:00:00.000Z', tx: tx({ amountCents: 1_000 }) },
+      { kind: 'tx', date: '2026-06-09T12:00:00.000Z', tx: tx({ amountCents: 500 }) },
+    ]);
+    expect(groups).toHaveLength(2);
+  });
+});

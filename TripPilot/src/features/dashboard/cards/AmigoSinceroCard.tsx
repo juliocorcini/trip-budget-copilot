@@ -34,6 +34,13 @@ const TONE_STYLE: Record<
     color: 'var(--success)',
     icon: 'sentiment_satisfied',
   },
+  // D-BUG-11 (D-DEC-E): calm dusty-blue — "over pace, but the phase covers it".
+  steady: {
+    bg: 'rgba(94,140,167,.10)',
+    border: 'rgba(94,140,167,.22)',
+    color: 'var(--steady)',
+    icon: 'info',
+  },
   caution: { bg: '#D4A84312', border: '#D4A84322', color: 'var(--warning)', icon: 'pace' },
   alert: { bg: '#D9404012', border: '#D9404026', color: 'var(--error)', icon: 'priority_high' },
   neutral: {

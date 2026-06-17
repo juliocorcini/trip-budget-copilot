@@ -9,7 +9,7 @@ import {
 } from '@/domain/import/wise-import';
 import { commitWiseImport, commitWiseTransfers } from '@/domain/orchestrators';
 import { detectReimbursementBridges } from '@/domain/import/reimbursement-bridge';
-import { createExpenseTransaction } from '@/domain/transactions';
+import { createExpenseTransaction, createIncomeTransaction } from '@/domain/transactions';
 import { calculateDebts, createParticipant } from '@/domain/splitting';
 import { newAllocationId } from '@/domain/import';
 import type { Phase } from '@/domain/types/phase';
@@ -29,6 +29,12 @@ const ROWS = [
 ];
 
 const STATEMENT = [HEADER, ...ROWS, ''].join('\r\n');
+
+// D-BUG-06: a pure credit (positive amount, NO payee/counterparty) — a refund or
+// balance top-up. Mirrors the ACCRUAL row's column layout, only the values differ.
+const CREDIT_ROW =
+  'CREDIT-9001,10-06-2026,"10-06-2026 09:00:00.000",50.00,EUR,"Reembolso recebido",,650.00,,,,,,,,,,,,0.00,,CREDIT,DEPOSIT';
+const CREDIT_STATEMENT = [HEADER, CREDIT_ROW, ''].join('\r\n');
 
 const phase = (overrides: Partial<Phase> = {}): Phase =>
   ({
@@ -196,6 +202,49 @@ describe('classifyWiseRows', () => {
     // Fallback still attaches the out-of-phase row to the nearest phase.
     expect(outside?.phaseId).toBe('phase-jun');
   });
+
+  it('D-BUG-06: a pure credit (no counterparty) is an importable income draft, on by default', () => {
+    const plan = classifyWiseRows(parseWiseCsv(CREDIT_STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    const credit = plan.drafts.find((d) => d.rowId === 'CREDIT-9001');
+    expect(credit?.kind).toBe('credit');
+    expect(credit?.importable).toBe(true);
+    expect(credit?.includeByDefault).toBe(true); // status 'new' → checked by default
+    expect(credit?.direction).toBe('in');
+    expect(credit?.counterpartyName).toBeNull();
+    expect(credit?.amountCents).toBe(5000);
+    expect(plan.summary.creditCount).toBe(1);
+    // The credit is now a real, committable row, so it counts toward "new".
+    expect(plan.summary.newCount).toBe(1);
+  });
+
+  it('D-BUG-06: a re-imported credit is recognized as duplicate (externalRef dedupe)', () => {
+    const existing: Transaction[] = [
+      {
+        ...createIncomeTransaction({
+          tripId: 'trip-1',
+          phaseId: 'phase-jun',
+          budgetPoolId: 'pool-1',
+          walletId: 'wise-wallet',
+          amountCents: 5000,
+          currency: 'EUR',
+          description: 'Reembolso recebido',
+          date: '2026-06-10T09:00:00.000Z',
+        }),
+        externalRef: wiseExternalRef('CREDIT-9001'),
+      },
+    ];
+    const plan = classifyWiseRows(parseWiseCsv(CREDIT_STATEMENT), {
+      existingTransactions: existing,
+      phases: PHASES,
+    });
+    const credit = plan.drafts.find((d) => d.rowId === 'CREDIT-9001');
+    expect(credit?.status).toBe('duplicate_import');
+    expect(credit?.includeByDefault).toBe(false);
+    expect(plan.summary.duplicateImportCount).toBe(1);
+  });
 });
 
 describe('commitWiseImport', () => {
@@ -227,6 +276,33 @@ describe('commitWiseImport', () => {
     const dulcycor = stored.find((t) => t.externalRef === wiseExternalRef('CARD-3927313014'));
     expect(dulcycor?.amountCents).toBe(739);
     expect(dulcycor?.placeLabel).toBe('Villatoro');
+  });
+
+  it('D-BUG-06: commits a credit as income — grows the pool, credits the wallet, deduped', async () => {
+    const plan = classifyWiseRows(parseWiseCsv(CREDIT_STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    const result = await commitWiseImport({
+      drafts: plan.drafts,
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'wise-wallet',
+      fallbackPhaseId: 'phase-jun',
+    });
+
+    expect(result.transactionIds).toHaveLength(1);
+    const stored = await db.transactions.toArray();
+    expect(stored).toHaveLength(1);
+    const income = stored[0]!;
+    expect(income.type).toBe('income'); // NOT an expense
+    expect(income.amountCents).toBe(5000);
+    expect(income.walletId).toBe('wise-wallet'); // credits the Wise wallet
+    expect(income.budgetPoolId).toBe('pool-1'); // grows the operational pool
+    expect(income.category).toBeNull(); // income is never categorized
+    expect(income.personalCostCents).toBeNull(); // never a personal cost
+    expect(income.excludeFromLearning).toBe(true); // never feeds value learning
+    expect(income.externalRef).toBe(wiseExternalRef('CREDIT-9001')); // re-import dedupe
   });
 
   it('F16 bridge: commits a purchase as split (owner paid, person owes a slice)', async () => {

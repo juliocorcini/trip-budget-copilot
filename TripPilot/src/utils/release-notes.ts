@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.73.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Dinheiro que entra (um reembolso, um depósito, um troco) agora aparece na lista de gastos em verde com um "+", e dá pra importar créditos do extrato como entrada. Isso não infla o "total gasto" — ele continua contando só o que você gastou.',
+        'Ao editar um gasto você ganhou o mesmo seletor de local da tela de adicionar: usar minha localização, escolher um lugar próximo, buscar o nome online e reaproveitar locais recentes — antes só dava pra digitar o nome.',
+        'O "amigo sincero" ficou mais honesto: quando você está gastando um pouco acima do ritmo mas ainda dentro da folga da fase, ele mostra um aviso calmo (azul) em vez de um verde que dizia que estava tudo perfeito.',
+      ],
+      en: [
+        'Money coming in (a refund, a deposit, change back) now shows in the expenses list in green with a "+", and you can import statement credits as income. It does not inflate your "total spent" — that still counts only what you spent.',
+        'Editing an expense now has the same place picker as the add screen: use my location, pick a nearby place, look up the name online, and reuse recent places — before you could only type the name.',
+        'The "honest friend" is more honest: when you are spending a bit over pace but still inside the phase\'s slack, it shows a calm (blue) heads-up instead of a green light that pretended everything was perfect.',
+      ],
+      es: [
+        'El dinero que entra (un reembolso, un depósito, un vuelto) ahora aparece en la lista de gastos en verde con un "+", y puedes importar créditos del extracto como ingreso. Esto no infla tu "total gastado": sigue contando solo lo que gastaste.',
+        'Al editar un gasto ahora tienes el mismo selector de lugar que la pantalla de agregar: usar mi ubicación, elegir un lugar cercano, buscar el nombre en línea y reutilizar lugares recientes — antes solo podías escribir el nombre.',
+        'El "amigo sincero" es más honesto: cuando gastas un poco por encima del ritmo pero aún dentro del margen de la fase, muestra un aviso tranquilo (azul) en lugar de un verde que fingía que todo estaba perfecto.',
+      ],
+    },
+  },
+  {
     version: '0.72.0',
     date: '2026-06-17',
     items: {

@@ -12,18 +12,7 @@ import {
 } from '@/domain/transactions';
 import type { ExpenseSuggestion } from '@/domain/transactions';
 import { resolvePayerExpense, collectSplitNotifyTargets } from '@/domain/splitting';
-import {
-  shouldReaskPlace,
-  coordsLabel,
-  placeToTransactionFields,
-  placesEqual,
-  deriveRecentPlaces,
-  toCurrentPlace,
-} from '@/domain/location';
-import type { RecentPlace, NearbyPlace, Coords } from '@/domain/location';
-import { getCurrentCoords } from '@/utils/geolocation';
-import { reverseGeocodePlace, searchNearbyPlaces, isOnline } from '@/utils/places';
-import { NearbyPlaceList } from '@/components/NearbyPlaceList';
+import { placeToTransactionFields, placesEqual } from '@/domain/location';
 import { appSettingsRepository, attachmentRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Transaction } from '@/domain/types/transaction';
@@ -64,6 +53,7 @@ import type { ShareType, CurrentPlace } from '@/domain/types/common';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { Participant } from '@/domain/types/participant';
 import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
+import { PlaceField } from '@/features/location/PlaceField';
 
 const CATEGORY_KEYS = [
   'bar',
@@ -140,81 +130,16 @@ export function QuickAddPage() {
   // M11: optional voice capture — only offered when the browser supports it.
   const [listening, setListening] = useState(false);
 
-  // E8 (M2/M3): opt-in location — a "sticky" place reused across expenses.
+  // E8 (M2/M3): opt-in location — a "sticky" place reused across expenses. The
+  // selector UI/GPS/nearby machinery lives in <PlaceField> (D-BUG-08); QuickAdd
+  // only owns the chosen place (for the save + sticky persistence below).
   const locationEnabled = !!settings?.locationCaptureEnabled && !isTransferLike;
   const [place, setPlace] = useState<CurrentPlace | null>(null);
-  const [editingPlace, setEditingPlace] = useState(false);
-  const [placeLabelInput, setPlaceLabelInput] = useState('');
-  // M4: opt-in online name lookup state (never blocks; offline → manual/recents).
-  const [findingName, setFindingName] = useState(false);
-  const placeCapturedRef = useRef(false);
-  // M4 (nearby): the raw GPS fix, kept separate from `place` so the nearby
-  // search keys off the real position and never loops when we pre-select a POI.
-  const [gpsCoords, setGpsCoords] = useState<Coords | null>(null);
-  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
-  const [loadingNearby, setLoadingNearby] = useState(false);
-  const nearbyKeyRef = useRef<string | null>(null);
 
   // Inherit the remembered place once settings load (until GPS says otherwise).
   useEffect(() => {
     setPlace((prev) => prev ?? settings?.currentPlace ?? null);
   }, [settings?.currentPlace]);
-
-  // M2: capture coordinates once on open (best-effort — never blocks the save).
-  // M3: keep the current place while still in the area; re-detect after a move.
-  useEffect(() => {
-    if (!locationEnabled || placeCapturedRef.current) return;
-    placeCapturedRef.current = true;
-    let active = true;
-    void getCurrentCoords().then((coords) => {
-      if (!active || coords === null) return;
-      setGpsCoords(coords);
-      setPlace((prev) => {
-        const current = prev ?? settings?.currentPlace ?? null;
-        if (!shouldReaskPlace(current, coords)) return current;
-        return { label: coordsLabel(coords), lat: coords.lat, lng: coords.lng, placeId: null };
-      });
-    });
-    return () => {
-      active = false;
-    };
-  }, [locationEnabled, settings?.currentPlace]);
-
-  // M4 (nearby): with a GPS fix + a connection, auto-list the category's nearby
-  // establishments (opt-in, online-only — never blocks; offline → recents/manual).
-  // The closest is pre-selected as the default ONLY while the place is still the
-  // raw coordinate placeholder, so a sticky/typed/picked name is never overwritten.
-  useEffect(() => {
-    if (!locationEnabled || gpsCoords === null || !isOnline()) {
-      setNearbyPlaces([]);
-      return;
-    }
-    const key = `${gpsCoords.lat.toFixed(4)},${gpsCoords.lng.toFixed(4)}:${category}`;
-    if (nearbyKeyRef.current === key) return;
-    nearbyKeyRef.current = key;
-
-    let active = true;
-    setLoadingNearby(true);
-    void searchNearbyPlaces(gpsCoords, category)
-      .then((list) => {
-        if (!active) return;
-        setNearbyPlaces(list);
-        if (list.length === 0) return;
-        const placeholderLabel = coordsLabel(gpsCoords);
-        setPlace((prev) => {
-          const isPlaceholder = prev === null || (prev.placeId === null && prev.label === placeholderLabel);
-          if (!isPlaceholder) return prev;
-          const closest = list[0]!;
-          return { label: closest.label, lat: closest.lat, lng: closest.lng, placeId: closest.placeId };
-        });
-      })
-      .finally(() => {
-        if (active) setLoadingNearby(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [locationEnabled, gpsCoords, category]);
 
   // R3-H: open on the last-used category (sticky) so capture starts on the most
   // likely choice instead of always "other". Applied once, after settings load,
@@ -230,67 +155,6 @@ export function QuickAddPage() {
       setCategory(last);
     }
   }, [settings, searchParams]);
-
-  // M4: recent places derived purely from history (offline). Ordered by
-  // proximity when the current coordinates are known, else by recency.
-  const placeCoords =
-    place?.lat != null && place?.lng != null ? { lat: place.lat, lng: place.lng } : null;
-  const recentPlaces = locationEnabled ? deriveRecentPlaces(transactions, placeCoords) : [];
-  const recentSuggestions = recentPlaces.filter((rp) => rp.label !== place?.label);
-  // The online name lookup needs real coordinates and a connection.
-  const canFindName = locationEnabled && placeCoords !== null && isOnline();
-
-  const startRenamePlace = () => {
-    setPlaceLabelInput(place?.label ?? '');
-    setEditingPlace(true);
-  };
-
-  const confirmRenamePlace = () => {
-    const label = placeLabelInput.trim();
-    if (label !== '') {
-      // M4: typing a name works even without GPS (coords stay null).
-      setPlace(place ? { ...place, label } : { label, lat: null, lng: null, placeId: null });
-    }
-    setEditingPlace(false);
-  };
-
-  const clearPlace = () => {
-    setPlace(null);
-    setEditingPlace(false);
-  };
-
-  // M4: apply a place reused from history (1 tap, fully offline).
-  const applyRecentPlace = (recent: RecentPlace) => {
-    setPlace(toCurrentPlace(recent));
-    setEditingPlace(false);
-  };
-
-  // M4 (nearby): pick one of the auto-listed nearby establishments.
-  const applyNearbyPlace = (nearby: NearbyPlace) => {
-    setPlace({ label: nearby.label, lat: nearby.lat, lng: nearby.lng, placeId: nearby.placeId });
-    setEditingPlace(false);
-  };
-
-  // Hide nearby options that already match the chosen place.
-  const nearbySuggestions = nearbyPlaces.filter(
-    (np) => np.placeId !== place?.placeId && np.label !== place?.label,
-  );
-
-  // M4: resolve a real name for the current coordinates (opt-in, online-only).
-  const findNameOnline = async () => {
-    if (placeCoords === null || findingName) return;
-    setFindingName(true);
-    try {
-      const result = await reverseGeocodePlace(placeCoords);
-      if (result !== null) {
-        setPlace((prev) =>
-          prev ? { ...prev, label: result.label, placeId: result.placeId } : prev,
-        );
-      }
-    } finally {
-      setFindingName(false);
-    }
-  };
 
   // BUG-002 (R6-02): never fall back to phases[0] — resolveActivePhase picks
   // the nearest phase (current, else last past, else first future).
@@ -936,94 +800,18 @@ export function QuickAddPage() {
       </div>
       )}
 
-      {/* E8 (M2/M3): opt-in location — sticky place, editable by tapping it. */}
+      {/* E8 (M2/M3) + D-BUG-08: opt-in location — the selector now lives in the
+          shared <PlaceField>, auto-capturing the live GPS fix on open. */}
       {locationEnabled && (
-      <div className="bg-surface-container rounded-xl p-4">
-        <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.location_label')}</label>
-        {editingPlace ? (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={placeLabelInput}
-              onChange={(e) => setPlaceLabelInput(e.target.value)}
-              placeholder={t('expenses.location_name_placeholder')}
-              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none flex-1 min-w-0"
-              autoFocus
-            />
-            <button
-              onClick={confirmRenamePlace}
-              className="px-3 py-2 rounded-lg bg-primary text-on-surface text-xs font-medium btn-press"
-            >
-              {t('common.save')}
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between gap-2">
-              <button
-                onClick={startRenamePlace}
-                className="flex items-center gap-2 min-w-0 btn-press text-left flex-1"
-              >
-                <Icon name="location_on" size={16} className="text-on-surface-dim shrink-0" />
-                <span className="text-sm text-on-surface truncate">
-                  {place ? place.label : t('expenses.location_add_manual')}
-                </span>
-                <Icon name="edit" size={14} className="text-on-surface-faint shrink-0" />
-              </button>
-              {place && (
-                <button
-                  onClick={clearPlace}
-                  className="btn-press p-1 shrink-0"
-                  aria-label={t('common.clear')}
-                >
-                  <Icon name="close" size={16} className="text-on-surface-faint" />
-                </button>
-              )}
-            </div>
-
-            {/* M4 (nearby): the category's nearby establishments, nearest first.
-                The closest is pre-selected above; these let the traveler switch. */}
-            <div className="mt-2">
-              <NearbyPlaceList
-                places={nearbySuggestions}
-                loading={loadingNearby}
-                onPick={applyNearbyPlace}
-              />
-            </div>
-
-            {/* M4: resolve a real name from the coordinates (opt-in, online-only). */}
-            {canFindName && (
-              <button
-                onClick={findNameOnline}
-                disabled={findingName}
-                className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-high btn-press disabled:opacity-50"
-              >
-                <Icon name="travel_explore" size={14} className="text-on-surface-dim" />
-                <span className="text-xs text-on-surface-dim">
-                  {findingName ? t('expenses.location_searching') : t('expenses.location_find_online')}
-                </span>
-              </button>
-            )}
-
-            {/* M4: places reused from history — fully offline, one tap. */}
-            {recentSuggestions.length > 0 && (
-              <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {recentSuggestions.map((recent) => (
-                  <button
-                    key={recent.placeId ?? recent.label}
-                    onClick={() => applyRecentPlace(recent)}
-                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-high text-on-surface-dim btn-press"
-                  >
-                    <Icon name="history" size={12} className="text-on-surface-faint" />
-                    <span className="text-xs">{recent.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-        <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.location_privacy_hint')}</p>
-      </div>
+        <PlaceField
+          value={place}
+          onChange={setPlace}
+          category={category}
+          transactions={transactions}
+          autoCapture
+          locationFeaturesEnabled
+          rememberedPlace={settings?.currentPlace ?? null}
+        />
       )}
 
       {!isTransferLike && (

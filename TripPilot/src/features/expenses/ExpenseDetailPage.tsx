@@ -12,8 +12,11 @@ import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import { AttachmentSection } from '@/features/attachments/AttachmentSection';
+import { PlaceField } from '@/features/location/PlaceField';
+import { placeToTransactionFields } from '@/domain/location';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
+import type { CurrentPlace } from '@/domain/types/common';
 
 const CATEGORY_KEYS = [
   'bar',
@@ -31,7 +34,8 @@ export function ExpenseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { trip, pools, wallets, participants, settings, loading, reload } = useAppData();
+  const { trip, pools, wallets, participants, transactions, settings, loading, reload } =
+    useAppData();
 
   const [tx, setTx] = useState<Transaction | null>(null);
   const [txLoading, setTxLoading] = useState(true);
@@ -46,8 +50,9 @@ export function ExpenseDetailPage() {
   const [editPoolId, setEditPoolId] = useState<string | null>(null);
   const [editWalletId, setEditWalletId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState('');
-  // M5: the place is editable as free text (rename or clear).
-  const [editPlace, setEditPlace] = useState('');
+  // D-BUG-08: the place is edited with the shared <PlaceField> (rename, use my
+  // location, nearby, find online, recents) instead of a bare text input.
+  const [editPlace, setEditPlace] = useState<CurrentPlace | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -105,23 +110,12 @@ export function ExpenseDetailPage() {
     setEditPoolId(tx.budgetPoolId);
     setEditWalletId(tx.walletId);
     setEditDate(localDayOf(tx.date));
-    setEditPlace(tx.placeLabel ?? '');
+    setEditPlace(
+      tx.placeLabel
+        ? { label: tx.placeLabel, lat: tx.latitude, lng: tx.longitude, placeId: tx.placeId }
+        : null,
+    );
     setEditing(true);
-  };
-
-  // M5: rename keeps coordinates; clearing the name drops the whole place; a
-  // changed name drops the provider id (it no longer matches that POI).
-  const resolveEditedPlaceFields = () => {
-    const trimmed = editPlace.trim();
-    if (trimmed === '') {
-      return { placeLabel: null, latitude: null, longitude: null, placeId: null };
-    }
-    return {
-      placeLabel: trimmed,
-      latitude: tx!.latitude,
-      longitude: tx!.longitude,
-      placeId: trimmed === (tx!.placeLabel ?? '') ? tx!.placeId : null,
-    };
   };
 
   const handleSaveEdit = async () => {
@@ -162,7 +156,7 @@ export function ExpenseDetailPage() {
         budgetPoolId: editPoolId,
         walletId: editWalletId,
         date: newDate,
-        ...resolveEditedPlaceFields(),
+        ...placeToTransactionFields(editPlace),
       });
       setTx(updated);
       setShares(newShares);
@@ -384,17 +378,16 @@ export function ExpenseDetailPage() {
             />
           </div>
 
-          {/* M5: edit or clear the place (leave empty to remove the location). */}
-          <div className="bg-surface-container rounded-xl p-4">
-            <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.location_label')}</label>
-            <input
-              type="text"
-              value={editPlace}
-              onChange={(e) => setEditPlace(e.target.value)}
-              placeholder={t('expenses.location_name_placeholder')}
-              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
-            />
-          </div>
+          {/* D-BUG-08: full place apparatus on edit (use my location, nearby,
+              find online, recents) — gated GPS/online features by the setting. */}
+          <PlaceField
+            value={editPlace}
+            onChange={setEditPlace}
+            category={editCategory}
+            transactions={transactions}
+            autoCapture={false}
+            locationFeaturesEnabled={!!settings?.locationCaptureEnabled}
+          />
 
           <div className="bg-surface-container rounded-xl p-4">
             <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>

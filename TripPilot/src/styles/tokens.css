@@ -20,6 +20,10 @@
   --success: #6B8F71;
   --warning: #D4A843;
   --error: #D94040;
+  /* D-BUG-11 (D-DEC-E): calm "steady" attention — a muted dusty blue distinct
+     from the sage success, so "over pace but the phase covers it" reads as a
+     reassuring heads-up, not a green all-clear. */
+  --steady: #5E8CA7;
 
   /* ── Phase "available per day" calendar intensity (Wave B / F22) ──
      Sage-green ramp mirroring the heatmap's alpha steps (33/59/80/B3). */
@@ -107,6 +111,7 @@
   --success: #4A7050;
   --warning: #B38B2D;
   --error: #C23030;
+  --steady: #3F7491;
 
   --avail-1: #4A705033;
   --avail-2: #4A705059;
