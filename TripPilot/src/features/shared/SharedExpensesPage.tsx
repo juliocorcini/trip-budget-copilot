@@ -45,6 +45,7 @@ import {
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
+import { ShareLinkSheet } from './ShareLinkSheet';
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
@@ -91,6 +92,8 @@ export function SharedExpensesPage() {
   const [linkTarget, setLinkTarget] = useState<Participant | null>(null);
   const [sendTarget, setSendTarget] = useState<Participant | null>(null);
   const [statementQrText, setStatementQrText] = useState<string | null>(null);
+  // DEC-207: shared participant link — no pairing required.
+  const [shareTarget, setShareTarget] = useState<Participant | null>(null);
   // FIELD item 8: peer links keyed by participant — drives the "send via the
   // mailbox" action (only available when the peer's public key is on file).
   const [peerLinks, setPeerLinks] = useState<PeerLink[]>([]);
@@ -673,6 +676,22 @@ export function SharedExpensesPage() {
                 </div>
               )}
 
+              {/* DEC-207: shared participant link — the no-pairing headline path.
+                  Works for ANY non-owner: generate a link, send it, the guest
+                  opens it in a browser (no app/account needed). */}
+              {!statementTarget.isOwner && (
+                <button
+                  onClick={() => {
+                    setShareTarget(statementTarget);
+                    setStatementTarget(null);
+                  }}
+                  className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold text-sm flex items-center justify-center gap-2 btn-press"
+                >
+                  <Icon name="link" size={18} />
+                  {t('shareLink.open_action')}
+                </button>
+              )}
+
               {/* R4 P2P: retroactive pairing + statement push (DEC-105/106) */}
               {!statementTarget.isOwner && statementTarget.linkedActorId === null && (
                 <button
@@ -694,9 +713,9 @@ export function SharedExpensesPage() {
                     setStatementTarget(null);
                     setStatementQrText(null);
                   }}
-                  className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold text-sm flex items-center justify-center gap-2 btn-press"
+                  className="w-full py-3 rounded-xl bg-surface-high text-on-surface font-semibold text-sm flex items-center justify-center gap-2 btn-press"
                 >
-                  <Icon name="send" size={18} />
+                  <Icon name="send" size={18} className="text-primary" />
                   {t('sync.send_statement', {
                     name: statementTarget.nickname ?? statementTarget.name,
                   })}
@@ -833,6 +852,28 @@ export function SharedExpensesPage() {
               );
             })()}
           </div>
+        )}
+      </BottomSheet>
+
+      {/* DEC-207: shared participant link — generate/manage from here */}
+      <BottomSheet
+        open={shareTarget !== null}
+        onClose={() => setShareTarget(null)}
+        title={
+          shareTarget
+            ? t('shareLink.title', { name: shareTarget.nickname ?? shareTarget.name })
+            : ''
+        }
+      >
+        {shareTarget && ownerParticipant && (
+          <ShareLinkSheet
+            participantId={shareTarget.id}
+            participantName={shareTarget.nickname ?? shareTarget.name}
+            buildStatement={() => buildStatementForParticipant(shareTarget)}
+            tripId={trip.id}
+            ownerId={ownerParticipant.id}
+            onReconciled={reload}
+          />
         )}
       </BottomSheet>
 

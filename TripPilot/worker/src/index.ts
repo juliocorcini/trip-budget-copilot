@@ -11,6 +11,13 @@ export interface Env {
   SYNC_ROOM: DurableObjectNamespace;
   MAILBOX: DurableObjectNamespace;
   /**
+   * DEC-207 (Shared Participant Link): persistent, re-readable encrypted share
+   * channel. The worker only ever stores opaque ciphertext — the AES key lives
+   * in the link's URL fragment and never reaches here. Absent in older
+   * deploys, where /share routes report `share_not_configured`.
+   */
+  SHARE_STORE?: KVNamespace;
+  /**
    * DEC-206 (G2): Groq API key for cloud receipt OCR. Lives ONLY here as a
    * Worker secret — it never reaches the client. Absent in dev/preview, where
    * the /ocr route reports `ocr_not_configured` so the app degrades gracefully.
@@ -36,9 +43,46 @@ const ACTOR_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token',
 };
+
+// DEC-207 — persistent encrypted share channel (KV). One key per share holds
+// the owner's ciphertext statement; a sibling key holds the guest's appended
+// (also ciphertext) responses. The worker reads neither — secrecy is the AES
+// key in the URL fragment. Owner-only ops (update/revoke/pull responses) are
+// gated by a write token whose SHA-256 hash is the only thing stored.
+const SHARE_TTL_SECONDS = 90 * 24 * 60 * 60; // sliding: refreshed on every owner write
+const SHARE_REVOKE_TTL_SECONDS = 14 * 24 * 60 * 60; // tombstone so a revoked link reads 410
+const SHARE_MAX_BLOB_BYTES = 600_000; // statement ciphertext (a long trip ≈ a few KB)
+const SHARE_RESP_MAX_ITEMS = 300;
+const SHARE_RESP_MAX_TOTAL_BYTES = 800_000;
+const SHARE_RESP_MAX_ITEM_BYTES = 60_000;
+const SHARE_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
+
+interface ShareRecord {
+  blob: string;
+  revision: number;
+  updatedAt: number;
+  tokenHash: string;
+  revoked?: boolean;
+}
+
+interface ShareResponseItem {
+  id: string;
+  blob: string;
+  at: number;
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function randomToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
 // DEC-206 (G2): cloud receipt OCR. The client posts a single receipt image and
 // gets back STRUCTURED line items. The image is forwarded to Groq's vision model
@@ -147,6 +191,131 @@ async function handleOcr(request: Request, env: Env): Promise<Response> {
   return json(parsed);
 }
 
+/**
+ * DEC-207 — persistent encrypted share channel. Sub-routes under /share/*:
+ *   POST   /share                 create  → { id, writeToken, expiresAt }
+ *   GET    /share/:id             read the ciphertext statement (open: link id is the address)
+ *   PUT    /share/:id             owner replaces the statement (x-share-token)
+ *   DELETE /share/:id             owner revokes (x-share-token) → future reads 410
+ *   POST   /share/:id/responses   guest appends a ciphertext response (no token, capped)
+ *   GET    /share/:id/responses   owner pulls responses (x-share-token)
+ * Everything stored is opaque ciphertext; the worker can read nothing.
+ */
+async function handleShare(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.SHARE_STORE) return json({ error: 'share_not_configured' }, 503);
+  const kv = env.SHARE_STORE;
+
+  if (request.method === 'POST' && url.pathname === '/share') {
+    let body: { blob?: unknown; revision?: unknown };
+    try {
+      body = (await request.json()) as typeof body;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const blob = body.blob;
+    if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
+    if (blob.length > SHARE_MAX_BLOB_BYTES) return json({ error: 'too_large' }, 413);
+
+    const id = crypto.randomUUID();
+    const writeToken = randomToken();
+    const record: ShareRecord = {
+      blob,
+      revision: typeof body.revision === 'number' && body.revision > 0 ? body.revision : 1,
+      updatedAt: Date.now(),
+      tokenHash: await sha256Hex(writeToken),
+    };
+    await kv.put(`s:${id}`, JSON.stringify(record), { expirationTtl: SHARE_TTL_SECONDS });
+    return json({ id, writeToken, expiresAt: Date.now() + SHARE_TTL_SECONDS * 1000 });
+  }
+
+  const match = url.pathname.match(/^\/share\/([^/]+)(\/responses)?$/);
+  if (!match) return json({ error: 'not_found' }, 404);
+  const id = decodeURIComponent(match[1]!);
+  const isResponses = match[2] === '/responses';
+  if (!SHARE_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+
+  const recordRaw = await kv.get(`s:${id}`);
+  if (recordRaw === null) return json({ error: 'not_found' }, 404);
+  const record = JSON.parse(recordRaw) as ShareRecord;
+  if (record.revoked) return json({ error: 'revoked' }, 410);
+
+  const verifyToken = async (): Promise<boolean> => {
+    const token = request.headers.get('X-Share-Token');
+    if (!token) return false;
+    return (await sha256Hex(token)) === record.tokenHash;
+  };
+
+  // --- /share/:id (statement slot) ---
+  if (!isResponses) {
+    if (request.method === 'GET') {
+      return json({ blob: record.blob, revision: record.revision, updatedAt: record.updatedAt });
+    }
+    if (request.method === 'PUT') {
+      if (!(await verifyToken())) return json({ error: 'forbidden' }, 403);
+      let body: { blob?: unknown; revision?: unknown };
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: 'bad_json' }, 400);
+      }
+      const blob = body.blob;
+      if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
+      if (blob.length > SHARE_MAX_BLOB_BYTES) return json({ error: 'too_large' }, 413);
+      const revision =
+        typeof body.revision === 'number' && body.revision > record.revision
+          ? body.revision
+          : record.revision + 1;
+      const next: ShareRecord = { ...record, blob, revision, updatedAt: Date.now() };
+      await kv.put(`s:${id}`, JSON.stringify(next), { expirationTtl: SHARE_TTL_SECONDS });
+      return json({ ok: true, revision });
+    }
+    if (request.method === 'DELETE') {
+      if (!(await verifyToken())) return json({ error: 'forbidden' }, 403);
+      const tombstone: ShareRecord = { ...record, revoked: true, updatedAt: Date.now() };
+      await kv.put(`s:${id}`, JSON.stringify(tombstone), { expirationTtl: SHARE_REVOKE_TTL_SECONDS });
+      await kv.delete(`r:${id}`);
+      return json({ ok: true });
+    }
+    return json({ error: 'not_found' }, 404);
+  }
+
+  // --- /share/:id/responses (guest → owner channel) ---
+  if (request.method === 'POST') {
+    let body: { id?: unknown; blob?: unknown };
+    try {
+      body = (await request.json()) as typeof body;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const respId = body.id;
+    const blob = body.blob;
+    if (typeof respId !== 'string' || respId.length === 0 || respId.length > 80) {
+      return json({ error: 'bad_id' }, 400);
+    }
+    if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
+    if (blob.length > SHARE_RESP_MAX_ITEM_BYTES) return json({ error: 'too_large' }, 413);
+
+    const existingRaw = await kv.get(`r:${id}`);
+    const items: ShareResponseItem[] = existingRaw ? (JSON.parse(existingRaw) as ShareResponseItem[]) : [];
+    // Idempotent append: a retried response (same id) overwrites in place.
+    const filtered = items.filter((it) => it.id !== respId);
+    filtered.push({ id: respId, blob, at: Date.now() });
+    const totalBytes = filtered.reduce((sum, it) => sum + it.blob.length, 0);
+    if (filtered.length > SHARE_RESP_MAX_ITEMS || totalBytes > SHARE_RESP_MAX_TOTAL_BYTES) {
+      return json({ error: 'responses_full' }, 429);
+    }
+    await kv.put(`r:${id}`, JSON.stringify(filtered), { expirationTtl: SHARE_TTL_SECONDS });
+    return json({ ok: true });
+  }
+  if (request.method === 'GET') {
+    if (!(await verifyToken())) return json({ error: 'forbidden' }, 403);
+    const existingRaw = await kv.get(`r:${id}`);
+    const items: ShareResponseItem[] = existingRaw ? (JSON.parse(existingRaw) as ShareResponseItem[]) : [];
+    return json({ items });
+  }
+  return json({ error: 'not_found' }, 404);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -171,6 +340,11 @@ export default {
     // DEC-206 (G2) — cloud receipt OCR. Stateless proxy to Groq vision.
     if (request.method === 'POST' && url.pathname === '/ocr') {
       return handleOcr(request, env);
+    }
+
+    // DEC-207 — persistent encrypted share channel (shared participant link).
+    if (url.pathname === '/share' || url.pathname.startsWith('/share/')) {
+      return handleShare(request, env, url);
     }
 
     // FIELD item 8 — async mailbox addressed by the recipient's actorId.

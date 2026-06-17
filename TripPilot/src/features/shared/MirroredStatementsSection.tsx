@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MirroredStatement } from '@/domain/types/mirrored-statement';
 import { mirroredStatementRepository } from '@/data/repositories';
-import { answerMirroredStatementLine } from '@/domain/orchestrators';
+import {
+  answerMirroredStatementLine,
+  answerAndPushShareLine,
+  proposeSettlement,
+  refreshSharedLink,
+} from '@/domain/orchestrators';
 import { formatMoney } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { findSubcategory } from '@/domain/outing';
@@ -20,6 +25,7 @@ export function MirroredStatementsSection() {
   const { t } = useTranslation();
   const [statements, setStatements] = useState<MirroredStatement[]>([]);
   const [target, setTarget] = useState<MirroredStatement | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     const all = await mirroredStatementRepository.getAll();
@@ -32,11 +38,58 @@ export function MirroredStatementsSection() {
 
   const handleAnswer = async (shareId: string, status: 'confirmed' | 'rejected') => {
     if (!target) return;
+    // DEC-207 — a link-origin statement pushes the answer to the share channel
+    // now; a QR/mailbox one queues it for the next pairing session.
+    if (target.share) {
+      const result = await answerAndPushShareLine(target.id, shareId, status);
+      if (result) {
+        setTarget(result.statement);
+        showToast(result.pushed ? t('shareLink.response_sent') : t('sync.responses_queued'), 'success');
+        await load();
+      }
+      return;
+    }
     const updated = await answerMirroredStatementLine(target.id, shareId, status);
     if (updated) {
       setTarget(updated);
       showToast(t('sync.responses_queued'), 'success');
       await load();
+    }
+  };
+
+  // DEC-207 — guest declares "I paid the whole net"; the owner confirms it.
+  const handleSettle = async () => {
+    if (!target || busy) return;
+    setBusy(true);
+    try {
+      const result = await proposeSettlement(target.id);
+      if (result) {
+        showToast(result.pushed ? t('shareLink.paid_sent') : t('shareLink.paid_offline'),
+          result.pushed ? 'success' : 'info');
+        await load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // DEC-207 — re-pull the latest statement for a link the owner may have updated.
+  const handleRefresh = async () => {
+    if (!target?.share || busy) return;
+    setBusy(true);
+    try {
+      const result = await refreshSharedLink(target);
+      if (result.status === 'ok') {
+        setTarget(result.statement);
+        showToast(t('shareLink.updated'), 'success');
+        await load();
+      } else if (result.status === 'revoked') {
+        showToast(t('shareLink.revoked_guest'), 'info');
+      } else {
+        showToast(t('shareLink.error'), 'danger');
+      }
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -170,6 +223,30 @@ export function MirroredStatementsSection() {
 
             {target.pendingResponses.length > 0 && (
               <p className="text-[10px] text-on-surface-faint">{t('sync.responses_queued')}</p>
+            )}
+
+            {/* DEC-207 — link-origin actions: declare "I paid" + re-pull updates */}
+            {target.share && (
+              <div className="flex flex-col gap-2 pt-1">
+                {target.netCents < 0 && (
+                  <button
+                    onClick={handleSettle}
+                    disabled={busy}
+                    className="w-full py-3 rounded-xl bg-success/20 text-success font-bold text-sm flex items-center justify-center gap-2 btn-press disabled:opacity-50"
+                  >
+                    <Icon name="check_circle" size={18} />
+                    {t('shareLink.mark_paid')}
+                  </button>
+                )}
+                <button
+                  onClick={handleRefresh}
+                  disabled={busy}
+                  className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface text-xs font-semibold flex items-center justify-center gap-1.5 btn-press disabled:opacity-50"
+                >
+                  <Icon name="sync" size={16} className="text-primary" />
+                  {t('shareLink.refresh_guest')}
+                </button>
+              </div>
             )}
           </div>
         )}

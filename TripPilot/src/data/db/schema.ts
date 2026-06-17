@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -93,4 +93,14 @@ export const SCHEMA_V7: Record<string, string> = {
 export const SCHEMA_V8: Record<string, string> = {
   ...SCHEMA_V7,
   attachments: 'id, transactionId, sessionId, createdAt',
+};
+
+// V9 (DEC-207 — Shared Participant Link): owner-side records of links shared
+// with guests. Brand-new table → no upgrade() callback; Dexie creates it on
+// open and leaves every existing table/row untouched. LOCAL-only and NEVER
+// backed up — it holds the link's AES key + owner write token (not in
+// BACKUP_TABLE_KEYS). Indexed by participantId (the link-for-this-person lookup).
+export const SCHEMA_V9: Record<string, string> = {
+  ...SCHEMA_V8,
+  shareLinks: 'id, participantId, deletedAt',
 };

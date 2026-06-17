@@ -110,3 +110,18 @@ export {
   resetWipeAll,
   TRANSACTIONAL_TABLE_NAMES,
 } from './reset-orchestrators';
+export {
+  createShareLink,
+  refreshShareLink,
+  revokeShareLink,
+  pullShareResponses,
+  ingestSharedLink,
+  answerAndPushShareLine,
+  proposeSettlement,
+  refreshSharedLink,
+} from './share-link-orchestrators';
+export type {
+  CreateShareLinkResult,
+  PullShareResponsesResult,
+  IngestShareResult,
+} from './share-link-orchestrators';

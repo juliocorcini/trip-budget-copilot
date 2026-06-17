@@ -19,6 +19,16 @@
       }
     ]
   },
+  // DEC-207 (Shared Participant Link): persistent, re-readable encrypted share
+  // channel. KV is a pure id→ciphertext store with native per-key TTL and is
+  // portable (values are self-contained ciphertext; migrate by copying keys to
+  // any KV/object store — no proprietary schema, satisfying "no lock-in").
+  "kv_namespaces": [
+    {
+      "binding": "SHARE_STORE",
+      "id": "2807b56d02c04ce385fa3bc5bf6565bf"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

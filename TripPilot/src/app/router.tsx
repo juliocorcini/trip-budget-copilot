@@ -38,6 +38,8 @@ const ImpactDetailPage = lazyWithRetry(() => import('@/features/dashboard/Impact
 const SyncReceivePage = lazyWithRetry(() => import('@/features/sync/SyncReceivePage').then(m => ({ default: m.SyncReceivePage })));
 const WiseImportPage = lazyWithRetry(() => import('@/features/import/WiseImportPage').then(m => ({ default: m.WiseImportPage })));
 const ReceiptScanPage = lazyWithRetry(() => import('@/features/receipt/ReceiptScanPage').then(m => ({ default: m.ReceiptScanPage })));
+const SharedLinkPage = lazyWithRetry(() => import('@/features/shared/SharedLinkPage').then(m => ({ default: m.SharedLinkPage })));
+const SharedWithMePage = lazyWithRetry(() => import('@/features/shared/SharedWithMePage').then(m => ({ default: m.SharedWithMePage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -155,6 +157,10 @@ export const router = createBrowserRouter([
       { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
       { path: '/import/wise', element: <LazyRoute><ModeGuard><WiseImportPage /></ModeGuard></LazyRoute> },
       { path: '/receipt/scan', element: <LazyRoute><ReceiptScanPage /></LazyRoute> },
+      // DEC-207 (Shared Participant Link): the guest entry + home live OUTSIDE
+      // BootGate so a guest with no trip is never bounced to onboarding.
+      { path: '/s/:id', element: <LazyRoute><SharedLinkPage /></LazyRoute> },
+      { path: '/shared-with-me', element: <LazyRoute><SharedWithMePage /></LazyRoute> },
     ],
   },
 ]);

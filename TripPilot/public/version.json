@@ -1,8 +1,8 @@
 {
-  "version": "0.56.0",
+  "version": "0.57.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.56.0.zip",
-  "notes": "Rateio da nota: agora você escolhe com quem dividir (não entra todo mundo automático). Leitura por IA na nuvem virou o único motor (a leitura local saiu, não funcionava bem). E o app agora se atualiza sozinho no Android: baixa e instala a nova versão com um toque."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.57.0.zip",
+  "notes": "Dividir por link: gere um link de uma pessoa e mande pra ela. Ela abre no navegador (sem instalar nada, sem conta), vê só o que você dividiu com ela, confirma os gastos e marca como pago — e você confirma de volta. Tudo criptografado ponta a ponta."
 }

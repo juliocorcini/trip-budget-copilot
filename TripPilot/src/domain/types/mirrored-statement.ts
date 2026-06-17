@@ -34,4 +34,11 @@ export interface MirroredStatement extends SyncMetadata {
   lines: MirroredLine[];
   /** Confirm/reject answers queued while offline; flushed on the next session. */
   pendingResponses: MirroredResponse[];
+  /**
+   * DEC-207 — origin when this statement arrived via a shared link (vs QR/mailbox
+   * pairing). Lets the guest re-pull updates and push responses to the same
+   * channel. Optional + NOT indexed → additive, no migration; QR/mailbox
+   * statements read back `undefined`.
+   */
+  share?: { shareId: string; key: string } | null;
 }

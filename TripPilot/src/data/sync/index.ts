@@ -3,6 +3,7 @@ export * from './config';
 export * from './crypto';
 export * from './identity-crypto';
 export * from './mailbox-client';
+export * from './share-client';
 export * from './signaling-client';
 export * from './webrtc-transport';
 export * from './connection';

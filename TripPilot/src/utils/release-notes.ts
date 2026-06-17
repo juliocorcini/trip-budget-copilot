@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.57.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Dividir por link: em uma pessoa, toque em "Compartilhar por link" e mande o link pra ela. Ela abre no navegador — sem instalar o app, sem criar conta — e vê só o que você dividiu com ela.',
+        'A pessoa pode confirmar ou recusar cada gasto e marcar "já paguei". Você puxa as respostas e confirma a liquidação — ninguém quita dívida sozinho.',
+        'Tudo criptografado ponta a ponta: a chave fica no próprio link e o servidor nunca lê o conteúdo. Você pode revogar o link quando quiser.',
+        '"Compartilhadas comigo": quem só abriu um link ganha uma área própria com as contas que dividiram com ele, e pode começar a própria viagem quando quiser.',
+      ],
+      en: [
+        'Share by link: on a person, tap "Share via link" and send them the link. They open it in a browser — no app install, no account — and see only what you split with them.',
+        'They can confirm or reject each expense and mark "I paid". You pull the responses and confirm the settlement — nobody settles a debt unilaterally.',
+        'End-to-end encrypted: the key lives in the link itself and the server never reads the content. You can revoke the link anytime.',
+        '"Shared with me": someone who only opened a link gets their own area with the expenses shared with them, and can start their own trip whenever they want.',
+      ],
+      es: [
+        'Compartir por enlace: en una persona, toca "Compartir por enlace" y envíaselo. Lo abre en el navegador — sin instalar la app, sin cuenta — y ve solo lo que dividiste con ella.',
+        'Puede confirmar o rechazar cada gasto y marcar "ya pagué". Tú traes las respuestas y confirmas la liquidación — nadie salda una deuda por su cuenta.',
+        'Cifrado de extremo a extremo: la clave vive en el propio enlace y el servidor nunca lee el contenido. Puedes revocar el enlace cuando quieras.',
+        '"Compartidas conmigo": quien solo abrió un enlace tiene su propia área con las cuentas que dividieron con él, y puede empezar su propio viaje cuando quiera.',
+      ],
+    },
+  },
+  {
     version: '0.56.0',
     date: '2026-06-16',
     items: {

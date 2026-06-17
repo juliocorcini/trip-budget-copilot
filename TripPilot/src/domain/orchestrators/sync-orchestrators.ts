@@ -100,10 +100,22 @@ export async function linkParticipantToIdentity(
   return { status: 'linked', participant: updated };
 }
 
-/** Mirror side: store/replace the statement received from an owner device. */
-export async function storeMirroredStatement(payload: StatementPayload): Promise<MirroredStatement> {
+/**
+ * Mirror side: store/replace the statement received from an owner device.
+ * DEC-207 — `share` records the shared-link origin so a link guest can re-pull
+ * updates and push responses to the same channel; a re-pull preserves it. QR /
+ * mailbox statements pass no origin and read back null.
+ */
+export async function storeMirroredStatement(
+  payload: StatementPayload,
+  share?: { shareId: string; key: string } | null,
+): Promise<MirroredStatement> {
   const existing = (await mirroredStatementRepository.getByPeerActorId(payload.owner.actorId)) ?? null;
-  const statement = buildMirroredStatement(payload, existing);
+  const built = buildMirroredStatement(payload, existing);
+  const statement: MirroredStatement = {
+    ...built,
+    share: share ?? existing?.share ?? null,
+  };
   await db.mirroredStatements.put(statement);
   await upsertPeerLink(payload.owner.actorId, payload.owner.name, null);
   return statement;
