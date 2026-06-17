@@ -1547,7 +1547,9 @@
     "err_bad_key": "Link inválido — parece que faltou um pedaço dele.",
     "err_network": "Sem conexão para abrir o link agora.",
     "retry": "Tentar de novo",
-    "go_home": "Ir para o início"
+    "go_home": "Ir para o início",
+    "live_update": "{{name}} atualizou os gastos compartilhados com você",
+    "live_response": "Chegou uma resposta nova"
   },
   "receiptScan": {
     "title": "Escanear nota",

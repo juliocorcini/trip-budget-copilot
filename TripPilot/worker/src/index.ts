@@ -11,6 +11,14 @@ export interface Env {
   SYNC_ROOM: DurableObjectNamespace;
   MAILBOX: DurableObjectNamespace;
   /**
+   * DEC-207 S7 (real-time, best-effort): pure WebSocket fanout relay keyed by
+   * shareId. TRANSPORT ONLY — it carries tiny "go pull" signals (no private
+   * data; the statement/responses stay E2E-encrypted in KV). Disposable by
+   * design (portability: swap the relay for any WS server, data is untouched).
+   * Absent in older deploys, where the /share/:id/ws route reports 426/closed.
+   */
+  SHARE_SIGNAL?: DurableObjectNamespace;
+  /**
    * DEC-207 (Shared Participant Link): persistent, re-readable encrypted share
    * channel. The worker only ever stores opaque ciphertext — the AES key lives
    * in the link's URL fragment and never reaches here. Absent in older
@@ -342,6 +350,20 @@ export default {
       return handleOcr(request, env);
     }
 
+    // DEC-207 S7 — real-time signal relay for a share (best-effort transport).
+    // Must be matched BEFORE the generic /share handler. The room is named by
+    // the shareId; anyone with the (unguessable) id can join, but the relay only
+    // ever carries "something changed" pings — the payload itself stays in KV,
+    // encrypted with the AES key the relay never sees.
+    const shareWsMatch = url.pathname.match(/^\/share\/([^/]+)\/ws$/);
+    if (request.method === 'GET' && shareWsMatch) {
+      if (!env.SHARE_SIGNAL) return json({ error: 'realtime_not_configured' }, 426);
+      const id = decodeURIComponent(shareWsMatch[1]!);
+      if (!SHARE_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+      const stub = env.SHARE_SIGNAL.get(env.SHARE_SIGNAL.idFromName(id));
+      return stub.fetch(request);
+    }
+
     // DEC-207 — persistent encrypted share channel (shared participant link).
     if (url.pathname === '/share' || url.pathname.startsWith('/share/')) {
       return handleShare(request, env, url);
@@ -441,6 +463,62 @@ export class SyncRoom {
     this.sockets = [];
     this.opened = false;
     await this.state.storage.deleteAll();
+  }
+}
+
+/**
+ * DEC-207 S7 — real-time relay for one share (named by shareId). Pure transport:
+ * fans every received frame out to the OTHER connected sockets and stores
+ * nothing. Frames are tiny app-level signals ({"t":"upd"|"resp",...}) that mean
+ * "re-pull from KV"; they never contain statement data, so an eavesdropper who
+ * guesses a shareId learns only that something changed (and the id is a UUID).
+ * Mirrors the SyncRoom pattern but without the 2-peer cap or open handshake —
+ * the room lives exactly as long as sockets are attached, then the DO evicts.
+ */
+const SHARE_SIGNAL_MAX_SOCKETS = 8; // owner + a few guest tabs; abuse guard
+const SHARE_SIGNAL_MAX_FRAME_BYTES = 2_000; // a signal is a few dozen bytes
+
+export class ShareSignal {
+  private sockets: WebSocket[] = [];
+
+  constructor(private state: DurableObjectState) {}
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get('Upgrade') !== 'websocket') {
+      return json({ error: 'expected_websocket' }, 426);
+    }
+    if (this.sockets.length >= SHARE_SIGNAL_MAX_SOCKETS) {
+      return json({ error: 'relay_full' }, 409);
+    }
+
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+    server.accept();
+    this.sockets.push(server);
+
+    server.addEventListener('message', (event) => {
+      // Drop oversized frames — a signal is tiny; anything large is abuse.
+      const size = typeof event.data === 'string' ? event.data.length : (event.data as ArrayBuffer).byteLength;
+      if (size > SHARE_SIGNAL_MAX_FRAME_BYTES) return;
+      for (const socket of this.sockets) {
+        if (socket !== server) {
+          try {
+            socket.send(event.data);
+          } catch {
+            // Peer gone; close handler cleans up.
+          }
+        }
+      }
+    });
+
+    const cleanup = () => {
+      this.sockets = this.sockets.filter((s) => s !== server);
+    };
+    server.addEventListener('close', cleanup);
+    server.addEventListener('error', cleanup);
+
+    return new Response(null, { status: 101, webSocket: client });
   }
 }
 

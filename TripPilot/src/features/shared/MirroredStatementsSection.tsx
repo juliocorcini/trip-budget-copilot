@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MirroredStatement } from '@/domain/types/mirrored-statement';
 import { mirroredStatementRepository } from '@/data/repositories';
+import { connectShareSignal, type ShareSignalHandle } from '@/data/sync';
 import {
   answerMirroredStatementLine,
   answerAndPushShareLine,
@@ -26,6 +27,8 @@ export function MirroredStatementsSection() {
   const [statements, setStatements] = useState<MirroredStatement[]>([]);
   const [target, setTarget] = useState<MirroredStatement | null>(null);
   const [busy, setBusy] = useState(false);
+  // DEC-207 S7 — one live signal per share-origin statement (keyed by shareId).
+  const signalsRef = useRef<Map<string, ShareSignalHandle>>(new Map());
 
   const load = async () => {
     const all = await mirroredStatementRepository.getAll();
@@ -36,6 +39,56 @@ export function MirroredStatementsSection() {
     void load();
   }, []);
 
+  // DEC-207 S7 — owner re-published this statement: re-pull it live and notify
+  // ("Fulano atualizou os gastos com você"). Best-effort over the async floor.
+  const onLiveUpdate = async (shareId: string) => {
+    const all = await mirroredStatementRepository.getAll();
+    const statement = all.find((s) => s.share?.shareId === shareId);
+    if (!statement) return;
+    const result = await refreshSharedLink(statement);
+    if (result.status === 'ok') {
+      showToast(t('shareLink.live_update', { name: statement.peerName }), 'info');
+      await load();
+      setTarget((cur) => (cur && cur.id === result.statement.id ? result.statement : cur));
+    } else if (result.status === 'revoked') {
+      showToast(t('shareLink.revoked_guest'), 'info');
+      await load();
+    }
+  };
+
+  // Keep exactly one live socket per share-origin statement; open new ones,
+  // drop sockets whose statement is gone, and tear everything down on unmount.
+  useEffect(() => {
+    const sockets = signalsRef.current;
+    const shareStatements = statements.filter((s) => s.share?.shareId);
+    const wanted = new Set(shareStatements.map((s) => s.share!.shareId));
+    for (const [shareId, handle] of sockets) {
+      if (!wanted.has(shareId)) {
+        handle.close();
+        sockets.delete(shareId);
+      }
+    }
+    for (const statement of shareStatements) {
+      const shareId = statement.share!.shareId;
+      if (sockets.has(shareId)) continue;
+      sockets.set(
+        shareId,
+        connectShareSignal(shareId, (msg) => {
+          if (msg.t === 'upd') void onLiveUpdate(shareId);
+        }),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statements]);
+
+  useEffect(
+    () => () => {
+      for (const handle of signalsRef.current.values()) handle.close();
+      signalsRef.current.clear();
+    },
+    [],
+  );
+
   const handleAnswer = async (shareId: string, status: 'confirmed' | 'rejected') => {
     if (!target) return;
     // DEC-207 — a link-origin statement pushes the answer to the share channel
@@ -45,6 +98,8 @@ export function MirroredStatementsSection() {
       if (result) {
         setTarget(result.statement);
         showToast(result.pushed ? t('shareLink.response_sent') : t('sync.responses_queued'), 'success');
+        // DEC-207 S7 — nudge the owner to pull live (best-effort).
+        if (result.pushed) signalsRef.current.get(target.share.shareId)?.send({ t: 'resp' });
         await load();
       }
       return;
@@ -66,6 +121,8 @@ export function MirroredStatementsSection() {
       if (result) {
         showToast(result.pushed ? t('shareLink.paid_sent') : t('shareLink.paid_offline'),
           result.pushed ? 'success' : 'info');
+        // DEC-207 S7 — nudge the owner to pull the settle proposal live.
+        if (result.pushed && target.share) signalsRef.current.get(target.share.shareId)?.send({ t: 'resp' });
         await load();
       }
     } finally {

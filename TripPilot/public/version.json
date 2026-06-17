@@ -1,8 +1,8 @@
 {
-  "version": "0.57.0",
+  "version": "0.58.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.57.0.zip",
-  "notes": "Dividir por link: gere um link de uma pessoa e mande pra ela. Ela abre no navegador (sem instalar nada, sem conta), vê só o que você dividiu com ela, confirma os gastos e marca como pago — e você confirma de volta. Tudo criptografado ponta a ponta."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.58.0.zip",
+  "notes": "Tempo real no link compartilhado: com a outra pessoa olhando o link, o que você atualiza aparece na hora no aparelho dela, com aviso. E quando ela confirma ou marca como pago, chega na hora pra você. Tudo criptografado ponta a ponta; se cair a conexão, nada se perde."
 }

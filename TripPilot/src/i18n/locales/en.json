@@ -1547,7 +1547,9 @@
     "err_bad_key": "Invalid link — looks like part of it is missing.",
     "err_network": "No connection to open the link right now.",
     "retry": "Try again",
-    "go_home": "Go to start"
+    "go_home": "Go to start",
+    "live_update": "{{name}} updated the expenses shared with you",
+    "live_response": "A new response just arrived"
   },
   "receiptScan": {
     "title": "Scan a receipt",

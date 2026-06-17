@@ -16,6 +16,11 @@
       {
         "name": "MAILBOX",
         "class_name": "Mailbox"
+      },
+      {
+        // DEC-207 S7 — real-time signal relay (transport only; no storage).
+        "name": "SHARE_SIGNAL",
+        "class_name": "ShareSignal"
       }
     ]
   },
@@ -37,6 +42,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["Mailbox"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["ShareSignal"]
     }
   ]
 }

@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.58.0',
+    date: '2026-06-16',
+    items: {
+      'pt-BR': [
+        'Tempo real no link compartilhado: com a outra pessoa olhando o link aberto, quando você atualiza os gastos dela aparece na hora no aparelho dela — com um aviso "Fulano atualizou os gastos compartilhados com você".',
+        'E volta também: quando ela confirma um gasto ou marca "já paguei", a resposta chega pra você na hora, sem precisar ficar puxando manualmente.',
+        'É "melhor esforço": funciona enquanto os dois estão com o app aberto e online. Se cair a conexão ou fechar o app, nada se perde — continua tudo guardado e aparece quando abrir de novo.',
+        'Continua tudo criptografado ponta a ponta: o tempo real só carrega um "tem novidade, atualize", nunca o conteúdo dos gastos.',
+      ],
+      en: [
+        'Real-time on the shared link: while the other person has the link open, updating their expenses shows up on their device instantly — with a "So-and-so updated the expenses shared with you" heads-up.',
+        'And back the other way: when they confirm an expense or mark "I paid", the response reaches you instantly, no manual pulling.',
+        'It is "best-effort": it works while both have the app open and online. If the connection drops or the app closes, nothing is lost — everything stays saved and shows up next time.',
+        'Still end-to-end encrypted: real-time only carries a "there is news, refresh" ping, never the expense content.',
+      ],
+      es: [
+        'Tiempo real en el enlace compartido: mientras la otra persona tiene el enlace abierto, al actualizar sus gastos aparece al instante en su dispositivo — con un aviso "Fulano actualizó los gastos compartidos contigo".',
+        'Y también de vuelta: cuando confirma un gasto o marca "ya pagué", la respuesta te llega al instante, sin traerla manualmente.',
+        'Es "mejor esfuerzo": funciona mientras ambos tienen la app abierta y en línea. Si se cae la conexión o se cierra la app, nada se pierde — todo queda guardado y aparece la próxima vez.',
+        'Sigue todo cifrado de extremo a extremo: el tiempo real solo lleva un "hay novedad, actualiza", nunca el contenido de los gastos.',
+      ],
+    },
+  },
+  {
     version: '0.57.0',
     date: '2026-06-16',
     items: {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   createShareLink,
@@ -6,6 +6,7 @@ import {
   revokeShareLink,
   pullShareResponses,
 } from '@/domain/orchestrators';
+import { connectShareSignal, type ShareSignalHandle } from '@/data/sync';
 import { shareLinkRepository, settlementRepository } from '@/data/repositories';
 import { createSettlement } from '@/domain/splitting';
 import type { StatementPayload } from '@/domain/sync';
@@ -46,6 +47,8 @@ export function ShareLinkSheet({
   const [loading, setLoading] = useState(true);
   const [proposal, setProposal] = useState<ShareSettleProposal | null>(null);
   const [proposalFrom, setProposalFrom] = useState<string | null>(null);
+  // DEC-207 S7 — live signal for this link (transport only).
+  const signalRef = useRef<ShareSignalHandle | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -63,6 +66,26 @@ export function ShareLinkSheet({
       active = false;
     };
   }, [participantId]);
+
+  // DEC-207 S7 — when the guest posts a response, the relay nudges us to pull
+  // it live. A short delay absorbs KV read-after-write; the pull stays silent
+  // on "nothing new" (it is a background nudge, not a user action).
+  useEffect(() => {
+    const id = link?.id;
+    if (!id) return;
+    const handle = connectShareSignal(id, (msg) => {
+      if (msg.t === 'resp') {
+        showToast(t('shareLink.live_response'), 'info');
+        window.setTimeout(() => void doPull(false), 800);
+      }
+    });
+    signalRef.current = handle;
+    return () => {
+      handle.close();
+      signalRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [link?.id]);
 
   const handleGenerate = async () => {
     const statement = buildStatement();
@@ -111,6 +134,8 @@ export function ShareLinkSheet({
     try {
       const updated = await refreshShareLink(link, statement);
       setLink(updated);
+      // DEC-207 S7 — tell a connected guest to re-pull the new revision live.
+      signalRef.current?.send({ t: 'upd', rev: updated.statementRevision });
       showToast(t('shareLink.refreshed'), 'success');
     } catch {
       showToast(t('shareLink.error'), 'danger');
@@ -119,8 +144,11 @@ export function ShareLinkSheet({
     }
   };
 
-  const handlePull = async () => {
-    if (!link || busy) return;
+  // `announceEmpty` is false for live (signal-triggered) pulls — a background
+  // nudge should never toast "nothing new" or an error; only an explicit tap on
+  // "Ver respostas" does.
+  const doPull = async (announceEmpty: boolean) => {
+    if (!link) return;
     setBusy(true);
     try {
       const result = await pullShareResponses(link);
@@ -131,14 +159,19 @@ export function ShareLinkSheet({
       if (result.appliedLines > 0) {
         showToast(t('shareLink.responses_applied', { count: result.appliedLines }), 'success');
         onReconciled();
-      } else if (!result.settle) {
+      } else if (!result.settle && announceEmpty) {
         showToast(t('shareLink.no_responses'), 'info');
       }
     } catch {
-      showToast(t('shareLink.error'), 'danger');
+      if (announceEmpty) showToast(t('shareLink.error'), 'danger');
     } finally {
       setBusy(false);
     }
+  };
+
+  const handlePull = () => {
+    if (busy) return;
+    void doPull(true);
   };
 
   const handleConfirmSettle = async () => {
