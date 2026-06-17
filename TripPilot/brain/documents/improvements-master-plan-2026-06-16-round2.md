@@ -224,10 +224,17 @@
 - i18n pt/en/es · **1139 testes / 127 arquivos** · E2E 33/33 · commit `09804cd` · deploy apex · screenshots Playwright OK.
 - `[deferred]` F15 (receber `.csv` por intent) → próximo lote nativo.
 
+### ✅ F14 — Paridade do local da saída 0.64.0 (web, OTA) — ENTREGUE
+- Parte **web** do F14 (que o §3 nota / §4 / re-scope tinham adiado das waves A/B; só o grant de GPS nativo era da Wave F, já entregue).
+- A sheet de **local da saída ativa** agora tem a **mesma inteligência do registro de gasto**: novo domínio puro `buildPlaceSuggestions` unifica **lugares próximos** (online) + **lugares recentes** (histórico offline, `deriveRecentPlaces`) numa lista **pesquisável** — dedupe por id/rótulo normalizado (nearby vence), exclui o local já escolhido, filtra por substring **sem acento** (o mesmo campo busca E nomeia um lugar novo) + botão **"buscar nome (online)"** (reverse geocode).
+- `OutingPage` lê `transactions` p/ derivar recentes (memoizado) · fluxo de gasto **intacto** (zero regressão — ÂNCORA 9; GPS opt-in/local — ÂNCORA 8).
+- i18n pt/en/es · **1147 testes / 128 arquivos** (+8 `place-suggestions`) · **E2E 34/34** · commit `8a6c923` · deploy apex · screenshots Playwright OK (busca filtra sem acento, recentes aparecem, salvar-como-novo).
+- `[deferred]` F14 só a parte de **grant de GPS nativo** → próximo lote nativo.
+
 ---
 
 ## 7. Fechamento (2026-06-17)
 
-**Todas as waves da Rodada 2 entregues** (F nativo + A·B·C·D·E web/OTA). Versão final **0.63.0** (apex `trippilot.pages.dev`, bundle OTA para o APK 0.50.0). Qualidade final: **1139 testes verdes / 127 arquivos**, tsc 0, build limpo, **E2E 33/33**. Brain atualizado: **DEC-211** (waves web A–E) + `project-status.md` + `src/dev-log.md`.
+**Todas as waves da Rodada 2 entregues** (F nativo + A·B·C·D·E web/OTA + **F14 web**). Versão final **0.64.0** (apex `trippilot.pages.dev`, bundle OTA para o APK 0.50.0). Qualidade final: **1147 testes verdes / 128 arquivos**, tsc 0, build limpo, **E2E 34/34**. Brain atualizado: **DEC-211** (waves web A–E + F14) + `project-status.md` + `src/dev-log.md`.
 
-**Pendências por design (próximo APK nativo):** F15 (intent `.csv`), F19 App Links (`/pair`+`/s/:id`), F14 parte que depende da permissão de localização nativa.
+**Pendências por design (próximo APK nativo):** F15 (intent `.csv`), F19 App Links (`/pair`+`/s/:id`), F14 apenas a parte de **permissão/GPS nativo** (a busca/recentes/find-online já entraram no 0.64.0).
