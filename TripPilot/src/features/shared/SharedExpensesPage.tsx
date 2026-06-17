@@ -45,6 +45,7 @@ import {
 } from '@/domain/orchestrators';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { getShareOrigin } from '@/utils/native/public-origin';
+import { shareOrCopyLink } from '@/utils/native/link-share';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
@@ -223,14 +224,11 @@ export function SharedExpensesPage() {
   const sharePairLink = async () => {
     if (!myIdentityQr) return;
     const url = pairLinkFromEncoded(getShareOrigin(), myIdentityQr);
-    try {
-      await navigator.share({ title: t('sync.share_link_title'), url });
-    } catch (err) {
-      // User dismissed the share sheet — nothing to do. Any other failure falls
-      // back to copying so the link is never lost.
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      await copyPairLink();
-    }
+    // D-IMP-04: shared share/copy path — a cancel stays silent, only a real
+    // failure falls back to the clipboard so the link is never lost.
+    const outcome = await shareOrCopyLink({ title: t('sync.share_link_title'), url });
+    if (outcome === 'copied') showToast(t('sync.link_copied'), 'success');
+    else if (outcome === 'copy_failed') showToast(t('sync.link_copy_failed'), 'danger');
   };
 
   const buildStatementForParticipant = (participant: Participant) => {

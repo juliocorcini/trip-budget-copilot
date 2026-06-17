@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.74.0',
+    date: '2026-06-17',
+    items: {
+      'pt-BR': [
+        'Os gastos recentes na tela inicial agora agrupam as saídas igual à lista de gastos, e os calendários e o mapa de calor mostram o valor de cada dia direto na célula — sem precisar tocar.',
+        'Desbloqueio por PIN: o app abre no instante em que você digita o último número, sem precisar tocar em "desbloquear".',
+        'Dá pra vincular um gasto já lançado a uma compra planejada direto na tela do gasto; e os atalhos "ver prévia da fase" e "gerenciar fundo" agora aparecem na aba Viagem.',
+        'Compartilhar uma divisão agora abre o compartilhamento do celular (WhatsApp e afins) em vez de só copiar o link; e "receber de outro aparelho / ler QR" passou a ficar também em Pessoas e dívidas.',
+        'Toques finais: texto mais claro ao dividir um item da nota, dá pra arrastar a folha pra baixo por qualquer parte pra fechar, e a troca de abas anima no sentido certo.',
+      ],
+      en: [
+        'Recent expenses on the home screen now group outings just like the expenses list, and the calendars and heatmap show each day\'s amount right in the cell — no tapping needed.',
+        'PIN unlock: the app opens the moment you type the last digit, with no extra "unlock" tap.',
+        'You can link an already-logged expense to a planned purchase right from the expense screen; and the "see phase preview" and "manage fund" shortcuts now live on the Trip tab.',
+        'Sharing a split now opens your phone\'s native share sheet (WhatsApp and friends) instead of only copying the link; and "receive from another device / scan QR" is now also in People & debts.',
+        'Finishing touches: clearer wording when splitting a receipt item, you can drag the sheet down from anywhere to close it, and tab switches animate in the right direction.',
+      ],
+      es: [
+        'Los gastos recientes en la pantalla de inicio ahora agrupan las salidas igual que la lista de gastos, y los calendarios y el mapa de calor muestran el importe de cada día directamente en la celda, sin tocar.',
+        'Desbloqueo por PIN: la app se abre en el instante en que escribes el último número, sin tener que tocar "desbloquear".',
+        'Puedes vincular un gasto ya registrado a una compra planificada desde la propia pantalla del gasto; y los accesos "ver vista previa de la fase" y "gestionar fondo" ahora están en la pestaña Viaje.',
+        'Compartir una división ahora abre el menú de compartir del teléfono (WhatsApp y similares) en vez de solo copiar el enlace; y "recibir de otro dispositivo / leer QR" ahora también está en Personas y deudas.',
+        'Toques finales: texto más claro al dividir un ítem de la cuenta, puedes arrastrar la hoja hacia abajo desde cualquier parte para cerrarla, y el cambio de pestañas se anima en la dirección correcta.',
+      ],
+    },
+  },
+  {
     version: '0.73.0',
     date: '2026-06-17',
     items: {

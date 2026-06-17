@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
+import { consumePendingTabDirection } from '@/app/nav-direction';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
@@ -92,6 +93,11 @@ function useBackButtonGuard() {
 // entry; comparing it to the previous value classifies the navigation without
 // touching any of the dozens of navigate() call sites. Exposed to CSS as a data
 // attribute on <html> so the keyframe selection is a pure styling concern.
+//
+// D-BUG-10: a bottom-bar tab switch is always a push (idx rises), so it would
+// always read "forward". The tab navigators record the swipe-order direction in
+// `nav-direction`; we consume that override here for the one transition (and
+// still advance `lastIdx`, so the NEXT plain navigation compares correctly).
 function useNavDirection() {
   const location = useLocation();
   const lastIdx = useRef<number>(
@@ -99,7 +105,9 @@ function useNavDirection() {
   );
   useEffect(() => {
     const idx = (window.history.state?.idx as number | undefined) ?? 0;
-    document.documentElement.dataset.nav = idx < lastIdx.current ? 'back' : 'forward';
+    const tabOverride = consumePendingTabDirection();
+    document.documentElement.dataset.nav =
+      tabOverride ?? (idx < lastIdx.current ? 'back' : 'forward');
     lastIdx.current = idx;
   }, [location]);
 }

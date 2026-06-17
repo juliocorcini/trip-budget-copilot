@@ -14,6 +14,7 @@ import type { ShareLink } from '@/domain/types/share-link';
 import type { ShareSettleProposal } from '@/domain/sync';
 import { formatMoney } from '@/domain/money';
 import { getShareOrigin } from '@/utils/native/public-origin';
+import { shareOrCopyLink } from '@/utils/native/link-share';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 
@@ -108,23 +109,14 @@ export function ShareLinkSheet({
     }
   };
 
+  // D-IMP-04: open the OS share sheet with a ready message + the correct link
+  // (post D-BUG-01), falling back to the clipboard. A user cancel stays silent.
   const handleShareOrCopy = async () => {
     if (!url) return;
     const text = t('shareLink.message', { name: participantName, url });
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ text });
-        return;
-      }
-    } catch {
-      // user cancelled or share failed — fall through to copy
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast(t('shareLink.copied'), 'success');
-    } catch {
-      showToast(t('shareLink.copy_failed'), 'danger');
-    }
+    const outcome = await shareOrCopyLink({ text, url });
+    if (outcome === 'copied') showToast(t('shareLink.copied'), 'success');
+    else if (outcome === 'copy_failed') showToast(t('shareLink.copy_failed'), 'danger');
   };
 
   const handleRefresh = async () => {

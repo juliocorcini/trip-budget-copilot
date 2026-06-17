@@ -14,6 +14,23 @@ function overlayHost(): HTMLElement {
 // quick downward flick) dismisses the sheet; below it, the sheet snaps back.
 const CLOSE_DISTANCE_PX = 90;
 
+/**
+ * D-BUG-12: decide whether a touch that began INSIDE the sheet body should turn
+ * into a drag-to-dismiss ("pull the content down from the top to close"), keep
+ * waiting, or yield to the native scroll. Pure so the gesture rule is testable.
+ *  - `abort`   → not a close gesture (moving up, horizontal, or list not at top)
+ *                → let the body scroll normally.
+ *  - `pending` → too small to tell yet; keep watching.
+ *  - `drag`    → a clear downward, vertical pull while the body is at the top.
+ */
+export function decideBodyDrag(dy: number, dx: number, atTop: boolean): 'pending' | 'abort' | 'drag' {
+  if (dy < -2) return 'abort';
+  if (Math.abs(dx) > Math.abs(dy)) return 'abort';
+  if (dy <= 6) return 'pending';
+  if (!atTop) return 'abort';
+  return 'drag';
+}
+
 interface BottomSheetProps {
   open: boolean;
   onClose: () => void;
@@ -34,6 +51,9 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [dragClosing, setDragClosing] = useState(false);
+  // D-BUG-12: a drag can also begin in the body when the content is at the top.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const bodyDrag = useRef<{ startY: number; startX: number; active: boolean } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -54,6 +74,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
   useEffect(() => {
     if (open) {
       dragStartY.current = null;
+      bodyDrag.current = null;
       setDragY(0);
       setDragging(false);
       setDragClosing(false);
@@ -93,6 +114,49 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
     }
   };
 
+  // D-BUG-12: drag-to-dismiss starting from the sheet body. The handle claims a
+  // gesture synchronously (sets dragStartY) before this bubbles, so we bow out
+  // when it already owns the touch. A body drag only commits while the content
+  // is at the very top and the pull is clearly downward; otherwise the body
+  // scrolls as usual.
+  const onBodyTouchStart = (e: TouchEvent) => {
+    if (dragStartY.current !== null) return;
+    const touch = e.touches[0];
+    if (e.touches.length !== 1 || !touch) return;
+    if ((bodyRef.current?.scrollTop ?? 0) > 0) {
+      bodyDrag.current = null;
+      return;
+    }
+    bodyDrag.current = { startY: touch.clientY, startX: touch.clientX, active: false };
+  };
+
+  const onBodyTouchMove = (e: TouchEvent) => {
+    const drag = bodyDrag.current;
+    const touch = e.touches[0];
+    if (!drag || !touch) return;
+    const dy = touch.clientY - drag.startY;
+    const dx = touch.clientX - drag.startX;
+    if (!drag.active) {
+      const atTop = (bodyRef.current?.scrollTop ?? 0) <= 0;
+      const decision = decideBodyDrag(dy, dx, atTop);
+      if (decision === 'abort') {
+        bodyDrag.current = null;
+        return;
+      }
+      if (decision === 'pending') return;
+      drag.active = true;
+      dragStartY.current = drag.startY;
+      setDragging(true);
+    }
+    setDragY(Math.max(0, dy));
+  };
+
+  const onBodyTouchEnd = () => {
+    const drag = bodyDrag.current;
+    bodyDrag.current = null;
+    if (drag?.active) onHandleTouchEnd();
+  };
+
   // While dragging (or sliding out from a drag) the inline transform drives the
   // sheet, so the open/close keyframes must stand down; otherwise the normal
   // mount/close animation plays.
@@ -123,12 +187,16 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
         }}
       />
       <div
+        ref={bodyRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className="relative w-full max-w-[430px] bg-surface-container rounded-t-2xl p-5 max-h-[85vh] overflow-y-auto"
-        style={sheetStyle}
+        style={{ ...sheetStyle, overscrollBehavior: 'contain' }}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={onBodyTouchStart}
+        onTouchMove={onBodyTouchMove}
+        onTouchEnd={onBodyTouchEnd}
       >
         {/* FIELD R2 item 3 (F3): the top strip (grab handle + title) is the drag
             affordance — pull it down to dismiss. The negative margins extend the

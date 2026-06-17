@@ -365,6 +365,16 @@ export function TripHubPage() {
                 <span className="text-xs font-bold">{t('trip_hub.edit_plan')}</span>
               </div>
             </button>
+            {/* D-IMP-02: surface the phase's future-vision preview right here on
+                the Viagem tab (it was only reachable via Home → overview). Same
+                route, just a more discoverable door (sibling, not nested). */}
+            <button
+              onClick={() => navigate(`/phase-preview/${selectedPhase.id}`)}
+              className="mt-2 w-full py-2.5 rounded-xl flex items-center justify-center gap-2 btn-press bg-surface-container"
+            >
+              <Icon name="calendar_month" size={16} className="text-primary" />
+              <span className="text-xs font-bold text-primary">{t('trip.phase_preview_cta')}</span>
+            </button>
           </>
         )
       )}

@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { tabsForMode } from '@/app/nav-tabs';
+import { setPendingTabDirection } from '@/app/nav-direction';
 import { hapticSelection } from '@/utils/haptics';
 
 /**
@@ -29,6 +30,8 @@ export function useTabPaging(): TabPaging {
     const target = tabs[index];
     if (!target) return false;
     hapticSelection();
+    // D-BUG-10: animate by swipe order, not by the always-rising history idx.
+    setPendingTabDirection(index > currentIndex ? 'forward' : 'back');
     navigate(target.path);
     return true;
   };

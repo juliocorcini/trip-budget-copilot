@@ -5,6 +5,8 @@ import { Icon } from './Icon';
 import { FABMenu } from './FAB';
 import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
+import { tabsForMode } from '@/app/nav-tabs';
+import { setPendingTabDirection, tabSwitchDirection } from '@/app/nav-direction';
 import { hapticSelection, hapticImpact } from '@/utils/haptics';
 
 interface NavItem extends ModeAware {
@@ -36,6 +38,8 @@ export function BottomNav() {
   // M19: planner (advanced) is hidden in simple mode; its route still exists.
   const appMode = settings?.appMode ?? 'complete';
   const rightNav = visibleInMode(RIGHT_NAV, appMode);
+  // D-BUG-10: swipe order so a bar tap animates the same direction as a swipe.
+  const tabPaths = tabsForMode(appMode).map((tab) => tab.path);
 
   const renderNavItem = (item: NavItem) => {
     const isActive = location.pathname.startsWith(item.path);
@@ -44,6 +48,8 @@ export function BottomNav() {
         key={item.path}
         onClick={() => {
           if (!isActive) hapticSelection();
+          const direction = tabSwitchDirection(location.pathname, item.path, tabPaths);
+          if (direction) setPendingTabDirection(direction);
           navigate(item.path);
         }}
         className="relative flex flex-col items-center gap-0.5 py-1 px-2 btn-press"
