@@ -1,8 +1,8 @@
 {
-  "version": "0.79.0",
+  "version": "0.80.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.79.0.zip",
-  "notes": "Planejar um gasto agora é uma porta única: responda duas perguntas (tem data? de onde vem o dinheiro?) e o app cria a coisa certa — evento, pote ou compra — sem termos técnicos. Eventos viraram de primeira classe: ficam na seção “Potes e planejados” e sobem para a tela inicial quando estão próximos (no trecho dono ou faltando até 7 dias)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.80.0.zip",
+  "notes": "Carteira progressiva: se você tem uma só fonte de dinheiro, o app nem pergunta de qual carteira saiu cada gasto — fica tudo simples. Com 2+ carteiras (ou ao importar do Wise) ele passa a perguntar sozinho, e há um controle em Configurações (Automático · Sempre · Nunca) para você decidir."
 }

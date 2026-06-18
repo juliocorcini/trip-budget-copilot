@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
 import {
   createExpenseTransaction,
   suggestFromDescription,
@@ -73,6 +74,9 @@ export function QuickAddPage() {
   const [searchParams] = useSearchParams();
   const { trip, phases, pools, links, envelopes, transactions, wallets, participants, occurrences, plannedPurchases, settings, error, reload, retry } =
     useAppData();
+  // GATE 5 (D10): hide the "de onde saiu?" wallet question for a single-source
+  // traveler — the expense silently lands on the default wallet.
+  const walletTrackingActive = useWalletTracking();
 
   const initialCategory = searchParams.get('cat') ?? 'other';
   const txType = searchParams.get('type') ?? 'expense';
@@ -865,7 +869,7 @@ export function QuickAddPage() {
       </div>
       )}
 
-      {!isTransferLike && (
+      {!isTransferLike && walletTrackingActive && (
       <div className="bg-surface-container rounded-xl p-4">
         <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.wallet')}</label>
         <div className="flex gap-2 flex-wrap">

@@ -117,6 +117,12 @@ export interface AppSettings {
    * sent to the Worker /ocr proxy → Groq, which does not train on it). Privacy
    * first, like locationCaptureEnabled (ÂNCORA 8; non-indexed — no migration). */
   cloudReceiptOcrEnabled: boolean;
+  /** GATE 5 (D10): manual override for progressive wallet tracking. `null` =
+   * AUTOMATIC (the wallet question lights up only with 2+ wallets or a Wise
+   * import); `true` = always ask "de onde saiu?"; `false` = never ask. Default
+   * null keeps the wallet invisible for a single-source traveler (non-indexed
+   * — no migration). */
+  walletTrackingOverride: boolean | null;
 }
 
 /**

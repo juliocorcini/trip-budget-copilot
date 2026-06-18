@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { calculateWalletBalance, calculateCashReconciliation, getUnassignedTransactionCount } from '@/domain/wallets';
+import {
+  calculateWalletBalance,
+  calculateCashReconciliation,
+  getUnassignedTransactionCount,
+  hasWiseImportedTransactions,
+  countActiveWallets,
+  isWalletTrackingActive,
+} from '@/domain/wallets';
 import type { Wallet } from '@/domain/types/wallet';
 import type { Transaction } from '@/domain/types/transaction';
 
@@ -134,5 +141,96 @@ describe('getUnassignedTransactionCount', () => {
       { ...mkTx('t4', 300, null, 'transfer') },
     ];
     expect(getUnassignedTransactionCount(txs)).toBe(2);
+  });
+});
+
+// ── GATE 5 (D10) — progressive wallet tracking ──
+const mkWallet = (id: string, overrides: Partial<Wallet> = {}): Wallet => ({
+  ...wallet,
+  id,
+  isDefault: id === 'w1',
+  ...overrides,
+});
+
+describe('countActiveWallets', () => {
+  it('counts only live wallets', () => {
+    expect(countActiveWallets([mkWallet('w1'), mkWallet('w2')])).toBe(2);
+  });
+
+  it('ignores soft-deleted wallets', () => {
+    expect(
+      countActiveWallets([
+        mkWallet('w1'),
+        mkWallet('w2', { deletedAt: '2026-02-01T00:00:00.000Z' }),
+      ]),
+    ).toBe(1);
+  });
+
+  it('is 0 for an empty list', () => {
+    expect(countActiveWallets([])).toBe(0);
+  });
+});
+
+describe('hasWiseImportedTransactions', () => {
+  it('is true when a live transaction carries a Wise external ref', () => {
+    const txs: Transaction[] = [
+      mkTx('t1', 1000, 'w1'),
+      { ...mkTx('t2', 2000, 'w1'), externalRef: 'wise:CARD-3927313014' },
+    ];
+    expect(hasWiseImportedTransactions(txs)).toBe(true);
+  });
+
+  it('is false when no transaction was imported from Wise', () => {
+    expect(hasWiseImportedTransactions([mkTx('t1', 1000, 'w1')])).toBe(false);
+  });
+
+  it('ignores a non-Wise external ref', () => {
+    const txs: Transaction[] = [{ ...mkTx('t1', 1000, 'w1'), externalRef: 'manual:123' }];
+    expect(hasWiseImportedTransactions(txs)).toBe(false);
+  });
+
+  it('ignores a soft-deleted Wise transaction', () => {
+    const txs: Transaction[] = [
+      {
+        ...mkTx('t1', 1000, 'w1'),
+        externalRef: 'wise:CARD-1',
+        deletedAt: '2026-02-01T00:00:00.000Z',
+      },
+    ];
+    expect(hasWiseImportedTransactions(txs)).toBe(false);
+  });
+});
+
+describe('isWalletTrackingActive (D10)', () => {
+  const oneWallet = [mkWallet('w1')];
+  const twoWallets = [mkWallet('w1'), mkWallet('w2')];
+
+  it('AUTO: stays off for a single-source traveler (1 wallet, no import)', () => {
+    expect(isWalletTrackingActive(oneWallet, null, false)).toBe(false);
+  });
+
+  it('AUTO: lights up with 2+ wallets', () => {
+    expect(isWalletTrackingActive(twoWallets, null, false)).toBe(true);
+  });
+
+  it('AUTO: lights up with a Wise import even on a single wallet', () => {
+    expect(isWalletTrackingActive(oneWallet, null, true)).toBe(true);
+  });
+
+  it('AUTO: a soft-deleted second wallet does not light it up', () => {
+    const wallets = [mkWallet('w1'), mkWallet('w2', { deletedAt: '2026-02-01T00:00:00.000Z' })];
+    expect(isWalletTrackingActive(wallets, null, false)).toBe(false);
+  });
+
+  it('AUTO: stays off with no wallets and no import', () => {
+    expect(isWalletTrackingActive([], null, false)).toBe(false);
+  });
+
+  it('override TRUE forces it on even with a single wallet and no import', () => {
+    expect(isWalletTrackingActive(oneWallet, true, false)).toBe(true);
+  });
+
+  it('override FALSE forces it off even with many wallets and a Wise import', () => {
+    expect(isWalletTrackingActive(twoWallets, false, true)).toBe(false);
   });
 });

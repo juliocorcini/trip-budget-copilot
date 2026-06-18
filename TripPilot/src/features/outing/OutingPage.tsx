@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
 import {
   createSession,
   deriveSessionLimits,
@@ -1772,6 +1773,8 @@ interface SessionReviewProps {
 
 function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onConfirm }: SessionReviewProps) {
   const { t } = useTranslation();
+  // GATE 5 (D10): only ask which wallet paid the outing when tracking is on.
+  const walletTrackingActive = useWalletTracking();
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     Object.fromEntries(sessionTxs.map((tx) => [tx.id, String(fromCents(tx.amountCents))])),
   );
@@ -1909,6 +1912,7 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
       </div>
 
       {/* Batch wallet assignment */}
+      {walletTrackingActive && (
       <div className="bg-surface-container rounded-xl p-4">
         <p className="text-xs text-on-surface-faint mb-1">{t('outing.review_wallet')}</p>
         <p className="text-[10px] text-on-surface-faint mb-2">{t('outing.review_wallet_hint')}</p>
@@ -1936,6 +1940,7 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
           ))}
         </div>
       </div>
+      )}
 
       {/* Optional cash check (DEC-046 reuse) */}
       <div className="bg-surface-container rounded-xl p-4">

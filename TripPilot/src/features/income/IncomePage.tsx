@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
 import { toCents, formatMoney } from '@/domain/money';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
@@ -23,6 +24,8 @@ export function IncomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { trip, phases, pools, links, wallets, settings, error, retry, reload } = useAppData();
+  // GATE 5 (D10): only ask which wallet received the money when tracking is on.
+  const walletTrackingActive = useWalletTracking();
 
   const activePhase = useMemo(() => resolveActivePhase(phases), [phases]);
 
@@ -156,6 +159,7 @@ export function IncomePage() {
         )}
       </div>
 
+      {walletTrackingActive && (
       <div className="bg-surface-container rounded-xl p-4">
         <label className="text-xs text-on-surface-faint mb-2 block">{t('income.credits_wallet')}</label>
         <div className="flex gap-2 flex-wrap">
@@ -180,6 +184,7 @@ export function IncomePage() {
           ))}
         </div>
       </div>
+      )}
 
       <div className="bg-surface-container rounded-xl p-4">
         <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.date_time')}</label>

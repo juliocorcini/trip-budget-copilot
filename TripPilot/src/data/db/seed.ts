@@ -78,6 +78,10 @@ export function createDefaultAppSettings(): AppSettings {
     // DEC-206 (G2): cloud receipt OCR is opt-in — the photo never leaves the
     // device until the traveler turns this on (privacy first).
     cloudReceiptOcrEnabled: false,
+    // GATE 5 (D10): wallet tracking starts AUTOMATIC — invisible for a
+    // single-source traveler, lights up on its own with 2+ wallets or a Wise
+    // import. The manual toggle in Settings overrides this.
+    walletTrackingOverride: null,
   };
 }
 

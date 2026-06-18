@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
 import { formatMoney, fromCents, toCents, formatAnchorHint, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
@@ -46,6 +47,8 @@ export function ExpenseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { trip, pools, wallets, participants, transactions, plannedPurchases, settings, loading, reload } =
     useAppData();
+  // GATE 5 (D10): the wallet field only shows when wallet tracking is active.
+  const walletTrackingActive = useWalletTracking();
 
   const [tx, setTx] = useState<Transaction | null>(null);
   const [txLoading, setTxLoading] = useState(true);
@@ -476,6 +479,7 @@ export function ExpenseDetailPage() {
             </div>
           </div>
 
+          {walletTrackingActive && (
           <div className="bg-surface-container rounded-xl p-4">
             <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.wallet')}</label>
             <div className="flex gap-2 flex-wrap">
@@ -502,6 +506,7 @@ export function ExpenseDetailPage() {
               ))}
             </div>
           </div>
+          )}
 
           <div className="flex gap-3">
             <button

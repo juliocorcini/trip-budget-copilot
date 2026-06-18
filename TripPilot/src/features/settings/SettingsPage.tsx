@@ -41,6 +41,7 @@ import { getCurrentCoords, ensureLocationPermission } from '@/utils/geolocation'
 import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { APP_VERSION } from '@/utils/app-version';
 import type { AlertTone, AppMode, ThemePreference } from '@/domain/types/common';
 
@@ -54,6 +55,13 @@ const CURRENCY_OPTIONS = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'
 
 /** DEC-128: currencies offered as mental anchor (the traveler's "home" money). */
 const ANCHOR_CURRENCY_OPTIONS = ['BRL', 'USD', 'EUR', 'GBP'];
+
+// GATE 5 (D10): the three states of the progressive wallet-tracking control.
+const WALLET_TRACKING_OPTIONS: { value: boolean | null; labelKey: string }[] = [
+  { value: null, labelKey: 'settings.wallet_tracking_auto' },
+  { value: true, labelKey: 'settings.wallet_tracking_on' },
+  { value: false, labelKey: 'settings.wallet_tracking_off' },
+];
 
 // FIELD item 4: the long flat list became hard to use. Groups are now
 // collapsible accordions + a search field. Keywords are intentionally
@@ -115,7 +123,7 @@ const SETTINGS_GROUPS: {
     descKey: 'settings.cat_desc_device',
     icon: 'smartphone',
     keywords:
-      'dispositivo device aparelho nome name carteira wallet billetera padrão default quick add atalho valores armazenamento storage persistência',
+      'dispositivo device aparelho nome name carteira wallet billetera padrão default quick add atalho valores armazenamento storage persistência rastreamento tracking acompanhar fonte source carteiras automático',
   },
   {
     id: 'about',
@@ -134,6 +142,8 @@ export function SettingsPage() {
   // category's sections; the bare `/settings` route shows the category list.
   const { categoryId } = useParams<{ categoryId?: string }>();
   const { settings, wallets, trip, phases, reload } = useAppData();
+  // GATE 5 (D10): the effective state shown under the wallet-tracking control.
+  const walletTrackingActive = useWalletTracking();
   const [quickAddInput, setQuickAddInput] = useState('');
   // M22: saving a template loads the trip's profiles on demand (not in useAppData).
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -1185,6 +1195,33 @@ export function SettingsPage() {
           aria-label={t('settings.device_name')}
           className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
         />
+      </Section>
+
+      {/* GATE 5 (D10): progressive wallet tracking — Auto / always on / off.
+          Auto stays invisible for a single-source traveler and lights up with
+          2+ wallets or a Wise import; the manual choice overrides it. */}
+      <Section title={t('settings.wallet_tracking_title')}>
+        <p className="text-xs text-on-surface-faint mb-3">{t('settings.wallet_tracking_hint')}</p>
+        <div className="flex gap-2 flex-wrap">
+          {WALLET_TRACKING_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.value)}
+              onClick={() => updateSetting({ walletTrackingOverride: opt.value })}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                settings.walletTrackingOverride === opt.value
+                  ? 'bg-primary text-on-surface'
+                  : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {t(opt.labelKey)}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-on-surface-faint mt-2">
+          {walletTrackingActive
+            ? t('settings.wallet_tracking_state_on')
+            : t('settings.wallet_tracking_state_off')}
+        </p>
       </Section>
 
       <Section title={t('settings.default_wallet')}>

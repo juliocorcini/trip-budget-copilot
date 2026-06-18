@@ -52,6 +52,7 @@ const settings: AppSettings = {
   deviceIdentity: null,
   mailboxEnabled: true,
   cloudReceiptOcrEnabled: false,
+  walletTrackingOverride: null,
 };
 
 const mkTrip = (): Trip => ({

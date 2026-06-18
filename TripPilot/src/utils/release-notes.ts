@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.80.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Carteira progressiva: se você usa uma só fonte de dinheiro, o app deixou de perguntar “de onde saiu?” em cada gasto — fica tudo mais simples e direto.',
+        'Quando você tem 2 ou mais carteiras (ou importa do Wise), a pergunta da carteira acende sozinha, porque aí faz diferença saber de onde o dinheiro saiu.',
+        'Novo controle em Configurações → Dispositivo e captura: escolha Automático, Sempre perguntar ou Nunca perguntar — você manda no comportamento.',
+      ],
+      en: [
+        'Progressive wallet: if you use a single money source, the app no longer asks “where did it come from?” on every expense — it just stays simple.',
+        'When you have 2 or more wallets (or import from Wise), the wallet question turns on by itself, because then it matters which source the money came from.',
+        'New control in Settings → Device & capture: pick Automatic, Always ask or Never ask — you’re in charge of the behavior.',
+      ],
+      es: [
+        'Billetera progresiva: si usas una sola fuente de dinero, la app dejó de preguntar “¿de dónde salió?” en cada gasto — todo más simple.',
+        'Cuando tienes 2 o más billeteras (o importas desde Wise), la pregunta de la billetera se activa sola, porque ahí sí importa de dónde salió el dinero.',
+        'Nuevo control en Ajustes → Dispositivo y captura: elige Automático, Preguntar siempre o No preguntar — tú decides el comportamiento.',
+      ],
+    },
+  },
+  {
     version: '0.79.0',
     date: '2026-06-18',
     items: {

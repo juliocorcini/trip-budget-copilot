@@ -66,6 +66,10 @@ class AppSettingsRepository {
       // DEC-206 (G2): records predating cloud receipt OCR default to OFF
       // (opt-in — the photo never leaves the device until enabled).
       cloudReceiptOcrEnabled: settings.cloudReceiptOcrEnabled ?? false,
+      // GATE 5 (D10): records predating progressive wallet tracking default to
+      // AUTOMATIC (null) — the wallet stays invisible until 2+ wallets/a Wise
+      // import or the traveler flips the manual toggle.
+      walletTrackingOverride: settings.walletTrackingOverride ?? null,
     };
   }
 

@@ -113,3 +113,43 @@ export function getUnassignedTransactionCount(transactions: Transaction[]): numb
       t.type === 'expense',
   ).length;
 }
+
+const WISE_EXTERNAL_REF_PREFIX = 'wise:';
+
+/**
+ * GATE 5 (D10): a trip "has a Wise import" once any live transaction carries a
+ * Wise external ref (the re-import dedupe key set by `wiseExternalRef`). Pure
+ * read over the ledger — soft-deleted rows do not count.
+ */
+export function hasWiseImportedTransactions(transactions: Transaction[]): boolean {
+  return transactions.some(
+    (t) =>
+      t.deletedAt === null &&
+      typeof t.externalRef === 'string' &&
+      t.externalRef.startsWith(WISE_EXTERNAL_REF_PREFIX),
+  );
+}
+
+/** GATE 5: how many live (non-deleted) wallets — the count of money sources. */
+export function countActiveWallets(wallets: Wallet[]): number {
+  return wallets.filter((w) => w.deletedAt === null).length;
+}
+
+/**
+ * GATE 5 / D10 — progressive wallet tracking. The "de onde saiu o dinheiro?"
+ * question stays INVISIBLE for a single-source traveler and lights up
+ * automatically once there are 2+ wallets OR a Wise import exists. The manual
+ * override from Settings wins over the automatic rule so the traveler is never
+ * trapped either way:
+ * - `null`  → automatic (2+ wallets or a Wise import);
+ * - `true`  → always on;
+ * - `false` → always off.
+ */
+export function isWalletTrackingActive(
+  wallets: Wallet[],
+  walletTrackingOverride: boolean | null,
+  hasWiseImport: boolean,
+): boolean {
+  if (walletTrackingOverride !== null) return walletTrackingOverride;
+  return countActiveWallets(wallets) >= 2 || hasWiseImport;
+}
