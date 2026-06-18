@@ -288,6 +288,19 @@ export function SplitTablePage() {
         {payload.session.items.length === 0 && (
           <p className="text-sm text-on-surface-dim text-center py-8">{t('splitTable.empty')}</p>
         )}
+
+        {/* T9 — onboarding door: a no-app guest can start their own trip, reusing
+            the signup-less home (BootGate routes a guest with no trip to setup). */}
+        <div className="mt-4 pt-4 border-t border-surface-container flex flex-col items-center gap-1.5 text-center">
+          <p className="text-[11px] text-on-surface-faint">{t('splitTable.onboard_hint')}</p>
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-xs text-primary font-bold btn-press"
+          >
+            <Icon name="luggage" size={14} />
+            {t('splitTable.start_trip')}
+          </button>
+        </div>
       </div>
 
       <div className="fixed bottom-0 inset-x-0 z-10">

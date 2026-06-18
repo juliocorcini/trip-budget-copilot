@@ -702,7 +702,9 @@
     "unnamed_item": "Item",
     "empty": "Ainda não há itens na conta.",
     "your_part": "Sua parte",
-    "synced": "Sincronizado"
+    "synced": "Sincronizado",
+    "onboard_hint": "Gostou? O TripPilot organiza a viagem inteira.",
+    "start_trip": "Começar minha viagem"
   },
   "categories": {
     "bar": "Bar",

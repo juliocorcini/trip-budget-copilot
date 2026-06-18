@@ -702,7 +702,9 @@
     "unnamed_item": "Item",
     "empty": "No items on the bill yet.",
     "your_part": "Your part",
-    "synced": "Synced"
+    "synced": "Synced",
+    "onboard_hint": "Like it? TripPilot plans the whole trip.",
+    "start_trip": "Start my trip"
   },
   "categories": {
     "bar": "Bar",
