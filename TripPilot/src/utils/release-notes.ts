@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.98.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Na mesa ao vivo, toque em "+" no nome de um convidado para torná-lo uma pessoa da viagem: a parte dele deixa de ser só um nome e vira uma dívida real.',
+        'Se essa pessoa tiver o app, a fatia cai no celular dela e se atualiza sozinha quando você edita a conta — ela confirma ou contesta e você vê.',
+        'Quem abre o link sem ter o app vê um convite discreto para começar a própria viagem no TripPilot.',
+      ],
+      en: [
+        'On the live table, tap "+" on a guest\'s name to make them a trip person: their part stops being just a name and becomes a real debt.',
+        'If that person has the app, their slice lands on their phone and updates itself when you edit the bill — they confirm or dispute and you see it.',
+        'Anyone who opens the link without the app sees a gentle invite to start their own trip in TripPilot.',
+      ],
+      es: [
+        'En la mesa en vivo, toca "+" en el nombre de un invitado para convertirlo en una persona del viaje: su parte deja de ser solo un nombre y pasa a ser una deuda real.',
+        'Si esa persona tiene la app, su parte llega a su celular y se actualiza sola cuando editas la cuenta — confirma o reclama y tú lo ves.',
+        'Quien abre el enlace sin la app ve una invitación discreta para empezar su propio viaje en TripPilot.',
+      ],
+    },
+  },
+  {
     version: '0.97.0',
     date: '2026-06-18',
     items: {

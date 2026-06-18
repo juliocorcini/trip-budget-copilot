@@ -46,3 +46,44 @@ test.describe('Bill split — live table (G2)', () => {
     await expect(page.getByRole('button', { name: /Ir para o início/ })).toBeVisible({ timeout: 15_000 });
   });
 });
+
+/**
+ * Bill split (G3) — promote an ad-hoc name to a real trip Participant (T5). This
+ * is the load-bearing new code for two-way propagation: it turns a guest's slice
+ * into a real ParticipantShare (a debt) that rides the existing DEC-106 mirror.
+ * The pure math is unit-tested; this guards the owner-side UI wiring.
+ */
+test.describe('Bill split — promote ad-hoc (G3)', () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  test('owner promotes an ad-hoc person to a trip person', async ({ page }) => {
+    await loadDemo(page);
+    await page.goto('/split/scan');
+    await expect(page.getByRole('heading', { name: 'Dividir conta' })).toBeVisible();
+
+    // Reach the divide board (an item moves capture → divide).
+    await page.getByRole('button', { name: /Adicionar manualmente/ }).click();
+    const editor = page.getByRole('dialog', { name: 'Editar item' });
+    await expect(editor).toBeVisible({ timeout: 10_000 });
+    await editor.locator('input').first().fill('Pizza');
+    await editor.locator('input[type="number"]').fill('60');
+    await editor.getByRole('button', { name: 'Pronto' }).click();
+    await expect(editor).toBeHidden();
+
+    // Add an ad-hoc person.
+    await page.getByRole('button', { name: 'Adicionar pessoa' }).click();
+    const personSheet = page.getByRole('dialog', { name: 'Adicionar pessoa' });
+    await expect(personSheet).toBeVisible({ timeout: 10_000 });
+    await personSheet.locator('input').first().fill('Bruno');
+    await personSheet.getByRole('button', { name: 'Adicionar pessoa' }).click();
+    await expect(personSheet).toBeHidden();
+
+    // The ad-hoc chip exposes the promote affordance; promoting confirms via toast
+    // and removes the affordance (the chip is now a real, linked trip person).
+    const promote = page.getByRole('button', { name: /Adicionar Bruno como pessoa da viagem/ });
+    await expect(promote).toBeVisible();
+    await promote.click();
+    await expect(page.getByText(/Bruno agora é uma pessoa da viagem/)).toBeVisible({ timeout: 10_000 });
+    await expect(promote).toBeHidden();
+  });
+});
