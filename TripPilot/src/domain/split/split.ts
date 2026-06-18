@@ -404,6 +404,38 @@ export function addParticipant(
   return { session: { ...session, participants: [...session.participants, participant] }, participant };
 }
 
+/**
+ * T5 (G3) — promote an ad-hoc split participant to a real trip Participant. The
+ * caller creates the `Participant` row (so it persists as a trip member); this
+ * pure step just re-points the SplitParticipant at it (`kind:'linked'` +
+ * `linkedParticipantId`), which is what makes `commitSplit` mint a real
+ * `ParticipantShare` (a debt) for them — the slice then "falls into their app"
+ * and rides the existing DEC-106 mirror (downstream update / confirm-reject /
+ * tombstone-on-undo). A live-table guest already carries an `actorId`; it is
+ * preserved (or set) so the created Participant can be linked to their device.
+ * The owner can never be promoted, and an unknown id is a no-op.
+ */
+export function promoteAdhocToParticipant(
+  session: SplitSession,
+  participantId: string,
+  realParticipantId: string,
+  options?: { actorId?: string | null },
+): SplitSession {
+  return {
+    ...session,
+    participants: session.participants.map((p) =>
+      p.id === participantId && p.kind !== 'owner'
+        ? {
+            ...p,
+            kind: 'linked',
+            linkedParticipantId: realParticipantId,
+            actorId: options?.actorId ?? p.actorId,
+          }
+        : p,
+    ),
+  };
+}
+
 /* ── factories ─────────────────────────────────────────────────────────── */
 
 export function createSplitParticipant(

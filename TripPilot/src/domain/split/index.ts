@@ -15,6 +15,7 @@ export {
   releaseClaim,
   splitItemBetween,
   addParticipant,
+  promoteAdhocToParticipant,
   createSplitParticipant,
   createSplitItem,
   createSplitSession,
