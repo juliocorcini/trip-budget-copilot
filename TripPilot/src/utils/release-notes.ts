@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.82.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Captura mais rápida no “+”: “Registrar gasto” e “Escanear nota” agora ficam na base do menu, na zona do polegar — sem precisar esticar o dedo até o topo.',
+        'Menos bagunça, nada removido: os registros raros (transferência, saque, entrada) e o “Planejar / Simular” se escondem atrás de botões que expandem; tudo continua a um toque.',
+        'Registrar gasto ficou enxuto: valor, categoria e descrição na frente; data, local, fundo, carteira e anexos recolhidos em “Detalhes”. Um gasto comum sai em ~3 toques.',
+        'Quando você só tem um fundo na fase, ele nem aparece mais na tela — é escolhido sozinho.',
+      ],
+      en: [
+        'Faster capture on “+”: “Register expense” and “Scan receipt” now sit at the base of the menu, in the thumb zone — no more reaching to the top.',
+        'Less clutter, nothing removed: the rare entries (transfer, withdrawal, income) and “Plan / Simulate” tuck behind expanders; everything is still one tap away.',
+        'Register expense is leaner: amount, category and description up front; date, place, fund, wallet and attachments collapse under “Details”. A typical expense is ~3 taps.',
+        'When a phase has a single fund, it no longer shows on screen — it’s picked for you.',
+      ],
+      es: [
+        'Captura más rápida en “+”: “Registrar gasto” y “Escanear recibo” ahora están en la base del menú, en la zona del pulgar — sin estirar el dedo hasta arriba.',
+        'Menos desorden, nada eliminado: los registros raros (transferencia, retiro, ingreso) y “Planificar / Simular” se ocultan tras botones que expanden; todo sigue a un toque.',
+        'Registrar gasto quedó más simple: monto, categoría y descripción al frente; fecha, lugar, fondo, billetera y adjuntos recogidos en “Detalles”. Un gasto típico sale en ~3 toques.',
+        'Cuando una fase tiene un solo fondo, ya no aparece en pantalla — se elige solo.',
+      ],
+    },
+  },
+  {
     version: '0.81.0',
     date: '2026-06-18',
     items: {

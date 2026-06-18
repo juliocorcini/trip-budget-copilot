@@ -1567,6 +1567,15 @@
 - **Decision (D18)**: a **sub-trecho** (a city *inside* a trecho, e.g. Eurotrip → Amsterdam) is deferred to V2. The backend seed already exists — `PlannedOccurrence(kind:'sub_destination')` (DEC-072) with date-range spend tracking. Direction when promoted: a period nested in the parent trecho (dates contained), optional own rhythm/peak/activities, **no own budget by default** (spends from the parent, just tracks "how much here"), never overlaps the parent's time axis (coherent with D12).
 - **Rationale**: real value, but adds a nesting layer that only pays off once Trecho+Pote+Evento has settled; promoting it early risks reintroducing the complexity this reform removed. Trigger to revisit: concrete demand (e.g. Julio running the Eurotrip).
 
+### DEC-226 — Capture progressive disclosure: FAB thumb reorder + expanders, Quick Add "Detalhes" (Package #2, v0.82.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (Package #2, v0.82.0)
+- **Source**: `brain/documents/ux-clarity-audit-2026-06-17.md` §3 (P0) + §4.3 (P1). First package out of the UX-clarity audit; does **not** touch Package #1.
+- **Decision (FAB, §3.3/§3.4 — Julio's explicit call "manter as 9, só reorganizar"):** keep **all 9 actions** and the visual language (orange hero, indigo "smart" scan card, tonal chips, spring). Reorder for the thumb — the **heroes ("Registrar gasto", "Escanear nota") sit at the BASE** of the sheet (closest to the "+"); capture chips ("Iniciar saída", "Registrar mercado") above; and the rarer entries collapse behind two **expanders**: **"Outros registros…"** (Transferência/Saque/Receita) and **"Planejar"** (Planejar compra/Simular). Collapsed at rest → short sheet; nothing removed (ÂNCORA 9); simple mode still hides the advanced ones.
+- **Decision (Quick Add, §4.3 / G2):** progressive disclosure — **visible by default: valor + categoria + descrição**; **date, local, fundo, carteira, anexos collapse under a "Detalhes" toggle**. The **fund picker is hidden when there's nothing to choose** (0 → empty-state prompt stays visible; 1 → auto-selected, shown read-only inside Detalhes; >1 → picker inside Detalhes, and a *required* multi-fund choice forces the block open). A subtle dot marks a customized-but-collapsed Detalhes. "Quem pagou?/dividir" stays outside Detalhes (only appears with 2+ participants). Goal: a typical expense in ~3 taps.
+- **Anti-regression**: all 9 FAB actions remain reachable; transfers/withdrawals keep their full (non-collapsed) wallet flow; wallet question stays progressive (DEC-222); split/anomaly/zero-budget/round-trip/photos/voice all preserved. New permanent E2E `e2e/capture-disclosure.spec.ts`; `wallet-tracking.spec.ts` updated to open Detalhes.
+- **Rationale**: the audit's dominant risk is conceptual overload + bad thumb ergonomics, not missing capability — reorder + disclose, don't prune.
+
 ---
 
 *New decisions will be added as the project progresses.*

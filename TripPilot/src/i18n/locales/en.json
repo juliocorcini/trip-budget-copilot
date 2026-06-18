@@ -239,7 +239,11 @@
     "plan_purchase_desc": "Set money aside for a buy you know is coming",
     "plan_expense": "Plan an expense",
     "plan_expense_desc": "Event, purchase or pot — one door",
-    "quick_actions": "Quick actions"
+    "quick_actions": "Quick actions",
+    "group_plan": "Plan",
+    "group_plan_desc": "Plan an expense, simulate a purchase",
+    "group_other": "Other entries",
+    "group_other_desc": "Transfer, withdrawal, income"
   },
   "income": {
     "title": "Record income",
@@ -495,6 +499,8 @@
     "no_pool_for_phase": "No fund available for the current phase.",
     "date_time": "Date and time (optional)",
     "date_time_hint": "Leave empty to use now.",
+    "details_toggle": "Details",
+    "details_hint": "Date, place, fund, wallet, attachments",
     "location_label": "Location",
     "location_detecting": "Detecting location…",
     "location_name_placeholder": "Place name",

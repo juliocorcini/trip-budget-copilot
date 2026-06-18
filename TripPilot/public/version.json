@@ -1,8 +1,8 @@
 {
-  "version": "0.81.0",
+  "version": "0.82.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.81.0.zip",
-  "notes": "Nova “Visão avançada da viagem” em Configurações → Dinheiro e metas: quem quiser ver os detalhes técnicos do dinheiro (fundos, vínculos, envelopes e carteiras) tem agora um lugar só pra isso, com atalho para editar Fundos e Carteiras — o dia a dia continua simples. Fecha a reforma do modelo de orçamento (trecho · pote · evento · compra planejada); nada do que existia antes foi removido."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.82.0.zip",
+  "notes": "Captura mais rápida: o botão “+” foi reorganizado para o polegar — “Registrar gasto” e “Escanear nota” ficam na base, pertinho do dedo, e os registros raros (transferência, saque, entrada) e o planejar/simular agora se escondem atrás de botões que expandem. Nada foi removido. E a tela de registrar gasto ficou enxuta: valor, categoria e descrição na frente; data, local, fundo, carteira e anexos recolhidos em “Detalhes”. Um gasto comum sai em ~3 toques."
 }

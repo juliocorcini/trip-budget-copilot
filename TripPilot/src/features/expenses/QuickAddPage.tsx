@@ -110,6 +110,9 @@ export function QuickAddPage() {
   // GAP-027: optional retroactive date/time (empty = now)
   const [customDate, setCustomDate] = useState('');
   const [saving, setSaving] = useState(false);
+  // P2 (UX audit §4.3 / G2): progressive disclosure — the typical expense is
+  // amount + category + description; date/place/fund/wallet/photos collapse here.
+  const [showDetails, setShowDetails] = useState(false);
 
   // E9 (M8/M9): expense currency (default = trip base) + the conversion rate
   // (seeded from the frozen snapshot, editable as a manual rate).
@@ -198,6 +201,14 @@ export function QuickAddPage() {
       : (availablePools.autoSelectedPoolId ?? '');
 
   const selectedPool = selectablePools.find((p) => p.id === effectivePoolId) ?? null;
+  // P2: hide the fund picker when there's nothing to choose (0 or 1 pool). When
+  // multiple pools force a choice, the details block opens so it's never hidden.
+  const requiresFundChoice = !isTransferLike && selectablePools.length > 1 && !effectivePoolId;
+  const detailsOpen = showDetails || requiresFundChoice;
+  const selectFund = (id: string) => {
+    setPoolId(id);
+    setShowDetails(true);
+  };
   const selectedPoolFreeToSpendCents =
     selectedPool && currentPhase
       ? calculateFreeToSpend(
@@ -605,6 +616,16 @@ export function QuickAddPage() {
 
   if (!trip || !settings?.onboardingCompleted) return null;
 
+  // P2: a subtle dot on the collapsed "Detalhes" toggle when anything inside was
+  // set, so a customized expense never hides its details silently.
+  const detailsCustomized =
+    !isTransferLike &&
+    (customDate !== '' ||
+      place !== null ||
+      pendingImages.length > 0 ||
+      (selectablePools.length > 1 && effectivePoolId !== '') ||
+      (walletTrackingActive && walletId !== null));
+
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 px-5">
       <div className="flex items-center justify-between pt-2">
@@ -790,38 +811,11 @@ export function QuickAddPage() {
         )}
       </div>
 
-      {!isTransferLike && (
-      <div className="bg-surface-container rounded-xl p-4">
-        <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.date_time')}</label>
-        <input
-          type="datetime-local"
-          value={customDate}
-          onChange={(e) => setCustomDate(e.target.value)}
-          aria-label={t('expenses.date_time')}
-          className="bg-transparent text-sm text-on-surface outline-none w-full"
-        />
-        <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.date_time_hint')}</p>
-      </div>
-      )}
-
-      {/* E8 (M2/M3) + D-BUG-08: opt-in location — the selector now lives in the
-          shared <PlaceField>, auto-capturing the live GPS fix on open. */}
-      {locationEnabled && (
-        <PlaceField
-          value={place}
-          onChange={setPlace}
-          category={category}
-          transactions={transactions}
-          autoCapture
-          locationFeaturesEnabled
-          rememberedPlace={settings?.currentPlace ?? null}
-        />
-      )}
-
-      {!isTransferLike && (
-      <div className="bg-surface-container rounded-xl p-4">
-        <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>
-        {selectablePools.length === 0 ? (
+      {/* P2 (UX audit §4.3): the fund's empty state stays visible — it blocks the
+          save, so the traveler must see why and reach "add fund". */}
+      {!isTransferLike && selectablePools.length === 0 && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>
           <div className="flex flex-col items-start gap-2">
             <p className="text-xs text-on-surface-dim">{t('expenses.no_pool_for_phase')}</p>
             <button
@@ -832,68 +826,192 @@ export function QuickAddPage() {
               {t('funds.add')}
             </button>
           </div>
-        ) : (
-          <div className="flex gap-2 flex-wrap">
-            {availablePools.operational.map((pool) => (
-              <button
-                key={pool.id}
-                onClick={() => setPoolId(pool.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                  effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
-                }`}
-              >
-                {pool.name}
-              </button>
-            ))}
-            {availablePools.global.map((pool) => (
-              <button
-                key={pool.id}
-                onClick={() => setPoolId(pool.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1 ${
-                  effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
-                }`}
-              >
-                <Icon
-                  name="public"
-                  size={12}
-                  className={effectivePoolId === pool.id ? 'text-on-surface' : 'text-on-surface-faint'}
-                />
-                {pool.name}
-              </button>
-            ))}
-          </div>
-        )}
-        {selectablePools.length > 0 && !effectivePoolId && (
-          <p className="text-[10px] text-on-surface-faint mt-2">{t('expenses.choose_pool_hint')}</p>
-        )}
-      </div>
+        </div>
       )}
 
-      {!isTransferLike && walletTrackingActive && (
-      <div className="bg-surface-container rounded-xl p-4">
-        <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.wallet')}</label>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setWalletId(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-              effectiveWalletId === null ? 'bg-warning/20 text-warning ring-1 ring-warning' : 'bg-surface-high text-on-surface-dim'
-            }`}
-          >
-            {t('expenses.wallet_not_set')}
-          </button>
-          {wallets.map((wallet) => (
-            <button
-              key={wallet.id}
-              onClick={() => setWalletId(wallet.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                effectiveWalletId === wallet.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
-              }`}
-            >
-              {wallet.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* P2 (UX audit §4.3 / G2): progressive disclosure — date, place, fund,
+          wallet and photos collapse here so a trivial expense is ~3 taps. The
+          fund picker only shows when there's a real choice (>1 pool); a lone fund
+          is read-only, and a required multi-fund choice forces the block open. */}
+      {!isTransferLike && (
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          className="bg-surface-container rounded-xl px-4 py-3.5 flex items-center gap-3 btn-press text-left"
+          aria-expanded={detailsOpen}
+        >
+          <Icon name="tune" size={18} className="text-on-surface-dim shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-on-surface">{t('expenses.details_toggle')}</p>
+            <p className="text-[11px] text-on-surface-faint line-clamp-1">{t('expenses.details_hint')}</p>
+          </div>
+          {detailsCustomized && !detailsOpen && (
+            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+          )}
+          <Icon
+            name="expand_more"
+            size={20}
+            className="text-on-surface-faint shrink-0 transition-transform"
+            style={detailsOpen ? { transform: 'rotate(180deg)' } : undefined}
+          />
+        </button>
+      )}
+
+      {!isTransferLike && detailsOpen && (
+        <>
+          <div className="bg-surface-container rounded-xl p-4">
+            <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.date_time')}</label>
+            <input
+              type="datetime-local"
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+              aria-label={t('expenses.date_time')}
+              className="bg-transparent text-sm text-on-surface outline-none w-full"
+            />
+            <p className="text-[10px] text-on-surface-faint mt-1">{t('expenses.date_time_hint')}</p>
+          </div>
+
+          {/* E8 (M2/M3) + D-BUG-08: opt-in location selector (shared <PlaceField>). */}
+          {locationEnabled && (
+            <PlaceField
+              value={place}
+              onChange={setPlace}
+              category={category}
+              transactions={transactions}
+              autoCapture
+              locationFeaturesEnabled
+              rememberedPlace={settings?.currentPlace ?? null}
+            />
+          )}
+
+          {/* DEC-039/040: fund picker only when there's a choice; a lone fund is
+              shown read-only (hidden from the default view per the audit). */}
+          {selectablePools.length > 1 ? (
+            <div className="bg-surface-container rounded-xl p-4">
+              <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>
+              <div className="flex gap-2 flex-wrap">
+                {availablePools.operational.map((pool) => (
+                  <button
+                    key={pool.id}
+                    onClick={() => selectFund(pool.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                      effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {pool.name}
+                  </button>
+                ))}
+                {availablePools.global.map((pool) => (
+                  <button
+                    key={pool.id}
+                    onClick={() => selectFund(pool.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1 ${
+                      effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    <Icon
+                      name="public"
+                      size={12}
+                      className={effectivePoolId === pool.id ? 'text-on-surface' : 'text-on-surface-faint'}
+                    />
+                    {pool.name}
+                  </button>
+                ))}
+              </div>
+              {!effectivePoolId && (
+                <p className="text-[10px] text-on-surface-faint mt-2">{t('expenses.choose_pool_hint')}</p>
+              )}
+            </div>
+          ) : (
+            selectedPool && (
+              <div className="bg-surface-container rounded-xl p-4">
+                <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.fund')}</label>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-high text-xs font-medium text-on-surface-dim">
+                  <Icon name="savings" size={12} className="text-on-surface-faint" />
+                  {selectedPool.name}
+                </div>
+              </div>
+            )
+          )}
+
+          {/* D10: wallet stays progressive — only when tracking is active. */}
+          {walletTrackingActive && (
+            <div className="bg-surface-container rounded-xl p-4">
+              <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.wallet')}</label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setWalletId(null)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    effectiveWalletId === null ? 'bg-warning/20 text-warning ring-1 ring-warning' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {t('expenses.wallet_not_set')}
+                </button>
+                {wallets.map((wallet) => (
+                  <button
+                    key={wallet.id}
+                    onClick={() => setWalletId(wallet.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                      effectiveWalletId === wallet.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {wallet.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* DEC-206 (G1): attach receipt/proof photos while creating the expense.
+              Buffered in memory (compressed) and saved with the new transaction id. */}
+          <div className="bg-surface-container rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider">
+                {t('attachments.title')}
+              </p>
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={photoBusy}
+                className="flex items-center gap-1 text-xs font-semibold text-primary btn-press disabled:opacity-40"
+              >
+                <Icon name="add_a_photo" size={16} className="text-primary" />
+                {photoBusy ? t('attachments.adding') : t('attachments.add')}
+              </button>
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAddPhoto}
+            />
+            {pendingImages.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {pendingImages.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="relative aspect-square rounded-xl overflow-hidden bg-surface-high"
+                  >
+                    <img
+                      src={entry.image.thumbnailDataUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePendingPhoto(entry.id)}
+                      aria-label={t('common.delete')}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center btn-press"
+                    >
+                      <Icon name="close" size={14} className="text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* ── WHO PAID? (DEC-123 / D-R4-J) — first-level question + split ── */}
@@ -1184,59 +1302,6 @@ export function QuickAddPage() {
             </div>
           );
         })()}
-
-      {/* DEC-206 (G1): attach receipt/proof photos while creating the expense.
-          Buffered in memory (compressed) and saved with the new transaction id on
-          commit. Hidden for transfers/withdrawals, which never persist via this path. */}
-      {!isTransferLike && (
-        <div className="mt-1">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider">
-              {t('attachments.title')}
-            </p>
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              disabled={photoBusy}
-              className="flex items-center gap-1 text-xs font-semibold text-primary btn-press disabled:opacity-40"
-            >
-              <Icon name="add_a_photo" size={16} className="text-primary" />
-              {photoBusy ? t('attachments.adding') : t('attachments.add')}
-            </button>
-          </div>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAddPhoto}
-          />
-          {pendingImages.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {pendingImages.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="relative aspect-square rounded-xl overflow-hidden bg-surface-container"
-                >
-                  <img
-                    src={entry.image.thumbnailDataUrl}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removePendingPhoto(entry.id)}
-                    aria-label={t('common.delete')}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center btn-press"
-                  >
-                    <Icon name="close" size={14} className="text-white" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* UX polish (Gate 3): the save/cancel row sticks to the bottom so a user
           in a hurry can confirm without scrolling past every optional field.

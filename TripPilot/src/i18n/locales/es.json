@@ -239,7 +239,11 @@
     "plan_purchase_desc": "Reserva ahora algo que vas a comprar",
     "plan_expense": "Planear un gasto",
     "plan_expense_desc": "Evento, compra o fondo — en una sola puerta",
-    "quick_actions": "Acciones rápidas"
+    "quick_actions": "Acciones rápidas",
+    "group_plan": "Planificar",
+    "group_plan_desc": "Planear un gasto, simular compra",
+    "group_other": "Otros registros",
+    "group_other_desc": "Transferencia, retiro, ingreso"
   },
   "income": {
     "title": "Registrar ingreso",
@@ -495,6 +499,8 @@
     "no_pool_for_phase": "Ningún fondo disponible para la fase actual.",
     "date_time": "Fecha y hora (opcional)",
     "date_time_hint": "Déjalo vacío para usar ahora.",
+    "details_toggle": "Detalles",
+    "details_hint": "Fecha, lugar, fondo, cartera, adjuntos",
     "location_label": "Lugar",
     "location_detecting": "Detectando ubicación…",
     "location_name_placeholder": "Nombre del lugar",

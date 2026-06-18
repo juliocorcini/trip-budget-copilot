@@ -18,10 +18,16 @@ test.describe('GATE 5 — progressive wallet tracking (D10)', () => {
     await loadDemoData(page);
   });
 
+  // PACOTE #2 (UX audit §4.3): the wallet question now lives under "Detalhes"
+  // (progressive disclosure), so the spec opens it before asserting.
+  const openDetails = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: /detalhes|details/i }).click();
+
   test('AUTO: the demo trip (2 wallets) shows the wallet question on Quick Add', async ({
     page,
   }) => {
     await page.goto('/quick-add');
+    await openDetails(page);
     await expect(page.getByText('Carteira não informada')).toBeVisible();
   });
 
@@ -32,6 +38,7 @@ test.describe('GATE 5 — progressive wallet tracking (D10)', () => {
     await expect(page.getByText(/Agora: desligado/i)).toBeVisible();
 
     await page.goto('/quick-add');
+    await openDetails(page);
     await expect(page.getByText('Carteira não informada')).toHaveCount(0);
 
     // Back to automatic → with 2 wallets the question returns.
@@ -40,6 +47,7 @@ test.describe('GATE 5 — progressive wallet tracking (D10)', () => {
     await expect(page.getByText(/Agora: ligado/i)).toBeVisible();
 
     await page.goto('/quick-add');
+    await openDetails(page);
     await expect(page.getByText('Carteira não informada')).toBeVisible();
   });
 });
