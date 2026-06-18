@@ -1,6 +1,6 @@
 # TripPilot Brain — Source of Truth
 
-> Last updated: 2026-06-17 (device-test force-task plan added)
+> Last updated: 2026-06-18 (bill-split feature brainstorm + council ranking added)
 
 ## Truth Policy
 
@@ -47,6 +47,13 @@
 | `documents/device-test-plan-v50-v70-2026-06-17.md` | The B18 device test script (blocks A–N) Julio followed on Android + iPhone | Re-running device QA |
 | `documents/device-test-results-2026-06-17.md` | **EVIDENCE** — per-block PASS/FAIL/improvement/decision map from Julio's session (raw findings) | Tracing a bug to its observation |
 | `documents/device-test-fixes-masterplan-2026-06-17.md` | **ACTIVE FIX PLAN** — root cause + surgical plan for 20 bugs / 7 improvements / 5 decisions, organized in 5 waves with hardening gates (D-BUG-01…20, D-IMP-01…07, D-DEC-A…E) | Executing the device-bug force-task |
+
+### Bill-Split "passa a nota" (2026-06-18) — feature brainstorm + council ranking (PROPOSAL, not yet decided)
+
+| File | Purpose | When to read |
+|------|---------|--------------|
+| `documents/bill-split-feature-brainstorm-and-council-2026-06-18.md` | **BRAINSTORM RECORD (history)** — full brainstorm + 5 inline councils + 5-persona test + competitive analysis + ranking for the fast table-split idea. **Superseded for decisions** by the implementation-support doc (see banner at top). | Deep dive on rationale/personas/competition |
+| `documents/bill-split-implementation-support-2026-06-18.md` | **BUILD-READY SPEC** — "Dividir conta" feature. Julio's LOCKED decisions T1–T13 (not ephemeral → persists as ONE divided expense w/ items + debts + budget; feature=`Dividir conta` in FAB; proportional service charge w/ AI detect→infer→ask; **live claim in V1**; **two-way live mirror propagation** owner-authoritative DEC-106; **state-dependent guest landing**; ad-hoc+promote; Pix→future payment-info feature §16). + 3 new inline councils (real-time input/sync, persistence/propagation, naming). + architecture (owner-as-reducer on existing `ShareSignal`+`/responses`+KV, **no new Worker routes**), domain model, sync protocol, gates G1–G3 (~70h Tier 3) + ACs + tests. Delivery QUEUED (Julio implements later via `/deliver`); only 3 minor technical decisions left open (§19). | Before scoping/implementing the bill-split epic; this is the truth for decisions |
 
 ## Research Files
 
