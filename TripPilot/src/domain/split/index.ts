@@ -24,3 +24,5 @@ export {
 export type { AddParticipantIdentity } from './split';
 export { buildSplitCommitPlan, dominantSplitCategory } from './commit';
 export type { SplitCommitPlan, SplitCommitShare } from './commit';
+export { buildSplitFromReceipt } from './from-receipt';
+export type { BuildSplitFromReceiptInput, ReceiptSplitDraft } from './from-receipt';

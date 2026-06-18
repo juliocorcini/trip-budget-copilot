@@ -168,7 +168,15 @@ export function ReceiptScanPage() {
 
   const startManual = () => {
     const first = blankItem();
-    setPlan({ merchant: null, placeLabel: null, currency: null, readTotalCents: null, items: [first] });
+    setPlan({
+      merchant: null,
+      placeLabel: null,
+      currency: null,
+      readTotalCents: null,
+      items: [first],
+      serviceCharge: { amountCents: null, percent: null, included: null },
+      adjustments: [],
+    });
     setName(defaultName);
     setCompressed(null);
     setPhase('review');
@@ -203,6 +211,8 @@ export function ReceiptScanPage() {
           currency: null,
           readTotalCents: null,
           items: [],
+          serviceCharge: { amountCents: null, percent: null, included: null },
+          adjustments: [],
         });
         setName(defaultName);
         setPhase('review');

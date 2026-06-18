@@ -106,8 +106,10 @@ const OCR_MAX_IMAGE_CHARS = 9_000_000;
 // image + item count, not this prompt.
 const OCR_PROMPT = [
   'Read this receipt/bill photo (any shop, any country). Return ONLY this JSON, no prose, no markdown:',
-  '{"merchant":string|null,"currency":string|null,"total":number|null,"items":[{"description":string,"qty":number,"unitPrice":number,"lineTotal":number}]}',
+  '{"merchant":string|null,"currency":string|null,"total":number|null,"items":[{"description":string,"qty":number,"unitPrice":number,"lineTotal":number}],"serviceCharge":{"amount":number|null,"percent":number|null,"included":boolean|null},"adjustments":[{"kind":"couvert"|"discount"|"other","label":string,"amount":number}]}',
   'Rules: one entry per purchased product; lineTotal = the printed line amount (qty*unitPrice); currency = ISO 4217 code or null; total = final amount paid or null; numbers are plain dot-decimals with no symbols; never list subtotal/tax/tip/service/discount/change/payment as items; preserve product names as printed; do not invent items; if unreadable return {"merchant":null,"currency":null,"total":null,"items":[]}.',
+  'serviceCharge (T3): find a service/gratuity line ("service","servicio","servico","serviço","taxa de servico","gratuity","tip","propina") -> set amount (and percent when printed); included=true if it is already inside total, false if added on top; if there is no service mention set amount=null, percent=null, included=null.',
+  'adjustments (E6): list money lines that are NOT products: couvert/cover ("couvert","cover") as kind "couvert"; any discount/promo ("discount","desconto","promo","off") as kind "discount" with a NEGATIVE amount; anything else non-product as "other". Never duplicate the service line here. If none, return [].',
 ].join('\n');
 
 function generateRoomCode(): string {

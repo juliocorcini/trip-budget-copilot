@@ -266,3 +266,89 @@ describe('dominantReceiptCategory (D-IMP-05)', () => {
     expect(dominantReceiptCategory([item('transport', 800), item('restaurant', 800)])).toBe('transport');
   });
 });
+
+// T3/E6 (M4): the OCR prompt now also returns a serviceCharge object and an
+// adjustments array. The parser normalises both to cents, defensively, so the
+// split layer can resolve the charge and rate out couvert/discount lines.
+describe('parseReceiptResponse — serviceCharge (T3)', () => {
+  it('reads an absolute service amount to cents', () => {
+    const plan = parseReceiptResponse({
+      items: [{ description: 'A', lineTotal: 50 }],
+      serviceCharge: { amount: 5.5, percent: null, included: false },
+    });
+    expect(plan.serviceCharge.amountCents).toBe(550);
+    expect(plan.serviceCharge.percent).toBeNull();
+    expect(plan.serviceCharge.included).toBe(false);
+  });
+
+  it('reads a percentage rate and an "included" flag', () => {
+    const plan = parseReceiptResponse({
+      items: [],
+      serviceCharge: { amount: null, percent: 10, included: true },
+    });
+    expect(plan.serviceCharge.amountCents).toBeNull();
+    expect(plan.serviceCharge.percent).toBe(10);
+    expect(plan.serviceCharge.included).toBe(true);
+  });
+
+  it('coerces a stringy included flag and a comma-decimal amount', () => {
+    const plan = parseReceiptResponse({
+      items: [],
+      serviceCharge: { amount: '3,00', percent: '0', included: 'true' },
+    });
+    expect(plan.serviceCharge.amountCents).toBe(300);
+    expect(plan.serviceCharge.percent).toBeNull(); // 0 → null
+    expect(plan.serviceCharge.included).toBe(true);
+  });
+
+  it('defaults to all-null when no service charge is present or the field is junk', () => {
+    expect(parseReceiptResponse({ items: [] }).serviceCharge).toEqual({
+      amountCents: null,
+      percent: null,
+      included: null,
+    });
+    expect(parseReceiptResponse({ items: [], serviceCharge: 'nope' }).serviceCharge.included).toBeNull();
+  });
+});
+
+describe('parseReceiptResponse — adjustments (E6)', () => {
+  it('keeps couvert positive and forces a discount negative', () => {
+    const plan = parseReceiptResponse({
+      items: [],
+      adjustments: [
+        { kind: 'couvert', label: 'Couvert', amount: 4 },
+        { kind: 'discount', label: '10% off', amount: 2 }, // positive in → negative out
+      ],
+    });
+    expect(plan.adjustments).toHaveLength(2);
+    expect(plan.adjustments[0]).toEqual({ kind: 'couvert', label: 'Couvert', amountCents: 400 });
+    expect(plan.adjustments[1]).toEqual({ kind: 'discount', label: '10% off', amountCents: -200 });
+  });
+
+  it('normalises an unknown kind to "other" and labels it from the kind when blank', () => {
+    const plan = parseReceiptResponse({
+      items: [],
+      adjustments: [{ kind: 'tax', amount: 1.5 }],
+    });
+    expect(plan.adjustments[0]!.kind).toBe('other');
+    expect(plan.adjustments[0]!.label).toBe('other');
+    expect(plan.adjustments[0]!.amountCents).toBe(150);
+  });
+
+  it('drops zero/blank lines and survives a non-array', () => {
+    const plan = parseReceiptResponse({
+      items: [],
+      adjustments: [{ kind: 'other', label: 'x', amount: 0 }, 'junk', null],
+    });
+    expect(plan.adjustments).toEqual([]);
+    expect(parseReceiptResponse({ items: [], adjustments: 'nope' }).adjustments).toEqual([]);
+  });
+
+  it('honours an already-negative discount without double-negating', () => {
+    const plan = parseReceiptResponse({
+      items: [],
+      adjustments: [{ kind: 'discount', label: 'promo', amount: -3 }],
+    });
+    expect(plan.adjustments[0]!.amountCents).toBe(-300);
+  });
+});

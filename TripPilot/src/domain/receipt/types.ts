@@ -27,6 +27,29 @@ export interface ReceiptDraftItem {
   paidByParticipantId: string | null;
 }
 
+/**
+ * T3 — the service charge the OCR could read off the bill, normalised to cents.
+ * Raw, pre-decision read: the split domain (`detectServiceCharge`) decides the
+ * mode/source and whether the user must still be asked. All fields null when the
+ * receipt mentions no service.
+ */
+export interface ReceiptServiceCharge {
+  /** Absolute service amount in cents, when printed. */
+  amountCents: number | null;
+  /** Percentage of the items subtotal, when printed as a rate. */
+  percent: number | null;
+  /** true = already inside the printed total; false = added on top; null = unknown. */
+  included: boolean | null;
+}
+
+/** E6 — a non-product money line the OCR read (couvert / discount / other). */
+export interface ReceiptAdjustment {
+  kind: 'couvert' | 'discount' | 'other';
+  label: string;
+  /** Cents — negative for a discount (a credit), positive for couvert/other. */
+  amountCents: number;
+}
+
 /** The normalised, cents-based receipt ready for review/split/commit. */
 export interface ReceiptPlan {
   merchant: string | null;
@@ -37,6 +60,10 @@ export interface ReceiptPlan {
   /** Final amount printed on the receipt, for reconciliation (null when absent). */
   readTotalCents: number | null;
   items: ReceiptDraftItem[];
+  /** T3 — service charge read off the bill (null fields when none was found). */
+  serviceCharge: ReceiptServiceCharge;
+  /** E6 — non-product money lines read off the bill (couvert/discount/other). */
+  adjustments: ReceiptAdjustment[];
 }
 
 /** Informational comparison between the kept items and the printed total. */

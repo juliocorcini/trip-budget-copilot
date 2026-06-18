@@ -1,7 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
 import { toCents } from '@/domain/money';
 import { guessCategory, extractCity } from '@/domain/import/wise-import';
-import type { ReceiptDraftItem, ReceiptPlan, ReceiptReconciliation } from './types';
+import type {
+  ReceiptAdjustment,
+  ReceiptDraftItem,
+  ReceiptPlan,
+  ReceiptReconciliation,
+  ReceiptServiceCharge,
+} from './types';
+
+const ADJUSTMENT_KINDS: ReceiptAdjustment['kind'][] = ['couvert', 'discount', 'other'];
 
 const CURRENCY_CODE_RE = /^[A-Z]{3}$/;
 
@@ -72,6 +80,64 @@ function buildDraftItem(rawItem: Record<string, unknown>, merchant: string | nul
   };
 }
 
+/** A clean boolean, or null for anything ambiguous (the split layer then asks). */
+function coerceBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    if (v === 'true' || v === 'yes' || v === 'sim') return true;
+    if (v === 'false' || v === 'no' || v === 'nao' || v === 'não') return false;
+  }
+  return null;
+}
+
+/** An OCR adjustment kind, defaulting unknown values to the neutral 'other'. */
+function coerceAdjustmentKind(value: unknown): ReceiptAdjustment['kind'] {
+  const code = coerceString(value)?.toLowerCase();
+  return ADJUSTMENT_KINDS.find((kind) => kind === code) ?? 'other';
+}
+
+/**
+ * T3 — normalise the OCR's service-charge read. An absolute amount is taken to
+ * cents (non-positive → null); a percentage is kept as a rate; `included` stays
+ * null unless the model was unambiguous. The split layer (`detectServiceCharge`)
+ * turns this raw read into a mode/source and decides whether to still ask.
+ */
+function parseServiceCharge(value: unknown): ReceiptServiceCharge {
+  if (typeof value !== 'object' || value === null) {
+    return { amountCents: null, percent: null, included: null };
+  }
+  const raw = value as Record<string, unknown>;
+  const amount = coerceNumber(raw.amount);
+  const percent = coerceNumber(raw.percent);
+  return {
+    amountCents: amount !== null && amount > 0 ? toCents(amount) : null,
+    percent: percent !== null && percent > 0 ? percent : null,
+    included: coerceBoolean(raw.included),
+  };
+}
+
+/**
+ * E6 — normalise the OCR's non-product money lines. Zero/blank lines are dropped;
+ * a discount is forced negative (a credit) regardless of how the model signed it,
+ * so the downstream proportional rate-out always treats it as money back.
+ */
+function parseAdjustments(value: unknown): ReceiptAdjustment[] {
+  if (!Array.isArray(value)) return [];
+  const result: ReceiptAdjustment[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const raw = entry as Record<string, unknown>;
+    const amount = coerceNumber(raw.amount);
+    if (amount === null || amount === 0) continue;
+    const kind = coerceAdjustmentKind(raw.kind);
+    const magnitudeCents = toCents(Math.abs(amount));
+    const amountCents = kind === 'discount' ? -magnitudeCents : toCents(amount);
+    result.push({ kind, label: coerceString(raw.label) ?? kind, amountCents });
+  }
+  return result;
+}
+
 /**
  * DEC-206 (G2): normalise a raw OCR response (cloud or device) into a cents-based
  * `ReceiptPlan`. Pure and defensive — any malformed field is coerced or the line
@@ -102,6 +168,8 @@ export function parseReceiptResponse(raw: unknown): ReceiptPlan {
     currency: coerceCurrency(root.currency),
     readTotalCents: readTotal !== null && readTotal > 0 ? toCents(readTotal) : null,
     items,
+    serviceCharge: parseServiceCharge(root.serviceCharge),
+    adjustments: parseAdjustments(root.adjustments),
   };
 }
 
