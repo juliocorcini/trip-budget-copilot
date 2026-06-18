@@ -32,6 +32,9 @@ yarn-error.log*
 # Test coverage
 coverage/
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Playwright (E2E) artifacts — generated locally and in CI (B15)
 playwright-report/
 test-results/
