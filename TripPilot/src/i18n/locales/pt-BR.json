@@ -8,7 +8,12 @@
     "add_failed": "Não foi possível anexar a foto",
     "delete_confirm": "Excluir esta foto?",
     "deleted_toast": "Foto excluída",
-    "close": "Fechar"
+    "close": "Fechar",
+    "source_title": "Adicionar foto",
+    "take_photo": "Tirar foto agora",
+    "take_photo_desc": "Abre a câmera",
+    "choose_gallery": "Escolher da galeria",
+    "choose_gallery_desc": "Foto que já está no aparelho"
   },
   "nav": {
     "dashboard": "Início",
@@ -318,6 +323,7 @@
     "fts_deficit": "Os compromissos passam do orçamento em {{amount}}.",
     "insights_title": "Insights",
     "insights_see_more": "Ver mais {{count}}",
+    "insights_more_copilot": "Veja mais no copiloto",
     "insight_projection_over": "Nesse ritmo, a fase fecha em {{projected}} — {{diff}} acima do plano",
     "insight_projection_under": "Nesse ritmo, a fase fecha em {{projected}} — {{diff}} abaixo do plano",
     "insight_rhythm_over": "Média diária real {{real}} ↑ vs {{planned}} planejado",

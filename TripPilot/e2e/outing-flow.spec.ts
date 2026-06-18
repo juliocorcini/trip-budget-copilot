@@ -31,6 +31,11 @@ test.describe('Outing full flow (GAP-R2-009)', () => {
     // Active session: tap the first quick-add value (€ button)
     const endButton = page.getByRole('button', { name: /encerrar/i }).first();
     await expect(endButton).toBeVisible();
+
+    // Julio device test 2026-06-18: the active outing no longer embeds the photo
+    // block (it moved to the review) — keep the live screen scroll-free.
+    await expect(page.getByText(/toque para anexar uma foto/i)).toHaveCount(0);
+
     const quickButton = page
       .getByRole('button', { name: /€/ })
       .filter({ hasNotText: /outro/i })
@@ -43,6 +48,8 @@ test.describe('Outing full flow (GAP-R2-009)', () => {
     // End the session → review screen
     await endButton.click();
     await expect(page.getByText(/revisão da saída/i)).toBeVisible();
+    // Photos belong to the review now (DEC-206 + Julio 2026-06-18).
+    await expect(page.getByText(/toque para anexar uma foto/i)).toBeVisible();
     await page.getByRole('button', { name: /confirmar e encerrar/i }).click();
 
     // Back on dashboard with success toast

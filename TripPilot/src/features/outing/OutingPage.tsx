@@ -18,7 +18,6 @@ import {
   DEFAULT_QUICK_ADD_VALUES_CENTS,
   findHighlightedQuickValueIndex,
   updateQuickValuesFromItem,
-  suggestNextPayer,
   projectTimeToCeiling,
   calculateRoundPersonalCents,
   ENRICH_AUTO_DISMISS_MS,
@@ -1373,7 +1372,6 @@ export function OutingPage() {
             />
           )
         }
-        photosSlot={<AttachmentSection sessionId={session.id} compact />}
       />
 
       {/* DEC-120 (R-11): notification offer at first session start */}
@@ -2081,8 +2079,6 @@ interface ActiveSessionProps {
   notificationBanner: React.ReactNode;
   /** Post-add enrichment stepper slot (DEC-078) — rendered above quick-add. */
   enrichStepper: React.ReactNode;
-  /** DEC-206 (G1): receipt/proof photos for this outing — rendered above quick-add. */
-  photosSlot: React.ReactNode;
   /** DEC-128: mental anchor config (null = off). */
   anchorConfig: AnchorConfig | null;
   /** DEC-127: fullscreen Bar Mode controls (state lives in OutingPage). */
@@ -2091,7 +2087,7 @@ interface ActiveSessionProps {
   onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, recentPlaces, onPickPlace, canFindPlaceName, onFindPlaceName, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, photosSlot, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, recentPlaces, onPickPlace, canFindPlaceName, onFindPlaceName, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
   const { t } = useTranslation();
   const currency = trip.baseCurrency;
 
@@ -2251,12 +2247,6 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   const highlightIndex = findHighlightedQuickValueIndex(quickValues, session.avgDrinkPriceCents);
 
   const recentTxs = sessionTxs.slice().reverse().slice(0, 4);
-
-  // E3 (M9): fairness rotation — who pays the next round (suggestion only).
-  const nextPayer =
-    canSplit && sessionTxs.length >= 1
-      ? suggestNextPayer(participants, sessionTxs, owner?.id ?? '')
-      : null;
 
   // E3 (M10): pace projection — minutes to the ceiling at the current rate.
   const elapsedMin = Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 60000);
@@ -2653,23 +2643,6 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         </div>
       )}
 
-      {/* 9b. E3 (M9): who pays the next round — discreet suggestion */}
-      {nextPayer && (
-        <div
-          className="mx-5 mb-2.5 flex items-center gap-2 px-3 py-2 rounded-xl"
-          style={{ background: 'var(--highlight-faint)' }}
-        >
-          <Icon name="swap_horiz" size={14} className="text-on-surface-faint shrink-0" />
-          <p className="text-[11px] font-semibold" style={{ color: 'var(--on-surface-dim)' }}>
-            {t('outing.next_payer_hint', {
-              name: nextPayer.isOwner
-                ? t('outing.enrich_me')
-                : (nextPayer.nickname ?? nextPayer.name),
-            })}
-          </p>
-        </div>
-      )}
-
       {/* 9c. E3 (M10): pace projection to the ceiling — read-only */}
       {projectionMinutes !== null && (
         <div
@@ -2688,9 +2661,6 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
 
       {/* 10b. POST-ADD ENRICHMENT STEPPER (DEC-078) */}
       {enrichStepper}
-
-      {/* 10c. DEC-206 (G1): attach photos mid-outing (receipts/proof). */}
-      {photosSlot && <div className="px-5 mb-2">{photosSlot}</div>}
 
       {/* 11. QUICK-ADD BUTTONS (highlight = closest to avg drink, DEC-045) */}
       {/* DEC-198 (N4): clear the system gesture bar on fullscreen (no bottom nav here). */}

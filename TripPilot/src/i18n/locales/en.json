@@ -8,7 +8,12 @@
     "add_failed": "Could not attach the photo",
     "delete_confirm": "Delete this photo?",
     "deleted_toast": "Photo deleted",
-    "close": "Close"
+    "close": "Close",
+    "source_title": "Add photo",
+    "take_photo": "Take a photo now",
+    "take_photo_desc": "Opens the camera",
+    "choose_gallery": "Choose from gallery",
+    "choose_gallery_desc": "A photo already on your device"
   },
   "nav": {
     "dashboard": "Home",
@@ -318,6 +323,7 @@
     "fts_deficit": "Commitments exceed the budget by {{amount}}.",
     "insights_title": "Insights",
     "insights_see_more": "See {{count}} more",
+    "insights_more_copilot": "See more in the copilot",
     "insight_projection_over": "At this pace, the phase ends at {{projected}} — {{diff}} over plan",
     "insight_projection_under": "At this pace, the phase ends at {{projected}} — {{diff}} under plan",
     "insight_rhythm_over": "Real daily average {{real}} ↑ vs {{planned}} planned",

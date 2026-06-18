@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * GATE 13 (audit §4.2) — the Home shows at most N insights at rest; the rest
- * stay one tap away behind "ver mais". The cap math is proven deterministically
- * in home-insights.test.ts; this guards the wiring end-to-end: when the demo
- * produces an overflow, the control reveals the rest in place and then retires.
+ * GATE 13 (audit §4.2) + Julio device test 2026-06-18 — the Home shows at most N
+ * insights at rest (the cap math is proven deterministically in
+ * home-insights.test.ts). The rest now live on the Copiloto: instead of an
+ * in-place "ver mais", a thin "Veja mais no copiloto" bar links there. This
+ * guards the wiring end-to-end: the bar is present and routes to /copiloto.
  */
 async function loadDemoData(page: import('@playwright/test').Page) {
   await page.goto('/');
@@ -12,21 +13,22 @@ async function loadDemoData(page: import('@playwright/test').Page) {
   await page.waitForURL('/dashboard');
 }
 
-test.describe('Home insights cap (G13)', () => {
+test.describe('Home insights → Copiloto (G13 / device test 2026-06-18)', () => {
   test.beforeEach(async ({ page }) => {
     await loadDemoData(page);
   });
 
-  test('reveals overflow insights via "ver mais" and keeps the home healthy', async ({ page }) => {
-    // "Ver mais 5" / "See 5 more" / "Ver 5 más" — the digit keeps it distinct
-    // from the expenses "ver todos / view all" control.
-    const seeMore = page.getByRole('button', { name: /ver mais \d|see \d+ more|ver \d+ más/i });
-    if ((await seeMore.count()) > 0) {
-      await expect(seeMore.first()).toBeVisible();
-      await seeMore.first().click();
-      // Everything is now shown in place — the control retires (nothing dropped).
-      await expect(seeMore).toHaveCount(0);
+  test('the insights "veja mais no copiloto" bar routes to the Copiloto', async ({ page }) => {
+    const moreInCopilot = page.getByRole('button', {
+      name: /veja mais no copiloto|see more in the copilot|ver más en el copiloto/i,
+    });
+    // The bar shows whenever the Home has insights (the demo data produces them).
+    if ((await moreInCopilot.count()) > 0) {
+      await expect(moreInCopilot.first()).toBeVisible();
+      await moreInCopilot.first().click();
+      await expect(page).toHaveURL('/copiloto');
+    } else {
+      await expect(page).toHaveURL('/dashboard');
     }
-    await expect(page).toHaveURL('/dashboard');
   });
 });

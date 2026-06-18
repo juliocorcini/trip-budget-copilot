@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import { useAttachments } from './useAttachments';
 import {
@@ -16,26 +17,24 @@ import type { Attachment } from '@/domain/types/attachment';
 interface AttachmentSectionProps {
   transactionId?: string | null;
   sessionId?: string | null;
-  /**
-   * D-BUG-16: render as a single horizontal row (small add chip + thumbnails)
-   * instead of the full title + grid. Used in the active outing, where the tall
-   * empty-state block was pushing the quick-add below the fold.
-   */
-  compact?: boolean;
 }
 
 /**
- * DEC-206 (G1): attach photos (camera/gallery) to an expense or outing. Capture
- * uses a plain file input so it works on web/iOS Safari and inside the native
- * WebView (CAMERA permission was declared in Wave F). Thumbnails render from the
- * stored inline data URL; tapping one opens a full-screen viewer backed by an
- * object URL created on demand and revoked on close.
+ * DEC-206 (G1): attach photos to an expense or outing. Julio device test
+ * 2026-06-18: tapping "add" opens a SOURCE CHOOSER — "take a photo now" uses a
+ * capture-hinted input so the camera opens directly, "from gallery" a plain
+ * input. Both work on web/iOS Safari and inside the native WebView (CAMERA
+ * permission declared in Wave F). Thumbnails render from the stored inline data
+ * URL; tapping one opens a full-screen viewer backed by an object URL created on
+ * demand and revoked on close.
  */
-export function AttachmentSection({ transactionId, sessionId, compact = false }: AttachmentSectionProps) {
+export function AttachmentSection({ transactionId, sessionId }: AttachmentSectionProps) {
   const { t } = useTranslation();
   const { attachments, busy, addFromFile, remove } = useAttachments({ transactionId, sessionId });
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [viewer, setViewer] = useState<Attachment | null>(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
 
   const handlePick = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -48,10 +47,70 @@ export function AttachmentSection({ transactionId, sessionId, compact = false }:
     );
   };
 
-  const openPicker = () => inputRef.current?.click();
+  const openChooser = () => setChooserOpen(true);
+  // The button tap IS the user gesture, so clicking the hidden input
+  // synchronously keeps the native camera/picker allowed.
+  const pickFrom = (source: 'camera' | 'gallery') => {
+    setChooserOpen(false);
+    const ref = source === 'camera' ? cameraInputRef : galleryInputRef;
+    ref.current?.click();
+  };
 
-  const hiddenInput = (
-    <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handlePick} />
+  const hiddenInputs = (
+    <>
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handlePick}
+      />
+      <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handlePick} />
+    </>
+  );
+
+  const sourceChooser = (
+    <BottomSheet
+      open={chooserOpen}
+      onClose={() => setChooserOpen(false)}
+      title={t('attachments.source_title')}
+    >
+      <div className="flex flex-col gap-2 mt-4">
+        <button
+          onClick={() => pickFrom('camera')}
+          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-surface-high btn-press text-left"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: '#C75B3918' }}
+          >
+            <Icon name="photo_camera" size={20} className="text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-bold text-on-surface">{t('attachments.take_photo')}</p>
+            <p className="text-[11px] font-medium text-on-surface-dim">{t('attachments.take_photo_desc')}</p>
+          </div>
+        </button>
+        <button
+          onClick={() => pickFrom('gallery')}
+          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-surface-high btn-press text-left"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: '#6B8F7118' }}
+          >
+            <Icon name="image" size={20} className="text-success" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-bold text-on-surface">{t('attachments.choose_gallery')}</p>
+            <p className="text-[11px] font-medium text-on-surface-dim">
+              {t('attachments.choose_gallery_desc')}
+            </p>
+          </div>
+        </button>
+      </div>
+    </BottomSheet>
   );
 
   const viewerEl = viewer && (
@@ -66,39 +125,6 @@ export function AttachmentSection({ transactionId, sessionId, compact = false }:
     />
   );
 
-  if (compact) {
-    return (
-      <div>
-        {hiddenInput}
-        <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 py-0.5">
-          <button
-            onClick={openPicker}
-            disabled={busy}
-            className="shrink-0 h-12 px-3 rounded-xl bg-surface-container flex items-center gap-1.5 text-xs font-semibold text-primary btn-press disabled:opacity-40"
-          >
-            <Icon name="add_a_photo" size={18} className="text-primary" />
-            {attachments.length === 0 ? (busy ? t('attachments.adding') : t('attachments.add')) : null}
-          </button>
-          {attachments.map((attachment) => (
-            <button
-              key={attachment.id}
-              onClick={() => setViewer(attachment)}
-              className="shrink-0 w-12 h-12 rounded-xl overflow-hidden bg-surface-container btn-press"
-            >
-              <img
-                src={attachment.thumbnailDataUrl}
-                alt=""
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </button>
-          ))}
-        </div>
-        {viewerEl}
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-2 px-1">
@@ -106,7 +132,7 @@ export function AttachmentSection({ transactionId, sessionId, compact = false }:
           {t('attachments.title')}
         </p>
         <button
-          onClick={openPicker}
+          onClick={openChooser}
           disabled={busy}
           className="flex items-center gap-1 text-xs font-semibold text-primary btn-press disabled:opacity-40"
         >
@@ -115,11 +141,11 @@ export function AttachmentSection({ transactionId, sessionId, compact = false }:
         </button>
       </div>
 
-      {hiddenInput}
+      {hiddenInputs}
 
       {attachments.length === 0 ? (
         <button
-          onClick={openPicker}
+          onClick={openChooser}
           disabled={busy}
           className="w-full bg-surface-container rounded-xl py-6 flex flex-col items-center gap-2 btn-press disabled:opacity-40"
         >
@@ -146,6 +172,7 @@ export function AttachmentSection({ transactionId, sessionId, compact = false }:
       )}
 
       {viewerEl}
+      {sourceChooser}
     </div>
   );
 }

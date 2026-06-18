@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.91.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'A saída ativa não rola mais a tela: o bloco de fotos saiu de dentro dela (as fotos entram na revisão da saída) e a linha de "próxima rodada" que ocupava espaço foi removida.',
+        'Ao adicionar uma foto (em qualquer tela), você escolhe: "Tirar foto agora" abre a câmera, ou "Escolher da galeria" usa uma foto do aparelho.',
+        'Os avisos do topo só desfazem quando você toca no botão "Desfazer" — tocar em qualquer outro lugar não desfaz mais; e dá pra deslizar o aviso pro lado pra tirá-lo da tela na hora.',
+        'Os insights da tela inicial ganharam uma barrinha "Veja mais no copiloto" que leva direto ao Copiloto, com mais análises.',
+      ],
+      en: [
+        'The active outing no longer scrolls: the photo block moved out of it (photos now go on the outing review) and the space-eating "next round" line was removed.',
+        'Adding a photo (on any screen) now lets you choose: "Take a photo now" opens the camera, or "Choose from gallery" uses a photo already on your device.',
+        'Top toasts only undo when you tap the "Undo" button — tapping anywhere else no longer undoes anything; and you can swipe a toast aside to dismiss it instantly.',
+        'Home insights gained a thin "See more in the copilot" bar that takes you straight to the Copilot, with more analyses.',
+      ],
+      es: [
+        'La salida activa ya no hace scroll: el bloque de fotos salió de dentro (las fotos van a la revisión de la salida) y se quitó la línea de "próxima ronda" que ocupaba espacio.',
+        'Al añadir una foto (en cualquier pantalla) ahora eliges: "Tomar una foto ahora" abre la cámara, o "Elegir de la galería" usa una foto del dispositivo.',
+        'Los avisos de arriba solo deshacen cuando tocas el botón "Deshacer" — tocar en cualquier otro lugar ya no deshace nada; y puedes deslizar el aviso a un lado para quitarlo al instante.',
+        'Los insights de la pantalla de inicio tienen una barrita "Ver más en el copiloto" que te lleva directo al Copiloto, con más análisis.',
+      ],
+    },
+  },
+  {
     version: '0.90.0',
     date: '2026-06-18',
     items: {
