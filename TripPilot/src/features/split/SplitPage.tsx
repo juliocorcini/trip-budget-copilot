@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
@@ -15,12 +15,15 @@ import {
   addParticipant,
   createSplitItem,
   createSplitSession,
+  reduceGuestClaims,
   type ServiceChargeMode,
+  type SplitClaimResponse,
   type SplitItem,
   type SplitMode,
   type SplitSession,
 } from '@/domain/split';
 import { commitSplit, undoSplitCommit } from '@/domain/orchestrators';
+import { useSplitLiveLink, type SplitLiveLink } from './useSplitLiveLink';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository } from '@/data/repositories';
 import { resolveActivePhase } from '@/domain/dates';
@@ -85,6 +88,15 @@ export function SplitPage() {
   const ownerName = owner?.name ?? t('split.you');
 
   const companions = useMemo(() => participants.filter((p) => !p.isOwner), [participants]);
+
+  // G2 (live table): guest claims posted to the share channel are folded into
+  // the live session by the owner-reducer — owner-authoritative, so a guest can
+  // only ever set its own slice, never the owner's. The hook owns the publish/
+  // pull/signal lifecycle; this device stays the single source of truth.
+  const applyGuestClaims = useCallback((batches: SplitClaimResponse[]) => {
+    setSession((current) => (current ? reduceGuestClaims(current, batches) : current));
+  }, []);
+  const live = useSplitLiveLink(session, applyGuestClaims);
 
   const totals = useMemo(() => (session ? computeSplitTotals(session) : null), [session]);
   // The authoritative commit numbers (owner absorbs orphans, bill is whole) — used
@@ -292,6 +304,7 @@ export function SplitPage() {
         attachmentId,
       });
 
+      live.stop();
       await reload();
       showToast(t('split.committed_toast'), 'success', {
         durationMs: 8000,
@@ -404,6 +417,9 @@ export function SplitPage() {
             placeholder={t('split.default_name')}
             className="w-full rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface bg-surface-container outline-none"
           />
+
+          {/* G2: live table link — pass-the-phone OR everyone claims on their own device. */}
+          <LiveTableCard live={live} t={t} />
 
           {/* Service charge (§9) — ask when unknown, otherwise show + tweak. */}
           {askTax ? (
@@ -679,6 +695,101 @@ export function SplitPage() {
 /* ── subcomponents ─────────────────────────────────────────────────────── */
 
 type TFn = ReturnType<typeof useTranslation>['t'];
+
+/**
+ * G2 — the owner's control for the live table. Before starting it is a single
+ * invite button; once live it shows the share affordance + how many guests have
+ * joined + an "end" action. The owner keeps editing the bill normally; guest
+ * claims merge in automatically (owner-reducer).
+ */
+function LiveTableCard({ live, t }: { live: SplitLiveLink; t: TFn }) {
+  const share = async () => {
+    if (!live.link) return;
+    const data = { title: t('splitTable.share_title'), text: t('splitTable.share_text'), url: live.link };
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share(data);
+        return;
+      }
+    } catch {
+      // user dismissed the sheet — fall through to clipboard
+    }
+    try {
+      await navigator.clipboard.writeText(live.link);
+      showToast(t('splitTable.link_copied'), 'success');
+    } catch {
+      showToast(live.link, 'info', { durationMs: 8000 });
+    }
+  };
+
+  if (live.status === 'idle') {
+    return (
+      <button
+        onClick={live.start}
+        className="rounded-2xl p-3.5 flex items-center gap-3 btn-press text-left"
+        style={{ background: 'var(--surface-container)' }}
+      >
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(124,160,255,0.16)' }}>
+          <Icon name="groups" size={22} className="text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-bold text-on-surface">{t('splitTable.invite_title')}</p>
+          <p className="text-[11px] text-on-surface-faint">{t('splitTable.invite_hint')}</p>
+        </div>
+        <Icon name="ios_share" size={18} className="text-on-surface-faint shrink-0" />
+      </button>
+    );
+  }
+
+  if (live.status === 'starting') {
+    return (
+      <div className="rounded-2xl p-3.5 flex items-center gap-3" style={{ background: 'var(--surface-container)' }}>
+        <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-[13px] font-semibold text-on-surface-dim">{t('splitTable.starting')}</p>
+      </div>
+    );
+  }
+
+  if (live.status === 'error') {
+    return (
+      <button
+        onClick={live.start}
+        className="rounded-2xl p-3.5 flex items-center gap-3 btn-press text-left"
+        style={{ background: 'var(--surface-container)' }}
+      >
+        <Icon name="error" size={20} className="text-warning shrink-0" />
+        <p className="flex-1 text-[12px] font-semibold text-on-surface-dim">{t('splitTable.start_failed')}</p>
+        <span className="text-[12px] font-bold text-primary">{t('splitTable.retry')}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl p-3.5 flex flex-col gap-3" style={{ background: 'rgba(124,160,255,0.10)' }}>
+      <div className="flex items-center gap-2.5">
+        <span className="w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-bold text-on-surface">{t('splitTable.live_on')}</p>
+          <p className="text-[11px] text-on-surface-faint">
+            {live.guestCount > 0
+              ? t('splitTable.guests_joined', { count: live.guestCount })
+              : t('splitTable.waiting_guests')}
+          </p>
+        </div>
+        <button onClick={live.stop} className="btn-press text-[12px] font-bold text-error px-2 py-1">
+          {t('splitTable.end')}
+        </button>
+      </div>
+      <button
+        onClick={() => void share()}
+        className="w-full py-2.5 rounded-xl bg-primary text-on-surface font-bold text-sm btn-press flex items-center justify-center gap-2"
+      >
+        <Icon name="ios_share" size={16} className="text-on-surface" />
+        {t('splitTable.share_link')}
+      </button>
+    </div>
+  );
+}
 
 function PersonCards({
   totals,

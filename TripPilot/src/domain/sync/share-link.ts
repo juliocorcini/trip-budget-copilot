@@ -10,11 +10,23 @@
  */
 
 export const SHARE_PATH_PREFIX = '/s/';
+/**
+ * Bill-split live table (G2). A SEPARATE prefix from `/s/` so the guest lands on
+ * the live claim board (`SplitTablePage`) — a different surface from the
+ * persistent statement mirror (`SharedLinkPage`). Same capability model: the
+ * AES key lives only in the fragment, so the worker stores opaque ciphertext.
+ */
+export const SPLIT_TABLE_PATH_PREFIX = '/t/';
 const KEY_PARAM = 'k';
 
 export function buildShareUrl(origin: string, shareId: string, key: string): string {
   const base = origin.replace(/\/+$/, '');
   return `${base}${SHARE_PATH_PREFIX}${encodeURIComponent(shareId)}#${KEY_PARAM}=${key}`;
+}
+
+export function buildSplitTableUrl(origin: string, shareId: string, key: string): string {
+  const base = origin.replace(/\/+$/, '');
+  return `${base}${SPLIT_TABLE_PATH_PREFIX}${encodeURIComponent(shareId)}#${KEY_PARAM}=${key}`;
 }
 
 /**

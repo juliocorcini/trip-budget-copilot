@@ -41,6 +41,7 @@ const SyncReceivePage = lazyWithRetry(() => import('@/features/sync/SyncReceiveP
 const WiseImportPage = lazyWithRetry(() => import('@/features/import/WiseImportPage').then(m => ({ default: m.WiseImportPage })));
 const ReceiptScanPage = lazyWithRetry(() => import('@/features/receipt/ReceiptScanPage').then(m => ({ default: m.ReceiptScanPage })));
 const SplitPage = lazyWithRetry(() => import('@/features/split/SplitPage').then(m => ({ default: m.SplitPage })));
+const SplitTablePage = lazyWithRetry(() => import('@/features/split/SplitTablePage').then(m => ({ default: m.SplitTablePage })));
 const SharedLinkPage = lazyWithRetry(() => import('@/features/shared/SharedLinkPage').then(m => ({ default: m.SharedLinkPage })));
 const SharedWithMePage = lazyWithRetry(() => import('@/features/shared/SharedWithMePage').then(m => ({ default: m.SharedWithMePage })));
 const PairPage = lazyWithRetry(() => import('@/features/shared/PairPage').then(m => ({ default: m.PairPage })));
@@ -176,6 +177,8 @@ export const router = createBrowserRouter([
       // DEC-207 (Shared Participant Link): the guest entry + home live OUTSIDE
       // BootGate so a guest with no trip is never bounced to onboarding.
       { path: '/s/:id', element: <LazyRoute><SharedLinkPage /></LazyRoute> },
+      // G2 (bill split live table): the guest claim board — also outside BootGate.
+      { path: '/t/:id', element: <LazyRoute><SplitTablePage /></LazyRoute> },
       { path: '/shared-with-me', element: <LazyRoute><SharedWithMePage /></LazyRoute> },
     ],
   },
