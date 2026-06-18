@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.88.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Iniciar uma saída agora explica, em uma linha, o que é uma "saída" — um rolê com teto, registrado em 1 toque.',
+        'Quando o seu ritmo começa a comer a reserva da fase, o card do "amigo sincero" oferece um atalho direto pro Plano de resgate.',
+        'O modo resgate continua sendo uma simulação (nada é gravado). Nada mudou no funcionamento.',
+      ],
+      en: [
+        'Starting an outing now explains, in one line, what an "outing" is — a capped night out, logged in one tap.',
+        'When your pace starts eating into the phase reserve, the "honest friend" card offers a direct shortcut to the Rescue plan.',
+        'Rescue mode is still a simulation (nothing is saved). Nothing changed in how it works.',
+      ],
+      es: [
+        'Iniciar una salida ahora explica, en una línea, qué es una "salida" — un plan con tope, registrado en 1 toque.',
+        'Cuando tu ritmo empieza a comerse la reserva de la fase, la tarjeta del "amigo sincero" ofrece un atajo directo al Plan de rescate.',
+        'El modo rescate sigue siendo una simulación (nada se guarda). Nada cambió en el funcionamiento.',
+      ],
+    },
+  },
+  {
     version: '0.87.0',
     date: '2026-06-18',
     items: {

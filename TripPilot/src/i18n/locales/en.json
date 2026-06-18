@@ -283,6 +283,7 @@
     "active_outing_open": "Open",
     "amigo_sincero": "Honest friend",
     "amigo_see_impact": "See full impact",
+    "amigo_rescue_cta": "Rescue plan",
     "session_drinks_left": "{{count}} drinks until the target",
     "pending_confirmation": "{{count}} splits awaiting confirmation",
     "free_per_day": "Free to spend today: {{amount}}",
@@ -1280,6 +1281,7 @@
   },
   "outing": {
     "start_title": "Start outing",
+    "what_is_explainer": "An outing is a capped plan — a night out, a day trip. Log each round in one tap and keep an eye on how much room is left.",
     "resume_active": "Back to the active outing",
     "choose_type": "Choose the outing type:",
     "safe_value_hint": "The safe value is how much you can spend without breaking the phase budget.",

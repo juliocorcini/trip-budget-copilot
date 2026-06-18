@@ -12,6 +12,9 @@ interface AmigoSinceroCardProps {
   onSeeImpact: () => void;
   /** Copiloto adds a "simulate a spend" action next to "see impact". */
   onSimulate?: () => void;
+  /** Audit §4.8 (G12): offered ONLY in the dire `alert` tone — a contextual
+   * door to rescue mode when the phase is overflowing into its reserve. */
+  onRescue?: () => void;
   /** Top margin — Home keeps the default; flex-gap layouts pass "". */
   marginClass?: string;
   /** FIELD R2 item 21 (F21): the Home hides the reassuring "on plan" state so
@@ -62,6 +65,7 @@ export function AmigoSinceroCard({
   currency,
   onSeeImpact,
   onSimulate,
+  onRescue,
   marginClass = 'mt-5',
   hideOnPlan = false,
 }: AmigoSinceroCardProps) {
@@ -140,12 +144,27 @@ export function AmigoSinceroCard({
               })}
             </p>
           )}
-          <div className="flex items-center gap-2 mt-2.5">
+          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+            {/* G12: the reserve is at risk — surface rescue mode right here. */}
+            {onRescue && tone === 'alert' && (
+              <button
+                onClick={onRescue}
+                className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
+                style={{ background: style.color, color: '#fff' }}
+              >
+                <Icon name="emergency" size={14} />
+                {t('dashboard.amigo_rescue_cta')}
+              </button>
+            )}
             {onSimulate && (
               <button
                 onClick={onSimulate}
                 className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold"
-                style={{ background: style.color, color: '#fff' }}
+                style={
+                  onRescue && tone === 'alert'
+                    ? { background: style.bg, color: style.color, border: `1px solid ${style.border}` }
+                    : { background: style.color, color: '#fff' }
+                }
               >
                 {t('copilot.amigo_simulate')}
               </button>

@@ -396,6 +396,7 @@ export function CopilotPage() {
               currency={currency}
               onSeeImpact={() => navigate('/impact')}
               onSimulate={() => navigate('/simulator')}
+              onRescue={() => navigate('/rescue')}
             />
           )}
 

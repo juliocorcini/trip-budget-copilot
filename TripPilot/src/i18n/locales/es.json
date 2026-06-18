@@ -283,6 +283,7 @@
     "active_outing_open": "Abrir",
     "amigo_sincero": "Amigo sincero",
     "amigo_see_impact": "Ver impacto completo",
+    "amigo_rescue_cta": "Plan de rescate",
     "session_drinks_left": "{{count}} bebidas hasta la meta",
     "pending_confirmation": "{{count}} divisiones esperando confirmación",
     "free_per_day": "Libre para usar hoy: {{amount}}",
@@ -1280,6 +1281,7 @@
   },
   "outing": {
     "start_title": "Iniciar salida",
+    "what_is_explainer": "Una salida es un plan con tope — una noche, un paseo. Registra cada ronda en 1 toque y vigila cuánto queda.",
     "resume_active": "Volver a la salida activa",
     "choose_type": "Elige el tipo de salida:",
     "safe_value_hint": "El valor seguro es cuánto puedes gastar sin romper el presupuesto de la fase.",

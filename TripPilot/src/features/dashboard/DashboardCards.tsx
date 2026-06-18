@@ -944,6 +944,7 @@ export function DashboardCards({
               amigo={model.amigoV2}
               currency={trip.baseCurrency}
               onSeeImpact={() => navigate('/impact')}
+              onRescue={() => navigate('/rescue')}
               hideOnPlan
             />
           </>

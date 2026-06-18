@@ -1,8 +1,8 @@
 {
-  "version": "0.87.0",
+  "version": "0.88.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.87.0.zip",
-  "notes": "Agora tem uma explicação única de “como funciona a divisão”, com o mesmo texto em todas as telas onde você divide um gasto (registrar gasto, escanear nota e a tela de pessoas). Vem recolhida — toque para ver os 3 passos. E no detalhe de um gasto dividido, “fluxo financeiro” e “custo pessoal” ganharam uma frase explicando cada um. Nada mudou no funcionamento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.88.0.zip",
+  "notes": "A tela de iniciar uma saída agora explica, em uma linha, o que é uma “saída” (um rolê com teto, registrado em 1 toque). E quando o seu ritmo começa a comer a reserva da fase, o card do “amigo sincero” passa a oferecer um atalho direto pro Plano de resgate. Nada mudou no funcionamento."
 }

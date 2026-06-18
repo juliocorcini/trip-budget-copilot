@@ -1190,6 +1190,8 @@ export function OutingPage() {
           </h1>
         </div>
 
+        {/* G12 (audit §4.12): name what an outing IS before the picker. */}
+        <p className="text-sm text-on-surface-dim px-1 leading-snug">{t('outing.what_is_explainer')}</p>
         <p className="text-sm text-on-surface-dim px-1">{t('outing.choose_type')}</p>
         <p className="text-xs text-on-surface-faint px-1 -mt-2">{t('outing.safe_value_hint')}</p>
         {startableProfiles.map((profile) => (
