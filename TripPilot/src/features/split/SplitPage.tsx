@@ -13,6 +13,7 @@ import {
   serviceChargeAmountCents,
   splitItemBetween,
   addParticipant,
+  promoteAdhocToParticipant,
   createSplitItem,
   createSplitSession,
   reduceGuestClaims,
@@ -23,9 +24,10 @@ import {
   type SplitSession,
 } from '@/domain/split';
 import { commitSplit, undoSplitCommit } from '@/domain/orchestrators';
+import { createParticipant } from '@/domain/splitting';
 import { useSplitLiveLink, type SplitLiveLink } from './useSplitLiveLink';
 import { newAttachment } from '@/features/attachments/attachment-utils';
-import { attachmentRepository, appSettingsRepository } from '@/data/repositories';
+import { attachmentRepository, appSettingsRepository, participantRepository } from '@/data/repositories';
 import { resolveActivePhase } from '@/domain/dates';
 import { formatMoney, toCents, convertToBaseCents, resolveFrozenRate } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -237,6 +239,31 @@ export function SplitPage() {
     const clean = name.trim();
     if (clean === '') return;
     setSession((s) => (s ? addParticipant(s, clean).session : s));
+  };
+
+  // T5 (G3): turn an ad-hoc name into a real trip Participant. Creates the roster
+  // person (linking their device when the slice came from a live-table guest),
+  // then re-points the SplitParticipant so commit mints a real debt that rides
+  // the existing DEC-106 mirror into their app. Reversible by removing the chip.
+  const promoteToTripPerson = async (splitParticipantId: string) => {
+    if (!trip || !session || busy) return;
+    const sp = session.participants.find((p) => p.id === splitParticipantId);
+    if (!sp || sp.kind !== 'adhoc') return;
+    setBusy(true);
+    try {
+      const created = createParticipant(trip.id, sp.name, null);
+      const participant = sp.actorId !== null ? { ...created, linkedActorId: sp.actorId } : created;
+      await participantRepository.create(participant);
+      setSession((s) =>
+        s ? promoteAdhocToParticipant(s, splitParticipantId, participant.id, { actorId: sp.actorId }) : s,
+      );
+      await reload();
+      showToast(t('split.promoted_toast', { name: sp.name }), 'success');
+    } catch {
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const removeParticipant = (id: string) => {
@@ -491,7 +518,20 @@ export function SplitPage() {
                     key={p.id}
                     className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 bg-surface-high text-on-surface"
                   >
+                    {p.kind === 'linked' && (
+                      <Icon name="link" size={11} className="text-primary" aria-hidden />
+                    )}
                     {isOwnerP ? t('split.you') : p.name}
+                    {p.kind === 'adhoc' && (
+                      <button
+                        onClick={() => void promoteToTripPerson(p.id)}
+                        className="btn-press"
+                        aria-label={t('split.promote_aria', { name: p.name })}
+                        title={t('split.promote_hint')}
+                      >
+                        <Icon name="person_add" size={12} className="text-primary" />
+                      </button>
+                    )}
                     {!isOwnerP && (
                       <button onClick={() => removeParticipant(p.id)} className="btn-press" aria-label={t('common.delete')}>
                         <Icon name="close" size={12} className="text-on-surface-faint" />
