@@ -20,9 +20,11 @@ test.describe('PACOTE #2 — capture progressive disclosure', () => {
   }) => {
     await page.getByRole('button', { name: /ações rápidas|quick actions/i }).click();
 
-    // Heroes are always visible — the thumb-zone base of the sheet.
+    // Heroes are always visible — the thumb-zone base of the sheet. Síntese 8:
+    // "Escanear nota" was absorbed into the "Dividir conta" star (the scanner is
+    // now a capture method inside the split), which leads the accented base.
     await expect(page.getByText(/registrar gasto|register expense/i).first()).toBeVisible();
-    await expect(page.getByText(/escanear nota|scan receipt/i).first()).toBeVisible();
+    await expect(page.getByText(/dividir conta|split a bill/i).first()).toBeVisible();
 
     // GATE 18: the planning tools now lead the visible tier (no "Planejar"
     // expander) — reachable in one tap, not buried.

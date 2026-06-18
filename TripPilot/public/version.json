@@ -1,8 +1,8 @@
 {
-  "version": "0.95.0",
+  "version": "0.96.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.95.0.zip",
-  "notes": "Os detalhes por dia agora explicam o número. No “Disponível por dia”, ao tocar num dia o app conta de onde vem aquele valor (vem da sua reserva livre da fase, dividida pelos dias) e, num dia de pico, mostra quanto ele recebe a mais que um dia comum. No “Gastos por dia”, tocar num dia mostra um resumo do que foi gasto por categoria (ex.: Mercado, Bar, Transporte), em vez de só o total."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.96.0.zip",
+  "notes": "Nova tela “Dividir conta”: tire uma foto da conta (ou digite os itens) e divida por item, por igual ou só o seu. Cada pessoa toca no que consumiu (passa o celular), a taxa de serviço entra sozinha e é rateada, e no fim tudo vira um único gasto já mostrando quanto cabe no seu orçamento — com desfazer."
 }

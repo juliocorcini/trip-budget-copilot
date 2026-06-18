@@ -17,6 +17,10 @@ async function loadDemo(page: Page): Promise<void> {
 }
 
 test.describe('Bill split — Dividir conta (G1)', () => {
+  // The golden path is a long multi-step flow (demo seed + capture + claim + tax
+  // + commit); give it headroom so it never times out under full-suite parallel load.
+  test.describe.configure({ timeout: 90_000 });
+
   test('the FAB star opens the split bill flow', async ({ page }) => {
     await loadDemo(page);
     await page.getByRole('button', { name: 'Ações rápidas' }).click();

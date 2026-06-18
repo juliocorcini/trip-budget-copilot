@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.96.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Nova tela "Dividir conta": tire uma foto da conta (ou digite os itens) e divida por item, por igual ou só o seu.',
+        'Cada pessoa toca no que consumiu (passa o celular): meio item ou dividido entre vários sai em um toque, e a taxa de serviço entra sozinha e é rateada.',
+        'No fim vira um único gasto, já mostrando quanto a sua parte pesa no orçamento de hoje — e com desfazer caso erre.',
+      ],
+      en: [
+        'New "Split a bill" screen: snap a photo of the bill (or type the items) and split by item, equally, or just yours.',
+        'Everyone taps what they had (pass the phone): half an item or shared by several is one tap, and the service charge is added and split automatically.',
+        'It ends as a single expense, already showing how much your part weighs on today\'s budget — with undo if you slip.',
+      ],
+      es: [
+        'Nueva pantalla "Dividir cuenta": saca una foto de la cuenta (o escribe los ítems) y divide por ítem, por igual o solo lo tuyo.',
+        'Cada persona toca lo que consumió (pasa el teléfono): medio ítem o dividido entre varios sale en un toque, y el cargo por servicio entra solo y se reparte.',
+        'Al final queda como un único gasto, mostrando cuánto pesa tu parte en el presupuesto de hoy — con deshacer por si te equivocas.',
+      ],
+    },
+  },
+  {
     version: '0.95.0',
     date: '2026-06-18',
     items: {
