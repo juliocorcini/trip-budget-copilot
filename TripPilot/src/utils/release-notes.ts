@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.90.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'No começo, o app recomenda um modo pra você e explica a "reserva protegida" com um exemplo em dinheiro.',
+        'O editor da viagem agora explica "ritmo da fase", "dias de pico" e a diferença entre evento e sub-destino.',
+        'A "Visão geral" diz, em uma linha, pra que serve (resumo) e onde editar (na Viagem).',
+        'As Configurações ganharam um grupo próprio de "Conexões e compartilhamento", separado de "Backup e segurança". Nada mudou no funcionamento.',
+      ],
+      en: [
+        'At the start, the app recommends a mode for you and explains the "protected reserve" with a money example.',
+        'The trip editor now explains "phase rhythm", "peak days" and the difference between an event and a sub-destination.',
+        'The "Overview" says in one line what it is for (a summary) and where to edit (in Trip).',
+        'Settings now has its own "Connections & sharing" group, split out of "Backup & security". Nothing changed in how it works.',
+      ],
+      es: [
+        'Al empezar, la app te recomienda un modo y explica la "reserva protegida" con un ejemplo en dinero.',
+        'El editor del viaje ahora explica "ritmo de la fase", "días de pico" y la diferencia entre evento y sub-destino.',
+        'La "Visión general" dice en una línea para qué sirve (un resumen) y dónde editar (en Viaje).',
+        'Ajustes ahora tiene su propio grupo "Conexiones y compartir", separado de "Copia y seguridad". Nada cambió en el funcionamiento.',
+      ],
+    },
+  },
+  {
     version: '0.89.0',
     date: '2026-06-18',
     items: {

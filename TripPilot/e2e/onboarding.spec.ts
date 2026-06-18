@@ -37,6 +37,8 @@ test.describe('Onboarding flow', () => {
     // Closing step: choose the UX mode — this is what finishes onboarding.
     const simpleMode = page.getByRole('button', { name: /começar simples|simple/i });
     await expect(simpleMode).toBeVisible({ timeout: 5000 });
+    // G14 (audit §4.1): the first-timer gets a recommended default on the simple option.
+    await expect(simpleMode.getByText(/recomendado|recommended/i)).toBeVisible();
     await simpleMode.click();
 
     await page.waitForURL('/dashboard', { timeout: 15000 });

@@ -187,6 +187,8 @@ export function PhasePreviewPage() {
                 : formatMoney(0, currency)}
             </span>
           </div>
+          {/* G14 (audit §4.11): the "planned income only feeds the projection" nuance, surfaced inline. */}
+          <p className="text-[11px] text-on-surface-faint leading-snug mt-1">{t('phase_preview.planned_income_hint')}</p>
         </div>
 
         <button

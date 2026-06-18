@@ -552,6 +552,8 @@ export function TripEditPage() {
                 <label className="text-xs text-on-surface-faint mt-2">
                   {t('trip.phase_rhythm_title')}
                 </label>
+                {/* G14 (audit §4.11): soften the editor jargon with one plain line. */}
+                <p className="text-[11px] text-on-surface-faint leading-snug -mt-1">{t('trip.phase_rhythm_hint')}</p>
                 <div className="flex gap-2">
                   {RHYTHM_PRESETS.map((preset) => (
                     <button
@@ -570,6 +572,7 @@ export function TripEditPage() {
                 <label className="text-xs text-on-surface-faint mt-1">
                   {t('trip.peak_days_label')}
                 </label>
+                <p className="text-[11px] text-on-surface-faint leading-snug -mt-1">{t('trip.peak_days_hint')}</p>
                 <div className="flex gap-1.5">
                   {WEEKDAY_ORDER.map((day) => {
                     const selected = (edit.peakDays ?? []).includes(day);
@@ -794,6 +797,8 @@ export function TripEditPage() {
               </button>
             ))}
           </div>
+          {/* G14 (audit §4.11): name the event vs sub-destination distinction. */}
+          <p className="text-[11px] text-on-surface-faint leading-snug">{t('trip.event_kind_hint')}</p>
           <div>
             <label className="text-xs text-on-surface-faint mb-1 block">
               {t('trip.event_name')}

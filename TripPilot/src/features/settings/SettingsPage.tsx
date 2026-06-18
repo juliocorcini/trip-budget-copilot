@@ -116,7 +116,18 @@ const SETTINGS_GROUPS: {
     descKey: 'settings.cat_desc_data_security',
     icon: 'shield',
     keywords:
-      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password restaurar restore ponto snapshot lembrete reminder segurança seguridad zerar reset apagar caixa postal mailbox mensagens messages sincronizar sync worker pareamento nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items conexão conexao connection conectar link',
+      'backup dados data datos exportar export csv pin bloqueio bloqueo lock senha password biometria biometric restaurar restore ponto snapshot lembrete reminder segurança seguridad privacidade privacy zerar reset apagar',
+  },
+  {
+    // G14 (audit §4.17): connections/sharing broke out of "Dados e segurança",
+    // which was too broad. Pairing, links, the mailbox and cloud receipt OCR —
+    // the "talks to the network / other people" surfaces — live here now.
+    id: 'connections',
+    labelKey: 'settings.group_connections',
+    descKey: 'settings.cat_desc_connections',
+    icon: 'hub',
+    keywords:
+      'conexão conexao connection conexiones conectar link pareamento pair dispositivos devices compartilhar share dividir split extrato caixa postal mailbox mensagens messages sincronizar sync worker nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items nuvem cloud',
   },
   {
     id: 'device',
@@ -1055,39 +1066,6 @@ export function SettingsPage() {
         />
       </Section>
 
-      {/* F19: connections live next to backup so "my data + my devices" is one
-          hub. Pairing, links and the split ledger all open from here. */}
-      <Section title={t('settings.connections_title')}>
-        <LinkRow
-          icon="devices"
-          label={t('settings.connections_link')}
-          onClick={() => navigate('/shared')}
-        />
-      </Section>
-
-      {/* FIELD item 8: the encrypted mailbox contacts the worker on open to
-          fetch split notifications and backups. Default on (user choice); turn
-          off to stop contacting the worker entirely (ÂNCORA 8 escape hatch). */}
-      <Section title={t('mailbox.setting_title')}>
-        <ToggleRow
-          label={t('mailbox.setting_label')}
-          enabled={settings.mailboxEnabled}
-          onChange={() => updateSetting({ mailboxEnabled: !settings.mailboxEnabled })}
-        />
-        <p className="text-xs text-on-surface-faint mt-2">{t('mailbox.setting_hint')}</p>
-      </Section>
-
-      {/* DEC-206 (G2): cloud receipt OCR — opt-in. The photo only leaves the
-          device after this is on (privacy first; the model does not train on it). */}
-      <Section title={t('receiptScan.setting_title')}>
-        <ToggleRow
-          label={t('receiptScan.setting_label')}
-          enabled={settings.cloudReceiptOcrEnabled}
-          onChange={() => updateSetting({ cloudReceiptOcrEnabled: !settings.cloudReceiptOcrEnabled })}
-        />
-        <p className="text-xs text-on-surface-faint mt-2">{t('receiptScan.setting_hint')}</p>
-      </Section>
-
       <Section title={t('settings.backup_reminder')}>
         <ToggleRow
           label={t('settings.backup_reminder')}
@@ -1198,6 +1176,44 @@ export function SettingsPage() {
           <Icon name="restart_alt" size={18} className="text-error shrink-0" />
           <span className="text-sm font-semibold text-error">{t('reset.open')}</span>
         </button>
+      </Section>
+
+      </CollapsibleGroup>
+
+      {/* G14 (audit §4.17): the network/sharing surfaces, broken out of the
+          over-broad "Dados e segurança" into their own legible category. */}
+      <CollapsibleGroup {...groupProps('connections')}>
+
+      {/* F19: pairing, links and the split ledger open from here. */}
+      <Section title={t('settings.connections_title')}>
+        <LinkRow
+          icon="devices"
+          label={t('settings.connections_link')}
+          onClick={() => navigate('/shared')}
+        />
+      </Section>
+
+      {/* FIELD item 8: the encrypted mailbox contacts the worker on open to
+          fetch split notifications and backups. Default on (user choice); turn
+          off to stop contacting the worker entirely (ÂNCORA 8 escape hatch). */}
+      <Section title={t('mailbox.setting_title')}>
+        <ToggleRow
+          label={t('mailbox.setting_label')}
+          enabled={settings.mailboxEnabled}
+          onChange={() => updateSetting({ mailboxEnabled: !settings.mailboxEnabled })}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('mailbox.setting_hint')}</p>
+      </Section>
+
+      {/* DEC-206 (G2): cloud receipt OCR — opt-in. The photo only leaves the
+          device after this is on (privacy first; the model does not train on it). */}
+      <Section title={t('receiptScan.setting_title')}>
+        <ToggleRow
+          label={t('receiptScan.setting_label')}
+          enabled={settings.cloudReceiptOcrEnabled}
+          onChange={() => updateSetting({ cloudReceiptOcrEnabled: !settings.cloudReceiptOcrEnabled })}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('receiptScan.setting_hint')}</p>
       </Section>
 
       </CollapsibleGroup>

@@ -256,6 +256,8 @@ export function OnboardingPage() {
     <StepCard key="budget">
       <Field label={t('onboarding.amount')} type="number" value={totalAmount} onChange={setTotalAmount} placeholder="0.00" />
       <Field label={t('onboarding.protected_reserve')} type="number" value={protectedReserve} onChange={setProtectedReserve} placeholder="0.00" />
+      {/* G14 (audit §4.1): "reserva protegida" is jargon — name it with a money example. */}
+      <p className="text-xs text-on-surface-dim px-1 leading-snug">{t('onboarding.protected_reserve_hint')}</p>
     </StepCard>,
     <StepCard key="owner">
       <Field label={t('onboarding.owner_name')} value={ownerName} onChange={setOwnerName} placeholder={t('shared.owner_tag')} />
@@ -398,7 +400,13 @@ export function OnboardingPage() {
       >
         <Icon name="bolt" size={24} className="text-primary shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-on-surface">{t('onboarding.mode_simple_title')}</p>
+          {/* G14 (audit §4.1): give the first-timer a recommended default. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-on-surface">{t('onboarding.mode_simple_title')}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+              {t('onboarding.mode_recommended')}
+            </span>
+          </div>
           <p className="text-xs text-on-surface-dim mt-0.5">{t('onboarding.mode_simple_desc')}</p>
         </div>
       </button>

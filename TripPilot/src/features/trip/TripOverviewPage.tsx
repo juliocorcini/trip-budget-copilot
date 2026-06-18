@@ -91,6 +91,9 @@ export function TripOverviewPage() {
         </button>
       </div>
 
+      {/* G14 (audit §4.11 G7): name this screen's role vs the Viagem hub. */}
+      <p className="text-xs text-on-surface-dim -mt-2 mb-1 px-1 leading-snug">{t('trip.overview_role_hint')}</p>
+
       <div className="bg-surface-container rounded-2xl p-5">
         <p className="text-xs font-bold text-primary uppercase tracking-wider">{trip.name}</p>
         <p className="text-sm text-on-surface-dim mt-2">
