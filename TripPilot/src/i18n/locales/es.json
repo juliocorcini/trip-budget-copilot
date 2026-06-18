@@ -317,6 +317,7 @@
     "fts_free": "Libre para gastar",
     "fts_deficit": "Los compromisos superan el presupuesto en {{amount}}.",
     "insights_title": "Insights",
+    "insights_see_more": "Ver {{count}} más",
     "insight_projection_over": "A este ritmo, la fase cierra en {{projected}} — {{diff}} por encima del plan",
     "insight_projection_under": "A este ritmo, la fase cierra en {{projected}} — {{diff}} por debajo del plan",
     "insight_rhythm_over": "Media diaria real {{real}} ↑ vs {{planned}} planificado",

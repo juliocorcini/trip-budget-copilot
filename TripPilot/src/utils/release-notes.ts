@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.89.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'A Home agora mostra no máximo 4 análises de uma vez, já ordenadas pela mais importante — o resto fica a um toque em "Ver mais".',
+        'Nada foi removido: é só um teto para a tela não virar uma parede de avisos.',
+        'Tocar em uma análise continua abrindo o "Como cheguei nisso", que explica por que aquele número apareceu.',
+      ],
+      en: [
+        'The Home now shows at most 4 insights at a time, already ordered by what matters most — the rest are one tap away under "See more".',
+        'Nothing was removed: it is just a cap so the screen never becomes a wall of warnings.',
+        'Tapping an insight still opens "How I got here", which explains why that number showed up.',
+      ],
+      es: [
+        'La pantalla principal ahora muestra como máximo 4 análisis a la vez, ya ordenados por lo más importante — el resto queda a un toque en "Ver más".',
+        'No se quitó nada: es solo un tope para que la pantalla no se vuelva un muro de avisos.',
+        'Tocar un análisis sigue abriendo "Cómo llegué a esto", que explica por qué apareció ese número.',
+      ],
+    },
+  },
+  {
     version: '0.88.0',
     date: '2026-06-18',
     items: {

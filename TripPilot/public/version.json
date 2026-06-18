@@ -1,8 +1,8 @@
 {
-  "version": "0.88.0",
+  "version": "0.89.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.88.0.zip",
-  "notes": "A tela de iniciar uma saída agora explica, em uma linha, o que é uma “saída” (um rolê com teto, registrado em 1 toque). E quando o seu ritmo começa a comer a reserva da fase, o card do “amigo sincero” passa a oferecer um atalho direto pro Plano de resgate. Nada mudou no funcionamento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.89.0.zip",
+  "notes": "A Home agora mostra no máximo 4 análises de uma vez, já ordenadas pela mais importante — o resto fica a um toque de distância em “Ver mais”. Nada foi removido: é só um teto pra tela não virar uma parede de avisos. E o detalhe de cada análise continua explicando, no “Como cheguei nisso”, por que aquele número apareceu."
 }

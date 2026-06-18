@@ -317,6 +317,7 @@
     "fts_free": "Free to spend",
     "fts_deficit": "Commitments exceed the budget by {{amount}}.",
     "insights_title": "Insights",
+    "insights_see_more": "See {{count}} more",
     "insight_projection_over": "At this pace, the phase ends at {{projected}} — {{diff}} over plan",
     "insight_projection_under": "At this pace, the phase ends at {{projected}} — {{diff}} under plan",
     "insight_rhythm_over": "Real daily average {{real}} ↑ vs {{planned}} planned",

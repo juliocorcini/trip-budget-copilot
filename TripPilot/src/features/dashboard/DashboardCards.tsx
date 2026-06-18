@@ -34,6 +34,7 @@ import type { AppSettings } from '@/domain/types/app-settings';
 import type { CheckInIntent } from '@/domain/types/common';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
 import { OccasionCounter } from '@/features/dashboard/cards/OccasionCounter';
+import { capHomeInsights } from '@/features/dashboard/home-insights';
 import {
   counterAccent,
   splitMoneyDisplay,
@@ -112,6 +113,8 @@ export function DashboardCards({
   const navigate = useNavigate();
   // DEC-091 (R-09): swipe carousel of insights; DEC-076: occasion carousel page.
   const [insightIndex, setInsightIndex] = useState(0);
+  // G13: "ver mais" lifts the Home insight cap in place.
+  const [showAllInsights, setShowAllInsights] = useState(false);
   const [carouselPage, setCarouselPage] = useState(0);
   // FIELD R2 item 8 (F8): the check-in fused under the hero is compact — once a
   // mode is chosen it collapses to a single chip; tapping it re-opens the picker.
@@ -199,8 +202,16 @@ export function DashboardCards({
     onSelectCheckIn(intent);
   };
 
+  // G13 (audit §4.2): cap the Home carousel to the top N insights at rest;
+  // "ver mais" reveals the rest in place. They arrive priority-sorted, so the
+  // visible slice is always the most important — nothing is dropped (ÂNCORA 9).
+  const { visible: visibleInsights, hiddenCount: hiddenInsightsCount } = capHomeInsights(
+    model.insights,
+    showAllInsights,
+  );
+
   // M2: advance the insights carousel every few seconds, honoring pauses.
-  const insightCount = model.insights.length;
+  const insightCount = visibleInsights.length;
   useEffect(() => {
     if (!shouldAutoRotateInsights(insightCount, reducedMotion)) return;
     const timer = window.setInterval(() => {
@@ -853,7 +864,7 @@ export function DashboardCards({
                     if (idx !== insightIndex) setInsightIndex(idx);
                   }}
                 >
-                  {model.insights.map((insight) => (
+                  {visibleInsights.map((insight) => (
                     <button
                       key={insight.kind}
                       onClick={() => onInsightTap(insight)}
@@ -883,9 +894,9 @@ export function DashboardCards({
                     </button>
                   ))}
                 </div>
-                {model.insights.length > 1 && (
+                {visibleInsights.length > 1 && (
                   <div className="flex justify-center gap-1.5 pb-2">
-                    {model.insights.map((insight, i) => (
+                    {visibleInsights.map((insight, i) => (
                       <button
                         key={insight.kind}
                         onClick={() => {
@@ -902,7 +913,7 @@ export function DashboardCards({
                           className="block w-1.5 h-1.5 rounded-full"
                           style={{
                             background:
-                              i === Math.min(insightIndex, model.insights.length - 1)
+                              i === Math.min(insightIndex, visibleInsights.length - 1)
                                 ? 'var(--primary)'
                                 : 'var(--surface-container-high)',
                           }}
@@ -910,6 +921,18 @@ export function DashboardCards({
                       </button>
                     ))}
                   </div>
+                )}
+                {/* G13 (audit §4.2): the rest stay one tap away — never a wall. */}
+                {hiddenInsightsCount > 0 && (
+                  <button
+                    onClick={() => setShowAllInsights(true)}
+                    className="w-full pb-2.5 pt-0.5 flex items-center justify-center gap-1 btn-press"
+                  >
+                    <span className="text-[11px] font-semibold text-primary">
+                      {t('dashboard.insights_see_more', { count: hiddenInsightsCount })}
+                    </span>
+                    <Icon name="expand_more" size={14} className="text-primary" />
+                  </button>
                 )}
               </div>
             )}
