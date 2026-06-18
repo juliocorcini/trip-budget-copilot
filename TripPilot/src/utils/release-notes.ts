@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.81.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Nova “Visão avançada da viagem” em Configurações → Dinheiro e metas: quem quiser ver os detalhes técnicos do dinheiro (fundos, vínculos, envelopes e carteiras) agora tem um lugar só pra isso — o dia a dia continua simples.',
+        'É só visualização e atalho: de lá você abre direto as telas de Fundos e Carteiras para editar, sem bagunçar a tela inicial.',
+        'Fecha a reforma do modelo de orçamento: trecho, pote, evento e compra planejada, tudo organizado — e nada do que existia antes foi removido.',
+      ],
+      en: [
+        'New “Advanced trip view” in Settings → Money & goals: anyone who wants the technical details of their money (funds, links, envelopes and wallets) now has one place for it — the everyday flow stays simple.',
+        'It’s view-and-shortcut only: from there you jump straight into the Funds and Wallets screens to edit, without cluttering the home screen.',
+        'Wraps up the budget-model reform: segment, pot, event and planned purchase, all organized — and nothing that existed before was removed.',
+      ],
+      es: [
+        'Nueva “Vista avanzada del viaje” en Ajustes → Dinero y metas: quien quiera ver los detalles técnicos del dinero (fondos, vínculos, sobres y billeteras) ya tiene un lugar para eso — el día a día sigue simple.',
+        'Es solo visualización y atajo: desde ahí abres directo las pantallas de Fondos y Billeteras para editar, sin recargar la pantalla de inicio.',
+        'Cierra la reforma del modelo de presupuesto: tramo, fondo, evento y compra planificada, todo organizado — y nada de lo que existía antes se quitó.',
+      ],
+    },
+  },
+  {
     version: '0.80.0',
     date: '2026-06-18',
     items: {

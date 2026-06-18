@@ -1,8 +1,8 @@
 {
-  "version": "0.80.0",
+  "version": "0.81.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.80.0.zip",
-  "notes": "Carteira progressiva: se você tem uma só fonte de dinheiro, o app nem pergunta de qual carteira saiu cada gasto — fica tudo simples. Com 2+ carteiras (ou ao importar do Wise) ele passa a perguntar sozinho, e há um controle em Configurações (Automático · Sempre · Nunca) para você decidir."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.81.0.zip",
+  "notes": "Nova “Visão avançada da viagem” em Configurações → Dinheiro e metas: quem quiser ver os detalhes técnicos do dinheiro (fundos, vínculos, envelopes e carteiras) tem agora um lugar só pra isso, com atalho para editar Fundos e Carteiras — o dia a dia continua simples. Fecha a reforma do modelo de orçamento (trecho · pote · evento · compra planejada); nada do que existia antes foi removido."
 }
