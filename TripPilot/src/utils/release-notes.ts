@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.86.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Planejador mais fácil de entender: uma linha no topo explica pra que serve a tela.',
+        'Os termos ganharam uma frase curta: “margem livre” × “alocado”, a classificação (essencial/planejado/opcional) e os presets.',
+        'Só texto de ajuda — o funcionamento do planejador é exatamente o mesmo.',
+      ],
+      en: [
+        'Easier-to-grasp planner: a line at the top explains what the screen is for.',
+        'The terms now carry a short caption: “free margin” vs “allocated”, the classification (essential/planned/optional) and the presets.',
+        'Help text only — the planner works exactly as before.',
+      ],
+      es: [
+        'Planificador más fácil de entender: una línea arriba explica para qué sirve la pantalla.',
+        'Los términos ahora llevan una frase corta: “margen libre” vs “asignado”, la clasificación (esencial/planificado/opcional) y los presets.',
+        'Solo texto de ayuda — el planificador funciona exactamente igual.',
+      ],
+    },
+  },
+  {
     version: '0.85.0',
     date: '2026-06-18',
     items: {

@@ -728,6 +728,10 @@ export function PlannerPage() {
         </div>
       </div>
 
+      {/* Audit 4.9 (P2): a plain-language "what is this page" line — the light
+          guided touch for the app's most conceptual surface. */}
+      <p className="text-xs text-on-surface-dim mt-1 leading-snug">{t('planner.intro')}</p>
+
       {/* ── PHASE SELECTOR (multi-phase trips) ── */}
       {sortedPhases.length > 1 && (
         <div className="mt-3">
@@ -799,6 +803,10 @@ export function PlannerPage() {
             })}
           </p>
         )}
+        {/* Audit 4.9 (P2): name the two numbers in one plain line. */}
+        <p className="text-[11px] text-on-surface-faint mt-2 leading-snug">
+          {t('planner.summary_hint')}
+        </p>
       </div>
 
       {/* ── DEC-098 (R-20): over-budget is the FIRST thing on screen —
@@ -1208,7 +1216,11 @@ export function PlannerPage() {
       )}
 
       {/* ── PRESET BUTTONS ── */}
-      <div className="mt-4 flex gap-2">
+      {/* Audit 4.9 (P2): explain that presets are starting points, not final. */}
+      <p className="text-[11px] text-on-surface-faint mt-4 mb-1.5 px-1 leading-snug">
+        {t('planner.presets_hint')}
+      </p>
+      <div className="flex gap-2">
         {(['economico', 'equilibrado', 'mais_social'] as const).map(
           (preset) => {
             const isActive = activePreset === preset;
@@ -1319,6 +1331,10 @@ export function PlannerPage() {
                   );
                 })}
               </div>
+              {/* Audit 4.9 (P2): say what the classification actually controls. */}
+              <p className="text-[11px] text-on-surface-faint mt-1.5 leading-snug">
+                {t('planner.classification_hint')}
+              </p>
             </div>
 
             {/* remove from this phase */}
