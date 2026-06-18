@@ -59,9 +59,9 @@ test.describe('GATE 6 — budget model v2 golden path', () => {
     await expect(page.getByText('Ritmo da fase').first()).toBeVisible();
     await expect(page.getByText('Dias de pico').first()).toBeVisible();
 
-    // Activity profiles (DEC-074).
+    // Activity profiles (DEC-074), now labelled "Atividades" (DEC-228).
     await page.goto('/profiles');
-    await expect(page.getByText('Perfis de atividade')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Atividades' })).toBeVisible();
 
     // The raw funds + wallets editors (the advanced view's "edit" targets).
     await page.goto('/funds');

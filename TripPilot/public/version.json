@@ -1,8 +1,8 @@
 {
-  "version": "0.83.0",
+  "version": "0.84.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.83.0.zip",
-  "notes": "Copiloto mais fácil de ler: as análises agora vêm organizadas em quatro temas que você abre e fecha — Agora (você está bem?), Para onde vai, Padrões e Pessoas. O primeiro abre sozinho e o resto fica a um toque, com um contador do que tem dentro. Nada foi removido — só ficou mais fácil saber onde olhar primeiro."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.84.0.zip",
+  "notes": "Vocabulário mais claro: o que antes se chamava “Perfis” agora é “Atividades” — o mesmo recurso (os tipos de gasto que o app aprende, como bar, restaurante, mercado), só com um nome que diz na hora o que é. Nada mudou no funcionamento."
 }

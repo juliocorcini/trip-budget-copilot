@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.84.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Vocabulário mais claro: o que antes se chamava “Perfis” agora é “Atividades” — os tipos de gasto que o app aprende (bar, restaurante, mercado…).',
+        'É só o nome: o recurso é exatamente o mesmo (valores típicos, frequência por fase, planejamento) — agora com um rótulo que diz na hora o que é.',
+      ],
+      en: [
+        'Clearer wording: what used to be called “Profiles” is now “Activities” — the spending types the app learns (bar, restaurant, groceries…).',
+        'It’s just the name: the feature is exactly the same (typical values, per-phase frequency, planning) — now with a label that says what it is at a glance.',
+      ],
+      es: [
+        'Vocabulario más claro: lo que antes se llamaba “Perfiles” ahora es “Actividades” — los tipos de gasto que la app aprende (bar, restaurante, mercado…).',
+        'Es solo el nombre: la función es exactamente la misma (valores típicos, frecuencia por fase, planificación) — ahora con una etiqueta que dice de inmediato qué es.',
+      ],
+    },
+  },
+  {
     version: '0.83.0',
     date: '2026-06-18',
     items: {
