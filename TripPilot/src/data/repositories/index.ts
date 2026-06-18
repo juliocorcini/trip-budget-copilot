@@ -23,3 +23,4 @@ export { plannedPurchaseRepository } from './planned-purchase-repository';
 export { mailboxQueueRepository } from './mailbox-queue-repository';
 export { attachmentRepository } from './attachment-repository';
 export { shareLinkRepository } from './share-link-repository';
+export { splitRepository } from './split-repository';

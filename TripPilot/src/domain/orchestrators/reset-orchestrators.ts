@@ -20,6 +20,11 @@ export const TRANSACTIONAL_TABLE_NAMES = [
   // DEC-206 (G1): images belong to recorded activity, so a keep-structure reset
   // drops them too (avoids orphan photos pointing at cleared expenses/outings).
   'attachments',
+  // T16 (bill split): divisions describe recorded activity (and in-progress
+  // drafts ARE recorded activity), so a keep-structure reset drops them too —
+  // same rationale as attachments (no orphan splitMeta pointing at cleared
+  // sessions/expenses).
+  'splitSessions',
 ] as const;
 
 /**

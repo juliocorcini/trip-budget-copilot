@@ -10,6 +10,7 @@ import {
   SCHEMA_V8,
   SCHEMA_V9,
   SCHEMA_V10,
+  SCHEMA_V11,
 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import { recordCrash } from '@/utils/crash-log';
@@ -40,6 +41,7 @@ import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { MailboxQueueItem } from '@/domain/types/mailbox';
 import type { Attachment } from '@/domain/types/attachment';
 import type { ShareLink } from '@/domain/types/share-link';
+import type { SplitRecord } from '@/domain/types/split-record';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -71,6 +73,7 @@ export class TripPilotDB extends Dexie {
   mailboxQueue!: EntityTable<MailboxQueueItem, 'id'>;
   attachments!: EntityTable<Attachment, 'id'>;
   shareLinks!: EntityTable<ShareLink, 'id'>;
+  splitSessions!: EntityTable<SplitRecord, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -141,6 +144,10 @@ export class TripPilotDB extends Dexie {
           if (pool.goalCents === undefined) pool.goalCents = null;
         });
       });
+
+    // T16 (Bill split): new splitSessions table. New table → no upgrade()
+    // callback; existing data is preserved untouched on open.
+    this.version(11).stores(SCHEMA_V11);
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {

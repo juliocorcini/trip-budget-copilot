@@ -154,6 +154,9 @@ export const backupFileSchema = z.object({
   // v4 (R4): pairing tables — default keeps v1-v3 backups importable.
   peerLinks: z.array(syncedRecordSchema).default([]),
   mirroredStatements: z.array(syncedRecordSchema).default([]),
+  // v7 (T16 — bill split): the readable divisions table; default keeps v1-v6
+  // backups importable.
+  splitSessions: z.array(syncedRecordSchema).default([]),
 });
 
 export const createTripInputSchema = z.object({

@@ -21,6 +21,7 @@ import type { Device } from '@/domain/types/device';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { MirroredStatement } from '@/domain/types/mirrored-statement';
+import type { SplitRecord } from '@/domain/types/split-record';
 import type { SyncMetadata } from '@/domain/types/common';
 import { backupFileSchema } from '@/domain/validation/schemas';
 
@@ -53,14 +54,16 @@ export interface BackupData {
   devices: Device[];
   peerLinks: PeerLink[];
   mirroredStatements: MirroredStatement[];
+  splitSessions: SplitRecord[];
 }
 
 /**
- * v6 (DEC-175): adds the `plannedPurchases` table. Older files (v1-v5) import
- * with the missing table normalized to an empty array (normalizeBackupToV6).
- * v5 added Transaction location fields (placeLabel, latitude, longitude, placeId).
+ * v7 (T16 — bill split): adds the `splitSessions` table. Older files (v1-v6)
+ * import with the missing table normalized to an empty array (normalizeBackupToV7).
+ * v6 (DEC-175) added `plannedPurchases`; v5 added Transaction location fields
+ * (placeLabel, latitude, longitude, placeId).
  */
-export const BACKUP_VERSION = 6;
+export const BACKUP_VERSION = 7;
 
 export type BackupTableKey = keyof Omit<
   BackupData,
@@ -92,6 +95,7 @@ export const BACKUP_TABLE_KEYS: BackupTableKey[] = [
   'devices',
   'peerLinks',
   'mirroredStatements',
+  'splitSessions',
 ];
 
 export function createBackup(data: Omit<BackupData, 'version' | 'exportedAt'>): BackupData {
@@ -251,10 +255,23 @@ export function normalizeBackupToV6(data: BackupData): BackupData {
 }
 
 /**
+ * T16: normalizes pre-v7 backups — the `splitSessions` table simply did not
+ * exist, so it defaults to empty (the Zod schema already does this; the explicit
+ * map keeps the chain symmetric and future-proof against shape drift).
+ */
+export function normalizeBackupToV7(data: BackupData): BackupData {
+  const v6 = normalizeBackupToV6(data);
+  return {
+    ...v6,
+    splitSessions: v6.splitSessions ?? [],
+  };
+}
+
+/**
  * GAP-029: validates the file against the Zod schemas before anything is
  * written. Malformed files yield a clear error and zero partial writes.
  * v1 files (missing tables) are normalized with empty arrays; older files get
- * the field defaults up to the current version (normalizeBackupToV6).
+ * the field defaults up to the current version (normalizeBackupToV7).
  */
 export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
   let raw: unknown;
@@ -272,7 +289,7 @@ export function parseBackupFileSafe(jsonString: string): ParseBackupResult {
       error: first ? `${first.path.join('.')}: ${first.message}` : 'invalid_schema',
     };
   }
-  return { data: normalizeBackupToV6(result.data as unknown as BackupData), error: null };
+  return { data: normalizeBackupToV7(result.data as unknown as BackupData), error: null };
 }
 
 export function parseBackupFile(jsonString: string): BackupData | null {

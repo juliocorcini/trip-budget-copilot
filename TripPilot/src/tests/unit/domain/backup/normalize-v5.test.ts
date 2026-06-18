@@ -26,6 +26,7 @@ const EMPTY_TABLES = {
   devices: [],
   peerLinks: [],
   mirroredStatements: [],
+  splitSessions: [],
 };
 
 function makeBackup(transactions: unknown[]): BackupData {
@@ -40,8 +41,8 @@ function makeBackup(transactions: unknown[]): BackupData {
 }
 
 describe('normalizeBackupToV5 (M1)', () => {
-  it('bumps the backup version to 6 (planned purchases table — DEC-175)', () => {
-    expect(BACKUP_VERSION).toBe(6);
+  it('bumps the backup version to 7 (splitSessions table — T16)', () => {
+    expect(BACKUP_VERSION).toBe(7);
   });
 
   it('fills missing location fields with null on a v4 transaction', () => {

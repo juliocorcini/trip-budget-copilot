@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -113,4 +113,16 @@ export const SCHEMA_V9: Record<string, string> = {
 // invariant (totalAmountCents is never touched). New tables: none.
 export const SCHEMA_V10: Record<string, string> = {
   ...SCHEMA_V9,
+};
+
+// V11 (T16 — Bill split / "Dividir conta"): a brand-new table holding the
+// readable division of a bill (SplitRecord). Brand-new table → no upgrade()
+// callback; Dexie creates it on open and leaves every existing table/row
+// untouched. Unlike the device-local secret tables, this one IS backed up (the
+// rich division is the retention asset — T1). Indexed by tripId (a trip's
+// divisions), sessionId (open-the-expense reverse lookup) and status (resume
+// in-progress live drafts).
+export const SCHEMA_V11: Record<string, string> = {
+  ...SCHEMA_V10,
+  splitSessions: 'id, tripId, sessionId, status, deletedAt',
 };
