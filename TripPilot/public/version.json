@@ -1,8 +1,8 @@
 {
-  "version": "0.84.0",
+  "version": "0.85.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.84.0.zip",
-  "notes": "Vocabulário mais claro: o que antes se chamava “Perfis” agora é “Atividades” — o mesmo recurso (os tipos de gasto que o app aprende, como bar, restaurante, mercado), só com um nome que diz na hora o que é. Nada mudou no funcionamento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.85.0.zip",
+  "notes": "Lista de gastos mais limpa: os filtros agora ficam organizados por tipo (Categorias, Lugares) atrás de um botão “Filtros”, e o que está filtrando aparece sempre visível. A aba “Saídas” ganhou uma linha explicando o que é. Nada foi removido."
 }

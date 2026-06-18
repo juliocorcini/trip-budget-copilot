@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
@@ -29,6 +29,7 @@ import { SelectionBar, type SelectionAction } from '@/components/SelectionBar';
 import { showToast } from '@/components/Toast';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { buildSessionFeed, groupFeedByDay } from './expense-feed';
+import { countActiveFilters, hasActiveFilter, type ExpenseFilterState } from './expense-filters';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -71,6 +72,10 @@ export function ExpenseListPage() {
   const [batchSheet, setBatchSheet] = useState<BatchSheet>(null);
   // G2: free-text search across the expense feed (description / place / category).
   const [query, setQuery] = useState('');
+  // Audit 4.4 (P2): the filter chips mixed 3 natures (category/place/profile) in
+  // one unlabelled row on an already-dense header. They now live behind a labelled,
+  // collapsible "Filtros" panel; the active scopes stay visible as a summary row.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const scrolled = useScrolled();
   // DEC-118 (R-09): hold to select, tap to add, batch action bar.
   const selection = useMultiSelect();
@@ -181,6 +186,15 @@ export function ExpenseListPage() {
     incomes.length === 0 ? expenses : [...expenses, ...incomes].sort(byDateDesc);
   const feed = buildSessionFeed(feedTransactions, sessionById, isBrowsing);
   const expenseGroups = groupFeedByDay(feed);
+
+  const filterState: ExpenseFilterState = {
+    category: filterCategory,
+    profileId: filterProfileId,
+    walletNull: filterWalletNull,
+    place: filterPlace,
+  };
+  const activeFilterCount = countActiveFilters(filterState);
+  const anyFilterActive = hasActiveFilter(filterState);
 
   const clearFilters = () => {
     setFilterCategory(null);
@@ -364,50 +378,111 @@ export function ExpenseListPage() {
           </div>
         )}
 
-        {tab === 'expenses' && (
+        {tab === 'expenses' && (categories.length > 0 || placeTotals.length > 0 || anyFilterActive) && (
           <div
-            className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+            className="flex flex-col gap-2"
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
           >
-            <FilterChip
-              label={t('expenses.title')}
-              active={!filterCategory && !filterProfileId && !filterWalletNull && !filterPlace}
-              onClick={clearFilters}
-            />
-            {filterProfile && (
+            {/* Audit 4.4: clear-all + a single "Filtros (N)" toggle keep the header
+                short; the full, labelled palette is one tap away. */}
+            <div className="flex items-center gap-2">
               <FilterChip
-                label={filterProfile.name}
-                active
-                onClick={() => setFilterProfileId(null)}
+                label={t('expenses.filter_all')}
+                active={!anyFilterActive}
+                onClick={clearFilters}
               />
+              {(categories.length > 0 || placeTotals.length > 0) && (
+                <button
+                  onClick={() => setFiltersOpen((o) => !o)}
+                  className={`ml-auto shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold btn-press transition-colors ${
+                    filtersOpen || activeFilterCount > 0
+                      ? 'bg-surface-high text-on-surface'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                  aria-expanded={filtersOpen}
+                >
+                  <Icon name="filter_list" size={14} className="text-on-surface-dim" />
+                  {t('expenses.filters_label')}
+                  {activeFilterCount > 0 && (
+                    <span className="min-w-4 h-4 px-1 rounded-full bg-primary text-on-surface text-[10px] font-bold flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  <Icon name={filtersOpen ? 'expand_less' : 'expand_more'} size={14} className="text-on-surface-faint" />
+                </button>
+              )}
+            </div>
+
+            {/* Collapsed: a compact, removable summary of what's narrowing the list. */}
+            {!filtersOpen && anyFilterActive && (
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {filterCategory && (
+                  <FilterChip label={t(`categories.${filterCategory}` as never)} active onClick={() => setFilterCategory(null)} />
+                )}
+                {filterPlace && (
+                  <FilterChip label={filterPlace} icon="location_on" active onClick={() => setFilterPlace(null)} />
+                )}
+                {filterProfile && (
+                  <FilterChip label={filterProfile.name} active onClick={() => setFilterProfileId(null)} />
+                )}
+                {filterWalletNull && (
+                  <FilterChip label={t('expenses.filter_no_wallet')} active onClick={() => setFilterWalletNull(false)} />
+                )}
+              </div>
             )}
-            {filterWalletNull && (
-              <FilterChip
-                label={t('expenses.filter_no_wallet')}
-                active
-                onClick={() => setFilterWalletNull(false)}
-              />
+
+            {/* Expanded: the same chips, now grouped and labelled by nature. */}
+            {filtersOpen && (
+              <div className="flex flex-col gap-2">
+                {categories.length > 0 && (
+                  <FilterGroup label={t('expenses.filters_group_categories')}>
+                    {categories.map((cat) => (
+                      <FilterChip
+                        key={cat}
+                        label={t(`categories.${cat}` as never)}
+                        active={filterCategory === cat}
+                        onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+                      />
+                    ))}
+                  </FilterGroup>
+                )}
+                {/* E8 (M7): one chip per place, ranked by spend. */}
+                {placeTotals.length > 0 && (
+                  <FilterGroup label={t('expenses.filters_group_places')}>
+                    {placeTotals.map((p) => (
+                      <FilterChip
+                        key={p.placeId ?? p.label}
+                        label={p.label}
+                        icon="location_on"
+                        active={filterPlace === p.label}
+                        onClick={() => setFilterPlace(filterPlace === p.label ? null : p.label)}
+                      />
+                    ))}
+                  </FilterGroup>
+                )}
+                {(filterProfile || filterWalletNull) && (
+                  <FilterGroup label={t('expenses.filters_group_other')}>
+                    {filterProfile && (
+                      <FilterChip label={filterProfile.name} active onClick={() => setFilterProfileId(null)} />
+                    )}
+                    {filterWalletNull && (
+                      <FilterChip
+                        label={t('expenses.filter_no_wallet')}
+                        active
+                        onClick={() => setFilterWalletNull(false)}
+                      />
+                    )}
+                  </FilterGroup>
+                )}
+              </div>
             )}
-            {categories.map((cat) => (
-              <FilterChip
-                key={cat}
-                label={t(`categories.${cat}` as never)}
-                active={filterCategory === cat}
-                onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
-              />
-            ))}
-            {/* E8 (M7): one chip per place, ranked by spend. */}
-            {placeTotals.map((p) => (
-              <FilterChip
-                key={p.placeId ?? p.label}
-                label={p.label}
-                icon="location_on"
-                active={filterPlace === p.label}
-                onClick={() => setFilterPlace(filterPlace === p.label ? null : p.label)}
-              />
-            ))}
           </div>
+        )}
+
+        {/* Audit 4.4 (P2): name what a "Saída" is — the tab was an unannounced model. */}
+        {tab === 'outings' && (
+          <p className="text-xs text-on-surface-faint px-1 -mt-1">{t('expenses.outings_explainer')}</p>
         )}
       </div>
 
@@ -864,6 +939,19 @@ function IncomeRow({
         <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
       </div>
     </button>
+  );
+}
+
+/* Audit 4.4: a labelled, horizontally-scrollable row of chips of one nature
+   (Categorias / Lugares / Outros), so the palette stops reading as a flat mix. */
+function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-faint px-1">
+        {label}
+      </span>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">{children}</div>
+    </div>
   );
 }
 

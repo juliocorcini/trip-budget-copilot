@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.85.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Lista de gastos mais limpa: os filtros agora ficam atrás de um botão “Filtros”, organizados por tipo (Categorias, Lugares).',
+        'O que está filtrando aparece sempre visível, com um contador — e nada foi removido, é tudo a um toque.',
+        'A aba “Saídas” ganhou uma linha explicando o que é: os gastos de um rolê (uma noite, um passeio) numa linha só.',
+      ],
+      en: [
+        'Cleaner expense list: filters now live behind a “Filters” button, grouped by type (Categories, Places).',
+        'What’s filtering stays visible, with a count badge — and nothing was removed, it’s all one tap away.',
+        'The “Outings” tab got a one-line explainer: the expenses of a night out (a bar crawl, a day trip) in a single line.',
+      ],
+      es: [
+        'Lista de gastos más limpia: los filtros ahora están detrás de un botón “Filtros”, agrupados por tipo (Categorías, Lugares).',
+        'Lo que está filtrando queda siempre visible, con un contador — y no se quitó nada, todo está a un toque.',
+        'La pestaña “Salidas” tiene una línea que explica qué es: los gastos de una salida (una noche, un paseo) en una sola línea.',
+      ],
+    },
+  },
+  {
     version: '0.84.0',
     date: '2026-06-18',
     items: {
