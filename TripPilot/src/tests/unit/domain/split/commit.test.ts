@@ -128,6 +128,40 @@ describe('buildSplitCommitPlan', () => {
     expect(plan.shares.map((x) => x.amountCents).sort()).toEqual([3000, 3000, 3000]);
   });
 
+  it('itemized: the owner absorbs orphan (unclaimed) items — full bill, nothing lost', () => {
+    const pizza = createSplitItem({ description: 'Pizza', amountCents: 6000, category: 'restaurant' });
+    const beer = createSplitItem({ description: 'Cerveja', amountCents: 2000, category: 'bar' });
+    const { session, ids } = makeSession(['Eu', 'Ana'], [pizza, beer]);
+    // Only Ana claims her beer; the pizza is left orphan ("ninguém pegou").
+    const s = claimItemWhole(session, beer.id, ids['Ana']!);
+
+    const plan = buildSplitCommitPlan(s, realMap(ids, ['Eu', 'Ana']));
+    expect(plan.grandTotalCents).toBe(8000); // whole bill, not just the 2000 claimed
+    expect(plan.ownerCostCents).toBe(6000); // owner eats the orphan pizza
+    const owner = plan.shares.find((x) => x.isOwner)!;
+    const ana = plan.shares.find((x) => !x.isOwner)!;
+    expect(owner.amountCents).toBe(6000);
+    expect(ana.amountCents).toBe(2000);
+    expect(plan.shares.reduce((acc, x) => acc + x.amountCents, 0)).toBe(8000);
+  });
+
+  it('itemized: orphan absorption also carries the service that rides on it', () => {
+    const pizza = createSplitItem({ description: 'Pizza', amountCents: 6000 });
+    const beer = createSplitItem({ description: 'Cerveja', amountCents: 2000 });
+    const { session, ids } = makeSession(['Eu', 'Ana'], [pizza, beer]);
+    // Nobody claims anything; a 10% proportional service applies to the bill.
+    const s: SplitSession = {
+      ...session,
+      serviceCharge: { mode: 'proportional', source: 'detected', amountCents: 800, percent: 10 },
+    };
+
+    const plan = buildSplitCommitPlan(s, realMap(ids, ['Eu', 'Ana']));
+    // Full bill = 8000 items + 800 service; the owner (payer) absorbs all of it.
+    expect(plan.grandTotalCents).toBe(8800);
+    expect(plan.ownerCostCents).toBe(8800);
+    expect(plan.hasDebtors).toBe(false);
+  });
+
   it('shares reconcile to the grand total when everyone is real', () => {
     const items = [
       createSplitItem({ description: 'A', amountCents: 3333 }),

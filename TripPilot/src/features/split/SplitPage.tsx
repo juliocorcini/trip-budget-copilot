@@ -1,0 +1,942 @@
+import { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Navigate, useNavigate } from 'react-router';
+import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
+import { compressImageFile, blobToDataUrl, type CompressedImage } from '@/utils/image/compress';
+import { extractReceiptViaCloud, type ReceiptOcrError } from '@/utils/ai-ocr';
+import {
+  buildSplitCommitPlan,
+  buildSplitFromReceipt,
+  computeSplitTotals,
+  detectUnclaimed,
+  itemsSubtotalCents,
+  serviceChargeAmountCents,
+  splitItemBetween,
+  addParticipant,
+  createSplitItem,
+  createSplitSession,
+  type ServiceChargeMode,
+  type SplitItem,
+  type SplitMode,
+  type SplitSession,
+} from '@/domain/split';
+import { commitSplit, undoSplitCommit } from '@/domain/orchestrators';
+import { newAttachment } from '@/features/attachments/attachment-utils';
+import { attachmentRepository, appSettingsRepository } from '@/data/repositories';
+import { resolveActivePhase } from '@/domain/dates';
+import { formatMoney, toCents, convertToBaseCents, resolveFrozenRate } from '@/domain/money';
+import { getCategoryIcon } from '@/utils/category-icons';
+import { Icon } from '@/components/Icon';
+import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
+import { useSplitBudgetReading } from './useSplitBudgetReading';
+
+type Phase = 'capture' | 'reading' | 'divide';
+
+const SPLIT_MODES: SplitMode[] = ['itemized', 'equal', 'mine'];
+const TAX_MODES: ServiceChargeMode[] = ['proportional', 'per_head'];
+
+const SPLIT_CATEGORIES = [
+  'restaurant',
+  'bar',
+  'market',
+  'transport',
+  'accommodation',
+  'entertainment',
+  'gifts',
+  'other',
+];
+
+const VERDICT_STYLE: Record<string, { icon: string; className: string }> = {
+  ok: { icon: 'check_circle', className: 'text-success' },
+  attention: { icon: 'error', className: 'text-warning' },
+  risk: { icon: 'warning', className: 'text-error' },
+};
+
+/** Initials avatar text for a participant chip. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
+export function SplitPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { trip, phases, pools, participants, settings, loading, error, retry, reload } = useAppData();
+
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [phase, setPhase] = useState<Phase>('capture');
+  const [session, setSession] = useState<SplitSession | null>(null);
+  const [compressed, setCompressed] = useState<CompressedImage | null>(null);
+  const [activePersonId, setActivePersonId] = useState<string | null>(null);
+  const [view, setView] = useState<'item' | 'person'>('item');
+  const [busy, setBusy] = useState(false);
+  const [askTax, setAskTax] = useState(false);
+  const [taxSheetOpen, setTaxSheetOpen] = useState(false);
+  const [personSheetOpen, setPersonSheetOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
+  const cloudEnabled = settings?.cloudReceiptOcrEnabled ?? false;
+  const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
+  const baseCurrency = trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR';
+  const ownerName = owner?.name ?? t('split.you');
+
+  const companions = useMemo(() => participants.filter((p) => !p.isOwner), [participants]);
+
+  const totals = useMemo(() => (session ? computeSplitTotals(session) : null), [session]);
+  // The authoritative commit numbers (owner absorbs orphans, bill is whole) — used
+  // for "minha parte" + the CTA so the screen never lies about what gets logged.
+  const plan = useMemo(() => (session ? buildSplitCommitPlan(session, {}) : null), [session]);
+  const unclaimed = useMemo(
+    () => (session && session.mode === 'itemized' ? detectUnclaimed(session) : []),
+    [session],
+  );
+  const subtotalCents = session ? itemsSubtotalCents(session) : 0;
+  const taxCents = session ? serviceChargeAmountCents(session.serviceCharge, subtotalCents) : 0;
+
+  // E8: the owner's slice in the BILL currency, then converted to the trip base
+  // for the budget bridge (foreign bills reuse the frozen FX, DEC-instrument).
+  const billRate = useMemo(() => {
+    if (!session || session.currency === baseCurrency) return null;
+    return resolveFrozenRate(settings?.frozenRates ?? null, session.currency, baseCurrency);
+  }, [session, baseCurrency, settings]);
+
+  const ownerBillCents = plan?.ownerCostCents ?? 0;
+  const ownerBaseCents = billRate !== null && billRate > 0 ? convertToBaseCents(ownerBillCents, billRate) : ownerBillCents;
+  const reading = useSplitBudgetReading(ownerBaseCents);
+
+  /* ── capture ─────────────────────────────────────────────────────────── */
+
+  const beginSession = (over: Partial<Parameters<typeof createSplitSession>[0]> = {}): SplitSession =>
+    createSplitSession({
+      tripId: trip?.id ?? null,
+      phaseId: resolveActivePhase(phases)?.id ?? null,
+      name: t('split.default_name'),
+      currency: baseCurrency,
+      ownerName,
+      ...over,
+    });
+
+  const startManual = () => {
+    const first = createSplitItem({ description: '', amountCents: 0, category: 'restaurant' });
+    const next = beginSession({ items: [first] });
+    setSession(next);
+    setActivePersonId(next.participants[0]?.id ?? null);
+    setCompressed(null);
+    setAskTax(false);
+    setPhase('divide');
+    setEditingItemId(first.id);
+  };
+
+  const enableCloudThenPick = async () => {
+    await appSettingsRepository.update({ cloudReceiptOcrEnabled: true });
+    await reload();
+    fileRef.current?.click();
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhase('reading');
+    try {
+      const image = await compressImageFile(file);
+      setCompressed(image);
+      const dataUrl = await blobToDataUrl(image.blob);
+      const outcome = await extractReceiptViaCloud(dataUrl);
+      if (outcome.ok) {
+        const draft = buildSplitFromReceipt(outcome.plan, {
+          tripId: trip?.id ?? null,
+          phaseId: resolveActivePhase(phases)?.id ?? null,
+          ownerName,
+          fallbackCurrency: baseCurrency,
+          ownerActorId: null,
+        });
+        setSession(draft.session);
+        setActivePersonId(draft.session.participants[0]?.id ?? null);
+        setAskTax(draft.needsServiceChargePrompt);
+        setPhase('divide');
+        if (draft.session.items.length === 0) {
+          showToast(t('receiptScan.no_items_found'), 'warning', { durationMs: 6000 });
+        }
+      } else {
+        const reason: ReceiptOcrError = outcome.error;
+        showToast(t(`receiptScan.error_${reason}`), 'warning', { durationMs: 7000 });
+        const next = beginSession({ items: [createSplitItem({ description: '', amountCents: 0, category: 'restaurant' })] });
+        setSession(next);
+        setActivePersonId(next.participants[0]?.id ?? null);
+        setAskTax(false);
+        setPhase('divide');
+      }
+    } catch (err) {
+      console.error('[split] read failed', err);
+      showToast(t('receiptScan.error_failed'), 'danger');
+      setPhase('capture');
+    }
+  };
+
+  /* ── session mutations ───────────────────────────────────────────────── */
+
+  const setMode = (mode: SplitMode) => setSession((s) => (s ? { ...s, mode } : s));
+
+  const patchItem = (id: string, patch: Partial<SplitItem>) =>
+    setSession((s) => (s ? { ...s, items: s.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) } : s));
+  const removeItem = (id: string) =>
+    setSession((s) => (s ? { ...s, items: s.items.filter((i) => i.id !== id) } : s));
+  const addItem = () => {
+    const item = createSplitItem({ description: '', amountCents: 0, category: 'restaurant' });
+    setSession((s) => (s ? { ...s, items: [...s.items, item] } : s));
+    setEditingItemId(item.id);
+  };
+
+  // Pass-the-phone (§10): tapping an item toggles the ACTIVE person's claim. A
+  // line's claimers share it equally, so 2 claimers = half each, N = 1/N — the
+  // "meio-item / qty→N-donos em 1 toque" behaviour comes for free.
+  const toggleClaim = (itemId: string) => {
+    if (!session || activePersonId === null) return;
+    const item = session.items.find((i) => i.id === itemId);
+    if (!item) return;
+    const has = item.claims.some((c) => c.participantId === activePersonId);
+    const nextIds = has
+      ? item.claims.filter((c) => c.participantId !== activePersonId).map((c) => c.participantId)
+      : [...item.claims.map((c) => c.participantId), activePersonId];
+    setSession((s) => (s ? splitItemBetween(s, itemId, nextIds) : s));
+  };
+
+  const toggleCompanion = (realId: string, name: string) => {
+    setSession((s) => {
+      if (!s) return s;
+      const existing = s.participants.find((p) => p.linkedParticipantId === realId);
+      if (existing) {
+        return {
+          ...s,
+          participants: s.participants.filter((p) => p.id !== existing.id),
+          items: s.items.map((i) => ({ ...i, claims: i.claims.filter((c) => c.participantId !== existing.id) })),
+        };
+      }
+      return addParticipant(s, name, { linkedParticipantId: realId }).session;
+    });
+  };
+
+  const addAdhoc = (name: string) => {
+    const clean = name.trim();
+    if (clean === '') return;
+    setSession((s) => (s ? addParticipant(s, clean).session : s));
+  };
+
+  const removeParticipant = (id: string) => {
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            participants: s.participants.filter((p) => p.id !== id),
+            items: s.items.map((i) => ({ ...i, claims: i.claims.filter((c) => c.participantId !== id) })),
+          }
+        : s,
+    );
+    setActivePersonId((cur) => (cur === id ? session?.participants[0]?.id ?? null : cur));
+  };
+
+  const applyServiceCharge = (charge: { mode: ServiceChargeMode; amountCents: number; percent: number | null }) => {
+    setSession((s) =>
+      s ? { ...s, serviceCharge: { ...charge, source: 'manual' } } : s,
+    );
+    setAskTax(false);
+    setTaxSheetOpen(false);
+  };
+
+  const setTaxMode = (mode: ServiceChargeMode) =>
+    setSession((s) => (s ? { ...s, serviceCharge: { ...s.serviceCharge, mode } } : s));
+
+  /* ── commit ──────────────────────────────────────────────────────────── */
+
+  const handleCommit = async () => {
+    if (!trip || !owner || !session || busy) return;
+    if (subtotalCents <= 0) {
+      showToast(t('split.commit_empty'), 'warning');
+      return;
+    }
+    const operationalPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
+    const fallbackPhase = resolveActivePhase(phases);
+    if (!operationalPool || !fallbackPhase) {
+      showToast(t('backup.operation_failed'), 'danger');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      let attachmentId: string | null = null;
+      if (compressed) {
+        const attachment = newAttachment(compressed, { sessionId: null, transactionId: null });
+        await attachmentRepository.add(attachment);
+        attachmentId = attachment.id;
+      }
+
+      const participantIdMap: Record<string, string> = {};
+      for (const p of session.participants) {
+        if (p.linkedParticipantId !== null) participantIdMap[p.id] = p.linkedParticipantId;
+      }
+
+      const result = await commitSplit({
+        session,
+        tripId: trip.id,
+        phaseId: fallbackPhase.id,
+        budgetPoolId: operationalPool.id,
+        ownerParticipantId: owner.id,
+        walletId: null,
+        participantIdMap,
+        exchangeRate: billRate,
+        attachmentId,
+      });
+
+      await reload();
+      showToast(t('split.committed_toast'), 'success', {
+        durationMs: 8000,
+        actionLabel: t('common.undo'),
+        onTap: () => {
+          void undoSplitCommit({
+            splitRecordId: result.splitRecordId,
+            sessionId: result.sessionId,
+            transactionId: result.transactionId,
+          }).then(() => {
+            notifyAppDataChanged();
+            showToast(t('common.undo_done'), 'info');
+          });
+        },
+      });
+      navigate('/expenses');
+    } catch (err) {
+      console.error('[split] commit failed', err);
+      showToast(t('backup.operation_failed'), 'danger');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!trip) {
+    if (error) return <DataErrorScreen onRetry={retry} />;
+    if (loading) return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
+    return <Navigate to="/welcome" replace />;
+  }
+
+  const currency = session?.currency ?? baseCurrency;
+  const editingItem = editingItemId !== null && session ? session.items.find((i) => i.id === editingItemId) : undefined;
+
+  return (
+    <div className="max-w-[430px] mx-auto flex flex-col gap-4 px-5 pt-2 pb-28">
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
+        </button>
+        <div>
+          <h1 className="text-heading font-bold text-on-surface leading-tight">{t('split.title')}</h1>
+          <p className="text-[11px] text-on-surface-faint">{t('split.subtitle')}</p>
+        </div>
+      </div>
+
+      {phase === 'capture' && (
+        <div className="flex flex-col gap-3">
+          {!cloudEnabled ? (
+            <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
+              <div className="flex items-center gap-2">
+                <Icon name="auto_awesome" size={20} className="text-primary" />
+                <p className="text-sm font-bold text-on-surface">{t('receiptScan.consent_title')}</p>
+              </div>
+              <p className="text-xs text-on-surface-dim leading-relaxed">{t('receiptScan.consent_body')}</p>
+              <button
+                onClick={() => void enableCloudThenPick()}
+                className="w-full py-3 rounded-2xl bg-primary text-on-surface font-bold btn-press"
+              >
+                {t('receiptScan.consent_enable')}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="rounded-2xl p-4 flex items-center gap-3 btn-press text-left"
+              style={{ background: 'var(--surface-container)' }}
+            >
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(124,160,255,0.16)' }}>
+                <Icon name="auto_awesome" size={24} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="block text-sm font-bold text-on-surface">{t('split.scan_ai')}</span>
+                <span className="block text-[11px] text-on-surface-faint">{t('split.scan_ai_hint')}</span>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          )}
+
+          <button
+            onClick={startManual}
+            className="rounded-2xl p-4 flex items-center gap-3 btn-press text-left"
+            style={{ background: 'var(--surface-container)' }}
+          >
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'var(--surface-high)' }}>
+              <Icon name="edit" size={22} className="text-on-surface-dim" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="block text-sm font-bold text-on-surface">{t('split.add_manually')}</span>
+              <span className="block text-[11px] text-on-surface-faint">{t('split.add_manually_hint')}</span>
+            </div>
+            <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+          </button>
+        </div>
+      )}
+
+      {phase === 'reading' && (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-on-surface-dim">{t('receiptScan.reading')}</p>
+        </div>
+      )}
+
+      {phase === 'divide' && session && totals && (
+        <div className="flex flex-col gap-4">
+          <input
+            value={session.name}
+            onChange={(e) => setSession((s) => (s ? { ...s, name: e.target.value } : s))}
+            placeholder={t('split.default_name')}
+            className="w-full rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface bg-surface-container outline-none"
+          />
+
+          {/* Service charge (§9) — ask when unknown, otherwise show + tweak. */}
+          {askTax ? (
+            <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
+              <p className="text-sm font-bold text-on-surface">{t('split.tax_ask_title')}</p>
+              <p className="text-xs text-on-surface-dim">{t('split.tax_ask_body')}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    applyServiceCharge({ mode: 'none', amountCents: 0, percent: null });
+                  }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-press bg-surface-high text-on-surface"
+                >
+                  {t('split.tax_none')}
+                </button>
+                <button
+                  onClick={() => setTaxSheetOpen(true)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-press bg-primary text-on-surface"
+                >
+                  {t('split.tax_yes')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setTaxSheetOpen(true)}
+              className="rounded-2xl p-3.5 flex items-center gap-3 btn-press text-left"
+              style={{ background: 'var(--surface-container)' }}
+            >
+              <Icon name="receipt_long" size={20} className="text-on-surface-dim shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-on-surface">{t('split.tax_label')}</p>
+                <p className="text-[11px] text-on-surface-faint">
+                  {session.serviceCharge.mode === 'none'
+                    ? t('split.tax_off')
+                    : `${formatMoney(taxCents, currency)} · ${t(`split.tax_mode_${session.serviceCharge.mode}`)}`}
+                </p>
+              </div>
+              <Icon name="tune" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          )}
+
+          {/* Mode fork (§10). */}
+          <div className="grid grid-cols-3 gap-2">
+            {SPLIT_MODES.map((m) => {
+              const active = session.mode === m;
+              return (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`py-2.5 rounded-xl text-xs font-bold btn-press ${active ? 'bg-primary text-on-surface' : 'bg-surface-container text-on-surface-dim'}`}
+                >
+                  {t(`split.mode_${m}`)}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Participants (real companions create debts; ad-hoc are ephemeral). */}
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-faint">
+              {t('split.people_label')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {session.participants.map((p) => {
+                const isOwnerP = p.kind === 'owner';
+                return (
+                  <span
+                    key={p.id}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 bg-surface-high text-on-surface"
+                  >
+                    {isOwnerP ? t('split.you') : p.name}
+                    {!isOwnerP && (
+                      <button onClick={() => removeParticipant(p.id)} className="btn-press" aria-label={t('common.delete')}>
+                        <Icon name="close" size={12} className="text-on-surface-faint" />
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {companions
+                .filter((c) => !session.participants.some((p) => p.linkedParticipantId === c.id))
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleCompanion(c.id, c.name)}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold btn-press bg-surface-container text-on-surface-dim flex items-center gap-1"
+                  >
+                    <Icon name="add" size={13} className="text-on-surface-faint" />
+                    {c.name}
+                  </button>
+                ))}
+              <button
+                onClick={() => setPersonSheetOpen(true)}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold btn-press bg-surface-container text-primary flex items-center gap-1"
+              >
+                <Icon name="person_add" size={13} className="text-primary" />
+                {t('split.add_person')}
+              </button>
+            </div>
+          </div>
+
+          {/* Itemized board (pass-the-phone claim). */}
+          {session.mode === 'itemized' && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-faint">
+                  {t('split.active_person')}
+                </p>
+                <div className="flex rounded-lg overflow-hidden bg-surface-container">
+                  {(['item', 'person'] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      className={`px-2.5 py-1 text-[11px] font-bold btn-press ${view === v ? 'bg-primary text-on-surface' : 'text-on-surface-dim'}`}
+                    >
+                      {t(`split.view_${v}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {session.participants.map((p) => {
+                  const active = activePersonId === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setActivePersonId(p.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold btn-press flex items-center gap-1.5 ${active ? 'bg-primary text-on-surface' : 'bg-surface-container text-on-surface-dim'}`}
+                    >
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] bg-surface-high text-on-surface">
+                        {initials(p.kind === 'owner' ? ownerName : p.name)}
+                      </span>
+                      {p.kind === 'owner' ? t('split.you') : p.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {view === 'item' ? (
+                <div className="flex flex-col gap-2">
+                  {session.items.map((item) => {
+                    const claimers = item.claims.map((c) => c.participantId);
+                    const mine = activePersonId !== null && claimers.includes(activePersonId);
+                    const orphan = claimers.length === 0;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`rounded-2xl p-3 flex items-center gap-3 ${orphan ? 'ring-1 ring-warning/40' : ''}`}
+                        style={{ background: 'var(--surface-container)' }}
+                      >
+                        <button onClick={() => toggleClaim(item.id)} className="flex-1 min-w-0 flex items-center gap-3 text-left btn-press">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${mine ? 'bg-primary' : 'bg-surface-high'}`}
+                          >
+                            <Icon name={mine ? 'check' : getCategoryIcon(item.category)} size={18} className={mine ? 'text-on-surface' : 'text-on-surface-dim'} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-on-surface truncate">
+                              {item.description || t('split.unnamed_item')}
+                            </p>
+                            <p className="text-[11px] text-on-surface-faint">
+                              {formatMoney(item.amountCents, currency)}
+                              {claimers.length > 1 && ` · ${t('split.shared_n', { count: claimers.length })}`}
+                              {orphan && ` · ${t('split.unclaimed')}`}
+                            </p>
+                          </div>
+                        </button>
+                        <div className="flex -space-x-1.5 shrink-0">
+                          {claimers.slice(0, 4).map((cid) => {
+                            const p = session.participants.find((x) => x.id === cid);
+                            return (
+                              <span
+                                key={cid}
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border border-surface-container bg-surface-high text-on-surface"
+                              >
+                                {initials(p?.kind === 'owner' ? ownerName : p?.name ?? '?')}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <button onClick={() => setEditingItemId(item.id)} className="btn-press p-1 shrink-0" aria-label={t('common.edit')}>
+                          <Icon name="edit" size={16} className="text-on-surface-faint" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button onClick={addItem} className="py-2.5 rounded-xl text-sm font-semibold btn-press bg-surface-container text-primary flex items-center justify-center gap-1.5">
+                    <Icon name="add" size={16} className="text-primary" />
+                    {t('split.add_item')}
+                  </button>
+                </div>
+              ) : (
+                <PersonCards totals={totals} session={session} currency={currency} ownerName={ownerName} t={t} />
+              )}
+
+              {unclaimed.length > 0 && (
+                <div className="rounded-xl px-3 py-2.5 text-[12px] font-medium text-warning bg-warning/10 flex items-center gap-2">
+                  <Icon name="error" size={15} className="text-warning shrink-0" />
+                  {t('split.unclaimed_warn', {
+                    count: unclaimed.length,
+                    amount: formatMoney(unclaimed.reduce((s, i) => s + i.amountCents, 0), currency),
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Equal / mine: just show the per-person cards. */}
+          {session.mode !== 'itemized' && (
+            <PersonCards totals={totals} session={session} currency={currency} ownerName={ownerName} t={t} />
+          )}
+
+          {/* Budget bridge + commit. */}
+          <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-semibold text-on-surface">{t('split.my_part')}</span>
+              <span className="text-lg font-extrabold text-on-surface">{formatMoney(ownerBillCents, currency)}</span>
+            </div>
+            {reading && <BudgetReading reading={reading} currency={baseCurrency} t={t} />}
+            <button
+              onClick={() => void handleCommit()}
+              disabled={busy || subtotalCents <= 0}
+              className="w-full py-3 rounded-2xl bg-primary text-on-surface font-bold btn-press disabled:opacity-50"
+            >
+              {t('split.commit', { total: formatMoney(plan?.grandTotalCents ?? totals.grandTotalCents, currency) })}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ItemEditor
+        item={editingItem}
+        currency={currency}
+        onClose={() => setEditingItemId(null)}
+        onPatch={patchItem}
+        onRemove={(id) => {
+          removeItem(id);
+          setEditingItemId(null);
+        }}
+        t={t}
+      />
+
+      <TaxEditor
+        open={taxSheetOpen}
+        currency={currency}
+        subtotalCents={subtotalCents}
+        onClose={() => setTaxSheetOpen(false)}
+        onApply={applyServiceCharge}
+        t={t}
+      />
+
+      <PersonEditor
+        open={personSheetOpen}
+        onClose={() => setPersonSheetOpen(false)}
+        onAdd={(name) => {
+          addAdhoc(name);
+          setPersonSheetOpen(false);
+        }}
+        t={t}
+      />
+
+      {session && session.serviceCharge.mode !== 'none' && phase === 'divide' && (
+        <TaxModeFloating mode={session.serviceCharge.mode} onChange={setTaxMode} />
+      )}
+    </div>
+  );
+}
+
+/* ── subcomponents ─────────────────────────────────────────────────────── */
+
+type TFn = ReturnType<typeof useTranslation>['t'];
+
+function PersonCards({
+  totals,
+  session,
+  currency,
+  ownerName,
+  t,
+}: {
+  totals: ReturnType<typeof computeSplitTotals>;
+  session: SplitSession;
+  currency: string;
+  ownerName: string;
+  t: TFn;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {totals.totals.map((pt) => {
+        const p = session.participants.find((x) => x.id === pt.participantId);
+        const isOwnerP = p?.kind === 'owner';
+        return (
+          <div key={pt.participantId} className="rounded-2xl p-3.5 flex items-center gap-3" style={{ background: 'var(--surface-container)' }}>
+            <span className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold bg-surface-high text-on-surface">
+              {initials(isOwnerP ? ownerName : p?.name ?? '?')}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">{isOwnerP ? t('split.you') : p?.name}</p>
+              <p className="text-[11px] text-on-surface-faint">
+                {formatMoney(pt.itemsCents, currency)}
+                {pt.serviceCents !== 0 && ` · ${t('split.tax_short')} ${formatMoney(pt.serviceCents, currency)}`}
+                {pt.adjustmentsCents !== 0 && ` · ${formatMoney(pt.adjustmentsCents, currency)}`}
+              </p>
+            </div>
+            <span className="text-base font-extrabold text-on-surface">{formatMoney(pt.totalCents, currency)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BudgetReading({
+  reading,
+  currency,
+  t,
+}: {
+  reading: NonNullable<ReturnType<typeof useSplitBudgetReading>>;
+  currency: string;
+  t: TFn;
+}) {
+  const style = VERDICT_STYLE[reading.verdict.tone] ?? VERDICT_STYLE.ok!;
+  const daily = reading.facts.find((f) => f.kind === 'daily_fits' || f.kind === 'daily_days');
+  const free = reading.facts.find((f) => f.kind === 'free_impact' || f.kind === 'exceeds_free');
+
+  let line: string;
+  if (free?.kind === 'exceeds_free') {
+    line = t('split.reading_exceeds', { amount: formatMoney(free.missingCents, currency) });
+  } else if (daily?.kind === 'daily_fits') {
+    line = t('split.reading_fits_today');
+  } else if (daily?.kind === 'daily_days') {
+    line = t('split.reading_days', { days: daily.days });
+  } else if (free?.kind === 'free_impact') {
+    line = t('split.reading_left', { amount: formatMoney(free.afterCents, currency) });
+  } else {
+    line = t('split.reading_ok');
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Icon name={style.icon} size={16} className={`${style.className} shrink-0`} />
+      <p className="text-[12px] font-medium text-on-surface-dim">{line}</p>
+    </div>
+  );
+}
+
+function TaxModeFloating({ mode, onChange }: { mode: ServiceChargeMode; onChange: (m: ServiceChargeMode) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-2 justify-center">
+      <span className="text-[11px] text-on-surface-faint">{t('split.tax_split_as')}</span>
+      <div className="flex rounded-lg overflow-hidden bg-surface-container">
+        {TAX_MODES.map((m) => (
+          <button
+            key={m}
+            onClick={() => onChange(m)}
+            className={`px-3 py-1 text-[11px] font-bold btn-press ${mode === m ? 'bg-primary text-on-surface' : 'text-on-surface-dim'}`}
+          >
+            {t(`split.tax_mode_${m}`)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ItemEditor({
+  item,
+  currency,
+  onClose,
+  onPatch,
+  onRemove,
+  t,
+}: {
+  item: SplitItem | undefined;
+  currency: string;
+  onClose: () => void;
+  onPatch: (id: string, patch: Partial<SplitItem>) => void;
+  onRemove: (id: string) => void;
+  t: TFn;
+}) {
+  return (
+    <BottomSheet open={item !== undefined} onClose={onClose} title={t('split.edit_item')}>
+      {item && (
+        <div className="flex flex-col gap-3 pb-2">
+          <label className="text-xs font-semibold text-on-surface">{t('split.item_name')}</label>
+          <input
+            value={item.description}
+            onChange={(e) => onPatch(item.id, { description: e.target.value })}
+            className="w-full rounded-xl px-3 py-2.5 text-sm bg-surface-high text-on-surface outline-none"
+            autoFocus
+          />
+          <label className="text-xs font-semibold text-on-surface">{t('split.item_amount')} ({currency})</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            defaultValue={item.amountCents > 0 ? (item.amountCents / 100).toString() : ''}
+            onChange={(e) => onPatch(item.id, { amountCents: toCents(parseFloat(e.target.value) || 0) })}
+            className="w-full rounded-xl px-3 py-2.5 text-sm bg-surface-high text-on-surface outline-none"
+          />
+          <label className="text-xs font-semibold text-on-surface">{t('split.item_category')}</label>
+          <div className="grid grid-cols-4 gap-2">
+            {SPLIT_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => onPatch(item.id, { category: cat })}
+                className={`py-2 rounded-xl flex flex-col items-center gap-1 btn-press ${item.category === cat ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'}`}
+              >
+                <Icon name={getCategoryIcon(cat)} size={18} />
+                <span className="text-[9px] font-semibold">{t(`categories.${cat}`)}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => onRemove(item.id)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-press bg-surface-high text-error">
+              {t('common.delete')}
+            </button>
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-bold btn-press bg-primary text-on-surface">
+              {t('split.item_done')}
+            </button>
+          </div>
+        </div>
+      )}
+    </BottomSheet>
+  );
+}
+
+function TaxEditor({
+  open,
+  currency,
+  subtotalCents,
+  onClose,
+  onApply,
+  t,
+}: {
+  open: boolean;
+  currency: string;
+  subtotalCents: number;
+  onClose: () => void;
+  onApply: (charge: { mode: ServiceChargeMode; amountCents: number; percent: number | null }) => void;
+  t: TFn;
+}) {
+  const [tab, setTab] = useState<'amount' | 'percent'>('percent');
+  const [value, setValue] = useState('');
+
+  const apply = () => {
+    const num = parseFloat(value) || 0;
+    if (num <= 0) {
+      onApply({ mode: 'none', amountCents: 0, percent: null });
+      return;
+    }
+    if (tab === 'percent') {
+      onApply({ mode: 'proportional', amountCents: Math.round((subtotalCents * num) / 100), percent: num });
+    } else {
+      onApply({ mode: 'proportional', amountCents: toCents(num), percent: null });
+    }
+    setValue('');
+  };
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title={t('split.tax_title')}>
+      <div className="flex flex-col gap-3 pb-2">
+        <div className="flex rounded-xl overflow-hidden bg-surface-high">
+          {(['percent', 'amount'] as const).map((tb) => (
+            <button
+              key={tb}
+              onClick={() => setTab(tb)}
+              className={`flex-1 py-2 text-sm font-bold btn-press ${tab === tb ? 'bg-primary text-on-surface' : 'text-on-surface-dim'}`}
+            >
+              {tb === 'percent' ? '%' : currency}
+            </button>
+          ))}
+        </div>
+        <input
+          type="number"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={tab === 'percent' ? '10' : '0.00'}
+          className="w-full rounded-xl px-3 py-2.5 text-sm bg-surface-high text-on-surface outline-none"
+          autoFocus
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => onApply({ mode: 'none', amountCents: 0, percent: null })}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-press bg-surface-high text-on-surface"
+          >
+            {t('split.tax_none')}
+          </button>
+          <button onClick={apply} className="flex-1 py-2.5 rounded-xl text-sm font-bold btn-press bg-primary text-on-surface">
+            {t('common.confirm')}
+          </button>
+        </div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+function PersonEditor({
+  open,
+  onClose,
+  onAdd,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (name: string) => void;
+  t: TFn;
+}) {
+  const [name, setName] = useState('');
+  return (
+    <BottomSheet open={open} onClose={onClose} title={t('split.add_person')}>
+      <div className="flex flex-col gap-3 pb-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('split.person_name')}
+          className="w-full rounded-xl px-3 py-2.5 text-sm bg-surface-high text-on-surface outline-none"
+          autoFocus
+        />
+        <button
+          onClick={() => {
+            onAdd(name);
+            setName('');
+          }}
+          className="w-full py-2.5 rounded-xl text-sm font-bold btn-press bg-primary text-on-surface"
+        >
+          {t('split.add_person')}
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}

@@ -1,4 +1,4 @@
-import { computeSplitTotals } from './split';
+import { computeSplitTotals, itemsSubtotalCents, serviceChargeAmountCents } from './split';
 import type { SplitSession } from './types';
 
 /** One real-trip-participant's slice of the committed bill (in BILL cents). */
@@ -18,7 +18,7 @@ export interface SplitCommitShare {
  * converts to base via the trip's exchange rate.
  */
 export interface SplitCommitPlan {
-  /** The whole bill (every person's total, incl. unmapped ad-hoc portions). */
+  /** The whole bill (subtotal + service + adjustments); orphans fall on the owner. */
   grandTotalCents: number;
   /** The owner's own total — their personal cost (the budget bridge input). */
   ownerCostCents: number;
@@ -62,22 +62,37 @@ export function buildSplitCommitPlan(
   realIdByParticipant: Record<string, string | null>,
 ): SplitCommitPlan {
   const totals = computeSplitTotals(session);
+
+  // The owner physically paid the whole bill, so any orphan (unclaimed) value is
+  // theirs by default — never dropped (DEC-106: financial truth is never lost,
+  // §8.2: the owner resolves the leftovers at commit). computeSplitTotals keeps
+  // orphans OUT of the per-person totals (they surface as the "ninguém pegou"
+  // nudge), so we bill the FULL ticket and fold that gap back onto the owner.
+  // When everything is claimed — or in equal/mine mode — the gap is 0 and this is
+  // a no-op.
+  const subtotalCents = itemsSubtotalCents(session);
+  const serviceCents = serviceChargeAmountCents(session.serviceCharge, subtotalCents);
+  const adjustmentsCents = session.adjustments.reduce((sum, adjustment) => sum + adjustment.amountCents, 0);
+  const fullBillCents = subtotalCents + serviceCents + adjustmentsCents;
+  const orphanGapCents = Math.max(0, fullBillCents - totals.grandTotalCents);
+
   const byRealId = new Map<string, SplitCommitShare>();
   let ownerCostCents = 0;
 
   for (const participant of session.participants) {
     const realId = realIdByParticipant[participant.id] ?? null;
     const total = totals.totals.find((t) => t.participantId === participant.id);
-    const amountCents = total?.totalCents ?? 0;
-    if (participant.kind === 'owner') ownerCostCents = amountCents;
+    const isOwner = participant.kind === 'owner';
+    const amountCents = (total?.totalCents ?? 0) + (isOwner ? orphanGapCents : 0);
+    if (isOwner) ownerCostCents = amountCents;
     if (realId === null) continue;
 
     const existing = byRealId.get(realId);
     if (existing) {
       existing.amountCents += amountCents;
-      existing.isOwner = existing.isOwner || participant.kind === 'owner';
+      existing.isOwner = existing.isOwner || isOwner;
     } else {
-      byRealId.set(realId, { participantId: realId, amountCents, isOwner: participant.kind === 'owner' });
+      byRealId.set(realId, { participantId: realId, amountCents, isOwner });
     }
   }
 
@@ -85,7 +100,7 @@ export function buildSplitCommitPlan(
   const hasDebtors = shares.some((s) => !s.isOwner && s.amountCents !== 0);
 
   return {
-    grandTotalCents: totals.grandTotalCents,
+    grandTotalCents: fullBillCents,
     ownerCostCents,
     shares,
     hasDebtors,
