@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.87.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Divisão de gastos com uma explicação única: o mesmo "como funciona a divisão" aparece em registrar gasto, escanear nota e na tela de pessoas.',
+        'Vem recolhida — toque para abrir os 3 passos (quem pagou, a sua parte, acertar depois).',
+        'No detalhe de um gasto dividido, "fluxo financeiro" e "custo pessoal" agora têm uma frase explicando cada um. Nada mudou no funcionamento.',
+      ],
+      en: [
+        'Expense splitting now has a single explainer: the same "how splitting works" shows up on register expense, scan receipt and the people screen.',
+        "It starts collapsed — tap to open the 3 steps (who paid, your share, settle later).",
+        'On a split expense\'s detail, "financial flow" and "personal cost" now carry a one-line explanation each. Nothing changed in how it works.',
+      ],
+      es: [
+        'La división de gastos ahora tiene una explicación única: el mismo "cómo funciona la división" aparece en registrar gasto, escanear recibo y la pantalla de personas.',
+        'Viene recogida — toca para abrir los 3 pasos (quién pagó, tu parte, saldar después).',
+        'En el detalle de un gasto dividido, "flujo financiero" y "costo personal" ahora llevan una frase que explica cada uno. Nada cambió en el funcionamiento.',
+      ],
+    },
+  },
+  {
     version: '0.86.0',
     date: '2026-06-18',
     items: {

@@ -299,6 +299,13 @@ export function ExpenseDetailPage() {
             )}
           </div>
 
+          {/* G9 (audit §4.5): name the two technical labels in one plain line. */}
+          {tx.isShared && (
+            <p className="text-[11px] text-on-surface-faint px-1 -mt-2 leading-snug">
+              {t('split.flow_vs_cost_hint')}
+            </p>
+          )}
+
           {tx.isShared && shares.length > 0 && (
             <div>
               <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">

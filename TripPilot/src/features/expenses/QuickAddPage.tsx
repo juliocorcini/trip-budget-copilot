@@ -54,6 +54,7 @@ import type { ShareType, CurrentPlace } from '@/domain/types/common';
 import type { AppSettings } from '@/domain/types/app-settings';
 import type { Participant } from '@/domain/types/participant';
 import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
+import { SplitExplainer } from '@/features/shared/SplitExplainer';
 import { PlaceField } from '@/features/location/PlaceField';
 
 const CATEGORY_KEYS = [
@@ -1016,7 +1017,10 @@ export function QuickAddPage() {
 
       {/* ── WHO PAID? (DEC-123 / D-R4-J) — first-level question + split ── */}
       {canSplit && (
-        <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-4">
+        <>
+          {/* G9 (audit §4.15): the single shared "how splitting works" explainer. */}
+          <SplitExplainer />
+          <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-4">
           <div>
             <label className="text-xs text-on-surface-faint mb-2 block">
               {t('expenses.who_paid')}
@@ -1196,7 +1200,8 @@ export function QuickAddPage() {
                 ))}
             </div>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       {!isTransferLike && participants.length <= 1 && (

@@ -597,6 +597,13 @@
     "link_planned_empty": "Ninguna compra planificada compatible en este fondo.",
     "linked_planned_label": "Cuenta en la compra planificada"
   },
+  "split": {
+    "how_title": "Cómo funciona la división",
+    "how_step_who": "Marcas quién pagó y quién entra en el reparto.",
+    "how_step_share": "Cada uno se queda con su parte; lo que adelantaste (o aún debes) se convierte en un saldo entre ustedes.",
+    "how_step_settle": "Después solo hay que saldar — la app sugiere quién paga a quién con las mínimas transferencias.",
+    "flow_vs_cost_hint": "Flujo financiero = lo que salió de tu billetera. Costo personal = solo tu parte."
+  },
   "categories": {
     "bar": "Bar",
     "market": "Supermercado",

@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
+import { SplitExplainer } from '@/features/shared/SplitExplainer';
 
 type Phase = 'capture' | 'reading' | 'review';
 
@@ -425,6 +426,8 @@ export function ReceiptScanPage() {
           {/* DEC-208 — pick exactly WHO splits this receipt (not auto-everyone). */}
           {splittable && (
             <div className="flex flex-col gap-2">
+              {/* G9 (audit §4.13): the single shared "how splitting works" explainer. */}
+              <SplitExplainer />
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-on-surface">
                   {t('receiptScan.split_with_label')}

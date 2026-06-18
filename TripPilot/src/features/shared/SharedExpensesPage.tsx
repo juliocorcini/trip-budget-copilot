@@ -49,6 +49,7 @@ import { shareOrCopyLink } from '@/utils/native/link-share';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
+import { SplitExplainer } from './SplitExplainer';
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
@@ -326,6 +327,9 @@ export function SharedExpensesPage() {
           <span className="text-xs font-medium text-on-surface">{t('sync.my_qr')}</span>
         </button>
       </div>
+
+      {/* G9 (audit §4.15): the single shared "how splitting works" explainer. */}
+      <SplitExplainer />
 
       <div>
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">

@@ -597,6 +597,13 @@
     "link_planned_empty": "Nenhuma compra planejada compatível neste fundo.",
     "linked_planned_label": "Conta na compra planejada"
   },
+  "split": {
+    "how_title": "Como funciona a divisão",
+    "how_step_who": "Você marca quem pagou e quem entra no rateio.",
+    "how_step_share": "Cada um fica com a sua parte; o que você adiantou (ou ainda deve) vira um saldo entre vocês.",
+    "how_step_settle": "Depois é só acertar — o app sugere quem paga quem com o mínimo de transferências.",
+    "flow_vs_cost_hint": "Fluxo financeiro = o que saiu da sua carteira. Custo pessoal = só a sua parte."
+  },
   "categories": {
     "bar": "Bar",
     "market": "Mercado",

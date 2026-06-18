@@ -597,6 +597,13 @@
     "link_planned_empty": "No compatible planned purchase in this fund.",
     "linked_planned_label": "Counts toward planned purchase"
   },
+  "split": {
+    "how_title": "How splitting works",
+    "how_step_who": "You mark who paid and who's in on the split.",
+    "how_step_share": "Everyone keeps their own share; what you fronted (or still owe) becomes a balance between you.",
+    "how_step_settle": "Then just settle up — the app suggests who pays whom with the fewest transfers.",
+    "flow_vs_cost_hint": "Financial flow = what left your wallet. Personal cost = only your share."
+  },
   "categories": {
     "bar": "Bar",
     "market": "Groceries",

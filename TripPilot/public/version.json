@@ -1,8 +1,8 @@
 {
-  "version": "0.86.0",
+  "version": "0.87.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.86.0.zip",
-  "notes": "Planejador mais fácil de entender: uma linha explica pra que serve a tela, e os termos “margem livre”, “alocado”, a classificação (essencial/planejado/opcional) e os presets agora vêm com uma frase curta dizendo o que cada um significa. Nada mudou no funcionamento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.87.0.zip",
+  "notes": "Agora tem uma explicação única de “como funciona a divisão”, com o mesmo texto em todas as telas onde você divide um gasto (registrar gasto, escanear nota e a tela de pessoas). Vem recolhida — toque para ver os 3 passos. E no detalhe de um gasto dividido, “fluxo financeiro” e “custo pessoal” ganharam uma frase explicando cada um. Nada mudou no funcionamento."
 }
