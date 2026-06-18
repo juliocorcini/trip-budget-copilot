@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
@@ -118,6 +118,24 @@ export function DashboardCards({
   // mode is chosen it collapses to a single chip; tapping it re-opens the picker.
   const [checkInExpanded, setCheckInExpanded] = useState(false);
   const insightScrollRef = useRef<HTMLDivElement>(null);
+  // Julio device test 2026-06-18 (GATE 17): the occasion carousel must always
+  // OPEN on the left — showing the planned, colour-coded metas (bar/restaurante/
+  // mercado) first — instead of landing on a generic "Outros" count. Verified
+  // cause (Playwright, Julio's backup, with NO JS scroll involved): when the
+  // carousel scrolls INTO the viewport, a `scroll-snap-type: x` container is
+  // re-snapped by the browser to card 3 (scrollLeft 373 of 497) — both
+  // `mandatory` and `proximity` do it; only `snap-none` holds it at 0. So the
+  // carousel now scrolls freely (snap-none, see the container class) and the dot
+  // pager still tracks position; ordering stays planned-first
+  // (buildOccasionCounters). This mount-time pin is cheap insurance against any
+  // device-specific scroll restoration on back-navigation.
+  const pinOccasionCarouselLeft = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return;
+    node.scrollLeft = 0;
+    requestAnimationFrame(() => {
+      node.scrollLeft = 0;
+    });
+  }, []);
   // M2: auto-rotation — paused (timestamp) while the user is interacting, and
   // gated by reduced-motion. Self-scrolls never re-pause (only pointer/wheel).
   const insightPausedUntilRef = useRef(0);
@@ -775,9 +793,14 @@ export function DashboardCards({
                 <LensChip label={t('dashboard.lens_in_focus')} />
               </div>
             )}
-            {/* DEC-076/DEC-122 (R-01): pure-CSS scroll-snap carousel, ~3 visible */}
+            {/* DEC-076/DEC-122 (R-01): free-scroll carousel, ~3 cards visible.
+                GATE 17: snap-none — any scroll-snap made the browser re-snap the
+                carousel to card 3 when it entered the viewport, so it opened on
+                a generic "Outros" count instead of the planned metas. The dot
+                pager still tracks position. */}
             <div
-              className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] scroll-pl-[var(--page-padding-x)] scroll-pr-[var(--page-padding-x)] snap-x snap-mandatory"
+              ref={pinOccasionCarouselLeft}
+              className="flex gap-3 overflow-x-auto no-scrollbar -mx-[var(--page-padding-x)] px-[var(--page-padding-x)] scroll-pl-[var(--page-padding-x)] scroll-pr-[var(--page-padding-x)] snap-none"
               onScroll={(e) => {
                 const el = e.currentTarget;
                 const maxScroll = el.scrollWidth - el.clientWidth;
@@ -793,8 +816,8 @@ export function DashboardCards({
                   return (
                     <div
                       key={counter.key}
-                      // R6-11 (R-02) / DEC-122: exactly 3 cards per page, snap-always.
-                      className="snap-start snap-always shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
+                      // R6-11 (R-02) / DEC-122: ~3 cards per page width.
+                      className="shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
                     >
                       <OccasionCounter
                         icon={profile?.iconName ?? getCategoryIcon(counter.category)}
@@ -811,7 +834,7 @@ export function DashboardCards({
                 return (
                   <div
                     key={counter.key}
-                    className="snap-start snap-always shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
+                    className="shrink-0 w-[calc((100%-1.5rem)/3)] min-w-[104px] flex"
                   >
                     <OccasionCounter
                       icon={getCategoryIcon(counter.category)}

@@ -97,6 +97,46 @@ describe('buildOccasionCounters', () => {
     ]);
   });
 
+  it('keeps planned metas first even when an activity category dwarfs them in count (Julio device test 2026-06-18)', () => {
+    // Burgos backup: bar/restaurant/market are planned (small remaining), while a
+    // generic "other" pile has 43 raw items. The colour-coded metas must still
+    // lead — count never promotes an unplanned category above an intention.
+    const profiles = [
+      makeProfile('bar', 'bar', 'Bar'),
+      makeProfile('rest', 'restaurant', 'Restaurante'),
+      makeProfile('mkt', 'market', 'Mercado'),
+    ];
+    const forecasts = [
+      makeForecast('bar', 7, 5, 'Bar'),
+      makeForecast('rest', 4, 0, 'Restaurante'),
+      makeForecast('mkt', 3, 0, 'Mercado'),
+    ];
+    const transactions = [
+      ...Array.from({ length: 43 }, () => makeTx({ category: 'other' })),
+      ...Array.from({ length: 4 }, () => makeTx({ category: 'transport' })),
+      ...Array.from({ length: 2 }, () => makeTx({ category: 'attraction' })),
+    ];
+
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
+
+    expect(result.map((c) => c.kind)).toEqual([
+      'planned',
+      'planned',
+      'planned',
+      'activity',
+      'activity',
+      'activity',
+    ]);
+    // The three planned metas come first, in usage order (used before unused).
+    expect(result.slice(0, 3).map((c) => c.category)).toEqual([
+      'bar',
+      'restaurant',
+      'market',
+    ]);
+    // The 43-item "other" pile is an activity counter — never ahead of a meta.
+    expect(result[3]).toMatchObject({ kind: 'activity', category: 'other', itemCount: 43 });
+  });
+
   it('excludes a category already represented by a planned meta', () => {
     const profiles = [makeProfile('bar', 'bar', 'Bar nights')];
     const forecasts = [makeForecast('bar', 3, 0, 'Bar nights')];

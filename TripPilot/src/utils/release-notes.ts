@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.93.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Os cards de atividade na tela inicial voltaram a abrir mostrando primeiro as suas metas planejadas (bar, restaurante, mercado…) — coloridas e com ícone — em vez de pular pros "outros gastos".',
+        'Corrigido o carrossel que se reposicionava sozinho num card do meio quando você rolava a tela; agora ele fica parado no começo e você desliza pro lado quando quiser.',
+      ],
+      en: [
+        'The activity cards on the home screen open again showing your planned goals first (bar, restaurant, groceries…) — colourful and with their icon — instead of jumping to "other spending".',
+        'Fixed the carousel that re-positioned itself on a middle card when you scrolled the page; it now stays put at the start and you swipe sideways when you want.',
+      ],
+      es: [
+        'Las tarjetas de actividad en la pantalla de inicio vuelven a abrir mostrando primero tus metas planificadas (bar, restaurante, mercado…) — con color e icono — en vez de saltar a los "otros gastos".',
+        'Corregido el carrusel que se reposicionaba solo en una tarjeta del medio al desplazar la pantalla; ahora se queda al inicio y deslizas al lado cuando quieras.',
+      ],
+    },
+  },
+  {
     version: '0.92.0',
     date: '2026-06-18',
     items: {

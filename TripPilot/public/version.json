@@ -1,8 +1,8 @@
 {
-  "version": "0.92.0",
+  "version": "0.93.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.92.0.zip",
-  "notes": "Amigo sincero repensado pra quando o dinheiro acaba: quando o livre da fase chega a zero, o card agora diz a verdade — “acabou o dinheiro livre desta fase” — em vez de dizer que ainda cabe dentro do plano, e mostra na hora se você já entrou na reserva protegida ou se o que resta está reservado pro seu plano. O “ver impacto completo” passou a destacar o MAIOR gasto da fase (o que realmente pesou), não um gasto pequeno qualquer. E o modo resgate, quando não há mais livre, vira um plano de recuperação: mostra o que dá pra cortar e quanto você recupera, sem aquela calculadora de “guardar X” que não fazia sentido."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.93.0.zip",
+  "notes": "Os cards de atividade na tela inicial (bar, restaurante, mercado…) voltaram a abrir mostrando primeiro as suas metas planejadas, coloridas e com ícone — em vez de pular direto pros “outros gastos”. Antes, ao rolar a tela, o carrossel se reposicionava sozinho num card do meio; agora ele fica parado no começo e você desliza pro lado quando quiser."
 }
