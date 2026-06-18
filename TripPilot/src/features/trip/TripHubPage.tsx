@@ -24,6 +24,7 @@ import {
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { AddTrechoSheet, RemanejarSheet } from './TrechoSheets';
+import { CreatePotSheet } from './PotSheets';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import {
   activityProfileRepository,
@@ -59,6 +60,7 @@ export function TripHubPage() {
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
   const [addTrechoOpen, setAddTrechoOpen] = useState(false);
+  const [createPotOpen, setCreatePotOpen] = useState(false);
   const [remanejarTarget, setRemanejarTarget] = useState<{ pool: BudgetPool; suggestedCents: number } | null>(
     null,
   );
@@ -173,14 +175,18 @@ export function TripHubPage() {
 
   const selectedPhase = selected !== 'all' ? phases.find((p) => p.id === selected) ?? null : null;
 
-  // Funds in context: a specific phase → pools linked to it + global pools;
-  // "all" → every pool.
+  // GATE 3 (D9): pots ("dinheiro à parte") get a dedicated "Potes e planejados"
+  // home (below), so they are no longer mixed into the raw trecho-funds list.
+  const pots = pools.filter((p) => p.scope === 'global' && p.deletedAt === null);
+
+  // Funds in context: trecho funds only (pots have their own section now).
+  // A specific phase → its linked fund; "all" → every trecho fund.
   const contextPools =
     selected === 'all'
-      ? pools
+      ? pools.filter((pool) => pool.scope === 'linked_phases')
       : pools.filter(
           (pool) =>
-            pool.scope === 'global' ||
+            pool.scope === 'linked_phases' &&
             links.some((l) => l.budgetPoolId === pool.id && l.phaseId === selected),
         );
 
@@ -437,14 +443,77 @@ export function TripHubPage() {
       )}
       </div>
 
-      {/* Planned purchases — trip-level planning */}
-      {openPlanned.length > 0 && (
-        <div>
-          <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-            {t('trip_hub.planned_title')}
-          </p>
-          <div className="bg-surface-container rounded-xl overflow-hidden">
-            {openPlanned.slice(0, 4).map((purchase, i) => {
+      {/* Potes e planejados (GATE 3 M3.4 / master §6): pots ("dinheiro à parte")
+          get their canonical home here, right below the trechos; planned
+          purchases share the section. The Home only surfaces the relevant ones
+          (D8) — this list always shows everything (D9). */}
+      <div>
+        <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
+          {t('trip_hub.pots_section_title')}
+        </p>
+        {pots.length === 0 && openPlanned.length === 0 ? (
+          <p className="text-sm text-on-surface-dim px-1">{t('trip_hub.pots_empty')}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {pots.map((pot) => {
+              const summary = createPoolSummary(pot, filterTransactionsByPool(transactions, pot.id));
+              const goalCents = pot.goalCents ?? null;
+              const goalPct =
+                goalCents && goalCents > 0
+                  ? Math.min(100, Math.max(0, Math.round((summary.totalCents / goalCents) * 100)))
+                  : null;
+              const hasRange = pot.dateEnd && pot.dateEnd !== pot.dateStart;
+              return (
+                <button
+                  key={pot.id}
+                  onClick={() => navigate('/funds')}
+                  className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
+                >
+                  <div className="flex justify-between items-baseline gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon name="savings" size={16} className="text-primary shrink-0" />
+                      <p className="text-sm font-bold text-on-surface truncate">{pot.name}</p>
+                    </div>
+                    <p className="text-sm font-extrabold tabular shrink-0 text-success">
+                      {formatMoney(summary.remainingCents, pot.currency)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap text-xs text-on-surface-faint">
+                    <span className="tabular">
+                      {formatMoney(summary.spentCents, pot.currency)} /{' '}
+                      {formatMoney(summary.totalCents, pot.currency)}
+                    </span>
+                    {pot.dateStart && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="event" size={12} className="text-on-surface-faint" />
+                        {formatDate(pot.dateStart)}
+                        {hasRange ? ` – ${formatDate(pot.dateEnd!)}` : ''}
+                      </span>
+                    )}
+                  </div>
+                  {goalPct !== null && (
+                    <div className="mt-2">
+                      <div
+                        className="w-full h-1.5 rounded-full overflow-hidden"
+                        style={{ background: 'var(--surface-container-high)' }}
+                      >
+                        <div
+                          className="h-full rounded-full transition-[width] duration-500"
+                          style={{ width: `${goalPct}%`, background: 'var(--primary)' }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-on-surface-faint mt-1">
+                        {t('trip_hub.pot_goal_progress', {
+                          saved: formatMoney(summary.totalCents, pot.currency),
+                          goal: formatMoney(goalCents!, pot.currency),
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+            {openPlanned.slice(0, 4).map((purchase) => {
               const remaining =
                 purchase.reservedCents !== null
                   ? plannedPurchaseReservedRemainingCents(purchase, transactions)
@@ -453,9 +522,7 @@ export function TripHubPage() {
                 <button
                   key={purchase.id}
                   onClick={() => navigate('/planned')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 btn-press text-left ${
-                    i < Math.min(openPlanned.length, 4) - 1 ? 'border-b border-on-surface-mute' : ''
-                  }`}
+                  className="bg-surface-container rounded-xl px-4 py-3 w-full flex items-center gap-3 btn-press text-left"
                 >
                   <Icon
                     name={getCategoryIcon(purchase.category)}
@@ -473,8 +540,19 @@ export function TripHubPage() {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+        <p className="text-[11px] text-on-surface-faint mt-2 px-1 leading-relaxed">
+          {t('trip_hub.pots_what_is')}
+        </p>
+        <button
+          onClick={() => setCreatePotOpen(true)}
+          className="mt-2 w-full py-2.5 rounded-xl flex items-center justify-center gap-2 btn-press"
+          style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
+        >
+          <Icon name="add" size={16} className="text-primary" />
+          <span className="text-xs font-bold">{t('trip_hub.pot_new_cta')}</span>
+        </button>
+      </div>
 
       {/* Funds (context-aware) */}
       <div>
@@ -569,6 +647,12 @@ export function TripHubPage() {
         onClose={() => setAddTrechoOpen(false)}
         trip={trip}
         phases={phases}
+        onCreated={reload}
+      />
+      <CreatePotSheet
+        open={createPotOpen}
+        onClose={() => setCreatePotOpen(false)}
+        trip={trip}
         onCreated={reload}
       />
       <RemanejarSheet

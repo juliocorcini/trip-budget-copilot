@@ -37,6 +37,11 @@ export const budgetPoolSchema = syncMetadataSchema.extend({
   totalAmountCents: z.number().int().min(0),
   currency: z.string().length(3),
   notes: z.string().nullable(),
+  // GATE 3 (D7): optional pot date/goal. Optional + default null keeps every
+  // pre-v10 backup and every trecho (linked_phases) pool valid.
+  dateStart: z.string().nullable().optional().default(null),
+  dateEnd: z.string().nullable().optional().default(null),
+  goalCents: z.number().int().min(0).nullable().optional().default(null),
 });
 
 export const budgetPoolPhaseLinkSchema = syncMetadataSchema.extend({

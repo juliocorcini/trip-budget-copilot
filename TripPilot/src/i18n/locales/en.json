@@ -47,7 +47,12 @@
     "trip_total": "Trip total",
     "trip_total_hint": "Sum of the segments",
     "pots_apart": "+ Pots aside: {{amount}}",
-    "phase_over_short": "Over by {{amount}}"
+    "phase_over_short": "Over by {{amount}}",
+    "pots_section_title": "Pots & planned",
+    "pots_empty": "Nothing set aside yet. Create a pot to keep money apart for a purpose.",
+    "pots_what_is": "A pot is money set apart (a festival, shopping). It is not taken from the segments' budget.",
+    "pot_new_cta": "New pot",
+    "pot_goal_progress": "{{saved}} of {{goal}}"
   },
   "trecho": {
     "add_title": "Add segment",
@@ -71,6 +76,26 @@
     "remanejar_too_much": "Most available: {{max}}",
     "remanejar_done": "{{amount}} moved from {{from}} to {{to}}",
     "remanejar_error": "Couldn’t move the budget. Try again."
+  },
+  "pote": {
+    "create_title": "New pot",
+    "why": "A pot is money set apart for a purpose — a festival, shopping, a buffer. It is not taken from the segments' budget.",
+    "examples_label": "Examples",
+    "name_label": "Pot name",
+    "name_placeholder": "e.g. Shopping, Tomorrowland…",
+    "amount_label": "Amount set aside",
+    "has_date_label": "Has a date? (optional)",
+    "start_label": "Start",
+    "end_label": "End",
+    "error_range": "The end date must be on or after the start date.",
+    "has_goal_label": "Set a goal? (optional)",
+    "goal_label": "Goal",
+    "create_cta": "Create pot",
+    "created": "Pot “{{name}}” created",
+    "chip_shopping": "Shopping / Clothes",
+    "chip_gifts": "Gifts / Souvenirs",
+    "chip_emergency": "Emergency / Buffer",
+    "chip_transport": "Extra transport"
   },
   "copilot": {
     "title": "Copilot",

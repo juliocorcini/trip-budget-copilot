@@ -22,6 +22,10 @@ export interface CreateBudgetPoolWithLinksInput {
   currency: string;
   /** Phase links to create — only used when scope === 'linked_phases'. */
   phaseLinks: CreatePoolPhaseLinkInput[];
+  /** GATE 3 (D7): optional pot anchor + goal — only meaningful for `global`. */
+  dateStart?: string | null;
+  dateEnd?: string | null;
+  goalCents?: number | null;
 }
 
 /**
@@ -39,6 +43,9 @@ export async function createBudgetPoolWithPhaseLinks(
     scope: input.scope,
     totalAmountCents: input.totalAmountCents,
     currency: input.currency,
+    dateStart: input.dateStart ?? null,
+    dateEnd: input.dateEnd ?? null,
+    goalCents: input.goalCents ?? null,
   });
   const links =
     input.scope === 'linked_phases'

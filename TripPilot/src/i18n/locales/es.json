@@ -47,7 +47,12 @@
     "trip_total": "Total del viaje",
     "trip_total_hint": "Suma de los tramos",
     "pots_apart": "+ Fondos aparte: {{amount}}",
-    "phase_over_short": "Excedido {{amount}}"
+    "phase_over_short": "Excedido {{amount}}",
+    "pots_section_title": "Fondos y planificado",
+    "pots_empty": "Nada aparte todavía. Crea un fondo para separar dinero con un propósito.",
+    "pots_what_is": "Un fondo es dinero aparte (un festival, compras). No sale del presupuesto de los tramos.",
+    "pot_new_cta": "Nuevo fondo",
+    "pot_goal_progress": "{{saved}} de {{goal}}"
   },
   "trecho": {
     "add_title": "Añadir tramo",
@@ -71,6 +76,26 @@
     "remanejar_too_much": "Máximo disponible: {{max}}",
     "remanejar_done": "{{amount}} movido de {{from}} a {{to}}",
     "remanejar_error": "No se pudo reasignar. Inténtalo de nuevo."
+  },
+  "pote": {
+    "create_title": "Nuevo fondo",
+    "why": "Un fondo es dinero aparte, con un propósito — un festival, compras, una reserva. No sale del presupuesto de los tramos.",
+    "examples_label": "Ejemplos",
+    "name_label": "Nombre del fondo",
+    "name_placeholder": "Ej.: Compras, Tomorrowland…",
+    "amount_label": "Importe aparte",
+    "has_date_label": "¿Tiene fecha? (opcional)",
+    "start_label": "Inicio",
+    "end_label": "Fin",
+    "error_range": "La fecha final debe ser igual o posterior a la inicial.",
+    "has_goal_label": "¿Definir una meta? (opcional)",
+    "goal_label": "Meta",
+    "create_cta": "Crear fondo",
+    "created": "Fondo “{{name}}” creado",
+    "chip_shopping": "Compras / Ropa",
+    "chip_gifts": "Regalos / Recuerdos",
+    "chip_emergency": "Emergencia / Reserva",
+    "chip_transport": "Transporte extra"
   },
   "copilot": {
     "title": "Copiloto",

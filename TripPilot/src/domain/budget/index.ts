@@ -47,6 +47,11 @@ export {
   calculateSavingsGoalProgress,
   calculatePiggyBank,
 } from './motivation';
+export {
+  selectVisiblePots,
+  isPotVisibleOnHome,
+  POT_VISIBILITY_WINDOW_DAYS,
+} from './pots';
 export type {
   ProjectTripEndSurplusInput,
   SavingsGoalProgressInput,

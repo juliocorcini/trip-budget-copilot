@@ -946,8 +946,9 @@ export function DashboardCards({
       case 'funds_summary':
         return (
           <>
-            {/* GLOBAL POOLS (personal shopping etc. — by scope, GAP-017) */}
-            {model.globalPoolSummaries.map(({ pool, summary }) => (
+            {/* POTS on the Home — only the ones relevant now (D8). The full list
+                lives on the "Potes e planejados" section of /viagem. */}
+            {model.visiblePotSummaries.map(({ pool, summary }) => (
               <button
                 key={pool.id}
                 onClick={() => navigate('/funds')}
@@ -1185,7 +1186,7 @@ export function DashboardCards({
         return model.plannedPurchasesSummary.openCount > 0;
       case 'funds_summary':
         // Half width fits exactly one pool cleanly; with several it stays full.
-        return model.globalPoolSummaries.length === 1;
+        return model.visiblePotSummaries.length === 1;
       default:
         return false;
     }
@@ -1292,7 +1293,7 @@ export function DashboardCards({
         );
       }
       case 'funds_summary': {
-        const entry = model.globalPoolSummaries[0];
+        const entry = model.visiblePotSummaries[0];
         if (!entry) return null;
         const { pool, summary } = entry;
         return (

@@ -47,7 +47,12 @@
     "trip_total": "Total da viagem",
     "trip_total_hint": "Soma dos trechos",
     "pots_apart": "+ Potes à parte: {{amount}}",
-    "phase_over_short": "Passou {{amount}}"
+    "phase_over_short": "Passou {{amount}}",
+    "pots_section_title": "Potes e planejados",
+    "pots_empty": "Nada à parte ainda. Crie um pote para separar dinheiro com uma finalidade.",
+    "pots_what_is": "Um pote é dinheiro à parte (festival, compras). Não sai do orçamento dos trechos.",
+    "pot_new_cta": "Novo pote",
+    "pot_goal_progress": "{{saved}} de {{goal}}"
   },
   "trecho": {
     "add_title": "Adicionar trecho",
@@ -71,6 +76,26 @@
     "remanejar_too_much": "Máximo disponível: {{max}}",
     "remanejar_done": "{{amount}} movido de {{from}} para {{to}}",
     "remanejar_error": "Não foi possível remanejar. Tente de novo."
+  },
+  "pote": {
+    "create_title": "Novo pote",
+    "why": "Um pote é dinheiro à parte, com uma finalidade — um festival, compras, uma reserva. Ele não sai do orçamento dos trechos.",
+    "examples_label": "Exemplos",
+    "name_label": "Nome do pote",
+    "name_placeholder": "Ex.: Compras, Tomorrowland…",
+    "amount_label": "Valor à parte",
+    "has_date_label": "Tem uma data? (opcional)",
+    "start_label": "Início",
+    "end_label": "Fim",
+    "error_range": "A data final precisa ser igual ou depois da inicial.",
+    "has_goal_label": "Definir uma meta? (opcional)",
+    "goal_label": "Meta",
+    "create_cta": "Criar pote",
+    "created": "Pote “{{name}}” criado",
+    "chip_shopping": "Compras / Roupas",
+    "chip_gifts": "Presentes / Lembranças",
+    "chip_emergency": "Emergência / Reserva",
+    "chip_transport": "Transporte extra"
   },
   "copilot": {
     "title": "Copiloto",

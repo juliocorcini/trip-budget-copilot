@@ -510,6 +510,11 @@ export interface CreateBudgetPoolInput {
   scope: BudgetPoolScope;
   totalAmountCents: number;
   currency: string;
+  /** GATE 3 (D7): optional pot anchor (inclusive YYYY-MM-DD). Default null. */
+  dateStart?: string | null;
+  dateEnd?: string | null;
+  /** GATE 3 (D7): optional savings target for the pot's progress. Default null. */
+  goalCents?: number | null;
 }
 
 export function createBudgetPool(input: CreateBudgetPoolInput): BudgetPool {
@@ -521,6 +526,9 @@ export function createBudgetPool(input: CreateBudgetPoolInput): BudgetPool {
     totalAmountCents: input.totalAmountCents,
     currency: input.currency,
     notes: null,
+    dateStart: input.dateStart ?? null,
+    dateEnd: input.dateEnd ?? null,
+    goalCents: input.goalCents ?? null,
   };
 }
 

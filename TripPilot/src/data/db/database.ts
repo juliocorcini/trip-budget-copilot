@@ -9,6 +9,7 @@ import {
   SCHEMA_V7,
   SCHEMA_V8,
   SCHEMA_V9,
+  SCHEMA_V10,
 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import { recordCrash } from '@/utils/crash-log';
@@ -126,6 +127,20 @@ export class TripPilotDB extends Dexie {
     // DEC-207 (Shared Participant Link): owner-side share-link records. New
     // table → no upgrade() callback; existing data is preserved untouched.
     this.version(9).stores(SCHEMA_V9);
+
+    // GATE 3 (D7 — Unified Pots): pots gain OPTIONAL dateStart/dateEnd/goalCents.
+    // Additive, non-indexed migration: backfill the three fields to null on every
+    // existing pool so reads are consistent. totalAmountCents is NEVER touched —
+    // the money invariant (sum of pool totals) is preserved across the upgrade.
+    this.version(10)
+      .stores(SCHEMA_V10)
+      .upgrade(async (tx) => {
+        await tx.table('budgetPools').toCollection().modify((pool) => {
+          if (pool.dateStart === undefined) pool.dateStart = null;
+          if (pool.dateEnd === undefined) pool.dateEnd = null;
+          if (pool.goalCents === undefined) pool.goalCents = null;
+        });
+      });
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {

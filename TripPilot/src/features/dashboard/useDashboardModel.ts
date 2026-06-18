@@ -18,6 +18,7 @@ import {
   calculateSavingsGoalProgress,
   calculatePiggyBank,
   selectActivePhasePool,
+  selectVisiblePots,
 } from '@/domain/budget';
 import {
   filterTransactionsByPool,
@@ -403,6 +404,15 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       pool,
       summary: createPoolSummary(pool, filterTransactionsByPool(transactions, pool.id)),
     }));
+    // GATE 3 (D8): only the pots RELEVANT now surface on the Home — a dated pot
+    // (e.g. Tomorrowland) stays hidden until its owner trecho is active or the
+    // D-7 window opens; dateless pots are ambient. The full list lives on the
+    // "Potes e planejados" section. `globalPoolSummaries` stays complete for the
+    // leftover-move targets (you can park leftovers in any pot).
+    const visiblePotIds = new Set(
+      selectVisiblePots(globalPools, activePhase, todayIso).map((p) => p.id),
+    );
+    const visiblePotSummaries = globalPoolSummaries.filter((g) => visiblePotIds.has(g.pool.id));
 
     const progressPercent =
       fts && fts.totalBudgetCents > 0
@@ -618,6 +628,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       insights,
       phaseLeftover,
       globalPoolSummaries,
+      visiblePotSummaries,
       plannedPurchasesSummary,
       progressPercent,
       heroMoney,

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.78.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Os potes (dinheiro à parte, com uma finalidade — um festival, compras, uma reserva) agora têm um lugar só: a seção “Potes e planejados” na aba Viagem. Crie um pote com nome e valor e, se quiser, uma data e uma meta.',
+        'Pote com data só aparece na tela inicial quando fica relevante: ao entrar no trecho dono dele ou quando faltam até 7 dias para a data — assim ele não polui os outros dias. Potes sem data continuam sempre à mão.',
+        'Você pode separar dinheiro num pote a qualquer momento, mesmo em outro trecho (ex.: adiantar um gasto do festival), sem mexer no orçamento do trecho atual.',
+      ],
+      en: [
+        'Pots (money set apart for a purpose — a festival, shopping, a buffer) now have a single home: the “Pots & planned” section on the Trip tab. Create a pot with a name and amount, plus an optional date and goal.',
+        'A dated pot only shows on the home screen when it becomes relevant: when you enter the segment that owns it, or within 7 days of its date — so it never clutters the other days. Dateless pots stay always at hand.',
+        'You can set money aside in a pot anytime, even from another segment (e.g. pre-paying a festival expense), without touching the current segment’s budget.',
+      ],
+      es: [
+        'Los fondos (dinero aparte, con un propósito — un festival, compras, una reserva) ahora tienen un único lugar: la sección “Fondos y planificado” en la pestaña Viaje. Crea un fondo con nombre e importe y, si quieres, una fecha y una meta.',
+        'Un fondo con fecha solo aparece en la pantalla de inicio cuando se vuelve relevante: al entrar en el tramo dueño o cuando faltan hasta 7 días para la fecha — así no satura los demás días. Los fondos sin fecha siguen siempre a mano.',
+        'Puedes apartar dinero en un fondo en cualquier momento, incluso desde otro tramo (p. ej. adelantar un gasto del festival), sin tocar el presupuesto del tramo actual.',
+      ],
+    },
+  },
+  {
     version: '0.77.0',
     date: '2026-06-18',
     items: {

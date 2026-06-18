@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -103,4 +103,14 @@ export const SCHEMA_V8: Record<string, string> = {
 export const SCHEMA_V9: Record<string, string> = {
   ...SCHEMA_V8,
   shareLinks: 'id, participantId, deletedAt',
+};
+
+// V10 (GATE 3 — Unified Pots, D7): a "Pote" gains OPTIONAL date/goal fields
+// (dateStart, dateEnd, goalCents) on budgetPools. These are NON-indexed (the D8
+// visibility rule filters the trip's pools in memory), so the index string is
+// unchanged. The version bump exists to run an additive upgrade() that backfills
+// the three fields to null on every existing pool — preserving the money
+// invariant (totalAmountCents is never touched). New tables: none.
+export const SCHEMA_V10: Record<string, string> = {
+  ...SCHEMA_V9,
 };

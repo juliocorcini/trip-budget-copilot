@@ -1,8 +1,8 @@
 {
-  "version": "0.77.0",
+  "version": "0.78.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.77.0.zip",
-  "notes": "Agora dá pra dividir a viagem em trechos com orçamento próprio direto na aba Viagem (nome, datas e valor). O total da viagem é a soma dos trechos, as datas não se sobrepõem e dá pra remanejar dinheiro de um trecho para outro com um toque."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.78.0.zip",
+  "notes": "Agora os potes (dinheiro à parte, como um festival ou compras) têm um lugar só: a seção “Potes e planejados” na aba Viagem, onde você cria um pote com nome, valor e, se quiser, uma data e uma meta. Potes com data só aparecem na tela inicial quando ficam relevantes (no trecho dono ou faltando até 7 dias), então não poluem os outros dias."
 }
