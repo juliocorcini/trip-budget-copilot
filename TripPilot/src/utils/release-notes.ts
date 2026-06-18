@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.79.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        '“Planejar um gasto” agora é uma porta única: responda duas perguntas simples (acontece numa data? de onde vem o dinheiro?) e o app cria a coisa certa — um evento, um pote ou uma compra — sem termos técnicos.',
+        'Eventos viraram de primeira classe: ficam na seção “Potes e planejados” da aba Viagem e sobem para a tela inicial quando ficam próximos (ao entrar no trecho dono ou faltando até 7 dias).',
+        'Você escolhe de onde sai o dinheiro de cada plano: do dia a dia (sai do orçamento do trecho), um valor à parte só pra isso (cria um pote) ou um pote que já existe.',
+      ],
+      en: [
+        '“Plan an expense” is now a single door: answer two simple questions (does it happen on a date? where does the money come from?) and the app creates the right thing — an event, a pot or a purchase — with no jargon.',
+        'Events are now first-class: they live in the “Pots & planned” section on the Trip tab and rise to the home screen as they get close (when you enter the owning segment, or within 7 days).',
+        'You choose where each plan’s money comes from: day-to-day (out of the segment’s budget), a separate amount just for it (creates a pot), or a pot you already have.',
+      ],
+      es: [
+        '“Planear un gasto” ahora es una sola puerta: responde dos preguntas simples (¿ocurre en una fecha? ¿de dónde sale el dinero?) y la app crea lo correcto — un evento, un fondo o una compra — sin términos técnicos.',
+        'Los eventos pasan a ser de primera clase: viven en la sección “Fondos y planificado” de la pestaña Viaje y suben a la pantalla de inicio cuando se acercan (al entrar en el tramo dueño o faltando hasta 7 días).',
+        'Eliges de dónde sale el dinero de cada plan: del día a día (sale del presupuesto del tramo), un importe aparte solo para eso (crea un fondo) o un fondo que ya tienes.',
+      ],
+    },
+  },
+  {
     version: '0.78.0',
     date: '2026-06-18',
     items: {

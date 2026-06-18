@@ -53,7 +53,7 @@ import {
   findEndedPhaseWithSuccessor,
   detectPhaseLeftover,
 } from '@/domain/phases';
-import { isOccurrenceActiveToday } from '@/domain/planning';
+import { isOccurrenceActiveToday, selectVisibleEvents } from '@/domain/planning';
 import {
   isPlannedPurchaseOpen,
   plannedPurchaseReservedRemainingCents,
@@ -267,6 +267,14 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           (o) => o.phaseId === activePhase.id && isOccurrenceActiveToday(o, todayIso),
         )
       : [];
+
+    // GATE 4 (M4.4 / D8): events approaching (owner trecho active OR within the
+    // D-7 window) rise onto the Home as a heads-up, minus the ones already shown
+    // as today's day-card — so Tomorrowland surfaces "começa em 7 dias" without
+    // duplicating the active-today card.
+    const upcomingEvents = selectVisibleEvents(occurrences, activePhase, todayIso).filter(
+      (o) => !isOccurrenceActiveToday(o, todayIso),
+    );
 
     const hasPendingExpenses = pendingShares.length > 0;
     const pendingImpactCents = pendingShares.reduce(
@@ -621,6 +629,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       occasionCounters,
       todayIso,
       todayEvents,
+      upcomingEvents,
       hasPendingExpenses,
       pendingImpactCents,
       participantNameById,

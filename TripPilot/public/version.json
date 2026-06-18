@@ -1,8 +1,8 @@
 {
-  "version": "0.78.0",
+  "version": "0.79.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.78.0.zip",
-  "notes": "Agora os potes (dinheiro à parte, como um festival ou compras) têm um lugar só: a seção “Potes e planejados” na aba Viagem, onde você cria um pote com nome, valor e, se quiser, uma data e uma meta. Potes com data só aparecem na tela inicial quando ficam relevantes (no trecho dono ou faltando até 7 dias), então não poluem os outros dias."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.79.0.zip",
+  "notes": "Planejar um gasto agora é uma porta única: responda duas perguntas (tem data? de onde vem o dinheiro?) e o app cria a coisa certa — evento, pote ou compra — sem termos técnicos. Eventos viraram de primeira classe: ficam na seção “Potes e planejados” e sobem para a tela inicial quando estão próximos (no trecho dono ou faltando até 7 dias)."
 }

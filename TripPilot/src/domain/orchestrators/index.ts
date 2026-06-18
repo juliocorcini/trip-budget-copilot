@@ -47,6 +47,11 @@ export {
   deletePhase,
   swapPhaseOrder,
 } from './crud-orchestrators';
+export { createPlannedExpense } from './plan-orchestrators';
+export type {
+  CreatePlannedExpenseInput,
+  CreatePlannedExpenseResult,
+} from './plan-orchestrators';
 export type {
   CreateBudgetPoolWithLinksInput,
   CreatePoolPhaseLinkInput,

@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * GATE 3 (Unified Pots) — a "Pote" is money set apart with a purpose. The
- * "Potes e planejados" section on /viagem lists every pot (D9); creating one
- * goes through a guided door (name + amount, optional date/goal) with no
- * fund/pool/scope jargon.
+ * GATE 3 + GATE 4 — the "Potes e planejados" section on /viagem lists every pot,
+ * event and planned purchase (D9). Creation goes through the SINGLE planning door
+ * ("Planejar um gasto", master §3.3): two plain questions (does it have a date? ·
+ * where does the money come from?) route to an Event, a Pote or a Compra — no
+ * fund/pool/scope/occurrence jargon.
  */
 async function loadDemoData(page: import('@playwright/test').Page) {
   await page.goto('/');
@@ -12,7 +13,7 @@ async function loadDemoData(page: import('@playwright/test').Page) {
   await page.waitForURL('/dashboard');
 }
 
-test.describe('GATE 3 — pots ("Potes e planejados")', () => {
+test.describe('GATE 3/4 — "Potes e planejados" + single planning door', () => {
   test.beforeEach(async ({ page }) => {
     await loadDemoData(page);
   });
@@ -26,21 +27,43 @@ test.describe('GATE 3 — pots ("Potes e planejados")', () => {
     await expect(page.getByText('Compras pessoais').first()).toBeVisible();
   });
 
-  test('creating a pot adds it to the section (M3.2/M3.4)', async ({ page }) => {
+  test('the single door creates a Pote (no date · à parte) and lists it (M4.1/M4.3)', async ({
+    page,
+  }) => {
     await page.goto('/viagem');
 
-    await page.getByRole('button', { name: /novo pote/i }).click();
+    await page.getByRole('button', { name: /planejar um gasto/i }).first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    // The "why" microcopy frames a pot as money set apart (no jargon).
-    await expect(dialog.getByText(/dinheiro à parte/i)).toBeVisible();
 
-    await dialog.getByPlaceholder(/Compras, Tomorrowland/i).fill('Pote E2E');
+    // Q1 → no date (just an intention); Q2 → a separate amount just for this.
+    await dialog.getByRole('button', { name: /não, é só uma intenção/i }).click();
+    await dialog.getByRole('button', { name: /um valor à parte só pra isso/i }).click();
+    // The summary makes the "stays apart" effect explicit (no jargon).
+    await expect(dialog.getByText(/à parte/i).first()).toBeVisible();
+
+    await dialog.getByPlaceholder(/Roupas, presentes/i).fill('Pote E2E');
     await dialog.locator('input[type="number"]').first().fill('80');
+    await dialog.getByRole('button', { name: 'Planejar', exact: true }).click();
 
-    await dialog.getByRole('button', { name: 'Criar pote', exact: true }).click();
-
-    // The new pot shows up in the section.
     await expect(page.getByText('Pote E2E').first()).toBeVisible();
+  });
+
+  test('the single door creates an Event (with a date) and lists it (M4.4)', async ({ page }) => {
+    await page.goto('/viagem');
+
+    await page.getByRole('button', { name: /planejar um gasto/i }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    // Q1 → has a date (an event); Q2 → a separate amount just for this.
+    await dialog.getByRole('button', { name: /sim, tem data/i }).click();
+    await dialog.getByRole('button', { name: /um valor à parte só pra isso/i }).click();
+
+    await dialog.getByPlaceholder(/Tomorrowland/i).fill('Show E2E');
+    await dialog.locator('input[type="number"]').first().fill('120');
+    await dialog.getByRole('button', { name: 'Planejar', exact: true }).click();
+
+    await expect(page.getByText('Show E2E').first()).toBeVisible();
   });
 });

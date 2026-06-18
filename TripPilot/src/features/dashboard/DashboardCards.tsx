@@ -268,6 +268,37 @@ export function DashboardCards({
                 </div>
               </div>
             ))}
+            {/* GATE 4 (M4.4 / D8): upcoming events as a discreet heads-up — they
+                rise here when the owner trecho is active or the D-7 window opens
+                (e.g. Tomorrowland once the Eurotrip starts), tapping into the
+                event's own edit sheet. */}
+            {model.upcomingEvents.map((occ) => (
+              <button
+                key={occ.id}
+                onClick={() => navigate(`/trip/edit?occurrence=${occ.id}`)}
+                className="mt-3 w-full p-3.5 rounded-2xl flex items-center gap-3 btn-press text-left"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: '#C75B3918' }}
+                >
+                  <Icon name="celebration" size={18} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-on-surface truncate">{occ.name}</p>
+                  <p className="text-[11px] font-semibold text-on-surface-dim">
+                    {t('dashboard.event_starts_on', {
+                      date: formatShortDate(occ.plannedDate ?? ''),
+                    })}
+                    {occ.reservedCents !== null
+                      ? ` · ${t('dashboard.event_reserved', { amount: formatMoney(occ.reservedCents, trip.baseCurrency) })}`
+                      : ''}
+                  </p>
+                </div>
+                <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
+              </button>
+            ))}
           </>
         );
       case 'daily_checkin': {

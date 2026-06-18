@@ -1,6 +1,7 @@
 import type { PlannedOccurrence, OccurrenceKind } from '@/domain/types/planned-occurrence';
+import type { Phase } from '@/domain/types/phase';
 import { createSyncMetadata } from '@/utils/entity-factory';
-import { localDayOf } from '@/domain/dates';
+import { addDaysIso, localDayOf } from '@/domain/dates';
 
 export interface CreatePlannedOccurrenceInput {
   tripId: string;
@@ -47,6 +48,65 @@ export function isOccurrenceActiveToday(occ: PlannedOccurrence, todayIso: string
   const end = (occ.endDate ?? occ.plannedDate).slice(0, 10);
   const today = todayIso.slice(0, 10);
   return start <= today && today <= end;
+}
+
+/** GATE 4 event visibility window — same D-7 rule as pots (master §10.1). */
+export const EVENT_VISIBILITY_WINDOW_DAYS = 7;
+
+/** YYYY-MM-DD (a stored date may carry a time component — compare by day). */
+function dayOf(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/**
+ * GATE 4 (M4.4 / D8): is an Event relevant enough to surface on the Home right
+ * now? Mirrors the Pote rule (`isPotVisibleOnHome`) so events and pots behave
+ * identically: an event rises on the Home when its OWNER trecho is active (its
+ * date falls inside the active phase) OR when today is within the D-7 window up
+ * to its end — so Tomorrowland (Eurotrip) does not pollute the Burgos days but
+ * appears as it approaches. Only OPEN events qualify (an event already linked to
+ * a session / confirmed is handled by the live outing, not this card).
+ */
+export function isEventVisibleOnHome(
+  occ: PlannedOccurrence,
+  activePhase: Phase | null,
+  today: string,
+  windowDays: number = EVENT_VISIBILITY_WINDOW_DAYS,
+): boolean {
+  if (occ.deletedAt !== null || occ.kind !== 'event') return false;
+  if (occ.isConfirmed || occ.linkedSessionId !== null) return false;
+  if (occ.plannedDate === null) return false;
+
+  const startDay = dayOf(occ.plannedDate);
+  const endDay = dayOf(occ.endDate ?? occ.plannedDate);
+  if (
+    activePhase !== null &&
+    dayOf(activePhase.startDate) <= startDay &&
+    startDay <= dayOf(activePhase.endDate)
+  ) {
+    return true; // owner trecho is active
+  }
+
+  const windowOpens = addDaysIso(startDay, -windowDays);
+  const todayDay = dayOf(today);
+  return todayDay >= windowOpens && todayDay <= endDay;
+}
+
+/**
+ * GATE 4 (M4.4): the open events to surface on the Home today (active-owner OR
+ * within D-7), in chronological order. Soft-deleted / confirmed / linked events
+ * are dropped by `isEventVisibleOnHome`. The "Potes e planejados" section lists
+ * every event regardless — this is only the Home heads-up.
+ */
+export function selectVisibleEvents(
+  occurrences: PlannedOccurrence[],
+  activePhase: Phase | null,
+  today: string,
+  windowDays: number = EVENT_VISIBILITY_WINDOW_DAYS,
+): PlannedOccurrence[] {
+  return occurrences
+    .filter((occ) => isEventVisibleOnHome(occ, activePhase, today, windowDays))
+    .sort((a, b) => dayOf(a.plannedDate ?? '').localeCompare(dayOf(b.plannedDate ?? '')));
 }
 
 /** DEC-072: "Adiar" pushes the whole date interval one day forward. */

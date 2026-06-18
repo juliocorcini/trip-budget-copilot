@@ -11,8 +11,19 @@ export {
   isOccurrenceActiveToday,
   postponeOccurrence,
   sumSpentInOccurrenceInterval,
+  isEventVisibleOnHome,
+  selectVisibleEvents,
+  EVENT_VISIBILITY_WINDOW_DAYS,
 } from './occurrences';
 export type { CreatePlannedOccurrenceInput } from './occurrences';
+export {
+  routePlannedExpense,
+  outcomeCreatesEvent,
+  outcomeCreatesNewPot,
+  outcomeCreatesPurchase,
+  outcomeFundedByPhase,
+} from './plan-routing';
+export type { PlanFundingSource, PlannedExpenseOutcome } from './plan-routing';
 export {
   createPlannedPurchase,
   isPlannedPurchaseOpen,

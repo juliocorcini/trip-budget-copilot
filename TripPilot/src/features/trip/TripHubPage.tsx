@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useTabPaging } from '@/hooks/useTabPaging';
@@ -24,7 +24,7 @@ import {
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { AddTrechoSheet, RemanejarSheet } from './TrechoSheets';
-import { CreatePotSheet } from './PotSheets';
+import { PlanExpenseSheet } from './PlanExpenseSheet';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import {
   activityProfileRepository,
@@ -55,12 +55,15 @@ export function TripHubPage() {
   const navigate = useNavigate();
   const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, reload } =
     useAppData();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [selectedPhaseId, setSelectedPhaseId] = useState<Selection | null>(null);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
   const [addTrechoOpen, setAddTrechoOpen] = useState(false);
-  const [createPotOpen, setCreatePotOpen] = useState(false);
+  // GATE 4 (master §3.3/§6): the single "Planejar um gasto" door. The FAB deep-
+  // links here with ?plan=1; the section CTA opens it directly.
+  const [planExpenseOpen, setPlanExpenseOpen] = useState(searchParams.get('plan') === '1');
   const [remanejarTarget, setRemanejarTarget] = useState<{ pool: BudgetPool; suggestedCents: number } | null>(
     null,
   );
@@ -155,6 +158,16 @@ export function TripHubPage() {
     if (pool) setRemanejarTarget({ pool, suggestedCents: overflowCents });
   };
 
+  // Closing the planning door also drops the ?plan deep-link param so a reload
+  // (or a back-and-forth) does not silently reopen the sheet.
+  const closePlanExpense = () => {
+    setPlanExpenseOpen(false);
+    if (searchParams.get('plan')) {
+      searchParams.delete('plan');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+
   // GATE 1 (DEC canonical model): each phase shows the free-to-spend of ITS OWN
   // budget. For a legacy trip (one shared pool) this resolves to that same pool
   // for every phase, so the numbers are unchanged; with one dedicated pool per
@@ -191,6 +204,19 @@ export function TripHubPage() {
         );
 
   const openPlanned = plannedPurchases.filter(isPlannedPurchaseOpen);
+
+  // GATE 4 (D9): every open Event lives in this section too (the Home only shows
+  // the relevant ones via D8). An event linked to a session / confirmed has moved
+  // on to the live outing, so it drops out here. Chronological by start date.
+  const openEvents = occurrences
+    .filter(
+      (o) =>
+        o.kind === 'event' &&
+        o.deletedAt === null &&
+        !o.isConfirmed &&
+        o.linkedSessionId === null,
+    )
+    .sort((a, b) => (a.plannedDate ?? '').localeCompare(b.plannedDate ?? ''));
 
   const categoryRows = forecasts
     .map((forecast) => {
@@ -451,10 +477,52 @@ export function TripHubPage() {
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
           {t('trip_hub.pots_section_title')}
         </p>
-        {pots.length === 0 && openPlanned.length === 0 ? (
+        {pots.length === 0 && openPlanned.length === 0 && openEvents.length === 0 ? (
           <p className="text-sm text-on-surface-dim px-1">{t('trip_hub.pots_empty')}</p>
         ) : (
           <div className="flex flex-col gap-2">
+            {openEvents.map((event) => {
+              // reservedCents set = the event eats from its trecho (do trecho);
+              // null = its money is à parte (a Pote). Show the right amount + tag.
+              const fundedByPhase = event.reservedCents !== null;
+              const amountCents = event.reservedCents ?? event.estimatedCostCents;
+              const hasRange = event.endDate && event.endDate !== event.plannedDate;
+              return (
+                <button
+                  key={event.id}
+                  onClick={() => navigate(`/trip/edit?occurrence=${event.id}`)}
+                  className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
+                >
+                  <div className="flex justify-between items-baseline gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon name="celebration" size={16} className="text-primary shrink-0" />
+                      <p className="text-sm font-bold text-on-surface truncate">{event.name}</p>
+                    </div>
+                    <p className="text-sm font-extrabold tabular shrink-0 text-on-surface">
+                      {formatMoney(amountCents, currency)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap text-xs text-on-surface-faint">
+                    {event.plannedDate && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="event" size={12} className="text-on-surface-faint" />
+                        {formatDate(event.plannedDate)}
+                        {hasRange ? ` – ${formatDate(event.endDate!)}` : ''}
+                      </span>
+                    )}
+                    <span
+                      className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                      style={{
+                        background: fundedByPhase ? 'var(--surface-high)' : '#C75B3918',
+                        color: fundedByPhase ? 'var(--on-surface-dim)' : 'var(--primary)',
+                      }}
+                    >
+                      {fundedByPhase ? t('trip_hub.event_from_trecho') : t('trip_hub.event_apart')}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
             {pots.map((pot) => {
               const summary = createPoolSummary(pot, filterTransactionsByPool(transactions, pot.id));
               const goalCents = pot.goalCents ?? null;
@@ -545,12 +613,12 @@ export function TripHubPage() {
           {t('trip_hub.pots_what_is')}
         </p>
         <button
-          onClick={() => setCreatePotOpen(true)}
+          onClick={() => setPlanExpenseOpen(true)}
           className="mt-2 w-full py-2.5 rounded-xl flex items-center justify-center gap-2 btn-press"
           style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
         >
-          <Icon name="add" size={16} className="text-primary" />
-          <span className="text-xs font-bold">{t('trip_hub.pot_new_cta')}</span>
+          <Icon name="edit_calendar" size={16} className="text-primary" />
+          <span className="text-xs font-bold">{t('trip_hub.plan_cta')}</span>
         </button>
       </div>
 
@@ -649,10 +717,13 @@ export function TripHubPage() {
         phases={phases}
         onCreated={reload}
       />
-      <CreatePotSheet
-        open={createPotOpen}
-        onClose={() => setCreatePotOpen(false)}
+      <PlanExpenseSheet
+        open={planExpenseOpen}
+        onClose={closePlanExpense}
         trip={trip}
+        phases={phases}
+        pools={pools}
+        links={links}
         onCreated={reload}
       />
       <RemanejarSheet
