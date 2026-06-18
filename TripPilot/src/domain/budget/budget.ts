@@ -530,6 +530,45 @@ export function getAvailablePoolsForPhase(
 }
 
 /**
+ * GATE 1 (DEC canonical budget model): the dashboard hero must reflect the
+ * budget of the ACTIVE phase, not a fixed `linkedPools[0]`. This picks the
+ * operational (`linked_phases`) pool that funds a given phase:
+ *
+ * - Legacy trip (ONE `linked_phases` pool shared across N phases): always that
+ *   single pool, regardless of the phase — so existing trips stay byte-identical
+ *   (AC1, "viagem legada inalterada").
+ * - New model (one dedicated pool per phase): the pool linked to `phaseId`.
+ * - No active phase, or no pool linked to it: a coherent fallback to the first
+ *   linked pool, so the hero never goes blank.
+ *
+ * Pure: operates on the already-loaded pools/links + the active phase id.
+ */
+export function selectActivePhasePool(
+  pools: BudgetPool[],
+  links: BudgetPoolPhaseLink[],
+  activePhaseId: string | null,
+): BudgetPool | null {
+  const linkedPools = pools.filter(
+    (p) => p.scope === 'linked_phases' && p.deletedAt === null,
+  );
+  // 0 → null; exactly 1 → that pool (the legacy 1-pool/N-phases shape).
+  if (linkedPools.length <= 1) return linkedPools[0] ?? null;
+
+  if (activePhaseId !== null) {
+    const phasePoolIds = new Set(
+      links
+        .filter((l) => l.deletedAt === null && l.phaseId === activePhaseId)
+        .map((l) => l.budgetPoolId),
+    );
+    const phasePool = linkedPools.find((p) => phasePoolIds.has(p.id));
+    if (phasePool) return phasePool;
+  }
+
+  // Coherent fallback: no active phase or the phase has no dedicated pool yet.
+  return linkedPools[0]!;
+}
+
+/**
  * M10 (E5 / ÂNCORA 13): moving a phase leftover between pools conserves money —
  * the source pool loses exactly what the target pool gains, so the trip total
  * (sum of pool totals) is invariant. Pure integer-cents math.

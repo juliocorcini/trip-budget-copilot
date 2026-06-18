@@ -10,6 +10,7 @@ import {
   calculateTotalSpent,
   calculateFreeToSpend,
   createPoolSummary,
+  selectActivePhasePool,
 } from '@/domain/budget';
 import { filterTransactionsByPhase, filterTransactionsByPool } from '@/domain/transactions';
 import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
@@ -138,13 +139,18 @@ export function TripHubPage() {
   }
   const currency = trip.baseCurrency;
 
+  // GATE 1 (DEC canonical model): each phase shows the free-to-spend of ITS OWN
+  // budget. For a legacy trip (one shared pool) this resolves to that same pool
+  // for every phase, so the numbers are unchanged; with one dedicated pool per
+  // phase, each card now reflects the right budget instead of always the first.
   const freeForPhase = (phaseId: string): number => {
-    if (!primaryPool) return 0;
+    const pool = selectActivePhasePool(pools, links, phaseId);
+    if (!pool) return 0;
     return calculateFreeToSpend(
-      primaryPool,
-      envelopes.filter((e) => e.budgetPoolId === primaryPool.id),
-      filterTransactionsByPool(transactions, primaryPool.id),
-      links.filter((l) => l.budgetPoolId === primaryPool.id),
+      pool,
+      envelopes.filter((e) => e.budgetPoolId === pool.id),
+      filterTransactionsByPool(transactions, pool.id),
+      links.filter((l) => l.budgetPoolId === pool.id),
       phaseId,
       occurrences,
       plannedPurchases,

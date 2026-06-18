@@ -17,6 +17,7 @@ import {
   projectTripEndSurplus,
   calculateSavingsGoalProgress,
   calculatePiggyBank,
+  selectActivePhasePool,
 } from '@/domain/budget';
 import {
   filterTransactionsByPool,
@@ -241,8 +242,10 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       true,
     ).slice(0, 3);
 
-    const linkedPools = pools.filter((p) => p.scope === 'linked_phases');
-    const primaryPool = linkedPools[0];
+    // GATE 1 (DEC canonical model): the hero must reflect the ACTIVE phase's
+    // budget, not a fixed `linkedPools[0]`. For a legacy trip (one shared pool)
+    // this resolves to that same pool, so existing trips stay byte-identical.
+    const primaryPool = selectActivePhasePool(pools, links, activePhase?.id ?? null);
     const fts =
       primaryPool && activePhase
         ? calculateFreeToSpend(

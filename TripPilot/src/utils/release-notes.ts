@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.76.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Quando sua viagem tem mais de um trecho com orçamentos separados, a tela inicial e a aba Viagem agora mostram o dinheiro do trecho em que você está hoje — antes podiam mostrar sempre o do primeiro trecho.',
+      ],
+      en: [
+        'When your trip has more than one stretch with separate budgets, the home screen and the Trip tab now show the money for the stretch you are in today — before they could always show the first stretch.',
+      ],
+      es: [
+        'Cuando tu viaje tiene más de un tramo con presupuestos separados, la pantalla de inicio y la pestaña Viaje ahora muestran el dinero del tramo en el que estás hoy — antes podían mostrar siempre el del primer tramo.',
+      ],
+    },
+  },
+  {
     version: '0.75.0',
     date: '2026-06-17',
     items: {
