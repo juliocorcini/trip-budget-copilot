@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.94.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Menu do botão "+" reequilibrado: "Planejar um gasto" e "Simular compra" agora aparecem direto, sem precisar abrir um submenu.',
+        '"Começar saída" segue em destaque, logo acima dos dois botões principais (registrar gasto e escanear nota).',
+        '"Registrar mercado" — que é só um registrar gasto já com a categoria preenchida — saiu do destaque e foi para dentro de "Outros registros", junto com transferência, saque e entrada.',
+      ],
+      en: [
+        'The "+" menu was rebalanced: "Plan an expense" and "Simulate a purchase" now show up directly, no submenu to open.',
+        '"Start an outing" stays prominent, right above the two main buttons (register expense and scan receipt).',
+        '"Add groceries" — which is just an expense with the category pre-filled — was moved out of the spotlight into "Other entries", alongside transfer, withdrawal and income.',
+      ],
+      es: [
+        'El menú del botón "+" fue reequilibrado: "Planear un gasto" y "Simular compra" ahora aparecen directamente, sin abrir un submenú.',
+        '"Comenzar salida" sigue destacado, justo encima de los dos botones principales (registrar gasto y escanear recibo).',
+        '"Registrar mercado" — que es solo un registrar gasto con la categoría ya puesta — salió del destaque y pasó a "Otros registros", junto con transferencia, retiro e ingreso.',
+      ],
+    },
+  },
+  {
     version: '0.93.0',
     date: '2026-06-18',
     items: {

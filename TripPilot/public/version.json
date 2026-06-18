@@ -1,8 +1,8 @@
 {
-  "version": "0.93.0",
+  "version": "0.94.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.93.0.zip",
-  "notes": "Os cards de atividade na tela inicial (bar, restaurante, mercado…) voltaram a abrir mostrando primeiro as suas metas planejadas, coloridas e com ícone — em vez de pular direto pros “outros gastos”. Antes, ao rolar a tela, o carrossel se reposicionava sozinho num card do meio; agora ele fica parado no começo e você desliza pro lado quando quiser."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.94.0.zip",
+  "notes": "Menu do botão “+” reequilibrado: planejar um gasto e simular compra agora aparecem direto (sem precisar abrir um submenu), e começar uma saída continua em destaque logo acima dos dois botões principais. O “registrar mercado” — que é só um registrar gasto já com a categoria preenchida — saiu do destaque e foi pra dentro de “Outros registros”, junto com transferência, saque e entrada."
 }

@@ -15,7 +15,7 @@ test.describe('PACOTE #2 — capture progressive disclosure', () => {
     await loadDemoData(page);
   });
 
-  test('FAB: heroes always visible; rare/plan actions live behind expanders (nothing removed)', async ({
+  test('FAB (GATE 18): heroes at the base, planning visible, "mercado" demoted into "Outros registros" (nothing removed)', async ({
     page,
   }) => {
     await page.getByRole('button', { name: /ações rápidas|quick actions/i }).click();
@@ -24,17 +24,20 @@ test.describe('PACOTE #2 — capture progressive disclosure', () => {
     await expect(page.getByText(/registrar gasto|register expense/i).first()).toBeVisible();
     await expect(page.getByText(/escanear nota|scan receipt/i).first()).toBeVisible();
 
-    // Rare entries are collapsed at rest: not in the DOM until the expander opens.
+    // GATE 18: the planning tools now lead the visible tier (no "Planejar"
+    // expander) — reachable in one tap, not buried.
+    await expect(page.getByText('Planejar um gasto', { exact: true })).toBeVisible();
+    await expect(page.getByText('Simular compra', { exact: true })).toBeVisible();
+    await expect(page.getByText('Começar saída', { exact: true })).toBeVisible();
+
+    // GATE 18: "Registrar mercado" was demoted — no longer a prime chip; it lives
+    // inside the collapsed "Outros registros" (not in the DOM until it opens).
+    await expect(page.getByText('Registrar mercado', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Registrar transferência')).toHaveCount(0);
     await page.getByRole('button', { name: /outros registros|other entries/i }).click();
+    await expect(page.getByText('Registrar mercado', { exact: true })).toBeVisible();
     await expect(page.getByText('Registrar transferência')).toBeVisible();
     await expect(page.getByText('Registrar saque')).toBeVisible();
-
-    // Planning entries collapse behind their own expander — still reachable.
-    // (Exact match: the expander's own subtitle also contains "Planejar um gasto".)
-    await expect(page.getByText('Planejar um gasto', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: /planejar|^plan\b/i }).first().click();
-    await expect(page.getByText('Planejar um gasto', { exact: true })).toBeVisible();
   });
 
   test('Quick Add: only amount/category/description by default; the rest collapses under "Detalhes"', async ({

@@ -249,10 +249,8 @@
     "plan_expense": "Plan an expense",
     "plan_expense_desc": "Event, purchase or pot — one door",
     "quick_actions": "Quick actions",
-    "group_plan": "Plan",
-    "group_plan_desc": "Plan an expense, simulate a purchase",
     "group_other": "Other entries",
-    "group_other_desc": "Transfer, withdrawal, income"
+    "group_other_desc": "Groceries, transfer, withdrawal, income"
   },
   "income": {
     "title": "Record income",

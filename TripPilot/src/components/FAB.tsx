@@ -8,12 +8,16 @@ import { hapticSelection } from '@/utils/haptics';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 
 /**
- * P2 (UX audit §3): the FAB keeps ALL 9 actions and the visual language, but is
- * reordered for the thumb — the heroes ("Registrar gasto", "Escanear nota") sit
- * at the BASE of the sheet (closest to the "+"), capture chips just above, and
- * the rarer planning/other entries collapse behind expanders so the sheet is
- * short at rest. Nothing was removed (ÂNCORA 9); simple mode still hides the
- * advanced actions.
+ * P2 (UX audit §3) + GATE 18 (Julio device test 2026-06-18): the FAB keeps ALL 9
+ * actions and the visual language, but ranks them by VALUE for the thumb. Base of
+ * the sheet = the two accented heroes ("Registrar gasto", "Escanear nota"). Above
+ * them, visible at rest: "Iniciar saída" (the distinct live-capture session, the
+ * most important secondary action) and the two PLANNING tools ("Planejar um
+ * gasto", "Simular compra") — the app's differentiators, previously buried behind
+ * a "Planejar" expander. "Registrar mercado" — which is just "Registrar gasto"
+ * pre-filtered to one category — was demoted from a prime chip into the collapsed
+ * "Outros registros" with the transfer/withdrawal/income entries. Nothing removed
+ * (ÂNCORA 9); simple mode still hides the advanced actions.
  */
 type FabGroup = 'capture' | 'plan' | 'other';
 
@@ -47,13 +51,15 @@ const GROUPED_ACTIONS: FabAction[] = [
     advanced: true,
   },
   {
+    // GATE 18: a pre-filtered "Registrar gasto" — demoted from a prime chip into
+    // the collapsed "Outros registros" so the planning tools can lead instead.
     icon: 'shopping_cart',
     labelKey: 'fab.register_market',
     descKey: 'fab.register_market_desc',
     path: '/quick-add?cat=market',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
-    group: 'capture',
+    group: 'other',
   },
   {
     icon: 'edit_calendar',
@@ -104,10 +110,9 @@ const GROUPED_ACTIONS: FabAction[] = [
   },
 ];
 
-const EXPANDER_META: Record<'plan' | 'other', { icon: string; labelKey: string; descKey: string }> = {
-  plan: { icon: 'edit_calendar', labelKey: 'fab.group_plan', descKey: 'fab.group_plan_desc' },
-  other: { icon: 'more_horiz', labelKey: 'fab.group_other', descKey: 'fab.group_other_desc' },
-};
+// GATE 18: only the low-value "Outros registros" collapses now — the planning
+// tools were promoted to visible chips, so there's no "Planejar" expander.
+const OTHER_EXPANDER = { icon: 'more_horiz', labelKey: 'fab.group_other', descKey: 'fab.group_other_desc' };
 
 interface FABMenuProps {
   isOpen: boolean;
@@ -120,18 +125,16 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
   const { settings } = useAppData();
   // DEC-194: keep the menu mounted through its exit so it visibly closes.
   const { mounted, state } = useAnimatedPresence(isOpen, 180);
-  // P2: planning/other entries are collapsed at rest — the sheet stays short.
-  const [openGroups, setOpenGroups] = useState<Record<'plan' | 'other', boolean>>({
-    plan: false,
-    other: false,
-  });
+  // GATE 18: only the low-value "Outros registros" group collapses at rest.
+  const [otherOpen, setOtherOpen] = useState(false);
 
   if (!mounted) return null;
   const closing = state === 'closing';
 
-  // M19: simple mode keeps only the capture actions; advanced ones stay
-  // reachable via their full pages (ÂNCORA 9 — hide, never delete).
+  // M19: simple mode hides the advanced actions; they stay reachable via their
+  // full pages (ÂNCORA 9 — hide, never delete).
   const actions = visibleInMode(GROUPED_ACTIONS, settings?.appMode ?? 'complete');
+  // GATE 18 visible tier: the planning tools lead, then the live-capture leader.
   const captureActions = actions.filter((a) => a.group === 'capture');
   const planActions = actions.filter((a) => a.group === 'plan');
   const otherActions = actions.filter((a) => a.group === 'other');
@@ -142,9 +145,9 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
     navigate(path);
   };
 
-  const toggleGroup = (group: 'plan' | 'other') => {
+  const toggleOther = () => {
     hapticSelection();
-    setOpenGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+    setOtherOpen((prev) => !prev);
   };
 
   const renderChip = (action: FabAction) => (
@@ -172,41 +175,69 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
     </button>
   );
 
-  const renderExpander = (group: 'plan' | 'other', groupActions: FabAction[]) => {
+  // GATE 18: a full-width leader for the most important secondary action
+  // ("Iniciar saída") — heavier than a 2-col chip, sitting just above the heroes.
+  const renderWideAction = (action: FabAction) => (
+    <button
+      key={action.path}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleAction(action.path);
+      }}
+      className="btn-press w-full p-3.5 rounded-2xl flex items-center gap-3 text-left"
+      style={{ background: 'var(--surface-high)' }}
+    >
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background: action.iconBg }}
+      >
+        <Icon name={action.icon} size={20} className={action.iconColorClass} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-bold text-on-surface leading-tight">{t(action.labelKey)}</p>
+        <p className="text-[10px] font-semibold text-on-surface-dim leading-snug line-clamp-1 mt-0.5">
+          {t(action.descKey)}
+        </p>
+      </div>
+      <Icon name="arrow_forward" size={18} className={`${action.iconColorClass} shrink-0`} />
+    </button>
+  );
+
+  const renderOtherExpander = (groupActions: FabAction[]) => {
     if (groupActions.length === 0) return null;
-    const meta = EXPANDER_META[group];
-    const open = openGroups[group];
     return (
-      <div key={`group-${group}`} className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2.5">
         <button
           onClick={(e) => {
             e.stopPropagation();
-            toggleGroup(group);
+            toggleOther();
           }}
           className="btn-press w-full p-3.5 rounded-2xl flex items-center gap-3 text-left"
           style={{ background: 'var(--surface-high)' }}
-          aria-expanded={open}
+          aria-expanded={otherOpen}
         >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
             style={{ background: 'var(--surface-container)' }}
           >
-            <Icon name={meta.icon} size={20} className="text-on-surface-dim" />
+            <Icon name={OTHER_EXPANDER.icon} size={20} className="text-on-surface-dim" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-on-surface leading-tight">{t(meta.labelKey)}</p>
+            <p className="text-[13px] font-bold text-on-surface leading-tight">
+              {t(OTHER_EXPANDER.labelKey)}
+            </p>
             <p className="text-[10px] font-semibold text-on-surface-dim leading-snug line-clamp-1 mt-0.5">
-              {t(meta.descKey)}
+              {t(OTHER_EXPANDER.descKey)}
             </p>
           </div>
           <Icon
             name="expand_more"
             size={20}
             className="text-on-surface-faint shrink-0 transition-transform"
-            style={open ? { transform: 'rotate(180deg)' } : undefined}
+            style={otherOpen ? { transform: 'rotate(180deg)' } : undefined}
           />
         </button>
-        {open && <div className="grid grid-cols-2 gap-2.5">{groupActions.map(renderChip)}</div>}
+        {otherOpen && <div className="grid grid-cols-2 gap-2.5">{groupActions.map(renderChip)}</div>}
       </div>
     );
   };
@@ -256,17 +287,23 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
             </p>
           </div>
 
-          {/* P2: content flows top→bottom but the sheet is bottom-anchored, so the
-              LAST children sit closest to the thumb. Order: collapsed expanders →
-              capture chips → scan hero → register-expense hero (the base). */}
+          {/* GATE 18: content flows top→bottom but the sheet is bottom-anchored, so
+              the LAST children sit closest to the thumb. Order: collapsed "Outros
+              registros" → planning chips → "Iniciar saída" leader → scan hero →
+              register-expense hero (the base). */}
           <div className="px-3 pb-3 overflow-y-auto no-scrollbar">
             <div className="flex flex-col gap-2.5 stagger">
-              {renderExpander('other', otherActions)}
-              {renderExpander('plan', planActions)}
+              {renderOtherExpander(otherActions)}
 
-              {captureActions.length > 0 && (
-                <div className="grid grid-cols-2 gap-2.5">{captureActions.map(renderChip)}</div>
+              {planActions.length > 0 && (
+                <div
+                  className={`grid ${planActions.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-2.5`}
+                >
+                  {planActions.map(renderChip)}
+                </div>
               )}
+
+              {captureActions.map(renderWideAction)}
 
               {/* DEC-206: our first AI feature — featured full-width, with a distinct
                   indigo "smart" accent + sparkle so it stands apart from the orange

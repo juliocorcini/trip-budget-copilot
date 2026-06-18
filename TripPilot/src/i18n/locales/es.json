@@ -249,10 +249,8 @@
     "plan_expense": "Planear un gasto",
     "plan_expense_desc": "Evento, compra o fondo — en una sola puerta",
     "quick_actions": "Acciones rápidas",
-    "group_plan": "Planificar",
-    "group_plan_desc": "Planear un gasto, simular compra",
     "group_other": "Otros registros",
-    "group_other_desc": "Transferencia, retiro, ingreso"
+    "group_other_desc": "Mercado, transferencia, retiro, ingreso"
   },
   "income": {
     "title": "Registrar ingreso",
