@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.97.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Dividir conta agora tem mesa ao vivo: toque em "Mesa ao vivo", mande o link no grupo e cada pessoa marca no próprio celular o que consumiu.',
+        'As escolhas de todo mundo aparecem na hora na sua tela; o que ninguém pega cai em você, e a sua parte continua certa em tempo real.',
+        'No fim vira um único gasto, como sempre — e o link expira sozinho. Você segue como a fonte da verdade da divisão.',
+      ],
+      en: [
+        'Split a bill now has a live table: tap "Live table", drop the link in the group, and everyone taps what they had on their own phone.',
+        'Everyone\'s picks show up on your screen instantly; whatever no one claims falls to you, and your part stays correct in real time.',
+        'It still ends as a single expense — and the link expires on its own. You remain the source of truth for the split.',
+      ],
+      es: [
+        'Dividir cuenta ahora tiene mesa en vivo: toca "Mesa en vivo", envía el enlace al grupo y cada uno marca en su celular lo que consumió.',
+        'Las elecciones de todos aparecen al instante en tu pantalla; lo que nadie toma cae en ti, y tu parte se mantiene correcta en tiempo real.',
+        'Al final queda como un único gasto, como siempre — y el enlace expira solo. Sigues siendo la fuente de la verdad del reparto.',
+      ],
+    },
+  },
+  {
     version: '0.96.0',
     date: '2026-06-18',
     items: {

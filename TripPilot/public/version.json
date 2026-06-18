@@ -1,8 +1,8 @@
 {
-  "version": "0.96.0",
+  "version": "0.97.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.96.0.zip",
-  "notes": "Nova tela “Dividir conta”: tire uma foto da conta (ou digite os itens) e divida por item, por igual ou só o seu. Cada pessoa toca no que consumiu (passa o celular), a taxa de serviço entra sozinha e é rateada, e no fim tudo vira um único gasto já mostrando quanto cabe no seu orçamento — com desfazer."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.97.0.zip",
+  "notes": "Dividir conta agora tem mesa ao vivo: mande um link e cada pessoa marca no próprio celular o que consumiu. As escolhas aparecem na hora na sua tela, as sobras caem em você e no fim tudo vira um único gasto — você continua sendo a fonte da verdade."
 }
