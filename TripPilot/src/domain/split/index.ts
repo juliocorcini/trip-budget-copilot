@@ -26,3 +26,16 @@ export { buildSplitCommitPlan, dominantSplitCategory } from './commit';
 export type { SplitCommitPlan, SplitCommitShare } from './commit';
 export { buildSplitFromReceipt } from './from-receipt';
 export type { BuildSplitFromReceiptInput, ReceiptSplitDraft } from './from-receipt';
+export {
+  splitSharePayloadSchema,
+  buildSplitSharePayload,
+  parseSplitSharePayload,
+} from './share-payload';
+export type { SplitSharePayload } from './share-payload';
+export {
+  splitClaimResponseSchema,
+  buildSplitClaimResponse,
+  parseSplitClaimResponse,
+  reduceGuestClaims,
+} from './claim-response';
+export type { SplitClaimResponse, SplitClaimSnapshotItem } from './claim-response';
