@@ -59,7 +59,7 @@
 
 ### DEC-007 — BudgetPool Across Phases
 - **Date**: 2026-06-08
-- **Status**: APPROVED
+- **Status**: APPROVED · **RECONCILED by DEC-219** (2026-06-18) — the canonical model is now **1 trecho = 1 dedicated pool**; cross-phase sharing is demoted to an *advanced* capability. The `BudgetPoolPhaseLink` primitive stays in the backend (still possible in "Visão avançada"), it just stops being the default mental model.
 - **Decision**: A BudgetPool can serve multiple non-consecutive phases via BudgetPoolPhaseLink
 - **Rationale**: €760 must last for two separate Burgos stays (before and after eurotrip). Can't be tied to one phase
 - **Alternatives**: Separate budgets per phase (doesn't reflect shared money pool)
@@ -634,7 +634,7 @@
 
 ### DEC-089 — Remove "Reserved for [next phase]" from Hero
 - **Date**: 2026-06-10
-- **Status**: APPROVED (Julio R3 audio review)
+- **Status**: APPROVED (Julio R3 audio review) · **RECONCILED by DEC-219** (2026-06-18) — the per-phase-fund direction this decision pointed at became **canonical**: each trecho owns its dedicated pool and the dashboard now follows the **active phase's** pool (fixing the `linkedPools[0]` bug). No contradiction — DEC-219 finishes what this started.
 - **Decision**: Remove the future-floor line from the dashboard hero; each phase now has its own fund, nothing from the current phase rolls to the next. Future floor mechanics stay intact and visible in Funds/Planner
 - **Rationale**: Line is a leftover from the single-fund era and confuses the current per-phase model
 - **Design**: gap-fix-r3 R-07
@@ -1090,7 +1090,7 @@
 
 ### DEC-153 — Phase Cycle: Leftover Sheet, Atomic Move, Countdown (Package 2, v0.11.0 — Phase 3 complete)
 - **Date**: 2026-06-13
-- **Status**: APPROVED
+- **Status**: APPROVED · **RECONCILED by DEC-219** (2026-06-18) — the leftover mechanics (carry-next / reserve / shopping pool→pool transfer, totals preserved) **remain valid**. The model is now explicitly **1 trecho = 1 dedicated pool**, so the "leftover" is that trecho's own free-to-spend flowing into the next one — the same honest number, now with a clearer mental frame than the old "subtractive shared-pool, no per-phase wallet" premise.
 - **Decision**: When a phase closes with a successor (pure `findEndedPhaseWithSuccessor`, inclusive end-of-day BUG-002) and free-to-spend > 0, a BottomSheet offers what to do with the leftover (auto-opens in Complete mode only — ÂNCORA 14). The leftover is the operational pool's free-to-spend evaluated with the NEXT phase as current — an honest, conservative number that respects reserves/floors. The atomic `applyPhaseLeftover` (transaction over pools+envelopes+appSettings) has three destinations: carry-next (no-op, stays free), reserve (new protected_reserve envelope — totals intact), shopping (pool→pool transfer via pure `computePoolTransfer` — preserves the trip total, ÂNCORA 13/15); all mark `phaseLeftoverHandled` (idempotent, non-indexed). A countdown builder (`buildPhaseCountdown`) shows "X days to the next phase — you have €Y/day until then" within a `COUNTDOWN_WINDOW_DAYS(5)` window.
 - **Rationale**: A subtractive shared-pool model has no per-phase wallet, so the honest "leftover" is the money that flows free into the next phase; letting the traveler steer it (keep / protect / spend) without ever changing the total respects the money-math invariants.
 - **Alternatives**: Auto-rolling the leftover (rejected: ÂNCORA 12 — the user decides), a separate per-phase wallet (rejected: contradicts the shared-pool model), showing the leftover with the closed phase as current (rejected: not the number that actually carries forward)
@@ -1514,6 +1514,58 @@
 - **Decision (D-DEC-C)**: implement **native biometric unlock** behind `isNativeApp()` via a Capacitor biometric plugin, as a convenience layer **over** the PIN — same `isBiometricUnlockReady` gate as the web WebAuthn path (DEC-213), PIN always the real secret and fallback (ÂNCORA 12, never trapped). Today biometrics exist only via web WebAuthn, which the Android WebView does not expose, so it is invisible in the installed app. This changes native → a **new APK + device verification** before promotion.
 - **Onda 5 also folds in** (all device/native): **D-BUG-19 + D-BUG-09** (QR pairing "connects then stops" + mailbox "delivered but nothing received" — root cause still *A VERIFICAR*; requires reproduction on **two paired physical devices** and the `Mailbox` DO relay); device re-confirmation of **D-BUG-07** (scrollbar) and **D-BUG-15** (full-bleed margins) — exact element only visible on hardware; device verification of **D-BUG-01** App-Link `#fragment` delivery; **promotion of the device-pending native APK** (DEC-215 B1/B2/B3, 0.69.0 → re-sign + verify) only after device OK; the remaining **B18** verification backlog.
 - **Why not now**: the acceptance criteria are `[device]`; the gate is "**promote the APK only after device OK**". Shipping native biometric or App Links without a device is exactly the "opens but does nothing" failure the plan exists to prevent, and pairing/mailbox cannot even be root-caused without two devices. Onda 5 is therefore a **Julio device-QA session**, not a code-only deliverable — kept explicitly out of the autonomous web/OTA loop.
+
+---
+
+## Budget Model Reform — Implementation Package #1 (DEC-219 → DEC-225)
+
+> Source of truth: `brain/documents/budget-model-master-decision-2026-06-17.md` (decisions D1–D19) + `budget-model-implementation-prompt-2026-06-17.md` (6 gates). Shipped autonomously across **v0.76.0 → v0.81.0** as the closed, self-contained "budget model v2" package. These DECs record what was approved-and-shipped and reconcile the two opposing money eras (DEC-007 shared-pool ↔ DEC-089 per-phase-fund) into one canonical model (D19).
+
+### DEC-219 — Canonical budget model: Trecho / Pote / Evento / Compra planejada (reconciles DEC-007 × DEC-089 × DEC-153) (Package #1, v0.76.0–0.81.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (GATE 1 v0.76.0 + GATE 2 v0.77.0 + GATE 6 v0.81.0)
+- **Context (D19)**: the app carried **two opposing money models** — "shared pool + reserves" (DEC-007/153 era) and "1 fund per phase" (DEC-089 era) — so the dashboard read the wrong fund (`linkedPools[0]`) and ~10 backend terms (fund/pool/link/envelope/future-floor/occurrence…) leaked to the user. Julio modelled a real trip and got confused about where each value goes.
+- **Decision (D1–D4)**: the user sees **4 real-world concepts** — **Trecho** (a leg: dates + a budget → `Phase`+dedicated `BudgetPool(linked_phases)`+1:1 `BudgetPoolPhaseLink`), **Pote** (money set aside → `BudgetPool(global)`), **Evento** (something on a date → `PlannedOccurrence(kind:'event')`), **Compra planejada** (something I'll buy → `PlannedPurchase`). Canonical rules: **(D3)** the dashboard follows the **active phase**'s pool (kills `linkedPools[0]`); **(D4)** **1 trecho = 1 dedicated budget** (Phase+Pool+Link created atomically), sharing a pool across trechos is an *advanced* path; the technical vocabulary **never** appears on the happy path.
+- **Anti-regression (D16 / §8 — permanent rule)**: simplify only the **information architecture & nomenclature** that confuses, never **capability**. Everything that exists today (phase rhythm/peak DEC-075, events, activity profiles, multi-currency DEC-158, Wise import DEC-200, outings) stays possible — it just stops being mandatory/visible on the happy path. Audited at GATE 6: full suite green, all old entry points reachable.
+- **Advanced view (D17)**: "**Visão avançada da viagem**" in Settings surfaces the raw backend (funds + scope + links + envelopes + wallets with balances) for the curious and deep-links to the existing `/funds` and `/wallets` editors — no duplicated logic (GATE 6, v0.81.0).
+- **Reconciliation**: **DEC-007** (cross-phase shared pool) → demoted to advanced; the link primitive stays in the backend. **DEC-089** (per-phase fund) → its direction became canonical. **DEC-153** (phase-cycle leftover) → mechanics intact, now framed as the trecho's own pool flowing into the next.
+- **Rationale**: one simple, canonical mental model with all power preserved in the backend; ends the era ambiguity that caused the original confusion.
+
+### DEC-220 — Pote unificado (global pool with optional date + goal) + D8 Home visibility + "Potes e planejados" section (Package #1, v0.78.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (GATE 3, v0.78.0)
+- **Decision (D7/D8/D9/D15)**: a **Pote** is one concept — a `global`-scope `BudgetPool` with **optional** `dateStart`/`dateEnd` and an **optional** `goalCents` (Dexie v10 backfills to null; pre-existing pools/trecho pools stay valid). **(D8)** a dated Pote/Evento surfaces on the **Home** only when its owner trecho is active **OR** inside the **D-7** window of its date — never in a trecho that isn't its owner — and is **always** reachable in the dedicated section (pure `selectVisiblePots`). **(D9)** a "**Potes e planejados**" section in the Viagem hub (`TripHubPage`) lists every pote/event/planned-purchase always. **(D15)** creation uses guided **example chips** + a "why" microcopy.
+- **Rationale**: collapses the old "pot vs reserve vs envelope" jargon into one understandable object; D8 keeps the Home clean while never hiding money.
+
+### DEC-221 — Evento with funding (3 ways) + single planning door + first-class event (Package #1, v0.79.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (GATE 4, v0.79.0)
+- **Decision (D6/D5/D15)**: planning a future expense is **one guided door** ("Planejar um gasto") answering **2 questions** — *(1) does it happen on a date?* (yes → Evento · no → Compra/Pote) and *(2) where does the money come from?* with **3 funding options**: **eat from the trecho** (reserves from the active leg — the default), **create a new Pote** for it (e.g. Tomorrowland €200, born linked to the event), or **use an existing Pote**. A pure `routePlannedExpense` picks the entity; an atomic `createPlannedExpense` orchestrator creates it and wires funding (trecho funding subtracts from free-to-spend; pote funding doesn't). Events are now **first-class** (FAB + Viagem section + D8 Home surfacing via `selectVisibleEvents`), not buried inside phase editing. **(D5)** an over-budget trecho suggests a 1-tap remanage, never blocks (DEC-053).
+- **Rationale**: dissolves the "Evento vs Pote" confusion (Tomorrowland is **both** — an event whose money is a pote) into a single flow; the user never picks jargon.
+
+### DEC-222 — Progressive wallet tracking (auto-on with 2+ wallets or Wise import + manual override) (Package #1, v0.80.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (GATE 5, v0.80.0)
+- **Decision (D10/D11, option C)**: the "de onde saiu o dinheiro?" wallet question is **invisible** for a single-source traveler and **lights up automatically** with **2+ active wallets** or a **Wise import** (pure `isWalletTrackingActive`/`countActiveWallets`/`hasWiseImportedTransactions`), **and** a manual 3-state override lives in Settings (`walletTrackingOverride: null|true|false` — auto / always-ask / never-ask; null default, non-indexed, backfilled). When active it applies to **all** spends ("sem carteira" remains chargeable, DEC-051). The wallet picker is gated on QuickAdd / ExpenseDetail / Income / Outing review.
+- **Rationale**: zero friction for the common single-wallet case; the capability reveals itself exactly when it becomes useful, with an escape hatch either way.
+
+### DEC-223 — Sequential phases: anti-overlap validation + boundary day belongs to the starting trecho (Package #1, v0.77.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (GATE 2, v0.77.0)
+- **Decision (D12/D13)**: trechos are **always sequential** — creation/edit **validates and prevents overlap**. **(D13, option A)** a boundary day belongs to the trecho that **starts** that day (Eurotrip takes 15/07), always editable afterward.
+- **Rationale**: removes the ambiguity of overlapping legs that fragments the budget and the dashboard; a deterministic boundary rule keeps day-counts and per-day allowances honest.
+
+### DEC-224 — Trip total = sum of trechos (+ pots counted separately), warns on overflow, never blocks (Package #1, v0.77.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (GATE 2, v0.77.0)
+- **Decision (D14, option A)**: the **trip total = the sum of its trechos** (Burgos 628 + Eurotrip 678 + Volta 131 = 1.437 €), with **pots set aside summed separately** (+200 €), always visible; exceeding it **warns/suggests**, never blocks (DEC-053). A declared trip *ceiling* (master §10.2 option B) is documented backlog, **not** in this package.
+- **Rationale**: a single, always-true total that composes from the parts the user actually edits; honesty over hard limits.
+
+### DEC-225 — Nested sub-trecho = V2 (radar; `sub_destination` is the seed) (Package #1 scope boundary)
+- **Date**: 2026-06-18
+- **Status**: APPROVED as **V2 / radar** — explicitly **NOT** in the 6 gates (D18).
+- **Decision (D18)**: a **sub-trecho** (a city *inside* a trecho, e.g. Eurotrip → Amsterdam) is deferred to V2. The backend seed already exists — `PlannedOccurrence(kind:'sub_destination')` (DEC-072) with date-range spend tracking. Direction when promoted: a period nested in the parent trecho (dates contained), optional own rhythm/peak/activities, **no own budget by default** (spends from the parent, just tracks "how much here"), never overlaps the parent's time axis (coherent with D12).
+- **Rationale**: real value, but adds a nesting layer that only pays off once Trecho+Pote+Evento has settled; promoting it early risks reintroducing the complexity this reform removed. Trigger to revisit: concrete demand (e.g. Julio running the Eurotrip).
 
 ---
 

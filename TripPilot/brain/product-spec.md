@@ -19,13 +19,22 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
 
 ## V1 Features — In Scope
 
+> ### Canonical Budget Model v2 (DEC-219 → DEC-225, shipped v0.76.0–0.81.0)
+> The user sees **4 real-world concepts**; the technical vocabulary (fund/pool/link/envelope/occurrence) never appears on the happy path — only in Settings → "Visão avançada da viagem" (DEC-219/D17).
+> - **Trecho** — a leg of the trip = **dates + a budget**. Backend: `Phase` + a **dedicated** `BudgetPool(linked_phases)` + a 1:1 `BudgetPoolPhaseLink`, created atomically. **1 trecho = 1 dedicated budget** (DEC-219/D4); sharing one pool across trechos is an *advanced* path (the old DEC-007 mechanism, kept in the backend).
+> - **Pote** — money set aside with a purpose, spendable anytime. Backend: `BudgetPool(global)` with **optional** date + goal (DEC-220).
+> - **Evento** — something that happens on a date; created via the single "Planejar um gasto" door with **3 funding options** (eat from the trecho · new Pote · existing Pote). Backend: `PlannedOccurrence(kind:'event')` (DEC-221).
+> - **Compra planejada** — something I'll buy "sometime". Backend: `PlannedPurchase` (DEC-175/221).
+>
+> The **dashboard follows the active phase's pool** (DEC-219/D3, fixes the `linkedPools[0]` bug). **Trip total = sum of trechos** + pots counted separately (DEC-224). Phases are **sequential, non-overlapping**, boundary day belongs to the starting trecho (DEC-223). **Wallet tracking is progressive** — invisible with one source, auto-on with 2+ wallets or a Wise import, plus a manual override (DEC-222). **Anti-regression rule (DEC-219/D16):** rhythm/peak/events/activities/multi-currency/Wise all remain — simplification was of nomenclature, never capability.
+
 ### 1. Trip & Phase Management
 - Create trip with name, dates, base currency
 - Create phases (chronological periods within a trip)
-- Phases can share a BudgetPool (e.g., two Burgos stays share one €760 fund)
+- **Canonical: each trecho gets its own dedicated BudgetPool (DEC-219).** Phases *can* still share a BudgetPool as an advanced path (e.g., two Burgos stays sharing one €760 fund — the original DEC-007 mechanism, now reconciled)
 
 ### 2. BudgetPool System
-- A fund can serve one or multiple non-consecutive phases
+- A fund can serve one or multiple non-consecutive phases (advanced; the canonical default is 1 trecho = 1 pool — DEC-219)
 - Protected reserve (visible but not treated as free money)
 - Automatic reserve calculation for future linked phases
 - Manual floor option with detailed recommendation breakdown
