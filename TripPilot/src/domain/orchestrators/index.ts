@@ -112,6 +112,8 @@ export {
 export type { CreateTripFromTemplateInput } from './template-orchestrators';
 export { commitReceipt, undoReceiptCommit } from './receipt-orchestrators';
 export type { CommitReceiptInput, CommitReceiptResult } from './receipt-orchestrators';
+export { commitSplit, undoSplitCommit } from './split-orchestrators';
+export type { CommitSplitInput, CommitSplitResult } from './split-orchestrators';
 export { commitWiseImport, commitWiseTransfers, undoWiseImportBatch } from './import-orchestrators';
 export type {
   CommitWiseImportInput,
