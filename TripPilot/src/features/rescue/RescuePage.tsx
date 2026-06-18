@@ -7,7 +7,7 @@ import { calculateFreeToSpend, buildRescuePlan, type RescueOccasionInput } from 
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { calculateOccasionForecasts } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
-import { toCents, fromCents, formatMoney } from '@/domain/money';
+import { toCents, fromCents, formatMoney, sumCents } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -42,6 +42,9 @@ export function RescuePage() {
 
   const [amount, setAmount] = useState('');
   const [remainingOccasions, setRemainingOccasions] = useState<RescueOccasionInput[]>([]);
+  // DEC-236: the scenario plan still reserved ahead — needed for the TRUE free
+  // (hero) that decides "broke", same definition as the Honest Friend card.
+  const [planReservedCents, setPlanReservedCents] = useState(0);
 
   const activePhase = resolveActivePhase(phases);
   const primaryPool = pools.find((p) => p.scope === 'linked_phases');
@@ -80,6 +83,26 @@ export function RescuePage() {
               enabled.find((p) => p.id === f.profileId)?.typicalValueCents ?? 0,
           })),
       );
+      // Plan reserve = Σ unspent allocation (planned − min(spent, planned)).
+      setPlanReservedCents(
+        forecasts.reduce((sum, f) => {
+          const typical = enabled.find((p) => p.id === f.profileId)?.typicalValueCents ?? 0;
+          const plannedCents = f.totalPlanned * typical;
+          if (plannedCents <= 0) return sum;
+          const spent = sumCents(
+            transactions
+              .filter(
+                (tx) =>
+                  tx.activityProfileId === f.profileId &&
+                  tx.phaseId === activePhase.id &&
+                  tx.type === 'expense' &&
+                  tx.deletedAt === null,
+              )
+              .map((tx) => tx.personalCostCents ?? tx.amountCents),
+          );
+          return sum + (plannedCents - Math.min(spent, plannedCents));
+        }, 0),
+      );
     };
     load();
     return () => {
@@ -112,8 +135,27 @@ export function RescuePage() {
   const remainingDays = activePhase ? getDaysRemaining(activePhase.endDate) + 1 : 0;
   const amountCents = amount ? toCents(parseFloat(amount) || 0) : 0;
 
+  // DEC-236: "broke" is the TRUE free (hero) ≤ 0 — pool free minus the plan
+  // still reserved — so it matches the Honest Friend card exactly. When broke,
+  // the "save €X" calculator is a lie (any target is infeasible). Flip to
+  // RECOVERY mode — tell the truth and show what to cut to claw money back.
+  const trueFreeRawCents = fts ? fts.freeToSpendRawCents - planReservedCents : 0;
+  const phaseBroke = fts ? trueFreeRawCents <= 0 : false;
+  const reserveUsedCents = fts ? Math.max(0, -fts.freeToSpendRawCents) : 0;
+  const planShortfallCents = reserveUsedCents > 0 ? 0 : Math.max(0, -trueFreeRawCents);
+  const recoveryItems = remainingOccasions
+    .map((o) => ({
+      profileId: o.profileId,
+      profileName: o.profileName,
+      remaining: o.remaining,
+      savingsCents: o.remaining * o.typicalValueCents,
+    }))
+    .filter((o) => o.savingsCents > 0)
+    .sort((a, b) => b.savingsCents - a.savingsCents);
+  const totalRecoverableCents = recoveryItems.reduce((sum, o) => sum + o.savingsCents, 0);
+
   const plan =
-    fts && activePhase && amountCents > 0
+    !phaseBroke && fts && activePhase && amountCents > 0
       ? buildRescuePlan({
           saveTargetCents: amountCents,
           freeToSpendCents: fts.freeToSpendCents,
@@ -131,6 +173,70 @@ export function RescuePage() {
         <h1 className="text-heading font-bold text-on-surface">{t('rescue.title')}</h1>
       </div>
 
+      {phaseBroke ? (
+        <>
+          <div
+            className="rounded-2xl p-5 flex items-start gap-3"
+            style={{ background: '#D9404012', border: '1px solid #D9404026' }}
+          >
+            <Icon name="priority_high" size={22} className="text-error mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-error">{t('rescue.broke_title')}</p>
+              <p className="text-xs font-semibold text-on-surface-dim mt-1 leading-snug">
+                {reserveUsedCents > 0
+                  ? t('rescue.broke_reserve', { amount: formatMoney(reserveUsedCents, currency) })
+                  : planShortfallCents > 0
+                    ? t('rescue.broke_plan', { amount: formatMoney(planShortfallCents, currency) })
+                    : t('rescue.broke_edge')}
+              </p>
+            </div>
+          </div>
+
+          {recoveryItems.length > 0 ? (
+            <div className="bg-surface-container rounded-2xl p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-on-surface-faint mb-1">
+                {t('rescue.recover_title')}
+              </p>
+              <p className="text-xs text-on-surface-dim mb-3 leading-snug">
+                {t('rescue.recover_intro')}
+              </p>
+              <div className="flex flex-col gap-2">
+                {recoveryItems.map((o) => (
+                  <div
+                    key={o.profileId}
+                    className="flex items-center justify-between p-3 rounded-xl bg-surface-high"
+                  >
+                    <p className="text-sm font-semibold text-on-surface">
+                      {/* "n", not "count" — count triggers i18next pluralization */}
+                      {t('rescue.recover_item', { n: o.remaining, name: o.profileName })}
+                    </p>
+                    <p className="text-sm font-extrabold tabular text-success">
+                      {t('rescue.suggestion_savings', {
+                        amount: formatMoney(o.savingsCents, currency),
+                      })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs font-bold text-success mt-3">
+                {t('rescue.recover_total', {
+                  amount: formatMoney(totalRecoverableCents, currency),
+                })}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-surface-container rounded-xl p-5 text-center">
+              <Icon name="info" size={32} className="mx-auto mb-2 text-on-surface-dim" />
+              <p className="text-sm font-semibold text-on-surface-dim leading-snug">
+                {t('rescue.recover_empty')}
+              </p>
+            </div>
+          )}
+
+          <p className="text-xs text-on-surface-faint text-center">{t('rescue.note')}</p>
+        </>
+      ) : (
+      <>
       <p className="text-sm text-on-surface-dim leading-snug">{t('rescue.intro')}</p>
 
       {fts && activePhase && (
@@ -257,6 +363,8 @@ export function RescuePage() {
 
           <p className="text-xs text-on-surface-faint text-center">{t('rescue.note')}</p>
         </>
+      )}
+      </>
       )}
     </div>
   );

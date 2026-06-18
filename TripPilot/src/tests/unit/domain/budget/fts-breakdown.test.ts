@@ -4,6 +4,7 @@ import { buildFreeToSpendBreakdown, type FreeToSpendResult } from '@/domain/budg
 function makeFts(partial: Partial<FreeToSpendResult>): FreeToSpendResult {
   return {
     freeToSpendCents: 0,
+    freeToSpendRawCents: 0,
     totalBudgetCents: 0,
     totalIncomeCents: 0,
     totalSpentCents: 0,

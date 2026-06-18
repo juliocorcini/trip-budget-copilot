@@ -535,33 +535,45 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           })
         : null;
 
-    // DEC-093 (R-11): Honest Friend v2 — based on the PLAN of the category.
-    const recentProfileTx =
+    // DEC-093 (R-11) + DEC-236: Honest Friend v2. The trigger is the MOST RECENT
+    // expense of the phase — NO LONGER filtered to activity-profile expenses — so
+    // a plain "Outros" that drained the budget is finally visible. Phase truth
+    // (free ≤ 0 → over_budget) dominates the category read inside the domain.
+    const amigoTriggerTx =
       [...phaseTxsForInsights]
-        .filter((tx) => tx.type === 'expense' && tx.activityProfileId !== null)
+        .filter((tx) => tx.type === 'expense')
         .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
-    const amigoProfile = recentProfileTx
-      ? profiles.find((p) => p.id === recentProfileTx.activityProfileId) ?? null
+    const amigoProfile = amigoTriggerTx?.activityProfileId
+      ? profiles.find((p) => p.id === amigoTriggerTx.activityProfileId) ?? null
       : null;
     const amigoForecast = amigoProfile
       ? forecasts.find((f) => f.profileId === amigoProfile.id) ?? null
       : null;
     const phaseSpentCents = calculatePoolSpent(phaseTxsForInsights);
     const amigoV2 =
-      activePhase && fts && amigoProfile && recentProfileTx
+      activePhase && fts && amigoTriggerTx
         ? buildHonestFriendV2({
-            profileId: amigoProfile.id,
-            profileName: amigoProfile.name,
-            typicalValueCents: amigoProfile.typicalValueCents,
+            profileId: amigoProfile?.id ?? null,
+            profileName: amigoProfile?.name ?? null,
+            typicalValueCents: amigoProfile?.typicalValueCents ?? 0,
             plannedQuantity: amigoForecast?.totalPlanned ?? 0,
             doneQuantity: amigoForecast?.spent ?? 0,
-            categorySpentCents: sumCents(
-              phaseTxsForInsights
-                .filter((tx) => tx.activityProfileId === amigoProfile.id && tx.type === 'expense')
-                .map((tx) => tx.personalCostCents ?? tx.amountCents),
-            ),
-            recentSpendCents: recentProfileTx.personalCostCents ?? recentProfileTx.amountCents,
+            categorySpentCents: amigoProfile
+              ? sumCents(
+                  phaseTxsForInsights
+                    .filter(
+                      (tx) => tx.activityProfileId === amigoProfile.id && tx.type === 'expense',
+                    )
+                    .map((tx) => tx.personalCostCents ?? tx.amountCents),
+                )
+              : 0,
+            recentSpendCents: amigoTriggerTx.personalCostCents ?? amigoTriggerTx.amountCents,
             freeToSpendCents: fts.freeToSpendCents,
+            // DEC-236: TRUE free (hero) = pool raw − plan reserved; pool raw is the
+            // signed pre-floor free. `allocatedCents − allocatedSpentCents` is the
+            // very plan reserve `calculateTrueFree` uses, so this stays consistent.
+            trueFreeRawCents: fts.freeToSpendRawCents - Math.max(0, allocatedCents - allocatedSpentCents),
+            poolFreeRawCents: fts.freeToSpendRawCents,
             phaseSpentCents,
             phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
             todayDate: todayIso,

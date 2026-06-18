@@ -50,6 +50,7 @@ describe('calculateTrueFree (FIELD-18 home hero)', () => {
 describe('buildFreeToSpendBreakdown with the plan line (FIELD-18)', () => {
   const fts: FreeToSpendResult = {
     freeToSpendCents: 98800,
+    freeToSpendRawCents: 98800,
     totalBudgetCents: 100000,
     totalIncomeCents: 0,
     totalSpentCents: 1200,

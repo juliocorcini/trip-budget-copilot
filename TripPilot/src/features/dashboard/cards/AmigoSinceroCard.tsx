@@ -100,6 +100,9 @@ export function AmigoSinceroCard({
             {t('dashboard.amigo_sincero')}
           </p>
           <p className="text-[13px] mt-1 leading-snug font-semibold text-on-surface">
+            {/* DEC-236: phase truth first — out of free money pre-empts every
+                category read. */}
+            {amigo.kind === 'over_budget' && t('dashboard.amigo_over_budget')}
             {amigo.kind === 'over_pace' &&
               t('dashboard.amigo_over_pace', {
                 planned: amigo.plannedQuantity,
@@ -120,11 +123,23 @@ export function AmigoSinceroCard({
                 planned: amigo.plannedQuantity,
               })}
             {amigo.kind === 'no_plan' &&
-              t('dashboard.amigo_no_plan', {
-                type: amigo.profileName.toLowerCase(),
-                percent: amigo.impactPercent,
-              })}
+              t('dashboard.amigo_no_plan', { percent: amigo.impactPercent })}
           </p>
+          {/* DEC-236: present-tense truth, precise to the case — reserve dip,
+              plan-committed remainder, or exactly at the line. Never a future date. */}
+          {amigo.kind === 'over_budget' && (
+            <p className="text-xs font-bold mt-1.5" style={{ color: style.color }}>
+              {amigo.intoReserve
+                ? t('dashboard.amigo_over_budget_reserve', {
+                    amount: formatMoney(amigo.reserveUsedCents, currency),
+                  })
+                : amigo.planShortfallCents > 0
+                  ? t('dashboard.amigo_over_budget_plan', {
+                      amount: formatMoney(amigo.planShortfallCents, currency),
+                    })
+                  : t('dashboard.amigo_over_budget_edge')}
+            </p>
+          )}
           {showPhaseSlack && amigo.kind === 'over_pace' && (
             <p className="text-xs font-semibold mt-1.5 flex items-start gap-1.5 text-on-surface-dim">
               <Icon name="check_circle" size={14} className="text-success mt-0.5 flex-shrink-0" filled />
@@ -152,8 +167,12 @@ export function AmigoSinceroCard({
                 className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
                 style={{ background: style.color, color: '#fff' }}
               >
-                <Icon name="emergency" size={14} />
-                {t('dashboard.amigo_rescue_cta')}
+                <Icon name={amigo.kind === 'over_budget' ? 'restart_alt' : 'emergency'} size={14} />
+                {t(
+                  amigo.kind === 'over_budget'
+                    ? 'dashboard.amigo_recover_cta'
+                    : 'dashboard.amigo_rescue_cta',
+                )}
               </button>
             )}
             {onSimulate && (

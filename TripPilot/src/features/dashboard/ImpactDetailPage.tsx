@@ -87,11 +87,16 @@ export function ImpactDetailPage() {
   const phaseSpentCents = calculatePoolSpent(phaseTxs);
   const phaseBudgetCents = fts ? fts.freeToSpendCents + phaseSpentCents : 0;
 
-  // The spend that triggered the Honest Friend card.
-  const triggerTx =
+  // DEC-236: the spend that weighed MOST this phase — the real culprit. No
+  // longer filtered to activity-profile expenses (a plain "Outros" can be the
+  // biggest hit, and that is exactly what blew the budget). Sorted by personal
+  // cost, descending.
+  const biggestTx =
     [...phaseTxs]
-      .filter((tx) => tx.type === 'expense' && tx.activityProfileId !== null)
-      .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+      .filter((tx) => tx.type === 'expense')
+      .sort(
+        (a, b) => (b.personalCostCents ?? b.amountCents) - (a.personalCostCents ?? a.amountCents),
+      )[0] ?? null;
 
   // End-of-phase projection (same math as the projection insight).
   let projectedCents = 0;
@@ -130,6 +135,21 @@ export function ImpactDetailPage() {
     };
   });
 
+  // DEC-236: "broke" is the TRUE free (hero) ≤ 0 — pool free minus the plan
+  // still reserved — same definition as the Honest Friend card, so the two
+  // never disagree. The plan reserve is the unspent part of each allocation.
+  const planReservedCents = rows.reduce(
+    (sum, r) =>
+      r.plannedBudgetCents > 0
+        ? sum + (r.plannedBudgetCents - Math.min(r.spentCents, r.plannedBudgetCents))
+        : sum,
+    0,
+  );
+  const trueFreeRawCents = fts ? fts.freeToSpendRawCents - planReservedCents : 0;
+  const phaseBroke = fts ? trueFreeRawCents <= 0 : false;
+  const reserveUsedCents = fts ? Math.max(0, -fts.freeToSpendRawCents) : 0;
+  const planShortfallCents = reserveUsedCents > 0 ? 0 : Math.max(0, -trueFreeRawCents);
+
   return (
     <div className="flex flex-col pb-6">
       <div
@@ -143,21 +163,46 @@ export function ImpactDetailPage() {
         </h1>
       </div>
 
-      {/* The spend that triggered the card */}
-      {triggerTx && (
+      {/* DEC-236: when the phase is broke, lead with that — never bury it under
+          a per-category table. */}
+      {phaseBroke && (
+        <div
+          className="mt-3 p-4 rounded-2xl flex items-start gap-3"
+          style={{ background: '#D9404012', border: '1px solid #D9404026' }}
+        >
+          <Icon name="priority_high" size={20} className="text-error mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-error">{t('impact.phase_broke_title')}</p>
+            <p className="text-xs font-semibold text-on-surface-dim mt-0.5 leading-snug">
+              {reserveUsedCents > 0
+                ? t('impact.phase_broke_reserve', {
+                    amount: formatMoney(reserveUsedCents, trip.baseCurrency),
+                  })
+                : planShortfallCents > 0
+                  ? t('impact.phase_broke_plan', {
+                      amount: formatMoney(planShortfallCents, trip.baseCurrency),
+                    })
+                  : t('impact.phase_broke_edge')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* DEC-236: the biggest spend of the phase — the real culprit. */}
+      {biggestTx && (
         <div className="mt-3 p-4 rounded-2xl bg-surface-container">
           <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
-            {t('impact.trigger')}
+            {t('impact.biggest')}
           </p>
           <div className="flex items-center justify-between mt-2">
             <div>
-              <p className="text-sm font-bold text-on-surface">{triggerTx.description}</p>
+              <p className="text-sm font-bold text-on-surface">{biggestTx.description}</p>
               <p className="text-xs text-on-surface-faint mt-0.5">
-                {formatShortDate(localDayOf(triggerTx.date))}
+                {formatShortDate(localDayOf(biggestTx.date))}
               </p>
             </div>
             <p className="text-base font-extrabold tabular text-on-surface">
-              {formatMoney(triggerTx.personalCostCents ?? triggerTx.amountCents, trip.baseCurrency)}
+              {formatMoney(biggestTx.personalCostCents ?? biggestTx.amountCents, trip.baseCurrency)}
             </p>
           </div>
         </div>
@@ -264,7 +309,9 @@ export function ImpactDetailPage() {
         />
         <p className={`text-sm font-semibold ${reserveDate ? 'text-warning' : 'text-success'}`}>
           {reserveDate
-            ? t('impact.reserve_risk_date', { date: formatDate(reserveDate, "d 'de' MMMM") })
+            ? reserveDate <= todayIso
+              ? t('impact.reserve_in_use_now')
+              : t('impact.reserve_risk_date', { date: formatDate(reserveDate, "d 'de' MMMM") })
             : t('impact.reserve_safe')}
         </p>
       </div>

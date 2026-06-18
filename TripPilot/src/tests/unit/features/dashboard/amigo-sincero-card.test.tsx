@@ -58,4 +58,51 @@ describe('AmigoSinceroCard — contextual rescue CTA (G12)', () => {
     );
     expect(screen.queryByText(/plano de resgate/i)).not.toBeInTheDocument();
   });
+
+  // DEC-236: the broke state leads with phase truth and a recovery door — it
+  // must never reuse the "plano de resgate / save €X" label that Julio flagged.
+  it('over_budget → phase-truth message, reserve detail and a recovery CTA', () => {
+    const onRescue = vi.fn();
+    render(
+      <AmigoSinceroCard
+        amigo={{
+          kind: 'over_budget',
+          reserveUsedCents: 56000,
+          planShortfallCents: 0,
+          intoReserve: true,
+        }}
+        currency="EUR"
+        onSeeImpact={vi.fn()}
+        onRescue={onRescue}
+      />,
+    );
+    expect(screen.getByText(/acabou o dinheiro livre/i)).toBeInTheDocument();
+    expect(screen.getByText(/560,00/)).toBeInTheDocument();
+    expect(screen.queryByText(/plano de resgate/i)).not.toBeInTheDocument();
+    const cta = screen.getByText(/como me recuperar/i);
+    fireEvent.click(cta);
+    expect(onRescue).toHaveBeenCalledTimes(1);
+  });
+
+  // Julio's exact case: pool free positive (reserve intact) but the plan
+  // reserves more than what's left → the plan-shortfall copy, NOT the reserve copy.
+  it('over_budget plan-committed (reserve intact) → plan-shortfall copy', () => {
+    render(
+      <AmigoSinceroCard
+        amigo={{
+          kind: 'over_budget',
+          reserveUsedCents: 0,
+          planShortfallCents: 2254,
+          intoReserve: false,
+        }}
+        currency="EUR"
+        onSeeImpact={vi.fn()}
+        onRescue={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/acabou o dinheiro livre/i)).toBeInTheDocument();
+    expect(screen.getByText(/reservado pro seu plano/i)).toBeInTheDocument();
+    expect(screen.getByText(/22,54/)).toBeInTheDocument();
+    expect(screen.queryByText(/reserva protegida/i)).not.toBeInTheDocument();
+  });
 });

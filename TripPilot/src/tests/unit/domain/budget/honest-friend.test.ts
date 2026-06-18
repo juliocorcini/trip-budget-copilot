@@ -40,6 +40,8 @@ function baseInput(overrides: Partial<HonestFriendV2Input> = {}): HonestFriendV2
     categorySpentCents: 1_200,
     recentSpendCents: 300,
     freeToSpendCents: 5_000,
+    trueFreeRawCents: 5_000,
+    poolFreeRawCents: 5_000,
     phaseSpentCents: 3_000,
     phaseBudgetCents: 10_000,
     todayDate: '2026-06-10',
@@ -153,6 +155,75 @@ describe('buildHonestFriendV2 (DEC-093 / R-11)', () => {
   it('no recent spend → no card', () => {
     expect(buildHonestFriendV2(baseInput({ recentSpendCents: 0 })).kind).toBe('none');
   });
+
+  // DEC-236 (Device Test 2026-06-18): PHASE TRUTH dominates the category read.
+  it('true free spent past the protected reserve → over_budget, into the reserve', () => {
+    // True free −€5.60 and pool free also −€5.60 → €5.60 came out of the reserve.
+    const result = buildHonestFriendV2(
+      baseInput({ freeToSpendCents: 0, trueFreeRawCents: -560, poolFreeRawCents: -560 }),
+    );
+    expect(result.kind).toBe('over_budget');
+    if (result.kind === 'over_budget') {
+      expect(result.reserveUsedCents).toBe(560);
+      expect(result.planShortfallCents).toBe(0);
+      expect(result.intoReserve).toBe(true);
+    }
+  });
+
+  it('exactly at the free line (true free 0) → over_budget, reserve intact', () => {
+    const result = buildHonestFriendV2(
+      baseInput({ freeToSpendCents: 0, trueFreeRawCents: 0, poolFreeRawCents: 0 }),
+    );
+    expect(result.kind).toBe('over_budget');
+    if (result.kind === 'over_budget') {
+      expect(result.reserveUsedCents).toBe(0);
+      expect(result.planShortfallCents).toBe(0);
+      expect(result.intoReserve).toBe(false);
+    }
+  });
+
+  it("Julio's backup: pool free POSITIVE but true free negative → over_budget, NOT 'fits the plan'", () => {
+    // The real bug: pool free +€127.71 (so the OLD card said "1 of 2 fit"), but
+    // the plan reserves €150.25 → TRUE free −€22.54. The reserve is intact, the
+    // remainder is committed to the plan. Must read as over_budget with a plan
+    // shortfall — never on_plan / over_pace.
+    const result = buildHonestFriendV2(
+      baseInput({
+        freeToSpendCents: 12_771,
+        trueFreeRawCents: -2_254,
+        poolFreeRawCents: 12_771,
+        plannedQuantity: 7,
+        doneQuantity: 5,
+        categorySpentCents: 9_000,
+      }),
+    );
+    expect(result.kind).toBe('over_budget');
+    if (result.kind === 'over_budget') {
+      expect(result.intoReserve).toBe(false);
+      expect(result.reserveUsedCents).toBe(0);
+      expect(result.planShortfallCents).toBe(2_254);
+    }
+  });
+
+  it('non-profile trigger (no profile, no plan) → no_plan with honest impact %', () => {
+    // The €600 "Outros" while the phase still has €400 truly free → 60% of margin.
+    const result = buildHonestFriendV2(
+      baseInput({
+        profileId: null,
+        profileName: null,
+        typicalValueCents: 0,
+        plannedQuantity: 0,
+        recentSpendCents: 60_000,
+        freeToSpendCents: 40_000,
+        trueFreeRawCents: 40_000,
+        poolFreeRawCents: 40_000,
+      }),
+    );
+    expect(result.kind).toBe('no_plan');
+    if (result.kind === 'no_plan') {
+      expect(result.impactPercent).toBe(60);
+    }
+  });
 });
 
 describe('getHonestFriendTone (D-BUG-11 / D-DEC-E)', () => {
@@ -222,11 +293,28 @@ describe('getHonestFriendTone (D-BUG-11 / D-DEC-E)', () => {
     expect(
       getHonestFriendTone({
         kind: 'no_plan',
-        profileId: 'p',
-        profileName: 'Bar',
         impactPercent: 20,
       }),
     ).toBe('neutral');
+  });
+
+  it('DEC-236: over budget → alert (red), the loudest honest signal', () => {
+    expect(
+      getHonestFriendTone({
+        kind: 'over_budget',
+        reserveUsedCents: 560,
+        planShortfallCents: 0,
+        intoReserve: true,
+      }),
+    ).toBe('alert');
+    expect(
+      getHonestFriendTone({
+        kind: 'over_budget',
+        reserveUsedCents: 0,
+        planShortfallCents: 2_254,
+        intoReserve: false,
+      }),
+    ).toBe('alert');
   });
 });
 

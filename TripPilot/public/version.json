@@ -1,8 +1,8 @@
 {
-  "version": "0.91.0",
+  "version": "0.92.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.91.0.zip",
-  "notes": "Refinos na saída ativa e nas fotos: a saída ativa não rola mais a tela — o bloco de fotos saiu de dentro dela (as fotos entram na revisão da saída) e a linha de “próxima rodada” que ocupava espaço foi removida. Ao adicionar uma foto em qualquer tela, agora você escolhe entre “Tirar foto agora” (abre a câmera) ou “Escolher da galeria”. Os avisos no topo só desfazem quando você toca no botão “Desfazer”, e dá pra deslizar o aviso pro lado pra tirá-lo da tela. E os insights da tela inicial ganharam uma barrinha “Veja mais no copiloto” que leva direto ao Copiloto."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.92.0.zip",
+  "notes": "Amigo sincero repensado pra quando o dinheiro acaba: quando o livre da fase chega a zero, o card agora diz a verdade — “acabou o dinheiro livre desta fase” — em vez de dizer que ainda cabe dentro do plano, e mostra na hora se você já entrou na reserva protegida ou se o que resta está reservado pro seu plano. O “ver impacto completo” passou a destacar o MAIOR gasto da fase (o que realmente pesou), não um gasto pequeno qualquer. E o modo resgate, quando não há mais livre, vira um plano de recuperação: mostra o que dá pra cortar e quanto você recupera, sem aquela calculadora de “guardar X” que não fazia sentido."
 }

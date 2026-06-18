@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.92.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Amigo sincero repensado pra quando o dinheiro acaba: quando o livre da fase chega a zero, ele diz a verdade — "acabou o dinheiro livre desta fase" — em vez de dizer que ainda cabe dentro do plano.',
+        'Ele agora deixa claro o seu estado real: se você já entrou na reserva protegida (e quanto), ou se o que resta já está todo reservado pro seu plano.',
+        '"Ver impacto completo" passou a destacar o MAIOR gasto da fase — o que realmente pesou — em vez de um gasto pequeno qualquer.',
+        'Modo resgate, quando não há mais livre, virou um plano de recuperação: mostra o que dá pra cortar e quanto você recupera, sem a calculadora de "guardar X" que não fazia sentido ali.',
+      ],
+      en: [
+        'Honest friend rethought for when the money runs out: when the phase has no free money left, it tells the truth — "you\'re out of free money this phase" — instead of saying it still fits within the plan.',
+        'It now makes your real state clear: whether you\'ve dipped into your protected reserve (and by how much), or what\'s left is fully reserved for your plan.',
+        '"See full impact" now highlights the BIGGEST spend of the phase — the one that really weighed — instead of some small spend.',
+        'Rescue mode, when there is no free money left, becomes a recovery plan: it shows what you can cut and how much you get back, dropping the "save €X" calculator that made no sense there.',
+      ],
+      es: [
+        'Amigo sincero repensado para cuando el dinero se acaba: cuando la fase se queda sin dinero libre, dice la verdad — "se acabó el dinero libre de esta fase" — en vez de decir que aún cabe dentro del plan.',
+        'Ahora deja claro tu estado real: si ya entraste en tu reserva protegida (y cuánto), o si lo que queda está todo reservado para tu plan.',
+        '"Ver impacto completo" ahora destaca el MAYOR gasto de la fase — el que de verdad pesó — en vez de un gasto pequeño cualquiera.',
+        'El modo rescate, cuando no queda nada libre, se convierte en un plan de recuperación: muestra qué puedes recortar y cuánto recuperas, sin la calculadora de "guardar X" que no tenía sentido ahí.',
+      ],
+    },
+  },
+  {
     version: '0.91.0',
     date: '2026-06-18',
     items: {

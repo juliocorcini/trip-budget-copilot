@@ -7,11 +7,20 @@ import { calculateEffectiveSpendingDays } from '@/domain/phases';
  * "197 bar nights"). The card compares planned occasions with what still
  * fits in the category budget and projects WHEN the reserve starts being
  * used if the current pace continues.
+ *
+ * DEC-236 (Device Test 2026-06-18): PHASE TRUTH now dominates. When the
+ * phase's free-to-spend is exhausted the card leads with that fact
+ * (`over_budget`) instead of a category read — it must never say "fits within
+ * the plan" when there is no money left. The triggering spend is also no
+ * longer filtered to activity-profile expenses, so a plain "Outros" that blew
+ * the budget is finally visible (handled by `no_plan` / `over_budget`).
  */
 
 export interface HonestFriendV2Input {
-  profileId: string;
-  profileName: string;
+  /** Profile of the triggering spend — null when it isn't tied to an activity. */
+  profileId: string | null;
+  profileName: string | null;
+  /** Typical occasion cost in cents (0 when the trigger has no profile). */
   typicalValueCents: number;
   /** Planned occasions from the active ScenarioPlan (0 = no plan). */
   plannedQuantity: number;
@@ -21,7 +30,22 @@ export interface HonestFriendV2Input {
   categorySpentCents: number;
   /** The spend that triggered the card. */
   recentSpendCents: number;
+  /** Phase free-to-spend, clamped at ≥ 0 (the pool free, used for category slack). */
   freeToSpendCents: number;
+  /**
+   * DEC-236: signed TRUE free — the hero number ("livre para usar"), i.e. the
+   * pool free minus the scenario plan still reserved ahead. This is what the
+   * user sees as money-left-to-spend, so it is what decides "broke" (≤ 0). It
+   * can be ≤ 0 while the pool free is still positive (the rest is committed to
+   * the plan) — exactly the case the old card mis-read as "fits within plan".
+   */
+  trueFreeRawCents: number;
+  /**
+   * DEC-236: signed POOL free (free BEFORE the 0-floor, protected reserve
+   * already removed). A negative value means the spending has cut into the
+   * protected reserve; ≥ 0 means the reserve is intact.
+   */
+  poolFreeRawCents: number;
   phaseSpentCents: number;
   phaseBudgetCents: number;
   todayDate: string;
@@ -30,6 +54,22 @@ export interface HonestFriendV2Input {
 
 export type HonestFriendV2 =
   | { kind: 'none' }
+  | {
+      /**
+       * DEC-236: the phase has no free money left — this dominates every
+       * category read. Never reads as "within plan".
+       */
+      kind: 'over_budget';
+      /** Cents spent past the protected-reserve line (pool free < 0). 0 otherwise. */
+      reserveUsedCents: number;
+      /**
+       * Cents by which the remaining plan exceeds what's left, while the
+       * protected reserve is still intact (true free < 0 ≤ pool free). 0 otherwise.
+       */
+      planShortfallCents: number;
+      /** True when the protected reserve is already being used. */
+      intoReserve: boolean;
+    }
   | {
       kind: 'on_plan';
       profileId: string;
@@ -70,8 +110,6 @@ export type HonestFriendV2 =
     }
   | {
       kind: 'no_plan';
-      profileId: string;
-      profileName: string;
       /** Honest fallback: % of the phase free margin this spend consumed. */
       impactPercent: number;
     };
@@ -86,13 +124,17 @@ export type HonestFriendV2 =
  *               (D-BUG-11 / D-DEC-E: a calm "heads up, but you're fine" — blue/teal,
  *               NOT green, because the message still says "only N of M fit")
  *  - caution  → over the category pace / over the plan, reserve still safe (amber)
- *  - alert    → over plan/pace AND the pace projects into the protected reserve (red)
+ *  - alert    → over plan/pace AND the pace projects into the protected reserve (red),
+ *               OR the phase is broke (DEC-236 `over_budget`)
  *  - neutral  → no plan for the category (informational impact %, nothing to alarm)
  */
 export type HonestFriendTone = 'positive' | 'steady' | 'caution' | 'alert' | 'neutral';
 
 export function getHonestFriendTone(amigo: HonestFriendV2): HonestFriendTone {
   switch (amigo.kind) {
+    case 'over_budget':
+      // DEC-236: out of free money is the loudest honest signal.
+      return 'alert';
     case 'on_plan':
       return 'positive';
     case 'over_pace':
@@ -183,18 +225,46 @@ export function projectReserveStartDate(
 }
 
 export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 {
-  if (input.recentSpendCents <= 0 || input.typicalValueCents <= 0) {
+  if (input.recentSpendCents <= 0) {
     return { kind: 'none' };
   }
 
-  if (input.plannedQuantity > 0) {
+  // 1) DEC-236 — PHASE TRUTH FIRST. When the TRUE free (the hero "livre para
+  // usar" — pool free minus the plan still reserved) is gone, that dominates
+  // every category read: never say "fits within the plan" when there is nothing
+  // left to spend. This fires even when the pool free is still positive (the
+  // remainder is committed to the plan) — the exact case the old card mis-read.
+  if (input.trueFreeRawCents <= 0) {
+    const reserveUsedCents = Math.max(0, -input.poolFreeRawCents);
+    const intoReserve = reserveUsedCents > 0;
+    // Reserve intact but the plan needs more than what's left → the shortfall.
+    const planShortfallCents = intoReserve ? 0 : Math.max(0, -input.trueFreeRawCents);
+    return {
+      kind: 'over_budget',
+      reserveUsedCents,
+      planShortfallCents,
+      intoReserve,
+    };
+  }
+
+  // 2) Category-plan reads — only meaningful when the trigger is tied to an
+  // activity profile that HAS a plan (and, by step 1, the phase still has room).
+  if (
+    input.profileId !== null &&
+    input.profileName !== null &&
+    input.typicalValueCents > 0 &&
+    input.plannedQuantity > 0
+  ) {
+    const profileId = input.profileId;
+    const profileName = input.profileName;
+
     // DEC-115 (R-06): "20 of 5 — within plan" is impossible. Used more
     // occasions than planned → say it plainly.
     if (input.doneQuantity > input.plannedQuantity) {
       return {
         kind: 'over_plan',
-        profileId: input.profileId,
-        profileName: input.profileName,
+        profileId,
+        profileName,
         plannedQuantity: input.plannedQuantity,
         doneQuantity: input.doneQuantity,
         reserveStartDate: projectReserveStartDate(
@@ -217,8 +287,8 @@ export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 
     if (remainingPlanned === 0 || fitCount >= remainingPlanned) {
       return {
         kind: 'on_plan',
-        profileId: input.profileId,
-        profileName: input.profileName,
+        profileId,
+        profileName,
         plannedQuantity: input.plannedQuantity,
         doneQuantity: input.doneQuantity,
         remainingPlanned,
@@ -235,8 +305,8 @@ export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 
 
     return {
       kind: 'over_pace',
-      profileId: input.profileId,
-      profileName: input.profileName,
+      profileId,
+      profileName,
       plannedQuantity: input.plannedQuantity,
       doneQuantity: input.doneQuantity,
       remainingPlanned,
@@ -253,8 +323,8 @@ export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 
     };
   }
 
-  // No plan for the category: honest fallback — impact on the phase free
-  // margin, NEVER an occasion count.
+  // 3) No plan (or a non-profile trigger like "Outros"): honest fallback —
+  // impact on the phase free margin, NEVER an occasion count.
   const freeBeforeCents = input.freeToSpendCents + input.recentSpendCents;
   const impactPercent =
     freeBeforeCents <= 0
@@ -263,8 +333,6 @@ export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 
 
   return {
     kind: 'no_plan',
-    profileId: input.profileId,
-    profileName: input.profileName,
     impactPercent,
   };
 }

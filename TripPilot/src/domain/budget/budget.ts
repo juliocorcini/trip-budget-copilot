@@ -14,6 +14,13 @@ import { createSyncMetadata } from '@/utils/entity-factory';
 
 export interface FreeToSpendResult {
   freeToSpendCents: number;
+  /**
+   * DEC-236: signed free-to-spend BEFORE the 0-floor. Equals `freeToSpendCents`
+   * while there is money left; goes negative once the spending eats into the
+   * protected reserve / commitments. The Honest Friend uses it to tell the user
+   * HOW FAR past the line they are instead of stopping at a misleading €0.
+   */
+  freeToSpendRawCents: number;
   totalBudgetCents: number;
   /** B8 (DEC-212): real income received against this pool — GROWS the budget. */
   totalIncomeCents: number;
@@ -90,19 +97,20 @@ export function calculateFreeToSpend(
     pool.id,
   );
 
-  const freeToSpendCents = Math.max(
-    0,
+  const freeToSpendRawCents =
     totalBudgetCents +
-      totalIncomeCents -
-      totalSpentCents -
-      protectedReserveCents -
-      futureFloorCents -
-      eventReservesCents -
-      plannedPurchasesCents,
-  );
+    totalIncomeCents -
+    totalSpentCents -
+    protectedReserveCents -
+    futureFloorCents -
+    eventReservesCents -
+    plannedPurchasesCents;
+
+  const freeToSpendCents = Math.max(0, freeToSpendRawCents);
 
   return {
     freeToSpendCents,
+    freeToSpendRawCents,
     totalBudgetCents,
     totalIncomeCents,
     totalSpentCents,
