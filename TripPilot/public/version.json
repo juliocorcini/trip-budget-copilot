@@ -1,8 +1,8 @@
 {
-  "version": "0.76.0",
+  "version": "0.77.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.76.0.zip",
-  "notes": "Quando a viagem tem mais de um trecho com orçamentos separados, a tela inicial agora mostra o dinheiro do trecho em que você está hoje — não mais sempre o do primeiro."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.77.0.zip",
+  "notes": "Agora dá pra dividir a viagem em trechos com orçamento próprio direto na aba Viagem (nome, datas e valor). O total da viagem é a soma dos trechos, as datas não se sobrepõem e dá pra remanejar dinheiro de um trecho para outro com um toque."
 }

@@ -6,11 +6,12 @@ import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useTabPaging } from '@/hooks/useTabPaging';
 import { sortPhasesByOrder, findActivePhase, formatDate } from '@/domain/dates';
 import {
-  calculateTotalBudget,
   calculateTotalSpent,
   calculateFreeToSpend,
   createPoolSummary,
   selectActivePhasePool,
+  computeTripBudgetTotals,
+  summarizeTrechoBalance,
 } from '@/domain/budget';
 import { filterTransactionsByPhase, filterTransactionsByPool } from '@/domain/transactions';
 import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
@@ -22,6 +23,8 @@ import {
 } from '@/domain/planning/planned-purchases';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { AddTrechoSheet, RemanejarSheet } from './TrechoSheets';
+import type { BudgetPool } from '@/domain/types/budget-pool';
 import {
   activityProfileRepository,
   scenarioPlanRepository,
@@ -49,12 +52,16 @@ interface StructureItem {
 export function TripHubPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases } =
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, reload } =
     useAppData();
 
   const [selectedPhaseId, setSelectedPhaseId] = useState<Selection | null>(null);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
+  const [addTrechoOpen, setAddTrechoOpen] = useState(false);
+  const [remanejarTarget, setRemanejarTarget] = useState<{ pool: BudgetPool; suggestedCents: number } | null>(
+    null,
+  );
 
   const sortedPhases = useMemo(() => sortPhasesByOrder(phases), [phases]);
   const activePhaseId = useMemo(() => findActivePhase(phases)?.id ?? null, [phases]);
@@ -138,6 +145,13 @@ export function TripHubPage() {
     return <p className="text-on-surface-dim py-8 text-center">{t('common.loading')}</p>;
   }
   const currency = trip.baseCurrency;
+  // D14: the trip total is the sum of the trechos; pots are summed apart.
+  const tripTotals = computeTripBudgetTotals(pools);
+
+  const openRemanejar = (phaseId: string, overflowCents: number) => {
+    const pool = selectActivePhasePool(pools, links, phaseId);
+    if (pool) setRemanejarTarget({ pool, suggestedCents: overflowCents });
+  };
 
   // GATE 1 (DEC canonical model): each phase shows the free-to-spend of ITS OWN
   // budget. For a legacy trip (one shared pool) this resolves to that same pool
@@ -242,23 +256,33 @@ export function TripHubPage() {
             <p className="text-sm text-on-surface-dim mt-2">
               {formatDate(trip.startDate)} — {formatDate(trip.endDate)}
             </p>
-            <div className="flex justify-between mt-4 pt-4 border-t border-on-surface-mute">
-              <div>
-                <p className="text-[10px] font-bold text-on-surface-faint uppercase">
-                  {t('trip.total_budget')}
-                </p>
-                <p className="text-xl font-extrabold tabular text-on-surface mt-1">
-                  {formatMoney(calculateTotalBudget(pools), currency)}
-                </p>
+            <div className="mt-4 pt-4 border-t border-on-surface-mute">
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-on-surface-faint uppercase">
+                    {t('trip_hub.trip_total')}
+                  </p>
+                  <p className="text-xl font-extrabold tabular text-on-surface mt-1">
+                    {formatMoney(tripTotals.trechosTotalCents, currency)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-on-surface-faint uppercase">
+                    {t('trip.total_spent')}
+                  </p>
+                  <p className="text-xl font-extrabold tabular text-primary mt-1">
+                    {formatMoney(calculateTotalSpent(transactions), currency)}
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-on-surface-faint uppercase">
-                  {t('trip.total_spent')}
+              {tripTotals.potesTotalCents > 0 && (
+                <p className="text-[11px] text-on-surface-faint mt-2">
+                  {t('trip_hub.pots_apart', {
+                    amount: formatMoney(tripTotals.potesTotalCents, currency),
+                  })}
                 </p>
-                <p className="text-xl font-extrabold tabular text-primary mt-1">
-                  {formatMoney(calculateTotalSpent(transactions), currency)}
-                </p>
-              </div>
+              )}
+              <p className="text-[10px] text-on-surface-faint mt-1">{t('trip_hub.trip_total_hint')}</p>
             </div>
           </div>
 
@@ -273,39 +297,66 @@ export function TripHubPage() {
                   .filter((tx) => tx.type === 'expense')
                   .reduce((sum, tx) => sum + tx.amountCents, 0);
                 const free = freeForPhase(phase.id);
+                const balance = summarizeTrechoBalance(free);
                 const isCurrent = phase.id === activePhaseId;
                 return (
-                  <button
-                    key={phase.id}
-                    onClick={() => selectPhase(phase.id)}
-                    className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
-                    style={isCurrent ? { border: '1px solid #C75B3925' } : undefined}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-bold text-on-surface">{phase.name}</p>
-                        <p className="text-xs text-on-surface-faint mt-0.5">
-                          {formatDate(phase.startDate)} — {formatDate(phase.endDate)}
-                        </p>
+                  <div key={phase.id} className="flex flex-col">
+                    <button
+                      onClick={() => selectPhase(phase.id)}
+                      className="bg-surface-container rounded-xl p-4 w-full text-left btn-press"
+                      style={isCurrent ? { border: '1px solid #C75B3925' } : undefined}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-on-surface">{phase.name}</p>
+                          <p className="text-xs text-on-surface-faint mt-0.5">
+                            {formatDate(phase.startDate)} — {formatDate(phase.endDate)}
+                          </p>
+                        </div>
+                        {isCurrent && (
+                          <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/15 text-primary shrink-0">
+                            {t('trip.phase_active')}
+                          </span>
+                        )}
                       </div>
-                      {isCurrent && (
-                        <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/15 text-primary shrink-0">
-                          {t('trip.phase_active')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-baseline mt-3">
-                      <p className="text-xs font-semibold text-on-surface-dim">
-                        {t('trip_hub.phase_spent_short')}: {formatMoney(spent, currency)}
-                      </p>
-                      <p className="text-xs font-bold tabular text-success">
-                        {t('trip_hub.phase_free_short')}: {formatMoney(free, currency)}
-                      </p>
-                    </div>
-                  </button>
+                      <div className="flex justify-between items-baseline mt-3">
+                        <p className="text-xs font-semibold text-on-surface-dim">
+                          {t('trip_hub.phase_spent_short')}: {formatMoney(spent, currency)}
+                        </p>
+                        {balance.status === 'over' ? (
+                          <p className="text-xs font-bold tabular text-error">
+                            {t('trip_hub.phase_over_short', {
+                              amount: formatMoney(balance.overflowCents, currency),
+                            })}
+                          </p>
+                        ) : (
+                          <p className="text-xs font-bold tabular text-success">
+                            {t('trip_hub.phase_free_short')}: {formatMoney(free, currency)}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                    {balance.status === 'over' && (
+                      <button
+                        onClick={() => openRemanejar(phase.id, balance.overflowCents)}
+                        className="mt-1 self-end flex items-center gap-1 px-3 py-1.5 rounded-lg btn-press bg-error/10 text-error"
+                      >
+                        <Icon name="swap_horiz" size={14} className="text-error" />
+                        <span className="text-[11px] font-bold">{t('trecho.remanejar_cta')}</span>
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
+            <button
+              onClick={() => setAddTrechoOpen(true)}
+              className="mt-2 w-full py-3 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
+              style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
+            >
+              <Icon name="add" size={18} className="text-primary" />
+              {t('trecho.add_cta')}
+            </button>
           </div>
         </>
       ) : (
@@ -512,6 +563,23 @@ export function TripHubPage() {
           ))}
         </div>
       </div>
+
+      <AddTrechoSheet
+        open={addTrechoOpen}
+        onClose={() => setAddTrechoOpen(false)}
+        trip={trip}
+        phases={phases}
+        onCreated={reload}
+      />
+      <RemanejarSheet
+        open={remanejarTarget !== null}
+        onClose={() => setRemanejarTarget(null)}
+        trip={trip}
+        targetPool={remanejarTarget?.pool ?? null}
+        pools={pools}
+        suggestedCents={remanejarTarget?.suggestedCents ?? 0}
+        onDone={reload}
+      />
     </div>
   );
 }

@@ -10,6 +10,8 @@ export {
   calculatePoolRemaining,
   createPoolSummary,
   calculateTotalBudget,
+  computeTripBudgetTotals,
+  summarizeTrechoBalance,
   calculateTotalSpent,
   getBudgetHealthStatus,
   calculateLastOutingSavings,
@@ -63,6 +65,8 @@ export type {
   AvailablePools,
   CreateEnvelopeInput,
   PoolTransferResult,
+  TripBudgetTotals,
+  TrechoBalanceSummary,
   RecommendedFloorInput,
   RecommendedFloor,
 } from './budget';

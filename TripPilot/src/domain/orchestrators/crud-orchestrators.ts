@@ -1,8 +1,11 @@
 import { db } from '@/data/db/database';
 import { markUpdated, softDelete } from '@/utils/entity-factory';
 import { sortPhasesByOrder } from '@/domain/dates';
-import { createBudgetPool, createBudgetPoolPhaseLink } from '@/domain/budget';
+import { createPhase } from '@/domain/phases';
+import { createBudgetPool, createBudgetPoolPhaseLink, computePoolTransfer } from '@/domain/budget';
 import type { BudgetPool } from '@/domain/types/budget-pool';
+import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
+import type { Phase } from '@/domain/types/phase';
 import type { BudgetPoolScope } from '@/domain/types/common';
 
 export interface CreatePoolPhaseLinkInput {
@@ -54,6 +57,110 @@ export async function createBudgetPoolWithPhaseLinks(
     }
   });
   return pool;
+}
+
+export interface CreatePhaseWithBudgetInput {
+  tripId: string;
+  name: string;
+  /** Inclusive day the trecho starts (YYYY-MM-DD). */
+  startDate: string;
+  /** Inclusive day the trecho ends (YYYY-MM-DD). */
+  endDate: string;
+  order: number;
+  budgetCents: number;
+  currency: string;
+  /** Optional explicit fund name; defaults to the trecho name (the trecho IS its budget). */
+  poolName?: string;
+}
+
+export interface CreatePhaseWithBudgetResult {
+  phase: Phase;
+  pool: BudgetPool;
+  link: BudgetPoolPhaseLink;
+}
+
+/**
+ * Canonical "Trecho" creation (master §3.1, D4): a trecho = a Phase with ITS OWN
+ * dedicated budget. Creates the Phase, a dedicated `linked_phases` BudgetPool and
+ * the 1:1 link in ONE atomic transaction, so a trecho can never exist without its
+ * budget (or an orphan pool without its trecho). The pool/link are backend
+ * concepts the user never sees on the happy path ("Visão avançada" only).
+ */
+export async function createPhaseWithBudget(
+  input: CreatePhaseWithBudgetInput,
+): Promise<CreatePhaseWithBudgetResult> {
+  const phase = createPhase({
+    tripId: input.tripId,
+    name: input.name,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    order: input.order,
+  });
+  const pool = createBudgetPool({
+    tripId: input.tripId,
+    name: input.poolName?.trim() || input.name,
+    scope: 'linked_phases',
+    totalAmountCents: input.budgetCents,
+    currency: input.currency,
+  });
+  const link = createBudgetPoolPhaseLink(pool.id, phase.id, null);
+  await db.transaction(
+    'rw',
+    [db.phases, db.budgetPools, db.budgetPoolPhaseLinks],
+    async () => {
+      await db.phases.add(phase);
+      await db.budgetPools.add(pool);
+      await db.budgetPoolPhaseLinks.add(link);
+    },
+  );
+  return { phase, pool, link };
+}
+
+export interface TransferBetweenPoolsInput {
+  sourcePoolId: string;
+  targetPoolId: string;
+  amountCents: number;
+}
+
+export type TransferBetweenPoolsResult =
+  | { ok: true }
+  | { ok: false; reason: 'invalid_amount' | 'pool_not_found' | 'insufficient_funds' };
+
+/**
+ * D5/D14 ("remanejar"): move budget from one trecho to another in ONE atomic
+ * transaction. The trip total is invariant — the sum of the two fund totals
+ * never changes, only how it is split. The amount must be positive and not
+ * exceed the source's declared budget (we never push a source negative).
+ */
+export async function transferBetweenPools(
+  input: TransferBetweenPoolsInput,
+): Promise<TransferBetweenPoolsResult> {
+  if (!Number.isFinite(input.amountCents) || input.amountCents <= 0) {
+    return { ok: false, reason: 'invalid_amount' };
+  }
+  if (input.sourcePoolId === input.targetPoolId) {
+    return { ok: false, reason: 'invalid_amount' };
+  }
+  return db.transaction('rw', [db.budgetPools], async () => {
+    const [source, target] = await Promise.all([
+      db.budgetPools.get(input.sourcePoolId),
+      db.budgetPools.get(input.targetPoolId),
+    ]);
+    if (!source || !target || source.deletedAt !== null || target.deletedAt !== null) {
+      return { ok: false, reason: 'pool_not_found' } as const;
+    }
+    if (input.amountCents > source.totalAmountCents) {
+      return { ok: false, reason: 'insufficient_funds' } as const;
+    }
+    const moved = computePoolTransfer(
+      source.totalAmountCents,
+      target.totalAmountCents,
+      input.amountCents,
+    );
+    await db.budgetPools.put(markUpdated({ ...source, totalAmountCents: moved.sourceTotalCents }));
+    await db.budgetPools.put(markUpdated({ ...target, totalAmountCents: moved.targetTotalCents }));
+    return { ok: true } as const;
+  });
 }
 
 export type DeletePoolResult =

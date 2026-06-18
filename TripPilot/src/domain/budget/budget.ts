@@ -387,6 +387,48 @@ export function calculateTotalBudget(pools: BudgetPool[]): number {
   );
 }
 
+export interface TripBudgetTotals {
+  /** Sum of the dedicated trecho budgets (`linked_phases` pools) — the trip total (D14). */
+  trechosTotalCents: number;
+  /** Sum of the "money apart" pots (`global` pools), counted separately (D14). */
+  potesTotalCents: number;
+}
+
+/**
+ * D14: the trip total is the SUM of the trechos' budgets; pots ("dinheiro à
+ * parte") are summed separately and never folded into the trip total. Soft-
+ * deleted pools are ignored. Pure — every number on the hub total card traces
+ * back here ("de onde vem esse número").
+ */
+export function computeTripBudgetTotals(pools: BudgetPool[]): TripBudgetTotals {
+  const live = pools.filter((p) => p.deletedAt === null);
+  return {
+    trechosTotalCents: sumCents(
+      live.filter((p) => p.scope === 'linked_phases').map((p) => p.totalAmountCents),
+    ),
+    potesTotalCents: sumCents(
+      live.filter((p) => p.scope === 'global').map((p) => p.totalAmountCents),
+    ),
+  };
+}
+
+export interface TrechoBalanceSummary {
+  status: 'ok' | 'over';
+  /** Positive cents by which the trecho is overspent (0 when ok). */
+  overflowCents: number;
+}
+
+/**
+ * D5/D14 feedback: turn a trecho's free-to-spend into a "passou €X" signal. A
+ * negative free-to-spend means the trecho is overspent by that amount and the UI
+ * offers to remanejar; otherwise it is ok. Pure so the label is testable.
+ */
+export function summarizeTrechoBalance(freeToSpendCents: number): TrechoBalanceSummary {
+  return freeToSpendCents < 0
+    ? { status: 'over', overflowCents: -freeToSpendCents }
+    : { status: 'ok', overflowCents: 0 };
+}
+
 export function calculateTotalSpent(transactions: Transaction[]): number {
   return calculatePoolSpent(transactions);
 }

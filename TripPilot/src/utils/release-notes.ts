@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.77.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Agora dá pra dividir a viagem em trechos com orçamento próprio direto na aba Viagem (nome, datas e valor). O total da viagem passa a ser a soma dos trechos, com os potes contados à parte.',
+        'As datas dos trechos não se sobrepõem: se um trecho novo começa no último dia de outro, o app ajusta o anterior automaticamente — o dia de virada fica com o trecho que começa.',
+        'Estourou um trecho? Toque em “Remanejar” para puxar orçamento de outro trecho; o total da viagem não muda.',
+      ],
+      en: [
+        'You can now split your trip into segments with their own budget right from the Trip tab (name, dates, amount). The trip total becomes the sum of the segments, with pots counted separately.',
+        'Segment dates never overlap: if a new segment starts on another’s last day, the app trims the previous one automatically — the boundary day goes to the segment that starts.',
+        'Overspent a segment? Tap “Move budget” to pull from another segment; the trip total stays the same.',
+      ],
+      es: [
+        'Ahora puedes dividir el viaje en tramos con su propio presupuesto desde la pestaña Viaje (nombre, fechas e importe). El total del viaje pasa a ser la suma de los tramos, con los fondos aparte.',
+        'Las fechas de los tramos no se superponen: si un tramo nuevo empieza el último día de otro, la app ajusta el anterior automáticamente — el día de cambio queda con el tramo que empieza.',
+        '¿Se excedió un tramo? Toca “Reasignar” para traer presupuesto de otro tramo; el total del viaje no cambia.',
+      ],
+    },
+  },
+  {
     version: '0.76.0',
     date: '2026-06-18',
     items: {

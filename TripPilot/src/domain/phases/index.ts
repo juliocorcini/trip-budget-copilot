@@ -1,6 +1,16 @@
 export { createPhase, getNextPhaseOrder } from './phases';
 export type { CreatePhaseInput } from './phases';
 export {
+  phaseRangesOverlap,
+  findOverlappingPhases,
+  validatePhaseSequence,
+} from './phase-sequence';
+export type {
+  PhaseRangeCandidate,
+  BoundaryFix,
+  PhaseSequenceValidation,
+} from './phase-sequence';
+export {
   isPeakDay,
   getDaySpendingWeight,
   calculateEffectiveSpendingDays,

@@ -41,6 +41,8 @@ export { resolveShareConfirmation } from './share-orchestrators';
 export type { ResolveShareInput } from './share-orchestrators';
 export {
   createBudgetPoolWithPhaseLinks,
+  createPhaseWithBudget,
+  transferBetweenPools,
   deleteBudgetPool,
   deletePhase,
   swapPhaseOrder,
@@ -48,6 +50,10 @@ export {
 export type {
   CreateBudgetPoolWithLinksInput,
   CreatePoolPhaseLinkInput,
+  CreatePhaseWithBudgetInput,
+  CreatePhaseWithBudgetResult,
+  TransferBetweenPoolsInput,
+  TransferBetweenPoolsResult,
 } from './crud-orchestrators';
 export {
   createProfileEnabledInPhase,
