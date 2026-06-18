@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.95.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'No "Disponível por dia", tocar num dia agora explica o número: ele vem da sua reserva livre da fase, distribuída pelos dias.',
+        'Num dia de pico, o app mostra que aquele dia recebe mais que um dia comum (e quanto seria num dia comum).',
+        'No "Gastos por dia", tocar num dia mostra um resumo do que foi gasto por categoria (ex.: Mercado, Bar, Transporte) — não só o total. A lista completa continua em Gastos recentes.',
+      ],
+      en: [
+        'In "Available per day", tapping a day now explains the number: it comes from your free phase reserve, spread across the days.',
+        'On a peak day, the app shows that the day gets more than a regular day (and what a regular day would be).',
+        'In "Spending per day", tapping a day shows a summary of what was spent by category (e.g. Groceries, Bar, Transport) — not just the total. The full list stays in Recent expenses.',
+      ],
+      es: [
+        'En "Disponible por día", tocar un día ahora explica el número: viene de tu reserva libre de la fase, repartida entre los días.',
+        'En un día pico, la app muestra que ese día recibe más que un día normal (y cuánto sería un día normal).',
+        'En "Gastos por día", tocar un día muestra un resumen de lo gastado por categoría (ej.: Mercado, Bar, Transporte) — no solo el total. La lista completa sigue en Gastos recientes.',
+      ],
+    },
+  },
+  {
     version: '0.94.0',
     date: '2026-06-18',
     items: {

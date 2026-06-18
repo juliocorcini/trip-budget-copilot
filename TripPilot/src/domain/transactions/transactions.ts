@@ -298,6 +298,47 @@ export function calculateSpentOnDate(
     .reduce((sum, t) => sum + transactionBasePersonalCostCents(t), 0);
 }
 
+export interface DayCategorySpend {
+  /** Category key (`null` categories bucket into `'other'`). */
+  category: string;
+  totalCents: number;
+  count: number;
+}
+
+/**
+ * GATE 19: per-category breakdown of a single local day's spend. Uses the exact
+ * same filter and base-personal-cost rule as `calculateSpentOnDate`, so the
+ * categories always sum to that day's heatmap total. Sorted by spend desc; the
+ * caller decides how many rows to show. Null categories bucket into `'other'`.
+ */
+export function spentByCategoryOnDate(
+  transactions: Transaction[],
+  dateIso: string,
+): DayCategorySpend[] {
+  const byCategory = new Map<string, { totalCents: number; count: number }>();
+  transactions
+    .filter(
+      (t) =>
+        t.deletedAt === null &&
+        (t.type === 'expense' || t.type === 'adjustment') &&
+        localDayOf(t.date) === dateIso,
+    )
+    .forEach((t) => {
+      const key = t.category ?? 'other';
+      const cents = transactionBasePersonalCostCents(t);
+      const current = byCategory.get(key);
+      if (current) {
+        current.totalCents += cents;
+        current.count += 1;
+      } else {
+        byCategory.set(key, { totalCents: cents, count: 1 });
+      }
+    });
+  return [...byCategory.entries()]
+    .map(([category, value]) => ({ category, ...value }))
+    .sort((a, b) => b.totalCents - a.totalCents);
+}
+
 export function groupTransactionsByCategory(
   transactions: Transaction[],
 ): Record<string, Transaction[]> {

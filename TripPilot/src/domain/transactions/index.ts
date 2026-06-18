@@ -10,8 +10,14 @@ export {
   getRecentTransactions,
   groupTransactionsByCategory,
   calculateSpentOnDate,
+  spentByCategoryOnDate,
 } from './transactions';
-export type { CreateExpenseInput, CreateTransferInput, CreateIncomeInput } from './transactions';
+export type {
+  CreateExpenseInput,
+  CreateTransferInput,
+  CreateIncomeInput,
+  DayCategorySpend,
+} from './transactions';
 export {
   suggestFromDescription,
   getFrequentExpenses,

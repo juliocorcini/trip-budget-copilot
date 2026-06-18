@@ -1,5 +1,9 @@
 import type { Transaction } from '@/domain/types/transaction';
-import { calculateSpentOnDate } from '@/domain/transactions';
+import {
+  calculateSpentOnDate,
+  spentByCategoryOnDate,
+  type DayCategorySpend,
+} from '@/domain/transactions';
 
 /**
  * DEC-131: month heatmap of daily personal spending. Trip-wide (all pools):
@@ -13,6 +17,8 @@ export interface HeatmapDay {
   dayIso: string;
   dayOfMonth: number;
   totalCents: number;
+  /** GATE 19: per-category split of the day (sums to `totalCents`), spend desc. */
+  byCategory: DayCategorySpend[];
   intensity: HeatmapIntensity;
   isFuture: boolean;
 }
@@ -61,6 +67,7 @@ export function buildMonthHeatmap(
       dayIso,
       dayOfMonth: i + 1,
       totalCents,
+      byCategory: totalCents !== 0 ? spentByCategoryOnDate(transactions, dayIso) : [],
       intensity: intensityFor(totalCents, maxDayCents),
       isFuture: dayIso > todayIso,
     };

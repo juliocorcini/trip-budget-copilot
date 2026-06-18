@@ -3,9 +3,11 @@ import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import {
   calculateEffectiveSpendingDays,
+  getBaseDayWeight,
   getDaySpendingWeight,
   isPeakDay,
   parseLocalDate,
+  phaseHasRhythm,
   toLocalIsoDay,
 } from './rhythm';
 
@@ -65,6 +67,14 @@ export interface PhaseAllowanceMap {
   undatedPlanTotalCents: number;
   /** The base distributed across days (trueFree + today's spend). */
   baseFreeCents: number;
+  /**
+   * GATE 19: allowance of a "common" (non-peak, base-weight) day — the reference
+   * the day-detail explainer compares peak days against ("peak days get more
+   * than a regular ~€X day"). Equals `maxAllowanceCents` when there is no peak.
+   */
+  normalAllowanceCents: number;
+  /** GATE 19: whether the phase distributes money unevenly (rhythm or peak days). */
+  hasRhythm: boolean;
   /** Largest single-day allowance — for proportional bar scaling (≥ 1). */
   maxAllowanceCents: number;
   /** Largest single-day total (free + reserved) — for calendar intensity (≥ 1). */
@@ -128,6 +138,11 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
 
   const baseFreeCents = Math.max(0, trueFreeCents + todaySpentCents);
   const effectiveDays = calculateEffectiveSpendingDays(phase, todayIso);
+  const hasRhythm = phaseHasRhythm(phase);
+  const normalAllowanceCents =
+    effectiveDays > 0
+      ? Math.round((baseFreeCents * getBaseDayWeight(phase)) / effectiveDays)
+      : 0;
 
   const planByDay = indexPlanByDay(occurrences, plannedPurchases);
 
@@ -186,6 +201,8 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
     undatedPlanItems,
     undatedPlanTotalCents,
     baseFreeCents,
+    normalAllowanceCents,
+    hasRhythm,
     maxAllowanceCents,
     maxDayTotalCents,
   };

@@ -3,9 +3,12 @@ import {
   createExpenseTransaction,
   createTransferTransaction,
   createAdjustmentTransaction,
+  calculateSpentOnDate,
+  spentByCategoryOnDate,
 } from '@/domain/transactions';
 import { calculateReportedTotalDiff } from '@/domain/outing';
 import { calculateWalletBalance, calculateCashReconciliation } from '@/domain/wallets';
+import type { Transaction } from '@/domain/types/transaction';
 import type { Wallet } from '@/domain/types/wallet';
 
 const baseMeta = {
@@ -159,5 +162,67 @@ describe('calculateReportedTotalDiff (session total — DEC-046)', () => {
   it('matching totals need no adjustment', () => {
     const result = calculateReportedTotalDiff(3000, 3000);
     expect(result.needsAdjustment).toBe(false);
+  });
+});
+
+describe('spentByCategoryOnDate (GATE 19 — per-day category breakdown)', () => {
+  const mkExpense = (
+    amountCents: number,
+    dayIso: string,
+    category: string | null,
+  ): Transaction => {
+    const tx = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: null,
+      amountCents,
+      currency: 'EUR',
+      category: category ?? 'other',
+      description: 'test',
+    });
+    return { ...tx, category, date: `${dayIso}T14:00:00.000Z` };
+  };
+
+  it('groups a day by category, sorted by spend desc, summing to the day total', () => {
+    const txs = [
+      mkExpense(1_000, '2026-06-13', 'bar'),
+      mkExpense(6_000, '2026-06-13', 'market'),
+      mkExpense(500, '2026-06-13', 'bar'),
+      mkExpense(300, '2026-06-13', 'transport'),
+      mkExpense(2_000, '2026-06-14', 'market'), // a different day — must be ignored
+    ];
+
+    const rows = spentByCategoryOnDate(txs, '2026-06-13');
+
+    expect(rows.map((r) => r.category)).toEqual(['market', 'bar', 'transport']);
+    expect(rows[0]).toMatchObject({ category: 'market', totalCents: 6_000, count: 1 });
+    expect(rows[1]).toMatchObject({ category: 'bar', totalCents: 1_500, count: 2 });
+    expect(rows[2]).toMatchObject({ category: 'transport', totalCents: 300, count: 1 });
+
+    // The categories always reconcile to the heatmap day total.
+    const sum = rows.reduce((acc, r) => acc + r.totalCents, 0);
+    expect(sum).toBe(calculateSpentOnDate(txs, '2026-06-13'));
+    expect(sum).toBe(7_800);
+  });
+
+  it('buckets null categories into "other"', () => {
+    const txs = [mkExpense(2_500, '2026-06-13', null), mkExpense(700, '2026-06-13', 'bar')];
+    const rows = spentByCategoryOnDate(txs, '2026-06-13');
+    const other = rows.find((r) => r.category === 'other');
+    expect(other?.totalCents).toBe(2_500);
+  });
+
+  it('ignores deleted transactions and other days', () => {
+    const live = mkExpense(1_000, '2026-06-13', 'bar');
+    const deleted: Transaction = { ...mkExpense(9_000, '2026-06-13', 'market'), deletedAt: '2026-06-13T15:00:00.000Z' };
+    const rows = spentByCategoryOnDate([live, deleted], '2026-06-13');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ category: 'bar', totalCents: 1_000 });
+  });
+
+  it('returns an empty list for a day with no spend', () => {
+    const txs = [mkExpense(1_000, '2026-06-13', 'bar')];
+    expect(spentByCategoryOnDate(txs, '2026-06-10')).toEqual([]);
   });
 });

@@ -225,6 +225,63 @@ describe('buildPhaseAllowanceMap (FIELD-19 — per-day allowance map)', () => {
   });
 });
 
+describe('buildPhaseAllowanceMap — GATE 19 (normalAllowanceCents / hasRhythm)', () => {
+  it('uniform phase: no rhythm, normal allowance equals every day', () => {
+    const phase = mkPhase(null, null);
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-11', // Thu → Sun = 4 uniform days
+      occurrences: [],
+      plannedPurchases: [],
+    });
+
+    expect(map.hasRhythm).toBe(false);
+    expect(map.normalAllowanceCents).toBe(10_000); // 40_000 / 4
+    map.days.forEach((d) => expect(d.allowanceCents).toBe(map.normalAllowanceCents));
+  });
+
+  it('rhythm phase: normal allowance is the non-peak day; peak day is larger', () => {
+    const phase = mkPhase('moderate', [5, 6]); // Fri(5)/Sat(6) peak, base 0.8
+    // Thu→Sun weights: 0.8 + 1.5 + 1.5 + 0.8 = 4.6 effective days.
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 46_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-11', // Thursday
+      occurrences: [],
+      plannedPurchases: [],
+    });
+
+    expect(map.hasRhythm).toBe(true);
+    // 46_000 × 0.8 / 4.6 = 8_000 — the regular-day reference.
+    expect(map.normalAllowanceCents).toBe(8_000);
+
+    const thursday = map.days.find((d) => d.dateIso === '2026-06-11'); // non-peak
+    const saturday = map.days.find((d) => d.dateIso === '2026-06-13'); // peak
+    expect(thursday?.allowanceCents).toBe(map.normalAllowanceCents);
+    // 46_000 × 1.5 / 4.6 = 15_000 — visibly more than the 8_000 normal day.
+    expect(saturday?.allowanceCents).toBe(15_000);
+    expect(saturday?.allowanceCents).toBeGreaterThan(map.normalAllowanceCents);
+  });
+
+  it('peak-days-only phase still reports rhythm with a 1.0 base reference', () => {
+    const phase = mkPhase(null, [6]); // Sat peak, no preset → base 1.0
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 50_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-11',
+      occurrences: [],
+      plannedPurchases: [],
+    });
+    expect(map.hasRhythm).toBe(true);
+    const thursday = map.days.find((d) => d.dateIso === '2026-06-11'); // base 1.0
+    expect(map.normalAllowanceCents).toBe(thursday?.allowanceCents);
+  });
+});
+
 describe('buildPhaseAllowanceMap — F20 day total (free + reserved)', () => {
   it('sums free and reserved into the day total (€63 free + €60 cream = €123)', () => {
     const phase = mkPhase(null, null);

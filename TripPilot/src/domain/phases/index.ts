@@ -12,6 +12,8 @@ export type {
 } from './phase-sequence';
 export {
   isPeakDay,
+  phaseHasRhythm,
+  getBaseDayWeight,
   getDaySpendingWeight,
   calculateEffectiveSpendingDays,
   calculateFreeToSpendPerDay,

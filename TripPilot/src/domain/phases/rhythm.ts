@@ -30,12 +30,26 @@ export function isPeakDay(phase: Phase, isoDate: string): boolean {
   return phase.peakDays.includes(parseLocalDate(isoDate).getDay());
 }
 
+/** True when the phase distributes money unevenly (a rhythm preset or peak days). */
+export function phaseHasRhythm(phase: Phase): boolean {
+  return phase.rhythmPreset !== null || (phase.peakDays?.length ?? 0) > 0;
+}
+
+/**
+ * Weight of a NON-peak ("common") day under the phase rhythm. Uniform phases
+ * and the bare-peak case both return 1.0; presets return their base. Used to
+ * explain why a peak day's allowance is larger than a regular day's.
+ */
+export function getBaseDayWeight(phase: Phase): number {
+  if (!phaseHasRhythm(phase)) return 1.0;
+  return phase.rhythmPreset !== null ? RHYTHM_BASE_WEIGHT[phase.rhythmPreset] : 1.0;
+}
+
 /** Weight of a single day under the phase rhythm. */
 export function getDaySpendingWeight(phase: Phase, isoDate: string): number {
-  const hasRhythm = phase.rhythmPreset !== null || (phase.peakDays?.length ?? 0) > 0;
-  if (!hasRhythm) return 1.0;
+  if (!phaseHasRhythm(phase)) return 1.0;
   if (isPeakDay(phase, isoDate)) return PEAK_DAY_WEIGHT;
-  return phase.rhythmPreset !== null ? RHYTHM_BASE_WEIGHT[phase.rhythmPreset] : 1.0;
+  return getBaseDayWeight(phase);
 }
 
 /**

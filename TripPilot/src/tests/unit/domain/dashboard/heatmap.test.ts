@@ -5,7 +5,7 @@ import type { Transaction } from '@/domain/types/transaction';
 
 // DEC-131: month heatmap — intensity relative to the month's own peak day.
 
-function mkTx(amountCents: number, dayIso: string): Transaction {
+function mkTx(amountCents: number, dayIso: string, category = 'bar'): Transaction {
   const tx = createExpenseTransaction({
     tripId: 'trip-1',
     phaseId: 'phase-1',
@@ -13,7 +13,7 @@ function mkTx(amountCents: number, dayIso: string): Transaction {
     walletId: null,
     amountCents,
     currency: 'EUR',
-    category: 'bar',
+    category,
     description: 'test',
   });
   return { ...tx, date: `${dayIso}T14:00:00.000Z` };
@@ -61,6 +61,22 @@ describe('buildMonthHeatmap', () => {
     const heatmap = buildMonthHeatmap([], '2026-06', '2026-06-15');
     expect(heatmap.maxDayCents).toBe(0);
     expect(heatmap.days.every((d) => d.intensity === 0)).toBe(true);
+  });
+
+  it('GATE 19: each day carries a per-category split that sums to its total', () => {
+    const txs = [
+      mkTx(6_000, '2026-06-02', 'market'),
+      mkTx(1_000, '2026-06-02', 'bar'),
+      mkTx(500, '2026-06-02', 'bar'),
+    ];
+    const heatmap = buildMonthHeatmap(txs, '2026-06', '2026-06-15');
+    const day2 = heatmap.days[1]!; // 2026-06-02
+
+    expect(day2.totalCents).toBe(7_500);
+    expect(day2.byCategory.map((c) => c.category)).toEqual(['market', 'bar']);
+    expect(day2.byCategory.reduce((acc, c) => acc + c.totalCents, 0)).toBe(day2.totalCents);
+    // Days without spend stay empty (no needless work).
+    expect(heatmap.days[0]!.byCategory).toEqual([]);
   });
 });
 

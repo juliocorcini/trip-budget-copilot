@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   isPeakDay,
+  phaseHasRhythm,
+  getBaseDayWeight,
   getDaySpendingWeight,
   calculateEffectiveSpendingDays,
   calculateFreeToSpendPerDay,
@@ -79,6 +81,33 @@ describe('phase rhythm (DEC-075 / FIELD-02)', () => {
   it('returns 0 effective days after the phase ends', () => {
     const phase = mkPhase('moderate', [5, 6]);
     expect(calculateEffectiveSpendingDays(phase, '2026-06-15')).toBe(0);
+  });
+});
+
+describe('phaseHasRhythm / getBaseDayWeight (GATE 19 — day-detail explainer)', () => {
+  it('uniform phase has no rhythm and a base weight of 1.0', () => {
+    const phase = mkPhase(null, null);
+    expect(phaseHasRhythm(phase)).toBe(false);
+    expect(getBaseDayWeight(phase)).toBe(1.0);
+  });
+
+  it('a preset alone (no peak days) already counts as rhythm', () => {
+    const phase = mkPhase('relaxed', null);
+    expect(phaseHasRhythm(phase)).toBe(true);
+    expect(getBaseDayWeight(phase)).toBe(0.6);
+  });
+
+  it('peak days alone count as rhythm; base stays 1.0 without a preset', () => {
+    const phase = mkPhase(null, [6]);
+    expect(phaseHasRhythm(phase)).toBe(true);
+    expect(getBaseDayWeight(phase)).toBe(1.0);
+  });
+
+  it('base weight is the NON-peak weight: a peak day weighs more than the base', () => {
+    const phase = mkPhase('moderate', [5, 6]);
+    expect(getBaseDayWeight(phase)).toBe(0.8); // a regular moderate day
+    // The peak weight (1.5) is what makes Fri/Sat allowances larger.
+    expect(getDaySpendingWeight(phase, '2026-06-13')).toBeGreaterThan(getBaseDayWeight(phase));
   });
 });
 

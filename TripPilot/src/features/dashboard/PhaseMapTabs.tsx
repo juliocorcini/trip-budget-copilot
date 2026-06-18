@@ -3,11 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { formatMoney } from '@/domain/money';
 import type { PhaseAllowanceDay, PhaseAllowanceMap } from '@/domain/phases';
-import type { MonthHeatmap } from '@/domain/dashboard';
+import type { HeatmapDay, MonthHeatmap } from '@/domain/dashboard';
+import { getCategoryIcon } from '@/utils/category-icons';
 import { AvailableCalendar } from './cards/AvailableCalendar';
 import { HeatmapGrid } from './cards/HeatmapGrid';
 
 type PhaseMapTab = 'available' | 'spent';
+
+/** GATE 19: cap the day's category rows so a busy day never becomes a long list. */
+const MAX_SPENT_ROWS = 5;
 
 interface PhaseMapTabsProps {
   map: PhaseAllowanceMap;
@@ -87,6 +91,7 @@ export function PhaseMapTabs({ map, heatmap, currency, todayIso }: PhaseMapTabsP
               day={selectedDay}
               currency={currency}
               label={formatLongDay(selectedDay.dateIso)}
+              explain={{ normalAllowanceCents: map.normalAllowanceCents, hasRhythm: map.hasRhythm }}
             />
           ) : (
             <p className="text-[11px] text-on-surface-faint mt-3 leading-snug">
@@ -127,19 +132,23 @@ export function PhaseMapTabs({ map, heatmap, currency, todayIso }: PhaseMapTabsP
           />
 
           {selectedSpent ? (
-            <p className="text-xs font-bold text-on-surface mt-3">
-              {formatLongDay(selectedSpent.dayIso)} · {formatMoney(selectedSpent.totalCents, currency)}
-            </p>
+            <SpentDayBreakdown
+              day={selectedSpent}
+              currency={currency}
+              label={formatLongDay(selectedSpent.dayIso)}
+            />
           ) : (
-            <p className="text-xs font-semibold text-on-surface-dim mt-3">
-              {t('dashboard.heatmap_total', {
-                amount: formatMoney(heatmap.monthTotalCents, currency),
-              })}
-            </p>
+            <>
+              <p className="text-xs font-semibold text-on-surface-dim mt-3">
+                {t('dashboard.heatmap_total', {
+                  amount: formatMoney(heatmap.monthTotalCents, currency),
+                })}
+              </p>
+              <p className="text-[11px] text-on-surface-faint mt-1 leading-snug">
+                {t('dashboard.phase_map_spent_hint')}
+              </p>
+            </>
           )}
-          <p className="text-[11px] text-on-surface-faint mt-1 leading-snug">
-            {t('dashboard.phase_map_spent_hint')}
-          </p>
         </>
       )}
     </div>
@@ -159,11 +168,19 @@ export function DayBreakdown({
   currency,
   label,
   hideToday = false,
+  explain,
 }: {
   day: PhaseAllowanceDay;
   currency: string;
   label: string;
   hideToday?: boolean;
+  /**
+   * GATE 19: when provided, the card explains WHERE the day's free number comes
+   * from (the phase reserve spread across days, why a peak day is higher, and
+   * that planned reserves are already set aside). Optional so the math is
+   * unchanged for callers that only want the raw breakdown.
+   */
+  explain?: { normalAllowanceCents: number; hasRhythm: boolean };
 }) {
   const { t } = useTranslation();
   return (
@@ -208,6 +225,93 @@ export function DayBreakdown({
           </span>
         </div>
       )}
+
+      {explain && (
+        <div className="mt-2 pt-2 border-t border-[var(--border-faint)] space-y-1">
+          <ExplainLine icon="savings" text={t('dashboard.day_explain_base')} />
+          {explain.hasRhythm && day.isPeakDay && (
+            <ExplainLine
+              icon="trending_up"
+              text={t('dashboard.day_explain_peak', {
+                amount: formatMoney(explain.normalAllowanceCents, currency),
+              })}
+            />
+          )}
+          {day.planItems.length > 0 && (
+            <ExplainLine icon="event_available" text={t('dashboard.day_explain_planned')} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExplainLine({ icon, text }: { icon: string; text: string }) {
+  return (
+    <p className="text-[11px] text-on-surface-faint leading-snug flex items-start gap-1">
+      <Icon name={icon} size={12} className="flex-shrink-0 mt-px" />
+      <span>{text}</span>
+    </p>
+  );
+}
+
+/**
+ * GATE 19: the spent-day drill-down. Beyond the bare day total it now lists the
+ * categories that made up that day's spend (sorted by amount), so "spent €83"
+ * becomes "€60 market · €18 bar · €5 transport". Capped at MAX_SPENT_ROWS with a
+ * "+N in other categories" tail; the categories sum to the day total.
+ */
+function SpentDayBreakdown({
+  day,
+  currency,
+  label,
+}: {
+  day: HeatmapDay;
+  currency: string;
+  label: string;
+}) {
+  const { t } = useTranslation();
+  const rows = day.byCategory.filter((c) => c.totalCents !== 0);
+  const visible = rows.slice(0, MAX_SPENT_ROWS);
+  const hidden = Math.max(0, rows.length - MAX_SPENT_ROWS);
+
+  return (
+    <div className="mt-3 p-3 rounded-xl bg-surface-container">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-bold text-on-surface">{label}</p>
+        <p className="text-sm font-bold tabular text-on-surface">
+          {formatMoney(day.totalCents, currency)}
+        </p>
+      </div>
+
+      {visible.length > 0 ? (
+        <>
+          {visible.map((row) => (
+            <div key={row.category} className="flex items-baseline justify-between py-0.5">
+              <span className="text-xs text-on-surface-dim inline-flex items-center gap-1.5 min-w-0">
+                <Icon name={getCategoryIcon(row.category)} size={13} className="flex-shrink-0" />
+                <span className="truncate">{t(`categories.${row.category}` as never)}</span>
+              </span>
+              <span className="text-xs font-semibold tabular text-on-surface flex-shrink-0">
+                {formatMoney(row.totalCents, currency)}
+              </span>
+            </div>
+          ))}
+          {hidden > 0 && (
+            <p className="text-[11px] text-on-surface-faint pt-1">
+              {t('dashboard.day_spent_more', { count: hidden })}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="text-[11px] text-on-surface-faint leading-snug">
+          {t('dashboard.day_spent_none')}
+        </p>
+      )}
+
+      <p className="text-[11px] text-on-surface-faint mt-2 pt-2 border-t border-[var(--border-faint)] leading-snug">
+        {t('dashboard.day_spent_recent_hint')}
+      </p>
     </div>
   );
 }

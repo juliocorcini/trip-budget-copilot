@@ -1,8 +1,8 @@
 {
-  "version": "0.94.0",
+  "version": "0.95.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.94.0.zip",
-  "notes": "Menu do botão “+” reequilibrado: planejar um gasto e simular compra agora aparecem direto (sem precisar abrir um submenu), e começar uma saída continua em destaque logo acima dos dois botões principais. O “registrar mercado” — que é só um registrar gasto já com a categoria preenchida — saiu do destaque e foi pra dentro de “Outros registros”, junto com transferência, saque e entrada."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.95.0.zip",
+  "notes": "Os detalhes por dia agora explicam o número. No “Disponível por dia”, ao tocar num dia o app conta de onde vem aquele valor (vem da sua reserva livre da fase, dividida pelos dias) e, num dia de pico, mostra quanto ele recebe a mais que um dia comum. No “Gastos por dia”, tocar num dia mostra um resumo do que foi gasto por categoria (ex.: Mercado, Bar, Transporte), em vez de só o total."
 }

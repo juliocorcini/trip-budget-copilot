@@ -221,6 +221,10 @@ export function PhasePreviewPage() {
             currency={currency}
             label={formatLongDay(selectedDay.dateIso)}
             hideToday
+            explain={{
+              normalAllowanceCents: preview.map.normalAllowanceCents,
+              hasRhythm: preview.map.hasRhythm,
+            }}
           />
         ) : (
           <p className="text-[11px] text-on-surface-faint mt-3 leading-snug">
