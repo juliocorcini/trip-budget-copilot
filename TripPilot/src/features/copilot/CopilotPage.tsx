@@ -46,6 +46,55 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
+type ThemeKey = 'now' | 'heading' | 'patterns' | 'people';
+
+/**
+ * P3 (UX audit §4.6 / G3): the Copiloto used to be a flat wall of ~18 reads
+ * ("parede de cards"). They're now grouped into four themes; the first non-empty
+ * group opens by default and the rest are one tap away ("ver mais análises").
+ * Each group self-hides when it has no data, so the page never shows a dead head.
+ */
+function ThemeGroup({
+  title,
+  icon,
+  count,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  icon: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mt-4">
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2.5 px-1 py-2 btn-press text-left"
+      >
+        <Icon name={icon} size={18} className="text-primary shrink-0" />
+        <span className="text-sm font-bold text-on-surface flex-1">{title}</span>
+        {!open && count > 0 && (
+          <span className="text-[11px] font-bold tabular text-on-surface-faint min-w-5 h-5 px-1.5 rounded-full bg-surface-high flex items-center justify-center">
+            {count}
+          </span>
+        )}
+        <Icon
+          name="expand_more"
+          size={20}
+          className="text-on-surface-faint shrink-0 transition-transform"
+          style={open ? { transform: 'rotate(180deg)' } : undefined}
+        />
+      </button>
+      {open && <div className="flex flex-col">{children}</div>}
+    </div>
+  );
+}
+
 /** Tint + icon per verdict status — data-driven, not branching in the JSX. */
 const VERDICT_STYLE: Record<
   CopilotVerdictStatus,
@@ -81,6 +130,9 @@ export function CopilotPage() {
   // U4 (DEC-131 moved here): tapping a day on the month map opens a floating
   // sheet with that day's expenses (no full navigation).
   const [heatmapDayIso, setHeatmapDayIso] = useState<string | null>(null);
+  // P3 (§4.6): which theme groups are expanded — an absent key falls back to
+  // "only the first non-empty group is open" (see isGroupOpen below).
+  const [openGroups, setOpenGroups] = useState<Partial<Record<ThemeKey, boolean>>>({});
   const model = useDashboardModel(appData, heatmapMonth, heatmapDayIso);
 
   const verdict = useMemo(() => buildCopilotVerdict(model.burndown), [model.burndown]);
@@ -209,6 +261,49 @@ export function CopilotPage() {
   const hasMap = model.heatmap.monthTotalCents > 0;
   const hasAnySignal = verdict !== null || categories.length > 0 || hasMap || homeTotal !== null;
 
+  // P3 (§4.6 / G3): per-section visibility → per-theme counts → which groups to
+  // render and which opens by default. Mirrors each section's own render guard.
+  const vVerdict = !!(verdict && model.activePhase && model.fts);
+  const vRecap = !!model.recap;
+  const vAmigo = model.amigoV2.kind !== 'none';
+  const vAnchor = !!homeTotal;
+  const vStreak = !!disciplineStreak;
+  const vProjection = !!projection;
+  const vTrend = !!forecastTrend;
+  const vRunway = !!runway;
+  const vBurndown = !!model.burndown;
+  const vCompare = !!phaseComparison;
+  const vCategories = categories.length > 0;
+  const vMap = hasMap;
+  const vWeekday = !!weekday;
+  const vPeak = !!peakHour;
+  const vOutings = !!outingEfficiency;
+  const vSocial = social.sharedCents > 0;
+  const vMethod = !!paymentMix;
+  const vDebts = debts.length > 0 && !!model.owner;
+
+  const countBools = (...bs: boolean[]) => bs.filter(Boolean).length;
+  const nowCount = countBools(vVerdict, vRecap, vAmigo, vAnchor, vStreak);
+  const headingCount = countBools(vProjection, vTrend, vRunway, vBurndown, vCompare);
+  const patternsCount = countBools(vCategories, vMap, vWeekday, vPeak, vOutings);
+  const peopleCount = countBools(vSocial, vMethod, vDebts);
+
+  const firstGroup: ThemeKey | null =
+    nowCount > 0
+      ? 'now'
+      : headingCount > 0
+        ? 'heading'
+        : patternsCount > 0
+          ? 'patterns'
+          : peopleCount > 0
+            ? 'people'
+            : null;
+  const isGroupOpen = (key: ThemeKey) => openGroups[key] ?? key === firstGroup;
+  const toggleGroup = (key: ThemeKey) => {
+    const next = !isGroupOpen(key);
+    setOpenGroups((prev) => ({ ...prev, [key]: next }));
+  };
+
   const tools: ToolItem[] = [
     { icon: 'analytics', label: t('copilot.impact'), desc: t('copilot.impact_desc'), path: '/impact' },
     { icon: 'calculate', label: t('copilot.simulate'), desc: t('copilot.simulate_desc'), path: '/simulator' },
@@ -247,444 +342,488 @@ export function CopilotPage() {
         </div>
       )}
 
-      {/* 1 · VERDICT — am I OK? */}
-      {verdict && model.activePhase && model.fts && (
-        <div
-          className="mt-5 p-4 rounded-2xl"
-          style={{ background: VERDICT_STYLE[verdict.status].bg, border: `1px solid ${VERDICT_STYLE[verdict.status].border}` }}
+      {/* ── AGORA — am I OK right now? (verdict · yesterday · honest friend ·
+          whole-trip anchor · discipline streak) ── */}
+      {nowCount > 0 && (
+        <ThemeGroup
+          title={t('copilot.group_now')}
+          icon="bolt"
+          count={nowCount}
+          open={isGroupOpen('now')}
+          onToggle={() => toggleGroup('now')}
         >
-          <div className="flex items-start gap-3">
-            <Icon name={VERDICT_STYLE[verdict.status].icon} filled className="mt-0.5" style={{ color: VERDICT_STYLE[verdict.status].color }} />
-            <div className="flex-1">
-              <p className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: VERDICT_STYLE[verdict.status].color }}>
-                {t(`copilot.verdict_${verdict.status}_label`)}
-              </p>
-              <p className="text-[17px] font-extrabold mt-1.5 leading-tight text-on-surface">
-                {t(`copilot.verdict_${verdict.status}_msg`)}
-              </p>
-              <div className="flex items-center justify-between mt-2.5">
-                <span className="text-xs text-on-surface-dim">
-                  {t('copilot.verdict_phase_day', {
-                    phase: model.activePhase.name || trip.name,
-                    day: model.dayNum,
-                    total: phaseTotalDays,
-                  })}
-                </span>
-                <span className="text-xs tabular text-on-surface-dim">
-                  {formatMoney(model.fts.totalSpentCents, currency)} / {formatMoney(model.fts.totalBudgetCents, currency)}
-                </span>
+          {/* 1 · VERDICT — am I OK? */}
+          {verdict && model.activePhase && model.fts && (
+            <div
+              className="mt-5 p-4 rounded-2xl"
+              style={{ background: VERDICT_STYLE[verdict.status].bg, border: `1px solid ${VERDICT_STYLE[verdict.status].border}` }}
+            >
+              <div className="flex items-start gap-3">
+                <Icon name={VERDICT_STYLE[verdict.status].icon} filled className="mt-0.5" style={{ color: VERDICT_STYLE[verdict.status].color }} />
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: VERDICT_STYLE[verdict.status].color }}>
+                    {t(`copilot.verdict_${verdict.status}_label`)}
+                  </p>
+                  <p className="text-[17px] font-extrabold mt-1.5 leading-tight text-on-surface">
+                    {t(`copilot.verdict_${verdict.status}_msg`)}
+                  </p>
+                  <div className="flex items-center justify-between mt-2.5">
+                    <span className="text-xs text-on-surface-dim">
+                      {t('copilot.verdict_phase_day', {
+                        phase: model.activePhase.name || trip.name,
+                        day: model.dayNum,
+                        total: phaseTotalDays,
+                      })}
+                    </span>
+                    <span className="text-xs tabular text-on-surface-dim">
+                      {formatMoney(model.fts.totalSpentCents, currency)} / {formatMoney(model.fts.totalBudgetCents, currency)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* 1b · YESTERDAY — daily recap, moved from the home (U5 / DEC-180): all
-          intelligence now lives in the Copiloto. */}
-      {model.recap && (
-        <RecapCard recap={model.recap} currency={currency} onOpen={() => navigate('/expenses')} />
-      )}
+          {/* 1b · YESTERDAY — daily recap, moved from the home (U5 / DEC-180). */}
+          {model.recap && (
+            <RecapCard recap={model.recap} currency={currency} onOpen={() => navigate('/expenses')} />
+          )}
 
-      {/* 2 · WHERE IT'S HEADING — projection + reserve */}
-      {projection && (
-        <>
-          <SectionLabel>{t('copilot.where_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon
-                name={projection.values.over ? 'trending_up' : 'trending_down'}
-                size={18}
-                style={{ color: projection.values.over ? 'var(--warning)' : 'var(--success)' }}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">
-                {t('copilot.where_projection', {
-                  amount: formatMoney(Number(projection.values.projectedCents), currency),
-                })}
-              </p>
-              <p className="text-xs text-on-surface-faint mt-0.5">
-                {projection.values.over
-                  ? t('copilot.where_over', { amount: formatMoney(Number(projection.values.diffCents), currency) })
-                  : t('copilot.where_under', { amount: formatMoney(Number(projection.values.diffCents), currency) })}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
+          {/* 3 · AMIGO SINCERO — shared component, with the simulate action */}
+          {model.amigoV2.kind !== 'none' && (
+            <AmigoSinceroCard
+              amigo={model.amigoV2}
+              currency={currency}
+              onSeeImpact={() => navigate('/impact')}
+              onSimulate={() => navigate('/simulator')}
+            />
+          )}
 
-      {/* 2b · COURSE CORRECTION — trend of the projected close (DEC-181) */}
-      {forecastTrend && (
-        <>
-          <SectionLabel>{t('copilot.trend_title')}</SectionLabel>
-          <div
-            className="p-4 rounded-2xl flex items-center gap-3.5"
-            style={{ background: 'var(--surface-container)' }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon
-                name={forecastTrend.direction === 'improving' ? 'trending_down' : 'trending_up'}
-                size={18}
-                style={{ color: forecastTrend.direction === 'improving' ? 'var(--success)' : 'var(--warning)' }}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">
-                {t(`copilot.trend_${forecastTrend.direction}`)}
-              </p>
-              <p className="text-xs text-on-surface-faint mt-0.5">
-                {t(`copilot.trend_${forecastTrend.direction}_desc`, {
-                  days: forecastTrend.daysSpan,
-                  from: formatMoney(forecastTrend.firstProjectedCents, currency),
-                  to: formatMoney(forecastTrend.latestProjectedCents, currency),
-                  delta: formatMoney(Math.abs(forecastTrend.deltaCents), currency),
-                })}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
+          {/* 3b · HOME-CURRENCY ANCHOR — the whole trip in one number (B10) */}
+          {homeTotal && (
+            <>
+              <SectionLabel>{t('copilot.anchor_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon name="account_balance" size={18} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xl font-extrabold tabular text-on-surface leading-none">
+                    {formatMoney(homeTotal.totalCents, currency)}
+                  </p>
+                  <p className="text-xs text-on-surface-faint mt-1">
+                    {t('copilot.anchor_desc', { count: homeTotal.expenseCount, currency })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
 
-      {/* 2c · RUNWAY — how long the free-to-spend lasts (DEC-182) */}
-      {runway && (
-        <>
-          <SectionLabel>{t('copilot.runway_title')}</SectionLabel>
-          <div
-            className="p-4 rounded-2xl flex items-center gap-3.5"
-            style={{ background: 'var(--surface-container)' }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon
-                name={runway.coversRemaining ? 'check_circle' : 'schedule'}
-                size={18}
-                style={{ color: runway.coversRemaining ? 'var(--success)' : 'var(--warning)' }}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">
-                {runway.coversRemaining
-                  ? t('copilot.runway_covers')
-                  : t('copilot.runway_until', { days: runway.days })}
-              </p>
-              <p className="text-xs text-on-surface-faint mt-0.5">
-                {runway.coversRemaining
-                  ? t('copilot.runway_covers_desc', { days: runway.days })
-                  : t('copilot.runway_until_desc', {
-                      date: formatDate(addDaysIso(model.todayIso, runway.days), "d 'de' MMMM"),
-                    })}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 2d · DISCIPLINE STREAK — days in a row within the daily target (B10) */}
-      {disciplineStreak && (
-        <>
-          <SectionLabel>{t('copilot.streak_title')}</SectionLabel>
-          <div
-            className="p-4 rounded-2xl flex items-center gap-3.5"
-            style={{ background: 'var(--surface-container)' }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon
-                name={disciplineStreak.currentStreak >= 2 ? 'local_fire_department' : 'military_tech'}
-                size={18}
-                style={{ color: disciplineStreak.currentStreak >= 2 ? 'var(--success)' : 'var(--warning)' }}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">
-                {disciplineStreak.currentStreak >= 2
-                  ? t('copilot.streak_current', { days: disciplineStreak.currentStreak })
-                  : t('copilot.streak_broken')}
-              </p>
-              <p className="text-xs text-on-surface-faint mt-0.5">
-                {t('copilot.streak_desc', {
-                  best: disciplineStreak.longestStreak,
-                  target: formatMoney(disciplineStreak.dailyTargetCents, currency),
-                })}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 3 · AMIGO SINCERO — shared component, with the simulate action */}
-      {model.amigoV2.kind !== 'none' && (
-        <AmigoSinceroCard
-          amigo={model.amigoV2}
-          currency={currency}
-          onSeeImpact={() => navigate('/impact')}
-          onSimulate={() => navigate('/simulator')}
-        />
-      )}
-
-      {/* 3b · HOME-CURRENCY ANCHOR — the whole trip in one number (B10) */}
-      {homeTotal && (
-        <>
-          <SectionLabel>{t('copilot.anchor_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon name="account_balance" size={18} className="text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xl font-extrabold tabular text-on-surface leading-none">
-                {formatMoney(homeTotal.totalCents, currency)}
-              </p>
-              <p className="text-xs text-on-surface-faint mt-1">
-                {t('copilot.anchor_desc', { count: homeTotal.expenseCount, currency })}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 4 · WHERE IT CAME FROM — category bars */}
-      {categories.length > 0 && (
-        <>
-          <SectionLabel>{t('copilot.from_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
-            {categories.slice(0, 6).map((c) => (
-              <div key={c.category} className="flex items-center gap-3">
-                <span className="text-xs text-on-surface-dim w-[78px] shrink-0 truncate">
-                  {t(`categories.${c.category}` as never)}
-                </span>
-                <span className="flex-1 h-[18px] rounded-md overflow-hidden bg-surface-high">
-                  <span
-                    className="block h-full rounded-md"
-                    style={{
-                      width: `${maxCategoryCents > 0 ? Math.max(6, Math.round((c.cents / maxCategoryCents) * 100)) : 0}%`,
-                      background: 'var(--primary)',
-                    }}
+          {/* 2d · DISCIPLINE STREAK — days in a row within the daily target (B10) */}
+          {disciplineStreak && (
+            <>
+              <SectionLabel>{t('copilot.streak_title')}</SectionLabel>
+              <div
+                className="p-4 rounded-2xl flex items-center gap-3.5"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon
+                    name={disciplineStreak.currentStreak >= 2 ? 'local_fire_department' : 'military_tech'}
+                    size={18}
+                    style={{ color: disciplineStreak.currentStreak >= 2 ? 'var(--success)' : 'var(--warning)' }}
                   />
-                </span>
-                <span className="text-xs font-bold tabular w-[58px] text-right text-on-surface">
-                  {formatMoney(c.cents, currency)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-on-surface">
+                    {disciplineStreak.currentStreak >= 2
+                      ? t('copilot.streak_current', { days: disciplineStreak.currentStreak })
+                      : t('copilot.streak_broken')}
+                  </p>
+                  <p className="text-xs text-on-surface-faint mt-0.5">
+                    {t('copilot.streak_desc', {
+                      best: disciplineStreak.longestStreak,
+                      target: formatMoney(disciplineStreak.dailyTargetCents, currency),
+                    })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </ThemeGroup>
+      )}
+
+      {/* ── PARA ONDE VAI — trajectory (projection · trend · runway · pace ·
+          vs the previous phase) ── */}
+      {headingCount > 0 && (
+        <ThemeGroup
+          title={t('copilot.group_heading')}
+          icon="trending_up"
+          count={headingCount}
+          open={isGroupOpen('heading')}
+          onToggle={() => toggleGroup('heading')}
+        >
+          {/* 2 · WHERE IT'S HEADING — projection + reserve */}
+          {projection && (
+            <>
+              <SectionLabel>{t('copilot.where_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon
+                    name={projection.values.over ? 'trending_up' : 'trending_down'}
+                    size={18}
+                    style={{ color: projection.values.over ? 'var(--warning)' : 'var(--success)' }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-on-surface">
+                    {t('copilot.where_projection', {
+                      amount: formatMoney(Number(projection.values.projectedCents), currency),
+                    })}
+                  </p>
+                  <p className="text-xs text-on-surface-faint mt-0.5">
+                    {projection.values.over
+                      ? t('copilot.where_over', { amount: formatMoney(Number(projection.values.diffCents), currency) })
+                      : t('copilot.where_under', { amount: formatMoney(Number(projection.values.diffCents), currency) })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* 2b · COURSE CORRECTION — trend of the projected close (DEC-181) */}
+          {forecastTrend && (
+            <>
+              <SectionLabel>{t('copilot.trend_title')}</SectionLabel>
+              <div
+                className="p-4 rounded-2xl flex items-center gap-3.5"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon
+                    name={forecastTrend.direction === 'improving' ? 'trending_down' : 'trending_up'}
+                    size={18}
+                    style={{ color: forecastTrend.direction === 'improving' ? 'var(--success)' : 'var(--warning)' }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-on-surface">
+                    {t(`copilot.trend_${forecastTrend.direction}`)}
+                  </p>
+                  <p className="text-xs text-on-surface-faint mt-0.5">
+                    {t(`copilot.trend_${forecastTrend.direction}_desc`, {
+                      days: forecastTrend.daysSpan,
+                      from: formatMoney(forecastTrend.firstProjectedCents, currency),
+                      to: formatMoney(forecastTrend.latestProjectedCents, currency),
+                      delta: formatMoney(Math.abs(forecastTrend.deltaCents), currency),
+                    })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* 2c · RUNWAY — how long the free-to-spend lasts (DEC-182) */}
+          {runway && (
+            <>
+              <SectionLabel>{t('copilot.runway_title')}</SectionLabel>
+              <div
+                className="p-4 rounded-2xl flex items-center gap-3.5"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon
+                    name={runway.coversRemaining ? 'check_circle' : 'schedule'}
+                    size={18}
+                    style={{ color: runway.coversRemaining ? 'var(--success)' : 'var(--warning)' }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-on-surface">
+                    {runway.coversRemaining
+                      ? t('copilot.runway_covers')
+                      : t('copilot.runway_until', { days: runway.days })}
+                  </p>
+                  <p className="text-xs text-on-surface-faint mt-0.5">
+                    {runway.coversRemaining
+                      ? t('copilot.runway_covers_desc', { days: runway.days })
+                      : t('copilot.runway_until_desc', {
+                          date: formatDate(addDaysIso(model.todayIso, runway.days), "d 'de' MMMM"),
+                        })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* 6 · PHASE PACE — burn-down (reused, titles itself "Ritmo da fase") */}
+          {model.burndown && (
+            <BurndownCard burndown={model.burndown} currency={currency} onOpen={() => navigate('/impact')} />
+          )}
+
+          {/* 7 · COMPARED TO THE PREVIOUS PHASE */}
+          {phaseComparison && (
+            <>
+              <SectionLabel>{t('copilot.compare_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon
+                    name={phaseComparison.deltaPercent <= 0 ? 'trending_down' : 'trending_up'}
+                    size={18}
+                    style={{ color: phaseComparison.deltaPercent <= 0 ? 'var(--success)' : 'var(--warning)' }}
+                  />
+                </div>
+                <p className="text-sm font-semibold text-on-surface flex-1">
+                  {phaseComparison.deltaPercent === 0
+                    ? t('copilot.compare_same', { phase: phaseComparison.previousName })
+                    : phaseComparison.deltaPercent < 0
+                      ? t('copilot.compare_slower', {
+                          percent: Math.abs(phaseComparison.deltaPercent),
+                          phase: phaseComparison.previousName,
+                        })
+                      : t('copilot.compare_faster', {
+                          percent: phaseComparison.deltaPercent,
+                          phase: phaseComparison.previousName,
+                        })}
+                </p>
+              </div>
+            </>
+          )}
+        </ThemeGroup>
+      )}
+
+      {/* ── PADRÕES — where it came from + the month map + behavioral patterns ── */}
+      {patternsCount > 0 && (
+        <ThemeGroup
+          title={t('copilot.group_patterns')}
+          icon="insights"
+          count={patternsCount}
+          open={isGroupOpen('patterns')}
+          onToggle={() => toggleGroup('patterns')}
+        >
+          {/* 4 · WHERE IT CAME FROM — category bars */}
+          {categories.length > 0 && (
+            <>
+              <SectionLabel>{t('copilot.from_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
+                {categories.slice(0, 6).map((c) => (
+                  <div key={c.category} className="flex items-center gap-3">
+                    <span className="text-xs text-on-surface-dim w-[78px] shrink-0 truncate">
+                      {t(`categories.${c.category}` as never)}
+                    </span>
+                    <span className="flex-1 h-[18px] rounded-md overflow-hidden bg-surface-high">
+                      <span
+                        className="block h-full rounded-md"
+                        style={{
+                          width: `${maxCategoryCents > 0 ? Math.max(6, Math.round((c.cents / maxCategoryCents) * 100)) : 0}%`,
+                          background: 'var(--primary)',
+                        }}
+                      />
+                    </span>
+                    <span className="text-xs font-bold tabular w-[58px] text-right text-on-surface">
+                      {formatMoney(c.cents, currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* 5 · MONTH MAP — heatmap (reused, titles itself) + biggest day / avg. */}
+          {hasMap && (
+            <div className="mt-3">
+              <HeatmapCard
+                heatmap={model.heatmap}
+                currency={currency}
+                todayIso={model.todayIso}
+                canPrev={heatmapMonth > model.tripStartMonth}
+                canNext={heatmapMonth < model.currentMonth}
+                onPrev={() => setHeatmapMonth((m) => shiftMonth(m, -1))}
+                onNext={() => setHeatmapMonth((m) => shiftMonth(m, 1))}
+                onSelectDay={(iso) => setHeatmapDayIso(iso)}
+              />
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="p-3 rounded-xl" style={{ background: 'var(--surface-container)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-faint">{t('copilot.map_max')}</p>
+                  <p className="text-base font-extrabold tabular text-on-surface mt-0.5">
+                    {formatMoney(dailySummary.maxDayCents, currency)}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl" style={{ background: 'var(--surface-container)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-faint">{t('copilot.map_avg')}</p>
+                  <p className="text-base font-extrabold tabular text-on-surface mt-0.5">
+                    {formatMoney(dailySummary.avgPerActiveDayCents, currency)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 5b · WEEKDAY PATTERN — weekend vs weekday day (DEC-183) */}
+          {weekday && (
+            <>
+              <SectionLabel>{t('copilot.weekday_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
+                <p className="text-sm font-bold text-on-surface">
+                  {weekday.weekendIsPricier
+                    ? t('copilot.weekday_pricier', { ratio: weekday.ratio })
+                    : t('copilot.weekday_calmer', { ratio: weekday.ratio })}
+                </p>
+                <p className="text-xs text-on-surface-faint mt-1">
+                  {t('copilot.weekday_desc', {
+                    weekend: formatMoney(weekday.weekendAvgCents, currency),
+                    weekday: formatMoney(weekday.weekdayAvgCents, currency),
+                  })}
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* 5c · PEAK HOUR — the local hour the money leaves (B10) */}
+          {peakHour && (
+            <>
+              <SectionLabel>{t('copilot.peak_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon name="schedule" size={18} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-on-surface">
+                    {t('copilot.peak_hour', { hour: peakHour.hour })}
+                  </p>
+                  <p className="text-xs text-on-surface-faint mt-0.5">
+                    {t('copilot.peak_desc', {
+                      amount: formatMoney(peakHour.hourCents, currency),
+                      percent: peakHour.sharePercent,
+                    })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* 7b · OUTING EFFICIENCY — beat-target rate + avg saving (DEC-184) */}
+          {outingEfficiency && (
+            <>
+              <SectionLabel>{t('copilot.outings_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+                  <Icon
+                    name={outingEfficiency.avgSavingCents >= 0 ? 'savings' : 'local_bar'}
+                    size={18}
+                    style={{ color: outingEfficiency.avgSavingCents >= 0 ? 'var(--success)' : 'var(--warning)' }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-on-surface">
+                    {t('copilot.outings_summary', {
+                      within: outingEfficiency.withinTarget,
+                      total: outingEfficiency.total,
+                    })}
+                  </p>
+                  <p className="text-xs text-on-surface-faint mt-0.5">
+                    {outingEfficiency.avgSavingCents >= 0
+                      ? t('copilot.outings_saving', {
+                          amount: formatMoney(outingEfficiency.avgSavingCents, currency),
+                        })
+                      : t('copilot.outings_over', {
+                          amount: formatMoney(Math.abs(outingEfficiency.avgSavingCents), currency),
+                        })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </ThemeGroup>
+      )}
+
+      {/* ── PESSOAS — social split · payment mix · settlements ── */}
+      {peopleCount > 0 && (
+        <ThemeGroup
+          title={t('copilot.group_people')}
+          icon="group"
+          count={peopleCount}
+          open={isGroupOpen('people')}
+          onToggle={() => toggleGroup('people')}
+        >
+          {/* 8 · SOCIAL vs SOLO */}
+          {social.sharedCents > 0 && (
+            <>
+              <SectionLabel>{t('copilot.social_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
+                <p className="text-sm font-bold text-on-surface">
+                  {t('copilot.social_shared', { percent: social.sharedPercent })}
+                </p>
+                <p className="text-xs text-on-surface-faint mt-1">
+                  {t('copilot.social_desc', {
+                    shared: formatMoney(social.sharedCents, currency),
+                    solo: formatMoney(social.soloCents, currency),
+                  })}
+                </p>
+                <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
+                  <span className="block h-full rounded-full" style={{ width: `${social.sharedPercent}%`, background: 'var(--primary)' }} />
                 </span>
               </div>
-            ))}
-          </div>
-        </>
-      )}
+            </>
+          )}
 
-      {/* 5 · MONTH MAP — heatmap (reused, titles itself) + biggest day / avg
-          as a footer so the section title is not duplicated. */}
-      {hasMap && (
-        <div className="mt-1">
-          <HeatmapCard
-            heatmap={model.heatmap}
-            currency={currency}
-            todayIso={model.todayIso}
-            canPrev={heatmapMonth > model.tripStartMonth}
-            canNext={heatmapMonth < model.currentMonth}
-            onPrev={() => setHeatmapMonth((m) => shiftMonth(m, -1))}
-            onNext={() => setHeatmapMonth((m) => shiftMonth(m, 1))}
-            onSelectDay={(iso) => setHeatmapDayIso(iso)}
-          />
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <div className="p-3 rounded-xl" style={{ background: 'var(--surface-container)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-faint">{t('copilot.map_max')}</p>
-              <p className="text-base font-extrabold tabular text-on-surface mt-0.5">
-                {formatMoney(dailySummary.maxDayCents, currency)}
-              </p>
-            </div>
-            <div className="p-3 rounded-xl" style={{ background: 'var(--surface-container)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-faint">{t('copilot.map_avg')}</p>
-              <p className="text-base font-extrabold tabular text-on-surface mt-0.5">
-                {formatMoney(dailySummary.avgPerActiveDayCents, currency)}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5b · WEEKDAY PATTERN — weekend vs weekday day (DEC-183) */}
-      {weekday && (
-        <>
-          <SectionLabel>{t('copilot.weekday_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
-            <p className="text-sm font-bold text-on-surface">
-              {weekday.weekendIsPricier
-                ? t('copilot.weekday_pricier', { ratio: weekday.ratio })
-                : t('copilot.weekday_calmer', { ratio: weekday.ratio })}
-            </p>
-            <p className="text-xs text-on-surface-faint mt-1">
-              {t('copilot.weekday_desc', {
-                weekend: formatMoney(weekday.weekendAvgCents, currency),
-                weekday: formatMoney(weekday.weekdayAvgCents, currency),
-              })}
-            </p>
-          </div>
-        </>
-      )}
-
-      {/* 5c · PEAK HOUR — the local hour the money leaves (B10) */}
-      {peakHour && (
-        <>
-          <SectionLabel>{t('copilot.peak_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon name="schedule" size={18} className="text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">
-                {t('copilot.peak_hour', { hour: peakHour.hour })}
-              </p>
-              <p className="text-xs text-on-surface-faint mt-0.5">
-                {t('copilot.peak_desc', {
-                  amount: formatMoney(peakHour.hourCents, currency),
-                  percent: peakHour.sharePercent,
-                })}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 6 · PHASE PACE — burn-down (reused, titles itself "Ritmo da fase") */}
-      {model.burndown && (
-        <BurndownCard burndown={model.burndown} currency={currency} onOpen={() => navigate('/impact')} />
-      )}
-
-      {/* 7 · COMPARED TO THE PREVIOUS PHASE */}
-      {phaseComparison && (
-        <>
-          <SectionLabel>{t('copilot.compare_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon
-                name={phaseComparison.deltaPercent <= 0 ? 'trending_down' : 'trending_up'}
-                size={18}
-                style={{ color: phaseComparison.deltaPercent <= 0 ? 'var(--success)' : 'var(--warning)' }}
-              />
-            </div>
-            <p className="text-sm font-semibold text-on-surface flex-1">
-              {phaseComparison.deltaPercent === 0
-                ? t('copilot.compare_same', { phase: phaseComparison.previousName })
-                : phaseComparison.deltaPercent < 0
-                  ? t('copilot.compare_slower', {
-                      percent: Math.abs(phaseComparison.deltaPercent),
-                      phase: phaseComparison.previousName,
-                    })
-                  : t('copilot.compare_faster', {
-                      percent: phaseComparison.deltaPercent,
-                      phase: phaseComparison.previousName,
-                    })}
-            </p>
-          </div>
-        </>
-      )}
-
-      {/* 7b · OUTING EFFICIENCY — beat-target rate + avg saving (DEC-184) */}
-      {outingEfficiency && (
-        <>
-          <SectionLabel>{t('copilot.outings_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl flex items-center gap-3.5" style={{ background: 'var(--surface-container)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
-              <Icon
-                name={outingEfficiency.avgSavingCents >= 0 ? 'savings' : 'local_bar'}
-                size={18}
-                style={{ color: outingEfficiency.avgSavingCents >= 0 ? 'var(--success)' : 'var(--warning)' }}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">
-                {t('copilot.outings_summary', {
-                  within: outingEfficiency.withinTarget,
-                  total: outingEfficiency.total,
-                })}
-              </p>
-              <p className="text-xs text-on-surface-faint mt-0.5">
-                {outingEfficiency.avgSavingCents >= 0
-                  ? t('copilot.outings_saving', {
-                      amount: formatMoney(outingEfficiency.avgSavingCents, currency),
-                    })
-                  : t('copilot.outings_over', {
-                      amount: formatMoney(Math.abs(outingEfficiency.avgSavingCents), currency),
-                    })}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 8 · SOCIAL vs SOLO */}
-      {social.sharedCents > 0 && (
-        <>
-          <SectionLabel>{t('copilot.social_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
-            <p className="text-sm font-bold text-on-surface">
-              {t('copilot.social_shared', { percent: social.sharedPercent })}
-            </p>
-            <p className="text-xs text-on-surface-faint mt-1">
-              {t('copilot.social_desc', {
-                shared: formatMoney(social.sharedCents, currency),
-                solo: formatMoney(social.soloCents, currency),
-              })}
-            </p>
-            <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
-              <span className="block h-full rounded-full" style={{ width: `${social.sharedPercent}%`, background: 'var(--primary)' }} />
-            </span>
-          </div>
-        </>
-      )}
-
-      {/* 8b · PAYMENT MIX — cash vs card reliability (B10) */}
-      {paymentMix && (
-        <>
-          <SectionLabel>{t('copilot.method_title')}</SectionLabel>
-          <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
-            <p className="text-sm font-bold text-on-surface">
-              {t('copilot.method_cash', { percent: paymentMix.cashPercent })}
-            </p>
-            <p className="text-xs text-on-surface-faint mt-1">
-              {t('copilot.method_desc', {
-                cash: formatMoney(paymentMix.cashCents, currency),
-                card: formatMoney(paymentMix.cardCents, currency),
-              })}
-              {paymentMix.untrackedCents > 0
-                ? ` · ${t('copilot.method_untracked', { amount: formatMoney(paymentMix.untrackedCents, currency) })}`
-                : ''}
-            </p>
-            <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
-              <span className="block h-full rounded-full" style={{ width: `${paymentMix.cashPercent}%`, background: 'var(--warning)' }} />
-            </span>
-          </div>
-        </>
-      )}
-
-      {/* 9 · SETTLEMENTS (debts involving the owner) */}
-      {debts.length > 0 && model.owner && (
-        <>
-          <SectionLabel>{t('copilot.debts_title')}</SectionLabel>
-          <button
-            onClick={() => navigate('/shared')}
-            className="w-full p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
-            style={{ background: 'var(--surface-container)' }}
-          >
-            <Icon name="group" className="text-warning shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-on-surface">
-                {debts[0]!.creditorId === model.owner.id
-                  ? t('copilot.debts_owed_to_me', {
-                      name: debts[0]!.debtorName,
-                      amount: formatMoney(debts[0]!.amountCents, currency),
-                    })
-                  : t('copilot.debts_i_owe', {
-                      name: debts[0]!.creditorName,
-                      amount: formatMoney(debts[0]!.amountCents, currency),
-                    })}
-              </p>
-              {debts.length > 1 && (
-                <p className="text-xs text-on-surface-faint mt-0.5">
-                  {t('copilot.debts_more', { count: debts.length - 1 })}
+          {/* 8b · PAYMENT MIX — cash vs card reliability (B10) */}
+          {paymentMix && (
+            <>
+              <SectionLabel>{t('copilot.method_title')}</SectionLabel>
+              <div className="p-4 rounded-2xl" style={{ background: 'var(--surface-container)' }}>
+                <p className="text-sm font-bold text-on-surface">
+                  {t('copilot.method_cash', { percent: paymentMix.cashPercent })}
                 </p>
-              )}
-            </div>
-            <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
-          </button>
-        </>
+                <p className="text-xs text-on-surface-faint mt-1">
+                  {t('copilot.method_desc', {
+                    cash: formatMoney(paymentMix.cashCents, currency),
+                    card: formatMoney(paymentMix.cardCents, currency),
+                  })}
+                  {paymentMix.untrackedCents > 0
+                    ? ` · ${t('copilot.method_untracked', { amount: formatMoney(paymentMix.untrackedCents, currency) })}`
+                    : ''}
+                </p>
+                <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
+                  <span className="block h-full rounded-full" style={{ width: `${paymentMix.cashPercent}%`, background: 'var(--warning)' }} />
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* 9 · SETTLEMENTS (debts involving the owner) */}
+          {debts.length > 0 && model.owner && (
+            <>
+              <SectionLabel>{t('copilot.debts_title')}</SectionLabel>
+              <button
+                onClick={() => navigate('/shared')}
+                className="w-full p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <Icon name="group" className="text-warning shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-on-surface">
+                    {debts[0]!.creditorId === model.owner.id
+                      ? t('copilot.debts_owed_to_me', {
+                          name: debts[0]!.debtorName,
+                          amount: formatMoney(debts[0]!.amountCents, currency),
+                        })
+                      : t('copilot.debts_i_owe', {
+                          name: debts[0]!.creditorName,
+                          amount: formatMoney(debts[0]!.amountCents, currency),
+                        })}
+                  </p>
+                  {debts.length > 1 && (
+                    <p className="text-xs text-on-surface-faint mt-0.5">
+                      {t('copilot.debts_more', { count: debts.length - 1 })}
+                    </p>
+                  )}
+                </div>
+                <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+              </button>
+            </>
+          )}
+        </ThemeGroup>
       )}
 
       {/* 10 · TOOLS — always available (council rodapé). U3: a 2-column grid of

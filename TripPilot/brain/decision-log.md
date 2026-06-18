@@ -1576,6 +1576,14 @@
 - **Anti-regression**: all 9 FAB actions remain reachable; transfers/withdrawals keep their full (non-collapsed) wallet flow; wallet question stays progressive (DEC-222); split/anomaly/zero-budget/round-trip/photos/voice all preserved. New permanent E2E `e2e/capture-disclosure.spec.ts`; `wallet-tracking.spec.ts` updated to open Detalhes.
 - **Rationale**: the audit's dominant risk is conceptual overload + bad thumb ergonomics, not missing capability — reorder + disclose, don't prune.
 
+### DEC-227 — Copiloto prioritized into four collapsible theme groups (Package #3, v0.83.0)
+- **Date**: 2026-06-18
+- **Status**: APPROVED & SHIPPED (Package #3 · G7, v0.83.0)
+- **Source**: `brain/documents/ux-clarity-audit-2026-06-17.md` §2 (G3) + §4.6 (P1 "priorizar 3–5 seções-chave + ver mais" / P2 "agrupar por tema: Agora / Para onde vai / Padrões / Pessoas colapsável"). Second package out of the UX-clarity audit; does **not** touch Package #1 or #2.
+- **Decision (§4.6):** the Copiloto's ~18 self-censoring reads (the "parede de cards", G3) are now organized into **four collapsible theme groups**: **"Agora"** (verdict · yesterday recap · honest friend · whole-trip anchor · discipline streak), **"Para onde vai"** (projection · course-correction trend · runway · phase pace · vs previous phase), **"Padrões"** (where it came from · month map · weekday · peak hour · outing efficiency), **"Pessoas"** (social × solo · payment mix · settlements). The **first non-empty group opens by default**; the rest are one tap away, each header showing a **count badge** of its non-empty reads. An **empty group never renders** (each group is gated by a per-theme count derived from each section's own render guard, so a head never shows with no body). The always-on tools grid (Impacto/Simular/Resgate/Guia) stays in the footer.
+- **Anti-regression**: **nothing removed** (ÂNCORA 9) — all reads keep their exact JSX, render guards and i18n; only their containers changed. Each section still self-censors on no data. New permanent E2E `e2e/copilot-groups.spec.ts` (first group open, others collapse content, every group collapsible, tools footer survives). 1380 unit tests + full E2E green; Playwright visual QA (Pixel 5) on demo data confirmed the default (Agora open, 3 collapsed with counts) + fully-expanded + collapsed-Agora states.
+- **Rationale**: the reads were individually useful but, with data, became a flat wall where the user didn't know where to look first; grouping by the question each read answers gives a scannable hierarchy without pruning any intelligence. The "ver mais / fixar favoritas" (P3) is deferred — the collapsible groups already satisfy the P1/P2 intent.
+
 ---
 
 *New decisions will be added as the project progresses.*

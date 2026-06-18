@@ -1,8 +1,8 @@
 {
-  "version": "0.82.0",
+  "version": "0.83.0",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.82.0.zip",
-  "notes": "Captura mais rápida: o botão “+” foi reorganizado para o polegar — “Registrar gasto” e “Escanear nota” ficam na base, pertinho do dedo, e os registros raros (transferência, saque, entrada) e o planejar/simular agora se escondem atrás de botões que expandem. Nada foi removido. E a tela de registrar gasto ficou enxuta: valor, categoria e descrição na frente; data, local, fundo, carteira e anexos recolhidos em “Detalhes”. Um gasto comum sai em ~3 toques."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.83.0.zip",
+  "notes": "Copiloto mais fácil de ler: as análises agora vêm organizadas em quatro temas que você abre e fecha — Agora (você está bem?), Para onde vai, Padrões e Pessoas. O primeiro abre sozinho e o resto fica a um toque, com um contador do que tem dentro. Nada foi removido — só ficou mais fácil saber onde olhar primeiro."
 }

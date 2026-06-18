@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.83.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Copiloto mais fácil de ler: as análises agora vêm organizadas em quatro temas que você abre e fecha — “Agora”, “Para onde vai”, “Padrões” e “Pessoas”.',
+        'O primeiro tema com conteúdo abre sozinho; os outros ficam a um toque, cada um com um contador do que tem dentro — dá pra saber onde olhar primeiro.',
+        'Nada foi removido: todas as leituras (veredito, projeção, mapa do mês, ritmo, social, dívidas…) continuam ali, só que agrupadas em vez de uma parede única.',
+      ],
+      en: [
+        'Easier-to-read Copilot: the reads are now organized into four themes you can open and close — “Now”, “Where it’s heading”, “Patterns” and “People”.',
+        'The first non-empty theme opens by itself; the others are one tap away, each with a counter of what’s inside — so you know where to look first.',
+        'Nothing removed: every read (verdict, projection, month map, pace, social, settlements…) is still there, just grouped instead of one long wall.',
+      ],
+      es: [
+        'Copiloto más fácil de leer: los análisis ahora se organizan en cuatro temas que abres y cierras — “Ahora”, “Hacia dónde va”, “Patrones” y “Personas”.',
+        'El primer tema con contenido se abre solo; los demás quedan a un toque, cada uno con un contador de lo que hay dentro — así sabes dónde mirar primero.',
+        'Nada eliminado: todas las lecturas (veredicto, proyección, mapa del mes, ritmo, social, deudas…) siguen ahí, solo que agrupadas en vez de un muro único.',
+      ],
+    },
+  },
+  {
     version: '0.82.0',
     date: '2026-06-18',
     items: {
