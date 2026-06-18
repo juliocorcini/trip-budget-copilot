@@ -42,6 +42,7 @@ import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
+import { AdvancedTripView } from '@/features/settings/AdvancedTripView';
 import { APP_VERSION } from '@/utils/app-version';
 import type { AlertTone, AppMode, ThemePreference } from '@/domain/types/common';
 
@@ -99,7 +100,7 @@ const SETTINGS_GROUPS: {
     descKey: 'settings.cat_desc_money',
     icon: 'payments',
     keywords:
-      'âncora ancora anchor câmbio cambio fx taxa rate cotação meta economia savings goal objetivo ahorro guardar dinheiro casa',
+      'âncora ancora anchor câmbio cambio fx taxa rate cotação meta economia savings goal objetivo ahorro guardar dinheiro casa avançada avanzada advanced fundo fundos fund funds carteira carteiras wallet wallets envelope envelopes sobre vínculo vinculo link técnico raw',
   },
   {
     id: 'home',
@@ -141,7 +142,8 @@ export function SettingsPage() {
   // F11: when a category is open (`/settings/c/:categoryId`) we render only that
   // category's sections; the bare `/settings` route shows the category list.
   const { categoryId } = useParams<{ categoryId?: string }>();
-  const { settings, wallets, trip, phases, reload } = useAppData();
+  const { settings, wallets, trip, phases, pools, links, envelopes, transactions, reload } =
+    useAppData();
   // GATE 5 (D10): the effective state shown under the wallet-tracking control.
   const walletTrackingActive = useWalletTracking();
   const [quickAddInput, setQuickAddInput] = useState('');
@@ -956,6 +958,21 @@ export function SettingsPage() {
             {t('settings.goal_remove')}
           </button>
         )}
+      </Section>
+
+      {/* GATE 6 (D17): "Visão avançada da viagem" — the raw backend
+          (funds/links/envelopes/wallets) for the curious, reusing the existing
+          /funds and /wallets editors. The happy path keeps these hidden. */}
+      <Section title={t('settings.advanced_trip_title')}>
+        <AdvancedTripView
+          pools={pools}
+          links={links}
+          phases={phases}
+          envelopes={envelopes}
+          wallets={wallets}
+          transactions={transactions}
+          baseCurrency={baseCurrency}
+        />
       </Section>
 
       </CollapsibleGroup>
