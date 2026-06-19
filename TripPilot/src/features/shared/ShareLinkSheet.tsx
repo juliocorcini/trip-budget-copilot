@@ -119,23 +119,46 @@ export function ShareLinkSheet({
     else if (outcome === 'copy_failed') showToast(t('shareLink.copy_failed'), 'danger');
   };
 
-  const handleRefresh = async () => {
-    if (!link || busy) return;
+  // Publishes the current statement to the link and nudges a connected guest to
+  // re-pull it live. `announce` is false for the silent auto-push on open.
+  const publishLatest = async (announce: boolean): Promise<boolean> => {
+    if (!link) return false;
     const statement = buildStatement();
-    if (!statement) return;
+    if (!statement) return false;
     setBusy(true);
     try {
       const updated = await refreshShareLink(link, statement);
       setLink(updated);
       // DEC-207 S7 — tell a connected guest to re-pull the new revision live.
       signalRef.current?.send({ t: 'upd', rev: updated.statementRevision });
-      showToast(t('shareLink.refreshed'), 'success');
+      if (announce) showToast(t('shareLink.refreshed'), 'success');
+      return true;
     } catch {
-      showToast(t('shareLink.error'), 'danger');
+      if (announce) showToast(t('shareLink.error'), 'danger');
+      return false;
     } finally {
       setBusy(false);
     }
   };
+
+  const handleRefresh = () => {
+    if (busy) return;
+    void publishLatest(true);
+  };
+
+  // EPIC B — "split with a connected user → it just sends". Opening a
+  // participant's sheet that already has a link (e.g. arriving from the
+  // post-split "compartilhar com {name}" nudge) silently re-publishes the
+  // latest statement and signals the peer, so the new split reaches their
+  // device with no manual "Atualizar" tap. Once per mount; the sheet remounts
+  // per participant. No link yet → nothing to push (owner generates first).
+  const autoPushedRef = useRef(false);
+  useEffect(() => {
+    if (!link || autoPushedRef.current) return;
+    autoPushedRef.current = true;
+    void publishLatest(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [link?.id]);
 
   // `announceEmpty` is false for live (signal-triggered) pulls — a background
   // nudge should never toast "nothing new" or an error; only an explicit tap on

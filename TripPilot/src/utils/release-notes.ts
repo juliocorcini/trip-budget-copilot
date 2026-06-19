@@ -17,6 +17,63 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.2',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'Correção crítica da mesa ao vivo: o app guardava uma versão antiga em cache e travava a sincronização — por isso o organizador ficava preso em "esperando alguém entrar" e ninguém via as escolhas dos outros. Agora tudo aparece em tempo real em todos os celulares.',
+        'Compartilhar a mesa ficou completo: um toque abre QR code (para os outros escanearem na hora), copiar link e o menu de compartilhar do celular — as três opções sempre disponíveis.',
+      ],
+      en: [
+        'Critical live-table fix: the app was keeping an old cached version that froze syncing — so the organizer was stuck on "waiting for someone to join" and nobody saw each other\'s picks. Everything now updates in real time on every phone.',
+        'Sharing the table is now complete: one tap opens a QR code (for others to scan on the spot), copy link, and the phone\'s share menu — all three always available.',
+      ],
+      es: [
+        'Corrección crítica de la mesa en vivo: la app guardaba una versión antigua en caché y trababa la sincronización — por eso el organizador quedaba en "esperando que alguien entre" y nadie veía las elecciones de los demás. Ahora todo aparece en tiempo real en todos los celulares.',
+        'Compartir la mesa ahora es completo: un toque abre código QR (para que los demás escaneen al instante), copiar enlace y el menú de compartir del celular — las tres opciones siempre disponibles.',
+      ],
+    },
+  },
+  {
+    version: '0.99.1',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'Dividir um gasto com alguém já conectado ficou automático: ao abrir a tela dessa pessoa, o extrato mais recente é enviado na hora para o aparelho dela — sem precisar tocar em "Atualizar".',
+        'Quem recebeu um extrato compartilhado vê as novidades assim que volta ao app, mesmo que a tela tenha ficado em segundo plano.',
+      ],
+      en: [
+        'Splitting an expense with someone already connected is now automatic: opening that person\'s screen sends the latest statement straight to their device — no "Refresh" tap needed.',
+        'Anyone who received a shared statement sees the latest the moment they return to the app, even if the screen was in the background.',
+      ],
+      es: [
+        'Dividir un gasto con alguien ya conectado ahora es automático: al abrir la pantalla de esa persona, se le envía al instante el resumen más reciente — sin tocar "Actualizar".',
+        'Quien recibió un resumen compartido ve las novedades apenas vuelve a la app, aunque la pantalla haya estado en segundo plano.',
+      ],
+    },
+  },
+  {
+    version: '0.99.0',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'A mesa ao vivo agora vive no servidor: mesmo que o organizador feche o app sem querer, todo mundo continua vendo em tempo real o que cada um escolheu.',
+        'Reabriu o app? A mesa volta sozinha no mesmo link — sem precisar criar um link novo nem perder as escolhas.',
+        'O status de conexão agora é de verdade — ao vivo, sincronizando ou sem conexão, com "atualizado há Xs" e um toque para reconectar.',
+      ],
+      en: [
+        'The live table now lives on the server: even if the organizer closes the app by accident, everyone keeps seeing everyone\'s picks in real time.',
+        'Reopen the app and the table comes back on the same link by itself — no new link, no lost picks.',
+        'The connection status is now honest — live, syncing or offline, with "updated Xs ago" and a tap to reconnect.',
+      ],
+      es: [
+        'La mesa en vivo ahora vive en el servidor: aunque el organizador cierre la app sin querer, todos siguen viendo en tiempo real lo que eligió cada uno.',
+        '¿Reabriste la app? La mesa vuelve sola en el mismo enlace — sin crear un enlace nuevo ni perder las elecciones.',
+        'El estado de conexión ahora es real — en vivo, sincronizando o sin conexión, con "actualizado hace Xs" y un toque para reconectar.',
+      ],
+    },
+  },
+  {
     version: '0.98.1',
     date: '2026-06-18',
     items: {

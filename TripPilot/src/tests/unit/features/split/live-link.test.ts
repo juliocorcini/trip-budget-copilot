@@ -1,5 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildSplitTableLink, type SplitLiveCreds } from '@/features/split/live-link';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  buildSplitTableLink,
+  saveOwnerLive,
+  loadOwnerLive,
+  clearOwnerLive,
+  type SplitLiveCreds,
+} from '@/features/split/live-link';
 import { PUBLIC_APP_ORIGIN } from '@/utils/native/public-origin';
 import { isNativeApp } from '@/utils/native/platform';
 
@@ -38,5 +44,38 @@ describe('buildSplitTableLink (D-BUG-01)', () => {
     mockedIsNative.mockReturnValue(false);
     const link = buildSplitTableLink(creds);
     expect(link.startsWith(`${window.location.origin}/t/`)).toBe(true);
+  });
+});
+
+// L2.M5 — the owner's live creds must survive an app reopen so we resume the
+// SAME link instead of stranding guests on a dead URL.
+describe('owner live-table persistence (L2.M5)', () => {
+  beforeEach(() => clearOwnerLive());
+  afterEach(() => clearOwnerLive());
+
+  it('round-trips the credentials through storage', () => {
+    expect(loadOwnerLive()).toBeNull();
+    saveOwnerLive(creds);
+    expect(loadOwnerLive()).toEqual(creds);
+  });
+
+  it('keeps only the latest table (a new save overwrites the old one)', () => {
+    saveOwnerLive(creds);
+    const next: SplitLiveCreds = { ...creds, shareId: 'def-456', revision: 7 };
+    saveOwnerLive(next);
+    expect(loadOwnerLive()).toEqual(next);
+  });
+
+  it('clears on stop/commit so a finished bill never resurrects', () => {
+    saveOwnerLive(creds);
+    clearOwnerLive();
+    expect(loadOwnerLive()).toBeNull();
+  });
+
+  it('returns null for a malformed / partial record', () => {
+    localStorage.setItem('split.owner.live', JSON.stringify({ shareId: 'x' }));
+    expect(loadOwnerLive()).toBeNull();
+    localStorage.setItem('split.owner.live', 'not json');
+    expect(loadOwnerLive()).toBeNull();
   });
 });

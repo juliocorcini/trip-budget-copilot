@@ -11,6 +11,7 @@ import {
   revokeShare,
   postShareResponse,
   getShareResponses,
+  type ShareResponseItem,
 } from '@/data/sync/share-client';
 import { buildSplitTableUrl } from '@/domain/sync';
 import { getShareOrigin } from '@/utils/native/public-origin';
@@ -77,15 +78,15 @@ export async function revokeSplitTable(creds: SplitLiveCreds): Promise<void> {
 }
 
 /**
- * Pull every guest claim snapshot, decrypt, and validate. Malformed or
+ * Decrypt + validate a raw response list with the table key. Malformed or
  * undecryptable items are dropped (never throw) so one bad response cannot
- * poison the owner's live view. The owner-reducer (`reduceGuestClaims`) folds
- * the result into the live session.
+ * poison anyone's live view. Shared by the owner pull and the guest pull — both
+ * fold the result through the same deterministic reducer (`reduceGuestClaims`),
+ * which is what lets every device converge on the identical live table.
  */
-export async function pullSplitClaims(creds: SplitLiveCreds): Promise<SplitClaimResponse[]> {
-  const items = await getShareResponses(creds.shareId, creds.writeToken);
+async function decodeResponses(key: string, items: ShareResponseItem[]): Promise<SplitClaimResponse[]> {
   if (items.length === 0) return [];
-  const cryptoKey = await importSessionKey(creds.key);
+  const cryptoKey = await importSessionKey(key);
   const out: SplitClaimResponse[] = [];
   for (const item of items) {
     const text = await decryptText(cryptoKey, item.blob);
@@ -100,6 +101,24 @@ export async function pullSplitClaims(creds: SplitLiveCreds): Promise<SplitClaim
     if (parsed) out.push(parsed);
   }
   return out;
+}
+
+/** Owner pull (passes the write token; the worker ignores it for reads). */
+export async function pullSplitClaims(creds: SplitLiveCreds): Promise<SplitClaimResponse[]> {
+  const items = await getShareResponses(creds.shareId, creds.writeToken);
+  return decodeResponses(creds.key, items);
+}
+
+/**
+ * Guest pull — read EVERY participant's claim snapshot with just the link
+ * (id + key), no write token. This is the half that makes the table survive the
+ * owner going offline: each device reduces (statement + all responses) locally
+ * and therefore sees what everyone is choosing in real time, with or without the
+ * organizer present.
+ */
+export async function fetchSplitResponses(shareId: string, key: string): Promise<SplitClaimResponse[]> {
+  const items = await getShareResponses(shareId);
+  return decodeResponses(key, items);
 }
 
 export function buildSplitTableLink(creds: SplitLiveCreds): string {
@@ -153,6 +172,53 @@ export async function postSplitClaim(shareId: string, key: string, response: Spl
   const cryptoKey = await importSessionKey(key);
   const blob = await encryptText(cryptoKey, JSON.stringify(response));
   await postShareResponse(shareId, response.fromActorId, blob);
+}
+
+/* ── owner live-table persistence (survive an accidental close) ──────────── */
+
+const OWNER_LIVE_KEY = 'split.owner.live';
+
+/**
+ * L2.M5 — persist the owner's live credentials so closing the app (by accident
+ * or on purpose) does NOT kill the table. On reopen we re-fetch the statement
+ * from the server (the source of truth) and resume the SAME link, instead of
+ * minting a new one and stranding the guests on a dead URL. Only the latest
+ * active table is kept (the owner edits one bill at a time). Cleared on
+ * stop/revoke/commit so a finished bill never resurrects.
+ */
+export function saveOwnerLive(creds: SplitLiveCreds): void {
+  try {
+    localStorage.setItem(OWNER_LIVE_KEY, JSON.stringify(creds));
+  } catch {
+    // Private mode / no storage: live link still works for this session.
+  }
+}
+
+export function loadOwnerLive(): SplitLiveCreds | null {
+  try {
+    const raw = localStorage.getItem(OWNER_LIVE_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw) as Partial<SplitLiveCreds>;
+    if (
+      typeof c.shareId === 'string' &&
+      typeof c.key === 'string' &&
+      typeof c.writeToken === 'string' &&
+      typeof c.revision === 'number'
+    ) {
+      return { shareId: c.shareId, key: c.key, writeToken: c.writeToken, revision: c.revision };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearOwnerLive(): void {
+  try {
+    localStorage.removeItem(OWNER_LIVE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 /* ── guest identity (stable across reloads, per device) ──────────────────── */

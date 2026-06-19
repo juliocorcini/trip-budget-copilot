@@ -1,9 +1,23 @@
-const CACHE_NAME = 'trippilot-v49';
+const CACHE_NAME = 'trippilot-v50';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
 ];
+
+// Same-origin paths that are safe to serve cache-first (immutable hashed build
+// output + the precached shell + static icons). EVERYTHING else — above all the
+// cross-origin live-share API (sync worker statement/responses polling) — must
+// reach the network so `cache: 'no-store'` is honoured and the live table never
+// freezes on a stale cached body.
+const STATIC_PATHS = new Set(['/', '/index.html', '/manifest.json']);
+function isStaticAsset(url) {
+  return (
+    url.pathname.startsWith('/assets/') ||
+    url.pathname.startsWith('/icons/') ||
+    STATIC_PATHS.has(url.pathname)
+  );
+}
 
 // GAP-036: precache the hashed build assets referenced by index.html so the
 // app shell works offline right after install (no build plugin required).
@@ -81,13 +95,30 @@ async function cacheFirst(request) {
 }
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  const request = event.request;
+  if (request.method !== 'GET') return;
 
-  if (isNavigationRequest(event.request)) {
-    event.respondWith(networkFirst(event.request));
+  const url = new URL(request.url);
+
+  // CRITICAL (live table fix): only ever intercept SAME-ORIGIN GETs. The shared
+  // bill split polls a cross-origin worker for the statement and every guest's
+  // claims; the old "cacheFirst for every GET" cached the first (empty) response
+  // and served it forever, so the owner stayed stuck on "waiting for someone to
+  // enter" and no device ever saw another's picks. Cross-origin → never touch it
+  // (the request's own `cache: 'no-store'` then guarantees a fresh network read).
+  if (url.origin !== self.location.origin) return;
+
+  if (isNavigationRequest(request)) {
+    event.respondWith(networkFirst(request));
     return;
   }
-  event.respondWith(cacheFirst(event.request));
+
+  // Hashed build assets + the precached shell are immutable → cache-first for
+  // instant loads and offline. Any other same-origin GET is dynamic and is left
+  // to the network rather than being cached behind the app's back.
+  if (isStaticAsset(url)) {
+    event.respondWith(cacheFirst(request));
+  }
 });
 
 // ---------------------------------------------------------------------------

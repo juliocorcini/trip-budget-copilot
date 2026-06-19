@@ -19,10 +19,17 @@ export interface Env {
    */
   SHARE_SIGNAL?: DurableObjectNamespace;
   /**
-   * DEC-207 (Shared Participant Link): persistent, re-readable encrypted share
-   * channel. The worker only ever stores opaque ciphertext — the AES key lives
-   * in the link's URL fragment and never reaches here. Absent in older
-   * deploys, where /share routes report `share_not_configured`.
+   * DEC-207 (Shared Participant Link) — STRONGLY-CONSISTENT store. Each shareId
+   * maps to one `ShareStore` Durable Object holding the (ciphertext) statement
+   * and the (ciphertext) guest responses. A DO is used instead of KV because the
+   * live table polls right after a write: KV is only eventually consistent (a
+   * `put` does NOT invalidate the colo's ~60s read cache), so a guest's pick
+   * stayed invisible to the owner and to the guest itself for up to a minute —
+   * the table looked frozen. A DO gives read-after-write, so every poll is fresh.
+   */
+  SHARE_STORE_DO?: DurableObjectNamespace;
+  /**
+   * Legacy KV store (pre-DO). Kept bound for older data only; no longer written.
    */
   SHARE_STORE?: KVNamespace;
   /**
@@ -68,12 +75,20 @@ const SHARE_RESP_MAX_TOTAL_BYTES = 800_000;
 const SHARE_RESP_MAX_ITEM_BYTES = 60_000;
 const SHARE_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
 
-interface ShareRecord {
-  blob: string;
+const SHARE_STMT_CHUNK_BYTES = 120_000; // DO value cap is 128 KiB; chunk the statement under it
+
+/**
+ * Statement metadata held in the `ShareStore` DO. The ciphertext statement is
+ * split across `st:<i>` keys (each < 128 KiB); each guest response is one
+ * `resp:<respId>` key. Keeping it in DO storage (not KV) is what makes the live
+ * table read-after-write consistent.
+ */
+interface ShareStatementMeta {
   revision: number;
   updatedAt: number;
   tokenHash: string;
-  revoked?: boolean;
+  revoked: boolean;
+  chunks: number;
 }
 
 interface ShareResponseItem {
@@ -123,7 +138,10 @@ function generateRoomCode(): string {
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    // `no-store`: these are live, frequently-polled endpoints (share statement +
+    // responses). Any intermediary caching of a GET makes the live table look
+    // frozen, so every read must reach the worker.
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS_HEADERS },
   });
 }
 
@@ -208,34 +226,42 @@ async function handleOcr(request: Request, env: Env): Promise<Response> {
  *   PUT    /share/:id             owner replaces the statement (x-share-token)
  *   DELETE /share/:id             owner revokes (x-share-token) → future reads 410
  *   POST   /share/:id/responses   guest appends a ciphertext response (no token, capped)
- *   GET    /share/:id/responses   owner pulls responses (x-share-token)
- * Everything stored is opaque ciphertext; the worker can read nothing.
+ *   GET    /share/:id/responses   read responses (open: any link-holder, like GET statement)
+ *
+ * Storage is one `ShareStore` Durable Object per shareId (strong read-after-write
+ * consistency — see the Env doc). The worker only ever stores opaque ciphertext;
+ * the AES key lives in the link fragment. Reads are open because the link IS the
+ * read capability; mutations (PUT/DELETE) stay write-token-gated inside the DO.
+ * This handler is a thin router that forwards to the DO and re-emits the result
+ * with CORS + `no-store`.
  */
 async function handleShare(request: Request, env: Env, url: URL): Promise<Response> {
-  if (!env.SHARE_STORE) return json({ error: 'share_not_configured' }, 503);
-  const kv = env.SHARE_STORE;
+  const ns = env.SHARE_STORE_DO;
+  if (!ns) return json({ error: 'share_not_configured' }, 503);
 
-  if (request.method === 'POST' && url.pathname === '/share') {
-    let body: { blob?: unknown; revision?: unknown };
-    try {
-      body = (await request.json()) as typeof body;
-    } catch {
-      return json({ error: 'bad_json' }, 400);
-    }
-    const blob = body.blob;
-    if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
-    if (blob.length > SHARE_MAX_BLOB_BYTES) return json({ error: 'too_large' }, 413);
+  const method = request.method;
+  // Read the body to a STRING and forward it explicitly. Forwarding the original
+  // request's body STREAM into a DO subrequest (`new Request(url, request)`) can
+  // silently drop the body for some client transports (browser HTTP/2), which
+  // made the guest's POSTed claim arrive empty — the DO stored nothing yet still
+  // 200'd. An explicit string body is transport-independent.
+  const bodyText = method === 'POST' || method === 'PUT' ? await request.text() : undefined;
+  const token = request.headers.get('X-Share-Token') ?? undefined;
 
+  const callDo = (id: string, path: string): Promise<Response> => {
+    const stub = ns.get(ns.idFromName(id));
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['X-Share-Token'] = token;
+    return stub.fetch(`https://do${path}`, { method, headers, body: bodyText });
+  };
+
+  // POST /share — mint the id here, then let its DO initialise + return a token.
+  if (method === 'POST' && url.pathname === '/share') {
     const id = crypto.randomUUID();
-    const writeToken = randomToken();
-    const record: ShareRecord = {
-      blob,
-      revision: typeof body.revision === 'number' && body.revision > 0 ? body.revision : 1,
-      updatedAt: Date.now(),
-      tokenHash: await sha256Hex(writeToken),
-    };
-    await kv.put(`s:${id}`, JSON.stringify(record), { expirationTtl: SHARE_TTL_SECONDS });
-    return json({ id, writeToken, expiresAt: Date.now() + SHARE_TTL_SECONDS * 1000 });
+    const res = await callDo(id, '/init');
+    if (!res.ok) return relayDoResponse(res);
+    const data = (await res.json()) as Record<string, unknown>;
+    return json({ id, ...data });
   }
 
   const match = url.pathname.match(/^\/share\/([^/]+)(\/responses)?$/);
@@ -244,86 +270,17 @@ async function handleShare(request: Request, env: Env, url: URL): Promise<Respon
   const isResponses = match[2] === '/responses';
   if (!SHARE_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
 
-  const recordRaw = await kv.get(`s:${id}`);
-  if (recordRaw === null) return json({ error: 'not_found' }, 404);
-  const record = JSON.parse(recordRaw) as ShareRecord;
-  if (record.revoked) return json({ error: 'revoked' }, 410);
+  const res = await callDo(id, isResponses ? '/responses' : '/statement');
+  return relayDoResponse(res);
+}
 
-  const verifyToken = async (): Promise<boolean> => {
-    const token = request.headers.get('X-Share-Token');
-    if (!token) return false;
-    return (await sha256Hex(token)) === record.tokenHash;
-  };
-
-  // --- /share/:id (statement slot) ---
-  if (!isResponses) {
-    if (request.method === 'GET') {
-      return json({ blob: record.blob, revision: record.revision, updatedAt: record.updatedAt });
-    }
-    if (request.method === 'PUT') {
-      if (!(await verifyToken())) return json({ error: 'forbidden' }, 403);
-      let body: { blob?: unknown; revision?: unknown };
-      try {
-        body = (await request.json()) as typeof body;
-      } catch {
-        return json({ error: 'bad_json' }, 400);
-      }
-      const blob = body.blob;
-      if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
-      if (blob.length > SHARE_MAX_BLOB_BYTES) return json({ error: 'too_large' }, 413);
-      const revision =
-        typeof body.revision === 'number' && body.revision > record.revision
-          ? body.revision
-          : record.revision + 1;
-      const next: ShareRecord = { ...record, blob, revision, updatedAt: Date.now() };
-      await kv.put(`s:${id}`, JSON.stringify(next), { expirationTtl: SHARE_TTL_SECONDS });
-      return json({ ok: true, revision });
-    }
-    if (request.method === 'DELETE') {
-      if (!(await verifyToken())) return json({ error: 'forbidden' }, 403);
-      const tombstone: ShareRecord = { ...record, revoked: true, updatedAt: Date.now() };
-      await kv.put(`s:${id}`, JSON.stringify(tombstone), { expirationTtl: SHARE_REVOKE_TTL_SECONDS });
-      await kv.delete(`r:${id}`);
-      return json({ ok: true });
-    }
-    return json({ error: 'not_found' }, 404);
-  }
-
-  // --- /share/:id/responses (guest → owner channel) ---
-  if (request.method === 'POST') {
-    let body: { id?: unknown; blob?: unknown };
-    try {
-      body = (await request.json()) as typeof body;
-    } catch {
-      return json({ error: 'bad_json' }, 400);
-    }
-    const respId = body.id;
-    const blob = body.blob;
-    if (typeof respId !== 'string' || respId.length === 0 || respId.length > 80) {
-      return json({ error: 'bad_id' }, 400);
-    }
-    if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
-    if (blob.length > SHARE_RESP_MAX_ITEM_BYTES) return json({ error: 'too_large' }, 413);
-
-    const existingRaw = await kv.get(`r:${id}`);
-    const items: ShareResponseItem[] = existingRaw ? (JSON.parse(existingRaw) as ShareResponseItem[]) : [];
-    // Idempotent append: a retried response (same id) overwrites in place.
-    const filtered = items.filter((it) => it.id !== respId);
-    filtered.push({ id: respId, blob, at: Date.now() });
-    const totalBytes = filtered.reduce((sum, it) => sum + it.blob.length, 0);
-    if (filtered.length > SHARE_RESP_MAX_ITEMS || totalBytes > SHARE_RESP_MAX_TOTAL_BYTES) {
-      return json({ error: 'responses_full' }, 429);
-    }
-    await kv.put(`r:${id}`, JSON.stringify(filtered), { expirationTtl: SHARE_TTL_SECONDS });
-    return json({ ok: true });
-  }
-  if (request.method === 'GET') {
-    if (!(await verifyToken())) return json({ error: 'forbidden' }, 403);
-    const existingRaw = await kv.get(`r:${id}`);
-    const items: ShareResponseItem[] = existingRaw ? (JSON.parse(existingRaw) as ShareResponseItem[]) : [];
-    return json({ items });
-  }
-  return json({ error: 'not_found' }, 404);
+/** Re-emit a ShareStore DO response with the public CORS + no-store headers. */
+async function relayDoResponse(res: Response): Promise<Response> {
+  const body = await res.text();
+  return new Response(body, {
+    status: res.status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS_HEADERS },
+  });
 }
 
 export default {
@@ -521,6 +478,200 @@ export class ShareSignal {
     server.addEventListener('error', cleanup);
 
     return new Response(null, { status: 101, webSocket: client });
+  }
+}
+
+/**
+ * DEC-207 — strongly-consistent share store (one DO per shareId). Replaces the
+ * KV backing for the share channel: a DO is single-instance and transactional,
+ * so a guest's POSTed response (or an owner statement edit) is visible to the
+ * very next GET — the read-after-write the live table needs. KV could not do
+ * this (eventual consistency + a ~60s read cache that a `put` does not bust),
+ * which made the table look frozen on real devices.
+ *
+ * Layout in DO storage (each value < 128 KiB):
+ *   meta            → ShareStatementMeta (revision, token hash, revoked, #chunks)
+ *   st:<i>          → ciphertext statement chunk i
+ *   resp:<respId>   → JSON ShareResponseItem (one per guest, overwrite-in-place)
+ * A sliding alarm wipes everything after the TTL; revoke keeps a short tombstone.
+ */
+export class ShareStore {
+  constructor(private state: DurableObjectState) {}
+
+  async fetch(request: Request): Promise<Response> {
+    const path = new URL(request.url).pathname;
+    if (request.method === 'POST' && path === '/init') return this.init(request);
+    if (path === '/statement') {
+      if (request.method === 'GET') return this.getStatement();
+      if (request.method === 'PUT') return this.putStatement(request);
+      if (request.method === 'DELETE') return this.revoke(request);
+    }
+    if (path === '/responses') {
+      if (request.method === 'POST') return this.postResponse(request);
+      if (request.method === 'GET') return this.getResponses();
+    }
+    return json({ error: 'not_found' }, 404);
+  }
+
+  private async meta(): Promise<ShareStatementMeta | null> {
+    return (await this.state.storage.get<ShareStatementMeta>('meta')) ?? null;
+  }
+
+  private async writeStatementChunks(blob: string, previousChunks: number): Promise<number> {
+    const chunks = Math.max(1, Math.ceil(blob.length / SHARE_STMT_CHUNK_BYTES));
+    const writes: Record<string, string> = {};
+    for (let i = 0; i < chunks; i++) {
+      writes[`st:${i}`] = blob.slice(i * SHARE_STMT_CHUNK_BYTES, (i + 1) * SHARE_STMT_CHUNK_BYTES);
+    }
+    await this.state.storage.put(writes);
+    // Drop any now-orphaned chunks from a previously larger statement.
+    if (previousChunks > chunks) {
+      const dels: string[] = [];
+      for (let i = chunks; i < previousChunks; i++) dels.push(`st:${i}`);
+      await this.state.storage.delete(dels);
+    }
+    return chunks;
+  }
+
+  private async readStatement(chunks: number): Promise<string> {
+    let blob = '';
+    for (let i = 0; i < chunks; i++) blob += (await this.state.storage.get<string>(`st:${i}`)) ?? '';
+    return blob;
+  }
+
+  private async verify(request: Request, meta: ShareStatementMeta): Promise<boolean> {
+    const token = request.headers.get('X-Share-Token');
+    if (!token) return false;
+    return (await sha256Hex(token)) === meta.tokenHash;
+  }
+
+  private async init(request: Request): Promise<Response> {
+    if (await this.meta()) return json({ error: 'exists' }, 409); // uuid collision ≈ never
+    let body: { blob?: unknown; revision?: unknown };
+    try {
+      body = (await request.json()) as typeof body;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const blob = body.blob;
+    if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
+    if (blob.length > SHARE_MAX_BLOB_BYTES) return json({ error: 'too_large' }, 413);
+
+    const writeToken = randomToken();
+    const chunks = await this.writeStatementChunks(blob, 0);
+    const meta: ShareStatementMeta = {
+      revision: typeof body.revision === 'number' && body.revision > 0 ? body.revision : 1,
+      updatedAt: Date.now(),
+      tokenHash: await sha256Hex(writeToken),
+      revoked: false,
+      chunks,
+    };
+    await this.state.storage.put('meta', meta);
+    await this.state.storage.setAlarm(Date.now() + SHARE_TTL_SECONDS * 1000);
+    return json({ writeToken, expiresAt: Date.now() + SHARE_TTL_SECONDS * 1000 });
+  }
+
+  private async getStatement(): Promise<Response> {
+    const meta = await this.meta();
+    if (!meta) return json({ error: 'not_found' }, 404);
+    if (meta.revoked) return json({ error: 'revoked' }, 410);
+    const blob = await this.readStatement(meta.chunks);
+    return json({ blob, revision: meta.revision, updatedAt: meta.updatedAt });
+  }
+
+  private async putStatement(request: Request): Promise<Response> {
+    const meta = await this.meta();
+    if (!meta) return json({ error: 'not_found' }, 404);
+    if (meta.revoked) return json({ error: 'revoked' }, 410);
+    if (!(await this.verify(request, meta))) return json({ error: 'forbidden' }, 403);
+    let body: { blob?: unknown; revision?: unknown };
+    try {
+      body = (await request.json()) as typeof body;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const blob = body.blob;
+    if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
+    if (blob.length > SHARE_MAX_BLOB_BYTES) return json({ error: 'too_large' }, 413);
+    const revision =
+      typeof body.revision === 'number' && body.revision > meta.revision ? body.revision : meta.revision + 1;
+    const chunks = await this.writeStatementChunks(blob, meta.chunks);
+    await this.state.storage.put('meta', { ...meta, revision, updatedAt: Date.now(), chunks });
+    await this.state.storage.setAlarm(Date.now() + SHARE_TTL_SECONDS * 1000);
+    return json({ ok: true, revision });
+  }
+
+  private async revoke(request: Request): Promise<Response> {
+    const meta = await this.meta();
+    if (!meta) return json({ error: 'not_found' }, 404);
+    if (!(await this.verify(request, meta))) return json({ error: 'forbidden' }, 403);
+    await this.clearResponses();
+    const dels: string[] = [];
+    for (let i = 0; i < meta.chunks; i++) dels.push(`st:${i}`);
+    if (dels.length > 0) await this.state.storage.delete(dels);
+    await this.state.storage.put('meta', { ...meta, revoked: true, updatedAt: Date.now(), chunks: 0 });
+    await this.state.storage.setAlarm(Date.now() + SHARE_REVOKE_TTL_SECONDS * 1000);
+    return json({ ok: true });
+  }
+
+  private async listResponses(): Promise<Map<string, string>> {
+    return this.state.storage.list<string>({ prefix: 'resp:' });
+  }
+
+  private async clearResponses(): Promise<void> {
+    const map = await this.listResponses();
+    if (map.size > 0) await this.state.storage.delete([...map.keys()]);
+  }
+
+  private async postResponse(request: Request): Promise<Response> {
+    const meta = await this.meta();
+    if (!meta) return json({ error: 'not_found' }, 404);
+    if (meta.revoked) return json({ error: 'revoked' }, 410);
+    let body: { id?: unknown; blob?: unknown };
+    try {
+      body = (await request.json()) as typeof body;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const respId = body.id;
+    const blob = body.blob;
+    if (typeof respId !== 'string' || respId.length === 0 || respId.length > 80) {
+      return json({ error: 'bad_id' }, 400);
+    }
+    if (typeof blob !== 'string' || blob.length === 0) return json({ error: 'bad_blob' }, 400);
+    if (blob.length > SHARE_RESP_MAX_ITEM_BYTES) return json({ error: 'too_large' }, 413);
+
+    // Cap check excludes the key being overwritten (a re-post of the same guest).
+    const map = await this.listResponses();
+    const key = `resp:${respId}`;
+    let count = 0;
+    let totalBytes = 0;
+    for (const [k, v] of map) {
+      if (k === key) continue;
+      count += 1;
+      totalBytes += v.length;
+    }
+    if (count + 1 > SHARE_RESP_MAX_ITEMS || totalBytes + blob.length > SHARE_RESP_MAX_TOTAL_BYTES) {
+      return json({ error: 'responses_full' }, 429);
+    }
+    const item: ShareResponseItem = { id: respId, blob, at: Date.now() };
+    await this.state.storage.put(key, JSON.stringify(item));
+    await this.state.storage.setAlarm(Date.now() + SHARE_TTL_SECONDS * 1000);
+    return json({ ok: true });
+  }
+
+  private async getResponses(): Promise<Response> {
+    const meta = await this.meta();
+    if (!meta) return json({ error: 'not_found' }, 404);
+    if (meta.revoked) return json({ error: 'revoked' }, 410);
+    const map = await this.listResponses();
+    const items: ShareResponseItem[] = [];
+    for (const v of map.values()) items.push(JSON.parse(v) as ShareResponseItem);
+    return json({ items });
+  }
+
+  async alarm(): Promise<void> {
+    await this.state.storage.deleteAll();
   }
 }
 

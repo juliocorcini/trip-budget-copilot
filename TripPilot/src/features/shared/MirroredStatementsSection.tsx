@@ -89,6 +89,33 @@ export function MirroredStatementsSection() {
     [],
   );
 
+  // EPIC B — resilience: mobile drops the live socket while backgrounded, so a
+  // peer can miss an owner 'upd'. On returning to the foreground, silently
+  // re-pull every share-origin statement so what the owner sent is current the
+  // instant the app is reopened (mirrors the live-table foreground re-sync).
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void (async () => {
+        const all = await mirroredStatementRepository.getAll();
+        const shareStatements = all.filter((s) => s.share?.shareId);
+        if (shareStatements.length === 0) return;
+        let changed = false;
+        for (const statement of shareStatements) {
+          const result = await refreshSharedLink(statement);
+          if (result.status === 'ok') {
+            changed = true;
+            setTarget((cur) => (cur && cur.id === result.statement.id ? result.statement : cur));
+          }
+        }
+        if (changed) await load();
+      })();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleAnswer = async (shareId: string, status: 'confirmed' | 'rejected') => {
     if (!target) return;
     // DEC-207 — a link-origin statement pushes the answer to the share channel

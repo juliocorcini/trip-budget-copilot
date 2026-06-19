@@ -56,6 +56,7 @@ function parseSignal(data: unknown): ShareSignalMessage | null {
 export function connectShareSignal(
   shareId: string,
   onMessage: (msg: ShareSignalMessage) => void,
+  onStatus?: (open: boolean) => void,
 ): ShareSignalHandle {
   let socket: WebSocket | null = null;
   let closed = false;
@@ -98,6 +99,7 @@ export function connectShareSignal(
     }
     socket.addEventListener('open', () => {
       retry = 0;
+      onStatus?.(true);
       flush();
     });
     socket.addEventListener('message', (event) => {
@@ -105,6 +107,7 @@ export function connectShareSignal(
       if (msg) onMessage(msg);
     });
     socket.addEventListener('close', () => {
+      onStatus?.(false);
       if (!closed) scheduleReconnect();
     });
     socket.addEventListener('error', () => {

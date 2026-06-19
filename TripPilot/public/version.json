@@ -1,8 +1,8 @@
 {
-  "version": "0.98.1",
+  "version": "0.99.2",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.98.1.zip",
-  "notes": "Correção: o link da mesa ao vivo estava saindo como \"localhost\" no app e não abria; agora vai com o endereço certo e funciona em qualquer celular. A mesa também volta a sincronizar na hora quando você reabre o app."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.2.zip",
+  "notes": "Correção crítica da mesa ao vivo: as escolhas de todos agora aparecem em tempo real em todos os celulares (o app deixava o cache antigo travar a sincronização). Ao compartilhar a mesa você escolhe entre QR code, copiar link ou o menu de compartilhar."
 }

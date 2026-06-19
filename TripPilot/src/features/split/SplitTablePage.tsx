@@ -7,6 +7,8 @@ import {
   computeSplitTotals,
   reduceGuestClaims,
   type SplitSharePayload,
+  type SplitClaimResponse,
+  type SplitSession,
 } from '@/domain/split';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-signal';
 import { formatMoney } from '@/domain/money';
@@ -14,12 +16,14 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import {
   fetchSplitTable,
+  fetchSplitResponses,
   postSplitClaim,
   getGuestActorId,
   getGuestName,
   setGuestName,
   type FetchTableStatus,
 } from './live-link';
+import { LiveStatusBadge } from './LiveStatusBadge';
 
 const POLL_FLOOR_MS = 6000;
 const POST_DEBOUNCE_MS = 500;
@@ -58,16 +62,24 @@ export function SplitTablePage() {
   const [name, setName] = useState(() => getGuestName() ?? '');
   const [named, setNamed] = useState(() => getGuestName() !== null);
   const [mine, setMine] = useState<Set<string>>(new Set());
+  // Every participant's claim snapshot from the server (open read). This is what
+  // lets a guest see what everyone else is choosing in real time, even when the
+  // organizer is offline — the live table no longer depends on the owner relay.
+  const [allResponses, setAllResponses] = useState<SplitClaimResponse[]>([]);
+  // L2 — real connection status (never a static "synced"): freshness of the last
+  // successful pull + the signal socket state drive a truthful live/syncing/offline.
+  const [socketOpen, setSocketOpen] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
   const signalRef = useRef<ShareSignalHandle | null>(null);
   const seededRef = useRef(false);
   const hasPayloadRef = useRef(false);
 
   const seedMine = useCallback(
-    (payload: SplitSharePayload) => {
-      const me = payload.session.participants.find((p) => p.actorId === actorId);
+    (session: SplitSession) => {
+      const me = session.participants.find((p) => p.actorId === actorId);
       if (!me) return;
-      const claimed = payload.session.items
+      const claimed = session.items
         .filter((item) => item.claims.some((c) => c.participantId === me.id))
         .map((item) => item.id);
       if (claimed.length > 0) setMine(new Set(claimed));
@@ -80,10 +92,19 @@ export function SplitTablePage() {
       setLoad({ kind: 'error', status: 'bad_key' });
       return;
     }
-    const res = await fetchSplitTable(id, key);
+    // The bill (statement) and the claims (responses) are two independent server
+    // keys; pull both in one shot so a single round-trip refreshes the whole view.
+    const [res, responses] = await Promise.all([
+      fetchSplitTable(id, key),
+      fetchSplitResponses(id, key).catch(() => [] as SplitClaimResponse[]),
+    ]);
     if (res.status === 'ok') {
+      setAllResponses(responses);
+      setLastSyncAt(Date.now());
       if (!seededRef.current) {
-        seedMine(res.payload);
+        // Seed my local picks from the SERVER's view of my claims (my last
+        // posted snapshot), so a returning guest keeps their selection.
+        seedMine(reduceGuestClaims(res.payload.session, responses));
         seededRef.current = true;
       }
       hasPayloadRef.current = true;
@@ -109,9 +130,16 @@ export function SplitTablePage() {
   // Live channel + poll floor once the table is loaded.
   useEffect(() => {
     if (!id || !isLive) return;
-    const handle = connectShareSignal(id, (msg) => {
-      if (msg.t === 'upd') void refetch();
-    });
+    const handle = connectShareSignal(
+      id,
+      () => {
+        // ANY frame — the owner edited the bill ('upd') OR another guest posted a
+        // claim ('resp') — means re-pull statement + responses so this device
+        // reflects everyone's latest picks in real time.
+        void refetch();
+      },
+      setSocketOpen,
+    );
     signalRef.current = handle;
     const interval = setInterval(() => void refetch(), POLL_FLOOR_MS);
     // Mobile suspends background timers and drops the socket; refetch the moment
@@ -125,6 +153,7 @@ export function SplitTablePage() {
       document.removeEventListener('visibilitychange', onVisible);
       handle.close();
       if (signalRef.current === handle) signalRef.current = null;
+      setSocketOpen(false);
     };
   }, [id, isLive, refetch]);
 
@@ -144,19 +173,27 @@ export function SplitTablePage() {
     return () => clearTimeout(timer);
   }, [mine, named, isLive, id, key, name, actorId]);
 
-  const preview = useMemo(() => {
+  // The live table everyone sees = the owner's bill (statement) reduced with
+  // EVERY guest's claim snapshot. Deterministic, so each device converges on the
+  // identical view. My own local picks (`mine`) are applied last as an optimistic
+  // echo so my taps show instantly and override my last posted snapshot.
+  const merged = useMemo(() => {
     if (load.kind !== 'live') return null;
-    const response = buildSplitClaimResponse({
+    const myResponse = buildSplitClaimResponse({
       fromActorId: actorId,
       fromName: name || 'Guest',
       claims: [...mine].map((itemId) => ({ itemId, fraction: 1, units: null })),
     });
-    const session = reduceGuestClaims(load.payload.session, [response]);
+    const others = allResponses.filter((r) => r.fromActorId !== actorId);
+    const session = reduceGuestClaims(load.payload.session, [...others, myResponse]);
     const totals = computeSplitTotals(session);
     const meId = session.participants.find((p) => p.actorId === actorId)?.id;
     const myTotal = totals.totals.find((tt) => tt.participantId === meId)?.totalCents ?? 0;
-    return { session, grandTotalCents: totals.grandTotalCents, myTotalCents: myTotal };
-  }, [load, mine, name, actorId]);
+    const guestCount = new Set(
+      [...others.map((r) => r.fromActorId), actorId],
+    ).size;
+    return { session, grandTotalCents: totals.grandTotalCents, myTotalCents: myTotal, guestCount };
+  }, [load, allResponses, mine, name, actorId]);
 
   const toggle = (itemId: string) =>
     setMine((prev) => {
@@ -205,6 +242,9 @@ export function SplitTablePage() {
 
   const { payload } = load;
   const currency = payload.session.currency;
+  // The session everyone sees = bill + all merged claims (falls back to the raw
+  // statement only in the impossible window before the memo computes).
+  const liveSession = merged?.session ?? payload.session;
 
   if (!named) {
     return (
@@ -248,7 +288,8 @@ export function SplitTablePage() {
           <p className="text-[11px] text-on-surface-faint">
             {t('splitTable.live_hint')}
             {' · '}
-            {t('splitTable.bill_total', { amount: formatMoney(preview?.grandTotalCents ?? 0, currency) })}
+            {t('splitTable.bill_total', { amount: formatMoney(merged?.grandTotalCents ?? 0, currency) })}
+            {merged && merged.guestCount > 1 ? ` · ${t('splitTable.at_table', { count: merged.guestCount })}` : ''}
           </p>
         </div>
 
@@ -258,10 +299,10 @@ export function SplitTablePage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          {payload.session.items.map((item) => {
+          {liveSession.items.map((item) => {
             const mineClaim = mine.has(item.id);
             const others = item.claims
-              .map((c) => payload.session.participants.find((p) => p.id === c.participantId))
+              .map((c) => liveSession.participants.find((p) => p.id === c.participantId))
               .filter((p): p is NonNullable<typeof p> => Boolean(p) && p!.actorId !== actorId);
             return (
               <button
@@ -314,12 +355,13 @@ export function SplitTablePage() {
         <div className="max-w-[430px] mx-auto m-4 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg" style={{ background: 'var(--surface-high)' }}>
           <div className="flex flex-col">
             <span className="text-[11px] text-on-surface-faint">{t('splitTable.your_part')}</span>
-            <span className="text-xl font-extrabold text-on-surface">{formatMoney(preview?.myTotalCents ?? 0, currency)}</span>
+            <span className="text-xl font-extrabold text-on-surface">{formatMoney(merged?.myTotalCents ?? 0, currency)}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-success font-semibold">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            {t('splitTable.synced')}
-          </div>
+          <LiveStatusBadge
+            socketOpen={socketOpen}
+            lastSyncAt={lastSyncAt}
+            onReconnect={() => void refetch()}
+          />
         </div>
       </div>
     </div>

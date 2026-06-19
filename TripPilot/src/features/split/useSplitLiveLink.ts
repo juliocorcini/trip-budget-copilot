@@ -7,6 +7,8 @@ import {
   revokeSplitTable,
   pullSplitClaims,
   buildSplitTableLink,
+  saveOwnerLive,
+  clearOwnerLive,
   type SplitLiveCreds,
 } from './live-link';
 
@@ -35,7 +37,19 @@ export interface SplitLiveLink {
   creds: SplitLiveCreds | null;
   link: string | null;
   guestCount: number;
+  /** Whether the realtime signal socket is currently open. */
+  socketOpen: boolean;
+  /** Epoch ms of the last successful pull (null until the first). */
+  lastSyncAt: number | null;
   start: () => void;
+  /**
+   * Re-attach to an already-published table (after an app reopen) WITHOUT
+   * minting a new link. The session must be the one just fetched from the
+   * server so the first reconcile is a no-op instead of clobbering the truth.
+   */
+  resume: (creds: SplitLiveCreds, session: SplitSession, serverRevision: number) => void;
+  /** Force an immediate re-pull (the socket auto-reconnects on its own). */
+  reconnect: () => void;
   stop: () => void;
 }
 
@@ -52,6 +66,8 @@ export function useSplitLiveLink(
   const [status, setStatus] = useState<SplitLiveStatus>('idle');
   const [creds, setCreds] = useState<SplitLiveCreds | null>(null);
   const [guestCount, setGuestCount] = useState(0);
+  const [socketOpen, setSocketOpen] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -74,18 +90,37 @@ export function useSplitLiveLink(
       .then((next) => {
         lastPublishedRef.current = serializeSession(current);
         setCreds(next);
+        saveOwnerLive(next);
+        setLastSyncAt(Date.now());
         setStatus('live');
       })
       .catch(() => setStatus('error'));
   }, []);
 
+  // L2.M5 — re-attach to a persisted table after a reopen. The caller passes the
+  // freshly fetched server session so we prime lastPublishedRef with it: the
+  // re-publish effect then sees "no change" and stays quiet, while the signal
+  // effect (keyed on creds) connects + pulls the latest guest claims.
+  const resume = useCallback((restored: SplitLiveCreds, session: SplitSession, serverRevision: number) => {
+    if (credsRef.current) return;
+    revisionRef.current = Math.max(restored.revision, serverRevision);
+    lastPublishedRef.current = serializeSession(session);
+    setCreds(restored);
+    saveOwnerLive(restored);
+    setLastSyncAt(Date.now());
+    setStatus('live');
+  }, []);
+
   const stop = useCallback(() => {
     const current = credsRef.current;
     if (current) void revokeSplitTable(current).catch(() => {});
+    clearOwnerLive();
     signalRef.current?.close();
     signalRef.current = null;
     setCreds(null);
     setGuestCount(0);
+    setSocketOpen(false);
+    setLastSyncAt(null);
     setStatus('idle');
   }, []);
 
@@ -95,6 +130,7 @@ export function useSplitLiveLink(
     pullingRef.current = true;
     try {
       const batches = await pullSplitClaims(current);
+      setLastSyncAt(Date.now());
       if (batches.length > 0) {
         setGuestCount(new Set(batches.map((b) => b.fromActorId)).size);
         onClaimsRef.current(batches);
@@ -106,12 +142,23 @@ export function useSplitLiveLink(
     }
   }, []);
 
+  // L2.M6 — manual reconnect: force a pull now instead of waiting for the next
+  // poll/backoff. Honest by construction — it only flips the badge to "live"
+  // again if the pull actually succeeds (it stamps lastSyncAt).
+  const reconnect = useCallback(() => {
+    void pull();
+  }, [pull]);
+
   // Signal channel + poll floor while live.
   useEffect(() => {
     if (!creds) return;
-    const handle = connectShareSignal(creds.shareId, (msg) => {
-      if (msg.t === 'resp') void pull();
-    });
+    const handle = connectShareSignal(
+      creds.shareId,
+      (msg) => {
+        if (msg.t === 'resp') void pull();
+      },
+      setSocketOpen,
+    );
     signalRef.current = handle;
     void pull(); // fold in anything posted before we connected
     const interval = setInterval(() => void pull(), POLL_FLOOR_MS);
@@ -128,6 +175,7 @@ export function useSplitLiveLink(
       document.removeEventListener('visibilitychange', onVisible);
       handle.close();
       if (signalRef.current === handle) signalRef.current = null;
+      setSocketOpen(false);
     };
   }, [creds, pull]);
 
@@ -146,6 +194,9 @@ export function useSplitLiveLink(
       republishSplitTable(liveCreds, liveSession, nextRevision)
         .then(() => {
           lastPublishedRef.current = serialized;
+          // Keep the persisted revision in step so a reopen resumes at the right
+          // point instead of replaying a stale one.
+          saveOwnerLive({ ...liveCreds, revision: nextRevision });
           signalRef.current?.send({ t: 'upd', rev: nextRevision });
         })
         .catch(() => {});
@@ -166,7 +217,11 @@ export function useSplitLiveLink(
     creds,
     link: creds ? buildSplitTableLink(creds) : null,
     guestCount,
+    socketOpen,
+    lastSyncAt,
     start,
+    resume,
+    reconnect,
     stop,
   };
 }

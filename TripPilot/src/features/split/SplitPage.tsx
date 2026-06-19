@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
@@ -26,6 +26,8 @@ import {
 import { commitSplit, undoSplitCommit } from '@/domain/orchestrators';
 import { createParticipant } from '@/domain/splitting';
 import { useSplitLiveLink, type SplitLiveLink } from './useSplitLiveLink';
+import { LiveStatusBadge } from './LiveStatusBadge';
+import { loadOwnerLive, clearOwnerLive, fetchSplitTable } from './live-link';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository, participantRepository } from '@/data/repositories';
 import { resolveActivePhase } from '@/domain/dates';
@@ -34,6 +36,8 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
+import { QrCodeDisplay } from '@/components/QrCodeDisplay';
+import { shareOrCopyLink } from '@/utils/native/link-share';
 import { showToast } from '@/components/Toast';
 import { useSplitBudgetReading } from './useSplitBudgetReading';
 
@@ -99,6 +103,41 @@ export function SplitPage() {
     setSession((current) => (current ? reduceGuestClaims(current, batches) : current));
   }, []);
   const live = useSplitLiveLink(session, applyGuestClaims);
+  const resumeLive = live.resume;
+
+  // L2.M5 — on reopen, if a live table was left running, re-fetch it from the
+  // server (the source of truth) and resume the SAME link so guests stay
+  // connected. A revoked/missing/corrupt table is forgotten silently.
+  const [resuming, setResuming] = useState(() => loadOwnerLive() !== null);
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    resumedRef.current = true;
+    const creds = loadOwnerLive();
+    if (!creds) {
+      setResuming(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const res = await fetchSplitTable(creds.shareId, creds.key);
+      if (cancelled) return;
+      if (res.status === 'ok') {
+        setSession(res.payload.session);
+        setActivePersonId(res.payload.session.participants[0]?.id ?? null);
+        setPhase('divide');
+        resumeLive(creds, res.payload.session, res.payload.revision);
+      } else if (res.status !== 'error') {
+        // revoked / not_found / bad_key → the table is gone or unreadable; drop it.
+        clearOwnerLive();
+      }
+      // transient 'error' → keep creds; a later reopen can retry.
+      setResuming(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeLive]);
 
   const totals = useMemo(() => (session ? computeSplitTotals(session) : null), [session]);
   // The authoritative commit numbers (owner absorbs orphans, bill is whole) — used
@@ -379,7 +418,14 @@ export function SplitPage() {
         </div>
       </div>
 
-      {phase === 'capture' && (
+      {phase === 'capture' && resuming && (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-on-surface-dim">{t('splitTable.resuming')}</p>
+        </div>
+      )}
+
+      {phase === 'capture' && !resuming && (
         <div className="flex flex-col gap-3">
           {!cloudEnabled ? (
             <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
@@ -743,24 +789,7 @@ type TFn = ReturnType<typeof useTranslation>['t'];
  * claims merge in automatically (owner-reducer).
  */
 function LiveTableCard({ live, t }: { live: SplitLiveLink; t: TFn }) {
-  const share = async () => {
-    if (!live.link) return;
-    const data = { title: t('splitTable.share_title'), text: t('splitTable.share_text'), url: live.link };
-    try {
-      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-        await navigator.share(data);
-        return;
-      }
-    } catch {
-      // user dismissed the sheet — fall through to clipboard
-    }
-    try {
-      await navigator.clipboard.writeText(live.link);
-      showToast(t('splitTable.link_copied'), 'success');
-    } catch {
-      showToast(live.link, 'info', { durationMs: 8000 });
-    }
-  };
+  const [shareOpen, setShareOpen] = useState(false);
 
   if (live.status === 'idle') {
     return (
@@ -807,9 +836,11 @@ function LiveTableCard({ live, t }: { live: SplitLiveLink; t: TFn }) {
   return (
     <div className="rounded-2xl p-3.5 flex flex-col gap-3" style={{ background: 'rgba(124,160,255,0.10)' }}>
       <div className="flex items-center gap-2.5">
-        <span className="w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-bold text-on-surface">{t('splitTable.live_on')}</p>
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-bold text-on-surface">{t('splitTable.live_on')}</p>
+            <LiveStatusBadge socketOpen={live.socketOpen} lastSyncAt={live.lastSyncAt} onReconnect={live.reconnect} />
+          </div>
           <p className="text-[11px] text-on-surface-faint">
             {live.guestCount > 0
               ? t('splitTable.guests_joined', { count: live.guestCount })
@@ -821,13 +852,86 @@ function LiveTableCard({ live, t }: { live: SplitLiveLink; t: TFn }) {
         </button>
       </div>
       <button
-        onClick={() => void share()}
+        onClick={() => setShareOpen(true)}
         className="w-full py-2.5 rounded-xl bg-primary text-on-surface font-bold text-sm btn-press flex items-center justify-center gap-2"
       >
         <Icon name="ios_share" size={16} className="text-on-surface" />
         {t('splitTable.share_link')}
       </button>
+      <LiveShareSheet open={shareOpen} link={live.link} onClose={() => setShareOpen(false)} t={t} />
     </div>
+  );
+}
+
+/**
+ * The share affordance the owner gets the moment the table is live: a QR for
+ * phones that are physically together, plus explicit "copy" and "share" actions.
+ * D-BUG fix: the old single button silently fell back to the clipboard inside the
+ * installed app (no Web Share), so the user thought sharing was "just copying".
+ * Here every channel is its own button, so the intent is never ambiguous.
+ */
+function LiveShareSheet({
+  open,
+  link,
+  onClose,
+  t,
+}: {
+  open: boolean;
+  link: string | null;
+  onClose: () => void;
+  t: TFn;
+}) {
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast(t('splitTable.link_copied'), 'success');
+    } catch {
+      showToast(link, 'info', { durationMs: 8000 });
+    }
+  };
+
+  const share = async () => {
+    if (!link) return;
+    const outcome = await shareOrCopyLink({
+      url: link,
+      text: t('splitTable.share_text'),
+      title: t('splitTable.share_title'),
+    });
+    if (outcome === 'copied') showToast(t('splitTable.link_copied'), 'success');
+    else if (outcome === 'copy_failed') showToast(link, 'info', { durationMs: 8000 });
+  };
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title={t('splitTable.share_sheet_title')}>
+      <div className="flex flex-col gap-4 pb-2">
+        {link && <QrCodeDisplay value={link} size={220} />}
+        <p className="text-[12px] text-on-surface-dim text-center leading-relaxed">
+          {t('splitTable.share_qr_hint')}
+        </p>
+        {link && (
+          <p className="rounded-xl px-3 py-2.5 bg-surface-high text-[11px] text-on-surface-faint break-all text-center">
+            {link}
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => void copy()}
+            className="py-3 rounded-2xl bg-surface-high text-on-surface font-bold text-sm btn-press flex items-center justify-center gap-2"
+          >
+            <Icon name="content_copy" size={16} className="text-on-surface" />
+            {t('splitTable.copy_link')}
+          </button>
+          <button
+            onClick={() => void share()}
+            className="py-3 rounded-2xl bg-primary text-on-surface font-bold text-sm btn-press flex items-center justify-center gap-2"
+          >
+            <Icon name="ios_share" size={16} className="text-on-surface" />
+            {t('splitTable.share_link')}
+          </button>
+        </div>
+      </div>
+    </BottomSheet>
   );
 }
 

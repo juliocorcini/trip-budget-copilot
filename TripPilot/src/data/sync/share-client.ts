@@ -39,7 +39,11 @@ export type ShareStatementResult =
 export async function getShareStatement(id: string): Promise<ShareStatementResult> {
   let res: Response;
   try {
-    res = await fetch(shareUrl(`/${encodeURIComponent(id)}`));
+    // `no-store`: this is a live polling read. Without it the browser/WebView
+    // (and any intermediary) may serve a cached body, so a guest never sees the
+    // owner's later edits — the live table looks frozen. The worker also sends
+    // `Cache-Control: no-store`, but forcing it here covers older deploys too.
+    res = await fetch(shareUrl(`/${encodeURIComponent(id)}`), { cache: 'no-store' });
   } catch {
     return { status: 'error' };
   }
@@ -90,10 +94,20 @@ export interface ShareResponseItem {
   at: number;
 }
 
-export async function getShareResponses(id: string, writeToken: string): Promise<ShareResponseItem[]> {
-  const res = await fetch(shareUrl(`/${encodeURIComponent(id)}/responses`), {
-    headers: { [TOKEN_HEADER]: writeToken },
-  });
+/**
+ * Read responses. The write token is OPTIONAL: the worker treats the read as a
+ * capability of the link itself (any holder can already read the statement), so
+ * a guest with only the id+key can pull every guest's (still-encrypted) response
+ * and compute the live table deterministically — no owner relay required. The
+ * owner may still pass its token; it is simply ignored for reads.
+ */
+export async function getShareResponses(id: string, writeToken?: string): Promise<ShareResponseItem[]> {
+  const headers: Record<string, string> = {};
+  if (writeToken) headers[TOKEN_HEADER] = writeToken;
+  // `no-store`: this is the live claim poll. Browser HTTP caching of this GET is
+  // exactly what froze the live table (even the writer read back its own empty
+  // list), so every poll must hit the network.
+  const res = await fetch(shareUrl(`/${encodeURIComponent(id)}/responses`), { headers, cache: 'no-store' });
   if (!res.ok) throw new Error(`share_responses_${res.status}`);
   const json = (await res.json()) as { items?: ShareResponseItem[] };
   return json.items ?? [];

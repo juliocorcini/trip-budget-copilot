@@ -21,6 +21,14 @@
         // DEC-207 S7 — real-time signal relay (transport only; no storage).
         "name": "SHARE_SIGNAL",
         "class_name": "ShareSignal"
+      },
+      {
+        // DEC-207 — strongly-consistent share store (statement + responses).
+        // Replaces KV for the live table: a DO gives read-after-write so a
+        // guest's pick is visible to the next poll (KV's eventual consistency
+        // froze the table on real devices).
+        "name": "SHARE_STORE_DO",
+        "class_name": "ShareStore"
       }
     ]
   },
@@ -46,6 +54,10 @@
     {
       "tag": "v3",
       "new_sqlite_classes": ["ShareSignal"]
+    },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": ["ShareStore"]
     }
   ]
 }
