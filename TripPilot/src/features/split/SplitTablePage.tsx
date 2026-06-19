@@ -114,8 +114,15 @@ export function SplitTablePage() {
     });
     signalRef.current = handle;
     const interval = setInterval(() => void refetch(), POLL_FLOOR_MS);
+    // Mobile suspends background timers and drops the socket; refetch the moment
+    // the guest returns to the tab so the owner's latest edits show immediately.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refetch();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
       handle.close();
       if (signalRef.current === handle) signalRef.current = null;
     };

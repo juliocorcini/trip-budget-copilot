@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.98.1',
+    date: '2026-06-18',
+    items: {
+      'pt-BR': [
+        'Corrigido o link da mesa ao vivo: no app ele estava saindo como "localhost" e não abria; agora vai com o endereço certo e funciona em qualquer celular.',
+        'A mesa ao vivo volta a sincronizar na hora quando você reabre o app — as escolhas que chegaram com a tela em segundo plano aparecem na hora.',
+      ],
+      en: [
+        'Fixed the live-table link: in the app it was going out as "localhost" and would not open; now it carries the correct address and works on any phone.',
+        'The live table re-syncs the moment you return to the app — picks that arrived while it was in the background show up right away.',
+      ],
+      es: [
+        'Corregido el enlace de la mesa en vivo: en la app salía como "localhost" y no abría; ahora lleva la dirección correcta y funciona en cualquier celular.',
+        'La mesa en vivo se sincroniza al instante cuando vuelves a la app — las elecciones que llegaron con la pantalla en segundo plano aparecen enseguida.',
+      ],
+    },
+  },
+  {
     version: '0.98.0',
     date: '2026-06-18',
     items: {

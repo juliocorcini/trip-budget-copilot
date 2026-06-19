@@ -13,6 +13,7 @@ import {
   getShareResponses,
 } from '@/data/sync/share-client';
 import { buildSplitTableUrl } from '@/domain/sync';
+import { getShareOrigin } from '@/utils/native/public-origin';
 import {
   buildSplitSharePayload,
   parseSplitSharePayload,
@@ -102,8 +103,11 @@ export async function pullSplitClaims(creds: SplitLiveCreds): Promise<SplitClaim
 }
 
 export function buildSplitTableLink(creds: SplitLiveCreds): string {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return buildSplitTableUrl(origin, creds.shareId, creds.key);
+  // D-BUG-01: inside the Capacitor WebView `window.location.origin` is
+  // `https://localhost`, which would produce a dead link. `getShareOrigin()`
+  // returns the canonical public origin on native (and the real origin on web),
+  // exactly like the `/s/:id` + `/pair` links.
+  return buildSplitTableUrl(getShareOrigin(), creds.shareId, creds.key);
 }
 
 /* ── guest side ──────────────────────────────────────────────────────────── */

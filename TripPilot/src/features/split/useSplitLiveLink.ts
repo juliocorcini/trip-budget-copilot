@@ -115,8 +115,17 @@ export function useSplitLiveLink(
     signalRef.current = handle;
     void pull(); // fold in anything posted before we connected
     const interval = setInterval(() => void pull(), POLL_FLOOR_MS);
+    // Mobile throttles/suspends background timers and drops the socket. When the
+    // owner returns to the app (e.g. after sharing the link), pull immediately so
+    // guest claims that arrived while backgrounded appear at once instead of
+    // after the next poll tick.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void pull();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
       handle.close();
       if (signalRef.current === handle) signalRef.current = null;
     };

@@ -1,8 +1,8 @@
 {
-  "version": "0.98.0",
+  "version": "0.98.1",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.98.0.zip",
-  "notes": "Na mesa ao vivo, agora você pode tornar um convidado uma pessoa da viagem: a parte dele vira uma dívida real que cai no app dele e se atualiza quando você edita. Quem entra pelo link sem app vê um convite para começar a própria viagem."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.98.1.zip",
+  "notes": "Correção: o link da mesa ao vivo estava saindo como \"localhost\" no app e não abria; agora vai com o endereço certo e funciona em qualquer celular. A mesa também volta a sincronizar na hora quando você reabre o app."
 }
