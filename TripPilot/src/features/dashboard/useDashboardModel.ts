@@ -58,7 +58,7 @@ import {
   isPlannedPurchaseOpen,
   plannedPurchaseReservedRemainingCents,
 } from '@/domain/planning/planned-purchases';
-import { findPendingConfirmationShares, calculateDebts } from '@/domain/splitting';
+import { findPendingConfirmationShares, calculateDebts, summarizeOwnerDebts } from '@/domain/splitting';
 import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
 import { buildDashboardInsights, createForecastSnapshot } from '@/domain/insights';
 import { calculateSessionTotal } from '@/domain/outing';
@@ -297,6 +297,11 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const debts = owner
       ? calculateDebts(transactions, allShares, participants, settlements, owner.id).debts
       : [];
+    // DL-4: home "te devem / você deve" discoverability card — confirmed debts
+    // only (real money), derived from the same engine as the /shared hero.
+    const ownerDebtSummary = owner ? summarizeOwnerDebts(debts, owner.id) : null;
+    const receivableCents = ownerDebtSummary?.receivableCents ?? 0;
+    const payableCents = ownerDebtSummary?.payableCents ?? 0;
     // M4: per-category plan (planned occasions × typical value) vs real spend,
     // grouped by the profile's category — feeds the "category rhythm" builder.
     // FIELD-18: the same loop accumulates the phase's scenario allocation
@@ -644,6 +649,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       upcomingEvents,
       hasPendingExpenses,
       pendingImpactCents,
+      receivableCents,
+      payableCents,
       participantNameById,
       owner,
       insights,

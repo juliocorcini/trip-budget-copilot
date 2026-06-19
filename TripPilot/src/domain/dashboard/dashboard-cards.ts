@@ -17,6 +17,7 @@ export type DashboardCardId =
   | 'occasion_counters'
   | 'insights'
   | 'amigo_sincero'
+  | 'debt_summary'
   | 'pending_shares'
   | 'funds_summary'
   | 'planned_purchases'
@@ -127,6 +128,19 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
       route: '/impact',
       labelKey: 'dashboard.card_action_see_impact',
       icon: 'chat_bubble',
+    },
+  },
+  {
+    // DL-4: home discoverability for the settle-up hub — "te devem / você deve"
+    // from the confirmed-debt engine (the legacy pending card below now surfaces
+    // ONLY genuinely connected-pending items, after G1).
+    id: 'debt_summary',
+    labelKey: 'dashboard.card_debt_summary',
+    fixed: false,
+    quickAction: {
+      route: '/shared',
+      labelKey: 'dashboard.card_action_open_shared',
+      icon: 'group',
     },
   },
   {

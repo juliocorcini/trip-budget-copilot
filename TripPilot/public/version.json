@@ -1,8 +1,8 @@
 {
-  "version": "0.99.5",
+  "version": "0.99.6",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.5.zip",
-  "notes": "Corrigimos o 'está me devendo': agora, quando você divide um gasto com alguém que não usa o app, a dívida aparece na hora — não precisa mais ninguém confirmar para você ver quem te deve. 'Pendente' passou a ser só para quem está conectado e ainda vai aceitar."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.6.zip",
+  "notes": "A tela de divisões virou 'Acerto de contas': no topo você vê na hora quanto tem a receber e a pagar, e agora dá para 'Lembrar' quem te deve com uma mensagem pronta. Quem está conectado e ainda não aceitou a parte aparece separado, em 'Aguardando aceite', sem bagunçar quem realmente te deve."
 }

@@ -4,6 +4,7 @@ export {
   buildSharesWithPayer,
   calculatePersonalCost,
   calculateDebts,
+  summarizeOwnerDebts,
   createSettlement,
   suggestSimplifiedSettlements,
   createParticipant,
@@ -20,6 +21,8 @@ export {
 export type {
   DebtEntry,
   DebtSummary,
+  OwnerDebtSummary,
+  OwnerDebtCounterparty,
   BuildSharesInput,
   PayerExpenseInput,
   PayerExpenseResolution,

@@ -299,6 +299,69 @@ export function calculateDebts(
   };
 }
 
+/** G2 (DEC-241 · DL-3): one side of the owner's settle-up — a counterparty
+ * and how much sits between them. */
+export interface OwnerDebtCounterparty {
+  participantId: string;
+  name: string;
+  amountCents: number;
+}
+
+/**
+ * G2 (DEC-241 · DL-3/DL-4): the owner-centric reading of the simplified debt
+ * graph from `calculateDebts` — how much is owed TO the owner (receivable),
+ * how much the owner owes (payable), the net, and the per-person breakdown for
+ * each side (sorted by amount desc). Pure derivation, no new state: it drives
+ * the "Acerto de contas" summary hero and the home "te devem / você deve" card.
+ */
+export interface OwnerDebtSummary {
+  receivableCents: number;
+  payableCents: number;
+  netCents: number;
+  receivableFrom: OwnerDebtCounterparty[];
+  payableTo: OwnerDebtCounterparty[];
+}
+
+export function summarizeOwnerDebts(
+  debts: readonly DebtEntry[],
+  ownerId: string,
+): OwnerDebtSummary {
+  const receivableFrom: OwnerDebtCounterparty[] = [];
+  const payableTo: OwnerDebtCounterparty[] = [];
+  let receivableCents = 0;
+  let payableCents = 0;
+
+  for (const debt of debts) {
+    if (debt.amountCents <= 0) continue;
+    if (debt.creditorId === ownerId) {
+      receivableCents += debt.amountCents;
+      receivableFrom.push({
+        participantId: debt.debtorId,
+        name: debt.debtorName,
+        amountCents: debt.amountCents,
+      });
+    } else if (debt.debtorId === ownerId) {
+      payableCents += debt.amountCents;
+      payableTo.push({
+        participantId: debt.creditorId,
+        name: debt.creditorName,
+        amountCents: debt.amountCents,
+      });
+    }
+  }
+
+  receivableFrom.sort((a, b) => b.amountCents - a.amountCents);
+  payableTo.sort((a, b) => b.amountCents - a.amountCents);
+
+  return {
+    receivableCents,
+    payableCents,
+    netCents: receivableCents - payableCents,
+    receivableFrom,
+    payableTo,
+  };
+}
+
 export function createSettlement(
   tripId: string,
   debtorId: string,

@@ -13,8 +13,8 @@ test.describe('Shared expenses confirmation + settle (DEC-071)', () => {
   });
 
   test('pending card → confirm shares → card disappears', async ({ page }) => {
-    // Demo data seeds pending third-party shares → dashboard card visible
-    const pendingCard = page.getByText(/aguardando confirmação/i);
+    // Demo data seeds a CONNECTED-pending share (Beto, DEC-241) → dashboard card visible
+    const pendingCard = page.getByText(/aguardando aceite/i);
     await expect(pendingCard).toBeVisible();
     await pendingCard.click();
 
@@ -35,7 +35,7 @@ test.describe('Shared expenses confirmation + settle (DEC-071)', () => {
     }
 
     // Card must disappear once nothing is pending
-    await expect(page.getByText(/aguardando confirmação/i)).toHaveCount(0);
+    await expect(page.getByText(/aguardando aceite/i)).toHaveCount(0);
   });
 
   test('settle a pending debt from the shared page', async ({ page }) => {

@@ -56,6 +56,11 @@ export function generateDemoData(deviceId: string): DemoData {
   const wallet2Id = uuidv4();
   const ownerId = uuidv4();
   const friendId = uuidv4();
+  // DEC-241 (DL-3): a CONNECTED friend (paired device) — his share is born
+  // `pending` and stays in the "Aguardando aceite" group until he accepts on his
+  // own phone. Ana (offline) is the contrast: her debt is real immediately.
+  const connectedFriendId = uuidv4();
+  const connectedFriendActorId = uuidv4();
 
   const now = new Date();
   const tripStart = dayOffset(now, -13);
@@ -189,6 +194,19 @@ export function generateDemoData(deviceId: string): DemoData {
       linkedUserAccountId: null,
       linkedActorId: null,
     },
+    {
+      ...meta(deviceId),
+      id: connectedFriendId,
+      tripId,
+      name: 'Beto',
+      nickname: null,
+      isOwner: false,
+      email: null,
+      linkedUserAccountId: null,
+      // DEC-241: paired device → his shares are born pending (he accepts on his
+      // own phone), demoing the legit "Aguardando aceite" flow.
+      linkedActorId: connectedFriendActorId,
+    },
   ];
 
   const wallets: Wallet[] = [
@@ -296,6 +314,70 @@ export function generateDemoData(deviceId: string): DemoData {
         },
       ];
     });
+
+  // DEC-241 (DL-3): one CONNECTED-friend expense so the demo shows the legit
+  // "Aguardando aceite" path — Beto is paired, so his half is born `pending`
+  // until he accepts on his own phone (Ana's offline debt, above, is already
+  // confirmed and real). Owner paid, so the owner's own half is confirmed.
+  const betoTxId = uuidv4();
+  const betoExpenseCents = 1800;
+  const betoHalf = Math.round(betoExpenseCents / 2);
+  transactions.push({
+    ...meta(deviceId, { id: betoTxId }),
+    tripId,
+    phaseId: phase2Id,
+    budgetPoolId: pool1Id,
+    walletId: wallet1Id,
+    sessionId: null,
+    type: 'expense',
+    amountCents: betoExpenseCents,
+    personalCostCents: betoExpenseCents - betoHalf,
+    currency: 'EUR',
+    baseCurrencyAmountCents: betoExpenseCents,
+    exchangeRate: null,
+    category: 'outing',
+    subcategoryId: null,
+    placeLabel: null,
+    latitude: null,
+    longitude: null,
+    placeId: null,
+    description: 'Show flamenco com Beto',
+    date: `${dayOffset(now, -1)}T21:00:00.000Z`,
+    isShared: true,
+    paidByParticipantId: ownerId,
+    activityProfileId: null,
+    isSpecialOccasion: false,
+    excludeFromLearning: false,
+    sourceWalletId: null,
+    targetWalletId: null,
+    settlementId: null,
+    adjustmentReason: null,
+    notes: null,
+  });
+  shares.push(
+    {
+      ...meta(deviceId),
+      transactionId: betoTxId,
+      participantId: ownerId,
+      shareAmountCents: betoExpenseCents - betoHalf,
+      shareType: 'equal' as const,
+      isPaid: true,
+      confirmationStatus: 'confirmed' as const,
+      notes: null,
+    },
+    {
+      ...meta(deviceId),
+      transactionId: betoTxId,
+      participantId: connectedFriendId,
+      shareAmountCents: betoHalf,
+      shareType: 'equal' as const,
+      isPaid: false,
+      // DEC-241: Beto is connected (paired) → his share stays pending until he
+      // accepts on his own phone (the "Aguardando aceite" showcase).
+      confirmationStatus: 'pending' as const,
+      notes: null,
+    },
+  );
 
   const barProfileId = uuidv4();
   const profiles: ActivityProfile[] = [

@@ -18,14 +18,15 @@ async function loadDemo(page: Page): Promise<void> {
 }
 
 /**
- * Owner: demo → participant "Ana" → generate her share link. Leaves the share
- * sheet open (so the owner's live signal socket stays connected) and returns
- * the encrypted URL.
+ * Owner: demo → participant "Beto" → generate his share link. Beto is the
+ * CONNECTED friend whose share is born `pending` (DEC-241), so his statement
+ * carries the pending line the guest confirms. Leaves the share sheet open (so
+ * the owner's live signal socket stays connected) and returns the encrypted URL.
  */
 async function ownerGenerateLink(page: Page): Promise<string> {
   await loadDemo(page);
   await page.goto('/shared');
-  await page.getByRole('button', { name: /Ana/ }).first().click();
+  await page.getByRole('button', { name: /Beto/ }).first().click();
   const statementSheet = page.getByRole('dialog');
   await expect(statementSheet).toBeVisible();
   await statementSheet.getByRole('button', { name: 'Compartilhar por link' }).click();

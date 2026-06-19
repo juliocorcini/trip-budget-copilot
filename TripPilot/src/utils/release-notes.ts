@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.6',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'A tela de divisões virou "Acerto de contas": logo no topo você vê quanto tem a receber e a pagar, com o saldo do grupo de uma olhada.',
+        'Botão "Lembrar" em quem te deve: gera uma mensagem pronta ("você me deve X") para você mandar no WhatsApp em um toque.',
+        'Quem está conectado pelo app ou link e ainda não aceitou a parte agora aparece separado, em "Aguardando aceite" — sem se misturar com quem realmente já te deve.',
+        'No Início, um novo card "Acerto de contas" mostra na hora quanto te devem e quanto você deve.',
+      ],
+      en: [
+        'The split screen is now "Settle up": right at the top you see how much you\'re owed and how much you owe, with the group balance at a glance.',
+        '"Remind" button on whoever owes you: it builds a ready-to-send message ("you owe me X") to fire off in your chat in one tap.',
+        'People connected via the app or link who haven\'t accepted their share yet now show separately under "Awaiting acceptance" — no longer mixed in with who actually owes you.',
+        'On Home, a new "Settle up" card shows at a glance how much you\'re owed and how much you owe.',
+      ],
+      es: [
+        'La pantalla de divisiones ahora es "Ajuste de cuentas": arriba del todo ves cuánto tienes por cobrar y por pagar, con el saldo del grupo de un vistazo.',
+        'Botón "Recordar" en quien te debe: arma un mensaje listo ("me debes X") para enviarlo en tu chat con un toque.',
+        'Quienes están conectados por la app o el enlace y aún no aceptaron su parte ahora aparecen aparte, en "Esperando aceptación" — sin mezclarse con quien realmente te debe.',
+        'En Inicio, una nueva tarjeta "Ajuste de cuentas" muestra al instante cuánto te deben y cuánto debes.',
+      ],
+    },
+  },
+  {
     version: '0.99.5',
     date: '2026-06-19',
     items: {

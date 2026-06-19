@@ -4,6 +4,7 @@ import { Navigate, useNavigate, useLocation } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import {
   calculateDebts,
+  summarizeOwnerDebts,
   createSettlement,
   createParticipant,
   calculateParticipantBalances,
@@ -45,7 +46,7 @@ import {
 } from '@/domain/orchestrators';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { getShareOrigin } from '@/utils/native/public-origin';
-import { shareOrCopyLink } from '@/utils/native/link-share';
+import { shareOrCopyLink, shareOrCopyText } from '@/utils/native/link-share';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
@@ -89,6 +90,10 @@ export function SharedExpensesPage() {
   const [settleTarget, setSettleTarget] = useState<DebtEntry | null>(null);
   const [settleAmount, setSettleAmount] = useState('');
   const [showSimplified, setShowSimplified] = useState(false);
+  // DL-3: P2P machinery (QR, receive, mirrored statements) lives in a collapsed
+  // "Conexões" section. It is hidden via CSS — NEVER unmounted — so the mirror's
+  // live sockets keep running while collapsed (council Architect HIGH risk).
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
   // DEC-102 (R-25): tap on a participant opens their itemized statement.
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
   // R4 P2P (DEC-105/106): pairing + statement sending sheets.
@@ -278,6 +283,20 @@ export function SharedExpensesPage() {
     await reload();
   };
 
+  // DL-5: nudge a debtor with a ready-to-send message ("você me deve {amount}").
+  // Pix-ready text (a Pix QR/key is the G3+ backlog seam). Uses the OS share
+  // sheet, falling back to the clipboard so the message is never lost.
+  const handleRemind = async (debt: DebtEntry) => {
+    if (!trip) return;
+    const amount = formatMoney(debt.amountCents, trip.baseCurrency);
+    const message = trip.name
+      ? t('shared.remind_message', { name: debt.debtorName, trip: trip.name, amount })
+      : t('shared.remind_message_no_trip', { name: debt.debtorName, amount });
+    const outcome = await shareOrCopyText(message, t('shared.remind_share_title'));
+    if (outcome === 'copied') showToast(t('shared.remind_copied'), 'success');
+    else if (outcome === 'copy_failed') showToast(t('sync.link_copy_failed'), 'danger');
+  };
+
   const handleAddParticipant = async () => {
     if (!trip || !newName.trim()) return;
     setSaving(true);
@@ -305,35 +324,81 @@ export function SharedExpensesPage() {
   }
 
   const balances = debtSummary ? calculateParticipantBalances(debtSummary.debts) : new Map<string, number>();
+  // DL-3: owner-centric settle-up summary (A receber / A pagar / net) for the hero.
+  const ownerSummary =
+    debtSummary && ownerParticipant
+      ? summarizeOwnerDebts(debtSummary.debts, ownerParticipant.id)
+      : null;
+  // DL-3: connected-pending shares — the "Aguardando aceite" group (display-only).
+  // After G1 a `pending` third-party share means a CONNECTED counterparty who
+  // hasn't accepted yet (offline friends are born confirmed). Never hide it.
+  const awaitingShares = shares.filter(
+    (s) =>
+      s.deletedAt === null &&
+      s.confirmationStatus === 'pending' &&
+      s.participantId !== ownerParticipant?.id,
+  );
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
         {/* R5-08: same back-button header pattern as the other "More" subpages. */}
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
-            <Icon name="arrow_back" size={24} className="text-on-surface" />
-          </button>
-          <h1 className="text-heading font-bold text-on-surface">
-            {t('more.participants')}
-          </h1>
-        </div>
-        {/* DEC-105: my identity QR — the other person scans it to pair */}
-        <button
-          onClick={() => setShowMyQr(true)}
-          className="px-3 py-1.5 rounded-xl bg-surface-container flex items-center gap-1.5 btn-press"
-        >
-          <Icon name="qr_code_2" size={16} className="text-primary" />
-          <span className="text-xs font-medium text-on-surface">{t('sync.my_qr')}</span>
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
+          <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
+        <h1 className="text-heading font-bold text-on-surface">{t('shared.hub_title')}</h1>
       </div>
+
+      {/* DL-3: settle-up hero — opens with the answer ("quem me deve e quanto").
+          Pure derivation of calculateDebts via summarizeOwnerDebts (confirmed
+          debts only); connected-pending sits in its own group below. */}
+      {ownerSummary &&
+        (ownerSummary.receivableCents > 0 || ownerSummary.payableCents > 0 ? (
+          <div className="rounded-2xl p-4 bg-surface-container">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
+                  {t('shared.summary_receivable')}
+                </p>
+                <p className="text-2xl font-extrabold tabular text-success leading-tight mt-0.5">
+                  {formatMoney(ownerSummary.receivableCents, trip.baseCurrency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
+                  {t('shared.summary_payable')}
+                </p>
+                <p className="text-2xl font-extrabold tabular text-error leading-tight mt-0.5">
+                  {formatMoney(ownerSummary.payableCents, trip.baseCurrency)}
+                </p>
+              </div>
+            </div>
+            {ownerSummary.netCents !== 0 && (
+              <p className="text-xs font-semibold mt-3 pt-3 border-t border-[var(--border-faint)] text-on-surface-dim">
+                {ownerSummary.netCents > 0
+                  ? t('shared.summary_net_positive', {
+                      amount: formatMoney(ownerSummary.netCents, trip.baseCurrency),
+                    })
+                  : t('shared.summary_net_negative', {
+                      amount: formatMoney(Math.abs(ownerSummary.netCents), trip.baseCurrency),
+                    })}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl p-5 bg-surface-container text-center">
+            <Icon name="handshake" size={30} className="text-success mx-auto mb-1.5" />
+            <p className="text-sm font-bold text-on-surface">{t('shared.summary_net_even')}</p>
+            <p className="text-xs text-on-surface-faint mt-0.5">{t('shared.summary_empty')}</p>
+          </div>
+        ))}
 
       {/* G9 (audit §4.15): the single shared "how splitting works" explainer. */}
       <SplitExplainer />
 
       <div>
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-          {t('more.participants')}
+          {t('shared.people_section')}
         </p>
         {participants.map((p) => {
           const balance = balances.get(p.id) ?? 0;
@@ -438,22 +503,28 @@ export function SharedExpensesPage() {
         )}
       </div>
 
-      {/* D-BUG-20: receive a statement/connection from another device — the SAME
-          /sync flow as Backup → import, surfaced here (next to the statements it
-          produces) so "receber de outro aparelho" isn't buried in Backup. */}
-      <button
-        onClick={() => navigate('/sync')}
-        className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
-      >
-        <Icon name="qr_code_scanner" size={22} className="text-success shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-on-surface">{t('sync.receive_from_device')}</p>
-          <p className="text-xs text-on-surface-faint">{t('sync.receive_from_device_desc')}</p>
+      {/* DL-3: connected-pending shares, surfaced explicitly so nothing is ever
+          hidden. Display-only — the counterparty accepts on THEIR phone/link;
+          the owner's debt total (hero) is already real and unaffected. */}
+      {awaitingShares.length > 0 && (
+        <div className="rounded-2xl p-4" style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}>
+          <div className="flex items-center gap-2">
+            <Icon name="schedule" size={18} className="text-warning" />
+            <p className="text-sm font-bold text-warning flex-1">
+              {t('shared.awaiting_title', { count: awaitingShares.length })}
+            </p>
+            <p className="text-sm font-extrabold tabular text-warning">
+              {formatMoney(
+                awaitingShares.reduce((sum, s) => sum + s.shareAmountCents, 0),
+                trip.baseCurrency,
+              )}
+            </p>
+          </div>
+          <p className="text-[11px] text-on-surface-faint leading-snug mt-1.5">
+            {t('shared.awaiting_hint')}
+          </p>
         </div>
-      </button>
-
-      {/* DEC-106 (P2P-13): statements received from paired owner devices */}
-      <MirroredStatementsSection />
+      )}
 
       {/* DEC-071 (FIELD-03): shared expenses with per-share confirmation status */}
       {(() => {
@@ -545,26 +616,41 @@ export function SharedExpensesPage() {
               </button>
             )}
 
-            {visibleDebts.map((debt, i) => (
-              <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-sm text-on-surface">
-                      {debt.debtorName} → {debt.creditorName}
-                    </p>
-                    <p className="text-xs text-on-surface-faint">
-                      {formatMoney(debt.amountCents, trip.baseCurrency)}
-                    </p>
+            {visibleDebts.map((debt, i) => {
+              // DL-5: "Lembrar" only makes sense when someone owes the OWNER.
+              const ownerIsCreditor = debt.creditorId === ownerParticipant?.id;
+              return (
+                <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm text-on-surface truncate">
+                        {debt.debtorName} → {debt.creditorName}
+                      </p>
+                      <p className="text-xs text-on-surface-faint">
+                        {formatMoney(debt.amountCents, trip.baseCurrency)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {ownerIsCreditor && (
+                        <button
+                          onClick={() => handleRemind(debt)}
+                          className="px-3 py-1.5 rounded-lg bg-primary/15 text-primary text-xs font-medium btn-press flex items-center gap-1"
+                        >
+                          <Icon name="notifications" size={14} />
+                          {t('shared.remind')}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openSettleSheet(debt)}
+                        className="px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium btn-press"
+                      >
+                        {t('shared.settle')}
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => openSettleSheet(debt)}
-                    className="px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium btn-press"
-                  >
-                    {t('shared.settle')}
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       })()}
@@ -969,12 +1055,55 @@ export function SharedExpensesPage() {
         )}
       </BottomSheet>
 
-      {debtSummary && debtSummary.debts.length === 0 && (
-        <div className="bg-surface-container rounded-xl p-6 text-center">
-          <Icon name="handshake" size={32} className="text-success mx-auto mb-2" />
-          <p className="text-sm text-on-surface-dim">{t('shared.all_settled')}</p>
+      {/* DL-3: P2P machinery demoted to a collapsed "Conexões" section. Kept
+          MOUNTED (CSS-hidden, not unmounted) so the mirror's live sockets keep
+          running while collapsed (council Architect HIGH risk). */}
+      <div>
+        <button
+          onClick={() => setConnectionsOpen((v) => !v)}
+          className="w-full flex items-center gap-2 px-1 mb-2 btn-press"
+        >
+          <Icon name="hub" size={16} className="text-on-surface-faint" />
+          <span className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider flex-1 text-left">
+            {t('shared.connections_section')}
+          </span>
+          <Icon
+            name={connectionsOpen ? 'expand_less' : 'expand_more'}
+            size={18}
+            className="text-on-surface-faint"
+          />
+        </button>
+        <div className={connectionsOpen ? 'flex flex-col gap-3' : 'hidden'}>
+          <p className="text-[11px] text-on-surface-faint leading-snug px-1 -mt-1">
+            {t('shared.connections_hint')}
+          </p>
+          {/* DEC-105: my identity QR — the other person scans it to pair */}
+          <button
+            onClick={() => setShowMyQr(true)}
+            className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
+          >
+            <Icon name="qr_code_2" size={22} className="text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-on-surface">{t('sync.my_qr')}</p>
+              <p className="text-xs text-on-surface-faint">{t('sync.my_qr_hint')}</p>
+            </div>
+          </button>
+          {/* D-BUG-20: receive a statement/connection from another device — the
+              SAME /sync flow as Backup → import, surfaced here. */}
+          <button
+            onClick={() => navigate('/sync')}
+            className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
+          >
+            <Icon name="qr_code_scanner" size={22} className="text-success shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-on-surface">{t('sync.receive_from_device')}</p>
+              <p className="text-xs text-on-surface-faint">{t('sync.receive_from_device_desc')}</p>
+            </div>
+          </button>
+          {/* DEC-106 (P2P-13): statements received from paired owner devices */}
+          <MirroredStatementsSection />
         </div>
-      )}
+      </div>
 
       {settlements.length > 0 && (
         <div>

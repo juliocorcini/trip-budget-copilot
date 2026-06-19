@@ -48,6 +48,7 @@ describe('resolveDashboardCardSequence', () => {
       'piggy_bank',
       'occasion_counters',
       'amigo_sincero',
+      'debt_summary',
       'pending_shares',
       'funds_summary',
       'planned_purchases',

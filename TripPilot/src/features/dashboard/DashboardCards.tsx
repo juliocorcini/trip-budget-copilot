@@ -995,6 +995,41 @@ export function DashboardCards({
             />
           </>
         );
+      case 'debt_summary':
+        // DL-4: home "te devem / você deve" — confirmed debts only (the real
+        // money), a one-tap doorway into the settle-up hub. Hidden when even.
+        return model.receivableCents > 0 || model.payableCents > 0 ? (
+          <button
+            onClick={() => navigate('/shared')}
+            className="w-full mt-4 p-4 rounded-2xl bg-surface-container btn-press text-left"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Icon name="group" size={18} className="text-primary" />
+              <p className="text-sm font-bold text-on-surface flex-1">
+                {t('dashboard.card_debt_summary')}
+              </p>
+              <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
+                  {t('shared.summary_receivable')}
+                </p>
+                <p className="text-xl font-extrabold tabular text-success leading-tight mt-0.5">
+                  {formatMoney(model.receivableCents, trip.baseCurrency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
+                  {t('shared.summary_payable')}
+                </p>
+                <p className="text-xl font-extrabold tabular text-error leading-tight mt-0.5">
+                  {formatMoney(model.payableCents, trip.baseCurrency)}
+                </p>
+              </div>
+            </div>
+          </button>
+        ) : null;
       case 'pending_shares':
         return (
           <>

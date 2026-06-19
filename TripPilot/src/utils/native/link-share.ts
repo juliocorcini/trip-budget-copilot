@@ -58,3 +58,28 @@ export async function shareOrCopyLink(input: ShareLinkInput): Promise<ShareLinkO
   }
   return copyLink(input.url);
 }
+
+/**
+ * DL-5 (G2/G3): share a plain TEXT message — a debt reminder, NOT a link —
+ * through the OS share sheet, falling back to copying the TEXT itself (so the
+ * message is never lost). Mirrors `shareOrCopyLink`, but there is no URL: the
+ * fallback preserves the reminder text so the user can paste it into any chat.
+ */
+export async function shareOrCopyText(text: string, title?: string): Promise<ShareLinkOutcome> {
+  if (canUseWebShare()) {
+    try {
+      const payload: ShareData = { text };
+      if (title) payload.title = title;
+      await navigator.share(payload);
+      return 'shared';
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled';
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    return 'copied';
+  } catch {
+    return 'copy_failed';
+  }
+}
