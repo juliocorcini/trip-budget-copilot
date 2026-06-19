@@ -219,6 +219,89 @@ export function clearOwnerLive(): void {
   } catch {
     // ignore
   }
+  // The render-ready snapshot dies with the credentials, so the home card, the
+  // floating chip and the FAB stop offering a table that no longer exists.
+  clearActiveSplitMeta();
+}
+
+/* ── active-split snapshot (the "saída de bar" that is still happening) ───── */
+
+/** Fired whenever the active live split is saved, updated, or cleared. */
+export const SPLIT_LIVE_CHANGED_EVENT = 'trippilot:split-live-changed';
+
+const ACTIVE_SPLIT_META_KEY = 'split.owner.meta';
+
+/**
+ * A lightweight, render-ready snapshot of the owner's active live split, kept in
+ * step with the live credentials. The home card, the floating chip and the FAB
+ * read THIS (never the network) so an active division is visible on every screen
+ * with zero round-trips. Cleared together with the credentials on stop/commit.
+ */
+export interface ActiveSplitMeta {
+  shareId: string;
+  name: string;
+  currency: string;
+  totalCents: number;
+  participantCount: number;
+  /** Distinct non-owner devices that have posted a claim (the people "at the table"). */
+  guestCount: number;
+  updatedAt: number;
+}
+
+function dispatchSplitLiveChanged(): void {
+  try {
+    window.dispatchEvent(new CustomEvent(SPLIT_LIVE_CHANGED_EVENT));
+  } catch {
+    // No window (SSR / tests without DOM) — nothing is listening anyway.
+  }
+}
+
+export function saveActiveSplitMeta(meta: ActiveSplitMeta): void {
+  try {
+    localStorage.setItem(ACTIVE_SPLIT_META_KEY, JSON.stringify(meta));
+  } catch {
+    // Private mode / no storage: the live session still works for this run.
+  }
+  dispatchSplitLiveChanged();
+}
+
+export function loadActiveSplitMeta(): ActiveSplitMeta | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SPLIT_META_KEY);
+    if (!raw) return null;
+    const m = JSON.parse(raw) as Partial<ActiveSplitMeta>;
+    if (
+      typeof m.shareId === 'string' &&
+      typeof m.name === 'string' &&
+      typeof m.currency === 'string' &&
+      typeof m.totalCents === 'number' &&
+      typeof m.participantCount === 'number' &&
+      typeof m.guestCount === 'number' &&
+      typeof m.updatedAt === 'number'
+    ) {
+      return {
+        shareId: m.shareId,
+        name: m.name,
+        currency: m.currency,
+        totalCents: m.totalCents,
+        participantCount: m.participantCount,
+        guestCount: m.guestCount,
+        updatedAt: m.updatedAt,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearActiveSplitMeta(): void {
+  try {
+    localStorage.removeItem(ACTIVE_SPLIT_META_KEY);
+  } catch {
+    // ignore
+  }
+  dispatchSplitLiveChanged();
 }
 
 /* ── guest identity (stable across reloads, per device) ──────────────────── */

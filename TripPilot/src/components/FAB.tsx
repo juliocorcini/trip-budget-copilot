@@ -6,6 +6,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 import { hapticSelection } from '@/utils/haptics';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
+import { useActiveSplit } from '@/features/split/useActiveSplit';
 
 /**
  * P2 (UX audit §3) + GATE 18 (Julio device test 2026-06-18): the FAB keeps ALL 9
@@ -117,12 +118,17 @@ const OTHER_EXPANDER = { icon: 'more_horiz', labelKey: 'fab.group_other', descKe
 interface FABMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Called instead of navigating when "Dividir conta" is tapped with a live
+   *  division already running — the BottomNav owns the resume-or-new chooser. */
+  onSplitResumeOrNew: () => void;
 }
 
-export function FABMenu({ isOpen, onClose }: FABMenuProps) {
+export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { settings } = useAppData();
+  // A live division turns "Dividir conta" into a resume-or-new decision.
+  const activeSplit = useActiveSplit();
   // DEC-194: keep the menu mounted through its exit so it visibly closes.
   const { mounted, state } = useAnimatedPresence(isOpen, 180);
   // GATE 18: only the low-value "Outros registros" group collapses at rest.
@@ -312,7 +318,14 @@ export function FABMenu({ isOpen, onClose }: FABMenuProps) {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleAction('/split/scan');
+                  // A division already live → ask resume-or-new; else go straight in.
+                  if (activeSplit) {
+                    hapticSelection();
+                    onClose();
+                    onSplitResumeOrNew();
+                  } else {
+                    handleAction('/split/scan');
+                  }
                 }}
                 className="btn-press p-4 rounded-2xl flex items-center gap-3.5 text-left"
                 style={{ background: '#6366F11A', border: '1px solid #6366F140' }}

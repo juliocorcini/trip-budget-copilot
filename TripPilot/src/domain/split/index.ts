@@ -40,3 +40,10 @@ export {
   reduceGuestClaims,
 } from './claim-response';
 export type { SplitClaimResponse, SplitClaimSnapshotItem } from './claim-response';
+export { buildSplitHistory, splitClaimChannel } from './history';
+export type {
+  SplitHistory,
+  SplitHistoryEntry,
+  SplitHistoryLine,
+  SplitClaimChannel,
+} from './history';

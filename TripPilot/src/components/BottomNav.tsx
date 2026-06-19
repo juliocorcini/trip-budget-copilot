@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { Icon } from './Icon';
 import { FABMenu } from './FAB';
+import { SplitResumeSheet } from '@/features/split/SplitResumeSheet';
 import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 import { tabsForMode } from '@/app/nav-tabs';
@@ -31,6 +32,9 @@ const RIGHT_NAV: NavItem[] = [
 
 export function BottomNav() {
   const [isFabOpen, setIsFabOpen] = useState(false);
+  // Resume-or-new chooser for "Dividir conta" — owned here so it outlives the
+  // FAB overlay closing (the FAB is unmounted on close).
+  const [splitChoiceOpen, setSplitChoiceOpen] = useState(false);
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,7 +79,12 @@ export function BottomNav() {
 
   return (
     <>
-      <FABMenu isOpen={isFabOpen} onClose={() => setIsFabOpen(false)} />
+      <FABMenu
+        isOpen={isFabOpen}
+        onClose={() => setIsFabOpen(false)}
+        onSplitResumeOrNew={() => setSplitChoiceOpen(true)}
+      />
+      <SplitResumeSheet open={splitChoiceOpen} onClose={() => setSplitChoiceOpen(false)} />
 
       <nav
         className={`fixed bottom-0 left-0 right-0 ${isFabOpen ? 'z-[60]' : 'z-40'} glass border-t`}

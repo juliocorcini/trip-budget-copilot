@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-signal';
-import type { SplitClaimResponse, SplitSession } from '@/domain/split';
+import {
+  itemsSubtotalCents,
+  serviceChargeAmountCents,
+  type SplitClaimResponse,
+  type SplitSession,
+} from '@/domain/split';
 import {
   publishSplitTable,
   republishSplitTable,
@@ -9,6 +14,7 @@ import {
   buildSplitTableLink,
   saveOwnerLive,
   clearOwnerLive,
+  saveActiveSplitMeta,
   type SplitLiveCreds,
 } from './live-link';
 
@@ -203,6 +209,33 @@ export function useSplitLiveLink(
     }, REPUBLISH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [creds, session]);
+
+  // Persist a render-ready snapshot of the live split so the home card, the
+  // floating chip and the FAB can surface "a division is still happening" on
+  // every screen without a network round-trip. Re-runs on any owner edit, merged
+  // guest claim, or guest join (guestCount); cleared with the credentials on
+  // stop/commit (clearOwnerLive), so navigating away never loses the table.
+  useEffect(() => {
+    if (!creds || !session) return;
+    // The card shows the TABLE's worth (the whole bill), not just what's been
+    // claimed — an itemized table with nothing claimed yet is still worth its
+    // full total, so we sum items + service + adjustments rather than the
+    // per-person grand total (which is 0 until people start claiming).
+    const subtotal = itemsSubtotalCents(session);
+    const billTotalCents =
+      subtotal +
+      serviceChargeAmountCents(session.serviceCharge, subtotal) +
+      session.adjustments.reduce((sum, a) => sum + a.amountCents, 0);
+    saveActiveSplitMeta({
+      shareId: creds.shareId,
+      name: session.name,
+      currency: session.currency,
+      totalCents: billTotalCents,
+      participantCount: session.participants.length,
+      guestCount,
+      updatedAt: Date.now(),
+    });
+  }, [creds, session, guestCount]);
 
   // Safety net: revoke if the component unmounts while live.
   useEffect(() => {

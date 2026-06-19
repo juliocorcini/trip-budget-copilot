@@ -157,9 +157,13 @@ test.describe('Bill split — live table TWO devices (real)', () => {
     // fix each poll reaches the network, so the owner has issued several.
     expect(ownerGets.gets).toBeGreaterThan(1);
 
-    // Cleanup + revoke path: ending the table tombstones it on the server (so a
+    // Cleanup + revoke path: "Encerrar" now forks (register vs stop sharing).
+    // "Só parar de compartilhar" tombstones the table on the server (so a
     // production run leaves no live data behind) and the guest's link goes dead.
     await owner.getByRole('button', { name: 'Encerrar' }).click();
+    const endSheet = owner.getByRole('dialog', { name: 'Encerrar a divisão' });
+    await expect(endSheet).toBeVisible({ timeout: 10_000 });
+    await endSheet.getByRole('button', { name: 'Só parar de compartilhar' }).click();
     await expect(owner.getByText('Mesa ao vivo').first()).toBeVisible({ timeout: 10_000 });
 
     await ownerCtx.close();

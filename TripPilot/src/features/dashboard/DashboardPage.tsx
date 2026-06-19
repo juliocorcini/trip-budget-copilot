@@ -38,6 +38,7 @@ import { DashboardCards } from './DashboardCards';
 import { DashboardSheets } from './DashboardSheets';
 import { SimpleHome } from './SimpleHome';
 import { SimpleRevealCard } from './SimpleRevealCard';
+import { ActiveSplitHomeCard } from '@/features/split/ActiveSplitHomeCard';
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -420,6 +421,11 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Active live split — "a saída de bar" you can walk back into. Sits above
+          every other card (simple AND complete) so a running division is the
+          first thing you see; renders nothing when none is live. */}
+      <ActiveSplitHomeCard />
 
       {/* M18: simple = lean home; complete = the full configurable card stack */}
       {isSimpleMode ? (

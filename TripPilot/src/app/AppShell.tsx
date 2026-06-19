@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router';
 import { BottomNav } from '@/components/BottomNav';
 import { ActiveOutingBar } from '@/components/ActiveOutingBar';
+import { ActiveSplitBar } from '@/components/ActiveSplitBar';
 import { useTabPaging } from '@/hooks/useTabPaging';
 import { useTabSwipePager } from '@/hooks/useTabSwipePager';
 
@@ -30,6 +31,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <ActiveOutingBar />
+      <ActiveSplitBar />
       <BottomNav />
     </div>
   );

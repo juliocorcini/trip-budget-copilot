@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useNavigate } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { compressImageFile, blobToDataUrl, type CompressedImage } from '@/utils/image/compress';
 import { extractReceiptViaCloud, type ReceiptOcrError } from '@/utils/ai-ocr';
@@ -36,6 +36,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
+import { SplitHistorySheet } from './SplitHistorySheet';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
 import { shareOrCopyLink } from '@/utils/native/link-share';
 import { showToast } from '@/components/Toast';
@@ -74,6 +75,10 @@ function initials(name: string): string {
 export function SplitPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // FAB "nova divisão" arrives with ?new=1 — open a fresh capture screen even if
+  // a live table is still running (it stays resumable from the home card/chip).
+  const forceNew = searchParams.get('new') === '1';
   const { trip, phases, pools, participants, settings, loading, error, retry, reload } = useAppData();
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -87,6 +92,8 @@ export function SplitPage() {
   const [taxSheetOpen, setTaxSheetOpen] = useState(false);
   const [personSheetOpen, setPersonSheetOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  // "A história do que aconteceu" — the full who-got-what breakdown.
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const cloudEnabled = settings?.cloudReceiptOcrEnabled ?? false;
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
@@ -108,36 +115,56 @@ export function SplitPage() {
   // L2.M5 — on reopen, if a live table was left running, re-fetch it from the
   // server (the source of truth) and resume the SAME link so guests stay
   // connected. A revoked/missing/corrupt table is forgotten silently.
-  const [resuming, setResuming] = useState(() => loadOwnerLive() !== null);
+  const [resuming, setResuming] = useState(() => !forceNew && loadOwnerLive() !== null);
   const resumedRef = useRef(false);
+  // Tracks whether THIS screen is still mounted. A plain `cancelled` local is
+  // defeated by React 19 StrictMode (and fast remounts): the first run's cleanup
+  // cancels it, then the `resumedRef` guard makes the second run a no-op, so the
+  // in-flight fetch resolves cancelled and the spinner sticks forever. A ref that
+  // is re-armed at the start of every run survives the double-invoke.
+  const resumeMountedRef = useRef(true);
   useEffect(() => {
-    if (resumedRef.current) return;
+    resumeMountedRef.current = true;
+    const markUnmounted = () => {
+      resumeMountedRef.current = false;
+    };
+    if (resumedRef.current) return markUnmounted;
     resumedRef.current = true;
+    // "Nova divisão" explicitly skips resume so the user gets a clean start.
+    if (forceNew) {
+      setResuming(false);
+      return markUnmounted;
+    }
     const creds = loadOwnerLive();
     if (!creds) {
       setResuming(false);
-      return;
+      return markUnmounted;
     }
-    let cancelled = false;
     void (async () => {
-      const res = await fetchSplitTable(creds.shareId, creds.key);
-      if (cancelled) return;
-      if (res.status === 'ok') {
-        setSession(res.payload.session);
-        setActivePersonId(res.payload.session.participants[0]?.id ?? null);
-        setPhase('divide');
-        resumeLive(creds, res.payload.session, res.payload.revision);
-      } else if (res.status !== 'error') {
-        // revoked / not_found / bad_key → the table is gone or unreadable; drop it.
-        clearOwnerLive();
+      try {
+        const res = await fetchSplitTable(creds.shareId, creds.key);
+        if (!resumeMountedRef.current) return;
+        if (res.status === 'ok') {
+          setSession(res.payload.session);
+          setActivePersonId(res.payload.session.participants[0]?.id ?? null);
+          setPhase('divide');
+          resumeLive(creds, res.payload.session, res.payload.revision);
+        } else if (res.status !== 'error') {
+          // revoked / not_found / bad_key → the table is gone or unreadable; drop it.
+          clearOwnerLive();
+        }
+        // transient 'error' → keep creds; a later reopen can retry.
+      } catch (err) {
+        // Never strand the user on the "Retomando…" spinner: an unexpected
+        // failure just falls back to the capture screen (creds are kept so a
+        // later reopen can retry the table).
+        console.error('[split] resume failed', err);
+      } finally {
+        if (resumeMountedRef.current) setResuming(false);
       }
-      // transient 'error' → keep creds; a later reopen can retry.
-      setResuming(false);
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [resumeLive]);
+    return markUnmounted;
+  }, [resumeLive, forceNew]);
 
   const totals = useMemo(() => (session ? computeSplitTotals(session) : null), [session]);
   // The authoritative commit numbers (owner absorbs orphans, bill is whole) — used
@@ -492,7 +519,13 @@ export function SplitPage() {
           />
 
           {/* G2: live table link — pass-the-phone OR everyone claims on their own device. */}
-          <LiveTableCard live={live} t={t} />
+          <LiveTableCard
+            live={live}
+            t={t}
+            onCommit={() => void handleCommit()}
+            committing={busy}
+            canCommit={subtotalCents > 0}
+          />
 
           {/* Service charge (§9) — ask when unknown, otherwise show + tweak. */}
           {askTax ? (
@@ -736,6 +769,14 @@ export function SplitPage() {
             >
               {t('split.commit', { total: formatMoney(plan?.grandTotalCents ?? totals.grandTotalCents, currency) })}
             </button>
+            {/* "a conta toda" — the full who-got-what record, one tap from commit. */}
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="w-full py-2 rounded-xl btn-press flex items-center justify-center gap-1.5 text-on-surface-dim"
+            >
+              <Icon name="history" size={15} className="text-on-surface-dim" />
+              <span className="text-[12px] font-semibold">{t('splitHistory.see_full')}</span>
+            </button>
           </div>
         </div>
       )}
@@ -771,6 +812,13 @@ export function SplitPage() {
         t={t}
       />
 
+      <SplitHistorySheet
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        session={session}
+        ownerName={ownerName}
+      />
+
       {session && session.serviceCharge.mode !== 'none' && phase === 'divide' && (
         <TaxModeFloating mode={session.serviceCharge.mode} onChange={setTaxMode} />
       )}
@@ -788,8 +836,23 @@ type TFn = ReturnType<typeof useTranslation>['t'];
  * joined + an "end" action. The owner keeps editing the bill normally; guest
  * claims merge in automatically (owner-reducer).
  */
-function LiveTableCard({ live, t }: { live: SplitLiveLink; t: TFn }) {
+function LiveTableCard({
+  live,
+  t,
+  onCommit,
+  committing,
+  canCommit,
+}: {
+  live: SplitLiveLink;
+  t: TFn;
+  onCommit: () => void;
+  committing: boolean;
+  canCommit: boolean;
+}) {
   const [shareOpen, setShareOpen] = useState(false);
+  // "Encerrar" is a fork, not a single action: turn the live table into a logged
+  // expense, or just stop sharing and keep editing offline.
+  const [endOpen, setEndOpen] = useState(false);
 
   if (live.status === 'idle') {
     return (
@@ -847,7 +910,7 @@ function LiveTableCard({ live, t }: { live: SplitLiveLink; t: TFn }) {
               : t('splitTable.waiting_guests')}
           </p>
         </div>
-        <button onClick={live.stop} className="btn-press text-[12px] font-bold text-error px-2 py-1">
+        <button onClick={() => setEndOpen(true)} className="btn-press text-[12px] font-bold text-error px-2 py-1">
           {t('splitTable.end')}
         </button>
       </div>
@@ -859,7 +922,75 @@ function LiveTableCard({ live, t }: { live: SplitLiveLink; t: TFn }) {
         {t('splitTable.share_link')}
       </button>
       <LiveShareSheet open={shareOpen} link={live.link} onClose={() => setShareOpen(false)} t={t} />
+      <SplitEndSheet
+        open={endOpen}
+        onClose={() => setEndOpen(false)}
+        onCommit={() => {
+          setEndOpen(false);
+          onCommit();
+        }}
+        onStop={() => {
+          setEndOpen(false);
+          live.stop();
+        }}
+        canCommit={canCommit}
+        committing={committing}
+        t={t}
+      />
     </div>
+  );
+}
+
+/**
+ * The "Encerrar" fork (Julio: "tem que ter o botão de encerrar para realmente
+ * virar um gasto no histórico"). Registering commits the division as an expense
+ * (and stops the live table); "só parar de compartilhar" revokes the link but
+ * keeps the draft open so the owner can keep editing offline.
+ */
+function SplitEndSheet({
+  open,
+  onClose,
+  onCommit,
+  onStop,
+  canCommit,
+  committing,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCommit: () => void;
+  onStop: () => void;
+  canCommit: boolean;
+  committing: boolean;
+  t: TFn;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} title={t('splitTable.end_title')}>
+      <div className="flex flex-col gap-3 pb-2">
+        <p className="text-xs text-on-surface-dim leading-relaxed">{t('splitTable.end_body')}</p>
+        <button
+          onClick={onCommit}
+          disabled={!canCommit || committing}
+          className="w-full p-3.5 rounded-2xl flex items-center gap-3 btn-press text-left bg-primary disabled:opacity-50"
+        >
+          <Icon name="check_circle" size={22} className="text-on-surface shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-on-surface">{t('splitTable.end_register')}</p>
+            <p className="text-[11px] text-on-surface/70">{t('splitTable.end_register_hint')}</p>
+          </div>
+        </button>
+        <button
+          onClick={onStop}
+          className="w-full p-3.5 rounded-2xl flex items-center gap-3 btn-press text-left bg-surface-high"
+        >
+          <Icon name="link_off" size={22} className="text-on-surface-dim shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-on-surface">{t('splitTable.end_stop')}</p>
+            <p className="text-[11px] text-on-surface-faint">{t('splitTable.end_stop_hint')}</p>
+          </div>
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 

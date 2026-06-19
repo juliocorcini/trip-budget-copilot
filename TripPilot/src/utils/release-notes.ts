@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.3',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'A divisão agora é como uma saída de bar: enquanto está rolando, aparece um card na tela inicial e uma bolha flutuante em todas as telas para você voltar nela a qualquer momento.',
+        'Tocou em "Dividir conta" com uma divisão aberta? O app pergunta se você quer voltar para ela ou começar uma nova.',
+        '"Encerrar" agora é claro: registre a divisão como um gasto no histórico ou apenas pare de compartilhar o link e continue editando.',
+        'Veja a divisão completa: quem ficou com o quê e como cada um entrou — você, alguém pelo link sem conta, ou um acompanhante pelo próprio app.',
+      ],
+      en: [
+        'A split now behaves like a night out: while it\'s happening, a card shows on the home screen and a floating bubble follows you across every screen so you can jump back in anytime.',
+        'Tapped "Split bill" with one already open? The app asks whether to resume it or start a new one.',
+        '"End" is now clear: register the split as an expense in your history, or just stop sharing the link and keep editing.',
+        'See the full split: who ended up with what and how each person joined — you, someone via the link with no account, or a companion through their own app.',
+      ],
+      es: [
+        'La división ahora funciona como una salida: mientras está en curso, aparece una tarjeta en la pantalla de inicio y una burbuja flotante en todas las pantallas para volver a ella cuando quieras.',
+        '¿Tocaste "Dividir cuenta" con una ya abierta? La app te pregunta si quieres volver a ella o empezar una nueva.',
+        '"Cerrar" ahora es claro: registra la división como un gasto en tu historial, o solo deja de compartir el enlace y sigue editando.',
+        'Ve la división completa: quién se quedó con qué y cómo entró cada uno — tú, alguien por el enlace sin cuenta, o un acompañante desde su propia app.',
+      ],
+    },
+  },
+  {
     version: '0.99.2',
     date: '2026-06-19',
     items: {

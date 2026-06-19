@@ -716,7 +716,36 @@
     "resuming": "Resuming the live table…",
     "expired": "This table has expired. Ask the organizer for a new link.",
     "onboard_hint": "Like it? TripPilot plans the whole trip.",
-    "start_trip": "Start my trip"
+    "start_trip": "Start my trip",
+    "resume_active": "Back to the live split",
+    "resume_open": "Resume",
+    "end_title": "End the split",
+    "end_body": "Registering turns the split into an expense in your history and closes the table. You can also just stop sharing and keep editing.",
+    "end_register": "Register as an expense now",
+    "end_register_hint": "Logs it to your history and ends the live table",
+    "end_stop": "Just stop sharing",
+    "end_stop_hint": "Closes the link but keeps the split open to edit"
+  },
+  "splitResume": {
+    "title": "You have a split in progress",
+    "subtitle": "Jump back into the table that's still open, or start a new one.",
+    "resume": "Resume",
+    "new_title": "Start a new split",
+    "new_desc": "Scan a receipt or build it from scratch"
+  },
+  "splitHistory": {
+    "title": "The full split",
+    "see_full": "See the full split",
+    "started_on": "Opened on {{date}}",
+    "channel_owner": "You",
+    "channel_guest_link": "Claimed via link, no account",
+    "channel_manual": "You added by hand",
+    "channel_app_linked": "Claimed in their own app",
+    "channel_companion": "Trip companion",
+    "adjustments": "Cover / discount",
+    "unclaimed_title": "Nobody claimed",
+    "footnote": "Who ended up with what, and how each person joined the split.",
+    "see_committed": "See who got what"
   },
   "categories": {
     "bar": "Bar",

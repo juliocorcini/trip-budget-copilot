@@ -716,7 +716,36 @@
     "resuming": "Retomando la mesa en vivo…",
     "expired": "Esta mesa expiró. Pídele un enlace nuevo al organizador.",
     "onboard_hint": "¿Te gustó? TripPilot organiza todo el viaje.",
-    "start_trip": "Empezar mi viaje"
+    "start_trip": "Empezar mi viaje",
+    "resume_active": "Volver a la división en vivo",
+    "resume_open": "Volver",
+    "end_title": "Cerrar la división",
+    "end_body": "Registrar convierte la división en un gasto en tu historial y cierra la mesa. También puedes solo dejar de compartir y seguir editando.",
+    "end_register": "Registrar como gasto ahora",
+    "end_register_hint": "Lo registra en tu historial y cierra la mesa en vivo",
+    "end_stop": "Solo dejar de compartir",
+    "end_stop_hint": "Cierra el enlace pero mantiene la división abierta para editar"
+  },
+  "splitResume": {
+    "title": "Tienes una división en curso",
+    "subtitle": "Vuelve a la mesa que sigue abierta o empieza una nueva.",
+    "resume": "Volver",
+    "new_title": "Empezar una división nueva",
+    "new_desc": "Escanea un ticket o créala desde cero"
+  },
+  "splitHistory": {
+    "title": "La división completa",
+    "see_full": "Ver la división completa",
+    "started_on": "Abierta el {{date}}",
+    "channel_owner": "Tú",
+    "channel_guest_link": "Marcó por el enlace, sin cuenta",
+    "channel_manual": "Lo agregaste a mano",
+    "channel_app_linked": "Marcó en su propia app",
+    "channel_companion": "Acompañante del viaje",
+    "adjustments": "Cubierto / descuento",
+    "unclaimed_title": "Nadie lo tomó",
+    "footnote": "Quién se quedó con qué y cómo entró cada uno en la división.",
+    "see_committed": "Ver quién se quedó con qué"
   },
   "categories": {
     "bar": "Bar",
