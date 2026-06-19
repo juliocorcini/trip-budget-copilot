@@ -623,10 +623,10 @@ export function SharedExpensesPage() {
                 <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm text-on-surface truncate">
+                      <p className="text-xs text-on-surface-dim truncate">
                         {debt.debtorName} → {debt.creditorName}
                       </p>
-                      <p className="text-xs text-on-surface-faint">
+                      <p className="text-sm font-semibold text-on-surface tabular">
                         {formatMoney(debt.amountCents, trip.baseCurrency)}
                       </p>
                     </div>

@@ -1983,7 +1983,7 @@
     "copy_failed": "No pude copiar",
     "nudge_title": "Avisa a quienes entraron en la división",
     "nudge_body": "Envía el enlace a cada persona para que vea su parte en su propio celular — sin necesidad de la app.",
-    "nudge_share_with": "Compartir con {{name}}",
+    "nudge_send_link": "Enviar enlace",
     "nudge_later": "Ahora no",
     "refresh": "Actualizar datos",
     "refreshed": "Datos del enlace actualizados",

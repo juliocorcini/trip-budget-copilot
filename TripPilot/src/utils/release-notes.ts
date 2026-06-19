@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.7',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'Cobrar ficou instantâneo: logo depois de dividir um gasto, dá para "Lembrar" cada pessoa ali mesmo — com a mensagem pronta e o valor certo de cada um.',
+        'A mensagem de cobrança já sai formatada para o Pix: é só mandar no WhatsApp.',
+        'O valor de cada dívida ficou mais fácil de ler na tela de Acerto de contas.',
+      ],
+      en: [
+        'Charging is now instant: right after you split an expense, you can "Remind" each person on the spot — with the message ready and each person\'s exact amount.',
+        'The reminder message comes ready to pay: just send it in your chat.',
+        'Each debt amount is now easier to read on the Settle up screen.',
+      ],
+      es: [
+        'Cobrar ahora es instantáneo: justo después de dividir un gasto, puedes "Recordar" a cada persona ahí mismo — con el mensaje listo y el monto exacto de cada una.',
+        'El mensaje de cobro sale listo para pagar: solo envíalo en tu chat.',
+        'El monto de cada deuda ahora se lee más fácil en la pantalla de Ajuste de cuentas.',
+      ],
+    },
+  },
+  {
     version: '0.99.6',
     date: '2026-06-19',
     items: {

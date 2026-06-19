@@ -1,8 +1,8 @@
 {
-  "version": "0.99.6",
+  "version": "0.99.7",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.6.zip",
-  "notes": "A tela de divisões virou 'Acerto de contas': no topo você vê na hora quanto tem a receber e a pagar, e agora dá para 'Lembrar' quem te deve com uma mensagem pronta. Quem está conectado e ainda não aceitou a parte aparece separado, em 'Aguardando aceite', sem bagunçar quem realmente te deve."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.7.zip",
+  "notes": "Agora dá para cobrar na hora: logo depois de dividir um gasto, você pode 'Lembrar' cada pessoa ali mesmo, com a mensagem pronta e o valor certo de cada um — já formatada para o Pix. O valor de cada dívida também ficou mais fácil de ler no Acerto de contas."
 }

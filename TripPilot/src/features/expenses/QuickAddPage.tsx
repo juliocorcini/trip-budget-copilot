@@ -135,6 +135,9 @@ export function QuickAddPage() {
   const [showRoundTrip, setShowRoundTrip] = useState(false);
   // B5: after a split, prompt to send each debtor their shared link.
   const [splitNudge, setSplitNudge] = useState<Participant[]>([]);
+  // DL-5: per-debtor owed amount (cents), so the nudge can offer a "Lembrar"
+  // (cobrar) message with the right value right after the split is committed.
+  const [splitNudgeAmounts, setSplitNudgeAmounts] = useState<Map<string, number>>(new Map());
   // M11: optional voice capture — only offered when the browser supports it.
   const [listening, setListening] = useState(false);
 
@@ -526,6 +529,16 @@ export function QuickAddPage() {
       // leaving — the slice only reaches the other phone when they open it.
       const notifyTargets = owner ? collectSplitNotifyTargets(shares, participants, owner.id) : [];
       if (notifyTargets.length > 0) {
+        // DL-5: "Lembrar" (cobrar) only makes sense when the OWNER is the payer —
+        // then the slices are debts to me. If someone else paid, skip amounts so
+        // the nudge offers only "Enviar link" (always valid), never a wrong charge.
+        const amounts = new Map<string, number>();
+        if (effectivePaidById === owner?.id) {
+          for (const share of shares) {
+            amounts.set(share.participantId, (amounts.get(share.participantId) ?? 0) + share.shareAmountCents);
+          }
+        }
+        setSplitNudgeAmounts(amounts);
         setSplitNudge(notifyTargets);
         return;
       }
@@ -1433,8 +1446,12 @@ export function QuickAddPage() {
       <SplitShareNudgeSheet
         open={splitNudge.length > 0}
         participants={splitNudge}
+        amountByParticipantId={splitNudgeAmounts}
+        currency={trip?.baseCurrency}
+        tripName={trip?.name}
         onClose={() => {
           setSplitNudge([]);
+          setSplitNudgeAmounts(new Map());
           void finishAndGoHome();
         }}
       />

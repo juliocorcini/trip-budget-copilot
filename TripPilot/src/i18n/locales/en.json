@@ -1983,7 +1983,7 @@
     "copy_failed": "Couldn't copy",
     "nudge_title": "Let everyone in the split know",
     "nudge_body": "Send each person the link so they can see their share on their own phone — no app needed.",
-    "nudge_share_with": "Share with {{name}}",
+    "nudge_send_link": "Send link",
     "nudge_later": "Not now",
     "refresh": "Refresh data",
     "refreshed": "Link data updated",
