@@ -431,6 +431,10 @@ export function QuickAddPage() {
         participantIds: selectedParticipantIds,
         shareType: splitMode,
         customAmountsCents,
+        // DEC-241: only paired devices stay pending; offline friends owe now.
+        connectedParticipantIds: participants
+          .filter((p) => p.linkedActorId !== null)
+          .map((p) => p.id),
       });
       tx.isShared = resolution.isShared;
       tx.paidByParticipantId = effectivePaidById;

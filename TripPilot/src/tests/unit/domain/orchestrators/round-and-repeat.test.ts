@@ -76,13 +76,14 @@ describe('addRoundExpenses (M8)', () => {
       expect(tx.paidByParticipantId).toBe(OWNER);
     });
 
-    // 4 drinks × 2 participants = 8 shares; owner confirmed, friend pending (DEC-071).
+    // 4 drinks × 2 participants = 8 shares. DEC-241: a non-connected friend (no
+    // actorId) owes immediately, so every slice is born confirmed.
     const shares = await db.participantShares.toArray();
     expect(shares).toHaveLength(8);
     const ownerShares = shares.filter((s) => s.participantId === OWNER);
     const friendShares = shares.filter((s) => s.participantId === FRIEND);
     expect(ownerShares.every((s) => s.confirmationStatus === 'confirmed')).toBe(true);
-    expect(friendShares.every((s) => s.confirmationStatus === 'pending')).toBe(true);
+    expect(friendShares.every((s) => s.confirmationStatus === 'confirmed')).toBe(true);
   });
 
   it('continues the item order after existing items', async () => {
@@ -221,6 +222,7 @@ describe('repeatLastSessionItem (M7)', () => {
       .toArray();
     expect(newShares).toHaveLength(2);
     expect(newShares.find((s) => s.participantId === OWNER)?.confirmationStatus).toBe('confirmed');
-    expect(newShares.find((s) => s.participantId === FRIEND)?.confirmationStatus).toBe('pending');
+    // DEC-241: non-connected friend → real debt immediately (born confirmed).
+    expect(newShares.find((s) => s.participantId === FRIEND)?.confirmationStatus).toBe('confirmed');
   });
 });

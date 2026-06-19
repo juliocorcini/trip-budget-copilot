@@ -119,7 +119,7 @@ describe('commitSplit (T1)', () => {
     expect(items).toHaveLength(1);
   });
 
-  it('charges the owner only their slice and records a pending debt for the real friend', async () => {
+  it('DEC-241: charges the owner their slice and records a CONFIRMED debt for a non-connected friend', async () => {
     const { built } = itemizedBill();
     const result = await commitSplit(mkInput(built));
 
@@ -136,9 +136,32 @@ describe('commitSplit (T1)', () => {
     expect(owner.confirmationStatus).toBe('confirmed');
     expect(owner.isPaid).toBe(true);
     expect(friend.shareAmountCents).toBe(2000);
-    expect(friend.confirmationStatus).toBe('pending');
+    // Ana has no paired device (no actorId): the debt is real immediately.
+    expect(friend.confirmationStatus).toBe('confirmed');
     expect(friend.isPaid).toBe(false);
     expect(friend.shareType).toBe('custom');
+  });
+
+  it('DEC-241: a CONNECTED app friend (actorId) stays pending until they answer the mirror', async () => {
+    // Ana joined from her own device (live link) → has an actorId → connected.
+    const pizza = createSplitItem({ description: 'Pizza', amountCents: 6000, category: 'restaurant' });
+    const beer = createSplitItem({ description: 'Cerveja', amountCents: 2000, category: 'bar' });
+    const base = createSplitSession({
+      tripId: 'trip-1', phaseId: 'phase-1', name: 'Jantar', currency: 'BRL', mode: 'itemized', ownerName: 'Eu',
+    });
+    const ownerSplitId = base.participants[0]!.id;
+    const added = addParticipant({ ...base, items: [pizza, beer] }, 'Ana', { actorId: 'actor-ana' });
+    let session = claimItemWhole(added.session, pizza.id, ownerSplitId);
+    session = claimItemWhole(session, beer.id, added.participant.id);
+
+    const result = await commitSplit(
+      mkInput({ session, ownerSplitId, friendSplitId: added.participant.id }),
+    );
+
+    const tx = (await db.transactions.where('sessionId').equals(result.sessionId).toArray())[0]!;
+    const shares = await db.participantShares.where('transactionId').equals(tx.id).toArray();
+    const friend = shares.find((s) => s.participantId === FRIEND)!;
+    expect(friend.confirmationStatus).toBe('pending');
   });
 
   it('persists the SplitRecord as committed, linked to the new session', async () => {

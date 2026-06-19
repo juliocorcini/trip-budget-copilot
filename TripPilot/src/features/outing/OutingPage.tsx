@@ -970,6 +970,10 @@ export function OutingPage() {
         participantIds: didSplit ? [owner.id, enrich.paidById] : [],
         shareType: 'equal',
         customAmountsCents: {},
+        // DEC-241: paired devices pending; everyone else is a real debt now.
+        connectedParticipantIds: participants
+          .filter((p) => p.linkedActorId !== null)
+          .map((p) => p.id),
       });
       const updated = await enrichTransactionShares({
         transaction: {
@@ -1026,6 +1030,10 @@ export function OutingPage() {
       participantIds: input.participantIds,
       shareType: input.shareType,
       customAmountsCents: input.customAmountsCents,
+      // DEC-241: paired devices pending; everyone else is a real debt now.
+      connectedParticipantIds: participants
+        .filter((p) => p.linkedActorId !== null)
+        .map((p) => p.id),
     });
     tx.personalCostCents = resolution.personalCostCents;
     if (!resolution.movesOwnerWallet) tx.walletId = null;

@@ -13,6 +13,7 @@ export {
   calculateOwnerPersonalCost,
   buildParticipantStatement,
   resolvePayerExpense,
+  resolveShareBirthStatus,
   isPaidByOwner,
   collectSplitNotifyTargets,
 } from './splitting';

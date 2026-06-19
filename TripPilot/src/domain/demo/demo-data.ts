@@ -289,7 +289,9 @@ export function generateDemoData(deviceId: string): DemoData {
           shareAmountCents: half,
           shareType: 'equal' as const,
           isPaid: false,
-          confirmationStatus: 'pending' as const,
+          // DEC-241: Ana is an offline friend (not connected) → the debt is real
+          // on the owner's ledger immediately, so her share is born confirmed.
+          confirmationStatus: 'confirmed' as const,
           notes: null,
         },
       ];

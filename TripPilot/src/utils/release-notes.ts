@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.5',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'Corrigimos o "está me devendo": quando você divide um gasto com alguém que não usa o app, a dívida aparece na hora — não precisa mais ninguém confirmar para você ver quem te deve.',
+        '"Pendente" agora é só para quem está conectado pelo próprio celular e ainda vai aceitar a parte — você não fica mais sendo cobrado para confirmar a dívida dos outros.',
+      ],
+      en: [
+        'Fixed "who owes me": when you split an expense with someone who isn\'t on the app, the debt shows up right away — nobody has to confirm it for you to see who owes you.',
+        '"Pending" is now only for people connected from their own phone who still have to accept their share — you\'re no longer nagged to confirm other people\'s debts.',
+      ],
+      es: [
+        'Arreglamos "quién me debe": cuando divides un gasto con alguien que no usa la app, la deuda aparece al instante — nadie tiene que confirmarla para que veas quién te debe.',
+        '"Pendiente" ahora es solo para quienes están conectados desde su propio teléfono y aún deben aceptar su parte — ya no se te pide confirmar la deuda de los demás.',
+      ],
+    },
+  },
+  {
     version: '0.99.4',
     date: '2026-06-19',
     items: {

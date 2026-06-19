@@ -159,6 +159,53 @@ describe('resolvePayerExpense — truth table', () => {
   });
 });
 
+/* DEC-241 (DL-1): the debt is real on the owner's ledger the instant they split. */
+describe('resolvePayerExpense — share birth status (DEC-241)', () => {
+  it('a NON-connected friend\'s share is born confirmed → the debt shows immediately', () => {
+    const result = resolvePayerExpense({
+      transactionId: 'tx-1',
+      amountCents: 1000,
+      ownerId: 'julio',
+      payerId: 'julio',
+      didSplit: true,
+      participantIds: ['julio', 'ana'],
+      shareType: 'equal',
+      customAmountsCents: {},
+      // No connected ids → Ana is an offline friend.
+    });
+    const ana = result.shares.find((s) => s.participantId === 'ana')!;
+    expect(ana.confirmationStatus).toBe('confirmed');
+
+    // It counts as a real debt without anyone having to confirm.
+    const tx = mkTx({ isShared: true, paidByParticipantId: 'julio', personalCostCents: 500 });
+    const debts = calculateDebts([tx], result.shares, participants, [], 'julio');
+    expect(debts.debts).toEqual([
+      expect.objectContaining({ debtorId: 'ana', creditorId: 'julio', amountCents: 500 }),
+    ]);
+  });
+
+  it('a CONNECTED friend\'s share stays pending → it rides the mirror confirm/reject', () => {
+    const result = resolvePayerExpense({
+      transactionId: 'tx-1',
+      amountCents: 1000,
+      ownerId: 'julio',
+      payerId: 'julio',
+      didSplit: true,
+      participantIds: ['julio', 'ana'],
+      shareType: 'equal',
+      customAmountsCents: {},
+      connectedParticipantIds: ['ana'],
+    });
+    const ana = result.shares.find((s) => s.participantId === 'ana')!;
+    expect(ana.confirmationStatus).toBe('pending');
+
+    // Pending shares are NOT debts yet (calculateDebts ignores them).
+    const tx = mkTx({ isShared: true, paidByParticipantId: 'julio', personalCostCents: 500 });
+    const debts = calculateDebts([tx], result.shares, participants, [], 'julio');
+    expect(debts.debts).toHaveLength(0);
+  });
+});
+
 describe('payer semantics in the session (field scenario)', () => {
   it('session at €20 + €15 paid by Ana not split → total goes to €35, not back to €20', () => {
     const own = mkTx({ id: 'tx-own', amountCents: 2000, personalCostCents: 2000, sessionId: 's1' });

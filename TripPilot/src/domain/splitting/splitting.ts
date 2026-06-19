@@ -1,5 +1,5 @@
 import type { Transaction } from '@/domain/types/transaction';
-import type { ParticipantShare } from '@/domain/types/participant-share';
+import type { ParticipantShare, ShareConfirmationStatus } from '@/domain/types/participant-share';
 import type { Participant } from '@/domain/types/participant';
 import type { Settlement } from '@/domain/types/settlement';
 import { splitEqually, sumCents } from '@/domain/money';
@@ -101,6 +101,26 @@ export function calculatePersonalCost(
   return ownerShare?.shareAmountCents ?? 0;
 }
 
+/**
+ * DEC-241 (DL-1): the birth confirmation status of a freshly OWNER-authored share.
+ *
+ * The debt is real from the OWNER's ledger the instant they register it
+ * (DEC-106: the owner is the source of truth), so a person who is NOT connected
+ * — no paired device, no live channel that could ever answer — owes immediately
+ * and their share is born `confirmed`. A share stays `pending` ONLY for a
+ * CONNECTED counterparty (paired device / active live link, DEC-071/106), whose
+ * accept/reject genuinely flows back through the mirror. The payer/owner is
+ * always `confirmed`.
+ */
+export function resolveShareBirthStatus(
+  participantId: string,
+  isPayerOrOwner: boolean,
+  connectedParticipantIds: ReadonlySet<string>,
+): ShareConfirmationStatus {
+  if (isPayerOrOwner) return 'confirmed';
+  return connectedParticipantIds.has(participantId) ? 'pending' : 'confirmed';
+}
+
 /* ── DEC-114 (R-04): universal payer semantics — the truth table ────────── */
 
 export interface PayerExpenseInput {
@@ -115,6 +135,13 @@ export interface PayerExpenseInput {
   participantIds: string[];
   shareType: 'equal' | 'custom';
   customAmountsCents: Record<string, number>;
+  /**
+   * DEC-241 (DL-1): ids whose share must stay `pending` because they are
+   * CONNECTED (paired device / live link) and can answer through the mirror.
+   * Everyone else's share is born `confirmed` (the debt is real immediately).
+   * Defaults to none → every non-payer share is born confirmed.
+   */
+  connectedParticipantIds?: readonly string[];
 }
 
 export interface PayerExpenseResolution {
@@ -163,13 +190,15 @@ export function resolvePayerExpense(input: PayerExpenseInput): PayerExpenseResol
     customAmountsCents: input.customAmountsCents,
   });
 
-  // DEC-114 + DEC-071: the OWNER registers the expense, so their own share is
-  // born confirmed — the debt to the payer exists immediately in /shared.
-  const shares = built.map((s) =>
-    s.participantId === input.ownerId && s.confirmationStatus === 'pending'
-      ? { ...s, confirmationStatus: 'confirmed' as const }
-      : s,
-  );
+  // DEC-114 + DEC-071 + DEC-241 (DL-1): the OWNER registers the expense, so the
+  // debt is real on THEIR ledger immediately. The owner's own share and every
+  // NON-connected third party are born confirmed; only a connected counterparty
+  // (paired device / live link) stays pending until they answer the mirror.
+  const connected = new Set(input.connectedParticipantIds ?? []);
+  const shares = built.map((s) => {
+    const isPayerOrOwner = s.participantId === input.payerId || s.participantId === input.ownerId;
+    return { ...s, confirmationStatus: resolveShareBirthStatus(s.participantId, isPayerOrOwner, connected) };
+  });
 
   return {
     shares,

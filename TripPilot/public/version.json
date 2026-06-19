@@ -1,8 +1,8 @@
 {
-  "version": "0.99.4",
+  "version": "0.99.5",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.4.zip",
-  "notes": "Histórico completo da divisão, por pessoa e por item ('esse item foi pra quem'), com o que ninguém pegou aparecendo como 'cai em você'. Na hora de registrar, 'O que é meu' em destaque. Notificação da divisão ao vivo que te leva de volta para a mesa com um toque. E um novo modo 'passar o celular pela mesa': cada um diz o nome e marca o que pegou."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.5.zip",
+  "notes": "Corrigimos o 'está me devendo': agora, quando você divide um gasto com alguém que não usa o app, a dívida aparece na hora — não precisa mais ninguém confirmar para você ver quem te deve. 'Pendente' passou a ser só para quem está conectado e ainda vai aceitar."
 }

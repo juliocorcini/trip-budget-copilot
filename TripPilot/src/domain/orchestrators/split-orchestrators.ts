@@ -7,6 +7,7 @@ import {
 } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { buildSplitCommitPlan } from '@/domain/split';
+import { resolveShareBirthStatus } from '@/domain/splitting';
 import { convertToBaseCents } from '@/domain/money';
 import { createSyncMetadata, softDelete } from '@/utils/entity-factory';
 import type { ParticipantShare } from '@/domain/types/participant-share';
@@ -68,8 +69,9 @@ function toBaseCents(cents: number, exchangeRate: number | null): number {
  * Persists a bill split (T1). Generalizes {@link commitReceipt}: one completed
  * outing Session ("gasto dividido") holds a single expense for the whole bill,
  * with the owner's personal cost (the budget bridge) and custom participant
- * shares for every real participant — owner born confirmed (DEC-071/114),
- * others pending until they confirm. The readable item-level division (who took
+ * shares for every real participant — owner + non-connected people born confirmed
+ * (DEC-071/114/241), only connected app users pending until they answer the
+ * mirror. The readable item-level division (who took
  * what, tax, participants) is kept in the SplitRecord (`splitMeta`, T16) under
  * the SplitSession id, so opening the expense shows the whole split without
  * re-deriving it from transactions. E8: amounts are computed in the bill
@@ -79,6 +81,17 @@ function toBaseCents(cents: number, exchangeRate: number | null): number {
 export async function commitSplit(input: CommitSplitInput): Promise<CommitSplitResult> {
   const realIdByParticipant = resolveRealIds(input);
   const plan = buildSplitCommitPlan(input.session, realIdByParticipant);
+
+  // DEC-241 (DL-1): a slice is born confirmed (a real debt on the owner's
+  // ledger) unless its participant is CONNECTED — an app user with an `actorId`
+  // whose accept/reject rides the live mirror (DEC-071/106). Ad-hoc people just
+  // promoted to a trip Participant have no `actorId`, so they owe immediately.
+  const connectedRealIds = new Set<string>(
+    input.session.participants
+      .filter((participant) => participant.kind !== 'owner' && participant.actorId !== null)
+      .map((participant) => realIdByParticipant[participant.id])
+      .filter((realId): realId is string => realId !== null),
+  );
 
   const session = endSession(
     createSession({
@@ -119,7 +132,7 @@ export async function commitSplit(input: CommitSplitInput): Promise<CommitSplitR
         shareAmountCents: share.amountCents,
         shareType: 'custom' as const,
         isPaid: share.isOwner,
-        confirmationStatus: share.isOwner ? ('confirmed' as const) : ('pending' as const),
+        confirmationStatus: resolveShareBirthStatus(share.participantId, share.isOwner, connectedRealIds),
         notes: null,
       }))
     : [];
