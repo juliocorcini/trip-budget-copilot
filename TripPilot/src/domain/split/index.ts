@@ -45,5 +45,7 @@ export type {
   SplitHistory,
   SplitHistoryEntry,
   SplitHistoryLine,
+  SplitHistoryItem,
+  SplitHistoryItemTaker,
   SplitClaimChannel,
 } from './history';

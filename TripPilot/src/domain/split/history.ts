@@ -1,5 +1,11 @@
-import { claimWeight, computeSplitTotals, distributeProportionally, itemClaimedWeight } from './split';
-import type { SplitMode, SplitParticipant, SplitSession } from './types';
+import {
+  claimWeight,
+  computeSplitTotals,
+  distributeEqually,
+  distributeProportionally,
+  itemClaimedWeight,
+} from './split';
+import type { SplitItem, SplitMode, SplitParticipant, SplitSession } from './types';
 
 /**
  * "A história do que aconteceu" — the full record of one division for the review
@@ -42,6 +48,32 @@ export interface SplitHistoryEntry {
   totalCents: number;
 }
 
+/** One person's stake in a single line (the "item → quem pegou" direction). */
+export interface SplitHistoryItemTaker {
+  participantId: string;
+  name: string;
+  channel: SplitClaimChannel;
+  isOwner: boolean;
+  /** This person's slice of the line, prorated exactly like the totals. */
+  shareCents: number;
+  /** Fraction of the whole line this person took (1 = solo, 0.5 = half). */
+  weight: number;
+}
+
+/** A line of the bill with everyone who ended up on it (item-first view). */
+export interface SplitHistoryItem {
+  itemId: string;
+  description: string;
+  qty: number;
+  /** The line total as printed on the bill. */
+  amountCents: number;
+  /** What was actually billed to people (min(claimed,1) × line for itemized). */
+  billedCents: number;
+  /** False only for an itemized line nobody claimed (an orphan/sobra). */
+  claimed: boolean;
+  takers: SplitHistoryItemTaker[];
+}
+
 export interface SplitHistory {
   name: string;
   currency: string;
@@ -49,10 +81,19 @@ export interface SplitHistory {
   createdAt: string;
   grandTotalCents: number;
   participantCount: number;
-  /** Owner first, then the largest slices on top. */
+  /** Owner first, then the largest slices on top (person-first view). */
   entries: SplitHistoryEntry[];
+  /** Every line with its takers, in bill order (item-first view). */
+  items: SplitHistoryItem[];
   /** Lines nobody claimed (the owner absorbs these at commit). */
   unclaimed: { description: string; amountCents: number }[];
+}
+
+/** Display identity of a participant (name override for the owner + channel). */
+interface ParticipantFace {
+  name: string;
+  channel: SplitClaimChannel;
+  isOwner: boolean;
 }
 
 /** Derive how a participant joined the table from their kind + device link. */
@@ -87,19 +128,91 @@ function itemizedLinesByParticipant(session: SplitSession): Map<string, SplitHis
   return byParticipant;
 }
 
+/** Resolve a participant's display face (owner name override + join channel). */
+function describeParticipant(p: SplitParticipant, ownerName: string): ParticipantFace {
+  const isOwner = p.kind === 'owner';
+  return {
+    name: isOwner && ownerName !== '' ? ownerName : p.name,
+    channel: splitClaimChannel(p),
+    isOwner,
+  };
+}
+
+function taker(
+  participantId: string,
+  faceById: Map<string, ParticipantFace>,
+  shareCents: number,
+  weight: number,
+): SplitHistoryItemTaker {
+  const face = faceById.get(participantId);
+  return {
+    participantId,
+    name: face?.name ?? '',
+    channel: face?.channel ?? 'manual',
+    isOwner: face?.isOwner ?? false,
+    shareCents,
+    weight,
+  };
+}
+
+/** Takers of one line for itemized mode — real claims prorated by weight. */
+function itemizedTakers(item: SplitItem, faceById: Map<string, ParticipantFace>): SplitHistoryItemTaker[] {
+  const weights = item.claims.map((claim) => claimWeight(item, claim));
+  const billed = Math.round(Math.min(itemClaimedWeight(item), 1) * item.amountCents);
+  const amounts = distributeProportionally(billed, weights);
+  return item.claims.map((claim, i) => taker(claim.participantId, faceById, amounts[i] ?? 0, weights[i] ?? 0));
+}
+
+/**
+ * The item-first view: every line with everyone who ended up on it. Itemized
+ * uses the real claims; equal mode shows the whole table sharing each line; mine
+ * attributes every line to the owner — so "que item foi para quem" is always
+ * answerable, in every mode, reconciling to the same per-cent proration.
+ */
+function buildHistoryItems(session: SplitSession, faceById: Map<string, ParticipantFace>): SplitHistoryItem[] {
+  const owner = session.participants.find((p) => p.kind === 'owner') ?? session.participants[0] ?? null;
+  const headCount = session.participants.length;
+
+  return session.items.map((item) => {
+    if (session.mode === 'equal') {
+      const amounts = distributeEqually(item.amountCents, headCount);
+      const takers = session.participants.map((p, i) =>
+        taker(p.id, faceById, amounts[i] ?? 0, headCount > 0 ? 1 / headCount : 0),
+      );
+      return { itemId: item.id, description: item.description, qty: item.qty, amountCents: item.amountCents, billedCents: item.amountCents, claimed: true, takers };
+    }
+    if (session.mode === 'mine') {
+      const takers = owner ? [taker(owner.id, faceById, item.amountCents, 1)] : [];
+      return { itemId: item.id, description: item.description, qty: item.qty, amountCents: item.amountCents, billedCents: item.amountCents, claimed: true, takers };
+    }
+    const billedCents = Math.round(Math.min(itemClaimedWeight(item), 1) * item.amountCents);
+    return {
+      itemId: item.id,
+      description: item.description,
+      qty: item.qty,
+      amountCents: item.amountCents,
+      billedCents,
+      claimed: item.claims.length > 0,
+      takers: itemizedTakers(item, faceById),
+    };
+  });
+}
+
 export function buildSplitHistory(session: SplitSession, options?: { ownerName?: string }): SplitHistory {
   const totals = computeSplitTotals(session);
   const ownerName = options?.ownerName?.trim() ?? '';
   const linesByParticipant = session.mode === 'itemized' ? itemizedLinesByParticipant(session) : null;
+  const faceById = new Map<string, ParticipantFace>(
+    session.participants.map((p) => [p.id, describeParticipant(p, ownerName)]),
+  );
 
   const entries: SplitHistoryEntry[] = totals.totals.map((pt) => {
-    const participant = session.participants.find((x) => x.id === pt.participantId)!;
-    const isOwner = participant.kind === 'owner';
+    const face = faceById.get(pt.participantId)!;
     return {
       participantId: pt.participantId,
-      name: isOwner && ownerName !== '' ? ownerName : participant.name,
-      channel: splitClaimChannel(participant),
-      isOwner,
+      name: face.name,
+      channel: face.channel,
+      isOwner: face.isOwner,
       lines: linesByParticipant?.get(pt.participantId) ?? [],
       itemsCents: pt.itemsCents,
       serviceCents: pt.serviceCents,
@@ -122,6 +235,7 @@ export function buildSplitHistory(session: SplitSession, options?: { ownerName?:
     grandTotalCents: totals.grandTotalCents,
     participantCount: session.participants.length,
     entries,
+    items: buildHistoryItems(session, faceById),
     unclaimed: totals.unclaimed.map((i) => ({ description: i.description, amountCents: i.amountCents })),
   };
 }

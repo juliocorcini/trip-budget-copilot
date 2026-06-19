@@ -6,7 +6,9 @@ import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
 import { formatMoney, fromCents, toCents, formatAnchorHint, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
-import { transactionRepository, participantShareRepository } from '@/data/repositories';
+import { transactionRepository, participantShareRepository, splitRepository } from '@/data/repositories';
+import { SplitHistorySheet } from '@/features/split/SplitHistorySheet';
+import type { SplitSession } from '@/domain/split';
 import {
   softDeleteTransactionsBatch,
   restoreTransactionsBatch,
@@ -53,6 +55,10 @@ export function ExpenseDetailPage() {
   const [tx, setTx] = useState<Transaction | null>(null);
   const [txLoading, setTxLoading] = useState(true);
   const [shares, setShares] = useState<ParticipantShare[]>([]);
+  // T1/T16: if this expense came from a committed bill split, the full readable
+  // division is one row away (SplitRecord.splitMeta) — "ver a conta toda".
+  const [splitSession, setSplitSession] = useState<SplitSession | null>(null);
+  const [splitHistoryOpen, setSplitHistoryOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -76,9 +82,14 @@ export function ExpenseDetailPage() {
     (async () => {
       const found = await transactionRepository.getById(id);
       const txShares = found ? await participantShareRepository.getByTransactionId(found.id) : [];
+      // The division behind a committed split is keyed by the expense's session.
+      const splitRecord = found?.sessionId
+        ? await splitRepository.getBySessionId(found.sessionId)
+        : undefined;
       if (cancelled) return;
       setTx(found ?? null);
       setShares(txShares);
+      setSplitSession(splitRecord?.splitMeta ?? null);
       setTxLoading(false);
     })();
     return () => {
@@ -342,6 +353,25 @@ export function ExpenseDetailPage() {
             </div>
           )}
 
+          {/* T1: came from a bill split → open the full who-got-what record. */}
+          {splitSession && (
+            <button
+              onClick={() => setSplitHistoryOpen(true)}
+              className="w-full bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 btn-press text-left"
+            >
+              <div className="w-9 h-9 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                <Icon name="splitscreen" size={18} className="text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-on-surface-faint">{t('splitHistory.title')}</p>
+                <p className="text-sm font-semibold text-on-surface truncate">
+                  {t('splitHistory.see_committed')}
+                </p>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          )}
+
           {tx.notes && (
             <div className="bg-surface-container rounded-xl p-4">
               <p className="text-xs text-on-surface-faint mb-1">{t('expenses.description')}</p>
@@ -582,6 +612,14 @@ export function ExpenseDetailPage() {
           )}
         </div>
       </BottomSheet>
+
+      {/* T1: the full division behind this committed expense. */}
+      <SplitHistorySheet
+        open={splitHistoryOpen}
+        onClose={() => setSplitHistoryOpen(false)}
+        session={splitSession}
+        ownerName={owner?.name}
+      />
 
       {/* GAP-025: design-system confirmation instead of window.confirm */}
       <BottomSheet

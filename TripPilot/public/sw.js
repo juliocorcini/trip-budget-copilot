@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trippilot-v51';
+const CACHE_NAME = 'trippilot-v52';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -139,6 +139,9 @@ const OUTING_TAG = 'trippilot-active-outing';
 const FOLLOWUP_TAG = 'trippilot-outing-followup';
 // M8 (E5): answerable daily check-in notification.
 const CHECKIN_TAG = 'trippilot-daily-checkin';
+// Persistent "live bill split is happening" notification — body click deep-links
+// into the table (reuses the navigate bridge via focusOrOpen).
+const SPLIT_TAG = 'trippilot-active-split';
 const APP_SETTINGS_STORE = 'appSettings';
 const APP_SETTINGS_ID = 'app-settings';
 const CHECKIN_INTENTS = ['calm', 'outing', 'night'];
@@ -510,6 +513,17 @@ async function handleCheckInAction(event) {
   }
 }
 
+// The live-split notification is informational: a tap just brings the table up.
+async function handleSplitAction(event) {
+  try {
+    const data = event.notification.data || {};
+    await focusOrOpen(typeof data.url === 'string' ? data.url : '/split/scan');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[SW] split action failed:', err);
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   if (
     event.notification.tag === OUTING_TAG ||
@@ -518,5 +532,7 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(handleOutingAction(event));
   } else if (event.notification.tag === CHECKIN_TAG) {
     event.waitUntil(handleCheckInAction(event));
+  } else if (event.notification.tag === SPLIT_TAG) {
+    event.waitUntil(handleSplitAction(event));
   }
 });

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.3",
+  "version": "0.99.4",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.3.zip",
-  "notes": "A divisão agora te acompanha como uma saída: card na tela inicial e bolha flutuante em todas as telas para voltar nela. Tocar em 'Dividir conta' com uma divisão aberta pergunta se você volta ou cria uma nova. 'Encerrar' deixou claro: registrar como gasto ou só parar de compartilhar. E dá para ver a divisão completa — quem ficou com o quê e como cada um entrou."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.4.zip",
+  "notes": "Histórico completo da divisão, por pessoa e por item ('esse item foi pra quem'), com o que ninguém pegou aparecendo como 'cai em você'. Na hora de registrar, 'O que é meu' em destaque. Notificação da divisão ao vivo que te leva de volta para a mesa com um toque. E um novo modo 'passar o celular pela mesa': cada um diz o nome e marca o que pegou."
 }

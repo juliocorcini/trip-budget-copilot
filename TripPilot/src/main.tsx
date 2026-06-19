@@ -13,6 +13,7 @@ import {
   registerCheckInNotificationBridge,
   maybeShowCheckInPrompt,
 } from './utils/check-in-notification';
+import { registerSplitNotificationBridge } from './utils/split-notification';
 import { appSettingsRepository } from './data/repositories';
 import { recordCrash, describeError } from './utils/crash-log';
 import { initNativeShell } from './utils/native';
@@ -51,6 +52,10 @@ syncActiveOutingNotification();
 // reminder fires at most once a day (true scheduling needs push — local-first).
 registerCheckInNotificationBridge();
 maybeShowCheckInPrompt();
+
+// Live bill split: keep the persistent "a divisão está rolando" notification in
+// step with the active table from any screen (shows on boot if one is live).
+registerSplitNotificationBridge();
 
 // DEC-111 (R5-03): ask for durable storage as early as possible — without it
 // the OS may evict IndexedDB and the user genuinely loses everything.

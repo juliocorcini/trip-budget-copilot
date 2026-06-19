@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.4',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'Histórico completo da divisão, dos dois jeitos: "Por pessoa" (o que cada um pegou) e "Por item" (esse item foi pra quem). Itens que ninguém pegou aparecem como "cai em você", então você vê a conta toda.',
+        'Na hora de registrar, "O que é meu" agora aparece em destaque — o que você paga é a primeira coisa que você vê.',
+        'Notificação da divisão ao vivo: enquanto a mesa está rolando, uma notificação mostra o total e quem entrou, e um toque te leva direto de volta para a mesa.',
+        'Novo modo "passar o celular pela mesa": entregue o aparelho, cada um diz o nome e marca o que pegou, toca em "próximo" e passa adiante. Dá para juntar com quem já tem o app.',
+      ],
+      en: [
+        'Full split history, both ways: "By person" (what each one took) and "By item" (which item went to whom). Items nobody took show as "falls to you", so you always see the whole bill.',
+        'At register time, "What\'s mine" is now front and center — what you pay is the first thing you see.',
+        'Live-split notification: while the table is going, a notification shows the total and who joined, and a tap takes you straight back to the table.',
+        'New "pass the phone around" mode: hand over the device, each person says their name and marks what they had, taps "next" and passes it on. You can merge with people who already have the app.',
+      ],
+      es: [
+        'Historial completo de la división, de las dos formas: "Por persona" (lo que tomó cada uno) y "Por ítem" (ese ítem fue para quién). Los ítems que nadie tomó aparecen como "cae sobre ti", así ves la cuenta completa.',
+        'Al registrar, "Lo que es mío" ahora aparece destacado — lo que pagas es lo primero que ves.',
+        'Notificación de la mesa en vivo: mientras está en curso, una notificación muestra el total y quién entró, y un toque te lleva directo de vuelta a la mesa.',
+        'Nuevo modo "pasar el teléfono por la mesa": entrega el dispositivo, cada uno dice su nombre y marca lo que pidió, toca "siguiente" y lo pasa. Puedes unir con quienes ya tienen la app.',
+      ],
+    },
+  },
+  {
     version: '0.99.3',
     date: '2026-06-19',
     items: {

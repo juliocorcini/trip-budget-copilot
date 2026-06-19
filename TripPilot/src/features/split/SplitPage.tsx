@@ -14,6 +14,7 @@ import {
   splitItemBetween,
   addParticipant,
   promoteAdhocToParticipant,
+  createSplitParticipant,
   createSplitItem,
   createSplitSession,
   reduceGuestClaims,
@@ -37,8 +38,10 @@ import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { SplitHistorySheet } from './SplitHistorySheet';
+import { PassThePhoneSheet } from './PassThePhoneSheet';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
 import { shareOrCopyLink } from '@/utils/native/link-share';
+import { requestSplitNotificationPermission } from '@/utils/split-notification';
 import { showToast } from '@/components/Toast';
 import { useSplitBudgetReading } from './useSplitBudgetReading';
 
@@ -94,6 +97,8 @@ export function SplitPage() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   // "A história do que aconteceu" — the full who-got-what breakdown.
   const [historyOpen, setHistoryOpen] = useState(false);
+  // "Passar o celular pela mesa" — the guided round-the-table claim flow.
+  const [passPhoneOpen, setPassPhoneOpen] = useState(false);
 
   const cloudEnabled = settings?.cloudReceiptOcrEnabled ?? false;
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
@@ -272,18 +277,25 @@ export function SplitPage() {
     setEditingItemId(item.id);
   };
 
-  // Pass-the-phone (§10): tapping an item toggles the ACTIVE person's claim. A
-  // line's claimers share it equally, so 2 claimers = half each, N = 1/N — the
-  // "meio-item / qty→N-donos em 1 toque" behaviour comes for free.
+  // Pass-the-phone (§10): tapping an item toggles a person's claim. A line's
+  // claimers share it equally, so 2 claimers = half each, N = 1/N — the
+  // "meio-item / qty→N-donos em 1 toque" behaviour comes for free. The functional
+  // update form makes it safe to call rapidly (round-the-table) without stale state.
+  const toggleClaimFor = (itemId: string, participantId: string) => {
+    setSession((s) => {
+      if (!s) return s;
+      const item = s.items.find((i) => i.id === itemId);
+      if (!item) return s;
+      const has = item.claims.some((c) => c.participantId === participantId);
+      const nextIds = has
+        ? item.claims.filter((c) => c.participantId !== participantId).map((c) => c.participantId)
+        : [...item.claims.map((c) => c.participantId), participantId];
+      return splitItemBetween(s, itemId, nextIds);
+    });
+  };
   const toggleClaim = (itemId: string) => {
-    if (!session || activePersonId === null) return;
-    const item = session.items.find((i) => i.id === itemId);
-    if (!item) return;
-    const has = item.claims.some((c) => c.participantId === activePersonId);
-    const nextIds = has
-      ? item.claims.filter((c) => c.participantId !== activePersonId).map((c) => c.participantId)
-      : [...item.claims.map((c) => c.participantId), activePersonId];
-    setSession((s) => (s ? splitItemBetween(s, itemId, nextIds) : s));
+    if (activePersonId === null) return;
+    toggleClaimFor(itemId, activePersonId);
   };
 
   const toggleCompanion = (realId: string, name: string) => {
@@ -305,6 +317,26 @@ export function SplitPage() {
     const clean = name.trim();
     if (clean === '') return;
     setSession((s) => (s ? addParticipant(s, clean).session : s));
+  };
+
+  // Pass-the-phone needs the new participant's id immediately to attach claims, so
+  // it mints the participant deterministically and appends via a functional update
+  // (robust to the rapid add→claim→add cadence of passing the device around).
+  const addAdhocReturningId = (name: string): string | null => {
+    const clean = name.trim();
+    if (clean === '') return null;
+    const participant = createSplitParticipant(clean, 'adhoc');
+    setSession((s) => (s ? { ...s, participants: [...s.participants, participant] } : s));
+    return participant.id;
+  };
+
+  const pickCompanionReturningId = (realId: string, name: string): string | null => {
+    if (!session) return null;
+    const existing = session.participants.find((p) => p.linkedParticipantId === realId);
+    if (existing) return existing.id;
+    const participant = createSplitParticipant(name, 'linked', { linkedParticipantId: realId });
+    setSession((s) => (s ? { ...s, participants: [...s.participants, participant] } : s));
+    return participant.id;
   };
 
   // T5 (G3): turn an ad-hoc name into a real trip Participant. Creates the roster
@@ -646,6 +678,26 @@ export function SplitPage() {
           {/* Itemized board (pass-the-phone claim). */}
           {session.mode === 'itemized' && (
             <div className="flex flex-col gap-3">
+              {/* Guided round-the-table flow: hand the phone around, each person
+                  names themselves and marks their items. */}
+              <button
+                onClick={() => setPassPhoneOpen(true)}
+                className="w-full rounded-2xl p-3.5 flex items-center gap-3 btn-press text-left"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: 'color-mix(in srgb, var(--primary) 22%, transparent)' }}
+                >
+                  <Icon name="swap_horiz" size={18} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-on-surface">{t('passPhone.cta_title')}</p>
+                  <p className="text-[11px] text-on-surface-faint">{t('passPhone.cta_subtitle')}</p>
+                </div>
+                <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+              </button>
+
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-faint">
                   {t('split.active_person')}
@@ -757,9 +809,31 @@ export function SplitPage() {
 
           {/* Budget bridge + commit. */}
           <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm font-semibold text-on-surface">{t('split.my_part')}</span>
-              <span className="text-lg font-extrabold text-on-surface">{formatMoney(ownerBillCents, currency)}</span>
+            {/* "o que eu peguei pra mim" as the hero — the number that matters to
+                the owner at commit time — with the whole bill as the quiet anchor. */}
+            <div
+              className="rounded-xl px-3.5 py-3 flex items-center justify-between gap-3"
+              style={{ background: 'var(--surface-high)' }}
+            >
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-faint">
+                  {t('split.my_part')}
+                </p>
+                <p className="text-[26px] leading-none font-extrabold text-on-surface mt-1 tabular">
+                  {formatMoney(ownerBillCents, currency)}
+                </p>
+                <p className="text-[11px] text-on-surface-faint mt-1">
+                  {t('split.of_bill_total', {
+                    total: formatMoney(plan?.grandTotalCents ?? totals.grandTotalCents, currency),
+                  })}
+                </p>
+              </div>
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: 'var(--primary)' }}
+              >
+                <Icon name="person" size={20} className="text-on-surface" filled />
+              </div>
             </div>
             {reading && <BudgetReading reading={reading} currency={baseCurrency} t={t} />}
             <button
@@ -819,6 +893,18 @@ export function SplitPage() {
         ownerName={ownerName}
       />
 
+      <PassThePhoneSheet
+        open={passPhoneOpen}
+        onClose={() => setPassPhoneOpen(false)}
+        session={session}
+        companions={companions}
+        currency={currency}
+        ownerName={ownerName}
+        onAddPerson={addAdhocReturningId}
+        onPickCompanion={pickCompanionReturningId}
+        onToggleItem={toggleClaimFor}
+      />
+
       {session && session.serviceCharge.mode !== 'none' && phase === 'divide' && (
         <TaxModeFloating mode={session.serviceCharge.mode} onChange={setTaxMode} />
       )}
@@ -854,10 +940,18 @@ function LiveTableCard({
   // expense, or just stop sharing and keep editing offline.
   const [endOpen, setEndOpen] = useState(false);
 
+  // Going live is the "saída começou" moment — a real user gesture, so it's the
+  // right time to ask (once) for notification permission so the persistent
+  // "a divisão está rolando" alert can appear while the app is in the background.
+  const startLive = () => {
+    live.start();
+    void requestSplitNotificationPermission();
+  };
+
   if (live.status === 'idle') {
     return (
       <button
-        onClick={live.start}
+        onClick={startLive}
         className="rounded-2xl p-3.5 flex items-center gap-3 btn-press text-left"
         style={{ background: 'var(--surface-container)' }}
       >
@@ -885,7 +979,7 @@ function LiveTableCard({
   if (live.status === 'error') {
     return (
       <button
-        onClick={live.start}
+        onClick={startLive}
         className="rounded-2xl p-3.5 flex items-center gap-3 btn-press text-left"
         style={{ background: 'var(--surface-container)' }}
       >

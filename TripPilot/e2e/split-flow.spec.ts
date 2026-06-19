@@ -45,9 +45,10 @@ test.describe('Bill split — Dividir conta (G1)', () => {
     await editor.getByRole('button', { name: 'Pronto' }).click();
     await expect(editor).toBeHidden();
 
-    // Divide phase: the item, the owner's slice, and the commit CTA are present.
+    // Divide phase: the item, the owner's slice (the "O que é meu" hero), and the
+    // commit CTA are present.
     await expect(page.getByText('Pizza')).toBeVisible();
-    await expect(page.getByText('Minha parte')).toBeVisible();
+    await expect(page.getByText('O que é meu')).toBeVisible();
 
     // The mode fork is interactive (equal → back to itemized).
     await page.getByRole('button', { name: 'Igual', exact: true }).click();

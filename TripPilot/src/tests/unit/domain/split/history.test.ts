@@ -106,6 +106,82 @@ describe('buildSplitHistory — itemized', () => {
   });
 });
 
+describe('buildSplitHistory — item-first view (esse item foi pra quem)', () => {
+  it('attributes every line to its takers and reconciles each line to the cent', () => {
+    let session = makeSession();
+    const added = addParticipant(session, 'Bia', { kind: 'adhoc', actorId: 'dev-bia' });
+    session = added.session;
+    const owner = part(session, 'Eu');
+    const bia = part(session, 'Bia');
+    const [pizza, suco, dessert] = session.items;
+    session = claimItemWhole(session, pizza!.id, owner.id);
+    session = claimItemWhole(session, suco!.id, bia.id);
+    session = splitItemBetween(session, dessert!.id, [owner.id, bia.id]);
+
+    const history = buildSplitHistory(session, { ownerName: 'Eu' });
+    expect(history.items).toHaveLength(3);
+
+    const pizzaItem = history.items.find((i) => i.description === 'Pizza')!;
+    expect(pizzaItem.claimed).toBe(true);
+    expect(pizzaItem.takers).toHaveLength(1);
+    expect(pizzaItem.takers[0]!.isOwner).toBe(true);
+    expect(pizzaItem.takers[0]!.shareCents).toBe(2000);
+    expect(pizzaItem.takers[0]!.weight).toBeCloseTo(1);
+
+    const sucoItem = history.items.find((i) => i.description === 'Suco')!;
+    expect(sucoItem.takers[0]!.channel).toBe('guest_link');
+    expect(sucoItem.takers[0]!.shareCents).toBe(1000);
+
+    const dessertItem = history.items.find((i) => i.description === 'Sobremesa')!;
+    expect(dessertItem.takers).toHaveLength(2);
+    expect(dessertItem.takers.every((tk) => tk.shareCents === 300)).toBe(true);
+    expect(dessertItem.takers.every((tk) => tk.weight === 0.5)).toBe(true);
+
+    // Every line's taker shares sum to what was billed for that line.
+    for (const item of history.items) {
+      const sum = item.takers.reduce((s, tk) => s + tk.shareCents, 0);
+      expect(sum).toBe(item.billedCents);
+    }
+    // And the billed lines reconcile to the grand total.
+    expect(history.items.reduce((s, i) => s + i.billedCents, 0)).toBe(3600);
+  });
+
+  it('flags an orphan line as not-claimed with no takers', () => {
+    let session = makeSession();
+    const owner = part(session, 'Eu');
+    const [pizza] = session.items;
+    session = claimItemWhole(session, pizza!.id, owner.id);
+
+    const history = buildSplitHistory(session, { ownerName: 'Eu' });
+    const suco = history.items.find((i) => i.description === 'Suco')!;
+    expect(suco.claimed).toBe(false);
+    expect(suco.takers).toHaveLength(0);
+    expect(suco.billedCents).toBe(0);
+  });
+
+  it('equal mode puts the whole table on every line', () => {
+    let session = makeSession();
+    const added = addParticipant(session, 'Léo', { kind: 'linked', actorId: null });
+    session = { ...added.session, mode: 'equal' };
+
+    const history = buildSplitHistory(session, { ownerName: 'Eu' });
+    const pizza = history.items.find((i) => i.description === 'Pizza')!;
+    expect(pizza.takers).toHaveLength(2);
+    expect(pizza.takers.reduce((s, tk) => s + tk.shareCents, 0)).toBe(2000);
+    expect(pizza.takers.every((tk) => tk.shareCents === 1000)).toBe(true);
+  });
+
+  it('mine mode attributes every line to the owner', () => {
+    const session = { ...makeSession(), mode: 'mine' as const };
+    const history = buildSplitHistory(session, { ownerName: 'Eu' });
+    for (const item of history.items) {
+      expect(item.takers).toHaveLength(1);
+      expect(item.takers[0]!.isOwner).toBe(true);
+      expect(item.takers[0]!.shareCents).toBe(item.amountCents);
+    }
+  });
+});
+
 describe('buildSplitHistory — service charge + equal mode', () => {
   it('includes each person service share and keeps the grand total whole', () => {
     let session = makeSession();
