@@ -8,6 +8,7 @@
     "voice": "Hablar",
     "thinking": "Entendiendo…",
     "transcribing": "Transcribiendo…",
+    "voice_unclear": "No capté el audio. Intenta de nuevo, más cerca del micrófono.",
     "saving": "Guardando…",
     "privacy_hint": "Solo nombres y etiquetas van a la IA — nunca importes, saldos o historial. Los cálculos ocurren en tu dispositivo.",
     "disabled_notice": "La entrada con IA está desactivada. Actívala en ajustes o usa la entrada manual.",

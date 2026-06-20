@@ -1,8 +1,8 @@
 {
-  "version": "0.99.17",
+  "version": "0.99.18",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.17.zip",
-  "notes": "Divisão pela IA corrigida: quando alguém paga e vocês dividem, o preview mostra a SUA parte (ex.: € 4 numa conta de € 12 ÷ 3), não o total. Acerto de contas mais legível: itens de uma mesma nota viram UM evento que você abre pra ver os itens, com \"ver todos\" pra listas longas. Amigo sincero virou carrossel — passa por vários recados, não trava em um só. O microfone (\"Falar\") foi declarado para o Android pedir permissão — isso precisa do APK novo, a atualização automática sozinha não habilita o mic."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.18.zip",
+  "notes": "Transcrição de voz consertada: a gravação no Android virava um áudio sem fim definido e o Whisper só captava um pedaço (o famoso \"E aí\"). Agora gravamos em WAV 16 kHz limpo, então o que você fala é transcrito de verdade. Também avisa quando não captou áudio. Antes: divisão pela IA mostra a SUA parte, acerto de contas agrupa itens de nota em um evento, e o amigo sincero virou carrossel."
 }

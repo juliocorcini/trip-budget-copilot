@@ -24,9 +24,17 @@ import { requestAssistantIntent } from '@/utils/ai-assistant';
 import { transcribeAudio } from '@/utils/ai-transcribe';
 import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
+import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
 import { isNativeApp } from '@/utils/native/platform';
 import { showToast } from '@/components/Toast';
 import type { Participant } from '@/domain/types/participant';
+
+/**
+ * Below this the WAV holds < ~0.4 s of 16 kHz mono audio — an accidental tap, not
+ * speech. We bail instead of sending it (silence makes Whisper hallucinate a
+ * stray filler like "E aí" — device-test 2026-06-20).
+ */
+const MIN_SPEECH_WAV_BYTES = 12_000;
 
 /**
  * DEC-246 (AI Quick Entry): the sheet's state machine. It owns the full
@@ -361,7 +369,70 @@ export function useAssistant(): UseAssistant {
     }
   }, [navigate, t, draftOp, openFullEditor]);
 
+  // Shared tail for both audio paths: transcribe the clip and run it like typed
+  // input. Silence/too-short clips bail quietly (no "E aí" hallucination spam).
+  const transcribeAndSubmit = useCallback(
+    async (blob: Blob) => {
+      // WAV size maps directly to duration; a too-small clip is an accidental tap.
+      // (The compressed webm fallback skips this — Whisper's empty result handles it.)
+      if (blob.type.includes('wav') && blob.size < MIN_SPEECH_WAV_BYTES) {
+        setPhase('input');
+        showToast(t('assistant.voice_unclear'), 'info');
+        return;
+      }
+      setPhase('transcribing');
+      const outcome = await transcribeAudio(blob, twoLetter(i18n.language));
+      if (!outcome.ok) {
+        setErrorKey(`error.${outcome.error}`);
+        setPhase('error');
+        return;
+      }
+      const transcript = outcome.text.trim();
+      if (transcript === '') {
+        setPhase('input');
+        showToast(t('assistant.voice_unclear'), 'info');
+        return;
+      }
+      setText(transcript);
+      void submit(transcript);
+    },
+    [i18n.language, submit, t],
+  );
+
   const startWhisperCapture = useCallback(async () => {
+    // Primary: capture clean 16 kHz mono WAV via Web Audio. This is what makes
+    // voice reliable on the Android WebView, where MediaRecorder's webm/opus
+    // lacks duration cues and Whisper decoded only a fragment ("E aí").
+    if (isPcmRecordingSupported()) {
+      let recording: PcmRecording;
+      try {
+        recording = await startPcmRecording();
+      } catch {
+        setErrorKey('error.mic_denied');
+        setPhase('error');
+        return;
+      }
+      setListening(true);
+      stopVoiceRef.current = () => {
+        stopVoiceRef.current = null;
+        void (async () => {
+          let blob: Blob;
+          try {
+            blob = await recording.stop();
+          } catch {
+            setListening(false);
+            setErrorKey('error.failed');
+            setPhase('error');
+            return;
+          }
+          setListening(false);
+          await transcribeAndSubmit(blob);
+        })();
+      };
+      return;
+    }
+
+    // Fallback: MediaRecorder (older/web engines without ScriptProcessor).
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -374,20 +445,7 @@ export function useAssistant(): UseAssistant {
         setListening(false);
         stopVoiceRef.current = null;
         const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-        setPhase('transcribing');
-        const outcome = await transcribeAudio(blob, twoLetter(i18n.language));
-        if (!outcome.ok) {
-          setErrorKey(`error.${outcome.error}`);
-          setPhase('error');
-          return;
-        }
-        const transcript = outcome.text.trim();
-        if (transcript === '') {
-          setPhase('input');
-          return;
-        }
-        setText(transcript);
-        void submit(transcript);
+        await transcribeAndSubmit(blob);
       };
       recorder.start();
       setListening(true);
@@ -396,7 +454,7 @@ export function useAssistant(): UseAssistant {
       setErrorKey('error.mic_denied');
       setPhase('error');
     }
-  }, [i18n.language, submit]);
+  }, [transcribeAndSubmit]);
 
   const toggleVoice = useCallback(async () => {
     if (listening) {

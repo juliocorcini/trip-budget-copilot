@@ -8,6 +8,7 @@
     "voice": "Speak",
     "thinking": "Understanding…",
     "transcribing": "Transcribing…",
+    "voice_unclear": "Didn't catch that. Try again, closer to the mic.",
     "saving": "Saving…",
     "privacy_hint": "Only names and labels go to the AI — never amounts, balances or history. The math runs on your device.",
     "disabled_notice": "AI entry is off. Turn it on in settings or use manual entry.",

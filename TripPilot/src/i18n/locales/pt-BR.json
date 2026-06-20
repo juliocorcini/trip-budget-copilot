@@ -8,6 +8,7 @@
     "voice": "Falar",
     "thinking": "Entendendo…",
     "transcribing": "Transcrevendo…",
+    "voice_unclear": "Não captei o áudio. Tenta falar de novo, mais perto do microfone.",
     "saving": "Salvando…",
     "privacy_hint": "Só nomes e rótulos vão para a IA — nunca valores, saldos ou histórico. Os cálculos acontecem no seu aparelho.",
     "disabled_notice": "A entrada por IA está desligada. Ative nas configurações ou use a entrada manual.",

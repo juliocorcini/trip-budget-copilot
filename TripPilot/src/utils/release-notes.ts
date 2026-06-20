@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.18',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Transcrição de voz consertada no Android: a gravação antiga virava um áudio sem duração definida e o reconhecimento só pegava um pedaço (aquele “E aí” do nada). Agora gravamos em WAV 16 kHz limpo — o que você fala é transcrito de verdade.',
+        'Quando não dá pra captar áudio (toque sem querer, microfone mudo), o app avisa “não captei, tenta de novo” em vez de mandar um texto vazio pra IA.',
+      ],
+      en: [
+        'Voice transcription fixed on Android: the old recording produced an audio clip with no defined duration and only a fragment got transcribed (the random “E aí”). We now capture clean 16 kHz WAV — what you say is actually transcribed.',
+        'When no audio is captured (accidental tap, muted mic), the app says “didn’t catch that, try again” instead of sending empty text to the AI.',
+      ],
+      es: [
+        'Transcripción de voz corregida en Android: la grabación anterior generaba un audio sin duración definida y solo se transcribía un fragmento (ese “E aí” de la nada). Ahora capturamos WAV 16 kHz limpio — lo que dices se transcribe de verdad.',
+        'Cuando no se capta audio (toque accidental, micrófono en silencio), la app avisa “no capté, intenta de nuevo” en vez de mandar texto vacío a la IA.',
+      ],
+    },
+  },
+  {
     version: '0.99.17',
     date: '2026-06-20',
     items: {
