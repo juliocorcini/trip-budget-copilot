@@ -127,7 +127,7 @@ export function AvailableCalendar({ map, currency, selectedDayIso, onSelectDay }
                           intensity >= 1 ? 'font-bold text-on-surface' : 'font-medium text-on-surface-faint'
                         }`}
                       >
-                        {formatMoneyCompact(day.dayTotalCents, locale)}
+                        {formatMoneyCompact(day.dayTotalCents, locale, currency)}
                       </span>
                     )}
                   </span>

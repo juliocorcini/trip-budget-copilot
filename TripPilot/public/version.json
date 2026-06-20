@@ -1,8 +1,8 @@
 {
-  "version": "0.99.7",
+  "version": "0.99.8",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.7.zip",
-  "notes": "Agora dá para cobrar na hora: logo depois de dividir um gasto, você pode 'Lembrar' cada pessoa ali mesmo, com a mensagem pronta e o valor certo de cada um — já formatada para o Pix. O valor de cada dívida também ficou mais fácil de ler no Acerto de contas."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.8.zip",
+  "notes": "Correções de visual: as barras de rolagem voltaram a sumir em todas as telas, os valores nos gastos do dia e no calendário agora mostram o símbolo da moeda, e ao selecionar vários gastos todas as ações ficam visíveis lado a lado."
 }

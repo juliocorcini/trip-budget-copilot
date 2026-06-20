@@ -122,18 +122,26 @@
   }
 }
 
-/* FIELD R2 item 2 (F2): hide every native scrollbar app-wide — the content
-   stays fully scrollable, only the visual bar is gone. The Expenses day
-   FastScroller is a separate overlay (plain divs, not a native scrollbar), so
-   it is unaffected and remains the one visible scroll affordance. */
-html {
-  scrollbar-width: none; /* Firefox */
+/* FIELD R2 item 2 (F2) + D-BUG-21: hide every native scrollbar app-wide, on
+   EVERY element and every engine — the content stays fully scrollable, only the
+   visual bar is gone. `scrollbar-width` must be set on `*` (not only on <html>),
+   because Firefox honors it per scroll container, so nested overflow areas
+   (bottom sheets, lists, the settings panes) re-exposed a bar under the
+   html-only rule — the "scrollbars came back on every screen" regression. The
+   `!important` on the WebKit/Blink pseudo defeats any later utility/inline
+   override and the zoomed native root (D-BUG-07). The Expenses day FastScroller
+   is a separate overlay (plain divs, not a native scrollbar), so it is
+   unaffected and remains the one visible scroll affordance. */
+html,
+body,
+* {
+  scrollbar-width: none; /* Firefox — every scroll container, not just <html> */
   -ms-overflow-style: none; /* legacy Edge */
 }
 *::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 /* D-BUG-14: a `type="search"` input renders a native clear (×) button in
@@ -180,9 +188,9 @@ html.cap-native #root {
 }
 html.cap-native #root::-webkit-scrollbar,
 html.cap-native #root *::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

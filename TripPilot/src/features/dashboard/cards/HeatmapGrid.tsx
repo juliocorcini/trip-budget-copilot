@@ -82,7 +82,7 @@ export function HeatmapGrid({
                     day.intensity >= 1 ? 'font-bold text-on-surface' : 'font-medium text-on-surface-faint'
                   }`}
                 >
-                  {formatMoneyCompact(day.totalCents, locale)}
+                  {formatMoneyCompact(day.totalCents, locale, currency)}
                 </span>
               )}
             </span>

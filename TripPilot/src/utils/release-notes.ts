@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.8',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'As barras de rolagem voltaram a sumir em todas as telas — visual mais limpo, sem mudar nada do conteúdo.',
+        'Nos gastos do dia e no calendário, os valores agora mostram o símbolo da moeda (ex.: € 46), não mais um número solto.',
+        'Ao selecionar vários gastos, as ações (Categoria, Mover de fundo, Excluir) agora aparecem todas, lado a lado — nenhuma fica escondida.',
+      ],
+      en: [
+        'Scrollbars are hidden again on every screen — cleaner look, same content.',
+        'Daily spend and the calendar now show the currency symbol (e.g. €46), not a bare number.',
+        'When you select several expenses, every action (Category, Move fund, Delete) is fully visible side by side — none are hidden.',
+      ],
+      es: [
+        'Las barras de desplazamiento vuelven a ocultarse en todas las pantallas — más limpio, sin cambiar el contenido.',
+        'En los gastos del día y en el calendario, los montos ahora muestran el símbolo de la moneda (ej.: €46), no un número suelto.',
+        'Al seleccionar varios gastos, todas las acciones (Categoría, Mover de fondo, Eliminar) ahora se ven completas, una al lado de la otra — ninguna queda oculta.',
+      ],
+    },
+  },
+  {
     version: '0.99.7',
     date: '2026-06-19',
     items: {

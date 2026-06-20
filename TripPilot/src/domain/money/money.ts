@@ -54,16 +54,39 @@ export function formatMoney(
   }
 }
 
-// D-IMP-01: a tight, currency-symbol-less money label for calendar/heatmap cells
-// where a full "€46,00" never fits. Whole units under 1k ("46"), then "k"/"M"
-// with one decimal only while it adds information ("1,2k", "12k", "1,5M"). The
-// decimal separator follows the locale (pt/es comma, en dot). Never throws.
+// D-IMP-01: a tight money label for calendar/heatmap cells where a full
+// "€46,00" never fits. Whole units under 1k ("46"), then "k"/"M" with one
+// decimal only while it adds information ("1,2k", "12k", "1,5M"). The decimal
+// separator follows the locale (pt/es comma, en dot). Never throws.
+//
+// D-BUG-22: an optional `currency` prepends the NARROW currency symbol ("€46",
+// "R$1,2k", "$12k") so a value never reads as a bare, currency-less number — the
+// user reported the calendar cells showed amounts with no symbol. Omit
+// `currency` for the legacy symbol-less form (the default keeps existing callers
+// byte-identical). Sign stays leftmost ("-€46").
 const COMPACT_THOUSAND = 1000;
 const COMPACT_MILLION = 1_000_000;
+
+/** Narrow currency symbol ("€", "R$", "$") for compact labels; never throws. */
+function compactCurrencySymbol(currency: string, locale: string): string {
+  const code = typeof currency === 'string' ? currency.trim().toUpperCase() : '';
+  if (!CURRENCY_CODE_RE.test(code)) return code ? `${code} ` : '';
+  try {
+    const parts = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(0);
+    return parts.find((part) => part.type === 'currency')?.value ?? code;
+  } catch {
+    return code;
+  }
+}
 
 export function formatMoneyCompact(
   cents: number,
   locale: string = getActiveIntlLocale(),
+  currency?: string,
 ): string {
   const sign = cents < 0 ? '-' : '';
   const value = Math.abs(fromCents(cents));
@@ -78,14 +101,20 @@ export function formatMoneyCompact(
     }
   };
 
+  let body: string;
   const rounded = Math.round(value);
-  if (rounded < COMPACT_THOUSAND) return sign + format(rounded, 0);
-  if (value < COMPACT_MILLION) {
+  if (rounded < COMPACT_THOUSAND) {
+    body = format(rounded, 0);
+  } else if (value < COMPACT_MILLION) {
     const thousands = value / COMPACT_THOUSAND;
-    return sign + format(thousands, thousands < 10 ? 1 : 0) + 'k';
+    body = `${format(thousands, thousands < 10 ? 1 : 0)}k`;
+  } else {
+    const millions = value / COMPACT_MILLION;
+    body = `${format(millions, millions < 10 ? 1 : 0)}M`;
   }
-  const millions = value / COMPACT_MILLION;
-  return sign + format(millions, millions < 10 ? 1 : 0) + 'M';
+
+  const symbol = currency ? compactCurrencySymbol(currency, locale) : '';
+  return sign + symbol + body;
 }
 
 export function splitEqually(totalCents: number, parts: number): number[] {

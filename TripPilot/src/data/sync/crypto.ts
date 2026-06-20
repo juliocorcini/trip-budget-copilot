@@ -16,8 +16,13 @@ export async function generateSessionKey(): Promise<string> {
 }
 
 export async function importSessionKey(encodedKey: string): Promise<CryptoKey> {
+  // Pass an exact, ArrayBuffer-backed copy of the key bytes. Node 20's stricter
+  // WebCrypto rejected the previous `bytes.buffer` (a pooled/SharedArrayBuffer-
+  // typed buffer that could also expose slack bytes beyond the view); `.slice()`
+  // yields a fresh Uint8Array<ArrayBuffer> — a valid BufferSource that types
+  // cleanly and works identically in the browser. (D-BUG-24)
   const bytes = base64UrlToBytes(encodedKey);
-  return crypto.subtle.importKey('raw', bytes.buffer as ArrayBuffer, { name: 'AES-GCM' }, false, [
+  return crypto.subtle.importKey('raw', bytes.slice(), { name: 'AES-GCM' }, false, [
     'encrypt',
     'decrypt',
   ]);
@@ -46,7 +51,7 @@ export async function decryptText(key: CryptoKey, encoded: string): Promise<stri
     const plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: iv.slice() },
       key,
-      ciphertext.slice().buffer as ArrayBuffer,
+      ciphertext.slice(),
     );
     return new TextDecoder().decode(plaintext);
   } catch {

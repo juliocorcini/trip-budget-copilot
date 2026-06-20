@@ -56,6 +56,28 @@ describe('formatMoneyCompact (D-IMP-01 — calendar/heatmap cell labels)', () =>
   });
 });
 
+describe('formatMoneyCompact + currency symbol (D-BUG-22 — calendar cells were symbol-less)', () => {
+  it('prepends the narrow currency symbol when a currency is given', () => {
+    expect(formatMoneyCompact(4600, 'en-US', 'EUR')).toBe('€46');
+    expect(formatMoneyCompact(4600, 'pt-BR', 'BRL')).toBe('R$46');
+    expect(formatMoneyCompact(120000, 'en-US', 'USD')).toBe('$1.2k');
+  });
+
+  it('keeps the sign leftmost, before the symbol', () => {
+    expect(formatMoneyCompact(-4600, 'en-US', 'EUR')).toBe('-€46');
+  });
+
+  it('stays byte-identical (symbol-less) when no currency is passed', () => {
+    expect(formatMoneyCompact(4600, 'en-US')).toBe('46');
+    expect(formatMoneyCompact(4600, 'en-US', '')).toBe('46');
+  });
+
+  it('never throws on a malformed currency — still renders the number', () => {
+    expect(() => formatMoneyCompact(4600, 'en-US', 'zz')).not.toThrow();
+    expect(formatMoneyCompact(4600, 'en-US', 'zz')).toContain('46');
+  });
+});
+
 describe('formatMoney', () => {
   it('formats cents as currency string', () => {
     const result = formatMoney(71750, 'EUR', 'pt-BR');

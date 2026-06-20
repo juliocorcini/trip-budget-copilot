@@ -293,7 +293,7 @@ export function ExpenseListPage() {
       // mirrors the AppShell content area (divided by --native-zoom for the
       // native WebView; defaults to 1 on web — DEC note G7/N4), so the whole
       // visible area belongs to this region's tab swipe.
-      className={`flex flex-col gap-4 min-h-[calc(100dvh/var(--native-zoom,1)-var(--safe-top)-var(--safe-bottom)-7rem)] ${selection.active ? 'pb-24' : 'pb-4'}`}
+      className={`flex flex-col gap-4 min-h-[calc(100dvh/var(--native-zoom,1)-var(--safe-top)-var(--safe-bottom)-7rem)] ${selection.active ? 'pb-32' : 'pb-4'}`}
       data-inpage-swipe
       {...tabSwipe}
     >
@@ -587,6 +587,7 @@ export function ExpenseListPage() {
                 return (
             <button
               key={tx.id}
+              data-expense-row={tx.id}
               onClick={() => selection.handleTap(tx.id, () => navigate(`/expenses/${tx.id}`))}
               {...selection.getLongPressHandlers(tx.id)}
               className={`bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full ${
