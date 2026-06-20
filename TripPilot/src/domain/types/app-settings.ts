@@ -7,6 +7,7 @@ import type {
   ThemePreference,
 } from './common';
 import type { TripTemplate } from './trip-template';
+import type { PaymentMethod } from '@/domain/payment/payment-methods';
 
 export interface AppSettings {
   id: string;
@@ -123,6 +124,12 @@ export interface AppSettings {
    * null keeps the wallet invisible for a single-source traveler (non-indexed
    * — no migration). */
   walletTrackingOverride: boolean | null;
+  /** G4 (DEC-244): user-defined repayment methods (a Pix key, a Wise tag, bank
+   * details or free text) the owner chooses to publish. The enabled ones are
+   * appended to the "Lembrar/Cobrar" message. Empty by default — the reminder
+   * stays exactly as before until the user adds one (non-indexed, no migration;
+   * travels inside the backup like the rest of AppSettings). */
+  paymentMethods: PaymentMethod[];
 }
 
 /**

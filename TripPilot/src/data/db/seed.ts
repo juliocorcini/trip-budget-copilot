@@ -82,6 +82,9 @@ export function createDefaultAppSettings(): AppSettings {
     // single-source traveler, lights up on its own with 2+ wallets or a Wise
     // import. The manual toggle in Settings overrides this.
     walletTrackingOverride: null,
+    // G4 (DEC-244): no published payment methods until the user adds one — the
+    // reminder message stays exactly as before for everyone else.
+    paymentMethods: [],
   };
 }
 

@@ -127,7 +127,7 @@ const SETTINGS_GROUPS: {
     descKey: 'settings.cat_desc_connections',
     icon: 'hub',
     keywords:
-      'conexão conexao connection conexiones conectar link pareamento pair dispositivos devices compartilhar share dividir split extrato caixa postal mailbox mensagens messages sincronizar sync worker nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items nuvem cloud',
+      'conexão conexao connection conexiones conectar link pareamento pair dispositivos devices compartilhar share dividir split extrato caixa postal mailbox mensagens messages sincronizar sync worker nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items nuvem cloud pagamento payment pago pix wise chave key tag banco bank dados bancários cobrar receber',
   },
   {
     id: 'device',
@@ -1191,6 +1191,17 @@ export function SettingsPage() {
           label={t('settings.connections_link')}
           onClick={() => navigate('/shared')}
         />
+      </Section>
+
+      {/* G4 (DEC-244): how people pay the owner back — appended to the
+          "Lembrar/Cobrar" reminder. Any mix of Pix/Wise/bank/free text. */}
+      <Section title={t('payment.settings_title')}>
+        <LinkRow
+          icon="payments"
+          label={t('payment.settings_entry')}
+          onClick={() => navigate('/settings/payment-methods')}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('payment.settings_hint')}</p>
       </Section>
 
       {/* FIELD item 8: the encrypted mailbox contacts the worker on open to

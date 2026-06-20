@@ -17,6 +17,7 @@ const CopilotPage = lazyWithRetry(() => import('@/features/copilot/CopilotPage')
 const SettingsPage = lazyWithRetry(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const BackupPage = lazyWithRetry(() => import('@/features/backup/BackupPage').then(m => ({ default: m.BackupPage })));
 const DashboardConfigPage = lazyWithRetry(() => import('@/features/settings/DashboardConfigPage').then(m => ({ default: m.DashboardConfigPage })));
+const PaymentMethodsPage = lazyWithRetry(() => import('@/features/settings/PaymentMethodsPage').then(m => ({ default: m.PaymentMethodsPage })));
 const BootGate = lazyWithRetry(() => import('@/features/onboarding/BootGate').then(m => ({ default: m.BootGate })));
 const WelcomePage = lazyWithRetry(() => import('@/features/onboarding/WelcomePage').then(m => ({ default: m.WelcomePage })));
 const OnboardingPage = lazyWithRetry(() => import('@/features/onboarding/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
@@ -138,6 +139,7 @@ export const router = createBrowserRouter([
           { path: '/settings/c/:categoryId', element: <LazyRoute><SettingsPage /></LazyRoute> },
           { path: '/settings/backup', element: <LazyRoute><BackupPage /></LazyRoute> },
           { path: '/settings/dashboard', element: <LazyRoute><DashboardConfigPage /></LazyRoute> },
+          { path: '/settings/payment-methods', element: <LazyRoute><PaymentMethodsPage /></LazyRoute> },
           { path: '/shared', element: <LazyRoute><SharedExpensesPage /></LazyRoute> },
           // F19: device pairing via a shared link — the recipient (an owner with a
           // trip) confirms before the sender's identity is paired into their trip.

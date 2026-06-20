@@ -70,6 +70,8 @@ class AppSettingsRepository {
       // AUTOMATIC (null) — the wallet stays invisible until 2+ wallets/a Wise
       // import or the traveler flips the manual toggle.
       walletTrackingOverride: settings.walletTrackingOverride ?? null,
+      // G4 (DEC-244): records predating payment methods have none published.
+      paymentMethods: settings.paymentMethods ?? [],
     };
   }
 

@@ -1,6 +1,6 @@
 # TripPilot Brain — Source of Truth
 
-> Last updated: 2026-06-19 (debt "está me devendo" + bill-split UX deep-dive & plan added — DEC-241)
+> Last updated: 2026-06-19 (open-decisions councils + APK/OTA study added — DEC-242/243; G4 payment methods in progress)
 
 ## Truth Policy
 
@@ -54,6 +54,8 @@
 |------|---------|--------------|
 | `documents/bill-split-feature-brainstorm-and-council-2026-06-18.md` | **BRAINSTORM RECORD (history)** — full brainstorm + 5 inline councils + 5-persona test + competitive analysis + ranking for the fast table-split idea. **Superseded for decisions** by the implementation-support doc (see banner at top). | Deep dive on rationale/personas/competition |
 | `documents/debt-and-split-ux-deep-dive-and-plan-2026-06-19.md` | **BUILD-READY (DEC-241)** — deep dive on the debt / "está me devendo" feature (`domain/splitting`, `/shared`) + bill-split. Root cause = the DEC-071 confirmation asymmetry (owner-authored shares for offline friends stay `pending` → "alguém me deve" invisible). 4 inline councils → gates G1 (born-confirmed for non-connected, v0.99.5), G2 ("Acerto de contas" hub redesign, v0.99.6), G3 (Lembrar/Cobrar + polish, v0.99.7). | Before touching the debt/settle/split-debt UX |
+| `documents/open-decisions-councils-and-future-plan-2026-06-19.md` | **RESEARCH + DECISION-READY (DEC-242)** — inline councils + future-apply gates for the three non-forced open decisions: OD-1 `/viagem` Hub × `/trip` Overview (keep two / sharpen, don't merge), OD-2 Fundo→Trecho/Pote (nature-aware pass, not blanket), OD-3 Wise split explainer (mount existing component). All web/OTA, deferred to dedicated gates. | Before touching trip-surface IA, funds vocab, or the Wise importer |
+| `documents/apk-ota-self-update-study-2026-06-19.md` | **STUDY (DEC-243)** — how TripPilot updates: web bundle OTA (Capgo, silent) + native APK in-app installer (DEC-210, one-tap, user-confirmed). Why the Downloads detour persists (device-pending shell not promoted). Android can't silently install sideloaded APKs. Future-apply: promote a verified shell via `latestNativeVersion` (OTA-1), optional Settings "check for update" button (OTA-2). | Before touching the update/version flow or promoting an APK |
 | `documents/bill-split-implementation-support-2026-06-18.md` | **BUILD-READY SPEC** — "Dividir conta" feature. Julio's LOCKED decisions T1–T13 (not ephemeral → persists as ONE divided expense w/ items + debts + budget; feature=`Dividir conta` in FAB; proportional service charge w/ AI detect→infer→ask; **live claim in V1**; **two-way live mirror propagation** owner-authoritative DEC-106; **state-dependent guest landing**; ad-hoc+promote; Pix→future payment-info feature §16). + 3 new inline councils (real-time input/sync, persistence/propagation, naming). + architecture (owner-as-reducer on existing `ShareSignal`+`/responses`+KV, **no new Worker routes**), domain model, sync protocol, gates G1–G3 (~70h Tier 3) + ACs + tests. Delivery QUEUED (Julio implements later via `/deliver`); only 3 minor technical decisions left open (§19). | Before scoping/implementing the bill-split epic; this is the truth for decisions |
 
 ## Research Files

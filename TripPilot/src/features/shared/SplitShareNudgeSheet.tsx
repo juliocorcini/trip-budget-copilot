@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { formatMoney } from '@/domain/money';
 import { shareOrCopyText } from '@/utils/native/link-share';
+import { useRemindMessage } from '@/features/shared/useRemindMessage';
 
 interface SplitShareNudgeSheetProps {
   open: boolean;
@@ -42,6 +43,7 @@ export function SplitShareNudgeSheet({
 }: SplitShareNudgeSheetProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const buildRemindMessage = useRemindMessage();
 
   const shareWith = (participant: Participant) => {
     navigate('/shared', { state: { shareWithParticipantId: participant.id } });
@@ -52,9 +54,7 @@ export function SplitShareNudgeSheet({
     if (cents === undefined || cents <= 0 || !currency) return;
     const name = participant.nickname ?? participant.name;
     const amount = formatMoney(cents, currency);
-    const message = tripName
-      ? t('shared.remind_message', { name, trip: tripName, amount })
-      : t('shared.remind_message_no_trip', { name, amount });
+    const message = buildRemindMessage({ name, amount, tripName });
     const outcome = await shareOrCopyText(message, t('shared.remind_share_title'));
     if (outcome === 'copied') showToast(t('shared.remind_copied'), 'success');
     else if (outcome === 'copy_failed') showToast(t('sync.link_copy_failed'), 'danger');

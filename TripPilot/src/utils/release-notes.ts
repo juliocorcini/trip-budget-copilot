@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.9',
+    date: '2026-06-19',
+    items: {
+      'pt-BR': [
+        'Formas de pagamento: cadastre como as pessoas podem te pagar — chave Pix, @tag da Wise, dados bancários ou um texto livre. Você escolhe quais e quantas quer deixar disponíveis.',
+        'A mensagem de "Lembrar/Cobrar" já sai com as suas formas de pagamento no final — é só mandar no WhatsApp e a pessoa sabe exatamente como te pagar.',
+        'Quem não cadastrar nenhuma forma continua com a mensagem de sempre — nada muda. Configure em Ajustes › Conexões › Formas de pagamento.',
+      ],
+      en: [
+        'Payment methods: set up how people can pay you back — a Pix key, a Wise @tag, bank details or free text. You pick which ones and how many to publish.',
+        'The "Remind" message now ends with your payment methods — just send it and the other person knows exactly how to pay you.',
+        'If you set none, the message stays exactly as before — nothing changes. Configure it in Settings › Connections › Payment methods.',
+      ],
+      es: [
+        'Formas de pago: configura cómo pueden pagarte — una clave Pix, una @tag de Wise, datos bancarios o un texto libre. Tú eliges cuáles y cuántas publicar.',
+        'El mensaje de "Recordar/Cobrar" ahora termina con tus formas de pago — solo envíalo y la persona sabe exactamente cómo pagarte.',
+        'Si no configuras ninguna, el mensaje queda igual que antes — nada cambia. Configúralo en Ajustes › Conexiones › Formas de pago.',
+      ],
+    },
+  },
+  {
     version: '0.99.8',
     date: '2026-06-19',
     items: {

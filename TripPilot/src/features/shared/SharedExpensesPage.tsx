@@ -51,11 +51,13 @@ import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
 import { SplitExplainer } from './SplitExplainer';
+import { useRemindMessage } from '@/features/shared/useRemindMessage';
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const buildRemindMessage = useRemindMessage();
   const { trip, transactions, participants, settings, loading, error, retry, reload } = useAppData();
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -284,14 +286,17 @@ export function SharedExpensesPage() {
   };
 
   // DL-5: nudge a debtor with a ready-to-send message ("você me deve {amount}").
-  // Pix-ready text (a Pix QR/key is the G3+ backlog seam). Uses the OS share
-  // sheet, falling back to the clipboard so the message is never lost.
+  // G4 (DEC-244): the message is payment-neutral and the owner's published
+  // payment methods (Pix/Wise/bank/free text) are appended by useRemindMessage.
+  // Uses the OS share sheet, falling back to the clipboard so it is never lost.
   const handleRemind = async (debt: DebtEntry) => {
     if (!trip) return;
     const amount = formatMoney(debt.amountCents, trip.baseCurrency);
-    const message = trip.name
-      ? t('shared.remind_message', { name: debt.debtorName, trip: trip.name, amount })
-      : t('shared.remind_message_no_trip', { name: debt.debtorName, amount });
+    const message = buildRemindMessage({
+      name: debt.debtorName,
+      amount,
+      tripName: trip.name,
+    });
     const outcome = await shareOrCopyText(message, t('shared.remind_share_title'));
     if (outcome === 'copied') showToast(t('shared.remind_copied'), 'success');
     else if (outcome === 'copy_failed') showToast(t('sync.link_copy_failed'), 'danger');
