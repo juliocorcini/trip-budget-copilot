@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.19',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Voz muito mais confiável (testado internamente com áudio real, não só no aparelho). A gravação perdia o começo da fala e falhava nas tentativas seguintes porque reabria o microfone toda vez; agora reaproveita um único canal de áudio — grava desde o primeiro segundo e funciona toda vez que você toca em falar, não só na primeira.',
+        'Se o microfone recusar o formato preferido, o app tenta um formato simples em vez de desistir.',
+      ],
+      en: [
+        'Much more reliable voice (verified internally with real audio, not just on-device). Recording used to drop the first words and fail on later tries because it reopened the mic every time; it now reuses a single audio channel — it records from the first second and works every time you tap to speak, not only the first.',
+        'If the mic rejects the preferred format, the app falls back to a plain request instead of giving up.',
+      ],
+      es: [
+        'Voz mucho más confiable (verificado internamente con audio real, no solo en el dispositivo). La grabación perdía el inicio del habla y fallaba en los intentos siguientes porque reabría el micrófono cada vez; ahora reutiliza un único canal de audio — graba desde el primer segundo y funciona cada vez que tocas para hablar, no solo la primera.',
+        'Si el micrófono rechaza el formato preferido, la app prueba uno simple en vez de rendirse.',
+      ],
+    },
+  },
+  {
     version: '0.99.18',
     date: '2026-06-20',
     items: {

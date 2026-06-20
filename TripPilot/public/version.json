@@ -1,8 +1,8 @@
 {
-  "version": "0.99.18",
+  "version": "0.99.19",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.18.zip",
-  "notes": "Transcrição de voz consertada: a gravação no Android virava um áudio sem fim definido e o Whisper só captava um pedaço (o famoso \"E aí\"). Agora gravamos em WAV 16 kHz limpo, então o que você fala é transcrito de verdade. Também avisa quando não captou áudio. Antes: divisão pela IA mostra a SUA parte, acerto de contas agrupa itens de nota em um evento, e o amigo sincero virou carrossel."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.19.zip",
+  "notes": "Voz muito mais confiável (testado internamente com áudio real). A captação anterior perdia o começo da fala e falhava nas tentativas seguintes porque reabria o microfone a cada vez. Agora reaproveita um único canal de áudio: grava do primeiro segundo e funciona toda vez que você toca em falar — não só na primeira."
 }

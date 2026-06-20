@@ -33,25 +33,57 @@ export function isPcmRecordingSupported(): boolean {
   return getAudioContextCtor() !== null && !!navigator.mediaDevices?.getUserMedia;
 }
 
+/**
+ * ONE reused AudioContext for the app's lifetime. Recreating + close()ing a
+ * context per recording is what broke repeat captures on the Android WebView:
+ * the 2nd/3rd context was born `suspended` and a resume() fired outside a live
+ * user-gesture window silently failed, so no frames arrived and the clip came
+ * back empty ("não captei o áudio"). Reusing one warm context fixes that.
+ */
+let sharedContext: AudioContext | null = null;
+
+function acquireContext(): AudioContext {
+  const AudioCtx = getAudioContextCtor();
+  if (!AudioCtx) throw new Error('audio_unsupported');
+  if (!sharedContext || sharedContext.state === 'closed') sharedContext = new AudioCtx();
+  return sharedContext;
+}
+
+/**
+ * Mono + the usual voice cleanups, but degrade gracefully: some engines/devices
+ * (and headless Chromium's fake device) reject the constrained request with
+ * NotSupportedError/OverconstrainedError — a plain `audio:true` still yields a
+ * usable mic rather than dead-ending the whole capture. getUserMedia is also
+ * what triggers the native RECORD_AUDIO prompt on Android (declared in manifest).
+ */
+async function acquireMicStream(): Promise<MediaStream> {
+  const media = navigator.mediaDevices;
+  try {
+    return await media.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    });
+  } catch (err) {
+    const name = err instanceof DOMException ? err.name : '';
+    if (name === 'NotSupportedError' || name === 'OverconstrainedError' || name === 'TypeError') {
+      return media.getUserMedia({ audio: true });
+    }
+    throw err;
+  }
+}
+
 export interface PcmRecording {
   /** Stops capture, releases the mic, and resolves the recorded WAV blob. */
   stop: () => Promise<Blob>;
 }
 
 export async function startPcmRecording(): Promise<PcmRecording> {
-  const AudioCtx = getAudioContextCtor();
-  if (!AudioCtx) throw new Error('audio_unsupported');
-
-  // Mono + the usual voice cleanups. getUserMedia is what triggers the native
-  // RECORD_AUDIO prompt on Android (declared in the manifest).
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-  });
-
-  const context = new AudioCtx();
-  // Some engines suspend a freshly created context until a user gesture; the tap
-  // that started recording counts, but resume() is a cheap safety net.
+  const context = acquireContext();
+  // Warm the context BEFORE opening the mic so the node graph delivers audio from
+  // the first frame (a resume() that lands after speech starts is what clipped
+  // the opening words — "só captou o fim da frase").
   if (context.state === 'suspended') await context.resume().catch(() => undefined);
+
+  const stream = await acquireMicStream();
 
   const source = context.createMediaStreamSource(stream);
   const processor = context.createScriptProcessor(FRAME_SIZE, 1, 1);
@@ -72,6 +104,7 @@ export async function startPcmRecording(): Promise<PcmRecording> {
 
   let stopped = false;
   const cleanup = (): void => {
+    processor.onaudioprocess = null;
     try {
       processor.disconnect();
       source.disconnect();
@@ -79,6 +112,8 @@ export async function startPcmRecording(): Promise<PcmRecording> {
     } catch {
       /* nodes may already be detached */
     }
+    // Release the mic (drops the recording indicator) but KEEP the shared context
+    // alive and running for the next capture — see sharedContext note above.
     stream.getTracks().forEach((track) => track.stop());
   };
 
@@ -87,7 +122,6 @@ export async function startPcmRecording(): Promise<PcmRecording> {
     stopped = true;
     const inputRate = context.sampleRate;
     cleanup();
-    await context.close().catch(() => undefined);
     const merged = mergeFrames(frames);
     if (peakAmplitude(merged) < SILENCE_PEAK) return new Blob([], { type: 'audio/wav' });
     const samples = downsample(merged, inputRate, TARGET_SAMPLE_RATE);
