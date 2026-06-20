@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// DEC-246 (module H / C1) — the Trip "Wrapped" retrospective. The entry lives on
+// DEC-247 (module H / C1) — the Trip "Wrapped" retrospective. The entry lives on
 // the Copiloto page, gated on real spend, and opens a bottom sheet of trip-wide
 // superlatives. Demo data always has spend, so the entry must render and the
 // sheet must paint a hero total plus the share action.
@@ -11,7 +11,7 @@ async function loadDemoData(page: import('@playwright/test').Page) {
   await page.waitForURL('/dashboard');
 }
 
-test.describe('DEC-246 — Trip Wrapped', () => {
+test.describe('DEC-247 — Trip Wrapped', () => {
   test.beforeEach(async ({ page }) => {
     await loadDemoData(page);
     await page.goto('/copiloto');

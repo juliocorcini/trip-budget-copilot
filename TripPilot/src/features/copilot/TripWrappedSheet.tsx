@@ -42,7 +42,7 @@ function StatCard({
 }
 
 /**
- * Trip "Wrapped" sheet (DEC-246) — a celebratory end-of-trip retrospective built
+ * Trip "Wrapped" sheet (DEC-247) — a celebratory end-of-trip retrospective built
  * from {@link TripWrapped}. Every stat is already data-gated in the domain, so
  * this only paints what exists. "Compartilhar" reuses the existing 1080×1350
  * share-card renderer (DEC-133); a bespoke Wrapped canvas is a future decision.

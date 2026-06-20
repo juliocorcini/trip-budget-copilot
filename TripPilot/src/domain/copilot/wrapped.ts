@@ -11,7 +11,7 @@ import {
 import type { SocialVsSolo, PeakHour, DisciplineStreak } from './copilot-insights';
 
 /**
- * Trip "Wrapped" (Copilot module H / DEC-246) — an end-of-trip retrospective
+ * Trip "Wrapped" (Copilot module H / DEC-247) — an end-of-trip retrospective
  * assembled ONLY from existing pure derivations. Every stat self-censors
  * (returns null) when its data is too thin, so the UI never fabricates a
  * superlative ("categoria nº1" with zero spend, a streak with no target, …).

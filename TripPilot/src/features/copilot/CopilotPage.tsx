@@ -246,7 +246,7 @@ export function CopilotPage() {
     return summarizeDisciplineStreak(phaseTxs, dailyTargetCents);
   }, [model.fts, model.activePhase, transactions]);
 
-  // DEC-246 (module H / C1): the end-of-trip "Wrapped" — trip-wide superlatives
+  // DEC-247 (module H / C1): the end-of-trip "Wrapped" — trip-wide superlatives
   // from the same pure derivations, reachable any time (preview until ended).
   const wrapped = useMemo(
     () =>
@@ -333,7 +333,7 @@ export function CopilotPage() {
         <p className="text-sm text-on-surface-dim mt-0.5">{t('copilot.subtitle')}</p>
       </div>
 
-      {/* DEC-246: the trip retrospective ("Wrapped") — reachable any time, labeled
+      {/* DEC-247: the trip retrospective ("Wrapped") — reachable any time, labeled
           a preview until the trip ends; only shown once there is real spend. */}
       {hasAnySignal && wrapped.totalCents > 0 && (
         <button
