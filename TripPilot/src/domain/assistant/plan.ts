@@ -160,6 +160,50 @@ function matchPerson(name: string | null | undefined, ctx: PlanContext): PersonM
   return resolvePerson(name, ctx.participants, ctx.owner);
 }
 
+/** Bare pronouns/group words the model may leak into `participants`. They carry
+ * no resolvable identity (the planner already maps "ele" → the named person), so
+ * the device drops them instead of asking "who is 'ele'?". */
+const PRONOUN_TERMS: ReadonlySet<string> = new Set([
+  'ele', 'ela', 'eles', 'elas', 'he', 'she', 'they', 'them',
+  'o cara', 'a galera', 'a gente', 'nos', 'todos', 'todo mundo', 'el', 'ellos', 'ellas',
+]);
+
+type SharersResult =
+  | { status: 'ok'; participants: Participant[] }
+  | { status: 'needs'; result: PlanResult };
+
+/**
+ * Resolves a list of by-name sharers into participants: skips the user themself
+ * (self-terms resolve to the owner, who is excluded) and unresolvable pronouns,
+ * dedupes, and drops any id in `exclude` (e.g. the owner or the payer). The first
+ * unknown/ambiguous REAL name short-circuits into a clarification.
+ */
+function resolveSharers(
+  names: string[],
+  ctx: PlanContext,
+  exclude: Set<string>,
+  note: string | null = null,
+): SharersResult {
+  const out: Participant[] = [];
+  for (const raw of names) {
+    const n = normalizeText(raw);
+    if (n === '' || PRONOUN_TERMS.has(n)) continue;
+    const match = matchPerson(raw, ctx);
+    if (match.status === 'none') {
+      return { status: 'needs', result: needs([{ type: 'add_person', name: cleanName(raw) }], note) };
+    }
+    if (match.status === 'ambiguous') {
+      return {
+        status: 'needs',
+        result: needs([{ type: 'choose_person', name: cleanName(raw), candidates: match.candidates.map(toCandidate) }], note),
+      };
+    }
+    const p = match.participant;
+    if (!exclude.has(p.id) && !out.some((x) => x.id === p.id)) out.push(p);
+  }
+  return { status: 'ok', participants: out };
+}
+
 function needs(clarifications: Clarification[], note: string | null = null): PlanResult {
   return { status: 'needs', clarifications, note };
 }
@@ -257,6 +301,31 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
     placeLabel: ctx.place?.label ?? null,
   };
 
+  // Equal-split builder shared by `split_expense` and the `someone_paid` reroute.
+  // `payer` is the owner (I paid) or another participant (they paid); every entry
+  // in `sharers` carries an equal part. `resolvePayerExpense` (DEC-114) turns this
+  // into the right debts: each non-payer sharer owes the payer their slice.
+  const equalSplit = (payer: Participant, sharers: Participant[]): PlanResult => {
+    const participantIds = sharers.map((p) => p.id);
+    const op: ExecOp = {
+      ...base,
+      walletId: payer.id === owner.id ? ctx.defaultWalletId : null,
+      payerId: payer.id,
+      didSplit: true,
+      participantIds,
+    };
+    const preview: AssistantPreview = {
+      ...previewBase,
+      participantNames: sharers.map(nameOf),
+      perPersonCents: Math.round(amount.amountCents / participantIds.length),
+    };
+    if (payer.id !== owner.id) {
+      preview.personName = nameOf(payer);
+      preview.debtDirection = 'i_owe';
+    }
+    return ready(op, preview);
+  };
+
   // I paid, nobody else involved.
   if (intent.action === 'log_expense') {
     const op: ExecOp = {
@@ -269,7 +338,10 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
     return ready(op, previewBase);
   }
 
-  // Someone paid FOR me → I owe them the full amount (DEC-114 row 4).
+  // Someone paid. Pure case (no other sharers) → I owe them the FULL amount
+  // (DEC-114 row 4). But if the message also names other sharers, it is really a
+  // split THEY paid (I owe only my slice) — reroute even when the model labeled
+  // it `someone_paid`, so a misclassification can never overcharge the user.
   if (intent.action === 'someone_paid') {
     const match = matchPerson(intent.person, ctx);
     if (match.status === 'none') {
@@ -278,78 +350,86 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
     if (match.status === 'ambiguous') {
       return needs([{ type: 'choose_person', name: cleanName(intent.person), candidates: match.candidates.map(toCandidate) }], intent.note);
     }
-    const person = match.participant;
+    const payer = match.participant;
+    const others = resolveSharers(intent.participants, ctx, new Set([owner.id, payer.id]), intent.note);
+    if (others.status === 'needs') return others.result;
+    if (others.participants.length > 0) {
+      return equalSplit(payer, [owner, payer, ...others.participants]);
+    }
     const op: ExecOp = {
       ...base,
       walletId: null, // someone else's money moved, not mine
-      payerId: person.id,
+      payerId: payer.id,
       didSplit: false,
       participantIds: [],
     };
-    return ready(op, { ...previewBase, op: 'expense', personName: nameOf(person), debtDirection: 'i_owe' });
+    return ready(op, { ...previewBase, op: 'expense', personName: nameOf(payer), debtDirection: 'i_owe' });
   }
 
-  // I paid FOR someone → they owe me the full amount (1:1, not a shared split).
+  // I paid FOR others (I'm not a sharer). One person → they owe the full amount;
+  // several → I covered the bill and they split it equally among themselves.
   if (intent.action === 'i_paid_for') {
-    const match = matchPerson(intent.person, ctx);
-    if (match.status === 'none') {
+    const names = intent.participants.length > 0 ? intent.participants : intent.person ? [intent.person] : [];
+    const r = resolveSharers(names, ctx, new Set([owner.id]), intent.note);
+    if (r.status === 'needs') return r.result;
+    if (r.participants.length === 0) {
       return needs([{ type: 'add_person', name: cleanName(intent.person) }], intent.note);
     }
-    if (match.status === 'ambiguous') {
-      return needs([{ type: 'choose_person', name: cleanName(intent.person), candidates: match.candidates.map(toCandidate) }], intent.note);
-    }
-    const person = match.participant;
     const op: ExecOp = {
       ...base,
       walletId: ctx.defaultWalletId, // I paid from my wallet
       payerId: owner.id,
       didSplit: true,
-      participantIds: [person.id], // owner not a sharer → person owes the full amount
+      participantIds: r.participants.map((p) => p.id), // owner not a sharer → they owe it all
     };
-    return ready(op, { ...previewBase, personName: nameOf(person), debtDirection: 'owes_me' });
-  }
-
-  // split_expense — I (or a named payer) paid, divided equally among everyone.
-  const names = intent.participants.length > 0 ? intent.participants : intent.person ? [intent.person] : [];
-  let participants: Participant[];
-  if (names.length === 0) {
-    // No names given → split across everyone in the trip (owner included).
-    participants = ctx.participants.length > 1 ? ctx.participants : [];
-    if (participants.length < 2) return needs([{ type: 'add_person', name: '' }], intent.note);
-  } else {
-    const resolved: Participant[] = [owner];
-    for (const candidateName of names) {
-      const match = matchPerson(candidateName, ctx);
-      if (match.status === 'none') return needs([{ type: 'add_person', name: cleanName(candidateName) }], intent.note);
-      if (match.status === 'ambiguous') {
-        return needs([{ type: 'choose_person', name: cleanName(candidateName), candidates: match.candidates.map(toCandidate) }], intent.note);
-      }
-      if (!resolved.some((p) => p.id === match.participant.id)) resolved.push(match.participant);
+    const preview: AssistantPreview = { ...previewBase, debtDirection: 'owes_me' };
+    if (r.participants.length === 1) {
+      preview.personName = nameOf(r.participants[0]!);
+    } else {
+      preview.participantNames = r.participants.map(nameOf);
+      preview.perPersonCents = Math.round(amount.amountCents / r.participants.length);
     }
-    participants = resolved;
+    return ready(op, preview);
   }
 
-  // Default payer is the owner; honor "other" when exactly one non-owner named.
-  let payerId = owner.id;
-  if (intent.payer === 'other') {
-    const nonOwner = participants.filter((p) => p.id !== owner.id);
-    if (nonOwner.length === 1) payerId = nonOwner[0]!.id;
+  // split_expense — divided equally (owner always shares). Payer is me unless one
+  // is named (payer="other" → the named `person`, or the sole non-owner sharer).
+  let payer = owner;
+  if (intent.payer === 'other' && intent.person) {
+    const payerMatch = matchPerson(intent.person, ctx);
+    if (payerMatch.status === 'matched') payer = payerMatch.participant;
+    else if (payerMatch.status === 'ambiguous') {
+      return needs([{ type: 'choose_person', name: cleanName(intent.person), candidates: payerMatch.candidates.map(toCandidate) }], intent.note);
+    }
   }
 
-  const participantIds = participants.map((p) => p.id);
-  const op: ExecOp = {
-    ...base,
-    walletId: payerId === owner.id ? ctx.defaultWalletId : null,
-    payerId,
-    didSplit: true,
-    participantIds,
+  const sharerNames = intent.participants.length > 0 ? intent.participants : intent.person ? [intent.person] : [];
+  if (sharerNames.length === 0) {
+    if (ctx.participants.length > 1) return equalSplit(owner, ctx.participants);
+    return needs([{ type: 'add_person', name: '' }], intent.note);
+  }
+
+  const resolved = resolveSharers(sharerNames, ctx, new Set(), intent.note);
+  if (resolved.status === 'needs') return resolved.result;
+  const sharers: Participant[] = [owner];
+  const pushUnique = (p: Participant): void => {
+    if (!sharers.some((x) => x.id === p.id)) sharers.push(p);
   };
-  const perPersonCents = Math.round(amount.amountCents / participantIds.length);
-  return ready(op, {
-    ...previewBase,
-    participantNames: participants.map(nameOf),
-    perPersonCents,
-  });
+  if (payer.id !== owner.id) pushUnique(payer);
+  for (const p of resolved.participants) pushUnique(p);
+
+  // payer="other" with no explicit payer name: if exactly one non-owner shares,
+  // they are the one who paid.
+  if (intent.payer === 'other' && payer.id === owner.id) {
+    const nonOwner = sharers.filter((p) => p.id !== owner.id);
+    if (nonOwner.length === 1) payer = nonOwner[0]!;
+  }
+
+  if (sharers.length < 2) {
+    if (ctx.participants.length > 1) return equalSplit(owner, ctx.participants);
+    return needs([{ type: 'add_person', name: '' }], intent.note);
+  }
+  return equalSplit(payer, sharers);
 }
 
 function planIncome(intent: AiIntent, ctx: PlanContext): PlanResult {

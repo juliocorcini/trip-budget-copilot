@@ -1,8 +1,8 @@
 {
-  "version": "0.99.13",
+  "version": "0.99.14",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.13.zip",
-  "notes": "Retrospectiva da viagem no Copiloto: um resumo comemorativo com total gasto, maior dia, categoria nº1, quanto rolou com outras pessoas, hora de pico e sua sequência de disciplina. Abre a qualquer momento (como prévia antes de terminar) e compartilha como imagem. Cada número só aparece quando há gasto suficiente pra calcular."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.14.zip",
+  "notes": "Entrada rápida com IA mais certeira nas divisões: quando outra pessoa paga e vocês racham (ex.: \"o Bruno pagou 12,80 pelas tortilhas, dividimos entre ele, eu e a Débora\"), agora entra só a SUA parte como dívida — não a conta inteira. Lê valores com vírgula e ponto de milhar (12,80 · 3,50 · 1.250,00) e não chuta mais uma moeda que você não falou (usa a moeda base da viagem)."
 }

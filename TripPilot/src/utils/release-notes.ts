@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.14',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Entrada rápida com IA mais esperta nas divisões: quando outra pessoa paga e vocês racham (ex.: “o Bruno pagou 12,80 pelas tortilhas, dividimos entre ele, eu e a Débora”), agora entra só a SUA parte como dívida — não a conta inteira.',
+        'Entende valores com vírgula e ponto de milhar (12,80 · 3,50 · 1.250,00) e não chuta mais uma moeda que você não falou (usa a moeda base da viagem).',
+        'Resolve “ele/ela” pelo nome citado e ignora o “eu” na lista de quem dividiu, então a conta fecha certinha.',
+      ],
+      en: [
+        'Smarter AI quick entry for splits: when someone else pays and you split it (“Bruno paid 12.80 for the tortillas, we split it between him, me and Débora”), only YOUR share is recorded as a debt — not the whole bill.',
+        'Reads comma decimals and thousands dots (12,80 · 3,50 · 1.250,00) and no longer guesses a currency you didn’t say (it uses the trip’s base currency).',
+        'Resolves “he/she” to the named person and ignores “me” in the list of who shared, so the math adds up.',
+      ],
+      es: [
+        'Entrada rápida con IA más lista en las divisiones: cuando otra persona paga y lo reparten (“Bruno pagó 12,80 por las tortillas, lo dividimos entre él, yo y Débora”), ahora entra solo TU parte como deuda, no la cuenta entera.',
+        'Entiende decimales con coma y separador de miles (12,80 · 3,50 · 1.250,00) y ya no adivina una moneda que no dijiste (usa la moneda base del viaje).',
+        'Resuelve “él/ella” por el nombre mencionado e ignora el “yo” en la lista de quién dividió, para que las cuentas cuadren.',
+      ],
+    },
+  },
+  {
     version: '0.99.13',
     date: '2026-06-20',
     items: {

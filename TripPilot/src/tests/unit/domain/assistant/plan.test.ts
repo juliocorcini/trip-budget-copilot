@@ -30,6 +30,7 @@ function mkParticipant(id: string, name: string, overrides: Partial<Participant>
 const owner = mkParticipant('owner', 'Julio', { isOwner: true });
 const bruno = mkParticipant('bruno', 'Bruno');
 const ana = mkParticipant('ana', 'Ana');
+const debora = mkParticipant('debora', 'Débora');
 
 const cashWallet: Wallet = {
   ...meta,
@@ -71,7 +72,7 @@ function mkCtx(overrides: Partial<PlanContext> = {}): PlanContext {
     baseCurrency: 'EUR',
     phaseId: 'ph-1',
     owner,
-    participants: [owner, bruno, ana],
+    participants: [owner, bruno, ana, debora],
     connectedParticipantIds: [],
     wallets: [cashWallet],
     defaultPoolId: 'pool-1',
@@ -145,6 +146,156 @@ describe('buildActionPlan — expenses & debts', () => {
     expect(op.participantIds.sort()).toEqual(['bruno', 'owner']);
     expect(op.payerId).toBe('owner');
     expect(preview.perPersonCents).toBe(1500);
+  });
+});
+
+describe('buildActionPlan — split paid by someone else (the field bug)', () => {
+  // "Bruno pagou 12,80 pelas tortilhas, dividimos entre ele, eu e a Débora":
+  // a 3-way split that BRUNO paid → I owe only my €4.27 slice, not the full bill.
+  it('split_expense payer=other + named payer + several sharers → 3-way, payer is a sharer', () => {
+    const result = buildActionPlan(
+      mkIntent({
+        action: 'split_expense',
+        amount: 12.8,
+        currency: 'EUR',
+        payer: 'other',
+        person: 'Bruno',
+        participants: ['Bruno', 'Débora'],
+        description: 'tortilhas',
+      }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.didSplit).toBe(true);
+    expect(op.payerId).toBe('bruno');
+    expect(op.participantIds.sort()).toEqual(['bruno', 'debora', 'owner']);
+    expect(op.walletId).toBeNull(); // Bruno's money, not mine
+    expect(op.amountCents).toBe(1280);
+    expect(preview.perPersonCents).toBe(427); // round(1280 / 3)
+    expect(preview.debtDirection).toBe('i_owe');
+    expect(preview.personName).toBe('Bruno');
+  });
+
+  // Safety net: even if the planner MISLABELS the same sentence as `someone_paid`
+  // (the original failure), the device must still split it, never charge the full.
+  it('someone_paid + extra sharers reroutes to an equal split (no overcharge)', () => {
+    const result = buildActionPlan(
+      mkIntent({
+        action: 'someone_paid',
+        amount: 12.8,
+        currency: 'EUR',
+        person: 'Bruno',
+        participants: ['Bruno', 'eu', 'Débora'],
+      }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.didSplit).toBe(true);
+    expect(op.payerId).toBe('bruno');
+    expect(op.participantIds.sort()).toEqual(['bruno', 'debora', 'owner']);
+    expect(preview.perPersonCents).toBe(427);
+    expect(preview.debtDirection).toBe('i_owe');
+  });
+
+  it('someone_paid with NO other sharers stays a full-amount debt', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'someone_paid', amount: 2, currency: 'EUR', person: 'Bruno', participants: ['Bruno'] }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.didSplit).toBe(false);
+    expect(op.participantIds).toEqual([]);
+    expect(op.payerId).toBe('bruno');
+  });
+
+  // "dividi 100 meio a meio com o Bruno, ele pagou" → 2-way split Bruno paid.
+  it('split_expense payer=other 2-way → each owes half to the payer', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'split_expense', amount: 100, payer: 'other', person: 'Bruno', participants: ['Bruno'] }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.payerId).toBe('bruno');
+    expect(op.participantIds.sort()).toEqual(['bruno', 'owner']);
+    expect(preview.perPersonCents).toBe(5000);
+    expect(preview.debtDirection).toBe('i_owe');
+  });
+
+  // payer="other" but no name given: the sole non-owner sharer must be the payer.
+  it('split_expense payer=other with a single non-owner infers them as payer', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'split_expense', amount: 40, payer: 'other', participants: ['Ana'] }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.payerId).toBe('ana');
+    expect(op.participantIds.sort()).toEqual(['ana', 'owner']);
+  });
+});
+
+describe('buildActionPlan — split robustness (pronouns, self, multi, fallback)', () => {
+  it('drops a self-term ("eu") from the sharer list instead of duplicating the owner', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'split_expense', amount: 30, payer: 'me', participants: ['eu', 'Bruno'] }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.participantIds.sort()).toEqual(['bruno', 'owner']);
+    expect(op.payerId).toBe('owner');
+    expect(preview.perPersonCents).toBe(1500);
+  });
+
+  it('skips a bare pronoun ("ele") in participants without asking who it is', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'split_expense', amount: 20, payer: 'other', person: 'Bruno', participants: ['ele'] }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.payerId).toBe('bruno');
+    expect(op.participantIds.sort()).toEqual(['bruno', 'owner']);
+  });
+
+  it('i_paid_for several people → I cover the bill, they split it among themselves', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'i_paid_for', amount: 40, person: 'Bruno', participants: ['Bruno', 'Ana'] }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.payerId).toBe('owner');
+    expect(op.didSplit).toBe(true);
+    expect(op.participantIds.sort()).toEqual(['ana', 'bruno']); // owner NOT a sharer
+    expect(op.walletId).toBe('w1');
+    expect(preview.debtDirection).toBe('owes_me');
+    expect(preview.perPersonCents).toBe(2000);
+  });
+
+  it('split_expense with no names falls back to the whole trip', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'split_expense', amount: 90 }),
+      mkCtx({ participants: [owner, bruno, ana] }),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.participantIds.sort()).toEqual(['ana', 'bruno', 'owner']);
+    expect(op.payerId).toBe('owner');
+    expect(preview.perPersonCents).toBe(3000);
   });
 });
 

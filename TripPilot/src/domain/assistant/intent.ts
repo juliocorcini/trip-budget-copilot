@@ -98,15 +98,34 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   '¥': 'JPY',
 };
 
+/**
+ * Parses a numeric amount the model may return as a string in mixed locales.
+ * Handles a comma decimal ("12,80" → 12.8), a dot/space thousands separator with
+ * a comma decimal ("1.250,00" → 1250), and the en form ("1,250.00" → 1250). When
+ * only one separator is present, the LAST one is treated as the decimal point.
+ */
 function coerceNumber(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'string') {
-    const cleaned = value.replace(',', '.').replace(/[^0-9.]/g, '');
-    if (cleaned === '') return null;
-    const n = Number(cleaned);
-    return Number.isFinite(n) ? n : null;
+  if (typeof value !== 'string') return null;
+
+  let s = value.replace(/[^0-9.,]/g, '');
+  if (s === '') return null;
+
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma !== -1 && lastDot !== -1) {
+    // Both present: the right-most separator is the decimal point; strip the other.
+    s = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (lastComma !== -1) {
+    // Only commas (pt-BR/EU): the last comma is the decimal point; strip any
+    // earlier commas as thousands separators ("12,80" → 12.8).
+    s = s.slice(0, lastComma).replace(/,/g, '') + '.' + s.slice(lastComma + 1);
   }
-  return null;
+  // Only dots (or none) pass through unchanged ("12.80", "1250").
+
+  if (s === '' || s === '.') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 }
 
 function coerceString(value: unknown): string | null {

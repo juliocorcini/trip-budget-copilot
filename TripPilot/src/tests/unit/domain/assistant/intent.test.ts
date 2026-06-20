@@ -79,6 +79,46 @@ describe('parseAssistantResponse', () => {
   });
 });
 
+describe('parseAssistantResponse — amount locales', () => {
+  const amount = (raw: unknown): number | null => {
+    const r = parseAssistantResponse({ action: 'log_expense', amount: raw });
+    return r.ok ? r.intent.amount : null;
+  };
+
+  it('keeps a plain number', () => {
+    expect(amount(12.8)).toBe(12.8);
+    expect(amount(1250)).toBe(1250);
+  });
+
+  it('reads a comma as the decimal separator (pt-BR/EU)', () => {
+    expect(amount('12,80')).toBe(12.8);
+    expect(amount('3,50')).toBe(3.5);
+  });
+
+  it('reads a dot as a decimal separator when it is the only one (en)', () => {
+    expect(amount('12.80')).toBe(12.8);
+  });
+
+  it('handles a dot thousands + comma decimal ("1.250,00" → 1250)', () => {
+    expect(amount('1.250,00')).toBe(1250);
+    expect(amount('2.499,90')).toBe(2499.9);
+  });
+
+  it('handles a comma thousands + dot decimal ("1,250.00" → 1250)', () => {
+    expect(amount('1,250.00')).toBe(1250);
+  });
+
+  it('strips currency symbols and spaces before parsing', () => {
+    expect(amount('R$ 1.250,00')).toBe(1250);
+    expect(amount('€12,80')).toBe(12.8);
+  });
+
+  it('returns null for non-numeric junk', () => {
+    expect(amount('abc')).toBeNull();
+    expect(amount('')).toBeNull();
+  });
+});
+
 describe('isExecuteAction', () => {
   it('separates execute actions from navigation/unknown', () => {
     expect(isExecuteAction('someone_paid')).toBe(true);

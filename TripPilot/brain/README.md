@@ -1,6 +1,6 @@
 # TripPilot Brain — Source of Truth
 
-> Last updated: 2026-06-20 (Copilot **Trip Wrapped** DEC-247 v0.99.13 + AI quick-entry router DEC-246 v0.99.12 — **both SHIPPED + live on apex**; Worker `/assistant` re-probed 200; see the dated sections below)
+> Last updated: 2026-06-20 (**AI Quick Entry split-accuracy hardening** DEC-246 amendment **v0.99.14** — someone-else-paid-AND-divided now records only your share, not the full bill; comma/thousands decimals; no currency guessing; Worker re-deployed + live re-probed → `split_expense`/`payer:other`. Prior: Copilot **Trip Wrapped** DEC-247 v0.99.13 + AI quick-entry router DEC-246 v0.99.12 — both SHIPPED + live on apex. See the dated sections below)
 
 ## Truth Policy
 
