@@ -80,6 +80,7 @@ function mkCtx(overrides: Partial<PlanContext> = {}): PlanContext {
     defaultSourceWalletId: 'w1',
     defaultTargetWalletId: 'w1',
     place: null,
+    knownPlaces: [],
     now: new Date('2026-07-10T12:00:00.000Z'),
     ...overrides,
   };
@@ -296,6 +297,123 @@ describe('buildActionPlan — split robustness (pronouns, self, multi, fallback)
     expect(op.participantIds.sort()).toEqual(['ana', 'bruno', 'owner']);
     expect(op.payerId).toBe('owner');
     expect(preview.perPersonCents).toBe(3000);
+  });
+});
+
+describe('buildActionPlan — wallet from a stated payment method', () => {
+  const creditWallet: Wallet = {
+    ...meta,
+    id: 'w2',
+    tripId: 'trip-1',
+    name: 'Cartão Crédito',
+    walletType: 'credit_card',
+    currency: 'EUR',
+    initialBalanceCents: 0,
+    isDefault: false,
+    notes: null,
+  };
+  const multiWalletCtx = (overrides: Partial<PlanContext> = {}): PlanContext =>
+    mkCtx({ wallets: [cashWallet, creditWallet], ...overrides });
+
+  it('log_expense "no crédito" → the credit-card wallet (not the default)', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'log_expense', amount: 15, fromWallet: 'crédito' }),
+      multiWalletCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.walletId).toBe('w2');
+  });
+
+  it('log_expense with no payment method → the default wallet', () => {
+    const result = buildActionPlan(mkIntent({ action: 'log_expense', amount: 15 }), multiWalletCtx());
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.walletId).toBe('w1');
+  });
+
+  it('split_expense I pay "em dinheiro" → my cash wallet', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'split_expense', amount: 30, participants: ['Bruno'], fromWallet: 'dinheiro' }),
+      multiWalletCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.payerId).toBe('owner');
+    expect(op.walletId).toBe('w1');
+  });
+
+  it('someone_paid keeps walletId null even if a method is mentioned (not my money)', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'someone_paid', amount: 2, person: 'Bruno', fromWallet: 'crédito' }),
+      multiWalletCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.walletId).toBeNull();
+  });
+});
+
+describe('buildActionPlan — place & date carried from the message', () => {
+  it('a named venue becomes the expense place (label-only when unknown)', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'log_expense', amount: 8, place: 'Bar do Zé' }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.place).toEqual({ label: 'Bar do Zé', lat: null, lng: null, placeId: null });
+    expect(preview.placeLabel).toBe('Bar do Zé');
+  });
+
+  it('a named venue snaps to a known place, recovering its coordinates', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'log_expense', amount: 8, place: 'bar do ze' }),
+      mkCtx({
+        knownPlaces: [{ label: 'Bar do Zé', lat: 38.7, lng: -9.1, placeId: 'p-ze' }],
+      }),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.place).toEqual({ label: 'Bar do Zé', lat: 38.7, lng: -9.1, placeId: 'p-ze' });
+  });
+
+  it('keeps the sticky place when the message names none', () => {
+    const sticky = { label: 'Hotel', lat: 1, lng: 2, placeId: null };
+    const result = buildActionPlan(mkIntent({ action: 'log_expense', amount: 8 }), mkCtx({ place: sticky }));
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.place).toEqual(sticky);
+  });
+
+  it('a named venue overrides the sticky place', () => {
+    const sticky = { label: 'Hotel', lat: 1, lng: 2, placeId: null };
+    const result = buildActionPlan(
+      mkIntent({ action: 'log_expense', amount: 8, place: 'Mercado' }),
+      mkCtx({ place: sticky }),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.place?.label).toBe('Mercado');
+  });
+
+  it('a relative date ("3 dias atrás") resolves to a back-dated ISO timestamp', () => {
+    const result = buildActionPlan(
+      mkIntent({ action: 'log_expense', amount: 8, date: '3 dias atrás' }),
+      mkCtx(),
+    );
+    if (result.status !== 'ready' || result.plan.type !== 'execute') throw new Error('expected execute');
+    const { op } = result.plan;
+    if (op.kind !== 'expense') return;
+    expect(op.date).toBe('2026-07-07T12:00:00.000Z'); // now (07-10) − 3d
   });
 });
 

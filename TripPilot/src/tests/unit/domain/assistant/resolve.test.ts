@@ -5,6 +5,7 @@ import {
   resolveAmount,
   resolvePerson,
   resolveWallet,
+  resolvePlace,
   resolveDate,
 } from '@/domain/assistant/resolve';
 import type { Participant } from '@/domain/types/participant';
@@ -138,6 +139,45 @@ describe('resolveWallet', () => {
   });
 });
 
+describe('resolvePlace', () => {
+  const sticky = { label: 'Hotel Central', lat: 38.7, lng: -9.1, placeId: 'p-hotel' };
+  const known = [
+    { label: 'Bar do Zé', lat: 38.71, lng: -9.14, placeId: 'p-ze' },
+    { label: 'Mercado da Ribeira', lat: 38.7, lng: -9.14, placeId: 'p-mkt' },
+  ];
+
+  it('keeps the sticky place when no venue is named', () => {
+    expect(resolvePlace(null, known, sticky)).toEqual(sticky);
+    expect(resolvePlace('', known, sticky)).toEqual(sticky);
+  });
+
+  it('snaps an accent/case-insensitive name to a known place, recovering coords', () => {
+    expect(resolvePlace('bar do ze', known, sticky)).toEqual({
+      label: 'Bar do Zé',
+      lat: 38.71,
+      lng: -9.14,
+      placeId: 'p-ze',
+    });
+  });
+
+  it('matches the sticky place by name (so coords are not lost)', () => {
+    expect(resolvePlace('hotel central', known, sticky)).toEqual(sticky);
+  });
+
+  it('becomes a label-only place for an unknown venue', () => {
+    expect(resolvePlace('Tasca Nova', known, sticky)).toEqual({
+      label: 'Tasca Nova',
+      lat: null,
+      lng: null,
+      placeId: null,
+    });
+  });
+
+  it('returns null when nothing is named and there is no sticky place', () => {
+    expect(resolvePlace(null, known, null)).toBeNull();
+  });
+});
+
 describe('resolveDate', () => {
   const now = new Date('2026-07-10T12:00:00.000Z');
 
@@ -150,7 +190,27 @@ describe('resolveDate', () => {
     expect(resolveDate('ontem', now)).toBe('2026-07-09T12:00:00.000Z');
   });
 
-  it('passes ISO dates through', () => {
+  it('resolves anteontem to -2 days', () => {
+    expect(resolveDate('anteontem', now)).toBe('2026-07-08T12:00:00.000Z');
+  });
+
+  it('resolves "semana passada"/"last week" to -7 days', () => {
+    expect(resolveDate('semana passada', now)).toBe('2026-07-03T12:00:00.000Z');
+    expect(resolveDate('last week', now)).toBe('2026-07-03T12:00:00.000Z');
+  });
+
+  it('resolves "N dias atrás" / "N days ago" / "hace N días"', () => {
+    expect(resolveDate('3 dias atrás', now)).toBe('2026-07-07T12:00:00.000Z');
+    expect(resolveDate('5 days ago', now)).toBe('2026-07-05T12:00:00.000Z');
+    expect(resolveDate('hace 4 días', now)).toBe('2026-07-06T12:00:00.000Z');
+  });
+
+  it('passes ISO dates (and full datetimes) through', () => {
     expect(resolveDate('2026-07-01', now)).toBe('2026-07-01');
+    expect(resolveDate('2026-07-01T09:30:00.000Z', now)).toBe('2026-07-01T09:30:00.000Z');
+  });
+
+  it('falls back to undefined for an unparseable phrase (defaults to now)', () => {
+    expect(resolveDate('outro dia qualquer', now)).toBeUndefined();
   });
 });

@@ -29,15 +29,18 @@ describe('resolveDashboardCardSequence', () => {
     expect(resolveDashboardCardSequence([])).toEqual(CATALOG_ORDER);
   });
 
-  it('keeps anchors (active_outing, hero) in their fixed slots', () => {
+  it('keeps anchors (active_outing, hero, suggest_outing) in their fixed slots', () => {
     const sequence = resolveDashboardCardSequence(['recent_expenses', 'insights']);
     expect(sequence[1]).toBe('active_outing');
     expect(sequence[2]).toBe('hero');
+    expect(sequence[3]).toBe('suggest_outing');
   });
 
   it('applies the saved order to movable cards and appends the missing ones', () => {
     const sequence = resolveDashboardCardSequence(['recent_expenses', 'insights']);
-    const movable = sequence.filter((id) => id !== 'active_outing' && id !== 'hero');
+    const movable = sequence.filter(
+      (id) => id !== 'active_outing' && id !== 'hero' && id !== 'suggest_outing',
+    );
     expect(movable[0]).toBe('recent_expenses');
     expect(movable[1]).toBe('insights');
     // The rest keeps catalog order.
@@ -97,7 +100,9 @@ describe('moveDashboardCard', () => {
   it('round-trips through resolveDashboardCardSequence', () => {
     const order = moveDashboardCard(undefined, 'recent_expenses', 'up');
     const sequence = resolveDashboardCardSequence(order);
-    const movable = sequence.filter((id) => id !== 'active_outing' && id !== 'hero');
+    const movable = sequence.filter(
+      (id) => id !== 'active_outing' && id !== 'hero' && id !== 'suggest_outing',
+    );
     // recent_expenses is the last movable card; moving it up swaps with the
     // planned_purchases tile, which becomes last.
     expect(movable[movable.length - 1]).toBe('planned_purchases');

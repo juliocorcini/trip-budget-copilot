@@ -23,6 +23,7 @@ export {
   resolveAmount,
   resolvePerson,
   resolveWallet,
+  resolvePlace,
   resolveDate,
 } from './resolve';
 export type {
@@ -30,6 +31,7 @@ export type {
   ResolvedAmount,
   PersonMatch,
   WalletMatch,
+  KnownPlace,
 } from './resolve';
 
 export { buildActionPlan } from './plan';
@@ -43,5 +45,11 @@ export type {
   PlanContext,
 } from './plan';
 
-export { executeOp, createAssistantParticipant, AssistantDispatchError } from './dispatch';
+export {
+  executeOp,
+  createAssistantParticipant,
+  AssistantDispatchError,
+  buildExpenseStickyPatch,
+  buildSplitNudge,
+} from './dispatch';
 export type { ExecutionResult, DispatchContext } from './dispatch';

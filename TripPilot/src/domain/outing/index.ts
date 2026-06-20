@@ -30,6 +30,13 @@ export type {
   SessionLimits,
   CreateSessionInput,
 } from './outing';
+export {
+  evaluateOutingSuggestion,
+  OUTING_SUGGESTION_CATEGORIES,
+  OUTING_SUGGESTION_WINDOW_MINUTES,
+  OUTING_SUGGESTION_MIN_COUNT,
+} from './suggest-outing';
+export type { OutingSuggestion, OutingSuggestionInput } from './suggest-outing';
 export { ENRICH_AUTO_DISMISS_MS } from './enrichment';
 export type { EnrichStep } from './enrichment';
 export {

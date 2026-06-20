@@ -56,6 +56,12 @@ import type { Participant } from '@/domain/types/participant';
 import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
 import { SplitExplainer } from '@/features/shared/SplitExplainer';
 import { PlaceField } from '@/features/location/PlaceField';
+import {
+  takeAssistantQuickAddDraft,
+  resolveDraftSplitState,
+  isoToDatetimeLocal,
+  type AssistantQuickAddDraft,
+} from '@/features/assistant/assistant-quickadd-draft';
 
 const CATEGORY_KEYS = [
   'bar',
@@ -140,6 +146,13 @@ export function QuickAddPage() {
   const [splitNudgeAmounts, setSplitNudgeAmounts] = useState<Map<string, number>>(new Map());
   // M11: optional voice capture — only offered when the browser supports it.
   const [listening, setListening] = useState(false);
+
+  // DEC-246 (AI Quick Entry escape hatch): a fully pre-filled draft handed over
+  // by the assistant sheet for the heavy cases (foreign currency, custom split,
+  // photos, careful review). Read ONCE (lazy init clears the slot) and applied
+  // after data loads so nothing the AI captured is lost on the way to the form.
+  const [aiDraft] = useState<AssistantQuickAddDraft | null>(() => takeAssistantQuickAddDraft());
+  const aiDraftAppliedRef = useRef(false);
 
   // E8 (M2/M3): opt-in location — a "sticky" place reused across expenses. The
   // selector UI/GPS/nearby machinery lives in <PlaceField> (D-BUG-08); QuickAdd
@@ -228,6 +241,38 @@ export function QuickAddPage() {
 
   const owner = participants.find((p) => p.isOwner) ?? null;
   const effectivePaidById = paidById ?? owner?.id ?? null;
+
+  // DEC-246: apply the assistant draft once everything is loaded. setState in an
+  // effect (not initializers) keeps it robust against an initial empty snapshot;
+  // it reveals the details block so the pre-filled fund/wallet/place are visible.
+  useEffect(() => {
+    if (!aiDraft || aiDraftAppliedRef.current || !trip || !settings) return;
+    aiDraftAppliedRef.current = true;
+    // Pin the category so the sticky-category effect never overrides the AI's.
+    stickyCategoryAppliedRef.current = true;
+
+    if (aiDraft.amount > 0) setAmount(String(aiDraft.amount));
+    if (aiDraft.currency) setCurrency(aiDraft.currency);
+    if (aiDraft.category) setCategory(aiDraft.category);
+    if (aiDraft.description) setDescription(aiDraft.description);
+    if (aiDraft.date) {
+      const local = isoToDatetimeLocal(aiDraft.date);
+      if (local !== '') setCustomDate(local);
+    }
+    if (aiDraft.place) setPlace(aiDraft.place);
+    if (aiDraft.poolId) setPoolId(aiDraft.poolId);
+    if (aiDraft.walletId !== undefined) setWalletId(aiDraft.walletId);
+    if (aiDraft.shareType) setSplitMode(aiDraft.shareType);
+
+    if (owner) {
+      const split = resolveDraftSplitState(aiDraft, owner.id);
+      setPaidById(split.paidById);
+      setOtherPaidSplit(split.otherPaidSplit);
+      setSelectedParticipantIds(split.selectedParticipantIds);
+      setIsShared(split.isShared);
+    }
+    setShowDetails(true);
+  }, [aiDraft, trip, settings, owner]);
   const canSplit = !isTransferLike && participants.length > 1;
   // DEC-123: someone else paid — first-level state, independent of splitting.
   const otherPaid = owner !== null && effectivePaidById !== null && effectivePaidById !== owner.id;

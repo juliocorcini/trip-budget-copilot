@@ -17,6 +17,10 @@ import {
 import { useLongPress } from '@/hooks/useLongPress';
 import { useCountUp } from '@/hooks/useCountUp';
 import { hapticSelection } from '@/utils/haptics';
+import {
+  isOutingSuggestionDismissed,
+  dismissOutingSuggestion,
+} from '@/utils/outing-suggestion-dismissal';
 import { AnimatedMoney } from '@/components/AnimatedMoney';
 import {
   CHECK_IN_INTENT_CATALOG,
@@ -117,6 +121,15 @@ export function DashboardCards({
   // FIELD R2 item 8 (F8): the check-in fused under the hero is compact — once a
   // mode is chosen it collapses to a single chip; tapping it re-opens the picker.
   const [checkInExpanded, setCheckInExpanded] = useState(false);
+  // C2: the "open an Outing?" nudge is dismissible for the rest of the day.
+  const [outingNudgeDismissed, setOutingNudgeDismissed] = useState(() =>
+    isOutingSuggestionDismissed(trip.id, model.todayIso),
+  );
+  const handleDismissOutingNudge = () => {
+    hapticSelection();
+    setOutingNudgeDismissed(true);
+    dismissOutingSuggestion(trip.id, model.todayIso);
+  };
   const insightScrollRef = useRef<HTMLDivElement>(null);
   // Julio device test 2026-06-18 (GATE 17): the occasion carousel must always
   // OPEN on the left — showing the planned, colour-coded metas (bar/restaurante/
@@ -635,6 +648,49 @@ export function DashboardCards({
               </button>
             )}
           </>
+        );
+      case 'suggest_outing':
+        // C2 (UX-clarity §4.12): calm, dismissible — never blocks anything.
+        if (!model.outingSuggestion.active || outingNudgeDismissed) return null;
+        return (
+          <div
+            data-suggest-outing
+            className="w-full mt-4 p-4 rounded-2xl flex items-start gap-3"
+            style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
+          >
+            <div
+              className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: '#C75B3918' }}
+            >
+              <Icon name="local_bar" size={22} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">{t('dashboard.suggest_outing_title')}</p>
+              <p className="text-xs text-on-surface-dim mt-0.5 leading-snug">
+                {t('dashboard.suggest_outing_body', { count: model.outingSuggestion.count })}
+              </p>
+              <div className="flex items-center gap-2 mt-2.5">
+                <button
+                  data-suggest-outing-cta
+                  onClick={() => {
+                    hapticSelection();
+                    navigate('/outings/new');
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold btn-press"
+                  style={{ background: 'var(--primary)', color: 'var(--surface)' }}
+                >
+                  {t('dashboard.suggest_outing_cta')}
+                </button>
+                <button
+                  data-suggest-outing-dismiss
+                  onClick={handleDismissOutingNudge}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-dim btn-press"
+                >
+                  {t('dashboard.suggest_outing_dismiss')}
+                </button>
+              </div>
+            </div>
+          </div>
         );
       case 'hero':
         return (

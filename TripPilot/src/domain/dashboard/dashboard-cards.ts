@@ -14,6 +14,7 @@ export type DashboardCardId =
   | 'piggy_bank'
   | 'active_outing'
   | 'hero'
+  | 'suggest_outing'
   | 'occasion_counters'
   | 'insights'
   | 'amigo_sincero'
@@ -68,6 +69,10 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   },
   { id: 'active_outing', labelKey: 'dashboard.card_active_outing', fixed: true, quickAction: null },
   { id: 'hero', labelKey: 'dashboard.card_hero', fixed: true, quickAction: null },
+  // C2 (UX-clarity §4.12): contextual, self-gating nudge to open an Outing when
+  // several bar/restaurant expenses land back-to-back. Fixed like active_outing
+  // (renders only when its derivation says so) so it is never reorderable noise.
+  { id: 'suggest_outing', labelKey: 'dashboard.card_suggest_outing', fixed: true, quickAction: null },
   {
     // M7: one-tap intent for the day — sits right below the hero.
     id: 'daily_checkin',

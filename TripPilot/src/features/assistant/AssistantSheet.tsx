@@ -4,10 +4,35 @@ import { useNavigate } from 'react-router';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
 import { useAppData } from '@/hooks/useAppData';
-import { formatMoney } from '@/domain/money';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
+import { formatMoney, toCents, evaluateAmountExpression } from '@/domain/money';
+import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
+import { getAvailablePoolsForPhase } from '@/domain/budget';
+import { EXPENSE_CATEGORY_KEYS } from '@/domain/assistant';
+import { getCategoryIcon } from '@/utils/category-icons';
+import { PlaceField } from '@/features/location/PlaceField';
+import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
+import { isoToDatetimeLocal } from './assistant-quickadd-draft';
+import { computeExpenseInsights, type ExpenseInsights } from './assistant-insights';
 import { subscribeAssistantOpen } from './assistant-bus';
 import { useAssistant } from './useAssistant';
-import type { AssistantPreview } from '@/domain/assistant';
+import type { AssistantPreview, ExecOp } from '@/domain/assistant';
+import type { Wallet } from '@/domain/types/wallet';
+import type { Transaction } from '@/domain/types/transaction';
+import type { CurrentPlace } from '@/domain/types/common';
+
+type ExpenseOp = Extract<ExecOp, { kind: 'expense' }>;
+
+/** Everything the in-sheet editor needs to render parity pickers (DEC-246). */
+interface EditContext {
+  selectablePools: { id: string; name: string }[];
+  wallets: Wallet[];
+  transactions: Transaction[];
+  walletTrackingActive: boolean;
+  locationEnabled: boolean;
+  rememberedPlace: CurrentPlace | null;
+  baseCurrency: string;
+}
 
 /**
  * DEC-246 (AI Quick Entry): the single, app-wide quick-entry surface. One box
@@ -19,7 +44,9 @@ import type { AssistantPreview } from '@/domain/assistant';
 export function AssistantSheet() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip } = useAppData();
+  const { trip, pools, links, phases, wallets, transactions, envelopes, occurrences, plannedPurchases, settings } =
+    useAppData();
+  const walletTrackingActive = useWalletTracking();
   const [open, setOpen] = useState(false);
   const assistant = useAssistant();
   const { reset, setText } = assistant;
@@ -62,9 +89,46 @@ export function AssistantSheet() {
   const money = (cents?: number, currency?: string) =>
     formatMoney(cents ?? 0, currency ?? baseCurrency);
 
+  // Edit context — the same selectable pools/wallets/place machinery QuickAdd
+  // uses, so the in-sheet editor reaches full parity without duplicating logic.
+  const currentPhase = resolveActivePhase(phases);
+  const availablePools = currentPhase
+    ? getAvailablePoolsForPhase(pools, links, currentPhase.id)
+    : { operational: [], global: [], autoSelectedPoolId: null };
+  const editContext: EditContext = {
+    selectablePools: [...availablePools.operational, ...availablePools.global],
+    wallets,
+    transactions,
+    walletTrackingActive,
+    locationEnabled: !!settings?.locationCaptureEnabled,
+    rememberedPlace: settings?.currentPlace ?? null,
+    baseCurrency,
+  };
+
+  // Intelligence parity (M5 + DEC-053): the same "is this normal / can I afford
+  // it?" hints QuickAdd shows — computed live from the (editable) draft, surfaced
+  // as a non-blocking notice in the preview (the AI flow stays one tap).
+  const draftExpense = assistant.draftOp?.kind === 'expense' ? assistant.draftOp : null;
+  const insights: ExpenseInsights | null =
+    draftExpense && !assistant.isForeign && currentPhase
+      ? computeExpenseInsights({
+          amountBaseCents: draftExpense.amountCents,
+          category: draftExpense.category,
+          budgetPoolId: draftExpense.budgetPoolId,
+          currentPhaseId: currentPhase.id,
+          transactions,
+          pools,
+          envelopes,
+          links,
+          occurrences,
+          plannedPurchases,
+        })
+      : null;
+
   const busy = assistant.phase === 'thinking' || assistant.phase === 'transcribing' || assistant.phase === 'saving';
 
   return (
+    <>
     <BottomSheet open={open} onClose={handleClose} title={t('assistant.title')}>
       <div className="flex flex-col gap-4 pb-2">
         {!assistant.enabled ? (
@@ -109,9 +173,15 @@ export function AssistantSheet() {
             {assistant.phase === 'preview' && assistant.preview && (
               <PreviewArea
                 preview={assistant.preview}
+                draftOp={assistant.draftOp}
+                isForeign={assistant.isForeign}
+                edit={editContext}
+                insights={insights}
                 money={money}
+                patchDraft={assistant.patchDraft}
                 onConfirm={() => void assistant.confirm()}
                 onCancel={assistant.cancelClarification}
+                onFullEditor={assistant.openFullEditor}
                 onManual={openManual}
               />
             )}
@@ -131,6 +201,19 @@ export function AssistantSheet() {
         )}
       </div>
     </BottomSheet>
+
+    {/* B5/DL-5 parity: after an AI split, the same "send their link / remind"
+        nudge QuickAdd shows. Rendered as a SIBLING (not nested) so it opens
+        cleanly once the assistant sheet has closed on `done`. */}
+    <SplitShareNudgeSheet
+      open={assistant.splitNudge !== null}
+      participants={assistant.splitNudge?.targets ?? []}
+      amountByParticipantId={assistant.splitNudge?.amountByParticipantId}
+      currency={trip?.baseCurrency}
+      tripName={trip?.name}
+      onClose={assistant.dismissNudge}
+    />
+    </>
   );
 }
 
@@ -244,15 +327,55 @@ const PREVIEW_ICON: Record<string, string> = {
 
 function PreviewArea(props: {
   preview: AssistantPreview;
+  draftOp: ExecOp | null;
+  isForeign: boolean;
+  edit: EditContext;
+  insights: ExpenseInsights | null;
   money: (cents?: number, currency?: string) => string;
+  patchDraft: (patch: Partial<ExpenseOp>) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  onFullEditor: () => void;
   onManual: () => void;
 }) {
   const { t } = useTranslation();
-  const { preview } = props;
+  const { preview, draftOp, isForeign, edit, insights } = props;
+  const [showEdit, setShowEdit] = useState(false);
+
+  const expenseOp = draftOp && draftOp.kind === 'expense' ? draftOp : null;
   const isNavigate = preview.op === 'navigate';
-  const headline = composePreview(preview, t as never, props.money);
+
+  // Show the fund only when there's a real choice (>1 pool — matches QuickAdd),
+  // and the wallet only when tracking is on and one was resolved/picked. These
+  // keep the "basic info a normal entry has" visible without opening the editor.
+  const fundName =
+    expenseOp && edit.selectablePools.length > 1
+      ? (edit.selectablePools.find((p) => p.id === expenseOp.budgetPoolId)?.name ?? null)
+      : null;
+  const walletName =
+    expenseOp && edit.walletTrackingActive && expenseOp.walletId
+      ? (edit.wallets.find((w) => w.id === expenseOp.walletId)?.name ?? null)
+      : null;
+
+  // Live headline: reflect the in-sheet edits (amount, category, place, …) so the
+  // summary the user confirms always matches the draft they just adjusted.
+  const live: AssistantPreview = expenseOp
+    ? {
+        ...preview,
+        amountCents: expenseOp.amountCents,
+        currency: expenseOp.currency,
+        categoryKey: expenseOp.category,
+        description: expenseOp.description.trim() === '' ? undefined : expenseOp.description,
+        placeLabel: expenseOp.place?.label ?? null,
+        perPersonCents: preview.participantNames
+          ? Math.round(expenseOp.amountCents / Math.max(1, expenseOp.participantIds.length))
+          : preview.perPersonCents,
+      }
+    : preview;
+
+  const headline = composePreview(live, t as never, props.money);
+  const canEditInSheet = expenseOp !== null && !isForeign;
+
   return (
     <div className="flex flex-col gap-3">
       <div
@@ -263,34 +386,120 @@ function PreviewArea(props: {
           className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
           style={{ background: '#6366F126' }}
         >
-          <Icon name={PREVIEW_ICON[preview.op] ?? 'auto_awesome'} size={22} className="text-[#818CF8]" />
+          <Icon name={PREVIEW_ICON[live.op] ?? 'auto_awesome'} size={22} className="text-[#818CF8]" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[15px] font-bold text-on-surface leading-snug">{headline}</p>
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {preview.categoryKey && <Chip>{t(`categories.${preview.categoryKey}`)}</Chip>}
-            {preview.placeLabel && <Chip>{preview.placeLabel}</Chip>}
-            {preview.description && <Chip>{preview.description}</Chip>}
+            {live.categoryKey && <Chip>{t(`categories.${live.categoryKey}`)}</Chip>}
+            {live.placeLabel && <Chip>{live.placeLabel}</Chip>}
+            {live.description && <Chip>{live.description}</Chip>}
+            {fundName && (
+              <Chip>
+                <Icon name="savings" size={11} className="text-on-surface-faint" /> {fundName}
+              </Chip>
+            )}
+            {walletName && (
+              <Chip>
+                <Icon name="account_balance_wallet" size={11} className="text-on-surface-faint" /> {walletName}
+              </Chip>
+            )}
           </div>
         </div>
       </div>
 
-      <button
-        onClick={props.onConfirm}
-        className="btn-press w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px]"
-        style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
-      >
-        <Icon name={isNavigate ? 'arrow_forward' : 'check'} size={18} />
-        {t(isNavigate ? 'assistant.action.open' : 'assistant.action.confirm')}
-      </button>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={props.onManual}
-          className="btn-press flex-1 h-11 rounded-2xl font-semibold text-[14px] text-on-surface-dim"
-          style={{ background: 'var(--surface-high)' }}
+      {/* Intelligence parity (non-blocking): the same anomaly + budget hints a
+          manual entry surfaces, so the AI flow never hides "is this normal / can
+          I afford it?". */}
+      {expenseOp && !isForeign && insights && <InsightNotice insights={insights} money={props.money} />}
+
+      {/* A foreign-currency expense needs a rate the sheet doesn't handle — the
+          confirm becomes "open full editor" so the budget math stays correct. */}
+      {expenseOp && isForeign && (
+        <div
+          className="rounded-2xl p-3.5 flex items-start gap-2.5"
+          style={{ background: '#C9A22715', border: '1px solid #C9A22733' }}
         >
-          {t('assistant.action.manual')}
+          <Icon name="currency_exchange" size={20} className="text-warning shrink-0 mt-0.5" />
+          <p className="text-[13px] text-on-surface font-semibold leading-snug">
+            {t('assistant.foreign_currency_notice', { currency: expenseOp.currency })}
+          </p>
+        </div>
+      )}
+
+      {/* Progressive disclosure (mirrors QuickAdd): the AI pre-filled everything;
+          the user only opens this to tweak what's wrong. */}
+      {canEditInSheet && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowEdit((v) => !v)}
+            aria-expanded={showEdit}
+            className="btn-press rounded-2xl px-4 py-3 flex items-center gap-3 text-left"
+            style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+          >
+            <Icon name="tune" size={18} className="text-on-surface-dim shrink-0" />
+            <span className="flex-1 text-[14px] font-semibold text-on-surface">
+              {t('assistant.edit.toggle')}
+            </span>
+            <Icon
+              name="expand_more"
+              size={20}
+              className="text-on-surface-faint shrink-0 transition-transform"
+              style={showEdit ? { transform: 'rotate(180deg)' } : undefined}
+            />
+          </button>
+          {showEdit && expenseOp && (
+            <ExpenseEditor
+              op={expenseOp}
+              edit={props.edit}
+              patchDraft={props.patchDraft}
+              onAdjustSplit={props.onFullEditor}
+            />
+          )}
+        </>
+      )}
+
+      {isForeign ? (
+        <button
+          onClick={props.onFullEditor}
+          className="btn-press w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px]"
+          style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
+        >
+          <Icon name="open_in_full" size={18} />
+          {t('assistant.action.full_editor')}
         </button>
+      ) : (
+        <button
+          onClick={props.onConfirm}
+          className="btn-press w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px]"
+          style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
+        >
+          <Icon name={isNavigate ? 'arrow_forward' : 'check'} size={18} />
+          {t(isNavigate ? 'assistant.action.open' : 'assistant.action.confirm')}
+        </button>
+      )}
+
+      <div className="flex items-center gap-2">
+        {expenseOp && !isForeign ? (
+          <button
+            onClick={props.onFullEditor}
+            className="btn-press flex-1 h-11 rounded-2xl font-semibold text-[14px] text-on-surface-dim"
+            style={{ background: 'var(--surface-high)' }}
+          >
+            {t('assistant.action.full_editor')}
+          </button>
+        ) : (
+          !expenseOp && (
+            <button
+              onClick={props.onManual}
+              className="btn-press flex-1 h-11 rounded-2xl font-semibold text-[14px] text-on-surface-dim"
+              style={{ background: 'var(--surface-high)' }}
+            >
+              {t('assistant.action.manual')}
+            </button>
+          )
+        )}
         <button
           onClick={props.onCancel}
           className="btn-press flex-1 h-11 rounded-2xl font-semibold text-[14px] text-on-surface-dim"
@@ -299,6 +508,176 @@ function PreviewArea(props: {
           {t('assistant.action.edit')}
         </button>
       </div>
+    </div>
+  );
+}
+
+function ExpenseEditor(props: {
+  op: ExpenseOp;
+  edit: EditContext;
+  patchDraft: (patch: Partial<ExpenseOp>) => void;
+  onAdjustSplit: () => void;
+}) {
+  const { t } = useTranslation();
+  const { op, edit, patchDraft } = props;
+  const [amountText, setAmountText] = useState(() => String(op.amountCents / 100));
+
+  const onAmount = (value: string) => {
+    setAmountText(value);
+    const parsed = evaluateAmountExpression(value);
+    if (parsed !== null && parsed > 0) patchDraft({ amountCents: toCents(parsed) });
+  };
+
+  const isSplit = op.didSplit || op.payerId !== op.ownerId;
+
+  return (
+    <div className="flex flex-col gap-3 max-h-[46vh] overflow-y-auto pr-0.5">
+      <Field label={t('expenses.amount')}>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-on-surface-dim text-[13px]">{op.currency}</span>
+          <input
+            inputMode="decimal"
+            value={amountText}
+            onChange={(e) => onAmount(e.target.value)}
+            className="bg-transparent text-[18px] font-bold text-on-surface tabular outline-none w-full"
+          />
+        </div>
+      </Field>
+
+      <Field label={t('expenses.category')}>
+        <div className="grid grid-cols-5 gap-1.5">
+          {EXPENSE_CATEGORY_KEYS.map((key) => (
+            <button
+              key={key}
+              onClick={() => patchDraft({ category: key })}
+              className={`flex flex-col items-center gap-1 p-1.5 rounded-xl btn-press ${
+                op.category === key ? 'ring-1 ring-primary' : ''
+              }`}
+              style={{ background: op.category === key ? '#C75B3920' : 'var(--surface-high)' }}
+            >
+              <Icon
+                name={getCategoryIcon(key)}
+                size={18}
+                className={op.category === key ? 'text-primary' : 'text-on-surface-dim'}
+              />
+              <span className="w-full text-center text-[9px] leading-tight text-on-surface-faint break-words hyphens-auto line-clamp-2">
+                {t(`categories.${key}` as never)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label={t('expenses.description')}>
+        <input
+          type="text"
+          value={op.description}
+          onChange={(e) => patchDraft({ description: e.target.value })}
+          placeholder={t(`categories.${op.category}` as never)}
+          className="bg-transparent text-[14px] text-on-surface outline-none w-full"
+        />
+      </Field>
+
+      <Field label={t('expenses.date_time')}>
+        <input
+          type="datetime-local"
+          value={isoToDatetimeLocal(op.date)}
+          onChange={(e) =>
+            patchDraft({ date: e.target.value ? toSafeIsoDate(e.target.value) : undefined })
+          }
+          aria-label={t('expenses.date_time')}
+          className="bg-transparent text-[14px] text-on-surface outline-none w-full"
+        />
+      </Field>
+
+      {edit.locationEnabled && (
+        <PlaceField
+          value={op.place}
+          onChange={(place) => patchDraft({ place })}
+          category={op.category}
+          transactions={edit.transactions}
+          autoCapture={false}
+          locationFeaturesEnabled
+          rememberedPlace={edit.rememberedPlace}
+        />
+      )}
+
+      {edit.selectablePools.length > 1 && (
+        <Field label={t('expenses.fund')}>
+          <ChipPicker
+            items={edit.selectablePools.map((p) => ({ id: p.id, label: p.name }))}
+            selectedId={op.budgetPoolId}
+            onSelect={(id) => patchDraft({ budgetPoolId: id })}
+          />
+        </Field>
+      )}
+
+      {edit.walletTrackingActive && (
+        <Field label={t('expenses.wallet')}>
+          <ChipPicker
+            items={[
+              { id: WALLET_NONE, label: t('expenses.wallet_not_set') },
+              ...edit.wallets.map((w) => ({ id: w.id, label: w.name })),
+            ]}
+            selectedId={op.walletId ?? WALLET_NONE}
+            onSelect={(id) => patchDraft({ walletId: id === WALLET_NONE ? null : id })}
+          />
+        </Field>
+      )}
+
+      {isSplit && (
+        <Field label={t('assistant.edit.split')}>
+          <button
+            onClick={props.onAdjustSplit}
+            className="btn-press w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2"
+            style={{ background: 'var(--surface-high)' }}
+          >
+            <span className="text-[13px] text-on-surface-dim">{t('assistant.edit.adjust_split')}</span>
+            <Icon name="open_in_full" size={14} className="text-on-surface-faint" />
+          </button>
+        </Field>
+      )}
+    </div>
+  );
+}
+
+const WALLET_NONE = '__none__';
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div
+      className="rounded-2xl p-3"
+      style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+    >
+      <label className="text-[11px] text-on-surface-faint mb-1.5 block font-semibold">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function ChipPicker(props: {
+  items: { id: string; label: string }[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {props.items.map((item) => {
+        const selected = item.id === props.selectedId;
+        return (
+          <button
+            key={item.id}
+            onClick={() => props.onSelect(item.id)}
+            className="btn-press px-3 py-1.5 rounded-lg text-[12px] font-medium"
+            style={{
+              background: selected ? 'var(--primary)' : 'var(--surface-container)',
+              color: selected ? 'var(--on-primary)' : 'var(--on-surface-dim)',
+            }}
+          >
+            {item.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -475,10 +854,76 @@ function DisabledNotice(props: { onManual: () => void; onSettings: () => void })
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <span
-      className="text-[11px] font-semibold text-on-surface-dim px-2 py-0.5 rounded-lg"
+      className="inline-flex items-center gap-1 text-[11px] font-semibold text-on-surface-dim px-2 py-0.5 rounded-lg"
       style={{ background: 'var(--surface-container)' }}
     >
       {children}
     </span>
+  );
+}
+
+/**
+ * Non-blocking budget/anomaly hints for the previewed expense — the AI-flow
+ * mirror of QuickAdd's M5 anomaly + R3-J "after this you'll have X left". Purely
+ * informational (the confirm stays one tap); it just makes sure the AI entry is
+ * as transparent as a manual one.
+ */
+function InsightNotice({
+  insights,
+  money,
+}: {
+  insights: ExpenseInsights;
+  money: (cents?: number, currency?: string) => string;
+}) {
+  const { t } = useTranslation();
+  const rows: { tone: 'warning' | 'error' | 'muted'; icon: string; text: string }[] = [];
+
+  if (insights.anomaly && insights.typicalCents > 0) {
+    rows.push({
+      tone: 'warning',
+      icon: 'trending_up',
+      text: t('assistant.insight.anomaly', { typical: money(insights.typicalCents) }),
+    });
+  }
+  if (insights.over && insights.afterCents !== null) {
+    rows.push({
+      tone: 'error',
+      icon: 'warning',
+      text: t('assistant.insight.over_budget', {
+        amount: money(Math.abs(insights.afterCents)),
+        fund: insights.poolName ?? '',
+      }),
+    });
+  } else if (insights.afterCents !== null && insights.poolName) {
+    rows.push({
+      tone: 'muted',
+      icon: 'account_balance_wallet',
+      text: t('assistant.insight.after_left', {
+        amount: money(insights.afterCents),
+        fund: insights.poolName,
+      }),
+    });
+  }
+
+  if (rows.length === 0) return null;
+
+  const TONE: Record<string, { color: string; className: string }> = {
+    warning: { color: '#C9A227', className: 'text-warning' },
+    error: { color: '#D94040', className: 'text-error' },
+    muted: { color: 'var(--on-surface-faint)', className: 'text-on-surface-dim' },
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {rows.map((row, i) => {
+        const tone = TONE[row.tone]!;
+        return (
+          <div key={i} className="flex items-start gap-2 px-1">
+            <Icon name={row.icon} size={15} className={`${tone.className} shrink-0 mt-0.5`} />
+            <p className={`text-[12px] font-semibold leading-snug ${tone.className}`}>{row.text}</p>
+          </div>
+        );
+      })}
+    </div>
   );
 }

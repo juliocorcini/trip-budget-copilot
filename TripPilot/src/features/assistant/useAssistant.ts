@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase } from '@/domain/dates';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
+import { deriveRecentPlaces } from '@/domain/location';
 import { evaluateAmountExpression } from '@/domain/money';
 import {
   buildActionPlan,
@@ -21,6 +22,7 @@ import {
 } from '@/domain/assistant';
 import { requestAssistantIntent } from '@/utils/ai-assistant';
 import { transcribeAudio } from '@/utils/ai-transcribe';
+import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { showToast } from '@/components/Toast';
 import type { Participant } from '@/domain/types/participant';
@@ -43,10 +45,22 @@ export type AssistantPhase =
   | 'error'
   | 'done';
 
+/** B5/DL-5 parity: who to nudge after an AI split (+ what each owes me). */
+export interface AssistantSplitNudge {
+  targets: Participant[];
+  amountByParticipantId: Map<string, number>;
+}
+
 export interface UseAssistant {
   phase: AssistantPhase;
   text: string;
   preview: AssistantPreview | null;
+  /** The editable expense op behind the preview (null for non-editable kinds). */
+  draftOp: ExecOp | null;
+  /** True when the drafted expense is in a foreign currency (needs the rate UI). */
+  isForeign: boolean;
+  /** After a split: the people to send their share link (null when none). */
+  splitNudge: AssistantSplitNudge | null;
   clarification: Clarification | null;
   note: string | null;
   errorKey: string | null;
@@ -60,6 +74,12 @@ export interface UseAssistant {
   choosePerson: (id: string) => void;
   cancelClarification: () => void;
   confirm: () => Promise<void>;
+  /** Edit a field of the drafted expense before confirming (in-sheet parity). */
+  patchDraft: (patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => void;
+  /** Hand the (edited) draft to the full QuickAdd form for the heavy cases. */
+  openFullEditor: () => void;
+  /** Dismiss the post-split nudge (the action already committed). */
+  dismissNudge: () => void;
   toggleVoice: () => Promise<void>;
   reset: () => void;
 }
@@ -86,6 +106,8 @@ export function useAssistant(): UseAssistant {
   const [phase, setPhase] = useState<AssistantPhase>('input');
   const [text, setText] = useState('');
   const [preview, setPreview] = useState<AssistantPreview | null>(null);
+  const [draftOp, setDraftOp] = useState<ExecOp | null>(null);
+  const [splitNudge, setSplitNudge] = useState<AssistantSplitNudge | null>(null);
   const [clarification, setClarification] = useState<Clarification | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -119,7 +141,11 @@ export function useAssistant(): UseAssistant {
       d.wallets.find((w) => w.walletType !== 'cash') ??
       defaultWallet;
     const cashWallet = d.wallets.find((w) => w.walletType === 'cash');
-    const place = d.settings?.locationCaptureEnabled ? d.settings.currentPlace ?? null : null;
+    // Location-gated: the sticky place + a pool of past venues a named place can
+    // snap onto (so it recovers coordinates). With location off, neither is used.
+    const locationOn = !!d.settings?.locationCaptureEnabled;
+    const place = locationOn ? d.settings?.currentPlace ?? null : null;
+    const knownPlaces = locationOn ? deriveRecentPlaces(d.transactions, null, 50) : [];
 
     return {
       tripId: d.trip.id,
@@ -134,6 +160,7 @@ export function useAssistant(): UseAssistant {
       defaultSourceWalletId: nonCashDefault?.id ?? null,
       defaultTargetWalletId: cashWallet?.id ?? null,
       place,
+      knownPlaces,
       now: new Date(),
       personOverrides: overridesRef.current,
     };
@@ -151,15 +178,18 @@ export function useAssistant(): UseAssistant {
       if (result.status === 'ready') {
         planRef.current = result.plan;
         setPreview(result.plan.preview);
+        setDraftOp(result.plan.type === 'execute' ? result.plan.op : null);
         setClarification(null);
         setPhase('preview');
       } else if (result.status === 'needs') {
         planRef.current = null;
+        setDraftOp(null);
         setClarification(result.clarifications[0] ?? null);
         if (result.note) setNote(result.note);
         setPhase('clarify');
       } else {
         planRef.current = null;
+        setDraftOp(null);
         setErrorKey(`unsupported.${result.messageKey}`);
         setPhase('error');
       }
@@ -250,6 +280,28 @@ export function useAssistant(): UseAssistant {
     setPhase('input');
   }, []);
 
+  // In-sheet edits to the drafted expense (amount, category, place, fund…). Other
+  // op kinds aren't editable in the sheet — they keep the planner's resolution.
+  const patchDraft = useCallback((patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => {
+    setDraftOp((prev) => (prev && prev.kind === 'expense' ? { ...prev, ...patch } : prev));
+  }, []);
+
+  // Escape hatch: hand the (edited) expense draft to the full QuickAdd form for
+  // the heavy cases the sheet doesn't duplicate (foreign rate, custom split,
+  // photos) — pre-filled, so nothing the AI captured is lost.
+  const openFullEditor = useCallback(() => {
+    const plan = planRef.current;
+    const op = draftOp ?? (plan?.type === 'execute' ? plan.op : null);
+    if (op && op.kind === 'expense') {
+      const base = dataRef.current.trip?.baseCurrency ?? 'EUR';
+      setAssistantQuickAddDraft(expenseOpToQuickAddDraft(op, base));
+    }
+    navigate('/quick-add');
+    setPhase('done');
+  }, [navigate, draftOp]);
+
+  const dismissNudge = useCallback(() => setSplitNudge(null), []);
+
   const confirm = useCallback(async () => {
     const plan = planRef.current;
     if (!plan) return;
@@ -260,11 +312,19 @@ export function useAssistant(): UseAssistant {
       return;
     }
 
+    const d = dataRef.current;
+    const baseOp = draftOp ?? plan.op;
+    // A foreign-currency expense needs a conversion rate the sheet doesn't carry;
+    // route it to the full editor so the budget math stays correct (never guess).
+    if (baseOp.kind === 'expense' && baseOp.currency !== (d.trip?.baseCurrency ?? baseOp.currency)) {
+      openFullEditor();
+      return;
+    }
+
     setPhase('saving');
     setErrorKey(null);
-    const d = dataRef.current;
     const owner = d.participants.find((p) => p.isOwner);
-    let op: ExecOp = plan.op;
+    let op: ExecOp = baseOp;
     // Localized fallback for an expense the user didn't describe ("uma cerveja").
     if (op.kind === 'expense' && op.description.trim() === '') {
       op = { ...op, description: t(`categories.${op.category}`) };
@@ -275,6 +335,8 @@ export function useAssistant(): UseAssistant {
         transactions: d.transactions,
         participants: mergeParticipants(d.participants, localParticipantsRef.current),
         ownerId: owner?.id ?? '',
+        currentPlace: d.settings?.currentPlace ?? null,
+        lastExpenseCategory: d.settings?.lastExpenseCategory ?? null,
       });
       showToast(t(`assistant.done.${result.summaryKey}`), 'success', {
         actionLabel: t('common.undo'),
@@ -284,13 +346,19 @@ export function useAssistant(): UseAssistant {
           showToast(t('assistant.undone'), 'info');
         },
       });
+      // B5/DL-5 parity: a split that gave others a slice opens the same "send
+      // their link / remind" nudge QuickAdd does (rendered by the sheet once it
+      // closes). No nudge → the sheet just closes on `done`.
+      if (result.splitNudge && result.splitNudge.targets.length > 0) {
+        setSplitNudge(result.splitNudge);
+      }
       setPhase('done');
     } catch (error) {
       if (error instanceof AssistantDispatchError) setErrorKey(`error.${error.code}`);
       else setErrorKey('error.failed');
       setPhase('error');
     }
-  }, [navigate, t]);
+  }, [navigate, t, draftOp, openFullEditor]);
 
   const startWhisperCapture = useCallback(async () => {
     try {
@@ -372,6 +440,8 @@ export function useAssistant(): UseAssistant {
     transcriptRef.current = '';
     setText('');
     setPreview(null);
+    setDraftOp(null);
+    setSplitNudge(null);
     setClarification(null);
     setNote(null);
     setErrorKey(null);
@@ -386,10 +456,16 @@ export function useAssistant(): UseAssistant {
     };
   }, []);
 
+  const baseCurrency = data.trip?.baseCurrency ?? 'EUR';
+  const isForeign = draftOp?.kind === 'expense' && draftOp.currency !== baseCurrency;
+
   return {
     phase,
     text,
     preview,
+    draftOp,
+    isForeign,
+    splitNudge,
     clarification,
     note,
     errorKey,
@@ -403,6 +479,9 @@ export function useAssistant(): UseAssistant {
     choosePerson,
     cancelClarification,
     confirm,
+    patchDraft,
+    openFullEditor,
+    dismissNudge,
     toggleVoice,
     reset,
   };

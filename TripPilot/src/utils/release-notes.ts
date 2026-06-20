@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.15',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'A entrada por IA agora salva TUDO que um lançamento normal salva. Toque em “Ajustar detalhes” no preview pra revisar e editar valor, categoria, descrição, data, local, fundo e carteira — a IA já chega com tudo preenchido, você só ajusta o que precisar.',
+        'Tira mais do que você fala: entende o local (“no bar do Zé”), a forma de pagamento (“no crédito”, “em dinheiro”) e datas relativas (“ontem”, “3 dias atrás”) — e só pergunta o que realmente falta.',
+        'Mostra os mesmos avisos da entrada manual: gasto bem acima do normal, quanto sobra no fundo depois do gasto e o lembrete pra cobrar quem dividiu com você.',
+        'Casos pesados (moeda estrangeira, divisão personalizada, fotos) agora abrem a edição completa já pré-preenchida com o que a IA entendeu — nada de recomeçar do zero.',
+        'Igual à entrada manual: o local vira sticky e a categoria vira o próximo padrão depois de salvar pela IA.',
+      ],
+      en: [
+        'AI quick entry now saves EVERYTHING a normal entry does. Tap “Adjust details” in the preview to review and edit amount, category, description, date, place, fund and wallet — the AI pre-fills it all, you only tweak what’s needed.',
+        'Captures more of what you say: it understands the place (“at Zé’s bar”), the payment method (“on credit”, “cash”) and relative dates (“yesterday”, “3 days ago”) — and only asks for what’s genuinely missing.',
+        'Shows the same hints as manual entry: an unusually high amount, how much is left in the fund after the expense, and the reminder to charge whoever split with you.',
+        'Heavy cases (foreign currency, custom split, photos) now open the full editor already pre-filled with what the AI understood — no starting over.',
+        'Just like manual entry: the place becomes sticky and the category becomes the next default after an AI save.',
+      ],
+      es: [
+        'La entrada por IA ahora guarda TODO lo que guarda un registro normal. Toca “Ajustar detalles” en la vista previa para revisar y editar importe, categoría, descripción, fecha, lugar, fondo y billetera — la IA lo rellena todo, tú solo ajustas lo necesario.',
+        'Capta más de lo que dices: entiende el lugar (“en el bar de Zé”), el medio de pago (“a crédito”, “en efectivo”) y fechas relativas (“ayer”, “hace 3 días”) — y solo pregunta lo que realmente falta.',
+        'Muestra los mismos avisos que la entrada manual: un importe muy por encima de lo normal, cuánto queda en el fondo tras el gasto y el recordatorio para cobrar a quien dividió contigo.',
+        'Los casos pesados (moneda extranjera, división personalizada, fotos) ahora abren la edición completa ya rellenada con lo que entendió la IA — sin empezar de cero.',
+        'Igual que la entrada manual: el lugar se vuelve fijo y la categoría pasa a ser el próximo valor por defecto tras guardar con IA.',
+      ],
+    },
+  },
+  {
     version: '0.99.14',
     date: '2026-06-20',
     items: {

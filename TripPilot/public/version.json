@@ -1,8 +1,8 @@
 {
-  "version": "0.99.14",
+  "version": "0.99.15",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.14.zip",
-  "notes": "Entrada rápida com IA mais certeira nas divisões: quando outra pessoa paga e vocês racham (ex.: \"o Bruno pagou 12,80 pelas tortilhas, dividimos entre ele, eu e a Débora\"), agora entra só a SUA parte como dívida — não a conta inteira. Lê valores com vírgula e ponto de milhar (12,80 · 3,50 · 1.250,00) e não chuta mais uma moeda que você não falou (usa a moeda base da viagem)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.15.zip",
+  "notes": "Entrada por IA com paridade total ao lançamento manual: agora ela tira do que você fala o local (\"no bar do Zé\"), a forma de pagamento (\"no crédito\", \"em dinheiro\") e a data (\"ontem\", \"3 dias atrás\") — e salva tudo (valor, categoria, fundo, carteira, data, local). Toque em \"Ajustar detalhes\" pra revisar antes de confirmar. Mostra os mesmos avisos do manual (gasto fora do normal, quanto sobra no fundo) e lembra de cobrar quem dividiu. Casos pesados (moeda estrangeira, divisão personalizada, fotos) abrem a edição completa já preenchida."
 }

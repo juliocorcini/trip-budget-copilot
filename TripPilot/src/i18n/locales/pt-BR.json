@@ -44,9 +44,21 @@
       "confirm": "Confirmar",
       "open": "Abrir",
       "manual": "Entrada manual",
-      "edit": "Editar",
+      "edit": "Editar texto",
       "retry": "Tentar de novo",
-      "enable": "Ativar nas configurações"
+      "enable": "Ativar nas configurações",
+      "full_editor": "Abrir edição completa"
+    },
+    "edit": {
+      "toggle": "Ajustar detalhes",
+      "split": "Divisão",
+      "adjust_split": "Ajustar quem pagou / divisão"
+    },
+    "foreign_currency_notice": "Gasto em {{currency}} precisa de câmbio — abra a edição completa pra definir a taxa.",
+    "insight": {
+      "anomaly": "Bem acima do usual (normalmente ~{{typical}}). Confira o valor.",
+      "over_budget": "Isso estoura o fundo {{fund}} em {{amount}}.",
+      "after_left": "Depois disso: {{amount}} livres em {{fund}}."
     },
     "clarify": {
       "amount": "Qual foi o valor?",
@@ -397,6 +409,14 @@
     "active_outing": "Saída ativa",
     "active_outing_spent": "{{amount}} gastos",
     "active_outing_open": "Abrir",
+    "suggest_outing_title": "Parece um rolê",
+    "suggest_outing_body": "Você registrou {{count}} gastos de bar/restaurante agora há pouco. Quer abrir uma Saída pra acompanhar o teto?",
+    "suggest_outing_cta": "Abrir Saída",
+    "suggest_outing_dismiss": "Agora não",
+    "suggest_outing_title": "Parece um rolê",
+    "suggest_outing_body": "Você registrou {{count}} gastos de bar/restaurante agora há pouco. Quer abrir uma Saída pra acompanhar o teto?",
+    "suggest_outing_cta": "Abrir Saída",
+    "suggest_outing_dismiss": "Agora não",
     "amigo_sincero": "Amigo sincero",
     "amigo_see_impact": "Ver impacto completo",
     "amigo_rescue_cta": "Plano de resgate",
@@ -566,6 +586,7 @@
     "card_savings_goal": "Meta de economia",
     "card_piggy_bank": "Cofrinho",
     "card_active_outing": "Saída ativa",
+    "card_suggest_outing": "Sugestão de saída",
     "card_hero": "Livre para gastar",
     "card_occasion_counters": "Contadores de ocasiões",
     "card_insights": "Insights",

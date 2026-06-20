@@ -44,9 +44,21 @@
       "confirm": "Confirm",
       "open": "Open",
       "manual": "Manual entry",
-      "edit": "Edit",
+      "edit": "Edit text",
       "retry": "Try again",
-      "enable": "Enable in settings"
+      "enable": "Enable in settings",
+      "full_editor": "Open full editor"
+    },
+    "edit": {
+      "toggle": "Adjust details",
+      "split": "Split",
+      "adjust_split": "Adjust who paid / split"
+    },
+    "foreign_currency_notice": "A {{currency}} expense needs an exchange rate — open the full editor to set it.",
+    "insight": {
+      "anomaly": "Well above usual (typically ~{{typical}}). Double-check the amount.",
+      "over_budget": "This pushes the {{fund}} fund {{amount}} over.",
+      "after_left": "After this: {{amount}} left in {{fund}}."
     },
     "clarify": {
       "amount": "How much was it?",
@@ -397,6 +409,10 @@
     "active_outing": "Active outing",
     "active_outing_spent": "{{amount}} spent",
     "active_outing_open": "Open",
+    "suggest_outing_title": "Looks like a night out",
+    "suggest_outing_body": "You just logged {{count}} bar/restaurant expenses. Want to open an Outing to track the ceiling?",
+    "suggest_outing_cta": "Open Outing",
+    "suggest_outing_dismiss": "Not now",
     "amigo_sincero": "Honest friend",
     "amigo_see_impact": "See full impact",
     "amigo_rescue_cta": "Rescue plan",
@@ -566,6 +582,7 @@
     "card_savings_goal": "Savings goal",
     "card_piggy_bank": "Piggy bank",
     "card_active_outing": "Active outing",
+    "card_suggest_outing": "Outing suggestion",
     "card_hero": "Free to spend",
     "card_occasion_counters": "Occasion counters",
     "card_insights": "Insights",

@@ -44,9 +44,21 @@
       "confirm": "Confirmar",
       "open": "Abrir",
       "manual": "Entrada manual",
-      "edit": "Editar",
+      "edit": "Editar texto",
       "retry": "Reintentar",
-      "enable": "Activar en ajustes"
+      "enable": "Activar en ajustes",
+      "full_editor": "Abrir edición completa"
+    },
+    "edit": {
+      "toggle": "Ajustar detalles",
+      "split": "División",
+      "adjust_split": "Ajustar quién pagó / división"
+    },
+    "foreign_currency_notice": "Un gasto en {{currency}} necesita tipo de cambio — abre la edición completa para definirlo.",
+    "insight": {
+      "anomaly": "Muy por encima de lo habitual (normalmente ~{{typical}}). Revisa el importe.",
+      "over_budget": "Esto supera el fondo {{fund}} en {{amount}}.",
+      "after_left": "Después de esto: {{amount}} libres en {{fund}}."
     },
     "clarify": {
       "amount": "¿Cuánto fue?",
@@ -397,6 +409,10 @@
     "active_outing": "Salida activa",
     "active_outing_spent": "{{amount}} gastados",
     "active_outing_open": "Abrir",
+    "suggest_outing_title": "Parece una salida",
+    "suggest_outing_body": "Acabas de registrar {{count}} gastos de bar/restaurante. ¿Quieres abrir una Salida para seguir el tope?",
+    "suggest_outing_cta": "Abrir Salida",
+    "suggest_outing_dismiss": "Ahora no",
     "amigo_sincero": "Amigo sincero",
     "amigo_see_impact": "Ver impacto completo",
     "amigo_rescue_cta": "Plan de rescate",
@@ -566,6 +582,7 @@
     "card_savings_goal": "Meta de ahorro",
     "card_piggy_bank": "Alcancía",
     "card_active_outing": "Salida activa",
+    "card_suggest_outing": "Sugerencia de salida",
     "card_hero": "Libre para gastar",
     "card_occasion_counters": "Contadores de ocasiones",
     "card_insights": "Insights",

@@ -1,7 +1,7 @@
 import { toCents } from '@/domain/money';
 import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
-import type { WalletType } from '@/domain/types/common';
+import type { WalletType, CurrentPlace } from '@/domain/types/common';
 
 /**
  * AI Quick Entry (DEC-246) — pure, on-device resolution of the model's
@@ -175,18 +175,79 @@ export function resolveWallet(label: string | null | undefined, wallets: Wallet[
   return { status: 'none' };
 }
 
-const DAY_MS = 86_400_000;
+/** A place candidate (the sticky place or one derived from history) the resolver
+ * can snap a spoken venue name onto, recovering its coordinates/provider id. */
+export interface KnownPlace {
+  label: string;
+  lat: number | null;
+  lng: number | null;
+  placeId: string | null;
+}
 
 /**
- * Normalizes a date phrase to an ISO timestamp. "hoje"/"now" → undefined (the
- * factories default to now); "ontem"/"yesterday" → −1 day; ISO passes through.
+ * Resolves a spoken place into the expense's place (DEC-246 parity — a manual
+ * entry can name where it happened, so the AI must not drop it). When the model
+ * named a venue, snap it to a KNOWN place (the current sticky one or one reused
+ * from history) so its coordinates/id come back — this powers "spend by place"
+ * and offline re-tagging exactly like QuickAdd. An unknown venue becomes a
+ * label-only place (the user said it; coordinates can be added later). With no
+ * named place, the current sticky place is kept (the prior behavior).
+ */
+export function resolvePlace(
+  label: string | null | undefined,
+  known: KnownPlace[],
+  sticky: CurrentPlace | null,
+): CurrentPlace | null {
+  if (!label) return sticky;
+  const needle = normalizeText(label);
+  if (needle === '') return sticky;
+
+  const candidates: KnownPlace[] = sticky ? [sticky, ...known] : known;
+  const match = candidates.find((p) => {
+    const n = normalizeText(p.label);
+    return n !== '' && (n === needle || n.includes(needle) || needle.includes(n));
+  });
+  if (match) return { label: match.label, lat: match.lat, lng: match.lng, placeId: match.placeId };
+
+  return { label: label.trim(), lat: null, lng: null, placeId: null };
+}
+
+const DAY_MS = 86_400_000;
+
+const TODAY_TERMS = ['hoje', 'today', 'agora', 'now', 'hoy'];
+const YESTERDAY_TERMS = ['ontem', 'yesterday', 'ayer'];
+const TWO_DAYS_TERMS = ['anteontem', 'antes de ontem', 'anteayer'];
+const LAST_WEEK_TERMS = ['semana passada', 'last week', 'semana pasada'];
+
+/** "3 dias atrás", "2 days ago", "hace 4 días" → the number of days back. */
+const DAYS_AGO_RE = /(\d{1,3})\s*(?:dias?|days?|d[ií]as?)\s*(?:atras|atrás|ago|antes)/;
+const AGO_DAYS_RE = /(?:hace|fa)\s*(\d{1,3})\s*(?:dias?|d[ií]as?|days?)/;
+
+/**
+ * Normalizes a date phrase to an ISO timestamp the factories accept. "hoje"/"now"
+ * → undefined (factory defaults to now); ISO (date or full datetime) passes
+ * through; otherwise relative phrases resolve against `now`: "ontem" −1d,
+ * "anteontem" −2d, "semana passada" −7d, and "N dias atrás"/"N days ago"/"hace N
+ * días" −Nd. Anything unrecognized → undefined (defaults to now). Maximizes the
+ * date info the AI keeps without ever guessing a wrong day.
  */
 export function resolveDate(raw: string | null | undefined, now: Date): string | undefined {
   if (!raw) return undefined;
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw;
   const normalized = normalizeText(raw);
-  if (['hoje', 'today', 'agora', 'now', 'hoy'].includes(normalized)) return undefined;
-  if (['ontem', 'yesterday', 'ayer'].includes(normalized)) return new Date(now.getTime() - DAY_MS).toISOString();
-  if (['anteontem'].includes(normalized)) return new Date(now.getTime() - 2 * DAY_MS).toISOString();
+  if (TODAY_TERMS.includes(normalized)) return undefined;
+  if (YESTERDAY_TERMS.includes(normalized)) return daysBack(now, 1);
+  if (TWO_DAYS_TERMS.includes(normalized)) return daysBack(now, 2);
+  if (LAST_WEEK_TERMS.includes(normalized)) return daysBack(now, 7);
+
+  const daysAgo = normalized.match(DAYS_AGO_RE) ?? normalized.match(AGO_DAYS_RE);
+  if (daysAgo) {
+    const n = Number(daysAgo[1]);
+    if (Number.isFinite(n) && n > 0 && n <= 366) return daysBack(now, n);
+  }
   return undefined;
+}
+
+function daysBack(now: Date, days: number): string {
+  return new Date(now.getTime() - days * DAY_MS).toISOString();
 }

@@ -61,7 +61,7 @@ import {
 import { findPendingConfirmationShares, calculateDebts, summarizeOwnerDebts } from '@/domain/splitting';
 import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
 import { buildDashboardInsights, createForecastSnapshot } from '@/domain/insights';
-import { calculateSessionTotal } from '@/domain/outing';
+import { calculateSessionTotal, evaluateOutingSuggestion } from '@/domain/outing';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
@@ -628,6 +628,14 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       : null;
     const sessionIcon = sessionProfile?.iconName ?? getCategoryIcon(sessionProfile?.category ?? 'bar');
 
+    // C2 (UX-clarity §4.12): calm hint to open an Outing when bar/restaurant
+    // expenses land back-to-back. Suppressed while a session is already active —
+    // you are already tracking the ceiling. Window measured from real "now"
+    // (recomputes whenever transactions change, i.e. right after logging one).
+    const outingSuggestion = activeSession
+      ? { active: false, count: 0, sinceIso: null }
+      : evaluateOutingSuggestion(transactions, { nowIso: new Date().toISOString() });
+
     return {
       activeSession,
       completedSessions,
@@ -677,6 +685,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       sessionTotalCents,
       sessionDrinksLeft,
       sessionIcon,
+      outingSuggestion,
     };
   }, [
     trip,

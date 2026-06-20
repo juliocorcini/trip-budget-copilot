@@ -8,8 +8,10 @@ import {
   resolveCategory,
   resolveDate,
   resolvePerson,
+  resolvePlace,
   resolveWallet,
   type ExpenseCategoryKey,
+  type KnownPlace,
   type PersonMatch,
 } from './resolve';
 
@@ -137,7 +139,10 @@ export interface PlanContext {
   defaultWalletId: string | null;
   defaultSourceWalletId: string | null;
   defaultTargetWalletId: string | null;
+  /** The current sticky place (kept when the message names no other venue). */
   place: CurrentPlace | null;
+  /** Places reused from history, so a named venue recovers its coords/id. */
+  knownPlaces: KnownPlace[];
   now: Date;
   /** Clarification answers: normalized requested name → chosen participant id.
    * Consulted before fuzzy matching so re-planning after a "which one?" tap
@@ -276,6 +281,14 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
   const description = (intent.description ?? '').trim();
   const date = resolveDate(intent.date, ctx.now);
   const owner = ctx.owner;
+  // Honor a stated payment method ("paguei no crédito/dinheiro/Wise") when I'm
+  // the payer — parity with QuickAdd's wallet picker. Falls back to the default
+  // wallet, and stays null whenever someone else paid (no money left my wallets).
+  const ownerWalletId = resolveWalletId(intent.fromWallet, ctx.wallets) ?? ctx.defaultWalletId;
+  // Honor a stated venue ("no bar do Zé") — parity with QuickAdd's place field.
+  // A named place snaps to a known one (recovering its coords) or stays a
+  // label-only place; with none named, the sticky place is kept.
+  const place = resolvePlace(intent.place, ctx.knownPlaces, ctx.place);
 
   const base = {
     kind: 'expense' as const,
@@ -287,7 +300,7 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
     category,
     description,
     date,
-    place: ctx.place,
+    place,
     ownerId: owner.id,
     connectedParticipantIds: ctx.connectedParticipantIds,
   };
@@ -298,7 +311,7 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
     currency: amount.currency,
     categoryKey: category,
     description: description || undefined,
-    placeLabel: ctx.place?.label ?? null,
+    placeLabel: place?.label ?? null,
   };
 
   // Equal-split builder shared by `split_expense` and the `someone_paid` reroute.
@@ -309,7 +322,7 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
     const participantIds = sharers.map((p) => p.id);
     const op: ExecOp = {
       ...base,
-      walletId: payer.id === owner.id ? ctx.defaultWalletId : null,
+      walletId: payer.id === owner.id ? ownerWalletId : null,
       payerId: payer.id,
       didSplit: true,
       participantIds,
@@ -330,7 +343,7 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
   if (intent.action === 'log_expense') {
     const op: ExecOp = {
       ...base,
-      walletId: ctx.defaultWalletId,
+      walletId: ownerWalletId,
       payerId: owner.id,
       didSplit: false,
       participantIds: [],
@@ -377,7 +390,7 @@ function planExpense(intent: AiIntent, ctx: PlanContext): PlanResult {
     }
     const op: ExecOp = {
       ...base,
-      walletId: ctx.defaultWalletId, // I paid from my wallet
+      walletId: ownerWalletId, // I paid from my wallet
       payerId: owner.id,
       didSplit: true,
       participantIds: r.participants.map((p) => p.id), // owner not a sharer → they owe it all

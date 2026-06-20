@@ -1,20 +1,32 @@
 import { createExpenseTransaction, createIncomeTransaction } from '@/domain/transactions';
 import { registerExpense, registerIncome, transferBetweenWallets, withdrawCash } from '@/domain/orchestrators';
-import { resolvePayerExpense, createSettlement, createParticipant, calculateDebts } from '@/domain/splitting';
+import {
+  resolvePayerExpense,
+  createSettlement,
+  createParticipant,
+  calculateDebts,
+  collectSplitNotifyTargets,
+} from '@/domain/splitting';
 import { createPlannedPurchase } from '@/domain/planning';
-import { placeToTransactionFields } from '@/domain/location';
+import { placeToTransactionFields, placesEqual } from '@/domain/location';
 import {
   transactionRepository,
   participantShareRepository,
   settlementRepository,
   plannedPurchaseRepository,
   participantRepository,
+  appSettingsRepository,
 } from '@/data/repositories';
 import { notifyAppDataChanged } from '@/hooks/useAppData';
+import { requestPersistentStorage } from '@/utils/pwa';
+import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
+import { recordDailyLocalSnapshot } from '@/utils/local-snapshot';
 import type { ExecOp } from './plan';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Participant } from '@/domain/types/participant';
+import type { AppSettings } from '@/domain/types/app-settings';
+import type { CurrentPlace } from '@/domain/types/common';
 
 /**
  * AI Quick Entry (DEC-246) — the ONLY impure boundary of the feature. It takes a
@@ -36,19 +48,28 @@ export interface ExecutionResult {
   /** A key under `assistant.done.*` for the success toast. */
   summaryKey: string;
   undo: () => Promise<void>;
+  /**
+   * B5/DL-5 parity: when a split gave other people a slice, the people to nudge
+   * (send their share link) + the amount each owes ME (only populated when I was
+   * the payer — otherwise the debt isn't mine to charge). Absent for non-splits.
+   */
+  splitNudge?: { targets: Participant[]; amountByParticipantId: Map<string, number> };
 }
 
 export interface DispatchContext {
   transactions: Transaction[];
   participants: Participant[];
   ownerId: string;
+  /** Prior sticky values, so an AI expense persists the same prefs QuickAdd does. */
+  currentPlace?: CurrentPlace | null;
+  lastExpenseCategory?: string | null;
 }
 
 /** Runs a resolved op; never returns until the write is committed. */
 export async function executeOp(op: ExecOp, ctx: DispatchContext): Promise<ExecutionResult> {
   switch (op.kind) {
     case 'expense':
-      return executeExpense(op);
+      return executeExpense(op, ctx);
     case 'income':
       return executeIncome(op);
     case 'transfer':
@@ -61,7 +82,10 @@ export async function executeOp(op: ExecOp, ctx: DispatchContext): Promise<Execu
   }
 }
 
-async function executeExpense(op: Extract<ExecOp, { kind: 'expense' }>): Promise<ExecutionResult> {
+async function executeExpense(
+  op: Extract<ExecOp, { kind: 'expense' }>,
+  ctx: DispatchContext,
+): Promise<ExecutionResult> {
   const tx = createExpenseTransaction({
     tripId: op.tripId,
     phaseId: op.phaseId,
@@ -98,15 +122,78 @@ async function executeExpense(op: Extract<ExecOp, { kind: 'expense' }>): Promise
   }
 
   await registerExpense({ transaction: tx, shares });
+  // Parity with QuickAdd.persistExpense: remember the sticky prefs and refresh
+  // the safety snapshots so an AI expense leaves the app in the same state a
+  // manual one would (the next entry inherits the place + category).
+  await persistExpenseStickyPrefs(op, ctx);
+  requestPersistentStorage();
+  void recordExpenseForSnapshot();
+  void recordDailyLocalSnapshot();
   notifyAppDataChanged();
 
   return {
     summaryKey: 'saved',
+    splitNudge: buildSplitNudge(op, shares, ctx),
     undo: async () => {
       await softDeleteTransactionWithShares(tx.id);
       notifyAppDataChanged();
     },
   };
+}
+
+/**
+ * Pure (B5/DL-5 parity): the post-split nudge — who got a slice (so the owner can
+ * send their share link) and, ONLY when the owner paid, how much each owes them
+ * (so "Lembrar" charges the right value). Mirrors QuickAdd.commitExpense: targets
+ * for any split, amounts gated on the owner being the payer. Returns undefined
+ * when nobody else owes (no nudge to show).
+ */
+export function buildSplitNudge(
+  op: Extract<ExecOp, { kind: 'expense' }>,
+  shares: ParticipantShare[],
+  ctx: DispatchContext,
+): ExecutionResult['splitNudge'] {
+  const targets = collectSplitNotifyTargets(shares, ctx.participants, ctx.ownerId);
+  if (targets.length === 0) return undefined;
+  const amountByParticipantId = new Map<string, number>();
+  if (op.payerId === op.ownerId) {
+    for (const share of shares) {
+      amountByParticipantId.set(
+        share.participantId,
+        (amountByParticipantId.get(share.participantId) ?? 0) + share.shareAmountCents,
+      );
+    }
+  }
+  return { targets, amountByParticipantId };
+}
+
+/**
+ * Pure: the settings delta an expense should persist (DEC-246 parity). Mirrors
+ * QuickAdd — remember the place when it changed, and the category as the next
+ * default. Returns an empty patch when nothing changed (no write needed).
+ */
+export function buildExpenseStickyPatch(
+  place: CurrentPlace | null,
+  category: string,
+  prior: { currentPlace?: CurrentPlace | null; lastExpenseCategory?: string | null },
+): Partial<AppSettings> {
+  const patch: Partial<AppSettings> = {};
+  if (place !== null && !placesEqual(place, prior.currentPlace ?? null)) {
+    patch.currentPlace = place;
+  }
+  if (category && category !== (prior.lastExpenseCategory ?? null)) {
+    patch.lastExpenseCategory = category;
+  }
+  return patch;
+}
+
+/** Mirrors QuickAdd's single sticky write: remember the place + last category. */
+async function persistExpenseStickyPrefs(
+  op: Extract<ExecOp, { kind: 'expense' }>,
+  ctx: DispatchContext,
+): Promise<void> {
+  const patch = buildExpenseStickyPatch(op.place, op.category, ctx);
+  if (Object.keys(patch).length > 0) await appSettingsRepository.update(patch);
 }
 
 async function executeIncome(op: Extract<ExecOp, { kind: 'income' }>): Promise<ExecutionResult> {
