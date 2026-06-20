@@ -170,7 +170,7 @@ pesquisadas), depois **C1 (Wrapped)** se quiser um item de encanto, e **B** só 
 
 ## 4. Balde C — Maiores / encanto (V2-radar, mais esforço, ainda aditivo)
 
-### C1 — Copiloto "Wrapped" de fim de viagem (módulo H) [VERIFICADO]
+### C1 — Copiloto "Wrapped" de fim de viagem (módulo H) — ✅ ENTREGUE (v0.99.13 / DEC-247, 2026-06-20)
 - **Origem:** `copilot-expansion` §2 (módulo H) + `copilot-intelligence` §2 (14) — único item do
   Copiloto ainda não construído; marcado V2 porque **depende da viagem encerrada**.
 - **Plano:** módulo data-gated que só aparece quando a viagem termina — superlativos sobre dados
@@ -180,6 +180,12 @@ pesquisadas), depois **C1 (Wrapped)** se quiser um item de encanto, e **B** só 
 - **Por que vale:** é o "Spotify Wrapped" da viagem — alto encanto, fecha o ciclo emocional, e
   toda a matéria-prima já existe. **Esforço ~4–6h (Wrapped é mini-épico). Confiança ALTA no dado,
   MÉDIA no design.**
+- **✅ Entregue (v0.99.13 / DEC-247):** núcleo in-app — `domain/copilot/wrapped.ts`
+  (`buildTripWrapped`, orquestrador puro reusando as derivações do copilot-insights, cada stat
+  auto-censura em dado fino) + `features/copilot/TripWrappedSheet.tsx` (bottom sheet: total herói,
+  maior dia, categoria nº1, social, hora de pico, sequência). Entrada no topo do `/copiloto`,
+  acessível a qualquer momento como **prévia** até a viagem encerrar. Compartilhar reusa o share
+  card (DEC-133); um canvas "Wrapped" dedicado fica adiado. 7 testes unit + e2e + screenshot.
 
 ### C2 — Auto-sugerir "iniciar Saída" ao detectar bar/restaurante seguidos [VERIFICADO]
 - **Origem:** UX-clarity §4.12 (P3) — "sugerir iniciar saída ao detectar vários gastos seguidos

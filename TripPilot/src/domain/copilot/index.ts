@@ -14,6 +14,13 @@ export {
   summarizePeakHour,
   summarizeDisciplineStreak,
 } from './copilot-insights';
+export { buildTripWrapped, isTripEnded } from './wrapped';
+export type {
+  TripWrapped,
+  WrappedBiggestDay,
+  WrappedTopCategory,
+  BuildTripWrappedInput,
+} from './wrapped';
 export type {
   CopilotVerdict,
   CopilotVerdictStatus,

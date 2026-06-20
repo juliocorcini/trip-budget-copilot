@@ -1,8 +1,8 @@
 {
-  "version": "0.99.12",
+  "version": "0.99.13",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.12.zip",
-  "notes": "Entrada rápida com IA: uma caixa (texto e voz) no topo do botão + pra registrar do seu jeito ('o Bruno me pagou uma cerveja de 2 euros'). A IA entende e leva pra ação certa; você confirma antes de salvar e pode desfazer. Cálculos e dados continuam 100% no aparelho; sem internet cai no registro manual de sempre."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.13.zip",
+  "notes": "Retrospectiva da viagem no Copiloto: um resumo comemorativo com total gasto, maior dia, categoria nº1, quanto rolou com outras pessoas, hora de pico e sua sequência de disciplina. Abre a qualquer momento (como prévia antes de terminar) e compartilha como imagem. Cada número só aparece quando há gasto suficiente pra calcular."
 }

@@ -10,6 +10,7 @@ import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { RecapCard } from '@/features/dashboard/cards/RecapCard';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
+import { TripWrappedSheet } from './TripWrappedSheet';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { formatMoney, sumCents } from '@/domain/money';
 import { sortPhasesByOrder, getTotalDays, localDateString, addDaysIso, formatDate } from '@/domain/dates';
@@ -34,6 +35,7 @@ import {
   summarizeHomeCurrencyTotal,
   summarizePeakHour,
   summarizeDisciplineStreak,
+  buildTripWrapped,
   type CopilotVerdictStatus,
 } from '@/domain/copilot';
 
@@ -133,6 +135,7 @@ export function CopilotPage() {
   // P3 (§4.6): which theme groups are expanded — an absent key falls back to
   // "only the first non-empty group is open" (see isGroupOpen below).
   const [openGroups, setOpenGroups] = useState<Partial<Record<ThemeKey, boolean>>>({});
+  const [wrappedOpen, setWrappedOpen] = useState(false);
   const model = useDashboardModel(appData, heatmapMonth, heatmapDayIso);
 
   const verdict = useMemo(() => buildCopilotVerdict(model.burndown), [model.burndown]);
@@ -243,6 +246,18 @@ export function CopilotPage() {
     return summarizeDisciplineStreak(phaseTxs, dailyTargetCents);
   }, [model.fts, model.activePhase, transactions]);
 
+  // DEC-246 (module H / C1): the end-of-trip "Wrapped" — trip-wide superlatives
+  // from the same pure derivations, reachable any time (preview until ended).
+  const wrapped = useMemo(
+    () =>
+      buildTripWrapped({
+        transactions,
+        endDateIso: trip?.endDate ?? '',
+        todayIso: model.todayIso,
+      }),
+    [transactions, trip?.endDate, model.todayIso],
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -317,6 +332,35 @@ export function CopilotPage() {
         <h1 className="text-heading font-bold text-on-surface">{t('copilot.title')}</h1>
         <p className="text-sm text-on-surface-dim mt-0.5">{t('copilot.subtitle')}</p>
       </div>
+
+      {/* DEC-246: the trip retrospective ("Wrapped") — reachable any time, labeled
+          a preview until the trip ends; only shown once there is real spend. */}
+      {hasAnySignal && wrapped.totalCents > 0 && (
+        <button
+          onClick={() => setWrappedOpen(true)}
+          className="mt-4 w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 btn-press text-left bg-surface-container"
+          data-wrapped-entry
+        >
+          <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary-subtle">
+            <Icon name="auto_awesome" size={20} className="text-primary" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-bold text-on-surface">{t('wrapped.entry_title')}</span>
+            <span className="block text-xs text-on-surface-dim">
+              {wrapped.ended ? t('wrapped.entry_sub_ended') : t('wrapped.entry_sub_preview')}
+            </span>
+          </span>
+          <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+        </button>
+      )}
+      {wrappedOpen && trip && (
+        <TripWrappedSheet
+          wrapped={wrapped}
+          tripName={trip.name}
+          currency={currency}
+          onClose={() => setWrappedOpen(false)}
+        />
+      )}
 
       {/* Empty / warming-up state — never a dead screen (council §3). */}
       {!hasAnySignal && (

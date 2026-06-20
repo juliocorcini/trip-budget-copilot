@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.13',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Retrospectiva da viagem no Copiloto: um resumo comemorativo com o total gasto, o maior dia, a categoria nº1, quanto rolou com outras pessoas, a sua hora de pico e a sua sequência de disciplina.',
+        'Pode abrir a qualquer momento — antes da viagem terminar aparece como “prévia” — e compartilhar tudo como uma imagem bonita.',
+        'Só mostra o que tem dado real: cada número some sozinho se ainda não houver gasto suficiente pra calcular.',
+      ],
+      en: [
+        'Trip Wrapped in the Copilot: a celebratory recap with total spent, your biggest day, the #1 category, how much was shared with others, your peak hour and your discipline streak.',
+        'Open it any time — before the trip ends it shows as a “preview” — and share the whole thing as a nice image.',
+        'It only shows what the data supports: each stat hides itself when there isn\u2019t enough spend to compute it.',
+      ],
+      es: [
+        'Resumen del viaje en el Copiloto: un repaso celebratorio con el total gastado, tu mayor día, la categoría nº1, cuánto fue con otras personas, tu hora pico y tu racha de disciplina.',
+        'Se puede abrir en cualquier momento — antes de que termine el viaje aparece como “vista previa” — y compartir todo como una imagen.',
+        'Solo muestra lo que los datos permiten: cada dato se oculta si aún no hay gasto suficiente para calcularlo.',
+      ],
+    },
+  },
+  {
     version: '0.99.12',
     date: '2026-06-20',
     items: {
