@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.11',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Dividiu uma transferência da Wise com alguém? A tela de classificar transferência agora mostra o mesmo explicador “Como funciona a divisão” que já aparece ao registrar, escanear nota e no Acerto de contas — a explicação fica idêntica nas quatro telas de divisão.',
+      ],
+      en: [
+        'Splitting a Wise transfer with someone? The classify-transfer screen now shows the same “How splitting works” explainer used in Quick add, Receipt scan and Settle-up — identical wording across all four split screens.',
+      ],
+      es: [
+        '¿Dividiste una transferencia de Wise con alguien? La pantalla de clasificar transferencia ahora muestra el mismo explicador “Cómo funciona la división” que ya aparece al registrar, escanear y en Ajuste de cuentas — idéntico en las cuatro pantallas de división.',
+      ],
+    },
+  },
+  {
     version: '0.99.10',
     date: '2026-06-20',
     items: {

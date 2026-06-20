@@ -54,6 +54,7 @@ import { Icon } from '@/components/Icon';
 import { EmptyState } from '@/components/EmptyState';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
+import { SplitExplainer } from '@/features/shared/SplitExplainer';
 import { showToast } from '@/components/Toast';
 
 type TargetWallet = string | 'new';
@@ -1402,6 +1403,12 @@ function TransferClassifySheet({
             </p>
           )}
         </div>
+
+        {/* OD-3 (DEC-231/DEC-242 · G9): the single shared "how splitting works"
+            explainer, collapsed by default — so splitting a Wise transfer with
+            someone reads the identical explanation as QuickAdd/Receipt/Shared,
+            the 4th and final split surface. Copy source already exists. */}
+        <SplitExplainer />
 
         {/* Allocations */}
         <div className="flex flex-col gap-2">

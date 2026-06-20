@@ -1,8 +1,8 @@
 {
-  "version": "0.99.10",
+  "version": "0.99.11",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.10.zip",
-  "notes": "Lembrete de cobrança mais esperto: quando alguém te deve e você ainda não cadastrou uma forma de pagamento, a tela de Acerto de contas mostra um atalho para adicionar (Pix, Wise, conta…). Polimento: vibração do app só dispara depois do primeiro toque (sem ruído no console)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.11.zip",
+  "notes": "Explicador de divisão agora também no importador da Wise: ao classificar uma transferência dividida com alguém, aparece o mesmo 'Como funciona a divisão' das outras telas — explicação idêntica nas quatro telas de divisão (registrar, escanear nota, Acerto de contas e Wise)."
 }

@@ -36,4 +36,32 @@ test.describe('GATE 11 — single split explainer', () => {
       page.getByRole('button', { name: /Como funciona a divisão/i }),
     ).toBeVisible();
   });
+
+  // 0.99.11 (OD-3 / DEC-242) — the 4th and final split surface: classifying a
+  // Wise transfer that you split with a person now shows the identical explainer.
+  test('the Wise importer transfer sheet shows the same explainer (4th surface)', async ({
+    page,
+  }) => {
+    await page.goto('/import/wise');
+    // A minimal Wise statement: one outgoing TRANSFER to a named person → a
+    // person-to-person move the importer asks you to classify/split.
+    const csv = [
+      'TransferWise ID,Date,Amount,Currency,Description,Payee Name,Transaction Type,Transaction Details Type',
+      'TRANSFER-E2E-1,15-07-2026,-50.00,EUR,Sent money to Ana,Ana,DEBIT,TRANSFER',
+    ].join('\n');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'wise-e2e.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv, 'utf-8'),
+    });
+    // The transfer lands in the "transfers to people" section; open its sheet.
+    await page.getByRole('button', { name: /Ana/ }).first().click();
+    const explainer = page.getByRole('button', { name: /Como funciona a divisão/i });
+    await expect(explainer).toBeVisible();
+    await page.screenshot({ path: 'test-results/audit/wise-split-explainer.png' });
+    // Same collapsed-by-default behaviour as the other three surfaces.
+    await expect(page.getByText(/o app sugere quem paga quem/i)).toHaveCount(0);
+    await explainer.click();
+    await expect(page.getByText(/o app sugere quem paga quem/i)).toBeVisible();
+  });
 });
