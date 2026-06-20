@@ -9,7 +9,7 @@
  * RIFF header sidesteps that entirely and is exactly what Whisper wants.
  */
 
-const TARGET_SAMPLE_RATE = 16000;
+export const TARGET_SAMPLE_RATE = 16000;
 /** ScriptProcessor frame size — a good latency/throughput balance on WebView. */
 const FRAME_SIZE = 4096;
 /**
@@ -19,7 +19,7 @@ const FRAME_SIZE = 4096;
  * Deliberately tiny — even a quiet talker peaks far above this, so real speech is
  * never rejected.
  */
-const SILENCE_PEAK = 0.006;
+export const SILENCE_PEAK = 0.006;
 
 type WindowAudio = typeof window & { webkitAudioContext?: typeof AudioContext };
 
@@ -97,7 +97,7 @@ export async function startPcmRecording(): Promise<PcmRecording> {
   return { stop };
 }
 
-function peakAmplitude(samples: Float32Array): number {
+export function peakAmplitude(samples: Float32Array): number {
   let peak = 0;
   for (let i = 0; i < samples.length; i++) {
     const abs = Math.abs(samples[i]!);
@@ -119,7 +119,7 @@ function mergeFrames(frames: Float32Array[]): Float32Array {
 }
 
 /** Averaging decimator — good enough for speech, avoids aliasing artefacts. */
-function downsample(samples: Float32Array, inputRate: number, targetRate: number): Float32Array {
+export function downsample(samples: Float32Array, inputRate: number, targetRate: number): Float32Array {
   if (targetRate >= inputRate || samples.length === 0) return samples;
   const ratio = inputRate / targetRate;
   const newLength = Math.floor(samples.length / ratio);
@@ -138,7 +138,7 @@ function downsample(samples: Float32Array, inputRate: number, targetRate: number
   return out;
 }
 
-function encodeWav(samples: Float32Array, sampleRate: number): Blob {
+export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
   const writeString = (offset: number, text: string): void => {
