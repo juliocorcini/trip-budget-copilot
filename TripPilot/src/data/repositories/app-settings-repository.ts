@@ -66,6 +66,10 @@ class AppSettingsRepository {
       // DEC-206 (G2): records predating cloud receipt OCR default to OFF
       // (opt-in — the photo never leaves the device until enabled).
       cloudReceiptOcrEnabled: settings.cloudReceiptOcrEnabled ?? false,
+      // DEC-246: records predating AI quick entry default to ON (owner tool;
+      // degrades gracefully) with names-only context (private mode off).
+      aiQuickEntryEnabled: settings.aiQuickEntryEnabled ?? true,
+      aiQuickEntryPrivateNames: settings.aiQuickEntryPrivateNames ?? false,
       // GATE 5 (D10): records predating progressive wallet tracking default to
       // AUTOMATIC (null) — the wallet stays invisible until 2+ wallets/a Wise
       // import or the traveler flips the manual toggle.

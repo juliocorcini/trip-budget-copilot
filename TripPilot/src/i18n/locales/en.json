@@ -1,4 +1,89 @@
 {
+  "assistant": {
+    "title": "Quick entry",
+    "fab_title": "AI entry",
+    "fab_desc": "Speak or type — AI logs it for you",
+    "placeholder": "e.g. Bruno bought me a beer for 2 euros",
+    "send": "Send",
+    "voice": "Speak",
+    "thinking": "Understanding…",
+    "transcribing": "Transcribing…",
+    "saving": "Saving…",
+    "privacy_hint": "Only names and labels go to the AI — never amounts, balances or history. The math runs on your device.",
+    "disabled_notice": "AI entry is off. Turn it on in settings or use manual entry.",
+    "undone": "Undone",
+    "preview": {
+      "someone_paid": "You'll owe {{person}} {{amount}}",
+      "i_paid_for": "{{person}} will owe you {{amount}}",
+      "split": "Split {{amount}} among {{count}} — {{per}} each",
+      "log_expense": "Log a {{amount}} expense",
+      "income": "Log {{amount}} income",
+      "transfer": "Transfer {{amount}} from {{from}} to {{to}}",
+      "withdraw": "Withdraw {{amount}}",
+      "settle_i_owe": "Settle {{amount}} you owe {{person}}",
+      "settle_owes_me": "Settle {{amount}} {{person}} owes you",
+      "settle_full": "everything",
+      "plan_purchase": "Plan {{item}} (~{{amount}})"
+    },
+    "nav": {
+      "split_bill": "Open bill split",
+      "scan_receipt": "Open receipt scanner",
+      "outing": "Start outing",
+      "plan_expense": "Plan an expense",
+      "simulator": "Open purchase simulator",
+      "debts": "Open debts",
+      "expenses": "Open expenses",
+      "dashboard": "Open dashboard",
+      "wallets": "Open wallets",
+      "planner": "Open planner",
+      "income": "Open income",
+      "trip": "Open trip",
+      "open": "Open"
+    },
+    "action": {
+      "confirm": "Confirm",
+      "open": "Open",
+      "manual": "Manual entry",
+      "edit": "Edit",
+      "retry": "Try again",
+      "enable": "Enable in settings"
+    },
+    "clarify": {
+      "amount": "How much was it?",
+      "amount_placeholder": "e.g. 12.50",
+      "add_person": "I couldn't find \"{{name}}\". Add them?",
+      "add_yes": "Add {{name}}",
+      "need_people": "Who do you want to split with? Add the people and try again.",
+      "choose_person": "Which \"{{name}}\"?"
+    },
+    "done": {
+      "saved": "Entry saved",
+      "settled": "Settlement recorded",
+      "planned": "Purchase planned"
+    },
+    "error": {
+      "disabled": "AI entry is off.",
+      "not_configured": "AI isn't set up in this environment yet.",
+      "rate_limited": "Too many tries just now. Try again in a moment.",
+      "offline": "No connection. Use manual entry for now.",
+      "failed": "I couldn't understand that. Try rephrasing or use manual entry.",
+      "no_debt": "There's no open debt with that person.",
+      "need_people": "Add the people to split with and try again.",
+      "mic_denied": "I couldn't access the microphone."
+    },
+    "unsupported": {
+      "unknown": "I'm not sure what to do. Try rephrasing or use manual entry.",
+      "no_owner": "Set up your profile in the trip first.",
+      "no_phase": "Create a phase in the trip to log.",
+      "no_pool": "Create a fund in the trip to log.",
+      "no_trip": "Create a trip first."
+    },
+    "setting_title": "AI entry",
+    "setting_label": "Enable AI quick entry",
+    "setting_hint": "Understands text and voice to log expenses, debts and more. Only names and labels go to the cloud — amounts and math stay on device.",
+    "setting_private_label": "Private mode (don't send names)",
+    "setting_private_hint": "Doesn't send people or wallet names to the AI. You confirm who's who on each entry."
+  },
   "attachments": {
     "title": "Photos",
     "add": "Add",
@@ -144,6 +229,32 @@
     "chip_event_tour": "Tour / Day trip",
     "chip_event_dinner": "Special dinner",
     "chip_event_ticket": "Ticket / Attraction"
+  },
+  "wrapped": {
+    "title": "Trip Wrapped",
+    "entry_title": "Trip Wrapped",
+    "entry_sub_ended": "See your trip recap",
+    "entry_sub_preview": "Preview — see how it's going",
+    "preview_badge": "Preview",
+    "hero_label": "You spent on {{trip}}",
+    "hero_sub": "{{count}} expenses · {{days}} active days",
+    "biggest_day": "Biggest day",
+    "top_category": "#1 category",
+    "top_category_hint": "{{percent}}% of total · {{amount}}",
+    "social": "Shared",
+    "social_value": "{{percent}}% with others",
+    "social_hint": "{{shared}} split",
+    "peak_hour": "Peak hour",
+    "peak_hour_value": "{{hour}}:00",
+    "peak_hour_hint": "{{percent}}% of spend",
+    "streak": "Discipline streak",
+    "streak_value": "{{days}} days in a row on target",
+    "share": "Share",
+    "sharing": "Rendering…",
+    "share_failed": "Couldn't render the image",
+    "share_top_category": "Top: {{category}} ({{percent}}%)",
+    "share_biggest_day": "Biggest day: {{amount}} on {{date}}",
+    "share_days": "{{days}} days of travel"
   },
   "copilot": {
     "title": "Copilot",

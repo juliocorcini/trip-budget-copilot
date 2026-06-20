@@ -1,4 +1,89 @@
 {
+  "assistant": {
+    "title": "Entrada rápida",
+    "fab_title": "Entrada con IA",
+    "fab_desc": "Habla o escribe — la IA lo registra",
+    "placeholder": "Ej: Bruno me pagó una cerveza de 2 euros",
+    "send": "Enviar",
+    "voice": "Hablar",
+    "thinking": "Entendiendo…",
+    "transcribing": "Transcribiendo…",
+    "saving": "Guardando…",
+    "privacy_hint": "Solo nombres y etiquetas van a la IA — nunca importes, saldos o historial. Los cálculos ocurren en tu dispositivo.",
+    "disabled_notice": "La entrada con IA está desactivada. Actívala en ajustes o usa la entrada manual.",
+    "undone": "Deshecho",
+    "preview": {
+      "someone_paid": "Le deberás {{amount}} a {{person}}",
+      "i_paid_for": "{{person}} te deberá {{amount}}",
+      "split": "Dividir {{amount}} entre {{count}} — {{per}} cada uno",
+      "log_expense": "Registrar gasto de {{amount}}",
+      "income": "Registrar ingreso de {{amount}}",
+      "transfer": "Transferir {{amount}} de {{from}} a {{to}}",
+      "withdraw": "Retirar {{amount}}",
+      "settle_i_owe": "Saldar {{amount}} que le debes a {{person}}",
+      "settle_owes_me": "Saldar {{amount}} que {{person}} te debe",
+      "settle_full": "todo",
+      "plan_purchase": "Planear {{item}} (~{{amount}})"
+    },
+    "nav": {
+      "split_bill": "Abrir división de cuenta",
+      "scan_receipt": "Abrir lector de recibos",
+      "outing": "Iniciar salida",
+      "plan_expense": "Planear un gasto",
+      "simulator": "Abrir simulador de compra",
+      "debts": "Abrir deudas",
+      "expenses": "Abrir gastos",
+      "dashboard": "Abrir panel",
+      "wallets": "Abrir carteras",
+      "planner": "Abrir planificador",
+      "income": "Abrir ingresos",
+      "trip": "Abrir viaje",
+      "open": "Abrir"
+    },
+    "action": {
+      "confirm": "Confirmar",
+      "open": "Abrir",
+      "manual": "Entrada manual",
+      "edit": "Editar",
+      "retry": "Reintentar",
+      "enable": "Activar en ajustes"
+    },
+    "clarify": {
+      "amount": "¿Cuánto fue?",
+      "amount_placeholder": "Ej: 12,50",
+      "add_person": "No encontré a \"{{name}}\". ¿Lo agrego?",
+      "add_yes": "Agregar a {{name}}",
+      "need_people": "¿Con quién quieres dividir? Agrega a las personas e inténtalo de nuevo.",
+      "choose_person": "¿Cuál \"{{name}}\"?"
+    },
+    "done": {
+      "saved": "Registro guardado",
+      "settled": "Saldo registrado",
+      "planned": "Compra planeada"
+    },
+    "error": {
+      "disabled": "La entrada con IA está desactivada.",
+      "not_configured": "La IA aún no está configurada en este entorno.",
+      "rate_limited": "Demasiados intentos hace un momento. Inténtalo de nuevo en unos instantes.",
+      "offline": "Sin conexión. Usa la entrada manual por ahora.",
+      "failed": "No pude entenderlo. Intenta reformular o usa la entrada manual.",
+      "no_debt": "No hay deuda abierta con esa persona.",
+      "need_people": "Agrega a las personas para dividir e inténtalo de nuevo.",
+      "mic_denied": "No pude acceder al micrófono."
+    },
+    "unsupported": {
+      "unknown": "No sé qué hacer. Intenta reformular o usa la entrada manual.",
+      "no_owner": "Configura tu perfil en el viaje primero.",
+      "no_phase": "Crea una fase en el viaje para registrar.",
+      "no_pool": "Crea un fondo en el viaje para registrar.",
+      "no_trip": "Crea un viaje primero."
+    },
+    "setting_title": "Entrada con IA",
+    "setting_label": "Activar entrada rápida con IA",
+    "setting_hint": "Entiende texto y voz para registrar gastos, deudas y más. Solo nombres y etiquetas van a la nube — importes y cálculos quedan en el dispositivo.",
+    "setting_private_label": "Modo privado (no enviar nombres)",
+    "setting_private_hint": "No envía nombres de personas ni carteras a la IA. Confirmas quién es quién en cada registro."
+  },
   "attachments": {
     "title": "Fotos",
     "add": "Añadir",
@@ -144,6 +229,32 @@
     "chip_event_tour": "Paseo / Tour",
     "chip_event_dinner": "Cena especial",
     "chip_event_ticket": "Entrada / Atracción"
+  },
+  "wrapped": {
+    "title": "Resumen del viaje",
+    "entry_title": "Resumen del viaje",
+    "entry_sub_ended": "Mira el resumen de tu viaje",
+    "entry_sub_preview": "Vista previa — mira cómo va",
+    "preview_badge": "Vista previa",
+    "hero_label": "Gastaste en {{trip}}",
+    "hero_sub": "{{count}} gastos · {{days}} días con gasto",
+    "biggest_day": "Mayor día",
+    "top_category": "Categoría nº1",
+    "top_category_hint": "{{percent}}% del total · {{amount}}",
+    "social": "Compartido",
+    "social_value": "{{percent}}% con otros",
+    "social_hint": "{{shared}} divididos",
+    "peak_hour": "Hora pico",
+    "peak_hour_value": "{{hour}}:00",
+    "peak_hour_hint": "{{percent}}% del gasto",
+    "streak": "Racha de disciplina",
+    "streak_value": "{{days}} días seguidos en meta",
+    "share": "Compartir",
+    "sharing": "Generando…",
+    "share_failed": "No pude generar la imagen",
+    "share_top_category": "Top: {{category}} ({{percent}}%)",
+    "share_biggest_day": "Mayor día: {{amount}} el {{date}}",
+    "share_days": "{{days}} días de viaje"
   },
   "copilot": {
     "title": "Copiloto",

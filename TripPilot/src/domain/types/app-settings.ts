@@ -118,6 +118,17 @@ export interface AppSettings {
    * sent to the Worker /ocr proxy → Groq, which does not train on it). Privacy
    * first, like locationCaptureEnabled (ÂNCORA 8; non-indexed — no migration). */
   cloudReceiptOcrEnabled: boolean;
+  /** DEC-246 (AI Quick Entry): master switch for the natural-language quick-entry
+   * box (text + voice → router). When on, the typed/spoken text and a tiny
+   * names-only context pack are sent to the Worker /assistant proxy → Groq; the
+   * device resolves and executes locally. Default ON for the app owner (the
+   * headline low-friction tool); the toggle disables it and the feature degrades
+   * to manual entry when the key/network is absent (non-indexed — no migration). */
+  aiQuickEntryEnabled: boolean;
+  /** DEC-246: privacy mode — when true, the context pack withholds people and
+   * wallet NAMES (the device then always asks "who?" on a name). Default false
+   * (names help the router); cautious users can turn it on (non-indexed). */
+  aiQuickEntryPrivateNames: boolean;
   /** GATE 5 (D10): manual override for progressive wallet tracking. `null` =
    * AUTOMATIC (the wallet question lights up only with 2+ wallets or a Wise
    * import); `true` = always ask "de onde saiu?"; `false` = never ask. Default

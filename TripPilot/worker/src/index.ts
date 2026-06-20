@@ -127,6 +127,209 @@ const OCR_PROMPT = [
   'adjustments (E6): list money lines that are NOT products: couvert/cover ("couvert","cover") as kind "couvert"; any discount/promo ("discount","desconto","promo","off") as kind "discount" with a NEGATIVE amount; anything else non-product as "other". Never duplicate the service line here. If none, return [].',
 ].join('\n');
 
+// DEC-246 (AI Quick Entry) — natural-language router. The client posts the typed
+// text plus a tiny, low-sensitivity context pack (names/labels only, no ids, no
+// amounts, no history); the model returns ONE typed intent as JSON. The device
+// resolves names → ids and runs the action through its own engines, so nothing
+// financial is ever computed or persisted here (this stays a thin proxy).
+const ASSISTANT_MODEL = 'llama-3.3-70b-versatile';
+const ASSISTANT_MAX_TEXT_CHARS = 2_000;
+
+interface AssistantContextPack {
+  language?: string;
+  baseCurrency?: string;
+  today?: string;
+  place?: string | null;
+  participants?: string[];
+  wallets?: string[];
+  categories?: string[];
+  privateNames?: boolean;
+}
+
+function buildAssistantSystemPrompt(context: AssistantContextPack): string {
+  const list = (values: string[] | undefined): string =>
+    values && values.length > 0 ? values.join(', ') : '(none)';
+  return [
+    'You are TripPilot\'s quick-entry router. Read ONE short message a traveler typed or spoke about money on a trip and return ONLY a JSON object (no prose, no markdown) describing the single best action and its entities.',
+    'JSON shape (include only what applies; use null/[] otherwise):',
+    '{"action":string,"amount":number|null,"currency":string|null,"description":string|null,"category":string|null,"person":string|null,"participants":string[],"payer":"me"|"other"|null,"direction":"i_owe"|"owes_me"|null,"fromWallet":string|null,"toWallet":string|null,"place":string|null,"date":string|null,"itemName":string|null,"screen":string|null,"note":string|null,"confidence":number}',
+    'action is one of: log_expense, someone_paid, i_paid_for, split_expense, record_income, transfer, withdraw, settle_debt, plan_purchase, open_split_bill, open_scan_receipt, open_outing, open_plan_expense, open_simulator, open_screen, unknown.',
+    'Routing rules:',
+    '- "<name> me pagou/comprou/ofereceu/pagou pra mim" (someone paid FOR me) -> someone_paid, person=<name> (I will OWE them).',
+    '- "paguei/cobri/banquei pro/para <name>" (I paid FOR them) -> i_paid_for, person=<name> (they owe me).',
+    '- "dividir/rachar a conta com <names>" or "split with <names>" -> split_expense, participants=[names], payer="me" unless another payer is named.',
+    '- I just spent ("gastei/paguei/comprei/torrei") with no other person -> log_expense.',
+    '- "recebi/me reembolsaram/entrou" money -> record_income.',
+    '- "transferi de X pra Y" -> transfer (fromWallet, toWallet); "saquei/tirei no caixa" -> withdraw.',
+    '- "acertei/paguei o que devia ao <name>" -> settle_debt, direction="i_owe"; "<name> me pagou o que devia" -> settle_debt, direction="owes_me".',
+    '- "quero comprar/planejar <thing>" (future) -> plan_purchase, itemName=<thing>.',
+    '- "dividir uma nota/conta por foto", "escanear nota/recibo" -> open_scan_receipt; itemized bill split -> open_split_bill.',
+    '- "iniciar saída/abrir o bar/modo saída" -> open_outing. "planejar um gasto" -> open_plan_expense. "simular uma compra" -> open_simulator.',
+    '- "abrir/ver dívidas|gastos|carteiras|painel|planejador|receitas|viagem" -> open_screen with screen in [debts, expenses, dashboard, wallets, planner, income, trip].',
+    'Entity rules:',
+    '- amount = the plain number the user said (e.g. 2 for "2 euros"); no currency symbol, no math, no splitting. currency = ISO 4217 code from the text (euros->EUR, reais->BRL, dollars->USD) or null.',
+    '- person/participants: copy the names EXACTLY as said. NEVER invent a person who was not mentioned. The device matches names to people itself.',
+    '- category: pick from the categories list when clearly implied (a beer -> bar), else null. description = a short human label of what it was, when stated.',
+    '- NEVER output ids. NEVER compute totals, shares or balances. NEVER add fields beyond the shape.',
+    '- If the action is genuinely unclear, use action="unknown" and put a one-line question in "note" (in the user\'s language). Always set a confidence 0..1.',
+    'Context (use it to match names/labels; do not echo it):',
+    `- language: ${context.language ?? 'pt-BR'}`,
+    `- today: ${context.today ?? ''}`,
+    `- base currency: ${context.baseCurrency ?? ''}`,
+    `- current place: ${context.place ?? '(unknown)'}`,
+    `- known people: ${list(context.participants)}`,
+    `- known wallets: ${list(context.wallets)}`,
+    `- categories: ${list(context.categories)}`,
+  ].join('\n');
+}
+
+/**
+ * DEC-246 (AI Quick Entry): relay the traveler's text + context to Groq's JSON
+ * mode and return the model's raw intent JSON verbatim. The client's
+ * `parseAssistantResponse` is the source of truth for validation, so the worker
+ * stays a thin, stateless boundary. Failures map to stable statuses the client
+ * folds into a graceful manual fallback (503 not configured, 429 rate limited,
+ * 502 upstream/parse).
+ */
+async function handleAssistant(request: Request, env: Env): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'assistant_not_configured' }, 503);
+
+  let body: { text?: unknown; context?: unknown };
+  try {
+    body = (await request.json()) as { text?: unknown; context?: unknown };
+  } catch {
+    return json({ error: 'bad_json' }, 400);
+  }
+
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (text === '') return json({ error: 'bad_text' }, 400);
+  if (text.length > ASSISTANT_MAX_TEXT_CHARS) return json({ error: 'text_too_large' }, 413);
+  const context: AssistantContextPack =
+    body.context && typeof body.context === 'object' ? (body.context as AssistantContextPack) : {};
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: ASSISTANT_MODEL,
+        temperature: 0,
+        max_tokens: 500,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: buildAssistantSystemPrompt(context) },
+          { role: 'user', content: text },
+        ],
+      }),
+    });
+  } catch {
+    return json({ error: 'assistant_upstream_unreachable' }, 502);
+  }
+
+  if (upstream.status === 429) return json({ error: 'assistant_rate_limited' }, 429);
+  if (!upstream.ok) return json({ error: 'assistant_upstream_error', upstreamStatus: upstream.status }, 502);
+
+  let payload: { choices?: { message?: { content?: unknown } }[] };
+  try {
+    payload = (await upstream.json()) as typeof payload;
+  } catch {
+    return json({ error: 'assistant_unparseable' }, 502);
+  }
+  const content = payload.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') return json({ error: 'assistant_empty' }, 502);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return json({ error: 'assistant_unparseable' }, 502);
+  }
+  return json(parsed);
+}
+
+// DEC-246 (AI Quick Entry · voice): speech-to-text via Groq Whisper. The client
+// records a short clip and posts it as base64; the worker forwards it to Groq's
+// audio endpoint and returns the plain transcript. Used as the robust fallback
+// where the Web Speech API is unavailable (notably the Android APK).
+const WHISPER_MODEL = 'whisper-large-v3-turbo';
+const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
+// ~8 MB of base64 ≈ a 6 MB clip — far above a few seconds of speech; pure guard.
+const TRANSCRIBE_MAX_CHARS = 8_000_000;
+
+function base64ToBytes(value: string): Uint8Array {
+  const comma = value.indexOf(',');
+  const pure = value.startsWith('data:') && comma >= 0 ? value.slice(comma + 1) : value;
+  const binary = atob(pure);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function transcribeFileExtension(mimeType: string): string {
+  if (mimeType.includes('mp4') || mimeType.includes('m4a')) return 'mp4';
+  if (mimeType.includes('mpeg') || mimeType.includes('mp3')) return 'mp3';
+  if (mimeType.includes('wav')) return 'wav';
+  if (mimeType.includes('ogg')) return 'ogg';
+  return 'webm';
+}
+
+async function handleTranscribe(request: Request, env: Env): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'transcribe_not_configured' }, 503);
+
+  let body: { audioBase64?: unknown; mimeType?: unknown; language?: unknown };
+  try {
+    body = (await request.json()) as { audioBase64?: unknown; mimeType?: unknown; language?: unknown };
+  } catch {
+    return json({ error: 'bad_json' }, 400);
+  }
+
+  const audioBase64 = typeof body.audioBase64 === 'string' ? body.audioBase64 : '';
+  if (audioBase64 === '') return json({ error: 'bad_audio' }, 400);
+  if (audioBase64.length > TRANSCRIBE_MAX_CHARS) return json({ error: 'audio_too_large' }, 413);
+
+  const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'audio/webm';
+  const language = typeof body.language === 'string' ? body.language.slice(0, 2) : undefined;
+
+  let bytes: Uint8Array;
+  try {
+    bytes = base64ToBytes(audioBase64);
+  } catch {
+    return json({ error: 'bad_audio' }, 400);
+  }
+
+  const form = new FormData();
+  form.append('file', new Blob([bytes], { type: mimeType }), `audio.${transcribeFileExtension(mimeType)}`);
+  form.append('model', WHISPER_MODEL);
+  form.append('response_format', 'json');
+  if (language) form.append('language', language);
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_AUDIO_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      body: form,
+    });
+  } catch {
+    return json({ error: 'transcribe_upstream_unreachable' }, 502);
+  }
+
+  if (upstream.status === 429) return json({ error: 'transcribe_rate_limited' }, 429);
+  if (!upstream.ok) return json({ error: 'transcribe_upstream_error', upstreamStatus: upstream.status }, 502);
+
+  let payload: { text?: unknown };
+  try {
+    payload = (await upstream.json()) as { text?: unknown };
+  } catch {
+    return json({ error: 'transcribe_unparseable' }, 502);
+  }
+  return json({ text: typeof payload.text === 'string' ? payload.text : '' });
+}
+
 function generateRoomCode(): string {
   const bytes = new Uint8Array(CODE_LENGTH);
   crypto.getRandomValues(bytes);
@@ -307,6 +510,16 @@ export default {
     // DEC-206 (G2) — cloud receipt OCR. Stateless proxy to Groq vision.
     if (request.method === 'POST' && url.pathname === '/ocr') {
       return handleOcr(request, env);
+    }
+
+    // DEC-246 — AI quick-entry router. Stateless proxy to Groq JSON mode.
+    if (request.method === 'POST' && url.pathname === '/assistant') {
+      return handleAssistant(request, env);
+    }
+
+    // DEC-246 — voice transcription. Stateless proxy to Groq Whisper.
+    if (request.method === 'POST' && url.pathname === '/transcribe') {
+      return handleTranscribe(request, env);
     }
 
     // DEC-207 S7 — real-time signal relay for a share (best-effort transport).

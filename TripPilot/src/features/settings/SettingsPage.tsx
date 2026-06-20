@@ -1227,6 +1227,27 @@ export function SettingsPage() {
         <p className="text-xs text-on-surface-faint mt-2">{t('receiptScan.setting_hint')}</p>
       </Section>
 
+      {/* DEC-246 (AI Quick Entry): natural-language quick entry (text + voice).
+          On by default; names-only context, private-names mode opt-in. */}
+      <Section title={t('assistant.setting_title')}>
+        <ToggleRow
+          label={t('assistant.setting_label')}
+          enabled={settings.aiQuickEntryEnabled}
+          onChange={() => updateSetting({ aiQuickEntryEnabled: !settings.aiQuickEntryEnabled })}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('assistant.setting_hint')}</p>
+        {settings.aiQuickEntryEnabled && (
+          <div className="mt-3">
+            <ToggleRow
+              label={t('assistant.setting_private_label')}
+              enabled={settings.aiQuickEntryPrivateNames}
+              onChange={() => updateSetting({ aiQuickEntryPrivateNames: !settings.aiQuickEntryPrivateNames })}
+            />
+            <p className="text-xs text-on-surface-faint mt-2">{t('assistant.setting_private_hint')}</p>
+          </div>
+        )}
+      </Section>
+
       </CollapsibleGroup>
 
       <CollapsibleGroup {...groupProps('device')}>

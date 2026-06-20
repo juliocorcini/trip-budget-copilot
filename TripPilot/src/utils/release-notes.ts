@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.12',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Entrada rápida com IA: uma caixa nova (texto e voz) no topo do botão “+” pra registrar do seu jeito — “o Bruno me pagou uma cerveja de 2 euros”, “almoço 35 dividido com a Ana”, “tirei 100 do caixa”. A IA entende e leva pra ação certa (gasto, dívida, divisão, saque, transferência…).',
+        'Você confirma antes de salvar: aparece uma prévia do que ela entendeu, ela pergunta só quando precisa (ex.: adicionar uma pessoa nova) e dá pra desfazer com um toque.',
+        'Privacidade: as contas e os seus dados continuam 100% no aparelho — a IA recebe só nomes e o necessário pra ler a frase. Dá pra desligar ou esconder nomes em Ajustes.',
+        'Sem internet ou IA indisponível? Cai automaticamente no registro manual de sempre — nada trava.',
+      ],
+      en: [
+        'AI Quick Entry: a new box (text and voice) at the top of the “+” button to log things in your own words — “Bruno paid for my 2-euro beer”, “lunch 35 split with Ana”, “took 100 out of cash”. The AI understands and routes it to the right action (expense, debt, split, withdrawal, transfer…).',
+        'You confirm before saving: it shows a preview of what it understood, asks only when needed (e.g. add a new person) and lets you undo with one tap.',
+        'Privacy: the math and your data stay 100% on device — the AI only gets names and what it needs to read the sentence. You can turn it off or hide names in Settings.',
+        'No internet or AI unavailable? It falls back to the usual manual entry automatically — nothing breaks.',
+      ],
+      es: [
+        'Entrada rápida con IA: una caja nueva (texto y voz) arriba del botón “+” para registrar a tu manera — “Bruno me pagó una cerveza de 2 euros”, “almuerzo 35 dividido con Ana”, “saqué 100 de efectivo”. La IA entiende y lo lleva a la acción correcta (gasto, deuda, división, retiro, transferencia…).',
+        'Confirmas antes de guardar: muestra una vista previa de lo que entendió, pregunta solo cuando hace falta (p. ej. agregar una persona nueva) y puedes deshacer con un toque.',
+        'Privacidad: los cálculos y tus datos siguen 100% en el dispositivo — la IA solo recibe nombres y lo necesario para leer la frase. Puedes desactivarla u ocultar nombres en Ajustes.',
+        '¿Sin internet o IA no disponible? Vuelve automáticamente al registro manual de siempre — nada se traba.',
+      ],
+    },
+  },
+  {
     version: '0.99.11',
     date: '2026-06-20',
     items: {

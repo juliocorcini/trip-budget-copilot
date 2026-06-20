@@ -52,6 +52,8 @@ const settings: AppSettings = {
   deviceIdentity: null,
   mailboxEnabled: true,
   cloudReceiptOcrEnabled: false,
+  aiQuickEntryEnabled: true,
+  aiQuickEntryPrivateNames: false,
   walletTrackingOverride: null,
   paymentMethods: [],
 };

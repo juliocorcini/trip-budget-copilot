@@ -1,8 +1,8 @@
 {
-  "version": "0.99.11",
+  "version": "0.99.12",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.11.zip",
-  "notes": "Explicador de divisão agora também no importador da Wise: ao classificar uma transferência dividida com alguém, aparece o mesmo 'Como funciona a divisão' das outras telas — explicação idêntica nas quatro telas de divisão (registrar, escanear nota, Acerto de contas e Wise)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.12.zip",
+  "notes": "Entrada rápida com IA: uma caixa (texto e voz) no topo do botão + pra registrar do seu jeito ('o Bruno me pagou uma cerveja de 2 euros'). A IA entende e leva pra ação certa; você confirma antes de salvar e pode desfazer. Cálculos e dados continuam 100% no aparelho; sem internet cai no registro manual de sempre."
 }

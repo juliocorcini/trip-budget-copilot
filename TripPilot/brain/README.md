@@ -1,6 +1,6 @@
 # TripPilot Brain — Source of Truth
 
-> Last updated: 2026-06-19 (G4 payment methods shipped — DEC-244; ranked improvement backlog added — DEC-245)
+> Last updated: 2026-06-20 (AI quick-entry natural-language router **BUILT** — DEC-246, v0.99.12, all green locally, deploy pending; see the dated section below)
 
 ## Truth Policy
 
@@ -15,7 +15,7 @@
 | File | Purpose | When to read |
 |------|---------|--------------|
 | `product-spec.md` | V1 features, rules, scope boundaries | Any product question |
-| `decision-log.md` | All decisions DEC-001..DEC-211 with status (approved/pending/superseded); see the DEC-185–199/201 native-arc reconciliation note | Before making new decisions |
+| `decision-log.md` | All decisions DEC-001..DEC-246 with status (approved/pending/superseded); see the DEC-185–199/201 native-arc reconciliation note. Latest: DEC-246 = AI Quick Entry natural-language router (v0.99.12) | Before making new decisions |
 | `technical-direction.md` | Stack (locked), database, architecture, deployment | Any technical question |
 | `implementation-phases.md` | D1–D6 deliveries + the round-based work that followed (R1–R6, field reviews, expansion packages 1–3, native arc, receipt & shared-link epics) | Planning, scheduling |
 | `project-status.md` | Current status, pending tasks, next steps | Status checks, standups |
@@ -58,6 +58,12 @@
 | `documents/apk-ota-self-update-study-2026-06-19.md` | **STUDY (DEC-243)** — how TripPilot updates: web bundle OTA (Capgo, silent) + native APK in-app installer (DEC-210, one-tap, user-confirmed). Why the Downloads detour persists (device-pending shell not promoted). Android can't silently install sideloaded APKs. Future-apply: promote a verified shell via `latestNativeVersion` (OTA-1), optional Settings "check for update" button (OTA-2). | Before touching the update/version flow or promoting an APK |
 | `documents/improvement-backlog-ranked-2026-06-19.md` | **RANKED BACKLOG (DEC-245)** — every researched-but-unbuilt, still-valid improvement, cross-checked against DEC-212..244 and scored (ease × value × fit × gain). Five buckets: A do-today (OD-3, receipt consent, simulator avulso, Wise atalho, OTA-2), B needs-your-decision (OD-2, OD-1), C bigger/delight (Wrapped, auto-Outing), D device-blocked (OTA-1, native batch, biometric, B18), E deferred-by-design. | Planning the next improvement round / "what's still worth doing" |
 | `documents/bill-split-implementation-support-2026-06-18.md` | **BUILD-READY SPEC** — "Dividir conta" feature. Julio's LOCKED decisions T1–T13 (not ephemeral → persists as ONE divided expense w/ items + debts + budget; feature=`Dividir conta` in FAB; proportional service charge w/ AI detect→infer→ask; **live claim in V1**; **two-way live mirror propagation** owner-authoritative DEC-106; **state-dependent guest landing**; ad-hoc+promote; Pix→future payment-info feature §16). + 3 new inline councils (real-time input/sync, persistence/propagation, naming). + architecture (owner-as-reducer on existing `ShareSignal`+`/responses`+KV, **no new Worker routes**), domain model, sync protocol, gates G1–G3 (~70h Tier 3) + ACs + tests. Delivery QUEUED (Julio implements later via `/deliver`); only 3 minor technical decisions left open (§19). | Before scoping/implementing the bill-split epic; this is the truth for decisions |
+
+### AI Quick Entry — natural-language router (text + voice) → ALL app functions (2026-06-20) — ✅ SHIPPED (DEC-246, v0.99.12, built + green; deploy pending)
+
+| File | Purpose | When to read |
+|------|---------|--------------|
+| `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md` | **✅ SHIPPED (DEC-246, v0.99.12 — built G0→G3, all green locally, deploy pending)** — Julio's field ask: one box where you **type or speak** ("o Bruno me pagou uma cerveja de 2 euros") and the AI decides which function to run + fills the details, connecting **all** app functions to AI. Core architecture: **AI = planner** (Groq JSON mode via a new Worker `/assistant`, mirroring `/ocr`; returns a typed `AiIntent` with entities **by name**, never ids, never math) + **device = executor** (pure `resolve` name→id + `dispatch` to the EXISTING orchestrators; engines do the math; debt born-confirmed via DEC-241). Text-first (G0), voice next (G2 = Web Speech + Groq Whisper `/transcribe`, native-safe). Preview+confirm+undo always; opt-in `aiQuickEntryEnabled` + names-only context + no-names mode (privacy like `cloudReceiptOcrEnabled`). 5 inline councils (council/debate text×voice/review/assess/brainstorm). Intent registry §4, gates G0–G3 + ACs + tests, Groq capability verifications §16. | Before scoping/implementing the AI quick-entry feature; this is the rationale + plan |
 
 ## Research Files
 

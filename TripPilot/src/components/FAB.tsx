@@ -7,6 +7,7 @@ import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 import { hapticSelection } from '@/utils/haptics';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import { useActiveSplit } from '@/features/split/useActiveSplit';
+import { openAssistant } from '@/features/assistant/assistant-bus';
 
 /**
  * P2 (UX audit §3) + GATE 18 (Julio device test 2026-06-18): the FAB keeps ALL 9
@@ -377,6 +378,40 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
                 </div>
                 <Icon name="arrow_forward" size={18} className="text-primary shrink-0" />
               </button>
+
+              {/* DEC-246: the AI quick-entry hero — the new #1, at the very base
+                  (closest to the "+"). One box that turns "o Bruno me pagou uma
+                  cerveja de 2 euros" into a saved action. A bold gradient + sparkle
+                  sets it apart from the orange/indigo heroes. Opt-out via Settings. */}
+              {(settings?.aiQuickEntryEnabled ?? true) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticSelection();
+                    onClose();
+                    openAssistant();
+                  }}
+                  className="btn-press p-4 rounded-2xl flex items-center gap-3.5 text-left"
+                  style={{
+                    background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                    boxShadow: '0 10px 28px -10px rgba(99,102,241,0.7)',
+                  }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(255,255,255,0.18)' }}
+                  >
+                    <Icon name="auto_awesome" size={24} className="text-[#ffffff]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-extrabold text-[#ffffff]">{t('assistant.fab_title')}</p>
+                    <p className="text-[11px] font-semibold text-[#ffffff] opacity-85">
+                      {t('assistant.fab_desc')}
+                    </p>
+                  </div>
+                  <Icon name="arrow_forward" size={18} className="text-[#ffffff] shrink-0" />
+                </button>
+              )}
             </div>
           </div>
         </div>

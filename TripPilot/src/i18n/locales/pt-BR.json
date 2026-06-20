@@ -1,4 +1,89 @@
 {
+  "assistant": {
+    "title": "Entrada rápida",
+    "fab_title": "Entrada por IA",
+    "fab_desc": "Fale ou escreva — a IA lança pra você",
+    "placeholder": "Ex: o Bruno me pagou uma cerveja de 2 euros",
+    "send": "Enviar",
+    "voice": "Falar",
+    "thinking": "Entendendo…",
+    "transcribing": "Transcrevendo…",
+    "saving": "Salvando…",
+    "privacy_hint": "Só nomes e rótulos vão para a IA — nunca valores, saldos ou histórico. Os cálculos acontecem no seu aparelho.",
+    "disabled_notice": "A entrada por IA está desligada. Ative nas configurações ou use a entrada manual.",
+    "undone": "Desfeito",
+    "preview": {
+      "someone_paid": "Você vai dever {{amount}} para {{person}}",
+      "i_paid_for": "{{person}} vai te dever {{amount}}",
+      "split": "Dividir {{amount}} entre {{count}} — {{per}} cada",
+      "log_expense": "Registrar gasto de {{amount}}",
+      "income": "Registrar entrada de {{amount}}",
+      "transfer": "Transferir {{amount}} de {{from}} para {{to}}",
+      "withdraw": "Sacar {{amount}}",
+      "settle_i_owe": "Acertar {{amount}} que você deve a {{person}}",
+      "settle_owes_me": "Acertar {{amount}} que {{person}} te deve",
+      "settle_full": "tudo",
+      "plan_purchase": "Planejar {{item}} (~{{amount}})"
+    },
+    "nav": {
+      "split_bill": "Abrir divisão de conta",
+      "scan_receipt": "Abrir leitor de nota",
+      "outing": "Iniciar saída",
+      "plan_expense": "Planejar um gasto",
+      "simulator": "Abrir simulador de compra",
+      "debts": "Abrir dívidas",
+      "expenses": "Abrir gastos",
+      "dashboard": "Abrir painel",
+      "wallets": "Abrir carteiras",
+      "planner": "Abrir planejador",
+      "income": "Abrir entradas",
+      "trip": "Abrir viagem",
+      "open": "Abrir"
+    },
+    "action": {
+      "confirm": "Confirmar",
+      "open": "Abrir",
+      "manual": "Entrada manual",
+      "edit": "Editar",
+      "retry": "Tentar de novo",
+      "enable": "Ativar nas configurações"
+    },
+    "clarify": {
+      "amount": "Qual foi o valor?",
+      "amount_placeholder": "Ex: 12,50",
+      "add_person": "Não encontrei \"{{name}}\". Quer adicionar?",
+      "add_yes": "Adicionar {{name}}",
+      "need_people": "Com quem você quer dividir? Adicione as pessoas e tente de novo.",
+      "choose_person": "Qual \"{{name}}\"?"
+    },
+    "done": {
+      "saved": "Lançamento salvo",
+      "settled": "Acerto registrado",
+      "planned": "Compra planejada"
+    },
+    "error": {
+      "disabled": "A entrada por IA está desligada.",
+      "not_configured": "A IA ainda não está configurada neste ambiente.",
+      "rate_limited": "Muitas tentativas agora há pouco. Tente de novo em instantes.",
+      "offline": "Sem conexão. Use a entrada manual por enquanto.",
+      "failed": "Não consegui entender. Tente reformular ou use a entrada manual.",
+      "no_debt": "Não há dívida em aberto com essa pessoa.",
+      "need_people": "Adicione as pessoas para dividir e tente de novo.",
+      "mic_denied": "Não consegui acessar o microfone."
+    },
+    "unsupported": {
+      "unknown": "Não entendi o que fazer. Tente reformular ou use a entrada manual.",
+      "no_owner": "Configure o seu perfil na viagem primeiro.",
+      "no_phase": "Crie uma fase na viagem para registrar.",
+      "no_pool": "Crie um fundo na viagem para registrar.",
+      "no_trip": "Crie uma viagem primeiro."
+    },
+    "setting_title": "Entrada por IA",
+    "setting_label": "Ativar entrada rápida por IA",
+    "setting_hint": "Entenda texto e voz para lançar gastos, dívidas e mais. Só nomes e rótulos vão para a nuvem — valores e cálculos ficam no aparelho.",
+    "setting_private_label": "Modo privado (não enviar nomes)",
+    "setting_private_hint": "Não envia nomes de pessoas e carteiras para a IA. Você confirma quem é a cada lançamento."
+  },
   "attachments": {
     "title": "Fotos",
     "add": "Adicionar",
@@ -144,6 +229,32 @@
     "chip_event_tour": "Passeio / Tour",
     "chip_event_dinner": "Restaurante especial",
     "chip_event_ticket": "Ingresso / Atração"
+  },
+  "wrapped": {
+    "title": "Retrospectiva da viagem",
+    "entry_title": "Retrospectiva da viagem",
+    "entry_sub_ended": "Veja o resumo da sua viagem",
+    "entry_sub_preview": "Prévia — veja como está indo",
+    "preview_badge": "Prévia",
+    "hero_label": "Você gastou em {{trip}}",
+    "hero_sub": "{{count}} gastos · {{days}} dias com gasto",
+    "biggest_day": "Maior dia",
+    "top_category": "Categoria nº1",
+    "top_category_hint": "{{percent}}% do total · {{amount}}",
+    "social": "Compartilhado",
+    "social_value": "{{percent}}% com outras pessoas",
+    "social_hint": "{{shared}} divididos",
+    "peak_hour": "Hora de pico",
+    "peak_hour_value": "{{hour}}h",
+    "peak_hour_hint": "{{percent}}% dos gastos",
+    "streak": "Sequência de disciplina",
+    "streak_value": "{{days}} dias seguidos no alvo",
+    "share": "Compartilhar",
+    "sharing": "Gerando…",
+    "share_failed": "Não consegui gerar a imagem",
+    "share_top_category": "Top: {{category}} ({{percent}}%)",
+    "share_biggest_day": "Maior dia: {{amount}} em {{date}}",
+    "share_days": "{{days}} dias de viagem"
   },
   "copilot": {
     "title": "Copiloto",

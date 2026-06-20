@@ -78,6 +78,11 @@ export function createDefaultAppSettings(): AppSettings {
     // DEC-206 (G2): cloud receipt OCR is opt-in — the photo never leaves the
     // device until the traveler turns this on (privacy first).
     cloudReceiptOcrEnabled: false,
+    // DEC-246 (AI Quick Entry): ON by default — it is the app owner's headline
+    // low-friction tool and degrades gracefully when the key/network is absent.
+    // Names-only context (no ids/amounts/history); private-names mode is opt-in.
+    aiQuickEntryEnabled: true,
+    aiQuickEntryPrivateNames: false,
     // GATE 5 (D10): wallet tracking starts AUTOMATIC — invisible for a
     // single-source traveler, lights up on its own with 2+ wallets or a Wise
     // import. The manual toggle in Settings overrides this.
