@@ -1,8 +1,8 @@
 {
-  "version": "0.99.9",
+  "version": "0.99.10",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.9.zip",
-  "notes": "Formas de pagamento: cadastre como as pessoas podem te pagar (Pix, Wise, conta bancária ou texto livre) e a mensagem de cobrança já sai com essas opções. Defina quais e quantas quiser em Ajustes › Conexões › Formas de pagamento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.10.zip",
+  "notes": "Lembrete de cobrança mais esperto: quando alguém te deve e você ainda não cadastrou uma forma de pagamento, a tela de Acerto de contas mostra um atalho para adicionar (Pix, Wise, conta…). Polimento: vibração do app só dispara depois do primeiro toque (sem ruído no console)."
 }

@@ -1699,6 +1699,7 @@
     "remind_share_title": "Lembrete de acerto",
     "remind_copied": "Mensagem copiada — é só colar no WhatsApp",
     "pay_via": "Pode pagar por:",
+    "add_payment_hint": "Adicione como querem te pagar (Pix, Wise, conta…) — entra no lembrete de cobrança.",
     "connections_section": "Conexões",
     "connections_hint": "Parear aparelhos, mostrar seu QR e ver extratos recebidos."
   },

@@ -1699,6 +1699,7 @@
     "remind_share_title": "Settle-up reminder",
     "remind_copied": "Message copied — just paste it into your chat",
     "pay_via": "You can pay via:",
+    "add_payment_hint": "Add how people can pay you back (Pix, Wise, bank…) — it goes into the reminder.",
     "connections_section": "Connections",
     "connections_hint": "Pair devices, show your QR and see received statements."
   },

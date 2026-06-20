@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.10',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Cobrança mais fácil de descobrir: quando alguém te deve e você ainda não cadastrou uma forma de pagamento, a tela de Acerto de contas mostra um atalho para adicionar a sua chave Pix, @tag da Wise ou conta — pra já entrar no lembrete.',
+        'Polimento: a vibração do app agora só dispara depois do seu primeiro toque na tela, evitando uma falha silenciosa na abertura.',
+      ],
+      en: [
+        'Easier to collect: when someone owes you and you haven\u2019t set up a payment method yet, the Settle-up screen shows a shortcut to add your Pix key, Wise @tag or bank — so it rides along in the reminder.',
+        'Polish: the app\u2019s haptics now fire only after your first tap, avoiding a silent failure on launch.',
+      ],
+      es: [
+        'M\u00e1s f\u00e1cil de cobrar: cuando alguien te debe y a\u00fan no configuraste una forma de pago, la pantalla de Ajuste de cuentas muestra un atajo para agregar tu clave Pix, @tag de Wise o cuenta — para que entre en el recordatorio.',
+        'Pulido: la vibraci\u00f3n de la app ahora se activa solo despu\u00e9s de tu primer toque, evitando un fallo silencioso al abrir.',
+      ],
+    },
+  },
+  {
     version: '0.99.9',
     date: '2026-06-19',
     items: {

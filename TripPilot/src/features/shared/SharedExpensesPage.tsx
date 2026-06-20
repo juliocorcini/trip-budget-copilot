@@ -52,6 +52,7 @@ import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
 import { SplitExplainer } from './SplitExplainer';
 import { useRemindMessage } from '@/features/shared/useRemindMessage';
+import { enabledPaymentMethods } from '@/domain/payment';
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
@@ -343,6 +344,13 @@ export function SharedExpensesPage() {
       s.confirmationStatus === 'pending' &&
       s.participantId !== ownerParticipant?.id,
   );
+  // G4 discoverability (DEC-244): when someone owes the owner but no payment
+  // method is published yet, nudge them to add one so the "Lembrar" message can
+  // carry it. Self-hides the moment an enabled method exists (no nagging).
+  const showAddPaymentHint =
+    !!ownerSummary &&
+    ownerSummary.receivableCents > 0 &&
+    enabledPaymentMethods(settings?.paymentMethods ?? []).length === 0;
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
@@ -397,6 +405,23 @@ export function SharedExpensesPage() {
             <p className="text-xs text-on-surface-faint mt-0.5">{t('shared.summary_empty')}</p>
           </div>
         ))}
+
+      {/* G4 (DEC-244): one-line nudge to publish a payment method so the
+          "Lembrar" message can carry the owner's Pix/Wise/bank. Only when money
+          is owed to the owner AND none is configured yet; self-hides after. */}
+      {showAddPaymentHint && (
+        <button
+          onClick={() => navigate('/settings/payment-methods')}
+          className="flex items-center gap-3 w-full text-left rounded-2xl px-4 py-3 bg-surface-container btn-press"
+          data-add-payment-hint
+        >
+          <Icon name="payments" size={20} className="text-primary shrink-0" />
+          <p className="flex-1 text-xs text-on-surface-dim leading-snug">
+            {t('shared.add_payment_hint')}
+          </p>
+          <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+        </button>
+      )}
 
       {/* G9 (audit §4.15): the single shared "how splitting works" explainer. */}
       <SplitExplainer />

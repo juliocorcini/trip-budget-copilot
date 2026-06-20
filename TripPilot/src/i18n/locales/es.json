@@ -1699,6 +1699,7 @@
     "remind_share_title": "Recordatorio de ajuste",
     "remind_copied": "Mensaje copiado — solo pégalo en tu chat",
     "pay_via": "Puedes pagar con:",
+    "add_payment_hint": "Agrega cómo pueden pagarte (Pix, Wise, cuenta…) — entra en el recordatorio.",
     "connections_section": "Conexiones",
     "connections_hint": "Vincular dispositivos, mostrar tu QR y ver extractos recibidos."
   },

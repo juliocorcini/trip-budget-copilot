@@ -10,6 +10,32 @@ import { isNativeApp } from '@/utils/native/platform';
 
 let enabled = true;
 
+// Chromium blocks `navigator.vibrate` until the page has seen a user gesture and
+// logs a console error every time it's called before then (the call can't be
+// caught — the engine refuses it, it doesn't throw). On web we therefore gate
+// the vibrate path on the first real gesture so a haptic fired during boot
+// (auto-restore toast, mount animations) is a clean no-op instead of console
+// noise + a silently-dropped call. Native uses the Capacitor plugin, which has
+// no such restriction, so this flag never touches the native path.
+let userHasGestured = false;
+
+/** Flip the web-vibrate gate on. Called by the first-gesture listener below and
+ *  exposed for tests. */
+export function markUserGesture(): void {
+  userHasGestured = true;
+}
+
+if (typeof window !== 'undefined') {
+  const events: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'touchstart'];
+  const onFirstGesture = () => {
+    markUserGesture();
+    events.forEach((evt) => window.removeEventListener(evt, onFirstGesture, true));
+  };
+  events.forEach((evt) =>
+    window.addEventListener(evt, onFirstGesture, { capture: true, passive: true }),
+  );
+}
+
 /** Kept in sync with `settings.vibrationEnabled` (RootLayout). */
 export function setHapticsEnabled(value: boolean): void {
   enabled = value;
@@ -19,6 +45,8 @@ type ImpactWeight = 'light' | 'medium' | 'heavy';
 type NotifyKind = 'success' | 'warning' | 'error';
 
 function webVibrate(pattern: number | number[]): void {
+  // Before the first gesture the call would be blocked + logged by the engine.
+  if (!userHasGestured) return;
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
     try {
       navigator.vibrate(pattern);
