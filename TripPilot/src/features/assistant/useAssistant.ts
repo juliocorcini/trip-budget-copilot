@@ -21,7 +21,7 @@ import {
   type PlanContext,
 } from '@/domain/assistant';
 import { requestAssistantIntent } from '@/utils/ai-assistant';
-import { transcribeAudio } from '@/utils/ai-transcribe';
+import { transcribeAudio, isLikelyVoiceHallucination } from '@/utils/ai-transcribe';
 import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
@@ -388,7 +388,9 @@ export function useAssistant(): UseAssistant {
         return;
       }
       const transcript = outcome.text.trim();
-      if (transcript === '') {
+      // Empty, or a bare "no speech" filler ("E aí") Whisper invents for audio it
+      // couldn't read — both mean "didn't catch that", never a real command.
+      if (transcript === '' || isLikelyVoiceHallucination(transcript)) {
         setPhase('input');
         showToast(t('assistant.voice_unclear'), 'info');
         return;

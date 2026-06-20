@@ -13,6 +13,43 @@ export type TranscribeOutcome =
   | { ok: true; text: string }
   | { ok: false; error: TranscribeError };
 
+/**
+ * Whisper emits a stray filler when handed audio with no intelligible speech —
+ * for pt-BR this is overwhelmingly "E aí". Confirmed live (device-test
+ * 2026-06-20): BOTH digital near-silence AND a pure 220 Hz tone come back as
+ * `{"text":" E aí"}`, so it is a "no speech detected" artefact, not a
+ * transcription. These full-string forms are never valid expense commands on
+ * their own, so treating them as "didn't catch that" is safe.
+ */
+const VOICE_HALLUCINATIONS = new Set([
+  'e ai',
+  'eai',
+  'obrigado',
+  'obrigada',
+  'tchau',
+  'valeu',
+  'amara org',
+  'legendas pela comunidade amara org',
+]);
+
+/**
+ * True when a transcript is ONLY a known no-speech filler (so the caller shows
+ * "didn't catch that" instead of feeding "E aí" to the intent parser, which then
+ * answers "não entendi"). Matches the FULL normalized string only — real speech
+ * that merely starts with a filler ("e aí, paguei 5 euros") passes through.
+ */
+export function isLikelyVoiceHallucination(text: string): boolean {
+  const normalized = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // drop accents: "aí" → "ai"
+    .replace(/[^a-z0-9 ]+/g, ' ') // drop punctuation
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (normalized === '') return true;
+  return VOICE_HALLUCINATIONS.has(normalized);
+}
+
 /** Reads a Blob into a bare base64 string (no data-URL prefix). */
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
