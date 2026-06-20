@@ -31,3 +31,5 @@ export type {
   StatementLineKind,
   ParticipantStatement,
 } from './splitting';
+export { groupSharedExpenses, groupStatementLines } from './grouping';
+export type { SharedExpenseGroup, StatementLineGroup } from './grouping';

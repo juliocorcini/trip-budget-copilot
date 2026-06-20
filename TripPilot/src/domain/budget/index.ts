@@ -35,6 +35,8 @@ export type {
   BorrowFromTomorrow,
   HonestFriendTone,
 } from './honest-friend';
+export { buildHonestFriendExtras } from './honest-friend-extras';
+export type { HonestFriendExtra, HonestFriendExtrasInput } from './honest-friend-extras';
 export { buildRescuePlan } from './rescue';
 export type {
   RescuePlan,

@@ -10,8 +10,16 @@ import {
   calculateParticipantBalances,
   suggestSimplifiedSettlements,
   buildParticipantStatement,
+  groupSharedExpenses,
+  groupStatementLines,
 } from '@/domain/splitting';
-import type { DebtSummary, DebtEntry } from '@/domain/splitting';
+import type {
+  DebtSummary,
+  DebtEntry,
+  StatementLine,
+  SharedExpenseGroup,
+  StatementLineGroup,
+} from '@/domain/splitting';
 import { findSubcategory } from '@/domain/outing';
 import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
@@ -20,7 +28,7 @@ import { formatMoney, toCents } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
-import { participantRepository, peerLinkRepository } from '@/data/repositories';
+import { participantRepository, peerLinkRepository, sessionRepository } from '@/data/repositories';
 import type { PeerLink } from '@/domain/types/peer-link';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -54,6 +62,18 @@ import { SplitExplainer } from './SplitExplainer';
 import { useRemindMessage } from '@/features/shared/useRemindMessage';
 import { enabledPaymentMethods } from '@/domain/payment';
 
+/** DEC-206: how many rows show before a "ver mais (N)" toggle reveals the rest. */
+const SHARED_LIST_PAGE = 6;
+const STATEMENT_PAGE = 8;
+
+const STATUS_PILL_STYLE: Record<string, string> = {
+  pending: 'bg-warning/15 text-warning',
+  confirmed: 'bg-success/20 text-success',
+  rejected: 'bg-error/15 text-error',
+};
+
+type Translate = ReturnType<typeof useTranslation>['t'];
+
 export function SharedExpensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -63,22 +83,31 @@ export function SharedExpensesPage() {
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
+  // DEC-206: receipt sessions, by id → name, to collapse a 40-item import into
+  // ONE expandable "event" row in both the shared list and the settle-up sheet.
+  const [sessionNameById, setSessionNameById] = useState<Record<string, string>>({});
 
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newNickname, setNewNickname] = useState('');
   const [saving, setSaving] = useState(false);
+  // DEC-206: pagination for the (potentially long) shared-expenses list and for
+  // a participant's itemized statement — only the first page shows until "ver mais".
+  const [showAllShared, setShowAllShared] = useState(false);
+  const [showAllStatement, setShowAllStatement] = useState(false);
 
   useEffect(() => {
     if (!trip) return;
     const load = async () => {
       const txIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
-      const [sh, se] = await Promise.all([
+      const [sh, se, sessions] = await Promise.all([
         participantShareRepository.getAllForTrip(txIds),
         settlementRepository.getByTripId(trip.id),
+        sessionRepository.getByTripId(trip.id),
       ]);
       setShares(sh);
       setSettlements(se);
+      setSessionNameById(Object.fromEntries(sessions.map((s) => [s.id, s.name])));
 
       const owner = participants.find((p) => p.isOwner);
       if (owner) {
@@ -99,6 +128,10 @@ export function SharedExpensesPage() {
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   // DEC-102 (R-25): tap on a participant opens their itemized statement.
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
+  // DEC-206: a fresh statement always opens collapsed (first page only).
+  useEffect(() => {
+    setShowAllStatement(false);
+  }, [statementTarget]);
   // R4 P2P (DEC-105/106): pairing + statement sending sheets.
   const [showMyQr, setShowMyQr] = useState(false);
   const [showQrAdd, setShowQrAdd] = useState(false);
@@ -563,11 +596,10 @@ export function SharedExpensesPage() {
         );
         if (sharedTxs.length === 0) return null;
         const nameById = new Map(participants.map((p) => [p.id, p.nickname ?? p.name]));
-        const statusStyle: Record<string, string> = {
-          pending: 'bg-warning/15 text-warning',
-          confirmed: 'bg-success/20 text-success',
-          rejected: 'bg-error/15 text-error',
-        };
+        // DEC-206: collapse same-receipt items into ONE expandable event row so a
+        // 40-item import stops flooding the list with unreadable single lines.
+        const groups = groupSharedExpenses(sharedTxs);
+        const visibleGroups = showAllShared ? groups : groups.slice(0, SHARED_LIST_PAGE);
         return (
           <div>
             <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-1 px-1">
@@ -578,41 +610,28 @@ export function SharedExpensesPage() {
             <p className="text-[11px] text-on-surface-faint leading-snug mb-2 px-1">
               {t('shared.status_hint')}
             </p>
-            {sharedTxs.map((tx) => {
-              const txShares = shares.filter(
-                (s) => s.transactionId === tx.id && s.deletedAt === null,
-              );
-              return (
-                // R-26: the shared expense card leads to the expense detail.
-                <button
-                  key={tx.id}
-                  onClick={() => navigate(`/expenses/${tx.id}`)}
-                  className="bg-surface-container rounded-xl p-4 mb-2 w-full text-left btn-press"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-on-surface truncate">{tx.description}</p>
-                    <p className="text-sm font-semibold tabular text-on-surface shrink-0">
-                      {formatMoney(tx.amountCents, tx.currency)}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-1 mt-2">
-                    {txShares.map((share) => (
-                      <div key={share.id} className="flex items-center justify-between">
-                        <p className="text-xs text-on-surface-dim truncate">
-                          {nameById.get(share.participantId) ?? '—'} ·{' '}
-                          <span className="tabular">{formatMoney(share.shareAmountCents, tx.currency)}</span>
-                        </p>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${statusStyle[share.confirmationStatus]}`}
-                        >
-                          {t(`shared.status_${share.confirmationStatus}` as never)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
+            {visibleGroups.map((group) => (
+              <SharedExpenseRow
+                key={group.key}
+                group={group}
+                sessionName={group.sessionId ? (sessionNameById[group.sessionId] ?? null) : null}
+                shares={shares}
+                nameById={nameById}
+                onOpenTx={(id) => navigate(`/expenses/${id}`)}
+                t={t}
+              />
+            ))}
+            {groups.length > SHARED_LIST_PAGE && (
+              <button
+                onClick={() => setShowAllShared((v) => !v)}
+                className="w-full mt-1 mb-2 p-2.5 rounded-xl text-xs font-bold text-primary btn-press flex items-center justify-center gap-1"
+              >
+                <Icon name={showAllShared ? 'expand_less' : 'expand_more'} size={16} />
+                {showAllShared
+                  ? t('common.show_less')
+                  : t('shared.show_all_count', { count: groups.length })}
+              </button>
+            )}
           </div>
         );
       })()}
@@ -757,11 +776,6 @@ export function SharedExpensesPage() {
             settlements,
             owner.id,
           );
-          const statusStyle: Record<string, string> = {
-            pending: 'bg-warning/15 text-warning',
-            confirmed: 'bg-success/20 text-success',
-            rejected: 'bg-error/15 text-error',
-          };
           const lineLabel = (line: (typeof statement.lines)[number]): string => {
             const sub = findSubcategory(line.subcategoryId);
             if (sub) return t(sub.labelKey as never);
@@ -795,40 +809,41 @@ export function SharedExpensesPage() {
                 <p className="text-sm text-on-surface-dim">{t('shared.statement_empty')}</p>
               )}
 
-              {statement.lines.length > 0 && (
-                <div className="flex flex-col gap-1.5 max-h-[40vh] overflow-y-auto no-scrollbar">
-                  {statement.lines.map((line, i) => (
-                    <div key={i} className="bg-surface-high rounded-xl px-3 py-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-bold text-on-surface truncate">
-                          {lineLabel(line)}
-                        </p>
-                        <p
-                          className={`text-xs font-bold tabular shrink-0 ${
-                            line.kind === 'owes' ? 'text-error' : 'text-success'
-                          }`}
-                        >
-                          {line.kind === 'owes' ? '−' : '+'}
-                          {formatMoney(line.amountCents, trip.baseCurrency)}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between gap-2 mt-1">
-                        <p className="text-[10px] text-on-surface-faint truncate">
-                          {formatShortDate(line.occurredAt)} ·{' '}
-                          {line.kind === 'owes'
-                            ? t('shared.statement_paid_by', { name: line.counterpartyName })
-                            : t('shared.statement_owes_you', { name: line.counterpartyName })}
-                        </p>
-                        <span
-                          className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${statusStyle[line.confirmationStatus]}`}
-                        >
-                          {t(`shared.status_${line.confirmationStatus}` as never)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {statement.lines.length > 0 && (() => {
+                // DEC-206: collapse a receipt's items into one expandable event so
+                // tapping a person no longer dumps 40+ raw lines; paginate the rest.
+                const lineGroups = groupStatementLines(statement.lines);
+                const visibleLineGroups = showAllStatement
+                  ? lineGroups
+                  : lineGroups.slice(0, STATEMENT_PAGE);
+                return (
+                  <div className="flex flex-col gap-1.5 max-h-[40vh] overflow-y-auto no-scrollbar">
+                    {visibleLineGroups.map((group) => (
+                      <StatementGroupRow
+                        key={group.key}
+                        group={group}
+                        sessionName={
+                          group.sessionId ? (sessionNameById[group.sessionId] ?? null) : null
+                        }
+                        currency={trip.baseCurrency}
+                        lineLabel={lineLabel}
+                        t={t}
+                      />
+                    ))}
+                    {lineGroups.length > STATEMENT_PAGE && (
+                      <button
+                        onClick={() => setShowAllStatement((v) => !v)}
+                        className="w-full mt-1 p-2 rounded-xl text-xs font-bold text-primary btn-press flex items-center justify-center gap-1"
+                      >
+                        <Icon name={showAllStatement ? 'expand_less' : 'expand_more'} size={16} />
+                        {showAllStatement
+                          ? t('common.show_less')
+                          : t('shared.show_all_count', { count: lineGroups.length })}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {statement.settlements.length > 0 && (
                 <div>
@@ -1148,6 +1163,203 @@ export function SharedExpensesPage() {
               <p className="text-sm font-semibold tabular text-success">
                 {formatMoney(s.amountCents, s.currency)}
               </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * DEC-206 (device-test 2026-06-20): a row in the "shared expenses" list. A single
+ * expense keeps the original rich card (per-share confirmation status). A grouped
+ * receipt session collapses into ONE expandable "event" header (merchant + item
+ * count + total) that reveals its items on tap — no more 40 unreadable lines.
+ */
+function SharedExpenseRow({
+  group,
+  sessionName,
+  shares,
+  nameById,
+  onOpenTx,
+  t,
+}: {
+  group: SharedExpenseGroup;
+  sessionName: string | null;
+  shares: ParticipantShare[];
+  nameById: Map<string, string>;
+  onOpenTx: (transactionId: string) => void;
+  t: Translate;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (group.count === 1) {
+    const tx = group.transactions[0]!;
+    const txShares = shares.filter((s) => s.transactionId === tx.id && s.deletedAt === null);
+    return (
+      // R-26: the shared expense card leads to the expense detail.
+      <button
+        onClick={() => onOpenTx(tx.id)}
+        className="bg-surface-container rounded-xl p-4 mb-2 w-full text-left btn-press"
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-on-surface truncate">{tx.description}</p>
+          <p className="text-sm font-semibold tabular text-on-surface shrink-0">
+            {formatMoney(tx.amountCents, tx.currency)}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1 mt-2">
+          {txShares.map((share) => (
+            <div key={share.id} className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-dim truncate">
+                {nameById.get(share.participantId) ?? '—'} ·{' '}
+                <span className="tabular">{formatMoney(share.shareAmountCents, tx.currency)}</span>
+              </p>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${STATUS_PILL_STYLE[share.confirmationStatus]}`}
+              >
+                {t(`shared.status_${share.confirmationStatus}` as never)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-surface-container rounded-xl mb-2 overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full p-4 text-left btn-press flex items-center gap-3"
+        aria-expanded={open}
+      >
+        <Icon name="receipt_long" size={20} className="text-on-surface-faint shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-on-surface truncate">
+            {sessionName ?? t('shared.event_fallback')}
+          </p>
+          <p className="text-[11px] text-on-surface-faint">
+            {t('shared.event_items', { count: group.count })}
+          </p>
+        </div>
+        <p className="text-sm font-semibold tabular text-on-surface shrink-0">
+          {formatMoney(group.totalCents, group.currency)}
+        </p>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={20} className="text-on-surface-faint shrink-0" />
+      </button>
+      {open && (
+        <div className="px-3 pb-2 flex flex-col gap-1">
+          {group.transactions.map((tx) => (
+            <button
+              key={tx.id}
+              onClick={() => onOpenTx(tx.id)}
+              className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg bg-surface-high btn-press text-left"
+            >
+              <span className="text-xs text-on-surface-dim truncate">{tx.description}</span>
+              <span className="text-xs font-semibold tabular text-on-surface shrink-0">
+                {formatMoney(tx.amountCents, tx.currency)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * DEC-206: a row in a participant's itemized statement. A standalone line keeps
+ * the original layout; a receipt session collapses into one expandable event that
+ * shows the net for that event and, on tap, each underlying line.
+ */
+function StatementGroupRow({
+  group,
+  sessionName,
+  currency,
+  lineLabel,
+  t,
+}: {
+  group: StatementLineGroup;
+  sessionName: string | null;
+  currency: string;
+  lineLabel: (line: StatementLine) => string;
+  t: Translate;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (group.count === 1) {
+    const line = group.lines[0]!;
+    return (
+      <div className="bg-surface-high rounded-xl px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold text-on-surface truncate">{lineLabel(line)}</p>
+          <p
+            className={`text-xs font-bold tabular shrink-0 ${
+              line.kind === 'owes' ? 'text-error' : 'text-success'
+            }`}
+          >
+            {line.kind === 'owes' ? '−' : '+'}
+            {formatMoney(line.amountCents, currency)}
+          </p>
+        </div>
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <p className="text-[10px] text-on-surface-faint truncate">
+            {formatShortDate(line.occurredAt)} ·{' '}
+            {line.kind === 'owes'
+              ? t('shared.statement_paid_by', { name: line.counterpartyName })
+              : t('shared.statement_owes_you', { name: line.counterpartyName })}
+          </p>
+          <span
+            className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${STATUS_PILL_STYLE[line.confirmationStatus]}`}
+          >
+            {t(`shared.status_${line.confirmationStatus}` as never)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // The event's signed net: positive → they owe you, negative → you owe them.
+  const owesThem = group.netCents < 0;
+  return (
+    <div className="bg-surface-high rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-3 py-2.5 text-left btn-press flex items-center gap-2"
+        aria-expanded={open}
+      >
+        <Icon name="receipt_long" size={16} className="text-on-surface-faint shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-on-surface truncate">
+            {sessionName ?? t('shared.event_fallback')}
+          </p>
+          <p className="text-[10px] text-on-surface-faint">
+            {t('shared.event_items', { count: group.count })}
+          </p>
+        </div>
+        <p
+          className={`text-xs font-bold tabular shrink-0 ${owesThem ? 'text-error' : 'text-success'}`}
+        >
+          {owesThem ? '−' : '+'}
+          {formatMoney(Math.abs(group.netCents), currency)}
+        </p>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint shrink-0" />
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2 flex flex-col gap-1">
+          {group.lines.map((line, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-surface-container">
+              <span className="text-[11px] text-on-surface-dim truncate">{lineLabel(line)}</span>
+              <span
+                className={`text-[11px] font-bold tabular shrink-0 ${
+                  line.kind === 'owes' ? 'text-error' : 'text-success'
+                }`}
+              >
+                {line.kind === 'owes' ? '−' : '+'}
+                {formatMoney(line.amountCents, currency)}
+              </span>
             </div>
           ))}
         </div>

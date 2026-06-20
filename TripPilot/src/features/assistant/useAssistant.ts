@@ -24,6 +24,7 @@ import { requestAssistantIntent } from '@/utils/ai-assistant';
 import { transcribeAudio } from '@/utils/ai-transcribe';
 import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
+import { isNativeApp } from '@/utils/native/platform';
 import { showToast } from '@/components/Toast';
 import type { Participant } from '@/domain/types/participant';
 
@@ -403,8 +404,12 @@ export function useAssistant(): UseAssistant {
       return;
     }
     setErrorKey(null);
-    // Prefer the on-device Web Speech engine; fall back to Whisper via upload.
-    if (isSpeechRecognitionSupported()) {
+    // Prefer the on-device Web Speech engine on web/PWA; on the native Android
+    // shell it is DEFINED but broken (the System WebView has no speech service,
+    // so `start()` errors instantly and the mic icon just flips back without ever
+    // asking for permission — device-test 2026-06-20). There we go straight to
+    // the Whisper path, whose getUserMedia triggers the real RECORD_AUDIO prompt.
+    if (!isNativeApp() && isSpeechRecognitionSupported()) {
       transcriptRef.current = '';
       setListening(true);
       const stop = startVoiceCapture(i18n.language, {

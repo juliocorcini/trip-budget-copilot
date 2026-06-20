@@ -536,6 +536,13 @@ export type StatementLineKind = 'owes' | 'is_owed';
 export interface StatementLine {
   kind: StatementLineKind;
   transactionId: string;
+  /**
+   * DEC-206: the outing/receipt session that owns this expense, or null for a
+   * standalone one. Lets the settle-up statement collapse a 40-item receipt into
+   * ONE expandable "event" row instead of 40 unreadable lines (device-test
+   * 2026-06-20). Display-only — the math (amounts, net) is unchanged.
+   */
+  sessionId: string | null;
   description: string | null;
   category: string | null;
   subcategoryId: string | null;
@@ -591,6 +598,7 @@ export function buildParticipantStatement(
       if (share.participantId === payerId) continue;
       const base = {
         transactionId: tx.id,
+        sessionId: tx.sessionId,
         description: tx.description,
         category: tx.category,
         subcategoryId: tx.subcategoryId,

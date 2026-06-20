@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@/i18n';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
-import type { HonestFriendV2 } from '@/domain/budget';
+import type { HonestFriendExtra, HonestFriendV2 } from '@/domain/budget';
 
 /**
  * GATE 12 (audit §4.8) — the contextual rescue door. The "honest friend" card
@@ -104,5 +104,51 @@ describe('AmigoSinceroCard — contextual rescue CTA (G12)', () => {
     expect(screen.getByText(/reservado pro seu plano/i)).toBeInTheDocument();
     expect(screen.getByText(/22,54/)).toBeInTheDocument();
     expect(screen.queryByText(/reserva protegida/i)).not.toBeInTheDocument();
+  });
+});
+
+// DEC-093 follow-up: the card must stop being "stuck" on one read — extras turn
+// it into a carousel (verdict + each extra) with tab dots the user can navigate.
+describe('AmigoSinceroCard — extras carousel', () => {
+  const extras: HonestFriendExtra[] = [
+    { id: 'phase_progress', tone: 'neutral', percent: 50 },
+    { id: 'receivable', tone: 'positive', amountCents: 4200 },
+  ];
+
+  it('renders one tab per slide (verdict + extras) and the verdict leads', () => {
+    render(
+      <AmigoSinceroCard
+        amigo={{ kind: 'over_budget', reserveUsedCents: 0, planShortfallCents: 2254, intoReserve: false }}
+        extras={extras}
+        currency="EUR"
+        onSeeImpact={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getByText(/acabou o dinheiro livre/i)).toBeInTheDocument();
+  });
+
+  it('navigates to an extra slide on dot click', () => {
+    render(
+      <AmigoSinceroCard
+        amigo={{ kind: 'over_budget', reserveUsedCents: 0, planShortfallCents: 2254, intoReserve: false }}
+        extras={extras}
+        currency="EUR"
+        onSeeImpact={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getAllByRole('tab')[1]!);
+    expect(screen.getByText(/50% do orçamento/i)).toBeInTheDocument();
+  });
+
+  it('shows no carousel tabs when there are no extras (single verdict)', () => {
+    render(
+      <AmigoSinceroCard
+        amigo={{ kind: 'over_budget', reserveUsedCents: 0, planShortfallCents: 2254, intoReserve: false }}
+        currency="EUR"
+        onSeeImpact={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
   });
 });

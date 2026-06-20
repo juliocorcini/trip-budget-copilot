@@ -67,6 +67,7 @@ const ownerStatement: ParticipantStatement = {
     {
       kind: 'owes',
       transactionId: TX_DINNER,
+      sessionId: null,
       description: 'Dinner at the harbor',
       category: 'restaurant',
       subcategoryId: null,
@@ -79,6 +80,7 @@ const ownerStatement: ParticipantStatement = {
     {
       kind: 'owes',
       transactionId: TX_TAXI,
+      sessionId: null,
       description: 'Taxi back',
       category: 'transport',
       subcategoryId: null,

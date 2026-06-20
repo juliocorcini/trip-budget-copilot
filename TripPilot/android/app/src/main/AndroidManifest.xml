@@ -92,6 +92,15 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- DEC-246 (AI Quick Entry · voice): microphone for getUserMedia({audio}) →
+         MediaRecorder → Whisper transcription. Same Capacitor rule as CAMERA: the
+         WebView only prompts for the runtime grant when the permission is declared
+         here. Without it Android denied the mic with NO prompt, so the mic icon
+         flipped and vanished (device test 2026-06-20). Needs an APK rebuild — an
+         OTA bundle cannot add a native permission. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
     <!-- N6: active-outing notifications (Capacitor LocalNotifications, Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

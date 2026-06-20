@@ -1,8 +1,8 @@
 {
-  "version": "0.99.15",
+  "version": "0.99.17",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.15.zip",
-  "notes": "Entrada por IA com paridade total ao lançamento manual: agora ela tira do que você fala o local (\"no bar do Zé\"), a forma de pagamento (\"no crédito\", \"em dinheiro\") e a data (\"ontem\", \"3 dias atrás\") — e salva tudo (valor, categoria, fundo, carteira, data, local). Toque em \"Ajustar detalhes\" pra revisar antes de confirmar. Mostra os mesmos avisos do manual (gasto fora do normal, quanto sobra no fundo) e lembra de cobrar quem dividiu. Casos pesados (moeda estrangeira, divisão personalizada, fotos) abrem a edição completa já preenchida."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.17.zip",
+  "notes": "Divisão pela IA corrigida: quando alguém paga e vocês dividem, o preview mostra a SUA parte (ex.: € 4 numa conta de € 12 ÷ 3), não o total. Acerto de contas mais legível: itens de uma mesma nota viram UM evento que você abre pra ver os itens, com \"ver todos\" pra listas longas. Amigo sincero virou carrossel — passa por vários recados, não trava em um só. O microfone (\"Falar\") foi declarado para o Android pedir permissão — isso precisa do APK novo, a atualização automática sozinha não habilita o mic."
 }

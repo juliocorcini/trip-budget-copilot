@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildActionPlan, type PlanContext } from '@/domain/assistant/plan';
+import { buildActionPlan, ownerPersonalCostCents, type PlanContext, type ExecOp } from '@/domain/assistant/plan';
 import type { AiIntent } from '@/domain/assistant/intent';
 import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
@@ -490,6 +490,55 @@ describe('buildActionPlan — other actions', () => {
 
     const debts = buildActionPlan(mkIntent({ action: 'open_screen', screen: 'debts' }), mkCtx());
     expect(debts.status === 'ready' && debts.plan.type === 'navigate' && debts.plan.to).toBe('/shared');
+  });
+});
+
+describe('ownerPersonalCostCents — the budget/anomaly figure (device-test 2026-06-20)', () => {
+  const expenseBase: Extract<ExecOp, { kind: 'expense' }> = {
+    kind: 'expense',
+    tripId: 'trip-1',
+    phaseId: 'ph-1',
+    budgetPoolId: 'pool-1',
+    walletId: 'w1',
+    amountCents: 1200,
+    currency: 'EUR',
+    category: 'other',
+    description: '',
+    place: null,
+    ownerId: 'owner',
+    payerId: 'owner',
+    didSplit: false,
+    participantIds: [],
+    connectedParticipantIds: [],
+  };
+
+  it('I paid, no split → the full amount counts against my budget', () => {
+    expect(ownerPersonalCostCents(expenseBase)).toBe(1200);
+  });
+
+  it('someone else paid, no split → I owe (and budget) the FULL amount', () => {
+    expect(ownerPersonalCostCents({ ...expenseBase, payerId: 'bruno', walletId: null })).toBe(1200);
+  });
+
+  it('3-way split someone else paid → only my €4 slice hits the budget (NOT €12)', () => {
+    const op = {
+      ...expenseBase,
+      payerId: 'bruno',
+      walletId: null,
+      didSplit: true,
+      participantIds: ['owner', 'bruno', 'debora'],
+    };
+    expect(ownerPersonalCostCents(op)).toBe(400);
+  });
+
+  it('I paid a split I share → my equal slice', () => {
+    const op = { ...expenseBase, didSplit: true, participantIds: ['owner', 'bruno'] };
+    expect(ownerPersonalCostCents(op)).toBe(600);
+  });
+
+  it('I paid FOR others (not a sharer) → 0 budget impact (it is all owed back to me)', () => {
+    const op = { ...expenseBase, amountCents: 4000, didSplit: true, participantIds: ['ana', 'bruno'] };
+    expect(ownerPersonalCostCents(op)).toBe(0);
   });
 });
 

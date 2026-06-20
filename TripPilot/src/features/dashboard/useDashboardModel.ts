@@ -13,6 +13,7 @@ import {
   createPoolSummary,
   calculateLastOutingSavings,
   buildHonestFriendV2,
+  buildHonestFriendExtras,
   calculatePoolSpent,
   projectTripEndSurplus,
   calculateSavingsGoalProgress,
@@ -586,6 +587,41 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           })
         : ({ kind: 'none' } as const);
 
+    // DEC-093 follow-up (device-test 2026-06-20): the Amigo Sincero carousel —
+    // extra honest reads so it is never "stuck" on one verdict. Cheap, pure, and
+    // gated on being meaningful (the domain returns [] when there is nothing).
+    const amigoTopCategory = (() => {
+      const byCategory = new Map<string, number>();
+      for (const tx of phaseTxsForInsights) {
+        if (tx.type !== 'expense' || !tx.category) continue;
+        byCategory.set(
+          tx.category,
+          (byCategory.get(tx.category) ?? 0) + (tx.personalCostCents ?? tx.amountCents),
+        );
+      }
+      let key: string | null = null;
+      let cents = 0;
+      for (const [categoryKey, categoryCents] of byCategory) {
+        if (categoryCents > cents) {
+          key = categoryKey;
+          cents = categoryCents;
+        }
+      }
+      return { key, cents };
+    })();
+    const amigoExtras =
+      activePhase && fts
+        ? buildHonestFriendExtras({
+            phaseSpentCents,
+            phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
+            freeToSpendCents: fts.freeToSpendCents,
+            daysLeftInPhase: Math.max(0, getTotalDays(todayIso, activePhase.endDate)),
+            topCategoryKey: amigoTopCategory.key,
+            topCategoryCents: amigoTopCategory.cents,
+            receivableCents,
+          })
+        : [];
+
     // DEC-130 + DEC-136: burn-down uses the same phase envelope as the insights.
     const burndown =
       fts && activePhase && primaryPool
@@ -677,6 +713,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       valueSuggestion,
       tripPriors,
       amigoV2,
+      amigoExtras,
       burndown,
       currentMonth,
       tripStartMonth,

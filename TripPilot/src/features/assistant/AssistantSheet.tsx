@@ -8,12 +8,13 @@ import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { formatMoney, toCents, evaluateAmountExpression } from '@/domain/money';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
-import { EXPENSE_CATEGORY_KEYS } from '@/domain/assistant';
+import { EXPENSE_CATEGORY_KEYS, ownerPersonalCostCents } from '@/domain/assistant';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { PlaceField } from '@/features/location/PlaceField';
 import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
 import { isoToDatetimeLocal } from './assistant-quickadd-draft';
 import { computeExpenseInsights, type ExpenseInsights } from './assistant-insights';
+import { composePreview } from './assistant-preview-text';
 import { subscribeAssistantOpen } from './assistant-bus';
 import { useAssistant } from './useAssistant';
 import type { AssistantPreview, ExecOp } from '@/domain/assistant';
@@ -112,7 +113,10 @@ export function AssistantSheet() {
   const insights: ExpenseInsights | null =
     draftExpense && !assistant.isForeign && currentPhase
       ? computeExpenseInsights({
-          amountBaseCents: draftExpense.amountCents,
+          // Budget/anomaly hints must use MY cost, not the full bill — a split
+          // someone else paid only spends my slice (parity with the budget
+          // engine's personalCost; device-test 2026-06-20).
+          amountBaseCents: ownerPersonalCostCents(draftExpense),
           category: draftExpense.category,
           budgetPoolId: draftExpense.budgetPoolId,
           currentPhaseId: currentPhase.id,
@@ -285,34 +289,6 @@ function StatusRow({ label }: { label: string }) {
       <span className="text-[14px] text-on-surface-dim font-semibold">{label}</span>
     </div>
   );
-}
-
-function composePreview(preview: AssistantPreview, t: (key: string, opts?: Record<string, unknown>) => string, money: (c?: number, cur?: string) => string): string {
-  const amount = money(preview.amountCents, preview.currency);
-  if (preview.op === 'navigate') return t(`assistant.nav.${preview.navKey ?? 'open'}`);
-  if (preview.op === 'expense') {
-    if (preview.debtDirection === 'i_owe') return t('assistant.preview.someone_paid', { person: preview.personName, amount });
-    if (preview.debtDirection === 'owes_me') return t('assistant.preview.i_paid_for', { person: preview.personName, amount });
-    if (preview.participantNames && preview.participantNames.length > 0) {
-      return t('assistant.preview.split', {
-        amount,
-        count: preview.participantNames.length,
-        per: money(preview.perPersonCents, preview.currency),
-      });
-    }
-    return t('assistant.preview.log_expense', { amount });
-  }
-  if (preview.op === 'income') return t('assistant.preview.income', { amount });
-  if (preview.op === 'transfer') return t('assistant.preview.transfer', { amount, from: preview.walletFromName ?? '', to: preview.walletToName ?? '' });
-  if (preview.op === 'withdraw') return t('assistant.preview.withdraw', { amount });
-  if (preview.op === 'settle') {
-    const value = preview.amountCents ? amount : t('assistant.preview.settle_full');
-    return preview.debtDirection === 'owes_me'
-      ? t('assistant.preview.settle_owes_me', { person: preview.personName, amount: value })
-      : t('assistant.preview.settle_i_owe', { person: preview.personName, amount: value });
-  }
-  if (preview.op === 'plan_purchase') return t('assistant.preview.plan_purchase', { item: preview.itemName, amount });
-  return amount;
 }
 
 const PREVIEW_ICON: Record<string, string> = {

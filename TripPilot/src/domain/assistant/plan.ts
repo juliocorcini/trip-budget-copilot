@@ -89,6 +89,26 @@ export type ExecOp =
       estimatedCostCents: number;
     };
 
+/**
+ * The OWNER's own cost for a (possibly split) expense op — the SAME figure the
+ * budget engine counts (`transactionBasePersonalCostCents` = personalCost), not
+ * the full bill. Mirrors `resolvePayerExpense`'s `personalCostCents` WITHOUT
+ * building shares, so the preview's budget/anomaly hints stay consistent with
+ * what actually lands in the fund (device-test 2026-06-20: a 3-way €12 someone
+ * else paid must read €4 left-impact, never €12).
+ *
+ * | payer | split | owner cost                         |
+ * |-------|-------|------------------------------------|
+ * | me    | no    | full amount                        |
+ * | other | no    | full amount (I owe the whole bill) |
+ * | any   | yes   | my equal slice if I share, else 0  |
+ */
+export function ownerPersonalCostCents(op: Extract<ExecOp, { kind: 'expense' }>): number {
+  if (!op.didSplit) return op.amountCents;
+  if (!op.participantIds.includes(op.ownerId)) return 0; // I only fronted it
+  return Math.round(op.amountCents / Math.max(1, op.participantIds.length));
+}
+
 /** Structured preview — the sheet localizes it (`assistant.preview.*`). */
 export interface AssistantPreview {
   op: ExecOp['kind'] | 'navigate';

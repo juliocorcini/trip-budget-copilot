@@ -34,7 +34,7 @@ export type {
   KnownPlace,
 } from './resolve';
 
-export { buildActionPlan } from './plan';
+export { buildActionPlan, ownerPersonalCostCents } from './plan';
 export type {
   ExecOp,
   AssistantPreview,

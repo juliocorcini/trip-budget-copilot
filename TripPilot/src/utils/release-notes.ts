@@ -17,6 +17,45 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.17',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Acerto de contas mais legível: quando você importa uma nota com vários itens, eles deixam de virar uma lista enorme — agora aparecem como UM evento (com o nome do lugar, a quantidade de itens e o total). Toque pra abrir e ver item por item.',
+        'A tela de acerto de contas e o extrato de cada pessoa agora mostram só os primeiros e trazem um “Ver todos (N)” — nada de rolar sem parar quando há muitos gastos.',
+        'Amigo sincero virou carrossel: em vez de travar num único recado (“esse gasto levou 1%…”), ele passa por vários — quanto já usou da fase, quanto sobra por dia, onde mais gastou e quanto têm a te devolver. Toque nas bolinhas pra navegar.',
+      ],
+      en: [
+        'Cleaner settle-up: importing a receipt with many items no longer floods the list — they show as ONE event (place name, item count and total). Tap to open and see item by item.',
+        'The settle-up screen and each person’s statement now show only the first few with a “View all (N)” toggle — no more endless scrolling when there are lots of expenses.',
+        'Honest friend is now a carousel: instead of being stuck on a single line (“this spend took 1%…”), it cycles through several reads — how much of the phase you’ve used, how much is left per day, where most went, and what you’re owed. Tap the dots to navigate.',
+      ],
+      es: [
+        'Ajuste de cuentas más legible: al importar un recibo con muchos ítems ya no se llena la lista — aparecen como UN evento (nombre del lugar, cantidad de ítems y total). Tócalo para abrir y ver ítem por ítem.',
+        'La pantalla de ajuste de cuentas y el estado de cada persona ahora muestran solo los primeros con un “Ver todos (N)” — sin scroll infinito cuando hay muchos gastos.',
+        'El amigo sincero ahora es un carrusel: en vez de quedarse en un solo mensaje (“este gasto se llevó 1%…”), pasa por varios — cuánto usaste de la fase, cuánto queda por día, dónde gastaste más y cuánto te deben. Toca los puntos para navegar.',
+      ],
+    },
+  },
+  {
+    version: '0.99.16',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Divisão pela IA corrigida: quando alguém paga e vocês dividem, o preview agora mostra a SUA parte (ex.: € 4 numa conta de € 12 ÷ 3) — antes ele mostrava o total errado. A gravação já estava certa; era só o texto do preview.',
+        'Microfone (“Falar”) agora declarado no app para o Android pedir permissão. Requer instalar o APK novo — só a atualização automática (OTA) não habilita o microfone.',
+      ],
+      en: [
+        'AI split fixed: when someone else pays and you split, the preview now shows YOUR share (e.g. € 4 of a € 12 ÷ 3 bill) — it used to show the wrong total. The saved debt was already correct; only the preview text was wrong.',
+        'Microphone (“Speak”) is now declared so Android prompts for permission. Requires installing the new APK — the over-the-air update alone can’t enable the mic.',
+      ],
+      es: [
+        'División por IA corregida: cuando otro paga y dividen, la vista previa ahora muestra TU parte (p. ej. € 4 de una cuenta de € 12 ÷ 3) — antes mostraba el total equivocado. La deuda guardada ya era correcta; solo el texto de la vista previa fallaba.',
+        'El micrófono (“Hablar”) ahora está declarado para que Android pida permiso. Requiere instalar el nuevo APK — la actualización automática (OTA) por sí sola no habilita el micrófono.',
+      ],
+    },
+  },
+  {
     version: '0.99.15',
     date: '2026-06-20',
     items: {

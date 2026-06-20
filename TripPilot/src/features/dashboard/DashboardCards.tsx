@@ -1044,6 +1044,7 @@ export function DashboardCards({
                 "on plan" state so it only shows when there's something to act on. */}
             <AmigoSinceroCard
               amigo={model.amigoV2}
+              extras={model.amigoExtras}
               currency={trip.baseCurrency}
               onSeeImpact={() => navigate('/impact')}
               onRescue={() => navigate('/rescue')}
