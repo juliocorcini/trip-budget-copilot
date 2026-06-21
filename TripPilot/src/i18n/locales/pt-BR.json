@@ -2275,6 +2275,8 @@
     "mode_personal": "Pessoal",
     "mode_equal": "Dividir igual",
     "mode_custom_hint": "Misto — ajuste por item abaixo",
+    "divide_live_title": "Dividir ao vivo",
+    "divide_live_hint": "Cada pessoa marca o que pegou no próprio celular",
     "item_done": "Pronto",
     "setting_title": "Ler notas com IA",
     "setting_label": "Permitir ler notas na nuvem",

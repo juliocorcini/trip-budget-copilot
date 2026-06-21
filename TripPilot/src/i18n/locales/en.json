@@ -2271,6 +2271,8 @@
     "mode_personal": "Personal",
     "mode_equal": "Split equally",
     "mode_custom_hint": "Mixed — edit each item below",
+    "divide_live_title": "Split live",
+    "divide_live_hint": "Everyone marks what they had on their own phone",
     "item_done": "Done",
     "setting_title": "Read receipts with AI",
     "setting_label": "Allow reading receipts in the cloud",

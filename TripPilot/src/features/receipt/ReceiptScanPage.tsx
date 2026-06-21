@@ -25,6 +25,7 @@ import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import { SplitExplainer } from '@/features/shared/SplitExplainer';
+import { setReceiptSplitHandoff } from '@/features/split/receipt-split-handoff';
 
 type Phase = 'capture' | 'reading' | 'review';
 
@@ -238,6 +239,16 @@ export function ReceiptScanPage() {
     setEditingId(item.id);
   };
 
+  // B1 (audit §2.1) — promote this just-scanned bill to the LIVE/pass-the-phone
+  // table without a second scan: hand the parsed plan + photo to SplitPage, which
+  // feeds it into its existing buildSplitFromReceipt path. The receipt door and
+  // the split door stop feeling like two apps for the same photo.
+  const goLiveSplit = () => {
+    if (!plan) return;
+    setReceiptSplitHandoff({ plan, image: compressed });
+    navigate('/split/scan');
+  };
+
   const handleCommit = async () => {
     if (!trip || !owner || busy || !plan) return;
     if (included.length === 0) {
@@ -398,6 +409,28 @@ export function ReceiptScanPage() {
               className="px-3 py-2.5 rounded-xl text-sm bg-surface-container text-on-surface outline-none"
             />
           </div>
+
+          {/* B1 — the bridge to the live table: same scan, divided in real time.
+              Lets "Escanear nota" reach the pass-the-phone flow without a re-scan. */}
+          {included.length > 0 && (
+            <button
+              onClick={goLiveSplit}
+              className="rounded-2xl p-3.5 flex items-center gap-3 btn-press text-left"
+              style={{ background: 'var(--surface-container)' }}
+            >
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(124,160,255,0.16)' }}
+              >
+                <Icon name="groups" size={22} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-on-surface">{t('receiptScan.divide_live_title')}</p>
+                <p className="text-[11px] text-on-surface-faint">{t('receiptScan.divide_live_hint')}</p>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          )}
 
           {reconciliation && reconciliation.readTotalCents !== null && (
             <div

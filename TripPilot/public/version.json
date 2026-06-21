@@ -1,8 +1,8 @@
 {
-  "version": "0.99.27",
+  "version": "0.99.28",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.27.zip",
-  "notes": "Simulador “posso gastar?”: depois do veredito agora dá pra “Salvar como planejado” num toque, já com o valor preenchido — sem reescrever nada num planner em branco."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.28.zip",
+  "notes": "Escanear nota e Dividir conta agora são um motor só: depois de ler a nota, dá pra “Dividir ao vivo” num toque — cada um marca no próprio celular — sem precisar escanear de novo."
 }

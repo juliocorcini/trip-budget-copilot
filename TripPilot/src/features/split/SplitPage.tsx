@@ -31,6 +31,7 @@ import { createParticipant } from '@/domain/splitting';
 import { useSplitLiveLink, type SplitLiveLink } from './useSplitLiveLink';
 import { LiveStatusBadge } from './LiveStatusBadge';
 import { loadOwnerLive, clearOwnerLive, fetchSplitTable } from './live-link';
+import { takeReceiptSplitHandoff, hasPendingReceiptSplitHandoff } from './receipt-split-handoff';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository, participantRepository } from '@/data/repositories';
 import { resolveActivePhase } from '@/domain/dates';
@@ -122,8 +123,44 @@ export function SplitPage() {
   // L2.M5 — on reopen, if a live table was left running, re-fetch it from the
   // server (the source of truth) and resume the SAME link so guests stay
   // connected. A revoked/missing/corrupt table is forgotten silently.
-  const [resuming, setResuming] = useState(() => !forceNew && loadOwnerLive() !== null);
-  const resumedRef = useRef(false);
+  // B1 — a pending receipt→split handoff is an explicit NEW bill, so it always
+  // wins over resume: seed resumedRef true (skip the resume effect) and never
+  // show the "Retomando…" spinner for it.
+  const [resuming, setResuming] = useState(
+    () => !forceNew && loadOwnerLive() !== null && !hasPendingReceiptSplitHandoff(),
+  );
+  const resumedRef = useRef(hasPendingReceiptSplitHandoff());
+
+  // B1 (audit §2.1) — a bill scanned in the receipt door chose "Dividir ao vivo".
+  // Consume the single-use handoff and open straight on the divide screen with the
+  // session prebuilt from the SAME OCR read (no second scan), reusing the exact
+  // buildSplitFromReceipt path the manual scan uses. Waits for trip data so the
+  // session is tied to the real trip; the photo rides along for the attachment.
+  const handoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (handoffConsumedRef.current) return;
+    if (!hasPendingReceiptSplitHandoff()) return;
+    if (!trip) return;
+    handoffConsumedRef.current = true;
+    const handoff = takeReceiptSplitHandoff();
+    if (!handoff) return;
+    const draft = buildSplitFromReceipt(handoff.plan, {
+      tripId: trip.id,
+      phaseId: resolveActivePhase(phases)?.id ?? null,
+      ownerName,
+      fallbackCurrency: baseCurrency,
+      ownerActorId: null,
+    });
+    setSession(draft.session);
+    setActivePersonId(draft.session.participants[0]?.id ?? null);
+    setCompressed(handoff.image);
+    setAskTax(draft.needsServiceChargePrompt);
+    setPhase('divide');
+    if (draft.session.items.length === 0) {
+      showToast(t('receiptScan.no_items_found'), 'warning', { durationMs: 6000 });
+    }
+  }, [trip, phases, ownerName, baseCurrency, t]);
+
   // Tracks whether THIS screen is still mounted. A plain `cancelled` local is
   // defeated by React 19 StrictMode (and fast remounts): the first run's cleanup
   // cancels it, then the `resumedRef` guard makes the second run a no-op, so the

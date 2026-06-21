@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.28',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Escanear nota e Dividir conta deixaram de ser “dois apps para a mesma foto”: depois de ler uma nota em Gastos → Escanear nota, agora aparece “Dividir ao vivo”. Com um toque, a mesma leitura vira uma mesa ao vivo (cada pessoa marca o que pegou no próprio celular) — sem precisar fotografar de novo.',
+      ],
+      en: [
+        'Scan receipt and Split the bill stopped being “two apps for the same photo”: after reading a receipt in Expenses → Scan receipt, a “Split live” action now appears. One tap turns that same read into a live table (everyone marks what they had on their own phone) — no re-scan needed.',
+      ],
+      es: [
+        'Escanear recibo y Dividir la cuenta dejaron de ser “dos apps para la misma foto”: tras leer un recibo en Gastos → Escanear recibo, ahora aparece “Dividir en vivo”. Con un toque, esa misma lectura se vuelve una mesa en vivo (cada persona marca lo que pidió en su propio teléfono) — sin volver a escanear.',
+      ],
+    },
+  },
+  {
     version: '0.99.27',
     date: '2026-06-20',
     items: {

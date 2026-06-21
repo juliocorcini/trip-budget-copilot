@@ -2271,6 +2271,8 @@
     "mode_personal": "Personal",
     "mode_equal": "Dividir en partes iguales",
     "mode_custom_hint": "Mixto — ajusta por ítem abajo",
+    "divide_live_title": "Dividir en vivo",
+    "divide_live_hint": "Cada persona marca lo que pidió en su propio teléfono",
     "item_done": "Listo",
     "setting_title": "Leer recibos con IA",
     "setting_label": "Permitir leer recibos en la nube",
