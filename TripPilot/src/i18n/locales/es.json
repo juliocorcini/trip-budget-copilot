@@ -1808,7 +1808,8 @@
     "borrow_tomorrow_title": "Vas a tomar de mañana",
     "borrow_tomorrow_body": "Hoy te pasas por {{over}}, pero aún cabe en la fase. Si lo gastas, quedan {{remaining}} libres para el resto — solo ve con calma los próximos días.",
     "cta_register": "Registrar este gasto",
-    "cta_planner": "Ver en el planner"
+    "cta_planner": "Ver en el planner",
+    "cta_plan_save": "Guardar como planeado"
   },
   "shared": {
     "owner_tag": "Yo",

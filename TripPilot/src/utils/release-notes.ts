@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.27',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'No simulador “posso gastar?”, depois do veredito agora aparece “Salvar como planejado”: cria um planejamento (evento ou pote) já com o valor que você simulou preenchido — não precisa mais reescrever tudo num planner em branco.',
+      ],
+      en: [
+        'In the “can I spend?” simulator, after the verdict there’s now a “Save as planned” action: it creates a plan (event or pot) with the amount you just simulated already filled in — no more retyping it on a blank planner.',
+      ],
+      es: [
+        'En el simulador “¿puedo gastar?”, tras el veredicto ahora aparece “Guardar como planeado”: crea un plan (evento o bote) con el monto que simulaste ya cargado — sin reescribir todo en un planner en blanco.',
+      ],
+    },
+  },
+  {
     version: '0.99.26',
     date: '2026-06-20',
     items: {

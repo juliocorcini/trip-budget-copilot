@@ -1808,7 +1808,8 @@
     "borrow_tomorrow_title": "Borrowing from tomorrow",
     "borrow_tomorrow_body": "Today goes over by {{over}}, but it still fits the phase. Spend it and you have {{remaining}} free for the rest — just ease off over the next days.",
     "cta_register": "Register this expense",
-    "cta_planner": "See in planner"
+    "cta_planner": "See in planner",
+    "cta_plan_save": "Save as planned"
   },
   "shared": {
     "owner_tag": "Me",

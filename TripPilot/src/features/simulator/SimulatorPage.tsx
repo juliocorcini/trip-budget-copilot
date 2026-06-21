@@ -25,6 +25,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PlanExpenseSheet } from '@/features/trip/PlanExpenseSheet';
 import {
   activityProfileRepository,
   scenarioPlanRepository,
@@ -61,7 +62,11 @@ export function SimulatorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, loading, error, retry } = useAppData();
+  const { trip, phases, pools, links, envelopes, transactions, occurrences, plannedPurchases, loading, error, retry, reload } = useAppData();
+  // C3 — "salvar como planejado" straight from a simulation (DEC-132 inverse: the
+  // simulator answers "posso gastar?", and a recurring/upcoming spend should be
+  // savable as a plan without retyping the amount on a blank planner.
+  const [planOpen, setPlanOpen] = useState(false);
 
   const [amount, setAmount] = useState(() => {
     const prefill = searchParams.get('amount');
@@ -422,14 +427,27 @@ export function SimulatorPage() {
               {t('simulator.cta_register')}
             </button>
             <button
-              onClick={() => navigate('/planner')}
+              onClick={() => setPlanOpen(true)}
               className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim text-sm font-semibold btn-press"
             >
-              {t('simulator.cta_planner')}
+              {t('simulator.cta_plan_save')}
             </button>
           </div>
         </>
       )}
+
+      {/* C3 — prefilled "Planejar um gasto" from the simulated amount/target. */}
+      <PlanExpenseSheet
+        open={planOpen}
+        onClose={() => setPlanOpen(false)}
+        trip={trip}
+        phases={phases}
+        pools={pools}
+        links={links}
+        onCreated={reload}
+        initialAmount={amount}
+        initialName={targetProfile?.profileName}
+      />
 
       {/* DEC-132: cross-link — the inverse question ("how do I save €X?") */}
       <button

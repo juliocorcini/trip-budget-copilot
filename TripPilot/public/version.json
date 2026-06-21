@@ -1,8 +1,8 @@
 {
-  "version": "0.99.26",
+  "version": "0.99.27",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.26.zip",
-  "notes": "Mesa ao vivo: quem já usa o TripPilot é reconhecido (não pede mais o nome) e, no fim, registra a própria parte no próprio app com um toque, já mostrando o impacto no orçamento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.27.zip",
+  "notes": "Simulador “posso gastar?”: depois do veredito agora dá pra “Salvar como planejado” num toque, já com o valor preenchido — sem reescrever nada num planner em branco."
 }

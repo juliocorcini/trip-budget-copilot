@@ -54,6 +54,10 @@ interface PlanExpenseSheetProps {
   pools: BudgetPool[];
   links: BudgetPoolPhaseLink[];
   onCreated: () => void | Promise<void>;
+  /** C3: prefill the amount (major units, e.g. "25") when opened from the simulator. */
+  initialAmount?: string;
+  /** C3: prefill the name when opened with a known target. */
+  initialName?: string;
 }
 
 const TOAST_KEY: Record<PlannedExpenseOutcome, string> = {
@@ -71,7 +75,7 @@ const TOAST_KEY: Record<PlannedExpenseOutcome, string> = {
  * come from? — and the app creates the right thing (Event / Event+Pote / Compra /
  * Pote) via the routing orchestrator. No fund/pool/occurrence jargon ever shows.
  */
-export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, onCreated }: PlanExpenseSheetProps) {
+export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, onCreated, initialAmount, initialName }: PlanExpenseSheetProps) {
   const { t } = useTranslation();
 
   const sortedPhases = useMemo(() => sortPhasesByOrder(phases.filter((p) => p.deletedAt === null)), [phases]);
@@ -100,8 +104,8 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
     const defaultPhase = activePhaseId ?? sortedPhases[0]?.id ?? '';
     setHasDate(false);
     setFunding(sortedPhases.length > 0 ? 'phase' : 'new_pot');
-    setName('');
-    setAmount('');
+    setName(initialName ?? '');
+    setAmount(initialAmount ?? '');
     setStartDate(trip.startDate.slice(0, 10));
     setEndDate('');
     setSelectedPhaseId(defaultPhase);
@@ -109,7 +113,7 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
     setHasGoal(false);
     setGoal('');
     setSaving(false);
-  }, [open, trip.startDate, activePhaseId, sortedPhases, pots]);
+  }, [open, trip.startDate, activePhaseId, sortedPhases, pots, initialAmount, initialName]);
 
   const fundingDisabled = (id: PlanFundingSource): boolean =>
     (id === 'phase' && sortedPhases.length === 0) || (id === 'existing_pot' && pots.length === 0);
