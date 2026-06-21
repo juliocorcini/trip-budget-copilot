@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.36',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Refinamos a telemetria de uso anônima: agora ela só conta quem realmente configurou o app, sem ruído de visitas vazias. Nada muda pra você — continua sem valores e desativável nas Configurações.',
+      ],
+      en: [
+        'We refined the anonymous usage telemetry: it now only counts people who actually set up the app, with no noise from empty visits. Nothing changes for you — still no amounts, still off-switchable in Settings.',
+      ],
+      es: [
+        'Refinamos la telemetría de uso anónima: ahora solo cuenta a quienes realmente configuraron la app, sin ruido de visitas vacías. Nada cambia para ti — sigue sin importes y desactivable en Configuración.',
+      ],
+    },
+  },
+  {
     version: '0.99.35',
     date: '2026-06-21',
     items: {

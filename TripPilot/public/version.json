@@ -1,8 +1,8 @@
 {
-  "version": "0.99.35",
+  "version": "0.99.36",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.35.zip",
-  "notes": "Melhoria interna: telemetria de uso anônima (sem valores) para entender o que melhorar — ligada por padrão, com opção de desativar nas Configurações. Novo painel de administração interno."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.36.zip",
+  "notes": "Telemetria de uso anônima (sem valores), ligada por padrão e desativável nas Configurações, agora só conta quem realmente configurou o app — sem ruído de visitas vazias."
 }

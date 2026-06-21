@@ -101,6 +101,11 @@ export async function sendHeartbeatIfDue(nowMs: number = Date.now()): Promise<vo
     const settings = await appSettingsRepository.get();
     if (settings.telemetryEnabled === false) return;
     if (settings.isDemo) return;
+    // Only report genuinely set-up installs. A never-onboarded drive-by load (a
+    // bot, a crawler, a guest opening a shared link) has a transient default
+    // settings row — reporting it would flood the dashboard with empty "Meu
+    // dispositivo / all zeros" rows that are not real users.
+    if (!settings.onboardingCompleted) return;
 
     const today = utcDayKey(nowMs);
     const lastSent = safeLocalStorage.get(LAST_SENT_KEY);

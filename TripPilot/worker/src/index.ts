@@ -1167,7 +1167,17 @@ export class TelemetryStore {
     if (request.method === 'GET' && path === '/installs') return this.installs(url);
     if (request.method === 'GET' && path === '/timeseries') return this.timeseries(url);
     if (request.method === 'DELETE' && path === '/install') return this.deleteInstall(url);
+    if (request.method === 'DELETE' && path === '/installs') return this.deleteAllInstalls();
     return json({ error: 'not_found' }, 404);
+  }
+
+  /** Wipe every install + heartbeat (admin "reset"). Used to clear test/junk
+   *  data; real users simply re-report on their next heartbeat. */
+  private deleteAllInstalls(): Response {
+    const before = num(this.sql.exec(`SELECT COUNT(*) AS n FROM installs`).one().n);
+    this.sql.exec(`DELETE FROM heartbeats`);
+    this.sql.exec(`DELETE FROM installs`);
+    return json({ ok: true, deleted: before });
   }
 
   /** Remove one install (and its heartbeats). Used by the admin panel to drop
