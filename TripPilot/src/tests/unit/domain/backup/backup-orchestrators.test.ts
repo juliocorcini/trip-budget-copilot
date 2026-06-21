@@ -56,6 +56,7 @@ const settings: AppSettings = {
   aiQuickEntryPrivateNames: false,
   walletTrackingOverride: null,
   paymentMethods: [],
+  telemetryEnabled: true,
 };
 
 const mkTrip = (): Trip => ({

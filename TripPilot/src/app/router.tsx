@@ -46,6 +46,7 @@ const SplitTablePage = lazyWithRetry(() => import('@/features/split/SplitTablePa
 const SharedLinkPage = lazyWithRetry(() => import('@/features/shared/SharedLinkPage').then(m => ({ default: m.SharedLinkPage })));
 const SharedWithMePage = lazyWithRetry(() => import('@/features/shared/SharedWithMePage').then(m => ({ default: m.SharedWithMePage })));
 const PairPage = lazyWithRetry(() => import('@/features/shared/PairPage').then(m => ({ default: m.PairPage })));
+const AdminPage = lazyWithRetry(() => import('@/features/admin/AdminPage').then(m => ({ default: m.AdminPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -182,6 +183,9 @@ export const router = createBrowserRouter([
       // G2 (bill split live table): the guest claim board — also outside BootGate.
       { path: '/t/:id', element: <LazyRoute><SplitTablePage /></LazyRoute> },
       { path: '/shared-with-me', element: <LazyRoute><SharedWithMePage /></LazyRoute> },
+      // DEC-248: owner-only usage dashboard. Standalone (outside BootGate + the
+      // app shell) and token-gated by the Worker ADMIN_TOKEN — never linked in nav.
+      { path: '/admin', element: <LazyRoute><AdminPage /></LazyRoute> },
     ],
   },
 ]);

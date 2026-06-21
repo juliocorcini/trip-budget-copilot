@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.35',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Ajude o app a melhorar: agora enviamos, de forma anônima e ligada por padrão, dados de uso (seu nome e quantas viagens, gastos e divisões você criou) — nunca valores nem o conteúdo dos seus gastos. Dá pra desativar em Configurações a qualquer momento.',
+      ],
+      en: [
+        'Help the app improve: we now send anonymous usage data (your name and how many trips, expenses and splits you created), on by default — never amounts or the content of your expenses. You can turn it off in Settings anytime.',
+      ],
+      es: [
+        'Ayuda a mejorar la app: ahora enviamos datos de uso anónimos (tu nombre y cuántos viajes, gastos y divisiones creaste), activado por defecto — nunca importes ni el contenido de tus gastos. Puedes desactivarlo en Configuración cuando quieras.',
+      ],
+    },
+  },
+  {
     version: '0.99.34',
     date: '2026-06-21',
     items: {

@@ -38,6 +38,21 @@ export interface Env {
    * the /ocr route reports `ocr_not_configured` so the app degrades gracefully.
    */
   GROQ_API_KEY?: string;
+  /**
+   * DEC-248 (Admin dashboard): one global SQLite Durable Object that stores
+   * anonymous, NON-MONETARY usage telemetry — one upserted row per installation
+   * (the "who + what they use" list) plus a per-(install,day) heartbeat table for
+   * DAU/WAU/MAU. The DO rejects any field outside its allowlist, so monetary
+   * values can never be stored. Absent in older deploys (routes report
+   * `telemetry_not_configured`).
+   */
+  TELEMETRY?: DurableObjectNamespace;
+  /**
+   * DEC-248: bearer token gating the read-only `/admin/*` query routes. Worker
+   * secret only — never in the client. Absent → `/admin` reports
+   * `admin_not_configured` (the dashboard then shows a setup notice).
+   */
+  ADMIN_TOKEN?: string;
 }
 
 /** No ambiguous chars (0/O, 1/I/L) — codes are sometimes read aloud. */
@@ -517,6 +532,52 @@ async function relayDoResponse(res: Response): Promise<Response> {
   });
 }
 
+// DEC-248 (Admin dashboard) — anonymous, NON-MONETARY usage telemetry.
+// Calibration (Julio, 2026-06-21): a human label (display name) IS allowed; the
+// HARD red line is monetary VALUES, which are never accepted. The allowlists
+// below are the ONLY accepted fields — the DO rejects anything else, so the
+// ingest physically cannot store an amount even if a client sent one.
+const TELEMETRY_MAX_BODY_BYTES = 8000;
+
+/**
+ * Telemetry ingest — public, anonymous. The client posts a tiny daily snapshot
+ * keyed by its install id (a pseudonymous UUID). The country is taken from the
+ * Cloudflare edge header (the client never sends an IP) and forwarded to the DO.
+ */
+async function handleTelemetryIngest(request: Request, env: Env): Promise<Response> {
+  if (!env.TELEMETRY) return json({ error: 'telemetry_not_configured' }, 503);
+  const bodyText = await request.text();
+  if (bodyText.length > TELEMETRY_MAX_BODY_BYTES) return json({ error: 'too_large' }, 413);
+  const country = request.headers.get('CF-IPCountry') ?? '';
+  const stub = env.TELEMETRY.get(env.TELEMETRY.idFromName('global'));
+  const res = await stub.fetch(`https://t.internal/ingest?country=${encodeURIComponent(country)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: bodyText,
+  });
+  return relayDoResponse(res);
+}
+
+/**
+ * Admin query routes — read-only, gated by the ADMIN_TOKEN bearer secret. Maps
+ * `/admin/<sub>` to the global telemetry DO's `/<sub>` (overview/installs/
+ * timeseries). Never exposes anything the DO does not already aggregate.
+ */
+async function handleAdmin(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.TELEMETRY) return json({ error: 'telemetry_not_configured' }, 503);
+  if (!env.ADMIN_TOKEN) return json({ error: 'admin_not_configured' }, 503);
+  if (request.method !== 'GET' && request.method !== 'DELETE') {
+    return json({ error: 'method_not_allowed' }, 405);
+  }
+  const auth = request.headers.get('Authorization') ?? '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token || token !== env.ADMIN_TOKEN) return json({ error: 'unauthorized' }, 401);
+  const sub = url.pathname.slice('/admin'.length) || '/';
+  const stub = env.TELEMETRY.get(env.TELEMETRY.idFromName('global'));
+  const res = await stub.fetch(`https://t.internal${sub}${url.search}`, { method: request.method });
+  return relayDoResponse(res);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -579,6 +640,16 @@ export default {
       if (!ACTOR_ID_RE.test(actorId)) return json({ error: 'bad_actor' }, 400);
       const stub = env.MAILBOX.get(env.MAILBOX.idFromName(actorId));
       return stub.fetch(new Request(`https://mailbox.internal/${request.method === 'POST' ? 'put' : 'drain'}`, request));
+    }
+
+    // DEC-248 — anonymous usage telemetry ingest (NON-MONETARY; allowlisted).
+    if (request.method === 'POST' && url.pathname === '/t') {
+      return handleTelemetryIngest(request, env);
+    }
+
+    // DEC-248 — read-only admin dashboard query routes (bearer-token gated).
+    if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
+      return handleAdmin(request, env, url);
     }
 
     return json({ error: 'not_found' }, 404);
@@ -999,5 +1070,307 @@ export class Mailbox {
 
   async alarm(): Promise<void> {
     await this.state.storage.deleteAll();
+  }
+}
+
+// DEC-248 (Admin dashboard) — anonymous usage telemetry store. ONE global SQLite
+// Durable Object. Stores ONLY allowlisted, NON-MONETARY fields; any key outside
+// the maps below is rejected at ingest, so a monetary value can never be stored.
+const TELEMETRY_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
+const TELEMETRY_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TELEMETRY_STR_MAX = 60;
+
+/** payload counter key → SQLite column (cumulative per-install integer totals). */
+const TELEMETRY_COUNTERS: Record<string, string> = {
+  trips: 'c_trips',
+  expenses: 'c_expenses',
+  outings: 'c_outings',
+  splits: 'c_splits',
+  settlements: 'c_settlements',
+  plannedPurchases: 'c_planned',
+  wallets: 'c_wallets',
+  participants: 'c_participants',
+  connections: 'c_connections',
+  aiEntries: 'c_ai_entries',
+  receiptScans: 'c_receipt_scans',
+  crashes: 'c_crashes',
+};
+/** payload flag key → SQLite column (0/1 adoption flags). */
+const TELEMETRY_FLAGS: Record<string, string> = {
+  usesAI: 'f_uses_ai',
+  usesReceiptOcr: 'f_uses_receipt_ocr',
+  usesSplit: 'f_uses_split',
+  usesWallets: 'f_uses_wallets',
+  usesLocation: 'f_uses_location',
+  usesAppLock: 'f_uses_app_lock',
+  isNative: 'f_is_native',
+};
+
+function telemetryStr(v: unknown, max = TELEMETRY_STR_MAX): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t === '' ? null : t.slice(0, max);
+}
+
+function num(v: SqlStorageValue): number {
+  return typeof v === 'number' ? v : Number(v ?? 0) || 0;
+}
+
+export class TelemetryStore {
+  private sql: SqlStorage;
+
+  constructor(private state: DurableObjectState) {
+    this.sql = state.storage.sql;
+    this.ensureSchema();
+  }
+
+  private ensureSchema(): void {
+    const counterCols = Object.values(TELEMETRY_COUNTERS)
+      .map((c) => `${c} INTEGER NOT NULL DEFAULT 0`)
+      .join(', ');
+    const flagCols = Object.values(TELEMETRY_FLAGS)
+      .map((c) => `${c} INTEGER NOT NULL DEFAULT 0`)
+      .join(', ');
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS installs (
+        install_id TEXT PRIMARY KEY,
+        display_name TEXT,
+        first_seen INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL,
+        app_version TEXT,
+        platform TEXT,
+        locale TEXT,
+        country TEXT,
+        active_days INTEGER NOT NULL DEFAULT 1,
+        ${counterCols},
+        ${flagCols}
+      )`,
+    );
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_installs_last_seen ON installs(last_seen)`);
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS heartbeats (
+        install_id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        app_version TEXT,
+        platform TEXT,
+        PRIMARY KEY (install_id, day)
+      )`,
+    );
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_heartbeats_day ON heartbeats(day)`);
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    if (request.method === 'POST' && path === '/ingest') return this.ingest(request, url);
+    if (request.method === 'GET' && path === '/overview') return this.overview();
+    if (request.method === 'GET' && path === '/installs') return this.installs(url);
+    if (request.method === 'GET' && path === '/timeseries') return this.timeseries(url);
+    if (request.method === 'DELETE' && path === '/install') return this.deleteInstall(url);
+    return json({ error: 'not_found' }, 404);
+  }
+
+  /** Remove one install (and its heartbeats). Used by the admin panel to drop
+   *  test/junk rows. Idempotent: deleting a missing id returns deleted: 0. */
+  private deleteInstall(url: URL): Response {
+    const id = url.searchParams.get('id') ?? '';
+    if (!TELEMETRY_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+    this.sql.exec(`DELETE FROM heartbeats WHERE install_id = ?`, id);
+    const r = this.sql.exec(`DELETE FROM installs WHERE install_id = ?`, id);
+    return json({ ok: true, deleted: r.rowsWritten });
+  }
+
+  private async ingest(request: Request, url: URL): Promise<Response> {
+    let body: Record<string, unknown>;
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const installId = typeof body.installId === 'string' ? body.installId : '';
+    if (!TELEMETRY_ID_RE.test(installId)) return json({ error: 'bad_id' }, 400);
+    const day = typeof body.day === 'string' && TELEMETRY_DAY_RE.test(body.day) ? body.day : '';
+    if (!day) return json({ error: 'bad_day' }, 400);
+
+    const displayName = telemetryStr(body.displayName);
+    const appVersion = telemetryStr(body.appVersion, 20);
+    const platform = telemetryStr(body.platform, 20);
+    const locale = telemetryStr(body.locale, 20);
+    const country = telemetryStr(url.searchParams.get('country'), 4);
+
+    // Counters/flags — STRICT allowlist. Any unknown key is rejected so a
+    // monetary value (or any unexpected field) can never be persisted.
+    const counters: Record<string, number> = {};
+    const rawCounters = (body.counters ?? {}) as Record<string, unknown>;
+    for (const key of Object.keys(rawCounters)) {
+      const col = TELEMETRY_COUNTERS[key];
+      if (!col) return json({ error: `bad_counter:${key}` }, 400);
+      const v = rawCounters[key];
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+        return json({ error: `bad_counter_value:${key}` }, 400);
+      }
+      counters[col] = Math.min(Math.floor(v), 100_000_000);
+    }
+    const flags: Record<string, number> = {};
+    const rawFlags = (body.flags ?? {}) as Record<string, unknown>;
+    for (const key of Object.keys(rawFlags)) {
+      const col = TELEMETRY_FLAGS[key];
+      if (!col) return json({ error: `bad_flag:${key}` }, 400);
+      flags[col] = rawFlags[key] ? 1 : 0;
+    }
+
+    const now = Date.now();
+    // 1) Idempotent day heartbeat — a freshly written row means a new active day.
+    const hb = this.sql.exec(
+      `INSERT OR IGNORE INTO heartbeats (install_id, day, app_version, platform) VALUES (?, ?, ?, ?)`,
+      installId,
+      day,
+      appVersion,
+      platform,
+    );
+    const dayInc = hb.rowsWritten > 0 ? 1 : 0;
+
+    // 2) Upsert the install row. Counters are cumulative DEVICE totals → store the
+    // reported value verbatim; active_days only grows on a genuinely new day.
+    const counterCols = Object.values(TELEMETRY_COUNTERS);
+    const flagCols = Object.values(TELEMETRY_FLAGS);
+    const insertCols = [
+      'install_id',
+      'display_name',
+      'first_seen',
+      'last_seen',
+      'app_version',
+      'platform',
+      'locale',
+      'country',
+      'active_days',
+      ...counterCols,
+      ...flagCols,
+    ];
+    const insertVals: SqlStorageValue[] = [
+      installId,
+      displayName,
+      now,
+      now,
+      appVersion,
+      platform,
+      locale,
+      country,
+      1,
+      ...counterCols.map((c) => counters[c] ?? 0),
+      ...flagCols.map((c) => flags[c] ?? 0),
+    ];
+    const setClauses = [
+      'display_name = COALESCE(excluded.display_name, installs.display_name)',
+      'last_seen = excluded.last_seen',
+      'app_version = excluded.app_version',
+      'platform = excluded.platform',
+      'locale = excluded.locale',
+      'country = COALESCE(excluded.country, installs.country)',
+      `active_days = installs.active_days + ${dayInc}`,
+      ...counterCols.map((c) => `${c} = excluded.${c}`),
+      ...flagCols.map((c) => `${c} = excluded.${c}`),
+    ];
+    const placeholders = insertCols.map(() => '?').join(', ');
+    this.sql.exec(
+      `INSERT INTO installs (${insertCols.join(', ')}) VALUES (${placeholders})
+       ON CONFLICT(install_id) DO UPDATE SET ${setClauses.join(', ')}`,
+      ...insertVals,
+    );
+
+    return json({ ok: true });
+  }
+
+  private overview(): Response {
+    const now = Date.now();
+    const day = 86_400_000;
+    const counterCols = Object.values(TELEMETRY_COUNTERS);
+    const flagCols = Object.values(TELEMETRY_FLAGS);
+    const sums = [...counterCols, ...flagCols].map((c) => `SUM(${c}) AS ${c}`).join(', ');
+    const agg = this.sql
+      .exec(
+        `SELECT
+           COUNT(*) AS total,
+           SUM(CASE WHEN last_seen >= ? THEN 1 ELSE 0 END) AS dau,
+           SUM(CASE WHEN last_seen >= ? THEN 1 ELSE 0 END) AS wau,
+           SUM(CASE WHEN last_seen >= ? THEN 1 ELSE 0 END) AS mau,
+           SUM(CASE WHEN first_seen >= ? THEN 1 ELSE 0 END) AS new7d,
+           ${sums}
+         FROM installs`,
+        now - day,
+        now - 7 * day,
+        now - 30 * day,
+        now - 7 * day,
+      )
+      .one();
+    const platforms = this.sql
+      .exec(`SELECT COALESCE(platform, '?') AS k, COUNT(*) AS n FROM installs GROUP BY k ORDER BY n DESC`)
+      .toArray()
+      .map((r) => ({ key: String(r.k), count: num(r.n) }));
+    const versions = this.sql
+      .exec(`SELECT COALESCE(app_version, '?') AS k, COUNT(*) AS n FROM installs GROUP BY k ORDER BY n DESC LIMIT 20`)
+      .toArray()
+      .map((r) => ({ key: String(r.k), count: num(r.n) }));
+    const countries = this.sql
+      .exec(`SELECT COALESCE(NULLIF(country, ''), '?') AS k, COUNT(*) AS n FROM installs GROUP BY k ORDER BY n DESC LIMIT 30`)
+      .toArray()
+      .map((r) => ({ key: String(r.k), count: num(r.n) }));
+    const counters: Record<string, number> = {};
+    for (const [key, col] of Object.entries(TELEMETRY_COUNTERS)) counters[key] = num(agg[col]);
+    const flags: Record<string, number> = {};
+    for (const [key, col] of Object.entries(TELEMETRY_FLAGS)) flags[key] = num(agg[col]);
+    return json({
+      total: num(agg.total),
+      dau: num(agg.dau),
+      wau: num(agg.wau),
+      mau: num(agg.mau),
+      new7d: num(agg.new7d),
+      counters,
+      flags,
+      platforms,
+      versions,
+      countries,
+      generatedAt: now,
+    });
+  }
+
+  private installs(url: URL): Response {
+    const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 500);
+    const offset = Math.max(Number(url.searchParams.get('offset')) || 0, 0);
+    const rows = this.sql
+      .exec(`SELECT * FROM installs ORDER BY last_seen DESC LIMIT ? OFFSET ?`, limit, offset)
+      .toArray();
+    const total = num(this.sql.exec(`SELECT COUNT(*) AS n FROM installs`).one().n);
+    return json({ installs: rows.map((r) => this.shapeInstall(r)), total, limit, offset });
+  }
+
+  private timeseries(url: URL): Response {
+    const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 30, 1), 180);
+    const series = this.sql
+      .exec(`SELECT day, COUNT(DISTINCT install_id) AS dau FROM heartbeats GROUP BY day ORDER BY day DESC LIMIT ?`, days)
+      .toArray()
+      .map((r) => ({ day: String(r.day), dau: num(r.dau) }))
+      .reverse();
+    return json({ series });
+  }
+
+  private shapeInstall(r: Record<string, SqlStorageValue>): Record<string, unknown> {
+    const counters: Record<string, number> = {};
+    for (const [key, col] of Object.entries(TELEMETRY_COUNTERS)) counters[key] = num(r[col]);
+    const flags: Record<string, boolean> = {};
+    for (const [key, col] of Object.entries(TELEMETRY_FLAGS)) flags[key] = num(r[col]) > 0;
+    return {
+      installId: String(r.install_id),
+      displayName: r.display_name === null ? null : String(r.display_name),
+      firstSeen: num(r.first_seen),
+      lastSeen: num(r.last_seen),
+      appVersion: r.app_version === null ? null : String(r.app_version),
+      platform: r.platform === null ? null : String(r.platform),
+      locale: r.locale === null ? null : String(r.locale),
+      country: r.country === null ? null : String(r.country),
+      activeDays: num(r.active_days),
+      counters,
+      flags,
+    };
   }
 }

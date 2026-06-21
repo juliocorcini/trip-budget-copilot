@@ -60,6 +60,7 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
     aiQuickEntryPrivateNames: false,
     walletTrackingOverride: null,
     paymentMethods: [],
+    telemetryEnabled: true,
   },
   trips: [],
   phases: [],

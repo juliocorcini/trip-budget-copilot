@@ -90,6 +90,10 @@ export function createDefaultAppSettings(): AppSettings {
     // G4 (DEC-244): no published payment methods until the user adds one — the
     // reminder message stays exactly as before for everyone else.
     paymentMethods: [],
+    // DEC-248 (Admin dashboard): anonymous usage telemetry ON by default
+    // (Julio's call). Sends only the owner's name + non-monetary usage counts;
+    // never values/items/balances. One-tap opt-out in Settings.
+    telemetryEnabled: true,
   };
 }
 

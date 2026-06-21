@@ -2389,6 +2389,11 @@
     "setting_label": "Allow reading receipts in the cloud",
     "setting_hint": "When on, scanning a receipt sends the photo to our reading service (Groq) to extract the items. It does not train on your data, but the image leaves your device. Off by default."
   },
+  "telemetry": {
+    "setting_title": "Usage data (learning)",
+    "setting_label": "Share anonymous app usage",
+    "setting_hint": "When on, the app occasionally sends anonymous usage data — your name and how many trips, expenses and splits you created — to help us learn what to improve and fix issues (learning and debugging). We never send amounts, items or the content of your expenses. You can turn this off anytime."
+  },
   "sync": {
     "send_to_device": "Send to another device",
     "send_to_device_desc": "Direct encrypted transfer, phone to phone",

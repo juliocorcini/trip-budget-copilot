@@ -8,6 +8,7 @@ import { isNativeApp, applyNativeStatusBar } from '@/utils/native';
 import { initDeepLinks } from '@/utils/native/deep-link';
 import { hasPendingSharedCsv, setSharedCsvNavHandler } from '@/utils/native/share-target';
 import { setHapticsEnabled } from '@/utils/haptics';
+import { sendHeartbeatIfDue } from '@/utils/telemetry';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
 
@@ -134,6 +135,21 @@ function useNativeIntents() {
   }, [navigate]);
 }
 
+// DEC-248: fire an anonymous usage heartbeat on app open and on resume to the
+// foreground. The send itself is throttled to one success per UTC day inside
+// sendHeartbeatIfDue, so a resume costs nothing. Best-effort, silent, and honors
+// the telemetryEnabled opt-out — it never blocks or surfaces to the user.
+function useTelemetryHeartbeat() {
+  useEffect(() => {
+    void sendHeartbeatIfDue();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void sendHeartbeatIfDue();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+}
+
 /** Root route element: wraps ALL routes (inside and outside the AppShell). */
 export function RootLayout() {
   const settings = useLiveSettings();
@@ -143,6 +159,7 @@ export function RootLayout() {
   useBackButtonGuard();
   useNavDirection();
   useNativeIntents();
+  useTelemetryHeartbeat();
   // BUG-007: a single AppDataProvider above every route.
   // E6 (M20): the lock gate sits just below it so the PIN screen can read live
   // settings while still protecting every route once enabled.

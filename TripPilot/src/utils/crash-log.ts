@@ -1,4 +1,5 @@
 import { safeLocalStorage } from '@/utils/safe-storage';
+import { bumpTelemetryCounter } from '@/utils/telemetry-events';
 
 /**
  * BUG-017: crash telemetry + loop detection. iOS standalone PWAs send nothing
@@ -34,6 +35,9 @@ export function readCrashLog(): CrashEntry[] {
 export function recordCrash(entry: Omit<CrashEntry, 'timestamp'>): void {
   const next = [...readCrashLog(), { ...entry, timestamp: Date.now() }].slice(-MAX_ENTRIES);
   safeLocalStorage.set(CRASH_LOG_KEY, JSON.stringify(next));
+  // DEC-248: count crashes for the admin dashboard (a cumulative tally — the
+  // rotating buffer above only keeps the last few). Non-monetary, best-effort.
+  bumpTelemetryCounter('crashes');
 }
 
 /** True when more than LOOP_THRESHOLD crashes happened in the last minute. */

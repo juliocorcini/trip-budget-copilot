@@ -1248,6 +1248,18 @@ export function SettingsPage() {
         )}
       </Section>
 
+      {/* DEC-248 (Admin dashboard): anonymous usage telemetry. On by default;
+          sends only the owner's name + non-monetary usage counts — never values
+          or transaction content. One-tap opt-out. */}
+      <Section title={t('telemetry.setting_title')}>
+        <ToggleRow
+          label={t('telemetry.setting_label')}
+          enabled={settings.telemetryEnabled}
+          onChange={() => updateSetting({ telemetryEnabled: !settings.telemetryEnabled })}
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('telemetry.setting_hint')}</p>
+      </Section>
+
       </CollapsibleGroup>
 
       <CollapsibleGroup {...groupProps('device')}>

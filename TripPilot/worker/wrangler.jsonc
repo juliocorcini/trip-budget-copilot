@@ -29,6 +29,12 @@
         // froze the table on real devices).
         "name": "SHARE_STORE_DO",
         "class_name": "ShareStore"
+      },
+      {
+        // DEC-248 — single global SQLite DO holding anonymous, NON-MONETARY
+        // usage telemetry (installs + heartbeats). idFromName('global').
+        "name": "TELEMETRY",
+        "class_name": "TelemetryStore"
       }
     ]
   },
@@ -58,6 +64,10 @@
     {
       "tag": "v4",
       "new_sqlite_classes": ["ShareStore"]
+    },
+    {
+      "tag": "v5",
+      "new_sqlite_classes": ["TelemetryStore"]
     }
   ]
 }

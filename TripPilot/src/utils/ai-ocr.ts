@@ -1,5 +1,6 @@
 import { getSyncWorkerUrl } from '@/data/sync/config';
 import { parseReceiptResponse } from '@/domain/receipt';
+import { bumpTelemetryCounter } from '@/utils/telemetry-events';
 import type { ReceiptPlan } from '@/domain/receipt';
 
 /**
@@ -37,7 +38,9 @@ export async function extractReceiptViaCloud(imageDataUrl: string): Promise<Rece
 
   try {
     const raw: unknown = await response.json();
-    return { ok: true, plan: parseReceiptResponse(raw) };
+    const plan = parseReceiptResponse(raw);
+    bumpTelemetryCounter('receiptScans'); // DEC-248: count a successful cloud scan.
+    return { ok: true, plan };
   } catch {
     return { ok: false, error: 'failed' };
   }

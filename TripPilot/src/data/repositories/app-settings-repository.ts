@@ -76,6 +76,8 @@ class AppSettingsRepository {
       walletTrackingOverride: settings.walletTrackingOverride ?? null,
       // G4 (DEC-244): records predating payment methods have none published.
       paymentMethods: settings.paymentMethods ?? [],
+      // DEC-248: records predating telemetry default to ON (on-by-default).
+      telemetryEnabled: settings.telemetryEnabled ?? true,
     };
   }
 

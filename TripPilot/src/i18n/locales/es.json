@@ -2389,6 +2389,11 @@
     "setting_label": "Permitir leer recibos en la nube",
     "setting_hint": "Cuando está activo, escanear un recibo envía la foto a nuestro servicio de lectura (Groq) para extraer los artículos. No entrena con tus datos, pero la imagen sale de tu dispositivo. Desactivado por defecto."
   },
+  "telemetry": {
+    "setting_title": "Datos de uso (aprendizaje)",
+    "setting_label": "Compartir uso anónimo de la app",
+    "setting_hint": "Cuando está activo, la app envía de vez en cuando datos anónimos de uso — tu nombre y cuántos viajes, gastos y divisiones creaste — para ayudarnos a entender qué mejorar y corregir problemas (aprendizaje y depuración). Nunca enviamos importes, artículos ni el contenido de tus gastos. Puedes desactivarlo cuando quieras."
+  },
   "sync": {
     "send_to_device": "Enviar a otro dispositivo",
     "send_to_device_desc": "Transferencia directa y cifrada, móvil a móvil",

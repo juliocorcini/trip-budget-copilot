@@ -2393,6 +2393,11 @@
     "setting_label": "Permitir ler notas na nuvem",
     "setting_hint": "Quando ligado, escanear uma nota envia a foto ao nosso serviço de leitura (Groq) para extrair os itens. Ele não treina com seus dados, mas a imagem sai do seu aparelho. Desligado por padrão."
   },
+  "telemetry": {
+    "setting_title": "Dados de uso (aprendizado)",
+    "setting_label": "Compartilhar uso anônimo do app",
+    "setting_hint": "Quando ligado, o app envia de vez em quando dados anônimos de uso — seu nome e quantas viagens, gastos e divisões você criou — para nos ajudar a entender o que melhorar e corrigir problemas (aprendizado e debug). Nunca enviamos valores, itens ou o conteúdo dos seus gastos. Pode desligar quando quiser."
+  },
   "sync": {
     "send_to_device": "Enviar para outro aparelho",
     "send_to_device_desc": "Transferência direta e criptografada, celular a celular",

@@ -141,6 +141,13 @@ export interface AppSettings {
    * stays exactly as before until the user adds one (non-indexed, no migration;
    * travels inside the backup like the rest of AppSettings). */
   paymentMethods: PaymentMethod[];
+  /** DEC-248 (Admin dashboard): opt-out master switch for anonymous-by-install
+   * usage telemetry. Default TRUE (on-by-default, Julio's call). When on, the
+   * app sends — at most once per day, on open — a heartbeat with the owner's
+   * display NAME and NON-MONETARY usage counts/flags (never values, items,
+   * balances or transaction content) to the Worker /t endpoint. Turning it off
+   * stops every telemetry network call (non-indexed — no migration). */
+  telemetryEnabled: boolean;
 }
 
 /**

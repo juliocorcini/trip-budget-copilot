@@ -29,6 +29,7 @@ import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
 import { isNativeApp } from '@/utils/native/platform';
+import { bumpTelemetryCounter } from '@/utils/telemetry-events';
 import { showToast } from '@/components/Toast';
 import type { Participant } from '@/domain/types/participant';
 
@@ -460,6 +461,7 @@ export function useAssistant(): UseAssistant {
         currentPlace: d.settings?.currentPlace ?? null,
         lastExpenseCategory: d.settings?.lastExpenseCategory ?? null,
       });
+      bumpTelemetryCounter('aiEntries'); // DEC-248: count a successful AI action.
       showToast(t(`assistant.done.${result.summaryKey}`), 'success', {
         actionLabel: t('common.undo'),
         durationMs: 6000,
@@ -518,6 +520,7 @@ export function useAssistant(): UseAssistant {
       }
     }
     if (done > 0) {
+      bumpTelemetryCounter('aiEntries', done); // DEC-248: count each AI action.
       showToast(t('assistant.done.batch', { count: done }), 'success', {
         actionLabel: t('common.undo'),
         durationMs: 6000,
