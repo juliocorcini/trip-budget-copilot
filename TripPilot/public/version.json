@@ -1,8 +1,8 @@
 {
-  "version": "0.99.24",
+  "version": "0.99.25",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.24.zip",
-  "notes": "Itens com 2+ unidades na conta agora podem ser pegos por unidade: duas pessoas pegam “2 pedidos” pagando 1 cada (preço cheio), sem meia-divisão. Editar item ganhou controle de quantidade."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.25.zip",
+  "notes": "Na saída ao vivo agora dá pra adicionar gasto FALANDO (“cerveja 5 euros”) ou ESCANEANDO a nota — os dois caem direto na saída, é só confirmar."
 }

@@ -10,4 +10,5 @@ export {
   reconcileReceipt,
   matchItemsToReadTotal,
   dominantReceiptCategory,
+  summarizeReceiptTotal,
 } from './parse';

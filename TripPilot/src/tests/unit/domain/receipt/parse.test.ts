@@ -4,6 +4,7 @@ import {
   reconcileReceipt,
   matchItemsToReadTotal,
   dominantReceiptCategory,
+  summarizeReceiptTotal,
 } from '@/domain/receipt';
 import type { ReceiptDraftItem } from '@/domain/receipt';
 
@@ -350,5 +351,37 @@ describe('parseReceiptResponse — adjustments (E6)', () => {
       adjustments: [{ kind: 'discount', label: 'promo', amount: -3 }],
     });
     expect(plan.adjustments[0]!.amountCents).toBe(-300);
+  });
+});
+
+describe('summarizeReceiptTotal (F7 — read a note inside an outing)', () => {
+  it('uses the printed total + merchant when present', () => {
+    const plan = parseReceiptResponse({
+      merchant: 'Bar Pelourinho',
+      currency: 'EUR',
+      total: 23.5,
+      items: [
+        { description: 'Cerveja', qty: 2, unitPrice: 3.5, lineTotal: 7.0 },
+        { description: 'Tapas', qty: 1, lineTotal: 16.5 },
+      ],
+    });
+    expect(summarizeReceiptTotal(plan)).toEqual({ amountCents: 2350, merchant: 'Bar Pelourinho' });
+  });
+
+  it('falls back to the sum of kept positive items when there is no printed total', () => {
+    const plan = parseReceiptResponse({
+      merchant: null,
+      items: [
+        { description: 'A', qty: 1, lineTotal: 4.0 },
+        { description: 'B', qty: 1, lineTotal: 6.25 },
+      ],
+    });
+    // no total → 400 + 625; null merchant surfaces as null (caller localizes a fallback)
+    expect(summarizeReceiptTotal(plan)).toEqual({ amountCents: 1025, merchant: null });
+  });
+
+  it('returns null for an unreadable note (nothing positive to add)', () => {
+    const plan = parseReceiptResponse({ merchant: null, total: null, items: [] });
+    expect(summarizeReceiptTotal(plan)).toBeNull();
   });
 });

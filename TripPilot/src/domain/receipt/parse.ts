@@ -244,6 +244,25 @@ export function matchItemsToReadTotal(plan: ReceiptPlan): ReceiptDraftItem[] {
 }
 
 /**
+ * F7 (outing scan) — reduce a parsed receipt to a SINGLE "add it as one expense"
+ * line for the active outing: the amount is the printed total when present, else
+ * the sum of the kept positive items; the title is the merchant as printed (the
+ * caller falls back to the dominant category or the session name when null).
+ * Returns null when there is nothing positive to add (an unreadable note), so the
+ * caller can show "couldn't read it" instead of adding a €0 item. Pure.
+ */
+export function summarizeReceiptTotal(plan: ReceiptPlan): { amountCents: number; merchant: string | null } | null {
+  const itemsTotalCents = plan.items
+    .filter((item) => item.include && item.amountCents > 0)
+    .reduce((sum, item) => sum + item.amountCents, 0);
+  const amountCents =
+    plan.readTotalCents !== null && plan.readTotalCents > 0 ? plan.readTotalCents : itemsTotalCents;
+  if (amountCents <= 0) return null;
+  const merchant = plan.merchant?.trim() ?? '';
+  return { amountCents, merchant: merchant.length > 0 ? merchant : null };
+}
+
+/**
  * Compare the kept items against the printed total. Purely informational: the
  * difference is usually tax/discount lines we intentionally drop, so the UI
  * shows it as a hint rather than blocking the commit.

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.25',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Durante uma saída ao vivo agora dá pra adicionar gasto de dois jeitos novos, sem sair da tela: tocar em “Falar” e dizer o que foi (“cerveja 5 euros”), ou tocar em “Escanear nota” e fotografar a conta. Os dois caem direto na saída — abre uma confirmação rápida com o valor e o nome já preenchidos, é só conferir e adicionar.',
+        'A voz usa a mesma captura confiável do resto do app e a leitura de nota usa o mesmo motor de OCR; se faltar internet ou o microfone, a saída segue funcionando normal no toque.',
+      ],
+      en: [
+        'During a live outing you can now add an expense two new ways without leaving the screen: tap “Speak” and say what it was (“beer 5 euros”), or tap “Scan note” and photograph the bill. Both drop straight into the outing — a quick confirm opens with the amount and name pre-filled, just check and add.',
+        'Voice uses the same reliable capture as the rest of the app and note-reading uses the same OCR engine; if the network or mic is unavailable, the outing keeps working normally by tap.',
+      ],
+      es: [
+        'Durante una salida en vivo ahora puedes agregar un gasto de dos formas nuevas sin salir de la pantalla: toca “Hablar” y di qué fue (“cerveza 5 euros”), o toca “Escanear nota” y fotografía la cuenta. Ambos caen directo en la salida — se abre una confirmación rápida con el monto y el nombre ya cargados, solo revisa y agrega.',
+        'La voz usa la misma captura confiable del resto de la app y la lectura de nota usa el mismo motor de OCR; si falta internet o el micrófono, la salida sigue funcionando normal al toque.',
+      ],
+    },
+  },
+  {
     version: '0.99.24',
     date: '2026-06-20',
     items: {

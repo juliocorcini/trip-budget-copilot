@@ -34,7 +34,7 @@ import type {
   ExpenseSubcategory,
   EventContext,
 } from '@/domain/outing';
-import { createExpenseTransaction } from '@/domain/transactions';
+import { createExpenseTransaction, parseVoiceExpense } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
@@ -100,6 +100,12 @@ import { BarModeView } from '@/features/outing/BarModeView';
 import { formatAnchorHint, type AnchorConfig } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { db } from '@/data/db/database';
+// F7/F8 (outing capture): read a note or speak to add an item inside the outing.
+import { compressImageFile, blobToDataUrl } from '@/utils/image/compress';
+import { extractReceiptViaCloud, type ReceiptOcrError } from '@/utils/ai-ocr';
+import { summarizeReceiptTotal, dominantReceiptCategory } from '@/domain/receipt';
+import { transcribeAudio, isLikelyVoiceHallucination } from '@/utils/ai-transcribe';
+import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
 
 function formatElapsed(startedAt: string): string {
   const ms = Date.now() - new Date(startedAt).getTime();
@@ -780,6 +786,24 @@ export function OutingPage() {
     await doQuickAdd(amountCents, session, resolveTxPhaseId(session));
   };
 
+  // F7/F8 — commit an item captured by voice or by scanning a note INSIDE the
+  // outing. Same path as a quick-add (phase gate + enrich stepper) but with a
+  // real description (the spoken item / the note's merchant) instead of the
+  // session name. The amount is already validated by the capture sheet.
+  const doNamedAdd = async (amountCents: number, description: string, sess: Session, txPhaseId: string) => {
+    const tx = await addSessionExpense(amountCents, description, sess, txPhaseId, true);
+    if (tx) setEnrich(buildEnrichTarget(tx.id, amountCents, sess, false));
+  };
+  const handleAddNamedItem = async (amountCents: number, description: string) => {
+    if (!session || amountCents <= 0) return;
+    const desc = description.trim() || session.name;
+    if (runWithPhaseGate((txPhaseId, sess) => doNamedAdd(amountCents, desc, sess, txPhaseId))) {
+      setBarMode(false);
+      return;
+    }
+    await doNamedAdd(amountCents, desc, session, resolveTxPhaseId(session));
+  };
+
   const handleConfirmOverMax = async () => {
     if (!session || !pendingOverMaxAdd) return;
     const updated = await sessionRepository.update({
@@ -1310,6 +1334,7 @@ export function OutingPage() {
         participants={participants}
         owner={owner}
         onQuickAdd={handleQuickAdd}
+        onAddNamedItem={handleAddNamedItem}
         onRegisterTotal={handleRegisterTotal}
         onSplitAdd={handleSplitAdd}
         onRepeatLast={handleRepeatLast}
@@ -2054,6 +2079,8 @@ interface ActiveSessionProps {
   participants: Participant[];
   owner: Participant | null;
   onQuickAdd: (cents: number) => void;
+  /** F7/F8 — commit a voice- or scan-captured item with a real description. */
+  onAddNamedItem: (amountCents: number, description: string) => void;
   onRegisterTotal: (diffCents: number) => void;
   onSplitAdd: (input: SessionSplitInput) => void;
   /** E3 (M7): repeat the last logged item. */
@@ -2095,11 +2122,11 @@ interface ActiveSessionProps {
   onExitBarMode: () => void;
 }
 
-function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, recentPlaces, onPickPlace, canFindPlaceName, onFindPlaceName, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
-  const { t } = useTranslation();
+function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, participants, owner, onQuickAdd, onAddNamedItem, onRegisterTotal, onSplitAdd, onRepeatLast, onAddRound, onUpdateQuickValues, onEnd, onBack, place, locationEnabled, nearbyPlaces, loadingNearby, recentPlaces, onPickPlace, canFindPlaceName, onFindPlaceName, onRenamePlace, onClearPlace, onDetailItem, notificationBanner, enrichStepper, anchorConfig, barMode, onEnterBarMode, onExitBarMode }: ActiveSessionProps) {
+  const { t, i18n } = useTranslation();
   const currency = trip.baseCurrency;
 
-  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | 'round' | 'place' | null>(null);
+  const [activeSheet, setActiveSheet] = useState<'other' | 'total' | 'split' | 'editValues' | 'round' | 'place' | 'capture' | null>(null);
   // E8 (M6) / F14: the place field doubles as a free-text SEARCH (filters the
   // suggestions) and as the manual NAME used when saving a brand-new place.
   const [placeDraft, setPlaceDraft] = useState('');
@@ -2119,14 +2146,131 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   const [splitMode, setSplitMode] = useState<ShareType>('equal');
   const [splitCustomAmounts, setSplitCustomAmounts] = useState<Record<string, string>>({});
 
+  // F7/F8 — voice + scan capture for the "add an item by speaking / by reading a
+  // note" affordances. `captureBusy` reflects the in-flight cloud step (mic
+  // recording, transcription or OCR); the result lands in the `capture` sheet
+  // (amount + description) for a one-tap confirm before it becomes a session item.
+  const [captureDesc, setCaptureDesc] = useState('');
+  const [captureBusy, setCaptureBusy] = useState<'idle' | 'listening' | 'transcribing' | 'scanning'>('idle');
+  const scanInputRef = useRef<HTMLInputElement | null>(null);
+  const voiceStopRef = useRef<(() => void) | null>(null);
+
   const canSplit = participants.length > 1 && owner !== null;
 
   const closeSheet = () => {
     setActiveSheet(null);
     setSheetAmount('');
+    setCaptureDesc('');
     setNegativeConfirmed(false);
     setSplitCustomAmounts({});
   };
+
+  // Hand the captured (amount, description) to the capture sheet so the user can
+  // confirm or fix it before it becomes a session item.
+  const openCaptureSheet = (amountCents: number | null, description: string) => {
+    setSheetAmount(amountCents !== null && amountCents > 0 ? String(fromCents(amountCents)) : '');
+    setCaptureDesc(description);
+    setActiveSheet('capture');
+  };
+
+  // F8 — speak an item ("cerveja 5 euros"): record → transcribe → parse amount +
+  // description offline → open the capture sheet. Reuses the proven 16 kHz WAV
+  // path (DEC-246) so it works on the native Android WebView; degrades cleanly.
+  const startVoiceCaptureFlow = async () => {
+    if (captureBusy === 'listening') {
+      voiceStopRef.current?.();
+      return;
+    }
+    if (!isPcmRecordingSupported()) {
+      showToast(t('outing.capture_voice_unsupported'), 'info');
+      return;
+    }
+    let recording: PcmRecording;
+    try {
+      recording = await startPcmRecording();
+    } catch {
+      showToast(t('outing.capture_mic_denied'), 'warning');
+      return;
+    }
+    setCaptureBusy('listening');
+    voiceStopRef.current = () => {
+      voiceStopRef.current = null;
+      void (async () => {
+        let blob: Blob;
+        try {
+          blob = await recording.stop();
+        } catch {
+          setCaptureBusy('idle');
+          showToast(t('outing.capture_voice_unclear'), 'info');
+          return;
+        }
+        setCaptureBusy('transcribing');
+        const outcome = await transcribeAudio(blob, i18n.language.slice(0, 2));
+        setCaptureBusy('idle');
+        if (!outcome.ok) {
+          showToast(t('outing.capture_voice_unclear'), 'info');
+          return;
+        }
+        const transcript = outcome.text.trim();
+        if (transcript === '' || isLikelyVoiceHallucination(transcript)) {
+          showToast(t('outing.capture_voice_unclear'), 'info');
+          return;
+        }
+        const parsed = parseVoiceExpense(transcript);
+        openCaptureSheet(parsed.amountCents, parsed.description || transcript);
+      })();
+    };
+  };
+
+  // F7 — read a note inside the outing: pick/snap a photo → cloud OCR → reduce to
+  // one "add it" line (printed total + merchant) → open the capture sheet. The
+  // owner confirms the amount and can rename it before it joins the outing.
+  const handleScanFile = async (file: File | undefined) => {
+    if (!file) return;
+    setCaptureBusy('scanning');
+    try {
+      const image = await compressImageFile(file);
+      const dataUrl = await blobToDataUrl(image.blob);
+      const outcome = await extractReceiptViaCloud(dataUrl);
+      if (!outcome.ok) {
+        const key: Record<ReceiptOcrError, string> = {
+          not_configured: 'outing.capture_scan_unavailable',
+          rate_limited: 'outing.capture_scan_rate_limited',
+          offline: 'outing.capture_scan_offline',
+          failed: 'outing.capture_scan_failed',
+        };
+        showToast(t(key[outcome.error]), 'warning');
+        return;
+      }
+      const summary = summarizeReceiptTotal(outcome.plan);
+      if (summary === null) {
+        showToast(t('outing.capture_scan_failed'), 'warning');
+        return;
+      }
+      const dominant = dominantReceiptCategory(outcome.plan.items);
+      const description =
+        summary.merchant ?? (dominant ? t(`categories.${dominant}` as never) : '');
+      openCaptureSheet(summary.amountCents, description);
+    } catch {
+      showToast(t('outing.capture_scan_failed'), 'warning');
+    } finally {
+      setCaptureBusy('idle');
+    }
+  };
+
+  const confirmCapture = () => {
+    const cents = parseAmountToCents(sheetAmount);
+    if (cents <= 0) return;
+    onAddNamedItem(cents, captureDesc);
+    closeSheet();
+  };
+
+  // Stop any live mic capture if the outing unmounts mid-listen.
+  useEffect(() => {
+    return () => {
+      voiceStopRef.current?.();
+    };
+  }, []);
 
   const openSplitSheet = () => {
     setSplitParticipantIds(participants.map((p) => p.id));
@@ -2736,6 +2880,41 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
             {t('outing.round_action')}
           </button>
         </div>
+        {/* F7/F8 — speak an item or read a note, added straight into the outing */}
+        <div className="flex gap-2.5 mb-2.5">
+          <button
+            onClick={startVoiceCaptureFlow}
+            className={`btn-press flex-1 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 ${captureBusy === 'listening' ? 'ring-1 ring-primary' : ''}`}
+            style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+          >
+            <Icon name={captureBusy === 'listening' ? 'stop' : captureBusy === 'transcribing' ? 'hourglass_empty' : 'mic'} size={16} className="text-on-surface-faint" />
+            {captureBusy === 'listening'
+              ? t('outing.capture_listening')
+              : captureBusy === 'transcribing'
+                ? t('outing.capture_transcribing')
+                : t('outing.capture_voice')}
+          </button>
+          <button
+            onClick={() => scanInputRef.current?.click()}
+            disabled={captureBusy === 'scanning'}
+            className="btn-press flex-1 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40"
+            style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
+          >
+            <Icon name={captureBusy === 'scanning' ? 'hourglass_empty' : 'photo_camera'} size={16} className="text-on-surface-faint" />
+            {captureBusy === 'scanning' ? t('outing.capture_scanning') : t('outing.capture_scan')}
+          </button>
+          <input
+            ref={scanInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              void handleScanFile(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+        </div>
         <div className="flex gap-2.5">
           <button
             onClick={() => setActiveSheet('total')}
@@ -2782,6 +2961,32 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         >
           {t('common.add')}
         </button>
+      </BottomSheet>
+
+      {/* F7/F8 — confirm a voice/scan-captured item before it joins the outing */}
+      <BottomSheet open={activeSheet === 'capture'} onClose={closeSheet} title={t('outing.capture_confirm_title')}>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-wide text-on-surface-faint">
+              {t('outing.capture_item_name')}
+            </label>
+            <input
+              type="text"
+              value={captureDesc}
+              onChange={(e) => setCaptureDesc(e.target.value)}
+              placeholder={t('outing.capture_item_name_placeholder')}
+              className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2.5 outline-none w-full mt-1"
+            />
+          </div>
+          <SheetAmountInput currency={currency} value={sheetAmount} onChange={setSheetAmount} />
+          <button
+            onClick={confirmCapture}
+            disabled={parseAmountToCents(sheetAmount) <= 0}
+            className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press disabled:opacity-40"
+          >
+            {t('common.add')}
+          </button>
+        </div>
       </BottomSheet>
 
       {/* E8 (M6): edit/clear the sticky place for the active session */}
