@@ -1633,7 +1633,7 @@ function PersonEditor({
                         className="w-1.5 h-1.5 rounded-full"
                         style={{ background: CONNECTION_STATUS_DOT[conn.status] }}
                       />
-                      {t(`split.friend_status_${conn.status}`)}
+                      {t(`connections.status_${conn.status}`)}
                     </span>
                   </span>
                   <Icon name="add" size={18} className="text-primary shrink-0" />

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.33',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Sua agenda de amigos num lugar só: em Acerto de contas → Conexões agora aparece a lista de todos os aparelhos que você já pareou, com status honesto — conectado (dá pra avisar agora), aguardando (mandamos, falta responder) ou reconectar (precisa parear de novo) — e quando cada um foi visto pela última vez.',
+        'É o mesmo teto pra tudo de conexão: ver seus amigos, mostrar seu QR pra parear e receber de outro aparelho, lado a lado.',
+      ],
+      en: [
+        'Your friends, all in one place: in Settle up → Connections you now see every device you’ve paired with, each with an honest status — connected (we can ping now), waiting (sent, awaiting reply) or reconnect (needs to pair again) — plus when each was last seen.',
+        'One roof for everything connection: see your friends, show your QR to pair, and receive from another device, side by side.',
+      ],
+      es: [
+        'Tu agenda de amigos en un solo lugar: en Ajuste de cuentas → Conexiones ahora ves todos los dispositivos con los que te conectaste, cada uno con estado honesto — conectado (podemos avisar ahora), esperando (enviado, falta respuesta) o reconectar (hay que parear de nuevo) — y cuándo se vio cada uno por última vez.',
+        'Un mismo techo para todo lo de conexión: ver a tus amigos, mostrar tu QR para parear y recibir desde otro dispositivo, lado a lado.',
+      ],
+    },
+  },
+  {
     version: '0.99.32',
     date: '2026-06-21',
     items: {

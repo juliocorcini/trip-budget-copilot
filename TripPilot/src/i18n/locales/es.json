@@ -849,6 +849,15 @@
     "link_planned_empty": "Ninguna compra planificada compatible en este fondo.",
     "linked_planned_label": "Cuenta en la compra planificada"
   },
+  "connections": {
+    "list_title": "Amigos conectados",
+    "empty": "Aún no hay amigos conectados. Usa el QR de abajo para conectar.",
+    "status_connected": "Conectado",
+    "status_waiting": "Esperando",
+    "status_offline": "Reconectar",
+    "last_seen": "visto {{date}}",
+    "never_synced": "aún no sincronizó"
+  },
   "split": {
     "how_title": "Cómo funciona la división",
     "how_step_who": "Marcas quién pagó y quién entra en el reparto.",
@@ -885,9 +894,6 @@
     "person_name": "Nombre",
     "friends_title": "Amigos conectados",
     "friends_or_new": "o agrega a alguien nuevo",
-    "friend_status_connected": "Conectado",
-    "friend_status_waiting": "Esperando",
-    "friend_status_offline": "Reconectar",
     "active_person": "¿Quién está marcando?",
     "view_item": "Por ítem",
     "view_person": "Por persona",

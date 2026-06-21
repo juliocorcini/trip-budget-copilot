@@ -849,6 +849,15 @@
     "link_planned_empty": "No compatible planned purchase in this fund.",
     "linked_planned_label": "Counts toward planned purchase"
   },
+  "connections": {
+    "list_title": "Connected friends",
+    "empty": "No connected friends yet. Use the QR below to connect.",
+    "status_connected": "Connected",
+    "status_waiting": "Waiting",
+    "status_offline": "Reconnect",
+    "last_seen": "seen {{date}}",
+    "never_synced": "not synced yet"
+  },
   "split": {
     "how_title": "How splitting works",
     "how_step_who": "You mark who paid and who's in on the split.",
@@ -885,9 +894,6 @@
     "person_name": "Name",
     "friends_title": "Connected friends",
     "friends_or_new": "or add someone new",
-    "friend_status_connected": "Connected",
-    "friend_status_waiting": "Waiting",
-    "friend_status_offline": "Reconnect",
     "active_person": "Who's tapping?",
     "view_item": "By item",
     "view_person": "By person",

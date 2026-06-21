@@ -1,8 +1,8 @@
 {
-  "version": "0.99.32",
+  "version": "0.99.33",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.32.zip",
-  "notes": "Amigos conectados na divisão: ao adicionar alguém à conta, seus amigos já pareados aparecem numa lista — toque pra incluir sem refazer QR, com status honesto (conectado/aguardando/reconectar)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.33.zip",
+  "notes": "Lista de Amigos no Acerto de contas: em Conexões agora aparecem todos os seus aparelhos pareados com status honesto (conectado/aguardando/reconectar) e quando foram vistos pela última vez."
 }

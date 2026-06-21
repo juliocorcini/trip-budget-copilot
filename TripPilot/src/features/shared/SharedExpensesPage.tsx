@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useLocation } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -30,6 +30,8 @@ import { participantShareRepository } from '@/data/repositories/participant-shar
 import { settlementRepository } from '@/data/repositories/settlement-repository';
 import { participantRepository, peerLinkRepository, sessionRepository } from '@/data/repositories';
 import type { PeerLink } from '@/domain/types/peer-link';
+// B2 wave 2 (coherence §2.2): the honest "Amigos/Conexões" list under one roof.
+import { buildConnectionViews, type ConnectionView } from '@/domain/connections';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -70,6 +72,13 @@ const STATUS_PILL_STYLE: Record<string, string> = {
   pending: 'bg-warning/15 text-warning',
   confirmed: 'bg-success/20 text-success',
   rejected: 'bg-error/15 text-error',
+};
+
+// B2 wave 2: the honest-status dot color for a connection row.
+const CONNECTION_STATUS_DOT: Record<ConnectionView['status'], string> = {
+  connected: 'var(--success)',
+  waiting: 'var(--warning)',
+  offline: 'var(--on-surface-faint)',
 };
 
 type Translate = ReturnType<typeof useTranslation>['t'];
@@ -194,6 +203,14 @@ export function SharedExpensesPage() {
 
   const peerLinkFor = (participantId: string): PeerLink | undefined =>
     peerLinks.find((link) => link.participantId === participantId && link.deletedAt === null);
+
+  // B2 wave 2 — the honest friend list (all paired devices, cross-trip), derived
+  // from the SAME peerLinks the page already loads. One roof for "who am I
+  // connected to and can I reach them right now".
+  const connectionViews = useMemo<ConnectionView[]>(
+    () => buildConnectionViews(peerLinks, Date.now()),
+    [peerLinks],
+  );
 
   // FIELD item 8: deliver the statement to the peer's mailbox — no need to be
   // side by side. Reuses the exact payload the live transfer builds.
@@ -1122,6 +1139,39 @@ export function SharedExpensesPage() {
           <p className="text-[11px] text-on-surface-faint leading-snug px-1 -mt-1">
             {t('shared.connections_hint')}
           </p>
+          {/* B2 wave 2: the honest friend list — every paired device, its honest
+              reachability (connected/waiting/reconnect) and when it was last seen.
+              Reconnect = re-pair via "Meu QR" / scan below (same plumbing). */}
+          {connectionViews.length > 0 && (
+            <div className="bg-surface-container rounded-xl p-2 flex flex-col gap-1">
+              <p className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide px-2 pt-1">
+                {t('connections.list_title')}
+              </p>
+              {connectionViews.map((conn) => (
+                <div key={conn.actorId} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+                  <span className="w-8 h-8 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                    {conn.displayName.trim().slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-on-surface truncate">{conn.displayName}</p>
+                    <p className="flex items-center gap-1.5 text-[10px] text-on-surface-faint">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ background: CONNECTION_STATUS_DOT[conn.status] }}
+                      />
+                      <span>{t(`connections.status_${conn.status}`)}</span>
+                      <span aria-hidden>·</span>
+                      <span className="truncate">
+                        {conn.lastSyncAt
+                          ? t('connections.last_seen', { date: formatShortDate(conn.lastSyncAt) })
+                          : t('connections.never_synced')}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {/* DEC-105: my identity QR — the other person scans it to pair */}
           <button
             onClick={() => setShowMyQr(true)}
