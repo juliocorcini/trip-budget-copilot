@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.29',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'A entrada por IA (texto ou voz) agora entende uma frase com VÁRIOS gastos de uma vez. Dá pra contar a noite inteira numa tacada: “o Bruno me pagou um sorvete de 2, a Débora uma água de 1, dividi um bolo de 10 com ela, paguei 4 de estacionamento e rachamos uma pizza de 10 nós 3”. A IA monta a lista na ordem — quem pagou, quanto e quem fica devendo a quem — e você confirma tudo num toque, com um “Desfazer” único.',
+        'Se a frase citar gente que ainda não está na viagem, ela junta todos num único “adicionar” (em vez de perguntar um por um). Gastos em outra moeda ficam separados para você ajustar o câmbio na tela completa, sem bagunçar o orçamento.',
+      ],
+      en: [
+        'AI entry (text or voice) now understands a single sentence with SEVERAL expenses at once. You can narrate the whole night in one go: “Bruno paid for my €2 ice cream, Débora a €1 water, I split a €10 cake with her, paid €4 parking and we split a €10 pizza 3 ways.” The AI builds the list in order — who paid, how much, who owes whom — and you confirm it all in one tap, with a single “Undo”.',
+        'If the sentence mentions people not yet on the trip, it groups them into one “add” step (instead of asking one by one). Foreign-currency expenses are kept aside so you can set the rate in the full screen without skewing the budget.',
+      ],
+      es: [
+        'La entrada por IA (texto o voz) ahora entiende una frase con VARIOS gastos a la vez. Puedes contar toda la noche de una: “Bruno me pagó un helado de 2, Débora un agua de 1, dividí un pastel de 10 con ella, pagué 4 de estacionamiento y repartimos una pizza de 10 entre los 3”. La IA arma la lista en orden — quién pagó, cuánto y quién le debe a quién — y lo confirmas todo de un toque, con un único “Deshacer”.',
+        'Si la frase menciona personas que aún no están en el viaje, las agrupa en un solo “agregar” (en vez de preguntar una por una). Los gastos en otra moneda quedan aparte para que ajustes el cambio en la pantalla completa sin descuadrar el presupuesto.',
+      ],
+    },
+  },
+  {
     version: '0.99.28',
     date: '2026-06-21',
     items: {

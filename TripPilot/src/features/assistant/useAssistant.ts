@@ -12,15 +12,18 @@ import {
   executeOp,
   createAssistantParticipant,
   normalizeText,
+  ownerPersonalCostCents,
+  planAssistantBatch,
   AssistantDispatchError,
   type AiIntent,
   type ActionPlan,
   type AssistantPreview,
+  type BatchReady,
   type Clarification,
   type ExecOp,
   type PlanContext,
 } from '@/domain/assistant';
-import { requestAssistantIntent } from '@/utils/ai-assistant';
+import { requestAssistantIntents } from '@/utils/ai-assistant';
 import { transcribeAudio, isLikelyVoiceHallucination } from '@/utils/ai-transcribe';
 import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
@@ -49,6 +52,7 @@ export type AssistantPhase =
   | 'thinking'
   | 'transcribing'
   | 'preview'
+  | 'batch_preview'
   | 'clarify'
   | 'saving'
   | 'error'
@@ -60,6 +64,20 @@ export interface AssistantSplitNudge {
   amountByParticipantId: Map<string, number>;
 }
 
+/**
+ * Multi-action (DEC-246 multi): the preview of a whole message's events. `items`
+ * are the previews the sheet lists; `blocked` are events that can't run
+ * unattended (each with a reason key). `ownerTotalCents` is what the batch costs
+ * ME (sum of my slice per expense), in `currency`.
+ */
+export interface AssistantBatchView {
+  items: AssistantPreview[];
+  blocked: { reasonKey: string; preview: AssistantPreview | null }[];
+  count: number;
+  ownerTotalCents: number;
+  currency: string;
+}
+
 export interface UseAssistant {
   phase: AssistantPhase;
   text: string;
@@ -68,6 +86,8 @@ export interface UseAssistant {
   draftOp: ExecOp | null;
   /** True when the drafted expense is in a foreign currency (needs the rate UI). */
   isForeign: boolean;
+  /** Multi-action: the previewed batch of events (null in single-action mode). */
+  batchView: AssistantBatchView | null;
   /** After a split: the people to send their share link (null when none). */
   splitNudge: AssistantSplitNudge | null;
   clarification: Clarification | null;
@@ -80,9 +100,13 @@ export interface UseAssistant {
   submit: (textOverride?: string) => Promise<void>;
   answerAmount: (value: string) => void;
   confirmAddPerson: () => Promise<void>;
+  /** Multi-action: create every pending companion at once, then re-plan. */
+  confirmAddPeople: () => Promise<void>;
   choosePerson: (id: string) => void;
   cancelClarification: () => void;
   confirm: () => Promise<void>;
+  /** Multi-action: commit every ready event, with a single combined undo. */
+  confirmBatch: () => Promise<void>;
   /** Edit a field of the drafted expense before confirming (in-sheet parity). */
   patchDraft: (patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => void;
   /** Hand the (edited) draft to the full QuickAdd form for the heavy cases. */
@@ -116,6 +140,7 @@ export function useAssistant(): UseAssistant {
   const [text, setText] = useState('');
   const [preview, setPreview] = useState<AssistantPreview | null>(null);
   const [draftOp, setDraftOp] = useState<ExecOp | null>(null);
+  const [batchView, setBatchView] = useState<AssistantBatchView | null>(null);
   const [splitNudge, setSplitNudge] = useState<AssistantSplitNudge | null>(null);
   const [clarification, setClarification] = useState<Clarification | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -124,6 +149,11 @@ export function useAssistant(): UseAssistant {
 
   const intentRef = useRef<AiIntent | null>(null);
   const planRef = useRef<ActionPlan | null>(null);
+  // Multi-action: the parsed events + the resolved ops to commit, and which mode
+  // the current round is in (so a clarification answer re-plans the right path).
+  const intentsRef = useRef<AiIntent[]>([]);
+  const batchReadyRef = useRef<BatchReady[]>([]);
+  const modeRef = useRef<'single' | 'batch'>('single');
   const overridesRef = useRef<Record<string, string>>({});
   const localParticipantsRef = useRef<Participant[]>([]);
   const stopVoiceRef = useRef<(() => void) | null>(null);
@@ -206,6 +236,49 @@ export function useAssistant(): UseAssistant {
     [buildPlanContext],
   );
 
+  // Multi-action: plan ALL parsed events together. Unknown/ambiguous people are
+  // aggregated into ONE consolidated clarification (add everyone in a tap); once
+  // resolved, we land on a batch preview listing each event + a single confirm.
+  const runBatch = useCallback(() => {
+    const ctx = buildPlanContext();
+    if (!ctx) {
+      setErrorKey('unsupported.no_trip');
+      setPhase('error');
+      return;
+    }
+    const plan = planAssistantBatch(intentsRef.current, ctx);
+    if (plan.pendingAdd.length > 0) {
+      setClarification({ type: 'add_people', names: plan.pendingAdd });
+      setPhase('clarify');
+      return;
+    }
+    if (plan.pendingChoose.length > 0) {
+      const first = plan.pendingChoose[0]!;
+      setClarification({ type: 'choose_person', name: first.name, candidates: first.candidates });
+      setPhase('clarify');
+      return;
+    }
+    batchReadyRef.current = plan.ready;
+    if (plan.ready.length === 0 && plan.blocked.length === 0) {
+      setErrorKey('error.failed');
+      setPhase('error');
+      return;
+    }
+    const ownerTotalCents = plan.ready.reduce(
+      (sum, r) => sum + (r.op.kind === 'expense' ? ownerPersonalCostCents(r.op) : 0),
+      0,
+    );
+    setClarification(null);
+    setBatchView({
+      items: plan.ready.map((r) => r.preview),
+      blocked: plan.blocked.map((b) => ({ reasonKey: b.reasonKey, preview: b.preview })),
+      count: plan.ready.length,
+      ownerTotalCents,
+      currency: ctx.baseCurrency,
+    });
+    setPhase('batch_preview');
+  }, [buildPlanContext]);
+
   const submit = useCallback(
     async (textOverride?: string) => {
       const value = (textOverride ?? text).trim();
@@ -232,17 +305,34 @@ export function useAssistant(): UseAssistant {
         privateNames: d.settings?.aiQuickEntryPrivateNames ?? false,
       });
 
-      const outcome = await requestAssistantIntent(value, pack);
+      const outcome = await requestAssistantIntents(value, pack);
       if (!outcome.ok) {
         setErrorKey(`error.${outcome.error}`);
         setPhase('error');
         return;
       }
-      intentRef.current = outcome.intent;
-      setNote(outcome.intent.note);
-      runPlan(outcome.intent);
+      const intents = outcome.intents;
+      // A message that narrates several events → the batch path (list + one
+      // confirm). A single event keeps the proven single-intent flow untouched.
+      if (intents.length > 1) {
+        modeRef.current = 'batch';
+        intentsRef.current = intents;
+        setNote(null);
+        runBatch();
+        return;
+      }
+      modeRef.current = 'single';
+      const intent = intents[0];
+      if (!intent) {
+        setErrorKey('error.failed');
+        setPhase('error');
+        return;
+      }
+      intentRef.current = intent;
+      setNote(intent.note);
+      runPlan(intent);
     },
-    [text, enabled, i18n.language, runPlan],
+    [text, enabled, i18n.language, runPlan, runBatch],
   );
 
   const answerAmount = useCallback(
@@ -274,13 +364,36 @@ export function useAssistant(): UseAssistant {
     else setPhase('input');
   }, [clarification, buildPlanContext, runPlan]);
 
+  const confirmAddPeople = useCallback(async () => {
+    if (clarification?.type !== 'add_people') return;
+    const ctx = buildPlanContext();
+    if (!ctx) return;
+    const names = clarification.names.map((n) => n.trim()).filter((n) => n !== '');
+    if (names.length === 0) {
+      setErrorKey('error.need_people');
+      setPhase('error');
+      return;
+    }
+    setPhase('saving');
+    const created = await Promise.all(names.map((name) => createAssistantParticipant(ctx.tripId, name)));
+    localParticipantsRef.current = [...localParticipantsRef.current, ...created];
+    const overrides = { ...overridesRef.current };
+    created.forEach((participant, i) => {
+      overrides[normalizeText(names[i]!)] = participant.id;
+    });
+    overridesRef.current = overrides;
+    runBatch();
+  }, [clarification, buildPlanContext, runBatch]);
+
   const choosePerson = useCallback(
     (id: string) => {
       if (clarification?.type !== 'choose_person') return;
       overridesRef.current = { ...overridesRef.current, [normalizeText(clarification.name)]: id };
-      if (intentRef.current) runPlan(intentRef.current);
+      // Re-plan the path the current message is on (single vs batch).
+      if (modeRef.current === 'batch') runBatch();
+      else if (intentRef.current) runPlan(intentRef.current);
     },
-    [clarification, runPlan],
+    [clarification, runPlan, runBatch],
   );
 
   const cancelClarification = useCallback(() => {
@@ -368,6 +481,57 @@ export function useAssistant(): UseAssistant {
       setPhase('error');
     }
   }, [navigate, t, draftOp, openFullEditor]);
+
+  // Multi-action: commit every ready event in order through the SAME dispatch the
+  // single flow uses; collect each undo into ONE "Desfazer" that reverses them
+  // all. A per-op try/catch means one failure never aborts the rest. (Foreign
+  // events were already filtered to `blocked` by the planner, so every op here is
+  // base-currency and safe to book without a rate.)
+  const confirmBatch = useCallback(async () => {
+    const ops = batchReadyRef.current;
+    if (ops.length === 0) return;
+    setPhase('saving');
+    setErrorKey(null);
+    const d = dataRef.current;
+    const owner = d.participants.find((p) => p.isOwner);
+    const dispatchCtx = {
+      transactions: d.transactions,
+      participants: mergeParticipants(d.participants, localParticipantsRef.current),
+      ownerId: owner?.id ?? '',
+      currentPlace: d.settings?.currentPlace ?? null,
+      lastExpenseCategory: d.settings?.lastExpenseCategory ?? null,
+    };
+    const undos: Array<() => Promise<void>> = [];
+    let done = 0;
+    let failed = 0;
+    for (const { op } of ops) {
+      let finalOp: ExecOp = op;
+      if (op.kind === 'expense' && op.description.trim() === '') {
+        finalOp = { ...op, description: t(`categories.${op.category}`) };
+      }
+      try {
+        const result = await executeOp(finalOp, dispatchCtx);
+        undos.push(result.undo);
+        done += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    if (done > 0) {
+      showToast(t('assistant.done.batch', { count: done }), 'success', {
+        actionLabel: t('common.undo'),
+        durationMs: 6000,
+        onTap: () => {
+          void (async () => {
+            for (const undo of undos.reverse()) await undo();
+          })();
+          showToast(t('assistant.undone'), 'info');
+        },
+      });
+    }
+    if (failed > 0) showToast(t('assistant.batch.partial_error', { count: failed }), 'warning');
+    setPhase('done');
+  }, [t]);
 
   // Shared tail for both audio paths: transcribe the clip and run it like typed
   // input. Silence/too-short clips bail quietly (no "E aí" hallucination spam).
@@ -500,12 +664,16 @@ export function useAssistant(): UseAssistant {
     stopVoiceRef.current = null;
     intentRef.current = null;
     planRef.current = null;
+    intentsRef.current = [];
+    batchReadyRef.current = [];
+    modeRef.current = 'single';
     overridesRef.current = {};
     localParticipantsRef.current = [];
     transcriptRef.current = '';
     setText('');
     setPreview(null);
     setDraftOp(null);
+    setBatchView(null);
     setSplitNudge(null);
     setClarification(null);
     setNote(null);
@@ -530,6 +698,7 @@ export function useAssistant(): UseAssistant {
     preview,
     draftOp,
     isForeign,
+    batchView,
     splitNudge,
     clarification,
     note,
@@ -541,9 +710,11 @@ export function useAssistant(): UseAssistant {
     submit,
     answerAmount,
     confirmAddPerson,
+    confirmAddPeople,
     choosePerson,
     cancelClarification,
     confirm,
+    confirmBatch,
     patchDraft,
     openFullEditor,
     dismissNudge,

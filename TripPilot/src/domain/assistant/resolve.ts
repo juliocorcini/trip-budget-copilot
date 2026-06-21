@@ -102,7 +102,7 @@ export type PersonMatch =
   | { status: 'none' }
   | { status: 'ambiguous'; candidates: Participant[] };
 
-const SELF_TERMS = ['me', 'eu', 'mim', 'myself', 'i', 'yo'];
+export const SELF_TERMS = ['me', 'eu', 'mim', 'myself', 'i', 'yo'];
 
 /**
  * Resolves a spoken name to a participant. "me"/"eu" → the owner. Prefers exact

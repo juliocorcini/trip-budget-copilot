@@ -131,6 +131,7 @@ export interface AssistantPreview {
 export type Clarification =
   | { type: 'amount' }
   | { type: 'add_person'; name: string }
+  | { type: 'add_people'; names: string[] }
   | { type: 'choose_person'; name: string; candidates: ClarifyCandidate[] };
 
 export interface ClarifyCandidate {
@@ -170,11 +171,11 @@ export interface PlanContext {
   personOverrides?: Record<string, string>;
 }
 
-const nameOf = (p: Participant): string => p.nickname ?? p.name;
-const toCandidate = (p: Participant): ClarifyCandidate => ({ id: p.id, label: nameOf(p) });
+export const nameOf = (p: Participant): string => p.nickname ?? p.name;
+export const toCandidate = (p: Participant): ClarifyCandidate => ({ id: p.id, label: nameOf(p) });
 
 /** Person resolution that honors clarification overrides first. */
-function matchPerson(name: string | null | undefined, ctx: PlanContext): PersonMatch {
+export function matchPerson(name: string | null | undefined, ctx: PlanContext): PersonMatch {
   if (name && ctx.personOverrides) {
     const chosenId = ctx.personOverrides[normalizeText(name)];
     if (chosenId) {
@@ -188,7 +189,7 @@ function matchPerson(name: string | null | undefined, ctx: PlanContext): PersonM
 /** Bare pronouns/group words the model may leak into `participants`. They carry
  * no resolvable identity (the planner already maps "ele" → the named person), so
  * the device drops them instead of asking "who is 'ele'?". */
-const PRONOUN_TERMS: ReadonlySet<string> = new Set([
+export const PRONOUN_TERMS: ReadonlySet<string> = new Set([
   'ele', 'ela', 'eles', 'elas', 'he', 'she', 'they', 'them',
   'o cara', 'a galera', 'a gente', 'nos', 'todos', 'todo mundo', 'el', 'ellos', 'ellas',
 ]);

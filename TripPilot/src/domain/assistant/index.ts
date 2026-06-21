@@ -2,6 +2,7 @@ export {
   AI_ACTIONS,
   AI_SCREENS,
   parseAssistantResponse,
+  parseAssistantIntents,
   isExecuteAction,
 } from './intent';
 export type {
@@ -11,6 +12,7 @@ export type {
   AiDirection,
   AiIntent,
   AssistantParseResult,
+  AssistantListParseResult,
 } from './intent';
 
 export { buildAssistantContext } from './context';
@@ -34,7 +36,7 @@ export type {
   KnownPlace,
 } from './resolve';
 
-export { buildActionPlan, ownerPersonalCostCents } from './plan';
+export { buildActionPlan, ownerPersonalCostCents, matchPerson } from './plan';
 export type {
   ExecOp,
   AssistantPreview,
@@ -44,6 +46,9 @@ export type {
   PlanResult,
   PlanContext,
 } from './plan';
+
+export { planAssistantBatch, collectAssistantPeople } from './batch';
+export type { AssistantBatchPlan, BatchReady, BatchBlocked } from './batch';
 
 export {
   executeOp,

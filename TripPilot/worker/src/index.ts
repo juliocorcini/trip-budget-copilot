@@ -131,9 +131,11 @@ const OCR_PROMPT = [
 
 // DEC-246 (AI Quick Entry) — natural-language router. The client posts the typed
 // text plus a tiny, low-sensitivity context pack (names/labels only, no ids, no
-// amounts, no history); the model returns ONE typed intent as JSON. The device
-// resolves names → ids and runs the action through its own engines, so nothing
-// financial is ever computed or persisted here (this stays a thin proxy).
+// amounts, no history); the model returns a JSON {"actions":[...]} list of typed
+// intents (one per money event in the message — usually one, several for a
+// narrated multi-event story). The device resolves names → ids and runs each
+// action through its own engines, so nothing financial is computed or persisted
+// here (this stays a thin proxy).
 const ASSISTANT_MODEL = 'llama-3.3-70b-versatile';
 const ASSISTANT_MAX_TEXT_CHARS = 2_000;
 
@@ -152,11 +154,13 @@ function buildAssistantSystemPrompt(context: AssistantContextPack): string {
   const list = (values: string[] | undefined): string =>
     values && values.length > 0 ? values.join(', ') : '(none)';
   return [
-    'You are TripPilot\'s quick-entry router. Read ONE short message a traveler typed or spoke about money on a trip and return ONLY a JSON object (no prose, no markdown) describing the single best action and its entities.',
-    'JSON shape (include only what applies; use null/[] otherwise):',
+    'You are TripPilot\'s quick-entry router. Read ONE short message a traveler typed or spoke about money on a trip and return ONLY a JSON object (no prose, no markdown): {"actions":[ ... ]} — the LIST of money events in the message, each as ONE typed action with its entities.',
+    'HOW MANY ACTIONS (critical): MOST messages describe ONE event -> "actions" has exactly ONE element. But when the message clearly narrates SEVERAL distinct events — different items/amounts/payers, usually chained by words like "e", "depois", "aí", "então", "também", "no fim", "daí", "logo", or simply several separate amounts — output ONE element PER event, IN THE ORDER they happened. Do NOT merge several events into one, and do NOT drop any (a 5-event story MUST return 5 actions).',
+    'NOT multiple actions: a SINGLE purchase that is merely DIVIDED among people is STILL ONE action (split_expense) — never break one shared bill into one-per-person actions. "Dividimos a pizza nós 3" = ONE split action with participants, not three.',
+    'Each element of "actions" has this shape (include only what applies; use null/[] otherwise):',
     '{"action":string,"amount":number|null,"currency":string|null,"description":string|null,"category":string|null,"person":string|null,"participants":string[],"payer":"me"|"other"|null,"direction":"i_owe"|"owes_me"|null,"fromWallet":string|null,"toWallet":string|null,"place":string|null,"date":string|null,"itemName":string|null,"screen":string|null,"note":string|null,"confidence":number}',
     'action is one of: log_expense, someone_paid, i_paid_for, split_expense, record_income, transfer, withdraw, settle_debt, plan_purchase, open_split_bill, open_scan_receipt, open_outing, open_plan_expense, open_simulator, open_screen, unknown.',
-    'Routing rules (decide SPLIT first — any sign of dividing wins over a plain "paid"):',
+    'Per-event routing rules (decide SPLIT first — any sign of dividing wins over a plain "paid"):',
     '- DIVIDED among several people ("dividimos/dividido/rachamos/racha/split/entre nós/entre eu e <names>/cada um paga sua parte/a gente divide/os tres") -> split_expense. Put EVERY person who shares (besides me) in participants[]. If I (or nobody) paid, payer="me". If SOMEONE ELSE paid, payer="other" and person=<who paid> (the payer is also a sharer, so also include them in participants[]).',
     '- "<name> pagou/me pagou/comprou/ofereceu/pagou pra mim" with NO sign of dividing (they covered the WHOLE thing for me) -> someone_paid, person=<name> (I will OWE them the full amount).',
     '- "paguei/cobri/banquei pro/para <name>" (I covered it FOR them, not divided) -> i_paid_for, person=<name> (they owe me).',
@@ -168,12 +172,21 @@ function buildAssistantSystemPrompt(context: AssistantContextPack): string {
     '- "dividir uma nota/conta por foto", "escanear nota/recibo" -> open_scan_receipt; itemized bill split -> open_split_bill.',
     '- "iniciar saída/abrir o bar/modo saída" -> open_outing. "planejar um gasto" -> open_plan_expense. "simular uma compra" -> open_simulator.',
     '- "abrir/ver dívidas|gastos|carteiras|painel|planejador|receitas|viagem" -> open_screen with screen in [debts, expenses, dashboard, wallets, planner, income, trip].',
-    'Split examples (study these):',
-    '- "Bruno pagou 12,80 pelas tortilhas, dividimos entre ele, eu e a Débora" -> {"action":"split_expense","amount":12.8,"payer":"other","person":"Bruno","participants":["Bruno","Débora"],...} (NOT someone_paid — it was divided 3 ways; "ele"=Bruno; do NOT list "eu").',
-    '- "dividi 100 meio a meio com o Bruno, ele pagou" -> {"action":"split_expense","amount":100,"payer":"other","person":"Bruno","participants":["Bruno"],...}.',
-    '- "almoço 35 dividido com a Ana" -> {"action":"split_expense","amount":35,"payer":"me","participants":["Ana"],...}.',
-    '- "o Bruno me pagou uma cerveja de 2 euros" -> {"action":"someone_paid","amount":2,"person":"Bruno",...} (whole thing, not divided).',
-    'Entity rules:',
+    'Single-event examples (study these — each returns ONE action inside "actions"):',
+    '- "Bruno pagou 12,80 pelas tortilhas, dividimos entre ele, eu e a Débora" -> {"actions":[{"action":"split_expense","amount":12.8,"payer":"other","person":"Bruno","participants":["Bruno","Débora"]}]} (NOT someone_paid — divided 3 ways; "ele"=Bruno; do NOT list "eu").',
+    '- "dividi 100 meio a meio com o Bruno, ele pagou" -> {"actions":[{"action":"split_expense","amount":100,"payer":"other","person":"Bruno","participants":["Bruno"]}]}.',
+    '- "almoço 35 dividido com a Ana" -> {"actions":[{"action":"split_expense","amount":35,"payer":"me","participants":["Ana"]}]}.',
+    '- "o Bruno me pagou uma cerveja de 2 euros" -> {"actions":[{"action":"someone_paid","amount":2,"person":"Bruno","category":"bar"}]} (whole thing, not divided).',
+    'MULTI-EVENT example (study carefully — 5 distinct events -> 5 actions, in order, NONE dropped):',
+    '"Saí com o Bruno e a Débora. O Bruno me pagou um sorvete de 2 euros, a Débora me pagou uma água de 1 euro, dividi com ela um bolo de 10 euros, depois paguei o estacionamento de 4 euros e comprei uma pizza de 10 euros que dividimos nós 3" ->',
+    '{"actions":[' +
+      '{"action":"someone_paid","amount":2,"currency":"EUR","description":"sorvete","category":"restaurant","person":"Bruno"},' +
+      '{"action":"someone_paid","amount":1,"currency":"EUR","description":"água","category":"market","person":"Débora"},' +
+      '{"action":"split_expense","amount":10,"currency":"EUR","description":"bolo","category":"restaurant","payer":"me","participants":["Débora"]},' +
+      '{"action":"log_expense","amount":4,"currency":"EUR","description":"estacionamento","category":"transport"},' +
+      '{"action":"split_expense","amount":10,"currency":"EUR","description":"pizza","category":"restaurant","payer":"me","participants":["Bruno","Débora"]}' +
+      ']} (sorvete & água: someone ELSE paid the whole item for me -> someone_paid; bolo: I split it with HER -> participants=["Débora"]; estacionamento: just me -> log_expense; pizza: I paid, split 3 ways -> participants=["Bruno","Débora"]; "nós 3"/"a gente" = me + the two named, so list the two others).',
+    'Entity rules (apply to EACH action independently):',
     '- amount = the plain decimal number the user said (e.g. 2 for "2 euros"); no currency symbol, no math, no splitting. A comma is the DECIMAL separator and a dot can be a thousands separator: "12,80"->12.8, "3,50"->3.5, "1.250,00"->1250, "1,250.00"->1250.',
     '- currency = ISO 4217 code ONLY when an explicit currency word/symbol is in the text (euros/€->EUR, reais/R$->BRL, dollars/US$->USD, libras/£->GBP). If NO currency is mentioned, currency=null — do NOT guess from context; the device falls back to the trip base currency.',
     '- person = the single key counterpart (for someone_paid/i_paid_for/settle, or the PAYER of a split when payer="other"). participants = everyone who shares the cost, by name.',
@@ -183,8 +196,9 @@ function buildAssistantSystemPrompt(context: AssistantContextPack): string {
     '- fromWallet: for ANY expense I paid, set it to the payment method when stated ("no crédito/cartão"->the credit card, "no débito", "em dinheiro/cash", "no Pix", or a wallet name like "Wise"/"Revolut"); match the known wallets list when possible, else the plain word. Leave null when not stated or when someone else paid.',
     '- place: the venue/place where it happened ONLY when stated ("no bar do Zé","no mercado","at the hotel","na Tasca") -> the place name as said (match the current place when it is the same); else null. Do NOT invent a place.',
     '- date: when the spend happened ONLY when stated. Output ISO YYYY-MM-DD computed from "today" for relative words ("ontem"->yesterday, "anteontem"->2 days ago, "sexta"/"sexta passada"->that weekday, "semana passada"->7 days ago, "3 dias atrás"->today−3). If no time reference is given, date=null (the device uses now).',
-    '- NEVER output ids. NEVER compute totals, shares or balances. NEVER add fields beyond the shape.',
-    '- If the action is genuinely unclear, use action="unknown" and put a one-line question in "note" (in the user\'s language). Always set a confidence 0..1.',
+    '- NEVER output ids. NEVER compute totals, shares or balances. NEVER add fields beyond the shape. NEVER split one amount across actions (each action carries the full amount of its own event).',
+    '- If a SINGLE event is genuinely unclear, use action="unknown" for it and put a one-line question in "note" (in the user\'s language). If the WHOLE message is unclear, return {"actions":[{"action":"unknown","note":"..."}]}. Always set a confidence 0..1 per action.',
+    'Output ONLY the JSON object {"actions":[...]}. No prose, no markdown, no trailing comments.',
     'Context (use it to match names/labels; do not echo it):',
     `- language: ${context.language ?? 'pt-BR'}`,
     `- today: ${context.today ?? ''}`,
@@ -231,7 +245,11 @@ async function handleAssistant(request: Request, env: Env): Promise<Response> {
       body: JSON.stringify({
         model: ASSISTANT_MODEL,
         temperature: 0,
-        max_tokens: 500,
+        // Headroom for a multi-event message (DEC-246 multi-action): one narrated
+        // story can carry 6-8 events ≈ 1.2k tokens of JSON. A low cap would
+        // TRUNCATE the actions array into invalid JSON (dropping later events —
+        // the opposite of the fix). Unused budget costs nothing.
+        max_tokens: 2000,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: buildAssistantSystemPrompt(context) },

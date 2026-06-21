@@ -68,13 +68,27 @@
       "amount_placeholder": "Ex: 12,50",
       "add_person": "Não encontrei \"{{name}}\". Quer adicionar?",
       "add_yes": "Adicionar {{name}}",
+      "add_people": "Não encontrei estas pessoas: {{names}}. Quer adicioná-las à viagem?",
+      "add_people_yes": "Adicionar todas",
       "need_people": "Com quem você quer dividir? Adicione as pessoas e tente de novo.",
       "choose_person": "Qual \"{{name}}\"?"
+    },
+    "batch": {
+      "title": "{{count}} lançamentos",
+      "your_share": "Sua parte: {{amount}}",
+      "confirm": "Adicionar tudo ({{count}})",
+      "blocked_title": "Não consegui adicionar automaticamente:",
+      "blocked_amount": "faltou o valor",
+      "blocked_foreign": "moeda diferente — adicione à parte pra definir o câmbio",
+      "blocked_navigate": "abra essa função manualmente",
+      "blocked_other": "não deu pra registrar sozinho",
+      "partial_error": "{{count}} não puderam ser salvos"
     },
     "done": {
       "saved": "Lançamento salvo",
       "settled": "Acerto registrado",
-      "planned": "Compra planejada"
+      "planned": "Compra planejada",
+      "batch": "{{count}} lançamentos salvos"
     },
     "error": {
       "disabled": "A entrada por IA está desligada.",

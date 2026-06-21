@@ -68,13 +68,27 @@
       "amount_placeholder": "e.g. 12.50",
       "add_person": "I couldn't find \"{{name}}\". Add them?",
       "add_yes": "Add {{name}}",
+      "add_people": "I couldn't find these people: {{names}}. Add them to the trip?",
+      "add_people_yes": "Add all",
       "need_people": "Who do you want to split with? Add the people and try again.",
       "choose_person": "Which \"{{name}}\"?"
+    },
+    "batch": {
+      "title": "{{count}} entries",
+      "your_share": "Your share: {{amount}}",
+      "confirm": "Add all ({{count}})",
+      "blocked_title": "Couldn't add automatically:",
+      "blocked_amount": "amount missing",
+      "blocked_foreign": "different currency — add it separately to set the rate",
+      "blocked_navigate": "open that feature manually",
+      "blocked_other": "couldn't record on its own",
+      "partial_error": "{{count}} couldn't be saved"
     },
     "done": {
       "saved": "Entry saved",
       "settled": "Settlement recorded",
-      "planned": "Purchase planned"
+      "planned": "Purchase planned",
+      "batch": "{{count}} entries saved"
     },
     "error": {
       "disabled": "AI entry is off.",

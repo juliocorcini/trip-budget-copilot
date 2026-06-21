@@ -1,8 +1,8 @@
 {
-  "version": "0.99.28",
+  "version": "0.99.29",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.28.zip",
-  "notes": "Escanear nota e Dividir conta agora são um motor só: depois de ler a nota, dá pra “Dividir ao vivo” num toque — cada um marca no próprio celular — sem precisar escanear de novo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.29.zip",
+  "notes": "A entrada por IA agora entende vários gastos numa frase só: “o Bruno me pagou um sorvete de 2, dividi um bolo de 10 com a Débora e paguei 4 de estacionamento” vira uma lista pronta — quem pagou, quanto e quem deve a quem — para confirmar tudo de uma vez."
 }

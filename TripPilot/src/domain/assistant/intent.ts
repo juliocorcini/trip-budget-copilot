@@ -87,6 +87,10 @@ export type AssistantParseResult =
   | { ok: true; intent: AiIntent }
   | { ok: false; error: 'invalid' };
 
+export type AssistantListParseResult =
+  | { ok: true; intents: AiIntent[] }
+  | { ok: false; error: 'invalid' };
+
 /* ── coercion helpers — the model is untrusted, so be liberal on input ─────── */
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -196,36 +200,15 @@ const intentSchema = z.object({
   confidence: confidenceField.optional(),
 });
 
-/**
- * Parses a model response into a safe `AiIntent`. Accepts a JSON string, a plain
- * object, or a `{ intent: {...} }` / single-element-array wrapper (defensive).
- * Never throws — an unrecognised shape returns `{ ok: false }`.
- */
-export function parseAssistantResponse(raw: unknown): AssistantParseResult {
-  let candidate: unknown = raw;
-
-  if (typeof candidate === 'string') {
-    try {
-      candidate = JSON.parse(candidate);
-    } catch {
-      return { ok: false, error: 'invalid' };
-    }
-  }
-
-  if (Array.isArray(candidate)) candidate = candidate[0];
-
-  if (candidate && typeof candidate === 'object') {
-    const obj = candidate as Record<string, unknown>;
-    if (obj.intent && typeof obj.intent === 'object') candidate = obj.intent;
-  }
-
-  if (!candidate || typeof candidate !== 'object') return { ok: false, error: 'invalid' };
-
+/** Coerces ONE already-unwrapped candidate object into a safe `AiIntent`, or
+ *  null when it isn't an object (the schema itself never fails — every field is a
+ *  liberal transform, so a junk value degrades to a null/`unknown` field). */
+function coerceIntent(candidate: unknown): AiIntent | null {
+  if (!candidate || typeof candidate !== 'object') return null;
   const parsed = intentSchema.safeParse(candidate);
-  if (!parsed.success) return { ok: false, error: 'invalid' };
-
+  if (!parsed.success) return null;
   const data = parsed.data;
-  const intent: AiIntent = {
+  return {
     action: data.action,
     amount: data.amount ?? null,
     currency: data.currency ?? null,
@@ -244,8 +227,57 @@ export function parseAssistantResponse(raw: unknown): AssistantParseResult {
     note: data.note ?? null,
     confidence: data.confidence ?? null,
   };
+}
 
-  return { ok: true, intent };
+/**
+ * Normalizes any model response shape into a flat list of candidate objects.
+ * Accepts a JSON string, a bare object, a bare array, or a wrapper — the
+ * multi-action contract `{ actions: [...] }` (DEC-246 multi), plus the legacy
+ * `{ intent: {...} }` and `{ intents: [...] }` shapes. Never throws.
+ */
+function extractCandidates(raw: unknown): unknown[] {
+  let candidate: unknown = raw;
+
+  if (typeof candidate === 'string') {
+    try {
+      candidate = JSON.parse(candidate);
+    } catch {
+      return [];
+    }
+  }
+
+  if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+    const obj = candidate as Record<string, unknown>;
+    if (Array.isArray(obj.actions)) candidate = obj.actions;
+    else if (Array.isArray(obj.intents)) candidate = obj.intents;
+    else if (obj.intent && typeof obj.intent === 'object') candidate = [obj.intent];
+  }
+
+  return Array.isArray(candidate) ? candidate : [candidate];
+}
+
+/**
+ * Parses a model response into a LIST of safe `AiIntent`s — the multi-action
+ * contract (one element per money event). A single-event message yields a
+ * one-element list. An unrecognised/empty shape returns `{ ok: false }`.
+ */
+export function parseAssistantIntents(raw: unknown): AssistantListParseResult {
+  const intents = extractCandidates(raw)
+    .map(coerceIntent)
+    .filter((intent): intent is AiIntent => intent !== null);
+  if (intents.length === 0) return { ok: false, error: 'invalid' };
+  return { ok: true, intents };
+}
+
+/**
+ * Parses a model response into a single safe `AiIntent` (the FIRST event).
+ * Back-compat for the single-intent callers/tests; built on the same liberal,
+ * never-throws coercion as `parseAssistantIntents`.
+ */
+export function parseAssistantResponse(raw: unknown): AssistantParseResult {
+  const result = parseAssistantIntents(raw);
+  if (!result.ok) return { ok: false, error: 'invalid' };
+  return { ok: true, intent: result.intents[0]! };
 }
 
 const EXECUTE_ACTIONS: ReadonlySet<AiAction> = new Set<AiAction>([

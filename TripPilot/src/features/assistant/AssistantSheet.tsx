@@ -16,7 +16,7 @@ import { isoToDatetimeLocal } from './assistant-quickadd-draft';
 import { computeExpenseInsights, type ExpenseInsights } from './assistant-insights';
 import { composePreview } from './assistant-preview-text';
 import { subscribeAssistantOpen } from './assistant-bus';
-import { useAssistant } from './useAssistant';
+import { useAssistant, type AssistantBatchView } from './useAssistant';
 import type { AssistantPreview, ExecOp } from '@/domain/assistant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { Transaction } from '@/domain/types/transaction';
@@ -169,7 +169,17 @@ export function AssistantSheet() {
                 clarification={assistant.clarification}
                 onAmount={assistant.answerAmount}
                 onAddPerson={() => void assistant.confirmAddPerson()}
+                onAddPeople={() => void assistant.confirmAddPeople()}
                 onChoosePerson={assistant.choosePerson}
+                onCancel={assistant.cancelClarification}
+              />
+            )}
+
+            {assistant.phase === 'batch_preview' && assistant.batchView && (
+              <BatchPreviewArea
+                view={assistant.batchView}
+                money={money}
+                onConfirm={() => void assistant.confirmBatch()}
                 onCancel={assistant.cancelClarification}
               />
             )}
@@ -488,6 +498,106 @@ function PreviewArea(props: {
   );
 }
 
+/** Reason copy for an event the batch can't auto-commit (DEC-246 multi). */
+const BATCH_BLOCKED_KEY: Record<string, string> = {
+  amount: 'assistant.batch.blocked_amount',
+  foreign: 'assistant.batch.blocked_foreign',
+  navigate: 'assistant.batch.blocked_navigate',
+};
+
+/**
+ * DEC-246 (multi-action): the preview of a whole narrated message — a list of
+ * the money events it found, each with its own headline (who paid / who owes
+ * whom), the total it costs ME, and ONE "add everything" confirm. Events that
+ * can't run unattended (missing amount, foreign currency) are listed apart so
+ * nothing is silently dropped.
+ */
+function BatchPreviewArea(props: {
+  view: AssistantBatchView;
+  money: (cents?: number, currency?: string) => string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const { view } = props;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between px-1">
+        <p className="text-[15px] font-bold text-on-surface">
+          {t('assistant.batch.title', { count: view.count })}
+        </p>
+        {view.ownerTotalCents > 0 && (
+          <p className="text-[13px] font-semibold text-on-surface-dim">
+            {t('assistant.batch.your_share', { amount: props.money(view.ownerTotalCents, view.currency) })}
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {view.items.map((item, i) => (
+          <div
+            key={i}
+            className="rounded-2xl p-3 flex items-start gap-3"
+            style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: '#6366F126' }}
+            >
+              <Icon name={PREVIEW_ICON[item.op] ?? 'auto_awesome'} size={18} className="text-[#818CF8]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-semibold text-on-surface leading-snug">
+                {composePreview(item, t as never, props.money)}
+              </p>
+              {(item.categoryKey || item.placeLabel) && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {item.categoryKey && <Chip>{t(`categories.${item.categoryKey}`)}</Chip>}
+                  {item.placeLabel && <Chip>{item.placeLabel}</Chip>}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {view.blocked.length > 0 && (
+        <div
+          className="rounded-2xl p-3 flex flex-col gap-1.5"
+          style={{ background: '#C9A22712', border: '1px solid #C9A22730' }}
+        >
+          <p className="text-[12px] font-bold text-warning">{t('assistant.batch.blocked_title')}</p>
+          {view.blocked.map((b, i) => (
+            <p key={i} className="text-[12px] text-on-surface-dim leading-snug">
+              {b.preview ? `${composePreview(b.preview, t as never, props.money)} — ` : ''}
+              {t(BATCH_BLOCKED_KEY[b.reasonKey] ?? 'assistant.batch.blocked_other')}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={props.onConfirm}
+        disabled={view.count === 0}
+        className="btn-press w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40"
+        style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
+      >
+        <Icon name="playlist_add_check" size={18} />
+        {t('assistant.batch.confirm', { count: view.count })}
+      </button>
+
+      <button
+        onClick={props.onCancel}
+        className="btn-press w-full h-11 rounded-2xl font-semibold text-[14px] text-on-surface-dim"
+        style={{ background: 'var(--surface-high)' }}
+      >
+        {t('assistant.action.edit')}
+      </button>
+    </div>
+  );
+}
+
 function ExpenseEditor(props: {
   op: ExpenseOp;
   edit: EditContext;
@@ -663,6 +773,7 @@ function ClarifyArea(props: {
   clarification: NonNullable<ReturnType<typeof useAssistant>['clarification']>;
   onAmount: (value: string) => void;
   onAddPerson: () => void;
+  onAddPeople: () => void;
   onChoosePerson: (id: string) => void;
   onCancel: () => void;
 }) {
@@ -674,6 +785,30 @@ function ClarifyArea(props: {
       {props.note && <p className="text-[14px] text-on-surface font-semibold leading-snug">{props.note}</p>}
 
       {clarification.type === 'amount' && <AmountClarify onSubmit={props.onAmount} />}
+
+      {clarification.type === 'add_people' && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[15px] text-on-surface font-semibold">
+            {t('assistant.clarify.add_people', { names: clarification.names.join(', ') })}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={props.onAddPeople}
+              className="btn-press flex-1 h-11 rounded-2xl font-bold text-[14px]"
+              style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
+            >
+              {t('assistant.clarify.add_people_yes')}
+            </button>
+            <button
+              onClick={props.onCancel}
+              className="btn-press flex-1 h-11 rounded-2xl font-semibold text-[14px] text-on-surface-dim"
+              style={{ background: 'var(--surface-high)' }}
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {clarification.type === 'add_person' && clarification.name !== '' && (
         <div className="flex flex-col gap-2">
