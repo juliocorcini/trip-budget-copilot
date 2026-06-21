@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.20',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Amigo sincero voltou a ser amigo: em vez de uma lista de números, ele fala com você de novo (“segura aí”, “ainda dá pra curtir”, “vai cobrar quem te deve”). Agora você desliza o dedo pra passar entre os recados — igual ao carrossel de insights — e ele some quando não tem nada pra dizer.',
+      ],
+      en: [
+        'Honest friend feels like a friend again: instead of a list of numbers it talks to you (“ease off a bit”, “still room to enjoy”, “go collect what you’re owed”). Swipe to move between its reads — just like the insights carousel — and it hides when there’s nothing to say.',
+      ],
+      es: [
+        'El amigo sincero volvió a ser un amigo: en vez de una lista de números te habla otra vez (“aflojá un poco”, “aún hay margen”, “ve a cobrar lo que te deben”). Desliza para pasar entre sus mensajes — igual que el carrusel de insights — y se oculta cuando no tiene nada que decir.',
+      ],
+    },
+  },
+  {
     version: '0.99.19',
     date: '2026-06-20',
     items: {

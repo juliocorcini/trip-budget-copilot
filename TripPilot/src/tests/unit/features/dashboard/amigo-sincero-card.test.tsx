@@ -1,8 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@/i18n';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
 import type { HonestFriendExtra, HonestFriendV2 } from '@/domain/budget';
+
+beforeAll(() => {
+  // jsdom doesn't implement Element.scrollTo; the swipe carousel calls it on dot
+  // taps and auto-advance, so stub it to a no-op for the whole file.
+  Element.prototype.scrollTo = vi.fn() as unknown as typeof Element.prototype.scrollTo;
+});
 
 /**
  * GATE 12 (audit §4.8) — the contextual rescue door. The "honest friend" card
@@ -107,48 +113,68 @@ describe('AmigoSinceroCard — contextual rescue CTA (G12)', () => {
   });
 });
 
-// DEC-093 follow-up: the card must stop being "stuck" on one read — extras turn
-// it into a carousel (verdict + each extra) with tab dots the user can navigate.
-describe('AmigoSinceroCard — extras carousel', () => {
+// DEC-093 follow-up + device-test 2026-06-20: the card is a SWIPE carousel of the
+// friend's reads (verdict + each extra) — drag to move, dots to jump, like the
+// dashboard insights carousel — and it hides entirely when there's nothing to say.
+describe('AmigoSinceroCard — swipe carousel of reads', () => {
   const extras: HonestFriendExtra[] = [
     { id: 'phase_progress', tone: 'neutral', percent: 50 },
     { id: 'receivable', tone: 'positive', amountCents: 4200 },
   ];
 
-  it('renders one tab per slide (verdict + extras) and the verdict leads', () => {
+  const brokeVerdict: HonestFriendV2 = {
+    kind: 'over_budget',
+    reserveUsedCents: 0,
+    planShortfallCents: 2254,
+    intoReserve: false,
+  };
+
+  it('renders one dot per read (verdict + extras) and shows every read at once', () => {
     render(
-      <AmigoSinceroCard
-        amigo={{ kind: 'over_budget', reserveUsedCents: 0, planShortfallCents: 2254, intoReserve: false }}
-        extras={extras}
-        currency="EUR"
-        onSeeImpact={vi.fn()}
-      />,
+      <AmigoSinceroCard amigo={brokeVerdict} extras={extras} currency="EUR" onSeeImpact={vi.fn()} />,
     );
+    // verdict + 2 extras = 3 dots; all three reads live in the DOM (they swipe).
     expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getByText(/acabou o dinheiro livre/i)).toBeInTheDocument();
+    expect(screen.getByText(/50% do orçamento/i)).toBeInTheDocument();
+    expect(screen.getByText(/te devendo/i)).toBeInTheDocument();
+  });
+
+  it('a dot tap scrolls the carousel to that read', () => {
+    const scrollTo = vi.fn();
+    Element.prototype.scrollTo = scrollTo as unknown as typeof Element.prototype.scrollTo;
+    render(
+      <AmigoSinceroCard amigo={brokeVerdict} extras={extras} currency="EUR" onSeeImpact={vi.fn()} />,
+    );
+    fireEvent.click(screen.getAllByRole('tab')[1]!);
+    expect(scrollTo).toHaveBeenCalled();
+  });
+
+  it('shows no dots when there is a single read (just the verdict)', () => {
+    render(<AmigoSinceroCard amigo={brokeVerdict} currency="EUR" onSeeImpact={vi.fn()} />);
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     expect(screen.getByText(/acabou o dinheiro livre/i)).toBeInTheDocument();
   });
 
-  it('navigates to an extra slide on dot click', () => {
-    render(
-      <AmigoSinceroCard
-        amigo={{ kind: 'over_budget', reserveUsedCents: 0, planShortfallCents: 2254, intoReserve: false }}
-        extras={extras}
-        currency="EUR"
-        onSeeImpact={vi.fn()}
-      />,
+  it('hides entirely when the friend has nothing to say (no verdict, no extras)', () => {
+    const { container } = render(
+      <AmigoSinceroCard amigo={{ kind: 'none' }} currency="EUR" onSeeImpact={vi.fn()} />,
     );
-    fireEvent.click(screen.getAllByRole('tab')[1]!);
-    expect(screen.getByText(/50% do orçamento/i)).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows no carousel tabs when there are no extras (single verdict)', () => {
-    render(
-      <AmigoSinceroCard
-        amigo={{ kind: 'over_budget', reserveUsedCents: 0, planShortfallCents: 2254, intoReserve: false }}
-        currency="EUR"
-        onSeeImpact={vi.fn()}
-      />,
+  it('on the Home, hides the reassuring on-plan read when there are no extras', () => {
+    const onPlan: HonestFriendV2 = {
+      kind: 'on_plan',
+      profileId: 'bar',
+      profileName: 'Bar',
+      plannedQuantity: 4,
+      doneQuantity: 2,
+      remainingPlanned: 2,
+    };
+    const { container } = render(
+      <AmigoSinceroCard amigo={onPlan} currency="EUR" onSeeImpact={vi.fn()} hideOnPlan />,
     );
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 });

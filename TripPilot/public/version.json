@@ -1,8 +1,8 @@
 {
-  "version": "0.99.19",
+  "version": "0.99.20",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.19.zip",
-  "notes": "Voz muito mais confiável (testado internamente com áudio real). A captação anterior perdia o começo da fala e falhava nas tentativas seguintes porque reabria o microfone a cada vez. Agora reaproveita um único canal de áudio: grava do primeiro segundo e funciona toda vez que você toca em falar — não só na primeira."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.20.zip",
+  "notes": "Amigo sincero de volta ao normal: voltou a falar como amigo (não como uma lista de métricas), você desliza o dedo pra passar entre os recados dele (igual ao carrossel de insights) e ele some quando não tem nada a dizer."
 }
