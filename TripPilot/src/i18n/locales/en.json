@@ -84,6 +84,89 @@
       "blocked_other": "couldn't record on its own",
       "partial_error": "{{count}} couldn't be saved"
     },
+    "examples": {
+      "cta": "What can I ask?",
+      "subtitle": "Tap an example to use it — you can edit before sending.",
+      "groups": {
+        "quick_expense": {
+          "title": "Quick expenses",
+          "items": [
+            "Spent 12 on lunch",
+            "Bought a water for 1 euro",
+            "Paid 30 at the market on credit",
+            "Blew 8 on a coffee yesterday"
+          ]
+        },
+        "someone_paid": {
+          "title": "Someone paid (I owe them)",
+          "items": [
+            "Bruno paid for my 2 euro beer",
+            "Ana paid for my 25 ticket",
+            "Someone paid for my 10 taxi"
+          ]
+        },
+        "i_paid_for": {
+          "title": "I paid for someone (they owe me)",
+          "items": [
+            "Paid 60 for dinner for Ana and Bruno",
+            "Covered Bruno's 10 taxi"
+          ]
+        },
+        "split": {
+          "title": "Split the bill",
+          "items": [
+            "We split the 30 pizza 3 ways",
+            "Split the 20 taxi with Ana",
+            "Bruno paid 40 and we split it between him and me"
+          ]
+        },
+        "multi": {
+          "title": "Several expenses in one sentence",
+          "items": [
+            "Bruno paid for my 2 ice cream, I split a 10 cake with Débora and paid 4 for parking",
+            "Bought bread for 2, a 1.50 coffee and an 8 taxi"
+          ]
+        },
+        "income": {
+          "title": "Income and refunds",
+          "items": [
+            "Got a 50 refund",
+            "100 came in as a chargeback"
+          ]
+        },
+        "wallets": {
+          "title": "Wallets: transfer and withdraw",
+          "items": [
+            "Transferred 100 from Wise to cash",
+            "Withdrew 50 at the ATM"
+          ]
+        },
+        "debts": {
+          "title": "Debts and settling up",
+          "items": [
+            "Settled the 30 I owed Bruno",
+            "Bruno paid me back the 10 he owed"
+          ]
+        },
+        "plan": {
+          "title": "Plan a purchase",
+          "items": [
+            "I want to buy 80 sneakers next week",
+            "Plan a 50 day trip"
+          ]
+        },
+        "open": {
+          "title": "Open app features",
+          "items": [
+            "Scan a receipt",
+            "Split the bill by photo",
+            "Start an outing",
+            "Simulate if I can spend 200",
+            "Show my debts"
+          ]
+        }
+      }
+    },
     "done": {
       "saved": "Entry saved",
       "settled": "Settlement recorded",

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.29",
+  "version": "0.99.30",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.29.zip",
-  "notes": "A entrada por IA agora entende vários gastos numa frase só: “o Bruno me pagou um sorvete de 2, dividi um bolo de 10 com a Débora e paguei 4 de estacionamento” vira uma lista pronta — quem pagou, quanto e quem deve a quem — para confirmar tudo de uma vez."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.30.zip",
+  "notes": "Novo “O que eu posso pedir?” na entrada por IA: uma lista grande de exemplos por categoria (gastos, dividir, alguém pagou, carteiras, dívidas, planejar, abrir telas…) — toque num exemplo pra usar e descobrir tudo o que dá pra falar com a IA."
 }

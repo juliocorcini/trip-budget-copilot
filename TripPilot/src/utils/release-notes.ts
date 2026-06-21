@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.30',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'A entrada por IA ganhou um “O que eu posso pedir?”: um guia clicável, dividido em categorias que abrem e fecham (gastos rápidos, alguém pagou, paguei por alguém, dividir, vários gastos numa frase, entradas, carteiras, dívidas, planejar, abrir telas). Toque em qualquer exemplo e ele já entra na caixa pronto pra enviar ou ajustar — é a forma mais rápida de descobrir tudo o que dá pra falar com a IA.',
+      ],
+      en: [
+        'AI entry now has a “What can I ask?” guide: a tappable cheat-sheet split into collapsible categories (quick expenses, someone paid, I paid for someone, split, several expenses in one sentence, income, wallets, debts, plan, open screens). Tap any example and it drops into the box ready to send or tweak — the fastest way to discover everything you can say to the AI.',
+      ],
+      es: [
+        'La entrada por IA ahora tiene un “¿Qué puedo pedir?”: una guía con ejemplos, dividida en categorías que se abren y cierran (gastos rápidos, alguien pagó, pagué por alguien, dividir, varios gastos en una frase, ingresos, billeteras, deudas, planear, abrir pantallas). Toca cualquier ejemplo y entra en la caja listo para enviar o ajustar — la forma más rápida de descubrir todo lo que puedes decirle a la IA.',
+      ],
+    },
+  },
+  {
     version: '0.99.29',
     date: '2026-06-21',
     items: {

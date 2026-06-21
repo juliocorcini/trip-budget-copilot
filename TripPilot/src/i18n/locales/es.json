@@ -84,6 +84,89 @@
       "blocked_other": "no se pudo registrar solo",
       "partial_error": "{{count}} no se pudieron guardar"
     },
+    "examples": {
+      "cta": "¿Qué puedo pedir?",
+      "subtitle": "Toca un ejemplo para usarlo — puedes editarlo antes de enviar.",
+      "groups": {
+        "quick_expense": {
+          "title": "Gastos rápidos",
+          "items": [
+            "Gasté 12 en el almuerzo",
+            "Compré un agua de 1 euro",
+            "Pagué 30 en el mercado con crédito",
+            "Me fundí 8 en un café ayer"
+          ]
+        },
+        "someone_paid": {
+          "title": "Alguien pagó (yo le debo)",
+          "items": [
+            "Bruno me pagó una cerveza de 2 euros",
+            "Ana pagó mi entrada de 25",
+            "Me pagaron un taxi de 10"
+          ]
+        },
+        "i_paid_for": {
+          "title": "Pagué por alguien (me deben)",
+          "items": [
+            "Pagué 60 de cena por Ana y Bruno",
+            "Cubrí el taxi de 10 de Bruno"
+          ]
+        },
+        "split": {
+          "title": "Dividir la cuenta",
+          "items": [
+            "Dividimos la pizza de 30 entre los 3",
+            "Repartí el taxi de 20 con Ana",
+            "Bruno pagó 40 y lo dividimos entre él y yo"
+          ]
+        },
+        "multi": {
+          "title": "Varios gastos en una frase",
+          "items": [
+            "Bruno me pagó un helado de 2, dividí un pastel de 10 con Débora y pagué 4 de estacionamiento",
+            "Compré pan por 2, un café de 1,50 y un taxi de 8"
+          ]
+        },
+        "income": {
+          "title": "Ingresos y reembolsos",
+          "items": [
+            "Recibí 50 de reembolso",
+            "Entraron 100 de devolución"
+          ]
+        },
+        "wallets": {
+          "title": "Billeteras: transferir y retirar",
+          "items": [
+            "Transferí 100 de Wise a efectivo",
+            "Retiré 50 en el cajero"
+          ]
+        },
+        "debts": {
+          "title": "Deudas y saldar cuentas",
+          "items": [
+            "Salde los 30 que le debía a Bruno",
+            "Bruno me pagó los 10 que me debía"
+          ]
+        },
+        "plan": {
+          "title": "Planear una compra",
+          "items": [
+            "Quiero comprar unos tenis de 80 la próxima semana",
+            "Planear un paseo de 50"
+          ]
+        },
+        "open": {
+          "title": "Abrir funciones de la app",
+          "items": [
+            "Escanear un recibo",
+            "Dividir la cuenta por foto",
+            "Iniciar una salida",
+            "Simular si puedo gastar 200",
+            "Ver mis deudas"
+          ]
+        }
+      }
+    },
     "done": {
       "saved": "Registro guardado",
       "settled": "Saldo registrado",

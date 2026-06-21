@@ -16,6 +16,7 @@ import { isoToDatetimeLocal } from './assistant-quickadd-draft';
 import { computeExpenseInsights, type ExpenseInsights } from './assistant-insights';
 import { composePreview } from './assistant-preview-text';
 import { subscribeAssistantOpen } from './assistant-bus';
+import { ASSISTANT_EXAMPLE_GROUPS } from './assistant-examples';
 import { useAssistant, type AssistantBatchView } from './useAssistant';
 import type { AssistantPreview, ExecOp } from '@/domain/assistant';
 import type { Wallet } from '@/domain/types/wallet';
@@ -154,6 +155,18 @@ export function AssistantSheet() {
                 onChange={assistant.setText}
                 onSubmit={() => void assistant.submit()}
                 onToggleVoice={() => void assistant.toggleVoice()}
+              />
+            )}
+
+            {/* "What can I ask?" — the full catalogue of things the AI handles,
+                grouped + collapsible. Tapping an example pre-fills the box so the
+                user learns by doing (then sends or edits). Input phase only. */}
+            {assistant.phase === 'input' && (
+              <ExamplesHelper
+                onPick={(example) => {
+                  assistant.setText(example);
+                  window.setTimeout(() => inputRef.current?.focus(), 0);
+                }}
               />
             )}
 
@@ -297,6 +310,96 @@ function StatusRow({ label }: { label: string }) {
     <div className="flex items-center gap-3 px-1 py-2">
       <Icon name="progress_activity" size={20} className="text-primary animate-spin" />
       <span className="text-[14px] text-on-surface-dim font-semibold">{label}</span>
+    </div>
+  );
+}
+
+/**
+ * DEC-246 — the "what can I ask?" helper. A collapsible catalogue of every
+ * capability the router handles (quick spend → split → multi-event → wallets →
+ * debts → navigation), each group expandable to localized example phrases.
+ * Tapping an example pre-fills the box (and collapses the helper) so the user
+ * sends or edits it — discoverability without a wall of text.
+ */
+function ExamplesHelper({ onPick }: { onPick: (example: string) => void }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="btn-press rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left"
+        style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+      >
+        <Icon name="lightbulb" size={17} className="text-primary shrink-0" />
+        <span className="flex-1 text-[13.5px] font-semibold text-on-surface">{t('assistant.examples.cta')}</span>
+        <Icon
+          name="expand_more"
+          size={18}
+          className="text-on-surface-faint shrink-0 transition-transform"
+          style={open ? { transform: 'rotate(180deg)' } : undefined}
+        />
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[12px] text-on-surface-faint leading-snug px-1">{t('assistant.examples.subtitle')}</p>
+          {ASSISTANT_EXAMPLE_GROUPS.map((group) => {
+            const isOpen = openGroup === group.id;
+            const raw = t(`assistant.examples.groups.${group.id}.items`, { returnObjects: true });
+            const items = Array.isArray(raw) ? (raw as string[]) : [];
+            return (
+              <div
+                key={group.id}
+                className="rounded-2xl overflow-hidden"
+                style={{ border: '1px solid var(--border-subtle)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenGroup(isOpen ? null : group.id)}
+                  aria-expanded={isOpen}
+                  className="btn-press w-full px-3.5 py-2.5 flex items-center gap-2.5 text-left"
+                  style={{ background: 'var(--surface-high)' }}
+                >
+                  <Icon name={group.icon} size={16} className="text-on-surface-dim shrink-0" />
+                  <span className="flex-1 text-[13px] font-semibold text-on-surface">
+                    {t(`assistant.examples.groups.${group.id}.title`)}
+                  </span>
+                  <Icon
+                    name="expand_more"
+                    size={16}
+                    className="text-on-surface-faint shrink-0 transition-transform"
+                    style={isOpen ? { transform: 'rotate(180deg)' } : undefined}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="flex flex-col">
+                    {items.map((example, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          onPick(example);
+                          setOpen(false);
+                        }}
+                        className="btn-press w-full px-3.5 py-2.5 flex items-start gap-2 text-left border-t"
+                        style={{ background: 'var(--surface-container)', borderColor: 'var(--border-subtle)' }}
+                      >
+                        <Icon name="north_east" size={14} className="text-primary shrink-0 mt-0.5" />
+                        <span className="text-[13px] text-on-surface-dim leading-snug">{example}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
