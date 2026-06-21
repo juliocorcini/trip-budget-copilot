@@ -14,6 +14,7 @@ export {
   claimItemWhole,
   releaseClaim,
   splitItemBetween,
+  toggleEqualClaim,
   addParticipant,
   promoteAdhocToParticipant,
   createSplitParticipant,

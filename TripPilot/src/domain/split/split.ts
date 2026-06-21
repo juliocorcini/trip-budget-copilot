@@ -371,6 +371,32 @@ export function splitItemBetween(session: SplitSession, itemId: string, particip
   }));
 }
 
+/**
+ * Toggle a participant in/out of a line's equal-share claim set — the
+ * pass-the-phone / live-table tap model. Tapping an unclaimed line adds them;
+ * tapping a line they already share removes them and re-splits equally among
+ * whoever remains. Removing the LAST claimer CLEARS the line.
+ *
+ * This is the single source of truth for "tap an item to (un)take it". It exists
+ * because `splitItemBetween([])` is a deliberate no-op (you can't split between
+ * nobody), so a caller that naively passed the post-removal id list could never
+ * release the sole claimer — the line stayed stuck claimed until someone else
+ * also took it. Routing every toggle through here makes deselect always work.
+ */
+export function toggleEqualClaim(session: SplitSession, itemId: string, participantId: string): SplitSession {
+  const item = session.items.find((i) => i.id === itemId);
+  if (!item) return session;
+  const has = item.claims.some((c) => c.participantId === participantId);
+  if (!has) {
+    const nextIds = [...item.claims.map((c) => c.participantId), participantId];
+    return splitItemBetween(session, itemId, nextIds);
+  }
+  const remaining = item.claims.filter((c) => c.participantId !== participantId).map((c) => c.participantId);
+  return remaining.length === 0
+    ? releaseClaim(session, itemId, participantId)
+    : splitItemBetween(session, itemId, remaining);
+}
+
 export interface AddParticipantIdentity {
   kind?: SplitParticipantKind;
   actorId?: string | null;

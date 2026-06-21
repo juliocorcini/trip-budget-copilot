@@ -11,7 +11,7 @@ import {
   detectUnclaimed,
   itemsSubtotalCents,
   serviceChargeAmountCents,
-  splitItemBetween,
+  toggleEqualClaim,
   addParticipant,
   promoteAdhocToParticipant,
   createSplitParticipant,
@@ -279,19 +279,13 @@ export function SplitPage() {
 
   // Pass-the-phone (§10): tapping an item toggles a person's claim. A line's
   // claimers share it equally, so 2 claimers = half each, N = 1/N — the
-  // "meio-item / qty→N-donos em 1 toque" behaviour comes for free. The functional
-  // update form makes it safe to call rapidly (round-the-table) without stale state.
+  // "meio-item / qty→N-donos em 1 toque" behaviour comes for free. Routed through
+  // the pure `toggleEqualClaim` so deselecting the SOLE claimer actually clears
+  // the line (the old inline version passed [] to splitItemBetween, a no-op, so
+  // you could only ever untake an item once someone else had also taken it). The
+  // functional update form keeps rapid round-the-table taps free of stale state.
   const toggleClaimFor = (itemId: string, participantId: string) => {
-    setSession((s) => {
-      if (!s) return s;
-      const item = s.items.find((i) => i.id === itemId);
-      if (!item) return s;
-      const has = item.claims.some((c) => c.participantId === participantId);
-      const nextIds = has
-        ? item.claims.filter((c) => c.participantId !== participantId).map((c) => c.participantId)
-        : [...item.claims.map((c) => c.participantId), participantId];
-      return splitItemBetween(s, itemId, nextIds);
-    });
+    setSession((s) => (s ? toggleEqualClaim(s, itemId, participantId) : s));
   };
   const toggleClaim = (itemId: string) => {
     if (activePersonId === null) return;

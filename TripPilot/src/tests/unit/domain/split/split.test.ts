@@ -14,6 +14,7 @@ import {
   claimItemWhole,
   releaseClaim,
   splitItemBetween,
+  toggleEqualClaim,
   addParticipant,
   createSplitItem,
   createSplitSession,
@@ -444,6 +445,45 @@ describe('detectClaimConflicts & detectUnclaimed', () => {
     const { session, ids } = makeSession(['Eu'], [a, b]);
     const s = claimItemWhole(session, a.id, ids['Eu']!);
     expect(detectUnclaimed(s).map((i) => i.id)).toEqual([b.id]);
+  });
+});
+
+/* ── toggleEqualClaim (deselect bug F1) ───────────────────────────────── */
+
+describe('toggleEqualClaim', () => {
+  it('adds a claim on the first tap (orphan → mine)', () => {
+    const item = createSplitItem({ description: 'Cerveja', amountCents: 1000 });
+    const { session, ids } = makeSession(['Eu'], [item]);
+    const s = toggleEqualClaim(session, item.id, ids['Eu']!);
+    expect(s.items[0]!.claims.map((c) => c.participantId)).toEqual([ids['Eu']!]);
+  });
+
+  it('releases the SOLE claimer on the second tap (the F1 regression)', () => {
+    // Before the fix this was impossible: the toggle passed [] to
+    // splitItemBetween (a no-op), so the only claimer could never deselect.
+    const item = createSplitItem({ description: 'Cerveja', amountCents: 1000 });
+    const { session, ids } = makeSession(['Eu'], [item]);
+    const claimed = toggleEqualClaim(session, item.id, ids['Eu']!);
+    const released = toggleEqualClaim(claimed, item.id, ids['Eu']!);
+    expect(released.items[0]!.claims).toEqual([]);
+    expect(detectUnclaimed(released).map((i) => i.id)).toEqual([item.id]);
+  });
+
+  it('removing one of two claimers re-splits the line to the remaining person (whole)', () => {
+    const item = createSplitItem({ description: 'Combo', amountCents: 5000 });
+    const { session, ids } = makeSession(['Eu', 'Ana'], [item]);
+    let s = toggleEqualClaim(session, item.id, ids['Eu']!); // Eu: whole
+    s = toggleEqualClaim(s, item.id, ids['Ana']!); // Eu+Ana: ½ each
+    s = toggleEqualClaim(s, item.id, ids['Eu']!); // Eu out → Ana whole
+    expect(s.items[0]!.claims.map((c) => c.participantId)).toEqual([ids['Ana']!]);
+    expect(totalFor(s, ids['Ana']!)).toBe(5000);
+    expect(totalFor(s, ids['Eu']!)).toBe(0);
+  });
+
+  it('is a no-op for an unknown item id', () => {
+    const item = createSplitItem({ description: 'X', amountCents: 100 });
+    const { session, ids } = makeSession(['Eu'], [item]);
+    expect(toggleEqualClaim(session, 'nope', ids['Eu']!)).toBe(session);
   });
 });
 

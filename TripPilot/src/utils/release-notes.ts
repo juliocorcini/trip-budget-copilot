@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.21',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Dividir conta: agora você consegue desmarcar um item que pegou mesmo quando é o único que pegou ele. Antes, se você marcasse sem querer, só dava pra desmarcar depois que outra pessoa também marcasse — corrigido.',
+      ],
+      en: [
+        'Bill split: you can now un-tap an item you took even when you’re the only one who took it. Before, an accidental tap could only be undone after someone else also took it — fixed.',
+      ],
+      es: [
+        'Dividir cuenta: ahora puedes desmarcar un ítem que tomaste aunque seas el único que lo tomó. Antes, si lo marcabas sin querer, solo podías deshacerlo cuando otra persona también lo marcaba — corregido.',
+      ],
+    },
+  },
+  {
     version: '0.99.20',
     date: '2026-06-20',
     items: {
