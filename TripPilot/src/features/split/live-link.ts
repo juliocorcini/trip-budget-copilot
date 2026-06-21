@@ -339,3 +339,42 @@ export function setGuestName(name: string): void {
     // ignore — name kept in component state regardless
   }
 }
+
+/* ── guest self-expense idempotency (F9) ─────────────────────────────────── */
+
+const GUEST_COMMIT_KEY = 'split.guest.committed';
+
+type GuestCommitMap = Record<string, string>;
+
+function readGuestCommits(): GuestCommitMap {
+  try {
+    const raw = localStorage.getItem(GUEST_COMMIT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') return parsed as GuestCommitMap;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * F9 — the transaction id this device already created for its slice of a given
+ * live table (keyed by shareId), or null. Lets the guest screen show "already
+ * added" and guarantees re-opening the link never double-books the expense.
+ */
+export function getGuestCommit(shareId: string): string | null {
+  const map = readGuestCommits();
+  const txId = map[shareId];
+  return typeof txId === 'string' && txId.length > 0 ? txId : null;
+}
+
+export function setGuestCommit(shareId: string, txId: string): void {
+  try {
+    const map = readGuestCommits();
+    map[shareId] = txId;
+    localStorage.setItem(GUEST_COMMIT_KEY, JSON.stringify(map));
+  } catch {
+    // ignore — the in-memory commit flag still guards this session.
+  }
+}

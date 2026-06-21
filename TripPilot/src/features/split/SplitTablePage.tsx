@@ -6,14 +6,23 @@ import {
   buildSplitClaimResponse,
   computeSplitTotals,
   reduceGuestClaims,
+  dominantSplitCategory,
+  planGuestSelfExpense,
   type SplitSharePayload,
   type SplitClaimResponse,
   type SplitSession,
+  type GuestSelfExpensePlan,
 } from '@/domain/split';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-signal';
 import { formatMoney } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
+import { resolveActivePhase } from '@/domain/dates';
+import { createExpenseTransaction } from '@/domain/transactions';
+import { registerExpense } from '@/domain/orchestrators/expense-orchestrators';
+import { setAssistantQuickAddDraft } from '@/features/assistant/assistant-quickadd-draft';
+import type { ContextualSimulation } from '@/domain/forecasting';
 import {
   fetchSplitTable,
   fetchSplitResponses,
@@ -21,12 +30,32 @@ import {
   getGuestActorId,
   getGuestName,
   setGuestName,
+  getGuestCommit,
+  setGuestCommit,
   type FetchTableStatus,
 } from './live-link';
+import { useSplitBudgetReading } from './useSplitBudgetReading';
 import { LiveStatusBadge } from './LiveStatusBadge';
 
 const POLL_FLOOR_MS = 6000;
 const POST_DEBOUNCE_MS = 500;
+
+type TFn = ReturnType<typeof useTranslation>['t'];
+
+/**
+ * F9 — the honest one-line budget verdict for the guest's own slice, reusing the
+ * SAME `split.reading_*` copy the owner sees on SplitPage so both sides speak the
+ * identical "cabe no teto / sobram €X" language.
+ */
+function readingLine(reading: ContextualSimulation, currency: string, t: TFn): string {
+  const daily = reading.facts.find((f) => f.kind === 'daily_fits' || f.kind === 'daily_days');
+  const free = reading.facts.find((f) => f.kind === 'free_impact' || f.kind === 'exceeds_free');
+  if (free?.kind === 'exceeds_free') return t('split.reading_exceeds', { amount: formatMoney(free.missingCents, currency) });
+  if (daily?.kind === 'daily_fits') return t('split.reading_fits_today');
+  if (daily?.kind === 'daily_days') return t('split.reading_days', { days: daily.days });
+  if (free?.kind === 'free_impact') return t('split.reading_left', { amount: formatMoney(free.afterCents, currency) });
+  return t('split.reading_ok');
+}
 
 type LoadState =
   | { kind: 'loading' }
@@ -203,6 +232,97 @@ export function SplitTablePage() {
       return next;
     });
 
+  /* ── F9: recognize an app user + register their own slice ──────────────── */
+
+  // This route lives under AppDataProvider, so an app user's OWN trip is loaded
+  // here even though the guest table sits outside BootGate. A stranger has no
+  // trip (`trip === null`) — that is exactly the signal that splits the two flows.
+  const { trip, participants, phases, pools } = useAppData();
+  const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
+  const activePhase = useMemo(() => resolveActivePhase(phases), [phases]);
+  const primaryPool = useMemo(
+    () => pools.find((p) => p.scope === 'linked_phases') ?? pools[0] ?? null,
+    [pools],
+  );
+
+  const [committedTxId, setCommittedTxId] = useState<string | null>(() => (id ? getGuestCommit(id) : null));
+  const [committing, setCommitting] = useState(false);
+  useEffect(() => {
+    setCommittedTxId(id ? getGuestCommit(id) : null);
+  }, [id]);
+
+  // F9a — an app user is NOT a stranger: adopt their own profile name and skip
+  // the "what's your name?" prompt entirely (only when they haven't named here).
+  useEffect(() => {
+    if (named) return;
+    if (getGuestName() !== null) return;
+    const ownerName = owner?.name?.trim();
+    if (!ownerName) return;
+    setGuestName(ownerName);
+    setName(ownerName);
+    setNamed(true);
+  }, [named, owner]);
+
+  const selfPlan = useMemo<GuestSelfExpensePlan>(() => {
+    if (load.kind !== 'live' || !merged) return { kind: 'none' };
+    return planGuestSelfExpense({
+      myTotalCents: merged.myTotalCents,
+      sessionCurrency: load.payload.session.currency,
+      sessionName: load.payload.session.name,
+      category: dominantSplitCategory(merged.session),
+      hasTrip: trip !== null,
+      tripBaseCurrency: trip?.baseCurrency ?? null,
+      activePhaseId: activePhase?.id ?? null,
+      primaryPoolId: primaryPool?.id ?? null,
+      committedTxId,
+    });
+  }, [load, merged, trip, activePhase, primaryPool, committedTxId]);
+
+  // Same-currency slice → read it through the shared contextual simulator so the
+  // CTA can show the honest budget impact before the guest commits.
+  const reading = useSplitBudgetReading(selfPlan.kind === 'ready' ? selfPlan.amountCents : 0);
+
+  const registerMyPart = async () => {
+    if (selfPlan.kind === 'currency_mismatch') {
+      // Foreign-currency slice needs the rate UI → hand the pre-fill to the full
+      // editor (same escape hatch the AI quick-entry uses).
+      setAssistantQuickAddDraft({
+        type: 'expense',
+        amount: selfPlan.amountCents / 100,
+        currency: selfPlan.currency,
+        category: selfPlan.category,
+        description: selfPlan.description,
+      });
+      navigate('/quick-add');
+      return;
+    }
+    if (selfPlan.kind !== 'ready' || trip === null || id === null || committing) return;
+    setCommitting(true);
+    try {
+      const tx = createExpenseTransaction({
+        tripId: trip.id,
+        phaseId: selfPlan.phaseId,
+        budgetPoolId: selfPlan.budgetPoolId,
+        walletId: null,
+        amountCents: selfPlan.amountCents,
+        currency: selfPlan.currency,
+        category: selfPlan.category,
+        description: selfPlan.description,
+        // Double idempotency: the ref marks this device's slice of THIS table.
+        externalRef: `splitguest:${id}`,
+        excludeFromLearning: true,
+      });
+      await registerExpense({ transaction: tx, shares: [] });
+      setGuestCommit(id, tx.id);
+      setCommittedTxId(tx.id);
+      notifyAppDataChanged();
+    } catch {
+      // Best-effort: leave the button enabled so the guest can retry.
+    } finally {
+      setCommitting(false);
+    }
+  };
+
   /* ── render ───────────────────────────────────────────────────────────── */
 
   if (load.kind === 'loading') {
@@ -338,30 +458,77 @@ export function SplitTablePage() {
         )}
 
         {/* T9 — onboarding door: a no-app guest can start their own trip, reusing
-            the signup-less home (BootGate routes a guest with no trip to setup). */}
-        <div className="mt-4 pt-4 border-t border-surface-container flex flex-col items-center gap-1.5 text-center">
-          <p className="text-[11px] text-on-surface-faint">{t('splitTable.onboard_hint')}</p>
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-xs text-primary font-bold btn-press"
-          >
-            <Icon name="luggage" size={14} />
-            {t('splitTable.start_trip')}
-          </button>
-        </div>
+            the signup-less home (BootGate routes a guest with no trip to setup).
+            An app user (trip !== null) is handled by the F9 CTA instead, so this
+            stranger-only door no longer shows them noise. */}
+        {trip === null && (
+          <div className="mt-4 pt-4 border-t border-surface-container flex flex-col items-center gap-1.5 text-center">
+            <p className="text-[11px] text-on-surface-faint">{t('splitTable.onboard_hint')}</p>
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-1.5 text-xs text-primary font-bold btn-press"
+            >
+              <Icon name="luggage" size={14} />
+              {t('splitTable.start_trip')}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="fixed bottom-0 inset-x-0 z-10">
-        <div className="max-w-[430px] mx-auto m-4 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg" style={{ background: 'var(--surface-high)' }}>
-          <div className="flex flex-col">
-            <span className="text-[11px] text-on-surface-faint">{t('splitTable.your_part')}</span>
-            <span className="text-xl font-extrabold text-on-surface">{formatMoney(merged?.myTotalCents ?? 0, currency)}</span>
+        <div className="max-w-[430px] mx-auto m-4 flex flex-col gap-2">
+          {/* F9 — register the guest's own slice in THEIR app (app users only). */}
+          {selfPlan.kind === 'ready' && (
+            <button
+              onClick={() => void registerMyPart()}
+              disabled={committing}
+              className="w-full rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-lg btn-press disabled:opacity-60"
+              style={{ background: 'var(--primary)' }}
+            >
+              <div className="flex flex-col text-left">
+                <span className="text-sm font-bold text-on-surface">
+                  {committing ? t('splitTable.registering') : t('splitTable.register_my_part')}
+                </span>
+                {reading && (
+                  <span className="text-[11px] text-on-surface/80">{readingLine(reading, currency, t)}</span>
+                )}
+              </div>
+              <span className="text-base font-extrabold text-on-surface shrink-0">
+                {formatMoney(selfPlan.amountCents, currency)}
+              </span>
+            </button>
+          )}
+          {selfPlan.kind === 'currency_mismatch' && (
+            <button
+              onClick={() => void registerMyPart()}
+              className="w-full rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-lg btn-press"
+              style={{ background: 'var(--primary)' }}
+            >
+              <div className="flex flex-col text-left">
+                <span className="text-sm font-bold text-on-surface">{t('splitTable.register_in_app')}</span>
+                <span className="text-[11px] text-on-surface/80">{t('splitTable.register_hint_rate')}</span>
+              </div>
+              <Icon name="arrow_forward" size={18} className="text-on-surface shrink-0" />
+            </button>
+          )}
+          {selfPlan.kind === 'already' && (
+            <div className="w-full rounded-2xl px-4 py-3 flex items-center gap-2 shadow-lg" style={{ background: 'var(--surface-container)' }}>
+              <Icon name="check_circle" size={18} className="text-success shrink-0" />
+              <span className="text-[12px] font-semibold text-on-surface-dim">{t('splitTable.registered_done')}</span>
+            </div>
+          )}
+
+          <div className="rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg" style={{ background: 'var(--surface-high)' }}>
+            <div className="flex flex-col">
+              <span className="text-[11px] text-on-surface-faint">{t('splitTable.your_part')}</span>
+              <span className="text-xl font-extrabold text-on-surface">{formatMoney(merged?.myTotalCents ?? 0, currency)}</span>
+            </div>
+            <LiveStatusBadge
+              socketOpen={socketOpen}
+              lastSyncAt={lastSyncAt}
+              onReconnect={() => void refetch()}
+            />
           </div>
-          <LiveStatusBadge
-            socketOpen={socketOpen}
-            lastSyncAt={lastSyncAt}
-            onReconnect={() => void refetch()}
-          />
         </div>
       </div>
     </div>

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.26',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Mesa ao vivo ficou mais esperta com quem já usa o TripPilot: ao abrir o link, você é reconhecido pelo seu próprio perfil e não precisa mais digitar o nome — entra direto na mesa.',
+        'No fim, quando você marcou seus itens, aparece um botão “Registrar minha parte no meu app”: com um toque, o seu pedaço da conta vira um gasto no SEU app, já mostrando o impacto no seu orçamento (“cabe no teto de hoje; sobram €X”). É à prova de duplicar — reabrir o link não cria o gasto de novo.',
+        'Se a conta estiver em outra moeda, o botão abre a tela completa já preenchida para você ajustar o câmbio.',
+      ],
+      en: [
+        'The live table is smarter with people who already use TripPilot: when you open the link you’re recognized by your own profile, so you no longer have to type your name — you go straight to the table.',
+        'At the end, once you’ve claimed your items, a “Add my part to my app” button appears: one tap turns your slice of the bill into an expense in YOUR app, showing the budget impact (“fits today’s cap; €X left”). It’s duplicate-proof — reopening the link won’t book it twice.',
+        'If the bill is in another currency, the button opens the full screen pre-filled so you can set the exchange rate.',
+      ],
+      es: [
+        'La mesa en vivo es más inteligente con quienes ya usan TripPilot: al abrir el enlace eres reconocido por tu propio perfil, así que ya no tienes que escribir tu nombre — entras directo a la mesa.',
+        'Al final, cuando marcaste tus ítems, aparece un botón “Registrar mi parte en mi app”: con un toque, tu parte de la cuenta se vuelve un gasto en TU app, mostrando el impacto en tu presupuesto (“cabe en el tope de hoy; quedan €X”). Es a prueba de duplicados — reabrir el enlace no lo crea de nuevo.',
+        'Si la cuenta está en otra moneda, el botón abre la pantalla completa ya cargada para que ajustes el cambio.',
+      ],
+    },
+  },
+  {
     version: '0.99.25',
     date: '2026-06-20',
     items: {
