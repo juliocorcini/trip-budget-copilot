@@ -1297,19 +1297,26 @@ export class TelemetryStore {
     const counterCols = Object.values(TELEMETRY_COUNTERS);
     const flagCols = Object.values(TELEMETRY_FLAGS);
     const sums = [...counterCols, ...flagCols].map((c) => `SUM(${c}) AS ${c}`).join(', ');
+    // Active-user windows come from the heartbeats table (distinct install per
+    // UTC day) — NOT installs.last_seen, which is just the wall-clock of the
+    // latest report and would make DAU≈everyone. day keys are ISO 'YYYY-MM-DD'
+    // so a lexical string compare is also a chronological one.
+    const dayKey = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+    const today = dayKey(now);
+    const weekAgo = dayKey(now - 6 * day);
+    const monthAgo = dayKey(now - 29 * day);
+    const distinctActive = (op: string, arg: string): number =>
+      num(this.sql.exec(`SELECT COUNT(DISTINCT install_id) AS n FROM heartbeats WHERE day ${op} ?`, arg).one().n);
+    const dau = distinctActive('=', today);
+    const wau = distinctActive('>=', weekAgo);
+    const mau = distinctActive('>=', monthAgo);
     const agg = this.sql
       .exec(
         `SELECT
            COUNT(*) AS total,
-           SUM(CASE WHEN last_seen >= ? THEN 1 ELSE 0 END) AS dau,
-           SUM(CASE WHEN last_seen >= ? THEN 1 ELSE 0 END) AS wau,
-           SUM(CASE WHEN last_seen >= ? THEN 1 ELSE 0 END) AS mau,
            SUM(CASE WHEN first_seen >= ? THEN 1 ELSE 0 END) AS new7d,
            ${sums}
          FROM installs`,
-        now - day,
-        now - 7 * day,
-        now - 30 * day,
         now - 7 * day,
       )
       .one();
@@ -1331,9 +1338,9 @@ export class TelemetryStore {
     for (const [key, col] of Object.entries(TELEMETRY_FLAGS)) flags[key] = num(agg[col]);
     return json({
       total: num(agg.total),
-      dau: num(agg.dau),
-      wau: num(agg.wau),
-      mau: num(agg.mau),
+      dau,
+      wau,
+      mau,
       new7d: num(agg.new7d),
       counters,
       flags,
