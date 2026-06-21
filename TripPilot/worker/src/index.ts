@@ -74,7 +74,7 @@ const ACTOR_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token, Authorization',
 };
 
 // DEC-207 — persistent encrypted share channel (KV). One key per share holds
