@@ -52,6 +52,7 @@ export {
 export {
   selectVisiblePots,
   isPotVisibleOnHome,
+  isPotInPhase,
   POT_VISIBILITY_WINDOW_DAYS,
 } from './pots';
 export type {

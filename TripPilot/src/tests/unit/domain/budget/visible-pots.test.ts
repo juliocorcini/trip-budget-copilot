@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectVisiblePots, isPotVisibleOnHome } from '@/domain/budget';
+import { selectVisiblePots, isPotVisibleOnHome, isPotInPhase } from '@/domain/budget';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Phase } from '@/domain/types/phase';
 
@@ -106,5 +106,34 @@ describe('selectVisiblePots (GATE 3 / D8)', () => {
     // With a 3-day window, 7 days out is closed; owner trecho still wins.
     expect(isPotVisibleOnHome(tomorrowland, null, '2026-07-16', 3)).toBe(false);
     expect(isPotVisibleOnHome(tomorrowland, null, '2026-07-20', 3)).toBe(true);
+  });
+});
+
+describe('isPotInPhase (F3 — Viagem tab phase scoping)', () => {
+  it('keeps a dated pot OUT of a trecho that does not contain its dateStart (the bug: Tomorrowland 23/07 under Burgos ending 15/07)', () => {
+    expect(isPotInPhase(tomorrowland, burgos)).toBe(false);
+  });
+
+  it('shows a dated pot in the trecho whose range holds its dateStart (Tomorrowland under Eurotrip)', () => {
+    expect(isPotInPhase(tomorrowland, eurotrip)).toBe(true);
+  });
+
+  it('treats the trecho bounds as inclusive', () => {
+    const onStart = mkPot('on-start', { dateStart: eurotrip.startDate }); // 2026-07-16
+    const onEnd = mkPot('on-end', { dateStart: burgos.endDate }); // 2026-07-15
+    expect(isPotInPhase(onStart, eurotrip)).toBe(true);
+    expect(isPotInPhase(onEnd, burgos)).toBe(true);
+  });
+
+  it('keeps a DATELESS (ambient) pot in every phase view', () => {
+    const shopping = mkPot('shopping');
+    expect(isPotInPhase(shopping, burgos)).toBe(true);
+    expect(isPotInPhase(shopping, eurotrip)).toBe(true);
+  });
+
+  it('compares by day even when dateStart carries a time component', () => {
+    const timed = mkPot('timed', { dateStart: '2026-07-23T20:00:00.000Z' });
+    expect(isPotInPhase(timed, burgos)).toBe(false);
+    expect(isPotInPhase(timed, eurotrip)).toBe(true);
   });
 });

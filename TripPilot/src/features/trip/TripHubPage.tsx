@@ -12,6 +12,7 @@ import {
   selectActivePhasePool,
   computeTripBudgetTotals,
   summarizeTrechoBalance,
+  isPotInPhase,
 } from '@/domain/budget';
 import { filterTransactionsByPhase, filterTransactionsByPool } from '@/domain/transactions';
 import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
@@ -217,6 +218,21 @@ export function TripHubPage() {
         o.linkedSessionId === null,
     )
     .sort((a, b) => (a.plannedDate ?? '').localeCompare(b.plannedDate ?? ''));
+
+  // F3: the "Potes e planejados" section renders below the phase pane and used to
+  // list EVERYTHING regardless of the chosen phase — so a pot/event/purchase
+  // dated for another trecho showed up while viewing an earlier one. When a
+  // specific phase is selected, scope each kind to it; the cross-phase "Todas"
+  // view still shows all (D9). Events + purchases carry a `phaseId` (a trip-wide
+  // purchase has none → always shown); pots are scoped by their owner trecho (a
+  // dateless, ambient pot belongs to every phase view).
+  const potsInScope = selectedPhase ? pots.filter((pot) => isPotInPhase(pot, selectedPhase)) : pots;
+  const eventsInScope = selectedPhase
+    ? openEvents.filter((event) => event.phaseId === selectedPhase.id)
+    : openEvents;
+  const plannedInScope = selectedPhase
+    ? openPlanned.filter((purchase) => purchase.phaseId === selectedPhase.id || purchase.phaseId === null)
+    : openPlanned;
 
   const categoryRows = forecasts
     .map((forecast) => {
@@ -477,11 +493,11 @@ export function TripHubPage() {
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
           {t('trip_hub.pots_section_title')}
         </p>
-        {pots.length === 0 && openPlanned.length === 0 && openEvents.length === 0 ? (
+        {potsInScope.length === 0 && plannedInScope.length === 0 && eventsInScope.length === 0 ? (
           <p className="text-sm text-on-surface-dim px-1">{t('trip_hub.pots_empty')}</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {openEvents.map((event) => {
+            {eventsInScope.map((event) => {
               // reservedCents set = the event eats from its trecho (do trecho);
               // null = its money is à parte (a Pote). Show the right amount + tag.
               const fundedByPhase = event.reservedCents !== null;
@@ -523,7 +539,7 @@ export function TripHubPage() {
                 </button>
               );
             })}
-            {pots.map((pot) => {
+            {potsInScope.map((pot) => {
               const summary = createPoolSummary(pot, filterTransactionsByPool(transactions, pot.id));
               const goalCents = pot.goalCents ?? null;
               const goalPct =
@@ -581,7 +597,7 @@ export function TripHubPage() {
                 </button>
               );
             })}
-            {openPlanned.slice(0, 4).map((purchase) => {
+            {plannedInScope.slice(0, 4).map((purchase) => {
               const remaining =
                 purchase.reservedCents !== null
                   ? plannedPurchaseReservedRemainingCents(purchase, transactions)

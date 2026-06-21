@@ -50,6 +50,22 @@ export function isPotVisibleOnHome(
 }
 
 /**
+ * F3 (D9 scoping): does a pot belong to a given trecho when the "Viagem" tab is
+ * focused on a SPECIFIC phase? The "Potes e planejados" list shows EVERY pot in
+ * the cross-phase ("Todas") view, but when the user drills into one phase a pot
+ * dated for a LATER trecho appearing there is confusing. Rule (mirrors the Home
+ * owner-trecho clause): a DATELESS pot is ambient ("dinheiro à parte" with no
+ * moment) and belongs to every phase view; a DATED pot belongs ONLY to the
+ * trecho whose range holds its `dateStart`. Pure.
+ */
+export function isPotInPhase(pot: BudgetPool, phase: Phase): boolean {
+  const start = pot.dateStart ?? null;
+  if (start === null) return true; // ambient — belongs to every phase view
+  const startDay = day(start);
+  return day(phase.startDate) <= startDay && startDay <= day(phase.endDate);
+}
+
+/**
  * GATE 3 (D8): the subset of pots that should surface on the Home today. Only
  * `global` pots are candidates; soft-deleted pots are dropped. Order is
  * preserved so the caller controls the display order.

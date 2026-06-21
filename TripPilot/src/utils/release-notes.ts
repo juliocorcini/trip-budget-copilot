@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.23',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Na aba “Viagem”, ao focar num trecho específico, a seção “Potes e planejados” agora mostra só o que pertence àquele trecho. Antes, um pote datado para outra fase (ex.: um pote que começa 23/jul) aparecia mesmo enquanto você via um trecho que termina antes (ex.: 15/jul). Potes sem data continuam aparecendo em todos os trechos, e a visão “Todas” continua mostrando tudo.',
+      ],
+      en: [
+        'On the “Trip” tab, focusing on a specific leg now shows only the pots and plans that belong to that leg in “Pots & planned”. Before, a pot dated for another phase (e.g. one starting Jul 23) showed up even while you were viewing a leg that ends earlier (e.g. Jul 15). Dateless pots still appear on every leg, and the “All” view still shows everything.',
+      ],
+      es: [
+        'En la pestaña “Viaje”, al enfocar un tramo específico, la sección “Potes y planificados” ahora muestra solo lo que pertenece a ese tramo. Antes, un pote con fecha de otra fase (p. ej. uno que empieza el 23/jul) aparecía aunque estuvieras viendo un tramo que termina antes (p. ej. 15/jul). Los potes sin fecha siguen apareciendo en todos los tramos, y la vista “Todas” sigue mostrando todo.',
+      ],
+    },
+  },
+  {
     version: '0.99.22',
     date: '2026-06-20',
     items: {
