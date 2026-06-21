@@ -77,6 +77,7 @@ export {
   answerMirroredStatementLine,
   markResponsesSent,
   applyPeerResponses,
+  reconnectParticipantDevice,
 } from './sync-orchestrators';
 export type { PairResult } from './sync-orchestrators';
 export { applyPhaseLeftover } from './phase-cycle-orchestrators';

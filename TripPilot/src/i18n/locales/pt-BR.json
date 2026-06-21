@@ -860,7 +860,9 @@
     "status_waiting": "Aguardando",
     "status_offline": "Reconectar",
     "last_seen": "visto {{date}}",
-    "never_synced": "ainda não sincronizou"
+    "never_synced": "ainda não sincronizou",
+    "reconnect_device": "Reconectar novo aparelho de {{name}}",
+    "reconnected": "{{name}} reconectado ao novo aparelho"
   },
   "split": {
     "how_title": "Como funciona a divisão",

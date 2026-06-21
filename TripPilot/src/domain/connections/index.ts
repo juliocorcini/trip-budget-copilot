@@ -3,5 +3,6 @@ export {
   deriveConnectionStatus,
   toConnectionView,
   buildConnectionViews,
+  findReconnectCandidate,
 } from './connections';
-export type { ConnectionStatus, ConnectionView } from './connections';
+export type { ConnectionStatus, ConnectionView, ReconnectCandidate } from './connections';

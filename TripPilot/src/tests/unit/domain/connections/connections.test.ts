@@ -4,6 +4,7 @@ import {
   deriveConnectionStatus,
   toConnectionView,
   buildConnectionViews,
+  findReconnectCandidate,
 } from '@/domain/connections';
 import type { PeerLink } from '@/domain/types/peer-link';
 
@@ -117,5 +118,145 @@ describe('buildConnectionViews (B2)', () => {
 
   it('returns an empty list when there are no links', () => {
     expect(buildConnectionViews([], NOW)).toEqual([]);
+  });
+});
+
+describe('findReconnectCandidate (B2 wave 3)', () => {
+  const bruno = { id: 'p1', name: 'Bruno', linkedActorId: 'old-actor' };
+
+  it('suggests the new device when the current link is offline and one keyed same-name candidate exists', () => {
+    const candidate = findReconnectCandidate(
+      bruno,
+      [
+        link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: null }),
+        link({ id: 'new', actorId: 'new-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(1) }),
+      ],
+      NOW,
+    );
+    expect(candidate).toEqual({ participantId: 'p1', newActorId: 'new-actor', displayName: 'Bruno' });
+  });
+
+  it('treats a MISSING current link (no peerLink for the linked actor) as offline → still suggests', () => {
+    const candidate = findReconnectCandidate(
+      bruno,
+      [link({ id: 'new', actorId: 'new-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(2) })],
+      NOW,
+    );
+    expect(candidate?.newActorId).toBe('new-actor');
+  });
+
+  it('matches the name accent- and case-insensitively', () => {
+    const debora = { id: 'p2', name: 'Débora', linkedActorId: 'old' };
+    const candidate = findReconnectCandidate(
+      debora,
+      [
+        link({ id: 'cur', actorId: 'old', displayName: 'Débora', publicKey: null }),
+        link({ id: 'new', actorId: 'new-d', displayName: 'debora', publicKey: 'pk', lastSyncAt: daysAgo(1) }),
+      ],
+      NOW,
+    );
+    expect(candidate?.newActorId).toBe('new-d');
+  });
+
+  it('counts duplicate links for the same candidate actor as ONE (still suggests)', () => {
+    const candidate = findReconnectCandidate(
+      bruno,
+      [
+        link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: null }),
+        link({ id: 'n1', actorId: 'new-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(5) }),
+        link({ id: 'n2', actorId: 'new-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(1) }),
+      ],
+      NOW,
+    );
+    expect(candidate?.newActorId).toBe('new-actor');
+  });
+
+  it('returns null when the participant is not linked to any device', () => {
+    expect(
+      findReconnectCandidate(
+        { id: 'p1', name: 'Bruno', linkedActorId: null },
+        [link({ actorId: 'x', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(1) })],
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when the current device is still reachable (keyed but only stale = waiting)', () => {
+    expect(
+      findReconnectCandidate(
+        bruno,
+        [
+          link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(40) }),
+          link({ id: 'new', actorId: 'new-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(1) }),
+        ],
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when the current device is connected', () => {
+    expect(
+      findReconnectCandidate(
+        bruno,
+        [
+          link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(1) }),
+          link({ id: 'new', actorId: 'new-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(0) }),
+        ],
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when two same-name candidates make the match ambiguous (never guess identity)', () => {
+    expect(
+      findReconnectCandidate(
+        bruno,
+        [
+          link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: null }),
+          link({ id: 'a', actorId: 'new-a', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(1) }),
+          link({ id: 'b', actorId: 'new-b', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(2) }),
+        ],
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when the only candidate has no key (cannot deliver async)', () => {
+    expect(
+      findReconnectCandidate(
+        bruno,
+        [
+          link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: null }),
+          link({ id: 'new', actorId: 'new-actor', displayName: 'Bruno', publicKey: null }),
+        ],
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when no other link shares the name', () => {
+    expect(
+      findReconnectCandidate(
+        bruno,
+        [
+          link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: null }),
+          link({ id: 'new', actorId: 'new-actor', displayName: 'Carla', publicKey: 'pk', lastSyncAt: daysAgo(1) }),
+        ],
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it('ignores soft-deleted candidate links', () => {
+    expect(
+      findReconnectCandidate(
+        bruno,
+        [
+          link({ id: 'cur', actorId: 'old-actor', displayName: 'Bruno', publicKey: null }),
+          link({ id: 'new', actorId: 'new-actor', displayName: 'Bruno', publicKey: 'pk', lastSyncAt: daysAgo(1), deletedAt: daysAgo(0) }),
+        ],
+        NOW,
+      ),
+    ).toBeNull();
   });
 });

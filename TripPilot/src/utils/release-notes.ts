@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.34',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Cobrar/adicionar ficou tão fácil quanto dividir: em Acerto de contas, ao adicionar uma pessoa, agora vem a lista de “Amigos conectados” — toque num e ele entra como pessoa da viagem na hora, sem digitar nome nem refazer QR. A dívida já passa a ir pra ele.',
+        'Trocou de celular? Quando um amigo conectado aparece com um aparelho novo, surge um botão “Reconectar novo aparelho de {nome}”: um toque religa a pessoa ao novo aparelho sem recadastrar nada — e suas dívidas continuam exatamente as mesmas.',
+      ],
+      en: [
+        'Charging/adding is now as easy as splitting: in Settle up, when you add a person, a “Connected friends” list appears — tap one and they become a trip person right away, no typing a name, no QR redo. Their debts start flowing to them.',
+        'New phone? When a connected friend shows up on a new device, a “Reconnect {name}’s new device” button appears: one tap re-links the person to the new device with no re-adding — and your debts stay exactly the same.',
+      ],
+      es: [
+        'Cobrar/agregar es ahora tan fácil como dividir: en Ajuste de cuentas, al agregar a una persona aparece la lista de “Amigos conectados” — toca uno y entra como persona del viaje al instante, sin escribir el nombre ni rehacer el QR. Sus deudas empiezan a llegarle.',
+        '¿Cambió de teléfono? Cuando un amigo conectado aparece con un dispositivo nuevo, surge un botón “Reconectar el nuevo dispositivo de {nombre}”: un toque revincula a la persona al nuevo dispositivo sin volver a registrar nada — y tus deudas quedan exactamente iguales.',
+      ],
+    },
+  },
+  {
     version: '0.99.33',
     date: '2026-06-21',
     items: {

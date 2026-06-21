@@ -101,3 +101,75 @@ export function buildConnectionViews(links: PeerLink[], nowMs: number): Connecti
       return a.displayName.localeCompare(b.displayName);
     });
 }
+
+/** Accent- and case-insensitive name key, for matching "the same friend". */
+function normalizeName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * B2 wave 3 — a safe "reconnect this person's new device" suggestion.
+ *
+ * When a connected friend re-pairs from a NEW phone they get a NEW `actorId`, so
+ * the trip Participant still points at the dead old device. This finds the new
+ * device to re-point to, but ONLY in a conservative case the council locked:
+ *   - the participant IS linked (`linkedActorId` set) but its current link is
+ *     `offline` (no public key / missing) — i.e. genuinely unreachable async;
+ *   - there is EXACTLY ONE other link, with a different actorId, a public key,
+ *     and the same normalized name.
+ * Two same-name candidates (ambiguous), a still-reachable current device, or an
+ * unnamed person all return null — never guess a financial identity. The caller
+ * confirms with the name in view; re-pointing only changes the delivery address
+ * (debts key off `participantId`, never `actorId`), so the ledger is untouched.
+ */
+export interface ReconnectCandidate {
+  participantId: string;
+  newActorId: string;
+  displayName: string;
+}
+
+export function findReconnectCandidate(
+  participant: { id: string; name: string; linkedActorId: string | null },
+  links: PeerLink[],
+  nowMs: number,
+): ReconnectCandidate | null {
+  if (participant.linkedActorId === null) return null;
+  const target = normalizeName(participant.name);
+  if (target === '') return null;
+
+  const live = links.filter((l) => l.deletedAt === null);
+  const current = live.find((l) => l.actorId === participant.linkedActorId);
+  const currentStatus = current ? deriveConnectionStatus(current, nowMs) : 'offline';
+  // Only offer to reconnect when the current device truly can't be reached
+  // async (no key / gone). A merely-stale keyed link reads "waiting" — leave it.
+  if (currentStatus !== 'offline') return null;
+
+  const candidatesByActor = new Map<string, PeerLink>();
+  for (const link of live) {
+    if (link.actorId === participant.linkedActorId) continue;
+    if (!link.publicKey) continue;
+    if (normalizeName(link.displayName) !== target) continue;
+    const prev = candidatesByActor.get(link.actorId);
+    if (!prev) {
+      candidatesByActor.set(link.actorId, link);
+      continue;
+    }
+    const a = prev.lastSyncAt ? Date.parse(prev.lastSyncAt) : 0;
+    const b = link.lastSyncAt ? Date.parse(link.lastSyncAt) : 0;
+    if ((Number.isNaN(b) ? 0 : b) >= (Number.isNaN(a) ? 0 : a)) {
+      candidatesByActor.set(link.actorId, link);
+    }
+  }
+
+  if (candidatesByActor.size !== 1) return null;
+  const candidate = [...candidatesByActor.values()][0]!;
+  return {
+    participantId: participant.id,
+    newActorId: candidate.actorId,
+    displayName: candidate.displayName,
+  };
+}

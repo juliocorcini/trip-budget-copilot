@@ -145,6 +145,48 @@ export async function markResponsesSent(
 }
 
 /**
+ * B2 wave 3 (coherence §2.2) — re-point a trip participant to a friend's NEW
+ * device (a fresh actorId from re-pairing). LEDGER-NEUTRAL by design: debts and
+ * shares key off `participantId`, never `actorId`, so this only changes the
+ * mailbox/live address the mirror talks to — not one cent moves. The caller has
+ * already confirmed the match (the conservative `findReconnectCandidate` + the
+ * name in view). The dead old link is retired only when it belongs to this
+ * person (or to nobody), so a different person's mapping is never disturbed.
+ */
+export async function reconnectParticipantDevice(
+  participantId: string,
+  newActorId: string,
+): Promise<Participant | null> {
+  const participant = await participantRepository.getById(participantId);
+  if (!participant) return null;
+  const oldActorId = participant.linkedActorId;
+  if (oldActorId === newActorId) return participant;
+
+  const updated = await participantRepository.update({
+    ...participant,
+    linkedActorId: newActorId,
+  });
+
+  // Point the new device's link at this person. Preserve its key/sync — never
+  // fake a fresh sync we didn't actually do.
+  const newLink = await peerLinkRepository.getByActorId(newActorId);
+  if (newLink && newLink.participantId !== participantId) {
+    await peerLinkRepository.update({ ...newLink, participantId });
+  }
+
+  // Retire the dead old link only when it is ours or unowned (another trip may
+  // still map to that actor — leave a different participant's mapping intact).
+  if (oldActorId) {
+    const oldLink = await peerLinkRepository.getByActorId(oldActorId);
+    if (oldLink && (oldLink.participantId === null || oldLink.participantId === participantId)) {
+      await peerLinkRepository.delete(oldLink.id);
+    }
+  }
+
+  return updated;
+}
+
+/**
  * Owner side: apply confirm/reject responses from the mirror. Only the
  * paired participant's own pending shares can change (DEC-106).
  */

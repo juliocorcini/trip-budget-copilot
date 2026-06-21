@@ -856,7 +856,9 @@
     "status_waiting": "Waiting",
     "status_offline": "Reconnect",
     "last_seen": "seen {{date}}",
-    "never_synced": "not synced yet"
+    "never_synced": "not synced yet",
+    "reconnect_device": "Reconnect {{name}}'s new device",
+    "reconnected": "{{name}} reconnected to the new device"
   },
   "split": {
     "how_title": "How splitting works",

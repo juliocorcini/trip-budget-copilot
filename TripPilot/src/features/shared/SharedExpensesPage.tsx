@@ -31,7 +31,13 @@ import { settlementRepository } from '@/data/repositories/settlement-repository'
 import { participantRepository, peerLinkRepository, sessionRepository } from '@/data/repositories';
 import type { PeerLink } from '@/domain/types/peer-link';
 // B2 wave 2 (coherence §2.2): the honest "Amigos/Conexões" list under one roof.
-import { buildConnectionViews, type ConnectionView } from '@/domain/connections';
+// B2 wave 3: reuse a friend when charging + suggest reconnecting a new device.
+import {
+  buildConnectionViews,
+  findReconnectCandidate,
+  type ConnectionView,
+  type ReconnectCandidate,
+} from '@/domain/connections';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -53,6 +59,7 @@ import {
   linkParticipantToIdentity,
   applyPeerResponses,
   sendPayloadToPeerMailbox,
+  reconnectParticipantDevice,
 } from '@/domain/orchestrators';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { getShareOrigin } from '@/utils/native/public-origin';
@@ -210,6 +217,13 @@ export function SharedExpensesPage() {
   const connectionViews = useMemo<ConnectionView[]>(
     () => buildConnectionViews(peerLinks, Date.now()),
     [peerLinks],
+  );
+
+  // B2 wave 3 — connected friends who are NOT yet a person in THIS trip, so the
+  // "add person" form can reuse a known friend in one tap (no re-typing/re-QR).
+  const availableFriends = useMemo<ConnectionView[]>(
+    () => connectionViews.filter((c) => !participants.some((p) => p.linkedActorId === c.actorId)),
+    [connectionViews, participants],
   );
 
   // FIELD item 8: deliver the statement to the peer's mailbox — no need to be
@@ -372,6 +386,49 @@ export function SharedExpensesPage() {
     }
   };
 
+  // B2 wave 3 — add a connected friend as a trip person in ONE tap (no re-typing,
+  // no re-scanning a QR). Reuses the SAME pairing orchestrator the QR flow uses:
+  // it links the new participant by actorId and maps the peer link, idempotent if
+  // the friend is already a person here. Debts then ride the mirror automatically.
+  const handleAddFriend = async (conn: ConnectionView) => {
+    if (!trip || saving) return;
+    setSaving(true);
+    try {
+      const peer = peerLinks.find((l) => l.actorId === conn.actorId && l.deletedAt === null);
+      await pairParticipantFromIdentity(
+        buildIdentityQrPayload(
+          { actorId: conn.actorId, displayName: conn.displayName },
+          peer?.publicKey ?? null,
+        ),
+        trip.id,
+      );
+      setPeerLinks(await peerLinkRepository.getAll());
+      await reload();
+      setNewName('');
+      setNewNickname('');
+      setShowForm(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // B2 wave 3 — re-point a person to a friend's NEW device (a fresh actorId from
+  // re-pairing). LEDGER-NEUTRAL: debts key off participantId, so only the mirror
+  // delivery address changes. The suggestion is conservative + the name is in
+  // view, so the tap itself is the confirmation.
+  const handleReconnect = async (candidate: ReconnectCandidate) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await reconnectParticipantDevice(candidate.participantId, candidate.newActorId);
+      setPeerLinks(await peerLinkRepository.getAll());
+      await reload();
+      showToast(t('connections.reconnected', { name: candidate.displayName }), 'success');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // BUG-014: recovery on DB error instead of a blank page.
   if (!trip) {
     if (error) return <DataErrorScreen onRetry={retry} />;
@@ -482,45 +539,100 @@ export function SharedExpensesPage() {
         </p>
         {participants.map((p) => {
           const balance = balances.get(p.id) ?? 0;
+          // B2 wave 3 — conservative "new device" suggestion (only when the linked
+          // device is truly unreachable and exactly one same-name keyed peer exists).
+          const reconnect = p.isOwner ? null : findReconnectCandidate(p, peerLinks, Date.now());
           return (
-            // DEC-102 (R-25): tap opens the itemized statement for this person.
-            <button
-              key={p.id}
-              onClick={() => setStatementTarget(p)}
-              className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center gap-3 w-full text-left btn-press"
-            >
-              <Icon name="person" size={20} className="text-on-surface-dim" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-on-surface truncate flex items-center gap-1.5">
-                  {p.name}
-                  {p.nickname && (
-                    <span className="text-on-surface-faint"> · {p.nickname}</span>
-                  )}
-                  {/* DEC-105: paired badge */}
-                  {p.linkedActorId && (
-                    <Icon name="link" size={14} className="text-primary shrink-0" />
-                  )}
-                </p>
-                {p.isOwner && <p className="text-xs text-primary">{t('shared.owner_tag')}</p>}
-              </div>
-              <p
-                className={`text-xs font-semibold tabular shrink-0 ${
-                  balance < 0 ? 'text-error' : balance > 0 ? 'text-success' : 'text-on-surface-faint'
-                }`}
+            <div key={p.id} className="mb-1">
+              {/* DEC-102 (R-25): tap opens the itemized statement for this person. */}
+              <button
+                onClick={() => setStatementTarget(p)}
+                className="bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 w-full text-left btn-press"
               >
-                {balance < 0
-                  ? t('shared.balance_owes', { amount: formatMoney(Math.abs(balance), trip.baseCurrency) })
-                  : balance > 0
-                    ? t('shared.balance_owed', { amount: formatMoney(balance, trip.baseCurrency) })
-                    : t('shared.balance_zero')}
-              </p>
-              <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
-            </button>
+                <Icon name="person" size={20} className="text-on-surface-dim" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-on-surface truncate flex items-center gap-1.5">
+                    {p.name}
+                    {p.nickname && (
+                      <span className="text-on-surface-faint"> · {p.nickname}</span>
+                    )}
+                    {/* DEC-105: paired badge */}
+                    {p.linkedActorId && (
+                      <Icon name="link" size={14} className="text-primary shrink-0" />
+                    )}
+                  </p>
+                  {p.isOwner && <p className="text-xs text-primary">{t('shared.owner_tag')}</p>}
+                </div>
+                <p
+                  className={`text-xs font-semibold tabular shrink-0 ${
+                    balance < 0 ? 'text-error' : balance > 0 ? 'text-success' : 'text-on-surface-faint'
+                  }`}
+                >
+                  {balance < 0
+                    ? t('shared.balance_owes', { amount: formatMoney(Math.abs(balance), trip.baseCurrency) })
+                    : balance > 0
+                      ? t('shared.balance_owed', { amount: formatMoney(balance, trip.baseCurrency) })
+                      : t('shared.balance_zero')}
+                </p>
+                <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
+              </button>
+              {reconnect && (
+                <button
+                  onClick={() => handleReconnect(reconnect)}
+                  disabled={saving}
+                  className="w-full mt-1 px-3 py-2 rounded-xl bg-warning/10 text-warning text-xs font-semibold flex items-center justify-center gap-1.5 btn-press disabled:opacity-40"
+                >
+                  <Icon name="sync" size={15} className="text-warning" />
+                  {t('connections.reconnect_device', { name: reconnect.displayName })}
+                </button>
+              )}
+            </div>
           );
         })}
 
         {showForm ? (
           <div className="bg-surface-container rounded-xl p-4 mt-2 flex flex-col gap-3">
+            {/* B2 wave 3 — reuse a connected friend in one tap (mirrors the split's
+                add-person picker). Linking by actorId means debts ride the mirror. */}
+            {availableFriends.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide">
+                  {t('split.friends_title')}
+                </p>
+                <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto">
+                  {availableFriends.map((conn) => (
+                    <button
+                      key={conn.actorId}
+                      onClick={() => handleAddFriend(conn)}
+                      disabled={saving}
+                      className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 bg-surface-high btn-press text-left disabled:opacity-40"
+                    >
+                      <span className="w-8 h-8 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                        {conn.displayName.trim().slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-semibold text-on-surface truncate">
+                          {conn.displayName}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-on-surface-faint">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ background: CONNECTION_STATUS_DOT[conn.status] }}
+                          />
+                          {t(`connections.status_${conn.status}`)}
+                        </span>
+                      </span>
+                      <Icon name="add" size={18} className="text-primary shrink-0" />
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="flex-1 h-px bg-surface-high" />
+                  <span className="text-[10px] text-on-surface-faint">{t('split.friends_or_new')}</span>
+                  <span className="flex-1 h-px bg-surface-high" />
+                </div>
+              </div>
+            )}
             <div>
               <label className="text-xs text-on-surface-faint mb-1 block">
                 {t('shared.participant_name')}
