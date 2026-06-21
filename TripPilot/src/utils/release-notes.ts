@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.24',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Conta com itens repetidos ficou justa: quando a nota traz “2 pedidos” do mesmo item, agora dá para pegar por unidade. Duas pessoas pegam um cada e pagam o preço cheio de uma unidade (sem dividir o item ao meio), e quem pega só uma de duas paga só uma — a outra fica livre para alguém. Na divisão, itens com quantidade mostram um seletor “− 1 +” por pessoa e o preço por unidade.',
+        'Editar item agora tem controle de quantidade, então você corrige no app quando a leitura da nota errar o número de unidades.',
+      ],
+      en: [
+        'Bills with repeated items are fairer now: when the receipt has “2 orders” of the same item, you can claim by the unit. Two people each take one and pay the full unit price (no halving the item), and taking one of two charges you for just one — the other stays free for someone else. In the split, multi-quantity items show a per-person “− 1 +” stepper and the per-unit price.',
+        'The item editor now has a quantity control, so you can fix the unit count in-app when the receipt read it wrong.',
+      ],
+      es: [
+        'Las cuentas con ítems repetidos quedaron más justas: cuando la nota trae “2 pedidos” del mismo ítem, ahora puedes tomarlo por unidad. Dos personas toman uno cada una y pagan el precio completo de una unidad (sin dividir el ítem a la mitad), y tomar una de dos te cobra solo una — la otra queda libre para alguien. En la división, los ítems con cantidad muestran un selector “− 1 +” por persona y el precio por unidad.',
+        'El editor de ítem ahora tiene control de cantidad, así corriges en la app cuando la lectura de la nota se equivoca con el número de unidades.',
+      ],
+    },
+  },
+  {
     version: '0.99.23',
     date: '2026-06-20',
     items: {

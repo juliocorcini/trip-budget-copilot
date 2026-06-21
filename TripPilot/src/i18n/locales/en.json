@@ -807,6 +807,13 @@
     "edit_item": "Edit item",
     "item_name": "Description",
     "item_amount": "Amount",
+    "item_qty": "Quantity",
+    "per_unit": "/ea",
+    "qty_badge": "{{count}}×",
+    "units_free": "{{count}} unclaimed",
+    "units_all_taken": "all taken",
+    "unit_minus": "One less",
+    "unit_plus": "One more",
     "item_category": "Category",
     "item_done": "Done"
   },

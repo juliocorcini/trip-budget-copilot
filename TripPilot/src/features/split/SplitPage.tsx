@@ -12,6 +12,8 @@ import {
   itemsSubtotalCents,
   serviceChargeAmountCents,
   toggleEqualClaim,
+  setClaimUnits,
+  claimedUnits,
   addParticipant,
   promoteAdhocToParticipant,
   createSplitParticipant,
@@ -287,8 +289,24 @@ export function SplitPage() {
   const toggleClaimFor = (itemId: string, participantId: string) => {
     setSession((s) => (s ? toggleEqualClaim(s, itemId, participantId) : s));
   };
+  // F5b — set the active person's unit count on a multi-unit line. Used by the
+  // per-unit stepper so two people can each take ONE of "2 pedidos" at full unit
+  // price, and a sole taker pays for just the unit(s) they took.
+  const setUnitsFor = (itemId: string, units: number) => {
+    if (activePersonId === null) return;
+    setSession((s) => (s ? setClaimUnits(s, itemId, activePersonId, units) : s));
+  };
   const toggleClaim = (itemId: string) => {
     if (activePersonId === null) return;
+    // On a multi-unit line a tap takes ONE unit (or releases it), never the whole
+    // line — that is the qty>1 "I had one of these" gesture. Single-unit lines
+    // keep the equal-share toggle (½/½, N-avos) untouched.
+    const item = session?.items.find((i) => i.id === itemId);
+    if (item && item.qty > 1) {
+      const current = claimedUnits(item, activePersonId);
+      setUnitsFor(itemId, current > 0 ? 0 : 1);
+      return;
+    }
     toggleClaimFor(itemId, activePersonId);
   };
 
@@ -731,8 +749,14 @@ export function SplitPage() {
                 <div className="flex flex-col gap-2">
                   {session.items.map((item) => {
                     const claimers = item.claims.map((c) => c.participantId);
-                    const mine = activePersonId !== null && claimers.includes(activePersonId);
-                    const orphan = claimers.length === 0;
+                    const isMulti = item.qty > 1;
+                    const activeUnits = activePersonId !== null ? claimedUnits(item, activePersonId) : 0;
+                    const takenUnits = isMulti
+                      ? item.claims.reduce((sum, c) => sum + claimedUnits(item, c.participantId), 0)
+                      : 0;
+                    const freeUnits = Math.max(0, item.qty - takenUnits);
+                    const mine = isMulti ? activeUnits > 0 : activePersonId !== null && claimers.includes(activePersonId);
+                    const orphan = isMulti ? takenUnits === 0 : claimers.length === 0;
                     return (
                       <div
                         key={item.id}
@@ -748,14 +772,48 @@ export function SplitPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-on-surface truncate">
                               {item.description || t('split.unnamed_item')}
+                              {isMulti && (
+                                <span className="ml-1.5 text-[10px] font-bold text-primary align-middle">
+                                  {t('split.qty_badge', { count: item.qty })}
+                                </span>
+                              )}
                             </p>
                             <p className="text-[11px] text-on-surface-faint">
-                              {formatMoney(item.amountCents, currency)}
-                              {claimers.length > 1 && ` · ${t('split.shared_n', { count: claimers.length })}`}
-                              {orphan && ` · ${t('split.unclaimed')}`}
+                              {isMulti
+                                ? `${formatMoney(item.unitAmountCents, currency)} ${t('split.per_unit')}`
+                                : formatMoney(item.amountCents, currency)}
+                              {isMulti
+                                ? freeUnits > 0
+                                  ? ` · ${t('split.units_free', { count: freeUnits })}`
+                                  : ` · ${t('split.units_all_taken')}`
+                                : claimers.length > 1
+                                  ? ` · ${t('split.shared_n', { count: claimers.length })}`
+                                  : ''}
+                              {!isMulti && orphan && ` · ${t('split.unclaimed')}`}
                             </p>
                           </div>
                         </button>
+                        {isMulti && activePersonId !== null && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => setUnitsFor(item.id, activeUnits - 1)}
+                              disabled={activeUnits <= 0}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center btn-press bg-surface-high text-on-surface disabled:opacity-30"
+                              aria-label={t('split.unit_minus')}
+                            >
+                              <Icon name="remove" size={15} className="text-on-surface" />
+                            </button>
+                            <span className="w-5 text-center text-sm font-bold text-on-surface tabular-nums">{activeUnits}</span>
+                            <button
+                              onClick={() => setUnitsFor(item.id, activeUnits + 1)}
+                              disabled={activeUnits >= item.qty}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center btn-press bg-surface-high text-on-surface disabled:opacity-30"
+                              aria-label={t('split.unit_plus')}
+                            >
+                              <Icon name="add" size={15} className="text-on-surface" />
+                            </button>
+                          </div>
+                        )}
                         <div className="flex -space-x-1.5 shrink-0">
                           {claimers.slice(0, 4).map((cid) => {
                             const p = session.participants.find((x) => x.id === cid);
@@ -1278,9 +1336,43 @@ function ItemEditor({
             type="number"
             inputMode="decimal"
             defaultValue={item.amountCents > 0 ? (item.amountCents / 100).toString() : ''}
-            onChange={(e) => onPatch(item.id, { amountCents: toCents(parseFloat(e.target.value) || 0) })}
+            onChange={(e) => {
+              const amountCents = toCents(parseFloat(e.target.value) || 0);
+              const qty = item.qty > 0 ? item.qty : 1;
+              onPatch(item.id, { amountCents, unitAmountCents: Math.round(amountCents / qty) });
+            }}
             className="w-full rounded-xl px-3 py-2.5 text-sm bg-surface-high text-on-surface outline-none"
           />
+          <label className="text-xs font-semibold text-on-surface">{t('split.item_qty')}</label>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                const next = Math.max(1, (item.qty > 0 ? item.qty : 1) - 1);
+                onPatch(item.id, { qty: next, unitAmountCents: Math.round(item.amountCents / next) });
+              }}
+              disabled={item.qty <= 1}
+              className="w-9 h-9 rounded-xl flex items-center justify-center btn-press bg-surface-high text-on-surface disabled:opacity-30"
+              aria-label={t('split.unit_minus')}
+            >
+              <Icon name="remove" size={16} className="text-on-surface" />
+            </button>
+            <span className="w-8 text-center text-base font-bold text-on-surface tabular-nums">{item.qty}</span>
+            <button
+              onClick={() => {
+                const next = (item.qty > 0 ? item.qty : 1) + 1;
+                onPatch(item.id, { qty: next, unitAmountCents: Math.round(item.amountCents / next) });
+              }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center btn-press bg-surface-high text-on-surface"
+              aria-label={t('split.unit_plus')}
+            >
+              <Icon name="add" size={16} className="text-on-surface" />
+            </button>
+            {item.qty > 1 && (
+              <span className="text-[11px] text-on-surface-faint">
+                {formatMoney(item.unitAmountCents, currency)} {t('split.per_unit')}
+              </span>
+            )}
+          </div>
           <label className="text-xs font-semibold text-on-surface">{t('split.item_category')}</label>
           <div className="grid grid-cols-4 gap-2">
             {SPLIT_CATEGORIES.map((cat) => (

@@ -15,6 +15,8 @@ import {
   releaseClaim,
   splitItemBetween,
   toggleEqualClaim,
+  setClaimUnits,
+  claimedUnits,
   addParticipant,
   createSplitItem,
   createSplitSession,
@@ -484,6 +486,85 @@ describe('toggleEqualClaim', () => {
     const item = createSplitItem({ description: 'X', amountCents: 100 });
     const { session, ids } = makeSession(['Eu'], [item]);
     expect(toggleEqualClaim(session, 'nope', ids['Eu']!)).toBe(session);
+  });
+});
+
+describe('setClaimUnits / claimedUnits (F5b — qty>1 per-unit claiming)', () => {
+  // "2 pedidos de tortilha a 6,40 = 12,80 na linha". The user's scenario: two
+  // people each take ONE at the FULL unit price, and a sole taker pays for ONE
+  // unit only (the other stays orphaned) — not the whole line.
+  const twoTortillas = () => createSplitItem({ description: 'Tortilha', amountCents: 1280, qty: 2 });
+
+  it('createSplitItem derives qty + unit price', () => {
+    const item = twoTortillas();
+    expect(item.qty).toBe(2);
+    expect(item.unitAmountCents).toBe(640);
+  });
+
+  it('a SOLE taker of 1 of 2 units pays the unit price, leaving the other unit orphaned', () => {
+    const item = twoTortillas();
+    const { session, ids } = makeSession(['Eu', 'Ana'], [item]);
+    const s = setClaimUnits(session, item.id, ids['Eu']!, 1);
+    expect(claimedUnits(s.items[0]!, ids['Eu']!)).toBe(1);
+    expect(totalFor(s, ids['Eu']!)).toBe(640); // ONE unit, not the whole 1280
+    // Half the line is still orphaned — weight 0.5, with exactly 1 free unit. The
+    // UI surfaces that remaining unit; detectUnclaimed stays a binary "nobody took
+    // it at all" detector, so a partly-claimed line is (correctly) not flagged.
+    expect(itemClaimedWeight(s.items[0]!)).toBeCloseTo(0.5, 6);
+    expect(item.qty - claimedUnits(s.items[0]!, ids['Eu']!)).toBe(1);
+    expect(detectUnclaimed(s)).toEqual([]);
+  });
+
+  it('two people each taking ONE unit splits the line at full unit price (no halving)', () => {
+    const item = twoTortillas();
+    const { session, ids } = makeSession(['Eu', 'Ana'], [item]);
+    let s = setClaimUnits(session, item.id, ids['Eu']!, 1);
+    s = setClaimUnits(s, item.id, ids['Ana']!, 1);
+    expect(totalFor(s, ids['Eu']!)).toBe(640);
+    expect(totalFor(s, ids['Ana']!)).toBe(640);
+    expect(itemClaimedWeight(s.items[0]!)).toBeCloseTo(1, 6);
+    expect(detectUnclaimed(s)).toEqual([]); // fully claimed
+    expect(detectClaimConflicts(s)).toEqual([]); // and NOT an over-claim
+  });
+
+  it('setting units to 0 releases the claim (deselect)', () => {
+    const item = twoTortillas();
+    const { session, ids } = makeSession(['Eu'], [item]);
+    const claimed = setClaimUnits(session, item.id, ids['Eu']!, 1);
+    const released = setClaimUnits(claimed, item.id, ids['Eu']!, 0);
+    expect(released.items[0]!.claims).toEqual([]);
+  });
+
+  it('clamps the unit count to [0, qty] (cannot over-take the line)', () => {
+    const item = twoTortillas();
+    const { session, ids } = makeSession(['Eu'], [item]);
+    const s = setClaimUnits(session, item.id, ids['Eu']!, 5); // asks for 5 of 2
+    expect(claimedUnits(s.items[0]!, ids['Eu']!)).toBe(2);
+    expect(totalFor(s, ids['Eu']!)).toBe(1280); // the whole line, capped
+  });
+
+  it('a third taker on a 2-unit line is flagged as a conflict (over-claim)', () => {
+    const item = twoTortillas();
+    const { session, ids } = makeSession(['Eu', 'Ana', 'Beto'], [item]);
+    let s = setClaimUnits(session, item.id, ids['Eu']!, 1);
+    s = setClaimUnits(s, item.id, ids['Ana']!, 1);
+    s = setClaimUnits(s, item.id, ids['Beto']!, 1); // 3 units > qty 2
+    expect(detectClaimConflicts(s).map((c) => c.itemId)).toEqual([item.id]);
+  });
+
+  it('claimedUnits converts a legacy fraction claim back to its unit-equivalent', () => {
+    const item = twoTortillas();
+    const { session, ids } = makeSession(['Eu', 'Ana'], [item]);
+    // a ½/½ fraction split of a 2-unit line == one unit each
+    const s = splitItemBetween(session, item.id, [ids['Eu']!, ids['Ana']!]);
+    expect(claimedUnits(s.items[0]!, ids['Eu']!)).toBe(1);
+    expect(claimedUnits(s.items[0]!, ids['Ana']!)).toBe(1);
+  });
+
+  it('is a no-op for an unknown item id', () => {
+    const item = twoTortillas();
+    const { session, ids } = makeSession(['Eu'], [item]);
+    expect(setClaimUnits(session, 'nope', ids['Eu']!, 1)).toBe(session);
   });
 });
 

@@ -811,6 +811,13 @@
     "edit_item": "Editar item",
     "item_name": "Descrição",
     "item_amount": "Valor",
+    "item_qty": "Quantidade",
+    "per_unit": "/un",
+    "qty_badge": "{{count}}×",
+    "units_free": "{{count}} sem dono",
+    "units_all_taken": "todos pegos",
+    "unit_minus": "Menos uma unidade",
+    "unit_plus": "Mais uma unidade",
     "item_category": "Categoria",
     "item_done": "Pronto"
   },

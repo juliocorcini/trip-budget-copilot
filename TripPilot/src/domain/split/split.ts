@@ -397,6 +397,44 @@ export function toggleEqualClaim(session: SplitSession, itemId: string, particip
     : splitItemBetween(session, itemId, remaining);
 }
 
+/**
+ * F5b — how many UNITS a participant currently takes of a line. A unit-based
+ * claim reports its `units`; a fraction claim is converted back to its nearest
+ * unit-equivalent (`fraction × qty`) so a stepper seeded from any prior state
+ * shows a sensible number. 0 when the participant has no claim.
+ */
+export function claimedUnits(item: SplitItem, participantId: string): number {
+  const claim = item.claims.find((c) => c.participantId === participantId);
+  if (!claim) return 0;
+  if (claim.units !== null) return claim.units;
+  return Math.round(claim.fraction * (item.qty > 0 ? item.qty : 1));
+}
+
+/**
+ * F5b — set how many whole UNITS of a multi-unit line a participant takes. For a
+ * line with qty>1 ("2 pedidos") this lets several people each take ONE unit at
+ * the unit price (1 of 2 → half the line) instead of fraction-splitting it, and
+ * crucially lets a SOLE taker of a 2-unit line pay for just ONE unit (leaving the
+ * other unit orphaned/available) rather than the whole line. Other participants'
+ * unit claims are left untouched so the remaining units stay claimable. Clamps to
+ * [0, item.qty]; 0 releases the claim. Pure; a no-op for an unknown item, and the
+ * markedPaid lock is enforced by claimItem/releaseClaim.
+ */
+export function setClaimUnits(
+  session: SplitSession,
+  itemId: string,
+  participantId: string,
+  units: number,
+): SplitSession {
+  const item = session.items.find((i) => i.id === itemId);
+  if (!item) return session;
+  const max = item.qty > 0 ? item.qty : 1;
+  const clamped = Math.max(0, Math.min(max, Math.round(units)));
+  return clamped === 0
+    ? releaseClaim(session, itemId, participantId)
+    : claimItem(session, itemId, participantId, { units: clamped });
+}
+
 export interface AddParticipantIdentity {
   kind?: SplitParticipantKind;
   actorId?: string | null;
