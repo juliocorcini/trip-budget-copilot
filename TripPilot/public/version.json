@@ -1,8 +1,8 @@
 {
-  "version": "0.99.21",
+  "version": "0.99.22",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.21.zip",
-  "notes": "Dividir conta: agora dá pra desmarcar um item mesmo quando só você pegou ele (antes só soltava se outra pessoa também tivesse pegado)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.22.zip",
+  "notes": "Gasto de Dividir conta agora abre direto na divisão completa (quem pegou o quê, quanto cada um paga) no histórico Todos — antes só aparecia no filtro 'sem carteira'. E ele não aparece mais duplicado na aba Saídas."
 }

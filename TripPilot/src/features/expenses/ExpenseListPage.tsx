@@ -28,6 +28,7 @@ import { FastScroller } from '@/features/expenses/FastScroller';
 import { SelectionBar, type SelectionAction } from '@/components/SelectionBar';
 import { showToast } from '@/components/Toast';
 import { getCategoryIcon } from '@/utils/category-icons';
+import { isSplitCommitTransaction } from '@/domain/split';
 import { buildSessionFeed, groupFeedByDay } from './expense-feed';
 import { countActiveFilters, hasActiveFilter, type ExpenseFilterState } from './expense-filters';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
@@ -152,8 +153,17 @@ export function ExpenseListPage() {
   // DEC-206 (rollup): a receipt/outing is ONE session holding N transactions.
   // Derive the session lookup + the completed-history list from the single load.
   const sessionById = new Map(allSessions.map((s) => [s.id, s]));
+  // F2: a committed bill split is also wrapped in a completed Session, but it is a
+  // "gasto dividido", not a bar outing — it belongs in Gastos (where its detail
+  // shows the division), never in the Saídas tab. Drop those sessions here so a
+  // split lives in exactly one place instead of masquerading as an outing too.
+  const splitSessionIds = new Set(
+    transactions
+      .filter((tx) => isSplitCommitTransaction(tx) && tx.sessionId)
+      .map((tx) => tx.sessionId as string),
+  );
   const completedSessions = allSessions
-    .filter((s) => s.status === 'completed' && s.endedAt !== null)
+    .filter((s) => s.status === 'completed' && s.endedAt !== null && !splitSessionIds.has(s.id))
     .sort((a, b) => (b.endedAt ?? '').localeCompare(a.endedAt ?? ''));
 
   const poolMap = new Map(pools.map((p) => [p.id, p.name]));

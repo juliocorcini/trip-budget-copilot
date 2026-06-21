@@ -32,6 +32,21 @@ export interface SplitCommitPlan {
 
 const DEFAULT_SPLIT_CATEGORY = 'restaurant';
 
+/** Transactions committed from a bill split carry this `externalRef` prefix (T1). */
+export const SPLIT_REF_PREFIX = 'split:';
+
+/**
+ * True when a transaction was created by committing a bill division. A split is
+ * persisted as ONE expense (the whole bill) wrapped in a Session, plus the rich
+ * readable SplitRecord — so in the history it must read as that single "gasto
+ * dividido" whose detail shows the division, never as a generic session rollup
+ * that hides who-took-what (F2). Structural input so pure callers (the feed) can
+ * use it without importing the Transaction entity.
+ */
+export function isSplitCommitTransaction(tx: { externalRef?: string | null }): boolean {
+  return typeof tx.externalRef === 'string' && tx.externalRef.startsWith(SPLIT_REF_PREFIX);
+}
+
 /** The category carrying the most money across the items (ignores 'other'). */
 export function dominantSplitCategory(session: SplitSession): string {
   const tally = new Map<string, number>();

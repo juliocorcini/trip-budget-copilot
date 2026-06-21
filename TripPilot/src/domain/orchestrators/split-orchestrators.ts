@@ -6,16 +6,13 @@ import {
   DEFAULT_QUICK_ADD_VALUES_CENTS,
 } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
-import { buildSplitCommitPlan } from '@/domain/split';
+import { buildSplitCommitPlan, SPLIT_REF_PREFIX } from '@/domain/split';
 import { resolveShareBirthStatus } from '@/domain/splitting';
 import { convertToBaseCents } from '@/domain/money';
 import { createSyncMetadata, softDelete } from '@/utils/entity-factory';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { SplitRecord } from '@/domain/types/split-record';
 import type { SplitSession } from '@/domain/split';
-
-/** Records committed from a bill split carry this externalRef prefix. */
-const SPLIT_REF_PREFIX = 'split:';
 
 export interface CommitSplitInput {
   /** The in-progress division (mode set, claims/tax/adjustments resolved). */

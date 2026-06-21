@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.22',
+    date: '2026-06-20',
+    items: {
+      'pt-BR': [
+        'Gasto criado em “Dividir conta” agora mostra a divisão completa (quem pegou o quê e quanto cada um paga) ao abrir pelo histórico em “Todos” — antes essa parte só aparecia no filtro “sem carteira”. E ele deixou de aparecer duplicado na aba “Saídas”: divisão de conta é gasto, e fica só em Gastos.',
+      ],
+      en: [
+        'An expense from “Split the bill” now opens straight to the full division (who took what and how much each owes) from the “All” history — before that detail only showed under the “no wallet” filter. It also no longer appears duplicated in the “Outings” tab: a split is an expense, so it lives only under Expenses.',
+      ],
+      es: [
+        'El gasto creado en “Dividir cuenta” ahora muestra la división completa (quién tomó qué y cuánto paga cada uno) al abrirlo desde el historial en “Todos” — antes eso solo aparecía con el filtro “sin billetera”. Además dejó de aparecer duplicado en la pestaña “Salidas”: dividir una cuenta es un gasto y vive solo en Gastos.',
+      ],
+    },
+  },
+  {
     version: '0.99.21',
     date: '2026-06-20',
     items: {

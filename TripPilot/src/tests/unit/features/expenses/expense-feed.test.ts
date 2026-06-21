@@ -64,6 +64,39 @@ describe('buildSessionFeed (DEC-206 rollup + D-BUG-04)', () => {
     expect(feed).toHaveLength(2);
     expect(feed.every((e) => e.kind === 'tx')).toBe(true);
   });
+
+  it('F2: a split-commit tx is NEVER rolled up — it stays a standalone gasto even while browsing', () => {
+    // A committed split is one Session holding ONE expense (externalRef "split:…")
+    // whose detail shows the division. Collapsing it hid that detail in "Todos".
+    const sessionById = new Map([['split-sess', session('split-sess')]]);
+    const feed = buildSessionFeed(
+      [tx({ id: 'split-tx', sessionId: 'split-sess', externalRef: 'split:abc', amountCents: 5_300 })],
+      sessionById,
+      true,
+    );
+    expect(feed).toHaveLength(1);
+    expect(feed[0]?.kind).toBe('tx');
+    if (feed[0]?.kind === 'tx') expect(feed[0].tx.id).toBe('split-tx');
+  });
+
+  it('still rolls up genuine receipt/outing sessions alongside a split-commit tx', () => {
+    const sessionById = new Map([
+      ['receipt', session('receipt')],
+      ['split-sess', session('split-sess')],
+    ]);
+    const feed = buildSessionFeed(
+      [
+        tx({ id: 'r1', sessionId: 'receipt', amountCents: 300 }),
+        tx({ id: 'r2', sessionId: 'receipt', amountCents: 700 }),
+        tx({ id: 'split-tx', sessionId: 'split-sess', externalRef: 'split:xyz', amountCents: 2_000 }),
+      ],
+      sessionById,
+      true,
+    );
+    expect(feed).toHaveLength(2);
+    expect(feed[0]?.kind).toBe('session'); // the receipt still collapses
+    expect(feed[1]?.kind).toBe('tx'); // the split stays standalone
+  });
 });
 
 describe('groupFeedByDay (D-BUG-04 invariance)', () => {

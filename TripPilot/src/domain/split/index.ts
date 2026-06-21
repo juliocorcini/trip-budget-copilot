@@ -24,7 +24,12 @@ export {
   NO_SERVICE_CHARGE,
 } from './split';
 export type { AddParticipantIdentity } from './split';
-export { buildSplitCommitPlan, dominantSplitCategory } from './commit';
+export {
+  buildSplitCommitPlan,
+  dominantSplitCategory,
+  isSplitCommitTransaction,
+  SPLIT_REF_PREFIX,
+} from './commit';
 export type { SplitCommitPlan, SplitCommitShare } from './commit';
 export { buildSplitFromReceipt } from './from-receipt';
 export type { BuildSplitFromReceiptInput, ReceiptSplitDraft } from './from-receipt';

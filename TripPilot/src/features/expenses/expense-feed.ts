@@ -1,4 +1,5 @@
 import { localDayOf } from '@/domain/dates';
+import { isSplitCommitTransaction } from '@/domain/split';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 
@@ -21,7 +22,14 @@ export interface FeedDayGroup {
  * DEC-206 (rollup): collapse each browsed session's transactions into ONE feed
  * entry positioned at its latest line (a 40-item receipt reads as one row).
  * Income carries no `sessionId`, so it is always a standalone `tx` entry.
- * Pure projection — input order is preserved.
+ *
+ * F2: a committed bill split is ALSO one Session, but holding a single expense
+ * (the whole bill) whose detail page shows the readable division (who took what,
+ * who owes). Collapsing it into a session rollup routed it to the outing review,
+ * which hides that division — visible only under the "sem carteira" filter that
+ * happened to disable the rollup. So a split-commit tx is NEVER collapsed: it
+ * reads as its own "gasto dividido" row everywhere, and the division is always
+ * one tap away. Pure projection — input order is preserved.
  */
 export function buildSessionFeed(
   feedTransactions: Transaction[],
@@ -31,7 +39,10 @@ export function buildSessionFeed(
   const feed: FeedEntry[] = [];
   const sessionEntryById = new Map<string, Extract<FeedEntry, { kind: 'session' }>>();
   for (const tx of feedTransactions) {
-    const session = isBrowsing && tx.sessionId ? sessionById.get(tx.sessionId) : undefined;
+    const session =
+      isBrowsing && tx.sessionId && !isSplitCommitTransaction(tx)
+        ? sessionById.get(tx.sessionId)
+        : undefined;
     if (session) {
       const existing = sessionEntryById.get(session.id);
       if (existing) {
