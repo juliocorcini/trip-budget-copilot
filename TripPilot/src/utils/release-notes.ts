@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.32',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Agora seus amigos já conectados aparecem na divisão: ao adicionar uma pessoa à conta, vem uma lista de “Amigos conectados” — toque num e ele entra na divisão na hora, sem refazer QR. Quando esse amigo já é uma pessoa da viagem atual, a divisão se liga a ele automaticamente (a dívida vai direto pra ele).',
+        'Cada amigo mostra um status honesto: conectado (dá pra avisar agora), aguardando (mandamos, falta ele responder) ou reconectar (precisa parear de novo). A caixa de digitar um nome novo continua ali, do lado.',
+      ],
+      en: [
+        'Your already-connected friends now show up in the split: when you add someone to the bill, a “Connected friends” list appears — tap one and they join the split right away, no QR redo. When that friend is already a person on the current trip, the split links to them automatically (the debt goes straight to them).',
+        'Each friend shows an honest status: connected (we can ping now), waiting (sent, awaiting their reply) or reconnect (needs to pair again). The type-a-new-name box is still right there.',
+      ],
+      es: [
+        'Tus amigos ya conectados ahora aparecen en la división: al agregar a alguien a la cuenta, sale una lista de “Amigos conectados” — toca uno y entra en la división al instante, sin rehacer el QR. Cuando ese amigo ya es una persona del viaje actual, la división se vincula a él automáticamente (la deuda le llega directo).',
+        'Cada amigo muestra un estado honesto: conectado (podemos avisar ahora), esperando (enviado, falta su respuesta) o reconectar (hay que parear de nuevo). La caja para escribir un nombre nuevo sigue ahí al lado.',
+      ],
+    },
+  },
+  {
     version: '0.99.31',
     date: '2026-06-21',
     items: {

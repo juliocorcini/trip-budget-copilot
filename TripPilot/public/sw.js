@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trippilot-v73';
+const CACHE_NAME = 'trippilot-v74';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

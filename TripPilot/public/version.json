@@ -1,8 +1,8 @@
 {
-  "version": "0.99.31",
+  "version": "0.99.32",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.31.zip",
-  "notes": "Agora dá pra transformar uma Saída em conta dividida: ao encerrar a saída, toque em “Dividir esta saída com outras pessoas” e a divisão já abre com tudo o que você consumiu. O gasto é movido (não duplica) e dá pra desfazer."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.32.zip",
+  "notes": "Amigos conectados na divisão: ao adicionar alguém à conta, seus amigos já pareados aparecem numa lista — toque pra incluir sem refazer QR, com status honesto (conectado/aguardando/reconectar)."
 }

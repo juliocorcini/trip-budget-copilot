@@ -28,13 +28,16 @@ import {
 } from '@/domain/split';
 import { commitSplit, undoSplitCommit } from '@/domain/orchestrators';
 import { createParticipant } from '@/domain/splitting';
+// B2 (coherence §2.2): reuse a known friend (persisted peerLink) when dividing,
+// instead of re-scanning a QR. Pure view layer over the global peerLinks table.
+import { buildConnectionViews, type ConnectionView } from '@/domain/connections';
 import { useSplitLiveLink, type SplitLiveLink } from './useSplitLiveLink';
 import { LiveStatusBadge } from './LiveStatusBadge';
 import { loadOwnerLive, clearOwnerLive, fetchSplitTable } from './live-link';
 import { takeReceiptSplitHandoff, hasPendingReceiptSplitHandoff } from './receipt-split-handoff';
 import { takeOutingSplitHandoff, hasPendingOutingSplitHandoff } from './outing-split-handoff';
 import { newAttachment } from '@/features/attachments/attachment-utils';
-import { attachmentRepository, appSettingsRepository, participantRepository } from '@/data/repositories';
+import { attachmentRepository, appSettingsRepository, participantRepository, peerLinkRepository } from '@/data/repositories';
 import { resolveActivePhase } from '@/domain/dates';
 import { formatMoney, toCents, convertToBaseCents, resolveFrozenRate } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -110,6 +113,36 @@ export function SplitPage() {
   const ownerName = owner?.name ?? t('split.you');
 
   const companions = useMemo(() => participants.filter((p) => !p.isOwner), [participants]);
+
+  // B2 (coherence §2.2) — known friends (persisted peerLinks, cross-trip) so the
+  // owner can add someone to the bill in one tap instead of re-scanning a QR.
+  // Loaded once on mount; the honest status (connected/waiting/offline) is derived
+  // by the pure connections layer. Reused via the existing addParticipant(actorId).
+  const [connections, setConnections] = useState<ConnectionView[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void peerLinkRepository.getAll().then((links) => {
+      if (alive) setConnections(buildConnectionViews(links, Date.now()));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /** Add a known friend to the split: link to the CURRENT trip's participant when
+   *  one already maps to this actor (so commit mints a real debt riding the
+   *  mirror); otherwise add carrying the actorId (promote-to-person stays available). */
+  const addFriend = (conn: ConnectionView) => {
+    setSession((s) => {
+      if (!s) return s;
+      if (s.participants.some((p) => p.actorId === conn.actorId)) return s;
+      const tripParticipant = participants.find((p) => p.linkedActorId === conn.actorId);
+      return addParticipant(s, conn.displayName, {
+        actorId: conn.actorId,
+        linkedParticipantId: tripParticipant?.id ?? null,
+      }).session;
+    });
+  };
 
   // G2 (live table): guest claims posted to the share channel are folded into
   // the live session by the owner-reducer — owner-authoritative, so a guest can
@@ -1005,6 +1038,12 @@ export function SplitPage() {
           addAdhoc(name);
           setPersonSheetOpen(false);
         }}
+        connections={connections}
+        existingActorIds={session ? session.participants.map((p) => p.actorId).filter((id): id is string => id !== null) : []}
+        onAddFriend={(conn) => {
+          addFriend(conn);
+          setPersonSheetOpen(false);
+        }}
         t={t}
       />
 
@@ -1541,21 +1580,73 @@ function TaxEditor({
   );
 }
 
+const CONNECTION_STATUS_DOT: Record<ConnectionView['status'], string> = {
+  connected: 'var(--success)',
+  waiting: 'var(--warning)',
+  offline: 'var(--on-surface-faint)',
+};
+
 function PersonEditor({
   open,
   onClose,
   onAdd,
+  connections,
+  existingActorIds,
+  onAddFriend,
   t,
 }: {
   open: boolean;
   onClose: () => void;
   onAdd: (name: string) => void;
+  connections: ConnectionView[];
+  existingActorIds: string[];
+  onAddFriend: (conn: ConnectionView) => void;
   t: TFn;
 }) {
   const [name, setName] = useState('');
+  // B2 — only offer friends not already on this bill (dedupe by actorId).
+  const available = connections.filter((c) => !existingActorIds.includes(c.actorId));
   return (
     <BottomSheet open={open} onClose={onClose} title={t('split.add_person')}>
       <div className="flex flex-col gap-3 pb-2">
+        {available.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide">
+              {t('split.friends_title')}
+            </p>
+            <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto">
+              {available.map((conn) => (
+                <button
+                  key={conn.actorId}
+                  onClick={() => onAddFriend(conn)}
+                  className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 bg-surface-high btn-press text-left"
+                >
+                  <span className="w-8 h-8 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                    {initials(conn.displayName)}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-on-surface truncate">
+                      {conn.displayName}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[10px] text-on-surface-faint">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: CONNECTION_STATUS_DOT[conn.status] }}
+                      />
+                      {t(`split.friend_status_${conn.status}`)}
+                    </span>
+                  </span>
+                  <Icon name="add" size={18} className="text-primary shrink-0" />
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="flex-1 h-px bg-surface-high" />
+              <span className="text-[10px] text-on-surface-faint">{t('split.friends_or_new')}</span>
+              <span className="flex-1 h-px bg-surface-high" />
+            </div>
+          </div>
+        )}
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
