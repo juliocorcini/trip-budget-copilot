@@ -34,6 +34,13 @@ export interface CommitSplitInput {
   exchangeRate: number | null;
   /** Receipt photo to link to the created session, or null. */
   attachmentId: string | null;
+  /**
+   * C2 — when this split was promoted from a SOLO outing ("dividir esta saída"),
+   * the source outing's Session id. Its rounds are soft-deleted in the SAME
+   * transaction so the money is MOVED into the split, never duplicated. null for
+   * a normal split (receipt/manual/live).
+   */
+  supersededOutingSessionId?: string | null;
 }
 
 export interface CommitSplitResult {
@@ -60,6 +67,50 @@ function resolveRealIds(
 
 function toBaseCents(cents: number, exchangeRate: number | null): number {
   return exchangeRate === null ? cents : convertToBaseCents(cents, exchangeRate);
+}
+
+/**
+ * C2 — soft-delete a superseded solo outing's Session, its round transactions and
+ * their item links (all by `sessionId`), so promoting it to a split MOVES the
+ * money instead of double-counting. Must run inside the commit's Dexie transaction.
+ */
+async function softDeleteOutingRows(outingSessionId: string): Promise<void> {
+  const txs = await db.transactions.where('sessionId').equals(outingSessionId).toArray();
+  const liveTxs = txs.filter((tx) => !tx.deletedAt);
+  if (liveTxs.length > 0) await db.transactions.bulkPut(liveTxs.map((tx) => softDelete(tx)));
+
+  const items = await db.sessionItems.where('sessionId').equals(outingSessionId).toArray();
+  const liveItems = items.filter((item) => !item.deletedAt);
+  if (liveItems.length > 0) await db.sessionItems.bulkPut(liveItems.map((item) => softDelete(item)));
+
+  const outingSession = await db.sessions.get(outingSessionId);
+  if (outingSession !== undefined && !outingSession.deletedAt) {
+    await db.sessions.put(softDelete(outingSession));
+  }
+}
+
+/** C2 — restore a superseded outing (undo of {@link softDeleteOutingRows}). */
+async function restoreOutingRows(outingSessionId: string): Promise<void> {
+  const now = new Date().toISOString();
+  const undelete = <T extends { deletedAt: string | null; updatedAt: string; revision: number }>(row: T): T => ({
+    ...row,
+    deletedAt: null,
+    updatedAt: now,
+    revision: row.revision + 1,
+  });
+
+  const txs = await db.transactions.where('sessionId').equals(outingSessionId).toArray();
+  const deletedTxs = txs.filter((tx) => tx.deletedAt);
+  if (deletedTxs.length > 0) await db.transactions.bulkPut(deletedTxs.map(undelete));
+
+  const items = await db.sessionItems.where('sessionId').equals(outingSessionId).toArray();
+  const deletedItems = items.filter((item) => item.deletedAt);
+  if (deletedItems.length > 0) await db.sessionItems.bulkPut(deletedItems.map(undelete));
+
+  const outingSession = await db.sessions.get(outingSessionId);
+  if (outingSession !== undefined && outingSession.deletedAt) {
+    await db.sessions.put(undelete(outingSession));
+  }
 }
 
 /**
@@ -161,6 +212,13 @@ export async function commitSplit(input: CommitSplitInput): Promise<CommitSplitR
           await db.attachments.put({ ...attachment, transactionId: null, sessionId: session.id });
         }
       }
+      // C2 — atomically retire the source solo outing so its rounds don't
+      // double-count alongside the new split (move, not duplicate). Different
+      // sessionId from the split just created above, so this never touches the
+      // new rows. Reversible via undoSplitCommit.
+      if (input.supersededOutingSessionId) {
+        await softDeleteOutingRows(input.supersededOutingSessionId);
+      }
     },
   );
 
@@ -178,6 +236,8 @@ export async function undoSplitCommit(ids: {
   splitRecordId: string;
   sessionId: string;
   transactionId: string;
+  /** C2 — when set, restores the solo outing this split superseded on commit. */
+  supersededOutingSessionId?: string | null;
 }): Promise<void> {
   await db.transaction(
     'rw',
@@ -208,6 +268,11 @@ export async function undoSplitCommit(ids: {
           updatedAt: new Date().toISOString(),
           revision: record.revision + 1,
         });
+      }
+
+      // C2 — bring the original solo outing back exactly as it was.
+      if (ids.supersededOutingSessionId) {
+        await restoreOutingRows(ids.supersededOutingSessionId);
       }
     },
   );

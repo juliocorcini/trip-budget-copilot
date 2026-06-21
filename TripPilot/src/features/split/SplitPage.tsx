@@ -32,6 +32,7 @@ import { useSplitLiveLink, type SplitLiveLink } from './useSplitLiveLink';
 import { LiveStatusBadge } from './LiveStatusBadge';
 import { loadOwnerLive, clearOwnerLive, fetchSplitTable } from './live-link';
 import { takeReceiptSplitHandoff, hasPendingReceiptSplitHandoff } from './receipt-split-handoff';
+import { takeOutingSplitHandoff, hasPendingOutingSplitHandoff } from './outing-split-handoff';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository, participantRepository } from '@/data/repositories';
 import { resolveActivePhase } from '@/domain/dates';
@@ -126,10 +127,18 @@ export function SplitPage() {
   // B1 — a pending receipt→split handoff is an explicit NEW bill, so it always
   // wins over resume: seed resumedRef true (skip the resume effect) and never
   // show the "Retomando…" spinner for it.
+  // B1 (receipt) and C2 (outing) both hand off an explicit NEW bill that must win
+  // over resuming a previous live table.
+  const hasPendingHandoff = hasPendingReceiptSplitHandoff() || hasPendingOutingSplitHandoff();
   const [resuming, setResuming] = useState(
-    () => !forceNew && loadOwnerLive() !== null && !hasPendingReceiptSplitHandoff(),
+    () => !forceNew && loadOwnerLive() !== null && !hasPendingHandoff,
   );
-  const resumedRef = useRef(hasPendingReceiptSplitHandoff());
+  const resumedRef = useRef(hasPendingHandoff);
+
+  // C2 — when this split was promoted from a solo outing, the source outing's
+  // session id, so the commit (and its undo) can MOVE the rounds instead of
+  // double-counting (the council's "move, not duplicate").
+  const supersedeOutingRef = useRef<string | null>(null);
 
   // B1 (audit §2.1) — a bill scanned in the receipt door chose "Dividir ao vivo".
   // Consume the single-use handoff and open straight on the divide screen with the
@@ -160,6 +169,27 @@ export function SplitPage() {
       showToast(t('receiptScan.no_items_found'), 'warning', { durationMs: 6000 });
     }
   }, [trip, phases, ownerName, baseCurrency, t]);
+
+  // C2 (coherence §2.1) — a solo outing chose "Dividir esta saída". Consume the
+  // single-use handoff and open straight on the divide screen with the session
+  // already built from the outing's rounds (buildSplitFromOuting). The source
+  // outing's id is held so the commit MOVES the rounds (no double-count).
+  const outingHandoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (outingHandoffConsumedRef.current) return;
+    if (!hasPendingOutingSplitHandoff()) return;
+    if (!trip) return;
+    outingHandoffConsumedRef.current = true;
+    const handoff = takeOutingSplitHandoff();
+    if (!handoff) return;
+    supersedeOutingRef.current = handoff.supersedeOutingSessionId;
+    setSession(handoff.session);
+    setActivePersonId(handoff.session.participants[0]?.id ?? null);
+    setPhase('divide');
+    if (handoff.session.items.length === 0) {
+      showToast(t('receiptScan.no_items_found'), 'warning', { durationMs: 6000 });
+    }
+  }, [trip, t]);
 
   // Tracks whether THIS screen is still mounted. A plain `cancelled` local is
   // defeated by React 19 StrictMode (and fast remounts): the first run's cleanup
@@ -466,6 +496,7 @@ export function SplitPage() {
         if (p.linkedParticipantId !== null) participantIdMap[p.id] = p.linkedParticipantId;
       }
 
+      const supersededOutingSessionId = supersedeOutingRef.current;
       const result = await commitSplit({
         session,
         tripId: trip.id,
@@ -476,6 +507,7 @@ export function SplitPage() {
         participantIdMap,
         exchangeRate: billRate,
         attachmentId,
+        supersededOutingSessionId,
       });
 
       live.stop();
@@ -488,6 +520,7 @@ export function SplitPage() {
             splitRecordId: result.splitRecordId,
             sessionId: result.sessionId,
             transactionId: result.transactionId,
+            supersededOutingSessionId,
           }).then(() => {
             notifyAppDataChanged();
             showToast(t('common.undo_done'), 'info');

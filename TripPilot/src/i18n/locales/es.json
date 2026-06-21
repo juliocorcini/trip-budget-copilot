@@ -1823,6 +1823,7 @@
     "review_special_hint": "Las ocasiones especiales no actualizan los valores típicos de la actividad",
     "review_exclude_learning": "No usar para el aprendizaje",
     "review_confirm": "Confirmar y finalizar salida",
+    "review_divide": "Dividir esta salida con otras personas",
     "alerts": {
       "amigo_sincero": {
         "halfway": "Ya se fue la mitad de la meta. ¿Es el ritmo que querías?",

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.30",
+  "version": "0.99.31",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.30.zip",
-  "notes": "Novo “O que eu posso pedir?” na entrada por IA: uma lista grande de exemplos por categoria (gastos, dividir, alguém pagou, carteiras, dívidas, planejar, abrir telas…) — toque num exemplo pra usar e descobrir tudo o que dá pra falar com a IA."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.31.zip",
+  "notes": "Agora dá pra transformar uma Saída em conta dividida: ao encerrar a saída, toque em “Dividir esta saída com outras pessoas” e a divisão já abre com tudo o que você consumiu. O gasto é movido (não duplica) e dá pra desfazer."
 }

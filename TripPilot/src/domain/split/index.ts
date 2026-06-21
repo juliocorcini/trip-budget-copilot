@@ -35,6 +35,8 @@ export {
 export type { SplitCommitPlan, SplitCommitShare } from './commit';
 export { buildSplitFromReceipt } from './from-receipt';
 export type { BuildSplitFromReceiptInput, ReceiptSplitDraft } from './from-receipt';
+export { buildSplitFromOuting } from './from-outing';
+export type { BuildSplitFromOutingInput, OutingRoundInput } from './from-outing';
 export { planGuestSelfExpense } from './guest-self-expense';
 export type { PlanGuestSelfExpenseInput, GuestSelfExpensePlan } from './guest-self-expense';
 export {

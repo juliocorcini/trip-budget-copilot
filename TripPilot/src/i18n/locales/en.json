@@ -1823,6 +1823,7 @@
     "review_special_hint": "Special occasions don't update the activity's typical values",
     "review_exclude_learning": "Don't use for learning",
     "review_confirm": "Confirm and end outing",
+    "review_divide": "Split this outing with others",
     "alerts": {
       "amigo_sincero": {
         "halfway": "Half the target is gone. Is this the pace you wanted?",

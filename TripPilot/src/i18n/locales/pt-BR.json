@@ -1827,6 +1827,7 @@
     "review_special_hint": "Ocasiões especiais não atualizam os valores típicos da atividade",
     "review_exclude_learning": "Não usar no aprendizado",
     "review_confirm": "Confirmar e encerrar saída",
+    "review_divide": "Dividir esta saída com outras pessoas",
     "alerts": {
       "amigo_sincero": {
         "halfway": "Metade da meta já foi. Tá no ritmo que você queria?",

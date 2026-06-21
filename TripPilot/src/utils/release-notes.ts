@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.31',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Agora a Saída e a divisão de conta conversam: ao encerrar uma saída, além de “Confirmar e encerrar”, aparece “Dividir esta saída com outras pessoas”. Toque e a tela de divisão já abre com cada rodada virando um item — sem refazer nada. Marque quem pegou o quê, passe o celular pela mesa ou compartilhe ao vivo, igual a qualquer divisão.',
+        'O gasto é MOVIDO, não duplicado: quando você fecha a divisão, a saída original sai do orçamento na mesma hora (nada conta em dobro), e o “Desfazer” traz a saída de volta exatamente como estava.',
+      ],
+      en: [
+        'Outings and bill-splitting now talk to each other: when you end an outing, alongside “Confirm and end” there’s now “Split this outing with others”. Tap it and the divide screen opens with each round already turned into an item — no redo. Mark who got what, pass the phone around the table, or share it live, just like any split.',
+        'The expense is MOVED, not duplicated: when you close the split, the original outing leaves your budget at once (nothing is counted twice), and “Undo” brings the outing back exactly as it was.',
+      ],
+      es: [
+        'Ahora la Salida y la división de cuenta se hablan: al finalizar una salida, junto a “Confirmar y finalizar” aparece “Dividir esta salida con otras personas”. Tócalo y la pantalla de división se abre con cada ronda ya convertida en ítem — sin rehacer nada. Marca quién consumió qué, pasa el teléfono por la mesa o compártelo en vivo, como cualquier división.',
+        'El gasto se MUEVE, no se duplica: al cerrar la división, la salida original sale del presupuesto al instante (nada se cuenta dos veces), y “Deshacer” devuelve la salida tal como estaba.',
+      ],
+    },
+  },
+  {
     version: '0.99.30',
     date: '2026-06-21',
     items: {

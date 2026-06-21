@@ -106,6 +106,9 @@ import { extractReceiptViaCloud, type ReceiptOcrError } from '@/utils/ai-ocr';
 import { summarizeReceiptTotal, dominantReceiptCategory } from '@/domain/receipt';
 import { transcribeAudio, isLikelyVoiceHallucination } from '@/utils/ai-transcribe';
 import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
+// C2 (coherence §2.1): promote a solo outing into a shared, divisible bill.
+import { buildSplitFromOuting } from '@/domain/split';
+import { setOutingSplitHandoff } from '@/features/split/outing-split-handoff';
 
 function formatElapsed(startedAt: string): string {
   const ms = Date.now() - new Date(startedAt).getTime();
@@ -1131,6 +1134,42 @@ export function OutingPage() {
     navigate('/dashboard');
   };
 
+  // C2 (coherence §2.1): promote this solo outing into a shared, divisible bill.
+  // We hand off a pre-built split session (rounds → items) plus the source outing
+  // id; committing the split atomically MOVES the financial impact (the outing's
+  // rows are soft-deleted in the same transaction), so nothing is double-counted.
+  // This is the council's "available action", NOT an entry-time "alone or group?"
+  // question — the outing stays a first-class solo flow.
+  const handleDivideOuting = () => {
+    if (!session || !trip) return;
+    const rounds = sessionTxs
+      .filter((tx) => tx.amountCents > 0)
+      .map((tx) => ({
+        description: tx.description.trim() || session.name,
+        amountCents: tx.amountCents,
+        category: tx.category ?? 'other',
+      }));
+    if (rounds.length === 0) {
+      showToast(t('split.commit_empty'), 'warning');
+      return;
+    }
+    const splitSession = buildSplitFromOuting({
+      tripId: trip.id,
+      phaseId: currentPhase?.id ?? null,
+      name: session.name,
+      currency: trip.baseCurrency,
+      ownerName: owner?.name ?? t('split.you'),
+      ownerActorId: null,
+      rounds,
+    });
+    setOutingSplitHandoff({
+      session: splitSession,
+      supersedeOutingSessionId: session.id,
+      supersedeTransactionIds: sessionTxs.map((tx) => tx.id),
+    });
+    navigate('/split/scan');
+  };
+
   // BUG-014: an active outing must survive a transient DB error. While trip
   // data is present we keep rendering the session (a background reload failure
   // never tears it down); only when there is no trip do we branch — recovery
@@ -1150,6 +1189,7 @@ export function OutingPage() {
         wallets={wallets}
         onCancel={() => setReviewing(false)}
         onConfirm={handleConfirmEnd}
+        onDivide={handleDivideOuting}
       />
     );
   }
@@ -1802,9 +1842,11 @@ interface SessionReviewProps {
   wallets: Wallet[];
   onCancel: () => void;
   onConfirm: (result: SessionReviewResult) => void;
+  /** C2 — promote this solo outing into a shared/divisible bill ("dividir esta saída"). */
+  onDivide?: () => void;
 }
 
-function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onConfirm }: SessionReviewProps) {
+function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onConfirm, onDivide }: SessionReviewProps) {
   const { t } = useTranslation();
   // GATE 5 (D10): only ask which wallet paid the outing when tracking is on.
   const walletTrackingActive = useWalletTracking();
@@ -2049,6 +2091,19 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
       >
         {saving ? t('common.loading') : t('outing.review_confirm')}
       </button>
+
+      {/* C2 — solo→grupo on demand: turn this outing's rounds into a shared bill
+          (the council's "available action", not an entry question). */}
+      {onDivide && sessionTxs.length > 0 && (
+        <button
+          onClick={onDivide}
+          disabled={saving}
+          className="w-full py-3 rounded-xl bg-surface-high text-on-surface font-semibold btn-press disabled:opacity-40 flex items-center justify-center gap-2"
+        >
+          <Icon name="group" size={18} className="text-primary" />
+          {t('outing.review_divide')}
+        </button>
+      )}
     </div>
   );
 }

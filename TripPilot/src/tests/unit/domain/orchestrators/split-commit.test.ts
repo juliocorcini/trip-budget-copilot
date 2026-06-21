@@ -10,6 +10,8 @@ import {
 } from '@/domain/split';
 import type { SplitItem, SplitMode, SplitSession } from '@/domain/split';
 import type { Attachment } from '@/domain/types/attachment';
+import { createSession, createSessionItem } from '@/domain/outing';
+import { createExpenseTransaction } from '@/domain/transactions';
 
 // T1/M3: commitSplit turns an in-progress division into ONE completed outing
 // (one expense for the whole bill + per-real-participant shares), keeping the
@@ -253,5 +255,130 @@ describe('commitSplit (T1)', () => {
     expect(record!.sessionId).toBeNull();
     expect(record!.splitMeta.status).toBe('draft');
     expect(record!.revision).toBeGreaterThan(0);
+  });
+});
+
+// C2 (coherence §2.1): "dividir esta saída" promotes a SOLO outing into a split.
+// Committing must MOVE the money — the source outing's session, round txs and
+// item links are soft-deleted in the SAME transaction (never double-counted),
+// and undo brings the original outing back exactly as it was.
+describe('commitSplit · C2 supersede outing (move, not duplicate)', () => {
+  beforeEach(async () => {
+    await Promise.all([
+      db.sessions.clear(),
+      db.transactions.clear(),
+      db.sessionItems.clear(),
+      db.participantShares.clear(),
+      db.attachments.clear(),
+      db.splitSessions.clear(),
+    ]);
+  });
+
+  /** Seed a live solo outing with two rounds and their session-item links. */
+  async function seedOuting(): Promise<{ outingId: string; txIds: string[]; itemIds: string[] }> {
+    const outing = createSession({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      activityProfileId: null,
+      name: 'Bar do Zé',
+      limits: { targetCents: 0, ceilingCents: 0, maxCents: 0, avgDrinkPriceCents: null },
+      quickAddValuesCents: [],
+    });
+    const beer = createExpenseTransaction({
+      tripId: 'trip-1', phaseId: 'phase-1', budgetPoolId: 'pool-1', walletId: null,
+      amountCents: 2000, currency: 'BRL', category: 'bar', description: 'Cerveja', sessionId: outing.id,
+    });
+    const fries = createExpenseTransaction({
+      tripId: 'trip-1', phaseId: 'phase-1', budgetPoolId: 'pool-1', walletId: null,
+      amountCents: 1280, currency: 'BRL', category: 'restaurant', description: 'Batata', sessionId: outing.id,
+    });
+    const i1 = createSessionItem(outing.id, beer.id, 1);
+    const i2 = createSessionItem(outing.id, fries.id, 2);
+    await db.sessions.add(outing);
+    await db.transactions.bulkAdd([beer, fries]);
+    await db.sessionItems.bulkAdd([i1, i2]);
+    return { outingId: outing.id, txIds: [beer.id, fries.id], itemIds: [i1.id, i2.id] };
+  }
+
+  it('soft-deletes the source outing session, its round txs and item links on commit', async () => {
+    const { outingId, txIds, itemIds } = await seedOuting();
+    const { built } = itemizedBill();
+
+    const result = await commitSplit(mkInput(built, { supersededOutingSessionId: outingId }));
+
+    // Source outing is retired…
+    const outing = await db.sessions.get(outingId);
+    expect(outing!.deletedAt).not.toBeNull();
+    for (const id of txIds) {
+      const tx = await db.transactions.get(id);
+      expect(tx!.deletedAt).not.toBeNull();
+    }
+    for (const id of itemIds) {
+      const item = await db.sessionItems.get(id);
+      expect(item!.deletedAt).not.toBeNull();
+    }
+
+    // …while the freshly created split session/tx are intact (never touched).
+    const splitSession = await db.sessions.get(result.sessionId);
+    expect(splitSession!.deletedAt ?? null).toBeNull();
+    const splitTx = await db.transactions.get(result.transactionId);
+    expect(splitTx!.deletedAt ?? null).toBeNull();
+  });
+
+  it('does not double-count: exactly one LIVE expense remains after the move', async () => {
+    const { outingId } = await seedOuting();
+    const { built } = itemizedBill();
+
+    const result = await commitSplit(mkInput(built, { supersededOutingSessionId: outingId }));
+
+    const liveTxs = (await db.transactions.toArray()).filter((tx) => !tx.deletedAt);
+    expect(liveTxs).toHaveLength(1);
+    expect(liveTxs[0]!.id).toBe(result.transactionId);
+    expect(liveTxs[0]!.amountCents).toBe(8000);
+  });
+
+  it('undo restores the original outing (session, txs, items) and bumps revision', async () => {
+    const { outingId, txIds, itemIds } = await seedOuting();
+    const { built } = itemizedBill();
+    const beforeRev = (await db.transactions.get(txIds[0]!))!.revision;
+
+    const result = await commitSplit(mkInput(built, { supersededOutingSessionId: outingId }));
+    await undoSplitCommit({
+      splitRecordId: result.splitRecordId,
+      sessionId: result.sessionId,
+      transactionId: result.transactionId,
+      supersededOutingSessionId: outingId,
+    });
+
+    const outing = await db.sessions.get(outingId);
+    expect(outing!.deletedAt).toBeNull();
+    for (const id of txIds) {
+      const tx = await db.transactions.get(id);
+      expect(tx!.deletedAt).toBeNull();
+      expect(tx!.revision).toBeGreaterThan(beforeRev);
+    }
+    for (const id of itemIds) {
+      const item = await db.sessionItems.get(id);
+      expect(item!.deletedAt).toBeNull();
+    }
+
+    // The promoted split itself is gone (undone), so the outing is the live truth again.
+    const splitTx = await db.transactions.get(result.transactionId);
+    expect(splitTx!.deletedAt).not.toBeNull();
+  });
+
+  it('no supersede id → leaves any other outing untouched (normal split path)', async () => {
+    const { outingId, txIds } = await seedOuting();
+    const { built } = itemizedBill();
+
+    await commitSplit(mkInput(built)); // no supersededOutingSessionId
+
+    const outing = await db.sessions.get(outingId);
+    expect(outing!.deletedAt).toBeNull();
+    for (const id of txIds) {
+      const tx = await db.transactions.get(id);
+      expect(tx!.deletedAt).toBeNull();
+    }
   });
 });
