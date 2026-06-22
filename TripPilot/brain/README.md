@@ -1,6 +1,6 @@
 # TripPilot Brain — Source of Truth
 
-> Last updated: 2026-06-20 (**AI Quick Entry split-accuracy hardening** DEC-246 amendment **v0.99.14** — someone-else-paid-AND-divided now records only your share, not the full bill; comma/thousands decimals; no currency guessing; Worker re-deployed + live re-probed → `split_expense`/`payer:other`. Prior: Copilot **Trip Wrapped** DEC-247 v0.99.13 + AI quick-entry router DEC-246 v0.99.12 — both SHIPPED + live on apex. See the dated sections below)
+> Last updated: 2026-06-22 (**Field Feedback master plan** — `documents/field-feedback-master-plan-and-councils-2026-06-22.md` (v2) + **DEC-256→278** recorded in `decision-log.md` (direction approved/ratified by Julio; implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, cofrinho-as-buffer, carousel=1-occasion, outing trim+discard, Amigo Sincero phrase bank+voices, location default ON (ÂNCORA 8 amendment), auto device name, event-delete-asks, admin tokens/fn + Groq governance + 00000000 investigation + PWA telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write, single image chooser, graceful AI degradation, record repayment, in-app AI help V1. Prior 2026-06-21: DEC-248→255 Admin v1/v2 + multi-trip + Dia a dia + new icon. See the dated sections below)
 
 ## Truth Policy
 
@@ -15,7 +15,7 @@
 | File | Purpose | When to read |
 |------|---------|--------------|
 | `product-spec.md` | V1 features, rules, scope boundaries | Any product question |
-| `decision-log.md` | All decisions DEC-001..DEC-246 with status (approved/pending/superseded); see the DEC-185–199/201 native-arc reconciliation note. Latest: DEC-246 = AI Quick Entry natural-language router (v0.99.12) | Before making new decisions |
+| `decision-log.md` | All decisions DEC-001..DEC-279 with status (approved/pending/superseded); see the DEC-185–199/201 native-arc reconciliation note. Latest: DEC-256→279 = Field Feedback batch (2026-06-22; direction approved/ratified, implementation pending; DEC-279 cofrinho-legibility is PROPOSED, Model A vs B pending Julio). Next new id = DEC-280 | Before making new decisions |
 | `technical-direction.md` | Stack (locked), database, architecture, deployment | Any technical question |
 | `implementation-phases.md` | D1–D6 deliveries + the round-based work that followed (R1–R6, field reviews, expansion packages 1–3, native arc, receipt & shared-link epics) | Planning, scheduling |
 | `project-status.md` | Current status, pending tasks, next steps | Status checks, standups |
@@ -64,6 +64,12 @@
 | File | Purpose | When to read |
 |------|---------|--------------|
 | `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md` | **✅ SHIPPED + LIVE (DEC-246, v0.99.12 — apex + Worker deployed, `/assistant` probed 200)** — Julio's field ask: one box where you **type or speak** ("o Bruno me pagou uma cerveja de 2 euros") and the AI decides which function to run + fills the details, connecting **all** app functions to AI. Core architecture: **AI = planner** (Groq JSON mode via a new Worker `/assistant`, mirroring `/ocr`; returns a typed `AiIntent` with entities **by name**, never ids, never math) + **device = executor** (pure `resolve` name→id + `dispatch` to the EXISTING orchestrators; engines do the math; debt born-confirmed via DEC-241). Text-first (G0), voice next (G2 = Web Speech + Groq Whisper `/transcribe`, native-safe). Preview+confirm+undo always; opt-in `aiQuickEntryEnabled` + names-only context + no-names mode (privacy like `cloudReceiptOcrEnabled`). 5 inline councils (council/debate text×voice/review/assess/brainstorm). Intent registry §4, gates G0–G3 + ACs + tests, Groq capability verifications §16. | Before scoping/implementing the AI quick-entry feature; this is the rationale + plan |
+
+### Field Feedback master plan + councils (2026-06-22) — DEC-256→278 (PROPOSAL/PLAN, direction approved, implementation pending)
+
+| File | Purpose | When to read |
+|------|---------|--------------|
+| `documents/field-feedback-master-plan-and-councils-2026-06-22.md` | **BUILD-READY PLAN (v2)** — Julio's large 2026-06-22 field-feedback batch (FB-01…FB-28 + CC-IMG). §1 verified code baseline (what already ships — don't rebuild), §2 fourteen inline councils (C1–C14) on the strategic items (C14 = cofrinho legibility/ledger), §3 per-item specs (root cause + ACs + tests + anti-regression + effort), §4 nine sequenced hardening gates, §5 ratification state + DEC-256…279. Key decisions: converter+AI FX intent (DEC-256), capture stitching no-wizard (DEC-257), AI-receipt field parity (DEC-258), inline add-participant (DEC-259), FAB↔back (DEC-260), **cofrinho-as-buffer** (DEC-261, ÂNCORA-11 amendment — needs a math mini-spec), carousel=1-occasion (DEC-262), outing trim+discard (DEC-263), Amigo Sincero phrase bank+voices+reveal (DEC-264), **location default ON** (DEC-265, ÂNCORA-8 amendment), auto device name (DEC-266), event-delete-asks-about-expenses (DEC-267), admin tokens/fn (DEC-268) + **Groq governance server-side** (DEC-269) + 00000000 investigate-first (DEC-270) + PWA/browser telemetry (DEC-271) + errors-in-detail/centered modal (DEC-272), release-notes/guide refresh (DEC-273), planner-no-write guards (DEC-274), **single image chooser** (DEC-275), **graceful AI degradation** (DEC-276), **record repayment** (DEC-277), **in-app AI help V1 comprehensive** (DEC-278), **cofrinho legibility — voice + statement/ledger + movement insight** (DEC-279/C14, Model A vs B pending Julio). Verified facts: Groq has vision but no web browsing; 429 exposes `retry-after`/`x-ratelimit-reset-*`; YNAB "Roll With the Punches" + rollover apps (FreeBudget/FinWise) validate the cofrinho buffer/ledger. | Before implementing any item from the 2026-06-22 field feedback; this is the rationale + plan + gates |
 
 ## Research Files
 

@@ -48,17 +48,20 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     id: 'trip',
     titleKey: 'guide.section_trip',
     entries: [
+      { id: 'spaces', icon: 'workspaces', titleKey: 'guide.spaces_t', descKey: 'guide.spaces_d', route: '/spaces' },
       { id: 'viagem', icon: 'luggage', titleKey: 'guide.viagem_t', descKey: 'guide.viagem_d', route: '/viagem' },
       { id: 'overview', icon: 'map', titleKey: 'guide.overview_t', descKey: 'guide.overview_d', route: '/trip' },
       { id: 'profiles', icon: 'badge', titleKey: 'guide.profiles_t', descKey: 'guide.profiles_d', route: '/profiles' },
       { id: 'wallets', icon: 'account_balance_wallet', titleKey: 'guide.wallets_t', descKey: 'guide.wallets_d', route: '/wallets' },
       { id: 'funds', icon: 'savings', titleKey: 'guide.funds_t', descKey: 'guide.funds_d', route: '/funds' },
+      { id: 'income', icon: 'payments', titleKey: 'guide.income_t', descKey: 'guide.income_d', route: '/income' },
     ],
   },
   {
     id: 'people',
     titleKey: 'guide.section_people',
     entries: [
+      { id: 'split', icon: 'splitscreen', titleKey: 'guide.split_t', descKey: 'guide.split_d', route: '/split/scan' },
       { id: 'shared', icon: 'group', titleKey: 'guide.shared_t', descKey: 'guide.shared_d', route: '/shared' },
     ],
   },
@@ -78,6 +81,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       { id: 'settings', icon: 'settings', titleKey: 'guide.settings_t', descKey: 'guide.settings_d', route: '/settings' },
       { id: 'customize_home', icon: 'dashboard_customize', titleKey: 'guide.customize_home_t', descKey: 'guide.customize_home_d', route: '/settings/dashboard' },
       { id: 'backup', icon: 'cloud_upload', titleKey: 'guide.backup_t', descKey: 'guide.backup_d', route: '/settings/backup' },
+      { id: 'import_wise', icon: 'sync_alt', titleKey: 'guide.import_wise_t', descKey: 'guide.import_wise_d', route: '/import/wise' },
       { id: 'notifications', icon: 'notifications', titleKey: 'guide.notifications_t', descKey: 'guide.notifications_d', route: '/notifications' },
       { id: 'about', icon: 'info', titleKey: 'guide.about_t', descKey: 'guide.about_d', route: '/about' },
     ],

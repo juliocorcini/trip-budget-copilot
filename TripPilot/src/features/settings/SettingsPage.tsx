@@ -24,7 +24,7 @@ import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import type { LocalSnapshot } from '@/domain/types/local-snapshot';
-import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
+import { isIosDevice, isStandaloneDisplayMode, suggestDeviceName } from '@/utils/platform';
 import { isNativeApp } from '@/utils/native/platform';
 import {
   getOutingNotificationPermission,
@@ -1269,6 +1269,7 @@ export function SettingsPage() {
           type="text"
           value={settings.deviceName}
           onChange={(e) => updateSetting({ deviceName: e.target.value })}
+          placeholder={suggestDeviceName()}
           aria-label={t('settings.device_name')}
           className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
         />

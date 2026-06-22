@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { Icon } from './Icon';
@@ -9,6 +9,7 @@ import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 import { tabsForMode } from '@/app/nav-tabs';
 import { setPendingTabDirection, tabSwitchDirection } from '@/app/nav-direction';
 import { hapticSelection, hapticImpact } from '@/utils/haptics';
+import { registerOverlayDismiss } from '@/utils/overlay-dismiss';
 
 interface NavItem extends ModeAware {
   path: string;
@@ -44,6 +45,16 @@ export function BottomNav() {
   const rightNav = visibleInMode(RIGHT_NAV, appMode);
   // D-BUG-10: swipe order so a bar tap animates the same direction as a swipe.
   const tabPaths = tabsForMode(appMode).map((tab) => tab.path);
+
+  // FB-07: the FAB menu is an overlay, so a hardware/gesture "back" must close it
+  // before navigating — same contract as BottomSheet (DEC-193). Register its
+  // dismiss while open so initBackButton (native) / the popstate guard (web/PWA)
+  // pop it via dismissTopOverlay. The exit animation is untouched (onClose just
+  // flips isOpen and useAnimatedPresence plays the close).
+  useEffect(() => {
+    if (!isFabOpen) return;
+    return registerOverlayDismiss(() => setIsFabOpen(false));
+  }, [isFabOpen]);
 
   const renderNavItem = (item: NavItem) => {
     const isActive = location.pathname.startsWith(item.path);

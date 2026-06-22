@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.40',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'Agora você pode ter várias viagens ao mesmo tempo: abra os Espaços (no topo da tela inicial) e troque entre elas num toque — cada uma com seu próprio orçamento e histórico.',
+        'Novo modo Dia a dia: crie um espaço sem data de fim (Casa, gastos do mês…), com teto mensal opcional, só pra registrar seus gastos fora de uma viagem.',
+        'O menu “+” agora fecha quando você aperta o botão Voltar do celular — sem sair da tela em que você estava.',
+        'Seu aparelho ganha um nome automático (como “Android · Chrome”) quando você não escolhe um, pra aparecer direitinho em backups e divisões. Dá pra trocar em Configurações.',
+      ],
+      en: [
+        'You can now keep several trips at once: open Spaces (at the top of the home screen) and switch between them in one tap — each with its own budget and history.',
+        'New Day-to-day mode: create a space with no end date (Home, this month’s spending…), with an optional monthly cap, just to track expenses outside a trip.',
+        'The “+” menu now closes when you press your phone’s Back button — without leaving the screen you were on.',
+        'Your device gets an automatic name (like “Android · Chrome”) when you don’t pick one, so it shows up nicely in backups and splits. You can change it in Settings.',
+      ],
+      es: [
+        'Ahora puedes tener varios viajes a la vez: abre los Espacios (en la parte superior de la pantalla de inicio) y cambia entre ellos con un toque — cada uno con su propio presupuesto e historial.',
+        'Nuevo modo Día a día: crea un espacio sin fecha de fin (Casa, gastos del mes…), con tope mensual opcional, solo para registrar tus gastos fuera de un viaje.',
+        'El menú “+” ahora se cierra cuando presionas el botón Atrás del teléfono — sin salir de la pantalla en la que estabas.',
+        'Tu dispositivo recibe un nombre automático (como “Android · Chrome”) cuando no eliges uno, para que aparezca bien en copias de seguridad y divisiones. Puedes cambiarlo en Configuración.',
+      ],
+    },
+  },
+  {
     version: '0.99.39',
     date: '2026-06-21',
     items: {

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.39",
+  "version": "0.99.40",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.39.zip",
-  "notes": "Quando o app trava, agora ele envia um relatório de erro anônimo pra gente consertar mais rápido — só a mensagem técnica do erro, nunca seus valores. Continua junto da telemetria e desativável em Configurações."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.40.zip",
+  "notes": "Agora as novidades aparecem no Sobre (multi-viagem e modo Dia a dia) e o guia 'Tudo o que dá para fazer' ganhou mais funções. O botão + (menu rápido) fecha com o Voltar do celular, o nome do aparelho já vem sugerido e o painel de admin abre centralizado."
 }

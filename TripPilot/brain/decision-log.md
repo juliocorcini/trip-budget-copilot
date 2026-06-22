@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-17 (Device-Test Force-Task shipped: DEC-217 Ondas 1–4 web/OTA bug-fix + UX batch + 4C close-out, v0.71.0 → v0.75.0, 1299 tests / 144 files. DEC-218 native biometric (D-DEC-C) + Onda 5 sync/device batch — APPROVED but device-pending (needs Julio's physical device(s)). Prior: DEC-216 E2E-in-CI (B15) + FundsPage atomic pool-creation (B13), v0.70.0. DEC-215 native batch B1+B2+B3, APK 0.69.0 built but NOT promoted — device session pending. NOTE: the numbers DEC-185–199 and DEC-201 were never written — see the reconciliation block between DEC-184 and DEC-200. Next new id = DEC-240. — 2026-06-18: DEC-219→234 budget-model + UX-clarity packages shipped; DEC-235 = Device Test 2026-06-18 GATE 15; DEC-236 = Device Test 2026-06-18 GATE 16 (Amigo Sincero deep redesign); DEC-237 = Device Test 2026-06-18 GATE 17 (Home occasion carousel opens on the planned metas — planned-first kept, scroll-snap dropped to stop Chromium's involuntary re-snap); DEC-239 = Device Test 2026-06-18 GATE 19 (daily-detail explainers: free/day base+peak source + spent/day per-category breakdown, v0.95.0); DEC-238 = Device Test 2026-06-18 GATE 18 (FAB rebalanced — planning promoted to visible chips, "Registrar mercado" demoted into "Outros registros"). — 2026-06-19: DEC-240 = Bill Split "saída de bar" hardening batch (full who-got-what history by person/item + "O que é meu" hero + persistent live-split notification + pass-the-phone round-the-table mode, v0.99.4). DEC-241 = Debt ("está me devendo") + bill-split UX deep-dive batch — born-confirmed debts from the owner's ledger for non-connected people + "Acerto de contas" hub redesign + remind/cobrar (v0.99.5→v0.99.7); see `documents/debt-and-split-ux-deep-dive-and-plan-2026-06-19.md`. Next new id = DEC-242. — 2026-06-20: DEC-242→245 shipped/researched (244 = G4 payment methods v0.99.9; 245 = ranked backlog, A1 Wise split explainer shipped v0.99.11). DEC-246 = AI Quick Entry — natural-language router (text + voice) wired to every core action, planner(cloud, Groq JSON)/executor(device) split + Whisper STT, privacy names-only, v0.99.12 — **SHIPPED + deployed** (Pages OTA + Worker `/assistant`+`/transcribe` live, reusing the existing `GROQ_API_KEY`; live probe "o Bruno me pagou uma cerveja de 2 euros" → `someone_paid`/Bruno/€2/i_owe, 200); see `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md`. DEC-247 = Copilot "Trip Wrapped" end-of-trip retrospective, v0.99.13 **SHIPPED** (pure `buildTripWrapped` reusing copilot-insights + `TripWrappedSheet`, data-gated, mid-trip preview, reuses the DEC-133 share card). Next new id = DEC-248.)
+> Last updated: 2026-06-22 (Field Feedback batch DEC-256→279 recorded — see the 2026-06-22 note at the end of this paragraph. Prior 2026-06-17: Device-Test Force-Task shipped: DEC-217 Ondas 1–4 web/OTA bug-fix + UX batch + 4C close-out, v0.71.0 → v0.75.0, 1299 tests / 144 files. DEC-218 native biometric (D-DEC-C) + Onda 5 sync/device batch — APPROVED but device-pending (needs Julio's physical device(s)). Prior: DEC-216 E2E-in-CI (B15) + FundsPage atomic pool-creation (B13), v0.70.0. DEC-215 native batch B1+B2+B3, APK 0.69.0 built but NOT promoted — device session pending. NOTE: the numbers DEC-185–199 and DEC-201 were never written — see the reconciliation block between DEC-184 and DEC-200. Next new id = DEC-240. — 2026-06-18: DEC-219→234 budget-model + UX-clarity packages shipped; DEC-235 = Device Test 2026-06-18 GATE 15; DEC-236 = Device Test 2026-06-18 GATE 16 (Amigo Sincero deep redesign); DEC-237 = Device Test 2026-06-18 GATE 17 (Home occasion carousel opens on the planned metas — planned-first kept, scroll-snap dropped to stop Chromium's involuntary re-snap); DEC-239 = Device Test 2026-06-18 GATE 19 (daily-detail explainers: free/day base+peak source + spent/day per-category breakdown, v0.95.0); DEC-238 = Device Test 2026-06-18 GATE 18 (FAB rebalanced — planning promoted to visible chips, "Registrar mercado" demoted into "Outros registros"). — 2026-06-19: DEC-240 = Bill Split "saída de bar" hardening batch (full who-got-what history by person/item + "O que é meu" hero + persistent live-split notification + pass-the-phone round-the-table mode, v0.99.4). DEC-241 = Debt ("está me devendo") + bill-split UX deep-dive batch — born-confirmed debts from the owner's ledger for non-connected people + "Acerto de contas" hub redesign + remind/cobrar (v0.99.5→v0.99.7); see `documents/debt-and-split-ux-deep-dive-and-plan-2026-06-19.md`. Next new id = DEC-242. — 2026-06-20: DEC-242→245 shipped/researched (244 = G4 payment methods v0.99.9; 245 = ranked backlog, A1 Wise split explainer shipped v0.99.11). DEC-246 = AI Quick Entry — natural-language router (text + voice) wired to every core action, planner(cloud, Groq JSON)/executor(device) split + Whisper STT, privacy names-only, v0.99.12 — **SHIPPED + deployed** (Pages OTA + Worker `/assistant`+`/transcribe` live, reusing the existing `GROQ_API_KEY`; live probe "o Bruno me pagou uma cerveja de 2 euros" → `someone_paid`/Bruno/€2/i_owe, 200); see `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md`. DEC-247 = Copilot "Trip Wrapped" end-of-trip retrospective, v0.99.13 **SHIPPED** (pure `buildTripWrapped` reusing copilot-insights + `TripWrappedSheet`, data-gated, mid-trip preview, reuses the DEC-133 share card). — 2026-06-21: DEC-248→255 = Admin dashboard v1/v2 (telemetry, AI tokens server-authoritative, error capture, per-user detail, DAU) + multi-trip switcher (DEC-249) + "Dia a dia" ongoing mode (DEC-250) + onboarding identity (DEC-252) + real-OS platform telemetry (DEC-253) + new app icon (DEC-255); see `documents/multi-space-and-admin-v2-study-2026-06-21.md` + `admin-dashboard-v1-plan-2026-06-21.md`. — 2026-06-22: **DEC-256→278 = Field Feedback batch** (direction APPROVED/ratified, implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, **cofrinho-as-buffer**, carousel=1-occasion, outing setup trim+discard, Amigo Sincero phrase bank+voices, **location default ON** (ÂNCORA 8 amendment), auto device name, event delete asks about expenses, admin tokens-per-fn + **Groq governance** + 00000000 investigation + PWA/browser telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write guards, **single image chooser**, **graceful AI degradation**, **record repayment**, **in-app AI help V1**, and **cofrinho legibility — voice + statement/ledger + movement insight (DEC-279, council C14; Model A vs B pending Julio)**; see `documents/field-feedback-master-plan-and-councils-2026-06-22.md`. Next new id = DEC-280.)
 
 ## Format
 
@@ -1871,6 +1871,179 @@
 - **Status**: ✅ Building this session.
 - **Source**: Julio — "criar um novo icone do app, um melhor mais condizente com o app, tanto para android o apk, quanto para web e para ios".
 - **Decision**: design a new mark and regenerate every icon target (`public/icons/*`, manifest `icon-192/512`, maskable, Android `mipmap` via the icon pipeline, iOS/Capacitor assets). Keep a single SVG source of truth driving `scripts/generate-icons.mjs`.
+
+---
+
+## Field Feedback batch (2026-06-22) — DEC-256..278
+
+> All from Julio's 2026-06-22 field-feedback session. **Direction APPROVED / ratified by Julio; implementation PENDING.** Full root-cause + ACs + tests + gates + the inline councils (C1–C15) are in `documents/field-feedback-master-plan-and-councils-2026-06-22.md` (v2). Next new id after this batch = **DEC-281**.
+
+### DEC-256 — Currency conversion calculator (dedicated `/converter`) + AI "how much is X in Y?" intent
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (ratified) — implementation pending. Plan: field-feedback master plan §C1, FB-04.
+- **Decision**: a minimalist dedicated `/converter` screen (amount + two currency selectors + ⇄ swap + big result), **reusing** the existing `fetchExchangeRates`/`frozenRates`/`convertToBaseCents` (no new provider/key); always shows the **rate age** + 1-tap refresh + manual-rate override; offline uses the frozen snapshot with an age stamp. Pre-fills `from = trip/last currency → to = anchorCurrency ?? home`. First-class entry from the FAB + a Copilot/Guide shortcut. **Also** ships an **informational AI intent** ("quanto é 20 euros em reais?") that does NOT create an expense — the AI only extracts `{amount,from,to}` and the **device computes locally** from cached rates (cheap, offline-friendly, no token waste).
+- **Rationale**: the traveler checks "how much is this back home?" dozens of times/day; reusing the rate infra keeps it honest and cheap; the AI intent serves casual users without a screen visit.
+- **Alternatives**: only-AI (rejected — power users want a screen); new FX provider (rejected — `open.er-api.com` already in use).
+
+### DEC-257 — Stitch the three capture surfaces (photo in AI + "✨ AI" in manual); NO single wizard
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (ratified). Plan: §C2, FB-09.
+- **Decision**: keep the three entry surfaces (AI text/voice, manual `/quick-add`, "Dividir conta" scan) and **stitch shortcuts** instead of building a unified wizard: (a) a **camera button in the AssistantSheet** (gated by `cloudReceiptOcrEnabled`) that reuses `extractReceiptViaCloud`; (b) a **"✨ Preencher com IA" chip** atop `/quick-add`; (c) clearer FAB labels ("Lançar gasto" / "Registro detalhado" / "Dividir conta"). No mandatory "how do you want to register?" step.
+- **Rationale**: the detailed manual entry is the richest surface and must not be diluted; stitching is low-risk vs a new engine.
+- **Alternatives**: single unified entry wizard (rejected — friction for the 90% typing case + cannibalizes the detailed entry).
+
+### DEC-258 — Field parity for AI-read receipts (category, location, receipt date) + collapsed pre-filled UI; photo→1 summarized expense
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (ratified). Plan: §FB-10.
+- **Decision**: AI-read receipts must carry the same fields a manual expense has. The Worker `/ocr` + `parseReceiptResponse` extract **date**, **merchant/place**, and a **per-item category mapped to our taxonomy** (`EXPENSE_CATEGORY_KEYS`, fallback `guessCategory`); `commitReceipt` sets `category` + place fields (via `placeToTransactionFields`, gated by `locationCaptureEnabled`) + the **receipt date**. Receipt review shows a collapsed "Detalhes (IA preencheu)" block (category/location/date) editable via the existing `ExpenseEditor`/`PlaceField`. **A photo taken inside the AI becomes 1 summarized expense by default** (with an optional "abrir itens" to the receipt flow); "Dividir conta" keeps the N-item flow.
+- **Rationale**: history must be uniform; missing fields make AI expenses second-class.
+- **Alternatives**: leave receipts without location/date (rejected — the field gap was the complaint).
+
+### DEC-259 — Inline "add participant" everywhere (no forced trip to Settings)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (ratified). Plan: §C4, FB-06/FB-24.
+- **Decision**: replace the `no_participants_hint` ("go to Mais → Participantes") with an inline **"+ Adicionar quem participou"** button. Extract a reusable `AddParticipantSheet` (overlay that never unmounts the current screen → no lost form state) with two paths: "type a name" (creates a local participant on the spot, idempotent) and "connected friends" (existing list). Mount it in `QuickAddPage`, the receipt flow, and the AssistantSheet clarify.
+- **Rationale**: forcing a Settings trip mid-registration kills the split (the most social feature) and loses typed data.
+- **Alternatives**: just a better deep-link (rejected — still loses state).
+
+### DEC-260 — FAB closes on the back button (native + web) via overlay-dismiss
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §FB-07.
+- **Decision**: register the open `FABMenu`'s `onClose` in the `overlay-dismiss` LIFO registry (same pattern as `BottomSheet`), so the native back button (`initBackButton` → `dismissTopOverlay()`) closes it; on web/PWA, wire `popstate` on the home route to call `dismissTopOverlay()` before re-seeding history. No-overlay back stays normal.
+- **Rationale**: an open overlay must intercept back; the FAB was the one overlay not registered.
+
+### DEC-261 — Cofrinho becomes a BUFFER (consumes savings on a day-overshoot before cutting future days)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (Julio's explicit v2 decision) — **amendment to the savings mechanic (ÂNCORA 11)**; implementation pending. Plan: §C13, FB-08.
+- **Decision**: Option A (unify the "saved money" story on the cofrinho) **+** make the cofrinho an automatic **cushion**: when a day exceeds its allowance, the excess is **debited from the cofrinho first**; only when the cofrinho hits 0 does the **future daily allowance** get cut. Model (still a **pure derivation**, nothing stored mutable): `cofrinho = max(0, idealToDate − spentToDate)`; the displayed free/day stays at `baseDailyIdeal` while `cofrinho > 0` (an overshoot shows as the cofrinho going down, not the daily dropping), and reverts to `(phaseBudget − spentToDate)/daysRemaining` once `cofrinho = 0`. The "não vou gastar hoje" check-in shows the cofrinho **rising**. No double counting (a no-spend day lowers `spentToDate`, which raises the cofrinho by the same amount).
+- **Rationale**: "guardei esse dinheiro" must have one tangible place (the cofrinho); a steady daily that a buffer protects matches the user's mental model better than silent re-averaging.
+- **Risk note**: this changes how "free per day" reacts to overspend (budget-engine change, not just UI) → needs a dedicated math mini-spec + strong tests (under-pace, single overshoot covered by cofrinho, cofrinho depleted, no-date phase) and the anti-double-count invariant.
+- **Alternatives**: Option B (keep carry-forward, only reword copy) — rejected by Julio (less satisfying, doesn't make the cofrinho real).
+- **Refinement**: **DEC-279 / council C14** revisits the calculation model (the truthful ledger needs a day-ordered running balance, "Model B") and adds legibility (voice + statement + movement insight). Model A (trophy, end-clamped, no daily effect) vs Model B (buffer ledger) is **pending Julio** — see §5.3 of the field-feedback plan.
+
+### DEC-262 — Home occasion carousel counts a receipt/outing as ONE occasion (not per item)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §FB-14.
+- **Decision**: the activity counters in `occasion-counters.ts` count **distinct sessions as 1** (mirroring the planned counters' DEC-115 "a session counts once"), so a 40-item receipt is "1", not "Outros · 40". Loose expenses still count 1 each; financial aggregations are untouched (ÂNCORA 9 — only the card's count/geometry).
+- **Rationale**: receipt line-items (each an `other` tx) inflate "Outros" and uglify the home.
+
+### DEC-263 — Outing setup is context-aware + standard layout padding + "finish & discard"
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (ratified — trim, not full redesign). Plan: §C3, FB-15/FB-16/FB-23.
+- **Decision**: keep the live outing (it's a differentiator); fix the screen to use the **standard padding container**; make the setup questions **data-driven by `EventContext`** (e.g. "avg drink price" only for bar/night, not "mercado"; `deriveSessionLimits` covers the rest); audit all `avgDrinkPriceCents` reads to be null-safe outside bar; add a **"Finalizar e descartar"** action on the active session (soft-delete session+items, distinct from "Finalizar" which saves).
+- **Rationale**: the setup asking bar questions everywhere felt disconnected; users want to discard a mis-started outing.
+- **Alternatives**: full outing redesign (deferred — only if the audit finds deep "outing = bar" coupling).
+
+### DEC-264 — Amigo Sincero: phrase bank by band × voice + end-of-carousel discovery reveal
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (+ selectable voices + reveal). **Final voice list ratified: `padrao` / `zen` / `durao` / `economico` (default `padrao`).** Plan: §C6, FB-12.
+- **Decision**: replace the single `phase_progress` template (one phrase for the whole 0–100%+ range) with a `honest-friend-voice.ts` mapping **bands** (`under_easy`/`under_ok`/`tight`/`edge`/`broke`/`reserve`) **× voice** to i18n keys (4–6 phrases/band × 3 languages), picked by band + a stable daily index — the tone always matches the number (never "segura" at 100%+). Add a **voice selector in Settings** (default / zen / durão / econômico). Add an **end-of-carousel discovery card**: pulling **past the real end** reveals "Quer mudar o tom? → Configurações"; the **auto-rotation never shows it** (gesture-only easter egg).
+- **Rationale**: one phrase for all percentages reads wrong at 100%; users want variety + control over tone.
+
+### DEC-265 — Location capture default ON (explicit amendment to ÂNCORA 8; 1-tap opt-out; no GPS read without OS permission)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (ratified — privacy amendment accepted). Plan: §C5(a), FB-03.
+- **Decision**: change the `locationCaptureEnabled` seed default to **true**, with: (1) **no GPS read without the OS permission** (still on-demand); (2) a transparent first-run notice ("Registro de local: Ligado — você desliga quando quiser nas Configurações"); (3) **this is a recorded amendment to ÂNCORA 8** — the default went ON by product decision, keeping 1-tap opt-out and no silent GPS. Existing users keep their current choice; telemetry stays coordinate-free.
+- **Rationale**: location-based insights were under-used because the feature shipped OFF; opt-out with transparency balances privacy and value.
+- **Alternatives**: keep default OFF (rejected by Julio); silent GPS read (rejected — privacy violation).
+
+### DEC-266 — Auto device name when blank (platform + browser, never raw model)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §C5(b), FB-05.
+- **Decision**: a pure `suggestDeviceName()` (platform + browser family, e.g. "Android · Chrome", "iPhone · Safari", "PC · Edge"; native: "Android"/"iPhone") used as the field **placeholder** and as the **effective value when left blank**; never overwrites a typed name or a backup-restored name; never the raw model (unreliable/ugly on the web).
+- **Rationale**: kills the repeated "Meu dispositivo" in connections/admin without exposing a technical model string.
+
+### DEC-267 — Delete an event from its edit screen, ASKING what to do with its expenses
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (changed from "expenses stay" to **ask the user**). Plan: §FB-11.
+- **Decision**: add a "Excluir evento" action on the event edit screen (`/trip/edit?occurrence=`) with a confirmation that **counts the linked expenses** and offers **"Apagar tudo"** (event + expenses, soft-delete) vs **"Manter os gastos"** (soft-delete the occurrence, unlink and keep the expenses). Available from every point where the event is edited.
+- **Rationale**: deletion was hidden in one place; silently keeping or deleting expenses is wrong — the user must choose.
+- **Alternatives**: always keep / always delete (rejected by Julio — "perguntar para o user na hora").
+
+### DEC-268 — Admin: AI tokens per function (and run counts) in the user detail
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §FB-17.
+- **Decision**: the install detail modal shows tokens **and** call counts **per function** (`SELECT fn, SUM(tokens), SUM(runs) FROM ai_usage WHERE install_id=? GROUP BY fn`), reusing `ai_usage` (no ingest change); the sum matches the total already shown.
+
+### DEC-269 — Admin: Groq token governance — server-side real-time (rate-limit headers + minute/day/month rollups + projection/bottleneck)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (confirmed server-side, no heartbeat dependency). Plan: §C8, FB-18.
+- **Decision**: the Worker (the single Groq proxy) persists the latest snapshot of the Groq response headers (`x-ratelimit-limit/remaining/reset-{requests,tokens}`, `retry-after`) per model/function → **real quota now**; admin "IA — governança Groq" shows usage by **day** + **month** + **minute** (true, timestamped server-side), **% of limit** with the **bottleneck** highlighted (TPM usually binds first), and a **projection** ("avg tokens/active user/day × DAU → how many active users fit before TPD/RPD", noting TPM/RPM may bind earlier). Free-tier limits verified 2026-06-22 (~30 RPM, 6,000 TPM, RPD 1,000–14,400/model).
+- **Rationale**: we proxy every call, so token accounting is fully server-side and real-time; projections must show all three ceilings, not a single number.
+- **Final round (Julio)**: the Admin must **actively signal** when usage starts approaching a ceiling (RPD/TPM/TPD) — a visible alert/threshold, not just charts — so we can then evaluate a **2nd key/organization or a paid upgrade as a business decision**. This signal also feeds the 429 counter (FB-26/DEC-276).
+
+### DEC-270 — The "00000000" install: investigate & name before dropping (no "lost" spend)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (changed from "just drop" to investigate-first). Plan: §FB-19.
+- **Decision**: the all-zeros `00000000-0000-0000-0000-000000000000` is emitted by no real client (`getInstallationId` = uuidv4). **Phase 1 — observe:** route its requests to a labeled "Sistema/desconhecido" bucket with context (UA, function, time, app version) to identify the origin (deploy probe / scanner / old client) — no data deleted yet. **Phase 2 — once identified:** if our probe → give it a clearly-labeled "system" id excluded from user metrics; if external abuse → reject the sentinel in `recordAiUsage`/ingest. **Phase 3:** then clean/reallocate history out of the user ranking, preserving the total in the Sistema bucket (no token "disappears" from accounting).
+- **Rationale**: Julio — it may be real spend we don't account for; understand it before hiding it.
+
+### DEC-271 — Telemetry platform distinguishes PWA (standalone) + browser family
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §FB-20, FB-21.
+- **Decision**: refine the telemetry platform tag using `isStandaloneDisplayMode()` → `android-pwa`/`ios-pwa` when standalone, `android-web`/`ios-web` in a tab, native stays `android`/`ios`; also capture the **browser family** (coarse, e.g. "Chrome"/"Safari") + app version. Admin "Plataformas" distribution + the user detail show e.g. "Android · Chrome · PWA · v0.99.39". **Coarse granularity only — never the exact model/serial, no monetary data** (privacy).
+- **Rationale**: distinguishing Android web/iOS web/PWA/native matters for debugging; coarse device info aids support without fingerprinting.
+
+### DEC-272 — Admin: per-user recent errors in the detail + centered/2-column modal on desktop
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §C7, FB-21/FB-22.
+- **Decision**: (a) the user detail lists that install's **recent errors** (reusing the existing server-side scrub, capped to N); (b) the modal is **centered in the viewport** at all sizes (not bottom-anchored) with internal scroll, and on desktop distributes in **2 columns** (counters/flags | tokens/errors/platform). No new data displayed beyond what telemetry holds; coarse granularity.
+- **Rationale**: errors tied to a user + device/browser/version make debugging real; the modal opened bottom-fixed on mobile and wasted desktop space.
+
+### DEC-273 — Release notes + "Tudo o que dá para fazer" guide brought up to date
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §FB-01, FB-02.
+- **Decision**: audit DEC↔release-note coverage (DEC-240..255+) and **add** user-facing release-note items (3 languages) for shipped-but-undocumented features (multi-trip, Dia a dia, AI Quick Entry, Trip Wrapped, Dividir conta, Acerto de contas/connections, new icon, onboarding identity); fix `brain/README.md` "Last updated". Update `GUIDE_SECTIONS` to include every first-class feature (each route must exist — the guide route test guards it). Additive only; no rewriting of published history.
+
+### DEC-274 — Planner/pre-fill: opening a screen never writes; Dia-a-dia guards; no negative balance from missing config
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED. Plan: §C9, FB-25.
+- **Decision**: **opening the planner must not create or pre-fill plans** (separate ephemeral "suggestions" from explicitly-saved plans); date-coupled planning/pre-fill surfaces are hidden behind a centralized capability gate when `kind==='ongoing'`; with no config, show an empty state ("set income/limit") instead of a **negative** number. Smoke: opening any planning screen in an `ongoing` space = zero writes, no crash, no absurd number.
+- **Rationale**: Julio — entering the planner auto-added plans and went negative in Dia a dia; opening a screen must never write.
+
+### DEC-275 — Single image-capture pattern (take photo / gallery chooser) everywhere
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (new). Plan: §CC-IMG.
+- **Decision**: every image entry shows a **chooser** ("Tirar foto agora" `capture="environment"` vs "Escolher da galeria"), **extracting the existing validated pattern** from `AttachmentSection` (DEC-206) into a reusable component/hook (`ImageSourceChooser`/`usePickImage`) and applying it to the receipt scan, the new AI photo (DEC-257), and any future image entry. Preserve the synchronous user gesture (iOS camera permission).
+- **Rationale**: Julio — "todo lugar de entrada de imagem, tem que ter duas opções: enviar imagem ou capturar com a câmera." One pattern, no second implementation.
+
+### DEC-276 — Graceful AI degradation when the Groq free tier is exhausted
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (new). Plan: §C10, FB-26.
+- **Decision**: on a Groq 429 (or `x-ratelimit-remaining-*` ≈ 0), the Worker returns a structured body `{ aiUnavailable: true, retryAfterSec, scope: 'minute'|'day' }` derived from `retry-after`/`x-ratelimit-reset-*` (for assistant/ocr/transcribe); the client sets an `aiCooldownUntil`, disables AI triggers, and shows a warm message with a **real countdown** (`scope:'minute'` → "tente em ~{n}s") or "volta mais tarde" (`scope:'day'`), **without revealing billing** — always offering a 1-tap **"Registrar manualmente"** that opens `/quick-add` **preserving the typed/spoken input**. Admin logs the 429 count (upgrade signal). Never a fake countdown.
+- **Rationale**: the free tier runs out; turn the failure into a predictable wait + immediate manual path, never a dead AI or a lost expense.
+
+### DEC-277 — Record a received repayment (Pix/Wise/cash/transfer) in the split
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (new). **Final round: structured method field** (not free-text) + registration must be **accessible without breaking the flow**. Plan: §FB-27.
+- **Decision**: in "Acerto de contas", add a **"Registrar pagamento recebido"** action that creates a `Settlement` (debtor = who paid, creditor = me, `amountCents`, `settledAt`) with a **structured** `method?: PaymentMethodKind` (pix/wise/bank/cash/other) added to the `Settlement` type (optional, backward-compatible), reducing that person's owed balance; reuses `settlement-repository`/`reimbursement-bridge` + the DEC-244 payment-method selector; inline sheet that keeps the user in the hub (no flow break). Supports partial repayments. No new type (rides on the existing `Settlement`); the Wise→settlement dedupe (DEC-200) is preserved.
+- **Rationale**: the user pays the whole bill and others repay via Pix/Wise/cash — the app must close the loop (we already list HOW to pay back via DEC-244).
+
+### DEC-278 — In-app AI help/concierge — comprehensive V1 (local search, 0 token); AI fallback only in V2 behind a token budget
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (new; V1 "bem completo"). Plan: §C11, FB-28.
+- **Decision**: **V1 = no AI, 0 token** — a **comprehensive** help KB (`domain/help/help-catalog.ts`) covering **every** feature + common doubts (Q&A + steps + deep-link + search tags, 3 languages), with local keyword/synonym search over the KB **and** the guide catalog (DEC-273/FB-02), a first-class "Ajuda / Como funciona" entry, and answers that link to the screen. **V2 (later, conditional)** = AI fallback only when local search misses, with **minimal context** (2–3 KB snippets), forbidden to invent beyond the context, behind a **token-budget gate** (tied to DEC-269/DEC-276). **Never** send the whole brain. The concierge must never degrade the core AI (registration).
+- **Rationale**: Julio — users should get all doubts answered; but reading lots of text per question could blow the free tier and kill the core AI, so local-first (0 token) delivers ~80% of the value safely.
+
+### DEC-279 — Cofrinho legibility: voice + statement (ledger) + movement insight; pick calculation model (B recommended)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED — **Julio ratified Model B** (2026-06-22 final round). Refines DEC-261. Implementation pending (Gate 2). Plan: §C14, FB-08.
+- **Context**: the cofrinho today is an opaque derived number (`max(0, idealToDate − spentToDate)`) with no voice and no statement; Julio (and users) can't tell what it is, where the money came from, or why it moved. He asked the council whether the buffer dynamic is even right and to make it legible.
+- **Decision (direction)**: give the cofrinho three legibility layers — **(1) voice**: a short explainer on the card + a full entry in the help KB (FB-28/DEC-278), showing *effective = base + cofrinho* side by side (rollover best practice); **(2) statement/ledger**: tapping the card/insight opens an Activity-Timeline of **+deposits** (a day under the daily ideal) and **−withdrawals** (a day over, linked to the causing expenses), including **partial coverage**, with a running balance; **(3) movement insight**: a new `piggy_movement` extra in `honest-friend-extras.ts` (shown only when the balance changed), Amigo-Sincero tone, deep-linking to the statement. Card is **on-demand** (check-in `no_spend`/`calm` + recent movement), **not pinned** by default (user may pin via existing toggle). Ongoing/no-date trips hide the cofrinho.
+- **Calculation model (RATIFIED = Model B)**: a truthful statement needs a **day-ordered running balance** (`bal_d = max(0, bal_{d-1} + dailyIdeal − daySpend)`), derived purely by replaying immutable transactions in date order in a dedicated `domain/budget/piggy-ledger.ts` (no mutable balance stored; recalculates forward on edits, like FreeBudget rollover). **Model B** is the only one that makes the statement reconcile **and** implements the DEC-261 buffer honestly — **Julio chose B**. **Model A** (current end-clamped, read-only trophy, no daily effect) is kept only as a documented safety-net fallback if a usability test later shows the path-dependent buffer confuses. The statement/insight UI works in both models.
+- **Invariant (non-negotiable, Critic)**: `statement balance == displayed balance == the buffer the free/day respects` — no cent double-counted or lost. Strong tests incl. "dip-and-recover".
+- **Anchor (ÂNCORA 11)**: amendment — the **per-day** reading reflects the buffer; `calculateFreeToSpend` total stays byte-identical and the derivation stays pure (nothing mutable persisted).
+- **Research grounding (verified 2026-06-22)**: YNAB "Roll With the Punches" (seeing money leave savings to cover an overshoot is what makes budgeting click); FreeBudget/FinWise rollover (never modifies originals, recalculates forward, show planned+rollover+effective + icon/tooltip); audit-trail "Activity Timeline" pattern.
+- **Rationale**: the cofrinho's value is **behavioral** (a visible save→grow / overshoot→withdraw loop), not just a number; without voice + statement + felt movement it's an opaque trophy that appears and vanishes.
+
+### DEC-280 — Single-session delivery protocol: deploy + context-reset per gate (council C15)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (Julio)
+- **Context**: gates are being implemented in ONE continuous chat session (cost model = per request, not per token). Julio asked whether the accumulating context degrades quality across gates and whether the gates should be **reordered** (heavy-first while context is fresh, light-last).
+- **Decision**: **keep the current gate order**; the lever is the ritual between gates, not the order. The order already front-loads quick-wins (G1) → the **heaviest-logic gate (G2: cofrinho ledger) while context is freshest** → mediums; respects the only hard dependency (CC-IMG/G4 → Nota-IA/G5); groups the worker-touching gates (G5/G7); and each gate is a coherent, shippable surface for phone testing. **Mandatory per-gate ritual**: (1) gate-scoped tests (the gate + impacted areas, not the whole suite every time) + `build`/`tsc` + 3-screen smoke green; (2) **deploy to Cloudflare Pages (web/OTA)** — bump `public/version.json` (the `package.json`/`APP_VERSION` bump does NOT update the OTA manifest — caught at 0.99.39) + scoped commit + push `master` → auto-build runs `build:pages`; verify `/version.json` + `/bundles/<v>.zip`; (3) **Context Reset in-session (0 extra request)**; (4) refresh: re-read master plan §4 of the next gate + `dev-log.md` Current State + rules; (5) mid-gate refresh every 3 milestones, and the heaviest gate's **math sub-gate is locked by invariant tests before any UI**.
+- **Test policy**: not the entire suite every time, but **every test the gate touches + impacted areas must be green before deploy**.
+- **Rationale**: bounding the context **per gate** (reset + durable spec in dev-log/plan) preserves quality better than any static ordering, and shipping each completed gate lets Julio test on his phone immediately.
+- **Plan ref**: §4.1 (C15) of `documents/field-feedback-master-plan-and-councils-2026-06-22.md`.
 
 ---
 

@@ -926,7 +926,7 @@ export function DashboardCards({
           <>
             {/* §7 pos. 7 — INSIGHTS (DEC-091 / R-09): swipe switches, tap details */}
             {model.insights.length > 0 && (
-              <div className="mt-4 rounded-2xl bg-surface-container pb-1">
+              <div className="mt-4 rounded-2xl bg-surface-container">
                 <div
                   ref={insightScrollRef}
                   className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory"
@@ -1004,7 +1004,7 @@ export function DashboardCards({
                     there", not "only these exist". */}
                 <button
                   onClick={() => navigate('/copiloto')}
-                  className="w-full pb-2.5 pt-1.5 mt-0.5 flex items-center justify-center gap-1 btn-press border-t"
+                  className="w-full py-2 mt-0.5 flex items-center justify-center gap-1 btn-press border-t"
                   style={{ borderColor: 'var(--border-faint)' }}
                 >
                   <Icon name="auto_awesome" size={13} className="text-primary" />

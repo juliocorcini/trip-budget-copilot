@@ -1,4 +1,5 @@
 import { createSyncMetadata } from '@/utils/entity-factory';
+import { suggestDeviceName } from '@/utils/platform';
 import { DEFAULT_QUICK_ADD_VALUES_CENTS } from '@/domain/outing';
 import { DEFAULT_COLLAPSED_CARDS } from '@/domain/dashboard/dashboard-cards';
 import type { AppSettings } from '@/domain/types/app-settings';
@@ -23,7 +24,10 @@ export function createDefaultAppSettings(): AppSettings {
     // DEC-057 (decision D-A): reminder default is 7 days.
     backupReminderDays: 7,
     lastBackupDate: null,
-    deviceName: 'Meu dispositivo',
+    // FB-05 (DEC-266): a new install gets a friendly auto name (OS · browser,
+    // e.g. "Android · Chrome") instead of the generic placeholder. The traveler
+    // can still rename it; an existing install keeps whatever it already had.
+    deviceName: suggestDeviceName(),
     persistentStorageGranted: false,
     isDemo: false,
     onboardingCompleted: false,

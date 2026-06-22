@@ -10,6 +10,7 @@ import { hasPendingSharedCsv, setSharedCsvNavHandler } from '@/utils/native/shar
 import { setHapticsEnabled } from '@/utils/haptics';
 import { sendHeartbeatIfDue } from '@/utils/telemetry';
 import { flushPendingErrorReports } from '@/utils/error-report';
+import { dismissTopOverlay } from '@/utils/overlay-dismiss';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
 
@@ -82,6 +83,15 @@ function useBackButtonGuard() {
     const seedBuffer = () => window.history.pushState(window.history.state, '');
     seedBuffer();
     const onPopState = () => {
+      // FB-07: mirror the native back button (initBackButton) on web/PWA — a back
+      // press should first dismiss any open overlay (FAB menu, bottom sheets)
+      // instead of navigating. If one closed, re-seed the consumed entry so the
+      // route is untouched. Only kicks in when an overlay is actually open, so
+      // normal in-app back navigation is unchanged.
+      if (dismissTopOverlay()) {
+        seedBuffer();
+        return;
+      }
       if (HOME_PATHS.has(window.location.pathname)) seedBuffer();
     };
     window.addEventListener('popstate', onPopState);

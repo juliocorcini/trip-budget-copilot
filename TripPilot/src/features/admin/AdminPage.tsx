@@ -430,13 +430,13 @@ function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: (
   ];
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full sm:max-w-lg max-h-[88vh] overflow-y-auto bg-surface-container rounded-t-2xl sm:rounded-2xl p-5 flex flex-col gap-4"
+        className="w-full max-w-lg lg:max-w-3xl max-h-[88vh] overflow-y-auto bg-surface-container rounded-2xl p-5 flex flex-col gap-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -452,6 +452,9 @@ function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: (
           </button>
         </div>
 
+        {/* FB-22: on desktop, distribute the info blocks into two columns so the
+            wider modal is legible instead of one tall single column. */}
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
         <div className="bg-surface rounded-xl px-3 py-1">
           {meta.map(({ label, value }) => (
             <div
@@ -494,6 +497,7 @@ function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: (
               </span>
             ))}
           </div>
+        </div>
         </div>
 
         <p className="text-[10px] text-on-surface-faint text-center">
