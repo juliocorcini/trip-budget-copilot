@@ -1,8 +1,8 @@
 {
-  "version": "0.99.37",
+  "version": "0.99.38",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.37.zip",
-  "notes": "O onboarding agora sempre pergunta seu nome (e um e-mail opcional, que fica só no seu aparelho) — fim do \"Eu\" genérico. E o painel passa a reconhecer corretamente quem usa pelo iPhone."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.38.zip",
+  "notes": "TripPilot está com a cara nova: um ícone de pin de viagem com bússola. No iPhone e na web ele já aparece; no Android, depois de instalar a próxima versão do app."
 }

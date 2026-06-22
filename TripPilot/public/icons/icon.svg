@@ -1,9 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0F1419"/>
-  <circle cx="256" cy="200" r="80" fill="none" stroke="#C75B39" stroke-width="16"/>
-  <path d="M256 280 L256 380" stroke="#C75B39" stroke-width="16" stroke-linecap="round"/>
-  <path d="M200 340 L256 380 L312 340" fill="none" stroke="#C75B39" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M176 160 L216 120" stroke="#EDE8E0" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
-  <path d="M336 160 L296 120" stroke="#EDE8E0" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
-  <text x="256" y="460" text-anchor="middle" fill="#EDE8E0" font-family="sans-serif" font-size="48" font-weight="700" opacity="0.9">PILOT</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="184" fill="#0F1419"/>
+  <path transform="translate(131,119) scale(31.75)" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#C75B39"/>
+  <circle cx="512" cy="405" r="104" fill="#EDE8E0"/>
+  <path d="M512 315 L480 405 L544 405 Z" fill="#C75B39"/>
+  <path d="M512 495 L480 405 L544 405 Z" fill="#0F1419"/>
 </svg>
