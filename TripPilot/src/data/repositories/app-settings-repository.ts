@@ -45,7 +45,14 @@ class AppSettingsRepository {
       // M21: records predating the priors offer have nothing handled.
       tripPriorsHandled: settings.tripPriorsHandled ?? [],
       // E8 (M2/M3): records predating location capture default to off/no place.
+      // FB-03 (DEC-265): the NEW-install default ON lives in the seed only — the
+      // backfill stays `?? false` so a restore/old record NEVER flips a prior
+      // user's location choice on read (AC4).
       locationCaptureEnabled: settings.locationCaptureEnabled ?? false,
+      // FB-03 (DEC-265): existing installs (no field) are treated as having
+      // already acknowledged — only a genuinely new install (seeded false) ever
+      // sees the first-run notice.
+      locationDefaultNoticeAcknowledged: settings.locationDefaultNoticeAcknowledged ?? true,
       currentPlace: settings.currentPlace ?? null,
       // E9 (M11): records predating multi-currency have no frozen rates.
       frozenRates: settings.frozenRates ?? null,

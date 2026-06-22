@@ -1,8 +1,8 @@
 {
-  "version": "0.99.46",
+  "version": "0.99.47",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.46.zip",
-  "notes": "Quando a IA atinge o limite gratuito, agora ela avisa com tempo real de espera (countdown honesto) ou “volta mais tarde”, e o registro manual fica a um toque sem perder o que você já digitou. Nos bastidores, o painel de administração ganhou governança de tokens do Groq (uso do dia/mês, % do limite e projeção de usuários) e mais detalhes por usuário."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.47.zip",
+  "notes": "Agora dá para registrar um reembolso recebido (Pix, Wise, conta, dinheiro ou outro) direto no Acerto de contas — o valor devido cai na hora e fica no histórico. Viagens novas já vêm com o registro de local ligado (com aviso transparente e um toque para desligar nas Configurações), e o planejador ficou mais tranquilo: abrir não cria mais planos sozinho e o Dia a dia explica que cenários são para viagens com datas."
 }

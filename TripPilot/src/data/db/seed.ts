@@ -60,8 +60,15 @@ export function createDefaultAppSettings(): AppSettings {
     tripTemplates: [],
     // M21: no end-of-trip priors offer handled yet.
     tripPriorsHandled: [],
-    // E8 (M2): location capture is opt-in — off until the traveler enables it.
-    locationCaptureEnabled: false,
+    // FB-03 (DEC-265): a NEW install ships with location tagging ON (product
+    // default ON, amendment to ÂNCORA 8). GPS is still never read until the OS
+    // grants permission, and it is one tap to turn off in Settings. Existing
+    // installs keep their stored choice (the read backfill stays `?? false`).
+    locationCaptureEnabled: true,
+    // FB-03 (DEC-265): a new install has NOT yet seen the transparent first-run
+    // notice ("location is on, turn it off anytime"). Existing installs read
+    // back `undefined` → treated as already-acknowledged (notice never shows).
+    locationDefaultNoticeAcknowledged: false,
     // E8 (M3): no remembered place until the first located expense.
     currentPlace: null,
     // E9 (M11): no frozen exchange rates until the traveler pulls them once.

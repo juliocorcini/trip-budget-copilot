@@ -32,6 +32,25 @@ export const PAYMENT_METHOD_ICONS: Record<PaymentMethodKind, string> = {
   other: 'payments',
 };
 
+/**
+ * FB-27 (DEC-277): how a received reimbursement was paid. A superset of the
+ * "how to pay me" kinds (DEC-244) plus `cash` — money handed over in person has
+ * no stored instruction, so it lives ONLY here and never enters the payment
+ * methods editor. `PAYMENT_METHOD_KINDS`/`PAYMENT_METHOD_ICONS` stay untouched,
+ * so DEC-244 (the reminder instructions) is not affected.
+ */
+export type SettlementMethod = PaymentMethodKind | 'cash';
+
+/** Display order of the method chips in the settle-up sheet. */
+export const SETTLEMENT_METHOD_KINDS: SettlementMethod[] = ['pix', 'wise', 'bank', 'cash', 'other'];
+
+/** Material symbol per settlement method (reuses the shared kinds + a cash glyph). */
+export const SETTLEMENT_METHOD_ICONS: Record<SettlementMethod, string> = {
+  ...PAYMENT_METHOD_ICONS,
+  cash: 'payments',
+  other: 'more_horiz',
+};
+
 export interface PaymentInstructionLabels {
   /** Header line, e.g. "Pode pagar por:". */
   header: string;

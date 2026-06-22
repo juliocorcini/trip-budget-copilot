@@ -714,6 +714,10 @@
     "storage_not_persisted": "Seus dados podem ser limpos pelo sistema. Ative o armazenamento protegido em Configurações.",
     "storage_backup_now": "Seus dados podem ser perdidos pelo sistema. Faça backup agora.",
     "storage_install_ios": "Instale o TripPilot na tela inicial para proteger seus dados (Compartilhar → Adicionar à Tela de Início).",
+    "location_notice_title": "Registro de local ligado",
+    "location_notice_body": "Seus gastos passam a guardar onde foram feitos, pra você ver no mapa e por lugar. O GPS só é lido com a sua permissão — desligue quando quiser nas Configurações.",
+    "location_notice_ack": "Entendi",
+    "location_notice_settings": "Configurações",
     "hidden_cards_entry": "{{count}} card(s) escondido(s) · Configurar tela inicial",
     "simple_free_today": "Livre hoje",
     "simple_no_budget": "Comece registrando",
@@ -1349,7 +1353,10 @@
     "added_breakdown": "Você adicionou {{items}}",
     "no_phases_title": "Nenhuma fase ainda",
     "no_phases_body": "O planejador organiza seus gastos por fase da viagem. Crie a primeira fase para montar cenários e definir quanto gastar em cada categoria.",
-    "no_phases_cta": "Criar uma fase"
+    "no_phases_cta": "Criar uma fase",
+    "ongoing_title": "O planejador é para viagens com datas",
+    "ongoing_body": "No Dia a dia não há fases nem datas para montar cenários. Acompanhe o gasto do mês e seu limite direto na tela inicial.",
+    "ongoing_cta": "Voltar para o início"
   },
   "funds": {
     "title": "Fundos",
@@ -2054,6 +2061,7 @@
     "settle_confirm_title": "Confirmar acerto",
     "settle_confirm_body": "{{debtor}} deve {{amount}} a {{creditor}}. Você pode liquidar o valor total ou registrar um acerto parcial.",
     "settle_amount_label": "Valor do acerto (€)",
+    "settle_method_label": "Como foi pago? (opcional)",
     "settle_partial_hint": "Acerto parcial — restarão {{remaining}} em aberto.",
     "simplify_debts": "Simplificar dívidas — reduzir para {{count}} transferências",
     "show_original_debts": "Ver dívidas originais",
@@ -2128,6 +2136,7 @@
     "kind_pix": "Pix",
     "kind_wise": "Wise",
     "kind_bank": "Conta bancária",
+    "kind_cash": "Dinheiro",
     "kind_other": "Outro",
     "settings_title": "Como você recebe",
     "settings_entry": "Formas de pagamento",

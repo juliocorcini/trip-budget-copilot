@@ -24,6 +24,11 @@ import { findSubcategory } from '@/domain/outing';
 import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
+import {
+  SETTLEMENT_METHOD_KINDS,
+  SETTLEMENT_METHOD_ICONS,
+  type SettlementMethod,
+} from '@/domain/payment/payment-methods';
 import { formatMoney, toCents } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
@@ -137,6 +142,8 @@ export function SharedExpensesPage() {
   // GAP-032: settle goes through a confirmation sheet with optional partial amount.
   const [settleTarget, setSettleTarget] = useState<DebtEntry | null>(null);
   const [settleAmount, setSettleAmount] = useState('');
+  // FB-27 (DEC-277): optional structured method of the recorded repayment.
+  const [settleMethod, setSettleMethod] = useState<SettlementMethod | null>(null);
   const [showSimplified, setShowSimplified] = useState(false);
   // DL-3: P2P machinery (QR, receive, mirrored statements) lives in a collapsed
   // "Conexões" section. It is hidden via CSS — NEVER unmounted — so the mirror's
@@ -327,6 +334,7 @@ export function SharedExpensesPage() {
   const openSettleSheet = (debt: DebtEntry) => {
     setSettleTarget(debt);
     setSettleAmount((debt.amountCents / 100).toFixed(2));
+    setSettleMethod(null);
   };
 
   const settleAmountCents = (() => {
@@ -344,6 +352,7 @@ export function SharedExpensesPage() {
       settleTarget.creditorId,
       amountCents,
       trip.baseCurrency,
+      settleMethod,
     );
     await settlementRepository.create(settlement);
     setSettleTarget(null);
@@ -869,6 +878,34 @@ export function SharedExpensesPage() {
                 </p>
               )}
             </div>
+            {/* FB-27 (DEC-277): optional structured "how it was paid" — Pix/Wise/
+                bank/cash/other. Tap again to clear; staying null is allowed. */}
+            <div>
+              <label className="text-xs text-on-surface-faint mb-1.5 block">
+                {t('shared.settle_method_label')}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {SETTLEMENT_METHOD_KINDS.map((kind) => {
+                  const selected = settleMethod === kind;
+                  return (
+                    <button
+                      key={kind}
+                      type="button"
+                      onClick={() => setSettleMethod(selected ? null : kind)}
+                      aria-pressed={selected}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1.5 ${
+                        selected
+                          ? 'bg-primary/20 text-primary'
+                          : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      <Icon name={SETTLEMENT_METHOD_ICONS[kind]} size={14} />
+                      {t(`payment.kind_${kind}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="flex gap-2 mt-1">
               <button
                 onClick={() => setSettleTarget(null)}
@@ -1318,11 +1355,20 @@ export function SharedExpensesPage() {
             {t('shared.settlements_done')}
           </p>
           {settlements.map((s) => (
-            <div key={s.id} className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center justify-between">
-              <p className="text-sm text-on-surface">
-                {participants.find((p) => p.id === s.debtorParticipantId)?.name} → {participants.find((p) => p.id === s.creditorParticipantId)?.name}
-              </p>
-              <p className="text-sm font-semibold tabular text-success">
+            <div key={s.id} className="bg-surface-container rounded-xl px-4 py-3 mb-1 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-on-surface truncate">
+                  {participants.find((p) => p.id === s.debtorParticipantId)?.name} → {participants.find((p) => p.id === s.creditorParticipantId)?.name}
+                </p>
+                {/* FB-27 (DEC-277): the structured method, when it was recorded. */}
+                {s.method && (
+                  <p className="text-[10px] text-on-surface-faint mt-0.5 flex items-center gap-1">
+                    <Icon name={SETTLEMENT_METHOD_ICONS[s.method]} size={12} />
+                    {t(`payment.kind_${s.method}`)}
+                  </p>
+                )}
+              </div>
+              <p className="text-sm font-semibold tabular text-success shrink-0">
                 {formatMoney(s.amountCents, s.currency)}
               </p>
             </div>

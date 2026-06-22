@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.47',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'Registrar reembolso ficou fácil: no Acerto de contas, marque que recebeu de alguém e escolha como (Pix, Wise, conta, dinheiro ou outro). O valor que a pessoa te devia diminui na hora e fica no histórico.',
+        'Viagens novas já começam com o registro de local ligado — seus gastos guardam onde foram feitos. O GPS só é lido com a sua permissão e você desliga quando quiser nas Configurações (a gente avisa isso logo de cara).',
+        'O planejador ficou mais tranquilo: abrir a tela não cria mais planos sozinho, e no Dia a dia ele explica que cenários são para viagens com datas.',
+      ],
+      en: [
+        'Recording a reimbursement is now easy: in Settle-up, mark that someone paid you back and pick how (Pix, Wise, bank, cash or other). What that person owed you drops right away and shows in the history.',
+        'New trips now start with location tagging on — your expenses remember where they happened. GPS is only read with your permission, and you can turn it off anytime in Settings (we tell you up front).',
+        'The planner is calmer: opening it no longer creates plans on its own, and in Day-to-day it explains that scenarios are for dated trips.',
+      ],
+      es: [
+        'Registrar un reembolso ahora es fácil: en el Ajuste de cuentas, marca que alguien te pagó y elige cómo (Pix, Wise, banco, efectivo u otro). Lo que esa persona te debía baja al instante y queda en el historial.',
+        'Los viajes nuevos empiezan con el registro de lugar activado — tus gastos recuerdan dónde se hicieron. El GPS solo se lee con tu permiso y lo apagas cuando quieras en Configuración (te lo avisamos de entrada).',
+        'El planificador está más tranquilo: abrirlo ya no crea planes solo, y en Día a día explica que los escenarios son para viajes con fechas.',
+      ],
+    },
+  },
+  {
     version: '0.99.46',
     date: '2026-06-22',
     items: {

@@ -2,6 +2,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare, ShareConfirmationStatus } from '@/domain/types/participant-share';
 import type { Participant } from '@/domain/types/participant';
 import type { Settlement } from '@/domain/types/settlement';
+import type { SettlementMethod } from '@/domain/payment/payment-methods';
 import { splitEqually, sumCents } from '@/domain/money';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
@@ -368,6 +369,9 @@ export function createSettlement(
   creditorId: string,
   amountCents: number,
   currency: string,
+  // FB-27 (DEC-277): optional structured repayment method. Trailing + defaulted
+  // so the existing call sites (and the Wise import) stay byte-identical.
+  method: SettlementMethod | null = null,
 ): Settlement {
   return {
     ...createSyncMetadata(),
@@ -379,6 +383,7 @@ export function createSettlement(
     settledAt: new Date().toISOString(),
     linkedTransactionId: null,
     notes: null,
+    method,
   };
 }
 

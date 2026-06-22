@@ -710,6 +710,10 @@
     "storage_not_persisted": "El sistema puede borrar tus datos. Activa el almacenamiento protegido en Configuración.",
     "storage_backup_now": "El sistema puede borrar tus datos. Haz una copia ahora.",
     "storage_install_ios": "Instala TripPilot en la pantalla de inicio para proteger tus datos (Compartir → Añadir a pantalla de inicio).",
+    "location_notice_title": "Registro de ubicación activado",
+    "location_notice_body": "Tus gastos ahora guardan dónde los hiciste, para verlos en el mapa y por lugar. El GPS solo se lee con tu permiso — desactívalo cuando quieras en Ajustes.",
+    "location_notice_ack": "Entendido",
+    "location_notice_settings": "Ajustes",
     "hidden_cards_entry": "{{count}} card(s) oculto(s) · Configurar pantalla de inicio",
     "simple_free_today": "Libre hoy",
     "simple_no_budget": "Empieza registrando",
@@ -1345,7 +1349,10 @@
     "added_breakdown": "Agregaste {{items}}",
     "no_phases_title": "Aún no hay fases",
     "no_phases_body": "El planificador organiza tus gastos por fase del viaje. Crea la primera fase para armar escenarios y definir cuánto gastar en cada categoría.",
-    "no_phases_cta": "Crear una fase"
+    "no_phases_cta": "Crear una fase",
+    "ongoing_title": "El planificador es para viajes con fechas",
+    "ongoing_body": "Un espacio Día a día no tiene fases ni fechas para armar escenarios. Sigue el gasto del mes y tu límite directamente en la pantalla de inicio.",
+    "ongoing_cta": "Volver al inicio"
   },
   "funds": {
     "title": "Fondos",
@@ -2050,6 +2057,7 @@
     "settle_confirm_title": "Confirmar liquidación",
     "settle_confirm_body": "{{debtor}} debe {{amount}} a {{creditor}}. Puedes liquidar el importe total o registrar una liquidación parcial.",
     "settle_amount_label": "Importe de la liquidación (€)",
+    "settle_method_label": "¿Cómo se pagó? (opcional)",
     "settle_partial_hint": "Liquidación parcial — quedarán {{remaining}} pendientes.",
     "simplify_debts": "Simplificar deudas — reducir a {{count}} transferencias",
     "show_original_debts": "Ver deudas originales",
@@ -2124,6 +2132,7 @@
     "kind_pix": "Pix",
     "kind_wise": "Wise",
     "kind_bank": "Cuenta bancaria",
+    "kind_cash": "Efectivo",
     "kind_other": "Otro",
     "settings_title": "Cómo te pagan",
     "settings_entry": "Formas de pago",

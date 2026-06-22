@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { isOngoing } from '@/domain/spaces/spaces';
 import { useScrolled } from '@/hooks/useScrolled';
 import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
 import { calculateFreeToSpend } from '@/domain/budget';
@@ -174,6 +175,12 @@ export function PlannerPage() {
   const planRef = useRef<ScenarioPlan | null>(null);
   const itemsRef = useRef<Map<string, ScenarioAllocationItem>>(new Map());
   const hydratedRef = useRef(false);
+  // FB-25 (DEC-274): opening the Planner must NEVER write. The debounced persist
+  // only runs after the traveler actually edits something (a +/−, a lock, a
+  // preset, a recommendation, a new category). Merely loading the page —
+  // hydration seeding `states` from the profiles' defaults — must not create a
+  // ScenarioPlan or allocation items. Reset on every (re)hydration.
+  const userEditedRef = useRef(false);
 
   profilesRef.current = profiles;
   statesRef.current = states;
@@ -238,6 +245,9 @@ export function PlannerPage() {
     if (!trip || !selectedPhase || !phasePool || !profilesLoaded) return;
     let cancelled = false;
     hydratedRef.current = false;
+    // FB-25 (DEC-274): a fresh (re)hydration is NOT a user edit — clear the flag
+    // so the seeding setStates below can never trigger a persist on open.
+    userEditedRef.current = false;
     setReady(false);
 
     (async () => {
@@ -341,7 +351,9 @@ export function PlannerPage() {
   }, [trip, selectedPhase, phasePool]);
 
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    // FB-25 (DEC-274): persist only after a real user edit — opening the page
+    // (hydration → setStates) must not create a plan or allocations.
+    if (!hydratedRef.current || !userEditedRef.current) return;
     const timer = setTimeout(() => {
       persist();
     }, PERSIST_DEBOUNCE_MS);
@@ -503,6 +515,7 @@ export function PlannerPage() {
         showToast(t('planner.locked_feedback'), 'warning');
         return;
       }
+      userEditedRef.current = true; // FB-25: an explicit edit may now persist.
       setStates((prev) => {
         const s = prev[id];
         if (!s) return prev;
@@ -513,6 +526,7 @@ export function PlannerPage() {
   );
 
   const toggleLock = useCallback((id: string) => {
+    userEditedRef.current = true; // FB-25: an explicit edit may now persist.
     setStates((prev) => {
       const s = prev[id];
       if (!s) return prev;
@@ -522,6 +536,7 @@ export function PlannerPage() {
 
   const applyPreset = useCallback(
     (preset: ScenarioPreset) => {
+      userEditedRef.current = true; // FB-25: an explicit edit may now persist.
       setActivePreset(preset);
       setStates((prev) => {
         const next = { ...prev };
@@ -541,6 +556,7 @@ export function PlannerPage() {
 
   const applyRecommendation = useCallback(() => {
     if (!recommendation) return;
+    userEditedRef.current = true; // FB-25: an explicit edit may now persist.
     setStates((prev) => {
       const next = { ...prev };
       for (const c of recommendation.changes) {
@@ -616,6 +632,7 @@ export function PlannerPage() {
   const handleSetPriority = useCallback(
     (priority: AllocationPriority) => {
       if (!menuProfile) return;
+      userEditedRef.current = true; // FB-25: an explicit edit may now persist.
       setStates((prev) => {
         const s = prev[menuProfile.id];
         if (!s) return prev;
@@ -637,6 +654,7 @@ export function PlannerPage() {
         typicalValueCents: data.typicalValueCents,
       });
       // DEC-074: the new profile is explicitly enabled in the current phase.
+      userEditedRef.current = true; // FB-25: an explicit edit may now persist.
       await createProfileEnabledInPhase({ profile, phaseId: selectedPhase.id });
       const settings = await phaseProfileSettingRepository.getByPhaseId(selectedPhase.id);
       setPhaseSettings(settings);
@@ -661,6 +679,37 @@ export function PlannerPage() {
   // Planner is phase-scoped), so the bare loading guard below would spin
   // forever. Show a calm, actionable empty state pointing at where phases are
   // created instead of an endless spinner.
+  // FB-25 (DEC-274): the Planner is a dated/phase-coupled surface. A continuous
+  // "Dia a dia" space has no phases or dates (it reasons per calendar month), so
+  // it shows a calm, read-only empty state — never the phase planner that would
+  // seed allocations and read as a negative margin. Gated by capability, not by
+  // the incidental phase count, and it writes nothing.
+  if (!loading && trip && isOngoing(trip)) {
+    return (
+      <div className="flex flex-col pb-4 pt-6">
+        <p
+          className="text-[11px] tracking-[0.15em] uppercase font-bold"
+          style={{ color: '#C75B39aa' }}
+        >
+          {t('planner.title')}
+        </p>
+        <h1 className="text-xl font-extrabold tracking-tight mt-1 mb-5 text-on-surface">
+          {t('planner.scenarios')}
+        </h1>
+        <EmptyState
+          icon="event_busy"
+          title={t('planner.ongoing_title')}
+          body={t('planner.ongoing_body')}
+          cta={{
+            label: t('planner.ongoing_cta'),
+            icon: 'home',
+            onClick: () => navigate('/'),
+          }}
+        />
+      </div>
+    );
+  }
+
   if (!loading && trip && phases.length === 0) {
     return (
       <div className="flex flex-col pb-4 pt-6">

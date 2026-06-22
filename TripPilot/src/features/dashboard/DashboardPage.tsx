@@ -44,6 +44,7 @@ import { DashboardSheets } from './DashboardSheets';
 import { SimpleHome } from './SimpleHome';
 import { OngoingHome } from './OngoingHome';
 import { SimpleRevealCard } from './SimpleRevealCard';
+import { LocationDefaultNoticeCard } from './LocationDefaultNoticeCard';
 import { ActiveSplitHomeCard } from '@/features/split/ActiveSplitHomeCard';
 import { SpaceSwitcherChip } from '@/features/spaces/SpaceSwitcherChip';
 
@@ -132,6 +133,19 @@ export function DashboardPage() {
   const handleRevealDismiss = async () => {
     await appSettingsRepository.update({ simpleRevealDismissed: true });
     await reload();
+  };
+
+  // FB-03 (DEC-265): the transparent first-run location notice. Acknowledging
+  // (or stepping into Settings to turn it off) marks it seen so it never nags
+  // again — a one-tap, honest disclosure of the new default ON.
+  const handleAckLocationNotice = async () => {
+    await appSettingsRepository.update({ locationDefaultNoticeAcknowledged: true });
+    await reload();
+  };
+
+  const handleOpenLocationSettings = async () => {
+    await appSettingsRepository.update({ locationDefaultNoticeAcknowledged: true });
+    navigate('/settings');
   };
 
   // DEC-251 (os-budget): set/clear the Dia a dia monthly cap. The cap lives on
@@ -355,6 +369,18 @@ export function DashboardPage() {
           <p className="text-xs font-semibold text-warning">{t('demo.banner')}</p>
         </div>
       )}
+
+      {/* FB-03 (DEC-265): one-time transparent notice that a new install ships
+          with location tagging ON. Skipped for the demo and for every existing
+          install (acknowledged backfills true on read). */}
+      {!settings.isDemo &&
+        settings.locationCaptureEnabled &&
+        settings.locationDefaultNoticeAcknowledged === false && (
+          <LocationDefaultNoticeCard
+            onAcknowledge={handleAckLocationNotice}
+            onOpenSettings={handleOpenLocationSettings}
+          />
+        )}
 
       {/* STORAGE NOT PERSISTENT (R5-03 / R6-13 / BUG-002): eviction risk warning.
           iOS Safari cannot grant persistence programmatically — the honest

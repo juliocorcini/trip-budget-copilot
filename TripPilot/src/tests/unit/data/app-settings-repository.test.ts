@@ -107,3 +107,45 @@ describe('appSettingsRepository — appMode (M15)', () => {
     expect(settings.appMode).toBe('simple');
   });
 });
+
+describe('appSettingsRepository — location default ON (FB-03 / DEC-265)', () => {
+  beforeEach(clearAll);
+
+  it('a NEW install ships with location ON and the first-run notice unseen', () => {
+    const fresh = createDefaultAppSettings();
+    expect(fresh.locationCaptureEnabled).toBe(true);
+    expect(fresh.locationDefaultNoticeAcknowledged).toBe(false);
+  });
+
+  it('AC4: a stored OFF choice is NEVER flipped ON on read (prior choice wins)', async () => {
+    await db.appSettings.put({ ...createDefaultAppSettings(), locationCaptureEnabled: false });
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.locationCaptureEnabled).toBe(false);
+  });
+
+  it('AC4: a record predating the field backfills OFF — a restore never forces ON', async () => {
+    const legacy = createDefaultAppSettings() as Partial<AppSettings>;
+    delete legacy.locationCaptureEnabled;
+    await db.appSettings.put(legacy as AppSettings);
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.locationCaptureEnabled).toBe(false);
+  });
+
+  it('existing installs (no notice field) read back as already-acknowledged', async () => {
+    const legacy = createDefaultAppSettings() as Partial<AppSettings>;
+    delete legacy.locationDefaultNoticeAcknowledged;
+    await db.appSettings.put(legacy as AppSettings);
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.locationDefaultNoticeAcknowledged).toBe(true);
+  });
+
+  it('persists the acknowledgement so the notice never shows again', async () => {
+    await appSettingsRepository.update({ locationDefaultNoticeAcknowledged: true });
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.locationDefaultNoticeAcknowledged).toBe(true);
+  });
+});

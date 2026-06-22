@@ -710,6 +710,10 @@
     "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings.",
     "storage_backup_now": "Your data may be lost by the system. Back it up now.",
     "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen).",
+    "location_notice_title": "Location tagging is on",
+    "location_notice_body": "Your expenses now remember where you made them, for map and place insights. GPS is only read with your permission — turn it off anytime in Settings.",
+    "location_notice_ack": "Got it",
+    "location_notice_settings": "Settings",
     "hidden_cards_entry": "{{count}} hidden card(s) · Configure home screen",
     "simple_free_today": "Free today",
     "simple_no_budget": "Start by logging",
@@ -1345,7 +1349,10 @@
     "added_breakdown": "You added {{items}}",
     "no_phases_title": "No phases yet",
     "no_phases_body": "The planner organizes your spending by trip phase. Create the first phase to build scenarios and set how much to spend in each category.",
-    "no_phases_cta": "Create a phase"
+    "no_phases_cta": "Create a phase",
+    "ongoing_title": "The planner is for dated trips",
+    "ongoing_body": "A Day-to-day space has no phases or dates to build scenarios on. Track the month's spending and your cap right on the home screen.",
+    "ongoing_cta": "Back to home"
   },
   "funds": {
     "title": "Funds",
@@ -2050,6 +2057,7 @@
     "settle_confirm_title": "Confirm settlement",
     "settle_confirm_body": "{{debtor}} owes {{amount}} to {{creditor}}. You can settle the full amount or register a partial settlement.",
     "settle_amount_label": "Settlement amount (€)",
+    "settle_method_label": "How was it paid? (optional)",
     "settle_partial_hint": "Partial settlement — {{remaining}} will remain open.",
     "simplify_debts": "Simplify debts — reduce to {{count}} transfers",
     "show_original_debts": "Show original debts",
@@ -2124,6 +2132,7 @@
     "kind_pix": "Pix",
     "kind_wise": "Wise",
     "kind_bank": "Bank account",
+    "kind_cash": "Cash",
     "kind_other": "Other",
     "settings_title": "How you get paid",
     "settings_entry": "Payment methods",

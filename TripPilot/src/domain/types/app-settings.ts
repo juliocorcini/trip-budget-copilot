@@ -78,10 +78,17 @@ export interface AppSettings {
   /** E7 (M21): trip ids whose end-of-trip "save what you learned" offer was
    * already handled (saved or dismissed) — so it never reopens (non-indexed). */
   tripPriorsHandled: string[];
-  /** E8 (M2): opt-in flag for capturing the location of each expense. Default
-   * false — GPS is never read until the traveler turns this on (non-indexed,
-   * privacy first — ÂNCORA 8). */
+  /** E8 (M2) · FB-03 (DEC-265): flag for capturing the location of each expense.
+   * A NEW install now defaults this ON (product decision, amendment to ÂNCORA 8)
+   * — but GPS is still never read until the OS grants permission, and it is one
+   * tap to turn off in Settings. Existing installs keep their stored choice
+   * (the read backfill stays `?? false`; non-indexed, no migration). */
   locationCaptureEnabled: boolean;
+  /** FB-03 (DEC-265): true once the transparent first-run location notice has
+   * been seen/dismissed. Seeded `false` on a NEW install so the notice shows
+   * once; `undefined` on existing installs → read back as already-acknowledged,
+   * so they are never told a setting changed that did not (non-indexed). */
+  locationDefaultNoticeAcknowledged?: boolean;
   /** E8 (M3): the remembered current place, reused across expenses until the
    * traveler moves area or changes it. null when location is off/unknown
    * (non-indexed — no migration). */
