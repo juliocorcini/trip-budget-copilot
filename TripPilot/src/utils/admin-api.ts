@@ -34,6 +34,8 @@ export interface AdminInstall {
   lastSeen: number;
   appVersion: string | null;
   platform: string | null;
+  // FB-21 (DEC-274) — coarse browser family (e.g. "Chrome"); null on old rows.
+  browser: string | null;
   locale: string | null;
   country: string | null;
   activeDays: number;
@@ -78,6 +80,9 @@ export interface AdminAiUsageUser {
   displayName: string | null;
   tokens: number;
   runs: number;
+  // FB-19 (DEC-272) — true for the all-zeros sentinel (probe/scanner), so the UI
+  // names it and keeps it out of the real user ranking.
+  isSystem?: boolean;
 }
 
 export interface AdminAiUsageResult {
@@ -85,6 +90,47 @@ export interface AdminAiUsageResult {
   byFn: AdminAiUsageByFn[];
   series: AdminAiUsageDay[];
   topUsers: AdminAiUsageUser[];
+}
+
+// FB-17 (DEC-272) — per-function token/run breakdown for ONE install.
+export interface AdminInstallDetail {
+  installId: string;
+  byFn: AdminAiUsageByFn[];
+  isSystem: boolean;
+}
+
+// FB-21 (DEC-274) — the distinct errors a single install has hit.
+export interface AdminInstallError {
+  hash: string;
+  message: string;
+  count: number;
+  lastSeen: number;
+  appVersion: string | null;
+  platform: string | null;
+}
+
+export interface AdminInstallErrorsResult {
+  installId: string;
+  errors: AdminInstallError[];
+}
+
+// FB-18 (DEC-273) — Groq governance rollups + real free-tier limits.
+export interface AdminGroqLimit {
+  rpd: number;
+  tpm: number;
+  label: string;
+}
+
+export interface AdminGovernance {
+  today: string;
+  month: string;
+  todayTokens: number;
+  todayRuns: number;
+  monthTokens: number;
+  monthRuns: number;
+  activeToday: number;
+  byFnToday: AdminAiUsageByFn[];
+  limits: Record<string, AdminGroqLimit>;
 }
 
 // DEC-251 (Onda B) — anonymous error capture (deduped by message hash).
@@ -139,6 +185,18 @@ export function fetchAiUsage(token: string, days = 30): Promise<AdminAiUsageResu
 
 export function fetchErrors(token: string, limit = 100): Promise<AdminErrorsResult> {
   return adminGet<AdminErrorsResult>(token, `/admin/errors?limit=${limit}`);
+}
+
+export function fetchInstallDetail(token: string, installId: string): Promise<AdminInstallDetail> {
+  return adminGet<AdminInstallDetail>(token, `/admin/install-detail?id=${encodeURIComponent(installId)}`);
+}
+
+export function fetchInstallErrors(token: string, installId: string): Promise<AdminInstallErrorsResult> {
+  return adminGet<AdminInstallErrorsResult>(token, `/admin/install-errors?id=${encodeURIComponent(installId)}`);
+}
+
+export function fetchGovernance(token: string): Promise<AdminGovernance> {
+  return adminGet<AdminGovernance>(token, '/admin/ai-governance');
 }
 
 export async function deleteInstall(token: string, installId: string): Promise<void> {

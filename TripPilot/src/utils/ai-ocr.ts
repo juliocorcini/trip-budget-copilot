@@ -1,7 +1,9 @@
 import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
 import { parseReceiptResponse } from '@/domain/receipt';
 import { bumpTelemetryCounter } from '@/utils/telemetry-events';
+import { readCooldown } from '@/utils/ai-rate-limit';
 import type { ReceiptPlan } from '@/domain/receipt';
+import type { AiCooldown } from '@/domain/assistant';
 
 /**
  * Stable failure reasons for cloud OCR. The UI maps each to a localized message
@@ -12,7 +14,7 @@ export type ReceiptOcrError = 'not_configured' | 'rate_limited' | 'offline' | 'f
 
 export type ReceiptOcrOutcome =
   | { ok: true; plan: ReceiptPlan }
-  | { ok: false; error: ReceiptOcrError };
+  | { ok: false; error: ReceiptOcrError; cooldown?: AiCooldown };
 
 /**
  * DEC-206 (G2): client boundary for cloud receipt OCR. Sends the compressed
@@ -33,7 +35,7 @@ export async function extractReceiptViaCloud(imageDataUrl: string): Promise<Rece
   }
 
   if (response.status === 503) return { ok: false, error: 'not_configured' };
-  if (response.status === 429) return { ok: false, error: 'rate_limited' };
+  if (response.status === 429) return { ok: false, error: 'rate_limited', cooldown: await readCooldown(response) };
   if (!response.ok) return { ok: false, error: 'failed' };
 
   try {

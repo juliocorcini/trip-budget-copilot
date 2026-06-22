@@ -13,7 +13,7 @@ import { EXPENSE_CATEGORY_KEYS, ownerPersonalCostCents } from '@/domain/assistan
 import { getCategoryIcon } from '@/utils/category-icons';
 import { PlaceField } from '@/features/location/PlaceField';
 import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
-import { isoToDatetimeLocal } from './assistant-quickadd-draft';
+import { isoToDatetimeLocal, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
 import { computeExpenseInsights, type ExpenseInsights } from './assistant-insights';
 import { composePreview } from './assistant-preview-text';
 import { subscribeAssistantOpen } from './assistant-bus';
@@ -83,7 +83,14 @@ export function AssistantSheet() {
     setOpen(false);
   };
 
+  // FB-26: never dead-end. Switching to manual carries the already-typed text as
+  // the expense description so a rate-limited (or AI-off) user re-types nothing —
+  // QuickAdd ignores the 0 amount, leaving the value field for them to fill.
   const openManual = () => {
+    const typed = assistant.text.trim();
+    if (typed !== '') {
+      setAssistantQuickAddDraft({ type: 'expense', amount: 0, currency: null, description: typed });
+    }
     setOpen(false);
     navigate('/quick-add');
   };
@@ -223,6 +230,7 @@ export function AssistantSheet() {
             {assistant.phase === 'error' && assistant.errorKey && (
               <ErrorArea
                 messageKey={assistant.errorKey}
+                cooldownSec={assistant.aiCooldownSec}
                 onRetry={() => void assistant.submit()}
                 onManual={openManual}
               />
@@ -1040,10 +1048,19 @@ function AmountClarify({ onSubmit }: { onSubmit: (value: string) => void }) {
   );
 }
 
-function ErrorArea(props: { messageKey: string; onRetry: () => void; onManual: () => void }) {
+function ErrorArea(props: { messageKey: string; cooldownSec: number; onRetry: () => void; onManual: () => void }) {
   const { t } = useTranslation();
   const transient = props.messageKey.startsWith('error.') &&
     ['error.offline', 'error.rate_limited', 'error.failed'].includes(props.messageKey);
+  // FB-26: while a minute-scope cooldown ticks, show an honest countdown and
+  // hold the retry disabled until it hits 0. A day-scope outage shows no fake
+  // timer — only the manual door. Either way the user is never stuck.
+  const cooling = props.cooldownSec > 0;
+  const message =
+    props.messageKey === 'error.rate_limited' && cooling
+      ? t('assistant.error.rate_limited_wait', { seconds: props.cooldownSec })
+      : t(`assistant.${props.messageKey}`);
+  const showRetry = transient && props.messageKey !== 'error.ai_unavailable_day';
   return (
     <div className="flex flex-col gap-3">
       <div
@@ -1051,16 +1068,17 @@ function ErrorArea(props: { messageKey: string; onRetry: () => void; onManual: (
         style={{ background: '#D9404015', border: '1px solid #D9404033' }}
       >
         <Icon name="error" size={20} className="text-error shrink-0 mt-0.5" />
-        <p className="text-[14px] text-on-surface font-semibold leading-snug">{t(`assistant.${props.messageKey}`)}</p>
+        <p className="text-[14px] text-on-surface font-semibold leading-snug">{message}</p>
       </div>
       <div className="flex items-center gap-2">
-        {transient && (
+        {showRetry && (
           <button
             onClick={props.onRetry}
-            className="btn-press flex-1 h-11 rounded-2xl font-bold text-[14px]"
+            disabled={cooling}
+            className="btn-press flex-1 h-11 rounded-2xl font-bold text-[14px] disabled:opacity-40"
             style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
           >
-            {t('assistant.action.retry')}
+            {cooling ? t('assistant.error.retry_in', { seconds: props.cooldownSec }) : t('assistant.action.retry')}
           </button>
         )}
         <button

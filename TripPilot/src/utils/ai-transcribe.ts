@@ -1,4 +1,6 @@
 import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
+import { readCooldown } from '@/utils/ai-rate-limit';
+import type { AiCooldown } from '@/domain/assistant';
 
 /**
  * DEC-246 (AI Quick Entry · voice): client boundary for Groq Whisper
@@ -11,7 +13,7 @@ export type TranscribeError = 'not_configured' | 'rate_limited' | 'offline' | 'f
 
 export type TranscribeOutcome =
   | { ok: true; text: string }
-  | { ok: false; error: TranscribeError };
+  | { ok: false; error: TranscribeError; cooldown?: AiCooldown };
 
 /**
  * Whisper emits a stray filler when handed audio with no intelligible speech —
@@ -84,7 +86,7 @@ export async function transcribeAudio(blob: Blob, language?: string): Promise<Tr
   }
 
   if (response.status === 503) return { ok: false, error: 'not_configured' };
-  if (response.status === 429) return { ok: false, error: 'rate_limited' };
+  if (response.status === 429) return { ok: false, error: 'rate_limited', cooldown: await readCooldown(response) };
   if (!response.ok) return { ok: false, error: 'failed' };
 
   try {

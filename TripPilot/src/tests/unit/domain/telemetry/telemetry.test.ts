@@ -107,6 +107,7 @@ describe('buildTelemetryPayload', () => {
     displayName: 'Julio',
     appVersion: '0.99.35',
     platform: 'web',
+    browser: 'Chrome',
     locale: 'pt-BR',
     counts: FULL_COUNTS,
     flags: FULL_FLAGS,
@@ -117,8 +118,14 @@ describe('buildTelemetryPayload', () => {
     expect(p.installId).toBe('a1b2c3d4-0000-1111-2222-333344445555');
     expect(p.appVersion).toBe('0.99.35');
     expect(p.platform).toBe('web');
+    expect(p.browser).toBe('Chrome');
     expect(p.locale).toBe('pt-BR');
     expect(p.day).toBe('2026-06-21');
+  });
+
+  it('folds a null/blank browser family to null (old clients / unknown UA)', () => {
+    expect(buildTelemetryPayload({ ...baseInput, browser: null }).browser).toBeNull();
+    expect(buildTelemetryPayload({ ...baseInput, browser: '   ' }).browser).toBeNull();
   });
 
   it('carries every non-monetary counter verbatim', () => {

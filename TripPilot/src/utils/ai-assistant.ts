@@ -1,6 +1,7 @@
 import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
 import { parseAssistantIntents, type AiIntent } from '@/domain/assistant';
-import type { AssistantContextPack } from '@/domain/assistant';
+import type { AssistantContextPack, AiCooldown } from '@/domain/assistant';
+import { readCooldown } from '@/utils/ai-rate-limit';
 
 /**
  * DEC-246 (AI Quick Entry): client boundary for the natural-language router.
@@ -12,20 +13,22 @@ import type { AssistantContextPack } from '@/domain/assistant';
  */
 export type AssistantError = 'not_configured' | 'rate_limited' | 'offline' | 'failed';
 
+/** FB-26: a `rate_limited` outcome carries the cooldown so the UI can show an
+ *  honest countdown and gate the AI triggers until it expires. */
 export type AssistantOutcome =
   | { ok: true; intent: AiIntent }
-  | { ok: false; error: AssistantError };
+  | { ok: false; error: AssistantError; cooldown?: AiCooldown };
 
 export type AssistantListOutcome =
   | { ok: true; intents: AiIntent[] }
-  | { ok: false; error: AssistantError };
+  | { ok: false; error: AssistantError; cooldown?: AiCooldown };
 
 /** Shared transport: POST the text+context, fold every failure into a typed
  *  error, and hand back the raw JSON for the caller to parse. */
 async function postAssistant(
   text: string,
   context: AssistantContextPack,
-): Promise<{ ok: true; raw: unknown } | { ok: false; error: AssistantError }> {
+): Promise<{ ok: true; raw: unknown } | { ok: false; error: AssistantError; cooldown?: AiCooldown }> {
   let response: Response;
   try {
     response = await fetch(`${getSyncWorkerUrl()}/assistant`, {
@@ -38,7 +41,7 @@ async function postAssistant(
   }
 
   if (response.status === 503) return { ok: false, error: 'not_configured' };
-  if (response.status === 429) return { ok: false, error: 'rate_limited' };
+  if (response.status === 429) return { ok: false, error: 'rate_limited', cooldown: await readCooldown(response) };
   if (!response.ok) return { ok: false, error: 'failed' };
 
   try {

@@ -289,7 +289,7 @@ async function handleAssistant(
     return json({ error: 'assistant_upstream_unreachable' }, 502);
   }
 
-  if (upstream.status === 429) return json({ error: 'assistant_rate_limited' }, 429);
+  if (upstream.status === 429) return json(rateLimitBody('assistant', upstream), 429);
   if (!upstream.ok) return json({ error: 'assistant_upstream_error', upstreamStatus: upstream.status }, 502);
 
   let payload: { choices?: { message?: { content?: unknown } }[] };
@@ -383,7 +383,7 @@ async function handleTranscribe(
     return json({ error: 'transcribe_upstream_unreachable' }, 502);
   }
 
-  if (upstream.status === 429) return json({ error: 'transcribe_rate_limited' }, 429);
+  if (upstream.status === 429) return json(rateLimitBody('transcribe', upstream), 429);
   if (!upstream.ok) return json({ error: 'transcribe_upstream_error', upstreamStatus: upstream.status }, 502);
 
   let payload: { text?: unknown; usage?: unknown; x_groq?: unknown };
@@ -475,7 +475,7 @@ async function handleOcr(
     return json({ error: 'ocr_upstream_unreachable' }, 502);
   }
 
-  if (upstream.status === 429) return json({ error: 'ocr_rate_limited' }, 429);
+  if (upstream.status === 429) return json(rateLimitBody('ocr', upstream), 429);
   if (!upstream.ok) return json({ error: 'ocr_upstream_error', upstreamStatus: upstream.status }, 502);
 
   let payload: { choices?: { message?: { content?: unknown } }[]; usage?: unknown };
@@ -604,6 +604,58 @@ function groqTotalTokens(payload: unknown): number {
   const usage = (payload as { usage?: { total_tokens?: unknown } } | null)?.usage;
   const total = usage?.total_tokens;
   return typeof total === 'number' && Number.isFinite(total) && total > 0 ? Math.floor(total) : 0;
+}
+
+/**
+ * FB-26 (DEC-276) — parse a Groq reset hint to whole seconds. Accepts a bare
+ * number (`retry-after` is seconds) or Groq's duration form ("2s", "1m30s",
+ * "880ms", "7.66s", "1h2m"). Returns null when absent/unparseable.
+ */
+function parseGroqResetSeconds(value: string | null): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? Math.max(1, Math.ceil(n)) : null;
+  }
+  let total = 0;
+  let matched = false;
+  const re = /(\d+(?:\.\d+)?)\s*(ms|h|m|s)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(trimmed)) !== null) {
+    matched = true;
+    const v = Number(m[1]);
+    const unit = m[2];
+    if (unit === 'ms') total += v / 1000;
+    else if (unit === 's') total += v;
+    else if (unit === 'm') total += v * 60;
+    else if (unit === 'h') total += v * 3600;
+  }
+  return matched ? Math.max(1, Math.ceil(total)) : null;
+}
+
+/**
+ * FB-26 — a structured 429 body the client folds into an honest cooldown.
+ * Prefers `retry-after`; falls back to the longer of the request/token reset
+ * hints, else a 30s default. `scope:'day'` (RPD — comes back later) when the
+ * wait is long, else `'minute'` (TPM/RPM countdown).
+ */
+function rateLimitBody(
+  fn: string,
+  upstream: Response,
+): { error: string; aiUnavailable: true; retryAfterSec: number; scope: 'minute' | 'day' } {
+  const retryAfter = parseGroqResetSeconds(upstream.headers.get('retry-after'));
+  const resetReq = parseGroqResetSeconds(upstream.headers.get('x-ratelimit-reset-requests'));
+  const resetTok = parseGroqResetSeconds(upstream.headers.get('x-ratelimit-reset-tokens'));
+  const fallbacks = [resetReq, resetTok].filter((n): n is number => n !== null);
+  const seconds = retryAfter ?? (fallbacks.length > 0 ? Math.max(...fallbacks) : 30);
+  return {
+    error: `${fn}_rate_limited`,
+    aiUnavailable: true,
+    retryAfterSec: seconds,
+    scope: seconds > 300 ? 'day' : 'minute',
+  };
 }
 
 /**
@@ -1221,6 +1273,26 @@ const TELEMETRY_AI_FUNCTIONS = new Set(['assistant', 'ocr', 'transcribe']);
 const ERROR_MSG_MAX = 240;
 const ERRORS_TABLE_CAP = 500;
 
+// FB-19 (DEC-272) — the all-zeros UUID is NOT a real install (the app emits a
+// uuidv4 that's never zeroed). It reaches us only as a placeholder X-Install-Id
+// from deploy probes / scanners / external clients. Per Julio's call we DON'T
+// silently drop it — we NAME it so its (real) token spend is visible and
+// understood, just flagged as non-user so it never pollutes the user ranking.
+const SYSTEM_INSTALL_ID = '00000000-0000-0000-0000-000000000000';
+function isSystemInstallId(id: string): boolean {
+  return id === SYSTEM_INSTALL_ID;
+}
+
+// FB-18 (DEC-273) — Groq free-tier ceilings (VERIFIED 2026-06-22 via
+// console.groq.com/docs/rate-limits). Per MODEL + per ORG; the daily request
+// cap (RPD) is the practical bottleneck for our JSON router. Echoed to the admin
+// so "% of limit" + projections use REAL numbers, never invented ones.
+const GROQ_FREE_LIMITS = {
+  assistant: { rpd: 1000, tpm: 6000, label: 'Llama (router/visão)' },
+  ocr: { rpd: 1000, tpm: 6000, label: 'Llama (visão/OCR)' },
+  transcribe: { rpd: 2000, tpm: 0, label: 'Whisper' },
+} as const;
+
 function scrubErrorMessageServer(raw: unknown): string {
   if (typeof raw !== 'string') return '';
   return raw
@@ -1261,6 +1333,15 @@ export class TelemetryStore {
       )`,
     );
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_installs_last_seen ON installs(last_seen)`);
+    // FB-21 (DEC-274) — coarse browser family (e.g. "Chrome"/"Safari") for
+    // support/debug, alongside the existing platform tag. Added via a guarded
+    // migration because the installs table already exists in production; SQLite
+    // ALTER ... ADD COLUMN is idempotent here only via the try/catch.
+    try {
+      this.sql.exec(`ALTER TABLE installs ADD COLUMN browser TEXT`);
+    } catch {
+      /* column already present — re-running ensureSchema is a no-op */
+    }
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS heartbeats (
         install_id TEXT NOT NULL,
@@ -1324,6 +1405,12 @@ export class TelemetryStore {
     // and anonymous error capture (POST /error = ingest, GET /errors = admin).
     if (request.method === 'POST' && path === '/ai-usage') return this.ingestAiUsage(request);
     if (request.method === 'GET' && path === '/ai-usage') return this.aiUsage(url);
+    // FB-17 — per-function token/run breakdown for ONE install (admin modal).
+    if (request.method === 'GET' && path === '/install-detail') return this.installDetail(url);
+    // FB-21 — the (deduped) errors a single install has hit (admin modal).
+    if (request.method === 'GET' && path === '/install-errors') return this.installErrors(url);
+    // FB-18 — Groq governance: day/month rollups + real free-tier limits.
+    if (request.method === 'GET' && path === '/ai-governance') return this.aiGovernance();
     if (request.method === 'POST' && path === '/error') return this.ingestError(request);
     if (request.method === 'GET' && path === '/errors') return this.errorsList(url);
     if (request.method === 'DELETE' && path === '/install') return this.deleteInstall(url);
@@ -1424,13 +1511,109 @@ export class TelemetryStore {
          GROUP BY a.install_id ORDER BY tokens DESC LIMIT 50`,
       )
       .toArray()
-      .map((r) => ({
-        installId: String(r.install_id),
-        displayName: r.display_name === null ? null : String(r.display_name),
-        tokens: num(r.tokens),
-        runs: num(r.runs),
-      }));
+      .map((r) => {
+        const installId = String(r.install_id);
+        return {
+          installId,
+          displayName: r.display_name === null ? null : String(r.display_name),
+          tokens: num(r.tokens),
+          runs: num(r.runs),
+          // FB-19: name the all-zeros so its spend is understood, not user-ranked.
+          isSystem: isSystemInstallId(installId),
+        };
+      });
     return json({ totals: { tokens: num(totals.tokens), runs: num(totals.runs) }, byFn, series, topUsers });
+  }
+
+  /** FB-17 (DEC-272) — per-function token/run breakdown for a SINGLE install,
+   *  so the user modal shows Assistant/OCR/Transcribe split (not just totals). */
+  private installDetail(url: URL): Response {
+    const id = url.searchParams.get('id') ?? '';
+    if (!TELEMETRY_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+    const byFn = this.sql
+      .exec(
+        `SELECT fn, SUM(tokens) AS tokens, SUM(runs) AS runs
+         FROM ai_usage WHERE install_id = ? GROUP BY fn ORDER BY tokens DESC`,
+        id,
+      )
+      .toArray()
+      .map((r) => ({ fn: String(r.fn), tokens: num(r.tokens), runs: num(r.runs) }));
+    return json({ installId: id, byFn, isSystem: isSystemInstallId(id) });
+  }
+
+  /** FB-21 (DEC-274) — the distinct errors a single install has hit (joined from
+   *  error_seen → errors). Coarse + already-scrubbed; no values, no PII. */
+  private installErrors(url: URL): Response {
+    const id = url.searchParams.get('id') ?? '';
+    if (!TELEMETRY_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+    const errors = this.sql
+      .exec(
+        `SELECT e.msg_hash AS msg_hash, e.message AS message, e.count AS count,
+                e.last_seen AS last_seen, e.app_version AS app_version, e.platform AS platform
+         FROM error_seen s JOIN errors e ON e.msg_hash = s.msg_hash
+         WHERE s.install_id = ? ORDER BY e.last_seen DESC LIMIT 100`,
+        id,
+      )
+      .toArray()
+      .map((r) => ({
+        hash: String(r.msg_hash),
+        message: String(r.message),
+        count: num(r.count),
+        lastSeen: num(r.last_seen),
+        appVersion: r.app_version === null ? null : String(r.app_version),
+        platform: r.platform === null ? null : String(r.platform),
+      }));
+    return json({ installId: id, errors });
+  }
+
+  /** FB-18 (DEC-273) — Groq governance rollups: today + current-month token/run
+   *  totals (and per-function today), plus the REAL free-tier limits so the admin
+   *  can read "% of limit used" and project capacity. Computed from the existing
+   *  ai_usage ledger — the AI hot path is untouched. */
+  private aiGovernance(): Response {
+    const today = new Date().toISOString().slice(0, 10);
+    const month = today.slice(0, 7);
+    const todayAgg = this.sql
+      .exec(
+        `SELECT COALESCE(SUM(tokens),0) AS tokens, COALESCE(SUM(runs),0) AS runs FROM ai_usage WHERE day = ?`,
+        today,
+      )
+      .one();
+    const monthAgg = this.sql
+      .exec(
+        `SELECT COALESCE(SUM(tokens),0) AS tokens, COALESCE(SUM(runs),0) AS runs FROM ai_usage WHERE substr(day,1,7) = ?`,
+        month,
+      )
+      .one();
+    const byFnToday = this.sql
+      .exec(
+        `SELECT fn, SUM(tokens) AS tokens, SUM(runs) AS runs FROM ai_usage WHERE day = ? GROUP BY fn`,
+        today,
+      )
+      .toArray()
+      .map((r) => ({ fn: String(r.fn), tokens: num(r.tokens), runs: num(r.runs) }));
+    // Distinct installs that used AI today (excluding the system sentinel) — the
+    // denominator for "tokens per active AI user", the projection input.
+    const activeToday = num(
+      this.sql
+        .exec(
+          `SELECT COUNT(DISTINCT install_id) AS n FROM ai_usage WHERE day = ? AND install_id != ?`,
+          today,
+          SYSTEM_INSTALL_ID,
+        )
+        .one().n,
+    );
+    return json({
+      today,
+      month,
+      todayTokens: num(todayAgg.tokens),
+      todayRuns: num(todayAgg.runs),
+      monthTokens: num(monthAgg.tokens),
+      monthRuns: num(monthAgg.runs),
+      activeToday,
+      byFnToday,
+      limits: GROQ_FREE_LIMITS,
+    });
   }
 
   /** DEC-251 (Onda B) — ingest one anonymous error. Scrubs server-side, dedups
@@ -1531,6 +1714,7 @@ export class TelemetryStore {
     const displayName = telemetryStr(body.displayName);
     const appVersion = telemetryStr(body.appVersion, 20);
     const platform = telemetryStr(body.platform, 20);
+    const browser = telemetryStr(body.browser, 24); // FB-21 — coarse family only
     const locale = telemetryStr(body.locale, 20);
     const country = telemetryStr(url.searchParams.get('country'), 4);
 
@@ -1577,6 +1761,7 @@ export class TelemetryStore {
       'last_seen',
       'app_version',
       'platform',
+      'browser',
       'locale',
       'country',
       'active_days',
@@ -1590,6 +1775,7 @@ export class TelemetryStore {
       now,
       appVersion,
       platform,
+      browser,
       locale,
       country,
       1,
@@ -1601,6 +1787,7 @@ export class TelemetryStore {
       'last_seen = excluded.last_seen',
       'app_version = excluded.app_version',
       'platform = excluded.platform',
+      'browser = COALESCE(excluded.browser, installs.browser)',
       'locale = excluded.locale',
       'country = COALESCE(excluded.country, installs.country)',
       `active_days = installs.active_days + ${dayInc}`,
@@ -1719,6 +1906,7 @@ export class TelemetryStore {
       lastSeen: num(r.last_seen),
       appVersion: r.app_version === null ? null : String(r.app_version),
       platform: r.platform === null ? null : String(r.platform),
+      browser: r.browser === null || r.browser === undefined ? null : String(r.browser),
       locale: r.locale === null ? null : String(r.locale),
       country: r.country === null ? null : String(r.country),
       activeDays: num(r.active_days),

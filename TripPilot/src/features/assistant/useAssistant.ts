@@ -15,6 +15,9 @@ import {
   ownerPersonalCostCents,
   planAssistantBatch,
   AssistantDispatchError,
+  defaultCooldown,
+  cooldownRemainingSec as cooldownRemaining,
+  isCoolingDown as isCoolingDownNow,
   type AiIntent,
   type ActionPlan,
   type AssistantPreview,
@@ -22,6 +25,7 @@ import {
   type Clarification,
   type ExecOp,
   type PlanContext,
+  type AiCooldown,
 } from '@/domain/assistant';
 import { requestAssistantIntents } from '@/utils/ai-assistant';
 import { transcribeAudio, isLikelyVoiceHallucination } from '@/utils/ai-transcribe';
@@ -98,6 +102,9 @@ export interface UseAssistant {
   clarification: Clarification | null;
   note: string | null;
   errorKey: string | null;
+  /** FB-26: seconds left on the AI cooldown (0 when not rate-limited). Drives the
+   *  honest countdown and keeps the AI triggers gated until it expires. */
+  aiCooldownSec: number;
   enabled: boolean;
   /** FB-09 (DEC-258): photo capture is available (cloud OCR opted-in). */
   photoEnabled: boolean;
@@ -159,6 +166,14 @@ export function useAssistant(): UseAssistant {
   const [note, setNote] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
+  // FB-26 (DEC-276): when Groq's free tier is exhausted the AI triggers gate
+  // until the cooldown expires. The ref is the source of truth read inside async
+  // callbacks (no stale closure / dep churn); `cooldownTick` only re-renders the
+  // countdown. The cooldown deliberately survives reset() so closing/reopening
+  // the sheet can't bypass the gate.
+  const cooldownRef = useRef<AiCooldown | null>(null);
+  const [cooldown, setCooldownStateRaw] = useState<AiCooldown | null>(null);
+  const [cooldownTick, setCooldownTick] = useState(() => Date.now());
   // FB-09 (DEC-258): when the active preview was built from a scanned photo, the
   // sheet offers "open items" (the full receipt) beside "confirm".
   const [fromPhoto, setFromPhoto] = useState(false);
@@ -184,6 +199,52 @@ export function useAssistant(): UseAssistant {
   const voiceAvailable =
     isSpeechRecognitionSupported() ||
     (typeof navigator !== 'undefined' && !!navigator.mediaDevices && typeof MediaRecorder !== 'undefined');
+
+  // FB-26 helpers — keep the ref and the render state in lock-step.
+  const setCooldown = useCallback((cd: AiCooldown | null) => {
+    cooldownRef.current = cd;
+    setCooldownStateRaw(cd);
+    setCooldownTick(Date.now());
+  }, []);
+
+  const cooldownErrorKey = (cd: AiCooldown): string =>
+    cd.scope === 'day' ? 'error.ai_unavailable_day' : 'error.rate_limited';
+
+  // Enter the cooldown error from a rate-limited outcome (honest countdown).
+  const enterCooldown = useCallback(
+    (cd: AiCooldown | undefined) => {
+      const resolved = cd ?? defaultCooldown(Date.now());
+      setCooldown(resolved);
+      setErrorKey(cooldownErrorKey(resolved));
+      setPhase('error');
+    },
+    [setCooldown],
+  );
+
+  // Gate any AI trigger while a cooldown is active — re-asserts the error so the
+  // user sees why nothing happened, then bails. Reads the ref (no stale state).
+  const blockedByCooldown = useCallback((): boolean => {
+    const cd = cooldownRef.current;
+    if (!isCoolingDownNow(cd, Date.now())) return false;
+    setErrorKey(cooldownErrorKey(cd!));
+    setPhase('error');
+    return true;
+  }, []);
+
+  // Tick the countdown once per second; auto-clear the cooldown when it expires
+  // so the retry button re-enables on its own.
+  useEffect(() => {
+    if (!cooldown) return;
+    const id = window.setInterval(() => {
+      if (Date.now() >= cooldown.until) {
+        setCooldown(null);
+        window.clearInterval(id);
+      } else {
+        setCooldownTick(Date.now());
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [cooldown, setCooldown]);
 
   const buildPlanContext = useCallback((): PlanContext | null => {
     const d = dataRef.current;
@@ -307,6 +368,7 @@ export function useAssistant(): UseAssistant {
   const scanReceiptPhoto = useCallback(
     async (file: File) => {
       if (!photoEnabled) return;
+      if (blockedByCooldown()) return;
       setErrorKey(null);
       setNote(null);
       setFromPhoto(false);
@@ -318,8 +380,11 @@ export function useAssistant(): UseAssistant {
         const dataUrl = await blobToDataUrl(image.blob);
         const outcome = await extractReceiptViaCloud(dataUrl);
         if (!outcome.ok) {
-          setErrorKey('error.photo_failed');
-          setPhase('error');
+          if (outcome.error === 'rate_limited') enterCooldown(outcome.cooldown);
+          else {
+            setErrorKey('error.photo_failed');
+            setPhase('error');
+          }
           return;
         }
         const summary = summarizeReceiptTotal(outcome.plan);
@@ -368,7 +433,7 @@ export function useAssistant(): UseAssistant {
         setPhase('error');
       }
     },
-    [photoEnabled, buildPlanContext, runPlan],
+    [photoEnabled, buildPlanContext, runPlan, blockedByCooldown, enterCooldown],
   );
 
   // FB-09: escalate the scanned photo to the full item-by-item receipt — hands
@@ -395,6 +460,7 @@ export function useAssistant(): UseAssistant {
         setPhase('error');
         return;
       }
+      if (blockedByCooldown()) return;
       setText(value);
       setErrorKey(null);
       setNote(null);
@@ -415,8 +481,11 @@ export function useAssistant(): UseAssistant {
 
       const outcome = await requestAssistantIntents(value, pack);
       if (!outcome.ok) {
-        setErrorKey(`error.${outcome.error}`);
-        setPhase('error');
+        if (outcome.error === 'rate_limited') enterCooldown(outcome.cooldown);
+        else {
+          setErrorKey(`error.${outcome.error}`);
+          setPhase('error');
+        }
         return;
       }
       const intents = outcome.intents;
@@ -440,7 +509,7 @@ export function useAssistant(): UseAssistant {
       setNote(intent.note);
       runPlan(intent);
     },
-    [text, enabled, i18n.language, runPlan, runBatch],
+    [text, enabled, i18n.language, runPlan, runBatch, blockedByCooldown, enterCooldown],
   );
 
   const answerAmount = useCallback(
@@ -660,8 +729,11 @@ export function useAssistant(): UseAssistant {
       setPhase('transcribing');
       const outcome = await transcribeAudio(blob, twoLetter(i18n.language));
       if (!outcome.ok) {
-        setErrorKey(`error.${outcome.error}`);
-        setPhase('error');
+        if (outcome.error === 'rate_limited') enterCooldown(outcome.cooldown);
+        else {
+          setErrorKey(`error.${outcome.error}`);
+          setPhase('error');
+        }
         return;
       }
       const transcript = outcome.text.trim();
@@ -675,7 +747,7 @@ export function useAssistant(): UseAssistant {
       setText(transcript);
       void submit(transcript);
     },
-    [i18n.language, submit, t],
+    [i18n.language, submit, t, enterCooldown],
   );
 
   const startWhisperCapture = useCallback(async () => {
@@ -740,6 +812,7 @@ export function useAssistant(): UseAssistant {
       stopVoiceRef.current?.();
       return;
     }
+    if (blockedByCooldown()) return;
     setErrorKey(null);
     // Prefer the on-device Web Speech engine on web/PWA; on the native Android
     // shell it is DEFINED but broken (the System WebView has no speech service,
@@ -770,7 +843,7 @@ export function useAssistant(): UseAssistant {
       return;
     }
     await startWhisperCapture();
-  }, [listening, i18n.language, submit, startWhisperCapture]);
+  }, [listening, i18n.language, submit, startWhisperCapture, blockedByCooldown]);
 
   const reset = useCallback(() => {
     stopVoiceRef.current?.();
@@ -807,6 +880,7 @@ export function useAssistant(): UseAssistant {
 
   const baseCurrency = data.trip?.baseCurrency ?? 'EUR';
   const isForeign = draftOp?.kind === 'expense' && draftOp.currency !== baseCurrency;
+  const aiCooldownSec = cooldownRemaining(cooldown, cooldownTick);
 
   return {
     phase,
@@ -819,6 +893,7 @@ export function useAssistant(): UseAssistant {
     clarification,
     note,
     errorKey,
+    aiCooldownSec,
     enabled,
     photoEnabled,
     fromPhoto,

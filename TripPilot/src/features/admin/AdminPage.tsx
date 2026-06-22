@@ -4,14 +4,21 @@ import {
   deleteInstall,
   fetchAiUsage,
   fetchErrors,
+  fetchGovernance,
+  fetchInstallDetail,
+  fetchInstallErrors,
   fetchInstalls,
   fetchOverview,
   type AdminAiUsageResult,
   type AdminError,
   type AdminErrorsResult,
+  type AdminGovernance,
   type AdminInstall,
+  type AdminInstallDetail,
+  type AdminInstallError,
   type AdminOverview,
 } from '@/utils/admin-api';
+import { usagePct, projectActiveUserCapacity } from '@/domain/admin';
 import { safeLocalStorage } from '@/utils/safe-storage';
 
 /**
@@ -158,6 +165,7 @@ export function AdminPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [installs, setInstalls] = useState<AdminInstall[]>([]);
   const [aiUsage, setAiUsage] = useState<AdminAiUsageResult | null>(null);
+  const [governance, setGovernance] = useState<AdminGovernance | null>(null);
   const [errors, setErrors] = useState<AdminErrorsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -170,15 +178,17 @@ export function AdminPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [ov, list, ai, errs] = await Promise.all([
+      const [ov, list, ai, gov, errs] = await Promise.all([
         fetchOverview(activeToken),
         fetchInstalls(activeToken, 500),
         fetchAiUsage(activeToken, 30),
+        fetchGovernance(activeToken),
         fetchErrors(activeToken, 100),
       ]);
       setOverview(ov);
       setInstalls(list.installs);
       setAiUsage(ai);
+      setGovernance(gov);
       setErrors(errs);
     } catch (err) {
       if (err instanceof AdminAuthError) {
@@ -209,6 +219,7 @@ export function AdminPage() {
     setOverview(null);
     setInstalls([]);
     setAiUsage(null);
+    setGovernance(null);
     setErrors(null);
   };
 
@@ -322,6 +333,8 @@ export function AdminPage() {
               <Distribution title="Países" items={overview.countries} />
             </div>
 
+            {governance ? <GovernanceSection gov={governance} /> : null}
+
             {aiUsage ? <AiUsageSection usage={aiUsage} /> : null}
 
             <Section title={`Usuários (${installs.length})`}>
@@ -405,16 +418,49 @@ export function AdminPage() {
           </>
         ) : null}
       </div>
-      {selected ? <InstallDetail install={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? <InstallDetail install={selected} token={token} onClose={() => setSelected(null)} /> : null}
     </div>
   );
 }
 
 /** DEC-254: full read-only dump of everything telemetry holds for one install.
- *  No new data is collected — it just surfaces every field already in the row. */
-function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: () => void }) {
+ *  FB-17/FB-21: on open it ALSO fetches the per-function AI breakdown and the
+ *  errors this install hit (both anonymous, no values) for real support/debug. */
+function InstallDetail({
+  install,
+  token,
+  onClose,
+}: {
+  install: AdminInstall;
+  token: string;
+  onClose: () => void;
+}) {
+  const [detail, setDetail] = useState<AdminInstallDetail | null>(null);
+  const [installErrors, setInstallErrors] = useState<AdminInstallError[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const [d, e] = await Promise.all([
+          fetchInstallDetail(token, install.installId),
+          fetchInstallErrors(token, install.installId),
+        ]);
+        if (!alive) return;
+        setDetail(d);
+        setInstallErrors(e.errors);
+      } catch {
+        /* best-effort: the modal still shows the row data we already have */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [token, install.installId]);
+
   const meta: { label: string; value: React.ReactNode }[] = [
     { label: 'Plataforma', value: install.platform ?? '—' },
+    { label: 'Navegador', value: install.browser ?? '—' }, // FB-21
     { label: 'Versão', value: install.appVersion ?? '—' },
     { label: 'Idioma', value: install.locale ?? '—' },
     { label: 'País', value: install.country ?? '—' },
@@ -500,11 +546,118 @@ function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: (
         </div>
         </div>
 
+        {/* FB-17 — per-function AI spend for THIS install (not just the total). */}
+        <div>
+          <h3 className="text-xs font-semibold text-on-surface-dim mb-2">IA por função</h3>
+          {detail === null ? (
+            <p className="text-xs text-on-surface-faint">Carregando…</p>
+          ) : detail.byFn.length === 0 ? (
+            <p className="text-xs text-on-surface-faint">Sem uso de IA registrado.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {detail.byFn.map((f) => (
+                <div key={f.fn} className="flex items-baseline justify-between gap-3 text-xs">
+                  <span className="text-on-surface-dim">{AI_FN_LABELS[f.fn] ?? f.fn}</span>
+                  <span className="text-on-surface font-semibold tabular-nums">
+                    {f.tokens.toLocaleString('pt-BR')} tok · {f.runs.toLocaleString('pt-BR')}×
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* FB-21 — the (deduped, scrubbed) errors this install hit. */}
+        <div>
+          <h3 className="text-xs font-semibold text-on-surface-dim mb-2">
+            Erros deste usuário{installErrors ? ` (${installErrors.length})` : ''}
+          </h3>
+          {installErrors === null ? (
+            <p className="text-xs text-on-surface-faint">Carregando…</p>
+          ) : installErrors.length === 0 ? (
+            <p className="text-xs text-on-surface-faint">Nenhum erro registrado. 🎉</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {installErrors.map((e) => (
+                <li key={e.hash} className="bg-surface rounded-xl px-3 py-2 flex flex-col gap-1">
+                  <p className="text-xs text-on-surface font-medium break-words">{e.message}</p>
+                  <div className="flex flex-wrap items-center gap-x-3 text-[10px] text-on-surface-faint">
+                    <span>{e.count.toLocaleString('pt-BR')}×</span>
+                    <span title={fullDate(e.lastSeen)}>{relativeTime(e.lastSeen)}</span>
+                    {e.appVersion ? <span>v{e.appVersion}</span> : null}
+                    {e.platform ? <span>{e.platform}</span> : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <p className="text-[10px] text-on-surface-faint text-center">
           Dados anônimos de uso. Nunca capturamos valores nem o conteúdo dos gastos.
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * FB-18 (DEC-273) — Groq free-tier governance. Server-authoritative usage today
+ * + this month, "% of the REAL daily request cap" per function, and an honest
+ * capacity projection ("with today's per-user usage, ~N active AI users fit
+ * before the first ceiling"). All numbers are measured/verified — never invented.
+ */
+function GovernanceSection({ gov }: { gov: AdminGovernance }) {
+  const projection = projectActiveUserCapacity(gov.byFnToday, gov.limits, gov.activeToday);
+  const fnRows = Object.entries(gov.limits).map(([fn, limit]) => {
+    const used = gov.byFnToday.find((f) => f.fn === fn)?.runs ?? 0;
+    return { fn, limit, used, pct: usagePct(used, limit.rpd) };
+  });
+  return (
+    <Section title="IA — governança Groq (free tier)">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Kpi label="Tokens hoje" value={gov.todayTokens} hint={compactNumber(gov.todayTokens)} />
+        <Kpi label="Chamadas hoje" value={gov.todayRuns} />
+        <Kpi label="Tokens no mês" value={gov.monthTokens} hint={compactNumber(gov.monthTokens)} />
+        <Kpi label="Ativos com IA hoje" value={gov.activeToday} />
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        <h3 className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide">
+          % do limite diário (RPD) — hoje
+        </h3>
+        {fnRows.map(({ fn, limit, used, pct }) => (
+          <div key={fn} className="flex flex-col gap-1">
+            <div className="flex items-baseline justify-between text-xs">
+              <span className="text-on-surface-dim">{AI_FN_LABELS[fn] ?? fn}</span>
+              <span className="text-on-surface font-semibold tabular-nums">
+                {used.toLocaleString('pt-BR')} / {limit.rpd.toLocaleString('pt-BR')} · {Math.round(pct)}%
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-surface overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--error)' : pct >= 60 ? 'var(--warning)' : 'var(--primary)' }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-surface rounded-xl px-3 py-2.5 text-xs text-on-surface-dim">
+        {projection ? (
+          <>
+            <span className="text-on-surface font-semibold">
+              ~{projection.capacity.toLocaleString('pt-BR')} usuários ativos
+            </span>{' '}
+            cabem com a média de uso de hoje antes do 1º teto (
+            {AI_FN_LABELS[projection.fn] ?? projection.fn}). Projeção a partir do uso real medido.
+          </>
+        ) : (
+          'Sem uso medido hoje ainda — a projeção aparece quando houver atividade de IA.'
+        )}
+      </div>
+    </Section>
   );
 }
 
@@ -545,8 +698,9 @@ function AiUsageSection({ usage }: { usage: AdminAiUsageResult }) {
           </h3>
           {usage.topUsers.slice(0, 8).map((u) => (
             <div key={u.installId} className="flex items-baseline justify-between gap-3 text-xs">
-              <span className="text-on-surface-dim truncate">
-                {u.displayName ?? u.installId.slice(0, 8)}
+              <span className={`truncate ${u.isSystem ? 'text-warning font-medium' : 'text-on-surface-dim'}`}>
+                {/* FB-19: the all-zeros sentinel is named (probe/scanner), not user-ranked. */}
+                {u.isSystem ? 'Sistema / sonda (00000000)' : u.displayName ?? u.installId.slice(0, 8)}
               </span>
               <span className="text-on-surface font-semibold tabular-nums shrink-0">
                 {compactNumber(u.tokens)} tok · {u.runs.toLocaleString('pt-BR')}×

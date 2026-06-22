@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.46',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'Quando a IA bate o limite gratuito, agora ela é honesta: mostra o tempo real de espera (uma contagem regressiva de verdade) ou avisa “volta mais tarde” — nunca um erro seco.',
+        'O registro manual fica a um toque e não perde o que você já tinha digitado: o texto vira a descrição do gasto na hora.',
+        'Nos bastidores, o painel interno ganhou governança de IA (uso do dia/mês, % do limite gratuito e projeção de usuários) e mais detalhes por usuário para suporte.',
+      ],
+      en: [
+        'When AI hits the free limit it’s now honest: it shows the real wait time (a true countdown) or says “comes back later” — never a blunt error.',
+        'Manual entry is one tap away and keeps what you already typed: your text becomes the expense description right away.',
+        'Behind the scenes, the internal panel gained AI governance (today/month usage, % of the free limit and a user projection) plus more per-user detail for support.',
+      ],
+      es: [
+        'Cuando la IA alcanza el límite gratuito ahora es honesta: muestra el tiempo real de espera (una cuenta regresiva de verdad) o avisa “vuelve más tarde” — nunca un error seco.',
+        'El registro manual queda a un toque y no pierde lo que ya escribiste: tu texto se vuelve la descripción del gasto al instante.',
+        'En segundo plano, el panel interno ganó gobernanza de IA (uso del día/mes, % del límite gratuito y proyección de usuarios) y más detalle por usuario para soporte.',
+      ],
+    },
+  },
+  {
     version: '0.99.45',
     date: '2026-06-22',
     items: {

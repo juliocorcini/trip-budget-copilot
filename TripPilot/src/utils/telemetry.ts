@@ -22,7 +22,7 @@ import { getSyncWorkerUrl } from '@/data/sync/config';
 import { APP_VERSION } from '@/utils/app-version';
 import { getInstallationId } from '@/utils/entity-factory';
 import { isNativeApp } from '@/utils/native/platform';
-import { webPlatformTag } from '@/utils/platform';
+import { webPlatformTag, deviceBrowserFamily } from '@/utils/platform';
 import { safeLocalStorage } from '@/utils/safe-storage';
 import { readTelemetryEvents } from '@/utils/telemetry-events';
 
@@ -136,6 +136,7 @@ export async function sendHeartbeatIfDue(nowMs: number = Date.now()): Promise<vo
       displayName: ownerName,
       appVersion: APP_VERSION,
       platform: telemetryPlatform(),
+      browser: deviceBrowserFamily(),
       locale: typeof navigator !== 'undefined' ? navigator.language || 'unknown' : 'unknown',
       counts,
       flags,

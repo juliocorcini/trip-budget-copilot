@@ -1,8 +1,8 @@
 {
-  "version": "0.99.45",
+  "version": "0.99.46",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.45.zip",
-  "notes": "Chegou o conversor de moedas: digite um valor, escolha as duas moedas e veja na hora quanto dá — usando a cotação que o app já guardou, com a data dela sempre à vista e taxa manual quando estiver sem internet. Você abre pelo botão +, pelo Copiloto ou pelo guia, e ainda pode perguntar à IA “quanto é 20 euros em reais?”."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.46.zip",
+  "notes": "Quando a IA atinge o limite gratuito, agora ela avisa com tempo real de espera (countdown honesto) ou “volta mais tarde”, e o registro manual fica a um toque sem perder o que você já digitou. Nos bastidores, o painel de administração ganhou governança de tokens do Groq (uso do dia/mês, % do limite e projeção de usuários) e mais detalhes por usuário."
 }

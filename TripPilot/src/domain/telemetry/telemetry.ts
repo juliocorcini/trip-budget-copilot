@@ -42,6 +42,8 @@ export interface TelemetryInput {
   displayName: string | null;
   appVersion: string;
   platform: string;
+  /** FB-21 (DEC-274) — coarse browser family (e.g. "Chrome"), never the model. */
+  browser: string | null;
   locale: string;
   counts: TelemetryCounts;
   flags: TelemetryFlags;
@@ -53,6 +55,7 @@ export interface TelemetryPayload {
   displayName: string | null;
   appVersion: string;
   platform: string;
+  browser: string | null;
   locale: string;
   counters: Record<string, number>;
   flags: Record<string, number>;
@@ -161,6 +164,7 @@ export function buildTelemetryPayload(input: TelemetryInput): TelemetryPayload {
     displayName: cleanName(input.displayName),
     appVersion: input.appVersion,
     platform: input.platform,
+    browser: cleanName(input.browser),
     locale: input.locale,
     counters,
     flags,

@@ -51,6 +51,14 @@ export { planAssistantBatch, collectAssistantPeople } from './batch';
 export type { AssistantBatchPlan, BatchReady, BatchBlocked } from './batch';
 
 export {
+  cooldownFromBody,
+  defaultCooldown,
+  cooldownRemainingSec,
+  isCoolingDown,
+} from './ai-cooldown';
+export type { AiCooldown, AiCooldownScope } from './ai-cooldown';
+
+export {
   executeOp,
   createAssistantParticipant,
   AssistantDispatchError,
