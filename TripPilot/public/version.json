@@ -1,8 +1,8 @@
 {
-  "version": "0.99.43",
+  "version": "0.99.44",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.43.zip",
-  "notes": "Agora toda foto pergunta: tirar na hora ou escolher da galeria — no recibo, nos anexos e na saída. Você adiciona uma pessoa na divisão sem sair da tela, com um toque. E a entrada por IA aceita foto da nota: vira 1 gasto resumido, com “abrir itens” pra detalhar. O registro manual também ganhou um atalho ✨ IA."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.44.zip",
+  "notes": "A nota lida por IA agora vem completa: além dos itens e do total, ela puxa a data da compra, o local e a categoria de cada item — tudo já preenchido e editável num toque, em “Data e local”. Assim a nota cai no dia certo e com o lugar certo, igual a um gasto manual."
 }

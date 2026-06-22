@@ -53,8 +53,15 @@ export interface ReceiptAdjustment {
 /** The normalised, cents-based receipt ready for review/split/commit. */
 export interface ReceiptPlan {
   merchant: string | null;
-  /** Best-effort place label derived from the merchant string (session flavour). */
+  /** Best-effort place label: the model's printed location, else derived from the merchant string. */
   placeLabel: string | null;
+  /**
+   * FB-10 (DEC-258): the purchase date printed on the receipt, as a strict
+   * `YYYY-MM-DD` calendar day (null when absent/unreadable). The commit turns it
+   * into the transaction date so a receipt-sourced expense lands on the day it
+   * happened, not the day it was scanned.
+   */
+  purchaseDate: string | null;
   /** ISO 4217 code when the provider could read it, else null. */
   currency: string | null;
   /** Final amount printed on the receipt, for reconciliation (null when absent). */

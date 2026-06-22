@@ -7,10 +7,13 @@ import {
 } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
+import { placeToTransactionFields } from '@/domain/location';
+import { receiptDateToIso } from '@/domain/receipt';
 import { softDelete } from '@/utils/entity-factory';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { ReceiptDraftItem } from '@/domain/receipt';
+import type { CurrentPlace } from '@/domain/types/common';
 
 /** DEC-206 (G2): receipt-sourced records carry this externalRef prefix. */
 const RECEIPT_REF_PREFIX = 'receipt:';
@@ -28,6 +31,19 @@ export interface CommitReceiptInput {
   items: ReceiptDraftItem[];
   /** Receipt photo to link to the created session, or null. */
   attachmentId: string | null;
+  /**
+   * FB-10 (DEC-258): the purchase day read off the receipt, as `YYYY-MM-DD`. When
+   * present every line is dated to that day (noon UTC) instead of "now", so a
+   * receipt scanned days later still lands on the day it happened. Null/absent →
+   * the transactions default to the current time.
+   */
+  purchaseDate?: string | null;
+  /**
+   * FB-10 (DEC-258): the location read off the receipt (or confirmed by the
+   * traveler). Stamped onto every line so a receipt-sourced expense carries the
+   * same place fields a manual one would. Null/absent → no place.
+   */
+  place?: CurrentPlace | null;
 }
 
 export interface CommitReceiptResult {
@@ -67,6 +83,11 @@ export async function commitReceipt(input: CommitReceiptInput): Promise<CommitRe
   const transactions: Transaction[] = [];
   const shares: ParticipantShare[] = [];
 
+  // FB-10 (DEC-258): resolve the receipt-wide date and place once (every line
+  // shares them), so a scanned note is dated and located like a manual expense.
+  const purchaseIso = receiptDateToIso(input.purchaseDate ?? null) ?? undefined;
+  const placeFields = placeToTransactionFields(input.place ?? null);
+
   lines.forEach((item, index) => {
     const tx = createExpenseTransaction({
       tripId: input.tripId,
@@ -79,6 +100,8 @@ export async function commitReceipt(input: CommitReceiptInput): Promise<CommitRe
       exchangeRate: null,
       category: item.category,
       description: item.description,
+      ...placeFields,
+      date: purchaseIso,
       sessionId: session.id,
       externalRef: `${RECEIPT_REF_PREFIX}${session.id}:${index}`,
       excludeFromLearning: true,

@@ -348,8 +348,10 @@ export function useAssistant(): UseAssistant {
           direction: null,
           fromWallet: null,
           toWallet: null,
-          place: null,
-          date: null,
+          // FB-10 (DEC-258): photo-in-AI parity — carry the date/place the OCR read
+          // so a snapped note lands on its real day and venue, not "now"/nowhere.
+          place: outcome.plan.placeLabel,
+          date: outcome.plan.purchaseDate,
           itemName: null,
           screen: null,
           note: null,

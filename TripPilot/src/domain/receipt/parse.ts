@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { toCents } from '@/domain/money';
 import { guessCategory, extractCity } from '@/domain/import/wise-import';
+import { resolveCategory } from '@/domain/assistant/resolve';
 import type {
   ReceiptAdjustment,
   ReceiptDraftItem,
@@ -12,6 +13,9 @@ import type {
 const ADJUSTMENT_KINDS: ReceiptAdjustment['kind'][] = ['couvert', 'discount', 'other'];
 
 const CURRENCY_CODE_RE = /^[A-Z]{3}$/;
+
+// FB-10 (DEC-258): the OCR returns the receipt date as strict YYYY-MM-DD.
+const RECEIPT_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
  * Coerce an OCR numeric field into a finite number. The prompt asks for plain
@@ -41,6 +45,65 @@ function coerceCurrency(value: unknown): string | null {
   if (code === null) return null;
   const upper = code.toUpperCase();
   return CURRENCY_CODE_RE.test(upper) ? upper : null;
+}
+
+/**
+ * FB-10 (DEC-258): accept the OCR's printed receipt date only as a real
+ * `YYYY-MM-DD` calendar day. The prompt asks the model to convert any printed
+ * format to this canonical shape, so anything else (ambiguous DD/MM, garbage,
+ * an impossible 2026-13-40) is rejected to null rather than guessed — a wrong
+ * date is worse than no date (the commit then falls back to "now").
+ */
+function coerceReceiptDate(value: unknown): string | null {
+  const text = coerceString(value);
+  if (text === null) return null;
+  const match = RECEIPT_DATE_RE.exec(text);
+  if (match === null) return null;
+  const [, y, m, d] = match;
+  const year = Number(y);
+  const month = Number(m);
+  const day = Number(d);
+  // Reject impossible months/days and roll-overs (e.g. 02-30 → Date would shift).
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (
+    probe.getUTCFullYear() !== year ||
+    probe.getUTCMonth() !== month - 1 ||
+    probe.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * FB-10 (DEC-258): turn the receipt's YYYY-MM-DD calendar day into the ISO
+ * timestamp a transaction stores. Anchored at NOON UTC so the calendar day stays
+ * stable across time zones (a date-only receipt carries no real clock time).
+ * Returns null for a blank/invalid day so the caller falls back to "now". Pure.
+ */
+export function receiptDateToIso(ymd: string | null): string | null {
+  const day = coerceReceiptDate(ymd);
+  return day === null ? null : `${day}T12:00:00.000Z`;
+}
+
+/**
+ * FB-10 (DEC-258): the item's category. Trust the model's per-item category when
+ * it maps onto our taxonomy (refined AI read); otherwise fall back to the
+ * heuristic `guessCategory` from the merchant + product text. A model value that
+ * resolves to the catch-all `other` is treated as "no real hit" so the heuristic
+ * still gets a chance — only when both yield nothing does it stay `other`.
+ */
+function resolveItemCategory(
+  rawCategory: unknown,
+  merchant: string | null,
+  description: string,
+): string {
+  const modelLabel = coerceString(rawCategory);
+  if (modelLabel !== null) {
+    const resolved = resolveCategory(modelLabel);
+    if (resolved !== 'other') return resolved;
+  }
+  return guessCategory(merchant, description);
 }
 
 /** A positive quantity defaulting to 1; receipts rarely print fractional counts. */
@@ -73,7 +136,7 @@ function buildDraftItem(rawItem: Record<string, unknown>, merchant: string | nul
     description,
     qty,
     amountCents,
-    category: guessCategory(merchant, description),
+    category: resolveItemCategory(rawItem.category, merchant, description),
     include: true,
     participantIds: [],
     paidByParticipantId: null,
@@ -164,7 +227,10 @@ export function parseReceiptResponse(raw: unknown): ReceiptPlan {
   const readTotal = coerceNumber(root.total);
   return {
     merchant,
-    placeLabel: extractCity(merchant),
+    // FB-10: prefer the location the model read off the receipt; fall back to the
+    // city guessed from the merchant string when the model gave nothing.
+    placeLabel: coerceString(root.place) ?? extractCity(merchant),
+    purchaseDate: coerceReceiptDate(root.date),
     currency: coerceCurrency(root.currency),
     readTotalCents: readTotal !== null && readTotal > 0 ? toCents(readTotal) : null,
     items,

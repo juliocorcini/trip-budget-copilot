@@ -7,6 +7,7 @@ import {
   summarizeReceiptTotal,
 } from '@/domain/receipt';
 import type { ReceiptDraftItem } from '@/domain/receipt';
+import { guessCategory } from '@/domain/import/wise-import';
 
 // DEC-206 (G2): the parser is the source of truth for normalising a loose,
 // decimal-based OCR response into a cents-based, reviewable ReceiptPlan. It must
@@ -351,6 +352,82 @@ describe('parseReceiptResponse — adjustments (E6)', () => {
       adjustments: [{ kind: 'discount', label: 'promo', amount: -3 }],
     });
     expect(plan.adjustments[0]!.amountCents).toBe(-300);
+  });
+});
+
+// FB-10 (DEC-258): the OCR now also returns a receipt date, a merchant location
+// and a per-item category. The parser must trust a clean AI category, reject a
+// guessed/garbage one (falling back to the heuristic), and only accept a real
+// YYYY-MM-DD date so a wrong day never lands on the expense.
+describe('parseReceiptResponse — per-item category (FB-10)', () => {
+  it('trusts a valid taxonomy category from the model (it wins over the heuristic)', () => {
+    const plan = parseReceiptResponse({
+      merchant: 'Mercadona BURGOS',
+      items: [
+        { description: 'Cerveja', lineTotal: 3, category: 'market' },
+        { description: 'Uber ride', lineTotal: 10, category: 'transport' },
+      ],
+    });
+    expect(plan.items[0]!.category).toBe('market');
+    expect(plan.items[1]!.category).toBe('transport');
+  });
+
+  it('accepts an upper/mixed-case category (normalised to the taxonomy key)', () => {
+    const plan = parseReceiptResponse({ items: [{ description: 'X', lineTotal: 5, category: 'BAR' }] });
+    expect(plan.items[0]!.category).toBe('bar');
+  });
+
+  it('falls back to the heuristic when the model category is junk', () => {
+    const merchant = 'Some Shop';
+    const plan = parseReceiptResponse({
+      merchant,
+      items: [{ description: 'Mystery thing', lineTotal: 5, category: 'spaceship' }],
+    });
+    expect(plan.items[0]!.category).toBe(guessCategory(merchant, 'Mystery thing'));
+  });
+
+  it('treats a model "other" as no real hit and lets the heuristic try', () => {
+    const merchant = 'Restaurante Lisboa';
+    const plan = parseReceiptResponse({
+      merchant,
+      items: [{ description: 'Prato do dia', lineTotal: 12, category: 'other' }],
+    });
+    expect(plan.items[0]!.category).toBe(guessCategory(merchant, 'Prato do dia'));
+  });
+
+  it('uses the heuristic when the model omits the category (back-compat)', () => {
+    const merchant = 'Mercadona BURGOS';
+    const plan = parseReceiptResponse({ merchant, items: [{ description: 'Leche', lineTotal: 2 }] });
+    expect(plan.items[0]!.category).toBe(guessCategory(merchant, 'Leche'));
+  });
+});
+
+describe('parseReceiptResponse — receipt date (FB-10)', () => {
+  it('keeps a valid YYYY-MM-DD purchase date', () => {
+    expect(parseReceiptResponse({ date: '2026-06-20', items: [] }).purchaseDate).toBe('2026-06-20');
+  });
+
+  it('rejects a non-canonical or impossible date (no guessing)', () => {
+    // The model is told to convert to YYYY-MM-DD; anything else is rejected.
+    expect(parseReceiptResponse({ date: '20/06/2026', items: [] }).purchaseDate).toBeNull();
+    expect(parseReceiptResponse({ date: '2026-13-40', items: [] }).purchaseDate).toBeNull();
+    expect(parseReceiptResponse({ date: '2026-02-30', items: [] }).purchaseDate).toBeNull();
+  });
+
+  it('defaults to null when no date is printed', () => {
+    expect(parseReceiptResponse({ items: [] }).purchaseDate).toBeNull();
+  });
+});
+
+describe('parseReceiptResponse — place (FB-10)', () => {
+  it('prefers the location the model read off the receipt', () => {
+    const plan = parseReceiptResponse({ merchant: 'Mercadona BURGOS', place: 'Lisboa, Portugal', items: [] });
+    expect(plan.placeLabel).toBe('Lisboa, Portugal');
+  });
+
+  it('falls back to the city derived from the merchant when no place is printed', () => {
+    const plan = parseReceiptResponse({ merchant: 'Mercadona BURGOS', items: [] });
+    expect(plan.placeLabel).toBe('Burgos');
   });
 });
 

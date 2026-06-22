@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.44',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'A nota lida por IA agora vem completa: ela também identifica a data da compra, o local e a categoria de cada item.',
+        'Esses detalhes já chegam preenchidos no bloco “Data e local” — e você edita a data e o lugar com um toque antes de salvar.',
+        'Resultado: a nota cai no dia em que aconteceu e com o lugar certo, do jeito que um gasto manual ficaria.',
+      ],
+      en: [
+        'AI-read receipts now come complete: they also pick up the purchase date, the place and each item’s category.',
+        'Those details arrive pre-filled in the “Date and place” block — edit the date and the place in one tap before saving.',
+        'The upshot: the note lands on the day it happened and with the right place, just like a manual expense would.',
+      ],
+      es: [
+        'La cuenta leída por IA ahora viene completa: también detecta la fecha de compra, el lugar y la categoría de cada ítem.',
+        'Esos detalles llegan ya rellenados en el bloque “Fecha y lugar” — edita la fecha y el lugar en un toque antes de guardar.',
+        'El resultado: la cuenta cae en el día en que ocurrió y con el lugar correcto, igual que un gasto manual.',
+      ],
+    },
+  },
+  {
     version: '0.99.43',
     date: '2026-06-22',
     items: {

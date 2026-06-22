@@ -143,6 +143,52 @@ describe('commitReceipt (DEC-206)', () => {
     expect(linked!.transactionId).toBeNull();
   });
 
+  // FB-10 (DEC-258): a scanned receipt is a PAST purchase. When the OCR read a
+  // date/place, every line must be stamped with them — so the expense lands on
+  // the day it happened and carries the merchant's location, exactly like a
+  // manual entry — while a missing/invalid value safely falls back to "now"/none.
+  it('stamps the receipt date (noon UTC) on every kept line', async () => {
+    const result = await commitReceipt({
+      ...mkInput([mkItem({ amountCents: 240 }), mkItem({ amountCents: 100 })]),
+      purchaseDate: '2026-06-20',
+    });
+    const txs = await db.transactions.where('sessionId').equals(result.sessionId).toArray();
+    expect(txs).toHaveLength(2);
+    expect(txs.every((t) => t.date === '2026-06-20T12:00:00.000Z')).toBe(true);
+  });
+
+  it('stamps the receipt place on every kept line', async () => {
+    const result = await commitReceipt({
+      ...mkInput([mkItem()]),
+      place: { label: 'Lisboa, Portugal', lat: 38.72, lng: -9.14, placeId: 'place-1' },
+    });
+    const tx = (await db.transactions.where('sessionId').equals(result.sessionId).toArray())[0]!;
+    expect(tx.placeLabel).toBe('Lisboa, Portugal');
+    expect(tx.latitude).toBe(38.72);
+    expect(tx.longitude).toBe(-9.14);
+    expect(tx.placeId).toBe('place-1');
+  });
+
+  it('falls back to "now" and no place when the receipt had neither', async () => {
+    const before = Date.now();
+    const result = await commitReceipt(mkInput([mkItem()]));
+    const tx = (await db.transactions.where('sessionId').equals(result.sessionId).toArray())[0]!;
+    const dated = Date.parse(tx.date);
+    expect(dated).toBeGreaterThanOrEqual(before - 1000);
+    expect(dated).toBeLessThanOrEqual(Date.now() + 1000);
+    expect(tx.placeLabel).toBeNull();
+    expect(tx.placeId).toBeNull();
+  });
+
+  it('ignores a non-canonical date (no crash) and dates to "now" instead', async () => {
+    const before = Date.now();
+    const result = await commitReceipt({ ...mkInput([mkItem()]), purchaseDate: '20/06/2026' });
+    const tx = (await db.transactions.where('sessionId').equals(result.sessionId).toArray())[0]!;
+    const dated = Date.parse(tx.date);
+    expect(dated).toBeGreaterThanOrEqual(before - 1000);
+    expect(dated).toBeLessThanOrEqual(Date.now() + 1000);
+  });
+
   it('undo soft-deletes the session, its items, transactions and shares', async () => {
     const result = await commitReceipt(
       mkInput([mkItem({ amountCents: 1000, participantIds: [OWNER, 'friend-1'] })]),

@@ -11,4 +11,5 @@ export {
   matchItemsToReadTotal,
   dominantReceiptCategory,
   summarizeReceiptTotal,
+  receiptDateToIso,
 } from './parse';

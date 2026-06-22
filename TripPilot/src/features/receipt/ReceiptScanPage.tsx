@@ -73,6 +73,10 @@ export function ReceiptScanPage() {
   const [busy, setBusy] = useState(false);
   // FB-06/24 (DEC-259): add a participant inline while reviewing the receipt.
   const [addPersonOpen, setAddPersonOpen] = useState(false);
+  // FB-10 (DEC-258): the "AI details" block (date + place the model read) starts
+  // open only when the AI actually filled something — so the parity is visible
+  // at a glance — and stays a quiet, editable disclosure otherwise.
+  const [showAiDetails, setShowAiDetails] = useState(false);
 
   // DEC-209: cloud AI (Groq) is the only scan engine — on-device OCR was removed
   // because heuristic text parsing of raw OCR could not match the vision model.
@@ -100,6 +104,7 @@ export function ReceiptScanPage() {
     setPlan(handoff.plan);
     setCompressed(handoff.image);
     setName(handoff.name ?? handoff.plan.merchant ?? receiptFallbackName(handoff.plan.items));
+    setShowAiDetails(Boolean(handoff.plan.purchaseDate || handoff.plan.placeLabel));
     setPhase('review');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -187,6 +192,13 @@ export function ReceiptScanPage() {
     );
   const applyMatchTotal = () => setPlan((p) => (p ? { ...p, items: matchItemsToReadTotal(p) } : p));
 
+  // FB-10 (DEC-258): the date/place are editable — the model fills them, the
+  // traveler can correct them. Empty input clears back to null (commit → "now"/none).
+  const setPurchaseDate = (value: string) =>
+    setPlan((p) => (p ? { ...p, purchaseDate: value.trim() || null } : p));
+  const setPlaceLabel = (value: string) =>
+    setPlan((p) => (p ? { ...p, placeLabel: value.trim() || null } : p));
+
   const chipClass = (active: boolean) =>
     `px-3 py-2 rounded-xl text-xs font-medium btn-press flex items-center gap-1 ${
       active ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
@@ -205,6 +217,7 @@ export function ReceiptScanPage() {
     setPlan({
       merchant: null,
       placeLabel: null,
+      purchaseDate: null,
       currency: null,
       readTotalCents: null,
       items: [first],
@@ -213,6 +226,7 @@ export function ReceiptScanPage() {
     });
     setName(defaultName);
     setCompressed(null);
+    setShowAiDetails(false);
     setPhase('review');
     setEditingId(first.id);
   };
@@ -227,6 +241,7 @@ export function ReceiptScanPage() {
       if (outcome.ok) {
         setPlan(outcome.plan);
         setName(outcome.plan.merchant ?? receiptFallbackName(outcome.plan.items));
+        setShowAiDetails(Boolean(outcome.plan.purchaseDate || outcome.plan.placeLabel));
         setPhase('review');
         if (outcome.plan.items.length === 0) {
           showToast(t('receiptScan.no_items_found'), 'warning', { durationMs: 6000 });
@@ -239,6 +254,7 @@ export function ReceiptScanPage() {
         setPlan({
           merchant: null,
           placeLabel: null,
+          purchaseDate: null,
           currency: null,
           readTotalCents: null,
           items: [],
@@ -246,6 +262,7 @@ export function ReceiptScanPage() {
           adjustments: [],
         });
         setName(defaultName);
+        setShowAiDetails(false);
         setPhase('review');
       }
     } catch (err) {
@@ -310,6 +327,8 @@ export function ReceiptScanPage() {
         name: name.trim() || defaultName,
         items: plan.items,
         attachmentId,
+        purchaseDate: plan.purchaseDate,
+        place: plan.placeLabel ? { label: plan.placeLabel, lat: null, lng: null, placeId: null } : null,
       });
 
       await reload();
@@ -432,6 +451,52 @@ export function ReceiptScanPage() {
               placeholder={defaultName}
               className="px-3 py-2.5 rounded-xl text-sm bg-surface-container text-on-surface outline-none"
             />
+          </div>
+
+          {/* FB-10 (DEC-258): the date + place the AI read off the note, editable.
+              A quiet disclosure so a manual note isn't cluttered, auto-open when
+              the model actually filled something (parity with a manual expense). */}
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setShowAiDetails((v) => !v)}
+              className="flex items-center justify-between btn-press"
+            >
+              <span className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
+                <Icon name="auto_awesome" size={13} className="text-primary" />
+                {t('receiptScan.ai_details_title')}
+              </span>
+              <Icon
+                name={showAiDetails ? 'expand_less' : 'expand_more'}
+                size={18}
+                className="text-on-surface-faint"
+              />
+            </button>
+            {showAiDetails && (
+              <div className="flex flex-col gap-3 rounded-xl px-3 py-3" style={{ background: 'var(--surface-container)' }}>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-on-surface-faint">
+                    {t('receiptScan.date_label')}
+                  </label>
+                  <input
+                    type="date"
+                    value={plan.purchaseDate ?? ''}
+                    onChange={(e) => setPurchaseDate(e.target.value)}
+                    className="px-3 py-2.5 rounded-xl text-sm bg-surface-high text-on-surface outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-on-surface-faint">
+                    {t('receiptScan.place_label')}
+                  </label>
+                  <input
+                    value={plan.placeLabel ?? ''}
+                    onChange={(e) => setPlaceLabel(e.target.value)}
+                    placeholder={t('receiptScan.place_placeholder')}
+                    className="px-3 py-2.5 rounded-xl text-sm bg-surface-high text-on-surface outline-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* B1 — the bridge to the live table: same scan, divided in real time.
