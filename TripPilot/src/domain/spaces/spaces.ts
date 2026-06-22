@@ -98,3 +98,31 @@ const ONGOING_CAPABILITIES: SpaceCapabilities = {
 export function spaceCapabilities(trip: Trip): SpaceCapabilities {
   return isOngoing(trip) ? ONGOING_CAPABILITIES : TRIP_CAPABILITIES;
 }
+
+/**
+ * DEC-251 (os-budget): the state of a Dia a dia's OPTIONAL monthly cap against
+ * the month-to-date spend. A cap of 0 means "no limit, just log" — then there
+ * is nothing to be over and the bar stays empty. Pure (no dates, no I/O): the
+ * caller supplies the month-scoped spend, so the same math drives the headline
+ * and the progress bar and is fully unit-testable.
+ */
+export interface MonthlyCapStatus {
+  hasCap: boolean;
+  /** cap − spent; negative once the cap is blown. 0 when there is no cap. */
+  remainingCents: number;
+  isOver: boolean;
+  /** Spend as a 0–100 clamped percentage of the cap; 0 when there is no cap. */
+  pct: number;
+}
+
+export function monthlyCapStatus(spentCents: number, capCents: number): MonthlyCapStatus {
+  const hasCap = capCents > 0;
+  if (!hasCap) return { hasCap: false, remainingCents: 0, isOver: false, pct: 0 };
+  const remainingCents = capCents - spentCents;
+  return {
+    hasCap: true,
+    remainingCents,
+    isOver: remainingCents < 0,
+    pct: Math.min(100, Math.max(0, Math.round((spentCents / capCents) * 100))),
+  };
+}

@@ -10,7 +10,11 @@ import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import { isNativeApp } from '@/utils/native/platform';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
-import { appSettingsRepository, plannedOccurrenceRepository } from '@/data/repositories';
+import {
+  appSettingsRepository,
+  plannedOccurrenceRepository,
+  budgetPoolRepository,
+} from '@/data/repositories';
 import {
   toggleDashboardCardHidden,
   toggleDashboardCardPaired,
@@ -127,6 +131,16 @@ export function DashboardPage() {
 
   const handleRevealDismiss = async () => {
     await appSettingsRepository.update({ simpleRevealDismissed: true });
+    await reload();
+  };
+
+  // DEC-251 (os-budget): set/clear the Dia a dia monthly cap. The cap lives on
+  // the space's active pool; 0 means "no limit, just log". The spent total is
+  // always derived month-scoped from transactions, so it resets on its own.
+  const handleSetMonthlyCap = async (cents: number) => {
+    if (!model.primaryPool) return;
+    await budgetPoolRepository.update({ ...model.primaryPool, totalAmountCents: cents });
+    showToast(cents > 0 ? t('ongoing.cap_set') : t('ongoing.cap_cleared'), 'success');
     await reload();
   };
 
@@ -451,7 +465,12 @@ export function DashboardPage() {
       {/* DEC-251: a Dia a dia owns its own month-based home (no countdown, no
           phases, no per-day allowance) — it precedes both simple and complete. */}
       {ongoing ? (
-        <OngoingHome model={model} trip={trip} transactions={transactions} />
+        <OngoingHome
+          model={model}
+          trip={trip}
+          transactions={transactions}
+          onSetMonthlyCap={handleSetMonthlyCap}
+        />
       ) : isSimpleMode ? (
         <>
           <SimpleHome model={model} trip={trip} />

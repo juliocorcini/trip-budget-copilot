@@ -5,6 +5,7 @@ import {
   isOngoing,
   countSpaces,
   spaceCapabilities,
+  monthlyCapStatus,
 } from '@/domain/spaces/spaces';
 import type { Trip } from '@/domain/types/trip';
 import type { TripStatus, TripKind } from '@/domain/types/common';
@@ -125,5 +126,51 @@ describe('spaceCapabilities (DEC-251 gate)', () => {
     const caps = spaceCapabilities(makeTrip({ id: 'legacy', status: 'completed' }));
     expect(caps.hasPhases).toBe(true);
     expect(caps.hasMonthlyBudget).toBe(false);
+  });
+});
+
+describe('monthlyCapStatus (DEC-251 — optional monthly cap)', () => {
+  it('reports no cap when the cap is 0 (open, just logging)', () => {
+    expect(monthlyCapStatus(5_000, 0)).toEqual({
+      hasCap: false,
+      remainingCents: 0,
+      isOver: false,
+      pct: 0,
+    });
+  });
+
+  it('computes remaining and a clamped percentage under the cap', () => {
+    // €30 spent of a €100 cap → €70 left, 30%.
+    expect(monthlyCapStatus(3_000, 10_000)).toEqual({
+      hasCap: true,
+      remainingCents: 7_000,
+      isOver: false,
+      pct: 30,
+    });
+  });
+
+  it('flags over-budget with a negative remaining and a bar pinned at 100%', () => {
+    // €120 spent of a €100 cap → −€20, over, bar clamped to 100%.
+    expect(monthlyCapStatus(12_000, 10_000)).toEqual({
+      hasCap: true,
+      remainingCents: -2_000,
+      isOver: true,
+      pct: 100,
+    });
+  });
+
+  it('is exactly at the cap (0 left, 100%, not over)', () => {
+    expect(monthlyCapStatus(10_000, 10_000)).toEqual({
+      hasCap: true,
+      remainingCents: 0,
+      isOver: false,
+      pct: 100,
+    });
+  });
+
+  it('never returns a negative percentage when spend is below zero (net credit)', () => {
+    const status = monthlyCapStatus(-500, 10_000);
+    expect(status.pct).toBe(0);
+    expect(status.remainingCents).toBe(10_500);
   });
 });
