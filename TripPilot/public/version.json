@@ -1,8 +1,8 @@
 {
-  "version": "0.99.38",
+  "version": "0.99.39",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.38.zip",
-  "notes": "TripPilot está com a cara nova: um ícone de pin de viagem com bússola. No iPhone e na web ele já aparece; no Android, depois de instalar a próxima versão do app."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.39.zip",
+  "notes": "Quando o app trava, agora ele envia um relatório de erro anônimo pra gente consertar mais rápido — só a mensagem técnica do erro, nunca seus valores. Continua junto da telemetria e desativável em Configurações."
 }
