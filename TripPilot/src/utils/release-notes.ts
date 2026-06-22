@@ -17,6 +17,36 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.38',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'TripPilot está com a cara nova: um novo ícone — um pin de viagem com uma bússola. No iPhone e na web ele já aparece; no Android, ao instalar a próxima versão do app.',
+      ],
+      en: [
+        'TripPilot has a fresh look: a new icon — a travel pin with a compass. On iPhone and the web it shows up right away; on Android, after you install the next app version.',
+      ],
+      es: [
+        'TripPilot estrena imagen: un nuevo ícono — un pin de viaje con una brújula. En iPhone y en la web ya aparece; en Android, al instalar la próxima versión de la app.',
+      ],
+    },
+  },
+  {
+    version: '0.99.37',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Ao começar, o app agora sempre pergunta o seu nome (e um e-mail opcional, que fica só no seu aparelho) — assim você nunca mais aparece como “Eu”.',
+      ],
+      en: [
+        'When you start, the app now always asks your name (plus an optional e-mail that stays only on your device) — so you never show up as “Me” again.',
+      ],
+      es: [
+        'Al empezar, la app ahora siempre pregunta tu nombre (y un correo opcional, que se queda solo en tu dispositivo) — así nunca más apareces como “Yo”.',
+      ],
+    },
+  },
+  {
     version: '0.99.36',
     date: '2026-06-21',
     items: {
