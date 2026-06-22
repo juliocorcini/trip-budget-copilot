@@ -69,6 +69,14 @@ export function SpacesPage() {
 
       <p className="text-xs text-on-surface-faint">{t('spaces.hint')}</p>
 
+      <button
+        onClick={() => navigate('/spaces/new')}
+        className="w-full rounded-xl px-4 py-3 flex items-center gap-2 bg-surface-container ring-1 ring-primary/40 text-primary font-semibold text-sm btn-press"
+      >
+        <Icon name="add" size={20} className="text-primary" />
+        {t('spaces.new_cta')}
+      </button>
+
       {trips && groups.length === 0 ? (
         <p className="text-sm text-on-surface-dim py-10 text-center">{t('spaces.empty')}</p>
       ) : null}

@@ -2076,7 +2076,22 @@
     "switched": "You're now in \"{{name}}\".",
     "switch_error": "Couldn't switch spaces. Please try again.",
     "subtitle_ongoing": "Day-to-day",
-    "empty": "No spaces yet."
+    "empty": "No spaces yet.",
+    "new_cta": "New space",
+    "new_title": "New space",
+    "fork_subtitle": "What do you want to create?",
+    "kind_trip_title": "Trip",
+    "kind_trip_desc": "Has a start and end. Phase budgets, daily pace and countdown.",
+    "kind_ongoing_title": "Day-to-day",
+    "kind_ongoing_desc": "No end date. Just log spending, with an optional monthly cap.",
+    "form_name": "Name",
+    "form_name_ongoing_ph": "e.g. Home, Day-to-day with my partner",
+    "form_monthly_budget": "Monthly cap (optional)",
+    "form_monthly_budget_hint": "Leave blank to just log, with no limit.",
+    "create": "Create",
+    "creating": "Creating…",
+    "created": "\"{{name}}\" created.",
+    "create_error": "Couldn't create the space. Please try again."
   },
   "common": {
     "save": "Save",

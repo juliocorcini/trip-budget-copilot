@@ -48,6 +48,7 @@ const SharedWithMePage = lazyWithRetry(() => import('@/features/shared/SharedWit
 const PairPage = lazyWithRetry(() => import('@/features/shared/PairPage').then(m => ({ default: m.PairPage })));
 const AdminPage = lazyWithRetry(() => import('@/features/admin/AdminPage').then(m => ({ default: m.AdminPage })));
 const SpacesPage = lazyWithRetry(() => import('@/features/spaces/SpacesPage').then(m => ({ default: m.SpacesPage })));
+const NewSpacePage = lazyWithRetry(() => import('@/features/spaces/NewSpacePage').then(m => ({ default: m.NewSpacePage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -164,6 +165,7 @@ export const router = createBrowserRouter([
           // DEC-249: the multi-space switcher (trips + "Dia a dia"), opened from
           // the active-space chip. Swaps `activeTrip` with a confirm.
           { path: '/spaces', element: <LazyRoute><SpacesPage /></LazyRoute> },
+          { path: '/spaces/new', element: <LazyRoute><NewSpacePage /></LazyRoute> },
         ],
       },
       { path: '/', element: <LazyRoute><BootGate /></LazyRoute> },

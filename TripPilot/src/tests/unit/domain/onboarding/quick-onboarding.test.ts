@@ -82,3 +82,32 @@ describe('buildQuickOnboardingInput (E1 / M16)', () => {
     expect(entities.owner.email).toBeNull();
   });
 });
+
+describe('createOnboardingEntities — kind (DEC-250, multi-space)', () => {
+  it('omits kind by default — a regular trip stays byte-identical', () => {
+    const entities = createOnboardingEntities(buildQuickOnboardingInput(baseValues()));
+    // Absent (not 'trip') so existing trips on disk read back the same.
+    expect(entities.trip.kind).toBeUndefined();
+  });
+
+  it("does not stamp kind when explicitly 'trip'", () => {
+    const entities = createOnboardingEntities({
+      ...buildQuickOnboardingInput(baseValues()),
+      kind: 'trip',
+    });
+    expect(entities.trip.kind).toBeUndefined();
+  });
+
+  it("stamps kind='ongoing' for a Dia a dia space", () => {
+    const entities = createOnboardingEntities({
+      ...buildQuickOnboardingInput(baseValues({ tripName: 'Dia a dia com a esposa' })),
+      kind: 'ongoing',
+    });
+    expect(entities.trip.kind).toBe('ongoing');
+    expect(entities.trip.name).toBe('Dia a dia com a esposa');
+    // It is still a fully valid, active Trip (phase + pool + owner are built).
+    expect(entities.trip.status).toBe('active');
+    expect(entities.phase.name).toBe('Dia a dia com a esposa');
+    expect(entities.pool.totalAmountCents).toBe(100_000);
+  });
+});

@@ -2080,7 +2080,22 @@
     "switched": "Agora você está em \"{{name}}\".",
     "switch_error": "Não foi possível trocar de espaço. Tente novamente.",
     "subtitle_ongoing": "Dia a dia",
-    "empty": "Nenhum espaço ainda."
+    "empty": "Nenhum espaço ainda.",
+    "new_cta": "Novo espaço",
+    "new_title": "Novo espaço",
+    "fork_subtitle": "O que você quer criar?",
+    "kind_trip_title": "Viagem",
+    "kind_trip_desc": "Tem início e fim. Orçamento por fases, diário e contagem regressiva.",
+    "kind_ongoing_title": "Dia a dia",
+    "kind_ongoing_desc": "Sem data para acabar. Só registrar gastos, com teto mensal opcional.",
+    "form_name": "Nome",
+    "form_name_ongoing_ph": "Ex.: Casa, Dia a dia com a esposa",
+    "form_monthly_budget": "Teto mensal (opcional)",
+    "form_monthly_budget_hint": "Deixe em branco para apenas registrar, sem limite.",
+    "create": "Criar",
+    "creating": "Criando…",
+    "created": "\"{{name}}\" criado.",
+    "create_error": "Não foi possível criar o espaço. Tente novamente."
   },
   "common": {
     "save": "Salvar",

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Trip } from '@/domain/types/trip';
+import type { TripKind } from '@/domain/types/common';
 import type { Phase } from '@/domain/types/phase';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
@@ -32,6 +33,9 @@ export interface OnboardingInput {
   /** PAR-004 (R6-17): generated names come translated from the UI. */
   poolName: string;
   reserveName: string;
+  /** DEC-250: when `'ongoing'`, the created `Trip` is a continuous "Dia a dia"
+   *  space; omitted/`'trip'` builds a regular dated trip (output unchanged). */
+  kind?: TripKind;
 }
 
 interface OnboardingResult {
@@ -118,6 +122,9 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
     endDate: input.endDate,
     status: 'active',
     notes: null,
+    // DEC-250: only stamp the kind for an ongoing space — a regular trip stays
+    // byte-identical to before (the field is read back as 'trip' when absent).
+    ...(input.kind === 'ongoing' ? { kind: 'ongoing' as const } : {}),
   };
 
   const phase: Phase = {
