@@ -32,6 +32,8 @@ export const AI_ACTIONS = [
   'open_plan_expense', // the "planejar um gasto" door
   'open_simulator', // the purchase simulator
   'open_screen', // jump to a named screen (debts, wallets, …)
+  // — inform (answer in place; no write, no navigation) —
+  'convert_currency', // FB-04: "quanto é 20 euros em reais?" → compute & show
   // — fallback —
   'unknown',
 ] as const;
@@ -60,6 +62,9 @@ export interface AiIntent {
   amount: number | null;
   /** ISO 4217 code the user mentioned, else null (device defaults to base). */
   currency: string | null;
+  /** FB-04: the target currency for a `convert_currency` ask ("…em reais" →
+   *  BRL). For money events it stays null. */
+  toCurrency: string | null;
   description: string | null;
   /** Free category label ("cerveja", "uber") — resolver snaps to a taxonomy. */
   category: string | null;
@@ -184,6 +189,7 @@ const intentSchema = z.object({
   action: actionField,
   amount: numberField.optional(),
   currency: currencyField.optional(),
+  toCurrency: currencyField.optional(),
   description: stringField.optional(),
   category: stringField.optional(),
   person: stringField.optional(),
@@ -212,6 +218,7 @@ function coerceIntent(candidate: unknown): AiIntent | null {
     action: data.action,
     amount: data.amount ?? null,
     currency: data.currency ?? null,
+    toCurrency: data.toCurrency ?? null,
     description: data.description ?? null,
     category: data.category ?? null,
     person: data.person ?? null,

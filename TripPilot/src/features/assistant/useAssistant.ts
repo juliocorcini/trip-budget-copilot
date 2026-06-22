@@ -340,6 +340,7 @@ export function useAssistant(): UseAssistant {
           action: 'log_expense',
           amount: summary.amountCents / 100,
           currency: outcome.plan.currency,
+          toCurrency: null,
           description: summary.merchant,
           category: dominantReceiptCategory(outcome.plan.items),
           person: null,

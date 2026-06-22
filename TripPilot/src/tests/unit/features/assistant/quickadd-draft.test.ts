@@ -60,6 +60,7 @@ function mkIntent(partial: Partial<AiIntent> & { action: AiIntent['action'] }): 
   return {
     amount: null,
     currency: null,
+    toCurrency: null,
     description: null,
     category: null,
     person: null,

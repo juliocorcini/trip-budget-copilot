@@ -19,3 +19,11 @@ export {
   resolveFrozenRate,
   listSelectableCurrencies,
 } from './exchange';
+export {
+  pairRate,
+  convertAmount,
+  convertWithManualRate,
+  converterCurrencies,
+  rateAgeDays,
+} from './converter';
+export type { ConversionResult } from './converter';

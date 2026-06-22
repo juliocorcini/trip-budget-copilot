@@ -83,6 +83,18 @@ const GROUPED_ACTIONS: FabAction[] = [
     advanced: true,
   },
   {
+    // FB-04 (DEC-256): the currency converter — a traveler tool that belongs in
+    // the visible "smart tools" row (not buried), and stays in simple mode too
+    // (no `advanced`) since converting prices is a beginner's first need abroad.
+    icon: 'currency_exchange',
+    labelKey: 'fab.converter',
+    descKey: 'fab.converter_desc',
+    path: '/converter',
+    iconBg: '#6B8F7118',
+    iconColorClass: 'text-success',
+    group: 'plan',
+  },
+  {
     icon: 'swap_horiz',
     labelKey: 'fab.register_transfer',
     descKey: 'fab.register_transfer_desc',

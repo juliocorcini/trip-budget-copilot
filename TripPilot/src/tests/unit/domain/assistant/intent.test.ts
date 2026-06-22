@@ -45,6 +45,20 @@ describe('parseAssistantResponse', () => {
     expect(result.intent.currency).toBeNull();
   });
 
+  // FB-04: the convert_currency target. Coerced like `currency` (code/symbol),
+  // and null for every other action (the model omits it).
+  it('coerces toCurrency for a convert_currency ask and defaults it to null', () => {
+    const ask = parseAssistantResponse({ action: 'convert_currency', amount: 20, currency: 'EUR', toCurrency: 'R$' });
+    expect(ask.ok).toBe(true);
+    if (!ask.ok) return;
+    expect(ask.intent.action).toBe('convert_currency');
+    expect(ask.intent.currency).toBe('EUR');
+    expect(ask.intent.toCurrency).toBe('BRL');
+
+    const expense = parseAssistantResponse({ action: 'log_expense', amount: 5, currency: 'EUR' });
+    expect(expense.ok && expense.intent.toCurrency).toBeNull();
+  });
+
   it('maps an unrecognized action to "unknown"', () => {
     const result = parseAssistantResponse({ action: 'teleport', amount: 1 });
     expect(result.ok).toBe(true);

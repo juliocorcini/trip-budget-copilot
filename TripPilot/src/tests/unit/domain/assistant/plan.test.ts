@@ -48,6 +48,7 @@ function mkIntent(partial: Partial<AiIntent> & { action: AiIntent['action'] }): 
   return {
     amount: null,
     currency: null,
+    toCurrency: null,
     description: null,
     category: null,
     person: null,
@@ -490,6 +491,32 @@ describe('buildActionPlan — other actions', () => {
 
     const debts = buildActionPlan(mkIntent({ action: 'open_screen', screen: 'debts' }), mkCtx());
     expect(debts.status === 'ready' && debts.plan.type === 'navigate' && debts.plan.to).toBe('/shared');
+  });
+
+  // FB-04: a "quanto é X em Y?" question becomes a navigate to the converter,
+  // carrying the parsed amount/pair as query — the converter does the math.
+  it('convert_currency navigates to the converter prefilled with amount + pair', () => {
+    const r = buildActionPlan(
+      mkIntent({ action: 'convert_currency', amount: 20, currency: 'EUR', toCurrency: 'BRL' }),
+      mkCtx(),
+    );
+    expect(r.status).toBe('ready');
+    if (r.status !== 'ready' || r.plan.type !== 'navigate') throw new Error('expected navigate plan');
+    expect(r.plan.to).toBe('/converter?amount=20&from=EUR&to=BRL');
+    expect(r.plan.preview.navKey).toBe('converter');
+  });
+
+  it('convert_currency with no amount/pair still opens the bare converter', () => {
+    const r = buildActionPlan(mkIntent({ action: 'convert_currency' }), mkCtx());
+    expect(r.status === 'ready' && r.plan.type === 'navigate' && r.plan.to).toBe('/converter');
+  });
+
+  it('convert_currency omits a zero/negative amount from the query', () => {
+    const r = buildActionPlan(
+      mkIntent({ action: 'convert_currency', amount: 0, currency: 'USD', toCurrency: 'BRL' }),
+      mkCtx(),
+    );
+    expect(r.status === 'ready' && r.plan.type === 'navigate' && r.plan.to).toBe('/converter?from=USD&to=BRL');
   });
 });
 

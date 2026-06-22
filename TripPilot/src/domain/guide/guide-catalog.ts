@@ -42,6 +42,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       { id: 'planner', icon: 'tune', titleKey: 'guide.planner_t', descKey: 'guide.planner_d', route: '/planner' },
       { id: 'planned', icon: 'shopping_bag', titleKey: 'guide.planned_t', descKey: 'guide.planned_d', route: '/planned' },
       { id: 'simulator', icon: 'calculate', titleKey: 'guide.simulator_t', descKey: 'guide.simulator_d', route: '/simulator' },
+      { id: 'converter', icon: 'currency_exchange', titleKey: 'guide.converter_t', descKey: 'guide.converter_d', route: '/converter' },
     ],
   },
   {

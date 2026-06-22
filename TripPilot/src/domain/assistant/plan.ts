@@ -284,6 +284,17 @@ export function buildActionPlan(intent: AiIntent, ctx: PlanContext): PlanResult 
       const route = intent.screen ? SCREEN_ROUTES[intent.screen] : '/dashboard';
       return navigate(route, intent.screen ?? 'dashboard');
     }
+    case 'convert_currency': {
+      // FB-04: an informational ask ("quanto é 20 euros em reais?"). The converter
+      // owns the FX display (rate age, manual fallback), so we hand it the parsed
+      // amount/pair via query and let it answer — no duplicate math in the sheet.
+      const params = new URLSearchParams();
+      if (intent.amount && intent.amount > 0) params.set('amount', String(intent.amount));
+      if (intent.currency) params.set('from', intent.currency);
+      if (intent.toCurrency) params.set('to', intent.toCurrency);
+      const qs = params.toString();
+      return navigate(qs ? `/converter?${qs}` : '/converter', 'converter');
+    }
     case 'unknown':
     default:
       return unsupported('unknown');

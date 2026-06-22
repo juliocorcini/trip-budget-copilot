@@ -1,8 +1,8 @@
 {
-  "version": "0.99.44",
+  "version": "0.99.45",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.44.zip",
-  "notes": "A nota lida por IA agora vem completa: além dos itens e do total, ela puxa a data da compra, o local e a categoria de cada item — tudo já preenchido e editável num toque, em “Data e local”. Assim a nota cai no dia certo e com o lugar certo, igual a um gasto manual."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.45.zip",
+  "notes": "Chegou o conversor de moedas: digite um valor, escolha as duas moedas e veja na hora quanto dá — usando a cotação que o app já guardou, com a data dela sempre à vista e taxa manual quando estiver sem internet. Você abre pelo botão +, pelo Copiloto ou pelo guia, e ainda pode perguntar à IA “quanto é 20 euros em reais?”."
 }

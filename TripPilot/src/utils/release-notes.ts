@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.45',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'Chegou o conversor de moedas: digite um valor, escolha as duas moedas e veja na hora quanto dá.',
+        'Ele usa a cotação que o app já guardou — com a data dela sempre à vista — e oferece taxa manual para quando você estiver sem internet.',
+        'Abra pelo botão +, pelo Copiloto ou pelo guia. E dá para perguntar à IA: “quanto é 20 euros em reais?”.',
+      ],
+      en: [
+        'The currency converter is here: type an amount, pick the two currencies and see the result instantly.',
+        'It uses the rate the app already saved — with its date always in view — and offers a manual rate for when you’re offline.',
+        'Open it from the + button, the Copilot or the guide. You can also ask the AI: “how much is 20 euros in reais?”.',
+      ],
+      es: [
+        'Llegó el conversor de monedas: escribe un monto, elige las dos monedas y ve el resultado al instante.',
+        'Usa la cotización que la app ya guardó — con su fecha siempre a la vista — y ofrece tasa manual para cuando estés sin internet.',
+        'Ábrelo desde el botón +, el Copiloto o la guía. Y puedes preguntarle a la IA: “¿cuánto es 20 euros en reales?”.',
+      ],
+    },
+  },
+  {
     version: '0.99.44',
     date: '2026-06-22',
     items: {
