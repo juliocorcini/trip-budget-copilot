@@ -44,6 +44,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
+import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { SplitHistorySheet } from './SplitHistorySheet';
 import { PassThePhoneSheet } from './PassThePhoneSheet';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
@@ -91,7 +92,10 @@ export function SplitPage() {
   const forceNew = searchParams.get('new') === '1';
   const { trip, phases, pools, participants, settings, loading, error, retry, reload } = useAppData();
 
-  const fileRef = useRef<HTMLInputElement>(null);
+  // CC-IMG (DEC-275): shared take-photo/gallery chooser for the receipt scan.
+  const receiptChooser = useImageSourceChooser((file) => {
+    void processReceiptFile(file);
+  });
   const [phase, setPhase] = useState<Phase>('capture');
   const [session, setSession] = useState<SplitSession | null>(null);
   const [compressed, setCompressed] = useState<CompressedImage | null>(null);
@@ -321,13 +325,10 @@ export function SplitPage() {
   const enableCloudThenPick = async () => {
     await appSettingsRepository.update({ cloudReceiptOcrEnabled: true });
     await reload();
-    fileRef.current?.click();
+    receiptChooser.open();
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const processReceiptFile = async (file: File) => {
     setPhase('reading');
     try {
       const image = await compressImageFile(file);
@@ -580,7 +581,7 @@ export function SplitPage() {
 
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 px-5 pt-2 pb-28">
-      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      {receiptChooser.element}
 
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
@@ -617,7 +618,7 @@ export function SplitPage() {
             </div>
           ) : (
             <button
-              onClick={() => fileRef.current?.click()}
+              onClick={() => receiptChooser.open()}
               className="rounded-2xl p-4 flex items-center gap-3 btn-press text-left"
               style={{ background: 'var(--surface-container)' }}
             >

@@ -25,6 +25,10 @@ import {
 } from '@/domain/assistant';
 import { requestAssistantIntents } from '@/utils/ai-assistant';
 import { transcribeAudio, isLikelyVoiceHallucination } from '@/utils/ai-transcribe';
+import { compressImageFile, blobToDataUrl, type CompressedImage } from '@/utils/image/compress';
+import { extractReceiptViaCloud } from '@/utils/ai-ocr';
+import { summarizeReceiptTotal, dominantReceiptCategory, type ReceiptPlan } from '@/domain/receipt';
+import { setReceiptReviewHandoff } from '@/features/receipt/receipt-review-handoff';
 import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
@@ -95,6 +99,10 @@ export interface UseAssistant {
   note: string | null;
   errorKey: string | null;
   enabled: boolean;
+  /** FB-09 (DEC-258): photo capture is available (cloud OCR opted-in). */
+  photoEnabled: boolean;
+  /** True while the current preview came from a scanned photo (offers "open items"). */
+  fromPhoto: boolean;
   listening: boolean;
   voiceAvailable: boolean;
   setText: (value: string) => void;
@@ -112,6 +120,10 @@ export interface UseAssistant {
   patchDraft: (patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => void;
   /** Hand the (edited) draft to the full QuickAdd form for the heavy cases. */
   openFullEditor: () => void;
+  /** FB-09 (DEC-258): scan a receipt photo → one summarized expense preview. */
+  scanReceiptPhoto: (file: File) => Promise<void>;
+  /** FB-09: open the scanned photo as the full item-by-item receipt instead. */
+  openReceiptItems: () => void;
   /** Dismiss the post-split nudge (the action already committed). */
   dismissNudge: () => void;
   toggleVoice: () => Promise<void>;
@@ -147,6 +159,9 @@ export function useAssistant(): UseAssistant {
   const [note, setNote] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
+  // FB-09 (DEC-258): when the active preview was built from a scanned photo, the
+  // sheet offers "open items" (the full receipt) beside "confirm".
+  const [fromPhoto, setFromPhoto] = useState(false);
 
   const intentRef = useRef<AiIntent | null>(null);
   const planRef = useRef<ActionPlan | null>(null);
@@ -157,10 +172,15 @@ export function useAssistant(): UseAssistant {
   const modeRef = useRef<'single' | 'batch'>('single');
   const overridesRef = useRef<Record<string, string>>({});
   const localParticipantsRef = useRef<Participant[]>([]);
+  // FB-09: the scanned plan + photo kept so "open items" hands them to the full
+  // receipt page without a second OCR call (no token spent twice).
+  const receiptPlanRef = useRef<ReceiptPlan | null>(null);
+  const receiptImageRef = useRef<CompressedImage | null>(null);
   const stopVoiceRef = useRef<(() => void) | null>(null);
   const transcriptRef = useRef('');
 
   const enabled = data.settings?.aiQuickEntryEnabled ?? false;
+  const photoEnabled = data.settings?.cloudReceiptOcrEnabled ?? false;
   const voiceAvailable =
     isSpeechRecognitionSupported() ||
     (typeof navigator !== 'undefined' && !!navigator.mediaDevices && typeof MediaRecorder !== 'undefined');
@@ -280,6 +300,89 @@ export function useAssistant(): UseAssistant {
     setPhase('batch_preview');
   }, [buildPlanContext]);
 
+  // FB-09 (DEC-258): scan a receipt photo INSIDE the assistant → one summarized
+  // expense, previewed through the SAME plan/preview machinery as text (full
+  // parity, one-tap confirm). The plan + photo are kept so "open items" can hand
+  // off to the full receipt without a second OCR call. Gated by cloud OCR opt-in.
+  const scanReceiptPhoto = useCallback(
+    async (file: File) => {
+      if (!photoEnabled) return;
+      setErrorKey(null);
+      setNote(null);
+      setFromPhoto(false);
+      overridesRef.current = {};
+      localParticipantsRef.current = [];
+      setPhase('thinking');
+      try {
+        const image = await compressImageFile(file);
+        const dataUrl = await blobToDataUrl(image.blob);
+        const outcome = await extractReceiptViaCloud(dataUrl);
+        if (!outcome.ok) {
+          setErrorKey('error.photo_failed');
+          setPhase('error');
+          return;
+        }
+        const summary = summarizeReceiptTotal(outcome.plan);
+        if (!summary) {
+          setErrorKey('error.photo_failed');
+          setPhase('error');
+          return;
+        }
+        const ctx = buildPlanContext();
+        if (!ctx) {
+          setErrorKey('unsupported.no_trip');
+          setPhase('error');
+          return;
+        }
+        receiptPlanRef.current = outcome.plan;
+        receiptImageRef.current = image;
+        const intent: AiIntent = {
+          action: 'log_expense',
+          amount: summary.amountCents / 100,
+          currency: outcome.plan.currency,
+          description: summary.merchant,
+          category: dominantReceiptCategory(outcome.plan.items),
+          person: null,
+          participants: [],
+          payer: null,
+          direction: null,
+          fromWallet: null,
+          toWallet: null,
+          place: null,
+          date: null,
+          itemName: null,
+          screen: null,
+          note: null,
+          confidence: null,
+        };
+        intentRef.current = intent;
+        modeRef.current = 'single';
+        runPlan(intent);
+        setFromPhoto(true);
+      } catch (err) {
+        console.error('[assistant] photo scan failed', err);
+        setErrorKey('error.photo_failed');
+        setPhase('error');
+      }
+    },
+    [photoEnabled, buildPlanContext, runPlan],
+  );
+
+  // FB-09: escalate the scanned photo to the full item-by-item receipt — hands
+  // the already-extracted plan + photo to the receipt page (no second OCR call).
+  const openReceiptItems = useCallback(() => {
+    const plan = receiptPlanRef.current;
+    if (!plan) return;
+    const merchant = plan.merchant?.trim();
+    setReceiptReviewHandoff({
+      plan,
+      image: receiptImageRef.current,
+      name: merchant && merchant.length > 0 ? merchant : null,
+    });
+    setPhase('done');
+    navigate('/receipt/scan');
+  }, [navigate]);
+
   const submit = useCallback(
     async (textOverride?: string) => {
       const value = (textOverride ?? text).trim();
@@ -292,6 +395,7 @@ export function useAssistant(): UseAssistant {
       setText(value);
       setErrorKey(null);
       setNote(null);
+      setFromPhoto(false);
       overridesRef.current = {};
       localParticipantsRef.current = [];
       setPhase('thinking');
@@ -400,6 +504,9 @@ export function useAssistant(): UseAssistant {
   const cancelClarification = useCallback(() => {
     setClarification(null);
     setNote(null);
+    setFromPhoto(false);
+    receiptPlanRef.current = null;
+    receiptImageRef.current = null;
     setPhase('input');
   }, []);
 
@@ -672,6 +779,8 @@ export function useAssistant(): UseAssistant {
     modeRef.current = 'single';
     overridesRef.current = {};
     localParticipantsRef.current = [];
+    receiptPlanRef.current = null;
+    receiptImageRef.current = null;
     transcriptRef.current = '';
     setText('');
     setPreview(null);
@@ -682,6 +791,7 @@ export function useAssistant(): UseAssistant {
     setNote(null);
     setErrorKey(null);
     setListening(false);
+    setFromPhoto(false);
     setPhase('input');
   }, []);
 
@@ -707,6 +817,8 @@ export function useAssistant(): UseAssistant {
     note,
     errorKey,
     enabled,
+    photoEnabled,
+    fromPhoto,
     listening,
     voiceAvailable,
     setText,
@@ -720,6 +832,8 @@ export function useAssistant(): UseAssistant {
     confirmBatch,
     patchDraft,
     openFullEditor,
+    scanReceiptPhoto,
+    openReceiptItems,
     dismissNudge,
     toggleVoice,
     reset,

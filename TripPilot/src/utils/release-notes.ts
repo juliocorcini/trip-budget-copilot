@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.43',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'Toda foto agora te dá as duas opções num toque: tirar a foto na hora ou escolher da galeria — no recibo, nos anexos e na saída.',
+        'Dá pra adicionar uma pessoa na hora, sem sair da tela: ao registrar um gasto ou conferir uma nota, toque em “+ pessoa” e ela já entra na divisão.',
+        'A entrada por IA agora aceita foto: fotografe a nota e ela vira um gasto resumido — e, se quiser detalhar item a item, toque em “abrir itens”. O registro manual também ganhou um atalho ✨ IA.',
+      ],
+      en: [
+        'Every photo now gives you both options in one tap: take it now or pick from the gallery — on receipts, attachments and outings.',
+        'You can add a person on the spot, without leaving the screen: while logging an expense or reviewing a receipt, tap “+ person” and they join the split right away.',
+        'AI entry now takes photos: snap the receipt and it becomes one summarized expense — tap “open items” to break it down line by line. The manual form also got an ✨ AI shortcut.',
+      ],
+      es: [
+        'Cada foto ahora te da las dos opciones en un toque: tomarla al momento o elegir de la galería — en recibos, adjuntos y salidas.',
+        'Puedes agregar una persona al instante, sin salir de la pantalla: al registrar un gasto o revisar una cuenta, toca “+ persona” y entra en la división enseguida.',
+        'La entrada con IA ahora acepta fotos: fotografía la cuenta y se convierte en un gasto resumido — toca “abrir ítems” para desglosarla. El registro manual también tiene un atajo ✨ IA.',
+      ],
+    },
+  },
+  {
     version: '0.99.42',
     date: '2026-06-22',
     items: {

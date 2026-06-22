@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
-import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
+import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { useAttachments } from './useAttachments';
 import {
   clampOffset,
@@ -31,87 +31,17 @@ interface AttachmentSectionProps {
 export function AttachmentSection({ transactionId, sessionId }: AttachmentSectionProps) {
   const { t } = useTranslation();
   const { attachments, busy, addFromFile, remove } = useAttachments({ transactionId, sessionId });
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [viewer, setViewer] = useState<Attachment | null>(null);
-  const [chooserOpen, setChooserOpen] = useState(false);
 
-  const handlePick = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
+  // CC-IMG (DEC-275): the shared "take photo / gallery" chooser (was inline here
+  // — DEC-206 — now extracted so every image entry reuses the same pattern).
+  const { open: openChooser, element: sourceChooser } = useImageSourceChooser(async (file) => {
     const ok = await addFromFile(file);
     showToast(
       ok ? t('attachments.added_toast') : t('attachments.add_failed'),
       ok ? 'success' : 'danger',
     );
-  };
-
-  const openChooser = () => setChooserOpen(true);
-  // The button tap IS the user gesture, so clicking the hidden input
-  // synchronously keeps the native camera/picker allowed.
-  const pickFrom = (source: 'camera' | 'gallery') => {
-    setChooserOpen(false);
-    const ref = source === 'camera' ? cameraInputRef : galleryInputRef;
-    ref.current?.click();
-  };
-
-  const hiddenInputs = (
-    <>
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handlePick}
-      />
-      <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handlePick} />
-    </>
-  );
-
-  const sourceChooser = (
-    <BottomSheet
-      open={chooserOpen}
-      onClose={() => setChooserOpen(false)}
-      title={t('attachments.source_title')}
-    >
-      <div className="flex flex-col gap-2 mt-4">
-        <button
-          onClick={() => pickFrom('camera')}
-          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-surface-high btn-press text-left"
-        >
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: '#C75B3918' }}
-          >
-            <Icon name="photo_camera" size={20} className="text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[14px] font-bold text-on-surface">{t('attachments.take_photo')}</p>
-            <p className="text-[11px] font-medium text-on-surface-dim">{t('attachments.take_photo_desc')}</p>
-          </div>
-        </button>
-        <button
-          onClick={() => pickFrom('gallery')}
-          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-surface-high btn-press text-left"
-        >
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: '#6B8F7118' }}
-          >
-            <Icon name="image" size={20} className="text-success" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[14px] font-bold text-on-surface">{t('attachments.choose_gallery')}</p>
-            <p className="text-[11px] font-medium text-on-surface-dim">
-              {t('attachments.choose_gallery_desc')}
-            </p>
-          </div>
-        </button>
-      </div>
-    </BottomSheet>
-  );
+  });
 
   const viewerEl = viewer && (
     <AttachmentViewer
@@ -140,8 +70,6 @@ export function AttachmentSection({ transactionId, sessionId }: AttachmentSectio
           {busy ? t('attachments.adding') : t('attachments.add')}
         </button>
       </div>
-
-      {hiddenInputs}
 
       {attachments.length === 0 ? (
         <button

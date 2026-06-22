@@ -2,10 +2,11 @@
   "assistant": {
     "title": "Quick entry",
     "fab_title": "AI entry",
-    "fab_desc": "Speak or type — AI logs it for you",
+    "fab_desc": "Speak, type or snap a photo — AI logs it",
     "placeholder": "e.g. Bruno bought me a beer for 2 euros",
     "send": "Send",
     "voice": "Speak",
+    "photo": "Photograph the receipt",
     "thinking": "Understanding…",
     "transcribing": "Transcribing…",
     "voice_unclear": "Didn't catch that. Try again, closer to the mic.",
@@ -50,7 +51,8 @@
       "edit": "Edit text",
       "retry": "Try again",
       "enable": "Enable in settings",
-      "full_editor": "Open full editor"
+      "full_editor": "Open full editor",
+      "open_items": "Open receipt items"
     },
     "edit": {
       "toggle": "Adjust details",
@@ -179,6 +181,7 @@
       "rate_limited": "Too many tries just now. Try again in a moment.",
       "offline": "No connection. Use manual entry for now.",
       "failed": "I couldn't understand that. Try rephrasing or use manual entry.",
+      "photo_failed": "I couldn't read the photo. Try another shot or add it manually.",
       "no_debt": "There's no open debt with that person.",
       "need_people": "Add the people to split with and try again.",
       "mic_denied": "I couldn't access the microphone."
@@ -452,7 +455,7 @@
   },
   "fab": {
     "register_expense": "Register expense",
-    "register_expense_desc": "Quick expense with category",
+    "register_expense_desc": "Manual, with every field",
     "scan_receipt": "Scan a receipt",
     "scan_receipt_desc": "Read the items and split them automatically",
     "split_bill": "Split a bill",
@@ -870,6 +873,9 @@
     "split_remaining": "Left to distribute: {{amount}}",
     "split_remainder_to_payer": "The difference will be assigned to whoever paid.",
     "no_participants_hint": "Add participants in More → Participants and debts.",
+    "add_participants_button": "+ Add who took part",
+    "add_person_chip": "+ person",
+    "use_ai": "AI",
     "repeat_label": "Repeat",
     "suggestion_hint": "Use {{category}} · {{amount}} from before?",
     "anomaly_title": "Amount above your usual",
@@ -908,6 +914,14 @@
     "never_synced": "not synced yet",
     "reconnect_device": "Reconnect {{name}}'s new device",
     "reconnected": "{{name}} reconnected to the new device"
+  },
+  "participants": {
+    "add_title": "Add person",
+    "friends_title": "Connected friends",
+    "friends_or_new": "or type a name",
+    "name_placeholder": "Person's name",
+    "add_button": "Add person",
+    "added_toast": "{{name}} added"
   },
   "split": {
     "how_title": "How splitting works",

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
+import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { useAppData } from '@/hooks/useAppData';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { formatMoney, toCents, evaluateAmountExpression } from '@/domain/money';
@@ -152,9 +153,11 @@ export function AssistantSheet() {
                 disabled={busy}
                 listening={assistant.listening}
                 voiceAvailable={assistant.voiceAvailable}
+                photoEnabled={assistant.photoEnabled}
                 onChange={assistant.setText}
                 onSubmit={() => void assistant.submit()}
                 onToggleVoice={() => void assistant.toggleVoice()}
+                onPickPhoto={(file) => void assistant.scanReceiptPhoto(file)}
               />
             )}
 
@@ -202,6 +205,7 @@ export function AssistantSheet() {
                 preview={assistant.preview}
                 draftOp={assistant.draftOp}
                 isForeign={assistant.isForeign}
+                fromPhoto={assistant.fromPhoto}
                 edit={editContext}
                 insights={insights}
                 money={money}
@@ -209,6 +213,7 @@ export function AssistantSheet() {
                 onConfirm={() => void assistant.confirm()}
                 onCancel={assistant.cancelClarification}
                 onFullEditor={assistant.openFullEditor}
+                onOpenItems={assistant.openReceiptItems}
                 onManual={openManual}
               />
             )}
@@ -250,11 +255,16 @@ function InputArea(props: {
   disabled: boolean;
   listening: boolean;
   voiceAvailable: boolean;
+  photoEnabled: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
   onToggleVoice: () => void;
+  onPickPhoto: (file: File) => void;
 }) {
   const { t } = useTranslation();
+  // FB-09 (DEC-258) + CC-IMG: the camera lives beside the mic — same take-photo/
+  // gallery chooser used everywhere, only shown when cloud OCR is opted-in.
+  const photoChooser = useImageSourceChooser(props.onPickPhoto);
   return (
     <div className="flex flex-col gap-2">
       <textarea
@@ -291,6 +301,17 @@ function InputArea(props: {
             />
           </button>
         )}
+        {props.photoEnabled && (
+          <button
+            onClick={() => photoChooser.open()}
+            disabled={props.disabled}
+            className="btn-press w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-40"
+            style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+            aria-label={t('assistant.photo')}
+          >
+            <Icon name="photo_camera" size={22} className="text-on-surface-dim" />
+          </button>
+        )}
         <button
           onClick={props.onSubmit}
           disabled={props.disabled || props.value.trim() === ''}
@@ -301,6 +322,7 @@ function InputArea(props: {
           {t('assistant.send')}
         </button>
       </div>
+      {photoChooser.element}
     </div>
   );
 }
@@ -418,6 +440,7 @@ function PreviewArea(props: {
   preview: AssistantPreview;
   draftOp: ExecOp | null;
   isForeign: boolean;
+  fromPhoto: boolean;
   edit: EditContext;
   insights: ExpenseInsights | null;
   money: (cents?: number, currency?: string) => string;
@@ -425,6 +448,7 @@ function PreviewArea(props: {
   onConfirm: () => void;
   onCancel: () => void;
   onFullEditor: () => void;
+  onOpenItems: () => void;
   onManual: () => void;
 }) {
   const { t } = useTranslation();
@@ -566,6 +590,17 @@ function PreviewArea(props: {
         >
           <Icon name={isNavigate ? 'arrow_forward' : 'check'} size={18} />
           {t(isNavigate ? 'assistant.action.open' : 'assistant.action.confirm')}
+        </button>
+      )}
+
+      {props.fromPhoto && expenseOp && (
+        <button
+          onClick={props.onOpenItems}
+          className="btn-press w-full h-11 rounded-2xl flex items-center justify-center gap-2 font-semibold text-[14px] text-primary"
+          style={{ background: 'var(--surface-high)' }}
+        >
+          <Icon name="receipt_long" size={17} />
+          {t('assistant.action.open_items')}
         </button>
       )}
 

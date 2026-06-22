@@ -8,6 +8,7 @@ import {
   collectSplitNotifyTargets,
 } from '@/domain/splitting';
 import { createPlannedPurchase } from '@/domain/planning';
+import { findParticipantByName } from '@/domain/participants';
 import { placeToTransactionFields, placesEqual } from '@/domain/location';
 import {
   transactionRepository,
@@ -286,11 +287,15 @@ async function executePlanPurchase(op: Extract<ExecOp, { kind: 'plan_purchase' }
 }
 
 /**
- * Creates a participant the model named but the trip didn't have yet. A
- * non-connected person (no paired device) means a debt born to them shows up
- * immediately (DEC-241) — exactly what the field flow needs.
+ * Resolves a participant the model named: reuse the trip's existing person when
+ * the name already matches (FB-06/24 idempotency — never two "Bruno"s in the
+ * ledger), otherwise create a new non-connected one so a debt born to them shows
+ * up immediately (DEC-241) — exactly what the field flow needs.
  */
 export async function createAssistantParticipant(tripId: string, name: string): Promise<Participant> {
+  const existing = await participantRepository.getByTripId(tripId);
+  const reused = findParticipantByName(existing, name);
+  if (reused) return reused;
   const participant = createParticipant(tripId, name.trim(), null);
   await participantRepository.create(participant);
   notifyAppDataChanged();

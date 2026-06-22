@@ -55,6 +55,8 @@ import type { AppSettings } from '@/domain/types/app-settings';
 import type { Participant } from '@/domain/types/participant';
 import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
 import { SplitExplainer } from '@/features/shared/SplitExplainer';
+import { AddParticipantSheet } from '@/features/participants/AddParticipantSheet';
+import { openAssistant } from '@/features/assistant/assistant-bus';
 import { PlaceField } from '@/features/location/PlaceField';
 import {
   takeAssistantQuickAddDraft,
@@ -302,6 +304,16 @@ export function QuickAddPage() {
     setSelectedParticipantIds((prev) =>
       prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
     );
+  };
+
+  // FB-06/24 (DEC-259): add a participant inline — the overlay never unmounts
+  // this form, so the typed expense survives. The new/reused person is refreshed
+  // into app data and pre-selected so they're immediately splittable.
+  const [addPersonOpen, setAddPersonOpen] = useState(false);
+  const handleParticipantAdded = async (p: Participant) => {
+    await reload();
+    setSelectedParticipantIds((prev) => (prev.includes(p.id) ? prev : [...prev, p.id]));
+    showToast(t('participants.added_toast', { name: p.nickname ?? p.name }), 'success');
   };
 
   // M1: the amount field accepts a calculator expression ("12+3,50").
@@ -698,7 +710,21 @@ export function QuickAddPage() {
         <h1 className="text-heading font-bold text-on-surface">
           {isTransfer ? t('fab.register_transfer') : isWithdrawal ? t('fab.register_withdrawal') : t('expenses.add')}
         </h1>
-        <div className="w-8" />
+        {/* FB-09 (DEC-258): the manual form's shortcut to the AI — "prefer to just
+            tell it?". Opens the global assistant overlay (this form stays mounted). */}
+        {settings?.aiQuickEntryEnabled ?? true ? (
+          <button
+            onClick={() => openAssistant()}
+            className="btn-press flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-full text-[12px] font-bold text-[#ffffff]"
+            style={{ background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)' }}
+            aria-label={t('assistant.fab_title')}
+          >
+            <Icon name="auto_awesome" size={14} className="text-[#ffffff]" />
+            {t('expenses.use_ai')}
+          </button>
+        ) : (
+          <div className="w-8" />
+        )}
       </div>
 
       {/* M3: 1-tap repeat of the most frequent expenses (derived, not stored). */}
@@ -1101,6 +1127,12 @@ export function QuickAddPage() {
                   {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
                 </button>
               ))}
+              <button
+                onClick={() => setAddPersonOpen(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium btn-press bg-surface-high text-primary border border-dashed border-outline"
+              >
+                {t('expenses.add_person_chip')}
+              </button>
             </div>
           </div>
 
@@ -1180,6 +1212,12 @@ export function QuickAddPage() {
                       {p.nickname ?? p.name}
                     </button>
                   ))}
+                  <button
+                    onClick={() => setAddPersonOpen(true)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium btn-press bg-surface-high text-primary border border-dashed border-outline"
+                  >
+                    {t('expenses.add_person_chip')}
+                  </button>
                 </div>
               </div>
 
@@ -1267,9 +1305,13 @@ export function QuickAddPage() {
       )}
 
       {!isTransferLike && participants.length <= 1 && (
-        <p className="text-xs text-on-surface-faint px-1">
-          {t('expenses.no_participants_hint')}
-        </p>
+        <button
+          onClick={() => setAddPersonOpen(true)}
+          className="w-full rounded-xl py-3 border border-dashed border-outline text-sm font-semibold text-primary btn-press flex items-center justify-center gap-2"
+        >
+          <Icon name="person_add" size={18} />
+          {t('expenses.add_participants_button')}
+        </button>
       )}
 
       {isTransferLike && (
@@ -1499,6 +1541,14 @@ export function QuickAddPage() {
           setSplitNudgeAmounts(new Map());
           void finishAndGoHome();
         }}
+      />
+
+      <AddParticipantSheet
+        open={addPersonOpen}
+        onClose={() => setAddPersonOpen(false)}
+        tripId={trip.id}
+        participants={participants}
+        onAdded={(p) => void handleParticipantAdded(p)}
       />
     </div>
   );

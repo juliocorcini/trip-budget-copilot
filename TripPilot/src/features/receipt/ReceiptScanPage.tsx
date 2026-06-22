@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,9 +23,12 @@ import { Icon } from '@/components/Icon';
 import { EmptyState } from '@/components/EmptyState';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
+import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { showToast } from '@/components/Toast';
 import { SplitExplainer } from '@/features/shared/SplitExplainer';
+import { AddParticipantSheet } from '@/features/participants/AddParticipantSheet';
 import { setReceiptSplitHandoff } from '@/features/split/receipt-split-handoff';
+import { takeReceiptReviewHandoff } from './receipt-review-handoff';
 
 type Phase = 'capture' | 'reading' | 'review';
 
@@ -57,13 +60,19 @@ export function ReceiptScanPage() {
   const navigate = useNavigate();
   const { trip, phases, pools, participants, settings, loading, error, retry, reload } = useAppData();
 
-  const fileRef = useRef<HTMLInputElement>(null);
+  // CC-IMG (DEC-275): receipt scan now opens the shared take-photo/gallery
+  // chooser instead of going straight to the gallery (the camera was unreachable).
+  const receiptChooser = useImageSourceChooser((file) => {
+    void processReceiptFile(file);
+  });
   const [phase, setPhase] = useState<Phase>('capture');
   const [plan, setPlan] = useState<ReceiptPlan | null>(null);
   const [name, setName] = useState('');
   const [compressed, setCompressed] = useState<CompressedImage | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // FB-06/24 (DEC-259): add a participant inline while reviewing the receipt.
+  const [addPersonOpen, setAddPersonOpen] = useState(false);
 
   // DEC-209: cloud AI (Groq) is the only scan engine — on-device OCR was removed
   // because heuristic text parsing of raw OCR could not match the vision model.
@@ -80,6 +89,20 @@ export function ReceiptScanPage() {
     const category = dominantReceiptCategory(items);
     return category ? t(`categories.${category}`) : defaultName;
   };
+
+  // FB-09 (DEC-258): a photo scanned INSIDE the assistant was escalated to "open
+  // items" — adopt the ALREADY-extracted plan + photo and jump straight to review
+  // (no second OCR call). One-shot: the slot clears itself, so a later manual open
+  // never re-applies a stale plan, and the dev StrictMode double-run is a no-op.
+  useEffect(() => {
+    const handoff = takeReceiptReviewHandoff();
+    if (!handoff) return;
+    setPlan(handoff.plan);
+    setCompressed(handoff.image);
+    setName(handoff.name ?? handoff.plan.merchant ?? receiptFallbackName(handoff.plan.items));
+    setPhase('review');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const included = useMemo(
     () => (plan ? plan.items.filter((i) => i.include && i.amountCents > 0) : []),
@@ -146,6 +169,16 @@ export function ReceiptScanPage() {
 
   const selectEveryone = () => setSplitParticipants(allParticipantIds);
   const clearSplit = () => setSplitParticipants([]);
+
+  // FB-06/24 (DEC-259): the inline-added person joins the receipt split right
+  // away — appended when already splitting, or starting a split (owner + them)
+  // when the receipt was still personal.
+  const handleParticipantAdded = async (p: Participant) => {
+    await reload();
+    const base = receiptSplitIds.length > 0 ? receiptSplitIds : owner ? [owner.id] : [];
+    setSplitParticipants([...new Set([...base, p.id])]);
+    showToast(t('participants.added_toast', { name: p.nickname ?? p.name }), 'success');
+  };
   const setReceiptPayer = (id: string | null) =>
     setPlan((p) =>
       p
@@ -159,7 +192,7 @@ export function ReceiptScanPage() {
       active ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
     }`;
 
-  const openPicker = () => fileRef.current?.click();
+  const openPicker = () => receiptChooser.open();
 
   const enableCloudThenPick = async () => {
     await appSettingsRepository.update({ cloudReceiptOcrEnabled: true });
@@ -184,10 +217,7 @@ export function ReceiptScanPage() {
     setEditingId(first.id);
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const processReceiptFile = async (file: File) => {
     setPhase('reading');
     try {
       const image = await compressImageFile(file);
@@ -317,13 +347,7 @@ export function ReceiptScanPage() {
 
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 px-5 pt-2 pb-28">
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFile}
-        className="hidden"
-      />
+      {receiptChooser.element}
 
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
@@ -507,6 +531,13 @@ export function ReceiptScanPage() {
                     </button>
                   );
                 })}
+                <button
+                  onClick={() => setAddPersonOpen(true)}
+                  className="px-3 py-2 rounded-xl text-xs font-medium btn-press bg-surface-high text-primary border border-dashed border-outline flex items-center gap-1"
+                >
+                  <Icon name="person_add" size={13} />
+                  {t('expenses.add_person_chip')}
+                </button>
               </div>
               {splitState.custom && (
                 <p className="text-[11px] text-on-surface-faint flex items-center gap-1">
@@ -531,6 +562,17 @@ export function ReceiptScanPage() {
                 </>
               )}
             </div>
+          )}
+
+          {/* FB-06/24 (DEC-259): solo trip — add someone to split this receipt. */}
+          {!splittable && (
+            <button
+              onClick={() => setAddPersonOpen(true)}
+              className="w-full rounded-xl py-3 border border-dashed border-outline text-sm font-semibold text-primary btn-press flex items-center justify-center gap-2"
+            >
+              <Icon name="person_add" size={18} />
+              {t('expenses.add_participants_button')}
+            </button>
           )}
 
           <div className="flex items-center justify-between mt-1">
@@ -615,6 +657,14 @@ export function ReceiptScanPage() {
           </div>
         </div>
       )}
+
+      <AddParticipantSheet
+        open={addPersonOpen}
+        onClose={() => setAddPersonOpen(false)}
+        tripId={trip.id}
+        participants={participants}
+        onAdded={(p) => void handleParticipantAdded(p)}
+      />
     </div>
   );
 }

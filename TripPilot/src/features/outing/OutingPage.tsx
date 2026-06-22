@@ -95,6 +95,7 @@ import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { BottomSheet } from '@/components/BottomSheet';
+import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { HelpButton } from '@/components/HelpMode';
 import { showToast, type ToastVariant } from '@/components/Toast';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
@@ -2274,7 +2275,11 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
   // (amount + description) for a one-tap confirm before it becomes a session item.
   const [captureDesc, setCaptureDesc] = useState('');
   const [captureBusy, setCaptureBusy] = useState<'idle' | 'listening' | 'transcribing' | 'scanning'>('idle');
-  const scanInputRef = useRef<HTMLInputElement | null>(null);
+  // CC-IMG (DEC-275): the in-outing note scan now offers take-photo OR gallery
+  // (was camera-only) so a previously taken receipt photo can be scanned too.
+  const scanChooser = useImageSourceChooser((file) => {
+    void handleScanFile(file);
+  });
   const voiceStopRef = useRef<(() => void) | null>(null);
 
   const canSplit = participants.length > 1 && owner !== null;
@@ -3017,7 +3022,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
                 : t('outing.capture_voice')}
           </button>
           <button
-            onClick={() => scanInputRef.current?.click()}
+            onClick={() => scanChooser.open()}
             disabled={captureBusy === 'scanning'}
             className="btn-press flex-1 py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40"
             style={{ background: 'var(--surface-container)', color: 'var(--on-surface-dim)' }}
@@ -3025,17 +3030,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
             <Icon name={captureBusy === 'scanning' ? 'hourglass_empty' : 'photo_camera'} size={16} className="text-on-surface-faint" />
             {captureBusy === 'scanning' ? t('outing.capture_scanning') : t('outing.capture_scan')}
           </button>
-          <input
-            ref={scanInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => {
-              void handleScanFile(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
+          {scanChooser.element}
         </div>
         <div className="flex gap-2.5">
           <button

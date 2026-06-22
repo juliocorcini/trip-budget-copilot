@@ -2,10 +2,11 @@
   "assistant": {
     "title": "Entrada rápida",
     "fab_title": "Entrada por IA",
-    "fab_desc": "Fale ou escreva — a IA lança pra você",
+    "fab_desc": "Fale, escreva ou fotografe — a IA lança",
     "placeholder": "Ex: o Bruno me pagou uma cerveja de 2 euros",
     "send": "Enviar",
     "voice": "Falar",
+    "photo": "Tirar foto da nota",
     "thinking": "Entendendo…",
     "transcribing": "Transcrevendo…",
     "voice_unclear": "Não captei o áudio. Tenta falar de novo, mais perto do microfone.",
@@ -50,7 +51,8 @@
       "edit": "Editar texto",
       "retry": "Tentar de novo",
       "enable": "Ativar nas configurações",
-      "full_editor": "Abrir edição completa"
+      "full_editor": "Abrir edição completa",
+      "open_items": "Abrir itens da nota"
     },
     "edit": {
       "toggle": "Ajustar detalhes",
@@ -179,6 +181,7 @@
       "rate_limited": "Muitas tentativas agora há pouco. Tente de novo em instantes.",
       "offline": "Sem conexão. Use a entrada manual por enquanto.",
       "failed": "Não consegui entender. Tente reformular ou use a entrada manual.",
+      "photo_failed": "Não consegui ler a foto. Tente outra foto ou registre manualmente.",
       "no_debt": "Não há dívida em aberto com essa pessoa.",
       "need_people": "Adicione as pessoas para dividir e tente de novo.",
       "mic_denied": "Não consegui acessar o microfone."
@@ -452,7 +455,7 @@
   },
   "fab": {
     "register_expense": "Registrar gasto",
-    "register_expense_desc": "Despesa rápida com categoria",
+    "register_expense_desc": "Manual, com todos os campos",
     "scan_receipt": "Escanear nota",
     "scan_receipt_desc": "Leia os itens e divida automaticamente",
     "split_bill": "Dividir conta",
@@ -874,6 +877,9 @@
     "split_remaining": "Falta distribuir: {{amount}}",
     "split_remainder_to_payer": "A diferença será atribuída a quem pagou.",
     "no_participants_hint": "Adicione participantes em Mais → Participantes e dívidas.",
+    "add_participants_button": "+ Adicionar quem participou",
+    "add_person_chip": "+ pessoa",
+    "use_ai": "IA",
     "repeat_label": "Repetir",
     "suggestion_hint": "Usar {{category}} · {{amount}} de antes?",
     "anomaly_title": "Valor acima do normal",
@@ -912,6 +918,14 @@
     "never_synced": "ainda não sincronizou",
     "reconnect_device": "Reconectar novo aparelho de {{name}}",
     "reconnected": "{{name}} reconectado ao novo aparelho"
+  },
+  "participants": {
+    "add_title": "Adicionar pessoa",
+    "friends_title": "Amigos conectados",
+    "friends_or_new": "ou digite um nome",
+    "name_placeholder": "Nome da pessoa",
+    "add_button": "Adicionar pessoa",
+    "added_toast": "{{name}} adicionada"
   },
   "split": {
     "how_title": "Como funciona a divisão",

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.42",
+  "version": "0.99.43",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.42.zip",
-  "notes": "A tela de iniciar saída ganhou as margens certas e agora só pergunta o que faz sentido: o preço médio da bebida aparece só em bar/balada, não no mercado. E dá pra encerrar uma saída sem salvar — começou errado? Toque em Descartar e o orçamento volta ao que era."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.43.zip",
+  "notes": "Agora toda foto pergunta: tirar na hora ou escolher da galeria — no recibo, nos anexos e na saída. Você adiciona uma pessoa na divisão sem sair da tela, com um toque. E a entrada por IA aceita foto da nota: vira 1 gasto resumido, com “abrir itens” pra detalhar. O registro manual também ganhou um atalho ✨ IA."
 }
