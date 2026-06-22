@@ -5,6 +5,7 @@ import {
   createAdjustmentTransaction,
   calculateSpentOnDate,
   spentByCategoryOnDate,
+  sumExpensesInMonth,
 } from '@/domain/transactions';
 import { calculateReportedTotalDiff } from '@/domain/outing';
 import { calculateWalletBalance, calculateCashReconciliation } from '@/domain/wallets';
@@ -224,5 +225,55 @@ describe('spentByCategoryOnDate (GATE 19 — per-day category breakdown)', () =>
   it('returns an empty list for a day with no spend', () => {
     const txs = [mkExpense(1_000, '2026-06-13', 'bar')];
     expect(spentByCategoryOnDate(txs, '2026-06-10')).toEqual([]);
+  });
+});
+
+describe('sumExpensesInMonth (DEC-251 — continuous home)', () => {
+  const mkExpense = (amountCents: number, dayIso: string): Transaction => {
+    const tx = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: null,
+      amountCents,
+      currency: 'EUR',
+      category: 'market',
+      description: 'test',
+    });
+    return { ...tx, date: `${dayIso}T14:00:00.000Z` };
+  };
+
+  it('sums only the expenses whose local day falls in the given month', () => {
+    const txs = [
+      mkExpense(1_000, '2026-06-01'),
+      mkExpense(2_500, '2026-06-30'),
+      mkExpense(9_999, '2026-05-31'), // previous month — excluded
+      mkExpense(7_777, '2026-07-01'), // next month — excluded
+    ];
+    expect(sumExpensesInMonth(txs, '2026-06')).toBe(3_500);
+  });
+
+  it('ignores soft-deleted transactions', () => {
+    const live = mkExpense(1_000, '2026-06-10');
+    const deleted: Transaction = {
+      ...mkExpense(5_000, '2026-06-11'),
+      deletedAt: '2026-06-12T00:00:00.000Z',
+    };
+    expect(sumExpensesInMonth([live, deleted], '2026-06')).toBe(1_000);
+  });
+
+  it('counts a foreign expense at its frozen base-currency value', () => {
+    // 100.00 USD at rate 0.9 → 90.00 EUR base personal cost.
+    const foreign: Transaction = {
+      ...mkExpense(10_000, '2026-06-05'),
+      currency: 'USD',
+      exchangeRate: 0.9,
+      personalCostCents: 10_000,
+    };
+    expect(sumExpensesInMonth([foreign], '2026-06')).toBe(9_000);
+  });
+
+  it('returns 0 for a month with no expenses', () => {
+    expect(sumExpensesInMonth([mkExpense(1_000, '2026-06-01')], '2026-09')).toBe(0);
   });
 });

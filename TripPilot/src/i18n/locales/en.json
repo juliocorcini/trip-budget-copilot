@@ -2093,6 +2093,13 @@
     "created": "\"{{name}}\" created.",
     "create_error": "Couldn't create the space. Please try again."
   },
+  "ongoing": {
+    "spent_this_month": "Spent this month",
+    "register": "Log expense",
+    "recent": "Recent",
+    "see_all": "See all",
+    "empty": "No expenses yet. Tap Log to get started."
+  },
   "common": {
     "save": "Save",
     "saving": "Saving...",

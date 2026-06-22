@@ -33,10 +33,12 @@ import { createDailyCheckIn } from '@/domain/check-in';
 import type { DashboardInsight } from '@/domain/insights';
 import type { CheckInIntent } from '@/domain/types/common';
 import { shouldOfferModeReveal, MODE_REVEAL_MIN_EXPENSES } from '@/domain/app-mode';
+import { isOngoing } from '@/domain/spaces/spaces';
 import { useDashboardModel } from './useDashboardModel';
 import { DashboardCards } from './DashboardCards';
 import { DashboardSheets } from './DashboardSheets';
 import { SimpleHome } from './SimpleHome';
+import { OngoingHome } from './OngoingHome';
 import { SimpleRevealCard } from './SimpleRevealCard';
 import { ActiveSplitHomeCard } from '@/features/split/ActiveSplitHomeCard';
 import { SpaceSwitcherChip } from '@/features/spaces/SpaceSwitcherChip';
@@ -303,6 +305,9 @@ export function DashboardPage() {
 
   const { activePhase, dayNum } = model;
   const hiddenCardCount = (settings.hiddenDashboardCards ?? []).length;
+  // DEC-251: a continuous "Dia a dia" space has no dates — its home reasons per
+  // month, so it bypasses the phase header, the trip hero and simple mode alike.
+  const ongoing = isOngoing(trip);
   // M18: simple mode shows a lean home (one number + register) instead of cards.
   const isSimpleMode = settings.appMode === 'simple';
   // M22: offer to unlock complete mode once enough expenses are logged.
@@ -368,23 +373,34 @@ export function DashboardPage() {
         );
       })()}
 
-      {/* HEADER — DEC-084 (R-01): fixed at the top, content scrolls beneath */}
-      {activePhase && dayNum !== null && (
+      {/* HEADER — DEC-084 (R-01): fixed at the top, content scrolls beneath.
+          DEC-251: a Dia a dia has no day counter — it shows the space name with
+          a "Dia a dia" eyebrow and the left tap opens the space switcher. */}
+      {(ongoing || (activePhase && dayNum !== null)) && (
         <div
           className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-6 pb-2 flex justify-between items-center`}
         >
-          {/* DEC-060 (GAP-024): phase name navigates to the trip overview */}
-          <button onClick={() => navigate('/trip')} className="text-left btn-press">
-            <p className="text-[11px] tracking-[0.15em] uppercase font-bold" style={{ color: '#C75B39aa' }}>
-              {t('dashboard.day_counter', {
-                current: dayNum,
-                end: formatDate(activePhase.endDate, "d 'de' MMMM"),
-              })}
-            </p>
-            <h1 className="text-xl font-extrabold tracking-tight mt-1 text-on-surface">
-              {activePhase.name || trip.name}
-            </h1>
-          </button>
+          {ongoing ? (
+            <button onClick={() => navigate('/spaces')} className="text-left btn-press">
+              <p className="text-[11px] tracking-[0.15em] uppercase font-bold" style={{ color: '#C75B39aa' }}>
+                {t('spaces.subtitle_ongoing')}
+              </p>
+              <h1 className="text-xl font-extrabold tracking-tight mt-1 text-on-surface">{trip.name}</h1>
+            </button>
+          ) : (
+            /* DEC-060 (GAP-024): phase name navigates to the trip overview */
+            <button onClick={() => navigate('/trip')} className="text-left btn-press">
+              <p className="text-[11px] tracking-[0.15em] uppercase font-bold" style={{ color: '#C75B39aa' }}>
+                {t('dashboard.day_counter', {
+                  current: dayNum,
+                  end: formatDate(activePhase!.endDate, "d 'de' MMMM"),
+                })}
+              </p>
+              <h1 className="text-xl font-extrabold tracking-tight mt-1 text-on-surface">
+                {activePhase!.name || trip.name}
+              </h1>
+            </button>
+          )}
           {/* Redesign (G1): bell stays the prominent action (primary); the gear
               is the quieter Settings entry that replaces the old "Mais" tab. */}
           <div className="flex items-center gap-2">
@@ -432,8 +448,11 @@ export function DashboardPage() {
           first thing you see; renders nothing when none is live. */}
       <ActiveSplitHomeCard />
 
-      {/* M18: simple = lean home; complete = the full configurable card stack */}
-      {isSimpleMode ? (
+      {/* DEC-251: a Dia a dia owns its own month-based home (no countdown, no
+          phases, no per-day allowance) — it precedes both simple and complete. */}
+      {ongoing ? (
+        <OngoingHome model={model} trip={trip} transactions={transactions} />
+      ) : isSimpleMode ? (
         <>
           <SimpleHome model={model} trip={trip} />
           {/* M22: adaptive reveal — discreet, dismissible, shown once */}
@@ -496,12 +515,12 @@ export function DashboardPage() {
         savingsGoalCents={settings.savingsGoalCents ?? null}
         onCloseSavingsGoal={() => setSavingsGoalOpen(false)}
         onSaveSavingsGoal={handleSaveSavingsGoal}
-        phaseLeftover={isSimpleMode ? null : model.phaseLeftover}
+        phaseLeftover={isSimpleMode || ongoing ? null : model.phaseLeftover}
         leftoverTargets={model.globalPoolSummaries.map((g) => g.pool)}
         onPhaseLeftover={handlePhaseLeftover}
-        valueSuggestion={isSimpleMode ? null : model.valueSuggestion}
+        valueSuggestion={isSimpleMode || ongoing ? null : model.valueSuggestion}
         onValueSuggestion={handleValueSuggestion}
-        tripPriors={isSimpleMode ? null : model.tripPriors}
+        tripPriors={isSimpleMode || ongoing ? null : model.tripPriors}
         onTripPriors={handleTripPriors}
       />
     </div>

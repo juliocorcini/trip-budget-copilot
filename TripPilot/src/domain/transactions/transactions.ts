@@ -298,6 +298,26 @@ export function calculateSpentOnDate(
     .reduce((sum, t) => sum + transactionBasePersonalCostCents(t), 0);
 }
 
+/**
+ * DEC-251: total budget impact within a calendar month (`"YYYY-MM"`) — the
+ * exact base/personal-cost rule as calculateSpentOnDate, summed over every
+ * expense/adjustment whose LOCAL day falls in that month. Feeds the continuous
+ * "Dia a dia" home, where the natural period is the month, not a trip phase.
+ */
+export function sumExpensesInMonth(
+  transactions: Transaction[],
+  monthIso: string,
+): number {
+  return transactions
+    .filter(
+      (t) =>
+        t.deletedAt === null &&
+        (t.type === 'expense' || t.type === 'adjustment') &&
+        localDayOf(t.date).slice(0, 7) === monthIso,
+    )
+    .reduce((sum, t) => sum + transactionBasePersonalCostCents(t), 0);
+}
+
 export interface DayCategorySpend {
   /** Category key (`null` categories bucket into `'other'`). */
   category: string;

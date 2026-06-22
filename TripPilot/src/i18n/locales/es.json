@@ -2093,6 +2093,13 @@
     "created": "\"{{name}}\" creado.",
     "create_error": "No se pudo crear el espacio. Inténtalo de nuevo."
   },
+  "ongoing": {
+    "spent_this_month": "Gastado este mes",
+    "register": "Registrar gasto",
+    "recent": "Recientes",
+    "see_all": "Ver todo",
+    "empty": "Aún no hay gastos. Toca Registrar para empezar."
+  },
   "common": {
     "save": "Guardar",
     "saving": "Guardando...",

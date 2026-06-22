@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { groupSpaces, tripKind, isOngoing, countSpaces } from '@/domain/spaces/spaces';
+import {
+  groupSpaces,
+  tripKind,
+  isOngoing,
+  countSpaces,
+  spaceCapabilities,
+} from '@/domain/spaces/spaces';
 import type { Trip } from '@/domain/types/trip';
 import type { TripStatus, TripKind } from '@/domain/types/common';
 
@@ -91,5 +97,33 @@ describe('countSpaces', () => {
       makeTrip({ id: 'c', status: 'completed', deletedAt: '2026-02-01T00:00:00.000Z' }),
     ];
     expect(countSpaces(trips)).toBe(2);
+  });
+});
+
+describe('spaceCapabilities (DEC-251 gate)', () => {
+  it('a dated trip exposes countdown/phases/daily budget, no monthly cap', () => {
+    const caps = spaceCapabilities(makeTrip({ id: 'trip', status: 'active' }));
+    expect(caps).toEqual({
+      hasEndDate: true,
+      hasPhases: true,
+      hasDailyBudget: true,
+      hasMonthlyBudget: false,
+    });
+  });
+
+  it('an ongoing space hides every date-coupled capability and gains the monthly cap', () => {
+    const caps = spaceCapabilities(makeTrip({ id: 'home', status: 'active', kind: 'ongoing' }));
+    expect(caps).toEqual({
+      hasEndDate: false,
+      hasPhases: false,
+      hasDailyBudget: false,
+      hasMonthlyBudget: true,
+    });
+  });
+
+  it('treats a legacy trip (no kind) as a dated trip', () => {
+    const caps = spaceCapabilities(makeTrip({ id: 'legacy', status: 'completed' }));
+    expect(caps.hasPhases).toBe(true);
+    expect(caps.hasMonthlyBudget).toBe(false);
   });
 });

@@ -63,3 +63,38 @@ export function groupSpaces(trips: Trip[]): SpaceGroup[] {
 export function countSpaces(trips: Trip[]): number {
   return trips.filter((t) => t.deletedAt === null).length;
 }
+
+/**
+ * DEC-251 — capability gate. Date-coupled features (countdown to a trip end,
+ * phases, a per-day allowance) only make sense for a dated Viagem. A continuous
+ * "Dia a dia" has none of those and instead reasons per calendar month. The map
+ * is data-driven so the UI gates by reading flags, never by re-deriving `kind`.
+ */
+export interface SpaceCapabilities {
+  /** Trip has a meaningful end → countdown, days-left, end-of-trip projection. */
+  hasEndDate: boolean;
+  /** Trip is split into phases → phase header, phase budget, burndown. */
+  hasPhases: boolean;
+  /** Budget is spread over days → a per-day allowance ("free today"). */
+  hasDailyBudget: boolean;
+  /** Budget resets each calendar month → optional monthly cap (Dia a dia). */
+  hasMonthlyBudget: boolean;
+}
+
+const TRIP_CAPABILITIES: SpaceCapabilities = {
+  hasEndDate: true,
+  hasPhases: true,
+  hasDailyBudget: true,
+  hasMonthlyBudget: false,
+};
+
+const ONGOING_CAPABILITIES: SpaceCapabilities = {
+  hasEndDate: false,
+  hasPhases: false,
+  hasDailyBudget: false,
+  hasMonthlyBudget: true,
+};
+
+export function spaceCapabilities(trip: Trip): SpaceCapabilities {
+  return isOngoing(trip) ? ONGOING_CAPABILITIES : TRIP_CAPABILITIES;
+}

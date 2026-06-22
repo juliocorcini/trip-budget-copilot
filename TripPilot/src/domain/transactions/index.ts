@@ -11,6 +11,7 @@ export {
   groupTransactionsByCategory,
   calculateSpentOnDate,
   spentByCategoryOnDate,
+  sumExpensesInMonth,
 } from './transactions';
 export type {
   CreateExpenseInput,
