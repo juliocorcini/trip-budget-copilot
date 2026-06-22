@@ -48,6 +48,15 @@ export interface AdminInstallsResult {
   offset: number;
 }
 
+export interface AdminTimeseriesPoint {
+  day: string;
+  dau: number;
+}
+
+export interface AdminTimeseriesResult {
+  series: AdminTimeseriesPoint[];
+}
+
 /** Thrown on a 401 so the UI can clear a stale/wrong token and re-prompt. */
 export class AdminAuthError extends Error {
   constructor() {
@@ -71,6 +80,10 @@ export function fetchOverview(token: string): Promise<AdminOverview> {
 
 export function fetchInstalls(token: string, limit = 200): Promise<AdminInstallsResult> {
   return adminGet<AdminInstallsResult>(token, `/admin/installs?limit=${limit}`);
+}
+
+export function fetchTimeseries(token: string, days = 30): Promise<AdminTimeseriesResult> {
+  return adminGet<AdminTimeseriesResult>(token, `/admin/timeseries?days=${days}`);
 }
 
 export async function deleteInstall(token: string, installId: string): Promise<void> {

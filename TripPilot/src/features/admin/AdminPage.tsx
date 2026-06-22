@@ -144,6 +144,8 @@ export function AdminPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // DEC-254: the row a click opened — shows EVERY field telemetry holds for it.
+  const [selected, setSelected] = useState<AdminInstall | null>(null);
 
   const load = useCallback(async (activeToken: string) => {
     setLoading(true);
@@ -300,6 +302,7 @@ export function AdminPage() {
                 <p className="text-xs text-on-surface-dim">Nenhum usuário registrado ainda.</p>
               ) : (
                 <div className="overflow-x-auto -mx-1">
+                  <p className="text-[11px] text-on-surface-faint px-1 pb-2">Toque em um usuário para ver tudo.</p>
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="text-on-surface-faint border-b border-surface-high">
@@ -318,7 +321,11 @@ export function AdminPage() {
                     </thead>
                     <tbody>
                       {installs.map((it) => (
-                        <tr key={it.installId} className="border-b border-surface-high">
+                        <tr
+                          key={it.installId}
+                          onClick={() => setSelected(it)}
+                          className="border-b border-surface-high cursor-pointer hover:bg-surface-high/40"
+                        >
                           <td className="py-2 px-1">
                             <span className="text-on-surface font-medium">
                               {it.displayName ?? '—'}
@@ -337,7 +344,10 @@ export function AdminPage() {
                           <td className="py-2 px-1 text-right tabular-nums">{it.counters.aiEntries ?? 0}</td>
                           <td className="py-2 px-1 text-right">
                             <button
-                              onClick={() => void handleDelete(it)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleDelete(it);
+                              }}
                               disabled={deletingId === it.installId}
                               className="btn-press text-[11px] px-2 py-1 rounded-md bg-surface-high text-danger font-medium disabled:opacity-50"
                               aria-label={`Remover ${it.displayName ?? 'usuário'}`}
@@ -358,6 +368,96 @@ export function AdminPage() {
             </p>
           </>
         ) : null}
+      </div>
+      {selected ? <InstallDetail install={selected} onClose={() => setSelected(null)} /> : null}
+    </div>
+  );
+}
+
+/** DEC-254: full read-only dump of everything telemetry holds for one install.
+ *  No new data is collected — it just surfaces every field already in the row. */
+function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: () => void }) {
+  const meta: { label: string; value: React.ReactNode }[] = [
+    { label: 'Plataforma', value: install.platform ?? '—' },
+    { label: 'Versão', value: install.appVersion ?? '—' },
+    { label: 'Idioma', value: install.locale ?? '—' },
+    { label: 'País', value: install.country ?? '—' },
+    { label: 'Dias ativos', value: install.activeDays.toLocaleString('pt-BR') },
+    { label: 'Primeira vez', value: fullDate(install.firstSeen) },
+    { label: 'Última vez', value: `${fullDate(install.lastSeen)} · ${relativeTime(install.lastSeen)}` },
+    { label: 'ID do dispositivo', value: install.installId },
+  ];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="w-full sm:max-w-lg max-h-[88vh] overflow-y-auto bg-surface-container rounded-t-2xl sm:rounded-2xl p-5 flex flex-col gap-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col min-w-0">
+            <h2 className="text-lg font-bold text-on-surface truncate">{install.displayName ?? '—'}</h2>
+            <span className="text-[10px] text-on-surface-faint">Detalhe do usuário</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="btn-press text-xs px-3 py-2 rounded-lg bg-surface-high text-on-surface-dim font-medium shrink-0"
+          >
+            Fechar
+          </button>
+        </div>
+
+        <div className="bg-surface rounded-xl px-3 py-1">
+          {meta.map(({ label, value }) => (
+            <div
+              key={label}
+              className="flex items-baseline justify-between gap-3 py-1.5 border-b border-surface-high/60 last:border-0"
+            >
+              <span className="text-xs text-on-surface-dim shrink-0">{label}</span>
+              <span className="text-xs text-on-surface font-medium text-right break-all">{value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <h3 className="text-xs font-semibold text-on-surface-dim mb-2">Uso por funcionalidade</h3>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {Object.entries(install.counters)
+              .sort((a, b) => b[1] - a[1])
+              .map(([key, value]) => (
+                <div key={key} className="flex items-baseline justify-between gap-2">
+                  <span className="text-xs text-on-surface-dim truncate">{COUNTER_LABELS[key] ?? key}</span>
+                  <span className="text-xs text-on-surface font-semibold tabular-nums">
+                    {value.toLocaleString('pt-BR')}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-semibold text-on-surface-dim mb-2">Adoção</h3>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(install.flags).map(([key, on]) => (
+              <span
+                key={key}
+                className={`text-[11px] px-2 py-1 rounded-full font-medium ${
+                  on ? 'bg-primary/15 text-primary' : 'bg-surface-high text-on-surface-faint line-through'
+                }`}
+              >
+                {FLAG_LABELS[key] ?? key}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-[10px] text-on-surface-faint text-center">
+          Dados anônimos de uso. Nunca capturamos valores nem o conteúdo dos gastos.
+        </p>
       </div>
     </div>
   );
