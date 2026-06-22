@@ -103,6 +103,7 @@ describe('createTripFromTemplate (M23 — applying recreates the structure, atom
       totalAmountCents: 200000,
       protectedReserveCents: 0,
       ownerName: 'Julio',
+      ownerEmail: null,
       deviceId: 'dev-1',
       defaultWalletName: 'Card',
       cashWalletName: null,

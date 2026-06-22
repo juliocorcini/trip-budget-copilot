@@ -14,6 +14,7 @@ function baseValues(overrides: Partial<QuickOnboardingValues> = {}): QuickOnboar
     endDate: '2031-07-10',
     totalAmountCents: 100_000,
     ownerName: 'Me',
+    ownerEmail: null,
     deviceId: 'dev-1',
     defaultWalletName: 'Card',
     poolName: 'My trip fund',
@@ -63,5 +64,21 @@ describe('buildQuickOnboardingInput (E1 / M16)', () => {
   it('creates no reserve envelope without a preset', () => {
     const entities = createOnboardingEntities(buildQuickOnboardingInput(baseValues()));
     expect(entities.reserve).toBeNull();
+  });
+
+  it('DEC-252: threads the optional owner e-mail into the owner participant', () => {
+    const entities = createOnboardingEntities(
+      buildQuickOnboardingInput(baseValues({ ownerName: 'Julio', ownerEmail: '  julio@trip.app  ' })),
+    );
+    expect(entities.owner.name).toBe('Julio');
+    // Trimmed, stored locally on the owner participant.
+    expect(entities.owner.email).toBe('julio@trip.app');
+  });
+
+  it('DEC-252: a blank e-mail folds to null (never an empty string)', () => {
+    const entities = createOnboardingEntities(
+      buildQuickOnboardingInput(baseValues({ ownerEmail: '   ' })),
+    );
+    expect(entities.owner.email).toBeNull();
   });
 });

@@ -14,6 +14,7 @@ function buildInput() {
     totalAmountCents: 200000,
     protectedReserveCents: 50000,
     ownerName: 'Owner',
+    ownerEmail: null,
     deviceId: 'dev-1',
     defaultWalletName: 'Card',
     cashWalletName: 'Cash',

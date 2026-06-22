@@ -16,6 +16,8 @@ export interface OnboardingInput {
   totalAmountCents: number;
   protectedReserveCents: number;
   ownerName: string;
+  /** DEC-252: owner e-mail, optional and LOCAL-only (never sent to telemetry). */
+  ownerEmail: string | null;
   deviceId: string;
   /** DEC-051: editable default credit card wallet name. */
   defaultWalletName: string;
@@ -56,6 +58,8 @@ export interface QuickOnboardingValues {
   endDate: string;
   totalAmountCents: number;
   ownerName: string;
+  /** DEC-252: owner e-mail, optional and LOCAL-only (never sent to telemetry). */
+  ownerEmail: string | null;
   deviceId: string;
   defaultWalletName: string;
   poolName: string;
@@ -80,6 +84,7 @@ export function buildQuickOnboardingInput(values: QuickOnboardingValues): Onboar
     totalAmountCents: values.totalAmountCents,
     protectedReserveCents: preset?.protectedReserveCents ?? 0,
     ownerName: values.ownerName,
+    ownerEmail: values.ownerEmail,
     deviceId: values.deviceId,
     defaultWalletName: values.defaultWalletName,
     cashWalletName: null,
@@ -153,13 +158,14 @@ export function createOnboardingEntities(input: OnboardingInput): OnboardingResu
     notes: null,
   } : null;
 
+  const ownerEmail = input.ownerEmail?.trim();
   const owner: Participant = {
     ...m, id: uuidv4(),
     tripId,
     name: input.ownerName,
     nickname: null,
     isOwner: true,
-    email: null,
+    email: ownerEmail ? ownerEmail : null,
     linkedUserAccountId: null,
     linkedActorId: null,
   };

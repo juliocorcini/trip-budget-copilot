@@ -22,6 +22,7 @@ import { getSyncWorkerUrl } from '@/data/sync/config';
 import { APP_VERSION } from '@/utils/app-version';
 import { getInstallationId } from '@/utils/entity-factory';
 import { isNativeApp } from '@/utils/native/platform';
+import { webPlatformTag } from '@/utils/platform';
 import { safeLocalStorage } from '@/utils/safe-storage';
 import { readTelemetryEvents } from '@/utils/telemetry-events';
 
@@ -86,12 +87,19 @@ async function resolveOwnerName(): Promise<string | null> {
   return null;
 }
 
+/**
+ * DEC-253: report the REAL OS. `Capacitor.getPlatform()` is `'web'` for any
+ * non-native shell — including the iPhone PWA — so an iOS user looked like
+ * "WEB". Native shells keep their honest `ios`/`android`; the web build is
+ * classified from the UA (`ios-web` / `android-web` / `web`).
+ */
 function telemetryPlatform(): string {
   try {
-    return Capacitor.getPlatform();
+    if (Capacitor.isNativePlatform()) return Capacitor.getPlatform();
   } catch {
-    return 'web';
+    /* fall through to UA-based detection */
   }
+  return webPlatformTag();
 }
 
 /** Send a usage heartbeat at most once per UTC day, on app open. Non-blocking,

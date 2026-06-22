@@ -50,6 +50,8 @@ export function OnboardingPage() {
   const [totalAmount, setTotalAmount] = useState('');
   const [protectedReserve, setProtectedReserve] = useState('');
   const [ownerName, setOwnerName] = useState('');
+  // DEC-252: e-mail is optional and stays LOCAL (fills Participant.email only).
+  const [ownerEmail, setOwnerEmail] = useState('');
   // R5-05: phase details — same fields the phase editor offers later.
   const [phaseStartDate, setPhaseStartDate] = useState('');
   const [phaseEndDate, setPhaseEndDate] = useState('');
@@ -75,7 +77,9 @@ export function OnboardingPage() {
           startDate: startDate || localDateString(new Date()),
           endDate,
           totalAmountCents,
-          ownerName: t('onboarding.default_owner_name'),
+          // DEC-252: the name is now collected in the shared first step.
+          ownerName: ownerName.trim() || t('onboarding.default_owner_name'),
+          ownerEmail: ownerEmail.trim() || null,
           deviceId,
           defaultWalletName: t('onboarding.default_wallet_name'),
           poolName: t('onboarding.pool_name', { phase: quickName }),
@@ -92,7 +96,8 @@ export function OnboardingPage() {
       currency,
       totalAmountCents,
       protectedReserveCents: toCents(parseFloat(protectedReserve) || 0),
-      ownerName: ownerName || t('onboarding.default_owner_name'),
+      ownerName: ownerName.trim() || t('onboarding.default_owner_name'),
+      ownerEmail: ownerEmail.trim() || null,
       deviceId,
       defaultWalletName: walletName.trim() || t('onboarding.default_wallet_name'),
       cashWalletName: addCashWallet ? cashWalletName : null,
@@ -259,9 +264,6 @@ export function OnboardingPage() {
       {/* G14 (audit §4.1): "reserva protegida" is jargon — name it with a money example. */}
       <p className="text-xs text-on-surface-dim px-1 leading-snug">{t('onboarding.protected_reserve_hint')}</p>
     </StepCard>,
-    <StepCard key="owner">
-      <Field label={t('onboarding.owner_name')} value={ownerName} onChange={setOwnerName} placeholder={t('shared.owner_tag')} />
-    </StepCard>,
     <StepCard key="wallets">
       <p className="text-xs text-on-surface-dim px-1">{t('onboarding.wallets_hint')}</p>
       <Field
@@ -425,17 +427,53 @@ export function OnboardingPage() {
     </StepCard>
   );
 
+  // DEC-252: shared FIRST step in both flows — the owner's name (required) and
+  // an optional, local-only e-mail. Replaces the old detailed-only owner step
+  // and removes the "Eu" default that made every quick-flow user anonymous.
+  const identityStep = (
+    <StepCard key="identity">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('onboarding.identity_title')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.identity_subtitle')}</p>
+      </div>
+      <Field
+        label={t('onboarding.owner_name')}
+        value={ownerName}
+        onChange={setOwnerName}
+        placeholder={t('shared.owner_tag')}
+        autoFocus
+      />
+      <Field
+        label={t('onboarding.owner_email_optional')}
+        type="email"
+        value={ownerEmail}
+        onChange={setOwnerEmail}
+        placeholder={t('onboarding.owner_email_placeholder')}
+      />
+      <p className="text-[10px] text-on-surface-faint px-1 leading-snug">{t('onboarding.owner_email_hint')}</p>
+    </StepCard>
+  );
+
   const baseSteps = flow === 'quick' ? [quickStep] : detailedSteps;
-  const steps = [...baseSteps, modeStep];
+  // DEC-252: identity first, then the flow's own steps, then the mode chooser.
+  const steps = [identityStep, ...baseSteps, modeStep];
   const isModeStep = step === steps.length - 1;
 
-  const canNext =
+  // Per-step validators run PARALLEL to `steps` (data-driven — the index math
+  // stays correct now that the identity step shifts everything by one). The
+  // identity step requires a non-empty name; everything else mirrors before.
+  const nameValid = ownerName.trim().length > 0;
+  const baseValidators: Array<() => boolean> =
     flow === 'quick'
-      ? Boolean(totalAmount && endDate)
-      : step === 0 ? Boolean(tripName && startDate && endDate)
-      : step === 1 ? phaseDatesValid
-      : step === 2 ? !!totalAmount
-      : true;
+      ? [() => Boolean(totalAmount && endDate)]
+      : [
+          () => Boolean(tripName && startDate && endDate),
+          () => phaseDatesValid,
+          () => Boolean(totalAmount),
+          () => true,
+        ];
+  const validators: Array<() => boolean> = [() => nameValid, ...baseValidators, () => true];
+  const canNext = (validators[step] ?? (() => true))();
 
   return (
     // R5-04: dvh + scrollable content keeps the footer visible with the
