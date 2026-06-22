@@ -389,6 +389,8 @@
     "rescue_desc": "¿Te pasaste? La app rehace tu plan",
     "guide": "Todo lo que puedes hacer",
     "guide_desc": "Descubre todas las funciones de la app",
+    "help": "Centro de ayuda",
+    "help_desc": "Resuelve dudas y aprende a usar cada función",
     "empty_title": "Tu copiloto está calentando motores",
     "empty_desc": "Registra algunos gastos y empezaré a mostrarte cómo va y hacia dónde va tu viaje.",
     "empty_cta": "Registrar un gasto",
@@ -1460,6 +1462,7 @@
   "settings": {
     "title": "Configuración",
     "guide_hint": "Mira todo lo que hace la app y abre cualquier función con un toque.",
+    "help_hint": "¿Dudas sobre la app? Busca y aprende a usar cada función — sin salir de la app.",
     "search_placeholder": "Buscar ajuste…",
     "search_no_results": "Nada encontrado para \"{{query}}\".",
     "group_preferences": "Preferencias",
@@ -1751,6 +1754,179 @@
     "notifications_d": "Avisos, recordatorios de copia y alertas de ritmo en un solo lugar.",
     "about_t": "Acerca de la app",
     "about_d": "Versión, novedades de cada actualización y diagnóstico."
+  },
+  "help_center": {
+    "title": "Centro de ayuda",
+    "intro": "Resuelve tus dudas sobre la app. Busca por una palabra o navega por tema — todo es local, sin usar IA.",
+    "search_placeholder": "Buscar ayuda (ej.: dividir cuenta, cambio…)",
+    "no_results": "No se encontró nada para tu búsqueda. Prueba otra palabra o navega por los temas de abajo.",
+    "open": "Abrir",
+    "related": "Preguntas relacionadas",
+    "section_getting_started": "Primeros pasos",
+    "section_day_to_day": "En el día a día",
+    "section_planning": "Planificación",
+    "section_money": "Dinero y reservas",
+    "section_trips": "Viajes y fases",
+    "section_people": "Dividir y personas",
+    "section_copilot": "Análisis (Copiloto)",
+    "section_data_privacy": "Datos y privacidad",
+    "a": {
+      "log_ai": {
+        "q": "¿Cómo registro un gasto con IA (voz o texto)?",
+        "a": "Dilo o escríbelo en lenguaje natural, ej.: \"35 en el almuerzo con tarjeta\" — la IA completa importe, categoría y billetera para que solo confirmes.",
+        "steps": ["Toca el botón ✨ de agregar en la pantalla de inicio", "Habla o escribe el gasto, ej.: \"20 de taxi\"", "Revisa lo que entendió la IA y guarda"]
+      },
+      "log_manual": {
+        "q": "¿Cómo registro un gasto a mano, sin IA?",
+        "a": "Puedes completar todo manualmente: importe, categoría, billetera, fecha y nota — sin depender de la IA.",
+        "steps": ["Abre agregar gasto y elige el modo manual", "Completa importe, categoría y billetera", "Ajusta fecha/nota si quieres y guarda"]
+      },
+      "log_photo": {
+        "q": "¿Puedo registrar un gasto desde la foto del ticket?",
+        "a": "Sí. Fotografía el ticket o elígelo de la galería y la IA lee el importe y sugiere la categoría para que confirmes.",
+        "steps": ["En agregar gasto, toca el ícono de cámara", "Toma la foto del ticket o elige de la galería", "Revisa los datos leídos y guarda"]
+      },
+      "expenses": {
+        "q": "¿Dónde veo, edito o elimino mis gastos?",
+        "a": "En la lista de gastos tienes el historial completo, con búsqueda y filtros; toca cualquier ítem para editarlo o eliminarlo.",
+        "steps": ["Abre la lista de gastos", "Usa la búsqueda y los filtros para encontrar el registro", "Tócalo para editar o eliminar"]
+      },
+      "checkin": {
+        "q": "¿Qué es el check-in del día y el amigo sincero?",
+        "a": "Es un resumen rápido de cómo va tu día: cuánto puedes usar hoy y un mensaje directo (el \"amigo sincero\"), sin culpa.",
+        "steps": ["En la pantalla de inicio, abre el check-in del día", "Mira el libre de hoy y el mensaje", "Ajusta el ritmo si quieres gastar distinto"]
+      },
+      "outing": {
+        "q": "¿Cómo uso el modo salida/noche en vivo?",
+        "a": "Abre una salida y la app junta los gastos de la noche en un solo lugar, con un medidor de límite en vivo — al final cierras o divides.",
+        "steps": ["Toca iniciar una salida", "Ve registrando los gastos durante la noche", "Al final, cierra o divide la cuenta"]
+      },
+      "planner": {
+        "q": "¿Para qué sirve el planificador de escenarios?",
+        "a": "Define cuánto puedes gastar por categoría en la fase y te deja probar escenarios (austero, equilibrado, tranquilo) antes de decidir.",
+        "steps": ["Abre el planificador de la fase", "Ajusta límites por categoría o aplica un preset", "Compara el libre por día de cada escenario"]
+      },
+      "planned": {
+        "q": "¿Cómo reservo dinero para una compra planificada?",
+        "a": "Lista lo que piensas comprar (ej.: un regalo de 80) y la app aparta ese importe de tu libre hasta que lo marques como comprado.",
+        "steps": ["Abre compras planificadas", "Agrega el ítem y el importe estimado", "Cuando lo compres, márcalo como hecho"]
+      },
+      "simulator": {
+        "q": "¿Cómo simulo un gasto antes de hacerlo?",
+        "a": "En el simulador escribes un importe hipotético y ves el efecto en tu libre y en la proyección — el clásico \"¿puedo gastar?\".",
+        "steps": ["Abre el simulador", "Escribe el importe que piensas gastar", "Mira el impacto antes de decidir"]
+      },
+      "converter": {
+        "q": "¿Cómo convierto un precio a mi moneda?",
+        "a": "El conversor usa el cambio que la app ya guardó para mostrar cuánto es un precio en otra moneda en la tuya — ej.: 50 USD en reales.",
+        "steps": ["Abre el conversor de monedas", "Escribe el importe y elige las monedas", "Mira el resultado en tu moneda base"]
+      },
+      "funds": {
+        "q": "¿Qué son los fondos/botes y cómo los uso?",
+        "a": "Los fondos separan reservas protegidas de tu libre — ej.: 150 de emergencia que no cuentan en \"cuánto puedo gastar hoy\".",
+        "steps": ["Abre los fondos", "Crea un bote (ej.: emergencia) con un importe", "La app protege ese importe de tu libre"]
+      },
+      "piggy": {
+        "q": "¿Qué es la alcancía y dónde veo lo que ahorré?",
+        "a": "Cuando gastas menos que el libre del día, lo que sobra va a la alcancía — un ahorro que sigues en el extracto. Ej.: hoy sobraron 12.",
+        "steps": ["En la pantalla de inicio, toca la alcancía", "Mira el total ahorrado y el extracto", "Sigue cuánto sumó cada día"]
+      },
+      "wallets": {
+        "q": "¿Cómo funcionan las billeteras (tarjeta, efectivo)?",
+        "a": "Cada billetera (tarjeta, efectivo, cuenta) tiene su saldo; al registrar un gasto eliges de qué billetera salió.",
+        "steps": ["Abre billeteras", "Crea o edita una billetera y su saldo", "Elige la billetera al registrar cada gasto"]
+      },
+      "income": {
+        "q": "¿Cómo registro una entrada de dinero (ingreso)?",
+        "a": "Registra entradas como salario, reembolso o depósito para seguir lo que entra, no solo lo que sale.",
+        "steps": ["Abre registrar ingreso", "Indica el importe y el origen", "Guarda para sumarlo a tu disponible"]
+      },
+      "spaces": {
+        "q": "¿Puedo tener más de un viaje al mismo tiempo?",
+        "a": "Sí. En Espacios mantienes varios viajes y el Día a día juntos y cambias entre ellos en un toque.",
+        "steps": ["Abre Espacios", "Crea un nuevo viaje o el Día a día", "Toca para alternar entre ellos cuando quieras"]
+      },
+      "viagem": {
+        "q": "¿Cómo edito las fechas y fases del viaje?",
+        "a": "En el hub del viaje ves y ajustas cualquier fase en un solo lugar, usando el selector de fase.",
+        "steps": ["Abre el hub del viaje", "Usa el selector para elegir la fase", "Edita fechas, presupuesto o crea otra fase"]
+      },
+      "overview": {
+        "q": "¿Dónde veo la estructura general y el mapa del viaje?",
+        "a": "La visión general reúne fechas, fases, presupuesto y, cuando hay lugares, el mapa de dónde gastaste.",
+        "steps": ["Abre la visión general del viaje", "Mira el resumen de fases y presupuesto", "Toca el mapa para ver los lugares"]
+      },
+      "profiles": {
+        "q": "¿Para qué sirven los perfiles de actividad?",
+        "a": "Guardan el valor típico de cada tipo de gasto (ej.: bar, mercado) que la app usa para sugerir y prever mejor.",
+        "steps": ["Abre perfiles de actividad", "Ajusta el valor típico de cada categoría", "Guarda para que la IA lo use en las sugerencias"]
+      },
+      "split": {
+        "q": "¿Cómo divido una cuenta con amigos?",
+        "a": "Fotografía la cuenta (o escribe los ítems) y divide por ítem, en partes iguales o solo lo tuyo — puedes usar la mesa en vivo pasando el teléfono.",
+        "steps": ["Abre dividir cuenta y agrega el ticket o los ítems", "Elige dividir por ítem, igual o solo lo tuyo", "Confirma quién paga qué y cierra"]
+      },
+      "settle": {
+        "q": "¿Cómo ajusto cuentas y le cobro a quien me debe?",
+        "a": "El ajuste muestra quién debe qué; puedes recordarle a la persona, registrar el pago e incluso abrir Pix/Wise por la conexión guardada.",
+        "steps": ["Abre el ajuste de cuentas", "Mira los saldos de cada persona", "Recuerda, registra el pago o abre Pix/Wise"]
+      },
+      "reimbursement": {
+        "q": "Me devolvieron el dinero — ¿cómo registro el reembolso?",
+        "a": "Al recibir un pago de vuelta, registra el ajuste y marca cómo fue (Pix, Wise, efectivo…) para que el saldo de la persona quede en cero.",
+        "steps": ["En el ajuste, abre la persona que te pagó", "Toca registrar reembolso recibido", "Indica el importe y cómo se pagó"]
+      },
+      "copilot": {
+        "q": "¿Qué me muestra el Copiloto?",
+        "a": "Lee tus datos y resume cómo va y hacia dónde va el viaje, con consejos prácticos de ahorro.",
+        "steps": ["Abre el Copiloto", "Lee los insights del momento", "Toca un insight para ir directo a la acción"]
+      },
+      "impact": {
+        "q": "¿Cómo veo la proyección hasta el fin del viaje?",
+        "a": "La pantalla de impacto detalla planificado vs. gastado y proyecta si el dinero llega al fin de la fase al ritmo actual.",
+        "steps": ["Abre ver impacto", "Compara planificado y gastado", "Mira la proyección y ajusta el ritmo"]
+      },
+      "rescue": {
+        "q": "Me pasé del presupuesto — ¿y ahora?",
+        "a": "El plan de rescate (SOS) arma un camino para volver al rumbo, sugiriendo dónde recortar sin agobios.",
+        "steps": ["Abre el rescate (SOS)", "Mira cuánto falta reequilibrar", "Sigue el plan de recortes sugerido"]
+      },
+      "backup": {
+        "q": "¿Cómo hago copia de seguridad y restauro mis datos?",
+        "a": "Guardas una copia de los datos (o exportas una planilla) y puedes traerla de otro dispositivo cuando quieras — todo bajo tu control.",
+        "steps": ["Abre copia e importación", "Toca exportar para guardar una copia", "Para restaurar, importa el archivo guardado"]
+      },
+      "import_wise": {
+        "q": "¿Cómo importo mis gastos de Wise?",
+        "a": "Trae el extracto de Wise por CSV y clasifica todo de una vez, sin reescribir cada gasto.",
+        "steps": ["Abre importar de Wise", "Selecciona el archivo CSV del extracto", "Revisa las categorías y confirma la importación"]
+      },
+      "privacy_location": {
+        "q": "¿Cómo funciona la ubicación y la privacidad de mis datos?",
+        "a": "Tus datos quedan en el dispositivo. La ubicación solo se lee con el permiso del sistema y la apagas cuando quieras en configuración.",
+        "steps": ["Abre la configuración", "Encuentra la opción de ubicación", "Apaga el registro de lugar si lo prefieres"]
+      },
+      "customize_home": {
+        "q": "¿Cómo personalizo la pantalla de inicio?",
+        "a": "Eliges qué tarjetas aparecen en el inicio y en qué orden, dejando a mano lo que más te importa.",
+        "steps": ["Abre personalizar inicio", "Activa o desactiva las tarjetas que quieras", "Arrastra para reordenar y guarda"]
+      },
+      "notifications": {
+        "q": "¿Cómo activo o silencio las notificaciones?",
+        "a": "Avisos, recordatorios de copia y alertas de ritmo están en un solo lugar — actívalos o siléncialos a tu manera.",
+        "steps": ["Abre notificaciones", "Elige qué avisos quieres recibir", "Silencia los que no tengan sentido"]
+      },
+      "about": {
+        "q": "¿Cómo actualizo la app y veo las novedades?",
+        "a": "La pantalla Acerca de muestra la versión actual, las novedades de cada actualización y cómo buscar la versión más nueva.",
+        "steps": ["Abre Acerca de la app", "Mira la versión y las novedades", "Recarga para buscar la versión más nueva"]
+      },
+      "settings": {
+        "q": "¿Dónde cambio modo, tema, moneda e idioma?",
+        "a": "En la configuración ajustas modo, tema, moneda, idioma, alertas y todo lo demás de la app.",
+        "steps": ["Abre la configuración", "Elige la preferencia (tema, moneda, idioma…)", "La app aplica el cambio al instante"]
+      }
+    }
   },
   "onboarding": {
     "welcome_title": "TripPilot",

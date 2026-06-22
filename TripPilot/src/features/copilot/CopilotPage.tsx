@@ -325,6 +325,9 @@ export function CopilotPage() {
     { icon: 'currency_exchange', label: t('copilot.converter'), desc: t('copilot.converter_desc'), path: '/converter' },
     { icon: 'sos', label: t('copilot.rescue'), desc: t('copilot.rescue_desc'), path: '/rescue' },
     { icon: 'auto_awesome', label: t('copilot.guide'), desc: t('copilot.guide_desc'), path: '/guide' },
+    // FB-28 V1 (DEC-278): the help center sits beside the feature guide — "what
+    // can it do" (guide) and "how do I do it" (help) are the two discovery doors.
+    { icon: 'help', label: t('copilot.help'), desc: t('copilot.help_desc'), path: '/help' },
   ];
 
   return (

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.48',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'Chegou a Central de ajuda: tire suas dúvidas sobre o app buscando por uma palavra ou navegando por tema. Cada resposta traz um passo a passo e um atalho que abre a tela certa.',
+        'É tudo local e instantâneo — a busca não usa internet nem IA, então funciona offline e na hora.',
+        'Abra pela engrenagem (Configurações), pelo Copiloto ou pela busca: tente "dividir conta", "câmbio" ou "reembolso".',
+      ],
+      en: [
+        'The Help center has arrived: get answers about the app by searching a word or browsing by topic. Every answer brings step-by-step instructions and a shortcut that opens the right screen.',
+        "It's all local and instant — search uses no internet and no AI, so it works offline and right away.",
+        'Open it from the gear (Settings), from the Copilot or via search: try "split bill", "exchange" or "reimbursement".',
+      ],
+      es: [
+        'Llegó el Centro de ayuda: resuelve tus dudas sobre la app buscando una palabra o navegando por tema. Cada respuesta trae un paso a paso y un atajo que abre la pantalla correcta.',
+        'Todo es local e instantáneo — la búsqueda no usa internet ni IA, así que funciona sin conexión y al momento.',
+        'Ábrelo desde el engranaje (Configuración), desde el Copiloto o buscando: prueba "dividir cuenta", "cambio" o "reembolso".',
+      ],
+    },
+  },
+  {
     version: '0.99.47',
     date: '2026-06-22',
     items: {

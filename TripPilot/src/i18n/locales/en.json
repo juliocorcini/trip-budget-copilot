@@ -389,6 +389,8 @@
     "rescue_desc": "Over budget? The app rebuilds your plan",
     "guide": "Everything you can do",
     "guide_desc": "Discover all the app's features",
+    "help": "Help center",
+    "help_desc": "Get answers and learn to use each feature",
     "empty_title": "Your copilot is warming up",
     "empty_desc": "Log a few expenses and I'll start showing how your trip is doing and where it's heading.",
     "empty_cta": "Log an expense",
@@ -1460,6 +1462,7 @@
   "settings": {
     "title": "Settings",
     "guide_hint": "See everything the app does and open any feature in one tap.",
+    "help_hint": "Questions about the app? Search and learn to use each feature — without leaving the app.",
     "search_placeholder": "Search settings…",
     "search_no_results": "Nothing found for \"{{query}}\".",
     "group_preferences": "Preferences",
@@ -1751,6 +1754,179 @@
     "notifications_d": "Warnings, backup reminders and pace alerts in one place.",
     "about_t": "About the app",
     "about_d": "Version, what's new in each update and diagnostics."
+  },
+  "help_center": {
+    "title": "Help center",
+    "intro": "Get answers about the app. Search by a word or browse by topic — it's all local, no AI used.",
+    "search_placeholder": "Search help (e.g. split bill, exchange…)",
+    "no_results": "Nothing found for your search. Try another word or browse the topics below.",
+    "open": "Open",
+    "related": "Related questions",
+    "section_getting_started": "Getting started",
+    "section_day_to_day": "Day to day",
+    "section_planning": "Planning",
+    "section_money": "Money & reserves",
+    "section_trips": "Trips & phases",
+    "section_people": "Splitting & people",
+    "section_copilot": "Analysis (Copilot)",
+    "section_data_privacy": "Data & privacy",
+    "a": {
+      "log_ai": {
+        "q": "How do I log an expense with AI (voice or text)?",
+        "a": "Say or type it in plain language, e.g. \"35 on lunch with card\" — the AI fills in amount, category and wallet for you to confirm.",
+        "steps": ["Tap the ✨ add button on the home screen", "Speak or type the expense, e.g. \"20 on a taxi\"", "Check what the AI understood and save"]
+      },
+      "log_manual": {
+        "q": "How do I log an expense by hand, without AI?",
+        "a": "You can fill everything in manually: amount, category, wallet, date and note — no AI involved.",
+        "steps": ["Open add expense and pick the manual mode", "Fill in amount, category and wallet", "Adjust date/note if you want and save"]
+      },
+      "log_photo": {
+        "q": "Can I log an expense from a photo of the receipt?",
+        "a": "Yes. Photograph the receipt or pick it from the gallery and the AI reads the amount and suggests the category for you to confirm.",
+        "steps": ["In add expense, tap the camera icon", "Take a photo of the receipt or pick from the gallery", "Check the read values and save"]
+      },
+      "expenses": {
+        "q": "Where do I see, edit or delete my expenses?",
+        "a": "The expenses list holds your full history, with search and filters; tap any item to edit or delete it.",
+        "steps": ["Open the expenses list", "Use search and filters to find the entry", "Tap it to edit or delete"]
+      },
+      "checkin": {
+        "q": "What is the daily check-in and the honest friend?",
+        "a": "A quick read of how your day looks: how much you can use today plus a straight message (the \"honest friend\"), with no guilt.",
+        "steps": ["On the home screen, open the daily check-in", "See today's free amount and the message", "Adjust the pace if you want to spend differently"]
+      },
+      "outing": {
+        "q": "How do I use the live outing/night-out mode?",
+        "a": "Start an outing and the app groups the night's expenses in one place, with a live limit gauge — at the end you close or split.",
+        "steps": ["Tap to start an outing", "Keep logging expenses through the night", "At the end, close or split the bill"]
+      },
+      "planner": {
+        "q": "What is the scenario planner for?",
+        "a": "It sets how much you can spend per category in the phase and lets you test scenarios (lean, balanced, relaxed) before deciding.",
+        "steps": ["Open the phase planner", "Adjust limits per category or apply a preset", "Compare the free-per-day of each scenario"]
+      },
+      "planned": {
+        "q": "How do I reserve money for a planned purchase?",
+        "a": "List what you plan to buy (e.g. an 80 gift) and the app sets that amount aside from your free until you mark it as bought.",
+        "steps": ["Open planned purchases", "Add the item and the estimated amount", "When you buy it, mark it as done"]
+      },
+      "simulator": {
+        "q": "How do I simulate an expense before making it?",
+        "a": "In the simulator you type a hypothetical amount and see the effect on your free and projection — the classic \"can I spend?\".",
+        "steps": ["Open the simulator", "Type the amount you're thinking of spending", "See the impact before deciding"]
+      },
+      "converter": {
+        "q": "How do I convert a price to my currency?",
+        "a": "The converter uses the rate the app already stored to show how much a price in another currency is in yours — e.g. 50 USD in reais.",
+        "steps": ["Open the currency converter", "Type the amount and pick the currencies", "See the result in your base currency"]
+      },
+      "funds": {
+        "q": "What are funds/pots and how do I use them?",
+        "a": "Funds keep protected reserves apart from your free — e.g. 150 of emergency that don't count toward \"how much I can spend today\".",
+        "steps": ["Open funds", "Create a pot (e.g. emergency) with an amount", "The app protects that amount from your free"]
+      },
+      "piggy": {
+        "q": "What is the piggy bank and where do I see what I saved?",
+        "a": "When you spend less than the day's free, the leftover becomes the piggy bank — savings you follow in the statement. E.g. 12 left over today.",
+        "steps": ["On the home screen, tap the piggy bank", "See the total saved and the statement", "Follow how much each day added"]
+      },
+      "wallets": {
+        "q": "How do wallets (card, cash) work?",
+        "a": "Each wallet (card, cash, account) has its own balance; when you log an expense you choose which wallet it came from.",
+        "steps": ["Open wallets", "Create or edit a wallet and its balance", "Pick the wallet when logging each expense"]
+      },
+      "income": {
+        "q": "How do I record incoming money (income)?",
+        "a": "Log entries like salary, reimbursement or deposit to follow what comes in, not only what goes out.",
+        "steps": ["Open record income", "Enter the amount and the source", "Save to add it to your available money"]
+      },
+      "spaces": {
+        "q": "Can I have more than one trip at the same time?",
+        "a": "Yes. In Spaces you keep several trips and the Day-to-day together and switch between them in one tap.",
+        "steps": ["Open Spaces", "Create a new trip or the Day-to-day", "Tap to switch between them whenever you want"]
+      },
+      "viagem": {
+        "q": "How do I edit the trip's dates and phases?",
+        "a": "In the trip hub you see and adjust any phase in one place, using the phase selector.",
+        "steps": ["Open the trip hub", "Use the selector to choose the phase", "Edit dates, budget or create another phase"]
+      },
+      "overview": {
+        "q": "Where do I see the overall structure and trip map?",
+        "a": "The overview gathers dates, phases, budget and, when there are places, the map of where you spent.",
+        "steps": ["Open the trip overview", "See the phase and budget summary", "Tap the map to view the places"]
+      },
+      "profiles": {
+        "q": "What are activity profiles for?",
+        "a": "They store the typical value of each expense type (e.g. bar, market) that the app uses to suggest and forecast better.",
+        "steps": ["Open activity profiles", "Adjust the typical value of each category", "Save so the AI uses it in suggestions"]
+      },
+      "split": {
+        "q": "How do I split a bill with friends?",
+        "a": "Photograph the bill (or type the items) and split by item, evenly or just your share — you can use the live table by passing the phone.",
+        "steps": ["Open split bill and add the receipt or items", "Choose to split by item, evenly or just yours", "Confirm who pays what and close"]
+      },
+      "settle": {
+        "q": "How do I settle up and remind who owes me?",
+        "a": "Settle up shows who owes what; you can remind the person, record the payment and even open Pix/Wise via the saved connection.",
+        "steps": ["Open settle up", "See each person's balance", "Remind, record the payment or open Pix/Wise"]
+      },
+      "reimbursement": {
+        "q": "I got the money back — how do I record the reimbursement?",
+        "a": "When you receive a payment back, record the settlement and mark how it was made (Pix, Wise, cash…) so the person's balance clears.",
+        "steps": ["In settle up, open the person who paid you", "Tap record received reimbursement", "Enter the amount and how it was paid"]
+      },
+      "copilot": {
+        "q": "What does the Copilot show me?",
+        "a": "It reads your data and sums up how the trip is doing and where it's heading, with practical saving tips.",
+        "steps": ["Open the Copilot", "Read the current insights", "Tap an insight to jump straight to the action"]
+      },
+      "impact": {
+        "q": "How do I see the projection to the end of the trip?",
+        "a": "The impact screen details planned vs. spent and projects whether the money lasts to the end of the phase at the current pace.",
+        "steps": ["Open view impact", "Compare planned and spent", "See the projection and adjust the pace"]
+      },
+      "rescue": {
+        "q": "I blew the budget — now what?",
+        "a": "The rescue plan (SOS) builds a path back on track, suggesting where to cut without suffocating.",
+        "steps": ["Open the rescue (SOS)", "See how much needs rebalancing", "Follow the suggested cuts plan"]
+      },
+      "backup": {
+        "q": "How do I back up and restore my data?",
+        "a": "You save a copy of the data (or export a spreadsheet) and can bring it from another device whenever you want — all in your control.",
+        "steps": ["Open backup and import", "Tap export to save a copy", "To restore, import the saved file"]
+      },
+      "import_wise": {
+        "q": "How do I import my expenses from Wise?",
+        "a": "Bring the Wise statement via CSV and classify everything at once, without retyping each expense.",
+        "steps": ["Open import from Wise", "Select the statement CSV file", "Review the categories and confirm the import"]
+      },
+      "privacy_location": {
+        "q": "How do location and the privacy of my data work?",
+        "a": "Your data stays on the device. Location is only read with the system's permission and you turn it off whenever you want in settings.",
+        "steps": ["Open settings", "Find the location option", "Turn off place tagging if you prefer"]
+      },
+      "customize_home": {
+        "q": "How do I customize the home screen?",
+        "a": "You choose which cards appear on the home screen and in what order, keeping what matters most to you at hand.",
+        "steps": ["Open customize home", "Toggle the cards you want on or off", "Drag to reorder and save"]
+      },
+      "notifications": {
+        "q": "How do I turn notifications on or mute them?",
+        "a": "Warnings, backup reminders and pace alerts live in one place — turn them on or mute them your way.",
+        "steps": ["Open notifications", "Choose which alerts you want to get", "Mute the ones that don't make sense"]
+      },
+      "about": {
+        "q": "How do I update the app and see what's new?",
+        "a": "The About screen shows the current version, what's new in each update and how to fetch the newest version.",
+        "steps": ["Open About the app", "See the version and what's new", "Reload to fetch the newest version"]
+      },
+      "settings": {
+        "q": "Where do I change mode, theme, currency and language?",
+        "a": "In settings you adjust mode, theme, currency, language, alerts and everything else about the app.",
+        "steps": ["Open settings", "Pick the preference (theme, currency, language…)", "The app applies the change right away"]
+      }
+    }
   },
   "onboarding": {
     "welcome_title": "TripPilot",

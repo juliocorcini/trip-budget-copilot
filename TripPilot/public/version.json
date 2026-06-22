@@ -1,8 +1,8 @@
 {
-  "version": "0.99.47",
+  "version": "0.99.48",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.47.zip",
-  "notes": "Agora dá para registrar um reembolso recebido (Pix, Wise, conta, dinheiro ou outro) direto no Acerto de contas — o valor devido cai na hora e fica no histórico. Viagens novas já vêm com o registro de local ligado (com aviso transparente e um toque para desligar nas Configurações), e o planejador ficou mais tranquilo: abrir não cria mais planos sozinho e o Dia a dia explica que cenários são para viagens com datas."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.48.zip",
+  "notes": "Chegou a Central de ajuda: tire dúvidas sobre o app com busca por palavra ou por tema, e cada resposta vem com um passo a passo e um atalho que abre a tela certa. É tudo local — a busca não usa internet nem IA, funciona offline e na hora. Abra pela engrenagem (Configurações), pelo Copiloto ou buscando \"dividir conta\", \"câmbio\", \"reembolso\"."
 }

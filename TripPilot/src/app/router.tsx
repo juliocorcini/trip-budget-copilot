@@ -36,6 +36,7 @@ const ProfilesPage = lazyWithRetry(() => import('@/features/profiles/ProfilesPag
 const ExpenseDetailPage = lazyWithRetry(() => import('@/features/expenses/ExpenseDetailPage').then(m => ({ default: m.ExpenseDetailPage })));
 const AboutPage = lazyWithRetry(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
 const GuidePage = lazyWithRetry(() => import('@/features/guide/GuidePage').then(m => ({ default: m.GuidePage })));
+const HelpPage = lazyWithRetry(() => import('@/features/help/HelpPage').then(m => ({ default: m.HelpPage })));
 const NotificationsPage = lazyWithRetry(() => import('@/features/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const ImpactDetailPage = lazyWithRetry(() => import('@/features/dashboard/ImpactDetailPage').then(m => ({ default: m.ImpactDetailPage })));
 const SyncReceivePage = lazyWithRetry(() => import('@/features/sync/SyncReceivePage').then(m => ({ default: m.SyncReceivePage })));
@@ -161,6 +162,9 @@ export const router = createBrowserRouter([
           // G7: "Tudo que dá pra fazer" — a catalog of every feature so nothing
           // stays hidden behind a menu. Reachable from the gear and Copiloto.
           { path: '/guide', element: <LazyRoute><GuidePage /></LazyRoute> },
+          // FB-28 V1 (DEC-278): the local help center / concierge — searchable
+          // Q&A with concrete steps and a deep-link per answer (0 token).
+          { path: '/help', element: <LazyRoute><HelpPage /></LazyRoute> },
           { path: '/notifications', element: <LazyRoute><NotificationsPage /></LazyRoute> },
           { path: '/impact', element: <LazyRoute><ImpactDetailPage /></LazyRoute> },
           // DEC-249: the multi-space switcher (trips + "Dia a dia"), opened from
