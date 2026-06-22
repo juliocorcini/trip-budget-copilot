@@ -1827,4 +1827,51 @@
 
 ---
 
+### DEC-249 — Multiple trips at once (multi-trip switcher + `/spaces` list + in-app create; `activeTrip` pointer; anti-error chip + confirm)
+- **Date**: 2026-06-21
+- **Status**: ✅ **RATIFIED** (Julio confirmed: "ok, então é clicando no nome da viagem mesmo"). Building this session. Study: `documents/multi-space-and-admin-v2-study-2026-06-21.md` §2.
+- **Source**: Julio — plan a second trip without touching the active one, switch between them, see each ("talvez clicando no nome da viagem").
+- **Decision**: the data layer is already multi-`Trip` (everything scoped by `tripId`; `useAppData` reads a single `appSettings.activeTrip` pointer; create is additive/atomic). Expose it as UX+orchestration only: (1) an **active-space chip** in the shell (name + dates/status) that opens the switcher; (2) a **`/spaces` list** grouping all non-deleted trips by status (active / planning / completed) + Dia a dia; tapping swaps `activeTrip` + `reload()` + toast; (3) **"+ Novo"** reuses the onboarding builder/orchestrator in-app (status by start date; future → `planning`) without touching the current trip. **Anti-error (Critic):** confirm on switch, never auto-switch, the AI/quick-entry echoes the active trip name. `completed` trips are **fully editable** when reopened (Julio: "Editável ao reabrir") — not read-only.
+- **Why**: cheapest retention feature available; data risk LOW (`useAppData` is the single read bottleneck); it is also the prerequisite funnel for the Dia a dia mode (DEC-250).
+
+### DEC-250 — Continuous "Dia a dia" mode via `Trip.kind='ongoing'` + capability gate; MULTIPLE named spaces (no internal grouping primitive)
+- **Date**: 2026-06-21
+- **Status**: ✅ **RATIFIED + extended by council** (this session). Study §3 + inline Council A (2026-06-21).
+- **Source**: Julio — the brother-in-law case (always splitting at home, no trip dates); plus "um dia a dia com a esposa, um com o irmão — coisas diferentes?".
+- **Decision**: reuse `Trip` with `kind: 'trip' | 'ongoing'` (default `'trip'`; existing trips untouched — ÂNCORA 9), NOT a new entity. A **capability gate** hides date-coupled features (phases, daily budget, "days left", forecasting, simulator, check-in lens) when `kind==='ongoing'`; the ongoing home shows balances + recent + split + "who owes whom". **Council A verdict (HIGH confidence):** the "wife space / brother space" are **separate `Trip(kind='ongoing')` spaces** in the same multi-trip switcher — **NOT** one space with an internal grouping primitive. Rationale: separate spaces isolate balances by construction (no mixing the wife's and brother's "who owes whom"), reuse 100% of the `tripId` plumbing (a grouping primitive would be NEW code touching split/settle/filters — higher risk), and match the user's mental model. Proliferation is handled by **archive**; recurring people are reused via the global `peerLink`, not recreated.
+- **Budget (Julio's answer to OQ1)**: monthly budget is **OPTIONAL** (a no-date pot/cap, reusing the existing date-less pot model). If the user sets none, the space just records things — totally open.
+- **Naming (Julio's answer to OQ2)**: user-facing label is **"Dia a dia"**. Vocabulary of "viagem" is hidden in this kind.
+- **Sequence**: multi-trip (DEC-249) ships first; Dia a dia is just another entry in its switcher.
+
+### DEC-251 — Admin v2: AI tokens (server-authoritative) + error capture (same wave) + per-user detail view + DAU chart/search/CSV
+- **Date**: 2026-06-21
+- **Status**: ✅ **RATIFIED** (Julio: "já faz os dois juntos" for tokens **and** errors; "trazer para a tela de auditoria todas as informações disponiveis sobre um usuario quando eu clicar no usuario"). Study §1.
+- **Decision**: extend the DEC-248 `TelemetryStore` (DO + SQLite) + `/admin`. **(a) AI tokens** server-authoritative: the client passes `installId` to `/assistant` and `/ocr`; the Worker reads `usage.total_tokens` from the Groq response and UPSERTs `ai_usage(install_id, day, fn, tokens, runs)`; admin aggregates tokens per user / per function / time series. **(b) Error capture**: `POST /e` ingest (anonymous, `installId`), server-side scrub (truncate, strip long digit runs, allowlist) → `errors(install_id, day, msg_hash, message, count, last_seen, app_version, platform)` deduped by hash; admin shows top errors + #users affected. **(c) Per-user detail**: clicking a user in `/admin` opens a panel with **everything available** for that install (all counters, all flags, platform, version, locale, country, first/last seen, active days, AI tokens, recent errors). **(d)** DAU line (endpoint exists), sort/search/CSV export. **Privacy**: tokens/errors carry no monetary value; same allowlist/scrub contract as DEC-248. Email is **NOT** transmitted (stays local — see DEC-252).
+
+### DEC-252 — Onboarding identity: ask the owner's NAME always (both flows), e-mail OPTIONAL and LOCAL-only
+- **Date**: 2026-06-21
+- **Status**: ✅ **RATIFIED by council** (inline Council B, 2026-06-21). Building this session.
+- **Source**: Julio — a simple-mode trip created on iPhone showed up in admin as **"Eu"** because the quick flow never asks the name; "pelo menos o nome do user tem que pedir sempre, e acho que é legal salvar o email também".
+- **Decision**: a new **first step "Quem é você?"** shared by BOTH onboarding flows — **name required** (kills the `default_owner_name` "Eu"), **e-mail optional + skippable** (fills the existing `Participant.email`, zero migration). **Privacy (Critic):** the e-mail is stored **locally only** and is **NOT** sent to telemetry/admin in v1 (DEC-248 contract "names yes, money never" did not approve transmitting e-mail) — surfacing e-mail in admin would be a separate explicit decision. The name still powers `telemetry.displayName` and the `isOwner` participant used in splitting.
+- **Why**: the name is the single highest-value datum (admin identity + split clarity + greeting) and costs one pre-focused field; only a *mandatory e-mail* would hurt the fast flow, so e-mail stays optional.
+
+### DEC-253 — Telemetry platform reports the real OS (iPhone PWA = `ios-web`, not `web`)
+- **Date**: 2026-06-21
+- **Status**: ✅ Building this session.
+- **Source**: Julio — an iPhone user showed up in admin as platform **"WEB"**; "todo IOS acho que vai ser Web" (iPhone users run the PWA, not the native shell).
+- **Decision**: `telemetryPlatform()` no longer returns only `Capacitor.getPlatform()` (which is `'web'` for any non-native shell, including the iOS PWA). It now reports the real OS: native shells stay `ios`/`android`; the web build detects the OS and reports `ios-web` (iPhone/iPad PWA or Safari), `android-web`, or `web` (desktop). This makes the admin "Plataformas" distribution honest.
+
+### DEC-254 — Admin user-detail panel (click a row → all available info for that install)
+- **Date**: 2026-06-21
+- **Status**: ✅ Building this session (part of DEC-251 (c), recorded separately for traceability).
+- **Decision**: the `/admin` users table becomes clickable; a row opens a detail view showing every field the telemetry already holds for that install (identity, meta, all counters, all flags, dates, active days, and — once Onda B ships — AI tokens + recent errors). No new data is collected; it just fully surfaces what exists.
+
+### DEC-255 — New app icon (web manifest + Android adaptive + iOS), purpose-built for TripPilot
+- **Date**: 2026-06-21
+- **Status**: ✅ Building this session.
+- **Source**: Julio — "criar um novo icone do app, um melhor mais condizente com o app, tanto para android o apk, quanto para web e para ios".
+- **Decision**: design a new mark and regenerate every icon target (`public/icons/*`, manifest `icon-192/512`, maskable, Android `mipmap` via the icon pipeline, iOS/Capacitor assets). Keep a single SVG source of truth driving `scripts/generate-icons.mjs`.
+
+---
+
 *New decisions will be added as the project progresses.*

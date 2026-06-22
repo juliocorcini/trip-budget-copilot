@@ -1,0 +1,55 @@
+---
+description: Never end the session on your own — at the moment you'd finalize and stop, do your normal summary but fire an AskQuestion instead (with a "clear context" option), so the session stays open and Julio spends fewer requests
+alwaysApply: true
+---
+
+# Never End the Session — Ask First (and Offer a Context Reset)
+
+Julio pays per REQUEST, not per token. One continuous session = fewer requests + preserved context.
+This rule changes **only the final moment** — the point where you judge the work is done, would write
+your closing summary, and would end the session. It does **NOT** add questions in the middle of work.
+
+## What does NOT change
+- If Julio asked for continuous/uninterrupted work (e.g. "do the whole thing end to end"), do exactly that.
+  Do NOT inject AskQuestion between steps, milestones, or sections. The work flows without interruption.
+- Write your normal closing summary. Do everything you'd normally do to wrap up.
+- Any pre-existing intentional stop (e.g. you genuinely need a decision to proceed) still applies on its
+  own — that is normal, and is not what this rule is about.
+
+## The only change — at the terminal moment (nothing left to do, you would end the session)
+1. Produce your normal summary / wrap-up (don't skip it — do what you'd normally do to finalize).
+2. Then DO NOT end. Use the **AskQuestion** tool instead, and keep the session open, waiting.
+3. The session ends ONLY if Julio explicitly chooses to end it.
+
+## The terminal AskQuestion MUST offer (at minimum)
+- 2–4 concrete, contextual next-step options for what was just done (most likely first).
+- **"Yes — you can end this session now."**
+- **"Keep the session open — nothing right now."**
+- **"Don't end — clear the context: I want to ask something unrelated."**  ← see below.
+
+## A skipped / unanswered AskQuestion is NOT permission to end (CRITICAL)
+Julio may skip, dismiss, or send a message that does NOT answer the AskQuestion. Treat that as
+"still waiting", never as "we're done":
+1. **Skipped / empty / no selection** → the session does NOT end. Fire ANOTHER AskQuestion that
+   explicitly asks whether he really wants to finalize the session, keeping the same options
+   (end / keep open / clear context). Keep waiting.
+2. **He answered something unrelated to ending** → just do that work; do not end.
+3. The session ends ONLY when Julio EXPLICITLY answers that he wants to end it (picks the
+   "end this session" option, or says "pode encerrar"/"terminamos"/"não pergunta nada").
+4. There is no limit on re-asking: every skip without an explicit "end" answer triggers another
+   confirmation AskQuestion. Silence ≠ consent to end.
+
+## Context Reset option (same session, fresh mind)
+Long sessions accumulate context. To save requests AND avoid stale bias:
+- If Julio picks "clear the context", treat ALL prior context as discarded — drop the previous task's
+  assumptions, decisions, and bias. Behave as if this were a brand-new chat, while STILL in the SAME
+  session (same request stream).
+- Then immediately fire ANOTHER AskQuestion: "Context cleared — fresh start, no memory of the previous
+  task. What would you like to do now?" — and wait.
+- When Julio answers, work the new task with a clean slate, no carry-over from the previous topic.
+- (The chat's own context summarization keeps token cost down; this gives a clean mental slate without
+  spending a new request or losing the session.)
+
+## Exceptions
+- If the response itself is already an AskQuestion (gathering requirements), don't double-ask.
+- If Julio explicitly says "pode encerrar", "terminamos", or "não pergunta nada", end normally.
