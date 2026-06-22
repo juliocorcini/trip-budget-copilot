@@ -8,6 +8,12 @@ export interface SyncMetadata {
 }
 
 export type TripStatus = 'planning' | 'active' | 'completed';
+/**
+ * DEC-250: a `Trip` is either a regular dated trip or a continuous "Dia a dia"
+ * space (no dates, date-coupled features gated off). The field is optional on
+ * `Trip` so records predating it read as `'trip'` — no migration (ÂNCORA 9).
+ */
+export type TripKind = 'trip' | 'ongoing';
 export type BudgetPoolScope = 'global' | 'linked_phases';
 export type EnvelopeKind = 'protected_reserve' | 'allocation';
 export type ConfidenceLevel = 'low' | 'medium' | 'high';

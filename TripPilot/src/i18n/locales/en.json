@@ -2063,6 +2063,21 @@
     "income_invalid": "Enter a valid amount.",
     "income_save_failed": "Couldn't save. Please try again."
   },
+  "spaces": {
+    "title": "Spaces",
+    "hint": "Tap a space to switch. Your trips and day-to-day live here.",
+    "group_ongoing": "Day-to-day",
+    "group_active": "In progress",
+    "group_planning": "Planning",
+    "group_completed": "Completed",
+    "current": "Current",
+    "switching": "Switching…",
+    "switch_confirm": "Switch to \"{{name}}\"?",
+    "switched": "You're now in \"{{name}}\".",
+    "switch_error": "Couldn't switch spaces. Please try again.",
+    "subtitle_ongoing": "Day-to-day",
+    "empty": "No spaces yet."
+  },
   "common": {
     "save": "Save",
     "saving": "Saving...",

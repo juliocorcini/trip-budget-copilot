@@ -39,6 +39,7 @@ import { DashboardSheets } from './DashboardSheets';
 import { SimpleHome } from './SimpleHome';
 import { SimpleRevealCard } from './SimpleRevealCard';
 import { ActiveSplitHomeCard } from '@/features/split/ActiveSplitHomeCard';
+import { SpaceSwitcherChip } from '@/features/spaces/SpaceSwitcherChip';
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -325,6 +326,10 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col pb-6">
+      {/* DEC-249: active-space chip — names the current space and opens the
+          switcher. Tap the name to jump between trips and "Dia a dia". */}
+      {trip && <SpaceSwitcherChip trip={trip} />}
+
       {/* DEMO BANNER */}
       {settings.isDemo && (
         <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">

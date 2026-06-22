@@ -2067,6 +2067,21 @@
     "income_invalid": "Informe um valor válido.",
     "income_save_failed": "Não foi possível salvar. Tente de novo."
   },
+  "spaces": {
+    "title": "Espaços",
+    "hint": "Toque em um espaço para trocar. Suas viagens e o dia a dia ficam aqui.",
+    "group_ongoing": "Dia a dia",
+    "group_active": "Em andamento",
+    "group_planning": "Planejando",
+    "group_completed": "Concluídas",
+    "current": "Atual",
+    "switching": "Trocando…",
+    "switch_confirm": "Trocar para \"{{name}}\"?",
+    "switched": "Agora você está em \"{{name}}\".",
+    "switch_error": "Não foi possível trocar de espaço. Tente novamente.",
+    "subtitle_ongoing": "Dia a dia",
+    "empty": "Nenhum espaço ainda."
+  },
   "common": {
     "save": "Salvar",
     "saving": "Salvando...",
