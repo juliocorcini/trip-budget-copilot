@@ -104,6 +104,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   a('converter', 'currency_exchange', 'planning', '/converter', [
     'conversor cambio moeda quanto e em euro dolar real taxa', 'converter exchange currency how much in euro dollar rate', 'converter moeda', 'cotacao cambio', 'conversor moneda cambio',
   ]),
+  a('comparator', 'balance', 'planning', '/comparator', [
+    'comparador custo beneficio preco por kg litro unidade qual vale mais barato peso quantidade mercado', 'cost benefit comparator price per kg litre unit which is cheaper weight quantity grocery', 'qual vale mais', 'preco por quilo', 'melhor custo beneficio', 'comparador precio por kg unidad cual conviene',
+  ]),
 
   // ── Money: where it sits ───────────────────────────────────────────────────
   a('funds', 'savings', 'money', '/funds', [

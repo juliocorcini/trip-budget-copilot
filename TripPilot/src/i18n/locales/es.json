@@ -36,6 +36,7 @@
       "plan_expense": "Planear un gasto",
       "simulator": "Abrir simulador de compra",
       "converter": "Abrir conversor de monedas",
+      "comparator": "Abrir comparador de costo-beneficio",
       "debts": "Abrir deudas",
       "expenses": "Abrir gastos",
       "dashboard": "Abrir panel",
@@ -474,6 +475,8 @@
     "simulate_purchase_desc": "Ver el impacto antes de gastar",
     "converter": "Convertir moneda",
     "converter_desc": "Cuánto es en tu moneda",
+    "comparator": "Costo-beneficio",
+    "comparator_desc": "Cuál conviene por kg/u",
     "register_market": "Registrar supermercado",
     "register_market_desc": "Compra con división rápida",
     "register_transfer": "Registrar transferencia",
@@ -1714,6 +1717,8 @@
     "simulator_d": "Ve el efecto de una compra antes de hacerla — \"¿puedo gastar?\".",
     "converter_t": "Conversor de monedas",
     "converter_d": "Ve cuánto es un precio en tu moneda, con la cotización que la app ya guardó.",
+    "comparator_t": "Comparador de costo-beneficio",
+    "comparator_d": "Descubre qué envase conviene más por kg, litro o unidad — sin cálculos mentales.",
     "section_trip": "Viaje y fases",
     "spaces_t": "Espacios y varios viajes",
     "spaces_d": "Ten varios viajes y el Día a día a la vez, y cambia entre ellos con un toque.",
@@ -1820,6 +1825,11 @@
         "q": "¿Cómo convierto un precio a mi moneda?",
         "a": "El conversor usa el cambio que la app ya guardó para mostrar cuánto es un precio en otra moneda en la tuya — ej.: 50 USD en reales.",
         "steps": ["Abre el conversor de monedas", "Escribe el importe y elige las monedas", "Mira el resultado en tu moneda base"]
+      },
+      "comparator": {
+        "q": "¿Cómo sé qué envase conviene más?",
+        "a": "El comparador de costo-beneficio calcula el precio real por kg, litro o unidad de cada opción y señala el más barato — ej.: 120g por 1€ o 200g por 2€. Funciona en el viaje y en el día a día.",
+        "steps": ["Abre el comparador de costo-beneficio", "Escribe precio, cantidad y unidad de cada ítem", "Mira el precio por unidad y cuál conviene más"]
       },
       "funds": {
         "q": "¿Qué son los fondos/botes y cómo los uso?",
@@ -2187,6 +2197,22 @@
     "no_rate_hint": "Sin cotización para este par. Usa una tasa manual.",
     "manual_rate": "Usar tasa manual",
     "manual_rate_label": "1 {{from}} en {{to}}"
+  },
+  "comparator": {
+    "title": "Costo-beneficio",
+    "subtitle": "Cuál conviene más por kg, litro o unidad",
+    "price_label": "Precio",
+    "quantity_label": "Cantidad",
+    "unit_label": "Unidad",
+    "unit_each": "u",
+    "add_item": "Agregar ítem",
+    "remove_item": "Quitar ítem",
+    "item_n": "Ítem {{n}}",
+    "best_badge": "Mejor",
+    "winner": "{{name}} conviene más — {{pct}}% más barato por unidad.",
+    "tie": "Empate técnico: los dos cuestan casi lo mismo por unidad.",
+    "mixed_dimensions": "Estos ítems usan medidas distintas (peso, volumen o unidad) — no se pueden comparar directamente.",
+    "need_two": "Completa al menos 2 ítems con precio y cantidad para comparar."
   },
   "simulator": {
     "title": "Simulador",

@@ -51,6 +51,7 @@ const AdminPage = lazyWithRetry(() => import('@/features/admin/AdminPage').then(
 const SpacesPage = lazyWithRetry(() => import('@/features/spaces/SpacesPage').then(m => ({ default: m.SpacesPage })));
 const NewSpacePage = lazyWithRetry(() => import('@/features/spaces/NewSpacePage').then(m => ({ default: m.NewSpacePage })));
 const ConverterPage = lazyWithRetry(() => import('@/features/converter/ConverterPage').then(m => ({ default: m.ConverterPage })));
+const ComparatorPage = lazyWithRetry(() => import('@/features/comparator/ComparatorPage').then(m => ({ default: m.ComparatorPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -184,6 +185,9 @@ export const router = createBrowserRouter([
       // FB-04 (DEC-256): the currency converter is a pure, mode-agnostic tool
       // (works in a trip or in "Dia a dia"), so it lives outside ModeGuard.
       { path: '/converter', element: <LazyRoute><ConverterPage /></LazyRoute> },
+      // DEC-283: the cost-benefit comparator (price per kg/L/unit) is a pure,
+      // mode-agnostic tool like the converter, so it lives outside ModeGuard.
+      { path: '/comparator', element: <LazyRoute><ComparatorPage /></LazyRoute> },
       { path: '/rescue', element: <LazyRoute><RescuePage /></LazyRoute> },
       { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
       { path: '/import/wise', element: <LazyRoute><ModeGuard><WiseImportPage /></ModeGuard></LazyRoute> },

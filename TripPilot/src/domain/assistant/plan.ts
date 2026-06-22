@@ -295,6 +295,15 @@ export function buildActionPlan(intent: AiIntent, ctx: PlanContext): PlanResult 
       const qs = params.toString();
       return navigate(qs ? `/converter?${qs}` : '/converter', 'converter');
     }
+    case 'compare_unit_price': {
+      // DEC-283: an informational ask ("o que vale mais, 120g por 1€ ou 200g por
+      // 2€?"). The comparator owns the per-unit math (`domain/shopping`); we hand
+      // it the parsed lines via query and let it rank them — no winner is decided
+      // here. With nothing parsed, the bare comparator opens for manual entry.
+      if (intent.comparisonItems.length === 0) return navigate('/comparator', 'comparator');
+      const qs = new URLSearchParams({ items: JSON.stringify(intent.comparisonItems) }).toString();
+      return navigate(`/comparator?${qs}`, 'comparator');
+    }
     case 'unknown':
     default:
       return unsupported('unknown');

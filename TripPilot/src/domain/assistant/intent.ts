@@ -34,6 +34,7 @@ export const AI_ACTIONS = [
   'open_screen', // jump to a named screen (debts, wallets, …)
   // — inform (answer in place; no write, no navigation) —
   'convert_currency', // FB-04: "quanto é 20 euros em reais?" → compute & show
+  'compare_unit_price', // DEC-283: "o que vale mais, 120g por 1€ ou 200g por 2€?"
   // — fallback —
   'unknown',
 ] as const;
@@ -54,6 +55,20 @@ export type AiScreen = (typeof AI_SCREENS)[number];
 
 export type AiPayer = 'me' | 'other';
 export type AiDirection = 'i_owe' | 'owes_me';
+
+/** DEC-283: one product line in a cost-benefit comparison ("120 g por 1€"). The
+ *  device resolves the unit and does the pure math (`domain/shopping`); the model
+ *  only extracts what was said, never the verdict. */
+export interface AiComparisonItem {
+  /** Price in major units (e.g. 2 for "2 euros"). */
+  price: number | null;
+  /** Quantity as stated (e.g. 200 for "200 g"). */
+  quantity: number | null;
+  /** Raw unit token ("g", "ml", "un", "kg"…) — the device resolves it. */
+  unit: string | null;
+  /** Optional product label ("chocolate A"). */
+  label: string | null;
+}
 
 /** The normalized, typed intent the device works with. Entities are by name. */
 export interface AiIntent {
@@ -81,6 +96,9 @@ export interface AiIntent {
   date: string | null;
   /** Name of a planned purchase ("tênis"). */
   itemName: string | null;
+  /** DEC-283: the products to compare for a `compare_unit_price` ask. Empty for
+   *  every other action. */
+  comparisonItems: AiComparisonItem[];
   screen: AiScreen | null;
   /** A short model note shown when it needs to ask something. */
   note: string | null;
@@ -175,11 +193,35 @@ function coerceConfidence(value: unknown): number | null {
   return Math.min(1, Math.max(0, n));
 }
 
+/** DEC-283: coerces the model's comparison list (untrusted). Keeps only lines
+ *  with both a price AND a quantity (a unit is optional — the user picks it in
+ *  the UI when omitted); accepts a few aliases the model tends to use. */
+function coerceComparisonItems(value: unknown): AiComparisonItem[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry): AiComparisonItem | null => {
+      if (!entry || typeof entry !== 'object') return null;
+      const obj = entry as Record<string, unknown>;
+      const price = coerceNumber(obj.price ?? obj.amount ?? obj.cost);
+      const quantity = coerceNumber(obj.quantity ?? obj.qty ?? obj.weight ?? obj.size);
+      if (price === null || quantity === null) return null;
+      return {
+        price,
+        quantity,
+        unit: coerceString(obj.unit ?? obj.measure),
+        label: coerceString(obj.label ?? obj.name ?? obj.product),
+      };
+    })
+    .filter((item): item is AiComparisonItem => item !== null)
+    .slice(0, 6);
+}
+
 const numberField = z.unknown().transform(coerceNumber);
 const stringField = z.unknown().transform(coerceString);
 const currencyField = z.unknown().transform(coerceCurrency);
 const participantsField = z.unknown().transform(coerceParticipants);
 const confidenceField = z.unknown().transform(coerceConfidence);
+const comparisonItemsField = z.unknown().transform(coerceComparisonItems);
 const payerField = z.unknown().transform((v) => coerceEnum<AiPayer>(v, ['me', 'other'], null));
 const directionField = z.unknown().transform((v) => coerceEnum<AiDirection>(v, ['i_owe', 'owes_me'], null));
 const screenField = z.unknown().transform((v) => coerceEnum<AiScreen>(v, AI_SCREENS, null));
@@ -201,6 +243,7 @@ const intentSchema = z.object({
   place: stringField.optional(),
   date: stringField.optional(),
   itemName: stringField.optional(),
+  comparisonItems: comparisonItemsField.optional(),
   screen: screenField.optional(),
   note: stringField.optional(),
   confidence: confidenceField.optional(),
@@ -230,6 +273,7 @@ function coerceIntent(candidate: unknown): AiIntent | null {
     place: data.place ?? null,
     date: data.date ?? null,
     itemName: data.itemName ?? null,
+    comparisonItems: data.comparisonItems ?? [],
     screen: data.screen ?? null,
     note: data.note ?? null,
     confidence: data.confidence ?? null,

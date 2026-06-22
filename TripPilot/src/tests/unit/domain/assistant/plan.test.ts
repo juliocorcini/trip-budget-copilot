@@ -60,6 +60,7 @@ function mkIntent(partial: Partial<AiIntent> & { action: AiIntent['action'] }): 
     place: null,
     date: null,
     itemName: null,
+    comparisonItems: [],
     screen: null,
     note: null,
     confidence: null,
@@ -517,6 +518,33 @@ describe('buildActionPlan — other actions', () => {
       mkCtx(),
     );
     expect(r.status === 'ready' && r.plan.type === 'navigate' && r.plan.to).toBe('/converter?from=USD&to=BRL');
+  });
+
+  // DEC-283: a "qual vale mais?" question becomes a navigate to the comparator,
+  // carrying the parsed product lines as a JSON query — the comparator ranks them.
+  it('compare_unit_price navigates to the comparator with the items as JSON', () => {
+    const r = buildActionPlan(
+      mkIntent({
+        action: 'compare_unit_price',
+        comparisonItems: [
+          { price: 1, quantity: 120, unit: 'g', label: null },
+          { price: 2, quantity: 200, unit: 'g', label: null },
+        ],
+      }),
+      mkCtx(),
+    );
+    expect(r.status).toBe('ready');
+    if (r.status !== 'ready' || r.plan.type !== 'navigate') throw new Error('expected navigate plan');
+    expect(r.plan.preview.navKey).toBe('comparator');
+    expect(r.plan.to.startsWith('/comparator?items=')).toBe(true);
+    const items = JSON.parse(new URLSearchParams(r.plan.to.split('?')[1]).get('items')!);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ price: 1, quantity: 120, unit: 'g' });
+  });
+
+  it('compare_unit_price with no parsed items opens the bare comparator', () => {
+    const r = buildActionPlan(mkIntent({ action: 'compare_unit_price' }), mkCtx());
+    expect(r.status === 'ready' && r.plan.type === 'navigate' && r.plan.to).toBe('/comparator');
   });
 });
 

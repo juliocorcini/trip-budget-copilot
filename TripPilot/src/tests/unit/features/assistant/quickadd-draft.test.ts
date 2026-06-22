@@ -72,6 +72,7 @@ function mkIntent(partial: Partial<AiIntent> & { action: AiIntent['action'] }): 
     place: null,
     date: null,
     itemName: null,
+    comparisonItems: [],
     screen: null,
     note: null,
     confidence: null,

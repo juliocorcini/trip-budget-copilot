@@ -95,6 +95,18 @@ const GROUPED_ACTIONS: FabAction[] = [
     group: 'plan',
   },
   {
+    // DEC-283: the cost-benefit comparator — "qual vale mais por kg/L/unidade?".
+    // A daily-shopping tool that stays in simple mode too (no `advanced`), since
+    // comparing prices on a shelf is a beginner's most frequent need.
+    icon: 'balance',
+    labelKey: 'fab.comparator',
+    descKey: 'fab.comparator_desc',
+    path: '/comparator',
+    iconBg: '#6B8F7118',
+    iconColorClass: 'text-success',
+    group: 'plan',
+  },
+  {
     icon: 'swap_horiz',
     labelKey: 'fab.register_transfer',
     descKey: 'fab.register_transfer_desc',

@@ -2047,4 +2047,21 @@
 
 ---
 
+### DEC-283 — Cost-benefit comparator (price per kg/L/unit) — V1 shipped
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (Julio) — V1 IMPLEMENTED
+- **Id note**: the stale header pointer said "next = DEC-281", but **DEC-281/DEC-282 were consumed by Gate 3** (FB-16 conditional drink-price + FB-23 discard outing, shipped in 0.99.42 — see `dev-log.md` + `OutingPage.tsx`/`outing.ts`). The next genuinely free id was therefore **DEC-283**.
+- **Context**: Julio asked the council whether a "comparador de custo-benefício" (which package is cheaper *per unit* — e.g. 120 g for €1 vs 200 g for €2, or "5 × 20 g vs 1 × 100 g") fits TripPilot, who it serves, and where it lives. The "Dia a dia" mode (DEC-250) makes grocery-shelf comparison a real, recurring need; it is also useful mid-trip. Council study: `documents/cost-benefit-comparator-council-2026-06-22.md`.
+- **Decision**: ship it as the **twin of the currency converter (DEC-256)** — a PURE, deterministic, **0-token, offline** mini-tool. V1 is **lean & deterministic**: text + voice + manual entry, no photo/OCR (photo is V2, conditioned on real demand — mirrors the converter's staged rollout and the Critic's anti-scope-creep stance).
+- **Scope (V1, what shipped)**:
+  - **Pure domain** `domain/shopping/unit-price.ts` — `resolveUnit` / `normalizeQuantity` / `compareUnitPrice`. Normalizes to a dimension base unit (weight=g, volume=ml, count=unit), ranks by price-per-base-unit, reports the friendly per-kg/L/unit figure, the % the best beats the worst, a 3% **tie** band, and an honest **mixed-dimensions** flag (it refuses to compare weight vs units instead of lying). 20 unit tests.
+  - **Mini-screen** `/comparator` (`features/comparator/ComparatorPage.tsx`), mode-agnostic (outside ModeGuard, like `/converter`). 2–6 item rows (price + quantity + unit), live verdict, best-buy highlight.
+  - **AI intent** `compare_unit_price` (inform action; never creates an expense). New typed `AiIntent.comparisonItems` (untrusted-coerced); `plan.ts` navigates to `/comparator?items=<json>`; worker prompt taught with a rule + example.
+  - **Discovery**: FAB chip (group *plan*), feature-guide entry, help-center article — all 3 languages (pt-BR/en/es).
+- **Out of scope (V2, deferred)**: photo/OCR of shelf labels; %-composition ("X% de cacau") comparison; saving/history of comparisons.
+- **Rationale**: reuses the converter's proven shape (pure core + dedicated page + inform-intent), adds zero recurring cost/risk, and turns a universal market pain into a daily hook for "Dia a dia". Honesty-first math (tie band + mixed-dimension refusal) keeps it trustworthy.
+- **Refs**: study `documents/cost-benefit-comparator-council-2026-06-22.md`; precedent DEC-256 (converter), DEC-250 ("Dia a dia").
+
+---
+
 *New decisions will be added as the project progresses.*

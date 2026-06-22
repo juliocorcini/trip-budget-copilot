@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.49',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'Chegou o Comparador de custo-benefício: descubra na hora qual embalagem vale mais por kg, litro ou unidade — ex.: 120 g por 1€ ou 200 g por 2€ — sem fazer conta de cabeça.',
+        'Use no mercado por texto ou voz ("o que vale mais, 120g por 1 euro ou 200g por 2 euros?") ou preencha os itens na tela. É tudo local: não cria gasto, não gasta internet e funciona offline.',
+        'Abra pelo botão + (em Planejar), pelo Guia ou pela Central de ajuda.',
+      ],
+      en: [
+        'The Cost-benefit comparator has arrived: instantly see which pack is the better buy per kg, litre or unit — e.g. 120 g for €1 vs 200 g for €2 — with no mental math.',
+        'Use it at the store by text or voice ("which is better, 120g for €1 or 200g for €2?") or fill the items on screen. It\'s all local: it logs no expense, uses no internet and works offline.',
+        'Open it from the + button (under Plan), the Guide or the Help center.',
+      ],
+      es: [
+        'Llegó el Comparador de costo-beneficio: descubre al instante qué envase conviene más por kg, litro o unidad — ej.: 120 g por 1€ o 200 g por 2€ — sin cálculos mentales.',
+        'Úsalo en el súper por texto o voz ("¿qué conviene más, 120g por 1€ o 200g por 2€?") o completa los ítems en pantalla. Todo es local: no registra gastos, no usa internet y funciona sin conexión.',
+        'Ábrelo desde el botón + (en Planificar), desde la Guía o el Centro de ayuda.',
+      ],
+    },
+  },
+  {
     version: '0.99.48',
     date: '2026-06-22',
     items: {

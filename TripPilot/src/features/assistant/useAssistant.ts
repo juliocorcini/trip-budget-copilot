@@ -419,6 +419,7 @@ export function useAssistant(): UseAssistant {
           place: outcome.plan.placeLabel,
           date: outcome.plan.purchaseDate,
           itemName: null,
+          comparisonItems: [],
           screen: null,
           note: null,
           confidence: null,

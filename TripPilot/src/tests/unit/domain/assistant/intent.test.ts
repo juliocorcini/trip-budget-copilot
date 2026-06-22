@@ -66,6 +66,36 @@ describe('parseAssistantResponse', () => {
     expect(result.intent.action).toBe('unknown');
   });
 
+  // DEC-283: the cost-benefit comparator carries a list of products. Each line
+  // is coerced (untrusted model); only lines with a price AND a quantity survive.
+  it('coerces comparisonItems for a compare_unit_price ask', () => {
+    const result = parseAssistantResponse({
+      action: 'compare_unit_price',
+      comparisonItems: [
+        { price: '1,00', quantity: 120, unit: 'g', label: 'Choc A' },
+        { amount: 2, qty: '200', measure: 'g' },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.intent.action).toBe('compare_unit_price');
+    expect(result.intent.comparisonItems).toHaveLength(2);
+    expect(result.intent.comparisonItems[0]).toEqual({ price: 1, quantity: 120, unit: 'g', label: 'Choc A' });
+    // aliases (amount/qty/measure) are accepted; missing label/unit → null
+    expect(result.intent.comparisonItems[1]).toEqual({ price: 2, quantity: 200, unit: 'g', label: null });
+  });
+
+  it('drops comparison lines missing a price or quantity, and defaults the field to []', () => {
+    const partial = parseAssistantResponse({
+      action: 'compare_unit_price',
+      comparisonItems: [{ price: 1 }, { quantity: 100, unit: 'g' }, { price: 2, quantity: 200, unit: 'g' }],
+    });
+    expect(partial.ok && partial.intent.comparisonItems).toHaveLength(1);
+
+    const expense = parseAssistantResponse({ action: 'log_expense', amount: 5 });
+    expect(expense.ok && expense.intent.comparisonItems).toEqual([]);
+  });
+
   it('coerces a single participant string into an array and filters blanks', () => {
     const single = parseAssistantResponse({ action: 'split_expense', participants: 'Ana' });
     const many = parseAssistantResponse({ action: 'split_expense', participants: ['Ana', '', '  '] });
