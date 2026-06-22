@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.42',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'A tela de iniciar uma saída ganhou as margens certas — o conteúdo não fica mais colado na borda.',
+        'Configurar uma saída agora só pergunta o que faz sentido pra ela: o preço médio da bebida aparece só em saída de bar/balada, não no mercado nem no transporte.',
+        'Dá pra encerrar uma saída sem salvar: começou errado? Toque em encerrar e escolha “Descartar” — tudo o que você registrou some e o orçamento volta ao que era antes de começar.',
+      ],
+      en: [
+        'The “start an outing” screen now has the right margins — the content no longer sticks to the edge.',
+        'Configuring an outing now only asks what’s relevant to it: the average drink price shows up only for a bar/night out, not for the market or transport.',
+        'You can end an outing without saving it: started it wrong? Tap end and choose “Discard” — everything you logged disappears and your budget goes back to what it was.',
+      ],
+      es: [
+        'La pantalla de iniciar una salida ahora tiene los márgenes correctos — el contenido ya no queda pegado al borde.',
+        'Configurar una salida ahora solo pregunta lo que tiene sentido para ella: el precio medio de la bebida aparece solo en una salida de bar/noche, no en el mercado ni en el transporte.',
+        'Puedes terminar una salida sin guardarla: ¿empezaste mal? Toca terminar y elige “Descartar” — todo lo que registraste desaparece y tu presupuesto vuelve a como estaba.',
+      ],
+    },
+  },
+  {
     version: '0.99.41',
     date: '2026-06-22',
     items: {

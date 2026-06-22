@@ -3,7 +3,7 @@ import { endSession, createSessionItem } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { updateProfileFromTransaction } from '@/domain/forecasting';
 import { isPaidByOwner, resolvePayerExpense } from '@/domain/splitting';
-import { markUpdated } from '@/utils/entity-factory';
+import { markUpdated, softDelete } from '@/utils/entity-factory';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
@@ -106,6 +106,66 @@ export async function endOutingSession(
   );
 
   return { session: completedSession, updatedProfile };
+}
+
+export interface DiscardOutingSessionInput {
+  session: Session;
+}
+
+/**
+ * FB-23 (DEC-282): end an outing WITHOUT saving it. Every row is soft-deleted
+ * (reversible, sync/undo-consistent — never a hard delete) so the budget
+ * returns to the exact state before the outing started: the session's expenses,
+ * their participant shares and its session items go, and the session itself is
+ * marked `cancelled` + soft-deleted (so it shows up neither in the active slot
+ * nor in the history). A linked occurrence is reconciled by reserve presence
+ * (DEC-072): a planned event with a reserve is just UNLINKED so its reserve
+ * resumes and it stays in the planner; a one-off event session's occurrence
+ * (DEC-073, no reserve, created only to back this session) is soft-deleted so
+ * it never leaks into the planner. All applied atomically.
+ */
+export async function discardOutingSession(
+  input: DiscardOutingSessionInput,
+): Promise<void> {
+  const { session } = input;
+  await db.transaction(
+    'rw',
+    [db.sessions, db.transactions, db.sessionItems, db.participantShares, db.plannedOccurrences],
+    async () => {
+      const sessionTxs = await db.transactions.where('sessionId').equals(session.id).toArray();
+      const liveTxs = sessionTxs.filter((tx) => tx.deletedAt === null);
+      if (liveTxs.length > 0) {
+        await db.transactions.bulkPut(liveTxs.map((tx) => softDelete(tx)));
+        const txIds = liveTxs.map((tx) => tx.id);
+        const shares = await db.participantShares.where('transactionId').anyOf(txIds).toArray();
+        const liveShares = shares.filter((s) => s.deletedAt === null);
+        if (liveShares.length > 0) {
+          await db.participantShares.bulkPut(liveShares.map((s) => softDelete(s)));
+        }
+      }
+
+      const items = await db.sessionItems.where('sessionId').equals(session.id).toArray();
+      const liveItems = items.filter((it) => it.deletedAt === null);
+      if (liveItems.length > 0) {
+        await db.sessionItems.bulkPut(liveItems.map((it) => softDelete(it)));
+      }
+
+      const occurrences = await db.plannedOccurrences
+        .filter((o) => o.linkedSessionId === session.id && o.deletedAt === null)
+        .toArray();
+      for (const occurrence of occurrences) {
+        if (occurrence.reservedCents === null) {
+          // One-off scaffolding (DEC-073): existed only for this session.
+          await db.plannedOccurrences.put(softDelete(occurrence));
+        } else {
+          // Pre-planned reserve (DEC-072): unlink so the reserve resumes.
+          await db.plannedOccurrences.put(markUpdated({ ...occurrence, linkedSessionId: null }));
+        }
+      }
+
+      await db.sessions.put(softDelete({ ...session, status: 'cancelled' as const }));
+    },
+  );
 }
 
 export interface StartSessionForOccurrenceInput {

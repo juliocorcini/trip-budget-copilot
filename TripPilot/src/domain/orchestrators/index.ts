@@ -8,6 +8,7 @@ export { registerExpense, registerIncome, enrichTransactionShares } from './expe
 export type { RegisterExpenseInput, EnrichTransactionSharesInput } from './expense-orchestrators';
 export {
   endOutingSession,
+  discardOutingSession,
   startSessionForOccurrence,
   startOneOffEventSession,
   quickAddSessionExpense,
@@ -18,6 +19,7 @@ export {
 export type {
   EndOutingSessionInput,
   EndOutingSessionResult,
+  DiscardOutingSessionInput,
   StartSessionForOccurrenceInput,
   StartOneOffEventSessionInput,
   QuickAddSessionExpenseInput,

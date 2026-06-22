@@ -590,9 +590,9 @@ Convenção de esforço (Tier 3, `velocity-standard.mdc`): **P** ≤ 0,5 dia · 
 - FB-12 (frases + vozes + reveal no fim do carrossel), **FB-08 (cofrinho: ledger `piggy-ledger.ts` Modelo B + `buildPiggySpendByDay` + voz/extrato `PiggyStatementSheet` + insight `piggy_movement` + livre/dia buffer-aware)**, FB-14 (nota/saída = 1 ocasião via `occasionCount`).
 - _Sub-gate de matemática travado por invariantes (saldo == Σdeltas == buffer; afunda-e-recupera 8000≠3000) **antes** da UI. Modelo B (§5.3). TOTAL free-to-spend byte-idêntico; carrossel só mudou contagem/geometria (ÂNCORA 9); cofrinho read-only (ÂNCORA 11). DEC-279/DEC-264/DEC-262._
 
-**Gate 3 — Saída (M).**
-- FB-15 (margens+fluxo), FB-16 (perguntas por contexto), FB-23 (finalizar/descartar).
-- _Auditar `avgDrinkPriceCents` null antes de mexer._
+**Gate 3 ✅ ENTREGUE (0.99.42) — Saída (M).**
+- FB-15 (margens: `px-5`/`max-w` no seletor + config form), FB-16 (perguntas por contexto: `contextUsesDrinkPrice`, preço de bebida só bar/noite), FB-23 (`discardOutingSession`: soft-delete sessão+tx+shares+itens, desvincula/soft-delete ocorrência por reserva).
+- _Leituras de `avgDrinkPriceCents` já null-safe (gauge/alertas ok com null). "Finalizar" intocado. DEC-281/DEC-282._
 
 **Gate 4 — Captura de imagem + Participantes inline + Entrada (M).**
 - **CC-IMG** (extrair chooser tirar-foto/galeria — base das fotos), FB-06/FB-24 (`AddParticipantSheet` reutilizável), FB-09 (costura das entradas: foto na IA + ✨IA no manual).

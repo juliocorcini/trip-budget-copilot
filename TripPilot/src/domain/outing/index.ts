@@ -19,6 +19,7 @@ export {
   suggestNextPayer,
   projectTimeToCeiling,
   calculateReportedTotalDiff,
+  contextUsesDrinkPrice,
   endSession,
   formatSessionDuration,
 } from './outing';

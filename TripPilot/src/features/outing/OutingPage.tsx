@@ -24,6 +24,7 @@ import {
   getSubcategories,
   sortSubcategoriesByProximity,
   findSubcategory,
+  contextUsesDrinkPrice,
   EVENT_CONTEXTS,
 } from '@/domain/outing';
 import type {
@@ -55,6 +56,7 @@ import {
   registerExpense,
   enrichTransactionShares,
   endOutingSession,
+  discardOutingSession,
   createProfileEnabledInPhase,
   startSessionForOccurrence,
   startOneOffEventSession,
@@ -1134,6 +1136,23 @@ export function OutingPage() {
     navigate('/dashboard');
   };
 
+  // FB-23 (DEC-282): end the outing WITHOUT saving — soft-deletes the session
+  // and its rows so the budget returns to the pre-outing state. Same teardown
+  // as a normal end (clear notification, refresh snapshots, back to dashboard).
+  const handleDiscardOuting = async () => {
+    if (!session) return;
+    await discardOutingSession({ session });
+    await closeOutingNotifications();
+    void writeEmergencySnapshot();
+    void recordDailyLocalSnapshot();
+    showToast(t('outing.session_discarded'), 'success');
+    setReviewing(false);
+    setSession(null);
+    setSessionTxs([]);
+    await reloadAppData();
+    navigate('/dashboard');
+  };
+
   // C2 (coherence §2.1): promote this solo outing into a shared, divisible bill.
   // We hand off a pre-built split session (rounds → items) plus the source outing
   // id; committing the split atomically MOVES the financial impact (the outing's
@@ -1190,6 +1209,7 @@ export function OutingPage() {
         onCancel={() => setReviewing(false)}
         onConfirm={handleConfirmEnd}
         onDivide={handleDivideOuting}
+        onDiscard={handleDiscardOuting}
       />
     );
   }
@@ -1205,6 +1225,7 @@ export function OutingPage() {
             configuringProfile.quickAddValuesCents ?? settings.quickAddDefaultValuesCents
           }
           currency={trip.baseCurrency}
+          showDrinkPrice={contextUsesDrinkPrice(configuringProfile.category)}
           onCancel={() => setConfiguringProfile(null)}
           onStart={handleStartConfigured}
         />
@@ -1228,6 +1249,7 @@ export function OutingPage() {
           }}
           initialQuickAddCents={settings.quickAddDefaultValuesCents}
           currency={trip.baseCurrency}
+          showDrinkPrice={false}
           onCancel={() => setConfiguringOccurrence(null)}
           onStart={handleStartForOccurrence}
         />
@@ -1245,13 +1267,14 @@ export function OutingPage() {
           }}
           initialQuickAddCents={settings.quickAddDefaultValuesCents}
           currency={trip.baseCurrency}
+          showDrinkPrice={false}
           onCancel={() => setConfiguringOneOff(false)}
           onStart={handleStartOneOff}
         />
       );
     }
     return (
-      <div className="flex flex-col gap-4 pb-4 pt-2 min-h-screen">
+      <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 px-5 pt-2 min-h-screen">
         <div className="flex items-center gap-3 pt-2">
           <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
             <Icon name="arrow_back" size={24} className="text-on-surface" />
@@ -1553,11 +1576,13 @@ interface SessionStartConfigFormProps {
   initialLimits: SessionLimits;
   initialQuickAddCents: number[];
   currency: string;
+  /** FB-16 (DEC-281): only drink-centric contexts (bar/night) ask for it. */
+  showDrinkPrice: boolean;
   onCancel: () => void;
   onStart: (config: SessionStartConfig) => void;
 }
 
-function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCents, currency, onCancel, onStart }: SessionStartConfigFormProps) {
+function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCents, currency, showDrinkPrice, onCancel, onStart }: SessionStartConfigFormProps) {
   const { t } = useTranslation();
 
   const [name, setName] = useState(initialName);
@@ -1584,7 +1609,7 @@ function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCen
         targetCents,
         ceilingCents,
         maxCents,
-        avgDrinkPriceCents: avgDrink ? parseAmountToCents(avgDrink) : null,
+        avgDrinkPriceCents: showDrinkPrice && avgDrink ? parseAmountToCents(avgDrink) : null,
       },
       quickAddValuesCents: quickValues
         .map(parseAmountToCents)
@@ -1593,7 +1618,7 @@ function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCen
   };
 
   return (
-    <div className="flex flex-col gap-4 pb-4 pt-2">
+    <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 px-5 pt-2">
       <div className="flex items-center gap-3 pt-2">
         <button onClick={onCancel} className="btn-press p-1">
           <Icon name="arrow_back" size={24} className="text-on-surface" />
@@ -1641,20 +1666,22 @@ function SessionStartConfigForm({ initialName, initialLimits, initialQuickAddCen
         )}
       </div>
 
-      <div className="bg-surface-container rounded-xl p-4">
-        <label className="text-xs text-on-surface-faint mb-1 block">{t('outing.config_avg_drink')}</label>
-        <div className="flex items-baseline gap-1">
-          <span className="text-on-surface-faint text-xs">{currency}</span>
-          <input
-            type="number"
-            inputMode="decimal"
-            value={avgDrink}
-            onChange={(e) => setAvgDrink(e.target.value)}
-            placeholder="—"
-            className="bg-transparent text-sm font-bold text-on-surface tabular outline-none w-full"
-          />
+      {showDrinkPrice && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <label className="text-xs text-on-surface-faint mb-1 block">{t('outing.config_avg_drink')}</label>
+          <div className="flex items-baseline gap-1">
+            <span className="text-on-surface-faint text-xs">{currency}</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={avgDrink}
+              onChange={(e) => setAvgDrink(e.target.value)}
+              placeholder="—"
+              className="bg-transparent text-sm font-bold text-on-surface tabular outline-none w-full"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="bg-surface-container rounded-xl p-4">
         <p className="text-xs text-on-surface-faint mb-2">{t('outing.config_quick_values')}</p>
@@ -1844,9 +1871,11 @@ interface SessionReviewProps {
   onConfirm: (result: SessionReviewResult) => void;
   /** C2 — promote this solo outing into a shared/divisible bill ("dividir esta saída"). */
   onDivide?: () => void;
+  /** FB-23 (DEC-282): end the outing WITHOUT saving (discard everything). */
+  onDiscard: () => void;
 }
 
-function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onConfirm, onDivide }: SessionReviewProps) {
+function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onConfirm, onDivide, onDiscard }: SessionReviewProps) {
   const { t } = useTranslation();
   // GATE 5 (D10): only ask which wallet paid the outing when tracking is on.
   const walletTrackingActive = useWalletTracking();
@@ -1860,6 +1889,8 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
   const [excludeLearning, setExcludeLearning] = useState(false);
   const [reportedTotal, setReportedTotal] = useState('');
   const [saving, setSaving] = useState(false);
+  // FB-23: discard needs an explicit confirmation (destructive, soft-delete).
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   const finalTxs = useMemo(
     () =>
@@ -2104,6 +2135,42 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
           {t('outing.review_divide')}
         </button>
       )}
+
+      {/* FB-23 (DEC-282): tertiary, destructive — end without saving. */}
+      <button
+        onClick={() => setDiscardOpen(true)}
+        disabled={saving}
+        className="w-full py-3 rounded-xl text-error font-semibold btn-press disabled:opacity-40 flex items-center justify-center gap-2"
+      >
+        <Icon name="delete_outline" size={18} />
+        {t('outing.review_discard')}
+      </button>
+
+      <BottomSheet
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        title={t('outing.discard_title')}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-on-surface-dim leading-snug">{t('outing.discard_body')}</p>
+          <button
+            onClick={() => {
+              setDiscardOpen(false);
+              onDiscard();
+            }}
+            className="w-full py-3 rounded-xl font-semibold text-sm btn-press"
+            style={{ background: 'var(--error)', color: '#fff' }}
+          >
+            {t('outing.discard_confirm')}
+          </button>
+          <button
+            onClick={() => setDiscardOpen(false)}
+            className="w-full py-3 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+          >
+            {t('outing.discard_keep')}
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   );
 }

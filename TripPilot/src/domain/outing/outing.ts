@@ -109,6 +109,22 @@ export function deriveSessionLimits(profile: ActivityProfile): SessionLimits {
   };
 }
 
+/**
+ * FB-16 (DEC-281): the average drink price only makes sense for drink-centric
+ * contexts (a bar/night). Other contexts — market, transport, gifts — must not
+ * ask for it (the field-feedback complaint: "configurar uma saída no mercado
+ * pergunta o preço médio da bebida"). Null/unknown category → not a drink
+ * context. All downstream reads of `avgDrinkPriceCents` are already null-safe,
+ * so hiding the question simply leaves the value null and the gauge/alerts keep
+ * working unchanged.
+ */
+const DRINK_PRICE_CONTEXTS = new Set(['bar', 'nightlife', 'club', 'night']);
+
+export function contextUsesDrinkPrice(category: string | null | undefined): boolean {
+  if (!category) return false;
+  return DRINK_PRICE_CONTEXTS.has(category);
+}
+
 export interface CreateSessionInput {
   tripId: string;
   phaseId: string;

@@ -1912,6 +1912,12 @@
     "review_exclude_learning": "Não usar no aprendizado",
     "review_confirm": "Confirmar e encerrar saída",
     "review_divide": "Dividir esta saída com outras pessoas",
+    "review_discard": "Encerrar sem salvar",
+    "discard_title": "Descartar esta saída?",
+    "discard_body": "Tudo o que você registrou nesta saída será apagado e o orçamento volta ao que era antes de começar. Esta saída não vai aparecer no histórico.",
+    "discard_confirm": "Sim, descartar tudo",
+    "discard_keep": "Não, voltar",
+    "session_discarded": "Saída descartada",
     "alerts": {
       "amigo_sincero": {
         "halfway": "Metade da meta já foi. Tá no ritmo que você queria?",

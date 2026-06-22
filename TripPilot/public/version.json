@@ -1,8 +1,8 @@
 {
-  "version": "0.99.41",
+  "version": "0.99.42",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.41.zip",
-  "notes": "O cofrinho agora tem voz e extrato: toque no card pra ver, dia a dia, de onde veio e pra onde foi cada centavo. O Amigo Sincero avisa quando o cofrinho mexe e você pode escolher o tom dele (Padrão, Zen, Durão, Econômico) em Configurações. Notas e saídas passam a contar como 1 ocasião no carrossel."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.42.zip",
+  "notes": "A tela de iniciar saída ganhou as margens certas e agora só pergunta o que faz sentido: o preço médio da bebida aparece só em bar/balada, não no mercado. E dá pra encerrar uma saída sem salvar — começou errado? Toque em Descartar e o orçamento volta ao que era."
 }

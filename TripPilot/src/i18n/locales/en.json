@@ -1908,6 +1908,12 @@
     "review_exclude_learning": "Don't use for learning",
     "review_confirm": "Confirm and end outing",
     "review_divide": "Split this outing with others",
+    "review_discard": "End without saving",
+    "discard_title": "Discard this outing?",
+    "discard_body": "Everything you logged in this outing will be erased and your budget goes back to what it was before you started. This outing won't appear in the history.",
+    "discard_confirm": "Yes, discard everything",
+    "discard_keep": "No, go back",
+    "session_discarded": "Outing discarded",
     "alerts": {
       "amigo_sincero": {
         "halfway": "Half the target is gone. Is this the pace you wanted?",

@@ -6,6 +6,7 @@ import {
   getOutingZone,
   getNextDrinkMessageKind,
   calculateNextDrinkImpact,
+  contextUsesDrinkPrice,
   endSession,
 } from '@/domain/outing';
 import type { Session } from '@/domain/types/session';
@@ -151,5 +152,31 @@ describe('endSession', () => {
     const ended = endSession(session);
     expect(ended.status).toBe('completed');
     expect(ended.endedAt).toBeTruthy();
+  });
+});
+
+// FB-16 (DEC-281): the average-drink-price question is only relevant to a
+// drink-centric context. A "market"/"transport" outing must not ask for it.
+describe('contextUsesDrinkPrice', () => {
+  it('is true for drink-centric contexts', () => {
+    expect(contextUsesDrinkPrice('bar')).toBe(true);
+    expect(contextUsesDrinkPrice('nightlife')).toBe(true);
+    expect(contextUsesDrinkPrice('club')).toBe(true);
+    expect(contextUsesDrinkPrice('night')).toBe(true);
+  });
+
+  it('is false for non-drink contexts (the field-feedback bug)', () => {
+    expect(contextUsesDrinkPrice('market')).toBe(false);
+    expect(contextUsesDrinkPrice('transport')).toBe(false);
+    expect(contextUsesDrinkPrice('gifts')).toBe(false);
+    expect(contextUsesDrinkPrice('restaurant')).toBe(false);
+    expect(contextUsesDrinkPrice('entertainment')).toBe(false);
+    expect(contextUsesDrinkPrice('other')).toBe(false);
+  });
+
+  it('is false for null/undefined/empty category', () => {
+    expect(contextUsesDrinkPrice(null)).toBe(false);
+    expect(contextUsesDrinkPrice(undefined)).toBe(false);
+    expect(contextUsesDrinkPrice('')).toBe(false);
   });
 });
