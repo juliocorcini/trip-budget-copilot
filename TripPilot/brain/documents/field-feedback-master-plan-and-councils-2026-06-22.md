@@ -586,9 +586,9 @@ Convenção de esforço (Tier 3, `velocity-standard.mdc`): **P** ≤ 0,5 dia · 
 - FB-07 (FAB ↔ back), FB-13 (margem copiloto), FB-22 (modal admin centralizado), FB-20 (plataformas PWA), FB-05 (device name auto), FB-01 (release notes), FB-02 (guia).
 - _Aquecimento barato, valor imediato, quase tudo isolado._
 
-**Gate 2 — Amigo Sincero + Cofrinho + Carrossel (G, home/feedback).**
-- FB-12 (frases + vozes + reveal no fim do carrossel), **FB-08 (cofrinho: ledger `piggy-ledger.ts` + voz + extrato + insight `piggy_movement` — ver C13/C14)**, FB-14 (nota = 1 ocasião).
-- _Mexe na home **e no motor de "livre/dia"**; auditar contadores e read-only. **Sub-gate de matemática primeiro:** implementar e travar `piggy-ledger.ts` com testes de invariante (saldo extrato == saldo exibido == buffer) e de "afunda-e-recupera" **antes** da UI do extrato/insight. **Modelo B ratificado (§5.3).**_
+**Gate 2 ✅ ENTREGUE (0.99.41) — Amigo Sincero + Cofrinho + Carrossel (G, home/feedback).**
+- FB-12 (frases + vozes + reveal no fim do carrossel), **FB-08 (cofrinho: ledger `piggy-ledger.ts` Modelo B + `buildPiggySpendByDay` + voz/extrato `PiggyStatementSheet` + insight `piggy_movement` + livre/dia buffer-aware)**, FB-14 (nota/saída = 1 ocasião via `occasionCount`).
+- _Sub-gate de matemática travado por invariantes (saldo == Σdeltas == buffer; afunda-e-recupera 8000≠3000) **antes** da UI. Modelo B (§5.3). TOTAL free-to-spend byte-idêntico; carrossel só mudou contagem/geometria (ÂNCORA 9); cofrinho read-only (ÂNCORA 11). DEC-279/DEC-264/DEC-262._
 
 **Gate 3 — Saída (M).**
 - FB-15 (margens+fluxo), FB-16 (perguntas por contexto), FB-23 (finalizar/descartar).
@@ -632,7 +632,7 @@ Convenção de esforço (Tier 3, `velocity-standard.mdc`): **P** ≤ 0,5 dia · 
 
 **Ritual obrigatório ao fechar cada gate (nesta ordem):**
 1. **Testes do gate + áreas impactadas** verdes (não a suíte inteira sempre, mas tudo que o gate toca) + `build` + `tsc` limpos + smoke das 3 telas-núcleo.
-2. **Deploy no Cloudflare Pages (web/OTA):** **bumpar `public/version.json`** (`version` + `bundleUrl`→`bundles/<v>.zip` + `notes`) — o bump de `package.json`/`APP_VERSION` **não** atualiza o manifesto OTA (caveat pego no 0.99.39) → `commit` escopado + `push master` → auto-build roda `build:pages` (gera o bundle). Verificar `/version.json` + `/bundles/<v>.zip` 200. **Julio testa no celular.**
+2. **Deploy no Cloudflare Pages (web/OTA):** **cada gate ganha seu PRÓPRIO bump de versão + release note** (Julio: "não acumular várias novidades na mesma sessão e ir só crescendo") — `APP_VERSION` + `package.json` + **`public/version.json`** (`version` + `bundleUrl`→`bundles/<v>.zip` + `notes`); o bump de `package.json`/`APP_VERSION` **não** atualiza o manifesto OTA (caveat pego no 0.99.39) → `commit` escopado + `push master` → auto-build roda `build:pages` (gera o bundle). Verificar `/version.json` + `/bundles/<v>.zip` `application/zip`. **Julio testa no celular** enquanto o próximo gate avança.
 3. **Context Reset (mesma sessão, 0 request extra):** descartar o "barulho" de construção do gate.
 4. **Refresh:** reler o master plan §4 do **próximo** gate + `dev-log.md` (Current State) + as regras; emitir NON-NEGOTIABLES + estado atual (hardening).
 5. **Refresh intra-gate** a cada 3 milestones; no gate mais pesado (G2), o **sub-gate de matemática** é checkpoint próprio (travado por testes de invariante **antes** da UI).

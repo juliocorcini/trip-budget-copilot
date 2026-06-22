@@ -42,6 +42,43 @@ describe('buildHonestFriendExtras', () => {
     expect(daily).toMatchObject({ id: 'daily_left', days: 3, perDayCents: 3333 });
   });
 
+  it('FB-08/DEC-279: with a live buffer, holds daily at the base ideal (surplus stays in the cofrinho)', () => {
+    // spread = 10000/3 = 3333; base ideal 2000 < spread → reading stays at 2000,
+    // the saved surplus is shown in the cofrinho, not inflated back into the day.
+    const extras = buildHonestFriendExtras({
+      ...base,
+      freeToSpendCents: 10000,
+      daysLeftInPhase: 3,
+      piggyBalanceCents: 5000,
+      baseDailyIdealCents: 2000,
+    });
+    expect(extras.find((e) => e.id === 'daily_left')).toMatchObject({ perDayCents: 2000 });
+  });
+
+  it('FB-08/DEC-279: buffer reading never EXCEEDS what free/days permits (min guard)', () => {
+    // base ideal 4000 > spread 3333 → still capped at the real spread (safe in
+    // every edge: the buffer must never let the daily overstate available money).
+    const extras = buildHonestFriendExtras({
+      ...base,
+      freeToSpendCents: 10000,
+      daysLeftInPhase: 3,
+      piggyBalanceCents: 5000,
+      baseDailyIdealCents: 4000,
+    });
+    expect(extras.find((e) => e.id === 'daily_left')).toMatchObject({ perDayCents: 3333 });
+  });
+
+  it('FB-08/DEC-279: with no buffer, daily-left is byte-identical to the classic spread', () => {
+    const extras = buildHonestFriendExtras({
+      ...base,
+      freeToSpendCents: 10000,
+      daysLeftInPhase: 3,
+      piggyBalanceCents: 0,
+      baseDailyIdealCents: 2000,
+    });
+    expect(extras.find((e) => e.id === 'daily_left')).toMatchObject({ perDayCents: 3333 });
+  });
+
   it('omits daily-left when there is no free money or no days left', () => {
     expect(
       buildHonestFriendExtras({ ...base, freeToSpendCents: 0, daysLeftInPhase: 5 }).some(
@@ -69,6 +106,41 @@ describe('buildHonestFriendExtras', () => {
       amountCents: 5000,
       percent: 25,
     });
+  });
+
+  it('FB-08/DEC-279: surfaces a cofrinho DEPOSIT first, positive, with delta + balance', () => {
+    const extras = buildHonestFriendExtras({
+      ...base,
+      piggyLastMovementCents: 1500,
+      piggyBalanceCents: 8000,
+    });
+    expect(extras[0]).toMatchObject({
+      id: 'piggy_movement',
+      tone: 'positive',
+      deltaCents: 1500,
+      balanceCents: 8000,
+    });
+  });
+
+  it('FB-08/DEC-279: a cofrinho WITHDRAWAL reads calm (steady), keeping the signed delta', () => {
+    const extras = buildHonestFriendExtras({
+      ...base,
+      piggyLastMovementCents: -2000,
+      piggyBalanceCents: 3000,
+    });
+    expect(extras.find((e) => e.id === 'piggy_movement')).toMatchObject({
+      tone: 'steady',
+      deltaCents: -2000,
+      balanceCents: 3000,
+    });
+  });
+
+  it('FB-08/DEC-279: no movement → no piggy slide (nothing to notify)', () => {
+    expect(
+      buildHonestFriendExtras({ ...base, piggyLastMovementCents: 0, piggyBalanceCents: 5000 }).some(
+        (e) => e.id === 'piggy_movement',
+      ),
+    ).toBe(false);
   });
 
   it('surfaces a positive receivable', () => {

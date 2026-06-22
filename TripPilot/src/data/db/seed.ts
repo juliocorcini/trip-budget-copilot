@@ -53,6 +53,7 @@ export function createDefaultAppSettings(): AppSettings {
     phaseLeftoverHandled: [],
     // M14: no savings goal until the traveler sets one.
     savingsGoalCents: null,
+    honestFriendVoice: 'padrao',
     // M19: no value suggestions dismissed yet.
     valueSuggestionsDismissed: [],
     // M22: no saved trip templates yet.

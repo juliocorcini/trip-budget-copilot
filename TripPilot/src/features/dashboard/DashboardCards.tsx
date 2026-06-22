@@ -14,6 +14,7 @@ import {
   getDashboardCard,
   type DashboardCardId,
 } from '@/domain/dashboard';
+import { resolveHonestFriendVoice } from '@/domain/budget';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useCountUp } from '@/hooks/useCountUp';
 import { hapticSelection } from '@/utils/haptics';
@@ -38,6 +39,7 @@ import type { AppSettings } from '@/domain/types/app-settings';
 import type { CheckInIntent } from '@/domain/types/common';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
 import { OccasionCounter } from '@/features/dashboard/cards/OccasionCounter';
+import { PiggyStatementSheet } from '@/features/dashboard/cards/PiggyStatementSheet';
 import { capHomeInsights } from '@/features/dashboard/home-insights';
 import {
   counterAccent,
@@ -184,6 +186,8 @@ export function DashboardCards({
   // perceptible lag. Read-only context (ÂNCORA 12) — a faster echo of what is
   // being persisted, reconciled to null once the settings catch up.
   const [optimisticCheckIn, setOptimisticCheckIn] = useState<CheckInIntent | null>(null);
+  // FB-08 · DEC-279: tapping the cofrinho opens its statement (voice + ledger).
+  const [piggyStatementOpen, setPiggyStatementOpen] = useState(false);
   const persistedCheckInIntent =
     getActiveCheckIn(settings.dailyCheckIn, model.todayIso)?.intent ?? null;
   const effectiveCheckInIntent = optimisticCheckIn ?? persistedCheckInIntent;
@@ -586,8 +590,13 @@ export function DashboardCards({
         // M15 (E6): accumulated under-spend framed as a piggy bank. READ-ONLY —
         // never part of "free today" (ÂNCORA 11).
         return model.piggyBankCents > 0 ? (
-          <div
-            className={`relative mt-4 p-4 rounded-2xl flex items-center gap-3${activeFocusCardId === 'piggy_bank' ? ' lens-card' : ''}`}
+          <button
+            type="button"
+            onClick={() => {
+              hapticSelection();
+              setPiggyStatementOpen(true);
+            }}
+            className={`relative mt-4 p-4 rounded-2xl flex items-center gap-3 w-full text-left${activeFocusCardId === 'piggy_bank' ? ' lens-card' : ''}`}
             style={{ background: '#6B8F7112', border: '1px solid #6B8F7118' }}
           >
             {activeFocusCardId === 'piggy_bank' && <LensChip label={t('dashboard.lens_in_focus')} corner />}
@@ -605,8 +614,12 @@ export function DashboardCards({
                 <AnimatedMoney cents={model.piggyBankCents} currency={trip.baseCurrency} pulseOnChange />
               </p>
               <p className="text-[11px] font-semibold text-on-surface-dim mt-0.5">{t('dashboard.piggy_desc')}</p>
+              <p className="text-[10px] font-bold text-primary mt-1 flex items-center gap-0.5">
+                {t('dashboard.piggy_tap_hint')}
+                <Icon name="chevron_right" size={12} className="text-primary" />
+              </p>
             </div>
-          </div>
+          </button>
         ) : null;
       case 'active_outing':
         return (
@@ -894,7 +907,7 @@ export function DashboardCards({
                   >
                     <OccasionCounter
                       icon={getCategoryIcon(counter.category)}
-                      count={counter.itemCount}
+                      count={counter.occasionCount}
                       label={t(`categories.${counter.category}` as never)}
                       sublabel={t('dashboard.occasion_items')}
                       iconBg={accent.bg}
@@ -1048,6 +1061,10 @@ export function DashboardCards({
               currency={trip.baseCurrency}
               onSeeImpact={() => navigate('/impact')}
               onRescue={() => navigate('/rescue')}
+              onOpenPiggyStatement={() => setPiggyStatementOpen(true)}
+              voice={resolveHonestFriendVoice(settings.honestFriendVoice)}
+              daySeed={model.dayNum ?? 0}
+              onOpenVoiceSettings={() => navigate('/settings?section=amigo')}
               hideOnPlan
             />
           </>
@@ -1551,6 +1568,14 @@ export function DashboardCards({
           </div>
         ),
       )}
+      {/* FB-08 · DEC-279: mounted once here so the cofrinho statement is reachable
+          from BOTH the piggy card and the Amigo Sincero movement insight. */}
+      <PiggyStatementSheet
+        open={piggyStatementOpen}
+        onClose={() => setPiggyStatementOpen(false)}
+        ledger={model.piggyLedger}
+        currency={trip.baseCurrency}
+      />
     </>
   );
 }

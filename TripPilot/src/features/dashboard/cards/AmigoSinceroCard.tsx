@@ -5,9 +5,14 @@ import { formatDate } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import {
   getHonestFriendTone,
+  toVoiceBand,
+  pickVoiceLineIndex,
+  voiceLineKey,
+  DEFAULT_HONEST_FRIEND_VOICE,
   type HonestFriendExtra,
   type HonestFriendTone,
   type HonestFriendV2,
+  type HonestFriendVoice,
 } from '@/domain/budget';
 
 interface AmigoSinceroCardProps {
@@ -27,6 +32,17 @@ interface AmigoSinceroCardProps {
   /** Audit §4.8 (G12): offered ONLY in the dire `alert` tone — a contextual
    * door to rescue mode when the phase is overflowing into its reserve. */
   onRescue?: () => void;
+  /** FB-08 · DEC-279: deep-link from the `piggy_movement` slide to the cofrinho
+   * statement (mounted in DashboardCards). Absent → no link is shown. */
+  onOpenPiggyStatement?: () => void;
+  /** FB-12 · DEC-264: the chosen voice flavoring the verdict's lead line. */
+  voice?: HonestFriendVoice;
+  /** FB-12 · DEC-264: stable seed (trip day number) for the daily phrase pick. */
+  daySeed?: number;
+  /** FB-12 · DEC-264: opens Settings at the voice picker. When present, a
+   * discovery "reveal" slide is appended PAST the last dot — reachable only by
+   * swiping to the very end, never shown by auto-rotation. */
+  onOpenVoiceSettings?: () => void;
   /** Top margin — Home keeps the default; flex-gap layouts pass "". */
   marginClass?: string;
   /** FIELD R2 item 21 (F21): the Home hides the reassuring "on plan" state so
@@ -43,6 +59,7 @@ const EXTRA_ICON: Record<HonestFriendExtra['id'], string> = {
   daily_left: 'calendar_today',
   top_category: 'leaderboard',
   receivable: 'call_received',
+  piggy_movement: 'savings',
 };
 
 // FIELD R2 item 21 (F21): tint + accent + icon per tone — same data-driven shape
@@ -89,6 +106,10 @@ export function AmigoSinceroCard({
   onSeeImpact,
   onSimulate,
   onRescue,
+  onOpenPiggyStatement,
+  voice = DEFAULT_HONEST_FRIEND_VOICE,
+  daySeed = 0,
+  onOpenVoiceSettings,
   marginClass = 'mt-5',
   hideOnPlan = false,
 }: AmigoSinceroCardProps) {
@@ -101,11 +122,23 @@ export function AmigoSinceroCard({
 
   // The carousel = the verdict (slide 0, when shown) followed by each extra. Each
   // slide is the friend saying ONE honest thing; they swipe like the insights.
-  const slides: ({ kind: 'verdict' } | { kind: 'extra'; extra: HonestFriendExtra })[] = [
+  const realSlides: ({ kind: 'verdict' } | { kind: 'extra'; extra: HonestFriendExtra })[] = [
     ...(verdictShown ? [{ kind: 'verdict' as const }] : []),
     ...extras.map((extra) => ({ kind: 'extra' as const, extra })),
   ];
+  // FB-12 · DEC-264: a discovery slide for the voice picker, appended PAST the
+  // last dot. It is reachable only by swiping to the very end and is excluded
+  // from both the dots and the auto-rotation (`realCount` below), so the friend
+  // never interrupts itself to advertise — exactly the "pull a bit more and it
+  // tells you" behavior Julio asked for.
+  const revealShown = Boolean(onOpenVoiceSettings) && realSlides.length >= 1;
+  const slides: (
+    | { kind: 'verdict' }
+    | { kind: 'extra'; extra: HonestFriendExtra }
+    | { kind: 'reveal' }
+  )[] = revealShown ? [...realSlides, { kind: 'reveal' as const }] : realSlides;
   const count = slides.length;
+  const realCount = realSlides.length;
 
   // Device-test 2026-06-20: this is a SWIPE carousel now (drag to pass between the
   // friend's reads), mirroring the dashboard insights carousel — not dot-only taps.
@@ -116,16 +149,18 @@ export function AmigoSinceroCard({
   const pausedUntilRef = useRef(0);
 
   useEffect(() => {
-    if (count <= 1) return;
+    if (realCount <= 1) return;
     const timer = window.setInterval(() => {
       if (Date.now() < pausedUntilRef.current) return;
       const el = scrollRef.current;
       if (!el || el.clientWidth === 0) return;
-      const next = (Math.round(el.scrollLeft / el.clientWidth) + 1) % count;
+      // Wrap within the REAL slides only — auto-rotation never lands on the
+      // reveal slide (FB-12 · DEC-264).
+      const next = (Math.round(el.scrollLeft / el.clientWidth) + 1) % realCount;
       el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' });
     }, AUTO_ADVANCE_MS);
     return () => window.clearInterval(timer);
-  }, [count]);
+  }, [realCount]);
 
   if (count === 0) return null;
 
@@ -147,13 +182,21 @@ export function AmigoSinceroCard({
 
   type Slide = (typeof slides)[number];
   const slideIcon = (slide: Slide): string =>
-    slide.kind === 'verdict' ? TONE_STYLE[verdictTone].icon : EXTRA_ICON[slide.extra.id];
+    slide.kind === 'verdict'
+      ? TONE_STYLE[verdictTone].icon
+      : slide.kind === 'reveal'
+        ? 'record_voice_over'
+        : EXTRA_ICON[slide.extra.id];
   const slideColor = (slide: Slide): string =>
-    TONE_STYLE[slide.kind === 'verdict' ? verdictTone : slide.extra.tone].color;
+    slide.kind === 'reveal'
+      ? 'var(--primary)'
+      : TONE_STYLE[slide.kind === 'verdict' ? verdictTone : slide.extra.tone].color;
   const renderSlideBody = (slide: Slide) =>
     slide.kind === 'verdict'
-      ? renderVerdict(amigo, TONE_STYLE[verdictTone].color, currency, t)
-      : renderExtra(slide.extra, currency, t);
+      ? renderVerdict(amigo, TONE_STYLE[verdictTone].color, currency, t, voice, daySeed)
+      : slide.kind === 'reveal'
+        ? renderReveal(t, onOpenVoiceSettings)
+        : renderExtra(slide.extra, currency, t, onOpenPiggyStatement);
 
   return (
     <div
@@ -164,17 +207,17 @@ export function AmigoSinceroCard({
         <p className="text-[11px] font-bold" style={{ color: style.color }}>
           {t('dashboard.amigo_sincero')}
         </p>
-        {count > 1 && (
+        {realCount > 1 && (
           <div
             className="flex items-center gap-1.5 shrink-0"
             role="tablist"
             aria-label={t('dashboard.amigo_sincero')}
           >
-            {slides.map((_, i) => (
+            {realSlides.map((_, i) => (
               <button
                 key={i}
                 onClick={() => goTo(i)}
-                aria-label={`${i + 1}/${count}`}
+                aria-label={`${i + 1}/${realCount}`}
                 aria-selected={i === safeIndex}
                 role="tab"
                 className="btn-press rounded-full transition-all"
@@ -272,9 +315,21 @@ export function AmigoSinceroCard({
 
 type Translate = ReturnType<typeof useTranslation>['t'];
 
-/** The rich, kind-specific verdict body (DEC-236) — unchanged from the original. */
-function renderVerdict(amigo: HonestFriendV2, color: string, currency: string, t: Translate) {
+/** The rich, kind-specific verdict body (DEC-236). FB-12 · DEC-264 adds a short
+ *  voice-flavored lead line on top — same data, different tone. */
+function renderVerdict(
+  amigo: HonestFriendV2,
+  color: string,
+  currency: string,
+  t: Translate,
+  voice: HonestFriendVoice,
+  daySeed: number,
+) {
   if (amigo.kind === 'none') return null;
+  const voiceBand = toVoiceBand(getHonestFriendTone(amigo));
+  const voiceLine = t(
+    `dashboard.${voiceLineKey(voice, voiceBand, pickVoiceLineIndex(daySeed))}` as never,
+  );
   // G6: over the category pace but the phase still covers the overflow → reconcile
   // both truths; otherwise the reserve-date warning applies (the tight case).
   const showPhaseSlack = amigo.kind === 'over_pace' && amigo.overflowFitsPhase;
@@ -285,6 +340,10 @@ function renderVerdict(amigo: HonestFriendV2, color: string, currency: string, t
 
   return (
     <>
+      {/* FB-12 · DEC-264: the chosen voice speaks first, in its own tone. */}
+      <p className="text-[11px] mt-1 -mb-0.5 italic font-medium" style={{ color }}>
+        {voiceLine}
+      </p>
       <p className="text-[13px] mt-1 leading-snug font-semibold text-on-surface">
         {/* DEC-236: phase truth first — out of free money pre-empts category reads. */}
         {amigo.kind === 'over_budget' && t('dashboard.amigo_over_budget')}
@@ -346,7 +405,37 @@ function renderVerdict(amigo: HonestFriendV2, color: string, currency: string, t
 }
 
 /** A single extra-insight slide (device-test 2026-06-20 carousel). */
-function renderExtra(extra: HonestFriendExtra, currency: string, t: Translate) {
+function renderExtra(
+  extra: HonestFriendExtra,
+  currency: string,
+  t: Translate,
+  onOpenPiggyStatement?: () => void,
+) {
+  // FB-08 · DEC-279: the cofrinho movement reads its own way (gain vs cover) and
+  // offers a tappable door to the full statement.
+  if (extra.id === 'piggy_movement') {
+    const deposit = extra.deltaCents > 0;
+    return (
+      <>
+        <p className="text-[13px] mt-1 leading-snug font-semibold text-on-surface">
+          {t(deposit ? 'dashboard.amigo_extra_piggy_in' : 'dashboard.amigo_extra_piggy_out', {
+            amount: formatMoney(Math.abs(extra.deltaCents), currency),
+            balance: formatMoney(extra.balanceCents, currency),
+          })}
+        </p>
+        {onOpenPiggyStatement && (
+          <button
+            onClick={onOpenPiggyStatement}
+            className="btn-press mt-1.5 text-[11px] font-bold text-primary flex items-center gap-0.5"
+          >
+            {t('dashboard.amigo_extra_piggy_cta')}
+            <Icon name="chevron_right" size={13} className="text-primary" />
+          </button>
+        )}
+      </>
+    );
+  }
+
   const text =
     extra.id === 'phase_progress'
       ? t('dashboard.amigo_extra_phase_progress', { percent: extra.percent })
@@ -364,4 +453,28 @@ function renderExtra(extra: HonestFriendExtra, currency: string, t: Translate) {
           : t('dashboard.amigo_extra_receivable', { amount: formatMoney(extra.amountCents, currency) });
 
   return <p className="text-[13px] mt-1 leading-snug font-semibold text-on-surface">{text}</p>;
+}
+
+/**
+ * FB-12 · DEC-264: the discovery slide past the last dot. Auto-rotation never
+ * lands here; the user finds it only by swiping to the very end ("pull a bit
+ * more and it tells you about voices"). Tapping opens Settings at the picker.
+ */
+function renderReveal(t: Translate, onOpenVoiceSettings?: () => void) {
+  return (
+    <>
+      <p className="text-[13px] mt-1 leading-snug font-semibold text-on-surface">
+        {t('dashboard.amigo_voice_reveal')}
+      </p>
+      {onOpenVoiceSettings && (
+        <button
+          onClick={onOpenVoiceSettings}
+          className="btn-press mt-1.5 text-[11px] font-bold text-primary flex items-center gap-0.5"
+        >
+          {t('dashboard.amigo_voice_reveal_cta')}
+          <Icon name="chevron_right" size={13} className="text-primary" />
+        </button>
+      )}
+    </>
+  );
 }

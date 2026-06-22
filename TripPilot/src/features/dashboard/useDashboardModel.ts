@@ -17,7 +17,9 @@ import {
   calculatePoolSpent,
   projectTripEndSurplus,
   calculateSavingsGoalProgress,
-  calculatePiggyBank,
+  buildPiggyLedger,
+  linearDailyIdealCents,
+  buildPiggySpendByDay,
   selectActivePhasePool,
   selectVisiblePots,
 } from '@/domain/budget';
@@ -522,12 +524,31 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const tripDaysRemaining = Math.max(0, tripTotalDays - tripDaysElapsed);
     const motivationBudgetCents = fts?.totalBudgetCents ?? 0;
     const motivationSpentCents = fts?.totalSpentCents ?? 0;
-    const piggyBankCents = calculatePiggyBank({
-      totalBudgetCents: motivationBudgetCents,
-      totalSpentCents: motivationSpentCents,
-      daysElapsed: tripDaysElapsed,
-      totalDays: tripTotalDays,
-    });
+    // FB-08 · DEC-279 (Model B): the displayed cofrinho is the day-ordered buffer
+    // balance, derived purely by replaying each day's pool spend against the
+    // constant linear daily ideal. `primaryPoolTxs` is the SAME set that feeds
+    // `fts.totalSpentCents`, so Σ daily spend === totalSpentCents — the balance
+    // can never diverge from the numbers shown elsewhere. Hidden (null) for
+    // ongoing/no-date spaces where there is no daily ideal.
+    const piggyDailyIdealCents = linearDailyIdealCents(motivationBudgetCents, tripTotalDays);
+    const piggyLedger =
+      fts && trip && piggyDailyIdealCents > 0
+        ? buildPiggyLedger({
+            dailyIdealCents: piggyDailyIdealCents,
+            spendByDay: buildPiggySpendByDay({
+              transactions: primaryPoolTxs,
+              startDateIso: trip.startDate,
+              daysElapsed: tripDaysElapsed,
+            }),
+          })
+        : null;
+    const piggyBankCents = piggyLedger?.balanceCents ?? 0;
+    // FB-08 · DEC-279: the most-recent day's signed movement drives the "your
+    // cofrinho just moved" notification in the Amigo Sincero carousel.
+    const piggyLastMovementCents =
+      piggyLedger && piggyLedger.entries.length > 0
+        ? piggyLedger.entries[piggyLedger.entries.length - 1]!.deltaCents
+        : 0;
     const savingsGoal =
       fts && settings?.savingsGoalCents != null
         ? calculateSavingsGoalProgress({
@@ -619,6 +640,9 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             topCategoryKey: amigoTopCategory.key,
             topCategoryCents: amigoTopCategory.cents,
             receivableCents,
+            piggyBalanceCents: piggyBankCents,
+            baseDailyIdealCents: piggyDailyIdealCents,
+            piggyLastMovementCents,
           })
         : [];
 
@@ -710,6 +734,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       savings,
       savingsGoal,
       piggyBankCents,
+      piggyLedger,
       valueSuggestion,
       tripPriors,
       amigoV2,

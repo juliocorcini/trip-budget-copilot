@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.41',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'O Cofrinho agora tem voz e extrato: toque no card pra abrir o histórico e ver, dia a dia, de onde veio cada centavo guardado e pra onde foi quando você passou do ritmo.',
+        'O Amigo Sincero te avisa quando o cofrinho mexe (“rendeu X” ou “cobriu X”) e, com um toque, abre o extrato.',
+        'Escolha o tom do Amigo Sincero — Padrão, Zen, Durão ou Econômico — em Configurações. Dica: deslize o carrossel até o fim pra descobrir.',
+        'Notas e saídas agora contam como 1 ocasião no carrossel da tela inicial — uma nota de 40 itens não vira mais 40 “outros”.',
+      ],
+      en: [
+        'The Cofrinho now has a voice and a statement: tap the card to open its history and see, day by day, where each saved cent came from and where it went when you went over pace.',
+        'The Amigo Sincero tells you when the cofrinho moves (“earned X” or “covered X”) and, with a tap, opens the statement.',
+        'Choose the Amigo Sincero’s tone — Default, Zen, Tough or Frugal — in Settings. Tip: swipe the carousel to the end to discover it.',
+        'Receipts and outings now count as 1 occasion in the home carousel — a 40-item receipt no longer shows up as 40 “other”.',
+      ],
+      es: [
+        'El Cofrinho ahora tiene voz y extracto: toca la tarjeta para abrir su historial y ver, día a día, de dónde vino cada moneda ahorrada y a dónde fue cuando te pasaste del ritmo.',
+        'El Amigo Sincero te avisa cuando el cofrinho se mueve (“ganó X” o “cubrió X”) y, con un toque, abre el extracto.',
+        'Elige el tono del Amigo Sincero — Estándar, Zen, Duro o Ahorrador — en Configuración. Tip: desliza el carrusel hasta el final para descubrirlo.',
+        'Notas y salidas ahora cuentan como 1 ocasión en el carrusel de inicio — una nota de 40 ítems ya no aparece como 40 “otros”.',
+      ],
+    },
+  },
+  {
     version: '0.99.40',
     date: '2026-06-22',
     items: {

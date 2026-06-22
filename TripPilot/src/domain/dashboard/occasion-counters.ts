@@ -8,9 +8,11 @@
  * - A "planned" counter is a forecast with a real plan (totalPlanned > 0). Its
  *   number means OCCASIONS remaining (a session counts once — DEC-115).
  * - An "activity" counter is a category WITHOUT a plan. Its number means how
- *   many expense ITEMS were registered in that category. Categories already
- *   represented by a planned meta are excluded, so a category shows EITHER its
- *   plan OR its item count, never both.
+ *   many OCCASIONS happened in that category (DEC-262/FB-14): a receipt or an
+ *   outing writes many rows under ONE sessionId — that is a single occasion,
+ *   not N items; a standalone quick-add (no sessionId) is its own occasion.
+ *   Categories already represented by a planned meta are excluded, so a category
+ *   shows EITHER its plan OR its occasion count, never both.
  */
 import type { OccasionForecast } from '@/domain/forecasting';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
@@ -36,8 +38,11 @@ export interface ActivityOccasionCounter {
   kind: 'activity';
   key: string;
   category: string;
-  /** How many expense items were registered in this category (big number). */
-  itemCount: number;
+  /**
+   * How many OCCASIONS happened in this category (DEC-262/FB-14): distinct
+   * sessions (receipt/outing/split each count once) plus standalone expenses.
+   */
+  occasionCount: number;
 }
 
 export type OccasionCounterItem = PlannedOccasionCounter | ActivityOccasionCounter;
@@ -76,8 +81,8 @@ export function buildOccasionCounters(
   // Categories already covered by a meta are not repeated as raw counts.
   const plannedCategories = new Set(planned.map((p) => p.category));
 
-  // 2) Activity counters — item counts for every other category that has
-  // expenses. Sorted by count (the busiest categories lead).
+  // 2) Activity counters — OCCASION counts (DEC-262/FB-14) for every other
+  // category that has expenses. Sorted by count (the busiest categories lead).
   const expenseTxs = transactions.filter((tx) => tx.type === 'expense');
   const groups = groupTransactionsByCategory(expenseTxs);
   const activity: ActivityOccasionCounter[] = Object.entries(groups)
@@ -86,9 +91,26 @@ export function buildOccasionCounters(
       kind: 'activity' as const,
       key: `category:${category}`,
       category,
-      itemCount: txs.length,
+      occasionCount: countOccasions(txs),
     }))
-    .sort((a, b) => b.itemCount - a.itemCount);
+    .filter((counter) => counter.occasionCount > 0)
+    .sort((a, b) => b.occasionCount - a.occasionCount);
 
   return [...planned, ...activity];
+}
+
+/**
+ * DEC-262 (FB-14): collapse a receipt/outing's many rows (one shared sessionId)
+ * into a single occasion. A receipt of 40 lines used to read "40" in the
+ * carousel; it is ONE purchase. Standalone expenses (no sessionId) each count
+ * once. So occasions = distinct sessionIds + the number of session-less rows.
+ */
+function countOccasions(txs: Transaction[]): number {
+  const sessionIds = new Set<string>();
+  let standalone = 0;
+  for (const tx of txs) {
+    if (tx.sessionId) sessionIds.add(tx.sessionId);
+    else standalone += 1;
+  }
+  return sessionIds.size + standalone;
 }

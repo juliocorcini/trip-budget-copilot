@@ -40,6 +40,8 @@ import { downloadAndInstallApk, isApkInstallSupported } from '@/utils/native/apk
 import { getCurrentCoords, ensureLocationPermission } from '@/utils/geolocation';
 import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { coordsLabel } from '@/domain/location';
+import { HONEST_FRIEND_VOICES, resolveHonestFriendVoice } from '@/domain/budget';
+import type { HonestFriendVoice } from '@/domain/budget';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { AdvancedTripView } from '@/features/settings/AdvancedTripView';
@@ -226,6 +228,15 @@ export function SettingsPage() {
     await appSettingsRepository.update(partial);
     await reload();
   };
+
+  // FB-12 · DEC-264: the Amigo Sincero "reveal" slide deep-links here with
+  // ?section=amigo — bring the voice picker into view so the discovery lands.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('section') !== 'amigo') return;
+    document
+      .getElementById('amigo-voice-section')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
 
   // DEC-124 (R-11 v2): the toggle owns the preference; turning it on also
   // requests browser permission and immediately syncs an active outing.
@@ -565,6 +576,8 @@ export function SettingsPage() {
     { key: 'system', labelKey: 'settings.theme_system' },
   ];
 
+  const activeVoice = resolveHonestFriendVoice(settings.honestFriendVoice);
+
   const quickAddDisplay = settings.quickAddDefaultValuesCents
     .map((c) => fromCents(c).toFixed(2))
     .join(', ');
@@ -752,6 +765,28 @@ export function SettingsPage() {
           ))}
         </div>
       </Section>
+
+      {/* FB-12 · DEC-264: the Amigo Sincero "voice" — same honest reads, four tones. */}
+      <div id="amigo-voice-section">
+        <Section title={t('settings.amigo_voice_title')}>
+          <div className="grid grid-cols-2 gap-2">
+            {HONEST_FRIEND_VOICES.map((voice: HonestFriendVoice) => (
+              <button
+                key={voice}
+                onClick={() => updateSetting({ honestFriendVoice: voice })}
+                className={`py-2.5 rounded-xl text-xs font-bold btn-press ${
+                  activeVoice === voice ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                {t(`settings.amigo_voice_${voice}`)}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-on-surface-faint mt-2">
+            {t(`settings.amigo_voice_hint_${activeVoice}`)}
+          </p>
+        </Section>
+      </div>
 
       <Section title={t('settings.language')}>
         <div className="flex gap-2">

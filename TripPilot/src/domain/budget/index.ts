@@ -37,6 +37,16 @@ export type {
 } from './honest-friend';
 export { buildHonestFriendExtras } from './honest-friend-extras';
 export type { HonestFriendExtra, HonestFriendExtrasInput } from './honest-friend-extras';
+export {
+  HONEST_FRIEND_VOICES,
+  DEFAULT_HONEST_FRIEND_VOICE,
+  resolveHonestFriendVoice,
+  toVoiceBand,
+  pickVoiceLineIndex,
+  voiceLineKey,
+  VOICE_LINES_PER_BAND,
+} from './honest-friend-voice';
+export type { HonestFriendVoice, VoiceBand } from './honest-friend-voice';
 export { buildRescuePlan } from './rescue';
 export type {
   RescuePlan,
@@ -49,6 +59,15 @@ export {
   calculateSavingsGoalProgress,
   calculatePiggyBank,
 } from './motivation';
+export { buildPiggyLedger, linearDailyIdealCents, buildPiggySpendByDay } from './piggy-ledger';
+export type {
+  PiggyLedger,
+  PiggyLedgerEntry,
+  PiggyDaySpend,
+  PiggyEntryKind,
+  BuildPiggyLedgerInput,
+  BuildPiggySpendByDayInput,
+} from './piggy-ledger';
 export {
   selectVisiblePots,
   isPotVisibleOnHome,

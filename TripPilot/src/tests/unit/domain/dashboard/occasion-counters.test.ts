@@ -90,17 +90,19 @@ describe('buildOccasionCounters', () => {
       remaining: 4,
       done: 1,
     });
-    // Activity counters follow, sorted by item count descending.
+    // Activity counters follow, sorted by occasion count descending.
     expect(result.slice(1)).toEqual([
-      { kind: 'activity', key: 'category:transport', category: 'transport', itemCount: 2 },
-      { kind: 'activity', key: 'category:attraction', category: 'attraction', itemCount: 1 },
+      { kind: 'activity', key: 'category:transport', category: 'transport', occasionCount: 2 },
+      { kind: 'activity', key: 'category:attraction', category: 'attraction', occasionCount: 1 },
     ]);
   });
 
   it('keeps planned metas first even when an activity category dwarfs them in count (Julio device test 2026-06-18)', () => {
     // Burgos backup: bar/restaurant/market are planned (small remaining), while a
-    // generic "other" pile has 43 raw items. The colour-coded metas must still
-    // lead — count never promotes an unplanned category above an intention.
+    // generic "other" pile has 43 standalone quick-adds. The colour-coded metas
+    // must still lead — count never promotes an unplanned category above an
+    // intention. (43 SEPARATE expenses are genuinely 43 occasions — DEC-262 only
+    // collapses many rows that share ONE session; see the receipt test below.)
     const profiles = [
       makeProfile('bar', 'bar', 'Bar'),
       makeProfile('rest', 'restaurant', 'Restaurante'),
@@ -133,8 +135,44 @@ describe('buildOccasionCounters', () => {
       'restaurant',
       'market',
     ]);
-    // The 43-item "other" pile is an activity counter — never ahead of a meta.
-    expect(result[3]).toMatchObject({ kind: 'activity', category: 'other', itemCount: 43 });
+    // The 43-occasion "other" pile is an activity counter — never ahead of a meta.
+    expect(result[3]).toMatchObject({ kind: 'activity', category: 'other', occasionCount: 43 });
+  });
+
+  it('DEC-262/FB-14: a receipt (many rows under ONE sessionId) counts as a SINGLE occasion', () => {
+    // The real complaint: a scanned receipt of 40 lines showed "40" in the
+    // carousel. Those 40 rows all share the receipt's session → ONE occasion.
+    // Two standalone "other" quick-adds add 2 more → 3 occasions total, not 42.
+    const receipt = Array.from({ length: 40 }, () =>
+      makeTx({ category: 'other', sessionId: 'receipt-sess-1' }),
+    );
+    const standalone = [makeTx({ category: 'other' }), makeTx({ category: 'other' })];
+
+    const result = buildOccasionCounters({
+      forecasts: [],
+      profiles: [],
+      transactions: [...receipt, ...standalone],
+    });
+
+    expect(result).toEqual([
+      { kind: 'activity', key: 'category:other', category: 'other', occasionCount: 3 },
+    ]);
+  });
+
+  it('DEC-262/FB-14: an outing session collapses to one occasion per category it touches', () => {
+    // A bar outing wrote 5 drink rows (one session) + 1 snack row in a different
+    // category of the same session → 1 occasion in "bar" and 1 in "snack".
+    const outing = [
+      ...Array.from({ length: 5 }, () => makeTx({ category: 'bar', sessionId: 'outing-1' })),
+      makeTx({ category: 'snack', sessionId: 'outing-1' }),
+    ];
+
+    const result = buildOccasionCounters({ forecasts: [], profiles: [], transactions: outing });
+
+    expect(result).toEqual([
+      { kind: 'activity', key: 'category:bar', category: 'bar', occasionCount: 1 },
+      { kind: 'activity', key: 'category:snack', category: 'snack', occasionCount: 1 },
+    ]);
   });
 
   it('excludes a category already represented by a planned meta', () => {
@@ -158,7 +196,7 @@ describe('buildOccasionCounters', () => {
     const result = buildOccasionCounters({ forecasts, profiles, transactions });
 
     expect(result).toEqual([
-      { kind: 'activity', key: 'category:bar', category: 'bar', itemCount: 2 },
+      { kind: 'activity', key: 'category:bar', category: 'bar', occasionCount: 2 },
     ]);
   });
 
@@ -173,7 +211,7 @@ describe('buildOccasionCounters', () => {
     const result = buildOccasionCounters({ forecasts: [], profiles: [], transactions });
 
     expect(result).toEqual([
-      { kind: 'activity', key: 'category:market', category: 'market', itemCount: 1 },
+      { kind: 'activity', key: 'category:market', category: 'market', occasionCount: 1 },
     ]);
   });
 
