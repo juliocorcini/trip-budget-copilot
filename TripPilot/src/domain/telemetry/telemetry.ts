@@ -60,6 +60,7 @@ export interface TelemetryPayload {
 
 const MAX_NAME = 60;
 const MAX_COUNT = 100_000_000;
+const MAX_ERROR_MSG = 240;
 
 /** UTC calendar day (YYYY-MM-DD) — the heartbeat throttle + DAU bucket key. */
 export function utcDayKey(nowMs: number): string {
@@ -102,6 +103,44 @@ export function deriveTelemetryFlags(input: {
     usesAppLock: input.appLockEnabled,
     isNative: input.isNative,
   };
+}
+
+/**
+ * DEC-251 (Onda B) — scrub a raw error message into a safe, low-cardinality
+ * form for anonymous capture: collapse whitespace, replace any long digit run
+ * (ids, money values, tokens, timestamps) with '#', and cap the length. Mirrors
+ * the Worker's server-side scrub so the trust boundary is enforced on both ends
+ * (defense in depth) — the client never even transmits a stray value.
+ */
+export function scrubErrorMessage(raw: string): string {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .replace(/\s+/g, ' ')
+    .replace(/\d{4,}/g, '#')
+    .trim()
+    .slice(0, MAX_ERROR_MSG);
+}
+
+/**
+ * DEC-251 (Onda B) — from the local crash buffer, pick the entries newer than
+ * the last flush and produce scrubbed messages to report, plus the timestamp to
+ * persist as the new high-water mark (so each crash is reported at most once,
+ * even across reloads). Pure: the caller performs the IO (read buffer / POST /
+ * persist the mark).
+ */
+export function selectErrorReports(
+  entries: { timestamp: number; message: string }[],
+  lastFlushedAt: number,
+): { messages: string[]; lastFlushedAt: number } {
+  let highWater = lastFlushedAt;
+  const messages: string[] = [];
+  for (const entry of entries) {
+    if (entry.timestamp <= lastFlushedAt) continue;
+    const message = scrubErrorMessage(entry.message);
+    if (message !== '') messages.push(message);
+    if (entry.timestamp > highWater) highWater = entry.timestamp;
+  }
+  return { messages, lastFlushedAt: highWater };
 }
 
 /** Assemble the JSON-ready heartbeat payload: clamps counts to safe integers,

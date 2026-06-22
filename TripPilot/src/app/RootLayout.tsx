@@ -9,6 +9,7 @@ import { initDeepLinks } from '@/utils/native/deep-link';
 import { hasPendingSharedCsv, setSharedCsvNavHandler } from '@/utils/native/share-target';
 import { setHapticsEnabled } from '@/utils/haptics';
 import { sendHeartbeatIfDue } from '@/utils/telemetry';
+import { flushPendingErrorReports } from '@/utils/error-report';
 import i18n from '@/i18n';
 import type { AppSettings } from '@/domain/types/app-settings';
 
@@ -139,11 +140,18 @@ function useNativeIntents() {
 // foreground. The send itself is throttled to one success per UTC day inside
 // sendHeartbeatIfDue, so a resume costs nothing. Best-effort, silent, and honors
 // the telemetryEnabled opt-out — it never blocks or surfaces to the user.
+// DEC-251 (Onda B): the same lifecycle drains the crash buffer to the Worker
+// `/e` route (dedup'd by a persisted high-water mark, so a resume is a no-op
+// once everything is flushed). Both are best-effort and fully silent.
 function useTelemetryHeartbeat() {
   useEffect(() => {
     void sendHeartbeatIfDue();
+    void flushPendingErrorReports();
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void sendHeartbeatIfDue();
+      if (document.visibilityState === 'visible') {
+        void sendHeartbeatIfDue();
+        void flushPendingErrorReports();
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildTelemetryPayload,
   deriveTelemetryFlags,
+  scrubErrorMessage,
+  selectErrorReports,
   shouldSendHeartbeat,
   utcDayKey,
   type TelemetryCounts,
@@ -177,5 +179,71 @@ describe('buildTelemetryPayload', () => {
   it('truncates an over-long name to 60 chars', () => {
     const long = 'x'.repeat(200);
     expect(buildTelemetryPayload({ ...baseInput, displayName: long }).displayName).toHaveLength(60);
+  });
+});
+
+// DEC-251 (Onda B) — anonymous error capture scrub + selection policy.
+describe('scrubErrorMessage', () => {
+  it('collapses whitespace runs into single spaces and trims the ends', () => {
+    expect(scrubErrorMessage('  Cannot   read \n property\tx  ')).toBe('Cannot read property x');
+  });
+
+  it('replaces long digit runs (ids, money, tokens, timestamps) with #', () => {
+    // 4+ digit runs are masked; short runs (a 1-3 digit code) survive.
+    expect(scrubErrorMessage('Failed at 1718900000000 for trip 12345')).toBe('Failed at # for trip #');
+    expect(scrubErrorMessage('HTTP 404 on /assistant')).toBe('HTTP 404 on /assistant');
+  });
+
+  it('masks a monetary-looking value so it never reaches the server', () => {
+    expect(scrubErrorMessage('total 123456 cents overflow')).toBe('total # cents overflow');
+  });
+
+  it('caps the message at 240 characters', () => {
+    expect(scrubErrorMessage('e'.repeat(500))).toHaveLength(240);
+  });
+
+  it('returns empty string for a non-string input', () => {
+    // Defensive: the worker mirror also guards this across the trust boundary.
+    expect(scrubErrorMessage(undefined as unknown as string)).toBe('');
+    expect(scrubErrorMessage(42 as unknown as string)).toBe('');
+  });
+});
+
+describe('selectErrorReports', () => {
+  const entries = [
+    { timestamp: 100, message: 'old crash A' },
+    { timestamp: 200, message: 'crash with id 99999' },
+    { timestamp: 300, message: '   ' },
+    { timestamp: 400, message: 'newest crash' },
+  ];
+
+  it('reports only entries newer than the last flush, scrubbed', () => {
+    const result = selectErrorReports(entries, 150);
+    expect(result.messages).toEqual(['crash with id #', 'newest crash']);
+  });
+
+  it('advances the high-water mark to the newest entry seen', () => {
+    expect(selectErrorReports(entries, 150).lastFlushedAt).toBe(400);
+  });
+
+  it('keeps the previous mark when nothing is newer (no regression)', () => {
+    expect(selectErrorReports(entries, 400).lastFlushedAt).toBe(400);
+    expect(selectErrorReports(entries, 400).messages).toEqual([]);
+  });
+
+  it('drops entries that scrub down to an empty string', () => {
+    // The whitespace-only entry at t=300 is newer than the mark but yields no
+    // message, yet still pushes the high-water mark forward so it is not retried.
+    const result = selectErrorReports(entries, 250);
+    expect(result.messages).toEqual(['newest crash']);
+    expect(result.lastFlushedAt).toBe(400);
+  });
+
+  it('reports everything when never flushed before', () => {
+    expect(selectErrorReports(entries, 0).messages).toEqual([
+      'old crash A',
+      'crash with id #',
+      'newest crash',
+    ]);
   });
 });

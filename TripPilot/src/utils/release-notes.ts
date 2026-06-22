@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.39',
+    date: '2026-06-21',
+    items: {
+      'pt-BR': [
+        'Quando o app trava, agora ele envia um relatório de erro anônimo pra gente consertar mais rápido — só a mensagem técnica do erro, nunca seus valores nem o conteúdo dos gastos. Continua junto da telemetria e desativável em Configurações.',
+      ],
+      en: [
+        'When the app crashes, it now sends an anonymous error report so we can fix it faster — just the technical error message, never your amounts or the content of your expenses. It rides with telemetry and stays off-switchable in Settings.',
+      ],
+      es: [
+        'Cuando la app falla, ahora envía un informe de error anónimo para arreglarlo más rápido — solo el mensaje técnico del error, nunca tus importes ni el contenido de tus gastos. Va junto con la telemetría y se puede desactivar en Configuración.',
+      ],
+    },
+  },
+  {
     version: '0.99.38',
     date: '2026-06-21',
     items: {

@@ -1,4 +1,4 @@
-import { getSyncWorkerUrl } from '@/data/sync/config';
+import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
 import { parseAssistantIntents, type AiIntent } from '@/domain/assistant';
 import type { AssistantContextPack } from '@/domain/assistant';
 
@@ -30,7 +30,7 @@ async function postAssistant(
   try {
     response = await fetch(`${getSyncWorkerUrl()}/assistant`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: aiRequestHeaders(),
       body: JSON.stringify({ text, context }),
     });
   } catch {

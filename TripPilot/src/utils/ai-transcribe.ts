@@ -1,4 +1,4 @@
-import { getSyncWorkerUrl } from '@/data/sync/config';
+import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
 
 /**
  * DEC-246 (AI Quick Entry · voice): client boundary for Groq Whisper
@@ -76,7 +76,7 @@ export async function transcribeAudio(blob: Blob, language?: string): Promise<Tr
   try {
     response = await fetch(`${getSyncWorkerUrl()}/transcribe`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: aiRequestHeaders(),
       body: JSON.stringify({ audioBase64, mimeType: blob.type || 'audio/webm', language }),
     });
   } catch {

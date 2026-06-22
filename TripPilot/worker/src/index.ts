@@ -74,7 +74,9 @@ const ACTOR_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token, Authorization',
+  // DEC-251 (Onda B): X-Install-Id attributes AI token usage to a pseudonymous
+  // install. It carries no PII and is never required for the call to succeed.
+  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token, Authorization, X-Install-Id',
 };
 
 // DEC-207 — persistent encrypted share channel (KV). One key per share holds
@@ -233,7 +235,12 @@ function buildAssistantSystemPrompt(context: AssistantContextPack): string {
  * folds into a graceful manual fallback (503 not configured, 429 rate limited,
  * 502 upstream/parse).
  */
-async function handleAssistant(request: Request, env: Env): Promise<Response> {
+async function handleAssistant(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
   if (!env.GROQ_API_KEY) return json({ error: 'assistant_not_configured' }, 503);
 
   let body: { text?: unknown; context?: unknown };
@@ -294,6 +301,7 @@ async function handleAssistant(request: Request, env: Env): Promise<Response> {
   } catch {
     return json({ error: 'assistant_unparseable' }, 502);
   }
+  ctx.waitUntil(recordAiUsage(env, installId, 'assistant', groqTotalTokens(payload)));
   return json(parsed);
 }
 
@@ -323,7 +331,12 @@ function transcribeFileExtension(mimeType: string): string {
   return 'webm';
 }
 
-async function handleTranscribe(request: Request, env: Env): Promise<Response> {
+async function handleTranscribe(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
   if (!env.GROQ_API_KEY) return json({ error: 'transcribe_not_configured' }, 503);
 
   let body: { audioBase64?: unknown; mimeType?: unknown; language?: unknown };
@@ -367,12 +380,16 @@ async function handleTranscribe(request: Request, env: Env): Promise<Response> {
   if (upstream.status === 429) return json({ error: 'transcribe_rate_limited' }, 429);
   if (!upstream.ok) return json({ error: 'transcribe_upstream_error', upstreamStatus: upstream.status }, 502);
 
-  let payload: { text?: unknown };
+  let payload: { text?: unknown; usage?: unknown; x_groq?: unknown };
   try {
-    payload = (await upstream.json()) as { text?: unknown };
+    payload = (await upstream.json()) as typeof payload;
   } catch {
     return json({ error: 'transcribe_unparseable' }, 502);
   }
+  // Groq's audio endpoint usually omits token usage; when present it may sit at
+  // the top level or under `x_groq`. Record whatever is there (0 = no-op).
+  const tokens = groqTotalTokens(payload) || groqTotalTokens(payload.x_groq);
+  ctx.waitUntil(recordAiUsage(env, installId, 'transcribe', tokens));
   return json({ text: typeof payload.text === 'string' ? payload.text : '' });
 }
 
@@ -401,7 +418,12 @@ function json(body: unknown, status = 200): Response {
  * stateless boundary. Every failure maps to a stable status the client can act
  * on (503 not configured, 429 rate limited, 502 upstream/parse failure).
  */
-async function handleOcr(request: Request, env: Env): Promise<Response> {
+async function handleOcr(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
   if (!env.GROQ_API_KEY) return json({ error: 'ocr_not_configured' }, 503);
 
   let body: { imageDataUrl?: unknown };
@@ -450,7 +472,7 @@ async function handleOcr(request: Request, env: Env): Promise<Response> {
   if (upstream.status === 429) return json({ error: 'ocr_rate_limited' }, 429);
   if (!upstream.ok) return json({ error: 'ocr_upstream_error', upstreamStatus: upstream.status }, 502);
 
-  let payload: { choices?: { message?: { content?: unknown } }[] };
+  let payload: { choices?: { message?: { content?: unknown } }[]; usage?: unknown };
   try {
     payload = (await upstream.json()) as typeof payload;
   } catch {
@@ -465,6 +487,7 @@ async function handleOcr(request: Request, env: Env): Promise<Response> {
   } catch {
     return json({ error: 'ocr_unparseable' }, 502);
   }
+  ctx.waitUntil(recordAiUsage(env, installId, 'ocr', groqTotalTokens(payload)));
   return json(parsed);
 }
 
@@ -558,10 +581,68 @@ async function handleTelemetryIngest(request: Request, env: Env): Promise<Respon
   return relayDoResponse(res);
 }
 
+// DEC-251 (Onda B) — server-authoritative AI token accounting. The real token
+// count only exists in Groq's response (`usage.total_tokens`), so the client can
+// never under-report it. The pseudonymous install id (X-Install-Id header) is
+// the only thing the client supplies for attribution; absent/invalid ids are
+// simply dropped (the AI call still succeeds — accounting is best-effort).
+const AI_FUNCTIONS = new Set(['assistant', 'ocr', 'transcribe']);
+const ERROR_MAX_BODY_BYTES = 8000;
+
+function readInstallId(request: Request): string {
+  const raw = request.headers.get('X-Install-Id') ?? '';
+  return TELEMETRY_ID_RE.test(raw) ? raw : '';
+}
+
+function groqTotalTokens(payload: unknown): number {
+  const usage = (payload as { usage?: { total_tokens?: unknown } } | null)?.usage;
+  const total = usage?.total_tokens;
+  return typeof total === 'number' && Number.isFinite(total) && total > 0 ? Math.floor(total) : 0;
+}
+
+/**
+ * Record one AI call's token spend against an install (best-effort, fire and
+ * forget via ctx.waitUntil so it never delays the user's response). Silently
+ * no-ops without telemetry, a valid install id, a known function, or tokens.
+ */
+async function recordAiUsage(env: Env, installId: string, fn: string, tokens: number): Promise<void> {
+  if (!env.TELEMETRY || !installId || !AI_FUNCTIONS.has(fn) || tokens <= 0) return;
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const stub = env.TELEMETRY.get(env.TELEMETRY.idFromName('global'));
+    await stub.fetch('https://t.internal/ai-usage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ installId, day, fn, tokens }),
+    });
+  } catch {
+    /* accounting is best-effort — never surface a telemetry failure */
+  }
+}
+
+/**
+ * DEC-251 (Onda B) — anonymous error capture (a tiny self-hosted Sentry). The
+ * client posts a structured crash from its local buffer: a message + minimal
+ * meta, NEVER the surrounding state. The DO scrubs + dedups by message hash, so
+ * the dashboard shows "top errors × affected installs" without storing PII.
+ */
+async function handleErrorIngest(request: Request, env: Env): Promise<Response> {
+  if (!env.TELEMETRY) return json({ error: 'telemetry_not_configured' }, 503);
+  const bodyText = await request.text();
+  if (bodyText.length > ERROR_MAX_BODY_BYTES) return json({ error: 'too_large' }, 413);
+  const stub = env.TELEMETRY.get(env.TELEMETRY.idFromName('global'));
+  const res = await stub.fetch('https://t.internal/error', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: bodyText,
+  });
+  return relayDoResponse(res);
+}
+
 /**
  * Admin query routes — read-only, gated by the ADMIN_TOKEN bearer secret. Maps
  * `/admin/<sub>` to the global telemetry DO's `/<sub>` (overview/installs/
- * timeseries). Never exposes anything the DO does not already aggregate.
+ * timeseries/ai-usage/errors). Never exposes anything the DO does not aggregate.
  */
 async function handleAdmin(request: Request, env: Env, url: URL): Promise<Response> {
   if (!env.TELEMETRY) return json({ error: 'telemetry_not_configured' }, 503);
@@ -579,7 +660,7 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
@@ -599,19 +680,24 @@ export default {
       return stub.fetch(request);
     }
 
+    // DEC-251 (Onda B) — the pseudonymous install id attributes AI token spend.
+    // Read once here and thread into the AI handlers; invalid/absent ids are
+    // dropped by readInstallId so accounting stays strictly best-effort.
+    const installId = readInstallId(request);
+
     // DEC-206 (G2) — cloud receipt OCR. Stateless proxy to Groq vision.
     if (request.method === 'POST' && url.pathname === '/ocr') {
-      return handleOcr(request, env);
+      return handleOcr(request, env, ctx, installId);
     }
 
     // DEC-246 — AI quick-entry router. Stateless proxy to Groq JSON mode.
     if (request.method === 'POST' && url.pathname === '/assistant') {
-      return handleAssistant(request, env);
+      return handleAssistant(request, env, ctx, installId);
     }
 
     // DEC-246 — voice transcription. Stateless proxy to Groq Whisper.
     if (request.method === 'POST' && url.pathname === '/transcribe') {
-      return handleTranscribe(request, env);
+      return handleTranscribe(request, env, ctx, installId);
     }
 
     // DEC-207 S7 — real-time signal relay for a share (best-effort transport).
@@ -645,6 +731,11 @@ export default {
     // DEC-248 — anonymous usage telemetry ingest (NON-MONETARY; allowlisted).
     if (request.method === 'POST' && url.pathname === '/t') {
       return handleTelemetryIngest(request, env);
+    }
+
+    // DEC-251 (Onda B) — anonymous error ingest from the client crash buffer.
+    if (request.method === 'POST' && url.pathname === '/e') {
+      return handleErrorIngest(request, env);
     }
 
     // DEC-248 — read-only admin dashboard query routes (bearer-token gated).
@@ -1116,6 +1207,23 @@ function num(v: SqlStorageValue): number {
   return typeof v === 'number' ? v : Number(v ?? 0) || 0;
 }
 
+// DEC-251 (Onda B) — accepted AI functions for the usage ledger, and the hard
+// caps that keep the error table bounded. Server-side scrubbing is the trust
+// boundary: even if the client forgets to scrub, no long digit run (id, money,
+// token, timestamp) is ever persisted, and messages are length-capped.
+const TELEMETRY_AI_FUNCTIONS = new Set(['assistant', 'ocr', 'transcribe']);
+const ERROR_MSG_MAX = 240;
+const ERRORS_TABLE_CAP = 500;
+
+function scrubErrorMessageServer(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .replace(/\s+/g, ' ')
+    .replace(/\d{4,}/g, '#')
+    .trim()
+    .slice(0, ERROR_MSG_MAX);
+}
+
 export class TelemetryStore {
   private sql: SqlStorage;
 
@@ -1157,6 +1265,46 @@ export class TelemetryStore {
       )`,
     );
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_heartbeats_day ON heartbeats(day)`);
+
+    // DEC-251 (Onda B) — server-authoritative AI token spend, one row per
+    // (install, UTC day, function). Tokens come from Groq's response so the
+    // client can never under-report; `runs` counts calls. Keyed for cheap
+    // per-day / per-function rollups in the admin dashboard.
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS ai_usage (
+        install_id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        fn TEXT NOT NULL,
+        tokens INTEGER NOT NULL DEFAULT 0,
+        runs INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (install_id, day, fn)
+      )`,
+    );
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_ai_usage_day ON ai_usage(day)`);
+
+    // DEC-251 (Onda B) — anonymous error capture, deduped by message hash.
+    // `count` is total occurrences; `users` is distinct affected installs
+    // (tracked in error_seen). The message is already scrubbed before storage.
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS errors (
+        msg_hash TEXT PRIMARY KEY,
+        message TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        users INTEGER NOT NULL DEFAULT 0,
+        first_seen INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL,
+        app_version TEXT,
+        platform TEXT
+      )`,
+    );
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_errors_last_seen ON errors(last_seen)`);
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS error_seen (
+        msg_hash TEXT NOT NULL,
+        install_id TEXT NOT NULL,
+        PRIMARY KEY (msg_hash, install_id)
+      )`,
+    );
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -1166,28 +1314,200 @@ export class TelemetryStore {
     if (request.method === 'GET' && path === '/overview') return this.overview();
     if (request.method === 'GET' && path === '/installs') return this.installs(url);
     if (request.method === 'GET' && path === '/timeseries') return this.timeseries(url);
+    // DEC-251 (Onda B) — AI token ledger (POST = internal ingest, GET = admin)
+    // and anonymous error capture (POST /error = ingest, GET /errors = admin).
+    if (request.method === 'POST' && path === '/ai-usage') return this.ingestAiUsage(request);
+    if (request.method === 'GET' && path === '/ai-usage') return this.aiUsage(url);
+    if (request.method === 'POST' && path === '/error') return this.ingestError(request);
+    if (request.method === 'GET' && path === '/errors') return this.errorsList(url);
     if (request.method === 'DELETE' && path === '/install') return this.deleteInstall(url);
     if (request.method === 'DELETE' && path === '/installs') return this.deleteAllInstalls();
     return json({ error: 'not_found' }, 404);
   }
 
-  /** Wipe every install + heartbeat (admin "reset"). Used to clear test/junk
-   *  data; real users simply re-report on their next heartbeat. */
+  /** Wipe every install + heartbeat + AI/error ledger (admin "reset"). Used to
+   *  clear test/junk data; real users simply re-report on their next heartbeat. */
   private deleteAllInstalls(): Response {
     const before = num(this.sql.exec(`SELECT COUNT(*) AS n FROM installs`).one().n);
     this.sql.exec(`DELETE FROM heartbeats`);
+    this.sql.exec(`DELETE FROM ai_usage`);
+    this.sql.exec(`DELETE FROM error_seen`);
+    this.sql.exec(`DELETE FROM errors`);
     this.sql.exec(`DELETE FROM installs`);
     return json({ ok: true, deleted: before });
   }
 
-  /** Remove one install (and its heartbeats). Used by the admin panel to drop
-   *  test/junk rows. Idempotent: deleting a missing id returns deleted: 0. */
+  /** Remove one install (heartbeats + AI usage), and roll back its contribution
+   *  to each error's distinct-user count. Idempotent: a missing id returns 0. */
   private deleteInstall(url: URL): Response {
     const id = url.searchParams.get('id') ?? '';
     if (!TELEMETRY_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
     this.sql.exec(`DELETE FROM heartbeats WHERE install_id = ?`, id);
+    this.sql.exec(`DELETE FROM ai_usage WHERE install_id = ?`, id);
+    const hashes = this.sql
+      .exec(`SELECT msg_hash FROM error_seen WHERE install_id = ?`, id)
+      .toArray()
+      .map((r) => String(r.msg_hash));
+    for (const h of hashes) {
+      this.sql.exec(`UPDATE errors SET users = MAX(users - 1, 0) WHERE msg_hash = ?`, h);
+    }
+    this.sql.exec(`DELETE FROM error_seen WHERE install_id = ?`, id);
     const r = this.sql.exec(`DELETE FROM installs WHERE install_id = ?`, id);
     return json({ ok: true, deleted: r.rowsWritten });
+  }
+
+  /** DEC-251 (Onda B) — ingest one AI call's token spend (server-authoritative,
+   *  called only by the worker's recordAiUsage). UPSERTs the day/fn row,
+   *  accumulating tokens and incrementing the run count. */
+  private async ingestAiUsage(request: Request): Promise<Response> {
+    let body: Record<string, unknown>;
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const installId = typeof body.installId === 'string' ? body.installId : '';
+    if (!TELEMETRY_ID_RE.test(installId)) return json({ error: 'bad_id' }, 400);
+    const day = typeof body.day === 'string' && TELEMETRY_DAY_RE.test(body.day) ? body.day : '';
+    if (!day) return json({ error: 'bad_day' }, 400);
+    const fn = typeof body.fn === 'string' ? body.fn : '';
+    if (!TELEMETRY_AI_FUNCTIONS.has(fn)) return json({ error: 'bad_fn' }, 400);
+    const rawTokens = body.tokens;
+    if (typeof rawTokens !== 'number' || !Number.isFinite(rawTokens) || rawTokens < 0) {
+      return json({ error: 'bad_tokens' }, 400);
+    }
+    const tokens = Math.min(Math.floor(rawTokens), 100_000_000);
+    this.sql.exec(
+      `INSERT INTO ai_usage (install_id, day, fn, tokens, runs) VALUES (?, ?, ?, ?, 1)
+       ON CONFLICT(install_id, day, fn) DO UPDATE SET
+         tokens = ai_usage.tokens + excluded.tokens,
+         runs = ai_usage.runs + 1`,
+      installId,
+      day,
+      fn,
+      tokens,
+    );
+    return json({ ok: true });
+  }
+
+  /** DEC-251 (Onda B) — admin AI-usage rollup: grand totals, split by function,
+   *  a daily series (bounded), and the heaviest installs (joined to their
+   *  display name for the dashboard). */
+  private aiUsage(url: URL): Response {
+    const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 30, 1), 180);
+    const totals = this.sql
+      .exec(`SELECT COALESCE(SUM(tokens), 0) AS tokens, COALESCE(SUM(runs), 0) AS runs FROM ai_usage`)
+      .one();
+    const byFn = this.sql
+      .exec(`SELECT fn, SUM(tokens) AS tokens, SUM(runs) AS runs FROM ai_usage GROUP BY fn ORDER BY tokens DESC`)
+      .toArray()
+      .map((r) => ({ fn: String(r.fn), tokens: num(r.tokens), runs: num(r.runs) }));
+    const series = this.sql
+      .exec(
+        `SELECT day, SUM(tokens) AS tokens, SUM(runs) AS runs FROM ai_usage GROUP BY day ORDER BY day DESC LIMIT ?`,
+        days,
+      )
+      .toArray()
+      .map((r) => ({ day: String(r.day), tokens: num(r.tokens), runs: num(r.runs) }))
+      .reverse();
+    const topUsers = this.sql
+      .exec(
+        `SELECT a.install_id AS install_id, i.display_name AS display_name,
+                SUM(a.tokens) AS tokens, SUM(a.runs) AS runs
+         FROM ai_usage a LEFT JOIN installs i ON i.install_id = a.install_id
+         GROUP BY a.install_id ORDER BY tokens DESC LIMIT 50`,
+      )
+      .toArray()
+      .map((r) => ({
+        installId: String(r.install_id),
+        displayName: r.display_name === null ? null : String(r.display_name),
+        tokens: num(r.tokens),
+        runs: num(r.runs),
+      }));
+    return json({ totals: { tokens: num(totals.tokens), runs: num(totals.runs) }, byFn, series, topUsers });
+  }
+
+  /** DEC-251 (Onda B) — ingest one anonymous error. Scrubs server-side, dedups
+   *  by message hash, accumulates count, and tracks distinct affected installs.
+   *  Caps the table so an error flood can never grow the DO without bound. */
+  private async ingestError(request: Request): Promise<Response> {
+    let body: Record<string, unknown>;
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+    const installId =
+      typeof body.installId === 'string' && TELEMETRY_ID_RE.test(body.installId) ? body.installId : '';
+    const message = scrubErrorMessageServer(body.message);
+    if (message === '') return json({ error: 'bad_message' }, 400);
+    const appVersion = telemetryStr(body.appVersion, 20);
+    const platform = telemetryStr(body.platform, 20);
+    const now = Date.now();
+    const msgHash = await sha256Hex(message);
+    this.sql.exec(
+      `INSERT INTO errors (msg_hash, message, count, users, first_seen, last_seen, app_version, platform)
+       VALUES (?, ?, 1, 0, ?, ?, ?, ?)
+       ON CONFLICT(msg_hash) DO UPDATE SET
+         count = errors.count + 1,
+         last_seen = excluded.last_seen,
+         message = excluded.message,
+         app_version = excluded.app_version,
+         platform = excluded.platform`,
+      msgHash,
+      message,
+      now,
+      now,
+      appVersion,
+      platform,
+    );
+    if (installId) {
+      const seen = this.sql.exec(
+        `INSERT OR IGNORE INTO error_seen (msg_hash, install_id) VALUES (?, ?)`,
+        msgHash,
+        installId,
+      );
+      if (seen.rowsWritten > 0) {
+        this.sql.exec(`UPDATE errors SET users = users + 1 WHERE msg_hash = ?`, msgHash);
+      }
+    }
+    this.pruneErrors();
+    return json({ ok: true });
+  }
+
+  /** Keep only the most-recent N distinct errors (by last_seen) so a flood of
+   *  unique messages can never grow the table unbounded. */
+  private pruneErrors(): void {
+    const total = num(this.sql.exec(`SELECT COUNT(*) AS n FROM errors`).one().n);
+    if (total <= ERRORS_TABLE_CAP) return;
+    const victims = this.sql
+      .exec(`SELECT msg_hash FROM errors ORDER BY last_seen ASC LIMIT ?`, total - ERRORS_TABLE_CAP)
+      .toArray()
+      .map((r) => String(r.msg_hash));
+    for (const h of victims) {
+      this.sql.exec(`DELETE FROM error_seen WHERE msg_hash = ?`, h);
+      this.sql.exec(`DELETE FROM errors WHERE msg_hash = ?`, h);
+    }
+  }
+
+  /** DEC-251 (Onda B) — admin error list, most-recent first. */
+  private errorsList(url: URL): Response {
+    const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 500);
+    const rows = this.sql
+      .exec(`SELECT * FROM errors ORDER BY last_seen DESC LIMIT ?`, limit)
+      .toArray()
+      .map((r) => ({
+        hash: String(r.msg_hash),
+        message: String(r.message),
+        count: num(r.count),
+        users: num(r.users),
+        firstSeen: num(r.first_seen),
+        lastSeen: num(r.last_seen),
+        appVersion: r.app_version === null ? null : String(r.app_version),
+        platform: r.platform === null ? null : String(r.platform),
+      }));
+    const total = num(this.sql.exec(`SELECT COUNT(*) AS n FROM errors`).one().n);
+    return json({ errors: rows, total });
   }
 
   private async ingest(request: Request, url: URL): Promise<Response> {
@@ -1354,8 +1674,18 @@ export class TelemetryStore {
   private installs(url: URL): Response {
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 500);
     const offset = Math.max(Number(url.searchParams.get('offset')) || 0, 0);
+    // LEFT JOIN the AI ledger so every install row carries its lifetime token
+    // spend + run count (DEC-254: the detail panel shows ALL info about a user).
     const rows = this.sql
-      .exec(`SELECT * FROM installs ORDER BY last_seen DESC LIMIT ? OFFSET ?`, limit, offset)
+      .exec(
+        `SELECT i.*, COALESCE(u.tokens, 0) AS ai_tokens, COALESCE(u.runs, 0) AS ai_runs
+         FROM installs i
+         LEFT JOIN (SELECT install_id, SUM(tokens) AS tokens, SUM(runs) AS runs FROM ai_usage GROUP BY install_id) u
+           ON u.install_id = i.install_id
+         ORDER BY i.last_seen DESC LIMIT ? OFFSET ?`,
+        limit,
+        offset,
+      )
       .toArray();
     const total = num(this.sql.exec(`SELECT COUNT(*) AS n FROM installs`).one().n);
     return json({ installs: rows.map((r) => this.shapeInstall(r)), total, limit, offset });
@@ -1388,6 +1718,10 @@ export class TelemetryStore {
       activeDays: num(r.active_days),
       counters,
       flags,
+      // DEC-251 (Onda B) — server-authoritative AI spend for this install
+      // (present only when the installs() query joins the ledger).
+      aiTokens: num(r.ai_tokens),
+      aiCalls: num(r.ai_runs),
     };
   }
 }

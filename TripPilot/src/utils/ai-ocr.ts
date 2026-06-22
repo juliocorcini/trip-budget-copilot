@@ -1,4 +1,4 @@
-import { getSyncWorkerUrl } from '@/data/sync/config';
+import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
 import { parseReceiptResponse } from '@/domain/receipt';
 import { bumpTelemetryCounter } from '@/utils/telemetry-events';
 import type { ReceiptPlan } from '@/domain/receipt';
@@ -25,7 +25,7 @@ export async function extractReceiptViaCloud(imageDataUrl: string): Promise<Rece
   try {
     response = await fetch(`${getSyncWorkerUrl()}/ocr`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: aiRequestHeaders(),
       body: JSON.stringify({ imageDataUrl }),
     });
   } catch {

@@ -93,7 +93,7 @@ async function resolveOwnerName(): Promise<string | null> {
  * "WEB". Native shells keep their honest `ios`/`android`; the web build is
  * classified from the UA (`ios-web` / `android-web` / `web`).
  */
-function telemetryPlatform(): string {
+export function telemetryPlatform(): string {
   try {
     if (Capacitor.isNativePlatform()) return Capacitor.getPlatform();
   } catch {

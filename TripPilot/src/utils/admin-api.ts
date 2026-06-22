@@ -39,6 +39,9 @@ export interface AdminInstall {
   activeDays: number;
   counters: Record<string, number>;
   flags: Record<string, boolean>;
+  // DEC-251 (Onda B) — server-authoritative AI spend for this install.
+  aiTokens: number;
+  aiCalls: number;
 }
 
 export interface AdminInstallsResult {
@@ -55,6 +58,50 @@ export interface AdminTimeseriesPoint {
 
 export interface AdminTimeseriesResult {
   series: AdminTimeseriesPoint[];
+}
+
+// DEC-251 (Onda B) — server-authoritative AI token accounting.
+export interface AdminAiUsageByFn {
+  fn: string;
+  tokens: number;
+  runs: number;
+}
+
+export interface AdminAiUsageDay {
+  day: string;
+  tokens: number;
+  runs: number;
+}
+
+export interface AdminAiUsageUser {
+  installId: string;
+  displayName: string | null;
+  tokens: number;
+  runs: number;
+}
+
+export interface AdminAiUsageResult {
+  totals: { tokens: number; runs: number };
+  byFn: AdminAiUsageByFn[];
+  series: AdminAiUsageDay[];
+  topUsers: AdminAiUsageUser[];
+}
+
+// DEC-251 (Onda B) — anonymous error capture (deduped by message hash).
+export interface AdminError {
+  hash: string;
+  message: string;
+  count: number;
+  users: number;
+  firstSeen: number;
+  lastSeen: number;
+  appVersion: string | null;
+  platform: string | null;
+}
+
+export interface AdminErrorsResult {
+  errors: AdminError[];
+  total: number;
 }
 
 /** Thrown on a 401 so the UI can clear a stale/wrong token and re-prompt. */
@@ -84,6 +131,14 @@ export function fetchInstalls(token: string, limit = 200): Promise<AdminInstalls
 
 export function fetchTimeseries(token: string, days = 30): Promise<AdminTimeseriesResult> {
   return adminGet<AdminTimeseriesResult>(token, `/admin/timeseries?days=${days}`);
+}
+
+export function fetchAiUsage(token: string, days = 30): Promise<AdminAiUsageResult> {
+  return adminGet<AdminAiUsageResult>(token, `/admin/ai-usage?days=${days}`);
+}
+
+export function fetchErrors(token: string, limit = 100): Promise<AdminErrorsResult> {
+  return adminGet<AdminErrorsResult>(token, `/admin/errors?limit=${limit}`);
 }
 
 export async function deleteInstall(token: string, installId: string): Promise<void> {

@@ -2,8 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AdminAuthError,
   deleteInstall,
+  fetchAiUsage,
+  fetchErrors,
   fetchInstalls,
   fetchOverview,
+  type AdminAiUsageResult,
+  type AdminError,
+  type AdminErrorsResult,
   type AdminInstall,
   type AdminOverview,
 } from '@/utils/admin-api';
@@ -43,6 +48,18 @@ const FLAG_LABELS: Record<string, string> = {
   usesAppLock: 'Trava do app',
   isNative: 'App nativo',
 };
+
+// DEC-251 (Onda B) — AI function labels for the server-authoritative token ledger.
+const AI_FN_LABELS: Record<string, string> = {
+  assistant: 'Assistente (texto)',
+  ocr: 'Leitura de nota',
+  transcribe: 'Transcrição (voz)',
+};
+
+/** Compact token formatting (1.2k, 3.4M) — token counts dwarf the other KPIs. */
+function compactNumber(value: number): string {
+  return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}
 
 function relativeTime(ms: number): string {
   const diff = Date.now() - ms;
@@ -140,6 +157,8 @@ export function AdminPage() {
   const [token, setToken] = useState<string | null>(() => safeLocalStorage.get(TOKEN_KEY));
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [installs, setInstalls] = useState<AdminInstall[]>([]);
+  const [aiUsage, setAiUsage] = useState<AdminAiUsageResult | null>(null);
+  const [errors, setErrors] = useState<AdminErrorsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -151,12 +170,16 @@ export function AdminPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [ov, list] = await Promise.all([
+      const [ov, list, ai, errs] = await Promise.all([
         fetchOverview(activeToken),
         fetchInstalls(activeToken, 500),
+        fetchAiUsage(activeToken, 30),
+        fetchErrors(activeToken, 100),
       ]);
       setOverview(ov);
       setInstalls(list.installs);
+      setAiUsage(ai);
+      setErrors(errs);
     } catch (err) {
       if (err instanceof AdminAuthError) {
         safeLocalStorage.remove(TOKEN_KEY);
@@ -185,6 +208,8 @@ export function AdminPage() {
     setToken(null);
     setOverview(null);
     setInstalls([]);
+    setAiUsage(null);
+    setErrors(null);
   };
 
   const handleDelete = async (install: AdminInstall) => {
@@ -297,6 +322,8 @@ export function AdminPage() {
               <Distribution title="Países" items={overview.countries} />
             </div>
 
+            {aiUsage ? <AiUsageSection usage={aiUsage} /> : null}
+
             <Section title={`Usuários (${installs.length})`}>
               {installs.length === 0 ? (
                 <p className="text-xs text-on-surface-dim">Nenhum usuário registrado ainda.</p>
@@ -316,6 +343,7 @@ export function AdminPage() {
                         <th className="py-2 px-1 font-medium text-right">Gastos</th>
                         <th className="py-2 px-1 font-medium text-right">Divis.</th>
                         <th className="py-2 px-1 font-medium text-right">IA</th>
+                        <th className="py-2 px-1 font-medium text-right">Tokens</th>
                         <th className="py-2 px-1 font-medium" />
                       </tr>
                     </thead>
@@ -342,6 +370,12 @@ export function AdminPage() {
                           <td className="py-2 px-1 text-right tabular-nums">{it.counters.expenses ?? 0}</td>
                           <td className="py-2 px-1 text-right tabular-nums">{it.counters.splits ?? 0}</td>
                           <td className="py-2 px-1 text-right tabular-nums">{it.counters.aiEntries ?? 0}</td>
+                          <td
+                            className="py-2 px-1 text-right tabular-nums text-on-surface-dim"
+                            title={`${(it.aiTokens ?? 0).toLocaleString('pt-BR')} tokens · ${(it.aiCalls ?? 0).toLocaleString('pt-BR')} chamadas`}
+                          >
+                            {it.aiTokens ? compactNumber(it.aiTokens) : '—'}
+                          </td>
                           <td className="py-2 px-1 text-right">
                             <button
                               onClick={(e) => {
@@ -363,6 +397,8 @@ export function AdminPage() {
               )}
             </Section>
 
+            {errors ? <ErrorsSection result={errors} /> : null}
+
             <p className="text-[10px] text-on-surface-faint text-center pb-6">
               Dados anônimos de uso. Nunca capturamos valores nem o conteúdo dos gastos.
             </p>
@@ -383,6 +419,11 @@ function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: (
     { label: 'Idioma', value: install.locale ?? '—' },
     { label: 'País', value: install.country ?? '—' },
     { label: 'Dias ativos', value: install.activeDays.toLocaleString('pt-BR') },
+    // DEC-251 (Onda B) — server-authoritative AI spend (real Groq token count).
+    {
+      label: 'Tokens de IA',
+      value: `${(install.aiTokens ?? 0).toLocaleString('pt-BR')} · ${(install.aiCalls ?? 0).toLocaleString('pt-BR')} chamadas`,
+    },
     { label: 'Primeira vez', value: fullDate(install.firstSeen) },
     { label: 'Última vez', value: `${fullDate(install.lastSeen)} · ${relativeTime(install.lastSeen)}` },
     { label: 'ID do dispositivo', value: install.installId },
@@ -460,6 +501,93 @@ function InstallDetail({ install, onClose }: { install: AdminInstall; onClose: (
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * DEC-251 (Onda B) — server-authoritative AI token panel: grand totals, a split
+ * by function, and the heaviest installs. Tokens come from Groq's response so
+ * the client can never under-report; this is the real cost signal.
+ */
+function AiUsageSection({ usage }: { usage: AdminAiUsageResult }) {
+  const maxFnTokens = Math.max(1, ...usage.byFn.map((f) => f.tokens));
+  return (
+    <Section title="IA — tokens & chamadas (servidor, 30 dias)">
+      <div className="grid grid-cols-2 gap-3">
+        <Kpi label="Tokens (total)" value={usage.totals.tokens} hint={compactNumber(usage.totals.tokens)} />
+        <Kpi label="Chamadas de IA" value={usage.totals.runs} />
+      </div>
+
+      {usage.byFn.length > 0 ? (
+        <div className="flex flex-col gap-2.5">
+          {usage.byFn.map((f) => (
+            <Bar
+              key={f.fn}
+              label={`${AI_FN_LABELS[f.fn] ?? f.fn} · ${f.runs.toLocaleString('pt-BR')}×`}
+              value={f.tokens}
+              max={maxFnTokens}
+              suffix=" tok"
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-on-surface-faint">Nenhum uso de IA registrado ainda.</p>
+      )}
+
+      {usage.topUsers.length > 0 ? (
+        <div className="flex flex-col gap-1.5 pt-1">
+          <h3 className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide">
+            Maiores consumidores
+          </h3>
+          {usage.topUsers.slice(0, 8).map((u) => (
+            <div key={u.installId} className="flex items-baseline justify-between gap-3 text-xs">
+              <span className="text-on-surface-dim truncate">
+                {u.displayName ?? u.installId.slice(0, 8)}
+              </span>
+              <span className="text-on-surface font-semibold tabular-nums shrink-0">
+                {compactNumber(u.tokens)} tok · {u.runs.toLocaleString('pt-BR')}×
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </Section>
+  );
+}
+
+/**
+ * DEC-251 (Onda B) — anonymous error capture. Each row is a unique scrubbed
+ * message (deduped server-side by hash): how many times it happened and how
+ * many distinct installs it hit, newest first.
+ */
+function ErrorsSection({ result }: { result: AdminErrorsResult }) {
+  return (
+    <Section title={`Erros anônimos (${result.total})`}>
+      {result.errors.length === 0 ? (
+        <p className="text-xs text-on-surface-dim">Nenhum erro capturado. 🎉</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {result.errors.map((e) => (
+            <ErrorRow key={e.hash} error={e} />
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+function ErrorRow({ error }: { error: AdminError }) {
+  return (
+    <li className="bg-surface rounded-xl px-3 py-2 flex flex-col gap-1">
+      <p className="text-xs text-on-surface font-medium break-words">{error.message}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-on-surface-faint">
+        <span className="text-danger font-semibold tabular-nums">{error.count.toLocaleString('pt-BR')}×</span>
+        <span className="tabular-nums">{error.users.toLocaleString('pt-BR')} usuário(s)</span>
+        {error.platform ? <span>{error.platform}</span> : null}
+        {error.appVersion ? <span>v{error.appVersion}</span> : null}
+        <span title={fullDate(error.lastSeen)}>{relativeTime(error.lastSeen)}</span>
+      </div>
+    </li>
   );
 }
 

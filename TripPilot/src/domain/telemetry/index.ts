@@ -1,6 +1,8 @@
 export {
   buildTelemetryPayload,
   deriveTelemetryFlags,
+  scrubErrorMessage,
+  selectErrorReports,
   shouldSendHeartbeat,
   utcDayKey,
 } from './telemetry';
