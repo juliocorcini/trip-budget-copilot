@@ -23,6 +23,15 @@ test.describe('Onboarding flow', () => {
     await createButton.click();
     await page.waitForURL('/onboarding');
 
+    // DEC-252: onboarding now opens with a required identity step (owner name +
+    // an optional, local-only e-mail). The name is the only text input here, and
+    // the footer CTA stays disabled until it is filled.
+    const nextButton = page.getByRole('button', { name: /próximo|next/i });
+    await expect(nextButton).toBeDisabled();
+    await page.locator('input[type="text"]').first().fill('Julio');
+    await expect(nextButton).toBeEnabled();
+    await nextButton.click();
+
     // M16: the default path is the 1-question "quick" flow — only the amount and
     // the end date are required, everything else is defaulted/optional.
     await page.locator('input[type="number"]').first().fill('3000');
@@ -30,7 +39,6 @@ test.describe('Onboarding flow', () => {
     await page.locator('input[type="text"]').first().fill('Europa 2026');
 
     // The CTA only enables once amount + end date are present.
-    const nextButton = page.getByRole('button', { name: /próximo|next/i });
     await expect(nextButton).toBeEnabled();
     await nextButton.click();
 
