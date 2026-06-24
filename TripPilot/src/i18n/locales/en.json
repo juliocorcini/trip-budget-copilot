@@ -818,6 +818,7 @@
     "tab_outings": "Outings",
     "no_outings": "No completed outings yet",
     "outing_items": "{{count}} items",
+    "outing_items_in_category": "{{count}} items in this category",
     "outing_one_off": "One-off event",
     "receipt_badge": "Receipt",
     "source_wallet": "Which wallet did it come from?",

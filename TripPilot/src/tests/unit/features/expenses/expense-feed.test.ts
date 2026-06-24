@@ -54,7 +54,7 @@ describe('buildSessionFeed (DEC-206 rollup + D-BUG-04)', () => {
     expect(incomeEntry?.kind).toBe('tx');
   });
 
-  it('does NOT roll up sessions when not browsing (search/filter active)', () => {
+  it('does NOT roll up sessions when collapse is off (text search active)', () => {
     const sessionById = new Map([['s1', session('s1')]]);
     const feed = buildSessionFeed(
       [tx({ id: 'a', sessionId: 's1' }), tx({ id: 'b', sessionId: 's1' })],
@@ -96,6 +96,41 @@ describe('buildSessionFeed (DEC-206 rollup + D-BUG-04)', () => {
     expect(feed).toHaveLength(2);
     expect(feed[0]?.kind).toBe('session'); // the receipt still collapses
     expect(feed[1]?.kind).toBe('tx'); // the split stays standalone
+  });
+
+  it('C01/DEC-296: under a category filter the outing stays ONE row with the FILTERED subtotal', () => {
+    // A "Mercado" outing of 1000 (market) + 500 (transport). The list pre-filters
+    // to category=market, so only the two market txs reach the feed; collapsing is
+    // ON (no text search). The row must be a single session entry whose total is
+    // the filtered subtotal (300 + 700 = 1000), NOT the full 1500 — and NOT two
+    // loose item rows (the bug). The full total is one tap away on the outing.
+    const sessionById = new Map([['mercado', session('mercado')]]);
+    const marketOnly = [
+      tx({ id: 'arroz', sessionId: 'mercado', amountCents: 300 }),
+      tx({ id: 'pao', sessionId: 'mercado', amountCents: 700 }),
+    ];
+    const feed = buildSessionFeed(marketOnly, sessionById, true);
+    expect(feed).toHaveLength(1);
+    const rollup = feed[0];
+    expect(rollup?.kind).toBe('session');
+    if (rollup?.kind === 'session') {
+      expect(rollup.txs).toHaveLength(2); // "2 itens nesta categoria"
+      expect(rollup.totalCents).toBe(1_000); // filtered subtotal, honest to the filter
+    }
+  });
+
+  it('C01/DEC-296: a free-text search itemises (collapse off) — the user wants the line', () => {
+    const sessionById = new Map([['mercado', session('mercado')]]);
+    const feed = buildSessionFeed(
+      [
+        tx({ id: 'arroz', sessionId: 'mercado', amountCents: 300 }),
+        tx({ id: 'queijo', sessionId: 'mercado', amountCents: 700 }),
+      ],
+      sessionById,
+      false, // collapseSessions=false ONLY when there is a text query
+    );
+    expect(feed).toHaveLength(2);
+    expect(feed.every((e) => e.kind === 'tx')).toBe(true);
   });
 });
 

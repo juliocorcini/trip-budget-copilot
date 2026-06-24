@@ -184,17 +184,20 @@ export function ExpenseListPage() {
       : day === yesterdayKey
         ? t('expenses.day_yesterday')
         : formatShortDate(day);
-  // DEC-206 (rollup): while BROWSING (no search/filter), collapse a session's
-  // transactions into ONE feed entry positioned at its latest line — so a 40-item
-  // receipt reads as a single "Mercadona · 6 items · €X" row. When searching or
-  // filtering, the user wants the specific line, so we keep the list itemised.
-  const isBrowsing =
-    !searchQuery && !filterCategory && !filterProfileId && !filterWalletNull && !filterPlace;
+  // C01 / DEC-296 (rollup): an outing is ONE entity in every summary. Collapse a
+  // session's transactions into ONE feed row whenever the user is NOT doing a
+  // free-text search — even with a category/profile/place/wallet filter active
+  // (the old `isBrowsing` disabled the rollup under any filter, so clicking a
+  // category exploded the receipt into loose items). Under a scope filter the row
+  // shows only the matching items — its `totalCents` is the filtered subtotal and
+  // the count reads "N itens nesta categoria"; a tap still opens the FULL outing.
+  // Only a TEXT SEARCH itemises, because then the user is hunting a specific line.
+  const collapseSessions = !searchQuery;
   // D-BUG-04: merge income into the date-ordered feed (only re-sort when there
   // IS income, so a trip with none stays byte-identical to the expense-only feed).
   const feedTransactions =
     incomes.length === 0 ? expenses : [...expenses, ...incomes].sort(byDateDesc);
-  const feed = buildSessionFeed(feedTransactions, sessionById, isBrowsing);
+  const feed = buildSessionFeed(feedTransactions, sessionById, collapseSessions);
   const expenseGroups = groupFeedByDay(feed);
 
   const filterState: ExpenseFilterState = {
@@ -579,6 +582,7 @@ export function ExpenseListPage() {
                       totalCents={entry.totalCents}
                       currency={trip.baseCurrency}
                       profiles={profiles}
+                      filterCategory={filterCategory}
                       onOpen={() => navigate(`/outings/${entry.session.id}/review`)}
                     />
                   );
@@ -846,6 +850,7 @@ function SessionRollupRow({
   totalCents,
   currency,
   profiles,
+  filterCategory,
   onOpen,
 }: {
   session: Session;
@@ -853,6 +858,10 @@ function SessionRollupRow({
   totalCents: number;
   currency: string;
   profiles: ActivityProfile[];
+  // C01 / DEC-296: when a category filter is active the row is a PARTIAL view of
+  // the outing (only the matching items); the count reads "N itens nesta
+  // categoria" and `totalCents` is the filtered subtotal. Tap opens the full one.
+  filterCategory?: string | null;
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
@@ -879,7 +888,11 @@ function SessionRollupRow({
         <div className="flex-1 min-w-0">
           <p className="text-sm text-on-surface truncate">{session.name}</p>
           <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
-            <span>{t('expenses.outing_items', { count: txs.length })}</span>
+            <span>
+              {filterCategory
+                ? t('expenses.outing_items_in_category', { count: txs.length })
+                : t('expenses.outing_items', { count: txs.length })}
+            </span>
             {when && (
               <>
                 <span>·</span>

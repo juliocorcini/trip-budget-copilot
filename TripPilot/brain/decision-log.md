@@ -2176,7 +2176,7 @@
 
 ### DEC-296 — Outing×Item collapse semantics under filter (Council C-B / §16 Q2)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G2)
+- **Status**: APPROVED — Coherence wave (Gate G2, shipped 0.99.59)
 - **Decision**: summaries/filters/carousel/recents/map/patterns show the **outing** (1 entity); only **text search** itemizes. Under a category filter the collapsed row shows a **filtered subtotal** ("Mercado · N itens nesta categoria · €X") and tap opens the full outing (full total + all items). An item always references its parent outing.
 - **Rationale**: the core pain is summaries "exploding" a receipt into loose items; collapse by `sessionId` among the transactions that match the filter is honest to the filter while keeping the outing as one entity.
 - **Refines**: orchestrator §6 C01 / §7 C-B. **Gate G2.**

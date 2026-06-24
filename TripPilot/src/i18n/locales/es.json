@@ -818,6 +818,7 @@
     "tab_outings": "Salidas",
     "no_outings": "Aún no hay salidas finalizadas",
     "outing_items": "{{count}} ítems",
+    "outing_items_in_category": "{{count}} ítems en esta categoría",
     "outing_one_off": "Evento único",
     "receipt_badge": "Recibo",
     "source_wallet": "¿De qué billetera salió?",

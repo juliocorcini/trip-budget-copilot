@@ -822,6 +822,7 @@
     "tab_outings": "Saídas",
     "no_outings": "Nenhuma saída encerrada ainda",
     "outing_items": "{{count}} itens",
+    "outing_items_in_category": "{{count}} itens nesta categoria",
     "outing_one_off": "Evento único",
     "receipt_badge": "Nota",
     "source_wallet": "De qual carteira saiu?",

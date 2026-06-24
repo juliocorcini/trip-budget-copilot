@@ -1,8 +1,8 @@
 {
-  "version": "0.99.58",
+  "version": "0.99.59",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.58.zip",
-  "notes": "Acabamento que tira o susto: as barras só ficam vermelhas quando há problema de verdade, o foco dos campos ficou discreto (sem a borda laranja) e os atalhos do botão (+) e das Configurações ganharam um arranjo mais equilibrado."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.59.zip",
+  "notes": "Lista de gastos coerente: tocar numa categoria não estoura mais a nota em itens soltos — cada saída continua sendo uma linha só, com o subtotal daquela categoria e o número de itens; o toque abre a saída completa. Só a busca por texto mostra item a item."
 }

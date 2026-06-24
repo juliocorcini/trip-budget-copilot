@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.59',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Lista de gastos mais coerente: tocar numa categoria (ou num cartão do painel) não estoura mais a nota em itens soltos. Cada saída continua sendo uma linha só, agora com o subtotal daquela categoria e quantos itens dela entraram ("3 itens nesta categoria").',
+        'O toque na saída abre o detalhe completo — total cheio e todos os itens — então nada se perde.',
+        'Só a busca por texto mostra item a item, que é quando você está mesmo caçando uma linha específica.',
+      ],
+      en: [
+        'More coherent expense list: tapping a category (or a dashboard card) no longer explodes a receipt into loose items. Each outing stays a single row, now showing that category\'s subtotal and how many of its items matched ("3 items in this category").',
+        'Tapping the outing opens the full detail — full total and every item — so nothing is lost.',
+        'Only a text search itemises, which is exactly when you are hunting a specific line.',
+      ],
+      es: [
+        'Lista de gastos más coherente: tocar una categoría (o una tarjeta del panel) ya no estalla el recibo en ítems sueltos. Cada salida sigue siendo una sola línea, ahora con el subtotal de esa categoría y cuántos de sus ítems coincidieron ("3 ítems en esta categoría").',
+        'Tocar la salida abre el detalle completo — total entero y todos los ítems — así no se pierde nada.',
+        'Solo la búsqueda por texto muestra ítem por ítem, que es justo cuando buscas una línea concreta.',
+      ],
+    },
+  },
+  {
     version: '0.99.58',
     date: '2026-06-24',
     items: {
