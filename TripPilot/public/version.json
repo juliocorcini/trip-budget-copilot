@@ -1,8 +1,8 @@
 {
-  "version": "0.99.57",
+  "version": "0.99.58",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.57.zip",
-  "notes": "A divisão de contas ficou mais confiável: o saldo de quem recebe e quem deve está sempre claro e, quando todo mundo se acerta, aparece um selo 'Tudo acertado ✓' — o fim tranquilo que fica na memória do grupo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.58.zip",
+  "notes": "Acabamento que tira o susto: as barras só ficam vermelhas quando há problema de verdade, o foco dos campos ficou discreto (sem a borda laranja) e os atalhos do botão (+) e das Configurações ganharam um arranjo mais equilibrado."
 }

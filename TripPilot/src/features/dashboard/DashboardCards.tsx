@@ -14,7 +14,12 @@ import {
   getDashboardCard,
   type DashboardCardId,
 } from '@/domain/dashboard';
-import { resolveHonestFriendVoice, isPhaseFullyPlanned } from '@/domain/budget';
+import {
+  resolveHonestFriendVoice,
+  isPhaseFullyPlanned,
+  resolveProgressTone,
+  type ProgressTone,
+} from '@/domain/budget';
 import { AskToSpendShortcut } from './AskToSpendShortcut';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -74,6 +79,14 @@ interface DashboardCardsProps {
 // from the pre-action amount to the new one ("watch it drop"). Absent on the
 // very first visit, so there is no intro animation.
 const HERO_PREV_KEY = 'tp:hero-free-cents';
+
+// C12 / DEC-299: the hero free-to-spend bar reads its color from the budget
+// state, not a fixed terracotta gradient — normal progress is positive, red is
+// reserved for a real problem (see resolveProgressTone).
+const PROGRESS_TONE_BG: Record<ProgressTone, string> = {
+  positive: 'var(--success)',
+  risk: 'var(--error)',
+};
 
 function readHeroPrevCents(): number | null {
   try {
@@ -811,7 +824,15 @@ export function DashboardCards({
                     className="h-full rounded-full"
                     style={{
                       width: `${Math.min(100, model.progressPercent)}%`,
-                      background: 'linear-gradient(90deg, var(--success), var(--primary))',
+                      background:
+                        PROGRESS_TONE_BG[
+                          resolveProgressTone({
+                            trueFreeCents: model.trueFree.trueFreeCents,
+                            totalBudgetCents: model.fts.totalBudgetCents,
+                            totalSpentCents: model.fts.totalSpentCents,
+                            protectedReserveCents: model.fts.protectedReserveCents,
+                          })
+                        ],
                     }}
                   />
                 </div>
@@ -1004,7 +1025,7 @@ export function DashboardCards({
                   ))}
                 </div>
                 {visibleInsights.length > 1 && (
-                  <div className="flex justify-center gap-1.5 pb-2">
+                  <div className="flex justify-center gap-1.5">
                     {visibleInsights.map((insight, i) => (
                       <button
                         key={insight.kind}
@@ -1016,7 +1037,7 @@ export function DashboardCards({
                           });
                         }}
                         aria-label={`${t('dashboard.insights_title')} ${i + 1}`}
-                        className="p-2.5 btn-press"
+                        className="px-2 py-1.5 btn-press"
                       >
                         <span
                           className="block w-1.5 h-1.5 rounded-full"

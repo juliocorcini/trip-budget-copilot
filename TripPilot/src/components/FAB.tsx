@@ -169,6 +169,9 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
   const actions = visibleInMode(GROUPED_ACTIONS, settings?.appMode ?? 'complete');
   // GATE 18 visible tier: the planning tools lead, then the live-capture leader.
   const captureActions = actions.filter((a) => a.group === 'capture');
+  // C15: the lead capture action ("Iniciar saída") pairs 2-up with "Dividir
+  // conta"; any remaining capture actions render full-width below (ÂNCORA 9).
+  const [primaryCapture, ...restCapture] = captureActions;
   const planActions = actions.filter((a) => a.group === 'plan');
   const otherActions = actions.filter((a) => a.group === 'other');
 
@@ -235,6 +238,85 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
       <Icon name="arrow_forward" size={18} className={`${action.iconColorClass} shrink-0`} />
     </button>
   );
+
+  // T1/T2 (bill split): "Dividir conta" is the star — the superset of the
+  // receipt scanner (capture → tax → split → commit), with the indigo "smart"
+  // accent + sparkle so it stands apart from the orange/IA heroes. C15: it pairs
+  // 2-up with "Iniciar saída" as a `chip`; in simple mode (no outing) it renders
+  // full-`wide`. A live division turns the tap into a resume-or-new decision.
+  const handleSplitBill = () => {
+    if (activeSplit) {
+      hapticSelection();
+      onClose();
+      onSplitResumeOrNew();
+    } else {
+      handleAction('/split/scan');
+    }
+  };
+
+  const renderSplitBill = (variant: 'chip' | 'wide') => {
+    if (variant === 'chip') {
+      return (
+        <button
+          key="split-bill"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSplitBill();
+          }}
+          className="btn-press p-3.5 rounded-2xl flex flex-col gap-2 text-left h-full"
+          style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative"
+            style={{ background: 'var(--ai-bg)' }}
+          >
+            <Icon name="splitscreen" size={20} className="text-[var(--ai-2)]" />
+            <span
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+              style={{ background: 'var(--ai)' }}
+            >
+              <Icon name="auto_awesome" size={9} className="text-[#ffffff]" />
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold text-on-surface leading-tight">{t('fab.split_bill')}</p>
+            <p className="text-[10px] font-semibold text-on-surface-dim leading-snug line-clamp-1 mt-0.5">
+              {t('fab.split_bill_desc')}
+            </p>
+          </div>
+        </button>
+      );
+    }
+    return (
+      <button
+        key="split-bill"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleSplitBill();
+        }}
+        className="btn-press p-4 rounded-2xl flex items-center gap-3.5 text-left"
+        style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
+      >
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 relative"
+          style={{ background: 'var(--ai-bg)' }}
+        >
+          <Icon name="splitscreen" size={24} className="text-[var(--ai-2)]" />
+          <span
+            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+            style={{ background: 'var(--ai)' }}
+          >
+            <Icon name="auto_awesome" size={9} className="text-[#ffffff]" />
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[15px] font-extrabold text-on-surface">{t('fab.split_bill')}</p>
+          <p className="text-[11px] font-semibold text-on-surface-dim">{t('fab.split_bill_desc')}</p>
+        </div>
+        <Icon name="auto_awesome" size={18} className="text-[var(--ai-2)] shrink-0" />
+      </button>
+    );
+  };
 
   const renderOtherExpander = (groupActions: FabAction[]) => {
     if (groupActions.length === 0) return null;
@@ -336,47 +418,22 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
                 </div>
               )}
 
-              {captureActions.map(renderWideAction)}
-
-              {/* T1/T2 (bill split): "Dividir conta" is the star — the superset of
-                  the receipt scanner (capture → tax → split → commit). It keeps the
-                  distinct indigo "smart" accent + sparkle so it stands apart from the
-                  orange hero and feels inviting rather than hidden. */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // A division already live → ask resume-or-new; else go straight in.
-                  if (activeSplit) {
-                    hapticSelection();
-                    onClose();
-                    onSplitResumeOrNew();
-                  } else {
-                    handleAction('/split/scan');
-                  }
-                }}
-                className="btn-press p-4 rounded-2xl flex items-center gap-3.5 text-left"
-                style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
-              >
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 relative"
-                  style={{ background: 'var(--ai-bg)' }}
-                >
-                  <Icon name="splitscreen" size={24} className="text-[var(--ai-2)]" />
-                  <span
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                    style={{ background: 'var(--ai)' }}
-                  >
-                    <Icon name="auto_awesome" size={9} className="text-[#ffffff]" />
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-extrabold text-on-surface">{t('fab.split_bill')}</p>
-                  <p className="text-[11px] font-semibold text-on-surface-dim">
-                    {t('fab.split_bill_desc')}
-                  </p>
-                </div>
-                <Icon name="auto_awesome" size={18} className="text-[var(--ai-2)] shrink-0" />
-              </button>
+              {/* C15: pair "Iniciar saída" + "Dividir conta" side by side. When
+                  the outing capture is present (complete mode) they sit 2-up; in
+                  simple mode (outing hidden) "Dividir conta" renders full-width.
+                  Any extra capture action stays reachable below (ÂNCORA 9). The
+                  orange/IA heroes below keep their full-width prominence. */}
+              {primaryCapture ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {renderChip(primaryCapture)}
+                    {renderSplitBill('chip')}
+                  </div>
+                  {restCapture.map(renderWideAction)}
+                </>
+              ) : (
+                renderSplitBill('wide')
+              )}
 
               {/* DEC-201 (N7): the orange hero — the base of the sheet, in the thumb
                   zone (closest to the "+"). */}

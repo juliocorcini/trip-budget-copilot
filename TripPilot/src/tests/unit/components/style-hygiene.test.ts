@@ -114,3 +114,60 @@ describe('M19 — no `transition-all` anti-pattern in source', () => {
     expect(offenders.map((f) => f.replace(SRC, 'src'))).toEqual([]);
   });
 });
+
+describe('C25 / DEC-305 — neutral, subtle input focus (coherence wave)', () => {
+  const css = readFileSync(GLOBALS, 'utf8');
+
+  /** The dedicated input/textarea/select :focus-visible rule (selectors + body). */
+  function inputFocusBlock(): string {
+    const start = css.indexOf('input:focus-visible');
+    expect(start, 'an input:focus-visible rule must exist').toBeGreaterThan(-1);
+    const open = css.indexOf('{', start);
+    const close = css.indexOf('}', open);
+    return css.slice(start, close + 1);
+  }
+
+  it('covers text-entry controls (textarea/select/contenteditable too)', () => {
+    const block = inputFocusBlock();
+    expect(block).toContain('textarea:focus-visible');
+    expect(block).toContain('select:focus-visible');
+    expect(block).toContain('contenteditable');
+  });
+
+  it('does NOT use the terracotta --primary on input focus (no alert-looking ring)', () => {
+    expect(inputFocusBlock()).not.toContain('var(--primary)');
+  });
+
+  it('drops the glow halo on input focus (box-shadow: none, no --glow)', () => {
+    const block = inputFocusBlock();
+    expect(block).toMatch(/box-shadow:\s*none/);
+    expect(block).not.toContain('var(--glow)');
+  });
+
+  it('keeps a thin neutral ring so keyboard focus stays perceptible (WCAG 2.4.7)', () => {
+    expect(inputFocusBlock()).toMatch(
+      /outline:[^;]*var\(--(on-surface-mute|on-surface-faint|border-subtle|border-faint)\)/,
+    );
+  });
+});
+
+describe('C03 — scrollbars stay hidden app-wide (no regression)', () => {
+  const css = readFileSync(GLOBALS, 'utf8');
+
+  it('hides the WebKit scrollbar globally with !important', () => {
+    expect(css).toMatch(/\*::-webkit-scrollbar\s*\{[^}]*display:\s*none\s*!important/);
+  });
+
+  it('sets scrollbar-width: none on every element (the Firefox `*` fix)', () => {
+    expect(css).toMatch(/html,\s*body,\s*\*\s*\{[\s\S]*?scrollbar-width:\s*none/);
+  });
+
+  it('no source file reintroduces a visible scrollbar (gutter / auto / thin / color)', () => {
+    const files = collectSourceFiles(SRC, ['.tsx', '.ts', '.css']);
+    const offenders = files.filter((f) => {
+      const body = readFileSync(f, 'utf8');
+      return /scrollbar-gutter|scrollbar-width:\s*(auto|thin)|scrollbar-color:/.test(body);
+    });
+    expect(offenders.map((f) => f.replace(SRC, 'src'))).toEqual([]);
+  });
+});

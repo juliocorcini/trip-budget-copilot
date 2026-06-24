@@ -347,6 +347,22 @@ html.cap-native #root *::-webkit-scrollbar {
   outline: none;
 }
 
+/* C25 / DEC-305: form fields get a NEUTRAL, very subtle keyboard focus. The
+   global terracotta ring + --glow halo above lands like an error/alert when it
+   wraps a text field (and :focus-visible can fire on a mouse click inside an
+   input), so text-entry controls drop the orange + glow and keep only a thin
+   neutral ring — the minimum still perceptible by keyboard (WCAG 2.4.7 /
+   DEC-285 preserved). Buttons / links / cards keep the --primary ring above. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[contenteditable]:focus-visible,
+[contenteditable='true']:focus-visible {
+  outline: 1.5px solid var(--on-surface-mute);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
 /* M02 / DEC-286: cream-on-terracotta (--on-surface on --primary) is 3.46:1 —
    below AA. Council C2 chose white-on-CTA over darkening --primary (which would
    recolor every icon/indicator and risk the light theme). This single

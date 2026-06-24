@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.58',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Cores mais honestas: as barras de progresso só ficam vermelhas quando há um problema de verdade (o dinheiro acabou, estourou o limite ou entrou na reserva). Chegar perto do fim de uma fase não assusta mais.',
+        'Foco dos campos mais discreto: ao tocar num campo de texto, sumiu aquela borda laranja forte — o foco por teclado continua visível para quem navega sem o dedo.',
+        'Atalhos mais equilibrados: no botão (+), "Iniciar saída" e "Dividir conta" agora ficam lado a lado; nas Configurações, "Guia" e "Central de ajuda" abrem em dupla.',
+        'Sem barra de rolagem aparecendo onde não devia — a rolagem continua funcionando, só a barrinha some.',
+      ],
+      en: [
+        'More honest colors: progress bars only turn red on a real problem (money is out, over the limit, or into your reserve). Being near the end of a phase no longer looks scary.',
+        'Subtler field focus: tapping a text field no longer draws that bold orange border — the keyboard focus ring stays visible for people navigating without touch.',
+        'More balanced shortcuts: in the (+) button, "Start an outing" and "Split a bill" now sit side by side; in Settings, "Guide" and "Help center" open as a pair.',
+        'No scrollbar showing up where it should not — scrolling still works, only the little bar is gone.',
+      ],
+      es: [
+        'Colores más honestos: las barras de progreso solo se ponen rojas cuando hay un problema real (se acabó el dinero, te pasaste del límite o entraste en la reserva). Acercarse al fin de una fase ya no asusta.',
+        'Foco de los campos más discreto: tocar un campo de texto ya no dibuja ese borde naranja fuerte — el foco por teclado sigue visible para quien navega sin tocar.',
+        'Atajos más equilibrados: en el botón (+), "Iniciar salida" y "Dividir cuenta" ahora van lado a lado; en Ajustes, "Guía" y "Centro de ayuda" abren en pareja.',
+        'Sin barra de desplazamiento apareciendo donde no debe — el desplazamiento sigue funcionando, solo desaparece la barrita.',
+      ],
+    },
+  },
+  {
     version: '0.99.57',
     date: '2026-06-24',
     items: {

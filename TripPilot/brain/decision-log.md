@@ -2198,7 +2198,7 @@
 
 ### DEC-299 — Bar color policy: red only on real risk (C12 / §16 Q5)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G1)
+- **Status**: APPROVED — implemented G1, shipped 0.99.58 (2026-06-24); pure `resolveProgressTone` + hero bar tone.
 - **Decision**: normal progress = neutral/positive (`--success`/`--steady`/`--surface`); `--error` only when money is out / over limit / into reserve / critical phase. Tokenized, inherits in light theme.
 - **Rationale**: terracotta `--primary` reads as alert in gradients; being near the end of a phase is not a problem. Red must mean a real problem.
 - **Refines**: orchestrator §6 C12. **Gate G1.**
@@ -2240,7 +2240,7 @@
 
 ### DEC-305 — Neutral, very subtle input focus (C25, addendum 2026-06-24)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G1)
+- **Status**: APPROVED — implemented G1, shipped 0.99.58 (2026-06-24); `input/textarea/select/[contenteditable]:focus-visible` neutral ring, no `--primary`/`--glow`.
 - **Decision**: for `input/textarea/select/[contenteditable]`, replace the global orange focus ring (`outline: 2px solid var(--primary)` + `--glow`, from DEC-285) with a **minimal, neutral, very subtle** focus — no orange, no glow; e.g. a slight neutral `border-color` lift **or** a thin 1–2px ring in `--border-subtle`. Keep the minimum perceptible by keyboard (WCAG 2.4.7 / DEC-285 preserved). Buttons/links/cards keep the current ring.
 - **Rationale**: Julio: the orange ring is ugly on text fields (`:focus-visible` fires on mouse click too); make it the most subtle possible without removing it entirely.
 - **Refines**: DEC-285 / orchestrator §6 C25. **Gate G1.**

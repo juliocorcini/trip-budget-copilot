@@ -75,6 +75,8 @@ export {
   isPotInPhase,
   POT_VISIBILITY_WINDOW_DAYS,
 } from './pots';
+export { resolveProgressTone } from './progress-tone';
+export type { ProgressTone, ProgressToneInput } from './progress-tone';
 export type {
   ProjectTripEndSurplusInput,
   SavingsGoalProgressInput,

@@ -652,45 +652,53 @@ export function SettingsPage() {
           `/settings` list — a subpage is a single focused category. */}
       {!isSubpage && (
         <>
-          {/* G7: the gear is the catch-all menu now, so the feature guide gets a
-              prominent entry here — the main place users land to "find things". */}
-          <button
-            onClick={() => navigate('/guide')}
-            className="w-full flex items-center gap-3 btn-press text-left rounded-2xl p-4"
-            style={{ background: '#C75B3914', border: '1px solid #C75B3930' }}
-          >
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: '#C75B3920' }}
+          {/* C16: the two discovery doors — "tudo que dá pra fazer" (the feature
+              guide) and the help center — sit 2-up instead of stacked full-width,
+              so the catch-all menu opens with a balanced, scannable pair. Vertical
+              cards (icon → title → hint) keep both legible at half width. */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => navigate('/guide')}
+              className="flex flex-col gap-2 btn-press text-left rounded-2xl p-4 h-full"
+              style={{ background: '#C75B3914', border: '1px solid #C75B3930' }}
             >
-              <Icon name="auto_awesome" size={20} className="text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">{t('guide.title')}</p>
-              <p className="text-xs text-on-surface-dim leading-snug mt-0.5">{t('settings.guide_hint')}</p>
-            </div>
-            <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
-          </button>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: '#C75B3920' }}
+              >
+                <Icon name="auto_awesome" size={20} className="text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-on-surface leading-tight">{t('guide.title')}</p>
+                <p className="text-xs text-on-surface-dim leading-snug mt-0.5">
+                  {t('settings.guide_hint')}
+                </p>
+              </div>
+            </button>
 
-          {/* FB-28 V1 (DEC-278): the help center — the obvious place to land for
-              "how do I…" doubts. Sits right under the feature guide. */}
-          <button
-            onClick={() => navigate('/help')}
-            className="w-full flex items-center gap-3 btn-press text-left rounded-2xl p-4"
-            style={{ background: '#C75B3914', border: '1px solid #C75B3930' }}
-          >
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: '#C75B3920' }}
+            {/* FB-28 V1 (DEC-278): the help center — the obvious place to land for
+                "how do I…" doubts. */}
+            <button
+              onClick={() => navigate('/help')}
+              className="flex flex-col gap-2 btn-press text-left rounded-2xl p-4 h-full"
+              style={{ background: '#C75B3914', border: '1px solid #C75B3930' }}
             >
-              <Icon name="help" size={20} className="text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface">{t('help_center.title')}</p>
-              <p className="text-xs text-on-surface-dim leading-snug mt-0.5">{t('settings.help_hint')}</p>
-            </div>
-            <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
-          </button>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: '#C75B3920' }}
+              >
+                <Icon name="help" size={20} className="text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-on-surface leading-tight">
+                  {t('help_center.title')}
+                </p>
+                <p className="text-xs text-on-surface-dim leading-snug mt-0.5">
+                  {t('settings.help_hint')}
+                </p>
+              </div>
+            </button>
+          </div>
 
           {/* FIELD item 4: search across all settings groups (multilingual keywords). */}
           <div className="relative">
