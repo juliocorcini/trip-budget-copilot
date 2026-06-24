@@ -2086,21 +2086,21 @@
 
 ### DEC-285 — Global visible keyboard focus (M01)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED
+- **Status**: APPROVED — implemented G1, shipped 0.99.51 (2026-06-24)
 - **Decision**: add **one** global `:focus-visible` rule in `globals.css` (ring built from `--glow`/`--primary`, theme-aware). Keyboard/tab navigation shows a visible ring on buttons/links/inputs in both themes; **touch is unchanged** (pointer focus does not draw the ring).
 - **Rationale**: WCAG 2.4.7 (F78) — the app strips native outlines (`outline-none` utility spread across inputs) with **no** `:focus-visible` substitute. Cheapest, most global a11y win; tokens already exist (`--glow`).
 - **Refines**: audit A-1 / §3.3 / N1. **Gate G1.**
 
 ### DEC-286 — AA contrast: faint token, white CTA, error (M02)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED
+- **Status**: APPROVED — implemented G1, shipped 0.99.51 (2026-06-24)
 - **Decision**: raise `--on-surface-faint` alpha to ≈`80` (from `70`, ~3.79:1 → ≥4.5:1); the **primary CTA uses pure white text** over `--primary` (a `.btn-primary` helper / `text-white`), NOT a darkened token; nudge `--error` to clear AA.
 - **Rationale (Council C2, `/debate`)**: cream-on-terracotta = 3.46:1 (< AA). Darkening `--primary` globally has a high blast radius (icons, `.nav-ind`, rings, badges) and risks the light theme; white-on-CTA is surgical, reversible, and fixes the contrast exactly where the text-on-button problem is (white on #C75B39 ≈ 4.7:1). A darker terracotta, if wanted, is a separate aesthetic item.
 - **Refines**: audit A-2 / D-3 / G-1; answers §16-Q2 (white CTA). **Gate G1.**
 
 ### DEC-287 — Tokenize the AI accent (M12)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED
+- **Status**: APPROVED — implemented G1, shipped 0.99.51 (2026-06-24)
 - **Decision**: introduce `--ai` / `--ai-2` (+ `--ai-gradient`) in `tokens.css` for both themes; replace the hard-coded indigo/violet (`#6366F1`/`#818CF8`/`#8B5CF6` + gradient) in the 9 files that use it; document in the design system ("terracotta = brand; indigo = AI").
 - **Rationale**: a second accent family exists, hard-coded and undocumented (heuristic #4), with light-theme risk (it does not inherit). Tokenizing makes the meaning predictable and theme-safe.
 - **Refines**: audit A-4 / E / N3 / G-2. **Gate G1.**

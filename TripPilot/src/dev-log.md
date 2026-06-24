@@ -4,7 +4,7 @@
 
 > Execution truth: `brain/documents/2026-06-24-ui-ux-implementation-orchestrator.md` (gates G1→G7, Council C5 order). Scope: `brain/documents/ui-ux-change-checklist-2026-06-23.md`. Decisions: **DEC-285→294 (PROPOSED)**. Single continuous session, deploy per gate (DEC-280). Most recent gate entry first; the legacy `## Current State` (Field Feedback batch) is preserved below.
 
-- **Active gate**: **G1 (foundations a11y) ✅ code green** → deploy 0.99.51 → starting G2 (consolidate trip, M15).
+- **Active gate**: **G2 (consolidate trip, M15)** — starting. G1 ✅ shipped **0.99.51** (release `aebaee7`, pushed → Cloudflare Pages auto-build; verify `/version.json`=0.99.51 + `/bundles/0.99.51.zip`).
 - **Baseline (2026-06-24, before touching anything)**: `tsc --noEmit` clean · `npm run build` green (`index` 400.09 KB < 500 KB) · **unit 2108/2110** (the 2 failures are the documented env baseline `split-live-loop`: `crypto.subtle`/WebCrypto unavailable in this Node 18.17.0 sandbox — passes in CI Node 22; files untouched).
 - **Pre-step**: committed the pending, complete 0.99.50 (Comparator V2 photo + FAB reorg, DEC-284) as `fa2b586` to start from a clean tree.
 - **Git note (WSL)**: in this environment `git commit` without `-C` fails with a spurious `unknown option 'trailer'`; **always run `git -C "$PWD" …`** (confirmed working). Other subcommands are unaffected.
@@ -12,7 +12,7 @@
 
 ### Gate checklist
 - [x] **G0** — baseline green + commit 0.99.50 + seed dev-log + DEC-285→294 (PROPOSED).
-- [x] **G1** — Foundations a11y: M01 `:focus-visible` (DEC-285) · M02 AA contrast (DEC-286) · M11 `aria-current` · M12 AI token (DEC-287) · M19 kill `transition-all`. _Code green; deploy 0.99.51._
+- [x] **G1** — Foundations a11y: M01 `:focus-visible` (DEC-285) · M02 AA contrast (DEC-286) · M11 `aria-current` · M12 AI token (DEC-287) · M19 kill `transition-all`. _✅ shipped 0.99.51; DEC-285/286/287 → APPROVED._
 - [ ] **G2** — Structural: consolidate `/viagem`×`/trip` (M15, DEC-288).
 - [ ] **G3** — Flow: multi-space onboarding on Welcome (DEC-290) + M20 + M23.
 - [ ] **G4** — First minute (Dashboard): M03/M10 carousel (DEC-293) · M04 free-today · M06 phase-zero · M09 mode chip · M05 glossary (DEC-289).
@@ -27,7 +27,8 @@
 - **M12 · DEC-287 · tokenize AI accent.** `tokens.css`: new `--ai/--ai-2/--ai-strong/--ai-bg-soft/--ai-bg/--ai-border/--ai-glow/--ai-gradient` in both themes (light = darker indigo `#5145CD/#6D28D9` for AA on light surface). Replaced the hard-coded `#6366F1/#818CF8/#8B5CF6`(+gradient) in **9 files**: `FAB`, `ActiveSplitBar`, `AssistantSheet`, `ComparatorPage`, `QuickAddPage`, `ExpenseListPage`, `ActiveSplitHomeCard`, `SplitResumeSheet`, `SplitHistorySheet`. **AC:** no AI hex literal outside `tokens.css`; light theme inherits. **Test:** `style-hygiene` (8 tokens defined ×2 themes; 0 hex leak in the 9 files).
 - **M19 · kill `transition-all`.** Replaced the 8 `transition-all` utilities with the exact animated properties (toggles→`[left]`; progress→`[width]`/`[width,background-color]`; carousel dot→`[width,transform]`; FastScroller→`[width,height,background-color]`; HelpMode ring→`[top,left,width,height]`). Tailwind v3 arbitrary `transition-[…]` keeps the default 150ms+ease (HelpMode keeps `duration-300`), so motion is visually identical. **AC:** 0 `transition-all`; animations unchanged. **Test:** `style-hygiene` walks `src/` (ex-`tests/`) → 0 hits.
 - **Regression watch:** all changes are presentation-only; no domain/schema/worker touch; nothing removed (Â9). Full unit suite re-run before gate close. Money/expense paths untouched.
-- **Commit:** `feat(a11y): focus ring, AA contrast, aria-current, AI tokens, kill transition-all (G1: M01/M02/M11/M12/M19, DEC-285/286/287)`. (M01/02/12/19 are entangled across `globals.css`/`tokens.css`/`QuickAddPage`/`style-hygiene.test`; interactive staging is disallowed in this WSL TTY → one cohesive, fully-green gate commit instead of split-per-milestone.)
+- **Commit:** `feat(a11y): ... (G1: M01/M02/M11/M12/M19, DEC-285/286/287)` = `d69cbe8`. (M01/02/12/19 are entangled across `globals.css`/`tokens.css`/`QuickAddPage`/`style-hygiene.test`; interactive staging is disallowed in this WSL TTY → one cohesive, fully-green gate commit instead of split-per-milestone.)
+- **Gate close:** full unit suite **2118/2120** (only the 2 documented WebCrypto baseline fails) · `npm run build` green (`index` 400.17 KB < 500 KB). Deploy `aebaee7` (bump 0.99.50→**0.99.51** in package.json+app-version+public/version.json + 0.99.51 release note pt/en/es) pushed to `master` → Cloudflare Pages auto-build. Brain sync: DEC-285/286/287 → APPROVED.
 
 ---
 
