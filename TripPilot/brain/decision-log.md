@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-22 (Field Feedback batch DEC-256→279 recorded — see the 2026-06-22 note at the end of this paragraph. Prior 2026-06-17: Device-Test Force-Task shipped: DEC-217 Ondas 1–4 web/OTA bug-fix + UX batch + 4C close-out, v0.71.0 → v0.75.0, 1299 tests / 144 files. DEC-218 native biometric (D-DEC-C) + Onda 5 sync/device batch — APPROVED but device-pending (needs Julio's physical device(s)). Prior: DEC-216 E2E-in-CI (B15) + FundsPage atomic pool-creation (B13), v0.70.0. DEC-215 native batch B1+B2+B3, APK 0.69.0 built but NOT promoted — device session pending. NOTE: the numbers DEC-185–199 and DEC-201 were never written — see the reconciliation block between DEC-184 and DEC-200. Next new id = DEC-240. — 2026-06-18: DEC-219→234 budget-model + UX-clarity packages shipped; DEC-235 = Device Test 2026-06-18 GATE 15; DEC-236 = Device Test 2026-06-18 GATE 16 (Amigo Sincero deep redesign); DEC-237 = Device Test 2026-06-18 GATE 17 (Home occasion carousel opens on the planned metas — planned-first kept, scroll-snap dropped to stop Chromium's involuntary re-snap); DEC-239 = Device Test 2026-06-18 GATE 19 (daily-detail explainers: free/day base+peak source + spent/day per-category breakdown, v0.95.0); DEC-238 = Device Test 2026-06-18 GATE 18 (FAB rebalanced — planning promoted to visible chips, "Registrar mercado" demoted into "Outros registros"). — 2026-06-19: DEC-240 = Bill Split "saída de bar" hardening batch (full who-got-what history by person/item + "O que é meu" hero + persistent live-split notification + pass-the-phone round-the-table mode, v0.99.4). DEC-241 = Debt ("está me devendo") + bill-split UX deep-dive batch — born-confirmed debts from the owner's ledger for non-connected people + "Acerto de contas" hub redesign + remind/cobrar (v0.99.5→v0.99.7); see `documents/debt-and-split-ux-deep-dive-and-plan-2026-06-19.md`. Next new id = DEC-242. — 2026-06-20: DEC-242→245 shipped/researched (244 = G4 payment methods v0.99.9; 245 = ranked backlog, A1 Wise split explainer shipped v0.99.11). DEC-246 = AI Quick Entry — natural-language router (text + voice) wired to every core action, planner(cloud, Groq JSON)/executor(device) split + Whisper STT, privacy names-only, v0.99.12 — **SHIPPED + deployed** (Pages OTA + Worker `/assistant`+`/transcribe` live, reusing the existing `GROQ_API_KEY`; live probe "o Bruno me pagou uma cerveja de 2 euros" → `someone_paid`/Bruno/€2/i_owe, 200); see `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md`. DEC-247 = Copilot "Trip Wrapped" end-of-trip retrospective, v0.99.13 **SHIPPED** (pure `buildTripWrapped` reusing copilot-insights + `TripWrappedSheet`, data-gated, mid-trip preview, reuses the DEC-133 share card). — 2026-06-21: DEC-248→255 = Admin dashboard v1/v2 (telemetry, AI tokens server-authoritative, error capture, per-user detail, DAU) + multi-trip switcher (DEC-249) + "Dia a dia" ongoing mode (DEC-250) + onboarding identity (DEC-252) + real-OS platform telemetry (DEC-253) + new app icon (DEC-255); see `documents/multi-space-and-admin-v2-study-2026-06-21.md` + `admin-dashboard-v1-plan-2026-06-21.md`. — 2026-06-22: **DEC-256→278 = Field Feedback batch** (direction APPROVED/ratified, implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, **cofrinho-as-buffer**, carousel=1-occasion, outing setup trim+discard, Amigo Sincero phrase bank+voices, **location default ON** (ÂNCORA 8 amendment), auto device name, event delete asks about expenses, admin tokens-per-fn + **Groq governance** + 00000000 investigation + PWA/browser telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write guards, **single image chooser**, **graceful AI degradation**, **record repayment**, **in-app AI help V1**, and **cofrinho legibility — voice + statement/ledger + movement insight (DEC-279, council C14; Model A vs B pending Julio)**; see `documents/field-feedback-master-plan-and-councils-2026-06-22.md`. Next new id = DEC-280.)
+> Last updated: 2026-06-24 (UI/UX pass DEC-285→294 PROPOSED recorded — see the entries at the end; orchestrator `documents/2026-06-24-ui-ux-implementation-orchestrator.md`. Prior 2026-06-22: Field Feedback batch DEC-256→279 recorded — see the 2026-06-22 note at the end of this paragraph. Prior 2026-06-17: Device-Test Force-Task shipped: DEC-217 Ondas 1–4 web/OTA bug-fix + UX batch + 4C close-out, v0.71.0 → v0.75.0, 1299 tests / 144 files. DEC-218 native biometric (D-DEC-C) + Onda 5 sync/device batch — APPROVED but device-pending (needs Julio's physical device(s)). Prior: DEC-216 E2E-in-CI (B15) + FundsPage atomic pool-creation (B13), v0.70.0. DEC-215 native batch B1+B2+B3, APK 0.69.0 built but NOT promoted — device session pending. NOTE: the numbers DEC-185–199 and DEC-201 were never written — see the reconciliation block between DEC-184 and DEC-200. Next new id = DEC-240. — 2026-06-18: DEC-219→234 budget-model + UX-clarity packages shipped; DEC-235 = Device Test 2026-06-18 GATE 15; DEC-236 = Device Test 2026-06-18 GATE 16 (Amigo Sincero deep redesign); DEC-237 = Device Test 2026-06-18 GATE 17 (Home occasion carousel opens on the planned metas — planned-first kept, scroll-snap dropped to stop Chromium's involuntary re-snap); DEC-239 = Device Test 2026-06-18 GATE 19 (daily-detail explainers: free/day base+peak source + spent/day per-category breakdown, v0.95.0); DEC-238 = Device Test 2026-06-18 GATE 18 (FAB rebalanced — planning promoted to visible chips, "Registrar mercado" demoted into "Outros registros"). — 2026-06-19: DEC-240 = Bill Split "saída de bar" hardening batch (full who-got-what history by person/item + "O que é meu" hero + persistent live-split notification + pass-the-phone round-the-table mode, v0.99.4). DEC-241 = Debt ("está me devendo") + bill-split UX deep-dive batch — born-confirmed debts from the owner's ledger for non-connected people + "Acerto de contas" hub redesign + remind/cobrar (v0.99.5→v0.99.7); see `documents/debt-and-split-ux-deep-dive-and-plan-2026-06-19.md`. Next new id = DEC-242. — 2026-06-20: DEC-242→245 shipped/researched (244 = G4 payment methods v0.99.9; 245 = ranked backlog, A1 Wise split explainer shipped v0.99.11). DEC-246 = AI Quick Entry — natural-language router (text + voice) wired to every core action, planner(cloud, Groq JSON)/executor(device) split + Whisper STT, privacy names-only, v0.99.12 — **SHIPPED + deployed** (Pages OTA + Worker `/assistant`+`/transcribe` live, reusing the existing `GROQ_API_KEY`; live probe "o Bruno me pagou uma cerveja de 2 euros" → `someone_paid`/Bruno/€2/i_owe, 200); see `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md`. DEC-247 = Copilot "Trip Wrapped" end-of-trip retrospective, v0.99.13 **SHIPPED** (pure `buildTripWrapped` reusing copilot-insights + `TripWrappedSheet`, data-gated, mid-trip preview, reuses the DEC-133 share card). — 2026-06-21: DEC-248→255 = Admin dashboard v1/v2 (telemetry, AI tokens server-authoritative, error capture, per-user detail, DAU) + multi-trip switcher (DEC-249) + "Dia a dia" ongoing mode (DEC-250) + onboarding identity (DEC-252) + real-OS platform telemetry (DEC-253) + new app icon (DEC-255); see `documents/multi-space-and-admin-v2-study-2026-06-21.md` + `admin-dashboard-v1-plan-2026-06-21.md`. — 2026-06-22: **DEC-256→278 = Field Feedback batch** (direction APPROVED/ratified, implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, **cofrinho-as-buffer**, carousel=1-occasion, outing setup trim+discard, Amigo Sincero phrase bank+voices, **location default ON** (ÂNCORA 8 amendment), auto device name, event delete asks about expenses, admin tokens-per-fn + **Groq governance** + 00000000 investigation + PWA/browser telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write guards, **single image chooser**, **graceful AI degradation**, **record repayment**, **in-app AI help V1**, and **cofrinho legibility — voice + statement/ledger + movement insight (DEC-279, council C14; Model A vs B pending Julio)**; see `documents/field-feedback-master-plan-and-councils-2026-06-22.md`. Next new id (pre-batch pointer) = DEC-280; **the UI/UX pass 2026-06-24 consumed DEC-285→294** (PROPOSED), so the next genuinely free id = **DEC-295**.)
 
 ## Format
 
@@ -2077,6 +2077,82 @@
 - **FAB reorg (same request)**: the comparator no longer occupies a visible chip — promoted **"Registrar mercado"** back into the visible "smart tools" row (a daily-life capture, especially in "Dia a dia"), and moved the comparator into the collapsed **"Mais ações"** group (still one tap; ÂNCORA 9 — hide, never delete). Group relabeled "Outros registros" → "Mais ações".
 - **Honesty (Critic)**: the model can misread a tag, so a photo read is NEVER trusted silently — every uncertain/failed field is flagged for human confirmation before the verdict is believed. The engine still refuses mixed-dimension comparisons (DEC-283).
 - **Refs**: plan `documents/comparator-v2-multi-image-plan-2026-06-22.md`; precedents DEC-206 (vision OCR), DEC-283 (comparator V1), DEC-256 (converter), DEC-275 (image source chooser).
+
+---
+
+## UI/UX pass (2026-06-24) — DEC-285→294
+
+> Source of execution: `documents/2026-06-24-ui-ux-implementation-orchestrator.md` (§7) + scope `documents/ui-ux-change-checklist-2026-06-23.md`. The §16 questions were answered & locked by Julio (2026-06-24); the gate order was ratified by **Council C5** (single-session). All councils ran **inline (1 request, no subagents)** — only the synthesis is recorded. These ship as **PROPOSED** and graduate to APPROVED as each gate deploys.
+
+### DEC-285 — Global visible keyboard focus (M01)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: add **one** global `:focus-visible` rule in `globals.css` (ring built from `--glow`/`--primary`, theme-aware). Keyboard/tab navigation shows a visible ring on buttons/links/inputs in both themes; **touch is unchanged** (pointer focus does not draw the ring).
+- **Rationale**: WCAG 2.4.7 (F78) — the app strips native outlines (`outline-none` utility spread across inputs) with **no** `:focus-visible` substitute. Cheapest, most global a11y win; tokens already exist (`--glow`).
+- **Refines**: audit A-1 / §3.3 / N1. **Gate G1.**
+
+### DEC-286 — AA contrast: faint token, white CTA, error (M02)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: raise `--on-surface-faint` alpha to ≈`80` (from `70`, ~3.79:1 → ≥4.5:1); the **primary CTA uses pure white text** over `--primary` (a `.btn-primary` helper / `text-white`), NOT a darkened token; nudge `--error` to clear AA.
+- **Rationale (Council C2, `/debate`)**: cream-on-terracotta = 3.46:1 (< AA). Darkening `--primary` globally has a high blast radius (icons, `.nav-ind`, rings, badges) and risks the light theme; white-on-CTA is surgical, reversible, and fixes the contrast exactly where the text-on-button problem is (white on #C75B39 ≈ 4.7:1). A darker terracotta, if wanted, is a separate aesthetic item.
+- **Refines**: audit A-2 / D-3 / G-1; answers §16-Q2 (white CTA). **Gate G1.**
+
+### DEC-287 — Tokenize the AI accent (M12)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: introduce `--ai` / `--ai-2` (+ `--ai-gradient`) in `tokens.css` for both themes; replace the hard-coded indigo/violet (`#6366F1`/`#818CF8`/`#8B5CF6` + gradient) in the 9 files that use it; document in the design system ("terracotta = brand; indigo = AI").
+- **Rationale**: a second accent family exists, hard-coded and undocumented (heuristic #4), with light-theme risk (it does not inherit). Tokenizing makes the meaning predictable and theme-safe.
+- **Refines**: audit A-4 / E / N3 / G-2. **Gate G1.**
+
+### DEC-288 — Consolidate /viagem × /trip (M15)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: one map (`/viagem` = `TripHubPage`) + one editor (`/trip/edit`). The share card (the only exclusive content of `TripOverviewPage`) moves to the **Viagem hub header**; `/trip` → `<Navigate to="/viagem" replace/>`; the "Visão geral" tile is removed from the Hub; Dashboard (phase-name link + `phase_countdown` insight) and Planner are repointed; `trip.overview_*` i18n retired/relocated; `TripOverviewPage.tsx` deleted **after** the share card is migrated.
+- **Rationale**: the two "viagem" surfaces overlap (heuristic #4 / "which screen is the trip?"). The migration plan (checklist Appendix) makes the G/High-risk change an M controlled by a proven redirect.
+- **Refines**: DEC-249 (multi-trip IA); audit C-5 / G7 / V-2; Julio approved 2026-06-24. **Gate G2.**
+
+### DEC-289 — Tap glossary (M05)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: a single data-driven registry `domain/help/glossary.ts` (term → short gloss → help slug) + a tappable `<InfoDot>` on each money concept's first appearance; deep-links into `/help` (DEC-278). Domain stays i18n-free (copy lives in the locale files); no term may be orphaned (every gloss maps to a real help article).
+- **Rationale**: vocabulary density is the recurring weak point (heuristics #2/#8); inline glosses are scattered. The help center exists — this adds the contextual hook into it.
+- **Refines**: audit B-4 / V-1 / G1; precedent DEC-278 (help center). **Gate G4.**
+
+### DEC-290 — Multi-space onboarding on the Welcome (M-Onb)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: the Welcome offers **two primary choices** — "Criar viagem" (→ `/onboarding`, current flow) and "Começar no Dia a dia" (a `kind:'ongoing'` first-run reusing the `NewSpacePage` path: `createOnboardingEntities` + `createTripFromOnboarding`, finalizing like onboarding: `onboardingCompleted` + `appMode` + `activeTrip`). Import-backup / receive-from-device / demo are **demoted to a secondary tier on the Welcome itself** (NOT Settings — pre-onboarding has no Settings), nothing removed (Â9). Includes M20 (legible demo button) + M23 (value line).
+- **Rationale (answers §16-Q4)**: the app is already multi-space (several trips + several "Dia a dia" — DEC-249/250/251) and the fork already exists in `NewSpacePage`; the first screen should match that and ask trip-vs-daily up front, instead of only creating a trip behind four equal-weight doors. Corrects the §16-Q4 "move to Settings" premise (no Settings yet at first run).
+- **Refines**: DEC-249/250/251 (multi-space, Dia a dia); audit C-1/W-1/W-2. **Gate G3.**
+
+### DEC-291 — Make the honest-friend voice actually sound like one (M16b)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: rewrite the strings in `domain/budget/honest-friend-voice.ts` (+ `-extras.ts`) so they read like a real candid friend, and make the **tone choice change the text** — gentle / honest / blunt must be clearly distinct (blunt is more direct). Voice/content only, not density.
+- **Rationale (Council C4, answers §16-Q6)**: Julio reports the tones feel the same and "blunt doesn't bite". This is a voice problem (cheap, high emotional return), separate from card density (M16, which stays DEPOIS).
+- **Refines**: audit C-6 / G3 (split out from M16). **Gate G5.**
+
+### DEC-292 — Light closing recap (M17-lite)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: build a **minimal closing recap** reusing `OutingReviewPage` / existing data when an outing/day closes — a low-risk seed. The full "o fim que dá orgulho" closing screen stays **post-validation** (kit §15/D; build only if emotion-check avg ≥4).
+- **Rationale (Council C3, `/assess`, answers §16-Q5)**: Peak-End is high emotional value but the least-validated bet; a recap reusing existing surfaces gives a taste at ~0 risk without committing the largest block of the pass to an unvalidated screen.
+- **Refines**: study EXP-4 / Peak-End. **Gate G5.**
+
+### DEC-293 — Dashboard top as an alert carousel (M03/M10)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: the top alerts/notices (demo banner, location notice, storage warning, etc.) **rotate in a single slot** (the pattern the Amigo Sincero already uses) instead of stacking — **nothing disappears** (Â9); one primary action per state; in demo, no fear banner; location/storage only on real risk; light header/hero polish.
+- **Rationale (answers §16-Q9)**: the first glance stacks fear banners and pushes the hero number down. A carousel calms the open without removing any function (Julio: "talvez um carrossel de problemas?").
+- **Refines**: audit B-1 / B-2 / D-1 / D-2. **Gate G4.**
+
+### DEC-294 — Split: always-legible balance + all-settled seal (M18)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED
+- **Decision**: build **both** — "você recebe €X / você deve €Y" always legible in the split/settlement flow, **and** the "tudo acertado ✓" seal exactly when the balance zeroes.
+- **Rationale (answers §16-Q7)**: legibility is low-risk and clearly positive; the seal is cheap and marks the social "end" of the split positively (trust lives here).
+- **Refines**: study §5.4 / §8 (latent need #4). **Gate G7.**
 
 ---
 

@@ -1,5 +1,27 @@
 # Dev Log — TripPilot Implementation
 
+## UI/UX pass (2026-06-24) — Current State
+
+> Execution truth: `brain/documents/2026-06-24-ui-ux-implementation-orchestrator.md` (gates G1→G7, Council C5 order). Scope: `brain/documents/ui-ux-change-checklist-2026-06-23.md`. Decisions: **DEC-285→294 (PROPOSED)**. Single continuous session, deploy per gate (DEC-280). Most recent gate entry first; the legacy `## Current State` (Field Feedback batch) is preserved below.
+
+- **Active gate**: G0 (setup) → starting G1.
+- **Baseline (2026-06-24, before touching anything)**: `tsc --noEmit` clean · `npm run build` green (`index` 400.09 KB < 500 KB) · **unit 2108/2110** (the 2 failures are the documented env baseline `split-live-loop`: `crypto.subtle`/WebCrypto unavailable in this Node 18.17.0 sandbox — passes in CI Node 22; files untouched).
+- **Pre-step**: committed the pending, complete 0.99.50 (Comparator V2 photo + FAB reorg, DEC-284) as `fa2b586` to start from a clean tree.
+- **Git note (WSL)**: in this environment `git commit` without `-C` fails with a spurious `unknown option 'trailer'`; **always run `git -C "$PWD" …`** (confirmed working). Other subcommands are unaffected.
+- **Version plan**: 0.99.50 → ~0.99.57 (one bump per gate G1…G7).
+
+### Gate checklist
+- [x] **G0** — baseline green + commit 0.99.50 + seed dev-log + DEC-285→294 (PROPOSED).
+- [ ] **G1** — Foundations a11y: M01 `:focus-visible` (DEC-285) · M02 AA contrast (DEC-286) · M11 `aria-current` · M12 AI token (DEC-287) · M19 kill `transition-all`.
+- [ ] **G2** — Structural: consolidate `/viagem`×`/trip` (M15, DEC-288).
+- [ ] **G3** — Flow: multi-space onboarding on Welcome (DEC-290) + M20 + M23.
+- [ ] **G4** — First minute (Dashboard): M03/M10 carousel (DEC-293) · M04 free-today · M06 phase-zero · M09 mode chip · M05 glossary (DEC-289).
+- [ ] **G5** — Voice & moments: M16b honest-friend voice (DEC-291) · M17-lite recap (DEC-292).
+- [ ] **G6** — Tools & polish: M13 · M22 · M21 · M24 · M25.
+- [ ] **G7** — Split: M18 legibility + all-settled seal (DEC-294).
+
+---
+
 ## Current State
 - **🟡 0.99.50 (web/OTA + WORKER) — Comparador V2: leitura por FOTO multi-imagem (DEC-284) + FAB reorg.** Source: plano `documents/comparator-v2-multi-image-plan-2026-06-22.md`; **DEC-284** (caminho-foto adiado da DEC-283). _Pedido avulso do Julio. Implementação concluída — deploy do worker PENDENTE (rota nova `/unit-extract`)._
   - **(DEC-284) Worker `POST /unit-extract`** — proxy stateless p/ a visão do Groq, **um produto por imagem**: prompt enxuto devolve `{price,quantity,unit,label,currency,confidence}`. Reusa o modelo de visão, o guarda de tamanho (`OCR_MAX_IMAGE_CHARS`), os status estáveis (503/429/4xx) e o bucket de contabilização (`recordAiUsage … 'ocr'`) do `/ocr`. `max_tokens` pequeno (um produto = JSON minúsculo).
