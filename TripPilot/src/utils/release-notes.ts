@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.55',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'O Amigo Sincero ganhou vozes de verdade: ao trocar o tom (suave, sincero, durão ou econômico), o texto muda de personalidade — o durão fala na lata, o suave acalma, o econômico pensa na sua reserva.',
+        'Ao encerrar uma saída, aparece um resumo carinhoso: total gasto, duração, quantas rodadas e como você foi em relação ao alvo — com um atalho para o resumo completo.',
+      ],
+      en: [
+        'The Honest Friend now has real voices: switching the tone (gentle, honest, blunt or thrifty) actually changes the personality of the text — blunt tells it straight, gentle soothes, thrifty thinks of your reserve.',
+        'When you wrap up an outing, a warm recap appears: total spent, duration, rounds and how you did versus your target — with a shortcut to the full summary.',
+      ],
+      es: [
+        'El Amigo Sincero ahora tiene voces de verdad: al cambiar el tono (suave, sincero, directo o ahorrador), el texto cambia de personalidad — el directo habla sin rodeos, el suave calma, el ahorrador piensa en tu reserva.',
+        'Al cerrar una salida, aparece un resumen cálido: total gastado, duración, rondas y cómo te fue respecto al objetivo — con un atajo al resumen completo.',
+      ],
+    },
+  },
+  {
     version: '0.99.54',
     date: '2026-06-24',
     items: {

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.54",
+  "version": "0.99.55",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.54.zip",
-  "notes": "Primeiro minuto mais claro: os avisos do topo (demonstração, backup, localização) agora giram num único espaço em vez de empilhar. O número 'livre' ganhou uma linha de explicação e um atalho 'posso gastar?'. Quando a fase está toda planejada, em vez de um '€0' seco aparece uma frase tranquila. O chip do topo mostra o modo (Viagem/Dia a dia) e há um ⓘ que explica os termos de dinheiro."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.55.zip",
+  "notes": "O Amigo Sincero agora tem vozes de verdade: ao trocar o tom (suave, sincero, durão, econômico), o texto muda de personalidade — o durão fala na lata, o suave acalma. E ao encerrar uma saída aparece um resumo carinhoso com o total, a duração e como você foi em relação ao alvo, com link para o resumo completo."
 }
