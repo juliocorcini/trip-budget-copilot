@@ -1759,6 +1759,22 @@
     "about_t": "Acerca de la app",
     "about_d": "Versión, novedades de cada actualización y diagnóstico."
   },
+  "glossary": {
+    "explain": "¿Qué es {{term}}?",
+    "learn_more": "Más info en Ayuda",
+    "free_to_spend": {
+      "term": "Libre para gastar",
+      "gloss": "Lo que aún puedes usar: tu presupuesto menos lo que ya gastaste y lo que está reservado."
+    },
+    "protected_reserve": {
+      "term": "Reserva protegida",
+      "gloss": "Una parte que la app aparta y no cuenta como disponible, para que no superes el límite sin querer."
+    },
+    "plan_reserve": {
+      "term": "Reservado para el planificador",
+      "gloss": "Dinero que tu plan ya apartó para gastos futuros previstos — por eso no entra en lo libre de hoy."
+    }
+  },
   "help_center": {
     "title": "Centro de ayuda",
     "intro": "Resuelve tus dudas sobre la app. Busca por una palabra o navega por tema — todo es local, sin usar IA.",

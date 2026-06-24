@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Icon } from '@/components/Icon';
 import {
   groupHelpArticlesBySection,
@@ -22,8 +22,11 @@ import {
 export function HelpPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [query, setQuery] = useState('');
-  const [openId, setOpenId] = useState<string | null>(null);
+  // DEC-289 (M05): a glossary InfoDot deep-links here with `?a=<articleId>` to
+  // open that concept's article straight away (the term lands explained).
+  const [openId, setOpenId] = useState<string | null>(() => searchParams.get('a'));
 
   const trimmed = query.trim();
   const isSearching = trimmed.length > 0;

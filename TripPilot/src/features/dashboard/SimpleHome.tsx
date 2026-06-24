@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
+import { InfoDot } from '@/components/InfoDot';
 import { formatMoney } from '@/domain/money';
 import { splitMoneyDisplay, INSIGHT_ICONS, formatInsightText } from './dashboard-format';
 import { AskToSpendShortcut } from './AskToSpendShortcut';
@@ -32,6 +33,9 @@ export function SimpleHome({ model, trip }: { model: DashboardModel; trip: Trip 
       <div className="bg-surface-container rounded-3xl p-8 text-center">
         <p className="text-[11px] tracking-[0.15em] uppercase font-bold text-on-surface-faint">
           {t('dashboard.simple_free_today')}
+          {/* M05: simple mode has no breakdown sheet — the glossary ⓘ is the one
+              place the headline concept is defined. */}
+          <InfoDot term="free_to_spend" className="ml-1" />
         </p>
         {display ? (
           <p className={`mt-3 font-extrabold tabular leading-none ${isOver ? 'text-error' : 'text-on-surface'}`}>

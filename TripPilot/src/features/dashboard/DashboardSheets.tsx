@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { InfoDot } from '@/components/InfoDot';
 import { formatMoney, fromCents, toCents } from '@/domain/money';
 import { buildFreeToSpendBreakdown, type FtsBreakdownKey } from '@/domain/budget';
+import type { GlossaryTermId } from '@/domain/help';
 import {
   getDashboardCard,
   isDashboardCardPairable,
@@ -74,6 +76,13 @@ const FTS_LABEL_KEYS: Record<Exclude<FtsBreakdownKey, 'free' | 'deficit'>, strin
   event_reserves: 'dashboard.fts_event_reserves',
   planned_purchases: 'dashboard.fts_planned_purchases',
   plan: 'dashboard.fts_plan',
+};
+
+// DEC-289 (M05): the breakdown is where these money terms first get a number —
+// attach the glossary ⓘ to the ones that read as jargon.
+const FTS_GLOSSARY_TERMS: Partial<Record<FtsBreakdownKey, GlossaryTermId>> = {
+  protected: 'protected_reserve',
+  plan: 'plan_reserve',
 };
 
 // FIELD item 5: edit the savings goal from its home card. Read-only motivation
@@ -335,7 +344,10 @@ export function DashboardSheets({
                     key={line.key}
                     className="flex items-baseline justify-between pt-3 mt-1 border-t border-[var(--border-faint)]"
                   >
-                    <span className="text-sm font-bold text-on-surface">{t('dashboard.fts_free')}</span>
+                    <span className="text-sm font-bold text-on-surface">
+                      {t('dashboard.fts_free')}
+                      <InfoDot term="free_to_spend" className="ml-1" />
+                    </span>
                     <span className="text-base font-extrabold tabular text-success">
                       {formatMoney(line.cents, trip.baseCurrency)}
                     </span>
@@ -357,6 +369,9 @@ export function DashboardSheets({
                 <div key={line.key} className="flex items-baseline justify-between py-1">
                   <span className="text-sm font-semibold text-on-surface-dim">
                     {t(FTS_LABEL_KEYS[line.key as Exclude<FtsBreakdownKey, 'free' | 'deficit'>] as never)}
+                    {FTS_GLOSSARY_TERMS[line.key as FtsBreakdownKey] && (
+                      <InfoDot term={FTS_GLOSSARY_TERMS[line.key as FtsBreakdownKey]!} className="ml-1" />
+                    )}
                   </span>
                   <span
                     className={`text-sm font-bold tabular ${

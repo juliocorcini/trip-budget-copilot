@@ -1759,6 +1759,22 @@
     "about_t": "About the app",
     "about_d": "Version, what's new in each update and diagnostics."
   },
+  "glossary": {
+    "explain": "What is {{term}}?",
+    "learn_more": "Learn more in Help",
+    "free_to_spend": {
+      "term": "Free to spend",
+      "gloss": "What you can still use: your budget minus what's already gone and what's set aside."
+    },
+    "protected_reserve": {
+      "term": "Protected reserve",
+      "gloss": "A slice the app keeps aside and doesn't count as available, so you don't blow the limit by accident."
+    },
+    "plan_reserve": {
+      "term": "Reserved for the planner",
+      "gloss": "Money your plan already set aside for expected future spending — that's why it isn't in today's free amount."
+    }
+  },
   "help_center": {
     "title": "Help center",
     "intro": "Get answers about the app. Search by a word or browse by topic — it's all local, no AI used.",

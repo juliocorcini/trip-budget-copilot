@@ -1763,6 +1763,22 @@
     "about_t": "Sobre o app",
     "about_d": "Versão, novidades de cada atualização e diagnóstico."
   },
+  "glossary": {
+    "explain": "O que é {{term}}?",
+    "learn_more": "Saiba mais na Ajuda",
+    "free_to_spend": {
+      "term": "Livre para gastar",
+      "gloss": "O que você ainda pode usar: orçamento menos o que já saiu e o que está reservado."
+    },
+    "protected_reserve": {
+      "term": "Reserva protegida",
+      "gloss": "Uma parte que o app separa e não conta como disponível, pra você não furar o limite sem querer."
+    },
+    "plan_reserve": {
+      "term": "Reservado p/ planejador",
+      "gloss": "Dinheiro que seu plano já separou para gastos futuros previstos — por isso não entra no livre de hoje."
+    }
+  },
   "help_center": {
     "title": "Central de ajuda",
     "intro": "Tire suas dúvidas sobre o app. Busque por uma palavra ou navegue por tema — é tudo local, sem usar IA.",
