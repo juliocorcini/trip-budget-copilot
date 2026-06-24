@@ -2349,6 +2349,8 @@
     "summary_net_positive": "Net, you're owed {{amount}}",
     "summary_net_negative": "Net, you owe {{amount}}",
     "summary_empty": "Split an expense to start tracking who owes whom.",
+    "all_settled_title": "All settled ✓",
+    "all_settled_hint": "Every bill on this trip is squared up. Nobody owes anyone.",
     "awaiting_title": "Awaiting acceptance · {{count}}",
     "awaiting_hint": "Someone with the app or link still has to accept their share. This doesn't change who owes you — it's just their confirmation.",
     "remind": "Remind",

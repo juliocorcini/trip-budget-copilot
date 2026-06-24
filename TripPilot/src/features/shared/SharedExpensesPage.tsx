@@ -8,6 +8,7 @@ import {
   createSettlement,
   createParticipant,
   calculateParticipantBalances,
+  resolveSettlementStanding,
   suggestSimplifiedSettlements,
   buildParticipantStatement,
   groupSharedExpenses,
@@ -451,6 +452,14 @@ export function SharedExpensesPage() {
     debtSummary && ownerParticipant
       ? summarizeOwnerDebts(debtSummary.debts, ownerParticipant.id)
       : null;
+  // M18 (DEC-294): the group-wide settle-up standing → the "tudo acertado ✓"
+  // seal shows only after real splitting AND once every debt is cleared.
+  const sharedExpenseCount = transactions.filter(
+    (tx) => tx.isShared && tx.type === 'expense' && tx.deletedAt === null,
+  ).length;
+  const settlementStanding = debtSummary
+    ? resolveSettlementStanding(debtSummary.debts, sharedExpenseCount, settlements.length)
+    : null;
   // DL-3: connected-pending shares — the "Aguardando aceite" group (display-only).
   // After G1 a `pending` third-party share means a CONNECTED counterparty who
   // hasn't accepted yet (offline friends are born confirmed). Never hide it.
@@ -513,6 +522,14 @@ export function SharedExpensesPage() {
                     })}
               </p>
             )}
+          </div>
+        ) : settlementStanding?.allSettled ? (
+          // DEC-294 (M18): the proud "tudo acertado ✓" seal — shown exactly when
+          // real splitting happened and the whole group's balance has zeroed.
+          <div className="rounded-2xl p-5 text-center bg-success/10 border border-success/30" data-all-settled-seal>
+            <Icon name="verified" size={30} className="text-success mx-auto mb-1.5" />
+            <p className="text-sm font-bold text-success">{t('shared.all_settled_title')}</p>
+            <p className="text-xs text-on-surface-faint mt-0.5">{t('shared.all_settled_hint')}</p>
           </div>
         ) : (
           <div className="rounded-2xl p-5 bg-surface-container text-center">

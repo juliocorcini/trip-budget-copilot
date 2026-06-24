@@ -2353,6 +2353,8 @@
     "summary_net_positive": "No saldo, te devem {{amount}}",
     "summary_net_negative": "No saldo, você deve {{amount}}",
     "summary_empty": "Divida um gasto para acompanhar quem deve a quem.",
+    "all_settled_title": "Tudo acertado ✓",
+    "all_settled_hint": "Todas as contas da viagem foram quitadas. Ninguém deve nada a ninguém.",
     "awaiting_title": "Aguardando aceite · {{count}}",
     "awaiting_hint": "Quem tem o app ou o link ainda vai aceitar a parte. Isso não muda quem te deve — é só a confirmação dela.",
     "remind": "Lembrar",

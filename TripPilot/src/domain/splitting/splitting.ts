@@ -363,6 +363,36 @@ export function summarizeOwnerDebts(
   };
 }
 
+/**
+ * M18 (DEC-294) — the group-wide settle-up standing that drives the "tudo
+ * acertado ✓" seal. `allSettled` is true ONLY when real splitting happened (a
+ * shared expense or a recorded settlement exists) AND no debt is left
+ * outstanding — so a brand-new trip with nothing split never shows a misleading
+ * "all settled" badge, and the seal appears exactly when the balance zeros.
+ */
+export interface SettlementStanding {
+  hasActivity: boolean;
+  outstandingCents: number;
+  allSettled: boolean;
+}
+
+export function resolveSettlementStanding(
+  debts: readonly DebtEntry[],
+  sharedExpenseCount: number,
+  settlementCount: number,
+): SettlementStanding {
+  const outstandingCents = debts.reduce(
+    (sum, debt) => sum + (debt.amountCents > 0 ? debt.amountCents : 0),
+    0,
+  );
+  const hasActivity = sharedExpenseCount > 0 || settlementCount > 0;
+  return {
+    hasActivity,
+    outstandingCents,
+    allSettled: hasActivity && outstandingCents === 0,
+  };
+}
+
 export function createSettlement(
   tripId: string,
   debtorId: string,
