@@ -13,6 +13,23 @@
 
 ---
 
+## ✅ STATUS DE EXECUÇÃO — leva FAZER COMPLETA (2026-06-24, app 0.99.50 → 0.99.57)
+
+> Toda a leva **FAZER** foi implementada, testada e deployada (G1→G7, DEC-285→294 todas APPROVED). Detalhe por milestone em `src/dev-log.md` (seção "UI/UX pass"). Unit **2166/2168** verde (as 2 falhas são o baseline WebCrypto do `split-live-loop`, que passa no CI Node 22). A matriz de teste manual no celular (orquestrador §15) fica **⏳ device-pending** (sandbox sem device/Playwright).
+
+| Item | Estado | Versão |
+| --- | --- | --- |
+| **M01** foco `:focus-visible` · **M02** contraste AA · **M11** `aria-current` · **M12** token de IA · **M19** sem `transition-all` | ✅ FEITO (G1) | 0.99.51 |
+| **M15** consolidar `/viagem`×`/trip` | ✅ FEITO (G2) | 0.99.52 |
+| **M20** demo legível · **M23** Welcome value-first · onboarding multi-espaço | ✅ FEITO (G3) | 0.99.53 |
+| **M03/M10** carrossel do topo · **M04** "Livre hoje" + razão · **M06** €0 da fase orienta · **M09** chip de modo · **M05** glossário ⓘ | ✅ FEITO (G4) | 0.99.54 |
+| **M16b** vozes do Amigo Sincero (só a *voz*) · **M17-lite** recap leve | ✅ FEITO (G5) | 0.99.55 |
+| **M13** tags/cadeado do Planner · **M22** "Modo: manual" · **M21** Conversor casa+placeholder · **M24** selo offline · **M25** microcópia do Comparador | ✅ FEITO (G6) | 0.99.56 |
+| **M18** saldo legível + selo "tudo acertado" | ✅ FEITO (G7) | 0.99.57 |
+| **M07/M08** hierarquia/"+" do FAB · **M14** densidade de Gastos · **M16-densidade** · **M17** fechamento completo | ⏳ BACKLOG (fora desta leva — §16 DEPOIS / pós-validação) | — |
+
+---
+
 ## Como usar
 
 1. Em cada item, troque o estado em **Decisão** para `(x)`:

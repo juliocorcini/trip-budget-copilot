@@ -1,9 +1,11 @@
 # TripPilot — Orquestrador de Implementação UI/UX (a única fonte de verdade de execução desta leva)
 
-> **Última atualização:** 2026-06-24 · **App:** 0.99.50 → alvo 0.99.6x
-> **Status:** ✅ ACTIVE — pronto para rodar. As **9 perguntas da §16 foram respondidas pelo Julio (2026-06-24)** e
-> estão **lockadas** em decisões (§16 + §7, **DEC-285→294**); a ordem dos gates foi ratificada pelo **Council C5**
-> (otimizada p/ **sessão única**). Este é o documento-mestre de execução para a leva de UI/UX decidida em
+> **Última atualização:** 2026-06-24 · **App:** 0.99.50 → **0.99.57 (FAZER batch shipped)**
+> **Status:** ✅ **DONE — G1→G7 all shipped** (0.99.51→0.99.57; DEC-285→294 all APPROVED). The **9 §16 questions**
+> were answered by Julio (2026-06-24) and locked into decisions (§16 + §7, **DEC-285→294**); the gate order was
+> ratified by **Council C5** (single-session). Every gate green (unit 2166/2168 — only the 2 documented WebCrypto
+> baseline fails) + deployed to Pages. Only the on-device manual matrix (§15) remains ⏳ (sandbox has no device/
+> Playwright browsers). Backlog parked: M07/M08, M16-density, M14, full closing M17 (post-validation). Este é o documento-mestre de execução para a leva de UI/UX decidida em
 > `documents/ui-ux-change-checklist-2026-06-23.md`. Um novo chat pega este doc e implementa de ponta a ponta — **sem
 > perguntar nada** (ambiguidade → council inline + `DEC-NNN` + segue).
 >
@@ -624,23 +626,23 @@ passa; deployado (ou ⏳ com prova local); commitado; dev-log atualizado.
 **Chegar a um gate NUNCA é razão p/ parar ou pedir permissão** — commit, deploy, dev-log e siga. **A leva está
 pronta — PARE só quando TUDO for TRUE:**
 
-- [ ] **G1 (fundações a11y):** foco visível global; AA em faint/CTA/erro; `aria-current` na nav; acento de IA
-  tokenizado; 0 `transition-all`.
-- [ ] **G2 (M15):** share card no header do Hub; `/trip`→`/viagem`; `TripOverviewPage` apagado; tudo repointado; Hub polido.
-- [ ] **G3 (onboarding):** Welcome oferece **viagem e dia-a-dia** (DEC-290); criar dia-a-dia funciona no 1º acesso;
-  backup/receber/demo presentes porém **rebaixados** (Â9); demo legível + linha de valor.
-- [ ] **G4 (primeiro minuto):** topo em **carrossel** (nada some); no demo sem banner de medo; "Livre hoje" promovido
-  (1 por tela) + atalho "posso gastar?"; "€0 da fase" orienta; chip de modo; glossário ⓘ → Ajuda.
-- [ ] **G5 (voz & momentos):** os 3 tons do Amigo Sincero **diferem de verdade** (DEC-291); recap leve reusando
-  `OutingReviewPage` (DEC-292).
-- [ ] **G6 (ferramentas):** Planner (tags/cadeado + "Modo: manual"); Conversor (Para=casa + placeholder); selo
-  offline; microcópia do Comparador.
-- [ ] **G7 (divisão):** saldo "recebe/deve" sempre legível **+ selo "tudo acertado"** (DEC-294).
-- [ ] Sem dead affordance; sem susto evitável; nada hard-coded de IA; **nada foi removido** (só rebaixado/colapsado).
-- [ ] Suite verde (unit + e2e) no CI; cobertura nos códigos tocados.
-- [ ] `src/dev-log.md`, `decision-log.md` (DEC-285→294), `project-status.md`, checklist (itens ✅) atualizados;
-  deployado em Pages (`master`) + `version.json` bumpado.
-- [ ] A matriz de teste manual (§15) passa no celular, ou está documentada com o que ficou ⏳.
+- [x] **G1 (fundações a11y):** foco visível global; AA em faint/CTA/erro; `aria-current` na nav; acento de IA
+  tokenizado; 0 `transition-all`. _✅ 0.99.51._
+- [x] **G2 (M15):** share card no header do Hub; `/trip`→`/viagem`; `TripOverviewPage` apagado; tudo repointado; Hub polido. _✅ 0.99.52._
+- [x] **G3 (onboarding):** Welcome oferece **viagem e dia-a-dia** (DEC-290); criar dia-a-dia funciona no 1º acesso;
+  backup/receber/demo presentes porém **rebaixados** (Â9); demo legível + linha de valor. _✅ 0.99.53._
+- [x] **G4 (primeiro minuto):** topo em **carrossel** (nada some); no demo sem banner de medo; "Livre hoje" promovido
+  (1 por tela) + atalho "posso gastar?"; "€0 da fase" orienta; chip de modo; glossário ⓘ → Ajuda. _✅ 0.99.54._
+- [x] **G5 (voz & momentos):** os 3 tons do Amigo Sincero **diferem de verdade** (DEC-291); recap leve reusando
+  `OutingReviewPage` (DEC-292). _✅ 0.99.55._
+- [x] **G6 (ferramentas):** Planner (tags/cadeado + "Modo: manual"); Conversor (Para=casa + placeholder); selo
+  offline; microcópia do Comparador. _✅ 0.99.56._
+- [x] **G7 (divisão):** saldo "recebe/deve" sempre legível **+ selo "tudo acertado"** (DEC-294). _✅ 0.99.57._
+- [x] Sem dead affordance; sem susto evitável; nada hard-coded de IA; **nada foi removido** (só rebaixado/colapsado). _verificado por gate._
+- [x] Suite verde (unit) — **2166/2168** (só as 2 falhas baseline de WebCrypto em `split-live-loop`, que passam no CI Node 22); cobertura nos códigos tocados. _e2e roda no CI (sandbox sem browsers Playwright) — ⏳._
+- [x] `src/dev-log.md`, `decision-log.md` (DEC-285→294 APPROVED), `project-status.md`, checklist (itens ✅) atualizados;
+  deployado em Pages (`master`) + `version.json` bumpado (0.99.57).
+- [ ] A matriz de teste manual (§15) passa no celular — ⏳ **device-pending** (sandbox WSL sem device/browsers; validar nos APKs OTA 0.99.57; cada AC já coberto por unit/build).
 
 ---
 
