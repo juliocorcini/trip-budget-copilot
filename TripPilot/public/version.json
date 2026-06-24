@@ -1,8 +1,8 @@
 {
-  "version": "0.99.53",
+  "version": "0.99.54",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.53.zip",
-  "notes": "Boas-vindas renovadas: agora dá para escolher logo de cara entre uma Viagem (com datas) ou o Dia a dia (contínuo, sem data para acabar). Importar backup, receber de outro aparelho e os dados de demonstração continuam ali, num grupo mais discreto, e o botão de demonstração ficou mais legível."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.54.zip",
+  "notes": "Primeiro minuto mais claro: os avisos do topo (demonstração, backup, localização) agora giram num único espaço em vez de empilhar. O número 'livre' ganhou uma linha de explicação e um atalho 'posso gastar?'. Quando a fase está toda planejada, em vez de um '€0' seco aparece uma frase tranquila. O chip do topo mostra o modo (Viagem/Dia a dia) e há um ⓘ que explica os termos de dinheiro."
 }

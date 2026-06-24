@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.54',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Primeiro minuto mais calmo: os avisos do topo (demonstração, backup, localização) agora giram num único espaço, em vez de empilhar — nada some, é só deslizar.',
+        'O número "livre" ficou mais claro: ganhou uma linha de explicação e um atalho "posso gastar?" que já abre o simulador.',
+        'Quando a fase está toda planejada, no lugar de um "€0" que assusta aparece uma frase tranquila ("tudo planejado").',
+        'O chip do topo agora mostra o modo (Viagem ou Dia a dia), e um ⓘ explica os termos de dinheiro com link para a Ajuda.',
+      ],
+      en: [
+        'Calmer first minute: the top notices (demo, backup, location) now rotate in a single slot instead of stacking — nothing is gone, just swipe.',
+        'The "free" number is clearer: it now has a one-line explanation and a "can I spend?" shortcut that opens the simulator.',
+        'When the phase is fully planned, a reassuring line ("all planned") replaces a bare "€0" that read as broke.',
+        'The top chip now shows the mode (Trip or Day-to-day), and an ⓘ explains the money terms with a link to Help.',
+      ],
+      es: [
+        'Primer minuto más tranquilo: los avisos de arriba (demo, copia, ubicación) ahora rotan en un solo espacio en vez de apilarse — nada desaparece, solo desliza.',
+        'El número "libre" es más claro: ahora tiene una línea de explicación y un atajo "¿puedo gastar?" que abre el simulador.',
+        'Cuando la fase está toda planificada, una frase tranquila ("todo planificado") reemplaza un "€0" seco que parecía estar sin dinero.',
+        'El chip de arriba ahora muestra el modo (Viaje o Día a día), y un ⓘ explica los términos de dinero con enlace a la Ayuda.',
+      ],
+    },
+  },
+  {
     version: '0.99.53',
     date: '2026-06-24',
     items: {
