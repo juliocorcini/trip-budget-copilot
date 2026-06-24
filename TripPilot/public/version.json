@@ -1,8 +1,8 @@
 {
-  "version": "0.99.55",
+  "version": "0.99.56",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.55.zip",
-  "notes": "O Amigo Sincero agora tem vozes de verdade: ao trocar o tom (suave, sincero, durão, econômico), o texto muda de personalidade — o durão fala na lata, o suave acalma. E ao encerrar uma saída aparece um resumo carinhoso com o total, a duração e como você foi em relação ao alvo, com link para o resumo completo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.56.zip",
+  "notes": "As ferramentas ficaram mais claras: o Planner agora tem uma legenda explicando essencial/opcional e por que um item travado fica bloqueado; o Conversor já abre com a sua moeda de casa e mostra exemplos no campo; e um selo discreto avisa que Conversor e Comparador funcionam offline. No Comparador por foto, uma dica ensina a enquadrar a etiqueta de preço para a leitura acertar mais."
 }

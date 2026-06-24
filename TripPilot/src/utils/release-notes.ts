@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.56',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Planner mais claro: uma legenda explica o que é "essencial" e "opcional", e um item travado agora diz por que está bloqueado (toque no cadeado para ajustar).',
+        'Conversor já abre com a sua moeda de casa do outro lado e mostra um exemplo no campo, em vez de um "0" sem graça.',
+        'Resiliência visível: um selo discreto "funciona offline" no Conversor e no Comparador deixa claro que dá pra usar mesmo sem rede.',
+        'No Comparador por foto, uma dica ensina a enquadrar a etiqueta de preço (não o produto inteiro) para a leitura acertar mais.',
+      ],
+      en: [
+        'Clearer Planner: a legend explains what "essential" and "optional" mean, and a locked item now says why it is blocked (tap the lock to adjust).',
+        'The Converter now opens with your home currency on the other side and shows an example in the field instead of a bare "0".',
+        'Visible resilience: a discreet "works offline" seal on the Converter and Comparator makes it clear you can use them with no network.',
+        'In the photo Comparator, a tip teaches you to frame the price tag (not the whole product) so the read lands more often.',
+      ],
+      es: [
+        'Planner más claro: una leyenda explica qué es "esencial" y "opcional", y un ítem bloqueado ahora dice por qué lo está (toca el candado para ajustar).',
+        'El Conversor ahora abre con tu moneda de casa del otro lado y muestra un ejemplo en el campo en vez de un "0" soso.',
+        'Resiliencia visible: un sello discreto "funciona sin conexión" en el Conversor y el Comparador deja claro que puedes usarlos sin red.',
+        'En el Comparador por foto, un consejo enseña a encuadrar la etiqueta de precio (no el producto entero) para que la lectura acierte más.',
+      ],
+    },
+  },
+  {
     version: '0.99.55',
     date: '2026-06-24',
     items: {
