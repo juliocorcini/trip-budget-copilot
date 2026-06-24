@@ -4,7 +4,7 @@
 
 > Execution truth: `brain/documents/2026-06-24-ui-ux-implementation-orchestrator.md` (gates G1→G7, Council C5 order). Scope: `brain/documents/ui-ux-change-checklist-2026-06-23.md`. Decisions: **DEC-285→294 (PROPOSED)**. Single continuous session, deploy per gate (DEC-280). Most recent gate entry first; the legacy `## Current State` (Field Feedback batch) is preserved below.
 
-- **Active gate**: **G2 (consolidate trip, M15)** — starting. G1 ✅ shipped **0.99.51** (release `aebaee7`, pushed → Cloudflare Pages auto-build; verify `/version.json`=0.99.51 + `/bundles/0.99.51.zip`).
+- **Active gate**: **G3 (multi-space onboarding, DEC-290 + M20/M23)** — starting. G2 ✅ shipped **0.99.52** (feat `e77dbb2` + release `d8c053a`, pushed → Cloudflare Pages auto-build; verify `/version.json`=0.99.52 + `/bundles/0.99.52.zip`). G1 ✅ shipped **0.99.51** (`aebaee7`).
 - **Baseline (2026-06-24, before touching anything)**: `tsc --noEmit` clean · `npm run build` green (`index` 400.09 KB < 500 KB) · **unit 2108/2110** (the 2 failures are the documented env baseline `split-live-loop`: `crypto.subtle`/WebCrypto unavailable in this Node 18.17.0 sandbox — passes in CI Node 22; files untouched).
 - **Pre-step**: committed the pending, complete 0.99.50 (Comparator V2 photo + FAB reorg, DEC-284) as `fa2b586` to start from a clean tree.
 - **Git note (WSL)**: in this environment `git commit` without `-C` fails with a spurious `unknown option 'trailer'`; **always run `git -C "$PWD" …`** (confirmed working). Other subcommands are unaffected.
@@ -13,7 +13,7 @@
 ### Gate checklist
 - [x] **G0** — baseline green + commit 0.99.50 + seed dev-log + DEC-285→294 (PROPOSED).
 - [x] **G1** — Foundations a11y: M01 `:focus-visible` (DEC-285) · M02 AA contrast (DEC-286) · M11 `aria-current` · M12 AI token (DEC-287) · M19 kill `transition-all`. _✅ shipped 0.99.51; DEC-285/286/287 → APPROVED._
-- [ ] **G2** — Structural: consolidate `/viagem`×`/trip` (M15, DEC-288).
+- [x] **G2** — Structural: consolidate `/viagem`×`/trip` (M15, DEC-288). _✅ shipped 0.99.52; DEC-288 → APPROVED._
 - [ ] **G3** — Flow: multi-space onboarding on Welcome (DEC-290) + M20 + M23.
 - [ ] **G4** — First minute (Dashboard): M03/M10 carousel (DEC-293) · M04 free-today · M06 phase-zero · M09 mode chip · M05 glossary (DEC-289).
 - [ ] **G5** — Voice & moments: M16b honest-friend voice (DEC-291) · M17-lite recap (DEC-292).
@@ -29,6 +29,18 @@
 - **Regression watch:** all changes are presentation-only; no domain/schema/worker touch; nothing removed (Â9). Full unit suite re-run before gate close. Money/expense paths untouched.
 - **Commit:** `feat(a11y): ... (G1: M01/M02/M11/M12/M19, DEC-285/286/287)` = `d69cbe8`. (M01/02/12/19 are entangled across `globals.css`/`tokens.css`/`QuickAddPage`/`style-hygiene.test`; interactive staging is disallowed in this WSL TTY → one cohesive, fully-green gate commit instead of split-per-milestone.)
 - **Gate close:** full unit suite **2118/2120** (only the 2 documented WebCrypto baseline fails) · `npm run build` green (`index` 400.17 KB < 500 KB). Deploy `aebaee7` (bump 0.99.50→**0.99.51** in package.json+app-version+public/version.json + 0.99.51 release note pt/en/es) pushed to `master` → Cloudflare Pages auto-build. Brain sync: DEC-285/286/287 → APPROVED.
+
+### G2 — Structural: one "viagem" surface (done 2026-06-24)
+- **M15 · DEC-288 · consolidate `/trip` overview into the Viagem hub.** `TripOverviewPage` duplicated `TripHubPage`; its **only** exclusive content was the shareable summary card. Migrated that card **verbatim** into the hub header (`renderShareCard`+`deliverShareCard`+`buildShareCardStats`, `sharing` state, `handleShareCard`, ios_share button) and retired the standalone screen. **AC:** "viagem" is one place; the share card still works; nothing the user could do is lost (Â9).
+  - **Redirect (no dead links):** `/trip` → `<Navigate to="/viagem" replace/>` in `router.tsx` (import of `TripOverviewPage` removed). Internal `navigate('/trip')` repointed to `/viagem` in `DashboardPage` (phase-name button + `phase_countdown` insight), `PlannerPage` (empty-state CTA), `TripEditPage` (post-save return).
+  - **Hub cleanup:** removed the redundant "Visão geral" tile from `TripHubPage` `structureItems` (the editor tile `/trip/edit` stays).
+  - **Discovery (hide, don't lose):** dropped the duplicate `overview` entry from `guide-catalog` and `help-catalog`; **enriched** the `viagem` help keywords (resumo/compartilhar/mapa/onde gastei) so the hub absorbs the retired article's searchability.
+  - **i18n:** removed the now-orphaned `trip.overview_title/role_hint`, `trip_hub.overview_card`, `guide.overview_t/_d`, `help_center.a.overview.*` (18 keys) across pt-BR/en/es.
+  - **Cleanup:** deleted `TripOverviewPage.tsx` (−239); dropped its 2 `boot-recovery` guard cases + import.
+  - **Test:** e2e `navigation.spec` asserts the legacy `/trip` → `/viagem` redirect; `boot-recovery`/`guide-catalog`/`help-catalog`/`help-content` re-run green (43/43); router/catalogs/i18n all typecheck.
+- **Regression watch:** the redirect keeps every old bookmark/deep-link alive; `/trip/edit` untouched; share-card machinery reused as-is (no new share logic). No domain/schema/worker change. Money/expense paths untouched.
+- **Commits:** `e77dbb2` (feat: consolidation) + `d8c053a` (release 0.99.52). Brain: DEC-288 → APPROVED.
+- **Gate close:** full unit suite **2118/2120** (only the 2 documented WebCrypto baseline fails; 2116 pass) · `npm run build` green (`index` 400.00 KB < 500 KB; the `TripOverviewPage` chunk is gone). Deploy bump 0.99.51→**0.99.52** (package.json+app-version+public/version.json + release note pt/en/es) pushed to `master` → Cloudflare Pages auto-build. _e2e (`test:e2e`) runs in CI (Playwright browsers/server unavailable in this sandbox) — ⏳ CI-verified._
 
 ---
 
