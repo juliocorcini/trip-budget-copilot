@@ -2163,4 +2163,88 @@
 
 ---
 
+## Coherence & Tricount wave (2026-06-24) — DEC-295→305 (PROPOSED at G0)
+
+> Execution truth: `brain/documents/2026-06-24-coherence-implementation-orchestrator.md` (gates G0→G8). Councils ran inline (1 request, no subagents) per `inline-council-no-subagents.mdc`. Registered PROPOSED at G0; flipped to APPROVED as each gate ships.
+
+### DEC-295 — Gate order for the single-session Coherence wave (Council C-A)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave G0
+- **Decision**: execute the 28-point briefing + Tricount as gates **G1 (global/cheap hygiene) → G2 (grouped reading) → G3 (actionable outing) → G4 (copilot/piggy coherence) → G5 (Amigo Sincero) → G6 (settlement/connected/share) → G7 (structure/polish/help) → G8 (Tricount, last)**.
+- **Rationale**: minimize context drift and regression in a single continuous session; start global/low-risk to calibrate, then data clarity (biggest pain), then message coherence, then people/share, then polish/help, then the new big feature last on a stable base.
+- **Refines**: orchestrator §7 C-A / §10. **Gate G0→G8.**
+
+### DEC-296 — Outing×Item collapse semantics under filter (Council C-B / §16 Q2)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G2)
+- **Decision**: summaries/filters/carousel/recents/map/patterns show the **outing** (1 entity); only **text search** itemizes. Under a category filter the collapsed row shows a **filtered subtotal** ("Mercado · N itens nesta categoria · €X") and tap opens the full outing (full total + all items). An item always references its parent outing.
+- **Rationale**: the core pain is summaries "exploding" a receipt into loose items; collapse by `sessionId` among the transactions that match the filter is honest to the filter while keeping the outing as one entity.
+- **Refines**: orchestrator §6 C01 / §7 C-B. **Gate G2.**
+
+### DEC-297 — Tricount: new aggregate entity reusing share/claim/settlement (Council C-C / §16 Q4)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G8)
+- **Decision**: build a **new aggregate entity** ("group-split event") that **reuses** the existing public link (`/t/`/`/s/`), `claim-response`, `mirrored-statement`, `settlement` and worker — instead of overloading the single-bill `Split`. Scope is **COMPLETE** (§16 Q3): manual expenses + **AI/receipt reading** + **equal AND custom** split.
+- **Rationale**: single-bill split and a persistent multi-expense/multi-payer event have different mental models and life cycles; overloading the critical single-bill flow risks regression. Reuse transport/crypto/claim 100%; only the aggregate (event = list of expenses + participants) is new.
+- **Red team**: "two similar entities = debt" → mitigated by sharing transport/crypto/claim entirely; only the aggregate is new.
+- **Refines**: orchestrator §6 C23 / §7 C-C. **Gate G8.**
+
+### DEC-298 — Simple-mode bottom nav layout 2+2 (Council C-D / §16 Q1)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G7)
+- **Decision**: simple-mode bottom nav is **2+2 symmetric** — Início, Gastos · (+) · Viagem, **Ajustes** (Settings takes the slot the hidden Copilot leaves, beginner-safe). Data-driven via `visibleInMode`.
+- **Rationale**: removing Copilot in simple mode leaves a 2-1 layout; symmetry matters more than keeping a specific item. Julio locked 2+2.
+- **Refines**: orchestrator §6 C06 / §7 C-D. **Gate G7.**
+
+### DEC-299 — Bar color policy: red only on real risk (C12 / §16 Q5)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G1)
+- **Decision**: normal progress = neutral/positive (`--success`/`--steady`/`--surface`); `--error` only when money is out / over limit / into reserve / critical phase. Tokenized, inherits in light theme.
+- **Rationale**: terracotta `--primary` reads as alert in gradients; being near the end of a phase is not a problem. Red must mean a real problem.
+- **Refines**: orchestrator §6 C12. **Gate G1.**
+
+### DEC-300 — Piggy fixed in Copilot + simulated/will-be-saved/saved states (C09/C10 / §16 Q7)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G4)
+- **Decision**: a **fixed piggy section** in the Copilot (reusing `PiggyStatementSheet`/`piggy-ledger`), and explicit copy **simulated / will be saved at close / already saved** everywhere the piggy is touched (check-in, card, statement). Never say "the piggy now has X" before it actually entered.
+- **Rationale**: Model B (DEC-279/261) keeps the balance derived (closed days only); simulation is a forecast. The fix is UI clarity, not math.
+- **Refines**: orchestrator §6 C09/C10. **Gate G4.**
+
+### DEC-301 — Amigo Sincero contextual CTA per slide (C07 / §16 Q6)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G5)
+- **Decision**: the Amigo Sincero CTA is a **function of the active slide** (`safeIndex`): verdict→impact; `top_category`→category impact; `piggy_movement`→piggy; `daily_left`→simulate; no useful action → **hide the button**. On the home, show only when actionable/new (no insight duplication).
+- **Rationale**: a fixed "Ver impacto" button on every slide reads as a dead/fake affordance. The `piggy_movement` slide already has its own CTA — generalize that precedent.
+- **Refines**: orchestrator §6 C07/C08. **Gate G5.**
+
+### DEC-302 — Actionable outing detail + item→outing back-link (C02)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G3)
+- **Decision**: the outing detail gains edit (name/date), view/edit **split** and **payer**, **personal cost**, **items** (each item → `ExpenseDetailPage`), **settlement status**. The item gains a "parte de · [outing]" back-link. **No new entity** (reuses Session/Transaction).
+- **Rationale**: `OutingReviewPage` is read-only (DEC-079); opening an outing and "not being able to do almost anything" is a top pain. Reuse `ExpenseDetailPage` edit patterns.
+- **Refines**: orchestrator §6 C02. **Gate G3.**
+
+### DEC-303 — Universal share feedback (C05)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G6)
+- **Decision**: every share action gives visible feedback (toast on shared/downloaded/failed), mirroring `TripOverviewPage`'s correct handling; ensure the canvas is not tainted; on desktop, a silent download gets a visible notice.
+- **Rationale**: `TripWrappedSheet.handleShare` only toasts on `failed`; on desktop the silent download reads as "nothing happens".
+- **Refines**: orchestrator §6 C05. **Gate G6.**
+
+### DEC-304 — State dictionary (the app's "same language")
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (cross-gate, finalized at G8)
+- **Decision**: real / planned / allocated / free / piggy / simulated / saved / outing / item / settlement have a **consistent label and color** across the whole app (see orchestrator appendix). Every alert explains: what happened · why it matters · what to do · whether it's a real problem or just a plan adjustment. Red = real problem.
+- **Rationale**: one screen says "you're in control" while another shows red without explaining the difference; the app must speak one language.
+- **Refines**: orchestrator §3 / appendix. **Cross-gate.**
+
+### DEC-305 — Neutral, very subtle input focus (C25, addendum 2026-06-24)
+- **Date**: 2026-06-24
+- **Status**: PROPOSED — Coherence wave (Gate G1)
+- **Decision**: for `input/textarea/select/[contenteditable]`, replace the global orange focus ring (`outline: 2px solid var(--primary)` + `--glow`, from DEC-285) with a **minimal, neutral, very subtle** focus — no orange, no glow; e.g. a slight neutral `border-color` lift **or** a thin 1–2px ring in `--border-subtle`. Keep the minimum perceptible by keyboard (WCAG 2.4.7 / DEC-285 preserved). Buttons/links/cards keep the current ring.
+- **Rationale**: Julio: the orange ring is ugly on text fields (`:focus-visible` fires on mouse click too); make it the most subtle possible without removing it entirely.
+- **Refines**: DEC-285 / orchestrator §6 C25. **Gate G1.**
+
+---
+
 *New decisions will be added as the project progresses.*
