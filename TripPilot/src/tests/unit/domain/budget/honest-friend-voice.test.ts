@@ -8,6 +8,7 @@ import {
   voiceLineKey,
   VOICE_LINES_PER_BAND,
   type VoiceBand,
+  type HonestFriendVoice,
 } from '@/domain/budget';
 import ptBR from '@/i18n/locales/pt-BR.json';
 import en from '@/i18n/locales/en.json';
