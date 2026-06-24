@@ -10,16 +10,15 @@ import { useActiveSplit } from '@/features/split/useActiveSplit';
 import { openAssistant } from '@/features/assistant/assistant-bus';
 
 /**
- * P2 (UX audit §3) + GATE 18 (Julio device test 2026-06-18): the FAB keeps ALL 9
- * actions and the visual language, but ranks them by VALUE for the thumb. Base of
- * the sheet = the two accented heroes ("Registrar gasto", "Escanear nota"). Above
- * them, visible at rest: "Iniciar saída" (the distinct live-capture session, the
- * most important secondary action) and the two PLANNING tools ("Planejar um
- * gasto", "Simular compra") — the app's differentiators, previously buried behind
- * a "Planejar" expander. "Registrar mercado" — which is just "Registrar gasto"
- * pre-filtered to one category — was demoted from a prime chip into the collapsed
- * "Outros registros" with the transfer/withdrawal/income entries. Nothing removed
- * (ÂNCORA 9); simple mode still hides the advanced actions.
+ * The FAB keeps ALL its actions (ÂNCORA 9 — hide, never delete) and the visual
+ * language, but ranks them by VALUE for the thumb. Base of the sheet = the AI +
+ * register-expense heroes. Visible "smart tools" row: plan a spend, simulate,
+ * convert currency and — Julio (2026-06-22) — "Registrar mercado", a daily-life
+ * capture promoted back from the collapsed group to take the slot freed by the
+ * cost-benefit comparator. The comparator no longer needs a visible slot, so it
+ * moves into the collapsed "more actions" group (still reachable here + via the
+ * Guide; its photo entry lives on the comparator page). Simple mode still hides
+ * the advanced actions.
  */
 type FabGroup = 'capture' | 'plan' | 'other';
 
@@ -53,17 +52,6 @@ const GROUPED_ACTIONS: FabAction[] = [
     advanced: true,
   },
   {
-    // GATE 18: a pre-filtered "Registrar gasto" — demoted from a prime chip into
-    // the collapsed "Outros registros" so the planning tools can lead instead.
-    icon: 'shopping_cart',
-    labelKey: 'fab.register_market',
-    descKey: 'fab.register_market_desc',
-    path: '/quick-add?cat=market',
-    iconBg: '#6B8F7118',
-    iconColorClass: 'text-success',
-    group: 'other',
-  },
-  {
     icon: 'edit_calendar',
     labelKey: 'fab.plan_expense',
     descKey: 'fab.plan_expense_desc',
@@ -95,16 +83,30 @@ const GROUPED_ACTIONS: FabAction[] = [
     group: 'plan',
   },
   {
-    // DEC-283: the cost-benefit comparator — "qual vale mais por kg/L/unidade?".
-    // A daily-shopping tool that stays in simple mode too (no `advanced`), since
-    // comparing prices on a shelf is a beginner's most frequent need.
+    // Julio (2026-06-22): "Registrar mercado" (a "Registrar gasto" pre-filtered to
+    // one category) promoted back into the visible "smart tools" row — a daily-life
+    // capture, especially in "dia a dia" mode. It takes the slot freed by the
+    // cost-benefit comparator. Stays in simple mode too (no `advanced`).
+    icon: 'shopping_cart',
+    labelKey: 'fab.register_market',
+    descKey: 'fab.register_market_desc',
+    path: '/quick-add?cat=market',
+    iconBg: '#6B8F7118',
+    iconColorClass: 'text-success',
+    group: 'plan',
+  },
+  {
+    // DEC-283/DEC-284: the cost-benefit comparator — "qual vale mais por
+    // kg/L/unidade?". Julio (2026-06-22): it does not need a visible slot, so it
+    // sits in the collapsed "more actions" group (still reachable here + via the
+    // Guide; its multi-photo entry lives on the comparator page itself).
     icon: 'balance',
     labelKey: 'fab.comparator',
     descKey: 'fab.comparator_desc',
     path: '/comparator',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
-    group: 'plan',
+    group: 'other',
   },
   {
     icon: 'swap_horiz',

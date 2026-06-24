@@ -2064,4 +2064,20 @@
 
 ---
 
+### DEC-284 — Comparator V2: multi-image photo extraction (DEC-283's deferred photo path)
+- **Date**: 2026-06-22
+- **Status**: ✅ APPROVED (Julio) — IMPLEMENTED (0.99.50)
+- **Context**: DEC-283 deferred photo/OCR to V2 "conditioned on real demand". Julio asked to ship it now, with a twist: **send several shelf photos at once**, read each one, then compare them together — the natural in-store flow (snap 2–3 tags, get the verdict).
+- **Decision**: reuse the existing cloud-vision pipeline (DEC-206 receipt OCR) — **one product per image**, several images sent as **parallel** calls — and feed the readings into the V1 comparator engine (DEC-283). No new model, no new statefulness, graceful degradation identical to OCR.
+- **Scope (what shipped)**:
+  - **Worker** `POST /unit-extract` — stateless proxy to Groq vision with a tight prompt returning `{price, quantity, unit, label, currency, confidence}` for ONE product. Same vision model, same size guard (`OCR_MAX_IMAGE_CHARS`), same stable error statuses (503/429/4xx) and `recordAiUsage` accounting bucket as `/ocr`.
+  - **Pure domain** `domain/shopping/unit-extract.ts` — `parseUnitExtractResponse` normalizes one raw reading: validates numbers, resolves the unit to the picker set (rare mg/cl converted to g/ml so quantity stays consistent), clamps confidence, and sets `needsReview` when price/quantity/unit is missing or confidence < 0.6. 12 unit tests.
+  - **Client transport** `utils/ai-unit-extract.ts` — mirrors `ai-ocr.ts`; never throws (typed `not_configured | rate_limited | offline | failed`), so N photos can `Promise.all` independently.
+  - **UI** `ComparatorPage` — "Adicionar por foto" hero entry → source sheet (camera = one tag at a time; gallery = **multiple**). Each photo becomes a row; existing typed rows are kept, scanned rows fill the remaining slots up to 6. Live progress ("Lendo X de Y…"), per-row amber **"confira"** review badge + ring on uncertain/failed reads (cleared on any manual edit), a soft review hint, and a hard error line only when NOTHING could be read. i18n in all 3 languages.
+- **FAB reorg (same request)**: the comparator no longer occupies a visible chip — promoted **"Registrar mercado"** back into the visible "smart tools" row (a daily-life capture, especially in "Dia a dia"), and moved the comparator into the collapsed **"Mais ações"** group (still one tap; ÂNCORA 9 — hide, never delete). Group relabeled "Outros registros" → "Mais ações".
+- **Honesty (Critic)**: the model can misread a tag, so a photo read is NEVER trusted silently — every uncertain/failed field is flagged for human confirmation before the verdict is believed. The engine still refuses mixed-dimension comparisons (DEC-283).
+- **Refs**: plan `documents/comparator-v2-multi-image-plan-2026-06-22.md`; precedents DEC-206 (vision OCR), DEC-283 (comparator V1), DEC-256 (converter), DEC-275 (image source chooser).
+
+---
+
 *New decisions will be added as the project progresses.*

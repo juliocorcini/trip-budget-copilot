@@ -1,8 +1,8 @@
 {
-  "version": "0.99.49",
+  "version": "0.99.50",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.49.zip",
-  "notes": "Chegou o Comparador de custo-benefício: descubra na hora qual embalagem vale mais por kg, litro ou unidade — ex.: 120 g por 1€ ou 200 g por 2€ — sem fazer conta de cabeça. Use no mercado por texto, por voz (\"o que vale mais, 120g por 1 euro ou 200g por 2 euros?\") ou preenchendo os itens na tela. É tudo local: não cria gasto, não usa internet e funciona offline. Abra pelo botão + (em Planejar), pelo Guia ou pela Central de ajuda."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.50.zip",
+  "notes": "O Comparador de custo-benefício agora lê fotos: fotografe as etiquetas (várias de uma vez) e ele preenche preço e quantidade sozinho — confira o que veio da foto (marcado em amarelo) e veja qual vale mais por kg, litro ou unidade. Continua funcionando por texto e por voz. Reorganizamos o botão +: \"Registrar mercado\" voltou para a fila principal e o Comparador foi para \"Mais ações\" (a leitura por foto fica na própria tela do comparador)."
 }

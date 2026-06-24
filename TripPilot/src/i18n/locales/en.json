@@ -490,8 +490,8 @@
     "plan_expense": "Plan an expense",
     "plan_expense_desc": "Event, purchase or pot — one door",
     "quick_actions": "Quick actions",
-    "group_other": "Other entries",
-    "group_other_desc": "Groceries, transfer, withdrawal, income"
+    "group_other": "More actions",
+    "group_other_desc": "Cost-benefit, transfer, withdrawal, income"
   },
   "income": {
     "title": "Record income",
@@ -2212,7 +2212,21 @@
     "winner": "{{name}} wins — {{pct}}% cheaper per unit.",
     "tie": "Too close to call: both cost practically the same per unit.",
     "mixed_dimensions": "These items use different measures (weight, volume or count) — they can't be compared directly.",
-    "need_two": "Fill in at least 2 items with a price and quantity to compare."
+    "need_two": "Fill in at least 2 items with a price and quantity to compare.",
+    "scan_cta": "Add from photo",
+    "scan_hint": "Snap the shelf tags — I read price and quantity from several at once.",
+    "scan_source_title": "Add from photo",
+    "scan_camera": "Take a photo",
+    "scan_camera_desc": "One tag at a time",
+    "scan_gallery": "Choose from gallery",
+    "scan_gallery_desc": "You can pick several photos",
+    "scanning": "Reading {{done}} of {{total}}…",
+    "review_banner": "Double-check the values read from the photos before deciding.",
+    "review_badge": "check",
+    "scan_error_not_configured": "Photo reading is unavailable right now — type the values.",
+    "scan_error_offline": "No connection to read the photos — type the values.",
+    "scan_error_rate_limited": "Too many reads right now — try again shortly or type.",
+    "scan_error_failed": "Couldn't read the photos — type the values."
   },
   "simulator": {
     "title": "Simulator",

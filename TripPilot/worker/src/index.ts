@@ -149,6 +149,21 @@ const OCR_PROMPT = [
   'adjustments (E6): list money lines that are NOT products: couvert/cover ("couvert","cover") as kind "couvert"; any discount/promo ("discount","desconto","promo","off") as kind "discount" with a NEGATIVE amount; anything else non-product as "other". Never duplicate the service line here. If none, return [].',
 ].join('\n');
 
+// DEC-284: cost-benefit comparator photo input. The client posts ONE product
+// price-tag/package photo and gets back {price, quantity, unit, label, currency,
+// confidence}; several photos are sent as parallel calls (one product per image),
+// then merged into the comparator. Reuses the vision model + size guard of /ocr.
+const UNIT_EXTRACT_PROMPT = [
+  'Look at this photo of ONE product price tag or package (any shop, any country).',
+  'Return ONLY this JSON, no prose, no markdown:',
+  '{"price":number|null,"quantity":number|null,"unit":"g"|"kg"|"mg"|"ml"|"cl"|"l"|"un"|null,"label":string|null,"currency":string|null,"confidence":number}',
+  'price = the package selling price as a plain dot-decimal (no symbol); the main shelf price, NOT the small per-kg/per-litre reference price.',
+  'quantity = the net content amount as a plain number; unit = its measure (weight: g/kg/mg; volume: ml/cl/l; or count: un). If only a per-kg/per-litre reference is shown with no package size, set quantity=null.',
+  'label = a short product name if visible, else null. currency = ISO 4217 code if a symbol/code is visible, else null.',
+  'confidence = your 0..1 certainty that BOTH price and quantity are correct.',
+  'Never invent numbers; any field not clearly readable = null; if nothing is readable, return all nulls with confidence 0. Numbers are plain dot-decimals with no symbols.',
+].join('\n');
+
 // DEC-246 (AI Quick Entry) — natural-language router. The client posts the typed
 // text plus a tiny, low-sensitivity context pack (names/labels only, no ids, no
 // amounts, no history); the model returns a JSON {"actions":[...]} list of typed
@@ -501,6 +516,84 @@ async function handleOcr(
 }
 
 /**
+ * DEC-284: relay ONE product photo to Groq vision and return the raw extraction
+ * JSON ({price, quantity, unit, label, currency, confidence}). Mirrors handleOcr
+ * (same vision model, same size guard, same stable error statuses); the client
+ * merges several of these (one per photo) into the cost-benefit comparator.
+ */
+async function handleUnitExtract(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'ocr_not_configured' }, 503);
+
+  let body: { imageDataUrl?: unknown };
+  try {
+    body = (await request.json()) as { imageDataUrl?: unknown };
+  } catch {
+    return json({ error: 'bad_json' }, 400);
+  }
+  const imageDataUrl = body.imageDataUrl;
+  if (typeof imageDataUrl !== 'string' || !imageDataUrl.startsWith('data:image/')) {
+    return json({ error: 'bad_image' }, 400);
+  }
+  if (imageDataUrl.length > OCR_MAX_IMAGE_CHARS) return json({ error: 'image_too_large' }, 413);
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OCR_MODEL,
+        temperature: 0,
+        // One product's fields = a tiny JSON; a small cap is plenty and avoids
+        // truncation. Unused budget costs nothing.
+        max_tokens: 512,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: UNIT_EXTRACT_PROMPT },
+              { type: 'image_url', image_url: { url: imageDataUrl } },
+            ],
+          },
+        ],
+      }),
+    });
+  } catch {
+    return json({ error: 'ocr_upstream_unreachable' }, 502);
+  }
+
+  if (upstream.status === 429) return json(rateLimitBody('ocr', upstream), 429);
+  if (!upstream.ok) return json({ error: 'ocr_upstream_error', upstreamStatus: upstream.status }, 502);
+
+  let payload: { choices?: { message?: { content?: unknown } }[]; usage?: unknown };
+  try {
+    payload = (await upstream.json()) as typeof payload;
+  } catch {
+    return json({ error: 'ocr_unparseable' }, 502);
+  }
+  const content = payload.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') return json({ error: 'ocr_empty' }, 502);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return json({ error: 'ocr_unparseable' }, 502);
+  }
+  ctx.waitUntil(recordAiUsage(env, installId, 'ocr', groqTotalTokens(payload)));
+  return json(parsed);
+}
+
+/**
  * DEC-207 — persistent encrypted share channel. Sub-routes under /share/*:
  *   POST   /share                 create  → { id, writeToken, expiresAt }
  *   GET    /share/:id             read the ciphertext statement (open: link id is the address)
@@ -749,6 +842,12 @@ export default {
     // DEC-206 (G2) — cloud receipt OCR. Stateless proxy to Groq vision.
     if (request.method === 'POST' && url.pathname === '/ocr') {
       return handleOcr(request, env, ctx, installId);
+    }
+
+    // DEC-284 — cost-benefit comparator photo extraction. One product per image;
+    // the client sends several in parallel. Stateless proxy to Groq vision.
+    if (request.method === 'POST' && url.pathname === '/unit-extract') {
+      return handleUnitExtract(request, env, ctx, installId);
     }
 
     // DEC-246 — AI quick-entry router. Stateless proxy to Groq JSON mode.

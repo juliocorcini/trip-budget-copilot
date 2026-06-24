@@ -490,8 +490,8 @@
     "plan_expense": "Planejar um gasto",
     "plan_expense_desc": "Evento, compra ou pote — numa porta só",
     "quick_actions": "Ações rápidas",
-    "group_other": "Outros registros",
-    "group_other_desc": "Mercado, transferência, saque, entrada"
+    "group_other": "Mais ações",
+    "group_other_desc": "Custo-benefício, transferência, saque, entrada"
   },
   "income": {
     "title": "Registrar entrada",
@@ -2216,7 +2216,21 @@
     "winner": "{{name}} vale mais — {{pct}}% mais barato por unidade.",
     "tie": "Empate técnico: os dois custam praticamente o mesmo por unidade.",
     "mixed_dimensions": "Esses itens usam medidas diferentes (peso, volume ou unidade) — não dá pra comparar direto.",
-    "need_two": "Preencha pelo menos 2 itens com preço e quantidade pra comparar."
+    "need_two": "Preencha pelo menos 2 itens com preço e quantidade pra comparar.",
+    "scan_cta": "Adicionar por foto",
+    "scan_hint": "Fotografe as etiquetas — eu leio preço e quantidade de várias de uma vez.",
+    "scan_source_title": "Adicionar por foto",
+    "scan_camera": "Tirar foto",
+    "scan_camera_desc": "Uma etiqueta por vez",
+    "scan_gallery": "Escolher da galeria",
+    "scan_gallery_desc": "Pode selecionar várias fotos",
+    "scanning": "Lendo {{done}} de {{total}}…",
+    "review_banner": "Confira os valores lidos das fotos antes de decidir.",
+    "review_badge": "confira",
+    "scan_error_not_configured": "Leitura por foto indisponível agora — digite os valores.",
+    "scan_error_offline": "Sem conexão pra ler as fotos — digite os valores.",
+    "scan_error_rate_limited": "Muitas leituras agora — tente em instantes ou digite.",
+    "scan_error_failed": "Não consegui ler as fotos — digite os valores."
   },
   "simulator": {
     "title": "Simulador",

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.50',
+    date: '2026-06-22',
+    items: {
+      'pt-BR': [
+        'O Comparador de custo-benefício agora lê fotos: fotografe as etiquetas (várias de uma vez) e ele preenche preço e quantidade sozinho — depois é só conferir e ver qual vale mais por kg, litro ou unidade.',
+        'O que vem da foto fica marcado em amarelo ("confira") pra você confirmar antes de decidir; sem conexão ou sem foto, dá pra digitar normalmente.',
+        'Reorganizamos o botão +: "Registrar mercado" voltou para a fila principal e o Comparador foi para "Mais ações" (continua a um toque, e a leitura por foto fica na própria tela do comparador).',
+      ],
+      en: [
+        'The Cost-benefit comparator now reads photos: snap the shelf tags (several at once) and it fills in price and quantity for you — then just confirm and see which is the better buy per kg, litre or unit.',
+        'Anything read from a photo is marked in amber ("check") for you to confirm before deciding; with no connection or no photo, you can still type it in.',
+        'We reorganized the + button: "Register groceries" is back in the main row and the Comparator moved to "More actions" (still one tap away — its photo reading lives on the comparator screen).',
+      ],
+      es: [
+        'El Comparador de costo-beneficio ahora lee fotos: fotografía las etiquetas (varias a la vez) y completa precio y cantidad por ti — luego solo confirma y mira qué conviene más por kg, litro o unidad.',
+        'Lo leído de una foto se marca en ámbar ("revisar") para que lo confirmes antes de decidir; sin conexión o sin foto, puedes escribirlo igual.',
+        'Reorganizamos el botón +: "Registrar mercado" volvió a la fila principal y el Comparador pasó a "Más acciones" (sigue a un toque; la lectura por foto está en la pantalla del comparador).',
+      ],
+    },
+  },
+  {
     version: '0.99.49',
     date: '2026-06-22',
     items: {

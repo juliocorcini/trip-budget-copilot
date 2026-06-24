@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -10,7 +10,14 @@ import {
   COMPARATOR_UNITS,
   type UnitPriceItemInput,
 } from '@/domain/shopping';
+import { compressImageFile, blobToDataUrl } from '@/utils/image/compress';
+import {
+  extractUnitItemViaCloud,
+  type UnitExtractError,
+  type UnitExtractOutcome,
+} from '@/utils/ai-unit-extract';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 
@@ -30,6 +37,8 @@ interface Row {
   price: string;
   quantity: string;
   unit: string;
+  /** DEC-284: a photo-filled row the user should confirm before trusting. */
+  review?: boolean;
 }
 
 interface SeedItem {
@@ -62,6 +71,32 @@ function parseSeedItems(raw: string | null): Row[] | null {
   return rows;
 }
 
+/** The comparator holds up to 6 rows (matches the picker + the seed cap). */
+const MAX_ROWS = 6;
+
+/** A row carries data once the user (or a photo) gave it a price/qty/label. */
+function isFilledRow(row: Row): boolean {
+  return row.price.trim() !== '' || row.quantity.trim() !== '' || row.label.trim() !== '';
+}
+
+/**
+ * DEC-284: map one photo extraction outcome to a comparator row. A transport
+ * failure becomes an empty row flagged for review, so a partial batch never
+ * aborts — the user just fills that one by hand.
+ */
+function outcomeToRow(outcome: UnitExtractOutcome, id: string): Row {
+  if (!outcome.ok) return { id, label: '', price: '', quantity: '', unit: 'g', review: true };
+  const item = outcome.item;
+  return {
+    id,
+    label: item.label ?? '',
+    price: item.price !== null ? String(item.price) : '',
+    quantity: item.quantity !== null ? String(item.quantity) : '',
+    unit: item.unit ?? 'g',
+    review: item.needsReview,
+  };
+}
+
 export function ComparatorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -80,6 +115,18 @@ export function ComparatorPage() {
     }
     return [emptyRow(), emptyRow()];
   });
+
+  // DEC-284: photo input (multi-image). The camera takes one tag at a time; the
+  // gallery picks several at once. Each picked image becomes one product row.
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [scan, setScan] = useState<{ busy: boolean; done: number; total: number }>({
+    busy: false,
+    done: 0,
+    total: 0,
+  });
+  const [scanError, setScanError] = useState<UnitExtractError | null>(null);
 
   if (!trip) {
     if (error) return <DataErrorScreen onRetry={retry} />;
@@ -102,10 +149,62 @@ export function ComparatorPage() {
   });
   const comparison = compareUnitPrice(items);
 
+  // Any manual edit also clears the "confira" flag — touching a value counts as
+  // confirming it.
   const setRow = (id: string, patch: Partial<Row>) =>
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  const addRow = () => setRows((prev) => (prev.length >= 6 ? prev : [...prev, emptyRow()]));
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch, review: false } : r)));
+  const addRow = () => setRows((prev) => (prev.length >= MAX_ROWS ? prev : [...prev, emptyRow()]));
   const removeRow = (id: string) => setRows((prev) => (prev.length <= 2 ? prev : prev.filter((r) => r.id !== id)));
+
+  // DEC-284: merge freshly scanned rows. Existing typed rows are kept; scanned
+  // rows fill the remaining slots up to MAX_ROWS (the picker minimum is 2).
+  const mergeScannedRows = (scannedRows: Row[]) =>
+    setRows((prev) => {
+      const filled = prev.filter(isFilledRow);
+      const slots = Math.max(0, MAX_ROWS - filled.length);
+      const merged = [...filled, ...scannedRows.slice(0, slots)];
+      while (merged.length < 2) merged.push(emptyRow());
+      return merged.slice(0, MAX_ROWS);
+    });
+
+  // Compress + extract every picked photo IN PARALLEL, resiliently: one failure
+  // becomes a review row instead of aborting the batch. Progress ticks per photo.
+  const handlePickedFiles = async (fileList: FileList | null) => {
+    setPickerOpen(false);
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList).slice(0, MAX_ROWS);
+    setScanError(null);
+    setScan({ busy: true, done: 0, total: files.length });
+
+    const outcomes = await Promise.all(
+      files.map(async (file): Promise<UnitExtractOutcome> => {
+        try {
+          const { blob } = await compressImageFile(file);
+          const dataUrl = await blobToDataUrl(blob);
+          return await extractUnitItemViaCloud(dataUrl);
+        } catch {
+          return { ok: false, error: 'failed' };
+        } finally {
+          setScan((s) => ({ ...s, done: Math.min(s.total, s.done + 1) }));
+        }
+      }),
+    );
+
+    mergeScannedRows(outcomes.map((outcome) => outcomeToRow(outcome, newId())));
+
+    const okCount = outcomes.filter((o) => o.ok).length;
+    const firstError = outcomes.find((o): o is Extract<UnitExtractOutcome, { ok: false }> => !o.ok);
+    // A hard error only when NOTHING could be read; a partial batch just shows the
+    // per-row "confira" review hints instead.
+    setScanError(okCount === 0 && firstError ? firstError.error : null);
+    setScan({ busy: false, done: 0, total: 0 });
+  };
+
+  const onPickedInput = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    event.target.value = '';
+    void handlePickedFiles(files);
+  };
 
   const displayUnitLabel = (code: string | null): string => {
     if (!code) return '';
@@ -161,6 +260,9 @@ export function ComparatorPage() {
     hint: 'bg-surface-container text-on-surface-faint',
   };
 
+  const reviewCount = rows.filter((r) => r.review).length;
+  const scanErrorText = scanError ? t(`comparator.scan_error_${scanError}`) : null;
+
   const numberInputClass =
     'w-full px-3 py-2.5 rounded-xl text-base font-bold tabular bg-surface-high text-on-surface outline-none';
   const selectClass =
@@ -178,6 +280,45 @@ export function ComparatorPage() {
         </div>
       </div>
 
+      {/* DEC-284: add items by photo (multi-image) — the hero entry of the page,
+          above the rows. While scanning it shows live progress; below it sits a
+          soft review hint or, when nothing could be read, a hard error line. */}
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={() => {
+            if (!scan.busy) setPickerOpen(true);
+          }}
+          disabled={scan.busy}
+          className="btn-press w-full p-3.5 rounded-2xl flex items-center gap-3 text-left disabled:opacity-70"
+          style={{ background: 'var(--surface-container)' }}
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: '#6366F11A' }}
+          >
+            <Icon name={scan.busy ? 'hourglass_top' : 'photo_camera'} size={20} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold text-on-surface leading-tight">
+              {scan.busy
+                ? t('comparator.scanning', { done: scan.done, total: scan.total })
+                : t('comparator.scan_cta')}
+            </p>
+            <p className="text-[11px] font-medium text-on-surface-dim leading-snug">
+              {t('comparator.scan_hint')}
+            </p>
+          </div>
+          {!scan.busy && <Icon name="add_a_photo" size={18} className="text-primary shrink-0" />}
+        </button>
+        {scanErrorText && <p className="text-[11px] font-semibold text-warning px-1">{scanErrorText}</p>}
+        {reviewCount > 0 && !scanErrorText && (
+          <div className="flex items-center gap-1.5 px-1">
+            <Icon name="fact_check" size={14} className="text-warning" />
+            <p className="text-[11px] font-semibold text-on-surface-dim">{t('comparator.review_banner')}</p>
+          </div>
+        )}
+      </div>
+
       {/* One card per item: price + quantity + unit, with its per-unit price. */}
       <div className="flex flex-col gap-3">
         {rows.map((row, index) => {
@@ -190,7 +331,11 @@ export function ComparatorPage() {
               className="rounded-2xl px-3 py-3 flex flex-col gap-2.5 transition-shadow"
               style={{
                 background: 'var(--surface-container)',
-                boxShadow: isBest ? '0 0 0 2px var(--tertiary, #2e7d32)' : undefined,
+                boxShadow: row.review
+                  ? '0 0 0 2px var(--warning, #D4A843)'
+                  : isBest
+                    ? '0 0 0 2px var(--tertiary, #2e7d32)'
+                    : undefined,
               }}
             >
               <div className="flex items-center gap-2">
@@ -200,6 +345,11 @@ export function ComparatorPage() {
                   placeholder={t('comparator.item_n', { n: index + 1 })}
                   className="flex-1 bg-transparent text-sm font-semibold text-on-surface outline-none placeholder:text-on-surface-faint placeholder:font-normal"
                 />
+                {row.review && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-high text-warning shrink-0">
+                    {t('comparator.review_badge')}
+                  </span>
+                )}
                 {isBest && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tertiary-container text-on-tertiary-container shrink-0">
                     {t('comparator.best_badge')}
@@ -263,7 +413,7 @@ export function ComparatorPage() {
         })}
       </div>
 
-      {rows.length < 6 && (
+      {rows.length < MAX_ROWS && (
         <button
           onClick={addRow}
           className="btn-press self-start flex items-center gap-1.5 text-sm font-semibold text-primary px-1"
@@ -278,6 +428,67 @@ export function ComparatorPage() {
         <Icon name={verdict.icon} size={22} />
         <p className="text-sm font-semibold leading-snug">{verdict.text}</p>
       </div>
+
+      {/* DEC-284: hidden pickers (always mounted, fired from the sheet buttons in
+          the SAME tap so iOS keeps the native camera/gallery allowed). Gallery is
+          multi-select; camera shoots one tag at a time. */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={onPickedInput}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={onPickedInput}
+      />
+
+      <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)} title={t('comparator.scan_source_title')}>
+        <div className="flex flex-col gap-2 mt-4">
+          <button
+            onClick={() => {
+              setPickerOpen(false);
+              cameraInputRef.current?.click();
+            }}
+            className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-surface-high btn-press text-left"
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: '#C75B3918' }}
+            >
+              <Icon name="photo_camera" size={20} className="text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[14px] font-bold text-on-surface">{t('comparator.scan_camera')}</p>
+              <p className="text-[11px] font-medium text-on-surface-dim">{t('comparator.scan_camera_desc')}</p>
+            </div>
+          </button>
+          <button
+            onClick={() => {
+              setPickerOpen(false);
+              galleryInputRef.current?.click();
+            }}
+            className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-surface-high btn-press text-left"
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: '#6B8F7118' }}
+            >
+              <Icon name="photo_library" size={20} className="text-success" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[14px] font-bold text-on-surface">{t('comparator.scan_gallery')}</p>
+              <p className="text-[11px] font-medium text-on-surface-dim">{t('comparator.scan_gallery_desc')}</p>
+            </div>
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
