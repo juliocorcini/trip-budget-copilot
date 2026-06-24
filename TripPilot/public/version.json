@@ -1,8 +1,8 @@
 {
-  "version": "0.99.52",
+  "version": "0.99.53",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.52.zip",
-  "notes": "A aba Viagem agora reúne tudo num só lugar: a antiga tela de Visão geral foi incorporada ao hub da viagem, que ganhou um botão para compartilhar o resumo (imagem) com seus companheiros. Links antigos para /trip continuam funcionando."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.53.zip",
+  "notes": "Boas-vindas renovadas: agora dá para escolher logo de cara entre uma Viagem (com datas) ou o Dia a dia (contínuo, sem data para acabar). Importar backup, receber de outro aparelho e os dados de demonstração continuam ali, num grupo mais discreto, e o botão de demonstração ficou mais legível."
 }

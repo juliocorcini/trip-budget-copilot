@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.53',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Boas-vindas renovadas: já na primeira tela você escolhe entre criar uma Viagem (com datas) ou começar no Dia a dia (contínuo, sem data para acabar).',
+        'O Dia a dia agora nasce direto no primeiro acesso — dê um nome e, se quiser, um teto mensal; nada é obrigatório.',
+        'Importar backup, receber de outro aparelho e os dados de demonstração continuam ali, agrupados de forma mais discreta — e o botão de demonstração ficou mais fácil de ver.',
+      ],
+      en: [
+        'Refreshed welcome: right on the first screen you choose between creating a Trip (with dates) or starting a Day-to-day (continuous, no end date).',
+        'The Day-to-day can now be created right at first launch — give it a name and, if you like, a monthly cap; nothing is required.',
+        'Import backup, receive from another device and the demo data are still there, grouped more discreetly — and the demo button is now easier to see.',
+      ],
+      es: [
+        'Bienvenida renovada: ya en la primera pantalla eliges entre crear un Viaje (con fechas) o empezar el Día a día (continuo, sin fecha de fin).',
+        'El Día a día ahora se crea desde el primer acceso — ponle un nombre y, si quieres, un tope mensual; nada es obligatorio.',
+        'Importar copia, recibir de otro dispositivo y los datos de demostración siguen ahí, agrupados de forma más discreta — y el botón de demostración es más fácil de ver.',
+      ],
+    },
+  },
+  {
     version: '0.99.52',
     date: '2026-06-24',
     items: {
