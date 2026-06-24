@@ -167,6 +167,8 @@ export function PlannerPage() {
   const [menuValueDraft, setMenuValueDraft] = useState('');
   // DEC-172: "where the margin comes from" sheet (available − allocated = margin).
   const [marginBreakdownOpen, setMarginBreakdownOpen] = useState(false);
+  // M13: one-tap legend explaining the priority tags + the lock affordance.
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const profilesRef = useRef<ActivityProfile[]>([]);
   const enabledProfilesRef = useRef<ActivityProfile[]>([]);
@@ -779,7 +781,18 @@ export function PlannerPage() {
 
       {/* Audit 4.9 (P2): a plain-language "what is this page" line — the light
           guided touch for the app's most conceptual surface. */}
-      <p className="text-xs text-on-surface-dim mt-1 leading-snug">{t('planner.intro')}</p>
+      <p className="text-xs text-on-surface-dim mt-1 leading-snug">
+        {t('planner.intro')}{' '}
+        {/* M13: a one-tap legend for the tags + lock (P-1: "what does the lock do?"). */}
+        <button
+          type="button"
+          onClick={() => setLegendOpen(true)}
+          className="btn-press inline-flex items-center gap-0.5 align-baseline font-semibold text-primary"
+        >
+          <Icon name="help" size={13} className="align-middle" />
+          {t('planner.legend_link')}
+        </button>
+      </p>
 
       {/* ── PHASE SELECTOR (multi-phase trips) ── */}
       {sortedPhases.length > 1 && (
@@ -1069,6 +1082,17 @@ export function PlannerPage() {
                   {fmtCompact(total, currency)}
                 </p>
               </div>
+
+              {/* M13: when locked, the dimmed stepper now says WHY (P-1) — and how to
+                  undo it — instead of looking like a silently disabled control. */}
+              {s.isLocked && (
+                <p className="flex items-center gap-1 mt-2 text-[11px] text-on-surface-faint">
+                  <Icon name="lock" size={12} className="shrink-0" />
+                  {priority === 'essential'
+                    ? t('planner.locked_reason_essential')
+                    : t('planner.locked_reason')}
+                </p>
+              )}
             </div>
           );
         })}
@@ -1397,6 +1421,28 @@ export function PlannerPage() {
             </button>
           </div>
         )}
+      </BottomSheet>
+
+      {/* M13: the priority tags + lock explained in one place (P-1). */}
+      <BottomSheet open={legendOpen} onClose={() => setLegendOpen(false)} title={t('planner.legend_title')}>
+        <div className="px-1 pb-2 flex flex-col gap-3">
+          <div className="flex items-start gap-2.5">
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 mt-0.5" style={{ background: 'var(--highlight-soft)', color: 'var(--on-surface-dim)' }}>
+              {t('planner.essential')}
+            </span>
+            <p className="text-xs text-on-surface-dim leading-relaxed">{t('planner.legend_essential')}</p>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 mt-0.5" style={{ background: 'var(--highlight-soft)', color: 'var(--on-surface-dim)' }}>
+              {t('planner.optional')}
+            </span>
+            <p className="text-xs text-on-surface-dim leading-relaxed">{t('planner.legend_optional')}</p>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <Icon name="lock" size={16} className="text-on-surface-faint shrink-0 mt-0.5" />
+            <p className="text-xs text-on-surface-dim leading-relaxed">{t('planner.legend_lock')}</p>
+          </div>
+        </div>
       </BottomSheet>
     </div>
   );

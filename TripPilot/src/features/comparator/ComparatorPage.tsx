@@ -17,6 +17,7 @@ import {
   type UnitExtractOutcome,
 } from '@/utils/ai-unit-extract';
 import { Icon } from '@/components/Icon';
+import { OfflineSeal } from '@/components/OfflineSeal';
 import { BottomSheet } from '@/components/BottomSheet';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -278,6 +279,7 @@ export function ComparatorPage() {
           <h1 className="text-heading font-bold text-on-surface">{t('comparator.title')}</h1>
           <p className="text-[11px] text-on-surface-faint">{t('comparator.subtitle')}</p>
         </div>
+        <OfflineSeal className="ml-auto" />
       </div>
 
       {/* DEC-284: add items by photo (multi-image) — the hero entry of the page,
@@ -451,6 +453,12 @@ export function ComparatorPage() {
 
       <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)} title={t('comparator.scan_source_title')}>
         <div className="flex flex-col gap-2 mt-4">
+          {/* M25: teach to frame the price tag (not the whole product) so the read
+              lands more often and fewer rows get flagged "confira". */}
+          <div className="flex items-start gap-2 px-1 pb-1">
+            <Icon name="lightbulb" size={15} className="text-primary shrink-0 mt-0.5" />
+            <p className="text-[11px] text-on-surface-dim leading-snug">{t('comparator.scan_tip')}</p>
+          </div>
           <button
             onClick={() => {
               setPickerOpen(false);

@@ -16,6 +16,7 @@ import { getActiveIntlLocale } from '@/domain/locale';
 import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { appSettingsRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
+import { OfflineSeal } from '@/components/OfflineSeal';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { showToast } from '@/components/Toast';
@@ -46,6 +47,10 @@ export function ConverterPage() {
   const frozen = settings?.frozenRates ?? null;
   const baseCurrency = trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR';
   const anchor = settings?.anchorCurrency ?? null;
+  // M21 (DEC-256): "home" = the anchor when set, else the user's default currency.
+  // The converter opens converting the trip currency → home so it's useful at the
+  // first tap (never a dead EUR→EUR when a distinct home is known).
+  const homeCurrency = (anchor ?? settings?.defaultCurrency ?? '').trim().toUpperCase() || null;
   // FB-04: an AI "quanto é X em Y?" hands the pair via query — seed both so they
   // always appear as options, even if absent from the wallets/snapshot.
   const queryFrom = (searchParams.get('from') ?? '').trim().toUpperCase() || null;
@@ -54,7 +59,7 @@ export function ConverterPage() {
   const currencies = converterCurrencies(frozen, [
     baseCurrency,
     ...wallets.map((w) => w.currency),
-    ...(anchor ? [anchor] : []),
+    ...(homeCurrency ? [homeCurrency] : []),
     ...(queryFrom ? [queryFrom] : []),
     ...(queryTo ? [queryTo] : []),
   ]);
@@ -66,13 +71,12 @@ export function ConverterPage() {
     if (initedRef.current || !trip) return;
     initedRef.current = true;
     const fromDefault = queryFrom && currencies.includes(queryFrom) ? queryFrom : baseCurrency;
-    const anchorUpper = anchor ? anchor.trim().toUpperCase() : null;
     const firstForeign = currencies.find((c) => c !== fromDefault) ?? fromDefault;
     const toDefault =
       queryTo && currencies.includes(queryTo) && queryTo !== fromDefault
         ? queryTo
-        : anchorUpper && anchorUpper !== fromDefault && currencies.includes(anchorUpper)
-          ? anchorUpper
+        : homeCurrency && homeCurrency !== fromDefault && currencies.includes(homeCurrency)
+          ? homeCurrency
           : firstForeign;
     setFrom(fromDefault);
     setTo(toDefault);
@@ -150,6 +154,7 @@ export function ConverterPage() {
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('converter.title')}</h1>
+        <OfflineSeal className="ml-auto" />
       </div>
 
       {/* Amount + currency pickers with the ⇄ swap between them. */}
@@ -160,9 +165,9 @@ export function ConverterPage() {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
-            placeholder="0"
+            placeholder={t('converter.amount_placeholder')}
             autoFocus
-            className="px-4 py-3 rounded-2xl text-2xl font-bold tabular bg-surface-container text-on-surface outline-none"
+            className="px-4 py-3 rounded-2xl text-2xl font-bold tabular bg-surface-container text-on-surface outline-none placeholder:text-on-surface-faint placeholder:font-normal"
           />
         </div>
 
@@ -244,8 +249,8 @@ export function ConverterPage() {
               value={manualRate}
               onChange={(e) => setManualRate(e.target.value)}
               inputMode="decimal"
-              placeholder="0"
-              className="px-3 py-2.5 rounded-xl text-sm bg-surface-high text-on-surface outline-none"
+              placeholder={t('converter.manual_rate_placeholder')}
+              className="px-3 py-2.5 rounded-xl text-sm bg-surface-high text-on-surface outline-none placeholder:text-on-surface-faint"
             />
           </div>
         )}
