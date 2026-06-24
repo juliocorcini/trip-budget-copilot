@@ -13,7 +13,7 @@ import {
 
 /** Icon + tone for each "forma foi escolhido" channel. */
 const CHANNEL_META: Record<SplitClaimChannel, { icon: string; color: string }> = {
-  owner: { icon: 'person', color: '#818CF8' },
+  owner: { icon: 'person', color: 'var(--ai-2)' },
   guest_link: { icon: 'qr_code_2', color: '#6B8F71' },
   manual: { icon: 'edit', color: '#A0A0A0' },
   app_linked: { icon: 'smartphone', color: '#7CA0FF' },

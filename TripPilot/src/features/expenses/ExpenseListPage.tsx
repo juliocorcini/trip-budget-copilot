@@ -322,12 +322,12 @@ export function ExpenseListPage() {
             <button
               onClick={() => navigate('/receipt/scan')}
               className="h-9 pl-2.5 pr-3 rounded-full flex items-center gap-1.5 btn-press shrink-0"
-              style={{ background: '#6366F11F', border: '1px solid #6366F140' }}
+              style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
               aria-label={t('receiptScan.entry')}
               title={t('receiptScan.entry')}
             >
-              <Icon name="document_scanner" size={16} className="text-[#818CF8]" />
-              <span className="text-xs font-bold text-[#818CF8]">{t('receiptScan.entry_short')}</span>
+              <Icon name="document_scanner" size={16} className="text-[var(--ai-2)]" />
+              <span className="text-xs font-bold text-[var(--ai-2)]">{t('receiptScan.entry_short')}</span>
             </button>
             {/* FIELD-13: statement import was buried inside Wallets — surface it at
                 the top of the expenses screen (still kept in Wallets too). */}

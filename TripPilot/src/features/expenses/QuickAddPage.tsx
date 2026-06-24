@@ -716,7 +716,7 @@ export function QuickAddPage() {
           <button
             onClick={() => openAssistant()}
             className="btn-press flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-full text-[12px] font-bold text-[#ffffff]"
-            style={{ background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)' }}
+            style={{ background: 'var(--ai-gradient)' }}
             aria-label={t('assistant.fab_title')}
           >
             <Icon name="auto_awesome" size={14} className="text-[#ffffff]" />
@@ -1185,7 +1185,7 @@ export function QuickAddPage() {
                 style={{ background: isShared ? 'var(--primary)' : 'var(--surface-high)' }}
               >
                 <span
-                  className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
+                  className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-[left]"
                   style={{ left: isShared ? '18px' : '2px' }}
                 />
               </span>

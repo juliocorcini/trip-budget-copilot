@@ -355,16 +355,16 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
                   }
                 }}
                 className="btn-press p-4 rounded-2xl flex items-center gap-3.5 text-left"
-                style={{ background: '#6366F11A', border: '1px solid #6366F140' }}
+                style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
               >
                 <div
                   className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 relative"
-                  style={{ background: '#6366F126' }}
+                  style={{ background: 'var(--ai-bg)' }}
                 >
-                  <Icon name="splitscreen" size={24} className="text-[#818CF8]" />
+                  <Icon name="splitscreen" size={24} className="text-[var(--ai-2)]" />
                   <span
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                    style={{ background: '#6366F1' }}
+                    style={{ background: 'var(--ai)' }}
                   >
                     <Icon name="auto_awesome" size={9} className="text-[#ffffff]" />
                   </span>
@@ -375,7 +375,7 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
                     {t('fab.split_bill_desc')}
                   </p>
                 </div>
-                <Icon name="auto_awesome" size={18} className="text-[#818CF8] shrink-0" />
+                <Icon name="auto_awesome" size={18} className="text-[var(--ai-2)] shrink-0" />
               </button>
 
               {/* DEC-201 (N7): the orange hero — the base of the sheet, in the thumb
@@ -419,7 +419,7 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
                   }}
                   className="btn-press p-4 rounded-2xl flex items-center gap-3.5 text-left"
                   style={{
-                    background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                    background: 'var(--ai-gradient)',
                     boxShadow: '0 10px 28px -10px rgba(99,102,241,0.7)',
                   }}
                 >

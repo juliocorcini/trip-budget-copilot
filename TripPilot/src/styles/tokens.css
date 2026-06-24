@@ -13,17 +13,32 @@
   /* ── On Surface (text) ── */
   --on-surface: #EDE8E0;
   --on-surface-dim: #EDE8E0b3;
-  --on-surface-faint: #EDE8E070;
+  /* M02/DEC-286: raised 70→8C so small/faint text clears AA on the surface
+     (≈4.6:1, up from 3.79:1) while staying clearly below --on-surface-dim. */
+  --on-surface-faint: #EDE8E08C;
   --on-surface-mute: #EDE8E035;
 
   /* ── Semantic ── */
   --success: #6B8F71;
   --warning: #D4A843;
-  --error: #D94040;
+  /* M02/DEC-286: nudged #D94040 (4.19:1) → #E04848 (≈4.6:1) for AA error text. */
+  --error: #E04848;
   /* D-BUG-11 (D-DEC-E): calm "steady" attention — a muted dusty blue distinct
      from the sage success, so "over pace but the phase covers it" reads as a
      reassuring heads-up, not a green all-clear. */
   --steady: #5E8CA7;
+
+  /* ── AI accent (M12/DEC-287) ── A second accent family, distinct from the
+     terracotta brand: terracotta = brand, indigo = AI (Escanear / Entrada por
+     IA / live split). Was hard-coded (#6366F1/#818CF8/#8B5CF6) across 9 files. */
+  --ai: #6366F1;
+  --ai-2: #818CF8;
+  --ai-strong: #8B5CF6;
+  --ai-bg-soft: #6366F11A;
+  --ai-bg: #6366F126;
+  --ai-border: #6366F140;
+  --ai-glow: #6366F155;
+  --ai-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
 
   /* ── Phase "available per day" calendar intensity (Wave B / F22) ──
      Sage-green ramp mirroring the heatmap's alpha steps (33/59/80/B3). */
@@ -105,13 +120,27 @@
 
   --on-surface: #1A2028;
   --on-surface-dim: #1A2028b3;
-  --on-surface-faint: #1A202870;
+  /* M02/DEC-286: light theme needs a higher alpha than dark to reach AA on the
+     light surface (dark ink on light bg); 70→A6 lifts faint text to ≈4.8:1. */
+  --on-surface-faint: #1A2028A6;
   --on-surface-mute: #1A202835;
 
   --success: #4A7050;
   --warning: #B38B2D;
   --error: #C23030;
   --steady: #3F7491;
+
+  /* AI accent (M12/DEC-287) — darker indigo on the light theme so AI labels /
+     icons clear AA on the light surface (the hard-coded #818CF8 was ~2.7:1 on
+     light); solid --ai keeps white text legible too. */
+  --ai: #5145CD;
+  --ai-2: #5145CD;
+  --ai-strong: #6D28D9;
+  --ai-bg-soft: #5145CD14;
+  --ai-bg: #5145CD1F;
+  --ai-border: #5145CD40;
+  --ai-glow: #5145CD33;
+  --ai-gradient: linear-gradient(135deg, #5145CD 0%, #6D28D9 100%);
 
   --avail-1: #4A705033;
   --avail-2: #4A705059;

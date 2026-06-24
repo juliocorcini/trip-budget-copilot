@@ -112,7 +112,7 @@ function HelpOverlay({ screenId, onClose }: { screenId: HelpScreenId; onClose: (
       {/* Highlight ring over the real element */}
       {rect && (
         <div
-          className="absolute rounded-xl pointer-events-none transition-all duration-300"
+          className="absolute rounded-xl pointer-events-none transition-[top,left,width,height] duration-300"
           style={{
             top: rect.top,
             left: rect.left,

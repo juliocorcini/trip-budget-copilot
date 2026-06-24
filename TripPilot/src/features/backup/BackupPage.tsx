@@ -400,7 +400,7 @@ export function BackupPage() {
             style={{ background: csvAdvanced ? 'var(--primary)' : 'var(--surface-high)' }}
           >
             <span
-              className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-[left]"
               style={{ left: csvAdvanced ? '18px' : '2px' }}
             />
           </span>

@@ -340,7 +340,7 @@ export function SyncTransferFlow({
           </p>
           <div className="h-2 rounded-full bg-surface-high overflow-hidden">
             <div
-              className="h-full rounded-full bg-primary transition-all"
+              className="h-full rounded-full bg-primary transition-[width]"
               style={{ width: `${Math.round((flow.done / Math.max(flow.total, 1)) * 100)}%` }}
             />
           </div>

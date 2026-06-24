@@ -103,7 +103,7 @@ export function OngoingHome({
           <>
             <div className="mt-5 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-high)' }}>
               <div
-                className="h-full rounded-full transition-all"
+                className="h-full rounded-full transition-[width,background-color]"
                 style={{ width: `${pct}%`, background: isOver ? 'var(--error)' : 'var(--primary)' }}
               />
             </div>

@@ -505,9 +505,9 @@ function PreviewArea(props: {
       >
         <div
           className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-          style={{ background: '#6366F126' }}
+          style={{ background: 'var(--ai-bg)' }}
         >
-          <Icon name={PREVIEW_ICON[live.op] ?? 'auto_awesome'} size={22} className="text-[#818CF8]" />
+          <Icon name={PREVIEW_ICON[live.op] ?? 'auto_awesome'} size={22} className="text-[var(--ai-2)]" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[15px] font-bold text-on-surface leading-snug">{headline}</p>
@@ -689,9 +689,9 @@ function BatchPreviewArea(props: {
           >
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: '#6366F126' }}
+              style={{ background: 'var(--ai-bg)' }}
             >
-              <Icon name={PREVIEW_ICON[item.op] ?? 'auto_awesome'} size={18} className="text-[#818CF8]" />
+              <Icon name={PREVIEW_ICON[item.op] ?? 'auto_awesome'} size={18} className="text-[var(--ai-2)]" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[13.5px] font-semibold text-on-surface leading-snug">

@@ -37,21 +37,21 @@ export function SplitResumeSheet({ open, onClose }: { open: boolean; onClose: ()
           <button
             onClick={() => go('/split/scan')}
             className="w-full p-4 rounded-2xl flex items-center gap-3.5 btn-press text-left"
-            style={{ background: '#6366F11A', border: '1px solid #6366F140' }}
+            style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
           >
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 relative"
-              style={{ background: '#6366F126' }}
+              style={{ background: 'var(--ai-bg)' }}
             >
-              <Icon name="splitscreen" size={24} filled className="text-[#818CF8]" />
+              <Icon name="splitscreen" size={24} filled className="text-[var(--ai-2)]" />
               <span className="absolute top-0 right-0 flex h-2.5 w-2.5">
                 <span
                   className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-                  style={{ background: '#6366F1' }}
+                  style={{ background: 'var(--ai)' }}
                 />
                 <span
                   className="relative inline-flex h-2.5 w-2.5 rounded-full"
-                  style={{ background: '#6366F1' }}
+                  style={{ background: 'var(--ai)' }}
                 />
               </span>
             </div>
@@ -65,7 +65,7 @@ export function SplitResumeSheet({ open, onClose }: { open: boolean; onClose: ()
             </div>
             <span
               className="px-3 py-2 rounded-xl text-xs font-bold shrink-0"
-              style={{ background: '#6366F1', color: '#ffffff' }}
+              style={{ background: 'var(--ai)', color: '#ffffff' }}
             >
               {t('splitResume.resume')}
             </span>

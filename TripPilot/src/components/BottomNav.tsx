@@ -67,6 +67,10 @@ export function BottomNav() {
           if (direction) setPendingTabDirection(direction);
           navigate(item.path);
         }}
+        // M11/A-3: announce the active tab to screen readers (WCAG 4.1.2). The
+        // active state is also non-color-coded (bold label + filled icon +
+        // .nav-ind bar), so it does not rely on terracotta alone (WCAG 1.4.1).
+        aria-current={isActive ? 'page' : undefined}
         className="relative flex flex-col items-center gap-0.5 py-1 px-2 btn-press"
       >
         {/* DEC-194: active-tab indicator — grows in on the selected tab. */}

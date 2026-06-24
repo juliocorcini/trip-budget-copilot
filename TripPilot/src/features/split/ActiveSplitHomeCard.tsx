@@ -27,23 +27,23 @@ export function ActiveSplitHomeCard() {
       onClick={() => navigate('/split/scan')}
       aria-label={t('splitTable.resume_active')}
       className="w-full mt-4 p-4 rounded-2xl flex items-center gap-4 btn-press text-left"
-      style={{ background: 'var(--surface-deep)', border: '1px solid #6366F140' }}
+      style={{ background: 'var(--surface-deep)', border: '1px solid var(--ai-border)' }}
     >
       <div
         className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 relative"
-        style={{ background: '#6366F126' }}
+        style={{ background: 'var(--ai-bg)' }}
       >
-        <Icon name="splitscreen" size={24} filled className="text-[#818CF8]" />
+        <Icon name="splitscreen" size={24} filled className="text-[var(--ai-2)]" />
         <span className="absolute top-0 right-0 flex h-2.5 w-2.5">
           <span
             className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-            style={{ background: '#6366F1' }}
+            style={{ background: 'var(--ai)' }}
           />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: '#6366F1' }} />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: 'var(--ai)' }} />
         </span>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-[#818CF8]">
+        <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-[var(--ai-2)]">
           {t('splitTable.live_on')}
         </p>
         <p className="text-base font-extrabold mt-0.5 text-on-surface truncate">
@@ -55,7 +55,7 @@ export function ActiveSplitHomeCard() {
       </div>
       <span
         className="px-3 py-2 rounded-xl text-xs font-bold flex-shrink-0"
-        style={{ background: '#6366F1', color: '#ffffff' }}
+        style={{ background: 'var(--ai)', color: '#ffffff' }}
       >
         {t('splitTable.resume_open')}
       </span>

@@ -282,7 +282,7 @@ export function OnboardingPage() {
           style={{ background: addCashWallet ? 'var(--primary)' : 'var(--surface-high)' }}
         >
           <span
-            className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-all"
+            className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-[left]"
             style={{ left: addCashWallet ? '18px' : '2px' }}
           />
         </span>

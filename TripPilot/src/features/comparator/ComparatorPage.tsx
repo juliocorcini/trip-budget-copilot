@@ -294,7 +294,7 @@ export function ComparatorPage() {
         >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: '#6366F11A' }}
+            style={{ background: 'var(--ai-bg-soft)' }}
           >
             <Icon name={scan.busy ? 'hourglass_top' : 'photo_camera'} size={20} className="text-primary" />
           </div>

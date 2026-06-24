@@ -119,7 +119,7 @@ export function FastScroller({ dayCount }: FastScrollerProps) {
         onPointerCancel={() => setDragging(false)}
       >
         <div
-          className={`rounded-full transition-all ${
+          className={`rounded-full transition-[width,height,background-color] ${
             dragging ? 'w-2.5 h-10 bg-primary' : 'w-1.5 h-7 bg-on-surface-faint/60'
           }`}
         />

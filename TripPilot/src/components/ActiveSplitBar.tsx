@@ -25,7 +25,7 @@ export function ActiveSplitBar() {
       type="button"
       onClick={() => navigate('/split/scan')}
       className="fixed bottom-[92px] left-3 z-30 flex items-center gap-2 rounded-full pl-3 pr-4 py-2 btn-press"
-      style={{ background: '#6366F1', boxShadow: '0 6px 18px #6366F155' }}
+      style={{ background: 'var(--ai)', boxShadow: '0 6px 18px var(--ai-glow)' }}
       aria-label={t('splitTable.resume_active')}
     >
       <span className="relative flex h-2.5 w-2.5">

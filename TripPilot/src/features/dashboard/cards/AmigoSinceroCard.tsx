@@ -220,7 +220,7 @@ export function AmigoSinceroCard({
                 aria-label={`${i + 1}/${realCount}`}
                 aria-selected={i === safeIndex}
                 role="tab"
-                className="btn-press rounded-full transition-all"
+                className="btn-press rounded-full transition-[width,transform]"
                 style={{
                   width: i === safeIndex ? 16 : 6,
                   height: 6,

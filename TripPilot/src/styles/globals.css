@@ -328,3 +328,33 @@ html.cap-native #root *::-webkit-scrollbar {
     scroll-behavior: auto !important;
   }
 }
+
+/* M01 / DEC-285: a single global keyboard-focus ring (WCAG 2.4.7). The app
+   strips native outlines with the `outline-none` utility but had no
+   :focus-visible substitute. :focus-visible only fires for keyboard /
+   programmatic focus, so touch and mouse taps never draw the ring — the
+   native feel on mobile is unchanged (risk-zero on touch). Outline (not
+   box-shadow) so it is never clipped by an ancestor's overflow, and it is
+   theme-aware via --primary with a soft --glow halo. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--glow);
+}
+/* The bottom-nav FAB and pills already round heavily; keep the ring readable
+   by removing the halo where a tight outline reads cleaner. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* M02 / DEC-286: cream-on-terracotta (--on-surface on --primary) is 3.46:1 —
+   below AA. Council C2 chose white-on-CTA over darkening --primary (which would
+   recolor every icon/indicator and risk the light theme). This single
+   non-layered rule wins over Tailwind's text-* utilities (unlayered > @layer),
+   and targets only interactive primary buttons (not bg-primary progress bars or
+   dots, which are plain divs/spans). White on #C75B39 ≈ 4.7:1. */
+button.bg-primary,
+a.bg-primary,
+[role='button'].bg-primary {
+  color: #fff;
+}
