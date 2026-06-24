@@ -545,35 +545,35 @@
     "amigo_voice_reveal_cta": "Escolher a voz do Amigo Sincero",
     "amigo_voice": {
       "padrao": {
-        "good_0": "Tá indo bem, segue nesse ritmo.",
-        "good_1": "Tranquilo por aqui — dá pra aproveitar sem culpa.",
-        "warn_0": "Atenção: o ritmo tá apertando um pouco.",
-        "warn_1": "Dá pra continuar, mas fica de olho daqui pra frente.",
-        "over_0": "Estourou o limite — bora segurar um pouco.",
-        "over_1": "Passou do que dava — hora de pisar no freio."
+        "good_0": "Você tá no controle. Pode aproveitar tranquilo.",
+        "good_1": "Tá redondo por aqui — segue assim que tá dando certo.",
+        "warn_0": "Ó, o ritmo subiu. Nada demais, mas vale segurar.",
+        "warn_1": "Dá pra seguir, só não acelera daqui pra frente.",
+        "over_0": "Passou do limite. Sem drama, mas bora frear.",
+        "over_1": "Estourou aqui. Respira que a gente ajusta junto."
       },
       "zen": {
-        "good_0": "Tá tudo em equilíbrio. Respira e aproveita.",
-        "good_1": "Sem pressa: seu dinheiro tá fluindo bem.",
-        "warn_0": "Calma — só um leve desvio do ritmo, dá pra ajustar.",
-        "warn_1": "Nada grave. Um respiro e você reequilibra.",
-        "over_0": "Passou um pouco, sem drama — vamos reequilibrar.",
-        "over_1": "Acontece. Recentra e segue com leveza."
+        "good_0": "Tá tudo em paz. Respira e curte o momento.",
+        "good_1": "Sem pressa nenhuma — seu dinheiro flui tranquilo.",
+        "warn_0": "Calma, é só um respiro fora do ritmo. Dá pra ajustar.",
+        "warn_1": "Nada grave. Um gole d'água e você reequilibra.",
+        "over_0": "Passou um pouquinho, sem culpa. A gente recentra.",
+        "over_1": "Acontece com todo mundo. Reencontra o eixo e segue leve."
       },
       "durao": {
-        "good_0": "Tá mandando bem. Não relaxa agora.",
-        "good_1": "Bom controle. Mantém a disciplina.",
-        "warn_0": "Olha o ritmo. Já tá no limite do aceitável.",
-        "warn_1": "Segura essa mão antes que vire problema.",
-        "over_0": "Estourou. Sem desculpa, corta o excesso agora.",
-        "over_1": "Passou do limite. Para de gastar e resolve."
+        "good_0": "Tá indo bem. Não relaxa que é agora que escorrega.",
+        "good_1": "Controle bom. Mantém a mão firme.",
+        "warn_0": "Olha o ritmo. Tá na beirada — segura essa mão.",
+        "warn_1": "Tá gastando rápido demais. Para e pensa antes do próximo.",
+        "over_0": "Estourou. Sem desculpa: corta o excesso agora.",
+        "over_1": "Passou do limite. Fecha a carteira e resolve."
       },
       "economico": {
-        "good_0": "Cada moeda que sobra tá indo pro seu bolso.",
-        "good_1": "Gastando abaixo do ritmo — é assim que sobra grana.",
-        "warn_0": "Tá saindo do plano de economia, repensa o próximo gasto.",
-        "warn_1": "Esse ritmo come a sua reserva. Vale a pena?",
-        "over_0": "Você furou o orçamento — isso sai da sua economia.",
+        "good_0": "Cada moeda que sobra hoje vira reserva amanhã.",
+        "good_1": "Gastando abaixo do ritmo — é assim que a grana sobra.",
+        "warn_0": "Esse ritmo começa a comer sua economia. Repensa o próximo.",
+        "warn_1": "Cada gasto extra aqui é menos sobra no fim. Vale?",
+        "over_0": "Furou o orçamento — isso sai direto da sua reserva.",
         "over_1": "Gastou demais; a sobra do fim da viagem encolheu."
       }
     },

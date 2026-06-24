@@ -541,35 +541,35 @@
     "amigo_voice_reveal_cta": "Choose the Amigo Sincero voice",
     "amigo_voice": {
       "padrao": {
-        "good_0": "Going well — keep this pace.",
-        "good_1": "All calm here — enjoy it, guilt-free.",
-        "warn_0": "Heads up: the pace is getting a bit tight.",
-        "warn_1": "You can keep going, but watch it from here.",
-        "over_0": "Over the limit — let's ease off a bit.",
-        "over_1": "Past what you had — time to tap the brakes."
+        "good_0": "You're in control. Enjoy it without worry.",
+        "good_1": "Smooth sailing here — keep it up, it's working.",
+        "warn_0": "Heads up, the pace ticked up. Nothing major, but ease off.",
+        "warn_1": "You can keep going, just don't speed up from here.",
+        "over_0": "Over the limit. No drama, but let's hit the brakes.",
+        "over_1": "You went over here. Breathe — we'll fix it together."
       },
       "zen": {
-        "good_0": "Everything's in balance. Breathe and enjoy.",
-        "good_1": "No rush — your money is flowing nicely.",
-        "warn_0": "Easy — just a slight drift, you can adjust.",
-        "warn_1": "Nothing serious. A breath and you rebalance.",
-        "over_0": "A little over, no drama — let's rebalance.",
-        "over_1": "It happens. Recenter and move on lightly."
+        "good_0": "All at peace. Breathe and enjoy the moment.",
+        "good_1": "No rush at all — your money's flowing calmly.",
+        "warn_0": "Easy, just a small step off the rhythm. You can adjust.",
+        "warn_1": "Nothing serious. A sip of water and you're balanced again.",
+        "over_0": "A little over, no guilt. We'll recenter.",
+        "over_1": "Happens to everyone. Find your footing and move on lightly."
       },
       "durao": {
-        "good_0": "Doing great. Don't get comfortable now.",
-        "good_1": "Good control. Keep the discipline.",
-        "warn_0": "Mind the pace. You're at the edge already.",
-        "warn_1": "Hold that hand before it becomes a problem.",
-        "over_0": "Blew it. No excuses, cut the excess now.",
-        "over_1": "Over the line. Stop spending and fix it."
+        "good_0": "Doing well. Don't relax — that's when you slip.",
+        "good_1": "Good control. Keep a firm hand.",
+        "warn_0": "Watch the pace. You're on the edge — hold that hand back.",
+        "warn_1": "You're spending too fast. Stop and think before the next one.",
+        "over_0": "Over budget. No excuses: cut the excess now.",
+        "over_1": "Past the limit. Close the wallet and sort it out."
       },
       "economico": {
-        "good_0": "Every coin you save lands in your pocket.",
-        "good_1": "Spending under pace — that's how money's left over.",
-        "warn_0": "You're leaving the savings plan — rethink the next spend.",
-        "warn_1": "This pace eats your reserve. Is it worth it?",
-        "over_0": "You broke the budget — that comes out of your savings.",
+        "good_0": "Every coin you save today becomes a reserve tomorrow.",
+        "good_1": "Spending below pace — that's how the money piles up.",
+        "warn_0": "This pace starts eating your savings. Rethink the next one.",
+        "warn_1": "Each extra spend here is less left at the end. Worth it?",
+        "over_0": "Busted the budget — that comes straight out of your reserve.",
         "over_1": "Overspent; your end-of-trip leftover just shrank."
       }
     },
