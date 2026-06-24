@@ -253,7 +253,6 @@
     "planned_reserved": "{{amount}} set aside",
     "planned_manage": "See planned purchases",
     "no_funds": "No funds in this phase.",
-    "overview_card": "Trip overview",
     "trip_total": "Trip total",
     "trip_total_hint": "Sum of the segments",
     "pots_apart": "+ Pots aside: {{amount}}",
@@ -1248,8 +1247,6 @@
     "phase_created": "Phase \"{{name}}\" created"
   },
   "trip": {
-    "overview_title": "Overview",
-    "overview_role_hint": "A read-only summary: total, phases and a share card. To plan or edit, use Trip.",
     "edit_title": "Edit trip",
     "edit_trip": "Edit trip and phases",
     "total_budget": "Total budget",
@@ -1724,8 +1721,6 @@
     "spaces_d": "Keep several trips and the Day-to-day going at once, and switch between them in one tap.",
     "viagem_t": "Trip hub",
     "viagem_d": "View and plan any phase in one place, with the phase selector.",
-    "overview_t": "Trip structure",
-    "overview_d": "Dates, phases and the overall budget for the whole trip.",
     "profiles_t": "Activities and typicals",
     "profiles_d": "Adjust the typical values per spending type the app learns.",
     "wallets_t": "Wallets",
@@ -1860,11 +1855,6 @@
         "q": "How do I edit the trip's dates and phases?",
         "a": "In the trip hub you see and adjust any phase in one place, using the phase selector.",
         "steps": ["Open the trip hub", "Use the selector to choose the phase", "Edit dates, budget or create another phase"]
-      },
-      "overview": {
-        "q": "Where do I see the overall structure and trip map?",
-        "a": "The overview gathers dates, phases, budget and, when there are places, the map of where you spent.",
-        "steps": ["Open the trip overview", "See the phase and budget summary", "Tap the map to view the places"]
       },
       "profiles": {
         "q": "What are activity profiles for?",

@@ -253,7 +253,6 @@
     "planned_reserved": "{{amount}} reservado",
     "planned_manage": "Ver compras planificadas",
     "no_funds": "Ningún fondo en esta fase.",
-    "overview_card": "Resumen del viaje",
     "trip_total": "Total del viaje",
     "trip_total_hint": "Suma de los tramos",
     "pots_apart": "+ Fondos aparte: {{amount}}",
@@ -1248,8 +1247,6 @@
     "phase_created": "Fase \"{{name}}\" creada"
   },
   "trip": {
-    "overview_title": "Visión general",
-    "overview_role_hint": "Un resumen de solo lectura: total, fases y tarjeta para compartir. Para planificar o editar, usa Viaje.",
     "edit_title": "Editar viaje",
     "edit_trip": "Editar viaje y fases",
     "total_budget": "Presupuesto total",
@@ -1724,8 +1721,6 @@
     "spaces_d": "Ten varios viajes y el Día a día a la vez, y cambia entre ellos con un toque.",
     "viagem_t": "Centro del viaje",
     "viagem_d": "Ve y planifica cualquier fase en un solo lugar, con el selector de fase.",
-    "overview_t": "Estructura del viaje",
-    "overview_d": "Fechas, fases y el presupuesto general de todo el viaje.",
     "profiles_t": "Actividades y típicos",
     "profiles_d": "Ajusta los valores típicos por tipo de gasto que la app aprende.",
     "wallets_t": "Carteras",
@@ -1860,11 +1855,6 @@
         "q": "¿Cómo edito las fechas y fases del viaje?",
         "a": "En el hub del viaje ves y ajustas cualquier fase en un solo lugar, usando el selector de fase.",
         "steps": ["Abre el hub del viaje", "Usa el selector para elegir la fase", "Edita fechas, presupuesto o crea otra fase"]
-      },
-      "overview": {
-        "q": "¿Dónde veo la estructura general y el mapa del viaje?",
-        "a": "La visión general reúne fechas, fases, presupuesto y, cuando hay lugares, el mapa de dónde gastaste.",
-        "steps": ["Abre la visión general del viaje", "Mira el resumen de fases y presupuesto", "Toca el mapa para ver los lugares"]
       },
       "profiles": {
         "q": "¿Para qué sirven los perfiles de actividad?",

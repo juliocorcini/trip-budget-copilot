@@ -26,7 +26,6 @@ const OutingPage = lazyWithRetry(() => import('@/features/outing/OutingPage').th
 const OutingReviewPage = lazyWithRetry(() => import('@/features/outing/OutingReviewPage').then(m => ({ default: m.OutingReviewPage })));
 const SimulatorPage = lazyWithRetry(() => import('@/features/simulator/SimulatorPage').then(m => ({ default: m.SimulatorPage })));
 const RescuePage = lazyWithRetry(() => import('@/features/rescue/RescuePage').then(m => ({ default: m.RescuePage })));
-const TripOverviewPage = lazyWithRetry(() => import('@/features/trip/TripOverviewPage').then(m => ({ default: m.TripOverviewPage })));
 const TripEditPage = lazyWithRetry(() => import('@/features/trip/TripEditPage').then(m => ({ default: m.TripEditPage })));
 const PhasePreviewPage = lazyWithRetry(() => import('@/features/phases/PhasePreviewPage').then(m => ({ default: m.PhasePreviewPage })));
 const WalletsPage = lazyWithRetry(() => import('@/features/wallets/WalletsPage').then(m => ({ default: m.WalletsPage })));
@@ -150,7 +149,9 @@ export const router = createBrowserRouter([
           // F19: device pairing via a shared link — the recipient (an owner with a
           // trip) confirms before the sender's identity is paired into their trip.
           { path: '/pair', element: <LazyRoute><PairPage /></LazyRoute> },
-          { path: '/trip', element: <LazyRoute><TripOverviewPage /></LazyRoute> },
+          // DEC-288 (M15): the trip "overview" is consolidated into the Viagem
+          // hub. Keep the path as a redirect so old links/bookmarks still land.
+          { path: '/trip', element: <Navigate to="/viagem" replace /> },
           { path: '/trip/edit', element: <LazyRoute><TripEditPage /></LazyRoute> },
           // F17 + F18: read-only "future vision" preview of a phase (day-one
           // projection + planned income), reached from the trip's phase list.

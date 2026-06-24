@@ -303,9 +303,9 @@ export function DashboardPage() {
       case 'end_of_day':
         navigate('/quick-add');
         return;
-      // M11: the countdown jumps to the trip overview (phases + dates).
+      // M11: the countdown jumps to the Viagem hub (phases + dates) — DEC-288.
       case 'phase_countdown':
-        navigate('/trip');
+        navigate('/viagem');
         return;
       default:
         setDetailInsight(insight);
@@ -428,8 +428,8 @@ export function DashboardPage() {
               <h1 className="text-xl font-extrabold tracking-tight mt-1 text-on-surface">{trip.name}</h1>
             </button>
           ) : (
-            /* DEC-060 (GAP-024): phase name navigates to the trip overview */
-            <button onClick={() => navigate('/trip')} className="text-left btn-press">
+            /* DEC-060 (GAP-024): phase name navigates to the Viagem hub (DEC-288) */
+            <button onClick={() => navigate('/viagem')} className="text-left btn-press">
               <p className="text-[11px] tracking-[0.15em] uppercase font-bold" style={{ color: '#C75B39aa' }}>
                 {t('dashboard.day_counter', {
                   current: dayNum,

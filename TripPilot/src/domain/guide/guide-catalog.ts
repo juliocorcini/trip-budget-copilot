@@ -52,7 +52,6 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     entries: [
       { id: 'spaces', icon: 'workspaces', titleKey: 'guide.spaces_t', descKey: 'guide.spaces_d', route: '/spaces' },
       { id: 'viagem', icon: 'luggage', titleKey: 'guide.viagem_t', descKey: 'guide.viagem_d', route: '/viagem' },
-      { id: 'overview', icon: 'map', titleKey: 'guide.overview_t', descKey: 'guide.overview_d', route: '/trip' },
       { id: 'profiles', icon: 'badge', titleKey: 'guide.profiles_t', descKey: 'guide.profiles_d', route: '/profiles' },
       { id: 'wallets', icon: 'account_balance_wallet', titleKey: 'guide.wallets_t', descKey: 'guide.wallets_d', route: '/wallets' },
       { id: 'funds', icon: 'savings', titleKey: 'guide.funds_t', descKey: 'guide.funds_d', route: '/funds' },

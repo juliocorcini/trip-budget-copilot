@@ -729,7 +729,7 @@ export function PlannerPage() {
           cta={{
             label: t('planner.no_phases_cta'),
             icon: 'add',
-            onClick: () => navigate('/trip'),
+            onClick: () => navigate('/viagem'),
           }}
         />
       </div>

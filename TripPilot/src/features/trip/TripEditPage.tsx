@@ -387,7 +387,7 @@ export function TripEditPage() {
       }
 
       await reload();
-      navigate('/trip', { replace: true });
+      navigate('/viagem', { replace: true });
     } finally {
       setSaving(false);
     }

@@ -16,7 +16,6 @@ vi.mock('@/hooks/useAppData', () => ({
 
 import { BootGate } from '@/features/onboarding/BootGate';
 import { WelcomePage } from '@/features/onboarding/WelcomePage';
-import { TripOverviewPage } from '@/features/trip/TripOverviewPage';
 import { useAppData } from '@/hooks/useAppData';
 
 const mockUseAppData = vi.mocked(useAppData);
@@ -124,22 +123,5 @@ describe('WelcomePage redirect guard (BUG-001)', () => {
     mockUseAppData.mockReturnValue(appData({ trip: null }));
     renderAt('/welcome', <WelcomePage />);
     expect(screen.getByText('Criar viagem')).toBeInTheDocument();
-  });
-});
-
-describe('Screen guards on DB error (BUG-004/014)', () => {
-  it('TripOverviewPage shows DataErrorScreen on error — never redirects to Welcome', async () => {
-    mockUseAppData.mockReturnValue(appData({ trip: null, error: true }));
-    renderAt('/trip', <TripOverviewPage />);
-    await waitFor(() =>
-      expect(screen.getByText(/não foi possível carregar/i)).toBeInTheDocument(),
-    );
-    expect(screen.queryByText('WELCOME ROUTE')).not.toBeInTheDocument();
-  });
-
-  it('TripOverviewPage redirects to Welcome only when there is genuinely no trip', async () => {
-    mockUseAppData.mockReturnValue(appData({ trip: null, error: false, loading: false }));
-    renderAt('/trip', <TripOverviewPage />);
-    await waitFor(() => expect(screen.getByText('WELCOME ROUTE')).toBeInTheDocument());
   });
 });

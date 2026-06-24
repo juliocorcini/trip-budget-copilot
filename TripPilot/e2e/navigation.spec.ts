@@ -25,6 +25,13 @@ test.describe('App navigation', () => {
     await page.waitForURL('/viagem');
   });
 
+  // DEC-288 (M15): the old /trip overview is consolidated into the Viagem hub;
+  // the legacy path must redirect so bookmarks/deep-links still land.
+  test('redirects the legacy /trip to /viagem', async ({ page }) => {
+    await page.goto('/trip');
+    await page.waitForURL('/viagem');
+  });
+
   test('should navigate to copiloto', async ({ page }) => {
     const copilotoTab = page.locator('nav').getByText(/copiloto|copilot/i);
     await copilotoTab.click();

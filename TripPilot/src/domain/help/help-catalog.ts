@@ -127,10 +127,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     'espacos varias viagens dia a dia trocar viagem multi', 'spaces multiple trips day to day switch trip', 'mais de uma viagem', 'modo dia a dia', 'espacios varios viajes',
   ]),
   a('viagem', 'luggage', 'trips', '/viagem', [
-    'viagem datas fases configurar editar destino periodo', 'trip dates phases configure edit destination period', 'editar viagem', 'configurar fases', 'viaje fechas fases',
-  ]),
-  a('overview', 'map', 'trips', '/trip', [
-    'visao geral viagem mapa resumo onde gastei lugares', 'overview trip map summary where i spent places', 'resumo da viagem', 'mapa de gastos', 'resumen viaje mapa',
+    'viagem datas fases configurar editar destino periodo resumo compartilhar mapa onde gastei', 'trip dates phases configure edit destination period summary share map where i spent', 'editar viagem', 'configurar fases', 'resumo da viagem', 'compartilhar resumo', 'viaje fechas fases resumen compartir mapa',
   ]),
   a('profiles', 'badge', 'trips', '/profiles', [
     'perfis atividade categorias bar mercado valor tipico', 'activity profiles categories bar market typical value', 'categorias de gasto', 'editar perfis', 'perfiles categorias',

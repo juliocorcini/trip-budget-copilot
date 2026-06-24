@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useTabPaging } from '@/hooks/useTabPaging';
-import { sortPhasesByOrder, findActivePhase, formatDate } from '@/domain/dates';
+import { sortPhasesByOrder, findActivePhase, formatDate, getDayNumber, getTotalDays } from '@/domain/dates';
 import {
   calculateTotalSpent,
   calculateFreeToSpend,
@@ -22,8 +22,11 @@ import {
   isPlannedPurchaseOpen,
   plannedPurchaseReservedRemainingCents,
 } from '@/domain/planning/planned-purchases';
+import { buildShareCardStats } from '@/domain/sharing';
+import { renderShareCard, deliverShareCard } from '@/utils/share-card';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { showToast } from '@/components/Toast';
 import { AddTrechoSheet, RemanejarSheet } from './TrechoSheets';
 import { PlanExpenseSheet } from './PlanExpenseSheet';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -68,6 +71,9 @@ export function TripHubPage() {
   const [remanejarTarget, setRemanejarTarget] = useState<{ pool: BudgetPool; suggestedCents: number } | null>(
     null,
   );
+  // DEC-288: the shareable summary card was the only exclusive content of the
+  // retired /trip overview; it now lives in this hub header.
+  const [sharing, setSharing] = useState(false);
 
   const sortedPhases = useMemo(() => sortPhasesByOrder(phases), [phases]);
   const activePhaseId = useMemo(() => findActivePhase(phases)?.id ?? null, [phases]);
@@ -153,6 +159,47 @@ export function TripHubPage() {
   const currency = trip.baseCurrency;
   // D14: the trip total is the sum of the trechos; pots are summed apart.
   const tripTotals = computeTripBudgetTotals(pools);
+
+  // DEC-133 / DEC-288: local PNG export through the OS share sheet (no in-app
+  // social). Migrated verbatim from the retired TripOverviewPage.
+  const handleShareCard = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const stats = buildShareCardStats({
+        transactions,
+        pools,
+        dayNumber: getDayNumber(trip.startDate),
+        totalDays: getTotalDays(trip.startDate, trip.endDate),
+      });
+      const blob = await renderShareCard({
+        tripName: trip.name,
+        spentDisplay: formatMoney(stats.totalSpentCents, currency),
+        subtitle: t('share.of_budget', {
+          budget: formatMoney(stats.totalBudgetCents, currency),
+          percent: stats.percentUsed,
+        }),
+        dayLine: t('share.day_of', { n: stats.dayNumber, total: stats.totalDays }),
+        topCategoryLine: stats.topCategory
+          ? t('share.top_category', {
+              name: t(`categories.${stats.topCategory.category}` as never),
+              amount: formatMoney(stats.topCategory.totalCents, currency),
+            })
+          : null,
+        percentUsed: stats.percentUsed,
+        dayPercent: stats.dayPercent,
+      });
+      if (!blob) {
+        showToast(t('share.failed_toast'), 'danger');
+        return;
+      }
+      const outcome = await deliverShareCard(blob, 'trippilot-resumo.png');
+      if (outcome === 'downloaded') showToast(t('share.downloaded_toast'), 'success');
+      if (outcome === 'failed') showToast(t('share.failed_toast'), 'danger');
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const openRemanejar = (phaseId: string, overflowCents: number) => {
     const pool = selectActivePhasePool(pools, links, phaseId);
@@ -255,7 +302,6 @@ export function TripHubPage() {
     .sort((a, b) => b.plannedCents - a.plannedCents);
 
   const structureItems: StructureItem[] = [
-    { icon: 'map', label: t('trip_hub.overview_card'), path: '/trip' },
     { icon: 'timeline', label: t('more.edit_phases'), path: '/trip/edit' },
     { icon: 'category', label: t('more.profiles'), path: '/profiles' },
     { icon: 'groups', label: t('more.participants'), path: '/shared' },
@@ -265,9 +311,21 @@ export function TripHubPage() {
 
   return (
     <div className="flex flex-col gap-5 pb-4 pt-2" data-inpage-swipe {...phaseSwipe}>
-      <div>
-        <h1 className="text-heading font-bold text-on-surface">{t('trip_hub.title')}</h1>
-        <p className="text-sm text-on-surface-dim mt-0.5">{t('trip_hub.subtitle')}</p>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-heading font-bold text-on-surface">{t('trip_hub.title')}</h1>
+          <p className="text-sm text-on-surface-dim mt-0.5">{t('trip_hub.subtitle')}</p>
+        </div>
+        {/* DEC-288: shareable summary card, migrated from the retired overview. */}
+        <button
+          onClick={handleShareCard}
+          disabled={sharing}
+          className="btn-press w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-50 shrink-0"
+          style={{ background: 'var(--highlight-subtle)' }}
+          aria-label={t('share.button')}
+        >
+          <Icon name="ios_share" size={18} className="text-primary" />
+        </button>
       </div>
 
       {/* Phase selector — the single source of context for this page */}
