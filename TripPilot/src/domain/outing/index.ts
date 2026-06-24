@@ -41,6 +41,12 @@ export type { OutingSuggestion, OutingSuggestionInput } from './suggest-outing';
 export { ENRICH_AUTO_DISMISS_MS } from './enrichment';
 export type { EnrichStep } from './enrichment';
 export {
+  buildOutingRecap,
+  recapHeadlineKey,
+  formatRecapDuration,
+} from './outing-recap';
+export type { OutingRecap, OutingRecapOutcome, BuildOutingRecapInput } from './outing-recap';
+export {
   getSubcategories,
   sortSubcategoriesByProximity,
   findSubcategory,

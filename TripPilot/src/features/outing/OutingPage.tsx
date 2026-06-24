@@ -26,6 +26,8 @@ import {
   findSubcategory,
   contextUsesDrinkPrice,
   EVENT_CONTEXTS,
+  buildOutingRecap,
+  formatRecapDuration,
 } from '@/domain/outing';
 import type {
   SessionLimits,
@@ -34,7 +36,9 @@ import type {
   EnrichStep,
   ExpenseSubcategory,
   EventContext,
+  OutingRecap,
 } from '@/domain/outing';
+import { ClosingRecapSheet } from './ClosingRecapSheet';
 import { createExpenseTransaction, parseVoiceExpense } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
@@ -122,14 +126,6 @@ function formatElapsed(startedAt: string): string {
   return `${h}h ${String(m).padStart(2, '0')}min`;
 }
 
-// E3 (M10): compact "~1h" / "~45min" projection label.
-function formatDurationShort(totalMin: number): string {
-  if (totalMin < 60) return `${totalMin}min`;
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`;
-}
-
 function formatTime(isoDate: string): string {
   const d = new Date(isoDate);
   return `${String(d.getHours()).padStart(2, '0')}h${String(d.getMinutes()).padStart(2, '0')}`;
@@ -202,6 +198,12 @@ export function OutingPage() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [sessionTxs, setSessionTxs] = useState<Transaction[]>([]);
+  // M17-lite (DEC-292): the light closing recap shown right after an outing ends.
+  const [closingRecap, setClosingRecap] = useState<{
+    recap: OutingRecap;
+    name: string;
+    sessionId: string;
+  } | null>(null);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   // null = no active phase → no filtering (permissive default).
   const [enabledProfileIds, setEnabledProfileIds] = useState<Set<string> | null>(null);
@@ -1129,12 +1131,20 @@ export function OutingPage() {
     // E6 (M14): also capture a daily restore point (best-effort, deduped by day).
     void recordDailyLocalSnapshot();
 
-    showToast(t('outing.session_ended'), 'success');
+    // M17-lite (DEC-292): close on a warm peak-end recap instead of a bare toast.
+    // The recap reuses the exact figures the user just saw on the review screen;
+    // navigation to the dashboard happens when they dismiss it.
+    const recap = buildOutingRecap({
+      transactions: review.transactions,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      targetCents: session.targetCents,
+    });
     setReviewing(false);
-    setSession(null);
     setSessionTxs([]);
+    setClosingRecap({ recap, name: session.name, sessionId: session.id });
+    setSession(null);
     await reloadAppData();
-    navigate('/dashboard');
   };
 
   // FB-23 (DEC-282): end the outing WITHOUT saving — soft-deletes the session
@@ -1198,6 +1208,30 @@ export function OutingPage() {
     if (error) return <DataErrorScreen onRetry={retry} />;
     if (loading) return <LoadingScreen />;
     return <Navigate to="/welcome" replace />;
+  }
+
+  // M17-lite (DEC-292): the closing recap takes over briefly after an outing ends
+  // (session already cleared). Dismiss → dashboard; "see summary" → read-only review.
+  if (closingRecap) {
+    return (
+      <div className="min-h-screen">
+        <ClosingRecapSheet
+          open
+          recap={closingRecap.recap}
+          sessionName={closingRecap.name}
+          currency={trip.baseCurrency}
+          onClose={() => {
+            setClosingRecap(null);
+            navigate('/dashboard');
+          }}
+          onSeeSummary={() => {
+            const reviewId = closingRecap.sessionId;
+            setClosingRecap(null);
+            navigate(`/outings/${reviewId}/review`);
+          }}
+        />
+      </div>
+    );
   }
 
   if (session && reviewing) {
@@ -1905,18 +1939,18 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
     [sessionTxs, amounts],
   );
 
-  const total = calculateSessionTotal(finalTxs);
-
-  // DEC-173: end-of-outing recap — answer "how did it go?" before the form.
-  // Duration uses endedAt when present, else now (review can precede the close).
-  const recapEndMs = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
-  const recapDurationMin = Math.max(
-    0,
-    Math.floor((recapEndMs - new Date(session.startedAt).getTime()) / 60000),
-  );
-  const recapTargetCents = session.targetCents ?? 0;
-  // Positive → under target (saved); negative → over target.
-  const recapVsTargetCents = recapTargetCents - total;
+  // DEC-173 / M17-lite (DEC-292): the end-of-outing recap — "how did it go?" —
+  // is now a shared pure model so the review and the closing moment never disagree.
+  const recap = buildOutingRecap({
+    transactions: finalTxs,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    targetCents: session.targetCents,
+  });
+  const total = recap.totalCents;
+  const recapDurationMin = recap.durationMin;
+  const recapTargetCents = recap.targetCents;
+  const recapVsTargetCents = recap.vsTargetCents;
 
   const reportedCents = reportedTotal ? parseAmountToCents(reportedTotal) : null;
   const totalDiff =
@@ -1955,7 +1989,7 @@ function SessionReview({ session, sessionTxs, currency, wallets, onCancel, onCon
         <div className="flex items-center justify-center gap-2 mt-3 flex-wrap text-[11px] font-semibold text-on-surface-dim">
           <span className="inline-flex items-center gap-1">
             <Icon name="schedule" size={13} className="text-on-surface-faint" />
-            {formatDurationShort(recapDurationMin)}
+            {formatRecapDuration(recapDurationMin)}
           </span>
           <span className="text-on-surface-faint">·</span>
           <span className="inline-flex items-center gap-1">
@@ -2930,7 +2964,7 @@ function ActiveSession({ session, sessionTxs, trip, elapsed, sessionIcon, partic
         >
           <Icon name="schedule" size={14} className="text-on-surface-faint shrink-0" />
           <p className="text-[11px] font-semibold" style={{ color: 'var(--on-surface-dim)' }}>
-            {t('outing.projection_hint', { time: formatDurationShort(projectionMinutes) })}
+            {t('outing.projection_hint', { time: formatRecapDuration(projectionMinutes) })}
           </p>
         </div>
       )}
