@@ -238,6 +238,23 @@ export function calculateTrueFree(
 }
 
 /**
+ * M06 (DEC-293 batch): the hero's "truly free" can hit €0 for two very
+ * different reasons — the phase is *spent out* (a real "broke" signal) OR every
+ * euro is already earmarked by the plan (a calm "all allocated" signal). This
+ * distinguishes the second case so the UI can replace the raw €0 (which reads
+ * as "I'm broke") with a reassuring line. True only when there IS phase money
+ * (`phaseFreeCents > 0`) and it's fully claimed by the plan — never for an empty
+ * or over-budget phase. Pure.
+ */
+export function isPhaseFullyPlanned(trueFree: TrueFreeResult): boolean {
+  return (
+    trueFree.trueFreeCents === 0 &&
+    trueFree.phaseFreeCents > 0 &&
+    trueFree.planReservedCents >= trueFree.phaseFreeCents
+  );
+}
+
+/**
  * Budget impact uses the personal cost when available (shared expenses):
  * the financial flow (amountCents) may include other participants' shares.
  * E9: foreign-currency expenses contribute their base-currency value, so the

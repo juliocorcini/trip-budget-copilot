@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateTrueFree,
+  isPhaseFullyPlanned,
   buildFreeToSpendBreakdown,
   type FreeToSpendResult,
 } from '@/domain/budget';
@@ -44,6 +45,37 @@ describe('calculateTrueFree (FIELD-18 home hero)', () => {
     const result = calculateTrueFree(5000, 9000, 0);
     expect(result.planReservedCents).toBe(9000);
     expect(result.trueFreeCents).toBe(0);
+  });
+});
+
+// M06: a hero €0 means "spent out" OR "all earmarked" — only the second is
+// reassuring. isPhaseFullyPlanned must tell them apart so the UI can swap the
+// raw €0 for a calm line ONLY when the zero comes from the plan.
+describe('isPhaseFullyPlanned (M06 reassuring phase-zero)', () => {
+  it('is true when the whole phase free amount is claimed by the plan (€0 free)', () => {
+    // phaseFree 800.00 fully reserved by an 800.00 plan → trueFree 0.
+    const result = calculateTrueFree(80000, 80000, 0);
+    expect(result.trueFreeCents).toBe(0);
+    expect(isPhaseFullyPlanned(result)).toBe(true);
+  });
+
+  it('is true when the plan exceeds the free amount (clamped to €0)', () => {
+    const result = calculateTrueFree(80000, 90000, 0);
+    expect(result.trueFreeCents).toBe(0);
+    expect(isPhaseFullyPlanned(result)).toBe(true);
+  });
+
+  it('is false when there is still truly-free money left', () => {
+    const result = calculateTrueFree(80000, 30000, 0);
+    expect(result.trueFreeCents).toBe(50000);
+    expect(isPhaseFullyPlanned(result)).toBe(false);
+  });
+
+  it('is false when the phase has no free money at all (spent out, not planned)', () => {
+    // No phase money and no plan → €0 that genuinely means "nothing left".
+    const result = calculateTrueFree(0, 0, 0);
+    expect(result.trueFreeCents).toBe(0);
+    expect(isPhaseFullyPlanned(result)).toBe(false);
   });
 });
 

@@ -14,7 +14,8 @@ import {
   getDashboardCard,
   type DashboardCardId,
 } from '@/domain/dashboard';
-import { resolveHonestFriendVoice } from '@/domain/budget';
+import { resolveHonestFriendVoice, isPhaseFullyPlanned } from '@/domain/budget';
+import { AskToSpendShortcut } from './AskToSpendShortcut';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useCountUp } from '@/hooks/useCountUp';
 import { hapticSelection } from '@/utils/haptics';
@@ -733,6 +734,15 @@ export function DashboardCards({
                     {(animatedHero ?? model.heroMoney).decimal}
                   </span>
                 </p>
+                {/* M06: a hero €0 has two meanings — spent out vs. fully earmarked.
+                    When every euro of the phase is already claimed by the plan, the
+                    raw €0 reads as "I'm broke"; this calm line reframes it as "all
+                    allocated" so the zero orients instead of alarming. */}
+                {isPhaseFullyPlanned(model.trueFree) && (
+                  <p className="text-xs font-semibold mt-1.5 text-on-surface-dim">
+                    {t('dashboard.hero_fully_planned')}
+                  </p>
+                )}
                 {/* FIELD-18: the truly-free hero, explained — the phase total and the
                     part already earmarked in the plan (trueFree + plan = na fase). */}
                 {model.trueFree.planReservedCents > 0 && (
@@ -843,6 +853,15 @@ export function DashboardCards({
                   )}
                 </div>
               </button>
+            )}
+            {/* M04: the anchor number above answers "how much is free?"; this
+                shortcut answers "can I spend ___?" — opening the Simulator
+                primed with today's free amount (one "free" per screen kept;
+                no new number is added here). */}
+            {model.fts && model.todayBudget && model.todayBudget.todayAllowanceCents > 0 && (
+              <div className="mt-3">
+                <AskToSpendShortcut prefillCents={displayFreeTodayCents} />
+              </div>
             )}
           </>
         );

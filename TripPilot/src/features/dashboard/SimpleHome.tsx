@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Icon } from '@/components/Icon';
 import { formatMoney } from '@/domain/money';
 import { splitMoneyDisplay, INSIGHT_ICONS, formatInsightText } from './dashboard-format';
+import { AskToSpendShortcut } from './AskToSpendShortcut';
 import type { DashboardModel } from './useDashboardModel';
 import type { Trip } from '@/domain/types/trip';
 
@@ -46,6 +47,11 @@ export function SimpleHome({ model, trip }: { model: DashboardModel; trip: Trip 
         {isOver && (
           <p className="mt-3 text-xs font-semibold text-error">{t('dashboard.simple_over_today')}</p>
         )}
+        {/* M04: one reason line turns the bare number into permission — what it
+            already accounts for, so the figure reads as "safe to spend". */}
+        {display && !isOver && (
+          <p className="mt-2 text-xs text-on-surface-dim">{t('dashboard.simple_free_today_reason')}</p>
+        )}
         {model.fts && (
           <p className="mt-2 text-xs text-on-surface-dim">
             {t('dashboard.simple_free_phase', {
@@ -75,6 +81,12 @@ export function SimpleHome({ model, trip }: { model: DashboardModel; trip: Trip 
         <Icon name="add" size={24} className="text-on-surface" />
         {t('dashboard.simple_register')}
       </button>
+
+      {/* M04: "can I spend ___?" → the Simulator, primed with today's free
+          amount. The shortcut, not a second number (one "free" per screen). */}
+      {freeTodayCents !== null && freeTodayCents > 0 && (
+        <AskToSpendShortcut prefillCents={freeTodayCents} />
+      )}
 
       {/* Essential shortcut: jump back into a running outing if there is one. */}
       {model.activeSession && (

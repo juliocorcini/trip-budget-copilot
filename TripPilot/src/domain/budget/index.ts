@@ -2,6 +2,7 @@ export {
   calculateFreeToSpend,
   buildFreeToSpendBreakdown,
   calculateTrueFree,
+  isPhaseFullyPlanned,
   calculateEventReserves,
   calculatePoolSpent,
   calculatePoolIncome,
