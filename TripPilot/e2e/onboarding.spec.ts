@@ -51,4 +51,48 @@ test.describe('Onboarding flow', () => {
 
     await page.waitForURL('/dashboard', { timeout: 15000 });
   });
+
+  // DEC-290 (G3): the Welcome now offers a second primary path — a continuous
+  // "Dia a dia" space — that finishes onboarding just like a trip.
+  test('should create a day-to-day space from the Welcome', async ({ page }) => {
+    test.setTimeout(60000);
+    await page.goto('/');
+    const dailyButton = page.getByRole('button', { name: /dia a dia|day-to-day|día a día/i });
+    await expect(dailyButton).toBeVisible();
+    await dailyButton.click();
+    await page.waitForURL(/\/onboarding\?kind=ongoing/);
+
+    // Shared identity step: the owner name is the only required field.
+    const nextButton = page.getByRole('button', { name: /próximo|next/i });
+    await expect(nextButton).toBeDisabled();
+    await page.locator('input[type="text"]').first().fill('Julio');
+    await expect(nextButton).toBeEnabled();
+    await nextButton.click();
+
+    // Day-to-day step: name + optional monthly cap — nothing is required, so a
+    // "just track, no limit" space can be created by moving straight on.
+    await expect(nextButton).toBeEnabled();
+    await nextButton.click();
+
+    // Mode chooser finishes onboarding (sets appMode + onboardingCompleted).
+    const simpleMode = page.getByRole('button', { name: /começar simples|simple/i });
+    await expect(simpleMode).toBeVisible({ timeout: 5000 });
+    await simpleMode.click();
+
+    await page.waitForURL('/dashboard', { timeout: 15000 });
+  });
+
+  // DEC-290 / ANCHOR 9: the redesign demotes (never removes) the prior entries.
+  test('Welcome keeps two primary choices and the three secondary entries', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: /criar viagem|create trip|crear viaje/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /dia a dia|day-to-day|día a día/i })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /importar backup|import backup|importar copia/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /receber de outro|receive from|recibir de otro/i }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /demonstração|demo|demostración/i })).toBeVisible();
+  });
 });

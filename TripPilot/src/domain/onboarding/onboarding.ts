@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { addDaysIso } from '@/domain/dates';
 import type { Trip } from '@/domain/types/trip';
 import type { TripKind } from '@/domain/types/common';
 import type { Phase } from '@/domain/types/phase';
@@ -98,6 +99,60 @@ export function buildQuickOnboardingInput(values: QuickOnboardingValues): Onboar
     peakDays: preset && preset.peakDays.length > 0 ? preset.peakDays : null,
     poolName: values.poolName,
     reserveName: values.reserveName,
+  };
+}
+
+/**
+ * DEC-290: the bounded span (in days) of the single seed phase created for a
+ * first-run "Dia a dia" space. Mirrors the in-app fork (NewSpacePage): an
+ * ongoing space has no real end, so a far-future sentinel would blow up any
+ * day-by-day iteration — we seed ~1 month so the optional monthly cap maps to a
+ * sane daily allowance and the space never renders as an "expired trip".
+ */
+export const ONGOING_SEED_PHASE_DAYS = 30;
+
+export interface OngoingOnboardingValues {
+  spaceName: string;
+  currency: string;
+  /** Local "today" (YYYY-MM-DD) — the space starts now and has no real end. */
+  today: string;
+  /** Optional monthly cap, in cents (0 = "just track, no limit"). */
+  monthlyBudgetCents: number;
+  ownerName: string;
+  ownerEmail: string | null;
+  deviceId: string;
+  defaultWalletName: string;
+  poolName: string;
+  reserveName: string;
+}
+
+/**
+ * DEC-290 (G3): builds the full OnboardingInput for a first-run "Dia a dia"
+ * space created straight from the Welcome screen. Stamps `kind: 'ongoing'` and
+ * seeds a bounded ~1-month phase (see {@link ONGOING_SEED_PHASE_DAYS}), reusing
+ * the same atomic create path as a trip. Pure — unit-tested in isolation.
+ */
+export function buildOngoingOnboardingInput(values: OngoingOnboardingValues): OnboardingInput {
+  return {
+    tripName: values.spaceName,
+    phaseName: values.spaceName,
+    startDate: values.today,
+    endDate: addDaysIso(values.today, ONGOING_SEED_PHASE_DAYS),
+    currency: values.currency,
+    totalAmountCents: values.monthlyBudgetCents,
+    protectedReserveCents: 0,
+    ownerName: values.ownerName,
+    ownerEmail: values.ownerEmail,
+    deviceId: values.deviceId,
+    defaultWalletName: values.defaultWalletName,
+    cashWalletName: null,
+    phaseStartDate: null,
+    phaseEndDate: null,
+    rhythmPreset: null,
+    peakDays: null,
+    poolName: values.poolName,
+    reserveName: values.reserveName,
+    kind: 'ongoing',
   };
 }
 

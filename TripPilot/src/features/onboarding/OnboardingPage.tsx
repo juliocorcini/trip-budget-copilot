@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
-import { createOnboardingEntities, buildQuickOnboardingInput } from '@/domain/onboarding';
+import {
+  createOnboardingEntities,
+  buildQuickOnboardingInput,
+  buildOngoingOnboardingInput,
+} from '@/domain/onboarding';
 import {
   createDefaultActivityProfiles,
   TRIP_PRESETS,
@@ -29,6 +33,11 @@ type OnboardingFlow = 'quick' | 'detailed';
 export function OnboardingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // DEC-290 (G3): the Welcome "Começar no Dia a dia" entry opens this same flow
+  // with ?kind=ongoing — a continuous space (no end date, optional monthly cap)
+  // that still finalizes onboarding (identity + mode chooser + activeTrip).
+  const isOngoing = searchParams.get('kind') === 'ongoing';
   const { settings, reload } = useAppData();
   // M23: templates saved from past trips, applied here on a new trip.
   const tripTemplates = settings?.tripTemplates ?? [];
@@ -67,6 +76,26 @@ export function OnboardingPage() {
   const buildEntities = () => {
     const deviceId = crypto.randomUUID();
     const totalAmountCents = toCents(parseFloat(totalAmount) || 0);
+    if (isOngoing) {
+      // DEC-290: a Dia a dia space has no real end — reuse the in-app fork's
+      // bounded-phase recipe (NewSpacePage) so the monthly cap maps to a sane
+      // daily allowance. Amount here is the optional monthly budget.
+      const dailyName = tripName.trim() || t('onboarding.daily_default_name');
+      return createOnboardingEntities(
+        buildOngoingOnboardingInput({
+          spaceName: dailyName,
+          currency,
+          today: localDateString(new Date()),
+          monthlyBudgetCents: totalAmountCents,
+          ownerName: ownerName.trim() || t('onboarding.default_owner_name'),
+          ownerEmail: ownerEmail.trim() || null,
+          deviceId,
+          defaultWalletName: t('onboarding.default_wallet_name'),
+          poolName: t('onboarding.pool_name', { phase: dailyName }),
+          reserveName: t('onboarding.reserve_name'),
+        }),
+      );
+    }
     if (flow === 'quick') {
       const quickName = tripName.trim() || t('onboarding.default_trip_name');
       const preset = presetId ? findTripPreset(presetId) : null;
@@ -387,6 +416,36 @@ export function OnboardingPage() {
     </StepCard>
   );
 
+  // DEC-290 (G3): the Dia a dia first-run step — no end date (continuous), an
+  // optional monthly cap, and a friendly default name. Templates and trip-type
+  // presets are trip-specific and intentionally omitted here.
+  const ongoingStep = (
+    <StepCard key="ongoing">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('onboarding.daily_quick_title')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.daily_quick_subtitle')}</p>
+      </div>
+      <Field
+        label={t('onboarding.daily_name_label')}
+        value={tripName}
+        onChange={setTripName}
+        placeholder={t('onboarding.daily_default_name')}
+        autoFocus
+      />
+      <Field
+        label={t('spaces.form_monthly_budget')}
+        type="number"
+        value={totalAmount}
+        onChange={setTotalAmount}
+        placeholder="0.00"
+      />
+      <p className="text-[10px] text-on-surface-faint px-1 leading-snug">
+        {t('spaces.form_monthly_budget_hint')}
+      </p>
+      <CurrencySelect label={t('onboarding.currency')} value={currency} onChange={setCurrency} />
+    </StepCard>
+  );
+
   // M16: closing step in BOTH flows — choose the UX mode (sets appMode).
   const modeStep = (
     <StepCard key="mode">
@@ -454,7 +513,8 @@ export function OnboardingPage() {
     </StepCard>
   );
 
-  const baseSteps = flow === 'quick' ? [quickStep] : detailedSteps;
+  // DEC-290: ongoing replaces the trip steps with the single Dia a dia step.
+  const baseSteps = isOngoing ? [ongoingStep] : flow === 'quick' ? [quickStep] : detailedSteps;
   // DEC-252: identity first, then the flow's own steps, then the mode chooser.
   const steps = [identityStep, ...baseSteps, modeStep];
   const isModeStep = step === steps.length - 1;
@@ -463,8 +523,11 @@ export function OnboardingPage() {
   // stays correct now that the identity step shifts everything by one). The
   // identity step requires a non-empty name; everything else mirrors before.
   const nameValid = ownerName.trim().length > 0;
-  const baseValidators: Array<() => boolean> =
-    flow === 'quick'
+  // DEC-290: the Dia a dia step has no required fields (name defaults, the
+  // monthly cap is optional) — the only gate stays the identity name.
+  const baseValidators: Array<() => boolean> = isOngoing
+    ? [() => true]
+    : flow === 'quick'
       ? [() => Boolean(totalAmount && endDate)]
       : [
           () => Boolean(tripName && startDate && endDate),
