@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.51',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Telas mais legíveis: textos secundários e o botão principal ganharam mais contraste, mais fáceis de ler em qualquer tema.',
+        'Mais acessível: anel de foco visível ao navegar pelo teclado e a aba ativa do menu agora é anunciada por leitores de tela.',
+        'Acabamento visual: a cor da inteligência (índigo) ficou consistente em todo o app, inclusive no tema claro, e as animações ficaram mais suaves.',
+      ],
+      en: [
+        'More legible screens: secondary text and the primary button got more contrast, easier to read in any theme.',
+        'More accessible: a visible focus ring when navigating by keyboard, and the active menu tab is now announced by screen readers.',
+        'Visual polish: the AI color (indigo) is now consistent across the app, including the light theme, and animations are smoother.',
+      ],
+      es: [
+        'Pantallas más legibles: el texto secundario y el botón principal ganaron más contraste, más fáciles de leer en cualquier tema.',
+        'Más accesible: un anillo de foco visible al navegar con el teclado, y la pestaña activa del menú ahora la anuncian los lectores de pantalla.',
+        'Acabado visual: el color de la IA (índigo) ahora es consistente en toda la app, incluido el tema claro, y las animaciones son más suaves.',
+      ],
+    },
+  },
+  {
     version: '0.99.50',
     date: '2026-06-22',
     items: {

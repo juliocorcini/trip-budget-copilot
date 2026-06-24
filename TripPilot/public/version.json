@@ -1,8 +1,8 @@
 {
-  "version": "0.99.50",
+  "version": "0.99.51",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.50.zip",
-  "notes": "O Comparador de custo-benefício agora lê fotos: fotografe as etiquetas (várias de uma vez) e ele preenche preço e quantidade sozinho — confira o que veio da foto (marcado em amarelo) e veja qual vale mais por kg, litro ou unidade. Continua funcionando por texto e por voz. Reorganizamos o botão +: \"Registrar mercado\" voltou para a fila principal e o Comparador foi para \"Mais ações\" (a leitura por foto fica na própria tela do comparador)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.51.zip",
+  "notes": "Acessibilidade e legibilidade: textos secundários e o botão principal ganharam mais contraste, há um anel de foco visível ao navegar pelo teclado e a aba ativa do menu agora é anunciada por leitores de tela. A cor da inteligência (índigo) ficou consistente em todo o app, inclusive no tema claro, e as animações ficaram mais suaves."
 }
