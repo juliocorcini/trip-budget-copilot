@@ -711,6 +711,7 @@
     "amigo_over_budget_plan": "What's left is already reserved for your plan — and you're still {{amount}} short to finish it.",
     "amigo_over_budget_edge": "You're right at the limit: the next spend starts using the reserve.",
     "amigo_recover_cta": "How to recover",
+    "alerts_carousel": "Alerts",
     "storage_not_persisted": "Your data may be cleared by the system. Enable protected storage in Settings.",
     "storage_backup_now": "Your data may be lost by the system. Back it up now.",
     "storage_install_ios": "Install TripPilot to your home screen to protect your data (Share → Add to Home Screen).",

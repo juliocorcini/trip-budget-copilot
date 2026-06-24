@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -45,6 +45,8 @@ import { SimpleHome } from './SimpleHome';
 import { OngoingHome } from './OngoingHome';
 import { SimpleRevealCard } from './SimpleRevealCard';
 import { LocationDefaultNoticeCard } from './LocationDefaultNoticeCard';
+import { HomeAlertsCarousel, type HomeAlertSlide } from './HomeAlertsCarousel';
+import { selectHomeAlertIds, type HomeAlertId } from './home-alerts';
 import { ActiveSplitHomeCard } from '@/features/split/ActiveSplitHomeCard';
 import { SpaceSwitcherChip } from '@/features/spaces/SpaceSwitcherChip';
 
@@ -357,61 +359,66 @@ export function DashboardPage() {
     model.storageNotPersisted &&
     !(isIosDevice() && isStandaloneDisplayMode());
 
+  // DEC-293 (M03/M10): the top-of-home alerts collapse into ONE rotating slot
+  // instead of a stack. The selector decides which are active and their order
+  // (demo alone; otherwise storage-risk before the location notice); the
+  // carousel keeps every active alert one swipe away (Â9).
+  const locationNoticeActive =
+    !settings.isDemo &&
+    settings.locationCaptureEnabled &&
+    settings.locationDefaultNoticeAcknowledged === false;
+  // BUG-002: with real data to lose off iOS, the CTA is a direct "back up now".
+  const strongBackupCta = !isIosDevice() && transactions.length > 0;
+  const alertNodeById: Record<HomeAlertId, ReactNode> = {
+    demo: (
+      <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
+        <p className="text-xs font-semibold text-warning">{t('demo.banner')}</p>
+      </div>
+    ),
+    location_notice: (
+      <LocationDefaultNoticeCard
+        onAcknowledge={handleAckLocationNotice}
+        onOpenSettings={handleOpenLocationSettings}
+      />
+    ),
+    storage_warning: (
+      <button
+        onClick={() => navigate(strongBackupCta ? '/settings/backup' : '/settings')}
+        className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left w-full"
+        style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
+      >
+        <Icon
+          name={isIosDevice() ? 'add_to_home_screen' : strongBackupCta ? 'cloud_upload' : 'warning'}
+          size={16}
+          className="text-warning"
+        />
+        <p className="text-xs font-semibold text-on-surface-dim flex-1">
+          {isIosDevice()
+            ? t('dashboard.storage_install_ios')
+            : strongBackupCta
+              ? t('dashboard.storage_backup_now')
+              : t('dashboard.storage_not_persisted')}
+        </p>
+        <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
+      </button>
+    ),
+  };
+  const alertSlides: HomeAlertSlide[] = selectHomeAlertIds({
+    isDemo: settings.isDemo,
+    storageAtRisk: showStorageWarning,
+    locationNoticeActive,
+  }).map((id) => ({ id, node: alertNodeById[id] }));
+
   return (
     <div className="flex flex-col pb-6">
       {/* DEC-249: active-space chip — names the current space and opens the
           switcher. Tap the name to jump between trips and "Dia a dia". */}
       {trip && <SpaceSwitcherChip trip={trip} />}
 
-      {/* DEMO BANNER */}
-      {settings.isDemo && (
-        <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
-          <p className="text-xs font-semibold text-warning">{t('demo.banner')}</p>
-        </div>
-      )}
-
-      {/* FB-03 (DEC-265): one-time transparent notice that a new install ships
-          with location tagging ON. Skipped for the demo and for every existing
-          install (acknowledged backfills true on read). */}
-      {!settings.isDemo &&
-        settings.locationCaptureEnabled &&
-        settings.locationDefaultNoticeAcknowledged === false && (
-          <LocationDefaultNoticeCard
-            onAcknowledge={handleAckLocationNotice}
-            onOpenSettings={handleOpenLocationSettings}
-          />
-        )}
-
-      {/* STORAGE NOT PERSISTENT (R5-03 / R6-13 / BUG-002): eviction risk warning.
-          iOS Safari cannot grant persistence programmatically — the honest
-          advice there is installing to the home screen; installed iOS PWAs are
-          already protected, so no alarm at all. */}
-      {showStorageWarning && (() => {
-        // BUG-002: with real data to lose off iOS, make the CTA a direct, urgent
-        // call to back up now rather than a soft pointer to Settings.
-        const strongBackupCta = !isIosDevice() && transactions.length > 0;
-        return (
-          <button
-            onClick={() => navigate(strongBackupCta ? '/settings/backup' : '/settings')}
-            className="mt-4 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
-            style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
-          >
-            <Icon
-              name={isIosDevice() ? 'add_to_home_screen' : strongBackupCta ? 'cloud_upload' : 'warning'}
-              size={16}
-              className="text-warning"
-            />
-            <p className="text-xs font-semibold text-on-surface-dim flex-1">
-              {isIosDevice()
-                ? t('dashboard.storage_install_ios')
-                : strongBackupCta
-                  ? t('dashboard.storage_backup_now')
-                  : t('dashboard.storage_not_persisted')}
-            </p>
-            <Icon name="chevron_right" size={14} className="text-on-surface-faint" />
-          </button>
-        );
-      })()}
+      {/* DEC-293 (M03/M10): demo notice, storage-eviction risk and the one-time
+          location-default disclosure now share a SINGLE rotating slot instead of
+          stacking three banners on the first glance. See home-alerts.ts. */}
+      <HomeAlertsCarousel slides={alertSlides} />
 
       {/* HEADER — DEC-084 (R-01): fixed at the top, content scrolls beneath.
           DEC-251: a Dia a dia has no day counter — it shows the space name with

@@ -711,6 +711,7 @@
     "amigo_over_budget_plan": "Lo que queda ya está reservado para tu plan — y aún te faltan {{amount}} para cerrarlo.",
     "amigo_over_budget_edge": "Estás justo en el límite: el próximo gasto ya empieza a usar la reserva.",
     "amigo_recover_cta": "Cómo recuperarme",
+    "alerts_carousel": "Avisos",
     "storage_not_persisted": "El sistema puede borrar tus datos. Activa el almacenamiento protegido en Configuración.",
     "storage_backup_now": "El sistema puede borrar tus datos. Haz una copia ahora.",
     "storage_install_ios": "Instala TripPilot en la pantalla de inicio para proteger tus datos (Compartir → Añadir a pantalla de inicio).",
