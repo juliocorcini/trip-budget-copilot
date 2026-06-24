@@ -4,7 +4,7 @@
 
 > Execution truth: `brain/documents/2026-06-24-ui-ux-implementation-orchestrator.md` (gates G1→G7, Council C5 order). Scope: `brain/documents/ui-ux-change-checklist-2026-06-23.md`. Decisions: **DEC-285→294 (PROPOSED)**. Single continuous session, deploy per gate (DEC-280). Most recent gate entry first; the legacy `## Current State` (Field Feedback batch) is preserved below.
 
-- **Active gate**: **G3 (multi-space onboarding, DEC-290 + M20/M23)** — starting. G2 ✅ shipped **0.99.52** (feat `e77dbb2` + release `d8c053a`, pushed → Cloudflare Pages auto-build; verify `/version.json`=0.99.52 + `/bundles/0.99.52.zip`). G1 ✅ shipped **0.99.51** (`aebaee7`).
+- **Active gate**: **G4 (first minute / Dashboard: M03/M10 carousel, M04, M06, M09, M05)** — starting. G3 ✅ shipped **0.99.53** (feat `618a044` + release `caaefa3`, pushed → Cloudflare Pages auto-build; verify `/version.json`=0.99.53 + `/bundles/0.99.53.zip`). G2 ✅ shipped **0.99.52** (`d8c053a`). G1 ✅ shipped **0.99.51** (`aebaee7`).
 - **Baseline (2026-06-24, before touching anything)**: `tsc --noEmit` clean · `npm run build` green (`index` 400.09 KB < 500 KB) · **unit 2108/2110** (the 2 failures are the documented env baseline `split-live-loop`: `crypto.subtle`/WebCrypto unavailable in this Node 18.17.0 sandbox — passes in CI Node 22; files untouched).
 - **Pre-step**: committed the pending, complete 0.99.50 (Comparator V2 photo + FAB reorg, DEC-284) as `fa2b586` to start from a clean tree.
 - **Git note (WSL)**: in this environment `git commit` without `-C` fails with a spurious `unknown option 'trailer'`; **always run `git -C "$PWD" …`** (confirmed working). Other subcommands are unaffected.
@@ -14,7 +14,7 @@
 - [x] **G0** — baseline green + commit 0.99.50 + seed dev-log + DEC-285→294 (PROPOSED).
 - [x] **G1** — Foundations a11y: M01 `:focus-visible` (DEC-285) · M02 AA contrast (DEC-286) · M11 `aria-current` · M12 AI token (DEC-287) · M19 kill `transition-all`. _✅ shipped 0.99.51; DEC-285/286/287 → APPROVED._
 - [x] **G2** — Structural: consolidate `/viagem`×`/trip` (M15, DEC-288). _✅ shipped 0.99.52; DEC-288 → APPROVED._
-- [ ] **G3** — Flow: multi-space onboarding on Welcome (DEC-290) + M20 + M23.
+- [x] **G3** — Flow: multi-space onboarding on Welcome (DEC-290) + M20 + M23. _✅ shipped 0.99.53; DEC-290 → APPROVED._
 - [ ] **G4** — First minute (Dashboard): M03/M10 carousel (DEC-293) · M04 free-today · M06 phase-zero · M09 mode chip · M05 glossary (DEC-289).
 - [ ] **G5** — Voice & moments: M16b honest-friend voice (DEC-291) · M17-lite recap (DEC-292).
 - [ ] **G6** — Tools & polish: M13 · M22 · M21 · M24 · M25.
@@ -41,6 +41,18 @@
 - **Regression watch:** the redirect keeps every old bookmark/deep-link alive; `/trip/edit` untouched; share-card machinery reused as-is (no new share logic). No domain/schema/worker change. Money/expense paths untouched.
 - **Commits:** `e77dbb2` (feat: consolidation) + `d8c053a` (release 0.99.52). Brain: DEC-288 → APPROVED.
 - **Gate close:** full unit suite **2118/2120** (only the 2 documented WebCrypto baseline fails; 2116 pass) · `npm run build` green (`index` 400.00 KB < 500 KB; the `TripOverviewPage` chunk is gone). Deploy bump 0.99.51→**0.99.52** (package.json+app-version+public/version.json + release note pt/en/es) pushed to `master` → Cloudflare Pages auto-build. _e2e (`test:e2e`) runs in CI (Playwright browsers/server unavailable in this sandbox) — ⏳ CI-verified._
+
+### G3 — Flow: multi-space onboarding on the Welcome (done 2026-06-24)
+- **DEC-290 · trip × day-to-day at first run.** The Welcome only created a dated trip behind 4 equal-weight doors; the app is already multi-space (DEC-249/250/251) but that fork lived only in the in-app `/spaces` switcher. Brought it to the first run **without duplicating the flow**:
+  - **G3.1 — `OnboardingPage` `?kind=ongoing`.** The Dia a dia reuses the **same** machinery — shared identity step + mode chooser + `createOnboardingEntities`/`createTripFromOnboarding` + finalize (`onboardingCompleted`+`appMode`+`activeTrip`) — with a single day-to-day step (name + optional monthly cap, **no end date**) swapped in for the trip steps. Nothing required beyond the identity name (`baseValidators` = `[() => true]` for ongoing). **AC:** at first run you can pick trip **or** day-to-day; creating a daily lands on a valid ongoing dashboard.
+  - **Domain (pure):** `buildOngoingOnboardingInput` + `ONGOING_SEED_PHASE_DAYS` (=30) in `domain/onboarding` — mirrors NewSpacePage's bounded-phase recipe (stamps `kind:'ongoing'`, seeds a ~1-month phase so the monthly cap maps to a sane daily allowance; no reserve/cash-wallet/rhythm). **Test:** `ongoing-onboarding` unit (4) — kind/seed-phase/budget→pool/zero-budget/identity.
+  - **G3.2 — demote secondaries (Â9).** `WelcomePage` redesigned: 2 primary `PrimaryChoice` cards (trip / day-to-day, icon chip + chevron) above a lighter "já tenho dados" tier where import-backup / receive-from-device are ghost rows. **Nothing removed** — all three prior entries stay reachable, just visually lighter. **AC:** the 3 functions remain, below the 2 primaries.
+  - **G3.3 — M20 + M23.** Demo entry is now a primary-colored, icon'd link (reads tappable, not the old disabled-looking `text-on-surface-dim` block); a concrete value line (`welcome_value`) sits under the title.
+  - **G3.4 — polish.** Welcome hierarchy now matches a multi-space app (hero → 2 primaries → secondary tier → demo), with `py-10` breathing room.
+  - **i18n:** +9 keys ×3 langs (`welcome_value`, `create_trip_desc`, `start_daily`(+`_desc`), `have_data_label`, `daily_quick_title`/`_subtitle`, `daily_name_label`/`daily_default_name`); reuses `spaces.form_monthly_budget(_hint)` for the cap field.
+- **Regression watch:** the trip onboarding path is byte-unchanged when `kind` is absent (the ongoing branch is gated on `isOngoing`); `NewSpacePage` (in-app fork) untouched; `createOnboardingEntities` kind logic reused as-is. No schema/worker change. Money/expense paths untouched.
+- **Commits:** `618a044` (feat) + `caaefa3` (release 0.99.53). Brain: DEC-290 → APPROVED.
+- **Gate close:** full unit suite **2122/2124** (2120 pass; only the 2 documented WebCrypto baseline fails; +4 ongoing-builder) · `npm run build` green (`index` 400.00 KB < 500 KB). Deploy bump 0.99.52→**0.99.53** (package.json+app-version+public/version.json + release note pt/en/es) pushed to `master` → Cloudflare Pages auto-build. _e2e (create-daily-from-Welcome + 5-entries-persist) runs in CI (Playwright unavailable in this sandbox) — ⏳ CI-verified._
 
 ---
 
