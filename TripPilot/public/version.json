@@ -1,8 +1,8 @@
 {
-  "version": "0.99.51",
+  "version": "0.99.52",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.51.zip",
-  "notes": "Acessibilidade e legibilidade: textos secundários e o botão principal ganharam mais contraste, há um anel de foco visível ao navegar pelo teclado e a aba ativa do menu agora é anunciada por leitores de tela. A cor da inteligência (índigo) ficou consistente em todo o app, inclusive no tema claro, e as animações ficaram mais suaves."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.52.zip",
+  "notes": "A aba Viagem agora reúne tudo num só lugar: a antiga tela de Visão geral foi incorporada ao hub da viagem, que ganhou um botão para compartilhar o resumo (imagem) com seus companheiros. Links antigos para /trip continuam funcionando."
 }

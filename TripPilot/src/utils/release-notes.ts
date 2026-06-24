@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.52',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'A aba Viagem agora reúne tudo num só lugar: a antiga tela de "Visão geral" foi incorporada ao hub da viagem.',
+        'Compartilhar ficou mais fácil: o resumo da viagem (em imagem) agora sai direto de um botão no topo da aba Viagem.',
+        'Links e atalhos antigos para a Visão geral continuam funcionando — levam direto para a aba Viagem.',
+      ],
+      en: [
+        'The Trip tab now brings everything together: the old "Overview" screen is folded into the trip hub.',
+        'Sharing is easier: the trip summary (as an image) now comes straight from a button at the top of the Trip tab.',
+        'Old links and shortcuts to the Overview still work — they take you right to the Trip tab.',
+      ],
+      es: [
+        'La pestaña Viaje ahora reúne todo en un solo lugar: la antigua pantalla de "Resumen" se integró al hub del viaje.',
+        'Compartir es más fácil: el resumen del viaje (como imagen) ahora sale directo de un botón en la parte superior de la pestaña Viaje.',
+        'Los enlaces y accesos antiguos al Resumen siguen funcionando — te llevan directo a la pestaña Viaje.',
+      ],
+    },
+  },
+  {
     version: '0.99.51',
     date: '2026-06-24',
     items: {
