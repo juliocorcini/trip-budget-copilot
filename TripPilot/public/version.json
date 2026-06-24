@@ -1,8 +1,8 @@
 {
-  "version": "0.99.56",
+  "version": "0.99.57",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.56.zip",
-  "notes": "As ferramentas ficaram mais claras: o Planner agora tem uma legenda explicando essencial/opcional e por que um item travado fica bloqueado; o Conversor já abre com a sua moeda de casa e mostra exemplos no campo; e um selo discreto avisa que Conversor e Comparador funcionam offline. No Comparador por foto, uma dica ensina a enquadrar a etiqueta de preço para a leitura acertar mais."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.57.zip",
+  "notes": "A divisão de contas ficou mais confiável: o saldo de quem recebe e quem deve está sempre claro e, quando todo mundo se acerta, aparece um selo 'Tudo acertado ✓' — o fim tranquilo que fica na memória do grupo."
 }

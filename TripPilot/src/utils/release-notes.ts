@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.57',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Divisão de contas mais clara: o saldo de cada pessoa ("recebe" ou "deve") fica sempre legível, sem ambiguidade sobre quem deve quanto.',
+        'Quando todo mundo se acerta, aparece um selo "Tudo acertado ✓" — o fechamento tranquilo que mostra que ninguém deve mais nada a ninguém.',
+      ],
+      en: [
+        'Clearer bill splitting: each person\'s balance ("gets back" or "owes") stays always legible, with no doubt about who owes how much.',
+        'When everyone is square, an "All settled ✓" seal appears — the calm closing that shows nobody owes anyone anymore.',
+      ],
+      es: [
+        'División de cuentas más clara: el saldo de cada persona ("recibe" o "debe") queda siempre legible, sin dudas sobre quién debe cuánto.',
+        'Cuando todos se saldan, aparece un sello "Todo saldado ✓" — el cierre tranquilo que muestra que nadie le debe nada a nadie.',
+      ],
+    },
+  },
+  {
     version: '0.99.56',
     date: '2026-06-24',
     items: {
