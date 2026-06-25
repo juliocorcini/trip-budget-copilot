@@ -34,7 +34,8 @@ import {
   undoWiseImportBatch,
   type WiseTransferCommitSpec,
 } from '@/domain/orchestrators';
-import { resolveActivePhase, formatShortDate } from '@/domain/dates';
+import { resolveActivePhase, formatShortDate, sortPhasesByOrder } from '@/domain/dates';
+import { selectActivePhasePool } from '@/domain/budget';
 import { getDefaultWallet } from '@/domain/wallets';
 import { createPhase, getNextPhaseOrder } from '@/domain/phases';
 import { formatMoney, sumCents, toCents } from '@/domain/money';
@@ -55,6 +56,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { SplitExplainer } from '@/features/shared/SplitExplainer';
+import { PhaseChargePicker } from '@/features/shared/PhaseChargePicker';
 import { showToast } from '@/components/Toast';
 
 type TargetWallet = string | 'new';
@@ -86,7 +88,7 @@ const STATUS_STYLE: Record<WiseDraftStatus, { bg: string; color: string }> = {
 export function WiseImportPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, wallets, transactions, participants, loading, error, retry, reload } =
+  const { trip, phases, pools, links, wallets, transactions, participants, loading, error, retry, reload } =
     useAppData();
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -108,9 +110,27 @@ export function WiseImportPage() {
     Record<string, WiseExpenseBridge & { transferRowId: string }>
   >({});
   const [activeBridge, setActiveBridge] = useState<ReimbursementBridge | null>(null);
+  // Julio field feedback: optional "force every row into this phase" override.
+  // null = AUTO (each row to the phase of its own date — the default).
+  const [phaseOverride, setPhaseOverride] = useState<string | null>(null);
 
   const baseCurrency = trip?.baseCurrency ?? 'EUR';
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
+
+  const sortedPhases = useMemo(
+    () => sortPhasesByOrder(phases.filter((p) => p.deletedAt === null)),
+    [phases],
+  );
+  // phaseId → its dedicated operational pool, so each imported row lands in the
+  // pool of ITS phase (by date) instead of a single fixed first pool.
+  const poolByPhaseId = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of sortedPhases) {
+      const pool = selectActivePhasePool(pools, links, p.id);
+      if (pool) map[p.id] = pool.id;
+    }
+    return map;
+  }, [sortedPhases, pools, links]);
 
   const transferDrafts = useMemo(
     () =>
@@ -389,8 +409,17 @@ export function WiseImportPage() {
       showToast(t('wiseImport.commit_empty'), 'warning');
       return;
     }
-    const operationalPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
-    const fallbackPhase = resolveActivePhase(phases);
+    // The phase money falls back to when a row has none: the forced phase if the
+    // user picked one, else today's active phase.
+    const fallbackPhase =
+      (phaseOverride ? sortedPhases.find((p) => p.id === phaseOverride) : null) ??
+      resolveActivePhase(phases);
+    // The fallback pool must be the active phase's pool (DEC-219) — never a fixed
+    // first `linked_phases` pool, which dumped imports into the wrong trecho.
+    const operationalPool =
+      selectActivePhasePool(pools, links, fallbackPhase?.id ?? null) ??
+      pools.find((p) => p.scope === 'linked_phases') ??
+      pools[0];
     if (!operationalPool || !fallbackPhase) {
       showToast(t('backup.operation_failed'), 'danger');
       return;
@@ -431,6 +460,8 @@ export function WiseImportPage() {
           budgetPoolId: operationalPool.id,
           walletId,
           fallbackPhaseId: fallbackPhase.id,
+          poolByPhaseId,
+          forcePhaseId: phaseOverride,
           ...(hasBridges && owner ? { ownerId: owner.id, bridges } : {}),
         });
         transactionIds.push(...result.transactionIds);
@@ -449,6 +480,8 @@ export function WiseImportPage() {
           budgetPoolId: operationalPool.id,
           sourceWalletId: walletId,
           fallbackPhaseId: fallbackPhase.id,
+          poolByPhaseId,
+          forcePhaseId: phaseOverride,
           baseCurrency,
         });
         transactionIds.push(...result.transactionIds);
@@ -582,6 +615,16 @@ export function WiseImportPage() {
             </div>
             <p className="text-[11px] text-on-surface-faint">{t('wiseImport.target_wallet_hint')}</p>
           </div>
+
+          {/* Julio field feedback: by default each row goes to the phase of its
+              own date; this override forces ALL imported rows into one phase. */}
+          <PhaseChargePicker
+            phases={sortedPhases}
+            value={phaseOverride}
+            onChange={setPhaseOverride}
+            label={t('phase_picker.label')}
+            autoLabel={t('phase_picker.auto_each')}
+          />
 
           {/* F16b: rows outside every phase — offer to create the missing phase. */}
           {outOfPhaseDrafts.length > 0 && (

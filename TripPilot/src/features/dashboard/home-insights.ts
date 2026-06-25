@@ -5,8 +5,11 @@ import type { DashboardInsight } from '@/domain/insights';
  * rest stay one tap away behind "ver mais". Insights arrive priority-sorted
  * (warnings first, see `buildDashboardInsights`), so the visible slice is
  * always the most important ones — a cap, not a filter.
+ *
+ * Julio field feedback: raised 4 → 6 so the Home surfaces more at rest before
+ * folding the rest behind "ver mais".
  */
-export const HOME_INSIGHTS_CAP = 4;
+export const HOME_INSIGHTS_CAP = 6;
 
 export interface CappedInsights {
   /** The insights to render right now. */

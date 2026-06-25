@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
-import { calculateFreeToSpend, evaluateBorrowFromTomorrow } from '@/domain/budget';
+import { calculateFreeToSpend, evaluateBorrowFromTomorrow, selectActivePhasePool } from '@/domain/budget';
 import { filterTransactionsByPool, calculateSpentOnDate } from '@/domain/transactions';
 import { calculateTodayFreeBudget } from '@/domain/phases';
 import {
@@ -80,7 +80,10 @@ export function SimulatorPage() {
 
   // BUG-002 (R6-02): resolveActivePhase keeps the simulator usable on boundary days.
   const activePhase = resolveActivePhase(phases);
-  const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+  // Julio field feedback: the simulator must read the ACTIVE phase's pool — not a
+  // fixed first `linked_phases` pool, which showed another phase's "available"
+  // (e.g. €849 from a different trecho). Mirrors the dashboard hero (DEC-219).
+  const primaryPool = selectActivePhasePool(pools, links, activePhase?.id ?? null);
 
   // DEC-116: the engine needs plan numbers for EVERY enabled profile —
   // including the ones without an allocation (plannedQuantity 0).

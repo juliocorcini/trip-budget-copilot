@@ -1,5 +1,17 @@
 # Dev Log — TripPilot Implementation
 
+## Field-feedback fixes wave (2026-06-25) — 1.0.1-rc — ✅ SHIPPED (web/OTA)
+
+> Source: Julio field feedback after the 1.0.0-rc Coherence & Tricount wave. Six items, all root-caused in the code (no report existed in `docs/reports/INDEX.md`). One continuous session, single deploy. Most recent first; the Coherence & Tricount state is preserved below.
+
+- **Phase/fund on import was wrong (receipt AI/photo + Wise CSV)** — root cause: `ReceiptScanPage`, `WiseImportPage`, `SplitPage` and the simulator all defaulted to the FIRST `linked_phases` pool (and "today" for the phase) instead of the phase that owns the expense's date. Fix: derive the phase from the expense date (`resolveActivePhase` / per-row `classifyWiseRows`) and resolve its operational pool with `selectActivePhasePool` (the same fn the dashboard uses). Added a reusable **`PhaseChargePicker`** (auto-by-date default + manual override) to the receipt, split and Wise review screens. Wise orchestrators (`commitWiseImport`/`commitWiseTransfers`) gained `poolByPhaseId` (per-row pool) + `forcePhaseId` (import-wide override). +4 unit tests (wise routing + force override).
+- **No batch edit of phase/fund** — root cause: a receipt becomes a Session holding N transactions; the list only let you edit item by item. Fix: new pure orchestrators `moveTransactionsToPhaseBatch` (standalone, e.g. Wise) and `moveOutingSessionsToPhaseBatch` (a whole note/outing → session + every item), wired into the `ExpenseListPage` selection mode on BOTH tabs (Gastos = standalone expenses, Saídas = sessions). Phase + its operational pool move together. +2 unit tests; i18n pt/en/es.
+- **Multi-day event reserve dumped on the first day** — `indexPlanByDay` (`allowance-map.ts`) now spreads an occurrence's reserve evenly across its days (integer-cents, remainder on the last day), mirroring `burndown.ts`. So "available per day" shows the daily average. +3 unit tests.
+- **Simulator showed another phase's balance** — `SimulatorPage` now picks `selectActivePhasePool(pools, links, activePhase.id)` instead of `linkedPools[0]`.
+- **Input focus border disliked** — `globals.css`: inputs/textarea/select/contenteditable now `outline:none; box-shadow:none` on focus (supersedes DEC-305's neutral ring; buttons/links/cards keep the keyboard `:focus-visible` ring). Updated the C25 style-hygiene test to assert the removal (acknowledged WCAG 2.4.7 trade-off; mobile-first touch app).
+- **Home insights cap 4 → 6** — `HOME_INSIGHTS_CAP` in `home-insights.ts`.
+- **Quality**: `tsc --noEmit` clean · `npm run build` green (`index` 406 KB < 500 KB) · **unit 2271/2273** (the 2 failures are the documented `split-live-loop` WebCrypto baseline — `crypto.subtle` needs Node 22, unavailable in this Node 18.17.0 sandbox; pass in CI). Bumped `package.json` + `app-version.ts` + `public/version.json` (`bundleUrl`→`1.0.1-rc.zip`) + release notes pt/en/es. Deploy: commit + push `master` → Cloudflare Pages auto-build (`build:pages`).
+
 ## Coherence & Tricount wave (2026-06-24) — Current State
 
 > Execution truth: `brain/documents/2026-06-24-coherence-implementation-orchestrator.md` (gates G0→G8, change-set C01→C25, Councils C-A→C-D). Decisions: **DEC-295→305 (PROPOSED at G0)**. Single continuous session, deploy per gate. Version: 0.99.57 → 0.99.6x per gate; **1.0.0-rc** when Tricount (G8) lands. Most recent gate entry first; the prior UI/UX pass (G1→G7, shipped 0.99.57) and the legacy Field Feedback state are preserved below.

@@ -9,7 +9,13 @@ import { useTabPaging } from '@/hooks/useTabPaging';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { formatMoney, sumCents } from '@/domain/money';
-import { formatShortDate, localDayOf, localClockTime, localDateString } from '@/domain/dates';
+import {
+  formatShortDate,
+  localDayOf,
+  localClockTime,
+  localDateString,
+  sortPhasesByOrder,
+} from '@/domain/dates';
 import { aggregateByPlace } from '@/domain/location';
 import { getUnassignedTransactionCount } from '@/domain/wallets';
 import { calculateSessionTotal, formatSessionDuration } from '@/domain/outing';
@@ -17,10 +23,13 @@ import {
   softDeleteTransactionsBatch,
   restoreTransactionsBatch,
   moveTransactionsToPoolBatch,
+  moveTransactionsToPhaseBatch,
+  moveOutingSessionsToPhaseBatch,
   changeTransactionsCategoryBatch,
   softDeleteOutingSessionsBatch,
   restoreOutingSessionsBatch,
 } from '@/domain/orchestrators';
+import { selectActivePhasePool } from '@/domain/budget';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
@@ -39,7 +48,13 @@ type FilterCategory = string | null;
 type ListTab = 'expenses' | 'outings';
 // DEC-197 (N3): tab order — index drives swipe/slide direction (left = forward).
 const TAB_ORDER: readonly ListTab[] = ['expenses', 'outings'];
-type BatchSheet = 'deleteExpenses' | 'movePool' | 'changeCategory' | 'deleteOutings' | null;
+type BatchSheet =
+  | 'deleteExpenses'
+  | 'movePool'
+  | 'changePhase'
+  | 'changeCategory'
+  | 'deleteOutings'
+  | null;
 
 const CATEGORY_KEYS = [
   'bar',
@@ -57,7 +72,7 @@ export function ExpenseListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, transactions, pools, wallets, loading, reload } = useAppData();
+  const { trip, transactions, pools, wallets, phases, links, loading, reload } = useAppData();
   // FIELD-14: the list can arrive pre-filtered by URL (?profile=<id> / ?category=<cat> / ?place=<label>).
   const [filterCategory, setFilterCategory] = useState<FilterCategory>(searchParams.get('category'));
   const [filterProfileId, setFilterProfileId] = useState<string | null>(searchParams.get('profile'));
@@ -168,6 +183,8 @@ export function ExpenseListPage() {
 
   const poolMap = new Map(pools.map((p) => [p.id, p.name]));
   const walletMap = new Map(wallets.map((w) => [w.id, w.name]));
+  // Batch "change phase" target list (active trechos, in order).
+  const sortedPhases = sortPhasesByOrder(phases.filter((p) => p.deletedAt === null));
 
   const categories = [...new Set(transactions.filter((tx) => tx.category).map((tx) => tx.category!))];
   // E8 (M7): places ranked by spend — drive the "by place" filter chips.
@@ -252,6 +269,24 @@ export function ExpenseListPage() {
     await finishBatch('selection.moved_toast');
   };
 
+  // Julio field feedback: change phase in ONE go. Phase + its operational pool
+  // travel together, so the selected items land in the right trecho AND fund. On
+  // the Saídas tab the ids are SESSIONS (the whole note cascades to its items);
+  // on Gastos they are standalone expenses (e.g. a Wise import).
+  const handleMovePhase = async (phaseId: string) => {
+    const pool = selectActivePhasePool(pools, links, phaseId);
+    if (!pool) {
+      showToast(t('selection.phase_no_pool'), 'warning');
+      return;
+    }
+    if (tab === 'outings') {
+      await moveOutingSessionsToPhaseBatch(selection.selectedIds, phaseId, pool.id);
+    } else {
+      await moveTransactionsToPhaseBatch(selection.selectedIds, phaseId, pool.id);
+    }
+    await finishBatch('selection.phase_toast');
+  };
+
   const handleChangeCategory = async (category: string) => {
     await changeTransactionsCategoryBatch(selection.selectedIds, category);
     await finishBatch('selection.category_toast');
@@ -262,6 +297,19 @@ export function ExpenseListPage() {
     await softDeleteOutingSessionsBatch(ids);
     await finishDeleteWithUndo(() => restoreOutingSessionsBatch(ids));
   };
+
+  // Julio field feedback: a phase action only makes sense with 2+ trechos.
+  const phaseAction: SelectionAction[] =
+    sortedPhases.length >= 2
+      ? [
+          {
+            id: 'phase',
+            icon: 'flag',
+            label: t('selection.action_phase'),
+            onAction: () => setBatchSheet('changePhase'),
+          },
+        ]
+      : [];
 
   // DEC-118: batch actions per list (data-driven by tab).
   const selectionActions: SelectionAction[] =
@@ -279,6 +327,7 @@ export function ExpenseListPage() {
             label: t('selection.action_move_pool'),
             onAction: () => setBatchSheet('movePool'),
           },
+          ...phaseAction,
           {
             id: 'delete',
             icon: 'delete',
@@ -288,6 +337,7 @@ export function ExpenseListPage() {
           },
         ]
       : [
+          ...phaseAction,
           {
             id: 'delete',
             icon: 'delete',
@@ -721,6 +771,33 @@ export function ExpenseListPage() {
             >
               <Icon name="account_balance" size={18} className="text-on-surface-dim" />
               <span className="text-sm font-semibold text-on-surface">{pool.name}</span>
+            </button>
+          ))}
+        </div>
+      </BottomSheet>
+
+      {/* Julio field feedback: move the selection to another phase + its fund */}
+      <BottomSheet
+        open={batchSheet === 'changePhase'}
+        onClose={() => setBatchSheet(null)}
+        title={t('selection.phase_title')}
+      >
+        <div className="flex flex-col gap-2">
+          {sortedPhases.map((phase) => (
+            <button
+              key={phase.id}
+              onClick={() => handleMovePhase(phase.id)}
+              className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+            >
+              <Icon name="flag" size={18} className="text-on-surface-dim" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold text-on-surface truncate">
+                  {phase.name}
+                </span>
+                <span className="block text-xs text-on-surface-faint">
+                  {formatShortDate(phase.startDate)} – {formatShortDate(phase.endDate)}
+                </span>
+              </span>
             </button>
           ))}
         </div>

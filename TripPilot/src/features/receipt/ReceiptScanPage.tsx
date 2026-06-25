@@ -15,7 +15,8 @@ import {
 import { commitReceipt, undoReceiptCommit } from '@/domain/orchestrators';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository } from '@/data/repositories';
-import { resolveActivePhase } from '@/domain/dates';
+import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
+import { selectActivePhasePool } from '@/domain/budget';
 import { formatMoney, toCents } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import type { Participant } from '@/domain/types/participant';
@@ -26,6 +27,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { showToast } from '@/components/Toast';
 import { SplitExplainer } from '@/features/shared/SplitExplainer';
+import { PhaseChargePicker } from '@/features/shared/PhaseChargePicker';
 import { AddParticipantSheet } from '@/features/participants/AddParticipantSheet';
 import { setReceiptSplitHandoff } from '@/features/split/receipt-split-handoff';
 import { takeReceiptReviewHandoff } from './receipt-review-handoff';
@@ -58,7 +60,7 @@ const blankItem = (): ReceiptDraftItem => ({
 export function ReceiptScanPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, participants, settings, loading, error, retry, reload } = useAppData();
+  const { trip, phases, pools, links, participants, settings, loading, error, retry, reload } = useAppData();
 
   // CC-IMG (DEC-275): receipt scan now opens the shared take-photo/gallery
   // chooser instead of going straight to the gallery (the camera was unreachable).
@@ -71,6 +73,9 @@ export function ReceiptScanPage() {
   const [compressed, setCompressed] = useState<CompressedImage | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Julio field feedback: the trecho/fase this note charges. null = AUTO (the
+  // phase that contains the receipt's purchase date — see resolvedPhaseId).
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   // FB-06/24 (DEC-259): add a participant inline while reviewing the receipt.
   const [addPersonOpen, setAddPersonOpen] = useState(false);
   // FB-10 (DEC-258): the "AI details" block (date + place the model read) starts
@@ -85,6 +90,21 @@ export function ReceiptScanPage() {
   const baseCurrency = trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR';
   const currency = plan?.currency ?? baseCurrency;
   const defaultName = t('receiptScan.default_name');
+
+  const sortedPhases = useMemo(
+    () => sortPhasesByOrder(phases.filter((p) => p.deletedAt === null)),
+    [phases],
+  );
+  // Julio field feedback: AUTO the phase by the receipt's purchase date (so a
+  // note scanned days later lands on the trecho it happened in), falling back to
+  // today's active phase when the note carries no date. A manual pick overrides.
+  const autoPhaseId = useMemo(() => {
+    const ref = plan?.purchaseDate
+      ? new Date(`${plan.purchaseDate.slice(0, 10)}T12:00:00`)
+      : new Date();
+    return resolveActivePhase(phases, ref)?.id ?? null;
+  }, [plan?.purchaseDate, phases]);
+  const resolvedPhaseId = selectedPhaseId ?? autoPhaseId;
 
   // D-IMP-05: when the vision model read items but no merchant name, title the
   // note after what it mostly is (dominant category, e.g. "Mercado") instead of
@@ -302,9 +322,14 @@ export function ReceiptScanPage() {
       showToast(t('receiptScan.commit_empty'), 'warning');
       return;
     }
-    const operationalPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
-    const fallbackPhase = resolveActivePhase(phases);
-    if (!operationalPool || !fallbackPhase) {
+    const phaseId = resolvedPhaseId ?? resolveActivePhase(phases)?.id ?? null;
+    // The note charges the pool dedicated to ITS phase (DEC-219) — not a fixed
+    // first `linked_phases` pool, which sent every note to the wrong trecho.
+    const operationalPool =
+      selectActivePhasePool(pools, links, phaseId) ??
+      pools.find((p) => p.scope === 'linked_phases') ??
+      pools[0];
+    if (!operationalPool || !phaseId) {
       showToast(t('backup.operation_failed'), 'danger');
       return;
     }
@@ -320,7 +345,7 @@ export function ReceiptScanPage() {
 
       const result = await commitReceipt({
         tripId: trip.id,
-        phaseId: fallbackPhase.id,
+        phaseId,
         budgetPoolId: operationalPool.id,
         ownerId: owner.id,
         currency,
@@ -452,6 +477,17 @@ export function ReceiptScanPage() {
               className="px-3 py-2.5 rounded-xl text-sm bg-surface-container text-on-surface outline-none"
             />
           </div>
+
+          {/* Julio field feedback: pick the trecho/fase this note charges. AUTO
+              follows the receipt's purchase date; hidden when there's one phase. */}
+          <PhaseChargePicker
+            phases={sortedPhases}
+            value={selectedPhaseId}
+            onChange={setSelectedPhaseId}
+            label={t('phase_picker.label')}
+            autoLabel={t('phase_picker.auto_by_date')}
+            autoResolvedName={sortedPhases.find((p) => p.id === autoPhaseId)?.name ?? null}
+          />
 
           {/* FB-10 (DEC-258): the date + place the AI read off the note, editable.
               A quiet disclosure so a manual note isn't cluttered, auto-open when

@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0-rc",
+  "version": "1.0.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.0.0-rc.zip",
-  "notes": "Chegou a Divisão de grupo (estilo Tricount): junte várias despesas com várias pessoas e vários pagadores, divida igual ou personalizado, e deixe o app calcular quem deve a quem. Lance gastos por foto da nota ou IA, compartilhe um link para cada um escolher o próprio nome, ver seu saldo e marcar como pago — sem precisar do app. Quando o grupo é da viagem, os pagamentos confirmados entram no acerto da viagem."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.0.1-rc.zip",
+  "notes": "Correções de campo: notas importadas (IA/foto) e o CSV da Wise agora entram na fase certa pela data do gasto, com opção de escolher a fase na importação. Dá para mudar a fase e o fundo de vários gastos de uma vez (inclusive uma nota inteira). A reserva de um evento de vários dias passa a ser distribuída pela média dos dias, o simulador usa o saldo da fase de hoje, os campos não mostram mais borda ao tocar e a tela inicial pode exibir até 6 insights."
 }

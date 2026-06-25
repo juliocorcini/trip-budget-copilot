@@ -225,6 +225,88 @@ describe('buildPhaseAllowanceMap (FIELD-19 — per-day allowance map)', () => {
   });
 });
 
+describe('buildPhaseAllowanceMap — multi-day event reserve spread (Julio field)', () => {
+  it('spreads a multi-day event reserve evenly across its days (€100 / 26→30 = €20/day)', () => {
+    const phase = mkPhase(null, null); // 2026-06-08 → 2026-06-14
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-08',
+      occurrences: [
+        mkOccurrence({
+          id: 'occ-multi',
+          name: 'Festival',
+          plannedDate: '2026-06-10',
+          endDate: '2026-06-14', // 5 days
+          reservedCents: 10_000,
+        }),
+      ],
+      plannedPurchases: [],
+    });
+
+    const eventDays = map.days.filter((d) => d.dateIso >= '2026-06-10' && d.dateIso <= '2026-06-14');
+    expect(eventDays).toHaveLength(5);
+    eventDays.forEach((d) => {
+      expect(d.planTotalCents).toBe(2_000); // 10_000 / 5
+      expect(d.planItems).toHaveLength(1);
+      expect(d.planItems[0]?.name).toBe('Festival');
+    });
+    // Days before the event carry no share of its reserve.
+    const before = map.days.find((d) => d.dateIso === '2026-06-09');
+    expect(before?.planTotalCents).toBe(0);
+    // The spread sums back to the exact reserve (no cents lost).
+    const total = eventDays.reduce((acc, d) => acc + d.planTotalCents, 0);
+    expect(total).toBe(10_000);
+  });
+
+  it('rides the rounding remainder on the last day so parts sum to the reserve', () => {
+    const phase = mkPhase(null, null);
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-08',
+      occurrences: [
+        mkOccurrence({
+          id: 'occ-odd',
+          plannedDate: '2026-06-10',
+          endDate: '2026-06-12', // 3 days
+          reservedCents: 10_000, // 3_333 + 3_333 + 3_334
+        }),
+      ],
+      plannedPurchases: [],
+    });
+
+    const d10 = map.days.find((d) => d.dateIso === '2026-06-10');
+    const d11 = map.days.find((d) => d.dateIso === '2026-06-11');
+    const d12 = map.days.find((d) => d.dateIso === '2026-06-12');
+    expect(d10?.planTotalCents).toBe(3_333);
+    expect(d11?.planTotalCents).toBe(3_333);
+    expect(d12?.planTotalCents).toBe(3_334);
+    expect((d10?.planTotalCents ?? 0) + (d11?.planTotalCents ?? 0) + (d12?.planTotalCents ?? 0)).toBe(10_000);
+  });
+
+  it('keeps a single-day event (no endDate) on its planned day', () => {
+    const phase = mkPhase(null, null);
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: '2026-06-08',
+      occurrences: [
+        mkOccurrence({ id: 'occ-one', plannedDate: '2026-06-11', endDate: null, reservedCents: 6_000 }),
+      ],
+      plannedPurchases: [],
+    });
+    const d11 = map.days.find((d) => d.dateIso === '2026-06-11');
+    expect(d11?.planTotalCents).toBe(6_000);
+    map.days
+      .filter((d) => d.dateIso !== '2026-06-11')
+      .forEach((d) => expect(d.planTotalCents).toBe(0));
+  });
+});
+
 describe('buildPhaseAllowanceMap — GATE 19 (normalAllowanceCents / hasRhythm)', () => {
   it('uniform phase: no rhythm, normal allowance equals every day', () => {
     const phase = mkPhase(null, null);

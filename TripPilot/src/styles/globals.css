@@ -347,19 +347,23 @@ html.cap-native #root *::-webkit-scrollbar {
   outline: none;
 }
 
-/* C25 / DEC-305: form fields get a NEUTRAL, very subtle keyboard focus. The
-   global terracotta ring + --glow halo above lands like an error/alert when it
-   wraps a text field (and :focus-visible can fire on a mouse click inside an
-   input), so text-entry controls drop the orange + glow and keep only a thin
-   neutral ring — the minimum still perceptible by keyboard (WCAG 2.4.7 /
-   DEC-285 preserved). Buttons / links / cards keep the --primary ring above. */
+/* C25 reverted (Julio field feedback): form fields show NO focus border/ring at
+   all — not the global --primary ring + --glow halo above, nor the earlier thin
+   neutral outline (DEC-305). The ring read like an error/alert wrapping a text
+   field and fired on mouse focus too. Buttons / links / cards keep the --primary
+   keyboard ring above. Trade-off: text fields lose their keyboard focus outline
+   (the blinking caret stays as the affordance) — an explicit product decision. */
+input:focus,
 input:focus-visible,
+textarea:focus,
 textarea:focus-visible,
+select:focus,
 select:focus-visible,
+[contenteditable]:focus,
 [contenteditable]:focus-visible,
+[contenteditable='true']:focus,
 [contenteditable='true']:focus-visible {
-  outline: 1.5px solid var(--on-surface-mute);
-  outline-offset: 1px;
+  outline: none;
   box-shadow: none;
 }
 

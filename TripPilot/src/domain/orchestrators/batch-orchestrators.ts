@@ -64,6 +64,48 @@ export async function changeTransactionsCategoryBatch(
 }
 
 /**
+ * Julio field feedback: move a batch of standalone expenses (e.g. Wise imports)
+ * to another phase, carrying the phase's operational pool along. Phase + pool
+ * travel TOGETHER (one dedicated pool per phase), so a misfiled import is fixed
+ * in ONE action instead of item by item. The caller resolves the target phase's
+ * pool (selectActivePhasePool) — this stays a thin, atomic persistence step.
+ */
+export async function moveTransactionsToPhaseBatch(
+  transactionIds: string[],
+  phaseId: string,
+  budgetPoolId: string,
+): Promise<void> {
+  await db.transaction('rw', [db.transactions], async () => {
+    const transactions = await db.transactions.bulkGet(transactionIds);
+    const found = transactions.filter((tx) => tx !== undefined);
+    await db.transactions.bulkPut(found.map((tx) => markUpdated({ ...tx, phaseId, budgetPoolId })));
+  });
+}
+
+/**
+ * Julio field feedback: move whole outings/receipts (sessions) to another phase
+ * — the session AND every expense it holds move together to the target phase and
+ * its operational pool. This is the "edit the imported note's phase/fund once,
+ * for all items" path the field complaint asked for. Atomic.
+ */
+export async function moveOutingSessionsToPhaseBatch(
+  sessionIds: string[],
+  phaseId: string,
+  budgetPoolId: string,
+): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.transactions], async () => {
+    const sessions = await db.sessions.bulkGet(sessionIds);
+    const foundSessions = sessions.filter((s) => s !== undefined);
+    await db.sessions.bulkPut(foundSessions.map((s) => markUpdated({ ...s, phaseId, budgetPoolId })));
+
+    const transactions = await db.transactions.where('sessionId').anyOf(sessionIds).toArray();
+    await db.transactions.bulkPut(
+      transactions.map((tx) => markUpdated({ ...tx, phaseId, budgetPoolId })),
+    );
+  });
+}
+
+/**
  * Deleting an outing removes the session AND its expenses (the items ARE the
  * outing's money) — all soft, in one atomic batch.
  */

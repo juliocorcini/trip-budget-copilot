@@ -29,16 +29,39 @@ export interface CommitWiseImportInput {
   /** Only the drafts the user chose to import (already filtered + importable). */
   drafts: WiseImportDraft[];
   tripId: string;
-  /** Operational pool that owns the imported expenses' budget. */
+  /** Operational pool that owns the imported expenses' budget (fallback only). */
   budgetPoolId: string;
   /** Wise wallet the card purchases are debited from. */
   walletId: string;
   /** Fallback phase when a draft could not be matched to one by date. */
   fallbackPhaseId: string;
+  /**
+   * Julio field feedback: phaseId → the operational pool dedicated to that phase.
+   * Each row lands in the pool of ITS phase (by date) instead of a single fixed
+   * pool, which dumped every imported expense into the first trecho. Absent →
+   * everything falls back to `budgetPoolId` (legacy single-pool trips).
+   */
+  poolByPhaseId?: Record<string, string>;
+  /** When set, ALL rows are forced into this phase (the import phase override),
+   *  ignoring each row's date-derived phase. Null/absent → auto by date. */
+  forcePhaseId?: string | null;
   /** Owner participant id — required only when `bridges` is provided. */
   ownerId?: string;
   /** F16: draft.rowId → split-on-import bridge. The purchase becomes shared. */
   bridges?: Record<string, WiseExpenseBridge>;
+}
+
+/**
+ * The phase + operational pool a Wise row should commit to: a forced phase wins,
+ * else the row's date-derived phase, else the fallback; the pool is the one
+ * dedicated to THAT phase (so money never lands in the wrong trecho).
+ */
+function resolveWisePhasePool(
+  input: { fallbackPhaseId: string; budgetPoolId: string; poolByPhaseId?: Record<string, string>; forcePhaseId?: string | null },
+  draftPhaseId: string | null,
+): { phaseId: string; budgetPoolId: string } {
+  const phaseId = input.forcePhaseId ?? draftPhaseId ?? input.fallbackPhaseId;
+  return { phaseId, budgetPoolId: input.poolByPhaseId?.[phaseId] ?? input.budgetPoolId };
 }
 
 export interface CommitWiseImportResult {
@@ -72,10 +95,11 @@ export async function commitWiseImport(
     // factory (category null, excludeFromLearning true). It carries the same
     // `externalRef` as an expense so a re-import is recognized as a duplicate.
     if (draft.kind === 'credit') {
+      const creditTarget = resolveWisePhasePool(input, draft.phaseId);
       const income = createIncomeTransaction({
         tripId: input.tripId,
-        phaseId: draft.phaseId ?? input.fallbackPhaseId,
-        budgetPoolId: input.budgetPoolId,
+        phaseId: creditTarget.phaseId,
+        budgetPoolId: creditTarget.budgetPoolId,
         walletId: input.walletId,
         amountCents: draft.amountCents,
         currency: draft.currency,
@@ -90,14 +114,15 @@ export async function commitWiseImport(
     }
 
     const bridge = input.bridges?.[draft.rowId];
+    const target = resolveWisePhasePool(input, draft.phaseId);
     // The importer never invents exchange rates: the base-currency value equals
     // the original amount (exchangeRate null). For a same-currency statement
     // (the common case — an EUR wallet on an EUR trip) this is exact; a foreign
     // statement keeps its own number as the documented multi-currency fallback.
     const tx = createExpenseTransaction({
       tripId: input.tripId,
-      phaseId: draft.phaseId ?? input.fallbackPhaseId,
-      budgetPoolId: input.budgetPoolId,
+      phaseId: target.phaseId,
+      budgetPoolId: target.budgetPoolId,
       walletId: input.walletId,
       amountCents: draft.amountCents,
       currency: draft.currency,
@@ -167,12 +192,16 @@ export interface CommitWiseTransfersInput {
   tripId: string;
   /** Owner participant id (the user) — debtor/creditor anchor for settlements. */
   ownerId: string;
-  /** Operational pool that owns any expense slice's budget. */
+  /** Operational pool that owns any expense slice's budget (fallback only). */
   budgetPoolId: string;
   /** The Wise wallet money leaves from (out) / lands in (wallet moves). */
   sourceWalletId: string;
   fallbackPhaseId: string;
   baseCurrency: string;
+  /** phaseId → its dedicated operational pool (see CommitWiseImportInput). */
+  poolByPhaseId?: Record<string, string>;
+  /** Force every transfer slice into this phase (import override). */
+  forcePhaseId?: string | null;
 }
 
 export interface CommitWiseTransfersResult {
@@ -206,7 +235,9 @@ export async function commitWiseTransfers(
   for (const spec of input.specs) {
     const { draft, participantId, allocations } = spec;
     const ref = wiseExternalRef(draft.rowId);
-    const phaseId = draft.phaseId ?? input.fallbackPhaseId;
+    const target = resolveWisePhasePool(input, draft.phaseId);
+    const phaseId = target.phaseId;
+    const expensePoolId = target.budgetPoolId;
     const currency = draft.currency || input.baseCurrency;
 
     for (const alloc of allocations) {
@@ -243,7 +274,7 @@ export async function commitWiseTransfers(
           createExpenseTransaction({
             tripId: input.tripId,
             phaseId,
-            budgetPoolId: input.budgetPoolId,
+            budgetPoolId: expensePoolId,
             walletId: input.sourceWalletId,
             amountCents: alloc.amountCents,
             currency,
@@ -264,7 +295,7 @@ export async function commitWiseTransfers(
         const tx = createExpenseTransaction({
           tripId: input.tripId,
           phaseId,
-          budgetPoolId: input.budgetPoolId,
+          budgetPoolId: expensePoolId,
           walletId: null,
           amountCents: alloc.amountCents,
           currency,

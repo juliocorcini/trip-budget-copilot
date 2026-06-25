@@ -38,13 +38,15 @@ import { takeReceiptSplitHandoff, hasPendingReceiptSplitHandoff } from './receip
 import { takeOutingSplitHandoff, hasPendingOutingSplitHandoff } from './outing-split-handoff';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository, participantRepository, peerLinkRepository } from '@/data/repositories';
-import { resolveActivePhase } from '@/domain/dates';
+import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
+import { selectActivePhasePool } from '@/domain/budget';
 import { formatMoney, toCents, convertToBaseCents, resolveFrozenRate } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { useImageSourceChooser } from '@/components/ImageSourceChooser';
+import { PhaseChargePicker } from '@/features/shared/PhaseChargePicker';
 import { SplitHistorySheet } from './SplitHistorySheet';
 import { PassThePhoneSheet } from './PassThePhoneSheet';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
@@ -90,7 +92,7 @@ export function SplitPage() {
   // FAB "nova divisão" arrives with ?new=1 — open a fresh capture screen even if
   // a live table is still running (it stays resumable from the home card/chip).
   const forceNew = searchParams.get('new') === '1';
-  const { trip, phases, pools, participants, settings, loading, error, retry, reload } = useAppData();
+  const { trip, phases, pools, links, participants, settings, loading, error, retry, reload } = useAppData();
 
   // CC-IMG (DEC-275): shared take-photo/gallery chooser for the receipt scan.
   const receiptChooser = useImageSourceChooser((file) => {
@@ -110,6 +112,9 @@ export function SplitPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   // "Passar o celular pela mesa" — the guided round-the-table claim flow.
   const [passPhoneOpen, setPassPhoneOpen] = useState(false);
+  // Julio field feedback: the trecho/fase this split charges. null = today's
+  // active phase (a live bill happens "now"); a manual pick overrides it.
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
 
   const cloudEnabled = settings?.cloudReceiptOcrEnabled ?? false;
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
@@ -117,6 +122,11 @@ export function SplitPage() {
   const ownerName = owner?.name ?? t('split.you');
 
   const companions = useMemo(() => participants.filter((p) => !p.isOwner), [participants]);
+  const sortedPhases = useMemo(
+    () => sortPhasesByOrder(phases.filter((p) => p.deletedAt === null)),
+    [phases],
+  );
+  const resolvedPhaseId = selectedPhaseId ?? resolveActivePhase(phases)?.id ?? null;
 
   // B2 (coherence §2.2) — known friends (persisted peerLinks, cross-trip) so the
   // owner can add someone to the bill in one tap instead of re-scanning a QR.
@@ -125,8 +135,8 @@ export function SplitPage() {
   const [connections, setConnections] = useState<ConnectionView[]>([]);
   useEffect(() => {
     let alive = true;
-    void peerLinkRepository.getAll().then((links) => {
-      if (alive) setConnections(buildConnectionViews(links, Date.now()));
+    void peerLinkRepository.getAll().then((peerLinks) => {
+      if (alive) setConnections(buildConnectionViews(peerLinks, Date.now()));
     });
     return () => {
       alive = false;
@@ -509,9 +519,14 @@ export function SplitPage() {
       showToast(t('split.commit_empty'), 'warning');
       return;
     }
-    const operationalPool = pools.find((p) => p.scope === 'linked_phases') ?? pools[0];
-    const fallbackPhase = resolveActivePhase(phases);
-    if (!operationalPool || !fallbackPhase) {
+    const phaseId = resolvedPhaseId;
+    // The split charges the pool dedicated to ITS phase (DEC-219) — not a fixed
+    // first `linked_phases` pool, which sent every split to the wrong trecho.
+    const operationalPool =
+      selectActivePhasePool(pools, links, phaseId) ??
+      pools.find((p) => p.scope === 'linked_phases') ??
+      pools[0];
+    if (!operationalPool || !phaseId) {
       showToast(t('backup.operation_failed'), 'danger');
       return;
     }
@@ -534,7 +549,7 @@ export function SplitPage() {
       const result = await commitSplit({
         session,
         tripId: trip.id,
-        phaseId: fallbackPhase.id,
+        phaseId,
         budgetPoolId: operationalPool.id,
         ownerParticipantId: owner.id,
         walletId: null,
@@ -992,6 +1007,18 @@ export function SplitPage() {
               </div>
             </div>
             {reading && <BudgetReading reading={reading} currency={baseCurrency} t={t} />}
+            {/* Julio field feedback: pick the trecho/fase this split charges.
+                AUTO = today's active phase; hidden when there's a single phase. */}
+            <PhaseChargePicker
+              phases={sortedPhases}
+              value={selectedPhaseId}
+              onChange={setSelectedPhaseId}
+              label={t('phase_picker.label')}
+              autoLabel={t('phase_picker.auto_today')}
+              autoResolvedName={
+                sortedPhases.find((p) => p.id === resolveActivePhase(phases)?.id)?.name ?? null
+              }
+            />
             <button
               onClick={() => void handleCommit()}
               disabled={busy || subtotalCents <= 0}

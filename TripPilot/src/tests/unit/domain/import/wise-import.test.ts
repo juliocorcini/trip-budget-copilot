@@ -57,6 +57,11 @@ const phase = (overrides: Partial<Phase> = {}): Phase =>
 
 const PHASES = [phase()];
 
+// Two trechos that split June by date, for per-phase pool routing tests.
+const EARLY_PHASE = phase({ id: 'ph-early', startDate: '2026-06-01', endDate: '2026-06-12' });
+const LATE_PHASE = phase({ id: 'ph-late', startDate: '2026-06-13', endDate: '2026-06-30' });
+const TWO_PHASES = [EARLY_PHASE, LATE_PHASE];
+
 describe('guessCategory', () => {
   it('maps merchant/description keywords to TripPilot categories', () => {
     expect(guessCategory('Taxi Iglesias Carton CAMPING DE FU', '')).toBe('transport');
@@ -455,5 +460,57 @@ describe('commitWiseImport', () => {
     expect(second.summary.duplicateImportCount).toBe(6);
     expect(second.summary.newCount).toBe(0);
     expect(second.drafts.every((d) => d.includeByDefault === false)).toBe(true);
+  });
+
+  // Julio field feedback: each imported row must land in the pool of the phase
+  // that owns ITS date — not the first linked pool. With two trechos split by
+  // date, the 13–15 Jun rows go to the late pool, the 02/12 Jun rows to early.
+  it('routes each row to the pool of the phase that owns its date', async () => {
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: TWO_PHASES,
+    });
+    await commitWiseImport({
+      drafts: plan.drafts,
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-fallback',
+      walletId: 'wise-wallet',
+      fallbackPhaseId: 'ph-late',
+      poolByPhaseId: { 'ph-early': 'pool-early', 'ph-late': 'pool-late' },
+    });
+
+    const stored = await db.transactions.toArray();
+    const late = stored.find((t) => t.externalRef === wiseExternalRef('CARD-3927313014'));
+    expect(late?.phaseId).toBe('ph-late'); // 15 Jun
+    expect(late?.budgetPoolId).toBe('pool-late');
+
+    const early = stored.find((t) => t.externalRef === wiseExternalRef('CARD-3915613973'));
+    expect(early?.phaseId).toBe('ph-early'); // 12 Jun
+    expect(early?.budgetPoolId).toBe('pool-early');
+
+    // No row leaked into the fallback pool — every date matched a phase.
+    expect(stored.every((t) => t.budgetPoolId !== 'pool-fallback')).toBe(true);
+  });
+
+  // The import-level override forces ALL rows into one phase + its pool,
+  // regardless of each row's date.
+  it('forcePhaseId overrides every row into one phase and its pool', async () => {
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: TWO_PHASES,
+    });
+    await commitWiseImport({
+      drafts: plan.drafts,
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-fallback',
+      walletId: 'wise-wallet',
+      fallbackPhaseId: 'ph-late',
+      poolByPhaseId: { 'ph-early': 'pool-early', 'ph-late': 'pool-late' },
+      forcePhaseId: 'ph-early',
+    });
+
+    const stored = await db.transactions.toArray();
+    expect(stored.every((t) => t.phaseId === 'ph-early')).toBe(true);
+    expect(stored.every((t) => t.budgetPoolId === 'pool-early')).toBe(true);
   });
 });

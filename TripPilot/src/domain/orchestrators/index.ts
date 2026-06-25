@@ -34,6 +34,8 @@ export {
   softDeleteTransactionsBatch,
   restoreTransactionsBatch,
   moveTransactionsToPoolBatch,
+  moveTransactionsToPhaseBatch,
+  moveOutingSessionsToPhaseBatch,
   changeTransactionsCategoryBatch,
   softDeleteOutingSessionsBatch,
   restoreOutingSessionsBatch,

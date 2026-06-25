@@ -3,6 +3,8 @@ import { db } from '@/data/db/database';
 import {
   softDeleteTransactionsBatch,
   moveTransactionsToPoolBatch,
+  moveTransactionsToPhaseBatch,
+  moveOutingSessionsToPhaseBatch,
   changeTransactionsCategoryBatch,
   softDeleteOutingSessionsBatch,
   restoreTransactionsBatch,
@@ -90,6 +92,52 @@ describe('batch orchestrators', () => {
     const stored = await db.transactions.get(tx.id);
     expect(stored!.budgetPoolId).toBe('pool-2');
     expect(stored!.revision).toBe(tx.revision + 1);
+  });
+
+  // Julio field feedback: phase + fund move TOGETHER, in one batch.
+  it('moves standalone transactions to another phase and its pool', async () => {
+    const tx1 = mkTx(1000);
+    const tx2 = mkTx(2000);
+    const other = mkTx(3000);
+    await db.transactions.bulkAdd([tx1, tx2, other]);
+
+    await moveTransactionsToPhaseBatch([tx1.id, tx2.id], 'phase-2', 'pool-2');
+
+    const moved1 = await db.transactions.get(tx1.id);
+    expect(moved1!.phaseId).toBe('phase-2');
+    expect(moved1!.budgetPoolId).toBe('pool-2');
+    expect(moved1!.revision).toBe(tx1.revision + 1);
+    expect((await db.transactions.get(tx2.id))!.phaseId).toBe('phase-2');
+    // Untouched item keeps its original phase + pool.
+    const untouched = await db.transactions.get(other.id);
+    expect(untouched!.phaseId).toBe('phase-1');
+    expect(untouched!.budgetPoolId).toBe('pool-1');
+  });
+
+  it('moves a whole outing (session + every item) to another phase and pool', async () => {
+    const session = mkSession();
+    await db.sessions.add(session);
+    const tx1 = mkTx(900, session.id);
+    const tx2 = mkTx(1100, session.id);
+    const standalone = mkTx(500);
+    await db.transactions.bulkAdd([tx1, tx2, standalone]);
+    await db.sessionItems.bulkAdd([
+      createSessionItem(session.id, tx1.id, 1),
+      createSessionItem(session.id, tx2.id, 2),
+    ]);
+
+    await moveOutingSessionsToPhaseBatch([session.id], 'phase-2', 'pool-2');
+
+    const movedSession = await db.sessions.get(session.id);
+    expect(movedSession!.phaseId).toBe('phase-2');
+    expect(movedSession!.budgetPoolId).toBe('pool-2');
+    // Both items follow their session.
+    expect((await db.transactions.get(tx1.id))!.phaseId).toBe('phase-2');
+    expect((await db.transactions.get(tx1.id))!.budgetPoolId).toBe('pool-2');
+    expect((await db.transactions.get(tx2.id))!.phaseId).toBe('phase-2');
+    // A transaction outside the session is never touched.
+    expect((await db.transactions.get(standalone.id))!.phaseId).toBe('phase-1');
+    expect((await db.transactions.get(standalone.id))!.budgetPoolId).toBe('pool-1');
   });
 
   it('changes the category of the selected transactions only', async () => {

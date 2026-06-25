@@ -103,6 +103,23 @@ function occurrenceReserve(o: PlannedOccurrence): number {
   return Math.max(0, o.reservedCents ?? o.estimatedCostCents);
 }
 
+/**
+ * The local ISO days a dated occurrence spans, inclusive. A single-day event
+ * (no `endDate`, or one not after the start) is just its `plannedDate`.
+ */
+function occurrenceSpanDays(plannedDate: string, endDate: string | null): string[] {
+  const start = parseLocalDate(plannedDate);
+  const end = parseLocalDate((endDate ?? plannedDate));
+  if (end <= start) return [toLocalIsoDay(start)];
+  const days: string[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    days.push(toLocalIsoDay(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
 /** Groups dated reserves by their ISO day for O(1) lookup while walking days. */
 function indexPlanByDay(
   occurrences: PlannedOccurrence[],
@@ -120,7 +137,18 @@ function indexPlanByDay(
     if (!o.plannedDate || o.linkedTransactionId) return;
     const amountCents = occurrenceReserve(o);
     if (amountCents <= 0) return;
-    push(o.plannedDate, { id: o.id, name: o.name, amountCents, kind: 'occurrence' });
+    // Julio field feedback: a MULTI-DAY event (e.g. 26→30 with €100 reserved)
+    // spreads its reserve evenly across each of its days, so "available per day"
+    // shows the daily average (€20/day) instead of dumping the whole €100 on the
+    // start day. Integer-cents: the remainder rides the last day so the parts sum
+    // back to the exact reserve. Single-day events are unchanged (one day, full).
+    const span = occurrenceSpanDays(o.plannedDate, o.endDate);
+    const perDayCents = Math.floor(amountCents / span.length);
+    span.forEach((day, i) => {
+      const shareCents =
+        i === span.length - 1 ? amountCents - perDayCents * (span.length - 1) : perDayCents;
+      if (shareCents > 0) push(day, { id: o.id, name: o.name, amountCents: shareCents, kind: 'occurrence' });
+    });
   });
 
   plannedPurchases.forEach((p) => {

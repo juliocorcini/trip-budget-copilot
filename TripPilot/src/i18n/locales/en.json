@@ -2888,6 +2888,12 @@
     "live_update": "{{name}} updated the expenses shared with you",
     "live_response": "A new response just arrived"
   },
+  "phase_picker": {
+    "label": "Expense phase",
+    "auto_by_date": "Automatic (by date)",
+    "auto_today": "Automatic (today's phase)",
+    "auto_each": "Automatic (each item's date)"
+  },
   "receiptScan": {
     "title": "Scan a receipt",
     "subtitle": "Read the items, split, and save as an outing",
@@ -3061,15 +3067,19 @@
     "count": "{{count}} selected",
     "action_delete": "Delete",
     "action_move_pool": "Move fund",
+    "action_phase": "Change phase",
     "action_category": "Category",
     "delete_title": "Delete selected",
     "delete_expenses_body": "The {{count}} selected expenses will be deleted and leave every total.",
     "delete_outings_body": "The {{count}} selected outings will be deleted along with all their expenses.",
     "delete_confirm": "Delete {{count}}",
     "move_pool_title": "Move to which fund?",
+    "phase_title": "Move to which phase?",
     "category_title": "Change category",
     "deleted_toast": "Deleted ✓",
     "moved_toast": "Fund updated ✓",
+    "phase_toast": "Phase and fund updated ✓",
+    "phase_no_pool": "This phase has no fund yet to receive the expenses",
     "category_toast": "Category updated ✓"
   },
   "help": {

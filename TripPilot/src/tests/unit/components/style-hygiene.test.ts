@@ -115,10 +115,10 @@ describe('M19 — no `transition-all` anti-pattern in source', () => {
   });
 });
 
-describe('C25 / DEC-305 — neutral, subtle input focus (coherence wave)', () => {
+describe('C25 / DEC-305 (rev.) — input focus ring removed (field feedback)', () => {
   const css = readFileSync(GLOBALS, 'utf8');
 
-  /** The dedicated input/textarea/select :focus-visible rule (selectors + body). */
+  /** The dedicated input/textarea/select focus rule (selectors + body). */
   function inputFocusBlock(): string {
     const start = css.indexOf('input:focus-visible');
     expect(start, 'an input:focus-visible rule must exist').toBeGreaterThan(-1);
@@ -144,10 +144,14 @@ describe('C25 / DEC-305 — neutral, subtle input focus (coherence wave)', () =>
     expect(block).not.toContain('var(--glow)');
   });
 
-  it('keeps a thin neutral ring so keyboard focus stays perceptible (WCAG 2.4.7)', () => {
-    expect(inputFocusBlock()).toMatch(
-      /outline:[^;]*var\(--(on-surface-mute|on-surface-faint|border-subtle|border-faint)\)/,
-    );
+  // Product Lead decision (Julio, field feedback) — SUPERSEDES DEC-305's neutral
+  // ring: travelers disliked ANY border on inputs, even a neutral one. The focus
+  // ring is dropped (outline: none). Trade-off acknowledged: keyboard focus on
+  // text fields leans on the caret + the browser's native text-field affordance
+  // (WCAG 2.4.7) rather than a drawn outline; this is a mobile-first app where
+  // input focus is reached by touch, not Tab.
+  it('removes the input focus ring entirely (no drawn outline)', () => {
+    expect(inputFocusBlock()).toMatch(/outline:\s*none/);
   });
 });
 

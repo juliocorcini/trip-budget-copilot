@@ -2888,6 +2888,12 @@
     "live_update": "{{name}} actualizó los gastos compartidos contigo",
     "live_response": "Llegó una respuesta nueva"
   },
+  "phase_picker": {
+    "label": "Fase del gasto",
+    "auto_by_date": "Automática (por fecha)",
+    "auto_today": "Automática (fase de hoy)",
+    "auto_each": "Automática (fecha de cada ítem)"
+  },
   "receiptScan": {
     "title": "Escanear recibo",
     "subtitle": "Lee los artículos, divide y guarda como una salida",
@@ -3061,15 +3067,19 @@
     "count": "{{count}} seleccionados",
     "action_delete": "Eliminar",
     "action_move_pool": "Mover de fondo",
+    "action_phase": "Cambiar fase",
     "action_category": "Categoría",
     "delete_title": "Eliminar seleccionados",
     "delete_expenses_body": "Los {{count}} gastos seleccionados se eliminarán y salen de todos los totales.",
     "delete_outings_body": "Las {{count}} salidas seleccionadas se eliminarán junto con todos sus gastos.",
     "delete_confirm": "Eliminar {{count}}",
     "move_pool_title": "¿Mover a qué fondo?",
+    "phase_title": "¿Mover a qué fase?",
     "category_title": "Cambiar categoría",
     "deleted_toast": "Eliminados ✓",
     "moved_toast": "Fondo actualizado ✓",
+    "phase_toast": "Fase y fondo actualizados ✓",
+    "phase_no_pool": "Esta fase aún no tiene un fondo para recibir los gastos",
     "category_toast": "Categoría actualizada ✓"
   },
   "help": {

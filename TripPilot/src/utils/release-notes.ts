@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.0.1-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Notas importadas (pela IA ou pela foto) e o CSV da Wise agora entram na fase certa pela data do gasto — e na hora de importar você pode escolher a fase manualmente, se quiser.',
+        'Dá pra mudar a fase e o fundo de vários gastos de uma vez: selecione os gastos (ou uma nota/saída inteira) e mova tudo junto, sem precisar editar item por item.',
+        'Reserva de um evento de vários dias agora é distribuída pela média dos dias — o "disponível por dia" fica certo, em vez de jogar tudo no primeiro dia.',
+        'O simulador passou a usar o saldo da fase de hoje, não o de outra fase.',
+        'Os campos de digitação não mostram mais aquela borda ao tocar, e a tela de início pode exibir até 6 insights.',
+      ],
+      en: [
+        'Imported receipts (via AI or photo) and the Wise CSV now land in the right phase based on the expense date — and at import time you can pick the phase by hand if you prefer.',
+        'You can change the phase and fund of several expenses at once: select the expenses (or a whole receipt/outing) and move them together, no more editing item by item.',
+        'A multi-day event reserve is now spread evenly across its days — the "available per day" is correct instead of dumping it all on the first day.',
+        'The simulator now uses today\u2019s phase balance, not another phase\u2019s.',
+        'Input fields no longer show a border when tapped, and the home screen can show up to 6 insights.',
+      ],
+      es: [
+        'Los tickets importados (con IA o foto) y el CSV de Wise ahora entran en la fase correcta según la fecha del gasto — y al importar puedes elegir la fase a mano si lo prefieres.',
+        'Puedes cambiar la fase y el fondo de varios gastos a la vez: selecciona los gastos (o un ticket/salida entero) y muévelos juntos, sin editar uno por uno.',
+        'La reserva de un evento de varios días ahora se reparte por la media de los días — el "disponible por día" queda correcto en lugar de cargarlo todo al primer día.',
+        'El simulador ahora usa el saldo de la fase de hoy, no el de otra fase.',
+        'Los campos de texto ya no muestran un borde al tocarlos, y la pantalla de inicio puede mostrar hasta 6 insights.',
+      ],
+    },
+  },
+  {
     version: '1.0.0-rc',
     date: '2026-06-24',
     items: {
