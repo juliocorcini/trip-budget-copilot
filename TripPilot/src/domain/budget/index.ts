@@ -63,6 +63,8 @@ export {
   calculatePiggyBank,
 } from './motivation';
 export { buildPiggyLedger, linearDailyIdealCents, buildPiggySpendByDay } from './piggy-ledger';
+export { resolveSavingDestination } from './saving-destination';
+export type { SavingDestination, SavingDestinationInput } from './saving-destination';
 export type {
   PiggyLedger,
   PiggyLedgerEntry,

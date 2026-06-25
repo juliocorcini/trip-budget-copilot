@@ -395,6 +395,30 @@ export function DashboardSheets({
                 todayIso={model.todayIso}
               />
             )}
+            {/* D13 · DEC-312/313 — "where it comes from" also answers the DAY's
+                money: how the daily slice moves and where a calm day's saving
+                goes. ONE destination (DEC-313): with a cofrinho the saving is
+                kept there (reuse its exact rule copy), otherwise it dilutes into
+                the next days. Read-only — the math is untouched (ÂNCORA 11). */}
+            <div className="mt-4 p-3 rounded-xl bg-surface-container">
+              <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                {t('dashboard.hero_day_title')}
+              </p>
+              {model.piggyLedger ? (
+                <>
+                  <p className="text-[12px] leading-relaxed text-on-surface-dim mt-1.5">
+                    {t('dashboard.piggy_voice')}
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-on-surface-faint mt-1.5">
+                    {t('dashboard.piggy_states_hint')}
+                  </p>
+                </>
+              ) : (
+                <p className="text-[12px] leading-relaxed text-on-surface-dim mt-1.5">
+                  {t('dashboard.hero_day_nextdays')}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </BottomSheet>

@@ -2260,7 +2260,7 @@
 > Source: `brain/documents/2026-06-25-discovery-clarity-implementation-orchestrator.md` (change-set D01→D15, councils
 > C-A→C-J, gates G0→G6). DEC-307→316 came from the 10 inline councils on the briefing's open questions (§16); DEC-317→319 are
 > direct decisions (clear briefing directives). **Julio waived the §16 lock (2026-06-25) and adopted the council recommendations
-> as the execution path**; each DEC is promoted to **APPROVED** by the gate that ships it (G1: 317/318 · G2: 319 · G3: 307/308/309/310/311 · G4: 312/313/314/316 · G5: 314/315).
+> as the execution path**; each DEC is promoted to **APPROVED** by the gate that ships it (G1: 317/318 · G2: 319 · G3: 307/308/309/310/311 · G4: 312/313/316 · G5: 314/315).
 
 ### DEC-307 — Discovery entry: one discreet home-header hub (D02 / §16 Q1)
 - **Date**: 2026-06-25 · **Status**: APPROVED (G3, 1.1.0-rc)
@@ -2293,13 +2293,13 @@
 - **Refines**: orchestrator §6 D08 / §7 C-E. **Gate G3.**
 
 ### DEC-312 — Official cofrinho rule = the implemented Model B (D12 / §16 Q6)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G4, 1.1.1-rc) — rule documented in `product-spec.md` §30; the plain-language copy surfaces in the cofrinho statement, the check-in destination and the hero "De onde vem?" sheet. Math untouched (`buildPiggyLedger` tests stay green, Â11).
 - **Decision**: formalize the cofrinho rule exactly as the user described it (briefing #12) — it **already is** the implemented behavior (`buildPiggyLedger`, Model B, DEC-279/261): spending under the day's ideal deposits into the piggy; spending over it withdraws from the piggy first (next days unaffected); only what the piggy can't cover (`uncovered`) cuts the following days. **Document + explain in UI; do NOT change the math** (ÂNCORA 11).
 - **Rationale**: the central doubt is resolved by code reading — the math is correct; the gap is clarity, not logic.
 - **Refines**: orchestrator §6 D12 / §7 C-F. **Gate G4.**
 
 ### DEC-313 — One destination for the day's saving (D11/D14 / §16 Q7)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G4, 1.1.1-rc) — pure `resolveSavingDestination` picks one (piggy when active, else next days); the check-in renders a single "Destino da economia de hoje" block and the duplicate cofrinho lens caption was removed.
 - **Decision**: the day's saving has ONE shown destination — when the cofrinho is active (dated phase) it goes to the **cofrinho** (the piggy then protects future days; do not also say "+X/day to next days"); when there's no cofrinho, it dilutes into the next days. Never both at once.
 - **Rationale**: per Model B, under-spending deposits into the piggy (not a separate "next days" bucket); showing both is the double-count the briefing flags (#14).
 - **Refines**: orchestrator §6 D11/D14 / §7 C-G. **Gate G4.**
@@ -2317,7 +2317,7 @@
 - **Refines**: orchestrator §6 D15 / §7 C-I. **Gate G5.**
 
 ### DEC-316 — Keep "Posso gastar", compact (D10 / §16 Q10)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G4, 1.1.1-rc) — `AskToSpendShortcut` is now a discreet inline pill below "free today" instead of a full-width card; the action (simulator prefill) is unchanged.
 - **Decision**: keep "Posso gastar um valor" (DEC-289/M04) but compact it into a **discreet chip** below "Livre hoje" (the natural next question after the anchor number); don't remove it. Alternative: move to the FAB/hub.
 - **Rationale**: useful and recently added (Julio's), but it shouldn't take a large card on the home — a chip preserves access without clutter.
 - **Refines**: orchestrator §6 D10 / §7 C-J. **Gate G4.**

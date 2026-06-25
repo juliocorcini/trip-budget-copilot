@@ -1,8 +1,8 @@
 {
-  "version": "1.1.0-rc",
+  "version": "1.1.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.0-rc.zip",
-  "notes": "Descoberta mais fácil: toque na bússola no topo da tela de início para buscar pelo que você quer fazer e navegar pelas funções por intenção. \"Dividir\" virou uma porta só, que pergunta se você quer dividir Por itens ou um Valor em grupo. E o botão + ficou mais enxuto."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.1-rc.zip",
+  "notes": "Dinheiro do dia mais claro: o check-in mostra UM destino só para a economia de hoje (cofrinho quando a fase tem datas, senão diluído nos próximos dias) — nunca os dois. A tela \"De onde vem esse número\" agora também explica como funciona o cofrinho e o dinheiro do dia."
 }

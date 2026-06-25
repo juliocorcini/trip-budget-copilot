@@ -18,6 +18,7 @@ import {
   resolveHonestFriendVoice,
   isPhaseFullyPlanned,
   resolveProgressTone,
+  resolveSavingDestination,
   type ProgressTone,
 } from '@/domain/budget';
 import { AskToSpendShortcut } from './AskToSpendShortcut';
@@ -493,26 +494,54 @@ export function DashboardCards({
                         })}
                       </span>
                     </p>
-                    {/* G5 "real effect" (read-only — ÂNCORA 12): the money saved
-                        by a calm / no-spend day doesn't vanish — it lifts every day
-                        still ahead in the phase. Shown only when it lands ≥ +€1/day. */}
+                    {/* D11/D14 · DEC-313/314 · the saved money has ONE destination,
+                        never two (read-only — ÂNCORA 12): with an active cofrinho it
+                        is kept there (and that buffer is what protects the days ahead);
+                        without one it dilutes into the days still ahead. The cofrinho
+                        is never highlighted when the money did not go to it. */}
                     {(effectiveCheckInIntent === 'calm' || effectiveCheckInIntent === 'no_spend') &&
-                      model.activePhase &&
                       (() => {
                         const savedCents = plan.secondaryCents ?? 0;
+                        const destination = resolveSavingDestination({
+                          savedCents,
+                          piggyActive: model.piggyLedger !== null,
+                        });
+                        if (destination === 'none') return null;
+                        const destTitle = (
+                          <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                            {t('dashboard.checkin_dest_title')}
+                          </p>
+                        );
+                        if (destination === 'piggy') {
+                          return (
+                            <div data-saving-destination className="mt-2.5">
+                              {destTitle}
+                              <p className="text-[11px] font-bold text-primary mt-1 flex items-center gap-1">
+                                <Icon name="savings" size={13} className="text-primary" />
+                                {t('dashboard.checkin_dest_piggy', {
+                                  saved: formatMoney(savedCents, trip.baseCurrency),
+                                })}
+                              </p>
+                            </div>
+                          );
+                        }
+                        if (!model.activePhase) return null;
                         const effAfterToday =
                           calculateEffectiveSpendingDays(model.activePhase, model.todayIso) -
                           getDaySpendingWeight(model.activePhase, model.todayIso);
                         const boost = projectDailyBoostCents(savedCents, effAfterToday);
                         if (boost === null) return null;
                         return (
-                          <p className="text-[11px] font-bold text-primary mt-2 flex items-center gap-1">
-                            <Icon name="trending_up" size={13} className="text-primary" />
-                            {t('dashboard.checkin_redistribute', {
-                              saved: formatMoney(savedCents, trip.baseCurrency),
-                              perDay: formatMoney(boost, trip.baseCurrency),
-                            })}
-                          </p>
+                          <div data-saving-destination className="mt-2.5">
+                            {destTitle}
+                            <p className="text-[11px] font-bold text-primary mt-1 flex items-center gap-1">
+                              <Icon name="trending_up" size={13} className="text-primary" />
+                              {t('dashboard.checkin_redistribute', {
+                                saved: formatMoney(savedCents, trip.baseCurrency),
+                                perDay: formatMoney(boost, trip.baseCurrency),
+                              })}
+                            </p>
+                          </div>
                         );
                       })()}
                     {/* The "lens" payoff: the mode reshapes the home — night
@@ -525,14 +554,6 @@ export function DashboardCards({
                           <p className="text-[11px] font-bold text-primary mt-2 flex items-center gap-1">
                             <Icon name="local_bar" size={13} className="text-primary" />
                             {t('dashboard.checkin_lens_night', { count: rounds })}
-                          </p>
-                        );
-                      }
-                      if (activeFocusCardId === 'piggy_bank') {
-                        return (
-                          <p className="text-[11px] font-bold text-primary mt-2 flex items-center gap-1">
-                            <Icon name="south" size={13} className="text-primary" />
-                            {t('dashboard.checkin_lens_calm')}
                           </p>
                         );
                       }

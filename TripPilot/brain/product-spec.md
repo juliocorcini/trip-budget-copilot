@@ -386,6 +386,25 @@ never contradict each other: **real** spend vs **planned**/**allocated** vs **fr
 the limit / into the reserve) — normal progress and plan adjustments are calm/neutral, and every
 alert says *what happened · why it matters · what to do · whether it's real or just a plan change*.
 
+### 30. Cofrinho — the official rule (Discovery & Clarity wave — DEC-312, DEC-313/314)
+
+The cofrinho ("piggy") is a **buffer**, not a separate wallet. Its rule — exactly what the user
+described and exactly what the code already does (`buildPiggyLedger`, Model B, DEC-279/261), with
+**no math change this wave** (ÂNCORA 11):
+
+- **A day under the daily rhythm** → the difference is **deposited** into the cofrinho.
+- **A day over the rhythm** → the cofrinho **covers the overspend first**; the following days only
+  drop by the part the cofrinho could not cover (`uncovered`).
+- **Balance**: `bal_d = max(0, bal_{d-1} + dailyIdeal − spent_d)` — path-dependent, so an empty piggy
+  on a bad day cannot go negative and a later great day does not silently repay it.
+
+**One destination for the day's saving (DEC-313/314):** when the phase has dates the cofrinho is
+active and a calm day's saving goes **there** (and that buffer is what protects the days ahead);
+when there is no cofrinho (an ongoing / no-date phase) the saving **dilutes into the next days**. The
+app never shows both at once, and never highlights the cofrinho when the money did not go to it. The
+same plain-language rule appears in three places: the cofrinho statement, the day check-in's "Destino
+da economia de hoje", and the hero "De onde vem?" sheet.
+
 ## V1 — In Scope With Constraints (reconciled 2026-06-17)
 
 These were once "not in scope" but shipped under explicit, honest constraints (this section

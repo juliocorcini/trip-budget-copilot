@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.1-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Ficou claro para onde vai a economia do dia: o check-in mostra UM destino só — quando a fase tem datas, vai para o cofrinho; quando não tem, dilui nos próximos dias. Nunca os dois ao mesmo tempo.',
+        'A tela "De onde vem esse número" agora também explica o dinheiro do dia: como o cofrinho funciona (guarda quando você gasta menos, cobre quando gasta mais) e o que muda nos próximos dias.',
+        'O atalho "Posso gastar um valor?" virou um chip discreto logo abaixo do "livre para hoje" — sem ocupar a tela.',
+      ],
+      en: [
+        'It\u2019s clear where the day\u2019s saving goes: the check-in shows just ONE destination \u2014 the piggy bank when the phase has dates, otherwise diluted across the next days. Never both at once.',
+        'The \u201cWhere this number comes from\u201d sheet now also explains the daily money: how the piggy bank works (keeps when you spend less, covers when you spend more) and what changes on the next days.',
+        'The \u201cCan I spend ___?\u201d shortcut is now a discreet chip right under \u201cfree today\u201d \u2014 no longer a tall card.',
+      ],
+      es: [
+        'Quedó claro a dónde va el ahorro del día: el check-in muestra UN solo destino \u2014 la alcancía cuando la fase tiene fechas, si no se diluye en los próximos días. Nunca los dos a la vez.',
+        'La pantalla \u201cDe dónde viene este número\u201d ahora también explica el dinero del día: cómo funciona la alcancía (guarda cuando gastas menos, cubre cuando gastas más) y qué cambia en los próximos días.',
+        'El atajo \u201c\u00bfPuedo gastar ___?\u201d ahora es un chip discreto justo debajo de \u201clibre para hoy\u201d \u2014 ya no es una tarjeta grande.',
+      ],
+    },
+  },
+  {
     version: '1.1.0-rc',
     date: '2026-06-25',
     items: {
