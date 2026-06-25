@@ -62,12 +62,26 @@ export function BottomNav() {
     return registerOverlayDismiss(() => setIsFabOpen(false));
   }, [isFabOpen]);
 
+  // D09 · DEC-318: an open FAB must never survive a context switch. The nav sits
+  // ABOVE the FAB scrim (z-[60]) while open, so tapping a tab used to navigate
+  // and leave the menu mounted over the new screen (read as a bug). Closing on
+  // every pathname change covers a tab tap, a card that navigates, or any
+  // programmatic navigation; the scrim's own onClick still handles an outside tap.
+  useEffect(() => {
+    setIsFabOpen(false);
+  }, [location.pathname]);
+
   const renderNavItem = (item: NavItem) => {
     const isActive = location.pathname.startsWith(item.path);
     return (
       <button
         key={item.path}
         onClick={() => {
+          // D09 · DEC-318: close the FAB on a tab tap too. The pathname effect
+          // already covers a real navigation, but tapping the tab you are
+          // ALREADY on does not change the route — so close here explicitly so
+          // an open FAB never survives any tab tap (no exception).
+          setIsFabOpen(false);
           if (!isActive) hapticSelection();
           const direction = tabSwitchDirection(location.pathname, item.path, tabPaths);
           if (direction) setPendingTabDirection(direction);

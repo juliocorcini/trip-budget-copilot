@@ -1,8 +1,8 @@
 {
-  "version": "1.0.1-rc",
+  "version": "1.0.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.0.1-rc.zip",
-  "notes": "Correções de campo: notas importadas (IA/foto) e o CSV da Wise agora entram na fase certa pela data do gasto, com opção de escolher a fase na importação. Dá para mudar a fase e o fundo de vários gastos de uma vez (inclusive uma nota inteira). A reserva de um evento de vários dias passa a ser distribuída pela média dos dias, o simulador usa o saldo da fase de hoje, os campos não mostram mais borda ao tocar e a tela inicial pode exibir até 6 insights."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.0.2-rc.zip",
+  "notes": "Mais clareza no dia a dia: o menu de ações rápidas (botão +) agora fecha sozinho ao trocar de aba ou tocar fora, sem ficar aberto por cima da tela seguinte. E o Amigo Sincero passou a falar só a opinião dele — os números que ele mostrava viraram cartões de insight na tela de início, sem repetir."
 }

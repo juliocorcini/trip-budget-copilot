@@ -18,7 +18,6 @@ import {
   resolveHonestFriendVoice,
   isPhaseFullyPlanned,
   resolveProgressTone,
-  filterHomeAmigoExtras,
   type ProgressTone,
 } from '@/domain/budget';
 import { AskToSpendShortcut } from './AskToSpendShortcut';
@@ -1098,13 +1097,12 @@ export function DashboardCards({
                 "on plan" state so it only shows when there's something to act on. */}
             <AmigoSinceroCard
               amigo={model.amigoV2}
-              // C08 · DEC-301: on the home, drop any extra whose topic the
-              // insights carousel above already shows (de-dupe by topic), so the
-              // card only appears when it adds something actionable/new.
-              extras={filterHomeAmigoExtras(
-                model.amigoExtras,
-                visibleInsights.map((i) => i.kind),
-              )}
+              // D06 · DEC-317: the Amigo Sincero is VOICE ONLY now. Its factual
+              // extras (cofrinho movement, phase %, daily left, top category,
+              // receivable) have moved to the insights carousel above (relocated
+              // in useDashboardModel, de-duped). No objective data lives in the
+              // friend's card anymore — only the opinionated verdict + voice.
+              extras={[]}
               currency={trip.baseCurrency}
               onSeeImpact={() => navigate('/impact')}
               onRescue={() => navigate('/rescue')}

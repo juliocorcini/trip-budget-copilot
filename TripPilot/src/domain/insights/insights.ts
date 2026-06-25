@@ -6,6 +6,7 @@ import type { ConfidenceLevel } from '@/domain/types/common';
 import type { DebtEntry } from '@/domain/splitting';
 import { calculateEffectiveSpendingDays } from '@/domain/phases';
 import { calculatePoolSpent } from '@/domain/budget';
+import type { HonestFriendExtra, HonestFriendTone } from '@/domain/budget';
 import { getTotalDays, localDayOf } from '@/domain/dates';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
@@ -35,7 +36,16 @@ export type DashboardInsightKind =
   | 'no_spend_streak'
   | 'avg_outing_cost'
   | 'participant_balance'
-  | 'next_event';
+  | 'next_event'
+  // D06 · DEC-317: factual reads relocated out of the Amigo Sincero card. They
+  // are NOT produced by `buildDashboardInsights` (no auto-builder) — the caller
+  // converts surviving Amigo extras into these via `extraToInsight`, de-duped
+  // against the real insights above (see `filterHomeAmigoExtras`).
+  | 'piggy_movement'
+  | 'phase_progress'
+  | 'daily_left'
+  | 'top_category'
+  | 'receivable';
 
 export type InsightTone = 'positive' | 'warning' | 'neutral';
 
@@ -57,6 +67,14 @@ export const INSIGHT_PRIORITY: Record<DashboardInsightKind, number> = {
   next_event: 40,
   avg_outing_cost: 30,
   no_spend_streak: 20,
+  // D06 · DEC-317: relocated factual reads. The timely cofrinho movement ranks
+  // high; the rest sit below the analytical cards (they are appended, not
+  // auto-built, so these only order them relative to each other).
+  piggy_movement: 78,
+  receivable: 48,
+  phase_progress: 45,
+  daily_left: 42,
+  top_category: 35,
 };
 
 /** M5: today's weekday must spend at least this much MORE than other days. */
@@ -452,6 +470,78 @@ export function buildDashboardInsights(input: BuildInsightsInput): DashboardInsi
     .filter((insight): insight is DashboardInsight => insight !== null)
     .sort((a, b) => b.priority - a.priority || TONE_RANK[a.tone] - TONE_RANK[b.tone])
     .slice(0, INSIGHT_SAFETY_CAP);
+}
+
+/* ───────────── D06 · DEC-317: Amigo factual extras → neutral insights ───────────── */
+
+/**
+ * The Amigo Sincero is voice-only now; its objective extras leave the friend's
+ * card and become neutral INSIGHT cards. A factual extra's friend-tone maps to a
+ * plain insight tone (the opinionated wording stays out — only the data moves).
+ */
+const EXTRA_INSIGHT_TONE: Record<HonestFriendTone, InsightTone> = {
+  positive: 'positive',
+  steady: 'neutral',
+  caution: 'warning',
+  alert: 'warning',
+  neutral: 'neutral',
+};
+
+/**
+ * Pure adapter: one factual `HonestFriendExtra` → one `DashboardInsight` with the
+ * SAME numbers (ÂNCORA 11 — nothing recomputed) and a neutral framing. The kinds
+ * mirror the extra ids so the renderer (icons + `formatInsightText`) keys off one
+ * name. De-dup against the analytical insights is the caller's job — reuse
+ * `filterHomeAmigoExtras(extras, insightKinds)` BEFORE mapping so a topic an
+ * insight already shows is never duplicated.
+ */
+export function extraToInsight(extra: HonestFriendExtra): DashboardInsight {
+  const tone = EXTRA_INSIGHT_TONE[extra.tone];
+  switch (extra.id) {
+    case 'piggy_movement':
+      return {
+        kind: 'piggy_movement',
+        tone,
+        priority: INSIGHT_PRIORITY.piggy_movement,
+        values: {
+          deltaCents: extra.deltaCents,
+          balanceCents: extra.balanceCents,
+          deposit: extra.deltaCents > 0 ? 1 : 0,
+        },
+      };
+    case 'phase_progress':
+      return {
+        kind: 'phase_progress',
+        tone,
+        priority: INSIGHT_PRIORITY.phase_progress,
+        values: { percent: extra.percent },
+      };
+    case 'daily_left':
+      return {
+        kind: 'daily_left',
+        tone,
+        priority: INSIGHT_PRIORITY.daily_left,
+        values: { days: extra.days, perDayCents: extra.perDayCents },
+      };
+    case 'top_category':
+      return {
+        kind: 'top_category',
+        tone,
+        priority: INSIGHT_PRIORITY.top_category,
+        values: {
+          categoryKey: extra.categoryKey,
+          amountCents: extra.amountCents,
+          percent: extra.percent,
+        },
+      };
+    case 'receivable':
+      return {
+        kind: 'receivable',
+        tone,
+        priority: INSIGHT_PRIORITY.receivable,
+        values: { amountCents: extra.amountCents },
+      };
+  }
 }
 
 /* ──────────────── Daily forecast snapshot (DEC-077 / M8.3) ──────────────── */

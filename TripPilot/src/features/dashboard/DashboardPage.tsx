@@ -301,6 +301,13 @@ export function DashboardPage() {
       case 'category_rhythm':
         navigate(`/expenses?category=${insight.values.category}`);
         return;
+      // D06 · DEC-317: relocated factual reads route to where the data lives.
+      case 'top_category':
+        navigate(`/expenses?category=${insight.values.categoryKey}`);
+        return;
+      case 'receivable':
+        navigate('/shared');
+        return;
       // M6: the nudge opens quick capture so "what did I spend?" is one tap.
       case 'end_of_day':
         navigate('/quick-add');

@@ -2323,13 +2323,13 @@
 - **Refines**: orchestrator §6 D10 / §7 C-J. **Gate G4.**
 
 ### DEC-317 — Amigo Sincero = voice only; factual extras become insights (D06)
-- **Date**: 2026-06-25 · **Status**: PROPOSED — direct decision (clear briefing directive), G1.
+- **Date**: 2026-06-25 · **Status**: APPROVED (shipped 1.0.2-rc, G1) — direct decision (clear briefing directive).
 - **Decision**: the Amigo Sincero carousel contains **only opinionated, personality-driven phrases**; the factual extras (`piggy_movement`, `phase_progress`, `daily_left`, `top_category`, `receivable`) leave the card and become **insights** in the insights carousel (no duplication). AC: "no common insight appears inside Amigo Sincero".
 - **Rationale**: the card mixes objective data with the honest-friend voice; the briefing wants a clean separation (insight ≠ opinion). Refines DEC-301 (per-slide CTA) — the factual slides no longer exist in the Amigo.
 - **Refines**: orchestrator §6 D06. **Gate G1.**
 
 ### DEC-318 — Close the FAB on any context switch (D09)
-- **Date**: 2026-06-25 · **Status**: PROPOSED — direct decision, G1.
+- **Date**: 2026-06-25 · **Status**: APPROVED (shipped 1.0.2-rc, G1) — direct decision.
 - **Decision**: `isFabOpen` closes on any route change (tab/card/screen) and on outside tap — `useEffect(() => setIsFabOpen(false), [location.pathname])` in `BottomNav` + closing on the tab/center onClick. No exception.
 - **Rationale**: today the nav sits at `z-[60]` above the FAB scrim, so tapping a tab navigates while the FAB stays open, covering the new screen (reads as a bug).
 - **Refines**: orchestrator §6 D09. **Gate G1.**

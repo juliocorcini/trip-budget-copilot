@@ -14,6 +14,7 @@ import {
   calculateLastOutingSavings,
   buildHonestFriendV2,
   buildHonestFriendExtras,
+  filterHomeAmigoExtras,
   calculatePoolSpent,
   projectTripEndSurplus,
   calculateSavingsGoalProgress,
@@ -63,7 +64,7 @@ import {
 } from '@/domain/planning/planned-purchases';
 import { findPendingConfirmationShares, calculateDebts, summarizeOwnerDebts } from '@/domain/splitting';
 import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
-import { buildDashboardInsights, createForecastSnapshot } from '@/domain/insights';
+import { buildDashboardInsights, extraToInsight, createForecastSnapshot } from '@/domain/insights';
 import { calculateSessionTotal, evaluateOutingSuggestion } from '@/domain/outing';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -646,6 +647,20 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           })
         : [];
 
+    // D06 · DEC-317: the Amigo Sincero is voice-only now — its factual extras
+    // leave the card and become NEUTRAL insight cards. Reuse `filterHomeAmigoExtras`
+    // (the existing de-dupe) so a topic already shown by a real insight is dropped
+    // (no duplication), then map each survivor with `extraToInsight` (same numbers,
+    // ÂNCORA 11) and APPEND after the analytical insights (their order/values stay
+    // byte-identical to the baseline; the relocated reads simply follow).
+    const insightsWithFactual = [
+      ...insights,
+      ...filterHomeAmigoExtras(
+        amigoExtras,
+        insights.map((i) => i.kind),
+      ).map(extraToInsight),
+    ];
+
     // DEC-130 + DEC-136: burn-down uses the same phase envelope as the insights.
     const burndown =
       fts && activePhase && primaryPool
@@ -721,7 +736,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       payableCents,
       participantNameById,
       owner,
-      insights,
+      insights: insightsWithFactual,
       phaseLeftover,
       globalPoolSummaries,
       visiblePotSummaries,

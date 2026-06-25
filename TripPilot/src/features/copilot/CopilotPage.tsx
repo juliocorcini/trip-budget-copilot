@@ -553,7 +553,11 @@ export function CopilotPage() {
           {model.amigoV2.kind !== 'none' && (
             <AmigoSinceroCard
               amigo={model.amigoV2}
-              extras={model.amigoExtras}
+              // D06 · DEC-317: voice only. The Copiloto already surfaces every
+              // factual read through its dedicated sections (piggy section,
+              // category bars, projection/trend/runway, debts), so the friend's
+              // card carries no objective data — only the opinionated verdict.
+              extras={[]}
               currency={currency}
               onSeeImpact={() => navigate('/impact')}
               onSimulate={() => navigate('/simulator')}

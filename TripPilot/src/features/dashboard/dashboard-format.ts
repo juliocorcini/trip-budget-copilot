@@ -55,6 +55,13 @@ export const INSIGHT_ICONS: Record<DashboardInsight['kind'], string> = {
   avg_outing_cost: 'local_bar',
   participant_balance: 'group',
   next_event: 'event',
+  // D06 · DEC-317: relocated factual reads reuse the icons they had as Amigo
+  // extras, so the same data reads the same at a glance — now as an insight.
+  piggy_movement: 'savings',
+  phase_progress: 'data_usage',
+  daily_left: 'calendar_today',
+  top_category: 'leaderboard',
+  receivable: 'call_received',
 };
 
 /** Localized full weekday name (0=Sun..6=Sat) — Jan 4 1970 was a Sunday. */
@@ -130,6 +137,30 @@ export function formatInsightText(
       });
     case 'end_of_day':
       return t('dashboard.insight_end_of_day');
+    // D06 · DEC-317: relocated factual reads — NEUTRAL framing (the opinionated
+    // wording stays in the Amigo Sincero; the insight states the data plainly).
+    case 'piggy_movement':
+      return t(v.deposit ? 'dashboard.insight_piggy_in' : 'dashboard.insight_piggy_out', {
+        amount: formatMoney(Math.abs(v.deltaCents as number), currency),
+        balance: formatMoney(v.balanceCents as number, currency),
+      });
+    case 'phase_progress':
+      return t('dashboard.insight_phase_progress', { percent: v.percent as number });
+    case 'daily_left':
+      return t('dashboard.insight_daily_left', {
+        perDay: formatMoney(v.perDayCents as number, currency),
+        days: v.days as number,
+      });
+    case 'top_category':
+      return t('dashboard.insight_top_category', {
+        category: t(`categories.${v.categoryKey}` as never),
+        amount: formatMoney(v.amountCents as number, currency),
+        percent: v.percent as number,
+      });
+    case 'receivable':
+      return t('dashboard.insight_receivable', {
+        amount: formatMoney(v.amountCents as number, currency),
+      });
   }
 }
 

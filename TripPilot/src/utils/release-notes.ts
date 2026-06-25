@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.0.2-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'O menu de ações rápidas (o botão +) agora fecha sozinho quando você troca de aba ou toca fora — não fica mais aberto por cima da tela seguinte.',
+        'O Amigo Sincero passou a falar só a opinião dele. Os números que ele mostrava (quanto você guardou, quanto falta na fase, o gasto do dia, a categoria que mais pesa e quem tem a receber) viraram cartões de insight na tela de início, sem repetir.',
+      ],
+      en: [
+        'The quick-actions menu (the + button) now closes on its own when you switch tabs or tap outside — it no longer stays open over the next screen.',
+        'The Honest Friend now shows only its take. The numbers it used to carry (how much you saved, what\u2019s left in the phase, today\u2019s spend, your heaviest category and who owes you) became insight cards on the home screen, with no duplicates.',
+      ],
+      es: [
+        'El menú de acciones rápidas (el botón +) ahora se cierra solo cuando cambias de pestaña o tocas fuera — ya no queda abierto sobre la pantalla siguiente.',
+        'El Amigo Sincero ahora muestra solo su opinión. Los números que mostraba (cuánto guardaste, cuánto falta en la fase, el gasto de hoy, tu categoría más pesada y quién tiene por cobrar) pasaron a ser tarjetas de insight en la pantalla de inicio, sin repetir.',
+      ],
+    },
+  },
+  {
     version: '1.0.1-rc',
     date: '2026-06-25',
     items: {

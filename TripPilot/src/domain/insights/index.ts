@@ -1,5 +1,6 @@
 export {
   buildDashboardInsights,
+  extraToInsight,
   createForecastSnapshot,
   INSIGHT_SAFETY_CAP,
   INSIGHT_PRIORITY,
