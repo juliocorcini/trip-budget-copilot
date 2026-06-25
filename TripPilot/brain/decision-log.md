@@ -2426,4 +2426,30 @@
 
 ---
 
+## Process / methodology decisions
+
+### DEC-334 — The inline single-session "orchestrator" is our STANDARD implementation method
+- **Date**: 2026-06-25 · **Status**: APPROVED (process standard) · **Type**: methodology (not product)
+- **Decision**: changes to the live app are implemented as a **"leva" (wave)** driven by an **orchestrator
+  document** (the single execution truth — mission, non-negotiables/ÂNCORA, baseline of what already
+  exists, root-cause map code↔change with exact file→symbol, inline councils → DECs, gates G0→Gn with
+  acceptance criteria, test strategy, deploy pipeline, Definition of Done) plus a **kickoff prompt** that
+  runs it **end-to-end, inline, in ONE chat session, with no subagents**, one milestone at a time, testing
+  with the change and deploying per gate. The method is codified in
+  `.cursor/skills/implementation-orchestrator/SKILL.md` and invoked via `/orchestrator` (aliases
+  `/orquestrador`, `/leva`, `/kickoff`). Canonical examples: the Coherence & Tricount, Discovery & Clarity,
+  and Field Fixes & Clarity #2 orchestrators in `brain/documents/`.
+- **Rationale**: this is how every recent TripPilot wave shipped. It is **slightly slower** (upfront
+  investigation + per-gate discipline) but **delivers reliably**: no scope creep, no regression in the
+  parts that already work, a green suite and a live deploy at the end of each gate, and a brain kept in
+  sync. The depth is **right-sized** to the wave (small waves collapse sections; the G0 baseline,
+  root-cause map, test-with-the-change, 5-point self-check, terminal safety, deploy-per-gate and brain
+  sync are always kept). Aligns with `inline-council-no-subagents.mdc`, `tech-lead-delegation.mdc`,
+  `execution-style.mdc`, `phase-delivery-hardening.mdc`, `velocity-standard.mdc`, `terminal-pager-safety.mdc`.
+- **Refines**: complements `phase-planner` (greenfield phasing) and `phase-delivery` (folders for an
+  external dev) — the orchestrator is for an **in-session agent applying a batch of changes to an
+  already-shipped app**.
+
+---
+
 *New decisions will be added as the project progresses.*

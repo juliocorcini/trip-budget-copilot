@@ -1,6 +1,6 @@
 # TripPilot Brain — Source of Truth
 
-> Last updated: 2026-06-22 (**Field Feedback master plan** — `documents/field-feedback-master-plan-and-councils-2026-06-22.md` (v2) + **DEC-256→278** recorded in `decision-log.md` (direction approved/ratified by Julio; implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, cofrinho-as-buffer, carousel=1-occasion, outing trim+discard, Amigo Sincero phrase bank+voices, location default ON (ÂNCORA 8 amendment), auto device name, event-delete-asks, admin tokens/fn + Groq governance + 00000000 investigation + PWA telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write, single image chooser, graceful AI degradation, record repayment, in-app AI help V1. Prior 2026-06-21: DEC-248→255 Admin v1/v2 + multi-trip + Dia a dia + new icon. See the dated sections below)
+> Last updated: 2026-06-25 (**Implementation-orchestrator process standard** — DEC-334; method codified in `.cursor/skills/implementation-orchestrator/SKILL.md` (`/orchestrator`); see "How we implement" below. Prior 2026-06-22: **Field Feedback master plan** — `documents/field-feedback-master-plan-and-councils-2026-06-22.md` (v2) + **DEC-256→278** recorded in `decision-log.md` (direction approved/ratified by Julio; implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, cofrinho-as-buffer, carousel=1-occasion, outing trim+discard, Amigo Sincero phrase bank+voices, location default ON (ÂNCORA 8 amendment), auto device name, event-delete-asks, admin tokens/fn + Groq governance + 00000000 investigation + PWA telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write, single image chooser, graceful AI degradation, record repayment, in-app AI help V1. Prior 2026-06-21: DEC-248→255 Admin v1/v2 + multi-trip + Dia a dia + new icon. See the dated sections below)
 
 ## Truth Policy
 
@@ -24,6 +24,19 @@
 | `documents/` | Plans, specs, audits & epic delivery reports (incl. `master-fix-and-skipped-features-plan-2026-06-17.md` — the active fix/backlog plan) | Execution, backlog |
 | `../src/dev-log.md` | Live gate-by-gate execution log (native arc, rounds, epics) | What shipped, when |
 | `research/` | Research outputs and raw source material | Deep dives on specific topics |
+
+### How we implement (process standard — DEC-334)
+
+Changes to the live app ship as a **"leva" (wave)** run by the **implementation-orchestrator** method:
+an **orchestrator document** (the single execution truth) + a **kickoff prompt**, executed **end-to-end,
+inline, in ONE session, no subagents**, one milestone at a time, testing with the change and deploying
+per gate. This is the STANDARD — see `DEC-334`.
+
+| Artifact | Where | When to read |
+|------|---------|--------------|
+| Method (how to author + execute a wave) | `.cursor/skills/implementation-orchestrator/SKILL.md` (`/orchestrator`) | Before authoring or executing any wave |
+| Canonical examples | `documents/2026-06-24-coherence-implementation-orchestrator.md`, `documents/2026-06-25-discovery-clarity-implementation-orchestrator.md`, `documents/2026-06-25-field-fixes-clarity-2-orchestrator.md` (+ `…-kickoff-prompt.md`) | To copy the §0–§17 structure / tone |
+| Live execution log | `../src/dev-log.md` | Current wave state, what shipped per gate |
 
 ### Budget-Model Reform (2026-06-17) — canonical mental model
 

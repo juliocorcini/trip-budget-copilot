@@ -18,6 +18,7 @@ When the user's message starts with `/command`, treat it as a **direct skill inv
 | `/product` | `/feature`, `/priorize`, `/escopo` | `.cursor/skills/product-analysis/SKILL.md` | Product/feature analysis |
 | `/brain` | `/organize`, `/salve`, `/decisao` | `.cursor/skills/brain-organizer/SKILL.md` | Brain KB management |
 | `/phases` | `/fases`, `/fase` | `.cursor/skills/phase-planner/SKILL.md` | Implementation phasing |
+| `/orchestrator` | `/orquestrador`, `/leva`, `/kickoff` | `.cursor/skills/implementation-orchestrator/SKILL.md` | Author/execute an in-session implementation wave (orchestrator doc + kickoff). The STANDARD way we implement changes to the live app |
 | `/deliver` | `/entrega-fase`, `/manda-fase` | `.cursor/skills/phase-delivery/SKILL.md` | Generate phase folder for dev |
 | `/report` | `/processar-report` | `.cursor/skills/phase-report/SKILL.md` | Process phase report |
 | `/design` | `/telas`, `/wireframes`, `/tema` | `.cursor/skills/app-design/SKILL.md` | Design system + wireframes |
