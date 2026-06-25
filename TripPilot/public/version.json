@@ -1,8 +1,8 @@
 {
-  "version": "0.99.59",
+  "version": "0.99.60",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.59.zip",
-  "notes": "Lista de gastos coerente: tocar numa categoria não estoura mais a nota em itens soltos — cada saída continua sendo uma linha só, com o subtotal daquela categoria e o número de itens; o toque abre a saída completa. Só a busca por texto mostra item a item."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.60.zip",
+  "notes": "Detalhe da saída agora é editável: dá para renomear e mudar a data da saída, tocar em cada item para ver/editar, ver quem pagou e abrir a divisão completa. E todo gasto que faz parte de uma saída mostra um atalho \"Parte de\" que leva direto à saída."
 }

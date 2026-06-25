@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.60',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'A tela de uma saída deixou de ser só leitura: agora você renomeia a saída e muda a data dela ali mesmo.',
+        'Cada item da saída virou um atalho — toque para ver ou editar aquele gasto sem precisar caçar item por item.',
+        'Quando a saída foi paga por uma pessoa, aparece "pago por…"; e se ela foi dividida, dá para abrir a divisão completa (quem ficou com o quê) num toque.',
+        'Todo gasto que faz parte de uma saída agora mostra um atalho "Parte de · [saída]" que leva direto para a saída.',
+      ],
+      en: [
+        'An outing screen is no longer read-only: you can rename the outing and change its date right there.',
+        'Each outing item is now a shortcut — tap to view or edit that expense without hunting item by item.',
+        'When one person paid, a "paid by…" tag shows up; and if the outing was split, the full division (who got what) is one tap away.',
+        'Every expense that belongs to an outing now shows a "Part of · [outing]" shortcut that jumps straight to it.',
+      ],
+      es: [
+        'La pantalla de una salida ya no es solo lectura: ahora puedes renombrar la salida y cambiar su fecha ahí mismo.',
+        'Cada ítem de la salida es ahora un atajo — toca para ver o editar ese gasto sin buscar ítem por ítem.',
+        'Cuando una persona pagó, aparece "pagado por…"; y si la salida se dividió, la división completa (quién se quedó con qué) está a un toque.',
+        'Todo gasto que forma parte de una salida ahora muestra un atajo "Parte de · [salida]" que lleva directo a ella.',
+      ],
+    },
+  },
+  {
     version: '0.99.59',
     date: '2026-06-24',
     items: {

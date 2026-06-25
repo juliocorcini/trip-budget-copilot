@@ -6,7 +6,12 @@ import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
 import { formatMoney, fromCents, toCents, formatAnchorHint, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
-import { transactionRepository, participantShareRepository, splitRepository } from '@/data/repositories';
+import {
+  transactionRepository,
+  participantShareRepository,
+  splitRepository,
+  sessionRepository,
+} from '@/data/repositories';
 import { SplitHistorySheet } from '@/features/split/SplitHistorySheet';
 import type { SplitSession } from '@/domain/split';
 import {
@@ -27,6 +32,7 @@ import { AttachmentSection } from '@/features/attachments/AttachmentSection';
 import { PlaceField } from '@/features/location/PlaceField';
 import { placeToTransactionFields } from '@/domain/location';
 import type { Transaction } from '@/domain/types/transaction';
+import type { Session } from '@/domain/types/session';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { CurrentPlace } from '@/domain/types/common';
@@ -55,6 +61,9 @@ export function ExpenseDetailPage() {
   const [tx, setTx] = useState<Transaction | null>(null);
   const [txLoading, setTxLoading] = useState(true);
   const [shares, setShares] = useState<ParticipantShare[]>([]);
+  // C02/DEC-302: an item always references its parent outing — the chip below
+  // the amount opens the full outing detail ("parte de · [saída]").
+  const [parentSession, setParentSession] = useState<Session | null>(null);
   // T1/T16: if this expense came from a committed bill split, the full readable
   // division is one row away (SplitRecord.splitMeta) — "ver a conta toda".
   const [splitSession, setSplitSession] = useState<SplitSession | null>(null);
@@ -82,14 +91,19 @@ export function ExpenseDetailPage() {
     (async () => {
       const found = await transactionRepository.getById(id);
       const txShares = found ? await participantShareRepository.getByTransactionId(found.id) : [];
-      // The division behind a committed split is keyed by the expense's session.
-      const splitRecord = found?.sessionId
-        ? await splitRepository.getBySessionId(found.sessionId)
-        : undefined;
+      // The division AND the parent outing behind a committed split are both
+      // keyed by the expense's session (C02 back-link + "see the whole split").
+      const [splitRecord, parent] = found?.sessionId
+        ? await Promise.all([
+            splitRepository.getBySessionId(found.sessionId),
+            sessionRepository.getById(found.sessionId),
+          ])
+        : [undefined, undefined];
       if (cancelled) return;
       setTx(found ?? null);
       setShares(txShares);
       setSplitSession(splitRecord?.splitMeta ?? null);
+      setParentSession(parent && parent.deletedAt === null ? parent : null);
       setTxLoading(false);
     })();
     return () => {
@@ -280,6 +294,23 @@ export function ExpenseDetailPage() {
             )}
             <p className="text-sm text-on-surface-dim mt-2">{tx.description}</p>
           </div>
+
+          {/* C02/DEC-302: the item always points back to its parent outing. */}
+          {parentSession && (
+            <button
+              onClick={() => navigate(`/outings/${parentSession.id}/review`)}
+              className="w-full bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 btn-press text-left"
+            >
+              <div className="w-9 h-9 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                <Icon name="receipt_long" size={18} className="text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-on-surface-faint">{t('expenses.part_of_outing')}</p>
+                <p className="text-sm font-semibold text-on-surface truncate">{parentSession.name}</p>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          )}
 
           <div className="bg-surface-container rounded-xl divide-y divide-on-surface-mute">
             <DetailRow

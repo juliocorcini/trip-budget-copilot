@@ -2219,7 +2219,7 @@
 
 ### DEC-302 — Actionable outing detail + item→outing back-link (C02)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G3)
+- **Status**: APPROVED — Coherence wave (Gate G3, shipped 0.99.60)
 - **Decision**: the outing detail gains edit (name/date), view/edit **split** and **payer**, **personal cost**, **items** (each item → `ExpenseDetailPage`), **settlement status**. The item gains a "parte de · [outing]" back-link. **No new entity** (reuses Session/Transaction).
 - **Rationale**: `OutingReviewPage` is read-only (DEC-079); opening an outing and "not being able to do almost anything" is a top pain. Reuse `ExpenseDetailPage` edit patterns.
 - **Refines**: orchestrator §6 C02. **Gate G3.**

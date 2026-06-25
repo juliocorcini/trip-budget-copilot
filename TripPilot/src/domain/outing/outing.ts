@@ -457,3 +457,20 @@ export function formatSessionDuration(startedAt: string, endedAt: string | null)
   if (h === 0) return `${m}min`;
   return `${h}h${String(m).padStart(2, '0')}`;
 }
+
+/**
+ * The single payer of an outing, when there is exactly one (C02/DEC-302).
+ * Committed splits and the "quem pagou" enrichment stamp `paidByParticipantId`
+ * on every item; only when EVERY item agrees on the same non-null payer can the
+ * outing detail honestly surface "pago por X". Any unset item, mixed payers, or
+ * an empty outing → null (no single honest answer — show nothing).
+ */
+export function resolveOutingPayerId(
+  txs: ReadonlyArray<{ paidByParticipantId: string | null }>,
+): string | null {
+  if (txs.length === 0) return null;
+  const ids = new Set(txs.map((tx) => tx.paidByParticipantId));
+  if (ids.size !== 1) return null;
+  const [only] = ids;
+  return only && only !== '' ? only : null;
+}

@@ -57,6 +57,18 @@ test.describe('Outing full flow (GAP-R2-009)', () => {
 
     // History tab shows the completed outing (DEC-079)
     await page.goto('/expenses?tab=outings');
-    await expect(page.getByText(/1 (item|itens)/i).first()).toBeVisible();
+    const outingRow = page
+      .getByRole('button')
+      .filter({ hasText: /1 (item|itens)/i })
+      .first();
+    await expect(outingRow).toBeVisible();
+
+    // C02 (DEC-302): the outing detail is ACTIONABLE. Opening it must reveal the
+    // edit affordance and the tappable-items hint (edit without hunting item by
+    // item) — not the old read-only screen.
+    await outingRow.click();
+    await expect(page).toHaveURL(/\/outings\/.+\/review/);
+    await expect(page.getByRole('button', { name: /^editar$|^edit$/i })).toBeVisible();
+    await expect(page.getByText(/toque num item para ver ou editar/i)).toBeVisible();
   });
 });

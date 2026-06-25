@@ -22,6 +22,7 @@ export {
   contextUsesDrinkPrice,
   endSession,
   formatSessionDuration,
+  resolveOutingPayerId,
 } from './outing';
 export type {
   OutingAlert,
