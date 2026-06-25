@@ -226,7 +226,8 @@
     "plan": "Plan",
     "more": "More",
     "trip": "Trip",
-    "copilot": "Copilot"
+    "copilot": "Copilot",
+    "settings": "Settings"
   },
   "trip_hub": {
     "title": "Trip",
@@ -398,6 +399,9 @@
     "group_heading": "Where it's heading",
     "group_patterns": "Patterns",
     "group_people": "People",
+    "reading_good": "Good sign",
+    "reading_watch": "Worth a look",
+    "reading_neutral": "Informational",
     "verdict_ahead_label": "YOU'RE IN CONTROL",
     "verdict_ahead_msg": "Spending below plan — you can relax.",
     "verdict_on_track_label": "RIGHT ON PACE",
@@ -599,9 +603,9 @@
     "phase_map_day_total": "Day total",
     "phase_map_available_hint": "Tap a day to see free + reserved.",
     "phase_map_spent_hint": "Tap a spending day to see the amount.",
-    "day_explain_base": "Comes from your free phase reserve, spread across the days.",
+    "day_explain_base": "Comes from your free amount for the phase, spread across the days.",
     "day_explain_peak": "Peak day — gets more than a regular day (~{{amount}}).",
-    "day_explain_planned": "Planned items are already set aside — they don't come out of your free day.",
+    "day_explain_planned": "Planned spending (e.g. a hotel): it already has its place on the day, not from your free amount.",
     "day_spent_more": "+{{count}} in other categories",
     "day_spent_none": "No categorized spending that day.",
     "day_spent_recent_hint": "Summary by category. The full list is in Recent expenses.",
@@ -1391,6 +1395,8 @@
     "empty_body": "Funds split your budget by purpose — flights, lodging, day-to-day. Create the first one to organize your money.",
     "empty_cta": "Create fund",
     "reserve_for_phase": "Reserve for this phase (optional)",
+    "advanced_section": "Advanced",
+    "advanced_hint": "Per-phase reserves and envelopes — optional, for finer control.",
     "future_floors_title": "Reserves per phase",
     "future_floor_hint": "Amounts reserved for future phases come out of today's free-to-spend.",
     "floor_suggest_label": "Suggestion:",
@@ -1961,6 +1967,11 @@
         "q": "Where do I change mode, theme, currency and language?",
         "a": "In settings you adjust mode, theme, currency, language, alerts and everything else about the app.",
         "steps": ["Open settings", "Pick the preference (theme, currency, language…)", "The app applies the change right away"]
+      },
+      "simple_mode": {
+        "q": "What is simple mode and how does it change the app?",
+        "a": "Simple mode keeps only the essentials at hand — Home, Expenses, Trip and Settings in the bottom bar — and tucks advanced features away. Nothing is deleted: search and links still reach everything. Complete mode reopens the Copilot and the rest.",
+        "steps": ["Open Settings under Preferences", "Pick Simple or Complete mode", "Switch anytime — nothing is lost, it just moves"]
       }
     }
   },
@@ -2448,8 +2459,8 @@
     "edit_income": "Edit planned income",
     "remove_income": "Remove planned income",
     "calendar_title": "Available per day",
-    "calendar_intro": "How much you can spend on each day of the phase, with reserves already marked.",
-    "calendar_hint": "Tap a day to see the breakdown (free + reserved).",
+    "calendar_intro": "How much you can spend per day. Planned spending (e.g. a ticket) already lands on its day.",
+    "calendar_hint": "Tap a day to see its free amount and planned spending.",
     "income_sheet_title": "Planned income for this phase",
     "income_sheet_hint": "Money you KNOW will arrive during this phase (a reimbursement, a paycheck). It feeds only this future vision — never today's free-to-spend.",
     "income_invalid": "Enter a valid amount.",

@@ -4,6 +4,7 @@ import { visibleInMode, isAdvancedRouteBlocked } from '@/domain/app-mode';
 interface Item {
   id: string;
   advanced?: boolean;
+  simpleOnly?: boolean;
 }
 
 const items: Item[] = [
@@ -38,6 +39,31 @@ describe('visibleInMode (M19)', () => {
 
   it('handles an empty list', () => {
     expect(visibleInMode([], 'simple')).toEqual([]);
+  });
+
+  // C06/DEC-298: simpleOnly is the mirror of advanced — it surfaces ONLY in
+  // simple mode (Settings taking the hidden Copilot's slot for a 2+2 bar).
+  describe('simpleOnly (C06/DEC-298)', () => {
+    const nav: Item[] = [
+      { id: 'trip' },
+      { id: 'copilot', advanced: true },
+      { id: 'settings', simpleOnly: true },
+    ];
+
+    it('hides simpleOnly items in complete mode (gear owns Settings there)', () => {
+      const result = visibleInMode(nav, 'complete');
+      expect(result.map((i) => i.id)).toEqual(['trip', 'copilot']);
+    });
+
+    it('shows simpleOnly and drops advanced in simple mode (2+2 swap)', () => {
+      const result = visibleInMode(nav, 'simple');
+      expect(result.map((i) => i.id)).toEqual(['trip', 'settings']);
+    });
+
+    it('keeps the right-side count at two across both modes', () => {
+      expect(visibleInMode(nav, 'complete')).toHaveLength(2);
+      expect(visibleInMode(nav, 'simple')).toHaveLength(2);
+    });
   });
 });
 

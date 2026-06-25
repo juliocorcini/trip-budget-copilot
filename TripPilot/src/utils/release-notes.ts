@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.64',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'No modo simples, a barra de baixo ficou equilibrada: Início e Gastos de um lado, Viagem e Ajustes do outro, com o botão de adicionar no centro.',
+        'Cada cartão de padrão do Copiloto agora tem uma leitura em palavras — "bom sinal", "de olho" ou "informativo" — pra você saber na hora se é algo positivo, um alerta leve ou só informação.',
+        'A prévia da fase separou melhor o que é dinheiro reservado (pote) do que é gasto planejado, e os fundos mostram o essencial primeiro, com o avançado depois.',
+        'A Central de ajuda foi revisada e ganhou um guia novo sobre o modo simples.',
+      ],
+      en: [
+        'In simple mode the bottom bar is now balanced: Home and Expenses on one side, Trip and Settings on the other, with the add button in the center.',
+        'Every Copilot pattern card now has a worded read — "good sign", "worth a look" or "informational" — so you instantly know if it is positive, a light heads-up or just info.',
+        'The phase preview now clearly separates reserved money (a pot) from planned spending, and funds show the essentials first with advanced options after.',
+        'The Help Center was reviewed and gained a new guide about simple mode.',
+      ],
+      es: [
+        'En el modo simple la barra inferior quedó equilibrada: Inicio y Gastos de un lado, Viaje y Ajustes del otro, con el botón de agregar en el centro.',
+        'Cada tarjeta de patrón del Copiloto ahora tiene una lectura en palabras — "buena señal", "para vigilar" o "informativo" — para saber al instante si es algo positivo, un aviso leve o solo información.',
+        'La vista previa de la fase separa mejor el dinero reservado (un bote) del gasto planificado, y los fondos muestran lo esencial primero y lo avanzado después.',
+        'El Centro de ayuda fue revisado y sumó una nueva guía sobre el modo simple.',
+      ],
+    },
+  },
+  {
     version: '0.99.63',
     date: '2026-06-24',
     items: {

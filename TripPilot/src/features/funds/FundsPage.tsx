@@ -337,6 +337,19 @@ export function FundsPage() {
                     </div>
                   </div>
 
+                  {/* C19: essential (balance + edit) reads first; the power-user
+                      config — per-phase reserves and envelopes — sits under a
+                      clearly secondary "Advanced" divider. Nothing is hidden,
+                      only demoted (ÂNCORA 9). */}
+                  <div className="pt-1">
+                    <p className="text-[10px] font-bold text-on-surface-faint uppercase tracking-wider">
+                      {t('funds.advanced_section')}
+                    </p>
+                    <p className="text-[11px] text-on-surface-faint leading-snug mt-0.5">
+                      {t('funds.advanced_hint')}
+                    </p>
+                  </div>
+
                   {/* Future floors per phase (DEC-016 / GAP-008) */}
                   {poolLinks.length > 0 && (
                     <div>

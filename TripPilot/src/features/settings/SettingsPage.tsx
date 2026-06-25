@@ -5,6 +5,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { appSettingsRepository, walletRepository, localSnapshotRepository } from '@/data/repositories';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { buildTripTemplate, summarizeTemplate } from '@/domain/templates';
+import { visibleInMode } from '@/domain/app-mode';
 import {
   saveTripTemplate,
   deleteTripTemplate,
@@ -79,6 +80,9 @@ const SETTINGS_GROUPS: {
   descKey: string;
   icon: string;
   keywords: string;
+  // C17: advanced categories drop off the simple-mode card list (still reachable
+  // via the search box and a direct deep-link — ÂNCORA 9, nothing removed).
+  advanced?: boolean;
 }[] = [
   {
     id: 'preferences',
@@ -132,10 +136,14 @@ const SETTINGS_GROUPS: {
       'conexão conexao connection conexiones conectar link pareamento pair dispositivos devices compartilhar share dividir split extrato caixa postal mailbox mensagens messages sincronizar sync worker nota recibo receipt recibos ocr ia ai escanear scan foto photo itens items nuvem cloud pagamento payment pago pix wise chave key tag banco bank dados bancários cobrar receber',
   },
   {
+    // C17: the most power-user category (wallet tracking, quick-add tuning,
+    // storage persistence, default wallet) — hidden from the simple-mode card
+    // list, still found via search / deep-link (ÂNCORA 9).
     id: 'device',
     labelKey: 'settings.group_device',
     descKey: 'settings.cat_desc_device',
     icon: 'smartphone',
+    advanced: true,
     keywords:
       'dispositivo device aparelho nome name carteira wallet billetera padrão default quick add atalho valores armazenamento storage persistência rastreamento tracking acompanhar fonte source carteiras automático',
   },
@@ -624,7 +632,9 @@ export function SettingsPage() {
         g.keywords.toLowerCase().includes(normalizedQuery),
     );
   // F11: the category cards shown on the bare `/settings` route.
-  const categories = SETTINGS_GROUPS.map((g) => ({
+  // C17: simple mode hides advanced categories from the card list (search and
+  // deep-links still reach them — ÂNCORA 9). visibleInMode keeps it data-driven.
+  const categories = visibleInMode(SETTINGS_GROUPS, settings?.appMode ?? 'complete').map((g) => ({
     id: g.id,
     label: t(g.labelKey as never),
     desc: t(g.descKey as never),

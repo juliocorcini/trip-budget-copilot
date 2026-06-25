@@ -14,6 +14,15 @@ export {
   summarizePeakHour,
   summarizeDisciplineStreak,
 } from './copilot-insights';
+export {
+  NEUTRAL_READING,
+  readOutingEfficiency,
+  readProjection,
+  readForecastTrend,
+  readRunway,
+  readPhasePace,
+} from './pattern-reading';
+export type { PatternTone, PatternReading } from './pattern-reading';
 export { buildTripWrapped, isTripEnded } from './wrapped';
 export type {
   TripWrapped,

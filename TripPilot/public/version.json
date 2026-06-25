@@ -1,8 +1,8 @@
 {
-  "version": "0.99.63",
+  "version": "0.99.64",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.63.zip",
-  "notes": "Acerto de contas mais claro: cada divisão mostra em que ponto do ciclo cada pessoa está — pendente, confirmado e agora também 'pago'. E o botão Compartilhar da retrospectiva sempre dá um retorno visível (compartilhado, imagem salva ou erro), nunca mais 'não acontece nada' no computador."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.64.zip",
+  "notes": "Acabamento e clareza: no modo simples a barra de baixo fica equilibrada (Início, Gastos · + · Viagem, Ajustes); cada cartão de padrão do Copiloto agora diz se é bom sinal, de olho ou informativo; a prévia da fase separa o que é reservado do que é gasto planejado; os fundos mostram o essencial primeiro; e a Central de ajuda ganhou o guia do modo simples."
 }

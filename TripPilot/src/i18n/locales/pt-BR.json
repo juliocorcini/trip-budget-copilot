@@ -226,7 +226,8 @@
     "plan": "Planejar",
     "more": "Mais",
     "trip": "Viagem",
-    "copilot": "Copiloto"
+    "copilot": "Copiloto",
+    "settings": "Ajustes"
   },
   "trip_hub": {
     "title": "Viagem",
@@ -398,6 +399,9 @@
     "group_heading": "Para onde vai",
     "group_patterns": "Padrões",
     "group_people": "Pessoas",
+    "reading_good": "Bom sinal",
+    "reading_watch": "De olho",
+    "reading_neutral": "Informativo",
     "verdict_ahead_label": "VOCÊ ESTÁ NO CONTROLE",
     "verdict_ahead_msg": "Gastando abaixo do planejado — dá pra relaxar.",
     "verdict_on_track_label": "NO RITMO CERTO",
@@ -603,9 +607,9 @@
     "phase_map_day_total": "Total do dia",
     "phase_map_available_hint": "Toque num dia para ver livre + reservado.",
     "phase_map_spent_hint": "Toque num dia com gasto para ver o valor.",
-    "day_explain_base": "Vem da sua reserva livre da fase, distribuída pelos dias.",
+    "day_explain_base": "Vem do seu livre da fase, distribuído pelos dias.",
     "day_explain_peak": "Dia de pico — recebe mais que um dia comum (~{{amount}}).",
-    "day_explain_planned": "Planejados já reservados — não saem do seu livre do dia.",
+    "day_explain_planned": "Gasto planejado (ex.: hotel): já tem lugar no dia, não sai do seu livre.",
     "day_spent_more": "+{{count}} em outras categorias",
     "day_spent_none": "Sem gastos categorizados nesse dia.",
     "day_spent_recent_hint": "Resumo por categoria. A lista completa fica em Gastos recentes.",
@@ -1395,6 +1399,8 @@
     "empty_body": "Fundos dividem seu orçamento por objetivo — passagens, hospedagem, dia a dia. Crie o primeiro para organizar o dinheiro.",
     "empty_cta": "Criar fundo",
     "reserve_for_phase": "Reservar para esta fase (opcional)",
+    "advanced_section": "Avançado",
+    "advanced_hint": "Reservas por fase e envelopes — opcional, pra afinar o controle.",
     "future_floors_title": "Reservas por fase",
     "future_floor_hint": "Valores reservados para fases futuras saem do livre para usar de hoje.",
     "floor_suggest_label": "Sugestão:",
@@ -1965,6 +1971,11 @@
         "q": "Onde mudo modo, tema, moeda e idioma?",
         "a": "Nas configurações você ajusta modo, tema, moeda, idioma, alertas e tudo mais do app.",
         "steps": ["Abra as configurações", "Escolha a preferência (tema, moeda, idioma…)", "O app aplica a mudança na hora"]
+      },
+      "simple_mode": {
+        "q": "O que é o modo simples e como ele muda o app?",
+        "a": "O modo simples deixa só o essencial à mão — Início, Gastos, Viagem e Ajustes na barra de baixo — e recolhe os recursos avançados. Nada é apagado: a busca e os links continuam achando tudo. O modo completo reabre o Copiloto e o resto.",
+        "steps": ["Abra as configurações em Preferências", "Escolha entre modo Simples e Completo", "Troque quando quiser — nada se perde, só muda de lugar"]
       }
     }
   },
@@ -2452,8 +2463,8 @@
     "edit_income": "Editar renda planejada",
     "remove_income": "Remover renda planejada",
     "calendar_title": "Disponível por dia",
-    "calendar_intro": "Quanto dá pra gastar em cada dia da fase, já com as reservas marcadas.",
-    "calendar_hint": "Toque em um dia para ver o detalhe (livre + reservado).",
+    "calendar_intro": "Quanto dá pra gastar por dia. Os gastos planejados (ex.: ingresso) já caem no dia certo.",
+    "calendar_hint": "Toque num dia para ver o livre e os gastos planejados dele.",
     "income_sheet_title": "Renda planejada nesta fase",
     "income_sheet_hint": "Dinheiro que você SABE que vai entrar durante esta fase (reembolso, salário). Entra só nesta visão de futuro — nunca no seu livre de hoje.",
     "income_invalid": "Informe um valor válido.",

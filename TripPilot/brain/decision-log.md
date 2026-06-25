@@ -2192,7 +2192,7 @@
 
 ### DEC-298 — Simple-mode bottom nav layout 2+2 (Council C-D / §16 Q1)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G7)
+- **Status**: APPROVED — implemented G7, shipped 0.99.64 (2026-06-24); `simpleOnly` flag in `visibleInMode` + `/settings` in `RIGHT_NAV`.
 - **Decision**: simple-mode bottom nav is **2+2 symmetric** — Início, Gastos · (+) · Viagem, **Ajustes** (Settings takes the slot the hidden Copilot leaves, beginner-safe). Data-driven via `visibleInMode`.
 - **Rationale**: removing Copilot in simple mode leaves a 2-1 layout; symmetry matters more than keeping a specific item. Julio locked 2+2.
 - **Refines**: orchestrator §6 C06 / §7 C-D. **Gate G7.**

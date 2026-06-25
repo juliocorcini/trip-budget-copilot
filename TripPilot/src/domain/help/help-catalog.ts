@@ -81,6 +81,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   ]),
   a('expenses', 'receipt_long', 'getting_started', '/expenses', [
     'gastos lista ver editar apagar historico despesas', 'expenses list view edit delete history', 'meus gastos', 'lista de despesas', 'ver editar gasto', 'lista de gastos',
+    'item da saida buscar nome encontrar dentro produto', 'find item inside outing search by name product', 'buscar item da rolê', 'item dentro de saida', 'buscar producto dentro de salida',
   ]),
 
   // ── Day to day: feedback while you spend ───────────────────────────────────
@@ -176,6 +177,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   ]),
   a('settings', 'settings', 'data_privacy', '/settings', [
     'configuracoes ajustes preferencias idioma tema moeda', 'settings preferences language theme currency', 'mudar configuracoes', 'ajustes do app', 'configuracion ajustes idioma',
+  ]),
+  a('simple_mode', 'toggle_on', 'data_privacy', '/settings', [
+    'modo simples completo basico avancado esconder recursos barra navegacao', 'simple complete mode basic advanced hide features nav bar', 'modo simplificado trocar', 'app mais simples', 'modo simple completo basico avanzado ocultar',
   ]),
 ];
 

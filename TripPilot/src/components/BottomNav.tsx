@@ -24,11 +24,17 @@ const LEFT_NAV: NavItem[] = [
 
 // Redesign (G1): "Mais" e "Planejar" deixam a barra. Planejar mora em Viagem;
 // as funções do "Mais" viram a aba Viagem (estrutura/plano) + Copiloto
-// (inteligência) + a engrenagem de Ajustes no header. Copiloto é avançado:
-// no modo simples a barra fica enxuta (Início · Gastos · + · Viagem).
+// (inteligência) + a engrenagem de Ajustes no header.
+//
+// C06/DEC-298: the bar is symmetric 2+2 in BOTH modes. Complete mode shows
+// Viagem + Copiloto (advanced) on the right and Settings lives on the header
+// gear. Simple mode hides the advanced Copilot, so Settings (`simpleOnly`)
+// takes that slot → Início, Gastos · + · Viagem, Ajustes. `visibleInMode` keeps
+// this data-driven: each side resolves to exactly two items per mode.
 const RIGHT_NAV: NavItem[] = [
   { path: '/viagem', icon: 'explore', labelKey: 'nav.trip' },
   { path: '/copiloto', icon: 'insights', labelKey: 'nav.copilot', advanced: true },
+  { path: '/settings', icon: 'settings', labelKey: 'nav.settings', simpleOnly: true },
 ];
 
 export function BottomNav() {

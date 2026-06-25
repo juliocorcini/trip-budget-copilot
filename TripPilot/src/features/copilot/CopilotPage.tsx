@@ -37,7 +37,14 @@ import {
   summarizePeakHour,
   summarizeDisciplineStreak,
   buildTripWrapped,
+  NEUTRAL_READING,
+  readOutingEfficiency,
+  readProjection,
+  readForecastTrend,
+  readRunway,
+  readPhasePace,
   type CopilotVerdictStatus,
+  type PatternReading,
 } from '@/domain/copilot';
 
 /** Section heading — mirrors the faint uppercase label used across the app. */
@@ -46,6 +53,28 @@ function SectionLabel({ children }: { children: ReactNode }) {
     <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mt-5 mb-2 px-1">
       {children}
     </p>
+  );
+}
+
+const READING_TONE_STYLE: Record<PatternReading['tone'], { color: string; icon: string }> = {
+  good: { color: 'var(--success)', icon: 'check_circle' },
+  watch: { color: 'var(--warning)', icon: 'visibility' },
+  neutral: { color: 'var(--on-surface-faint)', icon: 'info' },
+};
+
+/**
+ * C20 (DEC-304): the explicit, worded read for a pattern card — "Bom sinal" /
+ * "De olho" / "Informativo" — so the judgment never relies on the icon color
+ * alone (a11y) and a descriptive card can't be misread as a problem.
+ */
+function ReadingLine({ reading }: { reading: PatternReading }) {
+  const { t } = useTranslation();
+  const tone = READING_TONE_STYLE[reading.tone];
+  return (
+    <span className="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold" style={{ color: tone.color }}>
+      <Icon name={tone.icon} size={13} />
+      {t(reading.labelKey as never)}
+    </span>
   );
 }
 
@@ -623,6 +652,7 @@ export function CopilotPage() {
                       ? t('copilot.where_over', { amount: formatMoney(Number(projection.values.diffCents), currency) })
                       : t('copilot.where_under', { amount: formatMoney(Number(projection.values.diffCents), currency) })}
                   </p>
+                  <ReadingLine reading={readProjection(Boolean(projection.values.over))} />
                 </div>
               </div>
             </>
@@ -655,6 +685,7 @@ export function CopilotPage() {
                       delta: formatMoney(Math.abs(forecastTrend.deltaCents), currency),
                     })}
                   </p>
+                  <ReadingLine reading={readForecastTrend(forecastTrend.direction)} />
                 </div>
               </div>
             </>
@@ -688,6 +719,7 @@ export function CopilotPage() {
                           date: formatDate(addDaysIso(model.todayIso, runway.days), "d 'de' MMMM"),
                         })}
                   </p>
+                  <ReadingLine reading={readRunway(runway.coversRemaining)} />
                 </div>
               </div>
             </>
@@ -710,19 +742,22 @@ export function CopilotPage() {
                     style={{ color: phaseComparison.deltaPercent <= 0 ? 'var(--success)' : 'var(--warning)' }}
                   />
                 </div>
-                <p className="text-sm font-semibold text-on-surface flex-1">
-                  {phaseComparison.deltaPercent === 0
-                    ? t('copilot.compare_same', { phase: phaseComparison.previousName })
-                    : phaseComparison.deltaPercent < 0
-                      ? t('copilot.compare_slower', {
-                          percent: Math.abs(phaseComparison.deltaPercent),
-                          phase: phaseComparison.previousName,
-                        })
-                      : t('copilot.compare_faster', {
-                          percent: phaseComparison.deltaPercent,
-                          phase: phaseComparison.previousName,
-                        })}
-                </p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-on-surface">
+                    {phaseComparison.deltaPercent === 0
+                      ? t('copilot.compare_same', { phase: phaseComparison.previousName })
+                      : phaseComparison.deltaPercent < 0
+                        ? t('copilot.compare_slower', {
+                            percent: Math.abs(phaseComparison.deltaPercent),
+                            phase: phaseComparison.previousName,
+                          })
+                        : t('copilot.compare_faster', {
+                            percent: phaseComparison.deltaPercent,
+                            phase: phaseComparison.previousName,
+                          })}
+                  </p>
+                  <ReadingLine reading={readPhasePace(phaseComparison.deltaPercent)} />
+                </div>
               </div>
             </>
           )}
@@ -812,6 +847,7 @@ export function CopilotPage() {
                     weekday: formatMoney(weekday.weekdayAvgCents, currency),
                   })}
                 </p>
+                <ReadingLine reading={NEUTRAL_READING} />
               </div>
             </>
           )}
@@ -834,6 +870,7 @@ export function CopilotPage() {
                       percent: peakHour.sharePercent,
                     })}
                   </p>
+                  <ReadingLine reading={NEUTRAL_READING} />
                 </div>
               </div>
             </>
@@ -867,6 +904,7 @@ export function CopilotPage() {
                           amount: formatMoney(Math.abs(outingEfficiency.avgSavingCents), currency),
                         })}
                   </p>
+                  <ReadingLine reading={readOutingEfficiency(outingEfficiency.avgSavingCents)} />
                 </div>
               </div>
             </>
@@ -897,6 +935,7 @@ export function CopilotPage() {
                     solo: formatMoney(social.soloCents, currency),
                   })}
                 </p>
+                <div><ReadingLine reading={NEUTRAL_READING} /></div>
                 <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
                   <span className="block h-full rounded-full" style={{ width: `${social.sharedPercent}%`, background: 'var(--primary)' }} />
                 </span>
@@ -921,6 +960,7 @@ export function CopilotPage() {
                     ? ` · ${t('copilot.method_untracked', { amount: formatMoney(paymentMix.untrackedCents, currency) })}`
                     : ''}
                 </p>
+                <div><ReadingLine reading={NEUTRAL_READING} /></div>
                 <span className="block mt-3 h-2 rounded-full overflow-hidden bg-surface-high">
                   <span className="block h-full rounded-full" style={{ width: `${paymentMix.cashPercent}%`, background: 'var(--warning)' }} />
                 </span>
