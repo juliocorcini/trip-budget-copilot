@@ -181,7 +181,9 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
       <div className="flex flex-col gap-4 mt-2">
         <p className="text-xs text-on-surface-dim leading-relaxed">{t('plan.why')}</p>
 
-        {/* Q1 — does it happen on a date? */}
+        {/* Q1 — does it happen on a date? GATE 5 (D15 / DEC-315): this is the
+            explicit Event × Pote/Fundo fork — an Event carries a date and a
+            countdown; a Pote/Fundo has neither and takes spend at any time. */}
         <div>
           <label className={LABEL_CLASS}>{t('plan.q1')}</label>
           <div className="grid grid-cols-2 gap-2">
@@ -198,6 +200,9 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
               onClick={() => setHasDate(false)}
             />
           </div>
+          <p className="text-[11px] text-on-surface-faint leading-snug mt-1.5" data-plan-kind-note>
+            {t(hasDate ? 'plan.q1_note_event' : 'plan.q1_note_pote')}
+          </p>
         </div>
 
         {/* Q2 — where does the money come from? */}

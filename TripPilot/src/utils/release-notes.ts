@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.2-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Potes por fase: um pote criado para uma fase futura não polui mais a tela de início da fase atual. Ele fica numa área "Potes de outras fases" (recolhida) e aparece em destaque quando você entra na fase dele.',
+        'Esse mesmo pote continua selecionável na hora de registrar um gasto — ele só sai do destaque, nunca fica indisponível.',
+        'A criação separa claramente Evento (tem data e contagem regressiva, como um show) de Pote/Fundo (sem contagem regressiva, recebe gastos a qualquer momento).',
+      ],
+      en: [
+        'Phase-scoped pots: a pot created for a future phase no longer clutters the current phase\u2019s home screen. It lives in a collapsed \u201cPots from other phases\u201d area and comes into focus when you reach its phase.',
+        'That same pot stays selectable when you log an expense \u2014 it just leaves the focus, it\u2019s never made unavailable.',
+        'Creating things now clearly separates an Event (has a date and a countdown, like a show) from a Pot/Fund (no countdown, takes spend at any time).',
+      ],
+      es: [
+        'Sobres por fase: un sobre creado para una fase futura ya no satura la pantalla de inicio de la fase actual. Queda en un área \u201cSobres de otras fases\u201d (recogida) y aparece destacado cuando llegas a su fase.',
+        'Ese mismo sobre sigue siendo seleccionable al registrar un gasto \u2014 solo sale del destaque, nunca queda no disponible.',
+        'La creación separa claramente un Evento (tiene fecha y cuenta regresiva, como un concierto) de un Sobre/Fondo (sin cuenta regresiva, recibe gastos en cualquier momento).',
+      ],
+    },
+  },
+  {
     version: '1.1.1-rc',
     date: '2026-06-25',
     items: {

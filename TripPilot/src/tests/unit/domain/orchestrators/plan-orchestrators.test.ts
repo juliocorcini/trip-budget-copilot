@@ -260,3 +260,42 @@ describe('createPlannedExpense (GATE 4 M4.1/M4.3 — single door routing + fundi
     expect(occs[0]!.budgetPoolId).toBe(res.createdPotId);
   });
 });
+
+describe('GATE 5 (D15 / DEC-315) — Event × Pote/Fundo: a countdown belongs ONLY to an Event', () => {
+  beforeEach(clearAll);
+
+  it('a standalone Pote/Fundo carries NO date and creates NO occurrence (never a "faltam X dias")', async () => {
+    const pool = await seedEurotrip();
+    const res = await createPlannedExpense({
+      ...baseInput(pool),
+      hasDate: false,
+      funding: 'new_pot',
+      name: 'Reserva da próxima fase',
+      estimatedCostCents: 30000,
+    });
+
+    expect(res.outcome).toBe('pot');
+    // No occurrence → nothing the home could ever count down to.
+    expect(res.occurrenceId).toBeNull();
+    const pot = await db.budgetPools.get(res.createdPotId!);
+    expect(pot!.dateStart).toBeNull();
+    expect(pot!.dateEnd).toBeNull();
+  });
+
+  it('an Event always carries a date and a dated occurrence (the only thing that counts down)', async () => {
+    const pool = await seedEurotrip();
+    const res = await createPlannedExpense({
+      ...baseInput(pool),
+      hasDate: true,
+      funding: 'phase',
+      name: 'Passeio',
+      estimatedCostCents: 4000,
+      startDate: '2026-07-21',
+    });
+
+    expect(res.outcome).toBe('event_phase');
+    const occ = await db.plannedOccurrences.get(res.occurrenceId!);
+    expect(occ!.kind).toBe('event');
+    expect(occ!.plannedDate?.slice(0, 10)).toBe('2026-07-21');
+  });
+});

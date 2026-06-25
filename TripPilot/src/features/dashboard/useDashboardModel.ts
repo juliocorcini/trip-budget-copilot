@@ -23,6 +23,7 @@ import {
   buildPiggySpendByDay,
   selectActivePhasePool,
   selectVisiblePots,
+  selectOtherPhasePots,
 } from '@/domain/budget';
 import {
   filterTransactionsByPool,
@@ -430,6 +431,15 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       selectVisiblePots(globalPools, activePhase, todayIso).map((p) => p.id),
     );
     const visiblePotSummaries = globalPoolSummaries.filter((g) => visiblePotIds.has(g.pool.id));
+    // GATE 5 (D15 / DEC-314): dated pots owned by another phase are kept OUT of the
+    // Home focus but surfaced in a collapsed "Potes de outras fases" area so they
+    // stay discoverable (and remain selectable when logging an expense).
+    const otherPhasePotIds = new Set(
+      selectOtherPhasePots(globalPools, activePhase, todayIso).map((p) => p.id),
+    );
+    const otherPhasePotSummaries = globalPoolSummaries.filter((g) =>
+      otherPhasePotIds.has(g.pool.id),
+    );
 
     const progressPercent =
       fts && fts.totalBudgetCents > 0
@@ -740,6 +750,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       phaseLeftover,
       globalPoolSummaries,
       visiblePotSummaries,
+      otherPhasePotSummaries,
       plannedPurchasesSummary,
       progressPercent,
       heroMoney,

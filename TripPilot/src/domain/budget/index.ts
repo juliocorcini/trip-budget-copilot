@@ -75,6 +75,7 @@ export type {
 } from './piggy-ledger';
 export {
   selectVisiblePots,
+  selectOtherPhasePots,
   isPotVisibleOnHome,
   isPotInPhase,
   POT_VISIBILITY_WINDOW_DAYS,

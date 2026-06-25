@@ -1246,6 +1246,10 @@ export function DashboardCards({
                 </div>
               </button>
             ))}
+            {/* GATE 5 (D15 / DEC-314): pots owned by another phase stay OUT of the
+                focus above, but remain discoverable in a collapsed area — never
+                deleted (ÂNCORA 9), and still selectable when logging an expense. */}
+            <OtherPhasePotsSection summaries={model.otherPhasePotSummaries} />
           </>
         );
       case 'planned_purchases': {
@@ -1643,5 +1647,74 @@ export function DashboardCards({
         currency={trip.baseCurrency}
       />
     </>
+  );
+}
+
+/**
+ * GATE 5 (D15 / DEC-314): a collapsed "Potes de outras fases" area under the Home
+ * pots. Pots dated for another trecho do not pollute the current phase's focus, but
+ * they stay one tap away (ÂNCORA 9 — never deleted, only moved down the hierarchy).
+ * Tapping any of them opens the full "Potes" screen, where they remain editable and
+ * selectable for an expense at any time.
+ */
+function OtherPhasePotsSection({
+  summaries,
+}: {
+  summaries: DashboardModel['otherPhasePotSummaries'];
+}) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(false);
+
+  if (summaries.length === 0) return null;
+
+  return (
+    <div className="mt-4" data-other-phase-pots>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between gap-2 py-1.5 btn-press"
+      >
+        <span className="text-xs font-semibold text-on-surface-dim">
+          {t('dashboard.pots_other_phases', { count: summaries.length })}
+        </span>
+        <Icon
+          name={expanded ? 'expand_less' : 'expand_more'}
+          size={18}
+          className="text-on-surface-faint shrink-0"
+        />
+      </button>
+      {!expanded && (
+        <p className="text-[11px] text-on-surface-faint leading-snug">
+          {t('dashboard.pots_other_phases_hint')}
+        </p>
+      )}
+      {expanded && (
+        <div className="flex flex-col gap-2 mt-1">
+          {summaries.map(({ pool, summary }) => (
+            <button
+              key={pool.id}
+              onClick={() => navigate('/funds')}
+              className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-surface-container text-left btn-press"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-on-surface truncate">{pool.name}</p>
+                {pool.dateStart && (
+                  <p className="text-[11px] text-on-surface-faint">
+                    {formatShortDate(pool.dateStart)}
+                    {pool.dateEnd && pool.dateEnd !== pool.dateStart
+                      ? ` – ${formatShortDate(pool.dateEnd)}`
+                      : ''}
+                  </p>
+                )}
+              </div>
+              <p className="text-sm font-bold tabular text-on-surface-dim shrink-0">
+                {formatMoney(summary.remainingCents, pool.currency)}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

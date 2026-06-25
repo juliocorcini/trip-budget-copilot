@@ -2305,15 +2305,17 @@
 - **Refines**: orchestrator §6 D11/D14 / §7 C-G. **Gate G4.**
 
 ### DEC-314 — Phase-scoped pots hidden off-phase, still selectable (D15 / §16 Q8)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G5, 2026-06-25)
 - **Decision**: the current phase's home shows in focus only pots linked to the active phase (or global); pots of other phases go into a secondary collapsed **"Potes de outras fases"** and stay **selectable** when logging an expense (reuse `selectActivePhasePool`/scope). The `BudgetPoolScope linked_phases` already exists.
 - **Rationale**: a future pot ("Hospedagens Eurotrip") must not pollute the current phase (Burgos) yet must accept expenses now (payments can start early).
+- **Implementation (G5)**: pure `selectOtherPhasePots` (complement of `selectVisiblePots` among dated global pots) in `domain/budget/pots.ts`; `useDashboardModel` exposes `otherPhasePotSummaries`; `DashboardCards` renders a collapsed `OtherPhasePotsSection` (`[data-other-phase-pots]`). Selectability is unchanged (`getAvailablePoolsForPhase` lists every global pot) and now locked by test. The pot math is untouched (ÂNCORA 11).
 - **Refines**: orchestrator §6 D15 / §7 C-H. **Gate G5.**
 
 ### DEC-315 — Creation separates Event (dated) from Pot/Fund (phase) (D15 / §16 Q9)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G5, 2026-06-25)
 - **Decision**: the creation flow explicitly asks **"Event"** (a date, countdown, reserve distributed across the event's days — `OccasionCounter`/`allowance-map`) vs **"Pot/Fund"** (linked to a phase/period, no countdown, accepts entries anytime — pool/envelope). A pot never becomes an event nor shows "faltam X dias".
 - **Rationale**: creating a "pot with a date" currently looks like creating an event; the two concepts must be chosen explicitly.
+- **Implementation (G5)**: the single `PlanExpenseSheet` "Planejar um gasto" door already forks on Q1 (has a date → Event; no date → Pote/Fundo). G5 sharpens the Q1 copy and adds a `[data-plan-kind-note]` line that states the no-countdown rule for a pote; the routing already guarantees a standalone pote carries `dateStart = null` (no countdown is ever possible), now pinned by an explicit Event×Pote regression test.
 - **Refines**: orchestrator §6 D15 / §7 C-I. **Gate G5.**
 
 ### DEC-316 — Keep "Posso gastar", compact (D10 / §16 Q10)

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { selectVisiblePots, isPotVisibleOnHome, isPotInPhase } from '@/domain/budget';
+import {
+  selectVisiblePots,
+  selectOtherPhasePots,
+  isPotVisibleOnHome,
+  isPotInPhase,
+  getAvailablePoolsForPhase,
+} from '@/domain/budget';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Phase } from '@/domain/types/phase';
 
@@ -106,6 +112,62 @@ describe('selectVisiblePots (GATE 3 / D8)', () => {
     // With a 3-day window, 7 days out is closed; owner trecho still wins.
     expect(isPotVisibleOnHome(tomorrowland, null, '2026-07-16', 3)).toBe(false);
     expect(isPotVisibleOnHome(tomorrowland, null, '2026-07-20', 3)).toBe(true);
+  });
+});
+
+describe('selectOtherPhasePots (GATE 5 / D15 — collapsed "Potes de outras fases")', () => {
+  it('lists a dated pot owned by another trecho while the current phase is in focus (Tomorrowland in Burgos)', () => {
+    // June, traveler is in Burgos — Tomorrowland (owned by Eurotrip) is OFF the
+    // focus, so it belongs to the "Potes de outras fases" area instead of vanishing.
+    expect(selectOtherPhasePots([tomorrowland], burgos, '2026-06-20').map((p) => p.id)).toEqual([
+      'tomorrowland',
+    ]);
+  });
+
+  it('drops the pot from "other phases" once its owner trecho is active (no double-show)', () => {
+    // In Eurotrip the pot is in focus → it must NOT also appear under other phases.
+    expect(selectOtherPhasePots([tomorrowland], eurotrip, '2026-07-16')).toEqual([]);
+  });
+
+  it('drops the pot from "other phases" inside the D-7 window (it is in focus then)', () => {
+    expect(selectOtherPhasePots([tomorrowland], null, '2026-07-16')).toEqual([]);
+  });
+
+  it('NEVER treats a dateless (ambient) pot as another phase', () => {
+    const shopping = mkPot('shopping'); // no date → ambient, always in focus
+    expect(selectOtherPhasePots([shopping], burgos, '2026-06-20')).toEqual([]);
+  });
+
+  it('excludes soft-deleted pots and non-global pools', () => {
+    const deletedDated = mkPot('deleted', {
+      dateStart: '2026-07-23',
+      deletedAt: '2026-06-01T00:00:00.000Z',
+    });
+    const trechoPool = mkPot('trecho-pool', { dateStart: '2026-07-23', scope: 'linked_phases' });
+    expect(selectOtherPhasePots([deletedDated, trechoPool], burgos, '2026-06-20')).toEqual([]);
+  });
+
+  it('is the exact complement of selectVisiblePots among DATED pots (no overlap, no gap)', () => {
+    const shopping = mkPot('shopping'); // ambient
+    const later = mkPot('later', { dateStart: '2026-07-23', dateEnd: '2026-07-26' }); // Eurotrip
+    const all = [shopping, tomorrowland, later];
+    const visible = selectVisiblePots(all, burgos, '2026-06-20').map((p) => p.id);
+    const other = selectOtherPhasePots(all, burgos, '2026-06-20').map((p) => p.id);
+    // No pot is in both buckets.
+    expect(visible.filter((id) => other.includes(id))).toEqual([]);
+    // Every DATED pot is accounted for in exactly one bucket.
+    const datedIds = all.filter((p) => p.dateStart !== null).map((p) => p.id).sort();
+    expect([...visible, ...other].filter((id) => datedIds.includes(id)).sort()).toEqual(datedIds);
+  });
+});
+
+describe('D15b — an off-phase pot stays SELECTABLE when logging an expense', () => {
+  it('keeps a dated future pot out of the Home but inside the expense fund picker', () => {
+    // The SAME pot that is hidden from the Burgos Home must still be a valid fund
+    // for an expense logged today (getAvailablePoolsForPhase lists every global pot).
+    expect(isPotVisibleOnHome(tomorrowland, burgos, '2026-06-20')).toBe(false);
+    const available = getAvailablePoolsForPhase([tomorrowland], [], burgos.id);
+    expect(available.global.map((p) => p.id)).toContain('tomorrowland');
   });
 });
 

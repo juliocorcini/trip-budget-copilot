@@ -83,3 +83,28 @@ export function selectVisiblePots(
       isPotVisibleOnHome(pot, activePhase, today, windowDays),
   );
 }
+
+/**
+ * GATE 5 (D15 / DEC-314): the dated pots that belong to ANOTHER phase than the one
+ * in focus — global pots with a date that are not relevant on the Home right now
+ * (their owner trecho is not active and the D-7 window is closed). They are kept
+ * OUT of the Home focus so a future festival does not pollute the current phase,
+ * but they stay discoverable in a collapsed "Potes de outras fases" area and remain
+ * fully selectable when logging an expense (`getAvailablePoolsForPhase`). A DATELESS
+ * ("ambient") pot is never "other phase" — it has no moment to belong to. Pure: the
+ * exact complement of `selectVisiblePots` among dated global pots.
+ */
+export function selectOtherPhasePots(
+  pots: BudgetPool[],
+  activePhase: Phase | null,
+  today: string,
+  windowDays: number = POT_VISIBILITY_WINDOW_DAYS,
+): BudgetPool[] {
+  return pots.filter(
+    (pot) =>
+      pot.scope === 'global' &&
+      pot.deletedAt === null &&
+      (pot.dateStart ?? null) !== null &&
+      !isPotVisibleOnHome(pot, activePhase, today, windowDays),
+  );
+}
