@@ -6,7 +6,7 @@ import { showToast } from '@/components/Toast';
 import { formatMoney } from '@/domain/money';
 import { formatDate } from '@/domain/dates';
 import { getCategoryIcon } from '@/utils/category-icons';
-import { renderShareCard, deliverShareCard } from '@/utils/share-card';
+import { renderShareCard, deliverShareCard, shareOutcomeToast } from '@/utils/share-card';
 import type { TripWrapped } from '@/domain/copilot';
 
 interface TripWrappedSheetProps {
@@ -83,8 +83,10 @@ export function TripWrappedSheet({ wrapped, tripName, currency, onClose }: TripW
         return;
       }
       const filename = `trippilot-${tripName}`.replace(/\s+/g, '-').toLowerCase() + '.png';
-      const outcome = await deliverShareCard(blob, filename);
-      if (outcome === 'failed') showToast(t('wrapped.share_failed'), 'danger');
+      // C05 · DEC-303: every outcome gives a visible toast (the desktop silent
+      // download used to read as "nothing happened"); `aborted` = no toast.
+      const toast = shareOutcomeToast(await deliverShareCard(blob, filename));
+      if (toast) showToast(t(toast.messageKey), toast.tone);
     } catch {
       showToast(t('wrapped.share_failed'), 'danger');
     } finally {

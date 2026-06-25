@@ -2355,8 +2355,9 @@
     "confirm_all_done": "Tudo confirmado!",
     "status_pending": "Pendente",
     "status_confirmed": "Confirmado",
+    "status_paid": "Pago",
     "status_rejected": "Rejeitado",
-    "status_hint": "Pendente = aguardando o aceite de quem tem o app ou o link. Confirmado = combinado — já conta como dívida.",
+    "status_hint": "Pendente = aguardando o aceite de quem tem o app ou o link. Confirmado = combinado, já conta como dívida. Pago = a pessoa marcou que pagou.",
     "hub_title": "Acerto de contas",
     "people_section": "Pessoas",
     "summary_receivable": "A receber",
@@ -3080,6 +3081,7 @@
     "of_budget": "de {{budget}} planejados · {{percent}}% usado",
     "day_of": "Dia {{n}} de {{total}}",
     "top_category": "Maior categoria: {{name}} ({{amount}})",
+    "shared_toast": "Compartilhado",
     "downloaded_toast": "Imagem salva",
     "failed_toast": "Não foi possível gerar a imagem"
   }

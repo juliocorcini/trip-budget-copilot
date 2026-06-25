@@ -13,6 +13,7 @@ import {
   buildParticipantStatement,
   groupSharedExpenses,
   groupStatementLines,
+  resolveShareStage,
 } from '@/domain/splitting';
 import type {
   DebtSummary,
@@ -81,9 +82,13 @@ import { enabledPaymentMethods } from '@/domain/payment';
 const SHARED_LIST_PAGE = 6;
 const STATEMENT_PAGE = 8;
 
+// C11 · DEC-304: the per-share lifecycle stage colors. `confirmed` (accepted,
+// awaiting payment) is a calm tint; `paid` is a solid success chip — the only
+// "done" stage — so the cycle reads pending → confirmed → paid at a glance.
 const STATUS_PILL_STYLE: Record<string, string> = {
   pending: 'bg-warning/15 text-warning',
   confirmed: 'bg-success/20 text-success',
+  paid: 'bg-success text-white',
   rejected: 'bg-error/15 text-error',
 };
 
@@ -1435,19 +1440,22 @@ function SharedExpenseRow({
           </p>
         </div>
         <div className="flex flex-col gap-1 mt-2">
-          {txShares.map((share) => (
-            <div key={share.id} className="flex items-center justify-between">
-              <p className="text-xs text-on-surface-dim truncate">
-                {nameById.get(share.participantId) ?? '—'} ·{' '}
-                <span className="tabular">{formatMoney(share.shareAmountCents, tx.currency)}</span>
-              </p>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${STATUS_PILL_STYLE[share.confirmationStatus]}`}
-              >
-                {t(`shared.status_${share.confirmationStatus}` as never)}
-              </span>
-            </div>
-          ))}
+          {txShares.map((share) => {
+            const stage = resolveShareStage(share);
+            return (
+              <div key={share.id} className="flex items-center justify-between">
+                <p className="text-xs text-on-surface-dim truncate">
+                  {nameById.get(share.participantId) ?? '—'} ·{' '}
+                  <span className="tabular">{formatMoney(share.shareAmountCents, tx.currency)}</span>
+                </p>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${STATUS_PILL_STYLE[stage]}`}
+                >
+                  {t(`shared.status_${stage}` as never)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </button>
     );
@@ -1537,9 +1545,9 @@ function StatementGroupRow({
               : t('shared.statement_owes_you', { name: line.counterpartyName })}
           </p>
           <span
-            className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${STATUS_PILL_STYLE[line.confirmationStatus]}`}
+            className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${STATUS_PILL_STYLE[resolveShareStage(line)]}`}
           >
-            {t(`shared.status_${line.confirmationStatus}` as never)}
+            {t(`shared.status_${resolveShareStage(line)}` as never)}
           </span>
         </div>
       </div>

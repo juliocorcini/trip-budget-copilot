@@ -2351,8 +2351,9 @@
     "confirm_all_done": "¡Todo confirmado!",
     "status_pending": "Pendiente",
     "status_confirmed": "Confirmado",
+    "status_paid": "Pagado",
     "status_rejected": "Rechazado",
-    "status_hint": "Pendiente = esperando que alguien con la app o el enlace acepte. Confirmado = acordado — ya cuenta como deuda.",
+    "status_hint": "Pendiente = esperando que alguien con la app o el enlace acepte. Confirmado = acordado, ya cuenta como deuda. Pagado = la persona marcó que pagó.",
     "hub_title": "Ajuste de cuentas",
     "people_section": "Personas",
     "summary_receivable": "Por cobrar",
@@ -3076,6 +3077,7 @@
     "of_budget": "de {{budget}} planificados · {{percent}}% usado",
     "day_of": "Día {{n}} de {{total}}",
     "top_category": "Mayor categoría: {{name}} ({{amount}})",
+    "shared_toast": "Compartido",
     "downloaded_toast": "Imagen guardada",
     "failed_toast": "No se pudo generar la imagen"
   }

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.62",
+  "version": "0.99.63",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.62.zip",
-  "notes": "O Amigo Sincero ficou mais útil: o botão muda conforme o cartão que você está lendo (impacto, simular, cofrinho) e some quando não há ação útil — sem mais botão genérico repetido. E na tela inicial ele só aparece quando tem algo novo a dizer, sem repetir o que o carrossel de insights já mostrou."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.63.zip",
+  "notes": "Acerto de contas mais claro: cada divisão mostra em que ponto do ciclo cada pessoa está — pendente, confirmado e agora também 'pago'. E o botão Compartilhar da retrospectiva sempre dá um retorno visível (compartilhado, imagem salva ou erro), nunca mais 'não acontece nada' no computador."
 }

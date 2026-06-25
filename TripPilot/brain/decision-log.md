@@ -2104,6 +2104,7 @@
 - **Decision**: introduce `--ai` / `--ai-2` (+ `--ai-gradient`) in `tokens.css` for both themes; replace the hard-coded indigo/violet (`#6366F1`/`#818CF8`/`#8B5CF6` + gradient) in the 9 files that use it; document in the design system ("terracotta = brand; indigo = AI").
 - **Rationale**: a second accent family exists, hard-coded and undocumented (heuristic #4), with light-theme risk (it does not inherit). Tokenizing makes the meaning predictable and theme-safe.
 - **Refines**: audit A-4 / E / N3 / G-2. **Gate G1.**
+- **Implementation**: `--ai`/`--ai-2`/`--ai-strong`/`--ai-gradient` (+ `--ai-bg-soft`/`--ai-bg`/`--ai-border`/`--ai-glow`) added to `tokens.css` for both themes; all 9 files repointed (grep verifies **0** literal `#6366F1/#818CF8/#8B5CF6` outside `tokens.css` + the hygiene test). **Doc note (re-verification 2026-06-24):** the code shipped in G1/0.99.51 but the design-system documentation was missing; the "document in the design system" clause is now satisfied — `design-system.md` gained an **AI Accent** subsection (terracotta = brand, indigo = AI) and the "NEVER use AI palette" color rule was corrected to sanction the scoped `--ai` family; the stale `--on-surface-faint`/`--error` palette rows were synced to the M02 values. Doc-only change, no deploy.
 
 ### DEC-288 — Consolidate /viagem × /trip (M15)
 - **Date**: 2026-06-24
@@ -2226,14 +2227,14 @@
 
 ### DEC-303 — Universal share feedback (C05)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G6)
+- **Status**: APPROVED — implemented G6, shipped 0.99.63 (2026-06-24); pure `shareOutcomeToast` (shared/downloaded/failed visible, aborted silent) routed through `TripWrappedSheet` + `TripHubPage`.
 - **Decision**: every share action gives visible feedback (toast on shared/downloaded/failed), mirroring `TripOverviewPage`'s correct handling; ensure the canvas is not tainted; on desktop, a silent download gets a visible notice.
 - **Rationale**: `TripWrappedSheet.handleShare` only toasts on `failed`; on desktop the silent download reads as "nothing happens".
 - **Refines**: orchestrator §6 C05. **Gate G6.**
 
 ### DEC-304 — State dictionary (the app's "same language")
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (cross-gate, finalized at G8). **Advanced at G4 (0.99.61):** first concrete reconciliation via pure `classifyBudgetSignal` — the Planner's allocation red and the Copilot's verdict now say whether a red is a *real problem* or just a *plan adjustment* (`real_over` is the only red-worthy case).
+- **Status**: PROPOSED — Coherence wave (cross-gate, finalized at G8). **Advanced at G4 (0.99.61):** first concrete reconciliation via pure `classifyBudgetSignal` — the Planner's allocation red and the Copilot's verdict now say whether a red is a *real problem* or just a *plan adjustment* (`real_over` is the only red-worthy case). **Advanced at G6 (0.99.63):** pure `resolveShareStage` gives the settle-up screen a consistent share lifecycle label (pending → confirmed → paid → rejected; green-solid only when paid).
 - **Decision**: real / planned / allocated / free / piggy / simulated / saved / outing / item / settlement have a **consistent label and color** across the whole app (see orchestrator appendix). Every alert explains: what happened · why it matters · what to do · whether it's a real problem or just a plan adjustment. Red = real problem.
 - **Rationale**: one screen says "you're in control" while another shows red without explaining the difference; the app must speak one language.
 - **Refines**: orchestrator §3 / appendix. **Cross-gate.**

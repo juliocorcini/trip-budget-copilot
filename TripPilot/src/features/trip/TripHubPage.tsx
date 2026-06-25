@@ -23,7 +23,7 @@ import {
   plannedPurchaseReservedRemainingCents,
 } from '@/domain/planning/planned-purchases';
 import { buildShareCardStats } from '@/domain/sharing';
-import { renderShareCard, deliverShareCard } from '@/utils/share-card';
+import { renderShareCard, deliverShareCard, shareOutcomeToast } from '@/utils/share-card';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
@@ -193,9 +193,9 @@ export function TripHubPage() {
         showToast(t('share.failed_toast'), 'danger');
         return;
       }
-      const outcome = await deliverShareCard(blob, 'trippilot-resumo.png');
-      if (outcome === 'downloaded') showToast(t('share.downloaded_toast'), 'success');
-      if (outcome === 'failed') showToast(t('share.failed_toast'), 'danger');
+      // C05 · DEC-303: same universal feedback as every other share surface.
+      const toast = shareOutcomeToast(await deliverShareCard(blob, 'trippilot-resumo.png'));
+      if (toast) showToast(t(toast.messageKey), toast.tone);
     } finally {
       setSharing(false);
     }

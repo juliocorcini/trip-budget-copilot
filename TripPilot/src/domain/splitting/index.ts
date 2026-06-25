@@ -16,6 +16,7 @@ export {
   buildParticipantStatement,
   resolvePayerExpense,
   resolveShareBirthStatus,
+  resolveShareStage,
   isPaidByOwner,
   collectSplitNotifyTargets,
 } from './splitting';
@@ -32,6 +33,7 @@ export type {
   StatementLine,
   StatementLineKind,
   ParticipantStatement,
+  ShareStage,
 } from './splitting';
 export { groupSharedExpenses, groupStatementLines } from './grouping';
 export type { SharedExpenseGroup, StatementLineGroup } from './grouping';

@@ -122,6 +122,31 @@ export function resolveShareBirthStatus(
   return connectedParticipantIds.has(participantId) ? 'pending' : 'confirmed';
 }
 
+/**
+ * C11 / DEC-304 — the per-share lifecycle in ONE honest stage, so the settle-up
+ * screen shows where each person is in the whole cycle (accept → pay) instead of
+ * a `confirmationStatus` pill that goes silent once a share is marked paid.
+ * Derived purely from the two facts a share already carries: whether the
+ * counterparty accepted (`confirmationStatus`) and whether it was paid (`isPaid`).
+ *
+ *  - rejected  — the counterparty declined the share.
+ *  - pending   — waiting for a connected counterparty to accept.
+ *  - confirmed — accepted (the debt stands) but not yet paid.
+ *  - paid      — accepted AND marked paid — the only "done" stage.
+ *
+ * `isPaid` graduates only an otherwise-live share: a rejected share is never paid.
+ */
+export type ShareStage = 'rejected' | 'pending' | 'confirmed' | 'paid';
+
+export function resolveShareStage(share: {
+  confirmationStatus: ShareConfirmationStatus;
+  isPaid: boolean;
+}): ShareStage {
+  if (share.confirmationStatus === 'rejected') return 'rejected';
+  if (share.confirmationStatus === 'pending') return 'pending';
+  return share.isPaid ? 'paid' : 'confirmed';
+}
+
 /* ── DEC-114 (R-04): universal payer semantics — the truth table ────────── */
 
 export interface PayerExpenseInput {
@@ -588,6 +613,8 @@ export interface StatementLine {
   counterpartyId: string;
   counterpartyName: string;
   confirmationStatus: ParticipantShare['confirmationStatus'];
+  /** C11/DEC-304: whether this share was marked paid — feeds the lifecycle stage. */
+  isPaid: boolean;
 }
 
 export interface ParticipantStatement {
@@ -640,6 +667,7 @@ export function buildParticipantStatement(
         occurredAt: tx.date,
         amountCents: share.shareAmountCents,
         confirmationStatus: share.confirmationStatus,
+        isPaid: share.isPaid,
       };
       if (share.participantId === participantId) {
         lines.push({

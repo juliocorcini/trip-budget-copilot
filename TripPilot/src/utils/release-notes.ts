@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.63',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'No acerto de contas, cada divisão agora mostra em que ponto do ciclo cada pessoa está: pendente (esperando o aceite), confirmado (combinado, já é dívida) e o novo "pago" quando a pessoa marcou que pagou.',
+        'O botão "Compartilhar" da retrospectiva agora sempre dá um retorno visível — "compartilhado", "imagem salva" ou um aviso de erro — então no computador nunca mais parece que "não acontece nada".',
+      ],
+      en: [
+        'In settle-up, each split now shows where each person is in the cycle: pending (waiting to accept), confirmed (agreed, already a debt) and the new "paid" once they mark it paid.',
+        'The wrapped "Share" button now always gives visible feedback — "shared", "image saved" or an error notice — so on desktop it never again looks like "nothing happens".',
+      ],
+      es: [
+        'En el ajuste de cuentas, cada división ahora muestra en qué punto del ciclo está cada persona: pendiente (esperando aceptar), confirmado (acordado, ya es deuda) y el nuevo "pagado" cuando la persona marca que pagó.',
+        'El botón "Compartir" de la retrospectiva ahora siempre da una respuesta visible — "compartido", "imagen guardada" o un aviso de error — así en la computadora nunca más parece que "no pasa nada".',
+      ],
+    },
+  },
+  {
     version: '0.99.62',
     date: '2026-06-24',
     items: {

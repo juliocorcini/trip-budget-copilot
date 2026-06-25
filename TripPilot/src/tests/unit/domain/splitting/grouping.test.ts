@@ -75,6 +75,7 @@ const mkLine = (
   counterpartyId: 'bruno',
   counterpartyName: 'Bruno',
   confirmationStatus: 'confirmed',
+  isPaid: false,
 });
 
 describe('groupSharedExpenses', () => {

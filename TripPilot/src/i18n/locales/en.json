@@ -2351,8 +2351,9 @@
     "confirm_all_done": "All confirmed!",
     "status_pending": "Pending",
     "status_confirmed": "Confirmed",
+    "status_paid": "Paid",
     "status_rejected": "Rejected",
-    "status_hint": "Pending = waiting for someone with the app or link to accept. Confirmed = agreed — it already counts as a debt.",
+    "status_hint": "Pending = waiting for someone with the app or link to accept. Confirmed = agreed, already counts as a debt. Paid = the person marked it paid.",
     "hub_title": "Settle up",
     "people_section": "People",
     "summary_receivable": "To receive",
@@ -3076,6 +3077,7 @@
     "of_budget": "of {{budget}} planned · {{percent}}% used",
     "day_of": "Day {{n}} of {{total}}",
     "top_category": "Top category: {{name}} ({{amount}})",
+    "shared_toast": "Shared",
     "downloaded_toast": "Image saved",
     "failed_toast": "Could not generate the image"
   }

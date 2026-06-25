@@ -91,6 +91,7 @@ const ownerStatement: ParticipantStatement = {
       counterpartyId: '77777777-7777-4777-8777-777777777777',
       counterpartyName: 'Julio',
       confirmationStatus: 'pending',
+      isPaid: false,
     },
     {
       kind: 'owes',
@@ -104,6 +105,7 @@ const ownerStatement: ParticipantStatement = {
       counterpartyId: '77777777-7777-4777-8777-777777777777',
       counterpartyName: 'Julio',
       confirmationStatus: 'pending',
+      isPaid: false,
     },
   ],
   settlements: [],

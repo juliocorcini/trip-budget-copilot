@@ -185,3 +185,28 @@ export async function deliverShareCard(blob: Blob, filename: string): Promise<Sh
     return 'failed';
   }
 }
+
+/**
+ * C05 / DEC-303 — universal, coherent share feedback. Every share surface must
+ * give a visible result (shared / downloaded / failed), never "nothing happens"
+ * (the desktop silent-download bug in TripWrappedSheet). This pure mapping keeps
+ * the branching out of the components so all surfaces speak the same language;
+ * `aborted` (the user cancelled the OS sheet) intentionally yields no toast.
+ */
+export interface ShareOutcomeToast {
+  messageKey: 'share.shared_toast' | 'share.downloaded_toast' | 'share.failed_toast';
+  tone: 'success' | 'danger';
+}
+
+export function shareOutcomeToast(outcome: ShareCardOutcome): ShareOutcomeToast | null {
+  switch (outcome) {
+    case 'shared':
+      return { messageKey: 'share.shared_toast', tone: 'success' };
+    case 'downloaded':
+      return { messageKey: 'share.downloaded_toast', tone: 'success' };
+    case 'failed':
+      return { messageKey: 'share.failed_toast', tone: 'danger' };
+    case 'aborted':
+      return null;
+  }
+}
