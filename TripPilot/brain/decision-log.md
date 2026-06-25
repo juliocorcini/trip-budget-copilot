@@ -2255,4 +2255,91 @@
 
 ---
 
+## Discovery & Clarity wave (2026-06-25) — DEC-307→319 (PROPOSED, awaiting Julio's lock on §16)
+
+> Source: `brain/documents/2026-06-25-discovery-clarity-implementation-orchestrator.md` (change-set D01→D15, councils
+> C-A→C-J, gates G0→G6). DEC-307→316 came from the 10 inline councils on the briefing's open questions (§16); DEC-317→319 are
+> direct decisions (clear briefing directives). All **PROPOSED** until Julio locks §16 (or approves the recommendations in
+> bulk); G1/G2 don't depend on the lock, G3/G4/G5 do.
+
+### DEC-307 — Discovery entry: one discreet home-header hub (D02 / §16 Q1)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: expose discovery via ONE discreet entry in the home header (chip/icon near notifications/settings) opening a **unified discovery hub** = search-by-intent + the feature guide + the help center, on one screen. The Settings entries for guide/help stay (ÂNCORA 9).
+- **Rationale**: guide/help live hidden in Settings today; a single memorable "what can I do?" door beats three scattered entries, and a header icon (not a card) doesn't compete with the anchor number.
+- **Refines**: orchestrator §6 D02 / §7 C-A. **Gate G3.**
+
+### DEC-308 — Function search by intent, local (no new AI) (D02 / §16 Q2)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: V1 of the "intelligent function finder" reuses the existing local, 0-token `searchHelp` (multilingual synonyms) over guide+help, extending keywords to **intent phrases** ("quero dividir um valor…" → Divisão em grupo). The intent glossary is the same screen in browse mode. No new AI in V1 (the existing assistant can route free text to the hub as a future fallback).
+- **Rationale**: a local matcher already resolves natural-language doubts offline at zero recurring cost; promising real AI search is scope/cost the V1 doesn't need.
+- **Refines**: orchestrator §6 D02 / §7 C-B. **Gate G3.**
+
+### DEC-309 — Unify the "Dividir" ENTRY, not the code (D03 / §16 Q3)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: a single "Dividir" action opens a chooser "Como você quer dividir?" → **Por itens da conta** (`/split/scan`) × **Valor em grupo** (`/groups/new`), each explained. The two underlying entities/flows (single-bill split vs group-split, DEC-297) stay **fully separate in code**. The fine call (pure chooser vs chooser + a direct "Por itens" shortcut for the common bar case) is left to implementation/§16.
+- **Rationale**: the confusion is mental-model, not code; merging the bill-split (proven on two devices) into group-split would risk a critical flow. Unify the door, keep the rooms.
+- **Refines**: orchestrator §6 D03 / §7 C-C. **Gate G3.**
+
+### DEC-310 — Group split visibility via the FAB "Dividir" (D04 / §16 Q4)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: the FAB carries "Dividir" (the chooser) paired with "Iniciar saída", replacing the current standalone "Dividir conta"; group split becomes reachable in one level, and is also added to the guide (people) and the discovery hub.
+- **Rationale**: `/groups` is currently only reachable via Acerto de contas — far too hidden for a Tricount-like, widely used feature.
+- **Refines**: orchestrator §6 D04 / §7 C-D. **Gate G3.**
+
+### DEC-311 — "Registrar mercado" out of the FAB first tier (mode-aware) (D08 / §16 Q5)
+- **Date**: 2026-06-25 · **Status**: PROPOSED — ⚠️ conflicts with Julio's 2026-06-22 promotion of "Registrar mercado"; explicit §16 question.
+- **Decision**: move "Registrar mercado" to "Mais ações" in **trip mode** (freeing the visible row for "Dividir"); keep it visible in **day-to-day mode** (it's a daily-life capture there).
+- **Rationale**: the briefing rates market less used than group split/cost-benefit, but Julio just promoted it — so make it mode-aware and confirm with him.
+- **Refines**: orchestrator §6 D08 / §7 C-E. **Gate G3.**
+
+### DEC-312 — Official cofrinho rule = the implemented Model B (D12 / §16 Q6)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: formalize the cofrinho rule exactly as the user described it (briefing #12) — it **already is** the implemented behavior (`buildPiggyLedger`, Model B, DEC-279/261): spending under the day's ideal deposits into the piggy; spending over it withdraws from the piggy first (next days unaffected); only what the piggy can't cover (`uncovered`) cuts the following days. **Document + explain in UI; do NOT change the math** (ÂNCORA 11).
+- **Rationale**: the central doubt is resolved by code reading — the math is correct; the gap is clarity, not logic.
+- **Refines**: orchestrator §6 D12 / §7 C-F. **Gate G4.**
+
+### DEC-313 — One destination for the day's saving (D11/D14 / §16 Q7)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: the day's saving has ONE shown destination — when the cofrinho is active (dated phase) it goes to the **cofrinho** (the piggy then protects future days; do not also say "+X/day to next days"); when there's no cofrinho, it dilutes into the next days. Never both at once.
+- **Rationale**: per Model B, under-spending deposits into the piggy (not a separate "next days" bucket); showing both is the double-count the briefing flags (#14).
+- **Refines**: orchestrator §6 D11/D14 / §7 C-G. **Gate G4.**
+
+### DEC-314 — Phase-scoped pots hidden off-phase, still selectable (D15 / §16 Q8)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: the current phase's home shows in focus only pots linked to the active phase (or global); pots of other phases go into a secondary collapsed **"Potes de outras fases"** and stay **selectable** when logging an expense (reuse `selectActivePhasePool`/scope). The `BudgetPoolScope linked_phases` already exists.
+- **Rationale**: a future pot ("Hospedagens Eurotrip") must not pollute the current phase (Burgos) yet must accept expenses now (payments can start early).
+- **Refines**: orchestrator §6 D15 / §7 C-H. **Gate G5.**
+
+### DEC-315 — Creation separates Event (dated) from Pot/Fund (phase) (D15 / §16 Q9)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: the creation flow explicitly asks **"Event"** (a date, countdown, reserve distributed across the event's days — `OccasionCounter`/`allowance-map`) vs **"Pot/Fund"** (linked to a phase/period, no countdown, accepts entries anytime — pool/envelope). A pot never becomes an event nor shows "faltam X dias".
+- **Rationale**: creating a "pot with a date" currently looks like creating an event; the two concepts must be chosen explicitly.
+- **Refines**: orchestrator §6 D15 / §7 C-I. **Gate G5.**
+
+### DEC-316 — Keep "Posso gastar", compact (D10 / §16 Q10)
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: keep "Posso gastar um valor" (DEC-289/M04) but compact it into a **discreet chip** below "Livre hoje" (the natural next question after the anchor number); don't remove it. Alternative: move to the FAB/hub.
+- **Rationale**: useful and recently added (Julio's), but it shouldn't take a large card on the home — a chip preserves access without clutter.
+- **Refines**: orchestrator §6 D10 / §7 C-J. **Gate G4.**
+
+### DEC-317 — Amigo Sincero = voice only; factual extras become insights (D06)
+- **Date**: 2026-06-25 · **Status**: PROPOSED — direct decision (clear briefing directive), G1.
+- **Decision**: the Amigo Sincero carousel contains **only opinionated, personality-driven phrases**; the factual extras (`piggy_movement`, `phase_progress`, `daily_left`, `top_category`, `receivable`) leave the card and become **insights** in the insights carousel (no duplication). AC: "no common insight appears inside Amigo Sincero".
+- **Rationale**: the card mixes objective data with the honest-friend voice; the briefing wants a clean separation (insight ≠ opinion). Refines DEC-301 (per-slide CTA) — the factual slides no longer exist in the Amigo.
+- **Refines**: orchestrator §6 D06. **Gate G1.**
+
+### DEC-318 — Close the FAB on any context switch (D09)
+- **Date**: 2026-06-25 · **Status**: PROPOSED — direct decision, G1.
+- **Decision**: `isFabOpen` closes on any route change (tab/card/screen) and on outside tap — `useEffect(() => setIsFabOpen(false), [location.pathname])` in `BottomNav` + closing on the tab/center onClick. No exception.
+- **Rationale**: today the nav sits at `z-[60]` above the FAB scrim, so tapping a tab navigates while the FAB stays open, covering the new screen (reads as a bug).
+- **Refines**: orchestrator §6 D09. **Gate G1.**
+
+### DEC-319 — Wave versioning + permanent help-coverage policy
+- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Decision**: bump a **patch per gate** (1.0.2-rc → 1.0.6-rc); **1.1.0-rc** as the milestone when the discovery hub (G3) ships. **Permanent policy:** every new first-class feature must enter the `guide-catalog` AND the `help-catalog` in the same wave, guarded by the `guide ⊆ help ⊆ router` coverage test.
+- **Rationale**: the discovery hub is a new capability (minor bump); keeping guide/help in lockstep with features is what made them drift (the root of D01).
+- **Refines**: orchestrator §5 / §10 / §14. **Cross-gate.**
+
+---
+
 *New decisions will be added as the project progresses.*
