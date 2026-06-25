@@ -174,8 +174,8 @@ export function BackupPage() {
     }
   };
 
-  // FIELD item 7: "salvar o backup no aparelho" — write the JSON straight to the
-  // device Documents folder (native) instead of opening the share sheet. On the
+  // FIELD item 7: "salvar o backup no aparelho" — write the backup straight to the
+  // device Downloads folder (native) instead of opening the share sheet. On the
   // web this falls back to a normal download. Still records lastBackupDate so the
   // dashboard reminder treats it as a real backup.
   const handleSaveToDevice = async () => {
@@ -354,6 +354,13 @@ export function BackupPage() {
         </div>
       )}
 
+      {/* E12 · DEC-332: split the screen into two honest groups — actions that
+          SEND/save a backup out vs actions that BRING one in — so the user is
+          never unsure which direction a button goes. */}
+      <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1 mt-1">
+        {t('backup.group_out')}
+      </p>
+
       {/* M17: send the full backup to Drive/Files/email via the OS share sheet
           (Web Share API on web, native Share plugin in the APK — FIELD item 6). */}
       <button onClick={handleExport} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40" data-help-anchor="backup-export">
@@ -364,9 +371,9 @@ export function BackupPage() {
         </div>
       </button>
 
-      {/* FIELD item 7: save the backup straight to the device (Documents folder
-          on native; Downloads on web) without going through the share sheet. */}
-      <button onClick={handleSaveToDevice} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40">
+      {/* FIELD item 7: save the backup straight to the device Downloads folder
+          (native; Downloads on web too) without going through the share sheet. */}
+      <button onClick={handleSaveToDevice} disabled={busy} className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left disabled:opacity-40" data-help-anchor="backup-save">
         <Icon name="save" size={24} className="text-primary" />
         <div>
           <p className="text-sm font-medium text-on-surface">{t('backup.save_device')}</p>
@@ -383,7 +390,7 @@ export function BackupPage() {
         </div>
       </button>
 
-      <div className="bg-surface-container rounded-xl p-4">
+      <div className="bg-surface-container rounded-xl p-4" data-help-anchor="backup-csv">
         <button onClick={() => exportCsv(csvAdvanced)} className="flex items-center gap-3 btn-press text-left w-full">
           <Icon name="table_chart" size={24} className="text-success" />
           <div>
@@ -407,15 +414,7 @@ export function BackupPage() {
         </button>
       </div>
 
-      <label className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press cursor-pointer" data-help-anchor="backup-import">
-        <Icon name="cloud_download" size={24} className="text-warning" />
-        <div>
-          <p className="text-sm font-medium text-on-surface">{t('backup.import_json')}</p>
-        </div>
-        <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
-      </label>
-
-      {/* DEC-104: device-to-device migration over the P2P channel */}
+      {/* DEC-104: device-to-device migration over the P2P channel (a send). */}
       <button
         onClick={() => setSendOpen(true)}
         className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left"
@@ -426,6 +425,18 @@ export function BackupPage() {
           <p className="text-xs text-on-surface-faint">{t('sync.send_to_device_desc')}</p>
         </div>
       </button>
+
+      <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1 mt-2">
+        {t('backup.group_in')}
+      </p>
+
+      <label className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press cursor-pointer" data-help-anchor="backup-import">
+        <Icon name="cloud_download" size={24} className="text-warning" />
+        <div>
+          <p className="text-sm font-medium text-on-surface">{t('backup.import_json')}</p>
+        </div>
+        <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
+      </label>
 
       <button
         onClick={() => navigate('/sync')}

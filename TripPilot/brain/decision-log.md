@@ -2400,7 +2400,7 @@
 - **Rationale**: the cover-first behaviour is invisible today; a negative number reads as alarming when in fact the buffer protected the future days.
 
 ### DEC-329 — Reconcile + explain pace × plan × piggy (E09)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G6, 1.1.9-rc).
 - **Decision**: Verify with tests that the pace signal (recent trend), the copilot plan projection, and the cofrinho buffer (cumulative early savings) are mutually consistent, then add a one-line plain explanation where they co-appear so "above pace yet 32 saved" reads as sensible. **No math change** (ÂNCORA 11).
 - **Rationale**: the three are different lenses; presented side by side without context they look contradictory ("6 above pace, 12 above plan, but 32 in the piggy").
 
@@ -2415,8 +2415,9 @@
 - **Rationale**: the horizontal scrollbar regressed app-wide again; it must be locked by a test so no future deploy can reintroduce it.
 
 ### DEC-332 — Backup screen honesty + fresh coach-marks (E12)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G6, 1.1.9-rc).
 - **Decision**: The backup screen says **"Downloads"** (not "Documentos"), drops **"JSON"** jargon from labels ("Importar backup", "Salvar no aparelho"), **groups** send vs import, and its **coach-marks/tutorial** are updated to the current buttons; audit every tutorialed screen for the same stale-circle problem.
+- **Audit result (G6)**: every `HELP_CONTENT` anchor resolves to a live `data-help-anchor` on its screen (funds/planner/planned/wallets/phase_edit/outing/backup) — only the **backup** screen's *copy* was stale (it still named the renamed "Exportar/Importar JSON" buttons and had no coach-mark for "Salvar no aparelho"/CSV). Fixed: coach-marks now read "Enviar backup" + a new "Salvar no aparelho" (Downloads) topic + "Exportar planilha (CSV)", each anchored to its real button (`backup-export`/`backup-save`/`backup-csv`/`backup-import`). `verifySaveFile` truth-check: `saveFileToDevice` writes to the public **Downloads** folder first (Documents only as fallback), so the new copy is accurate.
 - **Rationale**: the copy claims the wrong folder and exposes implementation detail; the "?" tutorial still circles the old "exportar JSON" button, so the help no longer mirrors the product.
 
 ### DEC-333 — Capture parity: mic + camera always offered, one source chooser (E13)

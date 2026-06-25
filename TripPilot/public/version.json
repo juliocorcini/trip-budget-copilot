@@ -1,8 +1,8 @@
 {
-  "version": "1.1.8-rc",
+  "version": "1.1.9-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.8-rc.zip",
-  "notes": "O comparador de custo-benefício voltou para o menu rápido (+), ao lado de planejar e converter. As fotos do comparador voltaram a funcionar — pode mandar uma ou várias de uma vez. E o botão de câmera agora aparece sempre no assistente: ao tocar, ele pede a permissão na hora e te deixa escolher entre tirar foto ou buscar da galeria."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.9-rc.zip",
+  "notes": "O copiloto agora explica quando estar \"acima do ritmo\" convive com um cofrinho cheio — uma coisa não anula a outra (as contas não mudaram). A tela de backup ficou mais honesta: \"Salvar no aparelho\" agora diz Downloads (não \"Documentos\"), os botões deixaram o jargão \"JSON\", as ações foram agrupadas em enviar e importar, e o tutorial (?) foi atualizado para os botões atuais."
 }

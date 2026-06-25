@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.9-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'No copiloto, quando o app diz que você está "acima do ritmo" mas o cofrinho ainda tem dinheiro guardado, agora aparece uma linha explicando que uma coisa não anula a outra: o cofrinho é o que você poupou nos dias mais calmos; o ritmo é a tendência dos últimos dias. (As contas não mudaram — só ficaram mais claras.)',
+        'A tela de backup ficou mais clara e honesta: "Salvar no aparelho" agora diz que salva na pasta Downloads (antes falava "Documentos"), os botões deixaram de falar "JSON", e as ações foram agrupadas em "Enviar e guardar" e "Importar e receber".',
+        'O tutorial (?) da tela de backup foi atualizado para os botões atuais — não fala mais em "exportar JSON" e agora cobre "Salvar no aparelho" e a planilha (CSV).',
+      ],
+      en: [
+        'In the copilot, when it says you are "above pace" but your piggy bank still holds money, a line now explains that one does not cancel the other: the piggy is what you saved on calmer days; pace is the trend of your recent days. (The maths did not change — it is just clearer.)',
+        'The backup screen is clearer and more honest: "Save to device" now says it saves to the Downloads folder (it used to say "Documents"), the buttons no longer say "JSON", and the actions are grouped into "Send & save" and "Import & receive".',
+        'The backup screen tutorial (?) was refreshed to the current buttons — it no longer mentions "export JSON" and now covers "Save to device" and the spreadsheet (CSV).',
+      ],
+      es: [
+        'En el copiloto, cuando dice que estás "por encima del ritmo" pero tu alcancía aún guarda dinero, ahora una línea explica que una cosa no anula la otra: la alcancía es lo que ahorraste en los días más calmados; el ritmo es la tendencia de los últimos días. (Las cuentas no cambiaron — solo son más claras.)',
+        'La pantalla de copia de seguridad es más clara y honesta: "Guardar en el dispositivo" ahora dice que guarda en la carpeta Descargas (antes decía "Documentos"), los botones ya no dicen "JSON", y las acciones se agruparon en "Enviar y guardar" e "Importar y recibir".',
+        'El tutorial (?) de la pantalla de copia se actualizó a los botones actuales — ya no menciona "exportar JSON" y ahora cubre "Guardar en el dispositivo" y la hoja de cálculo (CSV).',
+      ],
+    },
+  },
+  {
     version: '1.1.8-rc',
     date: '2026-06-25',
     items: {

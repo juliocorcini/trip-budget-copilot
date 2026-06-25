@@ -656,6 +656,15 @@ export function CopilotPage() {
                       ? t('copilot.where_over', { amount: formatMoney(Number(projection.values.diffCents), currency) })
                       : t('copilot.where_under', { amount: formatMoney(Number(projection.values.diffCents), currency) })}
                   </p>
+                  {/* E09 · DEC-329: "reserve at risk" + a positive cofrinho read as a
+                      contradiction. They aren't — the piggy is the CUMULATIVE early
+                      savings; the projection is the FORWARD trend. One line reconciles
+                      them where they co-appear. No math change (pure read). */}
+                  {Boolean(projection.values.over) && model.piggyBankCents > 0 && (
+                    <p className="text-xs text-on-surface-faint mt-1.5 leading-snug">
+                      {t('copilot.where_piggy_note', { amount: formatMoney(model.piggyBankCents, currency) })}
+                    </p>
+                  )}
                   <ReadingLine reading={readProjection(Boolean(projection.values.over))} />
                 </div>
               </div>

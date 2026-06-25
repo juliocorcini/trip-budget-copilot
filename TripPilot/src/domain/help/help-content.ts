@@ -73,8 +73,9 @@ export const HELP_CONTENT: Record<HelpScreenId, HelpTopic[]> = {
   backup: [
     topic('what'),
     topic('export', 'backup-export'),
+    topic('save', 'backup-save'),
+    topic('csv', 'backup-csv'),
     topic('import', 'backup-import'),
-    topic('csv', 'backup-export'),
   ],
 };
 
