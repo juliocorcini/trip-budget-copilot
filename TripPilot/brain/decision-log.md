@@ -2170,7 +2170,7 @@
 
 ### DEC-295 — Gate order for the single-session Coherence wave (Council C-A)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave G0
+- **Status**: APPROVED — executed end-to-end in this order G1→G8 in one continuous session (0.99.58→1.0.0-rc, 2026-06-24); no regression across gates.
 - **Decision**: execute the 28-point briefing + Tricount as gates **G1 (global/cheap hygiene) → G2 (grouped reading) → G3 (actionable outing) → G4 (copilot/piggy coherence) → G5 (Amigo Sincero) → G6 (settlement/connected/share) → G7 (structure/polish/help) → G8 (Tricount, last)**.
 - **Rationale**: minimize context drift and regression in a single continuous session; start global/low-risk to calibrate, then data clarity (biggest pain), then message coherence, then people/share, then polish/help, then the new big feature last on a stable base.
 - **Refines**: orchestrator §7 C-A / §10. **Gate G0→G8.**

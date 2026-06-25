@@ -353,6 +353,39 @@ The guarantees the user can rely on, even when the device storage misbehaves:
 - Optional **PIN lock at startup** (off by default). The PIN is stored only as a secure hash (never in clear), and **recovery/onboarding screens are never locked**, so a forgotten PIN can never trap your data. Biometric unlock is deferred (PIN is the baseline).
 - **Share text into TripPilot** from any app (a receipt total, a message) and the **QuickAdd form opens pre-filled** for review — it never saves on its own.
 
+### 28. Group Split — Tricount-style events (Coherence wave — DEC-297, v1.0.0-rc)
+
+A persistent, multi-expense, multi-payer **group split event** — distinct from the single-bill
+"Dividir conta" (which splits ONE receipt at a table). You create an event (e.g. "Eurotrip
+apartment"), add people, then log many expenses over days/weeks and the app keeps a running
+"who owes whom".
+
+- **People**: by name, **connected** app people (linked to a trip participant), or **no-app**
+  guests. A trip-scoped event can quick-add the trip's own participants (linked).
+- **Expenses**: **manual + AI text + receipt photo** (reuses the same cloud `/ocr` + assistant the
+  rest of the app uses); each expense names **one or many payers** and is split **equally OR
+  custom** (both in scope). Money is integer cents; the sum of shares always equals the expense
+  (ÂNCORA 11). Balances + a greedy **minimum-transfer** settle mirror the trip settle-up.
+- **Public claim link (`/g/:id`)**: shareable to anyone with no app, reusing the exact encrypted
+  share channel as the bill-split live table (ciphertext on the worker, AES key only in the link
+  `#fragment` — DEC-207/297). A guest **picks their own name**, sees their net + the exact transfer,
+  and **marks paid**; the owner **confirms receipt** (lifecycle: unpaid → marked[amber] →
+  confirmed[green], never red).
+- **History & sync**: events persist on-device (Dexie `groupSplitEvents`, in the encrypted backup).
+  For a **trip-linked** event, confirmed group payments surface **read-only** in the trip's
+  "Acerto de contas" via a contained bridge (DEC-306) — the settle action stays in the group and
+  the trip money ledger is never mutated (no phantom transactions).
+
+### 29. State Dictionary — the app speaks one language (Coherence wave — DEC-304)
+
+Every recurring concept has **one consistent label and color** across the whole app, so two screens
+never contradict each other: **real** spend vs **planned**/**allocated** vs **free** money;
+**simulated** vs **will be saved at close** vs **already saved** (piggy); **outing** (one entity) vs
+**item**; and the settle/payment lifecycle (**pending → confirmed → paid**, plus the Tricount
+**marked → confirmed**). The governing rule: **red means a real problem only** (out of money / over
+the limit / into the reserve) — normal progress and plan adjustments are calm/neutral, and every
+alert says *what happened · why it matters · what to do · whether it's real or just a plan change*.
+
 ## V1 — In Scope With Constraints (reconciled 2026-06-17)
 
 These were once "not in scope" but shipped under explicit, honest constraints (this section
