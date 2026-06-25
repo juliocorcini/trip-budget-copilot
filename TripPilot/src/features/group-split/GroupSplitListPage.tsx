@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { groupSplitRepository } from '@/data/repositories';
 import { createGroupSplit } from '@/domain/orchestrators';
@@ -20,10 +20,13 @@ const CURRENCIES = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'];
 export function GroupSplitListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { trip, participants, settings } = useAppData();
 
   const [records, setRecords] = useState<GroupSplitRecord[] | null>(null);
-  const [creating, setCreating] = useState(false);
+  // D03 · DEC-310: the "Dividir" chooser deep-links here with `?new=1` to open
+  // the create form straight away (the "start a group split" intent).
+  const [creating, setCreating] = useState(() => searchParams.get('new') === '1');
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState(
     () => trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR',

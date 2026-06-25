@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.0-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Agora tem um lugar só para descobrir tudo que o app faz: toque na bússola no topo da tela de início para buscar pelo que você quer fazer (ex.: "dividir um valor", "converter moeda") e navegar pelas funções por intenção.',
+        '"Dividir" virou uma porta única: ao tocar em Dividir, o app pergunta como você quer dividir — Por itens (uma conta na mesa) ou Valor em grupo (despesas de um grupo ou evento) — para você nunca escolher a opção errada.',
+        'O botão + ficou mais enxuto: registrar gasto, IA, Dividir e iniciar saída ficam na frente; "Registrar mercado" foi para "Mais ações" (e continua à mão no modo dia a dia).',
+      ],
+      en: [
+        'There\u2019s now a single place to discover everything the app does: tap the compass at the top of the home screen to search by what you want to do (e.g. \u201csplit an amount\u201d, \u201cconvert currency\u201d) and browse features by intent.',
+        '\u201cSplit\u201d is now one clear door: when you tap Split, the app asks how you want to split \u2014 By items (one bill at the table) or As a group amount (expenses across a group or event) \u2014 so you never pick the wrong one.',
+        'The + button is leaner: log expense, AI, Split and start an outing come first; \u201cLog groceries\u201d moved to \u201cMore actions\u201d (still handy in day-to-day mode).',
+      ],
+      es: [
+        'Ahora hay un solo lugar para descubrir todo lo que hace la app: toca la br\u00fajula en la parte superior de la pantalla de inicio para buscar por lo que quieres hacer (p. ej. \u201cdividir un importe\u201d, \u201cconvertir moneda\u201d) y explorar las funciones por intenci\u00f3n.',
+        '\u201cDividir\u201d ahora es una sola puerta: al tocar Dividir, la app te pregunta c\u00f3mo quieres dividir \u2014 Por \u00edtems (una cuenta en la mesa) o Importe en grupo (gastos de un grupo o evento) \u2014 para que nunca elijas la opci\u00f3n equivocada.',
+        'El bot\u00f3n + es m\u00e1s simple: registrar gasto, IA, Dividir e iniciar salida van primero; \u201cRegistrar mercado\u201d pas\u00f3 a \u201cM\u00e1s acciones\u201d (y sigue a mano en el modo d\u00eda a d\u00eda).',
+      ],
+    },
+  },
+  {
     version: '1.0.3-rc',
     date: '2026-06-25',
     items: {

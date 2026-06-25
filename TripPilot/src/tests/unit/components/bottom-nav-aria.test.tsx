@@ -3,10 +3,12 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import '@/i18n';
 
-// The FAB menu and the resume sheet pull in a large tree and are irrelevant to
+// The FAB menu and the split sheets pull in a large tree and are irrelevant to
 // the nav's a11y state — stub them so we test BottomNav in isolation.
 vi.mock('@/components/FAB', () => ({ FABMenu: () => null }));
 vi.mock('@/features/split/SplitResumeSheet', () => ({ SplitResumeSheet: () => null }));
+vi.mock('@/features/split/DivideChooserSheet', () => ({ DivideChooserSheet: () => null }));
+vi.mock('@/features/split/useActiveSplit', () => ({ useActiveSplit: () => null }));
 
 // App mode is mutable per test (C06 covers the simple-mode swap). vi.hoisted so
 // the holder exists when the hoisted vi.mock factory runs.

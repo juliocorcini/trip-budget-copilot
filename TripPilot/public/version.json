@@ -1,8 +1,8 @@
 {
-  "version": "1.0.3-rc",
+  "version": "1.1.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.0.3-rc.zip",
-  "notes": "Ajuda mais fiel ao app: \"Tudo que dá para fazer\" e a Central de ajuda agora incluem a Divisão em grupo (Tricount), e o texto deixa clara a diferença entre Dividir conta (uma conta na mesa) e Divisão em grupo (várias despesas de um grupo ou evento) antes de você escolher."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.0-rc.zip",
+  "notes": "Descoberta mais fácil: toque na bússola no topo da tela de início para buscar pelo que você quer fazer e navegar pelas funções por intenção. \"Dividir\" virou uma porta só, que pergunta se você quer dividir Por itens ou um Valor em grupo. E o botão + ficou mais enxuto."
 }

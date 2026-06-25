@@ -473,6 +473,8 @@
     "scan_receipt_desc": "Read the items and split them automatically",
     "split_bill": "Split a bill",
     "split_bill_desc": "Snap it, split by item, log it",
+    "divide": "Split",
+    "divide_desc": "One bill or a group",
     "start_outing": "Start outing",
     "start_outing_desc": "Bar, restaurant or trip",
     "simulate_purchase": "Simulate purchase",
@@ -1093,6 +1095,14 @@
     "resume": "Resume",
     "new_title": "Start a new split",
     "new_desc": "Scan a receipt or build it from scratch"
+  },
+  "divideChooser": {
+    "title": "How do you want to split?",
+    "subtitle": "These are two different things — pick the one that fits your case.",
+    "bill_title": "Split a bill",
+    "bill_desc": "One bill now, at the table: by item, evenly or just yours — with a live table.",
+    "group_title": "Group split",
+    "group_desc": "Many expenses across a group or event (Tricount): several payers, and the app works out who owes whom."
   },
   "splitHistory": {
     "title": "The full split",
@@ -1788,6 +1798,15 @@
     "notifications_d": "Warnings, backup reminders and pace alerts in one place.",
     "about_t": "About the app",
     "about_d": "Version, what's new in each update and diagnostics."
+  },
+  "discover": {
+    "title": "Discover",
+    "intro": "Search for what you want to do — or browse everything the app does, grouped by intent.",
+    "search_placeholder": "What do you want to do? E.g. split an amount, check the rate…",
+    "no_results": "Nothing found. Try other words, or browse everything you can do below.",
+    "everything": "Everything you can do",
+    "help_cta_title": "Help Center",
+    "help_cta_desc": "Questions and the step-by-step for each feature."
   },
   "glossary": {
     "explain": "What is {{term}}?",

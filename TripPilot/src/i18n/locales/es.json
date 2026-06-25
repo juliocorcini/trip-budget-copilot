@@ -473,6 +473,8 @@
     "scan_receipt_desc": "Lee los artículos y divídelos automáticamente",
     "split_bill": "Dividir cuenta",
     "split_bill_desc": "Foto, divide por ítem y regístrala",
+    "divide": "Dividir",
+    "divide_desc": "Una cuenta o un grupo",
     "start_outing": "Comenzar salida",
     "start_outing_desc": "Bar, restaurante o paseo",
     "simulate_purchase": "Simular compra",
@@ -1093,6 +1095,14 @@
     "resume": "Volver",
     "new_title": "Empezar una división nueva",
     "new_desc": "Escanea un ticket o créala desde cero"
+  },
+  "divideChooser": {
+    "title": "¿Cómo quieres dividir?",
+    "subtitle": "Son dos cosas distintas — elige la que resuelve tu caso.",
+    "bill_title": "Dividir una cuenta",
+    "bill_desc": "Una cuenta ahora, en la mesa: por ítem, en partes iguales o solo lo tuyo — con mesa en vivo.",
+    "group_title": "División en grupo",
+    "group_desc": "Varios gastos de un grupo o evento (Tricount): varios pagadores y la app calcula quién le debe a quién."
   },
   "splitHistory": {
     "title": "La división completa",
@@ -1788,6 +1798,15 @@
     "notifications_d": "Avisos, recordatorios de copia y alertas de ritmo en un solo lugar.",
     "about_t": "Acerca de la app",
     "about_d": "Versión, novedades de cada actualización y diagnóstico."
+  },
+  "discover": {
+    "title": "Descubrir",
+    "intro": "Busca lo que quieres hacer — o mira todo lo que hace la app, agrupado por intención.",
+    "search_placeholder": "¿Qué quieres hacer? Ej.: dividir un importe, ver el cambio…",
+    "no_results": "Nada encontrado. Prueba otras palabras o mira todo lo que puedes hacer abajo.",
+    "everything": "Todo lo que puedes hacer",
+    "help_cta_title": "Centro de ayuda",
+    "help_cta_desc": "Dudas y el paso a paso de cada función."
   },
   "glossary": {
     "explain": "¿Qué es {{term}}?",

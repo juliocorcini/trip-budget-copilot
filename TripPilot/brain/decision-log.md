@@ -2255,39 +2255,39 @@
 
 ---
 
-## Discovery & Clarity wave (2026-06-25) — DEC-307→319 (PROPOSED, awaiting Julio's lock on §16)
+## Discovery & Clarity wave (2026-06-25) — DEC-307→319 (§16 lock WAIVED — adopted; APPROVED per gate)
 
 > Source: `brain/documents/2026-06-25-discovery-clarity-implementation-orchestrator.md` (change-set D01→D15, councils
 > C-A→C-J, gates G0→G6). DEC-307→316 came from the 10 inline councils on the briefing's open questions (§16); DEC-317→319 are
-> direct decisions (clear briefing directives). All **PROPOSED** until Julio locks §16 (or approves the recommendations in
-> bulk); G1/G2 don't depend on the lock, G3/G4/G5 do.
+> direct decisions (clear briefing directives). **Julio waived the §16 lock (2026-06-25) and adopted the council recommendations
+> as the execution path**; each DEC is promoted to **APPROVED** by the gate that ships it (G1: 317/318 · G2: 319 · G3: 307/308/309/310/311 · G4: 312/313/314/316 · G5: 314/315).
 
 ### DEC-307 — Discovery entry: one discreet home-header hub (D02 / §16 Q1)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G3, 1.1.0-rc)
 - **Decision**: expose discovery via ONE discreet entry in the home header (chip/icon near notifications/settings) opening a **unified discovery hub** = search-by-intent + the feature guide + the help center, on one screen. The Settings entries for guide/help stay (ÂNCORA 9).
 - **Rationale**: guide/help live hidden in Settings today; a single memorable "what can I do?" door beats three scattered entries, and a header icon (not a card) doesn't compete with the anchor number.
 - **Refines**: orchestrator §6 D02 / §7 C-A. **Gate G3.**
 
 ### DEC-308 — Function search by intent, local (no new AI) (D02 / §16 Q2)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G3, 1.1.0-rc)
 - **Decision**: V1 of the "intelligent function finder" reuses the existing local, 0-token `searchHelp` (multilingual synonyms) over guide+help, extending keywords to **intent phrases** ("quero dividir um valor…" → Divisão em grupo). The intent glossary is the same screen in browse mode. No new AI in V1 (the existing assistant can route free text to the hub as a future fallback).
 - **Rationale**: a local matcher already resolves natural-language doubts offline at zero recurring cost; promising real AI search is scope/cost the V1 doesn't need.
 - **Refines**: orchestrator §6 D02 / §7 C-B. **Gate G3.**
 
 ### DEC-309 — Unify the "Dividir" ENTRY, not the code (D03 / §16 Q3)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
-- **Decision**: a single "Dividir" action opens a chooser "Como você quer dividir?" → **Por itens da conta** (`/split/scan`) × **Valor em grupo** (`/groups/new`), each explained. The two underlying entities/flows (single-bill split vs group-split, DEC-297) stay **fully separate in code**. The fine call (pure chooser vs chooser + a direct "Por itens" shortcut for the common bar case) is left to implementation/§16.
+- **Date**: 2026-06-25 · **Status**: APPROVED (G3, 1.1.0-rc) — implemented as a pure chooser; "Valor em grupo" routes `/groups?new=1` (auto-opens create) since `/groups/new` is not a router path.
+- **Decision**: a single "Dividir" action opens a chooser "Como você quer dividir?" → **Por itens da conta** (`/split/scan`) × **Valor em grupo** (`/groups`), each explained. The two underlying entities/flows (single-bill split vs group-split, DEC-297) stay **fully separate in code**. The fine call (pure chooser vs chooser + a direct "Por itens" shortcut for the common bar case) is left to implementation/§16.
 - **Rationale**: the confusion is mental-model, not code; merging the bill-split (proven on two devices) into group-split would risk a critical flow. Unify the door, keep the rooms.
 - **Refines**: orchestrator §6 D03 / §7 C-C. **Gate G3.**
 
 ### DEC-310 — Group split visibility via the FAB "Dividir" (D04 / §16 Q4)
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G3, 1.1.0-rc)
 - **Decision**: the FAB carries "Dividir" (the chooser) paired with "Iniciar saída", replacing the current standalone "Dividir conta"; group split becomes reachable in one level, and is also added to the guide (people) and the discovery hub.
 - **Rationale**: `/groups` is currently only reachable via Acerto de contas — far too hidden for a Tricount-like, widely used feature.
 - **Refines**: orchestrator §6 D04 / §7 C-D. **Gate G3.**
 
 ### DEC-311 — "Registrar mercado" out of the FAB first tier (mode-aware) (D08 / §16 Q5)
-- **Date**: 2026-06-25 · **Status**: PROPOSED — ⚠️ conflicts with Julio's 2026-06-22 promotion of "Registrar mercado"; explicit §16 question.
+- **Date**: 2026-06-25 · **Status**: APPROVED (G3, 1.1.0-rc) — mode-aware resolves the conflict: hidden under "Mais ações" in trip mode, promoted to the visible tier in day-to-day mode (honors Julio's 2026-06-22 promotion).
 - **Decision**: move "Registrar mercado" to "Mais ações" in **trip mode** (freeing the visible row for "Dividir"); keep it visible in **day-to-day mode** (it's a daily-life capture there).
 - **Rationale**: the briefing rates market less used than group split/cost-benefit, but Julio just promoted it — so make it mode-aware and confirm with him.
 - **Refines**: orchestrator §6 D08 / §7 C-E. **Gate G3.**

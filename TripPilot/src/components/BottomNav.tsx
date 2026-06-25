@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from 'react-router';
 import { Icon } from './Icon';
 import { FABMenu } from './FAB';
 import { SplitResumeSheet } from '@/features/split/SplitResumeSheet';
+import { DivideChooserSheet } from '@/features/split/DivideChooserSheet';
+import { useActiveSplit } from '@/features/split/useActiveSplit';
 import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 import { tabsForMode } from '@/app/nav-tabs';
@@ -39,13 +41,17 @@ const RIGHT_NAV: NavItem[] = [
 
 export function BottomNav() {
   const [isFabOpen, setIsFabOpen] = useState(false);
-  // Resume-or-new chooser for "Dividir conta" — owned here so it outlives the
-  // FAB overlay closing (the FAB is unmounted on close).
+  // D03 · DEC-309: the "Dividir" chooser (bill vs group) + the live-split
+  // resume-or-new chooser. Both owned here so they outlive the FAB overlay
+  // closing (the FAB is unmounted on close).
+  const [divideOpen, setDivideOpen] = useState(false);
   const [splitChoiceOpen, setSplitChoiceOpen] = useState(false);
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { settings } = useAppData();
+  // A live division turns "Dividir uma conta" into a resume-or-new decision.
+  const activeSplit = useActiveSplit();
   // M19: planner (advanced) is hidden in simple mode; its route still exists.
   const appMode = settings?.appMode ?? 'complete';
   const rightNav = visibleInMode(RIGHT_NAV, appMode);
@@ -117,7 +123,21 @@ export function BottomNav() {
       <FABMenu
         isOpen={isFabOpen}
         onClose={() => setIsFabOpen(false)}
-        onSplitResumeOrNew={() => setSplitChoiceOpen(true)}
+        onDivide={() => setDivideOpen(true)}
+      />
+      <DivideChooserSheet
+        open={divideOpen}
+        onClose={() => setDivideOpen(false)}
+        onChooseBill={() => {
+          setDivideOpen(false);
+          // A live division still asks resume-or-new; otherwise go straight in.
+          if (activeSplit) setSplitChoiceOpen(true);
+          else navigate('/split/scan');
+        }}
+        onChooseGroup={() => {
+          setDivideOpen(false);
+          navigate('/groups?new=1');
+        }}
       />
       <SplitResumeSheet open={splitChoiceOpen} onClose={() => setSplitChoiceOpen(false)} />
 

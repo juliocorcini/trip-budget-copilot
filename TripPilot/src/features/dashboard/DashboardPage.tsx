@@ -458,6 +458,21 @@ export function DashboardPage() {
           {/* Redesign (G1): bell stays the prominent action (primary); the gear
               is the quieter Settings entry that replaces the old "Mais" tab. */}
           <div className="flex items-center gap-2">
+            {/* D02 · DEC-307: a discreet, always-visible doorway to the discovery
+                hub — find any function by intent (search) or browse everything the
+                app can do, without digging through Settings. */}
+            <button
+              onClick={() => navigate('/descobrir')}
+              className="btn-press"
+              aria-label={t('discover.title')}
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: 'var(--surface-container)' }}
+              >
+                <Icon name="travel_explore" size={20} className="text-on-surface-dim" />
+              </div>
+            </button>
             {/* DEC-090 (R-08): bell opens the notifications center — never /shared */}
             <button
               onClick={() => navigate('/notifications')}

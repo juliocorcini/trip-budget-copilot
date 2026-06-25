@@ -36,6 +36,7 @@ const ExpenseDetailPage = lazyWithRetry(() => import('@/features/expenses/Expens
 const AboutPage = lazyWithRetry(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
 const GuidePage = lazyWithRetry(() => import('@/features/guide/GuidePage').then(m => ({ default: m.GuidePage })));
 const HelpPage = lazyWithRetry(() => import('@/features/help/HelpPage').then(m => ({ default: m.HelpPage })));
+const DiscoverHubPage = lazyWithRetry(() => import('@/features/discover/DiscoverHubPage').then(m => ({ default: m.DiscoverHubPage })));
 const NotificationsPage = lazyWithRetry(() => import('@/features/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const ImpactDetailPage = lazyWithRetry(() => import('@/features/dashboard/ImpactDetailPage').then(m => ({ default: m.ImpactDetailPage })));
 const SyncReceivePage = lazyWithRetry(() => import('@/features/sync/SyncReceivePage').then(m => ({ default: m.SyncReceivePage })));
@@ -170,6 +171,9 @@ export const router = createBrowserRouter([
           // FB-28 V1 (DEC-278): the local help center / concierge — searchable
           // Q&A with concrete steps and a deep-link per answer (0 token).
           { path: '/help', element: <LazyRoute><HelpPage /></LazyRoute> },
+          // D02 (DEC-307/308): the discovery hub — find any function by intent
+          // (reuses searchHelp) or browse everything the app does, in one screen.
+          { path: '/descobrir', element: <LazyRoute><DiscoverHubPage /></LazyRoute> },
           { path: '/notifications', element: <LazyRoute><NotificationsPage /></LazyRoute> },
           { path: '/impact', element: <LazyRoute><ImpactDetailPage /></LazyRoute> },
           // DEC-249: the multi-space switcher (trips + "Dia a dia"), opened from

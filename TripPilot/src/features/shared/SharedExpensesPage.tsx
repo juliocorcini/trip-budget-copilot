@@ -508,6 +508,15 @@ export function SharedExpensesPage() {
     }))
     .filter((row) => row.ownerNet !== 0);
 
+  // D05 · DEC-306: trip-linked groups already surface below as a settle summary
+  // (with a per-group link AND a "see all" link to /groups). When that section is
+  // shown, the generic "open group splits" button at the top would be a SECOND
+  // doorway to the same place — so it only renders when there is no group-settle
+  // section, keeping exactly one group entry point on the settle-up screen.
+  const hasGroupSettle =
+    !!groupOwnerSummary &&
+    (groupOwnerSummary.receivableCents > 0 || groupOwnerSummary.payableCents > 0);
+
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
       <div className="flex items-center gap-3">
@@ -519,20 +528,24 @@ export function SharedExpensesPage() {
       </div>
 
       {/* C23 (DEC-297): entry to the Tricount group splits (many expenses/payers),
-          a sibling of single-bill sharing. Always visible so it stays discoverable. */}
-      <button
-        onClick={() => navigate('/groups')}
-        className="bg-surface-container rounded-2xl p-4 flex items-center gap-3 text-left btn-press"
-      >
-        <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center shrink-0">
-          <Icon name="groups" size={22} className="text-primary" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-on-surface">{t('group_split.title')}</p>
-          <p className="text-[11px] text-on-surface-faint">{t('group_split.subtitle')}</p>
-        </div>
-        <Icon name="chevron_right" size={20} className="text-on-surface-faint shrink-0" />
-      </button>
+          a sibling of single-bill sharing. D05 · DEC-306: shown only when the
+          group-settle section below is NOT present, so there is exactly one group
+          doorway on this screen (no duplicate entry point). */}
+      {!hasGroupSettle && (
+        <button
+          onClick={() => navigate('/groups')}
+          className="bg-surface-container rounded-2xl p-4 flex items-center gap-3 text-left btn-press"
+        >
+          <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+            <Icon name="groups" size={22} className="text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-on-surface">{t('group_split.title')}</p>
+            <p className="text-[11px] text-on-surface-faint">{t('group_split.subtitle')}</p>
+          </div>
+          <Icon name="chevron_right" size={20} className="text-on-surface-faint shrink-0" />
+        </button>
+      )}
 
       {/* DL-3: settle-up hero — opens with the answer ("quem me deve e quanto").
           Pure derivation of calculateDebts via summarizeOwnerDebts (confirmed
@@ -592,9 +605,19 @@ export function SharedExpensesPage() {
           payment drops out here automatically. Hidden when nothing is owed. */}
       {groupOwnerSummary && (groupOwnerSummary.receivableCents > 0 || groupOwnerSummary.payableCents > 0) && (
         <section className="flex flex-col gap-2">
-          <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1">
-            {t('shared.group_settle_title')}
-          </p>
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider">
+              {t('shared.group_settle_title')}
+            </p>
+            {/* D05: the single doorway to the full group list lives here when the
+                settle section is shown (the generic top button is hidden then). */}
+            <button
+              onClick={() => navigate('/groups')}
+              className="text-[11px] font-semibold text-primary btn-press shrink-0"
+            >
+              {t('common.view_all')}
+            </button>
+          </div>
           <div className="rounded-2xl p-4 bg-surface-container flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div>

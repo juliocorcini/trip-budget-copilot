@@ -6,7 +6,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
 import { hapticSelection } from '@/utils/haptics';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
-import { useActiveSplit } from '@/features/split/useActiveSplit';
+import { isOngoing } from '@/domain/spaces/spaces';
 import { openAssistant } from '@/features/assistant/assistant-bus';
 
 /**
@@ -83,17 +83,20 @@ const GROUPED_ACTIONS: FabAction[] = [
     group: 'plan',
   },
   {
-    // Julio (2026-06-22): "Registrar mercado" (a "Registrar gasto" pre-filtered to
-    // one category) promoted back into the visible "smart tools" row — a daily-life
-    // capture, especially in "dia a dia" mode. It takes the slot freed by the
-    // cost-benefit comparator. Stays in simple mode too (no `advanced`).
+    // D08 · DEC-311: "Registrar mercado" (a "Registrar gasto" pre-filtered to one
+    // category) is a daily-life capture. It is MODE-AWARE: in a "Dia a dia" space
+    // it stays a visible "smart tools" chip (the component promotes it to `plan`),
+    // but on a trip it sits in the collapsed "Mais ações" so the trip's first
+    // layer stays focused on register · IA · Dividir · iniciar saída. Base group
+    // is therefore `other`; the promotion happens in the component (Julio
+    // 2026-06-22 wanted it handy in everyday mode). Stays in simple mode too.
     icon: 'shopping_cart',
     labelKey: 'fab.register_market',
     descKey: 'fab.register_market_desc',
     path: '/quick-add?cat=market',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
-    group: 'plan',
+    group: 'other',
   },
   {
     // DEC-283/DEC-284: the cost-benefit comparator — "qual vale mais por
@@ -145,17 +148,15 @@ const OTHER_EXPANDER = { icon: 'more_horiz', labelKey: 'fab.group_other', descKe
 interface FABMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Called instead of navigating when "Dividir conta" is tapped with a live
-   *  division already running — the BottomNav owns the resume-or-new chooser. */
-  onSplitResumeOrNew: () => void;
+  /** D03 · DEC-309: "Dividir" opens the bill-vs-group chooser, owned by the
+   *  BottomNav so it survives the FAB overlay closing. */
+  onDivide: () => void;
 }
 
-export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
+export function FABMenu({ isOpen, onClose, onDivide }: FABMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { settings } = useAppData();
-  // A live division turns "Dividir conta" into a resume-or-new decision.
-  const activeSplit = useActiveSplit();
+  const { settings, trip } = useAppData();
   // DEC-194: keep the menu mounted through its exit so it visibly closes.
   const { mounted, state } = useAnimatedPresence(isOpen, 180);
   // GATE 18: only the low-value "Outros registros" group collapses at rest.
@@ -166,7 +167,14 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
 
   // M19: simple mode hides the advanced actions; they stay reachable via their
   // full pages (ÂNCORA 9 — hide, never delete).
-  const actions = visibleInMode(GROUPED_ACTIONS, settings?.appMode ?? 'complete');
+  // D08 · DEC-311: in a "Dia a dia" space, promote "Registrar mercado" to the
+  // visible smart-tools row; on a trip it stays in the collapsed "Mais ações".
+  const ongoing = trip ? isOngoing(trip) : false;
+  const actions = visibleInMode(GROUPED_ACTIONS, settings?.appMode ?? 'complete').map((action) =>
+    action.path === '/quick-add?cat=market' && ongoing
+      ? { ...action, group: 'plan' as FabGroup }
+      : action,
+  );
   // GATE 18 visible tier: the planning tools lead, then the live-capture leader.
   const captureActions = actions.filter((a) => a.group === 'capture');
   // C15: the lead capture action ("Iniciar saída") pairs 2-up with "Dividir
@@ -239,19 +247,15 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
     </button>
   );
 
-  // T1/T2 (bill split): "Dividir conta" is the star — the superset of the
-  // receipt scanner (capture → tax → split → commit), with the indigo "smart"
-  // accent + sparkle so it stands apart from the orange/IA heroes. C15: it pairs
-  // 2-up with "Iniciar saída" as a `chip`; in simple mode (no outing) it renders
-  // full-`wide`. A live division turns the tap into a resume-or-new decision.
-  const handleSplitBill = () => {
-    if (activeSplit) {
-      hapticSelection();
-      onClose();
-      onSplitResumeOrNew();
-    } else {
-      handleAction('/split/scan');
-    }
+  // D03 · DEC-309: "Dividir" is the star action — the indigo "smart" accent +
+  // sparkle so it stands apart from the orange/IA heroes. C15: it pairs 2-up with
+  // "Iniciar saída" as a `chip`; in simple mode (no outing) it renders full-`wide`.
+  // It opens the bill-vs-group chooser (the single unified door) instead of going
+  // straight to a screen, so the two kinds of split stop being confused.
+  const handleDivide = () => {
+    hapticSelection();
+    onClose();
+    onDivide();
   };
 
   const renderSplitBill = (variant: 'chip' | 'wide') => {
@@ -261,7 +265,7 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
           key="split-bill"
           onClick={(e) => {
             e.stopPropagation();
-            handleSplitBill();
+            handleDivide();
           }}
           className="btn-press p-3.5 rounded-2xl flex flex-col gap-2 text-left h-full"
           style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
@@ -279,9 +283,9 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-[13px] font-bold text-on-surface leading-tight">{t('fab.split_bill')}</p>
+            <p className="text-[13px] font-bold text-on-surface leading-tight">{t('fab.divide')}</p>
             <p className="text-[10px] font-semibold text-on-surface-dim leading-snug line-clamp-1 mt-0.5">
-              {t('fab.split_bill_desc')}
+              {t('fab.divide_desc')}
             </p>
           </div>
         </button>
@@ -292,7 +296,7 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
         key="split-bill"
         onClick={(e) => {
           e.stopPropagation();
-          handleSplitBill();
+          handleDivide();
         }}
         className="btn-press p-4 rounded-2xl flex items-center gap-3.5 text-left"
         style={{ background: 'var(--ai-bg-soft)', border: '1px solid var(--ai-border)' }}
@@ -310,8 +314,8 @@ export function FABMenu({ isOpen, onClose, onSplitResumeOrNew }: FABMenuProps) {
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[15px] font-extrabold text-on-surface">{t('fab.split_bill')}</p>
-          <p className="text-[11px] font-semibold text-on-surface-dim">{t('fab.split_bill_desc')}</p>
+          <p className="text-[15px] font-extrabold text-on-surface">{t('fab.divide')}</p>
+          <p className="text-[11px] font-semibold text-on-surface-dim">{t('fab.divide_desc')}</p>
         </div>
         <Icon name="auto_awesome" size={18} className="text-[var(--ai-2)] shrink-0" />
       </button>
