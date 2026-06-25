@@ -32,6 +32,12 @@ export function PiggyStatementSheet({ open, onClose, ledger, currency }: PiggySt
       <p className="text-[13px] leading-relaxed text-on-surface-dim mt-1">
         {t('dashboard.piggy_voice')}
       </p>
+      {/* C10/DEC-300: spell out the three states so the balance is never read as
+          spendable cash — já guardado (closed days) vs será guardado (today, at
+          close) vs simulado (a forecast). */}
+      <p className="text-[11px] leading-relaxed text-on-surface-faint mt-2">
+        {t('dashboard.piggy_states_hint')}
+      </p>
 
       <div className="grid grid-cols-3 gap-2 mt-4">
         <StatBox label={t('dashboard.piggy_deposited')} value={money(ledger?.totalDepositedCents ?? 0)} tone="text-success" />

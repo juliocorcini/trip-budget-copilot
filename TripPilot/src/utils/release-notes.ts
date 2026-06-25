@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.61',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'O cofrinho ganhou uma seção fixa no Copiloto: você vê quanto já guardou e o último depósito, e abre o extrato completo num toque.',
+        'Rótulos do cofrinho ficaram claros: "simulado", "será guardado no fechamento" e "já guardado" — sem mais confusão sobre o que já é seu.',
+        'O resumo de ontem agora leva ao lugar certo: dia de economia abre o cofrinho (onde o dinheiro foi), dia de estouro abre a lista de gastos.',
+        'A medalha de disciplina só aparece quando a sequência está de pé; quando ela zera, o ícone fica neutro em vez de parecer punição.',
+        'Copiloto e Planejador deixaram de se contradizer: quando o vermelho do Planejador é só plano (alocação futura), o app diz que seu gasto real está em dia — ajuste o plano, não o ritmo.',
+      ],
+      en: [
+        'The piggy bank now has a fixed section in the Copilot: see how much you\'ve already saved and your latest deposit, and open the full statement in one tap.',
+        'Piggy labels are now clear: "simulated", "will be saved at close" and "already saved" — no more confusion about what is actually yours.',
+        'Yesterday\'s recap now lands in the right place: a saving day opens the piggy (where the money went), an over day opens the expense list.',
+        'The discipline medal only shows while the streak is alive; when it resets, the icon goes neutral instead of feeling like a punishment.',
+        'The Copilot and the Planner stopped contradicting each other: when the Planner\'s red is just plan (future allocation), the app says your real spend is on track — adjust the plan, not your pace.',
+      ],
+      es: [
+        'La alcancía ahora tiene una sección fija en el Copiloto: ves cuánto has guardado y tu último depósito, y abres el extracto completo con un toque.',
+        'Las etiquetas de la alcancía quedaron claras: "simulado", "se guardará al cierre" y "ya guardado" — sin más confusión sobre lo que ya es tuyo.',
+        'El resumen de ayer ahora cae en el lugar correcto: un día de ahorro abre la alcancía (a dónde fue el dinero), un día de exceso abre la lista de gastos.',
+        'La medalla de disciplina solo aparece mientras la racha está viva; cuando se reinicia, el ícono se vuelve neutro en lugar de sentirse como un castigo.',
+        'El Copiloto y el Planificador dejaron de contradecirse: cuando el rojo del Planificador es solo plan (asignación futura), la app dice que tu gasto real está al día — ajusta el plan, no tu ritmo.',
+      ],
+    },
+  },
+  {
     version: '0.99.60',
     date: '2026-06-24',
     items: {

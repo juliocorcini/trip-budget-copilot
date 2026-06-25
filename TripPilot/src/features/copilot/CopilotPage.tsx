@@ -10,12 +10,13 @@ import { BurndownCard } from '@/features/dashboard/cards/BurndownCard';
 import { HeatmapCard } from '@/features/dashboard/cards/HeatmapCard';
 import { RecapCard } from '@/features/dashboard/cards/RecapCard';
 import { AmigoSinceroCard } from '@/features/dashboard/cards/AmigoSinceroCard';
+import { PiggyStatementSheet } from '@/features/dashboard/cards/PiggyStatementSheet';
 import { TripWrappedSheet } from './TripWrappedSheet';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { formatMoney, sumCents } from '@/domain/money';
 import { sortPhasesByOrder, getTotalDays, localDateString, addDaysIso, formatDate } from '@/domain/dates';
 import { shiftMonth } from '@/domain/dashboard';
-import { calculatePoolSpent } from '@/domain/budget';
+import { calculatePoolSpent, classifyBudgetSignal } from '@/domain/budget';
 import { filterTransactionsByPhase } from '@/domain/transactions';
 import { calculateDebts } from '@/domain/splitting';
 import { calculateSessionTotal } from '@/domain/outing';
@@ -136,9 +137,31 @@ export function CopilotPage() {
   // "only the first non-empty group is open" (see isGroupOpen below).
   const [openGroups, setOpenGroups] = useState<Partial<Record<ThemeKey, boolean>>>({});
   const [wrappedOpen, setWrappedOpen] = useState(false);
+  // C09/DEC-300: the cofrinho is a FIXED, always-reachable section here.
+  const [piggyOpen, setPiggyOpen] = useState(false);
   const model = useDashboardModel(appData, heatmapMonth, heatmapDayIso);
 
   const verdict = useMemo(() => buildCopilotVerdict(model.burndown), [model.burndown]);
+
+  // C04/DEC-304: the recurring scare — the Copilot reads REAL spend pace (this
+  // verdict) while the Planner shows a red from FUTURE allocation. When real
+  // spend is on track but the plan is over-allocated, say so HERE too, in the
+  // same words, so the two screens stop contradicting each other.
+  const planOverButRealOk = useMemo(() => {
+    if (!model.fts || !model.trueFree) return false;
+    const realSpendOverCents = Math.max(0, -model.fts.freeToSpendCents);
+    const overAllocationCents =
+      model.fts.freeToSpendCents >= 0 && model.trueFree.trueFreeCents < 0
+        ? -model.trueFree.trueFreeCents
+        : 0;
+    return (
+      classifyBudgetSignal({
+        realSpendOverCents,
+        overAllocationCents,
+        projectedOverCents: 0,
+      }).kind === 'allocation_over'
+    );
+  }, [model.fts, model.trueFree]);
   const projection = useMemo(
     () => model.insights.find((i) => i.kind === 'phase_projection') ?? null,
     [model.insights],
@@ -330,6 +353,21 @@ export function CopilotPage() {
     { icon: 'help', label: t('copilot.help'), desc: t('copilot.help_desc'), path: '/help' },
   ];
 
+  // C09 — the most recent day that actually moved the piggy, surfaced as
+  // "entrou recente" only when it was a deposit (a saving day).
+  const piggyLastEntry = model.piggyLedger
+    ? [...model.piggyLedger.entries].reverse().find((e) => e.kind !== 'flat')
+    : undefined;
+  const piggyRecentDepositCents =
+    piggyLastEntry && piggyLastEntry.kind === 'deposit' ? piggyLastEntry.deltaCents : 0;
+  // C21 — "ontem" routes to the cofrinho when it was a saving day (the recap is
+  // about money you kept), and to the expense list when you went over (to review
+  // the spend). Falls back to the list when there is no piggy concept.
+  const openRecap = () => {
+    if (model.recap?.within && model.piggyLedger) setPiggyOpen(true);
+    else navigate('/expenses');
+  };
+
   return (
     <div className="flex flex-col pb-6 pt-2">
       <div className="px-1">
@@ -390,6 +428,42 @@ export function CopilotPage() {
         </div>
       )}
 
+      {/* ── COFRINHO — fixed section (C09/DEC-300): always reachable whenever the
+          buffer concept applies (a dated phase → a daily ideal exists). The
+          headline is what is ALREADY saved on the days that closed; today only
+          lands at the day's close, so the tag reads "já guardado" (C10). ── */}
+      {model.piggyLedger && (
+        <>
+          <SectionLabel>{t('dashboard.piggy_title')}</SectionLabel>
+          <button
+            onClick={() => setPiggyOpen(true)}
+            className="p-4 rounded-2xl flex items-center gap-3.5 w-full text-left btn-press"
+            style={{ background: 'var(--surface-container)' }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
+              <Icon name="savings" size={18} className="text-success" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <p className="text-xl font-extrabold tabular text-on-surface leading-none">
+                  {formatMoney(model.piggyBankCents, currency)}
+                </p>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-success">
+                  {t('dashboard.piggy_already_saved')}
+                </span>
+              </div>
+              <p className="text-xs text-on-surface-faint mt-1">{t('dashboard.piggy_desc')}</p>
+              {piggyRecentDepositCents > 0 && (
+                <p className="text-[11px] font-semibold text-success mt-0.5">
+                  +{formatMoney(piggyRecentDepositCents, currency)}
+                </p>
+              )}
+            </div>
+            <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+          </button>
+        </>
+      )}
+
       {/* ── AGORA — am I OK right now? (verdict · yesterday · honest friend ·
           whole-trip anchor · discipline streak) ── */}
       {nowCount > 0 && (
@@ -427,14 +501,23 @@ export function CopilotPage() {
                       {formatMoney(model.fts.totalSpentCents, currency)} / {formatMoney(model.fts.totalBudgetCents, currency)}
                     </span>
                   </div>
+                  {/* C04/DEC-304: reconcile with the Planner's red — real spend
+                      ok, only the plan (future allocation) is over. */}
+                  {planOverButRealOk && (
+                    <p className="text-[11px] leading-snug mt-2.5 text-on-surface-dim">
+                      {t('copilot.verdict_plan_note')}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* 1b · YESTERDAY — daily recap, moved from the home (U5 / DEC-180). */}
+          {/* 1b · YESTERDAY — daily recap, moved from the home (U5 / DEC-180).
+              C21: a saving day opens the cofrinho (where that money went), an
+              over day opens the list (to review the spend). */}
           {model.recap && (
-            <RecapCard recap={model.recap} currency={currency} onOpen={() => navigate('/expenses')} />
+            <RecapCard recap={model.recap} currency={currency} onOpen={openRecap} />
           )}
 
           {/* 3 · AMIGO SINCERO — shared component, with the simulate action */}
@@ -477,16 +560,20 @@ export function CopilotPage() {
                 className="p-4 rounded-2xl flex items-center gap-3.5"
                 style={{ background: 'var(--surface-container)' }}
               >
+                {/* C22/DEC-299 tone: the fire (a reward) shows ONLY while the
+                    last active day was within target (currentStreak ≥ 1). A
+                    broken streak is a neutral "start over", never a medal in a
+                    negative message. */}
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-surface-high">
                   <Icon
-                    name={disciplineStreak.currentStreak >= 2 ? 'local_fire_department' : 'military_tech'}
+                    name={disciplineStreak.currentStreak >= 1 ? 'local_fire_department' : 'restart_alt'}
                     size={18}
-                    style={{ color: disciplineStreak.currentStreak >= 2 ? 'var(--success)' : 'var(--warning)' }}
+                    style={{ color: disciplineStreak.currentStreak >= 1 ? 'var(--success)' : 'var(--on-surface-faint)' }}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-on-surface">
-                    {disciplineStreak.currentStreak >= 2
+                    {disciplineStreak.currentStreak >= 1
                       ? t('copilot.streak_current', { days: disciplineStreak.currentStreak })
                       : t('copilot.streak_broken')}
                   </p>
@@ -940,6 +1027,15 @@ export function CopilotPage() {
           )}
         </div>
       </BottomSheet>
+
+      {/* C09/DEC-300: the cofrinho statement — same sheet the dashboard uses, so
+          the buffer reads identically in both places (C14 invariant). */}
+      <PiggyStatementSheet
+        open={piggyOpen}
+        onClose={() => setPiggyOpen(false)}
+        ledger={model.piggyLedger}
+        currency={currency}
+      />
     </div>
   );
 }

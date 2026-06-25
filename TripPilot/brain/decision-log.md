@@ -2205,7 +2205,7 @@
 
 ### DEC-300 — Piggy fixed in Copilot + simulated/will-be-saved/saved states (C09/C10 / §16 Q7)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G4)
+- **Status**: APPROVED — implemented G4, shipped 0.99.61 (2026-06-24); fixed piggy section in `CopilotPage` (reuses `piggy-ledger`/`PiggyStatementSheet`) + `piggy_states_hint` (simulated / will be saved / already saved).
 - **Decision**: a **fixed piggy section** in the Copilot (reusing `PiggyStatementSheet`/`piggy-ledger`), and explicit copy **simulated / will be saved at close / already saved** everywhere the piggy is touched (check-in, card, statement). Never say "the piggy now has X" before it actually entered.
 - **Rationale**: Model B (DEC-279/261) keeps the balance derived (closed days only); simulation is a forecast. The fix is UI clarity, not math.
 - **Refines**: orchestrator §6 C09/C10. **Gate G4.**
@@ -2233,7 +2233,7 @@
 
 ### DEC-304 — State dictionary (the app's "same language")
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (cross-gate, finalized at G8)
+- **Status**: PROPOSED — Coherence wave (cross-gate, finalized at G8). **Advanced at G4 (0.99.61):** first concrete reconciliation via pure `classifyBudgetSignal` — the Planner's allocation red and the Copilot's verdict now say whether a red is a *real problem* or just a *plan adjustment* (`real_over` is the only red-worthy case).
 - **Decision**: real / planned / allocated / free / piggy / simulated / saved / outing / item / settlement have a **consistent label and color** across the whole app (see orchestrator appendix). Every alert explains: what happened · why it matters · what to do · whether it's a real problem or just a plan adjustment. Red = real problem.
 - **Rationale**: one screen says "you're in control" while another shows red without explaining the difference; the app must speak one language.
 - **Refines**: orchestrator §3 / appendix. **Cross-gate.**

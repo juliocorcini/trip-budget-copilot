@@ -1,8 +1,8 @@
 {
-  "version": "0.99.60",
+  "version": "0.99.61",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.60.zip",
-  "notes": "Detalhe da saída agora é editável: dá para renomear e mudar a data da saída, tocar em cada item para ver/editar, ver quem pagou e abrir a divisão completa. E todo gasto que faz parte de uma saída mostra um atalho \"Parte de\" que leva direto à saída."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.61.zip",
+  "notes": "Copiloto e cofrinho agora contam a mesma história: o cofrinho tem uma seção fixa no Copiloto com rótulos claros (simulado / será guardado / já guardado), o recap do dia leva ao cofrinho quando você economizou, e quando o Planejador mostra vermelho de alocação futura o app explica que seu gasto real está em dia — ajuste o plano, não o ritmo."
 }

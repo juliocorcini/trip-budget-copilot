@@ -77,6 +77,8 @@ export {
 } from './pots';
 export { resolveProgressTone } from './progress-tone';
 export type { ProgressTone, ProgressToneInput } from './progress-tone';
+export { classifyBudgetSignal } from './budget-signal';
+export type { BudgetSignal, BudgetSignalKind, BudgetSignalInput } from './budget-signal';
 export type {
   ProjectTripEndSurplusInput,
   SavingsGoalProgressInput,

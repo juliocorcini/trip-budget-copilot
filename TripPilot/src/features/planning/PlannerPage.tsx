@@ -5,7 +5,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { isOngoing } from '@/domain/spaces/spaces';
 import { useScrolled } from '@/hooks/useScrolled';
 import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
-import { calculateFreeToSpend } from '@/domain/budget';
+import { calculateFreeToSpend, classifyBudgetSignal } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { fromCents, sumCents } from '@/domain/money';
 import {
@@ -430,6 +430,15 @@ export function PlannerPage() {
     currentAllocatedCents,
     availableCents,
   );
+
+  // C04/DEC-304: reconcile the COPY with the Copilot. The Copilot reads REAL
+  // spend pace; this red reads FUTURE allocation. Same words on both screens:
+  // the warning is a real problem ONLY when real spend already passed available.
+  const overAllocationSignal = classifyBudgetSignal({
+    realSpendOverCents: Math.max(0, -availableCents),
+    overAllocationCents,
+    projectedOverCents: 0,
+  });
 
   const modifiedProfiles = useMemo(
     () =>
@@ -875,14 +884,25 @@ export function PlannerPage() {
           emphatic, inside the fixed header, visible without scrolling ── */}
       {overAllocationCents > 0 && (
         <div
-          className="mt-2 p-3 rounded-xl flex items-center gap-2.5"
+          className="mt-2 p-3 rounded-xl flex flex-col gap-1.5"
           style={{ background: '#D9404015', border: '1px solid #D9404030' }}
         >
-          <Icon name="error" size={18} className="text-error shrink-0" />
-          <p className="text-xs font-bold leading-snug" style={{ color: 'var(--error)' }}>
-            {t('planner.over_allocation_warning', {
-              amount: fmtFull(overAllocationCents, currency),
-            })}
+          <div className="flex items-center gap-2.5">
+            <Icon name="error" size={18} className="text-error shrink-0" />
+            <p className="text-xs font-bold leading-snug" style={{ color: 'var(--error)' }}>
+              {t('planner.over_allocation_warning', {
+                amount: fmtFull(overAllocationCents, currency),
+              })}
+            </p>
+          </div>
+          {/* C04/DEC-304: name whether this red is the PLAN (future allocation,
+              real spend still on track) or REAL (money already over). */}
+          <p className="text-[11px] leading-snug pl-[28px] text-on-surface-dim">
+            {t(
+              overAllocationSignal.isRealProblem
+                ? 'planner.over_allocation_real'
+                : 'planner.over_allocation_is_plan',
+            )}
           </p>
         </div>
       )}
