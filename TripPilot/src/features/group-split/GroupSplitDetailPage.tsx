@@ -22,6 +22,7 @@ import {
 import { formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
+import { QrCodeDisplay } from '@/components/QrCodeDisplay';
 import { shareOrCopyLink } from '@/utils/native/link-share';
 import { GroupExpenseEditor } from './GroupExpenseEditor';
 import {
@@ -59,6 +60,12 @@ export function GroupSplitDetailPage() {
   const [editing, setEditing] = useState<GroupExpense | 'new' | null>(null);
   const [creds, setCreds] = useState<GroupLiveCreds | null>(null);
   const [publishing, setPublishing] = useState(false);
+  // A04/DEC-335: balances ("Pagamentos") and transfers ("Quem paga quem") live
+  // behind buttons — expenses are the primary surface, not the math.
+  const [showBalances, setShowBalances] = useState(false);
+  const [showTransfers, setShowTransfers] = useState(false);
+  // A02/DEC-338: keep focus on the add-person field after each add.
+  const newPersonRef = useRef<HTMLInputElement>(null);
 
   // Refs keep the poller and the save seam reading the latest state without
   // re-subscribing the interval on every keystroke/edit.
@@ -146,7 +153,7 @@ export function GroupSplitDetailPage() {
       <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
         <Icon name="group_off" size={32} className="text-on-surface-faint" />
         <p className="text-sm text-on-surface-dim">{t('group_split.not_found')}</p>
-        <button onClick={() => navigate('/groups')} className="text-sm text-primary font-semibold btn-press">
+        <button onClick={() => navigate('/groups', { replace: true })} className="text-sm text-primary font-semibold btn-press">
           {t('group_split.back_to_list')}
         </button>
       </div>
@@ -161,6 +168,9 @@ export function GroupSplitDetailPage() {
     if (trimmed.length === 0) return;
     void save(addParticipant(event, createGroupParticipant({ name: trimmed })));
     setNewPerson('');
+    // DEC-338: a button tap blurs the input — restore focus so the keyboard
+    // stays open and the next name can be typed straight away.
+    newPersonRef.current?.focus();
   };
 
   const handleRemovePerson = (participantId: string) => {
@@ -234,13 +244,13 @@ export function GroupSplitDetailPage() {
   const handleDeleteEvent = async () => {
     await deleteGroupSplit(event.id);
     showToast(t('group_split.deleted'), 'success');
-    navigate('/groups');
+    navigate('/groups', { replace: true });
   };
 
   return (
     <div className="flex flex-col gap-4 py-6">
       <div className="flex items-center gap-2">
-        <button onClick={() => navigate('/groups')} className="btn-press p-1" aria-label={t('common.back')}>
+        <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
         <h1 className="text-heading font-bold text-on-surface truncate flex-1">{event.name}</h1>
@@ -270,6 +280,12 @@ export function GroupSplitDetailPage() {
               <Icon name="link" size={18} className="text-success" />
               <span className="text-sm font-semibold text-on-surface">{t('group_split.sharing_on')}</span>
             </div>
+            {link && (
+              <div className="flex flex-col items-center gap-1.5 pt-1">
+                <QrCodeDisplay value={link} size={176} />
+                <p className="text-[11px] text-on-surface-faint">{t('group_split.scan_to_join')}</p>
+              </div>
+            )}
             <p className="text-[11px] text-on-surface-faint break-all">{link}</p>
             <div className="flex gap-2">
               <button
@@ -307,48 +323,7 @@ export function GroupSplitDetailPage() {
         )}
       </section>
 
-      {/* Balances + transfers — only meaningful once there is money in. */}
-      {event.expenses.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-bold text-on-surface px-1">{t('group_split.balances_title')}</h2>
-          <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2.5">
-            {balances.map((b) => (
-              <div key={b.participantId} className="flex items-center justify-between">
-                <span className="text-sm text-on-surface truncate">{b.name}</span>
-                <span
-                  className={`text-sm font-semibold tabular ${
-                    b.netCents > 0 ? 'text-success' : b.netCents < 0 ? 'text-on-surface' : 'text-on-surface-faint'
-                  }`}
-                >
-                  {b.netCents > 0
-                    ? t('group_split.gets_back', { amount: formatMoney(b.netCents, event.currency) })
-                    : b.netCents < 0
-                      ? t('group_split.owes', { amount: formatMoney(-b.netCents, event.currency) })
-                      : t('group_split.even')}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {transfers.length > 0 && (
-            <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2">
-              <h3 className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide">
-                {t('group_split.transfers_title')}
-              </h3>
-              {transfers.map((tr, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm text-on-surface">
-                  <span className="font-medium truncate">{tr.fromName}</span>
-                  <Icon name="arrow_forward" size={16} className="text-on-surface-faint shrink-0" />
-                  <span className="font-medium truncate">{tr.toName}</span>
-                  <span className="ml-auto font-bold tabular shrink-0">{formatMoney(tr.amountCents, event.currency)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Expenses */}
+      {/* Expenses — the primary surface (A03/DEC-335), even when empty. */}
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-sm font-bold text-on-surface">{t('group_split.expenses_title')}</h2>
@@ -428,6 +403,7 @@ export function GroupSplitDetailPage() {
           })}
           <div className="flex items-center gap-2 pt-1">
             <input
+              ref={newPersonRef}
               value={newPerson}
               onChange={(e) => setNewPerson(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddPerson()}
@@ -467,6 +443,69 @@ export function GroupSplitDetailPage() {
           <p className="text-[11px] text-on-surface-faint px-1 leading-relaxed">{t('group_split.trip_settle_note')}</p>
         )}
       </section>
+
+      {/* Pagamentos (balances) + Quem paga quem (transfers) behind buttons
+          (A04/DEC-335) — only meaningful once there is money in. */}
+      {event.expenses.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBalances((v) => !v)}
+              aria-expanded={showBalances}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-surface-container text-on-surface font-semibold text-sm btn-press flex items-center justify-center gap-1.5"
+            >
+              <Icon name="account_balance_wallet" size={16} className="text-on-surface-dim" />
+              {t('group_split.balances_title')}
+              <Icon name={showBalances ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
+            </button>
+            {transfers.length > 0 && (
+              <button
+                onClick={() => setShowTransfers((v) => !v)}
+                aria-expanded={showTransfers}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-surface-container text-on-surface font-semibold text-sm btn-press flex items-center justify-center gap-1.5"
+              >
+                <Icon name="swap_horiz" size={16} className="text-on-surface-dim" />
+                {t('group_split.transfers_title')}
+                <Icon name={showTransfers ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
+              </button>
+            )}
+          </div>
+
+          {showBalances && (
+            <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2.5">
+              {balances.map((b) => (
+                <div key={b.participantId} className="flex items-center justify-between">
+                  <span className="text-sm text-on-surface truncate">{b.name}</span>
+                  <span
+                    className={`text-sm font-semibold tabular ${
+                      b.netCents > 0 ? 'text-success' : b.netCents < 0 ? 'text-on-surface' : 'text-on-surface-faint'
+                    }`}
+                  >
+                    {b.netCents > 0
+                      ? t('group_split.gets_back', { amount: formatMoney(b.netCents, event.currency) })
+                      : b.netCents < 0
+                        ? t('group_split.owes', { amount: formatMoney(-b.netCents, event.currency) })
+                        : t('group_split.even')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showTransfers && transfers.length > 0 && (
+            <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2">
+              {transfers.map((tr, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm text-on-surface">
+                  <span className="font-medium truncate">{tr.fromName}</span>
+                  <Icon name="arrow_forward" size={16} className="text-on-surface-faint shrink-0" />
+                  <span className="font-medium truncate">{tr.toName}</span>
+                  <span className="ml-auto font-bold tabular shrink-0">{formatMoney(tr.amountCents, event.currency)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Lifecycle actions */}
       <div className="flex flex-col gap-2 pt-2">

@@ -1,8 +1,8 @@
 {
-  "version": "1.1.9-rc",
+  "version": "1.2.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.9-rc.zip",
-  "notes": "O copiloto agora explica quando estar \"acima do ritmo\" convive com um cofrinho cheio — uma coisa não anula a outra (as contas não mudaram). A tela de backup ficou mais honesta: \"Salvar no aparelho\" agora diz Downloads (não \"Documentos\"), os botões deixaram o jargão \"JSON\", as ações foram agrupadas em enviar e importar, e o tutorial (?) foi atualizado para os botões atuais."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.0-rc.zip",
+  "notes": "A divisão em grupo ficou mais clara: a tela abre pelas Despesas (o principal), \"Saldos\" virou \"Pagamentos\" e tanto os pagamentos quanto o \"quem paga quem\" agora ficam atrás de botões. Ao adicionar pessoas, o teclado continua aberto e o foco já volta para o próximo nome. O convite do grupo agora mostra um QR Code além do link. E o botão Voltar não entra mais em loop entre a lista de grupos e o grupo."
 }

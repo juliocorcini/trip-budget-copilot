@@ -1,5 +1,45 @@
 # Dev Log — TripPilot Implementation
 
+## Grupos, Sincronia & Nuvem wave (2026-06-25) — base 1.1.9-rc → 1.3.0-rc — 🟢 ACTIVE (G0→G7)
+
+> Execution truth: `brain/documents/2026-06-25-groups-sync-cloud-orchestrator.md` (gates G0→G7, change-set **A01–A14/B01/C01–C04/D01–D06**, decisions **DEC-335→347** PROPOSED at G0 → APPROVED per shipping gate; all §16 forks **L1–L8 LOCKED by Julio 2026-06-25**). Three goals: (1) group split feels like a real shared ledger (Expenses-first IA, date+registrant, item-pick capture, everyone contributes), (2) connections become **two-way + live** (mailbox `connect` handshake + drain-on-open/focus + signal-DO peer-ping; live debt/payment with accept-first + notification), (3) shared images get a **cloud home** (R2, **E2E-encrypted**, mirroring the proven FestPilot DEC-059 pattern). **No money-math change in G1–G4 (data-invariance ÂNCORA).** Single continuous session, deploy per gate; G5–G7 also `wrangler deploy`. Most recent gate entry first.
+
+### CURRENT STATE
+- **Active gate**: **G1 ✅ shipped `1.2.0-rc`** — group-split IA (Expenses-first, Pagamentos/Quem-paga behind buttons, "Saldos"→"Pagamentos") + nav-loop fix + add-person focus-advance + invite link+QR. Next: **G2** (`1.2.1-rc`).
+- **Last commit**: G1 `1.2.0-rc` (see entry below); baseline pre-wave was `c37a700` (1.1.9-rc).
+- **Tests**: **2336 pass / 2338 collected** (245 files; the 2 failures are the documented WebCrypto `split-live-loop` cases — `crypto.subtle` needs Node 22, unavailable in this Node 18.17.0 sandbox; pass in CI) — **= baseline, data-invariance held**. `tsc --noEmit` clean · `build` green (`index` **410.17 KB** < 500 KB). Playwright E2E cannot load its ESM config under Node 18.17.0 (needs ≥18.19) — **E2E authored per gate, CI-verified**.
+- **Risks**: G5–G7 touch the Worker (R2 binding + new routes + signal ping) → need `wrangler deploy`; honest-sync-state + data-invariance are the regression vectors.
+- **Scope**: G1–G3 UX-only (no backend), G4 owner-as-reducer, G5 R2 images, G6 two-way connect + settle IA, G7 live debt/payment.
+
+### Deploy pipeline (this wave)
+- Bump `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release note pt/en/es) → `G=/usr/bin/git; "$G" commit -m "…"` + push `master` → **Cloudflare Pages auto-build** (`build:pages` → `dist/` + `bundles/<v>.zip` OTA). **G5–G7 additionally `wrangler deploy`** (Worker: R2 binding, `/img` routes, peer-ping). Verify `/version.json` + `/bundles/<v>.zip` (+ `/img` after G5).
+- **Git note (WSL)**: the Shell harness injects `--trailer` into `git commit` (sandbox git 2.25.1 rejects it). **Bypass:** `G=/usr/bin/git; "$G" commit -m "…"`. Always `git --no-pager …`; never open a pager/editor.
+
+### Gate checklist (Grupos, Sincronia & Nuvem)
+- [x] **G0** — baseline green (2336/2338) + dev-log seeded + DEC-335→347 PROPOSED + pipeline confirmed + §16 L1–L8 LOCKED.
+- [x] **G1** `1.2.0-rc` — nav loop (B01) + detail IA Expenses-first/Pagamentos+Quem-paga buttons/rename (A03/A04) + focus-advance (A02) + invite link+QR (A06). [L1+L2] · DEC-335/339/341 APPROVED, DEC-338 focus part APPROVED.
+- [ ] **G2** `1.2.1-rc` — expense date+registrant+day-group (A09/A11/A12) + item-selection capture + bigger fonts + item view (A07/A08/A10). [L1]
+- [ ] **G3** `1.2.2-rc` — create group with inline people (A01). [L2]
+- [ ] **G4** `1.2.3-rc` — everyone contributes owner-as-reducer (A05) + guest "baixe o app" CTA (A14). [L4]
+- [ ] **G5** `1.2.4-rc` — R2 E2E images (C01–C04, mirror FestPilot DEC-059). [L5] · `wrangler deploy`
+- [ ] **G6** `1.2.5-rc` — two-way connect handshake (D01/D02) + settle-up IA (D05/D06). [L6+L3] · `wrangler deploy`
+- [ ] **G7** `1.3.0-rc` — live debt/payment + notifications + accept + peer-ping (D03/D04/D07). [L7+L8] · `wrangler deploy`
+
+### G0 — Setup, baseline & brain seed (done 2026-06-25)
+- **Env**: Node v18.17.0 / npm 9.6.7 (the EBADENGINE warnings for undici/wrangler are expected in this sandbox; CI runs Node 22). `npm install` up to date. `git` at `/usr/bin/git` (commit bypass confirmed). Project root = `TripPilot/`.
+- **Baseline**: unit **2336 pass / 2338** (the 2 documented WebCrypto `split-live-loop` fails) · `tsc --noEmit` clean · `npm run build` green (`index` 410.16 KB < 500 KB).
+- **Brain**: DEC-335→347 present in `decision-log.md` as **PROPOSED**; orchestrator at `brain/documents/2026-06-25-groups-sync-cloud-orchestrator.md`; all §16 forks **L1–L8 LOCKED by Julio**.
+
+### G1 — Group-split IA + nav loop (done 2026-06-25) → `1.2.0-rc`
+- **B01 · DEC-341 · the groups↔detail back loop is gone.** Root cause confirmed: `GroupSplitDetailPage.tsx` in-page back called `navigate('/groups')` (a **push** → a 2nd list entry), while `GroupSplitListPage.tsx:68` back is `navigate(-1)` (a **pop** → back into the detail) = ping-pong. Fix: the detail header back is now `navigate(-1)` (pop to the real parent); the two **structural** navigations — not-found "back to list" and post-delete — use `navigate('/groups', { replace: true })` (replace, never stack a duplicate). The list-page back is unchanged.
+- **A03/A04 · DEC-335 · Expenses lead; the math hides behind buttons; "Saldos" is gone.** Reordered the detail: total/people card → **Expenses (primary, first titled section, shown even when empty with its add affordance)** → People → a new **Pagamentos / Quem paga quem** band of toggle buttons (only when `expenses.length > 0`). The balances panel and the transfers panel each render only when their button is tapped (`showBalances`/`showTransfers` state). Renamed the label **"Saldos" → "Pagamentos"** (`balances_title`: pt `Pagamentos`, en `Payments`, es `Pagos`); the transfers button reuses `transfers_title` ("Quem paga quem"). **No math touched** — `computeGroupBalances`/`computeGroupTransfers`/`groupTotalCents` are byte-identical; only render order + visibility + a label string changed (data-invariance ÂNCORA).
+- **A02 · DEC-338 (focus part) · adding a person keeps the keyboard.** Added a `newPersonRef` to the detail "People" input; `handleAddPerson` refocuses it after `setNewPerson('')` (the button tap blurs it otherwise). The create-form + `/shared` focus-advance land with their own gates (G3 creation / G6 settle-IA rework).
+- **A06 · DEC-339 · invite = link + QR.** When a group is shared (`creds` set), the share card now renders a `QrCodeDisplay` of the `/g/` link + a "scan to join" hint above the copyable link (reuses the existing component; `scan_to_join` added pt/en/es).
+- **Tests (+ extended):** new `e2e/groups-sync-g1.spec.ts` (CI) — the back-from-group journey does not loop (lands on `/groups`, a further back leaves the groups area); Expenses heading is present and "Saldos" is absent; add-person keeps the field focused + cleared. Group-split domain suite green (26) — unchanged math. **Self-check:** data-invariance held (balances/transfers/total identical — group-split unit tests pass); expense logging never blocked (the Expenses add affordance only moved up); no Worker touched (ciphertext rule N/A but intact); nothing deleted (Â9 — balances/transfers moved behind buttons, not removed).
+- **Gate close (G1):** full unit suite **2336 pass / 2338** (only the 2 WebCrypto `split-live-loop` baseline — **= baseline, 0 new failures**) · `npx tsc --noEmit` clean · `npm run build` green (`index` 410.17 KB < 500 KB). Bump 1.1.9-rc→**1.2.0-rc** (package.json + app-version.ts + public/version.json `bundleUrl`→`1.2.0-rc.zip` + release note pt/en/es). Brain: DEC-335 + DEC-339 + DEC-341 → APPROVED; DEC-338 focus-advance part APPROVED (inline-creation part stays PROPOSED for G3). **Deploy:** commit + push `master` → Cloudflare Pages auto-build.
+
+---
+
 ## Field Fixes & Clarity #2 wave (2026-06-25) — base 1.1.3-rc → 1.1.9-rc per gate — ✅ COMPLETE (G0→G6)
 
 > Execution truth: `brain/documents/2026-06-25-field-fixes-clarity-2-orchestrator.md` (gates G0→G6, change-set **E01→E13**, decisions **DEC-321→333** PROPOSED at G0 → APPROVED per gate). Julio's third review wave (field test of 1.1.3-rc): real bugs (phase-fund creation pollutes the Home with a phantom Event; off-phase funds not selectable; dead AI button; comparator photos dead; scrollbar back) + honest clarity (cofrinho covers a negative day; pace × plan × piggy; backup folder/jargon; stale coach-marks) + small UX wins. **No math change (ÂNCORA 11).** Single continuous session, deploy per gate. Most recent gate entry first.

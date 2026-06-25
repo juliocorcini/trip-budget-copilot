@@ -2640,7 +2640,7 @@
     "person_in_use": "Esta pessoa está em uma despesa — remova-a da despesa primeiro.",
     "total_label": "Total do grupo",
     "people_label": "Pessoas",
-    "balances_title": "Saldos",
+    "balances_title": "Pagamentos",
     "gets_back": "recebe {{amount}}",
     "owes": "deve {{amount}}",
     "even": "quitado",
@@ -2696,7 +2696,8 @@
     "confirm_receipt": "Confirmar",
     "mark_received": "Marcar recebido",
     "add_from_trip": "Adicionar da viagem",
-    "trip_settle_note": "Pagamentos confirmados aqui entram no acerto da viagem."
+    "trip_settle_note": "Pagamentos confirmados aqui entram no acerto da viagem.",
+    "scan_to_join": "Aponte a câmera para entrar no grupo"
   },
   "group_claim": {
     "kicker": "Divisão em grupo",

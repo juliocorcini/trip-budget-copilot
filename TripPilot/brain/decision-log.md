@@ -1,6 +1,6 @@
 # TripPilot — Decision Log
 
-> Last updated: 2026-06-24 (UI/UX pass: DEC-285/286/287 APPROVED via G1 ship 0.99.51; DEC-288 APPROVED via G2 ship 0.99.52; DEC-290 APPROVED via G3 ship 0.99.53; DEC-289/293 APPROVED via G4 ship 0.99.54; DEC-291/292 APPROVED via G5 ship 0.99.55; G6 shipped 0.99.56 (M13/M22/M21/M24/M25 — P3 polish, no new DECs); DEC-294 APPROVED via G7 ship 0.99.57 — the FAZER batch is complete; see the entries at the end; orchestrator `documents/2026-06-24-ui-ux-implementation-orchestrator.md`. Prior 2026-06-22: Field Feedback batch DEC-256→279 recorded — see the 2026-06-22 note at the end of this paragraph. Prior 2026-06-17: Device-Test Force-Task shipped: DEC-217 Ondas 1–4 web/OTA bug-fix + UX batch + 4C close-out, v0.71.0 → v0.75.0, 1299 tests / 144 files. DEC-218 native biometric (D-DEC-C) + Onda 5 sync/device batch — APPROVED but device-pending (needs Julio's physical device(s)). Prior: DEC-216 E2E-in-CI (B15) + FundsPage atomic pool-creation (B13), v0.70.0. DEC-215 native batch B1+B2+B3, APK 0.69.0 built but NOT promoted — device session pending. NOTE: the numbers DEC-185–199 and DEC-201 were never written — see the reconciliation block between DEC-184 and DEC-200. Next new id = DEC-240. — 2026-06-18: DEC-219→234 budget-model + UX-clarity packages shipped; DEC-235 = Device Test 2026-06-18 GATE 15; DEC-236 = Device Test 2026-06-18 GATE 16 (Amigo Sincero deep redesign); DEC-237 = Device Test 2026-06-18 GATE 17 (Home occasion carousel opens on the planned metas — planned-first kept, scroll-snap dropped to stop Chromium's involuntary re-snap); DEC-239 = Device Test 2026-06-18 GATE 19 (daily-detail explainers: free/day base+peak source + spent/day per-category breakdown, v0.95.0); DEC-238 = Device Test 2026-06-18 GATE 18 (FAB rebalanced — planning promoted to visible chips, "Registrar mercado" demoted into "Outros registros"). — 2026-06-19: DEC-240 = Bill Split "saída de bar" hardening batch (full who-got-what history by person/item + "O que é meu" hero + persistent live-split notification + pass-the-phone round-the-table mode, v0.99.4). DEC-241 = Debt ("está me devendo") + bill-split UX deep-dive batch — born-confirmed debts from the owner's ledger for non-connected people + "Acerto de contas" hub redesign + remind/cobrar (v0.99.5→v0.99.7); see `documents/debt-and-split-ux-deep-dive-and-plan-2026-06-19.md`. Next new id = DEC-242. — 2026-06-20: DEC-242→245 shipped/researched (244 = G4 payment methods v0.99.9; 245 = ranked backlog, A1 Wise split explainer shipped v0.99.11). DEC-246 = AI Quick Entry — natural-language router (text + voice) wired to every core action, planner(cloud, Groq JSON)/executor(device) split + Whisper STT, privacy names-only, v0.99.12 — **SHIPPED + deployed** (Pages OTA + Worker `/assistant`+`/transcribe` live, reusing the existing `GROQ_API_KEY`; live probe "o Bruno me pagou uma cerveja de 2 euros" → `someone_paid`/Bruno/€2/i_owe, 200); see `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md`. DEC-247 = Copilot "Trip Wrapped" end-of-trip retrospective, v0.99.13 **SHIPPED** (pure `buildTripWrapped` reusing copilot-insights + `TripWrappedSheet`, data-gated, mid-trip preview, reuses the DEC-133 share card). — 2026-06-21: DEC-248→255 = Admin dashboard v1/v2 (telemetry, AI tokens server-authoritative, error capture, per-user detail, DAU) + multi-trip switcher (DEC-249) + "Dia a dia" ongoing mode (DEC-250) + onboarding identity (DEC-252) + real-OS platform telemetry (DEC-253) + new app icon (DEC-255); see `documents/multi-space-and-admin-v2-study-2026-06-21.md` + `admin-dashboard-v1-plan-2026-06-21.md`. — 2026-06-22: **DEC-256→278 = Field Feedback batch** (direction APPROVED/ratified, implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, **cofrinho-as-buffer**, carousel=1-occasion, outing setup trim+discard, Amigo Sincero phrase bank+voices, **location default ON** (ÂNCORA 8 amendment), auto device name, event delete asks about expenses, admin tokens-per-fn + **Groq governance** + 00000000 investigation + PWA/browser telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write guards, **single image chooser**, **graceful AI degradation**, **record repayment**, **in-app AI help V1**, and **cofrinho legibility — voice + statement/ledger + movement insight (DEC-279, council C14; Model A vs B pending Julio)**; see `documents/field-feedback-master-plan-and-councils-2026-06-22.md`. Next new id (pre-batch pointer) = DEC-280; **the UI/UX pass 2026-06-24 consumed DEC-285→294** (PROPOSED), so the next genuinely free id = **DEC-295**.)
+> Last updated: 2026-06-24 (UI/UX pass: DEC-285/286/287 APPROVED via G1 ship 0.99.51; DEC-288 APPROVED via G2 ship 0.99.52; DEC-290 APPROVED via G3 ship 0.99.53; DEC-289/293 APPROVED via G4 ship 0.99.54; DEC-291/292 APPROVED via G5 ship 0.99.55; G6 shipped 0.99.56 (M13/M22/M21/M24/M25 — P3 polish, no new DECs); DEC-294 APPROVED via G7 ship 0.99.57 — the FAZER batch is complete; see the entries at the end; orchestrator `documents/2026-06-24-ui-ux-implementation-orchestrator.md`. Prior 2026-06-22: Field Feedback batch DEC-256→279 recorded — see the 2026-06-22 note at the end of this paragraph. Prior 2026-06-17: Device-Test Force-Task shipped: DEC-217 Ondas 1–4 web/OTA bug-fix + UX batch + 4C close-out, v0.71.0 → v0.75.0, 1299 tests / 144 files. DEC-218 native biometric (D-DEC-C) + Onda 5 sync/device batch — APPROVED but device-pending (needs Julio's physical device(s)). Prior: DEC-216 E2E-in-CI (B15) + FundsPage atomic pool-creation (B13), v0.70.0. DEC-215 native batch B1+B2+B3, APK 0.69.0 built but NOT promoted — device session pending. NOTE: the numbers DEC-185–199 and DEC-201 were never written — see the reconciliation block between DEC-184 and DEC-200. Next new id = DEC-240. — 2026-06-18: DEC-219→234 budget-model + UX-clarity packages shipped; DEC-235 = Device Test 2026-06-18 GATE 15; DEC-236 = Device Test 2026-06-18 GATE 16 (Amigo Sincero deep redesign); DEC-237 = Device Test 2026-06-18 GATE 17 (Home occasion carousel opens on the planned metas — planned-first kept, scroll-snap dropped to stop Chromium's involuntary re-snap); DEC-239 = Device Test 2026-06-18 GATE 19 (daily-detail explainers: free/day base+peak source + spent/day per-category breakdown, v0.95.0); DEC-238 = Device Test 2026-06-18 GATE 18 (FAB rebalanced — planning promoted to visible chips, "Registrar mercado" demoted into "Outros registros"). — 2026-06-19: DEC-240 = Bill Split "saída de bar" hardening batch (full who-got-what history by person/item + "O que é meu" hero + persistent live-split notification + pass-the-phone round-the-table mode, v0.99.4). DEC-241 = Debt ("está me devendo") + bill-split UX deep-dive batch — born-confirmed debts from the owner's ledger for non-connected people + "Acerto de contas" hub redesign + remind/cobrar (v0.99.5→v0.99.7); see `documents/debt-and-split-ux-deep-dive-and-plan-2026-06-19.md`. Next new id = DEC-242. — 2026-06-20: DEC-242→245 shipped/researched (244 = G4 payment methods v0.99.9; 245 = ranked backlog, A1 Wise split explainer shipped v0.99.11). DEC-246 = AI Quick Entry — natural-language router (text + voice) wired to every core action, planner(cloud, Groq JSON)/executor(device) split + Whisper STT, privacy names-only, v0.99.12 — **SHIPPED + deployed** (Pages OTA + Worker `/assistant`+`/transcribe` live, reusing the existing `GROQ_API_KEY`; live probe "o Bruno me pagou uma cerveja de 2 euros" → `someone_paid`/Bruno/€2/i_owe, 200); see `documents/ai-quick-entry-natural-language-router-plan-2026-06-20.md`. DEC-247 = Copilot "Trip Wrapped" end-of-trip retrospective, v0.99.13 **SHIPPED** (pure `buildTripWrapped` reusing copilot-insights + `TripWrappedSheet`, data-gated, mid-trip preview, reuses the DEC-133 share card). — 2026-06-21: DEC-248→255 = Admin dashboard v1/v2 (telemetry, AI tokens server-authoritative, error capture, per-user detail, DAU) + multi-trip switcher (DEC-249) + "Dia a dia" ongoing mode (DEC-250) + onboarding identity (DEC-252) + real-OS platform telemetry (DEC-253) + new app icon (DEC-255); see `documents/multi-space-and-admin-v2-study-2026-06-21.md` + `admin-dashboard-v1-plan-2026-06-21.md`. — 2026-06-22: **DEC-256→278 = Field Feedback batch** (direction APPROVED/ratified, implementation pending): converter+AI FX intent, capture stitching, AI-receipt field parity, inline add-participant, FAB↔back, **cofrinho-as-buffer**, carousel=1-occasion, outing setup trim+discard, Amigo Sincero phrase bank+voices, **location default ON** (ÂNCORA 8 amendment), auto device name, event delete asks about expenses, admin tokens-per-fn + **Groq governance** + 00000000 investigation + PWA/browser telemetry + errors-in-detail + centered modal, release-notes/guide refresh, planner-no-write guards, **single image chooser**, **graceful AI degradation**, **record repayment**, **in-app AI help V1**, and **cofrinho legibility — voice + statement/ledger + movement insight (DEC-279, council C14; Model A vs B pending Julio)**; see `documents/field-feedback-master-plan-and-councils-2026-06-22.md`. Next new id (pre-batch pointer) = DEC-280; **the UI/UX pass 2026-06-24 consumed DEC-285→294** (PROPOSED), so the next genuinely free id = **DEC-295**.) — 2026-06-25: Field Fixes & Clarity #2 shipped DEC-330→333; **DEC-334** ratified the inline-orchestrator method as our standard. **2026-06-25: the "Grupos, Sincronia & Nuvem" wave reserved DEC-335→347 (PROPOSED, ⏳ AWAITING LOCK)** — group-split UX + two-way live sync + R2 E2E images; see `documents/2026-06-25-groups-sync-cloud-orchestrator.md`. **Next genuinely free id = DEC-348.**
 
 ## Format
 
@@ -2450,6 +2450,167 @@
 - **Refines**: complements `phase-planner` (greenfield phasing) and `phase-delivery` (folders for an
   external dev) — the orchestrator is for an **in-session agent applying a batch of changes to an
   already-shipped app**.
+
+---
+
+## Wave — Grupos, Sincronia & Nuvem (2026-06-25, DEC-335→347, PROPOSED · ✅ LOCKED by Julio 2026-06-25)
+
+> Orchestrator: `documents/2026-06-25-groups-sync-cloud-orchestrator.md` (✅ **ACTIVE — §16 L1–L8 LOCKED**).
+> Group-split UX + two-way live sync + R2 E2E images. Versions `1.2.0-rc → 1.2.5-rc`, headline
+> `1.3.0-rc` at G7. **Status PROPOSED → APPROVED by the gate that ships each** (the §16 *lock* is in; the
+> per-DEC *APPROVED* still happens at ship). **Lock notes:** L1 → "Saldos"=**Pagamentos**; L4 →
+> **owner-as-reducer**; L5 → **E2E R2, ≤2 MB/image, reusing FestPilot DEC-059**; L7 → **accept-first**;
+> **L8 OVERRIDE → a confirmed payment ALWAYS credits a chosen fund (DEC-346 rewritten below).**
+> Next free id after = **DEC-348**.
+
+### DEC-335 — Group-split detail information architecture: Expenses-first
+- **Date**: 2026-06-25 · **Status**: APPROVED (G1, shipped 1.2.0-rc).
+- **Decision**: the group detail screen leads with the **total/people card → Expenses (primary) →
+  People**, and moves **balances and the min-transfer list ("quem paga quem") behind buttons**. Rename
+  the **"Saldos"** label to **"Pagamentos"**. (P2 sub-note: a settle-method option at creation — "cada
+  um paga cada um" vs the current greedy consolidation — default = current.)
+- **Rationale**: Julio: "despesas é o principal; saldos/quem-paga atrás de botões; 'Saldos' é palavra
+  difícil." Exposure/IA only — no math change (data-invariance ÂNCORA).
+- **Alternatives**: keep balances-first (rejected: contradicts the primary intent of adding expenses).
+
+### DEC-336 — Group expense gains date + registrant
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G2).
+- **Decision**: `GroupExpense` gets optional, **additive, non-indexed** `occurredAt` (when the expense
+  happened) and `createdByParticipantId` (who registered it, distinct from the payer). Rows show the
+  date + "registrado por {name}"; lists **group by day** when dates differ.
+- **Rationale**: Julio: "falta quando foi o gasto; e quem cadastrou, não só quem pagou." Additive fields
+  avoid a Dexie version bump.
+- **Alternatives**: a full date-indexed model (rejected: no query need; keep it additive).
+
+### DEC-337 — Group expense capture: "nota completa | selecionar itens"
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G2).
+- **Decision**: the group expense editor offers **whole-bill (default)** OR **item-selection**, reusing
+  the `SplitPage` scan→items→pick primitives; payer + "dividir entre" with a live preview; **larger name
+  fonts**; an expense detail view exposes its items/value.
+- **Rationale**: "não é porque escaneei a nota que tudo é dividido — quero escolher itens (como na outra
+  divisão); nomes muito pequenos; quero abrir a despesa e ver itens."
+- **Alternatives**: keep whole-bill-only prefill (rejected: loses the richer flow we already have).
+
+### DEC-338 — Inline participants at group creation + focus-advance add
+- **Date**: 2026-06-25 · **Status**: PARTIAL — focus-advance **APPROVED** (G1, 1.2.0-rc, group detail); inline-creation part **PROPOSED** (G3).
+- **Decision**: the create-group form lets you **add people inline**; everywhere we add a participant
+  (create form, detail "People", `/shared`), after adding the **keyboard stays open and focus returns to
+  an empty field**. Implements DEC-259.
+- **Rationale**: "ao criar já adiciono as pessoas, simples — clico adicionar e o foco já vai pra próxima
+  linha." Current code blurs the input on button tap.
+- **Alternatives**: add people only after creation (rejected: extra steps for the common case).
+
+### DEC-339 — Group invite = link + QR
+- **Date**: 2026-06-25 · **Status**: APPROVED (G1, shipped 1.2.0-rc).
+- **Decision**: after publishing a group's `/g/` board, show **both** a shareable link **and** a
+  scannable **QR** (reuse `QrCodeDisplay`).
+- **Rationale**: "tem que ter a opção de QR Code também, não só link."
+- **Alternatives**: link-only (rejected).
+
+### DEC-340 — Everyone contributes via owner-as-reducer (no login) [Council C1]
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Decision**: any group member/guest (no account) can **author their own expenses**; the **owner
+  device stays the single money authority** and folds guest-authored expenses **idempotently** via an
+  extended `GroupClaimResponse` carrying **client-stable expense ids**; non-folded items read
+  **pending**; only the author or owner may remove an authored expense (hide-never-delete). Identity =
+  device actorId + chosen name; **login stays out of V1**.
+- **Rationale**: Julio: "o grupo é de todo mundo — cada um adiciona seus gastos, sem criar conta."
+  Owner-as-reducer reuses the proven `reduceGroupClaims` loop and avoids a new consistency model for
+  integer-cents truth. Council C1 (Architect/Advocate/Critic + red team).
+- **Alternatives**: multi-writer/CRDT (rejected V1: high risk on money truth, weeks of work — deferred
+  V2, DEC-108 lineage); require-app-to-contribute (rejected: breaks the no-app guest promise).
+
+### DEC-341 — Navigation: group back-stack fix
+- **Date**: 2026-06-25 · **Status**: APPROVED (G1, shipped 1.2.0-rc).
+- **Decision**: the in-page **back** on the group detail uses `navigate(-1)` (pop), not
+  `navigate('/groups')` (push); structural navigations (not-found, post-delete) use `{ replace: true }`.
+- **Rationale**: the loop is detail-back **pushing** a 2nd `/groups` while list-back **pops** to detail
+  → ping-pong (`GroupSplitDetailPage.tsx:243` vs `GroupSplitListPage.tsx:68`).
+- **Alternatives**: a custom history guard (rejected: the standard pop fixes it).
+
+### DEC-342 — Cloud images on R2 are E2E-encrypted [Council C2]
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Decision**: shared/group images live on **Cloudflare R2 as opaque, client-side AES-encrypted bytes**
+  with a TTL; the per-image AES key rides **inside the already-E2E share `#fragment` / sealed mailbox
+  payload** — never the Worker. Images are **compressed before encryption**; **size/count caps** apply
+  (≤~2 MB/image, ≤N per share). The Worker exposes `PUT/GET/DELETE /img/:id` and only ever stores
+  ciphertext (extends DEC-206/207).
+- **Rationale**: "ativei o R2; gastos compartilhados sobem a imagem pra nuvem pros outros verem/baixarem"
+  — but the Worker must stay a dumb ciphertext store (DEC-207) and receipts are private (names/totals).
+  Council C2 (Architect/Critic/Strategist + red team).
+- **Reuse (verified 2026-06-25)**: mirror the **proven FestPilot `DEC-059` R2 media pattern**
+  (`../festival-copilot/FestPilot/server/src/media/store.ts` thin adapter + pure `checkMediaQuota`;
+  `src/api/media.ts` routes; `src/index.ts GET /media/*` serve; `wrangler.toml [[r2_buckets]]`; client
+  `web/src/ui/imageCompress.ts`). **TripPilot divergences:** store **ciphertext** (`application/octet-stream`,
+  real mime inside the encrypted payload), **anon write guard + TTL** like `/share` (no Firebase), **no D1
+  ledger in V1** (per-object cap + TTL + ~$1 dashboard budget alert; count/byte ledger = V2). Reuse our own
+  `utils/image/compress.ts` for the client compress step.
+- **Alternatives**: plaintext behind an unguessable URL (rejected: privacy breach, contradicts DEC-207);
+  device-local only over P2P (rejected: can't serve a no-app `/g/` web guest).
+
+### DEC-343 — Shared/group/bill-split images upload + galleries
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G5) · depends on DEC-342.
+- **Decision**: a **private** expense's image stays device-local (DEC-206 unchanged); when an expense
+  becomes **shared** (shared expense, group expense, or live bill-split), its image **ascends to R2**
+  (per DEC-342) and is **viewable + downloadable** by the other party / group members / the `/g/` guest.
+  Surfaces: a group **images gallery**, the `/g/` board, and the bill-split viewers carry the dividing
+  photo. Payloads store `{ r2Id, keyRef, mime, w, h }`, not bytes.
+- **Rationale**: "é direito do outro ter a foto da divisão; ele pode baixar." Lazy download+decrypt keeps
+  it cheap.
+- **Alternatives**: embed bytes in the event JSON (rejected: bloats the encrypted board/backup).
+
+### DEC-344 — Two-way connection handshake + live-on-open/ping transport [Council C3]
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Decision**: pairing becomes **bidirectional** — on pair (QR/link), the device **seals a `connect`
+  envelope** to the peer (carrying its identity + pubkey, authenticated by the scanned pubkey + sealed
+  sender) so the peer **upserts the reverse `peerLink`** automatically; both then appear on each other's
+  phones. After connecting **once**, all sync rides the **mailbox**, drained **on open + on focus**, with
+  a lightweight **signal-DO peer-ping** for "feels instant" (G7). QR is **connect + backup only**, never
+  a repeated sync step (N2). A per-pair always-on Durable Object room is the **deferred V2 upgrade**.
+- **Rationale**: Julio: "conexão tem que ser mão dupla e automática; depois de conectar, tudo por
+  WebSocket, sem QR de novo." Reuses identity QR + the E2E mailbox + the signal DO. Council C3
+  (Architect/Advocate/Critic + red team). "Live" for a budget app = updated within seconds while open,
+  not 24/7 push (no accounts/APNs in V1).
+- **Alternatives**: per-pair DO room (deferred V2: cost/presence); kept-open WebRTC (rejected: flaky on
+  mobile/background — Julio's own pain).
+
+### DEC-345 — Inbound shared debt/expense is accept-first [Council C4]
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G7).
+- **Decision**: a sealed `debt`/`expense` envelope creates a **pending** shared item + a **notification**
+  ("{name} shared a debt of X — accept?"); a **one-tap accept** folds it in and **reciprocally notifies**
+  the sender; a **reject** also informs the sender (so totals never silently lie). An optional
+  per-connection **"auto-accept from {name}"** toggle may come later (opt-in).
+- **Rationale**: Julio: "chega notificação 'você aceita essa dívida?' e aí entra nos gastos." Accept-first
+  prevents debt-injection and matches N4 (pending-until-accepted). Council C4 Q1.
+- **Alternatives**: born-confirmed (rejected: spam/abuse risk, contradicts honest-state).
+
+### DEC-346 — Payment settlement closes the obligation AND always credits a fund [Council C4 · L8 OVERRIDE]
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G7) · **LOCKED by Julio 2026-06-25 (overrides the council's ledger-neutral default).**
+- **Decision**: a `payment` envelope marks the obligation **confirmed/paid on both sides** (lifecycle
+  pending→confirmed→paid, **never red**). **On confirmation the receiver is ALWAYS prompted to credit the
+  received cash to a chosen fund/wallet** — a **real inflow** (the debtor returned money the receiver had
+  fronted per the payer-semantics truth table, DEC-114), reusing the **funds** engine; the **debts** engine
+  closes the obligation. This is **not** a phantom and **not** a duplicate of the original expense. The
+  trip **settle-bridge (DEC-306) stays read-only/ledger-neutral** — this credit is the distinct **P2P
+  shared-debt** flow.
+- **Rationale**: Julio: "está pago, está certo. Aonde que entrou esse dinheiro? Em qual fundo entrou?" The
+  money genuinely arrives, so it must land somewhere honest — always asking keeps the ledger truthful.
+  Council C4 Q2 (the council leaned ledger-neutral; Julio overrode to always-credit).
+- **Alternatives**: optional/ledger-neutral default (the council rec — overridden); auto-pick a fund
+  without asking (rejected: the user wants to choose; a remembered "always this fund for {name}" default
+  is the future one-tap shortcut).
+
+### DEC-347 — Settle-up "Acerto de contas" IA + QR roles [Council C5]
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Decision**: re-compose `/shared` so the **header band** carries **"sobre mim"** + a **fixed "Meu QR"
+  action (top-right)** + **"Adicionar pessoa"**, with **Conexões surfaced** right below; the debt list
+  stays the body. The QR **device-transfer** (`/sync`) is relabeled **"backup de aparelho"** and clearly
+  separated from "conectar amigo". Ships **together with DEC-344** so two-way actually works (fixes the
+  scan-asymmetry confusion).
+- **Rationale**: Julio: "Meu QR fixo em cima à direita; adicionar pessoa no topo; conexões não no fim; e
+  o 'receber de outro aparelho' é backup, não conexão." Re-layout of existing pieces, no new data.
+  Council C5 (Advocate/Architect/Critic + red team).
+- **Alternatives**: QR behind a sheet (rejected: the user wants one-tap, always-visible access).
 
 ---
 

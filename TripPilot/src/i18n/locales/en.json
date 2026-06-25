@@ -2636,7 +2636,7 @@
     "person_in_use": "This person is in an expense — remove them from it first.",
     "total_label": "Group total",
     "people_label": "People",
-    "balances_title": "Balances",
+    "balances_title": "Payments",
     "gets_back": "gets {{amount}}",
     "owes": "owes {{amount}}",
     "even": "settled",
@@ -2692,7 +2692,8 @@
     "confirm_receipt": "Confirm",
     "mark_received": "Mark received",
     "add_from_trip": "Add from trip",
-    "trip_settle_note": "Payments confirmed here flow into the trip settle-up."
+    "trip_settle_note": "Payments confirmed here flow into the trip settle-up.",
+    "scan_to_join": "Point the camera to join the group"
   },
   "group_claim": {
     "kicker": "Group split",

@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.2.0-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'A divisão em grupo ficou mais clara: a tela agora abre pelas Despesas (o principal). Os saldos e o "quem paga quem" ficam atrás de botões, para não atrapalhar.',
+        '"Saldos" virou "Pagamentos" — uma palavra mais fácil.',
+        'Ao adicionar pessoas no grupo, o teclado continua aberto e o foco já volta para o próximo nome — dá para cadastrar várias pessoas em sequência.',
+        'O convite do grupo agora mostra um QR Code além do link: a pessoa aponta a câmera e entra.',
+        'O botão Voltar não entra mais em loop entre a lista de grupos e o grupo.',
+      ],
+      en: [
+        'Group split is clearer: the screen now opens with Expenses (the main thing). Balances and "who pays whom" sit behind buttons so they stay out of the way.',
+        '"Balances" became "Payments" — an easier word.',
+        'When you add people to a group, the keyboard stays open and focus returns to the next name — so you can add several people in a row.',
+        'The group invite now shows a QR code as well as the link: point the camera and join.',
+        'The Back button no longer loops between the groups list and a group.',
+      ],
+      es: [
+        'La división en grupo es más clara: la pantalla ahora abre con los Gastos (lo principal). Los saldos y el "quién paga a quién" quedan detrás de botones para no estorbar.',
+        '"Saldos" pasó a llamarse "Pagos" — una palabra más fácil.',
+        'Al agregar personas al grupo, el teclado sigue abierto y el foco vuelve al próximo nombre — puedes cargar varias personas seguidas.',
+        'La invitación del grupo ahora muestra un código QR además del enlace: apunta la cámara y entra.',
+        'El botón Atrás ya no entra en bucle entre la lista de grupos y un grupo.',
+      ],
+    },
+  },
+  {
     version: '1.1.9-rc',
     date: '2026-06-25',
     items: {
