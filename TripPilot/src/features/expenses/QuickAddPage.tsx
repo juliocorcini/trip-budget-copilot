@@ -212,8 +212,14 @@ export function QuickAddPage() {
   // selectable; auto-select happens only with exactly one operational pool.
   const availablePools = currentPhase
     ? getAvailablePoolsForPhase(pools, links, currentPhase.id)
-    : { operational: [], global: [], autoSelectedPoolId: null };
-  const selectablePools = [...availablePools.operational, ...availablePools.global];
+    : { operational: [], global: [], otherPhases: [], autoSelectedPoolId: null };
+  // E02 (DEC-322): off-phase funds are selectable too (rendered as a labelled
+  // secondary group), so a fund created for a future leg can receive a spend.
+  const selectablePools = [
+    ...availablePools.operational,
+    ...availablePools.global,
+    ...availablePools.otherPhases,
+  ];
   const effectivePoolId =
     poolId && selectablePools.some((p) => p.id === poolId)
       ? poolId
@@ -1007,6 +1013,34 @@ export function QuickAddPage() {
                     {pool.name}
                   </button>
                 ))}
+                {/* E02 (DEC-322): funds tied to another phase — selectable here,
+                    just out of the active-phase focus. Labelled so the user knows
+                    they belong to a different leg of the trip. */}
+                {availablePools.otherPhases.length > 0 && (
+                  <div className="w-full mt-1">
+                    <p className="text-[10px] text-on-surface-faint mb-1.5">
+                      {t('expenses.fund_other_phases')}
+                    </p>
+                    <div className="flex gap-2 flex-wrap">
+                      {availablePools.otherPhases.map((pool) => (
+                        <button
+                          key={pool.id}
+                          onClick={() => selectFund(pool.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1 ${
+                            effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                          }`}
+                        >
+                          <Icon
+                            name="schedule"
+                            size={12}
+                            className={effectivePoolId === pool.id ? 'text-on-surface' : 'text-on-surface-faint'}
+                          />
+                          {pool.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               {!effectivePoolId && (
                 <p className="text-[10px] text-on-surface-faint mt-2">{t('expenses.choose_pool_hint')}</p>

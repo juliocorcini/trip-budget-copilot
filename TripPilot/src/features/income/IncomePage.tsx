@@ -33,10 +33,13 @@ export function IncomePage() {
     () =>
       activePhase
         ? getAvailablePoolsForPhase(pools, links, activePhase.id)
-        : { operational: [], global: [], autoSelectedPoolId: null },
+        : { operational: [], global: [], otherPhases: [], autoSelectedPoolId: null },
     [pools, links, activePhase],
   );
-  const selectablePools = [...availablePools.operational, ...availablePools.global];
+  const primaryPools = [...availablePools.operational, ...availablePools.global];
+  // E02 (DEC-322): off-phase funds are selectable too (secondary group), so income
+  // can be registered into a fund that belongs to another leg of the trip.
+  const selectablePools = [...primaryPools, ...availablePools.otherPhases];
 
   const [amount, setAmount] = useState('');
   const [poolId, setPoolId] = useState<string | null>(null);
@@ -45,7 +48,9 @@ export function IncomePage() {
   const [customDate, setCustomDate] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const effectivePoolId = poolId ?? availablePools.autoSelectedPoolId ?? selectablePools[0]?.id ?? null;
+  // Default to a primary (active-phase/global) pool — an off-phase fund is never
+  // auto-selected, only chosen on purpose (DEC-322).
+  const effectivePoolId = poolId ?? availablePools.autoSelectedPoolId ?? primaryPools[0]?.id ?? null;
   const activeWallets = wallets.filter((w) => w.deletedAt === null);
 
   const parsedAmount = parseFloat(amount.replace(',', '.'));
@@ -137,7 +142,7 @@ export function IncomePage() {
           </div>
         ) : (
           <div className="flex gap-2 flex-wrap">
-            {selectablePools.map((pool) => (
+            {primaryPools.map((pool) => (
               <button
                 key={pool.id}
                 onClick={() => setPoolId(pool.id)}
@@ -155,6 +160,33 @@ export function IncomePage() {
                 {pool.name}
               </button>
             ))}
+            {/* E02 (DEC-322): funds from another phase — selectable, just out of
+                the active-phase focus. */}
+            {availablePools.otherPhases.length > 0 && (
+              <div className="w-full mt-1">
+                <p className="text-[10px] text-on-surface-faint mb-1.5">
+                  {t('expenses.fund_other_phases')}
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {availablePools.otherPhases.map((pool) => (
+                    <button
+                      key={pool.id}
+                      onClick={() => setPoolId(pool.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press flex items-center gap-1 ${
+                        effectivePoolId === pool.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      <Icon
+                        name="schedule"
+                        size={12}
+                        className={effectivePoolId === pool.id ? 'text-on-surface' : 'text-on-surface-faint'}
+                      />
+                      {pool.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

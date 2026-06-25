@@ -876,6 +876,7 @@
     "exchange_rate_frozen": "Tasa congelada (editable)",
     "exchange_rate_required": "Indica la tasa para convertir el importe.",
     "choose_pool_hint": "Elige un fondo para registrar el gasto.",
+    "fund_other_phases": "Fondos de otras fases",
     "zero_budget_title": "Presupuesto agotado",
     "zero_budget_body": "El libre para gastar de este fondo está en {{amount}}. ¿Registrar de todos modos?",
     "after_expense_left": "Después de este gasto, quedan {{amount}} en {{fund}}.",

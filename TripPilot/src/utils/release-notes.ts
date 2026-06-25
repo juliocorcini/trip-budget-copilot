@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.5-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Agora dá para registrar um gasto — e também uma entrada — em um fundo de outra fase da viagem. Exemplo: você está na fase de Burgos, mas quer lançar algo no fundo da Eurotrip que criou para mais adiante.',
+        'Esses fundos aparecem numa seção "Fundos de outras fases", logo abaixo do fundo da fase atual e do fundo global. Eles ficam selecionáveis, mas nunca são escolhidos sozinhos — o padrão continua sendo o fundo da fase em que você está.',
+      ],
+      en: [
+        'You can now log an expense \u2014 and an income \u2014 against a fund from another phase of the trip. Example: you\u2019re in the Burgos phase but want to record something in the Eurotrip fund you set up for later.',
+        'Those funds show up in a "Funds from other phases" section, right below the current-phase fund and the global fund. They are selectable but never auto-picked \u2014 the default is still the fund for the phase you\u2019re in.',
+      ],
+      es: [
+        'Ahora puedes registrar un gasto \u2014 y tambi\u00e9n un ingreso \u2014 en un fondo de otra fase del viaje. Ejemplo: est\u00e1s en la fase de Burgos pero quieres anotar algo en el fondo de la Eurotrip que creaste para m\u00e1s adelante.',
+        'Esos fondos aparecen en una secci\u00f3n "Fondos de otras fases", justo debajo del fondo de la fase actual y del fondo global. Son seleccionables pero nunca se eligen solos \u2014 lo predeterminado sigue siendo el fondo de la fase en la que est\u00e1s.',
+      ],
+    },
+  },
+  {
     version: '1.1.4-rc',
     date: '2026-06-25',
     items: {

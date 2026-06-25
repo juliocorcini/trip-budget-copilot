@@ -577,6 +577,13 @@ export function createBudgetPoolPhaseLink(
 export interface AvailablePools {
   operational: BudgetPool[];
   global: BudgetPool[];
+  /**
+   * E02 (DEC-322): `linked_phases` pools tied to ANOTHER phase (not the active
+   * one). They are SELECTABLE when logging an expense/income but never auto-
+   * selected and never shown in the active phase's focus — so a fund created for
+   * a future leg ("Hospedagem Eurotrip") can still receive a spend from today.
+   */
+  otherPhases: BudgetPool[];
   /** Auto-selected only when there is exactly ONE operational pool (DEC-040). */
   autoSelectedPoolId: string | null;
 }
@@ -586,20 +593,30 @@ export function getAvailablePoolsForPhase(
   links: BudgetPoolPhaseLink[],
   phaseId: string,
 ): AvailablePools {
+  const activeLinks = links.filter((l) => l.deletedAt === null);
   const linkedPoolIds = new Set(
-    links
-      .filter((l) => l.deletedAt === null && l.phaseId === phaseId)
-      .map((l) => l.budgetPoolId),
+    activeLinks.filter((l) => l.phaseId === phaseId).map((l) => l.budgetPoolId),
+  );
+  // Pools tied to some OTHER phase (and not also to this one).
+  const otherPhaseLinkedIds = new Set(
+    activeLinks.filter((l) => l.phaseId !== phaseId).map((l) => l.budgetPoolId),
   );
   const active = pools.filter((p) => p.deletedAt === null);
   const operational = active.filter(
     (p) => p.scope === 'linked_phases' && linkedPoolIds.has(p.id),
   );
   const global = active.filter((p) => p.scope === 'global');
+  const otherPhases = active.filter(
+    (p) =>
+      p.scope === 'linked_phases' &&
+      otherPhaseLinkedIds.has(p.id) &&
+      !linkedPoolIds.has(p.id),
+  );
 
   return {
     operational,
     global,
+    otherPhases,
     autoSelectedPoolId: operational.length === 1 ? operational[0]!.id : null,
   };
 }

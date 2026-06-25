@@ -392,6 +392,38 @@ describe('getAvailablePoolsForPhase (DEC-039/040)', () => {
     const result = getAvailablePoolsForPhase(pools, links, 'phase-1');
     expect(result.operational).toHaveLength(0);
     expect(result.global).toHaveLength(0);
+    expect(result.otherPhases).toHaveLength(0);
+  });
+
+  // E02 (DEC-322): off-phase funds are selectable, not hidden, not auto-selected.
+  it('exposes a fund tied to another phase as otherPhases (selectable, not operational)', () => {
+    const pools = [mkPool('p1', 'linked_phases'), mkPool('p2', 'linked_phases')];
+    const links = [mkLink('l1', 'p1', 'phase-1'), mkLink('l2', 'p2', 'phase-2')];
+
+    const result = getAvailablePoolsForPhase(pools, links, 'phase-1');
+    expect(result.operational.map((p) => p.id)).toEqual(['p1']);
+    expect(result.otherPhases.map((p) => p.id)).toEqual(['p2']); // the Eurotrip fund, from Burgos
+    // never auto-selected from the off-phase group — only the lone operational pool is.
+    expect(result.autoSelectedPoolId).toBe('p1');
+  });
+
+  it('keeps a legacy pool linked to many phases operational only (never duplicated in otherPhases)', () => {
+    const pools = [mkPool('p1', 'linked_phases')];
+    const links = [mkLink('l1', 'p1', 'phase-1'), mkLink('l2', 'p1', 'phase-2')];
+
+    const result = getAvailablePoolsForPhase(pools, links, 'phase-1');
+    expect(result.operational.map((p) => p.id)).toEqual(['p1']);
+    expect(result.otherPhases).toHaveLength(0);
+  });
+
+  it('an off-phase fund does not become the auto-selection even with no operational pool', () => {
+    const pools = [mkPool('p2', 'linked_phases')];
+    const links = [mkLink('l2', 'p2', 'phase-2')];
+
+    const result = getAvailablePoolsForPhase(pools, links, 'phase-1');
+    expect(result.operational).toHaveLength(0);
+    expect(result.otherPhases.map((p) => p.id)).toEqual(['p2']);
+    expect(result.autoSelectedPoolId).toBeNull();
   });
 });
 

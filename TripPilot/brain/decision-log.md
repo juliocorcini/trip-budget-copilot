@@ -2362,7 +2362,7 @@
 - **Refines**: DEC-314/315 (pote ≠ evento; phase governs visibility) — this fixes the *creation* side.
 
 ### DEC-322 — Off-phase funds are selectable when logging an expense and an income (E02)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G2).
+- **Date**: 2026-06-25 · **Status**: APPROVED (shipped G2, 1.1.5-rc).
 - **Decision**: The expense (`QuickAddPage`) and income (`IncomePage`) pool pickers gain a third group **"Fundos de outras fases"** listing every off-phase `linked_phases` pool — **selectable, never auto-selected, never hidden**.
 - **Rationale**: `getAvailablePoolsForPhase` returns only `{operational (current phase), global}`; a fund linked to another phase is in neither bucket, so it cannot be chosen — the user can create the Eurotrip fund but not spend/earn against it from the Burgos phase.
 - **Alternatives considered**: auto-include off-phase pools in `operational` (would wrongly count them in the active phase's budget signals). Rejected — keep them a distinct, opt-in group.

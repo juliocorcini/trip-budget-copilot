@@ -876,6 +876,7 @@
     "exchange_rate_frozen": "Frozen rate (editable)",
     "exchange_rate_required": "Enter the rate to convert the amount.",
     "choose_pool_hint": "Choose a fund to register the expense.",
+    "fund_other_phases": "Funds from other phases",
     "zero_budget_title": "Budget depleted",
     "zero_budget_body": "This fund's free-to-spend is at {{amount}}. Register anyway?",
     "after_expense_left": "After this expense, {{amount}} left in {{fund}}.",

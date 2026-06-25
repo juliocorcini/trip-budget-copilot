@@ -1,8 +1,8 @@
 {
-  "version": "1.1.4-rc",
+  "version": "1.1.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.4-rc.zip",
-  "notes": "Correções: o botão de IA na tela de registrar gasto/entrada agora abre o assistente (antes não fazia nada). O botão de importar extrato ganhou um rótulo de texto, e a barra de rolagem lateral foi travada de vez para não voltar mais."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.5-rc.zip",
+  "notes": "Agora dá para registrar um gasto ou uma entrada em um fundo de outra fase da viagem (ex.: um fundo da Eurotrip enquanto você ainda está em Burgos). Ele aparece numa seção \"Fundos de outras fases\", selecionável — antes só dava para escolher o fundo da fase atual ou o fundo global."
 }
