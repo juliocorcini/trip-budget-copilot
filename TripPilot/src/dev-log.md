@@ -1,5 +1,31 @@
 # Dev Log — TripPilot Implementation
 
+## Field Fixes & Clarity #2 wave (2026-06-25) — base 1.1.3-rc → 1.1.9-rc per gate — 🟡 IN PROGRESS
+
+> Execution truth: `brain/documents/2026-06-25-field-fixes-clarity-2-orchestrator.md` (gates G0→G6, change-set **E01→E13**, decisions **DEC-321→333** PROPOSED at G0 → APPROVED per gate). Julio's third review wave (field test of 1.1.3-rc): real bugs (phase-fund creation pollutes the Home with a phantom Event; off-phase funds not selectable; dead AI button; comparator photos dead; scrollbar back) + honest clarity (cofrinho covers a negative day; pace × plan × piggy; backup folder/jargon; stale coach-marks) + small UX wins. **No math change (ÂNCORA 11).** Single continuous session, deploy per gate. Most recent gate entry first.
+
+- **Active gate**: **G0 — baseline + brain seed** ✅ done (see below). Next: **G1** (E11 scrollbar lock+test · E03 global assistant · E04 import label → 1.1.4-rc).
+- **Baseline (2026-06-25, before touching anything)**: `npx tsc --noEmit` clean · `npm run build` green (`index` **409.28 KB** < 500 KB) · **unit 2312 pass / 2314 collected** (243 files; the 2 failures are the documented WebCrypto `split-live-loop` baseline — `crypto.subtle` needs Node 22, unavailable in this Node 18.17.0 sandbox; pass in CI). Playwright E2E cannot load its ESM config under Node 18.17.0 (needs ≥18.19) — **E2E is CI-verified per gate**.
+- **Deploy pipeline (unchanged)**: bump `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release note pt/en/es) → `G=/usr/bin/git; "$G" commit -m "…"` + push `master` → **Cloudflare Pages auto-build** (`build:pages` → `dist/` + `bundles/<v>.zip` OTA). Worker untouched this wave (UI/clarity only — no route change).
+- **Git note (WSL)**: the Shell harness injects `--trailer` into `git commit` (sandbox git 2.25.1 rejects it). **Bypass:** `G=/usr/bin/git; "$G" commit -m "…"`. Always `git --no-pager …`; never open a pager/editor.
+
+### Gate checklist (Field Fixes & Clarity #2)
+- [x] **G0** — baseline green (2312/2314) + dev-log seeded + DEC-321→333 added PROPOSED + pipeline confirmed.
+- [ ] **G1** — E11 scrollbar lock + regression test · E03 global assistant (AssistantSheet → RootLayout) · E04 import label → **1.1.4-rc**.
+- [ ] **G2** — E02 off-phase funds selectable (expense + income) → **1.1.5-rc**.
+- [ ] **G3** — E01 create door: Pote/Fundo phase-scoped, never an Event (door reframe + routing) → **1.1.6-rc**.
+- [ ] **G4** — E06 compact check-in · E08 cofrinho-covered-the-day · E05 first-run Descobrir CTA → **1.1.7-rc**.
+- [ ] **G5** — E07 comparator in FAB grid · E10 comparator photo fix · E13 capture parity (mic/camera + source chooser) → **1.1.8-rc**.
+- [ ] **G6** — E12 backup texts/grouping/coach-marks · E09 reconcile pace × plan × piggy → **1.1.9-rc**.
+
+### G0 — Setup, baseline & brain seed (done 2026-06-25)
+- **Env**: Node v18.17.0 / npm 9.6.7. `npm install` up to date. `git` at `/usr/bin/git` (commit bypass confirmed).
+- **Baseline**: unit **2312 pass / 2314** (the 2 documented WebCrypto `split-live-loop` fails) · `tsc --noEmit` clean · `npm run build` green (`index` 409.28 KB). Playwright E2E CI-verified per gate.
+- **Investigation**: all 13 items traced to file+symbol (see orchestrator §6). Deepest root: `routePlannedExpense` maps a dated new-pot to `event_new_pot` (Event + dated global pot) — the E01 bug; `getAvailablePoolsForPhase` omits off-phase `linked_phases` pools — E02; `/quick-add` & `/income` render outside `AppShell` so `openAssistant()` has no subscriber — E03.
+- **Brain**: DEC-321→333 added to `decision-log.md` as **PROPOSED**; orchestrator written at `brain/documents/2026-06-25-field-fixes-clarity-2-orchestrator.md`.
+
+---
+
 ## Discovery & Clarity wave (2026-06-25) — base 1.0.1-rc → 1.1.3-rc per gate — ✅ COMPLETE (G0→G6)
 
 > Execution truth: `brain/documents/2026-06-25-discovery-clarity-implementation-orchestrator.md` (gates G0→G6, change-set D01→D15, councils C-A→C-J). Decisions **DEC-307→319** (PROPOSED at G0 → APPROVED per gate). The §16 lock was waived by Julio (2026-06-25): the council recommendations are ADOPTED as the execution path; execute G1→G5 in order (G6 optional). Single continuous session, deploy per gate. Most recent gate entry first; the Field-feedback + Coherence & Tricount state is preserved below.

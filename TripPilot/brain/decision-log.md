@@ -2350,4 +2350,80 @@
 
 ---
 
+## Field Fixes & Clarity #2 wave (2026-06-25) — DEC-321 → DEC-333
+
+> Orchestrator: `documents/2026-06-25-field-fixes-clarity-2-orchestrator.md`. Base **1.1.3-rc**. PROPOSED at G0; each gate promotes the DECs it ships to APPROVED. **The cofrinho/insight/budget math does NOT change this wave (ÂNCORA 11)** — only what is created, what is selectable, and what is explained.
+
+### DEC-321 — Create door: a Pote/Fundo is phase-scoped and never becomes an Event (E01)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G3).
+- **Decision**: The "Planejar um gasto" door's first question becomes **"O que você quer criar?"** → (a) **um gasto/evento com data** (keeps date + countdown) · (b) **um pote/fundo** (guardar dinheiro). For a **Pote/Fundo** it then asks **"Para qual parte da viagem?"** (uma fase específica · a viagem toda); a phase-scoped Pote/Fundo is created as a **`linked_phases` pool tied to that phase** (reusing the `/funds` path) — **no `PlannedOccurrence`, no countdown, not in the current-phase Home focus**, and immediately selectable when logging a spend (DEC-322). The Event branch keeps its dated occurrence.
+- **Rationale**: today `hasDate=true` + `funding='new_pot'` routes to `event_new_pot` (`plan-routing.ts`), creating a countdown Event **and** a dated global pot — so "Hospedagem Eurotrip 15/07–04/08" pollutes the current Home with a phantom event. The user's mental model is "money set aside for the Eurotrip leg" (the working `/funds → vinculado a fases` path), not "schedule an event". A date on a fund must not imply a countdown.
+- **Alternatives considered**: keep "tem data?" but suppress the occurrence for new dated pots (loses the ability to make a real countdown event); a dated global pot scoped by date only (the current bug — off-phase pots still leak by date window). Rejected in favor of explicit phase scoping via `linked_phases`.
+- **Refines**: DEC-314/315 (pote ≠ evento; phase governs visibility) — this fixes the *creation* side.
+
+### DEC-322 — Off-phase funds are selectable when logging an expense and an income (E02)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G2).
+- **Decision**: The expense (`QuickAddPage`) and income (`IncomePage`) pool pickers gain a third group **"Fundos de outras fases"** listing every off-phase `linked_phases` pool — **selectable, never auto-selected, never hidden**.
+- **Rationale**: `getAvailablePoolsForPhase` returns only `{operational (current phase), global}`; a fund linked to another phase is in neither bucket, so it cannot be chosen — the user can create the Eurotrip fund but not spend/earn against it from the Burgos phase.
+- **Alternatives considered**: auto-include off-phase pools in `operational` (would wrongly count them in the active phase's budget signals). Rejected — keep them a distinct, opt-in group.
+- **Refines**: DEC-314 (selectable invariant) — completes D15b, which only covered global pots.
+
+### DEC-323 — The assistant overlay is global (E03)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G1).
+- **Decision**: Mount `<AssistantSheet />` once at `RootLayout` instead of inside `AppShell`, so `openAssistant()` works on every route (Quick Add, Income, simulator, converter, comparator).
+- **Rationale**: `/quick-add` and `/income` are siblings of `AppShell` in the router, so the assistant bus has no subscriber there — the purple AI button publishes to nothing and appears dead.
+- **Alternatives considered**: remove the button on those routes (loses a useful entry, violates "no dead control" by deletion); move the routes under `AppShell` (larger churn, changes layout). Rejected — a global overlay is the smallest correct fix.
+
+### DEC-324 — Labelled statement-import entry (E04)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G1).
+- **Decision**: The statement-import entry on the expenses screen shows a visible text label **"Importar extrato"**, mirroring the "Escanear" chip.
+- **Rationale**: an icon-only button is undiscoverable next to a labelled one; the two sibling actions must read the same way.
+
+### DEC-325 — First-run "Descobrir" call-to-action (E05)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Decision**: Additive setting `discoverHintSeen?: boolean`. Until it is true, the home header shows an **expanded labelled "Descobrir" CTA** and **hides the empty notifications bell**; opening the discovery hub (or first dismissal) sets it true → revert to the compact compass icon + bell.
+- **Rationale**: on first runs there are no notifications and the compass icon alone doesn't invite exploration; a one-time labelled CTA teaches the app's breadth without permanent clutter (ÂNCORA 9 — nothing removed, only first-run emphasis).
+
+### DEC-326 — Compact, expandable day check-in (E06)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Decision**: The day check-in collapses into a one-line, tap-to-expand row sharing the "Posso gastar" line (icon + today's chosen intention); expanded shows the full check-in; tapping again collapses it.
+- **Rationale**: the compacted "posso gastar" (DEC-316) left dead horizontal space; a compact check-in fills it and shrinks the check-in's footprint while keeping it one tap away (ÂNCORA 9).
+
+### DEC-327 — Cost-benefit comparator returns to the visible FAB grid (E07)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Decision**: Move the comparator from the FAB's `other` group back to the visible `plan` smart-tools grid, in the slot above "Dividir".
+- **Rationale**: merging the two split actions into one "Dividir" tile (DEC-311) freed a grid slot; the comparator is a first-class planning tool and earns the visible spot. Partially reverses DEC-311's collapse of this one action (Julio 2026-06-25).
+
+### DEC-328 — "O cofrinho cobriu o dia" when free-today goes negative (E08)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Decision**: When free-today is negative and the piggy absorbs the overspend, the Home shows a read-only line right under the number: the cofrinho covered X today, so the other days did not change. **No math change** (ÂNCORA 11) — it only narrates what `buildPiggyLedger` already did.
+- **Rationale**: the cover-first behaviour is invisible today; a negative number reads as alarming when in fact the buffer protected the future days.
+
+### DEC-329 — Reconcile + explain pace × plan × piggy (E09)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Decision**: Verify with tests that the pace signal (recent trend), the copilot plan projection, and the cofrinho buffer (cumulative early savings) are mutually consistent, then add a one-line plain explanation where they co-appear so "above pace yet 32 saved" reads as sensible. **No math change** (ÂNCORA 11).
+- **Rationale**: the three are different lenses; presented side by side without context they look contradictory ("6 above pace, 12 above plan, but 32 in the piggy").
+
+### DEC-330 — Comparator photo path fixed (E10)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Decision**: The comparator's multi-image photo flow reliably produces review rows; a failed extraction surfaces a clear message/review row instead of silently doing nothing.
+- **Rationale**: uploading one or more photos to the cost-benefit comparator currently yields no rows; root cause to confirm at implementation (file-input not reset on re-pick, the `/unit-extract` cloud call failing, or the compress step).
+
+### DEC-331 — Permanent scrollbar lock + regression test (E11)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G1).
+- **Decision**: Harden the universal scrollbar-hide rules in `globals.css` so a visible bar cannot return, and add a CSS-hygiene regression test that fails if the rules are weakened.
+- **Rationale**: the horizontal scrollbar regressed app-wide again; it must be locked by a test so no future deploy can reintroduce it.
+
+### DEC-332 — Backup screen honesty + fresh coach-marks (E12)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Decision**: The backup screen says **"Downloads"** (not "Documentos"), drops **"JSON"** jargon from labels ("Importar backup", "Salvar no aparelho"), **groups** send vs import, and its **coach-marks/tutorial** are updated to the current buttons; audit every tutorialed screen for the same stale-circle problem.
+- **Rationale**: the copy claims the wrong folder and exposes implementation detail; the "?" tutorial still circles the old "exportar JSON" button, so the help no longer mirrors the product.
+
+### DEC-333 — Capture parity: mic + camera always offered, one source chooser (E13)
+- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Decision**: Mic and camera buttons are always offered (permission requested on tap, not pre-gated), and every camera entry routes through the single `ImageSourceChooser` ("tirar foto com a câmera" vs "buscar da galeria").
+- **Rationale**: today a capture button only appears after a capability/permission is already active, and not all camera entries offer gallery — the pattern must be consistent and self-explanatory (extends DEC-272 single image chooser / DEC-277 graceful degradation).
+
+---
+
 *New decisions will be added as the project progresses.*
