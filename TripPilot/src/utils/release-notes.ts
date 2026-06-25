@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.99.62',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'O botão do Amigo Sincero agora segue o cartão que você está lendo: no veredito leva ao impacto, no cartão de categoria também, no "te sobra por dia" abre a simulação e no movimento do cofrinho vai pro extrato.',
+        'Quando um cartão não tem uma ação útil, o botão simplesmente não aparece — acabou o "Ver impacto" repetido que não levava a nada.',
+        'Na tela inicial, o Amigo Sincero só aparece quando tem algo novo: ele não repete mais o que o carrossel de insights logo acima já está mostrando.',
+      ],
+      en: [
+        'The Honest Friend button now follows the card you\'re reading: the verdict and the category card go to impact, "left per day" opens the simulator, and the piggy movement opens the statement.',
+        'When a card has no useful action, the button simply doesn\'t show — no more repeated "See impact" that led nowhere.',
+        'On the home screen, the Honest Friend only appears when it has something new to say: it no longer repeats what the insights carousel right above already shows.',
+      ],
+      es: [
+        'El botón del Amigo Sincero ahora sigue la tarjeta que estás leyendo: el veredicto y la tarjeta de categoría van al impacto, "te queda por día" abre el simulador y el movimiento de la alcancía abre el extracto.',
+        'Cuando una tarjeta no tiene una acción útil, el botón simplemente no aparece — se acabó el "Ver impacto" repetido que no llevaba a nada.',
+        'En la pantalla inicial, el Amigo Sincero solo aparece cuando tiene algo nuevo que decir: ya no repite lo que el carrusel de insights justo arriba ya muestra.',
+      ],
+    },
+  },
+  {
     version: '0.99.61',
     date: '2026-06-24',
     items: {

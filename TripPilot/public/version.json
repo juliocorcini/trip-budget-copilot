@@ -1,8 +1,8 @@
 {
-  "version": "0.99.61",
+  "version": "0.99.62",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.61.zip",
-  "notes": "Copiloto e cofrinho agora contam a mesma história: o cofrinho tem uma seção fixa no Copiloto com rótulos claros (simulado / será guardado / já guardado), o recap do dia leva ao cofrinho quando você economizou, e quando o Planejador mostra vermelho de alocação futura o app explica que seu gasto real está em dia — ajuste o plano, não o ritmo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.62.zip",
+  "notes": "O Amigo Sincero ficou mais útil: o botão muda conforme o cartão que você está lendo (impacto, simular, cofrinho) e some quando não há ação útil — sem mais botão genérico repetido. E na tela inicial ele só aparece quando tem algo novo a dizer, sem repetir o que o carrossel de insights já mostrou."
 }

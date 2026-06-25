@@ -36,8 +36,10 @@ export type {
   BorrowFromTomorrow,
   HonestFriendTone,
 } from './honest-friend';
-export { buildHonestFriendExtras } from './honest-friend-extras';
+export { buildHonestFriendExtras, filterHomeAmigoExtras } from './honest-friend-extras';
 export type { HonestFriendExtra, HonestFriendExtrasInput } from './honest-friend-extras';
+export { resolveAmigoSlideCtas } from './amigo-cta';
+export type { AmigoSlideKind, AmigoCta, ResolveAmigoSlideCtasInput } from './amigo-cta';
 export {
   HONEST_FRIEND_VOICES,
   DEFAULT_HONEST_FRIEND_VOICE,

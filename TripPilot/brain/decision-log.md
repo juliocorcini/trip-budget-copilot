@@ -2212,7 +2212,7 @@
 
 ### DEC-301 — Amigo Sincero contextual CTA per slide (C07 / §16 Q6)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G5)
+- **Status**: APPROVED — implemented G5, shipped 0.99.62 (2026-06-24); pure `resolveAmigoSlideCtas` (per-slide CTA, hide when no useful action) + `filterHomeAmigoExtras` (home de-dupe by topic vs the insights carousel).
 - **Decision**: the Amigo Sincero CTA is a **function of the active slide** (`safeIndex`): verdict→impact; `top_category`→category impact; `piggy_movement`→piggy; `daily_left`→simulate; no useful action → **hide the button**. On the home, show only when actionable/new (no insight duplication).
 - **Rationale**: a fixed "Ver impacto" button on every slide reads as a dead/fake affordance. The `piggy_movement` slide already has its own CTA — generalize that precedent.
 - **Refines**: orchestrator §6 C07/C08. **Gate G5.**

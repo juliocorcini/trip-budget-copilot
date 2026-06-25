@@ -114,3 +114,35 @@ export function buildHonestFriendExtras(input: HonestFriendExtrasInput): HonestF
 
   return extras;
 }
+
+/**
+ * C08 / DEC-301 — on the HOME, the Amigo Sincero must not parrot what the
+ * insights carousel right above it already says (e.g. both showing the top
+ * category, or both showing the phase progress). This pure filter drops any
+ * extra whose TOPIC is already covered by a visible insight, so the home card
+ * only appears when it adds something actionable/new. The Copiloto tab keeps the
+ * full set (that is where the complete read lives) — this is home-only.
+ *
+ * Coupling stays loose: insight kinds arrive as plain strings, so the budget
+ * domain never imports the insights domain.
+ */
+const HOME_AMIGO_EXTRA_INSIGHT_OVERLAP: Record<HonestFriendExtra['id'], readonly string[]> = {
+  phase_progress: ['phase_projection', 'phase_countdown'],
+  daily_left: ['end_of_day'],
+  top_category: ['category_rhythm'],
+  receivable: ['participant_balance'],
+  // The cofrinho movement is unique to the piggy — never a carousel insight, so
+  // it is always kept (it is timely and deep-links to the statement).
+  piggy_movement: [],
+};
+
+export function filterHomeAmigoExtras(
+  extras: readonly HonestFriendExtra[],
+  coveredInsightKinds: readonly string[],
+): HonestFriendExtra[] {
+  const covered = new Set(coveredInsightKinds);
+  return extras.filter((extra) => {
+    const overlap = HOME_AMIGO_EXTRA_INSIGHT_OVERLAP[extra.id];
+    return !overlap.some((kind) => covered.has(kind));
+  });
+}

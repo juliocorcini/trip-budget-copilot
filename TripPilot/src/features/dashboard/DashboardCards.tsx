@@ -18,6 +18,7 @@ import {
   resolveHonestFriendVoice,
   isPhaseFullyPlanned,
   resolveProgressTone,
+  filterHomeAmigoExtras,
   type ProgressTone,
 } from '@/domain/budget';
 import { AskToSpendShortcut } from './AskToSpendShortcut';
@@ -1097,7 +1098,13 @@ export function DashboardCards({
                 "on plan" state so it only shows when there's something to act on. */}
             <AmigoSinceroCard
               amigo={model.amigoV2}
-              extras={model.amigoExtras}
+              // C08 · DEC-301: on the home, drop any extra whose topic the
+              // insights carousel above already shows (de-dupe by topic), so the
+              // card only appears when it adds something actionable/new.
+              extras={filterHomeAmigoExtras(
+                model.amigoExtras,
+                visibleInsights.map((i) => i.kind),
+              )}
               currency={trip.baseCurrency}
               onSeeImpact={() => navigate('/impact')}
               onRescue={() => navigate('/rescue')}

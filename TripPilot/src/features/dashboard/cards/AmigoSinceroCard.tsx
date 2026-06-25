@@ -8,7 +8,9 @@ import {
   toVoiceBand,
   pickVoiceLineIndex,
   voiceLineKey,
+  resolveAmigoSlideCtas,
   DEFAULT_HONEST_FRIEND_VOICE,
+  type AmigoSlideKind,
   type HonestFriendExtra,
   type HonestFriendTone,
   type HonestFriendV2,
@@ -198,6 +200,26 @@ export function AmigoSinceroCard({
         ? renderReveal(t, onOpenVoiceSettings)
         : renderExtra(slide.extra, currency, t, onOpenPiggyStatement);
 
+  // C07 · DEC-301: the action row follows the ACTIVE slide, not a fixed verdict
+  // CTA. Slides whose own body already carries a CTA (piggy statement, voice
+  // reveal) suppress the row; slides with no useful action hide it entirely.
+  const activeSlide = slides[safeIndex]!;
+  const activeSlideKind: AmigoSlideKind =
+    activeSlide.kind === 'extra' ? activeSlide.extra.id : activeSlide.kind;
+  const activeHasInlineCta =
+    (activeSlide.kind === 'extra' &&
+      activeSlide.extra.id === 'piggy_movement' &&
+      Boolean(onOpenPiggyStatement)) ||
+    (activeSlide.kind === 'reveal' && Boolean(onOpenVoiceSettings));
+  const slideCtas = resolveAmigoSlideCtas({
+    slideKind: activeSlideKind,
+    isAlertVerdict: verdictShown && verdictTone === 'alert',
+    hasInlineCta: activeHasInlineCta,
+  });
+  const showRescue = slideCtas.includes('rescue') && Boolean(onRescue);
+  const showSimulate = slideCtas.includes('simulate') && Boolean(onSimulate);
+  const showImpact = slideCtas.includes('impact');
+
   return (
     <div
       className={`${marginClass} p-3.5 rounded-2xl`}
@@ -271,44 +293,44 @@ export function AmigoSinceroCard({
         </div>
       )}
 
-      {/* Actions follow the VERDICT (stable while browsing reads), so rescue stays
-          reachable and the button colors don't shift as you swipe. */}
-      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-        {onRescue && verdictShown && verdictTone === 'alert' && (
-          <button
-            onClick={onRescue}
-            className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
-            style={{ background: style.color, color: '#fff' }}
-          >
-            <Icon name={amigo.kind === 'over_budget' ? 'restart_alt' : 'emergency'} size={14} />
-            {t(
-              amigo.kind === 'over_budget'
-                ? 'dashboard.amigo_recover_cta'
-                : 'dashboard.amigo_rescue_cta',
-            )}
-          </button>
-        )}
-        {onSimulate && (
-          <button
-            onClick={onSimulate}
-            className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold"
-            style={
-              onRescue && verdictTone === 'alert'
-                ? { background: style.bg, color: style.color, border: `1px solid ${style.border}` }
-                : { background: style.color, color: '#fff' }
-            }
-          >
-            {t('copilot.amigo_simulate')}
-          </button>
-        )}
-        <button
-          onClick={onSeeImpact}
-          className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold"
-          style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}` }}
-        >
-          {t('dashboard.amigo_see_impact')}
-        </button>
-      </div>
+      {/* C07 · DEC-301: per-slide action row — only the CTA(s) that explain the
+          read on screen; nothing when the slide has no useful action. */}
+      {(showRescue || showSimulate || showImpact) && (
+        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+          {showRescue && onRescue && (
+            <button
+              onClick={onRescue}
+              className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
+              style={{ background: style.color, color: '#fff' }}
+            >
+              <Icon name={amigo.kind === 'over_budget' ? 'restart_alt' : 'emergency'} size={14} />
+              {t(
+                amigo.kind === 'over_budget'
+                  ? 'dashboard.amigo_recover_cta'
+                  : 'dashboard.amigo_rescue_cta',
+              )}
+            </button>
+          )}
+          {showSimulate && onSimulate && (
+            <button
+              onClick={onSimulate}
+              className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold"
+              style={{ background: style.color, color: '#fff' }}
+            >
+              {t('copilot.amigo_simulate')}
+            </button>
+          )}
+          {showImpact && (
+            <button
+              onClick={onSeeImpact}
+              className="btn-press px-3.5 py-1.5 rounded-lg text-xs font-bold"
+              style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}` }}
+            >
+              {t('dashboard.amigo_see_impact')}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
