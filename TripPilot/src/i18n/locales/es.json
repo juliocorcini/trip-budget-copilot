@@ -949,7 +949,20 @@
     "link_planned_sheet_title": "Vincular este gasto",
     "link_planned_hint": "Elige la compra planificada que este gasto cumple. No crea un gasto nuevo — solo cuenta este en la compra.",
     "link_planned_empty": "Ninguna compra planificada compatible en este fondo.",
-    "linked_planned_label": "Cuenta en la compra planificada"
+    "linked_planned_label": "Cuenta en la compra planificada",
+    "price_history_title": "Historial de precio",
+    "price_history_count": "Registraste \"{{name}}\" {{count}} veces",
+    "price_history_min": "Mínimo",
+    "price_history_avg": "Promedio",
+    "price_history_max": "Máximo",
+    "price_history_cheapest": "El precio más bajo que pagaste",
+    "price_history_priciest": "El precio más alto que pagaste",
+    "price_history_above_avg": "{{delta}} por encima de tu promedio",
+    "price_history_below_avg": "{{delta}} por debajo de tu promedio",
+    "price_history_same": "El mismo precio de siempre",
+    "price_history_see_all": "Ver todas las compras",
+    "price_history_hide": "Ocultar",
+    "price_history_this_one": "esta compra"
   },
   "connections": {
     "list_title": "Amigos conectados",

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.3-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Histórico de preço por item: ao abrir um gasto que você já registrou antes (mesmo nome), o app mostra quanto pagou nas vezes anteriores — o menor, a média e o maior preço.',
+        'Ele ainda diz, em uma frase, se desta vez você pagou acima ou abaixo da sua média (ou se foi o menor/maior preço de todos), e mostra a lista completa das compras com um toque.',
+        'Tudo calculado na moeda base da viagem (compara compra no exterior com compra em casa) e sem precisar de internet.',
+      ],
+      en: [
+        'Per-item price history: open an expense you\u2019ve logged before (same name) and the app shows what you paid the previous times \u2014 the lowest, the average and the highest price.',
+        'It also says, in one line, whether this time you paid above or below your average (or if it was your cheapest/priciest ever), and the full purchase list is one tap away.',
+        'All computed in the trip\u2019s base currency (it lines up a purchase abroad with one at home) and fully offline.',
+      ],
+      es: [
+        'Historial de precio por ítem: al abrir un gasto que ya registraste antes (mismo nombre), la app muestra cuánto pagaste las veces anteriores \u2014 el mínimo, el promedio y el máximo.',
+        'Además dice, en una frase, si esta vez pagaste por encima o por debajo de tu promedio (o si fue el precio más bajo/alto de todos), y la lista completa de compras está a un toque.',
+        'Todo calculado en la moneda base del viaje (compara una compra en el exterior con una en casa) y sin necesidad de internet.',
+      ],
+    },
+  },
+  {
     version: '1.1.2-rc',
     date: '2026-06-25',
     items: {

@@ -2342,6 +2342,12 @@
 - **Rationale**: the discovery hub is a new capability (minor bump); keeping guide/help in lockstep with features is what made them drift (the root of D01).
 - **Refines**: orchestrator §5 / §10 / §14. **Cross-gate.**
 
+### DEC-320 — Per-item price history is a contextual insight, not a first-class menu feature (D07)
+- **Date**: 2026-06-25 · **Status**: APPROVED (G6, 1.1.3-rc).
+- **Decision**: D07 ships as a **pure read** (`domain/shopping/price-history.ts` → `buildPriceHistory`) rendered **inline on the expense detail page** when the same item (matched by **normalized description**, compared in the trip's **base currency**) has **≥2 purchases**. It shows min/avg/max + a plain "vs your average / cheapest / priciest" verdict, with the full purchase list one tap away. **No new schema** (reads existing `transactions`); **no new AI / zero token**. It is **exempt** from the DEC-319 `guide ⊆ help ⊆ router` coverage contract because it has **no standalone entry point to "guess"** — it appears automatically on any item that has history, like the anchor hint (DEC-128) or the outing back-link (DEC-302).
+- **Rationale**: the data already exists; surfacing "what did I pay before?" at the moment of viewing an item is the highest-signal, lowest-risk way to answer it, without inflating navigation or the catalogs.
+- **Refines**: orchestrator §5 (D07) / DEC-283/284 (the pure offline shopping-math twins) / DEC-319 (coverage policy — contextual insights are out of scope).
+
 ---
 
 *New decisions will be added as the project progresses.*

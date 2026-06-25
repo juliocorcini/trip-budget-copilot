@@ -1,8 +1,8 @@
 {
-  "version": "1.1.2-rc",
+  "version": "1.1.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.2-rc.zip",
-  "notes": "Potes por fase: um pote criado para uma fase futura não polui mais a tela de início da fase atual — ele fica numa área \"Potes de outras fases\" (recolhida) e continua selecionável ao registrar um gasto. A criação separa claramente Evento (tem data e contagem regressiva) de Pote/Fundo (sem contagem, recebe gastos a qualquer momento)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.3-rc.zip",
+  "notes": "Histórico de preço por item: ao abrir um gasto que você já registrou antes (mesmo nome), o app mostra quanto pagou nas vezes anteriores — menor, média e maior preço — e diz se desta vez ficou acima ou abaixo da sua média. Tudo na moeda base da viagem, sem precisar de internet."
 }

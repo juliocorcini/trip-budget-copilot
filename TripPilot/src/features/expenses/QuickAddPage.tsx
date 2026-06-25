@@ -882,6 +882,7 @@ export function QuickAddPage() {
                 : t(`categories.${category}` as never)
           }
           className="bg-transparent text-sm text-on-surface outline-none w-full"
+          data-quickadd-description
         />
         {/* M2: memory by description — 1 tap fills category + value from last use. */}
         {descriptionSuggestion && (

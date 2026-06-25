@@ -24,6 +24,7 @@ import {
   compatiblePlannedPurchasesForExpense,
   plannedPurchaseReservedRemainingCents,
 } from '@/domain/planning/planned-purchases';
+import { buildPriceHistory, type PriceHistory } from '@/domain/shopping';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -131,6 +132,10 @@ export function ExpenseDetailPage() {
 
   const pool = pools.find((p) => p.id === tx.budgetPoolId) ?? null;
   const wallet = wallets.find((w) => w.id === tx.walletId) ?? null;
+  // GATE 6 (D07): how this purchase compares to past buys of the same item
+  // (matched by normalized description, compared in base currency). null when
+  // there is no prior purchase to compare against.
+  const priceHistory = buildPriceHistory({ current: tx, transactions });
   // D-IMP-03: a single expense is attributed to at most one planned purchase.
   // The link lives on the purchase (`linkedTransactionIds`), so we resolve both
   // the current link and the compatible (same-fund, open, not-yet-linked here)
@@ -346,6 +351,15 @@ export function ExpenseDetailPage() {
             <p className="text-[11px] text-on-surface-faint px-1 -mt-2 leading-snug">
               {t('split.flow_vs_cost_hint')}
             </p>
+          )}
+
+          {/* GATE 6 (D07): price history for this item — what you paid before. */}
+          {priceHistory && (
+            <PriceHistoryCard
+              history={priceHistory}
+              name={tx.description}
+              baseCurrency={trip.baseCurrency}
+            />
           )}
 
           {tx.isShared && shares.length > 0 && (
@@ -688,6 +702,90 @@ function DetailRow({ label, value, warning = false }: { label: string; value: st
       <span className={`text-sm font-medium ${warning ? 'text-warning' : 'text-on-surface'}`}>
         {value}
       </span>
+    </div>
+  );
+}
+
+// GATE 6 (D07): per-item price history. Reads the pure `buildPriceHistory`
+// verdict and renders min/avg/max + a plain-language "vs your average" line, with
+// the full purchase list one tap away. Money shown in the trip's base currency.
+function PriceHistoryCard({
+  history,
+  name,
+  baseCurrency,
+}: {
+  history: PriceHistory;
+  name: string;
+  baseCurrency: string;
+}) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+
+  const samePrice = history.minCents === history.maxCents;
+  const deltaLabel = formatMoney(Math.abs(history.deltaFromAvgCents), baseCurrency);
+  const verdict = samePrice
+    ? { tone: 'text-on-surface-dim', icon: 'trending_flat', label: t('expenses.price_history_same') }
+    : history.isCheapest
+      ? { tone: 'text-success', icon: 'trending_down', label: t('expenses.price_history_cheapest') }
+      : history.isPriciest
+        ? { tone: 'text-warning', icon: 'trending_up', label: t('expenses.price_history_priciest') }
+        : history.deltaFromAvgCents > 0
+          ? { tone: 'text-warning', icon: 'trending_up', label: t('expenses.price_history_above_avg', { delta: deltaLabel }) }
+          : { tone: 'text-success', icon: 'trending_down', label: t('expenses.price_history_below_avg', { delta: deltaLabel }) };
+
+  return (
+    <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3" data-price-history>
+      <div className="flex items-center gap-2">
+        <Icon name="monitoring" size={18} className="text-primary" />
+        <p className="text-sm font-semibold text-on-surface">{t('expenses.price_history_title')}</p>
+      </div>
+      <p className="text-[11px] text-on-surface-faint -mt-2 leading-snug">
+        {t('expenses.price_history_count', { name, count: history.count })}
+      </p>
+
+      <div className="grid grid-cols-3 gap-2">
+        <PriceStat label={t('expenses.price_history_min')} value={formatMoney(history.minCents, baseCurrency)} tone="text-success" />
+        <PriceStat label={t('expenses.price_history_avg')} value={formatMoney(history.avgCents, baseCurrency)} tone="text-on-surface" />
+        <PriceStat label={t('expenses.price_history_max')} value={formatMoney(history.maxCents, baseCurrency)} tone="text-warning" />
+      </div>
+
+      <div className={`flex items-center gap-1.5 text-xs font-semibold ${verdict.tone}`}>
+        <Icon name={verdict.icon} size={16} className={verdict.tone} />
+        <span>{verdict.label}</span>
+      </div>
+
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="text-[11px] font-semibold text-on-surface-dim btn-press self-start flex items-center gap-1"
+      >
+        <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-on-surface-dim" />
+        {expanded ? t('expenses.price_history_hide') : t('expenses.price_history_see_all')}
+      </button>
+
+      {expanded && (
+        <div className="bg-surface-high rounded-lg divide-y divide-on-surface-mute">
+          {history.points.map((p) => (
+            <div key={p.transactionId} className="px-3 py-2 flex items-center justify-between">
+              <span className={`text-xs ${p.isCurrent ? 'text-primary font-semibold' : 'text-on-surface-dim'}`}>
+                {formatDate(localDayOf(p.date))}
+                {p.isCurrent ? ` · ${t('expenses.price_history_this_one')}` : ''}
+              </span>
+              <span className={`text-xs font-semibold tabular ${p.isCurrent ? 'text-primary' : 'text-on-surface'}`}>
+                {formatMoney(p.amountCents, baseCurrency)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PriceStat({ label, value, tone }: { label: string; value: string; tone: string }) {
+  return (
+    <div className="bg-surface-high rounded-lg py-2 text-center">
+      <p className="text-[10px] text-on-surface-faint">{label}</p>
+      <p className={`text-xs font-bold tabular ${tone}`}>{value}</p>
     </div>
   );
 }

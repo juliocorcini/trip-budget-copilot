@@ -949,7 +949,20 @@
     "link_planned_sheet_title": "Link this expense",
     "link_planned_hint": "Pick the planned purchase this expense fulfills. It creates no new expense — it just counts this one toward the purchase.",
     "link_planned_empty": "No compatible planned purchase in this fund.",
-    "linked_planned_label": "Counts toward planned purchase"
+    "linked_planned_label": "Counts toward planned purchase",
+    "price_history_title": "Price history",
+    "price_history_count": "You logged \"{{name}}\" {{count}} times",
+    "price_history_min": "Lowest",
+    "price_history_avg": "Average",
+    "price_history_max": "Highest",
+    "price_history_cheapest": "Cheapest you've ever paid",
+    "price_history_priciest": "Priciest you've ever paid",
+    "price_history_above_avg": "{{delta}} above your average",
+    "price_history_below_avg": "{{delta}} below your average",
+    "price_history_same": "Same price as always",
+    "price_history_see_all": "See all purchases",
+    "price_history_hide": "Hide",
+    "price_history_this_one": "this purchase"
   },
   "connections": {
     "list_title": "Connected friends",
