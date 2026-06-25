@@ -1,16 +1,26 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { formatMoney, toCents, fromCents } from '@/domain/money';
 import { buildGroupExpense, expenseShares, validateGroupExpense } from '@/domain/group-split';
-import type { AddGroupExpenseInput, GroupExpense, GroupSplitEvent, GroupSplitMode } from '@/domain/group-split';
+import { scanReceiptForGroup, parseTextForGroup, type GroupAiError } from './group-ai';
+import type {
+  AddGroupExpenseInput,
+  GroupExpense,
+  GroupExpenseSource,
+  GroupSplitEvent,
+  GroupSplitMode,
+} from '@/domain/group-split';
 
 interface Props {
   event: GroupSplitEvent;
   /** null = a brand-new expense; otherwise the expense being edited. */
   expense: GroupExpense | null;
+  /** DEC-258/246 opt-ins — show the receipt-scan / ask-AI prefills (m3). */
+  photoEnabled: boolean;
+  aiTextEnabled: boolean;
   onClose: () => void;
   onSave: (expense: GroupExpense) => void;
   onDelete: (expenseId: string) => void;
@@ -23,14 +33,20 @@ const moneyStr = (cents: number) => (cents === 0 ? '' : String(fromCents(cents))
  * amount, who paid, who shares, and the split mode (equal now; custom per-person
  * in the same form — m2 + m4). Validation + math come from the pure domain.
  */
-export function GroupExpenseEditor({ event, expense, onClose, onSave, onDelete }: Props) {
-  const { t } = useTranslation();
+export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled, onClose, onSave, onDelete }: Props) {
+  const { t, i18n } = useTranslation();
   const isEdit = expense !== null;
 
   const [description, setDescription] = useState(expense?.description ?? '');
   const [amount, setAmount] = useState(expense ? moneyStr(expense.amountCents) : '');
+  const [category, setCategory] = useState(expense?.category ?? 'other');
+  const [source, setSource] = useState<GroupExpenseSource>(expense?.source ?? 'manual');
   const [paidById, setPaidById] = useState(expense?.paidByParticipantId ?? event.ownerParticipantId);
   const [mode, setMode] = useState<GroupSplitMode>(expense?.splitMode ?? 'equal');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [showAiText, setShowAiText] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [shareIds, setShareIds] = useState<Set<string>>(
     () => new Set(expense ? expense.participantIds : event.participants.map((p) => p.id)),
   );
@@ -51,11 +67,56 @@ export function GroupExpenseEditor({ event, expense, onClose, onSave, onDelete }
     paidByParticipantId: paidById,
     splitMode: mode,
     participantIds: orderedShareIds,
+    category,
+    source,
     customAmountsCents:
       mode === 'custom'
         ? Object.fromEntries(orderedShareIds.map((id) => [id, toCents(parseFloat(customById[id] ?? '') || 0)]))
         : {},
   });
+
+  const aiErrorKey = (error: GroupAiError): string =>
+    error === 'not_configured'
+      ? 'group_split.ai_not_configured'
+      : error === 'rate_limited'
+        ? 'group_split.ai_rate_limited'
+        : error === 'empty'
+          ? 'group_split.ai_empty'
+          : 'group_split.ai_failed';
+
+  const applyPrefill = (p: { description: string; amountCents: number; category: string }, src: GroupExpenseSource) => {
+    if (p.description) setDescription(p.description);
+    setAmount(moneyStr(p.amountCents));
+    setCategory(p.category);
+    setSource(src);
+  };
+
+  const handleScanReceipt = async (file: File) => {
+    setAiBusy(true);
+    const outcome = await scanReceiptForGroup(file);
+    setAiBusy(false);
+    if (!outcome.ok) {
+      showToast(t(aiErrorKey(outcome.error)), 'danger');
+      return;
+    }
+    applyPrefill(outcome.prefill, 'receipt');
+    showToast(t('group_split.ai_filled'), 'success');
+  };
+
+  const handleAskAi = async () => {
+    if (aiText.trim().length === 0) return;
+    setAiBusy(true);
+    const outcome = await parseTextForGroup(aiText, event.currency, i18n.language);
+    setAiBusy(false);
+    if (!outcome.ok) {
+      showToast(t(aiErrorKey(outcome.error)), 'danger');
+      return;
+    }
+    applyPrefill(outcome.prefill, 'ai');
+    setShowAiText(false);
+    setAiText('');
+    showToast(t('group_split.ai_filled'), 'success');
+  };
 
   // Live preview of the per-person split so the math is visible before saving.
   const preview = useMemo(() => {
@@ -94,6 +155,72 @@ export function GroupExpenseEditor({ event, expense, onClose, onSave, onDelete }
   return (
     <BottomSheet open onClose={onClose} title={isEdit ? t('group_split.edit_expense') : t('group_split.add_expense')}>
       <div className="flex flex-col gap-3 pt-2">
+        {/* m3 — AI/receipt prefill for a NEW expense (one bill = one group expense).
+            Each is opt-in; the user still confirms payer + split. */}
+        {!isEdit && (photoEnabled || aiTextEnabled) && (
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              {photoEnabled && (
+                <button
+                  type="button"
+                  disabled={aiBusy}
+                  onClick={() => fileRef.current?.click()}
+                  className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Icon name="photo_camera" size={18} className="text-primary" />
+                  {t('group_split.ai_scan')}
+                </button>
+              )}
+              {aiTextEnabled && (
+                <button
+                  type="button"
+                  disabled={aiBusy}
+                  onClick={() => setShowAiText((v) => !v)}
+                  className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Icon name="auto_awesome" size={18} className="text-primary" />
+                  {t('group_split.ai_ask')}
+                </button>
+              )}
+            </div>
+            {showAiText && (
+              <div className="flex items-center gap-2">
+                <input
+                  value={aiText}
+                  onChange={(e) => setAiText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void handleAskAi()}
+                  placeholder={t('group_split.ai_ask_ph')}
+                  autoFocus
+                  className="bg-surface-high rounded-lg px-3 py-2 text-sm text-on-surface outline-none flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleAskAi()}
+                  disabled={aiBusy || aiText.trim().length === 0}
+                  className="btn-press px-3 py-2 rounded-lg bg-primary text-on-surface text-sm font-semibold disabled:opacity-40"
+                >
+                  {aiBusy ? t('group_split.ai_thinking') : t('common.add')}
+                </button>
+              </div>
+            )}
+            {aiBusy && !showAiText && (
+              <p className="text-[11px] text-on-surface-faint text-center">{t('group_split.ai_thinking')}</p>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleScanReceipt(file);
+                e.target.value = '';
+              }}
+            />
+          </div>
+        )}
+
         <Labeled label={t('group_split.expense_description')}>
           <input
             value={description}

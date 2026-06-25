@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
+import { useAppData } from '@/hooks/useAppData';
 import { groupSplitRepository } from '@/data/repositories';
 import { persistGroupSplit, deleteGroupSplit } from '@/domain/orchestrators';
 import {
@@ -32,6 +33,9 @@ export function GroupSplitDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { settings } = useAppData();
+  const photoEnabled = settings?.cloudReceiptOcrEnabled ?? false;
+  const aiTextEnabled = settings?.aiQuickEntryEnabled ?? false;
 
   const [event, setEvent] = useState<GroupSplitEvent | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -279,6 +283,8 @@ export function GroupSplitDetailPage() {
         <GroupExpenseEditor
           event={event}
           expense={editing === 'new' ? null : editing}
+          photoEnabled={photoEnabled}
+          aiTextEnabled={aiTextEnabled}
           onClose={() => setEditing(null)}
           onSave={handleSaveExpense}
           onDelete={handleDeleteExpense}

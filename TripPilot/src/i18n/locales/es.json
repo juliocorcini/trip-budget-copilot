@@ -2589,7 +2589,16 @@
     "error_non_positive_amount": "Ingresa un importe mayor que cero",
     "error_no_payer": "Elige quién pagó",
     "error_no_participants": "Elige al menos una persona para dividir",
-    "error_custom_mismatch": "La suma personalizada supera el total del gasto"
+    "error_custom_mismatch": "La suma personalizada supera el total del gasto",
+    "ai_scan": "Escanear recibo",
+    "ai_ask": "Pedir a la IA",
+    "ai_ask_ph": "Ej.: asado 90",
+    "ai_thinking": "Leyendo...",
+    "ai_filled": "Completado — revisa y ajusta si hace falta",
+    "ai_not_configured": "La IA no está activada en los ajustes",
+    "ai_rate_limited": "La IA alcanzó su límite — inténtalo en un momento",
+    "ai_empty": "No pude leer un importe — complétalo manualmente",
+    "ai_failed": "No se pudo leer ahora — complétalo manualmente"
   },
   "profile_presets": {
     "restaurants": "Restaurantes",

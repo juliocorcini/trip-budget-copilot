@@ -2589,7 +2589,16 @@
     "error_non_positive_amount": "Enter an amount greater than zero",
     "error_no_payer": "Choose who paid",
     "error_no_participants": "Choose at least one person to split with",
-    "error_custom_mismatch": "The custom amounts exceed the expense total"
+    "error_custom_mismatch": "The custom amounts exceed the expense total",
+    "ai_scan": "Scan receipt",
+    "ai_ask": "Ask AI",
+    "ai_ask_ph": "e.g. barbecue 90",
+    "ai_thinking": "Reading...",
+    "ai_filled": "Filled in — check and adjust if needed",
+    "ai_not_configured": "AI isn't enabled in settings",
+    "ai_rate_limited": "AI hit its limit — try again shortly",
+    "ai_empty": "Couldn't read an amount — fill it in manually",
+    "ai_failed": "Couldn't read it right now — fill it in manually"
   },
   "profile_presets": {
     "restaurants": "Restaurants",
