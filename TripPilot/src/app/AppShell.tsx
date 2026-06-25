@@ -2,7 +2,6 @@ import { Outlet } from 'react-router';
 import { BottomNav } from '@/components/BottomNav';
 import { ActiveOutingBar } from '@/components/ActiveOutingBar';
 import { ActiveSplitBar } from '@/components/ActiveSplitBar';
-import { AssistantSheet } from '@/features/assistant/AssistantSheet';
 import { useTabPaging } from '@/hooks/useTabPaging';
 import { useTabSwipePager } from '@/hooks/useTabSwipePager';
 
@@ -34,9 +33,9 @@ export function AppShell() {
       <ActiveOutingBar />
       <ActiveSplitBar />
       <BottomNav />
-      {/* DEC-246: the app-wide AI quick-entry sheet, opened from the FAB hero or
-          any surface via the assistant bus. Portaled, so it lives outside #main. */}
-      <AssistantSheet />
+      {/* DEC-246 / E03 (DEC-323): the app-wide AI quick-entry sheet is mounted
+          once at RootLayout (not here), so openAssistant() also works on routes
+          OUTSIDE the shell (Quick Add, Income, the pure tools). */}
     </div>
   );
 }

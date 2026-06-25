@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.4-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'O botão de IA na tela de registrar gasto e de registrar entrada agora abre o assistente — antes ele não fazia nada nessas telas.',
+        'O botão de importar extrato (na tela de gastos) ganhou um rótulo de texto "Importar", do mesmo jeito que o "Escanear" ao lado — agora dá para saber para que ele serve.',
+        'Travamos de vez a barra de rolagem lateral: ela foi removida de todas as telas e protegida por um teste, para nunca mais voltar em uma atualização.',
+      ],
+      en: [
+        'The AI button on the log-expense and log-income screens now opens the assistant \u2014 before, it did nothing on those screens.',
+        'The statement-import button (on the expenses screen) now has a text label, "Import", just like the "Scan" chip next to it \u2014 so you can tell what it does.',
+        'We permanently locked the side scrollbar: it is gone on every screen and guarded by a test, so it can never come back in an update.',
+      ],
+      es: [
+        'El bot\u00f3n de IA en las pantallas de registrar gasto y registrar ingreso ahora abre el asistente \u2014 antes no hac\u00eda nada en esas pantallas.',
+        'El bot\u00f3n de importar extracto (en la pantalla de gastos) ahora tiene una etiqueta de texto, "Importar", igual que el "Escanear" de al lado \u2014 as\u00ed se sabe para qu\u00e9 sirve.',
+        'Bloqueamos de forma permanente la barra de desplazamiento lateral: se elimin\u00f3 en todas las pantallas y est\u00e1 protegida por una prueba, para que nunca vuelva en una actualizaci\u00f3n.',
+      ],
+    },
+  },
+  {
     version: '1.1.3-rc',
     date: '2026-06-25',
     items: {

@@ -155,22 +155,39 @@ describe('C25 / DEC-305 (rev.) — input focus ring removed (field feedback)', (
   });
 });
 
-describe('C03 — scrollbars stay hidden app-wide (no regression)', () => {
+describe('C03 / E11 (DEC-331) — scrollbars stay hidden app-wide (permanent lock)', () => {
   const css = readFileSync(GLOBALS, 'utf8');
 
   it('hides the WebKit scrollbar globally with !important', () => {
     expect(css).toMatch(/\*::-webkit-scrollbar\s*\{[^}]*display:\s*none\s*!important/);
   });
 
-  it('sets scrollbar-width: none on every element (the Firefox `*` fix)', () => {
-    expect(css).toMatch(/html,\s*body,\s*\*\s*\{[\s\S]*?scrollbar-width:\s*none/);
+  it('sets scrollbar-width: none !important on every element (the Firefox/Chrome `*` fix)', () => {
+    // E11: the !important is the lock — no later utility/inline rule may re-expose a bar.
+    expect(css).toMatch(/html,\s*body,\s*\*\s*\{[\s\S]*?scrollbar-width:\s*none\s*!important/);
   });
 
-  it('no source file reintroduces a visible scrollbar (gutter / auto / thin / color)', () => {
+  it('targets the root document scrollbar explicitly (html/body pseudo — the "bar came back on every screen" fix)', () => {
+    // The universal `*` pseudo does not reliably match the viewport scrollbar
+    // across Chrome / Android WebView versions; html+body must be named.
+    const webkitRule = css.slice(
+      css.indexOf('html::-webkit-scrollbar'),
+      css.indexOf('}', css.indexOf('html::-webkit-scrollbar')) + 1,
+    );
+    expect(webkitRule).toContain('html::-webkit-scrollbar');
+    expect(webkitRule).toContain('body::-webkit-scrollbar');
+    expect(webkitRule).toMatch(/display:\s*none\s*!important/);
+  });
+
+  it('no source file reintroduces a visible scrollbar (gutter / auto / thin / color / always-on scroll)', () => {
+    // Also ban `overflow*: scroll` and the Tailwind `overflow-scroll` utilities —
+    // they force an always-on track on some engines, the usual regression vector.
     const files = collectSourceFiles(SRC, ['.tsx', '.ts', '.css']);
     const offenders = files.filter((f) => {
       const body = readFileSync(f, 'utf8');
-      return /scrollbar-gutter|scrollbar-width:\s*(auto|thin)|scrollbar-color:/.test(body);
+      return /scrollbar-gutter|scrollbar-width:\s*(auto|thin)|scrollbar-color:|overflow(-[xy])?:\s*scroll|(?:^|[\s"'`])overflow(-[xy])?-scroll(?:[\s"'`]|$)/m.test(
+        body,
+      );
     });
     expect(offenders.map((f) => f.replace(SRC, 'src'))).toEqual([]);
   });

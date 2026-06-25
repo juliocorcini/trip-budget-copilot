@@ -883,6 +883,7 @@
     "empty_cta": "Log your first expense",
     "search_placeholder": "Search expenses",
     "import_statement": "Import expenses and transfers",
+    "import_statement_short": "Import",
     "search_clear": "Clear search",
     "search_empty_title": "Nothing found",
     "search_empty_body": "No expense matches \"{{query}}\". Try another term.",

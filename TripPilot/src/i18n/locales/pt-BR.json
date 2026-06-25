@@ -889,6 +889,7 @@
     "empty_body": "Toque em registrar para anotar seu primeiro gasto — eles aparecem aqui agrupados por dia.",
     "search_placeholder": "Buscar gastos",
     "import_statement": "Importar gastos e movimentações",
+    "import_statement_short": "Importar",
     "search_clear": "Limpar busca",
     "search_empty_title": "Nada encontrado",
     "search_empty_body": "Nenhum gasto combina com \"{{query}}\". Tente outro termo.",

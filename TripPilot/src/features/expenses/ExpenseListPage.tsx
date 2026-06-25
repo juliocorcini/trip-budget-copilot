@@ -383,14 +383,19 @@ export function ExpenseListPage() {
               <span className="text-xs font-bold text-[var(--ai-2)]">{t('receiptScan.entry_short')}</span>
             </button>
             {/* FIELD-13: statement import was buried inside Wallets — surface it at
-                the top of the expenses screen (still kept in Wallets too). */}
+                the top of the expenses screen (still kept in Wallets too).
+                E04 (DEC-324): give it a visible text label like "Escanear" — an
+                icon-only button was undiscoverable next to a labelled sibling. */}
             <button
               onClick={() => navigate('/import/wise')}
-              className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center btn-press shrink-0"
+              className="h-9 pl-2.5 pr-3 rounded-full bg-surface-container flex items-center gap-1.5 btn-press shrink-0"
               aria-label={t('expenses.import_statement')}
               title={t('expenses.import_statement')}
             >
-              <Icon name="upload_file" size={18} className="text-on-surface-dim" />
+              <Icon name="upload_file" size={16} className="text-on-surface-dim" />
+              <span className="text-xs font-bold text-on-surface-dim">
+                {t('expenses.import_statement_short')}
+              </span>
             </button>
           </div>
         </div>

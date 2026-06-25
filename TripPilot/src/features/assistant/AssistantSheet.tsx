@@ -95,6 +95,12 @@ export function AssistantSheet() {
     navigate('/quick-add');
   };
 
+  // E03 (DEC-323): now mounted globally at RootLayout, so it also renders on guest
+  // boards (/s, /t, /g) and pre-onboarding routes that have no active space. The
+  // assistant only makes sense with a space, and openAssistant() is never fired
+  // from those routes — so it is a no-op there. All hooks run above this guard.
+  if (!trip) return null;
+
   const baseCurrency = trip?.baseCurrency ?? 'EUR';
   const money = (cents?: number, currency?: string) =>
     formatMoney(cents ?? 0, currency ?? baseCurrency);

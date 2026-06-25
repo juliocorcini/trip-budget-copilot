@@ -883,6 +883,7 @@
     "empty_cta": "Registrar el primer gasto",
     "search_placeholder": "Buscar gastos",
     "import_statement": "Importar gastos y movimientos",
+    "import_statement_short": "Importar",
     "search_clear": "Limpiar búsqueda",
     "search_empty_title": "Nada encontrado",
     "search_empty_body": "Ningún gasto coincide con \"{{query}}\". Prueba otro término.",

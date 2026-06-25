@@ -135,9 +135,19 @@
 html,
 body,
 * {
-  scrollbar-width: none; /* Firefox — every scroll container, not just <html> */
-  -ms-overflow-style: none; /* legacy Edge */
+  scrollbar-width: none !important; /* Firefox + Chrome 121+ — every scroll container, not just <html> */
+  -ms-overflow-style: none !important; /* legacy Edge */
 }
+/* E11 (DEC-331) — the "bar came back on every screen" regression. The universal
+   `*::-webkit-scrollbar` styles descendant scroll containers, but the
+   document/viewport scrollbar is a SPECIAL pseudo of the root that `*` does NOT
+   reliably match across Chrome / Android WebView versions — so the root bar
+   leaked back on every screen. Target html/body explicitly too, and keep the
+   `!important` so no later utility/inline rule can re-expose any bar. This is
+   locked by tests/unit/components/style-hygiene.test.ts (C03) so it cannot
+   silently regress in a future deploy. */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
 *::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;

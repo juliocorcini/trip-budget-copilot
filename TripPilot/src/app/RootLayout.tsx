@@ -4,6 +4,7 @@ import { consumePendingTabDirection } from '@/app/nav-direction';
 import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
+import { AssistantSheet } from '@/features/assistant/AssistantSheet';
 import { isNativeApp, applyNativeStatusBar } from '@/utils/native';
 import { initDeepLinks } from '@/utils/native/deep-link';
 import { hasPendingSharedCsv, setSharedCsvNavHandler } from '@/utils/native/share-target';
@@ -198,6 +199,12 @@ export function RootLayout() {
         <div className="app-safe-top">
           <Outlet />
         </div>
+        {/* DEC-246 / E03 (DEC-323): the AI quick-entry sheet, mounted once here
+            (inside AppDataProvider + behind the lock) so openAssistant() works on
+            EVERY route — including Quick Add, Income and the pure tools that live
+            outside the AppShell. Portaled + self-hidden until opened; it returns
+            null when there is no active space, so guest boards never mount it. */}
+        <AssistantSheet />
       </AppLockGate>
     </AppDataProvider>
   );

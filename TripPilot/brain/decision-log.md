@@ -2369,13 +2369,13 @@
 - **Refines**: DEC-314 (selectable invariant) — completes D15b, which only covered global pots.
 
 ### DEC-323 — The assistant overlay is global (E03)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G1).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G1, 1.1.4-rc).
 - **Decision**: Mount `<AssistantSheet />` once at `RootLayout` instead of inside `AppShell`, so `openAssistant()` works on every route (Quick Add, Income, simulator, converter, comparator).
 - **Rationale**: `/quick-add` and `/income` are siblings of `AppShell` in the router, so the assistant bus has no subscriber there — the purple AI button publishes to nothing and appears dead.
 - **Alternatives considered**: remove the button on those routes (loses a useful entry, violates "no dead control" by deletion); move the routes under `AppShell` (larger churn, changes layout). Rejected — a global overlay is the smallest correct fix.
 
 ### DEC-324 — Labelled statement-import entry (E04)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G1).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G1, 1.1.4-rc).
 - **Decision**: The statement-import entry on the expenses screen shows a visible text label **"Importar extrato"**, mirroring the "Escanear" chip.
 - **Rationale**: an icon-only button is undiscoverable next to a labelled one; the two sibling actions must read the same way.
 
@@ -2410,7 +2410,7 @@
 - **Rationale**: uploading one or more photos to the cost-benefit comparator currently yields no rows; root cause to confirm at implementation (file-input not reset on re-pick, the `/unit-extract` cloud call failing, or the compress step).
 
 ### DEC-331 — Permanent scrollbar lock + regression test (E11)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G1).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G1, 1.1.4-rc).
 - **Decision**: Harden the universal scrollbar-hide rules in `globals.css` so a visible bar cannot return, and add a CSS-hygiene regression test that fails if the rules are weakened.
 - **Rationale**: the horizontal scrollbar regressed app-wide again; it must be locked by a test so no future deploy can reintroduce it.
 
