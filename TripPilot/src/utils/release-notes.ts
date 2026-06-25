@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.0.3-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        '"Tudo que dá para fazer" e a Central de ajuda agora cobrem a Divisão em grupo (Tricount) — antes ela só aparecia na busca da ajuda.',
+        'Ficou mais fácil entender a diferença entre Dividir conta (uma conta agora, na mesa) e Divisão em grupo (várias despesas de um grupo ou evento) — o texto de cada uma deixa isso claro antes de você escolher.',
+      ],
+      en: [
+        '"Everything you can do" and the Help Center now cover Group split (Tricount) — until now it only showed up in help search.',
+        'It\u2019s clearer what sets Split a bill (one bill now, at the table) apart from Group split (many expenses across a group or event) — each one\u2019s blurb spells out the difference before you pick.',
+      ],
+      es: [
+        '"Todo lo que puedes hacer" y el Centro de ayuda ahora incluyen la División en grupo (Tricount) — antes solo aparecía en el buscador de la ayuda.',
+        'Es más claro en qué se diferencian Dividir la cuenta (una cuenta ahora, en la mesa) y División en grupo (varios gastos de un grupo o evento) — el texto de cada una lo explica antes de elegir.',
+      ],
+    },
+  },
+  {
     version: '1.0.2-rc',
     date: '2026-06-25',
     items: {

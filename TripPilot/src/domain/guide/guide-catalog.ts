@@ -62,7 +62,10 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     id: 'people',
     titleKey: 'guide.section_people',
     entries: [
+      // Two distinct "dividir" doors, listed side by side so the difference is
+      // visible BEFORE choosing (DEC-309): one bill now × a whole group/event.
       { id: 'split', icon: 'splitscreen', titleKey: 'guide.split_t', descKey: 'guide.split_d', route: '/split/scan' },
+      { id: 'group_split', icon: 'groups', titleKey: 'guide.group_split_t', descKey: 'guide.group_split_d', route: '/groups' },
       { id: 'shared', icon: 'group', titleKey: 'guide.shared_t', descKey: 'guide.shared_d', route: '/shared' },
     ],
   },

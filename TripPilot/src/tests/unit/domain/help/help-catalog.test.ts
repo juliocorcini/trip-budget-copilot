@@ -87,13 +87,77 @@ describe('help catalog — structure', () => {
   });
 });
 
-describe('help catalog — first-class coverage (AC: every feature has an entry)', () => {
-  it('covers every route in the feature guide with at least one help article', () => {
-    const helpRoutes = new Set(HELP_ARTICLES.map((article) => article.route));
-    const guideRoutes = GUIDE_SECTIONS.flatMap((section) => section.entries.map((e) => e.route));
+// DEC-319 — the discoverability contract, hardened (D01). A first-class feature
+// must be reachable from BOTH "Tudo que dá para fazer" (the guide) AND the Help
+// Center, and every catalog route must exist in the router: guide ⊆ help ⊆
+// router. On top of those subset relations, a curated FIRST_CLASS_ROUTES surface
+// lists the capabilities the user must be able to discover — neither catalog may
+// silently drop one (the exact gap that let group split ship help-only, with no
+// guide entry). Adding a first-class feature ⇒ add it here AND to both catalogs.
+const FIRST_CLASS_ROUTES = [
+  // capture & money in
+  '/quick-add', '/income',
+  // day to day
+  '/dashboard', '/expenses', '/outings/new',
+  // planning & pure tools
+  '/planner', '/planned', '/simulator', '/converter', '/comparator',
+  // money & structure
+  '/wallets', '/funds', '/profiles',
+  // people: the two split doors + settle
+  '/split/scan', '/groups', '/shared',
+  // trips & spaces
+  '/spaces', '/viagem',
+  // copilot
+  '/copiloto', '/impact', '/rescue',
+  // settings & data
+  '/settings', '/settings/dashboard', '/settings/backup', '/import/wise', '/notifications', '/about',
+] as const;
+
+describe('discoverability contract — guide ⊆ help ⊆ router (DEC-319)', () => {
+  const guideRoutes = new Set(GUIDE_SECTIONS.flatMap((section) => section.entries.map((e) => e.route)));
+  const helpRoutes = new Set(HELP_ARTICLES.map((article) => article.route));
+
+  it('guide ⊆ help: every guide route has at least one help article', () => {
     for (const route of guideRoutes) {
       expect(helpRoutes.has(route), `guide route ${route} has no help article`).toBe(true);
     }
+  });
+
+  it('guide ⊆ router: every guide route exists in the router', () => {
+    for (const route of guideRoutes) {
+      expect(ROUTER_PATHS.has(route), `guide route ${route} not in router`).toBe(true);
+    }
+  });
+
+  it('help ⊆ router: every help route exists in the router', () => {
+    for (const route of helpRoutes) {
+      expect(ROUTER_PATHS.has(route), `help route ${route} not in router`).toBe(true);
+    }
+  });
+
+  it('every first-class feature exists in the router', () => {
+    for (const route of FIRST_CLASS_ROUTES) {
+      expect(ROUTER_PATHS.has(route), `first-class route ${route} not in router`).toBe(true);
+    }
+  });
+
+  it('every first-class feature is discoverable from the guide ("Tudo que dá para fazer")', () => {
+    for (const route of FIRST_CLASS_ROUTES) {
+      expect(guideRoutes.has(route), `first-class route ${route} missing from the guide`).toBe(true);
+    }
+  });
+
+  it('every first-class feature is explained in the Help Center', () => {
+    for (const route of FIRST_CLASS_ROUTES) {
+      expect(helpRoutes.has(route), `first-class route ${route} missing from help`).toBe(true);
+    }
+  });
+
+  it('group split (Tricount) is in BOTH catalogs (regression: it shipped help-only)', () => {
+    expect(GUIDE_SECTIONS.flatMap((s) => s.entries).some((e) => e.id === 'group_split')).toBe(true);
+    expect(HELP_ARTICLES.some((article) => article.id === 'group_split')).toBe(true);
+    expect(guideRoutes.has('/groups')).toBe(true);
+    expect(helpRoutes.has('/groups')).toBe(true);
   });
 });
 
@@ -152,6 +216,17 @@ describe('help catalog — local search (0 token)', () => {
     expect(searchHelp('split bill').map((a) => a.id)).toContain('split');
     expect(searchHelp('alcancía ahorro').map((a) => a.id)).toContain('piggy');
     expect(searchHelp('localizacao privacidade').map((a) => a.id)).toContain('privacy_location');
+  });
+
+  it('routes the two "dividir" intents to their own door (D01 — bill vs group)', () => {
+    // One bill among people at the table → the bill split.
+    expect(searchHelp('dividir conta')[0]?.id).toBe('split');
+    expect(searchHelp('rachar a conta da mesa')[0]?.id).toBe('split');
+    // A whole group/event with many expenses (Tricount) → the group split.
+    expect(searchHelp('dividir gastos do grupo')[0]?.id).toBe('group_split');
+    expect(searchHelp('racha da viagem inteira')[0]?.id).toBe('group_split');
+    expect(searchHelp('group split tricount').map((a) => a.id)).toContain('group_split');
+    expect(searchHelp('division en grupo').map((a) => a.id)).toContain('group_split');
   });
 
   it('only returns articles that actually match a token', () => {

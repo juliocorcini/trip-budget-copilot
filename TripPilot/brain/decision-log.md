@@ -2335,7 +2335,7 @@
 - **Refines**: orchestrator §6 D09. **Gate G1.**
 
 ### DEC-319 — Wave versioning + permanent help-coverage policy
-- **Date**: 2026-06-25 · **Status**: PROPOSED
+- **Date**: 2026-06-25 · **Status**: APPROVED (G2, 1.0.3-rc) — the `guide ⊆ help ⊆ router` coverage test is now hardened with a curated FIRST_CLASS_ROUTES contract; the patch-per-gate cadence continues across the wave.
 - **Decision**: bump a **patch per gate** (1.0.2-rc → 1.0.6-rc); **1.1.0-rc** as the milestone when the discovery hub (G3) ships. **Permanent policy:** every new first-class feature must enter the `guide-catalog` AND the `help-catalog` in the same wave, guarded by the `guide ⊆ help ⊆ router` coverage test.
 - **Rationale**: the discovery hub is a new capability (minor bump); keeping guide/help in lockstep with features is what made them drift (the root of D01).
 - **Refines**: orchestrator §5 / §10 / §14. **Cross-gate.**
