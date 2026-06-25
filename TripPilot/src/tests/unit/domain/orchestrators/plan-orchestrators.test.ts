@@ -6,6 +6,7 @@ import {
   createBudgetPoolPhaseLink,
   calculateFreeToSpend,
   createPoolSummary,
+  getAvailablePoolsForPhase,
 } from '@/domain/budget';
 import { createExpenseTransaction } from '@/domain/transactions';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -297,5 +298,116 @@ describe('GATE 5 (D15 / DEC-315) — Event × Pote/Fundo: a countdown belongs ON
     const occ = await db.plannedOccurrences.get(res.occurrenceId!);
     expect(occ!.kind).toBe('event');
     expect(occ!.plannedDate?.slice(0, 10)).toBe('2026-07-21');
+  });
+});
+
+describe('E01 (DEC-321) — the door creates a phase-scoped Pote/Fundo, never an Event', () => {
+  beforeEach(clearAll);
+
+  it('a phase Pote/Fundo is a linked_phases pool tied to the chosen phase — no Event, no countdown, the active trecho untouched (Â11)', async () => {
+    const pool = await seedEurotrip();
+    const before = await trechoFreeToSpend(pool);
+
+    // The exact field scenario: set €730 aside for a FUTURE leg (Madrid), while the
+    // active phase is Eurotrip. This must NOT create a countdown Event nor a dated
+    // global pot — it is a phase fund.
+    const res = await createPlannedExpense({
+      ...baseInput(pool),
+      hasDate: false,
+      funding: 'new_pot',
+      potScope: 'phase',
+      name: 'Hospedagem Madrid',
+      estimatedCostCents: 73000,
+      phaseId: 'madrid',
+    });
+
+    expect(res.outcome).toBe('pot_phase');
+    // Nothing the Home could ever count down to.
+    expect(res.occurrenceId).toBeNull();
+    expect(res.purchaseId).toBeNull();
+    expect(res.createdPotId).not.toBeNull();
+
+    const fund = await db.budgetPools.get(res.createdPotId!);
+    expect(fund!.scope).toBe('linked_phases');
+    expect(fund!.dateStart).toBeNull();
+    expect(fund!.dateEnd).toBeNull();
+    expect(fund!.totalAmountCents).toBe(73000);
+
+    // It is linked to the chosen phase (the /funds model), not the active one.
+    const link = await db.budgetPoolPhaseLinks
+      .where('budgetPoolId')
+      .equals(fund!.id)
+      .first();
+    expect(link!.phaseId).toBe('madrid');
+
+    // À parte: the active Eurotrip trecho's free-to-spend is identical (no reserve).
+    expect(await trechoFreeToSpend(pool)).toBe(before);
+
+    // E02 cross-check: from the Eurotrip phase the Madrid fund is SELECTABLE as an
+    // off-phase fund — never operational, never auto-selected.
+    const [allPools, allLinks] = await Promise.all([
+      db.budgetPools.toArray(),
+      db.budgetPoolPhaseLinks.toArray(),
+    ]);
+    const available = getAvailablePoolsForPhase(allPools, allLinks, PHASE);
+    expect(available.otherPhases.map((p) => p.id)).toContain(fund!.id);
+    expect(available.operational.map((p) => p.id)).not.toContain(fund!.id);
+    expect(available.autoSelectedPoolId).not.toBe(fund!.id);
+  });
+
+  it('a phase Pote/Fundo keeps an optional savings goal and still has no date/Event', async () => {
+    const pool = await seedEurotrip();
+    const res = await createPlannedExpense({
+      ...baseInput(pool),
+      hasDate: false,
+      funding: 'new_pot',
+      potScope: 'phase',
+      name: 'Fundo Madrid',
+      estimatedCostCents: 50000,
+      phaseId: 'madrid',
+      goalCents: 80000,
+    });
+
+    expect(res.outcome).toBe('pot_phase');
+    const fund = await db.budgetPools.get(res.createdPotId!);
+    expect(fund!.goalCents).toBe(80000);
+    expect(fund!.dateStart).toBeNull();
+    expect(res.occurrenceId).toBeNull();
+  });
+
+  it('refuses to create a phase Pote/Fundo without a phaseId', async () => {
+    const pool = await seedEurotrip();
+    await expect(
+      createPlannedExpense({
+        ...baseInput(pool),
+        hasDate: false,
+        funding: 'new_pot',
+        potScope: 'phase',
+        name: 'Sem fase',
+        estimatedCostCents: 1000,
+        phaseId: null,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('the whole-trip Pote/Fundo (trip scope) stays a global pool, unchanged from the legacy "pot"', async () => {
+    const pool = await seedEurotrip();
+    const res = await createPlannedExpense({
+      ...baseInput(pool),
+      hasDate: false,
+      funding: 'new_pot',
+      potScope: 'trip',
+      name: 'Reserva geral',
+      estimatedCostCents: 20000,
+    });
+
+    expect(res.outcome).toBe('pot');
+    const fund = await db.budgetPools.get(res.createdPotId!);
+    expect(fund!.scope).toBe('global');
+    const link = await db.budgetPoolPhaseLinks
+      .where('budgetPoolId')
+      .equals(fund!.id)
+      .first();
+    expect(link).toBeUndefined();
   });
 });

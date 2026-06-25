@@ -20,10 +20,11 @@ export {
   routePlannedExpense,
   outcomeCreatesEvent,
   outcomeCreatesNewPot,
+  outcomeCreatesPhasePot,
   outcomeCreatesPurchase,
   outcomeFundedByPhase,
 } from './plan-routing';
-export type { PlanFundingSource, PlannedExpenseOutcome } from './plan-routing';
+export type { PlanFundingSource, PlannedExpenseOutcome, PotScope } from './plan-routing';
 export {
   createPlannedPurchase,
   isPlannedPurchaseOpen,

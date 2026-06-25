@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.6-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Planejar ficou mais claro: primeiro você escolhe o que quer criar — um gasto/evento ou um pote/fundo. Assim o app sabe a diferença antes de você decidir.',
+        'Um pote/fundo agora pode ser de uma fase específica (ex.: o fundo da Eurotrip enquanto você ainda está em Burgos). Ele não vira mais um evento com contagem na tela inicial nem polui a fase atual — fica guardado na fase certa.',
+        'E esse fundo de outra fase continua pronto para uso: na hora de registrar um gasto, ele aparece selecionável em "Fundos de outras fases".',
+      ],
+      en: [
+        'Planning is clearer: first you pick what you want to create \u2014 a spend/event or a pot/fund. The app understands the difference before you choose.',
+        'A pot/fund can now belong to a specific phase (e.g. the Eurotrip fund while you\u2019re still in Burgos). It no longer turns into a countdown event on the Home or clutters the current phase \u2014 it stays parked in the right phase.',
+        'And that other-phase fund stays ready to use: when you log a spend, it shows up, selectable, under "Funds from other phases".',
+      ],
+      es: [
+        'Planear es m\u00e1s claro: primero eliges qu\u00e9 quieres crear \u2014 un gasto/evento o un fondo. La app entiende la diferencia antes de que elijas.',
+        'Un fondo ahora puede ser de una fase espec\u00edfica (ej.: el fondo de la Eurotrip mientras a\u00fan est\u00e1s en Burgos). Ya no se convierte en un evento con cuenta regresiva en la pantalla inicial ni ensucia la fase actual \u2014 queda guardado en la fase correcta.',
+        'Y ese fondo de otra fase sigue listo para usar: al registrar un gasto, aparece seleccionable en "Fondos de otras fases".',
+      ],
+    },
+  },
+  {
     version: '1.1.5-rc',
     date: '2026-06-25',
     items: {

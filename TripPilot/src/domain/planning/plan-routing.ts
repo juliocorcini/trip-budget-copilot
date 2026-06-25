@@ -15,6 +15,15 @@
 export type PlanFundingSource = 'phase' | 'new_pot' | 'existing_pot';
 
 /**
+ * E01 (DEC-321): when the door creates a Pote/Fundo ("guardar dinheiro"), which
+ * part of the trip it belongs to.
+ * - `trip`  → a standalone `global` Pote, available from any phase (legacy `pot`).
+ * - `phase` → a `linked_phases` pool tied to one phase (reuses the `/funds` path):
+ *   no Event, no countdown, off the current Home, but selectable when logging (E02).
+ */
+export type PotScope = 'trip' | 'phase';
+
+/**
  * The canonical thing the door creates. Each maps to a backend shape:
  * - `event_phase`         → PlannedOccurrence(event) funded by the trecho (reserve subtracts).
  * - `event_new_pot`       → a new Pote (global pool) + PlannedOccurrence(event) funded by it.
@@ -22,6 +31,8 @@ export type PlanFundingSource = 'phase' | 'new_pot' | 'existing_pot';
  * - `purchase_phase`      → PlannedPurchase funded by the trecho (reserve subtracts).
  * - `purchase_existing_pot` → PlannedPurchase funded by an existing Pote (à parte).
  * - `pot`                 → a standalone Pote (global pool), money set apart with no date.
+ * - `pot_phase`           → a phase-scoped Pote/Fundo (`linked_phases` pool tied to one
+ *   phase), money set apart for a leg of the trip — NO Event, NO countdown (E01/DEC-321).
  */
 export type PlannedExpenseOutcome =
   | 'event_phase'
@@ -29,16 +40,21 @@ export type PlannedExpenseOutcome =
   | 'event_existing_pot'
   | 'purchase_phase'
   | 'purchase_existing_pot'
-  | 'pot';
+  | 'pot'
+  | 'pot_phase';
 
 /**
- * GATE 4 (master §3.2): the 2×3 routing table. Dated → an Event funded the chosen
- * way; undated → a Compra (from the trecho or an existing Pote) or, for "money
- * apart with no purchase yet", a Pote. Pure and total over the input space.
+ * GATE 4 (master §3.2) + E01 (DEC-321): the routing table. Dated → an Event funded
+ * the chosen way; undated → a Compra (from the trecho or an existing Pote) or, for
+ * "money set apart", a Pote/Fundo — `pot_phase` when it is scoped to a single phase
+ * (the `/funds` model) or `pot` for the whole trip. Pure and total over the input
+ * space; `potScope` only matters for the undated new-pot branch (defaults to `trip`,
+ * so the 2-arg legacy callers keep their exact behaviour).
  */
 export function routePlannedExpense(
   hasDate: boolean,
   funding: PlanFundingSource,
+  potScope: PotScope = 'trip',
 ): PlannedExpenseOutcome {
   if (hasDate) {
     if (funding === 'phase') return 'event_phase';
@@ -46,7 +62,7 @@ export function routePlannedExpense(
     return 'event_existing_pot';
   }
   if (funding === 'phase') return 'purchase_phase';
-  if (funding === 'new_pot') return 'pot';
+  if (funding === 'new_pot') return potScope === 'phase' ? 'pot_phase' : 'pot';
   return 'purchase_existing_pot';
 }
 
@@ -59,9 +75,18 @@ export function outcomeCreatesEvent(outcome: PlannedExpenseOutcome): boolean {
   );
 }
 
-/** True when the outcome creates a NEW Pote (a standalone one or to fund an event). */
+/** True when the outcome creates a NEW Pote (standalone, phase-scoped, or to fund an event). */
 export function outcomeCreatesNewPot(outcome: PlannedExpenseOutcome): boolean {
-  return outcome === 'event_new_pot' || outcome === 'pot';
+  return outcome === 'event_new_pot' || outcome === 'pot' || outcome === 'pot_phase';
+}
+
+/**
+ * True when the NEW Pote is phase-scoped: a `linked_phases` pool tied to one phase
+ * (the `/funds` model), with no Event/countdown and out of the current-phase Home
+ * focus, yet selectable when logging a spend (E01/DEC-321).
+ */
+export function outcomeCreatesPhasePot(outcome: PlannedExpenseOutcome): boolean {
+  return outcome === 'pot_phase';
 }
 
 /** True when the outcome materialises an undated Compra planejada (PlannedPurchase). */

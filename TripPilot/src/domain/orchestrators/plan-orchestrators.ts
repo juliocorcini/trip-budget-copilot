@@ -1,16 +1,19 @@
 import { db } from '@/data/db/database';
-import { createBudgetPool } from '@/domain/budget';
+import { createBudgetPool, createBudgetPoolPhaseLink } from '@/domain/budget';
 import { createPlannedOccurrence, createPlannedPurchase } from '@/domain/planning';
 import {
   routePlannedExpense,
   outcomeCreatesEvent,
   outcomeCreatesNewPot,
+  outcomeCreatesPhasePot,
   outcomeCreatesPurchase,
   outcomeFundedByPhase,
   type PlanFundingSource,
   type PlannedExpenseOutcome,
+  type PotScope,
 } from '@/domain/planning/plan-routing';
 import type { BudgetPool } from '@/domain/types/budget-pool';
+import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 
@@ -21,6 +24,8 @@ export interface CreatePlannedExpenseInput {
   hasDate: boolean;
   /** P2 — "de onde vem o dinheiro?" */
   funding: PlanFundingSource;
+  /** E01 (DEC-321): for a Pote/Fundo, which part of the trip it belongs to. Default 'trip'. */
+  potScope?: PotScope;
   name: string;
   estimatedCostCents: number;
   /** QuickAdd category key — prefills the Compra planejada "Comprei" form. */
@@ -30,7 +35,11 @@ export interface CreatePlannedExpenseInput {
   /** Dated outcomes: the event interval (inclusive YYYY-MM-DD). */
   startDate: string | null;
   endDate: string | null;
-  /** The trecho the item belongs to + its dedicated pool (phase funding / event anchor). */
+  /**
+   * The trecho the item belongs to + its dedicated pool (phase funding / event
+   * anchor). For a phase-scoped Pote/Fundo (`pot_phase`), `phaseId` is the phase the
+   * new `linked_phases` pool is linked to.
+   */
   phaseId: string | null;
   phasePoolId: string | null;
   /** funding === 'existing_pot': the chosen Pote's pool id. */
@@ -61,25 +70,36 @@ export interface CreatePlannedExpenseResult {
 export async function createPlannedExpense(
   input: CreatePlannedExpenseInput,
 ): Promise<CreatePlannedExpenseResult> {
-  const outcome = routePlannedExpense(input.hasDate, input.funding);
+  const outcome = routePlannedExpense(input.hasDate, input.funding, input.potScope ?? 'trip');
   const fundedByPhase = outcomeFundedByPhase(outcome);
 
   // A new Pote is born first so the Event/Compra can point at it. Its date mirrors
   // the event's (so the Pote follows the same D8 Home visibility); a standalone
-  // Pote ("pot") has no date.
+  // Pote ("pot") has no date. A phase-scoped Pote/Fundo ("pot_phase", E01/DEC-321)
+  // is a `linked_phases` pool tied to one phase (the `/funds` model) — no date, no
+  // Event, off the current Home, yet selectable when logging a spend (E02).
   let newPot: BudgetPool | null = null;
+  let phaseLink: BudgetPoolPhaseLink | null = null;
   if (outcomeCreatesNewPot(outcome)) {
+    const phaseScoped = outcomeCreatesPhasePot(outcome);
     newPot = createBudgetPool({
       tripId: input.tripId,
       name: input.name.trim(),
-      scope: 'global',
+      scope: phaseScoped ? 'linked_phases' : 'global',
       totalAmountCents: input.estimatedCostCents,
       currency: input.currency,
       dateStart: outcome === 'event_new_pot' ? input.startDate : null,
       dateEnd: outcome === 'event_new_pot' ? input.endDate : null,
-      // A goal only makes sense for a standalone Pote (not an event's funding pot).
-      goalCents: outcome === 'pot' ? (input.goalCents ?? null) : null,
+      // A goal only makes sense for a Pote/Fundo the user saves toward (standalone or
+      // phase-scoped), never for an event's funding pot.
+      goalCents: outcome === 'pot' || outcome === 'pot_phase' ? (input.goalCents ?? null) : null,
     });
+    if (phaseScoped) {
+      if (input.phaseId === null) {
+        throw new Error('createPlannedExpense: a phase Pote/Fundo requires a phaseId');
+      }
+      phaseLink = createBudgetPoolPhaseLink(newPot.id, input.phaseId);
+    }
   }
 
   // The pool that funds the Event/Compra (when one is created).
@@ -127,9 +147,10 @@ export async function createPlannedExpense(
 
   await db.transaction(
     'rw',
-    [db.budgetPools, db.plannedOccurrences, db.plannedPurchases],
+    [db.budgetPools, db.budgetPoolPhaseLinks, db.plannedOccurrences, db.plannedPurchases],
     async () => {
       if (newPot) await db.budgetPools.add(newPot);
+      if (phaseLink) await db.budgetPoolPhaseLinks.add(phaseLink);
       if (occurrence) await db.plannedOccurrences.add(occurrence);
       if (purchase) await db.plannedPurchases.add(purchase);
     },

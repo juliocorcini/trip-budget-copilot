@@ -5,7 +5,7 @@ import { showToast } from '@/components/Toast';
 import { Icon } from '@/components/Icon';
 import { toCents, parseLocaleNumber } from '@/domain/money';
 import { createPlannedExpense } from '@/domain/orchestrators';
-import { outcomeFundedByPhase, type PlanFundingSource, type PlannedExpenseOutcome } from '@/domain/planning';
+import type { PlanFundingSource, PlannedExpenseOutcome, PotScope } from '@/domain/planning';
 import { selectActivePhasePool } from '@/domain/budget';
 import { findActivePhase, sortPhasesByOrder } from '@/domain/dates';
 import type { Trip } from '@/domain/types/trip';
@@ -33,6 +33,9 @@ const PURCHASE_CHIP_KEYS = [
   'pote.chip_emergency',
   'pote.chip_transport',
 ] as const;
+
+/** E01 (DEC-321): the door's primary fork — what kind of thing to create. */
+type PlanIntent = 'spend' | 'fund';
 
 interface FundingOption {
   id: PlanFundingSource;
@@ -67,13 +70,16 @@ const TOAST_KEY: Record<PlannedExpenseOutcome, string> = {
   purchase_phase: 'plan.created_purchase',
   purchase_existing_pot: 'plan.created_purchase',
   pot: 'plan.created_pot',
+  pot_phase: 'plan.created_pot_phase',
 };
 
 /**
- * GATE 4 (M4.1/M4.2, master §3.3): the single "Planejar um gasto" door. The user
- * answers two plain questions — does it happen on a date? where does the money
- * come from? — and the app creates the right thing (Event / Event+Pote / Compra /
- * Pote) via the routing orchestrator. No fund/pool/occurrence jargon ever shows.
+ * GATE 4 (M4.1/M4.2, master §3.3) + E01 (DEC-321): the single "Planejar um gasto"
+ * door. The first question is now the INTENT — a gasto/evento (something you spend,
+ * optionally on a date → countdown) vs a pote/fundo (money set apart, no countdown).
+ * A pote/fundo can be scoped to one phase (a `linked_phases` pool, off the current
+ * Home, selectable when logging) or the whole trip (a global pot). The Event branch
+ * keeps its date + countdown. No fund/pool/occurrence jargon ever shows.
  */
 export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, onCreated, initialAmount, initialName }: PlanExpenseSheetProps) {
   const { t } = useTranslation();
@@ -82,8 +88,10 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
   const pots = useMemo(() => pools.filter((p) => p.scope === 'global' && p.deletedAt === null), [pools]);
   const activePhaseId = useMemo(() => findActivePhase(phases)?.id ?? null, [phases]);
 
+  const [intent, setIntent] = useState<PlanIntent>('spend');
   const [hasDate, setHasDate] = useState(false);
   const [funding, setFunding] = useState<PlanFundingSource>('phase');
+  const [potScope, setPotScope] = useState<PotScope>('phase');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -94,16 +102,18 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
   const [goal, setGoal] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // D7/D15: a savings goal only applies to a standalone Pote — no date, money
-  // set apart in a brand-new pot. Kept behind a toggle so the 2-question happy
-  // path stays clean (the goal field surfaces only on this exact route).
-  const isPurePot = !hasDate && funding === 'new_pot';
+  const isFund = intent === 'fund';
+  const isPhaseFund = isFund && potScope === 'phase';
+  // A savings goal applies to a pote/fundo (money you save toward), never to a spend.
+  const showGoal = isFund;
 
   useEffect(() => {
     if (!open) return;
     const defaultPhase = activePhaseId ?? sortedPhases[0]?.id ?? '';
+    setIntent('spend');
     setHasDate(false);
-    setFunding(sortedPhases.length > 0 ? 'phase' : 'new_pot');
+    setFunding(sortedPhases.length > 0 ? 'phase' : 'existing_pot');
+    setPotScope(sortedPhases.length > 0 ? 'phase' : 'trip');
     setName(initialName ?? '');
     setAmount(initialAmount ?? '');
     setStartDate(trip.startDate.slice(0, 10));
@@ -118,20 +128,35 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
   const fundingDisabled = (id: PlanFundingSource): boolean =>
     (id === 'phase' && sortedPhases.length === 0) || (id === 'existing_pot' && pots.length === 0);
 
-  const chips = useMemo(
-    () => (hasDate ? EVENT_CHIP_KEYS : PURCHASE_CHIP_KEYS).map((key) => t(key)),
-    [hasDate, t],
+  // In the spend branch, "set money aside in a new pot" is the FUND intent — so the
+  // new-pot funding only applies to a dated Event (e.g. Tomorrowland). Undated spend
+  // is a Compra from the trecho or from an existing pote.
+  const spendFundingOptions = useMemo(
+    () => FUNDING_OPTIONS.filter((o) => o.id !== 'new_pot' || hasDate),
+    [hasDate],
   );
 
-  const dateInvalid = hasDate && (!startDate || (endDate !== '' && endDate < startDate));
-  const fundingInvalid =
-    (funding === 'phase' && !selectedPhaseId) || (funding === 'existing_pot' && !selectedPotId);
+  const selectHasDate = (next: boolean) => {
+    setHasDate(next);
+    if (!next && funding === 'new_pot') setFunding('phase');
+  };
+
+  const chips = useMemo(
+    () => (!isFund && hasDate ? EVENT_CHIP_KEYS : PURCHASE_CHIP_KEYS).map((key) => t(key)),
+    [isFund, hasDate, t],
+  );
+
+  const dateInvalid = !isFund && hasDate && (!startDate || (endDate !== '' && endDate < startDate));
+  const spendFundingInvalid =
+    !isFund && ((funding === 'phase' && !selectedPhaseId) || (funding === 'existing_pot' && !selectedPotId));
+  const fundPhaseInvalid = isPhaseFund && (!selectedPhaseId || sortedPhases.length === 0);
   const canCreate =
     name.trim().length > 0 &&
     (parseLocaleNumber(amount) ?? 0) > 0 &&
     !dateInvalid &&
-    !fundingInvalid &&
-    !fundingDisabled(funding) &&
+    !spendFundingInvalid &&
+    !fundPhaseInvalid &&
+    (isFund || !fundingDisabled(funding)) &&
     !saving;
 
   /** The trecho a dated, pot-funded event lives in = the phase containing the date. */
@@ -147,27 +172,51 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
     if (!canCreate) return;
     setSaving(true);
     try {
-      const eventPhaseId =
-        funding === 'phase' ? selectedPhaseId : hasDate ? phaseIdForDate(startDate) : null;
-      const phasePool =
-        funding === 'phase' && selectedPhaseId
-          ? selectActivePhasePool(pools, links, selectedPhaseId)
-          : null;
-      const res = await createPlannedExpense({
-        tripId: trip.id,
-        currency: trip.baseCurrency,
-        hasDate,
-        funding,
-        name: name.trim(),
-        estimatedCostCents: toCents(parseLocaleNumber(amount) ?? 0),
-        category: 'shopping',
-        startDate: hasDate ? startDate : null,
-        endDate: hasDate && endDate && endDate > startDate ? endDate : null,
-        phaseId: eventPhaseId,
-        phasePoolId: phasePool?.id ?? null,
-        existingPotId: funding === 'existing_pot' ? selectedPotId : null,
-        goalCents: isPurePot && hasGoal ? toCents(parseLocaleNumber(goal) ?? 0) : null,
-      });
+      const estimatedCostCents = toCents(parseLocaleNumber(amount) ?? 0);
+      const goalCents = showGoal && hasGoal ? toCents(parseLocaleNumber(goal) ?? 0) : null;
+      let res;
+      if (isFund) {
+        // E01 (DEC-321): a pote/fundo never becomes an Event. Phase scope → a
+        // `linked_phases` pool tied to the chosen phase; trip scope → a global pot.
+        res = await createPlannedExpense({
+          tripId: trip.id,
+          currency: trip.baseCurrency,
+          hasDate: false,
+          funding: 'new_pot',
+          potScope,
+          name: name.trim(),
+          estimatedCostCents,
+          category: 'shopping',
+          startDate: null,
+          endDate: null,
+          phaseId: potScope === 'phase' ? selectedPhaseId : null,
+          phasePoolId: null,
+          existingPotId: null,
+          goalCents,
+        });
+      } else {
+        const eventPhaseId =
+          funding === 'phase' ? selectedPhaseId : hasDate ? phaseIdForDate(startDate) : null;
+        const phasePool =
+          funding === 'phase' && selectedPhaseId
+            ? selectActivePhasePool(pools, links, selectedPhaseId)
+            : null;
+        res = await createPlannedExpense({
+          tripId: trip.id,
+          currency: trip.baseCurrency,
+          hasDate,
+          funding,
+          name: name.trim(),
+          estimatedCostCents,
+          category: 'shopping',
+          startDate: hasDate ? startDate : null,
+          endDate: hasDate && endDate && endDate > startDate ? endDate : null,
+          phaseId: eventPhaseId,
+          phasePoolId: phasePool?.id ?? null,
+          existingPotId: funding === 'existing_pot' ? selectedPotId : null,
+          goalCents: null,
+        });
+      }
       showToast(t(TOAST_KEY[res.outcome], { name: name.trim() }), 'success');
       onClose();
       await onCreated();
@@ -176,73 +225,124 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
     }
   };
 
+  const namePlaceholder = isFund
+    ? t('plan.name_placeholder_fund')
+    : t(hasDate ? 'plan.name_placeholder_event' : 'plan.name_placeholder_purchase');
+
   return (
     <BottomSheet open={open} onClose={onClose} title={t('plan.title')}>
       <div className="flex flex-col gap-4 mt-2">
         <p className="text-xs text-on-surface-dim leading-relaxed">{t('plan.why')}</p>
 
-        {/* Q1 — does it happen on a date? GATE 5 (D15 / DEC-315): this is the
-            explicit Event × Pote/Fundo fork — an Event carries a date and a
-            countdown; a Pote/Fundo has neither and takes spend at any time. */}
+        {/* Q0 — what do you want to create? E01 (DEC-321): the primary fork is the
+            INTENT (a spend/event vs setting money aside), so a fund for a future
+            phase is never misfiled as a dated Event that pollutes the Home. */}
         <div>
-          <label className={LABEL_CLASS}>{t('plan.q1')}</label>
+          <label className={LABEL_CLASS}>{t('plan.kind_q')}</label>
           <div className="grid grid-cols-2 gap-2">
             <ChoiceCard
-              active={hasDate}
-              title={t('plan.q1_yes')}
-              desc={t('plan.q1_yes_desc')}
-              onClick={() => setHasDate(true)}
+              active={!isFund}
+              title={t('plan.kind_spend')}
+              desc={t('plan.kind_spend_desc')}
+              onClick={() => setIntent('spend')}
             />
             <ChoiceCard
-              active={!hasDate}
-              title={t('plan.q1_no')}
-              desc={t('plan.q1_no_desc')}
-              onClick={() => setHasDate(false)}
+              active={isFund}
+              title={t('plan.kind_fund')}
+              desc={t('plan.kind_fund_desc')}
+              onClick={() => setIntent('fund')}
             />
           </div>
           <p className="text-[11px] text-on-surface-faint leading-snug mt-1.5" data-plan-kind-note>
-            {t(hasDate ? 'plan.q1_note_event' : 'plan.q1_note_pote')}
+            {t(isFund ? 'plan.kind_fund_note' : 'plan.kind_spend_note')}
           </p>
         </div>
 
-        {/* Q2 — where does the money come from? */}
-        <div>
-          <label className={LABEL_CLASS}>{t('plan.q2')}</label>
-          <div className="flex flex-col gap-2">
-            {FUNDING_OPTIONS.map((opt) => {
-              const disabled = fundingDisabled(opt.id);
-              const active = funding === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  disabled={disabled}
-                  onClick={() => setFunding(opt.id)}
-                  className="text-left p-3 rounded-xl btn-press disabled:opacity-40 flex items-center gap-3"
-                  style={{
-                    background: active ? '#C75B3922' : 'var(--surface-high)',
-                    border: active ? '1px solid #C75B3955' : '1px solid transparent',
-                  }}
-                >
-                  <Icon
-                    name={active ? 'radio_button_checked' : 'radio_button_unchecked'}
-                    size={18}
-                    className={active ? 'text-primary shrink-0' : 'text-on-surface-faint shrink-0'}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-on-surface">{t(opt.labelKey)}</p>
-                    <p className="text-[11px] text-on-surface-dim leading-snug">{t(opt.descKey)}</p>
-                  </div>
-                </button>
-              );
-            })}
+        {/* SPEND branch — a date question (Event × Compra) + where the money comes from. */}
+        {!isFund && (
+          <>
+            <div>
+              <label className={LABEL_CLASS}>{t('plan.q1')}</label>
+              <div className="grid grid-cols-2 gap-2">
+                <ChoiceCard
+                  active={hasDate}
+                  title={t('plan.q1_yes')}
+                  desc={t('plan.q1_yes_desc')}
+                  onClick={() => selectHasDate(true)}
+                />
+                <ChoiceCard
+                  active={!hasDate}
+                  title={t('plan.q1_no')}
+                  desc={t('plan.q1_no_desc')}
+                  onClick={() => selectHasDate(false)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>{t('plan.q2')}</label>
+              <div className="flex flex-col gap-2">
+                {spendFundingOptions.map((opt) => {
+                  const disabled = fundingDisabled(opt.id);
+                  const active = funding === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      disabled={disabled}
+                      onClick={() => setFunding(opt.id)}
+                      className="text-left p-3 rounded-xl btn-press disabled:opacity-40 flex items-center gap-3"
+                      style={{
+                        background: active ? '#C75B3922' : 'var(--surface-high)',
+                        border: active ? '1px solid #C75B3955' : '1px solid transparent',
+                      }}
+                    >
+                      <Icon
+                        name={active ? 'radio_button_checked' : 'radio_button_unchecked'}
+                        size={18}
+                        className={active ? 'text-primary shrink-0' : 'text-on-surface-faint shrink-0'}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-on-surface">{t(opt.labelKey)}</p>
+                        <p className="text-[11px] text-on-surface-dim leading-snug">{t(opt.descKey)}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {funding === 'phase' && sortedPhases.length === 0 && (
+                <p className="text-xs text-error mt-1">{t('plan.no_phase')}</p>
+              )}
+              {funding === 'existing_pot' && pots.length === 0 && (
+                <p className="text-xs text-error mt-1">{t('plan.no_pots')}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* FUND branch — which part of the trip does the money belong to? */}
+        {isFund && (
+          <div>
+            <label className={LABEL_CLASS}>{t('plan.fund_scope_q')}</label>
+            <div className="grid grid-cols-2 gap-2">
+              <ChoiceCard
+                active={potScope === 'phase'}
+                title={t('plan.fund_scope_phase')}
+                desc={t('plan.fund_scope_phase_desc')}
+                onClick={() => setPotScope('phase')}
+                disabled={sortedPhases.length === 0}
+              />
+              <ChoiceCard
+                active={potScope === 'trip'}
+                title={t('plan.fund_scope_trip')}
+                desc={t('plan.fund_scope_trip_desc')}
+                onClick={() => setPotScope('trip')}
+              />
+            </div>
+            {potScope === 'phase' && sortedPhases.length === 0 && (
+              <p className="text-xs text-error mt-1">{t('plan.no_phase_fund')}</p>
+            )}
           </div>
-          {funding === 'phase' && sortedPhases.length === 0 && (
-            <p className="text-xs text-error mt-1">{t('plan.no_phase')}</p>
-          )}
-          {funding === 'existing_pot' && pots.length === 0 && (
-            <p className="text-xs text-error mt-1">{t('plan.no_pots')}</p>
-          )}
-        </div>
+        )}
 
         {/* Example chips (prefill the name) */}
         <div>
@@ -268,7 +368,7 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={t(hasDate ? 'plan.name_placeholder_event' : 'plan.name_placeholder_purchase')}
+            placeholder={namePlaceholder}
             className={INPUT_CLASS}
           />
         </div>
@@ -289,8 +389,8 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
           </div>
         </div>
 
-        {/* D7/D15: optional savings goal — only for a standalone Pote. */}
-        {isPurePot && (
+        {/* Optional savings goal — for a pote/fundo the user saves toward. */}
+        {showGoal && (
           <>
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -321,7 +421,7 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
           </>
         )}
 
-        {hasDate && (
+        {!isFund && hasDate && (
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={LABEL_CLASS}>{t('plan.start_label')}</label>
@@ -345,10 +445,10 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
         )}
         {dateInvalid && startDate !== '' && <p className="text-xs text-error">{t('plan.error_range')}</p>}
 
-        {/* Which trecho (phase funding) */}
-        {funding === 'phase' && sortedPhases.length > 0 && (
+        {/* Phase selector — a phase-funded spend OR a phase-scoped fund. */}
+        {((!isFund && funding === 'phase') || isPhaseFund) && sortedPhases.length > 0 && (
           <div>
-            <label className={LABEL_CLASS}>{t('plan.phase_label')}</label>
+            <label className={LABEL_CLASS}>{t(isFund ? 'plan.fund_phase_label' : 'plan.phase_label')}</label>
             <select
               value={selectedPhaseId}
               onChange={(e) => setSelectedPhaseId(e.target.value)}
@@ -363,8 +463,8 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
           </div>
         )}
 
-        {/* Which pot (existing pot funding) */}
-        {funding === 'existing_pot' && pots.length > 0 && (
+        {/* Pot selector — a spend funded by an existing pot. */}
+        {!isFund && funding === 'existing_pot' && pots.length > 0 && (
           <div>
             <label className={LABEL_CLASS}>{t('plan.pot_label')}</label>
             <select
@@ -382,18 +482,7 @@ export function PlanExpenseSheet({ open, onClose, trip, phases, pools, links, on
         )}
 
         <p className="text-[11px] text-on-surface-faint leading-relaxed">
-          {outcomeFundedByPhase(
-            // Preview the funding effect from the current answers.
-            hasDate
-              ? funding === 'phase'
-                ? 'event_phase'
-                : 'event_new_pot'
-              : funding === 'phase'
-                ? 'purchase_phase'
-                : 'pot',
-          )
-            ? t('plan.summary_from_trecho')
-            : t('plan.summary_apart')}
+          {!isFund && funding === 'phase' ? t('plan.summary_from_trecho') : t('plan.summary_apart')}
         </p>
 
         <div className="flex gap-2 mt-1">
@@ -421,16 +510,19 @@ function ChoiceCard({
   title,
   desc,
   onClick,
+  disabled = false,
 }: {
   active: boolean;
   title: string;
   desc: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className="text-left p-3 rounded-xl btn-press h-full"
+      disabled={disabled}
+      className="text-left p-3 rounded-xl btn-press h-full disabled:opacity-40"
       style={{
         background: active ? '#C75B3922' : 'var(--surface-high)',
         border: active ? '1px solid #C75B3955' : '1px solid transparent',

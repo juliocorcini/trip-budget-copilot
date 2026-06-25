@@ -1,8 +1,8 @@
 {
-  "version": "1.1.5-rc",
+  "version": "1.1.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.5-rc.zip",
-  "notes": "Agora dá para registrar um gasto ou uma entrada em um fundo de outra fase da viagem (ex.: um fundo da Eurotrip enquanto você ainda está em Burgos). Ele aparece numa seção \"Fundos de outras fases\", selecionável — antes só dava para escolher o fundo da fase atual ou o fundo global."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.6-rc.zip",
+  "notes": "Ao planejar, agora você escolhe primeiro o que quer criar: um gasto/evento (com ou sem data) ou um pote/fundo. O pote/fundo pode ser de uma fase específica (ex.: a Eurotrip que vem depois) e não vira mais um evento com contagem na tela inicial — ele fica guardado para a fase certa e pronto para receber gastos."
 }

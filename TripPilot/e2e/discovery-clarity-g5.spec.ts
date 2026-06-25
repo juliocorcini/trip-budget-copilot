@@ -12,6 +12,9 @@ import { test, expect, type Page } from '@playwright/test';
  * starts at +11 days. A pot dated +30 days therefore belongs to another phase.
  */
 
+const KIND_SPEND = /gasto ou evento|spend or event|gasto o evento/i;
+const KIND_FUND = /pote ou fundo|pot or fund|sobre o fondo/i;
+const FUND_SCOPE_Q = /para qual parte da viagem|which part of the trip|para qué parte del viaje/i;
 const Q1_YES = /sim, tem data|yes, it has a date|sí, tiene fecha/i;
 const Q1_NO = /não tem data|no date|sin fecha/i;
 const FUNDING_NEW_POT = /valor à parte|separate amount|importe aparte/i;
@@ -46,25 +49,29 @@ test.describe('Discovery & Clarity G5 — phase-scoped pots', () => {
     await loadDemoData(page);
   });
 
-  // D15c · DEC-315 — the create flow forks Event (countdown) vs Pote/Fundo (none).
-  test('the create door separates Event (countdown) from Pote/Fundo (no countdown)', async ({
+  // D15c · DEC-315 / E01 · DEC-321 — the door's first fork is the INTENT: a
+  // spend/event (a date → a countdown) vs a pote/fundo (no date → no countdown).
+  test('the create door separates a spend/event from a pote/fundo (no countdown)', async ({
     page,
   }) => {
     await openPlanDoor(page);
     const sheet = page.getByRole('dialog');
 
-    // Default = no date → the note states there is NO countdown, and no date field.
+    // Choosing "a pote/fundo" → the note states there is NO countdown, no date field,
+    // and it asks which part of the trip the money belongs to (phase × whole trip).
+    await sheet.getByRole('button', { name: KIND_FUND }).click();
     await expect(sheet.locator('[data-plan-kind-note]')).toHaveText(NO_COUNTDOWN);
     await expect(sheet.locator('input[type="date"]')).toHaveCount(0);
+    await expect(sheet.getByText(FUND_SCOPE_Q)).toBeVisible();
 
-    // Switching to "has a date" reveals the date field (the Event branch).
+    // Choosing "a spend/event" + "has a date" reveals the date field (the Event branch).
+    await sheet.getByRole('button', { name: KIND_SPEND }).click();
     await sheet.getByRole('button', { name: Q1_YES }).click();
     await expect(sheet.locator('input[type="date"]').first()).toBeVisible();
 
-    // Switching back to "no date" hides the date field again — a pote never dates.
+    // Back to "no date" within the spend branch hides the date field again.
     await sheet.getByRole('button', { name: Q1_NO }).click();
     await expect(sheet.locator('input[type="date"]')).toHaveCount(0);
-    await expect(sheet.locator('[data-plan-kind-note]')).toHaveText(NO_COUNTDOWN);
   });
 
   // D15a/D15b — a future-phase pot stays out of the Home focus but reachable + selectable.
