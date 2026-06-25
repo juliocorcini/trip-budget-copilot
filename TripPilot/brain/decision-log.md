@@ -2380,12 +2380,12 @@
 - **Rationale**: an icon-only button is undiscoverable next to a labelled one; the two sibling actions must read the same way.
 
 ### DEC-325 — First-run "Descobrir" call-to-action (E05)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G4, 1.1.7-rc).
 - **Decision**: Additive setting `discoverHintSeen?: boolean`. Until it is true, the home header shows an **expanded labelled "Descobrir" CTA** and **hides the empty notifications bell**; opening the discovery hub (or first dismissal) sets it true → revert to the compact compass icon + bell.
 - **Rationale**: on first runs there are no notifications and the compass icon alone doesn't invite exploration; a one-time labelled CTA teaches the app's breadth without permanent clutter (ÂNCORA 9 — nothing removed, only first-run emphasis).
 
 ### DEC-326 — Compact, expandable day check-in (E06)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G4, 1.1.7-rc).
 - **Decision**: The day check-in collapses into a one-line, tap-to-expand row sharing the "Posso gastar" line (icon + today's chosen intention); expanded shows the full check-in; tapping again collapses it.
 - **Rationale**: the compacted "posso gastar" (DEC-316) left dead horizontal space; a compact check-in fills it and shrinks the check-in's footprint while keeping it one tap away (ÂNCORA 9).
 
@@ -2395,7 +2395,7 @@
 - **Rationale**: merging the two split actions into one "Dividir" tile (DEC-311) freed a grid slot; the comparator is a first-class planning tool and earns the visible spot. Partially reverses DEC-311's collapse of this one action (Julio 2026-06-25).
 
 ### DEC-328 — "O cofrinho cobriu o dia" when free-today goes negative (E08)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G4, 1.1.7-rc).
 - **Decision**: When free-today is negative and the piggy absorbs the overspend, the Home shows a read-only line right under the number: the cofrinho covered X today, so the other days did not change. **No math change** (ÂNCORA 11) — it only narrates what `buildPiggyLedger` already did.
 - **Rationale**: the cover-first behaviour is invisible today; a negative number reads as alarming when in fact the buffer protected the future days.
 

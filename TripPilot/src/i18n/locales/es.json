@@ -707,6 +707,8 @@
     "checkin_dest_title": "Destino del ahorro de hoy",
     "checkin_dest_piggy": "Guardas {{saved}} en la alcancía — sostiene tus próximos días.",
     "checkin_redistribute": "Diluido en los próximos días: +{{perDay}}/día ({{saved}} de hoy).",
+    "piggy_covered_today": "La alcancía cubrió {{covered}} de hoy — tus otros días siguen igual.",
+    "piggy_covered_partial": "La alcancía cubrió {{covered}} de hoy; {{overflow}} se pasó y entra en los próximos días.",
     "checkin_lens_calm": "Hoy en foco: tu alcancía, justo abajo.",
     "checkin_lens_outing": "Hoy en foco: tus ocasiones, justo abajo.",
     "checkin_lens_night": "Alcanza para ~{{count}} rondas con la reserva de la noche.",
@@ -1840,6 +1842,7 @@
   },
   "discover": {
     "title": "Descubrir",
+    "first_run_cta": "Descubrir la app",
     "intro": "Busca lo que quieres hacer — o mira todo lo que hace la app, agrupado por intención.",
     "search_placeholder": "¿Qué quieres hacer? Ej.: dividir un importe, ver el cambio…",
     "no_results": "Nada encontrado. Prueba otras palabras o mira todo lo que puedes hacer abajo.",

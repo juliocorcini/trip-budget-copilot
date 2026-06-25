@@ -9,7 +9,6 @@
 
 export type DashboardCardId =
   | 'today_events'
-  | 'daily_checkin'
   | 'savings_goal'
   | 'piggy_bank'
   | 'active_outing'
@@ -73,13 +72,6 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   // several bar/restaurant expenses land back-to-back. Fixed like active_outing
   // (renders only when its derivation says so) so it is never reorderable noise.
   { id: 'suggest_outing', labelKey: 'dashboard.card_suggest_outing', fixed: true, quickAction: null },
-  {
-    // M7: one-tap intent for the day — sits right below the hero.
-    id: 'daily_checkin',
-    labelKey: 'dashboard.card_daily_checkin',
-    fixed: false,
-    quickAction: null,
-  },
   {
     // M14: savings goal progress — positive target next to the budget.
     id: 'savings_goal',

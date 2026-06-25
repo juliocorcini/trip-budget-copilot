@@ -149,3 +149,27 @@ describe('appSettingsRepository — location default ON (FB-03 / DEC-265)', () =
     expect(settings.locationDefaultNoticeAcknowledged).toBe(true);
   });
 });
+
+describe('appSettingsRepository — first-run discover nudge (E05 / DEC-325)', () => {
+  beforeEach(clearAll);
+
+  it('a NEW install has not yet seen the discovery hub (nudge shows once)', () => {
+    expect(createDefaultAppSettings().discoverHintSeen).toBe(false);
+  });
+
+  it('existing installs (no field) read back as already seen — no nudge', async () => {
+    const legacy = createDefaultAppSettings() as Partial<AppSettings>;
+    delete legacy.discoverHintSeen;
+    await db.appSettings.put(legacy as AppSettings);
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.discoverHintSeen).toBe(true);
+  });
+
+  it('persists opening the hub so the nudge never shows again', async () => {
+    await appSettingsRepository.update({ discoverHintSeen: true });
+
+    const settings = await appSettingsRepository.get();
+    expect(settings.discoverHintSeen).toBe(true);
+  });
+});

@@ -53,6 +53,10 @@ class AppSettingsRepository {
       // already acknowledged — only a genuinely new install (seeded false) ever
       // sees the first-run notice.
       locationDefaultNoticeAcknowledged: settings.locationDefaultNoticeAcknowledged ?? true,
+      // E05 (DEC-325): existing installs (no field) are treated as already having
+      // seen the discovery hub — only a genuinely new install (seeded false) ever
+      // gets the first-run "Descobrir" nudge.
+      discoverHintSeen: settings.discoverHintSeen ?? true,
       currentPlace: settings.currentPlace ?? null,
       // E9 (M11): records predating multi-currency have no frozen rates.
       frozenRates: settings.frozenRates ?? null,

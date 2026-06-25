@@ -711,6 +711,8 @@
     "checkin_dest_title": "Destino da economia de hoje",
     "checkin_dest_piggy": "Você guarda {{saved}} no cofrinho — ele segura os seus próximos dias.",
     "checkin_redistribute": "Diluído nos próximos dias: +{{perDay}}/dia ({{saved}} de hoje).",
+    "piggy_covered_today": "O cofrinho cobriu {{covered}} de hoje — os seus outros dias seguem iguais.",
+    "piggy_covered_partial": "O cofrinho cobriu {{covered}} de hoje; {{overflow}} passou e entra nos próximos dias.",
     "checkin_lens_calm": "Hoje em foco: o cofrinho, logo abaixo.",
     "checkin_lens_outing": "Hoje em foco: suas ocasiões, logo abaixo.",
     "checkin_lens_night": "Dá pra ~{{count}} rodadas com a reserva da noite.",
@@ -1844,6 +1846,7 @@
   },
   "discover": {
     "title": "Descobrir",
+    "first_run_cta": "Descobrir o app",
     "intro": "Busque pelo que você quer fazer — ou veja tudo que o app faz, organizado por intenção.",
     "search_placeholder": "O que você quer fazer? Ex.: dividir um valor, ver câmbio…",
     "no_results": "Nada encontrado. Tente outras palavras ou veja tudo que dá pra fazer abaixo.",

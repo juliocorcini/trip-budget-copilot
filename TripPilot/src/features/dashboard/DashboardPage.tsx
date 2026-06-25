@@ -150,6 +150,22 @@ export function DashboardPage() {
     navigate('/settings');
   };
 
+  // E05 (DEC-325): opening the discovery hub retires the first-run "Descobrir"
+  // nudge for good — the header reverts to the compact icon + bell next time.
+  const handleOpenDiscover = async () => {
+    if ((settings?.discoverHintSeen ?? true) === false) {
+      await appSettingsRepository.update({ discoverHintSeen: true });
+      // Refresh the shared app-data so the header reverts to the compact icon +
+      // bell on return (the context caches settings; an update alone is silent).
+      await reload();
+    }
+    navigate('/descobrir');
+  };
+
+  // E05 (DEC-325): only a brand-new install (seeded false) shows the expanded
+  // first-run "Descobrir" nudge; everyone else keeps the compact icon + bell.
+  const showDiscoverNudge = (settings?.discoverHintSeen ?? true) === false;
+
   // DEC-251 (os-budget): set/clear the Dia a dia monthly cap. The cap lives on
   // the space's active pool; 0 means "no limit, just log". The spent total is
   // always derived month-scoped from transactions, so it resets on its own.
@@ -459,43 +475,63 @@ export function DashboardPage() {
               is the quieter Settings entry that replaces the old "Mais" tab. */}
           <div className="flex items-center gap-2">
             {/* D02 · DEC-307: a discreet, always-visible doorway to the discovery
-                hub — find any function by intent (search) or browse everything the
-                app can do, without digging through Settings. */}
-            <button
-              onClick={() => navigate('/descobrir')}
-              className="btn-press"
-              aria-label={t('discover.title')}
-            >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--surface-container)' }}
+                hub. E05 · DEC-325: on first run (the hub never opened, so the bell
+                is empty anyway) it grows into a LABELLED "Descobrir" CTA that calls
+                the user to explore, and the bell is hidden until the hub is opened
+                once — then it reverts to the compact icon + bell below. */}
+            {showDiscoverNudge ? (
+              <button
+                onClick={handleOpenDiscover}
+                className="btn-press flex items-center gap-1.5 h-10 pl-3 pr-4 rounded-full"
+                style={{ background: 'var(--primary)' }}
+                aria-label={t('discover.first_run_cta')}
               >
-                <Icon name="travel_explore" size={20} className="text-on-surface-dim" />
-              </div>
-            </button>
-            {/* DEC-090 (R-08): bell opens the notifications center — never /shared */}
-            <button
-              onClick={() => navigate('/notifications')}
-              className="relative btn-press"
-              aria-label={t('notifications.title')}
-            >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--surface-container)' }}
+                <Icon name="travel_explore" size={18} style={{ color: 'var(--surface)' }} />
+                <span className="text-xs font-extrabold" style={{ color: 'var(--surface)' }}>
+                  {t('discover.first_run_cta')}
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={handleOpenDiscover}
+                className="btn-press"
+                aria-label={t('discover.title')}
               >
-                <Icon name="notifications" size={20} className="text-primary" />
-              </div>
-              {notifications.length > 0 && (
                 <div
-                  className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center"
-                  style={{ background: 'var(--primary)' }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--surface-container)' }}
                 >
-                  <span className="text-[9px] font-extrabold" style={{ color: 'var(--surface)' }}>
-                    {notifications.length}
-                  </span>
+                  <Icon name="travel_explore" size={20} className="text-on-surface-dim" />
                 </div>
-              )}
-            </button>
+              </button>
+            )}
+            {/* DEC-090 (R-08): bell opens the notifications center — never /shared.
+                Hidden during the first-run discover nudge (it has nothing to show
+                yet) so the call to explore stands alone. */}
+            {!showDiscoverNudge && (
+              <button
+                onClick={() => navigate('/notifications')}
+                className="relative btn-press"
+                aria-label={t('notifications.title')}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--surface-container)' }}
+                >
+                  <Icon name="notifications" size={20} className="text-primary" />
+                </div>
+                {notifications.length > 0 && (
+                  <div
+                    className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center"
+                    style={{ background: 'var(--primary)' }}
+                  >
+                    <span className="text-[9px] font-extrabold" style={{ color: 'var(--surface)' }}>
+                      {notifications.length}
+                    </span>
+                  </div>
+                )}
+              </button>
+            )}
             <button
               onClick={() => navigate('/settings')}
               className="btn-press"

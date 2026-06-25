@@ -46,7 +46,6 @@ describe('resolveDashboardCardSequence', () => {
     // The rest keeps catalog order.
     expect(movable.slice(2)).toEqual([
       'today_events',
-      'daily_checkin',
       'savings_goal',
       'piggy_bank',
       'occasion_counters',
@@ -82,14 +81,13 @@ describe('hide / show', () => {
 describe('moveDashboardCard', () => {
   it('moves a card up among the movable cards', () => {
     const order = moveDashboardCard(undefined, 'occasion_counters', 'up');
-    // Default movable order: today_events, daily_checkin, savings_goal,
-    // piggy_bank, occasion_counters, insights, …
+    // Default movable order: today_events, savings_goal, piggy_bank,
+    // occasion_counters, insights, … (the check-in lives on the hero now, E06).
     expect(order[0]).toBe('today_events');
-    expect(order[1]).toBe('daily_checkin');
-    expect(order[2]).toBe('savings_goal');
+    expect(order[1]).toBe('savings_goal');
     // occasion_counters swaps up past piggy_bank.
-    expect(order[3]).toBe('occasion_counters');
-    expect(order[4]).toBe('piggy_bank');
+    expect(order[2]).toBe('occasion_counters');
+    expect(order[3]).toBe('piggy_bank');
   });
 
   it('does not move past the edges', () => {
@@ -121,7 +119,6 @@ describe('pairable cards (2-up grid)', () => {
     expect(isDashboardCardPairable('pending_shares')).toBe(true);
     // Rich cards and anchors stay full width.
     expect(isDashboardCardPairable('hero')).toBe(false);
-    expect(isDashboardCardPairable('daily_checkin')).toBe(false);
     expect(isDashboardCardPairable('recent_expenses')).toBe(false);
     expect(isDashboardCardPairable('insights')).toBe(false);
     // F6: the text-heavy amigo sincero is deliberately NOT pairable.

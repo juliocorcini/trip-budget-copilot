@@ -1,8 +1,8 @@
 {
-  "version": "1.1.6-rc",
+  "version": "1.1.7-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.6-rc.zip",
-  "notes": "Ao planejar, agora você escolhe primeiro o que quer criar: um gasto/evento (com ou sem data) ou um pote/fundo. O pote/fundo pode ser de uma fase específica (ex.: a Eurotrip que vem depois) e não vira mais um evento com contagem na tela inicial — ele fica guardado para a fase certa e pronto para receber gastos."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.7-rc.zip",
+  "notes": "A tela inicial ficou mais clara: o check-in do dia agora fica ao lado do \"Posso gastar\", em uma linha que você abre e fecha. Quando um dia fica negativo e o cofrinho cobre a diferença, a tela diz isso com todas as letras — e seus outros dias seguem iguais. E, na primeira vez, um convite \"Descobrir o app\" aparece em destaque até você abrir a central de descoberta."
 }

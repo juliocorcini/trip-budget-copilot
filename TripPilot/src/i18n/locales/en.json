@@ -707,6 +707,8 @@
     "checkin_dest_title": "Where today's saving goes",
     "checkin_dest_piggy": "You keep {{saved}} in the piggy bank — it holds up your next days.",
     "checkin_redistribute": "Diluted across the next days: +{{perDay}}/day ({{saved}} from today).",
+    "piggy_covered_today": "The piggy bank covered {{covered}} of today — your other days stay the same.",
+    "piggy_covered_partial": "The piggy bank covered {{covered}} of today; {{overflow}} went over and spreads into the next days.",
     "checkin_lens_calm": "In focus today: your piggy bank, just below.",
     "checkin_lens_outing": "In focus today: your occasions, just below.",
     "checkin_lens_night": "That's about {{count}} rounds with the night reserve.",
@@ -1840,6 +1842,7 @@
   },
   "discover": {
     "title": "Discover",
+    "first_run_cta": "Discover the app",
     "intro": "Search for what you want to do — or browse everything the app does, grouped by intent.",
     "search_placeholder": "What do you want to do? E.g. split an amount, check the rate…",
     "no_results": "Nothing found. Try other words, or browse everything you can do below.",

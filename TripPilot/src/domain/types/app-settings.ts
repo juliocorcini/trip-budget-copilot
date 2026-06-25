@@ -30,6 +30,12 @@ export interface AppSettings {
   persistentStorageGranted: boolean;
   isDemo: boolean;
   onboardingCompleted: boolean;
+  /** E05 (DEC-325): true once the traveler opened the discovery hub (or dismissed
+   * the first-run nudge). Until then the home header shows an EXPANDED labelled
+   * "Descobrir" CTA and hides the (empty) bell. Seeded `false` on a NEW install so
+   * the nudge shows once; `undefined` on existing installs → read back as already
+   * seen, so they keep the compact icon + bell (non-indexed — no migration). */
+  discoverHintSeen?: boolean;
   quickAddDefaultValuesCents: number[];
   /** DEC-119 (R-10): configurable home screen (non-indexed — no migration). */
   hiddenDashboardCards: string[];

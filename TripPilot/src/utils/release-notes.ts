@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.7-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'O check-in do dia agora mora na tela inicial, ao lado do "Posso gastar": uma linha discreta que você toca para abrir (escolher como vai ser o dia) e toca de novo para recolher.',
+        'Quando o "Livre hoje" fica negativo e o cofrinho cobre a diferença, a tela passa a dizer isso claramente — quanto o cofrinho cobriu e que os seus outros dias seguem iguais. (As contas não mudaram, só ficaram mais honestas.)',
+        'Na primeira vez no app, um convite "Descobrir o app" aparece em destaque (e o sininho vazio some) até você abrir a central de descoberta uma vez — depois ele volta a ser um ícone pequeno.',
+      ],
+      en: [
+        'The day check-in now lives on the Home, next to "Can I spend": a discreet line you tap to open (pick how the day will go) and tap again to collapse.',
+        'When "Free today" goes negative and the piggy bank covers the gap, the Home now says so plainly \u2014 how much the piggy covered and that your other days stay the same. (The maths did not change, it is just more honest.)',
+        'On first run, a highlighted "Discover the app" invite appears (and the empty bell is hidden) until you open the discovery hub once \u2014 then it shrinks back to a small icon.',
+      ],
+      es: [
+        'El check-in del d\u00eda ahora vive en la pantalla inicial, junto a "Puedo gastar": una l\u00ednea discreta que tocas para abrir (elegir c\u00f3mo ser\u00e1 el d\u00eda) y tocas de nuevo para cerrar.',
+        'Cuando "Libre hoy" queda negativo y la alcanc\u00eda cubre la diferencia, la pantalla ahora lo dice con claridad \u2014 cu\u00e1nto cubri\u00f3 la alcanc\u00eda y que tus otros d\u00edas siguen igual. (Las cuentas no cambiaron, solo son m\u00e1s honestas.)',
+        'En el primer uso, una invitaci\u00f3n destacada "Descubrir la app" aparece (y la campana vac\u00eda se oculta) hasta que abras el centro de descubrimiento una vez \u2014 luego vuelve a ser un \u00edcono peque\u00f1o.',
+      ],
+    },
+  },
+  {
     version: '1.1.6-rc',
     date: '2026-06-25',
     items: {

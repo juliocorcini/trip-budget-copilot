@@ -31,6 +31,10 @@ export function createDefaultAppSettings(): AppSettings {
     persistentStorageGranted: false,
     isDemo: false,
     onboardingCompleted: false,
+    // E05 (DEC-325): a new install has NOT yet opened the discovery hub, so the
+    // home shows the expanded "Descobrir" nudge once. Existing installs read back
+    // `undefined` → treated as already seen (compact icon + bell).
+    discoverHintSeen: false,
     quickAddDefaultValuesCents: DEFAULT_QUICK_ADD_VALUES_CENTS,
     // DEC-119 (R-10): configurable home screen defaults.
     hiddenDashboardCards: [],
