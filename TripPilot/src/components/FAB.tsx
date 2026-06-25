@@ -12,13 +12,13 @@ import { openAssistant } from '@/features/assistant/assistant-bus';
 /**
  * The FAB keeps ALL its actions (ÂNCORA 9 — hide, never delete) and the visual
  * language, but ranks them by VALUE for the thumb. Base of the sheet = the AI +
- * register-expense heroes. Visible "smart tools" row: plan a spend, simulate,
- * convert currency and — Julio (2026-06-22) — "Registrar mercado", a daily-life
- * capture promoted back from the collapsed group to take the slot freed by the
- * cost-benefit comparator. The comparator no longer needs a visible slot, so it
- * moves into the collapsed "more actions" group (still reachable here + via the
- * Guide; its photo entry lives on the comparator page). Simple mode still hides
- * the advanced actions.
+ * register-expense heroes. Visible "smart tools" grid: plan a spend, simulate,
+ * convert currency and — E07 · DEC-327 (Julio 2026-06-25) — the cost-benefit
+ * comparator, which returns to the visible grid to fill the 2×2 slot left when
+ * "Dividir" merged the two split entries into one chooser. "Registrar mercado"
+ * stays a daily-life capture, mode-aware (collapsed on a trip, promoted to the
+ * visible grid in a "Dia a dia" space). Simple mode still hides the advanced
+ * actions.
  */
 type FabGroup = 'capture' | 'plan' | 'other';
 
@@ -100,16 +100,17 @@ const GROUPED_ACTIONS: FabAction[] = [
   },
   {
     // DEC-283/DEC-284: the cost-benefit comparator — "qual vale mais por
-    // kg/L/unidade?". Julio (2026-06-22): it does not need a visible slot, so it
-    // sits in the collapsed "more actions" group (still reachable here + via the
-    // Guide; its multi-photo entry lives on the comparator page itself).
+    // kg/L/unidade?". E07 · DEC-327 (Julio 2026-06-25): it returns to the visible
+    // "smart tools" grid (above "Dividir"), filling the slot freed when the two
+    // split entries merged into one "Dividir" chooser. Not `advanced`, so it
+    // stays discoverable in simple mode too (a shopping tool, like the converter).
     icon: 'balance',
     labelKey: 'fab.comparator',
     descKey: 'fab.comparator_desc',
     path: '/comparator',
     iconBg: '#6B8F7118',
     iconColorClass: 'text-success',
-    group: 'other',
+    group: 'plan',
   },
   {
     icon: 'swap_horiz',

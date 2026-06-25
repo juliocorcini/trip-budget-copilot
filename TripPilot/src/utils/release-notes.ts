@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.8-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'O comparador de custo-benefício voltou para o menu rápido (+): agora ele fica visível ao lado de "Planejar gasto", "Simular" e "Converter" — não precisa mais abrir "Mais ações".',
+        'As fotos do comparador voltaram a funcionar: dá para mandar uma ou várias de uma vez. (Um bug fazia o app perder as imagens escolhidas antes de lê-las.)',
+        'No assistente, o botão de câmera agora aparece sempre. Ao tocar, ele pede a permissão na hora e abre a mesma escolha de todo o app: tirar foto com a câmera ou buscar da galeria.',
+      ],
+      en: [
+        'The cost-benefit comparator is back in the quick menu (+): it now sits next to "Plan a spend", "Simulate" and "Convert" — no need to open "More actions".',
+        'Comparator photos work again: send one or several at once. (A bug dropped the picked images before they could be read.)',
+        'In the assistant, the camera button is always shown now. Tapping it asks for permission on the spot and opens the same choice used everywhere: take a photo or pick from the gallery.',
+      ],
+      es: [
+        'El comparador de costo-beneficio volvió al menú rápido (+): ahora aparece junto a "Planear gasto", "Simular" y "Convertir" — ya no hace falta abrir "Más acciones".',
+        'Las fotos del comparador vuelven a funcionar: puedes enviar una o varias a la vez. (Un error descartaba las imágenes elegidas antes de leerlas.)',
+        'En el asistente, el botón de cámara ahora se muestra siempre. Al tocarlo pide el permiso en el momento y abre la misma opción de toda la app: tomar una foto o elegir de la galería.',
+      ],
+    },
+  },
+  {
     version: '1.1.7-rc',
     date: '2026-06-25',
     items: {

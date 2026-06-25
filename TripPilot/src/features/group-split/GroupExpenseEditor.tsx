@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
+import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { showToast } from '@/components/Toast';
 import { formatMoney, toCents, fromCents } from '@/domain/money';
 import { buildGroupExpense, expenseShares, validateGroupExpense } from '@/domain/group-split';
@@ -46,7 +47,12 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
   const [aiBusy, setAiBusy] = useState(false);
   const [showAiText, setShowAiText] = useState(false);
   const [aiText, setAiText] = useState('');
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  // E13 · DEC-333: the receipt prefill uses the shared camera-or-gallery chooser
+  // (it was a camera-only input), so this entry offers the gallery too — same
+  // pattern as every other capture surface.
+  const receiptChooser = useImageSourceChooser((file) => {
+    void handleScanReceipt(file);
+  });
   const [shareIds, setShareIds] = useState<Set<string>>(
     () => new Set(expense ? expense.participantIds : event.participants.map((p) => p.id)),
   );
@@ -154,6 +160,7 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
 
   return (
     <BottomSheet open onClose={onClose} title={isEdit ? t('group_split.edit_expense') : t('group_split.add_expense')}>
+      {receiptChooser.element}
       <div className="flex flex-col gap-3 pt-2">
         {/* m3 — AI/receipt prefill for a NEW expense (one bill = one group expense).
             Each is opt-in; the user still confirms payer + split. */}
@@ -164,7 +171,7 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
                 <button
                   type="button"
                   disabled={aiBusy}
-                  onClick={() => fileRef.current?.click()}
+                  onClick={() => receiptChooser.open()}
                   className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <Icon name="photo_camera" size={18} className="text-primary" />
@@ -206,18 +213,6 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
             {aiBusy && !showAiText && (
               <p className="text-[11px] text-on-surface-faint text-center">{t('group_split.ai_thinking')}</p>
             )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleScanReceipt(file);
-                e.target.value = '';
-              }}
-            />
           </div>
         )}
 

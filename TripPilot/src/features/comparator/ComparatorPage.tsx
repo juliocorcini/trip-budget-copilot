@@ -21,6 +21,7 @@ import { OfflineSeal } from '@/components/OfflineSeal';
 import { BottomSheet } from '@/components/BottomSheet';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
+import { type Row, MAX_ROWS, isFilledRow, outcomeToRow } from './comparator-rows';
 
 /**
  * DEC-283 — the cost-benefit comparator. A minimalist calculator that answers
@@ -32,16 +33,6 @@ import { DataErrorScreen } from '@/components/DataErrorScreen';
  * verdict is honest: it ranks only same-dimension items and refuses to compare
  * weight against units.
  */
-interface Row {
-  id: string;
-  label: string;
-  price: string;
-  quantity: string;
-  unit: string;
-  /** DEC-284: a photo-filled row the user should confirm before trusting. */
-  review?: boolean;
-}
-
 interface SeedItem {
   price?: number;
   quantity?: number;
@@ -70,32 +61,6 @@ function parseSeedItems(raw: string | null): Row[] | null {
     };
   });
   return rows;
-}
-
-/** The comparator holds up to 6 rows (matches the picker + the seed cap). */
-const MAX_ROWS = 6;
-
-/** A row carries data once the user (or a photo) gave it a price/qty/label. */
-function isFilledRow(row: Row): boolean {
-  return row.price.trim() !== '' || row.quantity.trim() !== '' || row.label.trim() !== '';
-}
-
-/**
- * DEC-284: map one photo extraction outcome to a comparator row. A transport
- * failure becomes an empty row flagged for review, so a partial batch never
- * aborts — the user just fills that one by hand.
- */
-function outcomeToRow(outcome: UnitExtractOutcome, id: string): Row {
-  if (!outcome.ok) return { id, label: '', price: '', quantity: '', unit: 'g', review: true };
-  const item = outcome.item;
-  return {
-    id,
-    label: item.label ?? '',
-    price: item.price !== null ? String(item.price) : '',
-    quantity: item.quantity !== null ? String(item.quantity) : '',
-    unit: item.unit ?? 'g',
-    review: item.needsReview,
-  };
 }
 
 export function ComparatorPage() {
@@ -170,10 +135,12 @@ export function ComparatorPage() {
 
   // Compress + extract every picked photo IN PARALLEL, resiliently: one failure
   // becomes a review row instead of aborting the batch. Progress ticks per photo.
-  const handlePickedFiles = async (fileList: FileList | null) => {
+  // E10 · DEC-330: takes a plain File[] (already snapshotted by the caller) so the
+  // live FileList can't be emptied by the input reset before we read it.
+  const handlePickedFiles = async (picked: File[]) => {
     setPickerOpen(false);
-    if (!fileList || fileList.length === 0) return;
-    const files = Array.from(fileList).slice(0, MAX_ROWS);
+    if (picked.length === 0) return;
+    const files = picked.slice(0, MAX_ROWS);
     setScanError(null);
     setScan({ busy: true, done: 0, total: files.length });
 
@@ -202,7 +169,12 @@ export function ComparatorPage() {
   };
 
   const onPickedInput = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+    // E10 · DEC-330: snapshot the picked files into an array BEFORE clearing the
+    // input. Reading `event.target.files` lazily *after* `value = ''` returns an
+    // empty FileList in Chromium / Android WebView, so every photo was silently
+    // dropped (the picker opened, then "nothing happened"). Mirrors the reliable
+    // `Array.from(...)` pattern used by WiseImportPage / the shared chooser.
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     void handlePickedFiles(files);
   };

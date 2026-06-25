@@ -1,8 +1,8 @@
 {
-  "version": "1.1.7-rc",
+  "version": "1.1.8-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.7-rc.zip",
-  "notes": "A tela inicial ficou mais clara: o check-in do dia agora fica ao lado do \"Posso gastar\", em uma linha que você abre e fecha. Quando um dia fica negativo e o cofrinho cobre a diferença, a tela diz isso com todas as letras — e seus outros dias seguem iguais. E, na primeira vez, um convite \"Descobrir o app\" aparece em destaque até você abrir a central de descoberta."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.1.8-rc.zip",
+  "notes": "O comparador de custo-benefício voltou para o menu rápido (+), ao lado de planejar e converter. As fotos do comparador voltaram a funcionar — pode mandar uma ou várias de uma vez. E o botão de câmera agora aparece sempre no assistente: ao tocar, ele pede a permissão na hora e te deixa escolher entre tirar foto ou buscar da galeria."
 }

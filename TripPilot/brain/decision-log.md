@@ -2390,7 +2390,7 @@
 - **Rationale**: the compacted "posso gastar" (DEC-316) left dead horizontal space; a compact check-in fills it and shrinks the check-in's footprint while keeping it one tap away (ÂNCORA 9).
 
 ### DEC-327 — Cost-benefit comparator returns to the visible FAB grid (E07)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G5, 1.1.8-rc).
 - **Decision**: Move the comparator from the FAB's `other` group back to the visible `plan` smart-tools grid, in the slot above "Dividir".
 - **Rationale**: merging the two split actions into one "Dividir" tile (DEC-311) freed a grid slot; the comparator is a first-class planning tool and earns the visible spot. Partially reverses DEC-311's collapse of this one action (Julio 2026-06-25).
 
@@ -2405,9 +2405,9 @@
 - **Rationale**: the three are different lenses; presented side by side without context they look contradictory ("6 above pace, 12 above plan, but 32 in the piggy").
 
 ### DEC-330 — Comparator photo path fixed (E10)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G5, 1.1.8-rc).
 - **Decision**: The comparator's multi-image photo flow reliably produces review rows; a failed extraction surfaces a clear message/review row instead of silently doing nothing.
-- **Rationale**: uploading one or more photos to the cost-benefit comparator currently yields no rows; root cause to confirm at implementation (file-input not reset on re-pick, the `/unit-extract` cloud call failing, or the compress step).
+- **Rationale**: **root cause confirmed at implementation** — `ComparatorPage.onPickedInput` read the live `event.target.files` and then set `event.target.value = ''` *before* `handlePickedFiles` ran; clearing the input empties its `FileList` in Chromium / Android WebView, so every photo was silently dropped (the picker opened, then "nothing happened"). **Fix**: snapshot to a `File[]` via `Array.from(...)` *before* the reset (the reliable pattern already used by `WiseImportPage` / the shared chooser) and pass `File[]` into `handlePickedFiles`. The existing per-photo error/review handling already surfaces a clear line; the success→row / failure→review mapping is now guarded by the extracted `comparator-rows` unit suite (no silent drop).
 
 ### DEC-331 — Permanent scrollbar lock + regression test (E11)
 - **Date**: 2026-06-25 · **Status**: APPROVED (G1, 1.1.4-rc).
@@ -2420,7 +2420,7 @@
 - **Rationale**: the copy claims the wrong folder and exposes implementation detail; the "?" tutorial still circles the old "exportar JSON" button, so the help no longer mirrors the product.
 
 ### DEC-333 — Capture parity: mic + camera always offered, one source chooser (E13)
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G5, 1.1.8-rc).
 - **Decision**: Mic and camera buttons are always offered (permission requested on tap, not pre-gated), and every camera entry routes through the single `ImageSourceChooser` ("tirar foto com a câmera" vs "buscar da galeria").
 - **Rationale**: today a capture button only appears after a capability/permission is already active, and not all camera entries offer gallery — the pattern must be consistent and self-explanatory (extends DEC-272 single image chooser / DEC-277 graceful degradation).
 

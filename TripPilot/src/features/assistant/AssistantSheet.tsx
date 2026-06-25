@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
 import { useImageSourceChooser } from '@/components/ImageSourceChooser';
+import { appSettingsRepository } from '@/data/repositories';
 import { useAppData } from '@/hooks/useAppData';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { formatMoney, toCents, evaluateAmountExpression } from '@/domain/money';
@@ -47,7 +48,7 @@ interface EditContext {
 export function AssistantSheet() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, pools, links, phases, wallets, transactions, envelopes, occurrences, plannedPurchases, settings } =
+  const { trip, pools, links, phases, wallets, transactions, envelopes, occurrences, plannedPurchases, settings, reload } =
     useAppData();
   const walletTrackingActive = useWalletTracking();
   const [open, setOpen] = useState(false);
@@ -93,6 +94,14 @@ export function AssistantSheet() {
     }
     setOpen(false);
     navigate('/quick-add');
+  };
+
+  // E13 · DEC-333: the camera is ALWAYS offered in the assistant; tapping it while
+  // cloud receipt OCR is still opt-out turns it on (the same consent ReceiptScan
+  // uses) and reloads the shared settings so the photo path is live this tap.
+  const enablePhoto = async () => {
+    await appSettingsRepository.update({ cloudReceiptOcrEnabled: true });
+    await reload();
   };
 
   // E03 (DEC-323): now mounted globally at RootLayout, so it also renders on guest
@@ -171,6 +180,7 @@ export function AssistantSheet() {
                 onSubmit={() => void assistant.submit()}
                 onToggleVoice={() => void assistant.toggleVoice()}
                 onPickPhoto={(file) => void assistant.scanReceiptPhoto(file)}
+                onEnablePhoto={enablePhoto}
               />
             )}
 
@@ -274,11 +284,26 @@ function InputArea(props: {
   onSubmit: () => void;
   onToggleVoice: () => void;
   onPickPhoto: (file: File) => void;
+  onEnablePhoto: () => Promise<void>;
 }) {
   const { t } = useTranslation();
   // FB-09 (DEC-258) + CC-IMG: the camera lives beside the mic — same take-photo/
-  // gallery chooser used everywhere, only shown when cloud OCR is opted-in.
+  // gallery chooser used everywhere. E13 · DEC-333: it is ALWAYS offered now;
+  // tapping it while cloud OCR is still opt-out shows the one-time consent and
+  // then opens the chooser (it is no longer hidden until a capability is granted).
   const photoChooser = useImageSourceChooser(props.onPickPhoto);
+  const [photoConsentOpen, setPhotoConsentOpen] = useState(false);
+
+  const onCameraTap = () => {
+    if (props.photoEnabled) photoChooser.open();
+    else setPhotoConsentOpen(true);
+  };
+
+  const enableThenPick = async () => {
+    await props.onEnablePhoto();
+    setPhotoConsentOpen(false);
+    photoChooser.open();
+  };
   return (
     <div className="flex flex-col gap-2">
       <textarea
@@ -315,17 +340,15 @@ function InputArea(props: {
             />
           </button>
         )}
-        {props.photoEnabled && (
-          <button
-            onClick={() => photoChooser.open()}
-            disabled={props.disabled}
-            className="btn-press w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-40"
-            style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
-            aria-label={t('assistant.photo')}
-          >
-            <Icon name="photo_camera" size={22} className="text-on-surface-dim" />
-          </button>
-        )}
+        <button
+          onClick={onCameraTap}
+          disabled={props.disabled}
+          className="btn-press w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-40"
+          style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+          aria-label={t('assistant.photo')}
+        >
+          <Icon name="photo_camera" size={22} className="text-on-surface-dim" />
+        </button>
         <button
           onClick={props.onSubmit}
           disabled={props.disabled || props.value.trim() === ''}
@@ -337,6 +360,27 @@ function InputArea(props: {
         </button>
       </div>
       {photoChooser.element}
+
+      {/* E13 · DEC-333: cloud receipt OCR is opt-in (DEC-206) — when the camera is
+          tapped before it's on, the same consent ReceiptScan uses appears here,
+          then the source chooser opens. Privacy stays honest; discovery improves. */}
+      <BottomSheet
+        open={photoConsentOpen}
+        onClose={() => setPhotoConsentOpen(false)}
+        title={t('receiptScan.consent_title')}
+      >
+        <div className="flex flex-col gap-3 mt-2 pb-2">
+          <p className="text-[13px] text-on-surface-dim leading-relaxed">{t('receiptScan.consent_body')}</p>
+          <button
+            onClick={() => void enableThenPick()}
+            className="btn-press w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px]"
+            style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
+          >
+            <Icon name="photo_camera" size={18} />
+            {t('receiptScan.consent_enable')}
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
