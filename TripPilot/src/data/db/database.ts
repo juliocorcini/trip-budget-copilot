@@ -11,6 +11,7 @@ import {
   SCHEMA_V9,
   SCHEMA_V10,
   SCHEMA_V11,
+  SCHEMA_V12,
 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import { recordCrash } from '@/utils/crash-log';
@@ -42,6 +43,7 @@ import type { MailboxQueueItem } from '@/domain/types/mailbox';
 import type { Attachment } from '@/domain/types/attachment';
 import type { ShareLink } from '@/domain/types/share-link';
 import type { SplitRecord } from '@/domain/types/split-record';
+import type { GroupSplitRecord } from '@/domain/types/group-split-record';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -74,6 +76,7 @@ export class TripPilotDB extends Dexie {
   attachments!: EntityTable<Attachment, 'id'>;
   shareLinks!: EntityTable<ShareLink, 'id'>;
   splitSessions!: EntityTable<SplitRecord, 'id'>;
+  groupSplitEvents!: EntityTable<GroupSplitRecord, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -148,6 +151,10 @@ export class TripPilotDB extends Dexie {
     // T16 (Bill split): new splitSessions table. New table → no upgrade()
     // callback; existing data is preserved untouched on open.
     this.version(11).stores(SCHEMA_V11);
+
+    // C23 (Tricount group split, DEC-297): new groupSplitEvents table. New table
+    // → no upgrade() callback; existing data is preserved untouched on open.
+    this.version(12).stores(SCHEMA_V12);
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {

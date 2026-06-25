@@ -87,12 +87,13 @@ const emptyBackup = (deviceId: string = 'dev-1'): Omit<BackupData, 'version' | '
   peerLinks: [],
   mirroredStatements: [],
   splitSessions: [],
+  groupSplitEvents: [],
 });
 
 describe('createBackup', () => {
   it('adds version and export date', () => {
     const backup = createBackup(emptyBackup());
-    expect(backup.version).toBe(7);
+    expect(backup.version).toBe(8);
     expect(backup.exportedAt).toBeTruthy();
   });
 });
@@ -179,7 +180,7 @@ describe('parseBackupFile', () => {
     const backup = createBackup(emptyBackup());
     const result = parseBackupFile(JSON.stringify(backup));
     expect(result).not.toBeNull();
-    expect(result!.version).toBe(7);
+    expect(result!.version).toBe(8);
   });
 
   it('returns null for invalid JSON', () => {

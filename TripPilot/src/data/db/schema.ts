@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -125,4 +125,15 @@ export const SCHEMA_V10: Record<string, string> = {
 export const SCHEMA_V11: Record<string, string> = {
   ...SCHEMA_V10,
   splitSessions: 'id, tripId, sessionId, status, deletedAt',
+};
+
+// V12 (C23 — Tricount group split / DEC-297): a brand-new table holding the
+// readable group-split aggregate (GroupSplitRecord wrapping a GroupSplitEvent).
+// Brand-new table → no upgrade() callback; Dexie creates it on open and leaves
+// every existing table/row untouched. Like splitSessions it IS backed up (the
+// rich group history is the retention asset). Indexed by tripId (a trip's group
+// splits), status (open/settled filtering) and deletedAt (soft-delete filter).
+export const SCHEMA_V12: Record<string, string> = {
+  ...SCHEMA_V11,
+  groupSplitEvents: 'id, tripId, status, deletedAt',
 };

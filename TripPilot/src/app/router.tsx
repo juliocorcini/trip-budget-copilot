@@ -51,6 +51,8 @@ const SpacesPage = lazyWithRetry(() => import('@/features/spaces/SpacesPage').th
 const NewSpacePage = lazyWithRetry(() => import('@/features/spaces/NewSpacePage').then(m => ({ default: m.NewSpacePage })));
 const ConverterPage = lazyWithRetry(() => import('@/features/converter/ConverterPage').then(m => ({ default: m.ConverterPage })));
 const ComparatorPage = lazyWithRetry(() => import('@/features/comparator/ComparatorPage').then(m => ({ default: m.ComparatorPage })));
+const GroupSplitListPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitListPage').then(m => ({ default: m.GroupSplitListPage })));
+const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitDetailPage').then(m => ({ default: m.GroupSplitDetailPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -173,6 +175,9 @@ export const router = createBrowserRouter([
           // the active-space chip. Swaps `activeTrip` with a confirm.
           { path: '/spaces', element: <LazyRoute><SpacesPage /></LazyRoute> },
           { path: '/spaces/new', element: <LazyRoute><NewSpacePage /></LazyRoute> },
+          // C23 (Tricount group split, DEC-297): the group-split home + one event.
+          { path: '/groups', element: <LazyRoute><GroupSplitListPage /></LazyRoute> },
+          { path: '/groups/:id', element: <LazyRoute><GroupSplitDetailPage /></LazyRoute> },
         ],
       },
       { path: '/', element: <LazyRoute><BootGate /></LazyRoute> },

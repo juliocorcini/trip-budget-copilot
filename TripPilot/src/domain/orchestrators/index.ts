@@ -155,3 +155,9 @@ export type {
   PullShareResponsesResult,
   IngestShareResult,
 } from './share-link-orchestrators';
+export {
+  createGroupSplit,
+  persistGroupSplit,
+  deleteGroupSplit,
+} from './group-split-orchestrators';
+export type { CreateGroupSplitInput } from './group-split-orchestrators';

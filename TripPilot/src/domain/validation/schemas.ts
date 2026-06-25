@@ -157,6 +157,9 @@ export const backupFileSchema = z.object({
   // v7 (T16 — bill split): the readable divisions table; default keeps v1-v6
   // backups importable.
   splitSessions: z.array(syncedRecordSchema).default([]),
+  // v8 (C23 — Tricount group split): the group-split aggregate table; default
+  // keeps v1-v7 backups importable.
+  groupSplitEvents: z.array(syncedRecordSchema).default([]),
 });
 
 export const createTripInputSchema = z.object({

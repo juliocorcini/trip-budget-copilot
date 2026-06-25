@@ -492,6 +492,22 @@ export function SharedExpensesPage() {
         <h1 className="text-heading font-bold text-on-surface">{t('shared.hub_title')}</h1>
       </div>
 
+      {/* C23 (DEC-297): entry to the Tricount group splits (many expenses/payers),
+          a sibling of single-bill sharing. Always visible so it stays discoverable. */}
+      <button
+        onClick={() => navigate('/groups')}
+        className="bg-surface-container rounded-2xl p-4 flex items-center gap-3 text-left btn-press"
+      >
+        <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+          <Icon name="groups" size={22} className="text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-on-surface">{t('group_split.title')}</p>
+          <p className="text-[11px] text-on-surface-faint">{t('group_split.subtitle')}</p>
+        </div>
+        <Icon name="chevron_right" size={20} className="text-on-surface-faint shrink-0" />
+      </button>
+
       {/* DL-3: settle-up hero — opens with the answer ("quem me deve e quanto").
           Pure derivation of calculateDebts via summarizeOwnerDebts (confirmed
           debts only); connected-pending sits in its own group below. */}
