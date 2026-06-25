@@ -40,11 +40,23 @@ VISUAL_DENSITY: 5
 | --primary-subtle | `var(--primary-subtle)` | #C75B3915 | Background tint for primary-colored items |
 | --on-surface | `var(--on-surface)` | #EDE8E0 | Primary text (warm cream, not pure white) |
 | --on-surface-dim | `var(--on-surface-dim)` | #EDE8E0b3 | Secondary text, labels (70% opacity) |
-| --on-surface-faint | `var(--on-surface-faint)` | #EDE8E070 | Inactive nav, tertiary text (44%) |
+| --on-surface-faint | `var(--on-surface-faint)` | #EDE8E08C | Inactive nav, tertiary text (≈55% — raised 70→8C for AA, M02/DEC-286) |
 | --on-surface-mute | `var(--on-surface-mute)` | #EDE8E035 | Dividers, subtle separators (21%) |
 | --success | `var(--success)` | #6B8F71 | Positive states, "comfortable", savings |
 | --warning | `var(--warning)` | #D4A843 | Caution states, "attention", pending items |
-| --error | `var(--error)` | #D94040 | Danger, "avoid", destructive actions |
+| --error | `var(--error)` | #E04848 | Danger, "avoid", destructive actions (nudged D94040→E04848 for AA, M02/DEC-286) |
+
+### AI Accent (M12 / DEC-287)
+A second accent family, **distinct from the terracotta brand**, reserved for AI surfaces (Scan / AI entry / live split). Mnemonic: **terracotta = brand, indigo = AI**. Defined in `tokens.css` for both themes (light mode uses a deeper indigo so white text stays legible). Was previously hard-coded (`#6366F1`/`#818CF8`/`#8B5CF6`) across 9 files; now tokenized.
+
+| Token Name | CSS Variable | Hex (dark) | Usage |
+|---|---|---|---|
+| --ai | `var(--ai)` | #6366F1 | AI accent — icons, borders, solid AI buttons |
+| --ai-2 | `var(--ai-2)` | #818CF8 | AI accent, lighter step (gradients, hovers) |
+| --ai-strong | `var(--ai-strong)` | #8B5CF6 | AI accent, violet end of the gradient |
+| --ai-gradient | `var(--ai-gradient)` | 135° #6366F1→#8B5CF6 | AI hero/FAB gradient |
+
+(Also `--ai-bg-soft` / `--ai-bg` / `--ai-border` / `--ai-glow` for translucent AI fills and focus rings.)
 
 ### Semantic States (Traffic Light System)
 | State | Background | Text | Border | Usage |
@@ -65,8 +77,8 @@ VISUAL_DENSITY: 5
 - Follow 60-30-10: 60% surfaces, 30% secondary text/borders, 10% accent
 - NEVER use pure black (#000000) — use --surface (#0F1419)
 - NEVER use pure white (#FFFFFF) — use --on-surface (#EDE8E0)
-- NEVER use "AI palette" (cyan-on-dark, purple gradients, neon accents)
-- NEVER use blue as primary or accent — it's the generic finance-app color
+- The ONLY sanctioned secondary accent is the indigo **AI family** (`--ai`/`--ai-2`/`--ai-strong`/`--ai-gradient`), reserved strictly for AI surfaces (Scan / AI entry / live split) — terracotta = brand, indigo = AI (M12/DEC-287). Do NOT introduce other accent hues (cyan-on-dark, neon) for general UI.
+- NEVER use blue as the **brand/primary** accent — it's the generic finance-app color (the scoped indigo `--ai` family is the one exception, AI-surfaces only)
 - Success/Warning/Error are functional ONLY — not decorative
 
 ---
