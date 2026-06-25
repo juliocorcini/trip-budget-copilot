@@ -53,6 +53,7 @@ const ConverterPage = lazyWithRetry(() => import('@/features/converter/Converter
 const ComparatorPage = lazyWithRetry(() => import('@/features/comparator/ComparatorPage').then(m => ({ default: m.ComparatorPage })));
 const GroupSplitListPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitListPage').then(m => ({ default: m.GroupSplitListPage })));
 const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitDetailPage').then(m => ({ default: m.GroupSplitDetailPage })));
+const GroupClaimPage = lazyWithRetry(() => import('@/features/group-split/GroupClaimPage').then(m => ({ default: m.GroupClaimPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -206,6 +207,9 @@ export const router = createBrowserRouter([
       { path: '/s/:id', element: <LazyRoute><SharedLinkPage /></LazyRoute> },
       // G2 (bill split live table): the guest claim board — also outside BootGate.
       { path: '/t/:id', element: <LazyRoute><SplitTablePage /></LazyRoute> },
+      // C23 (Tricount group split, DEC-297): the group guest claim board — pick
+      // your name, see your balance, mark paid. Outside BootGate like `/t/`.
+      { path: '/g/:id', element: <LazyRoute><GroupClaimPage /></LazyRoute> },
       { path: '/shared-with-me', element: <LazyRoute><SharedWithMePage /></LazyRoute> },
       // DEC-248: owner-only usage dashboard. Standalone (outside BootGate + the
       // app shell) and token-gated by the Worker ADMIN_TOKEN — never linked in nav.

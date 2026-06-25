@@ -1,8 +1,8 @@
 {
-  "version": "0.99.64",
+  "version": "1.0.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/0.99.64.zip",
-  "notes": "Acabamento e clareza: no modo simples a barra de baixo fica equilibrada (Início, Gastos · + · Viagem, Ajustes); cada cartão de padrão do Copiloto agora diz se é bom sinal, de olho ou informativo; a prévia da fase separa o que é reservado do que é gasto planejado; os fundos mostram o essencial primeiro; e a Central de ajuda ganhou o guia do modo simples."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.0.0-rc.zip",
+  "notes": "Chegou a Divisão de grupo (estilo Tricount): junte várias despesas com várias pessoas e vários pagadores, divida igual ou personalizado, e deixe o app calcular quem deve a quem. Lance gastos por foto da nota ou IA, compartilhe um link para cada um escolher o próprio nome, ver seu saldo e marcar como pago — sem precisar do app. Quando o grupo é da viagem, os pagamentos confirmados entram no acerto da viagem."
 }

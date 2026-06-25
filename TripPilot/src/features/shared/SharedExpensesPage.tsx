@@ -35,7 +35,9 @@ import { formatMoney, toCents } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
-import { participantRepository, peerLinkRepository, sessionRepository } from '@/data/repositories';
+import { participantRepository, peerLinkRepository, sessionRepository, groupSplitRepository } from '@/data/repositories';
+import { groupSplitsToTripDebts, computeGroupBalances } from '@/domain/group-split';
+import type { GroupSplitEvent } from '@/domain/group-split';
 import type { PeerLink } from '@/domain/types/peer-link';
 // B2 wave 2 (coherence §2.2): the honest "Amigos/Conexões" list under one roof.
 // B2 wave 3: reuse a friend when charging + suggest reconnecting a new device.
@@ -110,6 +112,9 @@ export function SharedExpensesPage() {
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
+  // C23/DEC-306: trip-linked Tricount events feed the settle-up READ-ONLY (the
+  // settle action stays in the group). Loaded here; bridged via groupSplitToDebts.
+  const [groupEvents, setGroupEvents] = useState<GroupSplitEvent[]>([]);
   // DEC-206: receipt sessions, by id → name, to collapse a 40-item import into
   // ONE expandable "event" row in both the shared list and the settle-up sheet.
   const [sessionNameById, setSessionNameById] = useState<Record<string, string>>({});
@@ -127,14 +132,16 @@ export function SharedExpensesPage() {
     if (!trip) return;
     const load = async () => {
       const txIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
-      const [sh, se, sessions] = await Promise.all([
+      const [sh, se, sessions, groupRecords] = await Promise.all([
         participantShareRepository.getAllForTrip(txIds),
         settlementRepository.getByTripId(trip.id),
         sessionRepository.getByTripId(trip.id),
+        groupSplitRepository.listEvents(trip.id),
       ]);
       setShares(sh);
       setSettlements(se);
       setSessionNameById(Object.fromEntries(sessions.map((s) => [s.id, s.name])));
+      setGroupEvents(groupRecords.map((r) => r.event));
 
       const owner = participants.find((p) => p.isOwner);
       if (owner) {
@@ -482,6 +489,25 @@ export function SharedExpensesPage() {
     ownerSummary.receivableCents > 0 &&
     enabledPaymentMethods(settings?.paymentMethods ?? []).length === 0;
 
+  // C23/DEC-306: the owner's receivable/payable that comes from trip-linked
+  // Tricount events (read-only — the settle action stays in the group). Same
+  // currency as the trip base only; a debtor drops out once confirmed in-group.
+  const groupTripDebts = ownerParticipant
+    ? groupSplitsToTripDebts(groupEvents, trip.id, trip.baseCurrency)
+    : [];
+  const groupOwnerSummary =
+    ownerParticipant && groupTripDebts.length > 0
+      ? summarizeOwnerDebts(groupTripDebts, ownerParticipant.id)
+      : null;
+  const groupSettleRows = groupEvents
+    .filter((e) => e.tripId === trip.id && e.currency === trip.baseCurrency)
+    .map((e) => ({
+      id: e.id,
+      name: e.name,
+      ownerNet: computeGroupBalances(e).find((b) => b.participantId === e.ownerParticipantId)?.netCents ?? 0,
+    }))
+    .filter((row) => row.ownerNet !== 0);
+
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
       <div className="flex items-center gap-3">
@@ -559,6 +585,59 @@ export function SharedExpensesPage() {
             <p className="text-xs text-on-surface-faint mt-0.5">{t('shared.summary_empty')}</p>
           </div>
         ))}
+
+      {/* C23/DEC-306: trip-linked Tricount events that feed THIS settle-up,
+          read-only. Receivable/payable from groups + a deep link per group; the
+          settle action lives in the group (mark → confirm), so a confirmed
+          payment drops out here automatically. Hidden when nothing is owed. */}
+      {groupOwnerSummary && (groupOwnerSummary.receivableCents > 0 || groupOwnerSummary.payableCents > 0) && (
+        <section className="flex flex-col gap-2">
+          <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1">
+            {t('shared.group_settle_title')}
+          </p>
+          <div className="rounded-2xl p-4 bg-surface-container flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
+                  {t('shared.summary_receivable')}
+                </p>
+                <p className="text-xl font-extrabold tabular text-success leading-tight mt-0.5">
+                  {formatMoney(groupOwnerSummary.receivableCents, trip.baseCurrency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
+                  {t('shared.summary_payable')}
+                </p>
+                <p className="text-xl font-extrabold tabular text-error leading-tight mt-0.5">
+                  {formatMoney(groupOwnerSummary.payableCents, trip.baseCurrency)}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5 pt-1">
+              {groupSettleRows.map((row) => (
+                <button
+                  key={row.id}
+                  onClick={() => navigate(`/groups/${row.id}`)}
+                  className="flex items-center gap-2 text-left btn-press"
+                >
+                  <Icon name="groups" size={16} className="text-on-surface-faint shrink-0" />
+                  <span className="text-sm text-on-surface flex-1 truncate">{row.name}</span>
+                  <span className={`text-xs font-semibold tabular shrink-0 ${row.ownerNet > 0 ? 'text-success' : 'text-on-surface'}`}>
+                    {row.ownerNet > 0
+                      ? t('group_split.row_you_get', { amount: formatMoney(row.ownerNet, trip.baseCurrency) })
+                      : t('group_split.row_you_owe', { amount: formatMoney(-row.ownerNet, trip.baseCurrency) })}
+                  </span>
+                  <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-on-surface-faint leading-relaxed pt-1 border-t border-[var(--border-faint)]">
+              {t('shared.group_settle_hint')}
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* G4 (DEC-244): one-line nudge to publish a payment method so the
           "Lembrar" message can carry the owner's Pix/Wise/bank. Only when money

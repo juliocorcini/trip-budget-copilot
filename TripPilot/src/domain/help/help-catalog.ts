@@ -144,6 +144,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   a('reimbursement', 'request_quote', 'people', '/shared', [
     'reembolso recebi pagamento de volta pix wise dinheiro registrar', 'reimbursement got paid back received payment pix wise cash record', 'me pagaram de volta', 'registrar reembolso recebido', 'reembolso me pagaron',
   ]),
+  a('group_split', 'groups', 'people', '/groups', [
+    'divisao de grupo tricount varias despesas varios pagadores viagem rachar grupo link convidar escolher nome marcar pago', 'group split tricount many expenses many payers trip share link invite pick name mark paid', 'dividir gastos do grupo', 'racha da viagem inteira', 'evento de grupo despesas', 'division en grupo tricount gastos varios pagadores invitar enlace',
+  ]),
 
   // ── Copilot: the smart reads ───────────────────────────────────────────────
   a('copilot', 'insights', 'copilot', '/copiloto', [

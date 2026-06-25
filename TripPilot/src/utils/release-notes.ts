@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.0.0-rc',
+    date: '2026-06-24',
+    items: {
+      'pt-BR': [
+        'Chegou a Divisão de grupo (estilo Tricount): crie um evento, junte várias despesas com várias pessoas e deixe o app calcular quem deve a quem.',
+        'Cada despesa pode ter um ou vários pagadores e ser dividida igualmente ou de forma personalizada — e você pode lançar pela foto da nota ou pela IA, igual no resto do app.',
+        'Compartilhe um link e cada pessoa escolhe o próprio nome, vê quanto deve ou tem a receber e marca como pago — sem precisar instalar o app.',
+        'Quando o grupo é de uma viagem, os pagamentos confirmados aparecem no acerto da viagem, sem misturar com o caixa principal.',
+        'A Central de ajuda ganhou um guia sobre a divisão de grupo.',
+      ],
+      en: [
+        'Group split is here (Tricount-style): create an event, gather many expenses across many people and let the app work out who owes whom.',
+        'Each expense can have one or many payers and be split equally or custom — and you can log it from a receipt photo or with AI, just like everywhere else.',
+        'Share a link and each person picks their own name, sees what they owe or are owed and marks it paid — no app install needed.',
+        'When the group belongs to a trip, confirmed payments show up in the trip settle-up, without mixing into the main balance.',
+        'The Help Center gained a guide about group splitting.',
+      ],
+      es: [
+        'Llegó la División de grupo (estilo Tricount): crea un evento, junta varios gastos con varias personas y deja que la app calcule quién le debe a quién.',
+        'Cada gasto puede tener uno o varios pagadores y dividirse en partes iguales o personalizado — y puedes registrarlo con la foto del ticket o con IA, como en el resto de la app.',
+        'Comparte un enlace y cada persona elige su propio nombre, ve cuánto debe o tiene por cobrar y lo marca como pagado — sin instalar la app.',
+        'Cuando el grupo es de un viaje, los pagos confirmados aparecen en el ajuste del viaje, sin mezclarse con el saldo principal.',
+        'El Centro de ayuda sumó una guía sobre la división de grupo.',
+      ],
+    },
+  },
+  {
     version: '0.99.64',
     date: '2026-06-24',
     items: {

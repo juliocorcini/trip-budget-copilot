@@ -37,3 +37,12 @@ export type {
   GroupBalance,
   GroupTransfer,
 } from './types';
+export { buildGroupSharePayload, parseGroupSharePayload } from './share-payload';
+export type { GroupSharePayload } from './share-payload';
+export {
+  buildGroupClaimResponse,
+  parseGroupClaimResponse,
+  reduceGroupClaims,
+} from './claim-response';
+export type { GroupClaimResponse, BuildGroupClaimResponseInput } from './claim-response';
+export { groupSplitToDebts, groupSplitsToTripDebts } from './settle-bridge';

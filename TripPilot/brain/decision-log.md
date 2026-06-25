@@ -2184,7 +2184,7 @@
 
 ### DEC-297 — Tricount: new aggregate entity reusing share/claim/settlement (Council C-C / §16 Q4)
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (Gate G8)
+- **Status**: APPROVED — implemented G8 (m1→m6), shipped 1.0.0-rc (2026-06-24); `domain/group-split/*` aggregate + `/groups` UI + `/g/` claim board + AI/receipt prefill, reusing the `/share` transport/crypto/claim 100% (worker unchanged).
 - **Decision**: build a **new aggregate entity** ("group-split event") that **reuses** the existing public link (`/t/`/`/s/`), `claim-response`, `mirrored-statement`, `settlement` and worker — instead of overloading the single-bill `Split`. Scope is **COMPLETE** (§16 Q3): manual expenses + **AI/receipt reading** + **equal AND custom** split.
 - **Rationale**: single-bill split and a persistent multi-expense/multi-payer event have different mental models and life cycles; overloading the critical single-bill flow risks regression. Reuse transport/crypto/claim 100%; only the aggregate (event = list of expenses + participants) is new.
 - **Red team**: "two similar entities = debt" → mitigated by sharing transport/crypto/claim entirely; only the aggregate is new.
@@ -2234,7 +2234,7 @@
 
 ### DEC-304 — State dictionary (the app's "same language")
 - **Date**: 2026-06-24
-- **Status**: PROPOSED — Coherence wave (cross-gate, finalized at G8). **Advanced at G4 (0.99.61):** first concrete reconciliation via pure `classifyBudgetSignal` — the Planner's allocation red and the Copilot's verdict now say whether a red is a *real problem* or just a *plan adjustment* (`real_over` is the only red-worthy case). **Advanced at G6 (0.99.63):** pure `resolveShareStage` gives the settle-up screen a consistent share lifecycle label (pending → confirmed → paid → rejected; green-solid only when paid).
+- **Status**: APPROVED — finalized G8, shipped 1.0.0-rc (2026-06-24). **Advanced at G4 (0.99.61):** first concrete reconciliation via pure `classifyBudgetSignal` — the Planner's allocation red and the Copilot's verdict now say whether a red is a *real problem* or just a *plan adjustment* (`real_over` is the only red-worthy case). **Advanced at G6 (0.99.63):** pure `resolveShareStage` gives the settle-up screen a consistent share lifecycle label (pending → confirmed → paid → rejected; green-solid only when paid). **Finalized at G8:** the Tricount payment lifecycle (unpaid → marked[amber] → confirmed[green], never red) and the worded Copilot pattern reads (good/watch/neutral, G7/C20) close the dictionary across the wave.
 - **Decision**: real / planned / allocated / free / piggy / simulated / saved / outing / item / settlement have a **consistent label and color** across the whole app (see orchestrator appendix). Every alert explains: what happened · why it matters · what to do · whether it's a real problem or just a plan adjustment. Red = real problem.
 - **Rationale**: one screen says "you're in control" while another shows red without explaining the difference; the app must speak one language.
 - **Refines**: orchestrator §3 / appendix. **Cross-gate.**
@@ -2245,6 +2245,13 @@
 - **Decision**: for `input/textarea/select/[contenteditable]`, replace the global orange focus ring (`outline: 2px solid var(--primary)` + `--glow`, from DEC-285) with a **minimal, neutral, very subtle** focus — no orange, no glow; e.g. a slight neutral `border-color` lift **or** a thin 1–2px ring in `--border-subtle`. Keep the minimum perceptible by keyboard (WCAG 2.4.7 / DEC-285 preserved). Buttons/links/cards keep the current ring.
 - **Rationale**: Julio: the orange ring is ugly on text fields (`:focus-visible` fires on mouse click too); make it the most subtle possible without removing it entirely.
 - **Refines**: DEC-285 / orchestrator §6 C25. **Gate G1.**
+
+### DEC-306 — Tricount ↔ trip settle-up: contained read-only bridge (C23/m6)
+- **Date**: 2026-06-24
+- **Status**: APPROVED — implemented G8/m6, shipped 1.0.0-rc (2026-06-24); pure `groupSplitToDebts`/`groupSplitsToTripDebts` → read-only "Em divisões de grupo" section on `SharedExpensesPage` + trip-people quick-add (linked) in `GroupSplitDetailPage`. Decided via inline council (assess; Architect/Risk dominant).
+- **Decision**: a group split "enters the trip settle-up" through a **pure bridge** `groupSplitToDebts(event) → DebtEntry[]` (trip-participant space; only participants with `linkedParticipantId`; the debtor's transfer is dropped once their group `paymentStatus === 'confirmed'`; only when the group currency == the trip base). It is surfaced **read-only** in `SharedExpensesPage` (a contained "Em divisões de grupo" section: receivable/payable via the reused `summarizeOwnerDebts`/`suggestSimplifiedSettlements`, deep-linking each trip-linked group). The settle ACTION stays in the group (mark→confirm, m5) — the single source of truth for a group debt. The trip ledger (`calculateDebts`/`Transaction`/`ParticipantShare`/`Settlement` write path) is **never** mutated (no phantom transactions, no cross-source settlement). To make non-owner debts real, the owner can add **trip participants (linked)** to a trip-scoped group.
+- **Rationale**: the trip settle-up is a mutable money graph consumed by 5 surfaces; merging group debts into its write path at the end of a long wave risks a trip settlement silently clearing a group debt (and vice-versa). The contained bridge satisfies the AC ("entra nos acertos" = visible; "pagamento atualiza o acerto" = confirming in-group drops it) with one source of truth per debt, no migration, fully reversible, and leaves the formal seam for a future unified-settlement wave.
+- **Refines**: orchestrator §6 C23 / DEC-297, §10 G8/m6. **Gate G8.**
 
 ---
 

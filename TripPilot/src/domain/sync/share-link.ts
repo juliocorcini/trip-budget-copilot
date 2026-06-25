@@ -17,6 +17,13 @@ export const SHARE_PATH_PREFIX = '/s/';
  * AES key lives only in the fragment, so the worker stores opaque ciphertext.
  */
 export const SPLIT_TABLE_PATH_PREFIX = '/t/';
+/**
+ * C23 (Tricount group split, DEC-297). A SEPARATE prefix from `/t/` so a guest
+ * lands on the group claim board (`GroupClaimPage`) — many expenses/payers, pick
+ * your name, see your balance, mark paid. Same capability model: the AES key
+ * lives only in the fragment, so the worker stores opaque ciphertext.
+ */
+export const GROUP_SPLIT_PATH_PREFIX = '/g/';
 const KEY_PARAM = 'k';
 
 export function buildShareUrl(origin: string, shareId: string, key: string): string {
@@ -27,6 +34,11 @@ export function buildShareUrl(origin: string, shareId: string, key: string): str
 export function buildSplitTableUrl(origin: string, shareId: string, key: string): string {
   const base = origin.replace(/\/+$/, '');
   return `${base}${SPLIT_TABLE_PATH_PREFIX}${encodeURIComponent(shareId)}#${KEY_PARAM}=${key}`;
+}
+
+export function buildGroupSplitUrl(origin: string, shareId: string, key: string): string {
+  const base = origin.replace(/\/+$/, '');
+  return `${base}${GROUP_SPLIT_PATH_PREFIX}${encodeURIComponent(shareId)}#${KEY_PARAM}=${key}`;
 }
 
 /**

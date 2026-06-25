@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -12,16 +12,32 @@ import {
   computeGroupTransfers,
   createGroupParticipant,
   groupTotalCents,
+  reduceGroupClaims,
   removeExpense,
   removeParticipant,
   setGroupStatus,
+  setParticipantPayment,
   updateExpense,
 } from '@/domain/group-split';
 import { formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
+import { shareOrCopyLink } from '@/utils/native/link-share';
 import { GroupExpenseEditor } from './GroupExpenseEditor';
-import type { GroupExpense, GroupSplitEvent } from '@/domain/group-split';
+import {
+  publishGroupSplit,
+  republishGroupSplit,
+  revokeGroupSplit,
+  pullGroupClaims,
+  buildGroupSplitLink,
+  saveGroupLive,
+  loadGroupLive,
+  clearGroupLive,
+  type GroupLiveCreds,
+} from './group-link';
+import type { GroupExpense, GroupSplitEvent, GroupPaymentStatus } from '@/domain/group-split';
+
+const POLL_FLOOR_MS = 6000;
 
 /**
  * C23 / DEC-297 — one Tricount event: people, expenses (manual now; AI/receipt in
@@ -33,7 +49,7 @@ export function GroupSplitDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { settings } = useAppData();
+  const { settings, trip, participants } = useAppData();
   const photoEnabled = settings?.cloudReceiptOcrEnabled ?? false;
   const aiTextEnabled = settings?.aiQuickEntryEnabled ?? false;
 
@@ -41,6 +57,19 @@ export function GroupSplitDetailPage() {
   const [loaded, setLoaded] = useState(false);
   const [newPerson, setNewPerson] = useState('');
   const [editing, setEditing] = useState<GroupExpense | 'new' | null>(null);
+  const [creds, setCreds] = useState<GroupLiveCreds | null>(null);
+  const [publishing, setPublishing] = useState(false);
+
+  // Refs keep the poller and the save seam reading the latest state without
+  // re-subscribing the interval on every keystroke/edit.
+  const eventRef = useRef<GroupSplitEvent | null>(null);
+  eventRef.current = event;
+  const credsRef = useRef<GroupLiveCreds | null>(null);
+
+  const applyCreds = useCallback((next: GroupLiveCreds | null) => {
+    credsRef.current = next;
+    setCreds(next);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -48,16 +77,69 @@ export function GroupSplitDetailPage() {
       setEvent(e ?? null);
       setLoaded(true);
     });
-  }, [id]);
+    applyCreds(loadGroupLive(id));
+  }, [id, applyCreds]);
 
-  const save = async (next: GroupSplitEvent) => {
+  /**
+   * The single write seam: persist the pure-mutated event and, when the event is
+   * being shared, re-publish the encrypted mirror (bumping the revision) so every
+   * guest's `/g/` board reflects the owner's latest edits and confirmations.
+   */
+  const save = useCallback(async (next: GroupSplitEvent) => {
     setEvent(next);
     await persistGroupSplit(next);
-  };
+    const c = credsRef.current;
+    if (!c) return;
+    const bumped: GroupLiveCreds = { ...c, revision: c.revision + 1 };
+    applyCreds(bumped);
+    saveGroupLive(next.id, bumped);
+    try {
+      await republishGroupSplit(bumped, next, bumped.revision);
+    } catch {
+      // A transient network failure leaves the link live at the prior revision;
+      // the next edit re-publishes. Never block the local edit on the network.
+    }
+  }, [applyCreds]);
+
+  // Owner poll — fold every guest's claim snapshot (pick name + marked paid) into
+  // the live event while it is open and shared. Deterministic + idempotent: only
+  // a real change persists/re-publishes, so this converges and never loops.
+  useEffect(() => {
+    if (!creds || !event || event.status !== 'open') return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const claims = await pullGroupClaims(creds);
+        const current = eventRef.current;
+        if (!current || cancelled) return;
+        const next = reduceGroupClaims(current, claims);
+        if (JSON.stringify(next.participants) !== JSON.stringify(current.participants)) {
+          await save(next);
+        }
+      } catch {
+        // ignore — the next tick retries.
+      }
+    };
+    void tick();
+    const interval = setInterval(tick, POLL_FLOOR_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [creds, event?.id, event?.status, save]);
 
   const balances = useMemo(() => (event ? computeGroupBalances(event) : []), [event]);
   const transfers = useMemo(() => (event ? computeGroupTransfers(event) : []), [event]);
   const total = event ? groupTotalCents(event) : 0;
+  const netByPid = useMemo(() => new Map(balances.map((b) => [b.participantId, b.netCents])), [balances]);
+  const link = creds ? buildGroupSplitLink(creds) : null;
+  const isTripLinked = !!event && !!trip && event.tripId === trip.id;
+  // Trip teammates not yet in this event (offered as quick linked-add chips).
+  const tripPeopleToAdd = useMemo(() => {
+    if (!isTripLinked || !event) return [];
+    const linkedIds = new Set(event.participants.map((p) => p.linkedParticipantId).filter(Boolean));
+    return participants.filter((p) => !p.isOwner && p.deletedAt === null && !linkedIds.has(p.id));
+  }, [isTripLinked, event, participants]);
 
   if (loaded && event === null) {
     return (
@@ -89,6 +171,14 @@ export function GroupSplitDetailPage() {
     void save(removeParticipant(event, participantId));
   };
 
+  // C23/DEC-306: add a trip teammate as a LINKED participant so their group net
+  // can flow into the trip settle-up. Only offered for a trip-scoped event.
+  const handleAddTripPerson = (tripParticipantId: string, name: string) => {
+    void save(
+      addParticipant(event, createGroupParticipant({ name, kind: 'connected', linkedParticipantId: tripParticipantId })),
+    );
+  };
+
   const handleSaveExpense = (expense: GroupExpense) => {
     const exists = event.expenses.some((e) => e.id === expense.id);
     void save(exists ? updateExpense(event, expense) : addExpense(event, expense));
@@ -102,6 +192,43 @@ export function GroupSplitDetailPage() {
 
   const handleToggleSettled = () => {
     void save(setGroupStatus(event, event.status === 'settled' ? 'open' : 'settled'));
+  };
+
+  const shareLink = async (url: string) => {
+    const outcome = await shareOrCopyLink({ url, text: t('group_split.invite_text', { name: event.name }) });
+    if (outcome === 'copied') showToast(t('group_split.link_copied'), 'success');
+    else if (outcome === 'copy_failed') showToast(t('group_split.link_error'), 'danger');
+  };
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    try {
+      const c = await publishGroupSplit(event, 1);
+      applyCreds(c);
+      saveGroupLive(event.id, c);
+      await shareLink(buildGroupSplitLink(c));
+    } catch {
+      showToast(t('group_split.link_error'), 'danger');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleRevoke = async () => {
+    const c = credsRef.current;
+    if (!c) return;
+    try {
+      await revokeGroupSplit(c);
+    } catch {
+      // Already gone server-side — fall through and clear locally regardless.
+    }
+    clearGroupLive(event.id);
+    applyCreds(null);
+    showToast(t('group_split.link_revoked'), 'info');
+  };
+
+  const handleSetPayment = (participantId: string, status: GroupPaymentStatus) => {
+    void save(setParticipantPayment(event, participantId, status));
   };
 
   const handleDeleteEvent = async () => {
@@ -134,6 +261,51 @@ export function GroupSplitDetailPage() {
           <p className="text-lg font-bold text-on-surface">{event.participants.length}</p>
         </div>
       </div>
+
+      {/* Share — invite the group through the public `/g/` link (C23/DEC-297). */}
+      <section className="flex flex-col gap-2">
+        {creds ? (
+          <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Icon name="link" size={18} className="text-success" />
+              <span className="text-sm font-semibold text-on-surface">{t('group_split.sharing_on')}</span>
+            </div>
+            <p className="text-[11px] text-on-surface-faint break-all">{link}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => link && void shareLink(link)}
+                className="flex-1 py-2.5 rounded-lg bg-primary text-on-surface font-semibold btn-press flex items-center justify-center gap-1.5"
+              >
+                <Icon name="share" size={16} className="text-on-surface" />
+                {t('group_split.share_again')}
+              </button>
+              <button
+                onClick={handleRevoke}
+                className="py-2.5 px-3 rounded-lg bg-surface-high text-on-surface-dim text-sm btn-press"
+              >
+                {t('group_split.stop_sharing')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={handlePublish}
+            disabled={publishing}
+            className="bg-surface-container rounded-xl p-4 flex items-center gap-3 text-left btn-press disabled:opacity-50"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+              <Icon name="group_add" size={20} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-on-surface">{t('group_split.invite_cta')}</p>
+              <p className="text-[11px] text-on-surface-faint">{t('group_split.invite_hint')}</p>
+            </div>
+            {publishing && (
+              <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+            )}
+          </button>
+        )}
+      </section>
 
       {/* Balances + transfers — only meaningful once there is money in. */}
       {event.expenses.length > 0 && (
@@ -223,25 +395,37 @@ export function GroupSplitDetailPage() {
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-bold text-on-surface px-1">{t('group_split.people_title')}</h2>
         <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2.5">
-          {event.participants.map((p) => (
-            <div key={p.id} className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-surface-high flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-on-surface-dim">{p.name.slice(0, 1).toUpperCase()}</span>
+          {event.participants.map((p) => {
+            const isOwner = p.id === event.ownerParticipantId;
+            const isDebtor = (netByPid.get(p.id) ?? 0) < 0 && event.expenses.length > 0;
+            return (
+              <div key={p.id} className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-on-surface-dim">{p.name.slice(0, 1).toUpperCase()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-on-surface truncate block">{p.name}</span>
+                  {p.claimedByActorId !== null && !isOwner && (
+                    <span className="text-[10px] text-success">{t('group_split.joined_via_link')}</span>
+                  )}
+                </div>
+                {isOwner ? (
+                  <span className="text-[10px] text-on-surface-faint shrink-0">{t('group_split.owner_tag')}</span>
+                ) : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isDebtor && <PaymentControl status={p.paymentStatus} onSet={(s) => handleSetPayment(p.id, s)} t={t} />}
+                    <button
+                      onClick={() => handleRemovePerson(p.id)}
+                      className="btn-press p-1"
+                      aria-label={t('group_split.remove_person')}
+                    >
+                      <Icon name="close" size={16} className="text-on-surface-faint" />
+                    </button>
+                  </div>
+                )}
               </div>
-              <span className="text-sm text-on-surface flex-1 truncate">{p.name}</span>
-              {p.id === event.ownerParticipantId ? (
-                <span className="text-[10px] text-on-surface-faint">{t('group_split.owner_tag')}</span>
-              ) : (
-                <button
-                  onClick={() => handleRemovePerson(p.id)}
-                  className="btn-press p-1"
-                  aria-label={t('group_split.remove_person')}
-                >
-                  <Icon name="close" size={16} className="text-on-surface-faint" />
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
           <div className="flex items-center gap-2 pt-1">
             <input
               value={newPerson}
@@ -258,7 +442,30 @@ export function GroupSplitDetailPage() {
               {t('common.add')}
             </button>
           </div>
+
+          {/* C23/DEC-306: quick-add trip teammates as LINKED people so their net
+              flows into the trip settle-up. Only for a trip-scoped event. */}
+          {tripPeopleToAdd.length > 0 && (
+            <div className="flex flex-col gap-1.5 pt-1">
+              <p className="text-[11px] text-on-surface-faint">{t('group_split.add_from_trip')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {tripPeopleToAdd.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleAddTripPerson(p.id, p.name)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-high text-on-surface-dim text-xs font-medium btn-press"
+                  >
+                    <Icon name="add" size={14} className="text-on-surface-faint" />
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+        {isTripLinked && (
+          <p className="text-[11px] text-on-surface-faint px-1 leading-relaxed">{t('group_split.trip_settle_note')}</p>
+        )}
       </section>
 
       {/* Lifecycle actions */}
@@ -291,5 +498,50 @@ export function GroupSplitDetailPage() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * The owner's settle control for one debtor: confirm a guest's self-reported
+ * payment, or mark a cash/in-person settlement directly. Tapping a confirmed row
+ * reverts it (Â9: nothing is destructive/irreversible). Worded, never colour-only.
+ */
+function PaymentControl({
+  status,
+  onSet,
+  t,
+}: {
+  status: GroupPaymentStatus;
+  onSet: (status: GroupPaymentStatus) => void;
+  t: (key: string) => string;
+}) {
+  if (status === 'confirmed') {
+    return (
+      <button
+        onClick={() => onSet('unpaid')}
+        className="flex items-center gap-1 text-[11px] font-semibold text-success px-2 py-1 rounded-lg bg-success/15 btn-press"
+      >
+        <Icon name="check_circle" size={14} className="text-success" />
+        {t('group_split.received')}
+      </button>
+    );
+  }
+  if (status === 'marked') {
+    return (
+      <button
+        onClick={() => onSet('confirmed')}
+        className="text-[11px] font-semibold text-warning px-2 py-1 rounded-lg bg-warning/15 btn-press"
+      >
+        {t('group_split.confirm_receipt')}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={() => onSet('confirmed')}
+      className="text-[11px] font-medium text-on-surface-dim px-2 py-1 rounded-lg bg-surface-high btn-press"
+    >
+      {t('group_split.mark_received')}
+    </button>
   );
 }
