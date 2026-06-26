@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.10-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'O orçamento de uma parte da viagem agora se chama Verba (antes "Trecho") — um nome que soa a dinheiro. Potes e reservas continuam com o mesmo nome.',
+      ],
+      en: [
+        'The budget for a part of the trip is now called an Allowance (was "Segment") — a name that actually sounds like money. Pots and reserves keep their names.',
+      ],
+      es: [
+        'El presupuesto de una parte del viaje ahora se llama Asignación (antes "Tramo") — un nombre que suena a dinero. Los fondos y reservas mantienen su nombre.',
+      ],
+    },
+  },
+  {
     version: '1.4.9-rc',
     date: '2026-06-26',
     items: {
