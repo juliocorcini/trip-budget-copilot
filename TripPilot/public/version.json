@@ -1,8 +1,8 @@
 {
-  "version": "1.2.2-rc",
+  "version": "1.2.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.2-rc.zip",
-  "notes": "Criar um grupo ficou mais rápido: agora dá para adicionar as pessoas ali mesmo na criação — o teclado continua aberto e o foco já volta para o próximo nome. O grupo abre com todo mundo já dentro."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.3-rc.zip",
+  "notes": "Agora todo mundo do grupo pode ajudar a registrar as contas: quem abrir o link pode lançar uma despesa direto pelo navegador (sem instalar nada). Ela aparece como 'pendente' e entra para todos assim que o organizador sincroniza — o organizador segue no controle do dinheiro."
 }

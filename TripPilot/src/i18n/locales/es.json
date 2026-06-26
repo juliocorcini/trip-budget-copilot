@@ -2720,7 +2720,16 @@
     "revoked": "Este enlace fue cerrado por el organizador.",
     "not_found": "Grupo no encontrado. Revisa el enlace.",
     "bad_key": "Enlace inválido o incompleto.",
-    "error": "No se pudo abrir ahora. Inténtalo de nuevo."
+    "error": "No se pudo abrir ahora. Inténtalo de nuevo.",
+    "add_expense": "Añadir gasto",
+    "add_expense_hint": "Registra una cuenta que conozcas — aparece para todos cuando el organizador sincroniza.",
+    "expense_desc_ph": "Descripción (ej.: Taxi)",
+    "who_paid": "Quién pagó",
+    "pending": "Pendiente — esperando sincronizar",
+    "your_tag": "tú",
+    "remove": "Quitar",
+    "get_app_title": "Planea y divide tus propios viajes",
+    "get_app_cta": "Descarga TripPilot"
   },
   "profile_presets": {
     "restaurants": "Restaurantes",

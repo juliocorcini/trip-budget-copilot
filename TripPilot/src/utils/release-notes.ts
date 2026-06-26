@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.2.3-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Agora todo mundo do grupo pode ajudar a registrar as contas: quem abrir o link do grupo pode lançar uma despesa direto pelo navegador, sem instalar nada.',
+        'A despesa lançada por um convidado aparece como "pendente" e entra para todos assim que o organizador sincroniza. O organizador continua sendo a autoridade do dinheiro.',
+        'Só quem criou a despesa (ou o organizador) pode removê-la — e nada é duplicado, mesmo se o link for reaberto.',
+      ],
+      en: [
+        'Everyone in the group can now help log the bills: whoever opens the group link can add an expense straight from the browser, with nothing to install.',
+        'A guest-added expense shows as "pending" and reaches everyone once the organizer syncs. The organizer stays the money authority.',
+        'Only the person who added an expense (or the organizer) can remove it — and nothing is duplicated, even if the link is reopened.',
+      ],
+      es: [
+        'Ahora todos en el grupo pueden ayudar a registrar las cuentas: quien abra el enlace del grupo puede añadir un gasto directo desde el navegador, sin instalar nada.',
+        'El gasto que añade un invitado aparece como "pendiente" y llega a todos cuando el organizador sincroniza. El organizador sigue siendo la autoridad del dinero.',
+        'Solo quien añadió un gasto (o el organizador) puede quitarlo — y nada se duplica, aunque se reabra el enlace.',
+      ],
+    },
+  },
+  {
     version: '1.2.2-rc',
     date: '2026-06-25',
     items: {

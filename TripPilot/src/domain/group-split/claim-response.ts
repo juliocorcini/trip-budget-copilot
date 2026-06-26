@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { GroupSplitEvent } from './types';
+import type { GroupExpense, GroupSplitEvent } from './types';
 
 /**
  * C23 / DEC-297 (Tricount public link) — the guest → owner channel. A guest picks
@@ -17,6 +17,34 @@ import type { GroupSplitEvent } from './types';
  * enforces all of this.
  */
 
+/**
+ * DEC-340 — one guest-authored expense in a claim snapshot. The wire shape mirrors
+ * the durable `GroupExpense` minus the owner-stamped bits (`createdAt`, `source`,
+ * `authoredByActorId`), which the reducer fills on fold. The `id` is **client-stable**
+ * (e.g. `g:<actorId>:<rand>`) so re-posting the same snapshot is idempotent.
+ */
+const groupClaimLineItemSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  amountCents: z.number().int(),
+  qty: z.number(),
+});
+
+export const groupClaimExpenseSchema = z.object({
+  id: z.string().min(1).max(120),
+  description: z.string(),
+  amountCents: z.number().int().positive(),
+  paidByParticipantId: z.string().min(1),
+  splitMode: z.enum(['equal', 'custom']),
+  participantIds: z.array(z.string().min(1)).min(1),
+  customAmountsCents: z.record(z.string(), z.number().int()).optional(),
+  category: z.string().optional(),
+  occurredAt: z.string().optional(),
+  items: z.array(groupClaimLineItemSchema).optional(),
+});
+
+export type GroupClaimExpense = z.infer<typeof groupClaimExpenseSchema>;
+
 export const groupClaimResponseSchema = z.object({
   v: z.literal(1),
   /** The guest's stable per-device identity (survives their reconnects). */
@@ -27,6 +55,13 @@ export const groupClaimResponseSchema = z.object({
   claimedParticipantId: z.string().min(1),
   /** The guest asserts they settled their net debt (owner still confirms). */
   markedPaid: z.boolean(),
+  /**
+   * DEC-340 — the FULL set of expenses this device currently authors (a snapshot,
+   * like `markedPaid`). The owner folds them add-or-retract: ids present here that
+   * the owner hasn't seen are added; ids this author previously contributed that
+   * are gone here are retracted. Absent/empty = this device authors nothing.
+   */
+  expenses: z.array(groupClaimExpenseSchema).optional(),
   at: z.string(),
 });
 
@@ -37,10 +72,11 @@ export interface BuildGroupClaimResponseInput {
   fromName: string;
   claimedParticipantId: string;
   markedPaid: boolean;
+  expenses?: GroupClaimExpense[];
 }
 
 export function buildGroupClaimResponse(input: BuildGroupClaimResponseInput): GroupClaimResponse {
-  return {
+  const response: GroupClaimResponse = {
     v: 1,
     fromActorId: input.fromActorId,
     fromName: input.fromName.trim().slice(0, 60) || 'Convidado',
@@ -48,10 +84,18 @@ export function buildGroupClaimResponse(input: BuildGroupClaimResponseInput): Gr
     markedPaid: input.markedPaid,
     at: new Date().toISOString(),
   };
+  if (input.expenses && input.expenses.length > 0) response.expenses = input.expenses;
+  return response;
 }
 
 export function parseGroupClaimResponse(raw: unknown): GroupClaimResponse | null {
   const result = groupClaimResponseSchema.safeParse(raw);
+  return result.success ? result.data : null;
+}
+
+/** Validate one wire expense (used to sanitise the guest's locally-stored draft). */
+export function parseGroupClaimExpense(raw: unknown): GroupClaimExpense | null {
+  const result = groupClaimExpenseSchema.safeParse(raw);
   return result.success ? result.data : null;
 }
 
@@ -65,6 +109,16 @@ export function parseGroupClaimResponse(raw: unknown): GroupClaimResponse | null
  *  - escalate the slot to `marked` when the guest asserts paid, or back to
  *    `unpaid` when they un-assert — UNLESS the owner already set `confirmed`,
  *    which freezes the slot (only the owner can move off `confirmed`).
+ *
+ * DEC-340 — it also folds the device's authored EXPENSES with a strict
+ * **add-or-retract, never-replace** contract (owner stays the money authority):
+ *  - ADD an authored expense the owner has not seen (validated against the event's
+ *    participants + integer cents; invalid claims are dropped to protect balances);
+ *  - RETRACT an expense this author previously contributed that is gone from their
+ *    snapshot (the author pulled it);
+ *  - NEVER overwrite an already-folded expense from a guest snapshot, so the owner's
+ *    edits win and a re-posted snapshot can't clobber them;
+ *  - SKIP any id in `hiddenExpenseIds` (the owner tombstoned it — hide-never-delete).
  * Pure: returns a new event; the panel recomputes balances/transfers from it.
  */
 export function reduceGroupClaims(event: GroupSplitEvent, batches: GroupClaimResponse[]): GroupSplitEvent {
@@ -74,6 +128,10 @@ export function reduceGroupClaims(event: GroupSplitEvent, batches: GroupClaimRes
   }
 
   let participants = event.participants;
+  let expenses = event.expenses;
+  const hidden = new Set(event.hiddenExpenseIds ?? []);
+  const participantIds = new Set(event.participants.map((p) => p.id));
+
   for (const batch of latestByActor.values()) {
     participants = participants.map((p) => {
       // Release a stale binding: this device moved to a different slot.
@@ -90,6 +148,60 @@ export function reduceGroupClaims(event: GroupSplitEvent, batches: GroupClaimRes
             : 'unpaid';
       return { ...p, claimedByActorId: batch.fromActorId, paymentStatus: nextStatus };
     });
+
+    const actor = batch.fromActorId;
+    const snapshot = batch.expenses ?? [];
+    const snapshotIds = new Set(snapshot.map((e) => e.id));
+    // Retract: drop this author's folded expenses absent from their snapshot.
+    expenses = expenses.filter((e) => !(e.authoredByActorId === actor && !snapshotIds.has(e.id)));
+    // Add: fold new, valid, non-tombstoned authored expenses (never replace).
+    const existingIds = new Set(expenses.map((e) => e.id));
+    for (const claim of snapshot) {
+      if (hidden.has(claim.id) || existingIds.has(claim.id)) continue;
+      const folded = foldClaimExpense(claim, actor, batch.claimedParticipantId, participantIds);
+      if (folded) {
+        expenses = [...expenses, folded];
+        existingIds.add(folded.id);
+      }
+    }
   }
-  return { ...event, participants };
+  return { ...event, participants, expenses };
+}
+
+/**
+ * DEC-340 — turn a wire `GroupClaimExpense` into a durable owner-stamped
+ * `GroupExpense`, or `null` when it would corrupt the ledger. Guards (drop on
+ * fail, never throw): the payer + every share participant must be real slots, the
+ * amount is a positive integer, and any custom amounts are integers. The owner
+ * stamps `createdAt`, `source: 'manual'`, the author actorId and — for the G2
+ * "registered by" label — the guest's claimed slot as `createdByParticipantId`.
+ */
+function foldClaimExpense(
+  claim: GroupClaimExpense,
+  actorId: string,
+  claimedParticipantId: string,
+  participantIds: Set<string>,
+): GroupExpense | null {
+  if (!Number.isInteger(claim.amountCents) || claim.amountCents <= 0) return null;
+  if (!participantIds.has(claim.paidByParticipantId)) return null;
+  if (claim.participantIds.length === 0) return null;
+  if (!claim.participantIds.every((id) => participantIds.has(id))) return null;
+
+  const expense: GroupExpense = {
+    id: claim.id,
+    description: claim.description.trim(),
+    amountCents: claim.amountCents,
+    paidByParticipantId: claim.paidByParticipantId,
+    splitMode: claim.splitMode,
+    participantIds: [...claim.participantIds],
+    customAmountsCents: claim.customAmountsCents ? { ...claim.customAmountsCents } : {},
+    category: claim.category ?? 'other',
+    source: 'manual',
+    createdAt: new Date().toISOString(),
+    authoredByActorId: actorId,
+  };
+  if (participantIds.has(claimedParticipantId)) expense.createdByParticipantId = claimedParticipantId;
+  if (claim.occurredAt) expense.occurredAt = claim.occurredAt;
+  if (claim.items && claim.items.length > 0) expense.items = claim.items.map((it) => ({ ...it }));
+  return expense;
 }

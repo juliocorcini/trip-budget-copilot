@@ -50,6 +50,8 @@ const groupExpenseSchema = z.object({
   occurredAt: z.string().optional(),
   createdByParticipantId: z.string().optional(),
   items: z.array(groupExpenseLineItemSchema).optional(),
+  // DEC-340 — preserve the authoring device so the board can mark mine + retract.
+  authoredByActorId: z.string().optional(),
 });
 
 const groupSplitEventSchema = z.object({
@@ -62,6 +64,8 @@ const groupSplitEventSchema = z.object({
   expenses: z.array(groupExpenseSchema),
   status: z.enum(['open', 'settled']),
   createdAt: z.string(),
+  // DEC-340 — owner tombstones travel so a guest's stale snapshot can't resurrect.
+  hiddenExpenseIds: z.array(z.string()).optional(),
 });
 
 export const groupSharePayloadSchema = z.object({

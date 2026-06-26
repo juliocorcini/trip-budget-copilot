@@ -134,8 +134,20 @@ export function updateExpense(event: GroupSplitEvent, expense: GroupExpense): Gr
   };
 }
 
+/**
+ * Remove an expense. A guest-AUTHORED expense (DEC-340) is also **tombstoned**
+ * (`hiddenExpenseIds`) so a guest's stale snapshot can't re-fold it — the owner is
+ * the authority and removal sticks (hide-never-delete). Owner-authored expenses
+ * just drop (nothing re-posts them).
+ */
 export function removeExpense(event: GroupSplitEvent, expenseId: string): GroupSplitEvent {
-  return { ...event, expenses: event.expenses.filter((e) => e.id !== expenseId) };
+  const target = event.expenses.find((e) => e.id === expenseId);
+  const expenses = event.expenses.filter((e) => e.id !== expenseId);
+  if (target?.authoredByActorId) {
+    const hiddenExpenseIds = [...new Set([...(event.hiddenExpenseIds ?? []), expenseId])];
+    return { ...event, expenses, hiddenExpenseIds };
+  }
+  return { ...event, expenses };
 }
 
 export function setParticipantPayment(

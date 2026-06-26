@@ -6,15 +6,20 @@ import {
   buildGroupClaimResponse,
   computeGroupBalances,
   computeGroupTransfers,
+  type GroupClaimExpense,
   type GroupSharePayload,
   type GroupSplitEvent,
 } from '@/domain/group-split';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-signal';
-import { formatMoney } from '@/domain/money';
+import { formatMoney, toCents } from '@/domain/money';
+import { getShareOrigin } from '@/utils/native/public-origin';
 import { Icon } from '@/components/Icon';
 import {
   fetchGroupSplit,
   postGroupClaim,
+  loadGuestExpenses,
+  saveGuestExpenses,
+  newGuestExpenseId,
   type FetchGroupStatus,
 } from './group-link';
 import { getGuestActorId, getGuestName, setGuestName } from '@/features/split/live-link';
@@ -47,6 +52,8 @@ export function GroupClaimPage() {
   const [load, setLoad] = useState<LoadState>({ kind: 'loading' });
   const [claimedId, setClaimedId] = useState<string | null>(null);
   const [markedPaid, setMarkedPaid] = useState(false);
+  // DEC-340 — the guest's own authored expenses (a snapshot the owner folds).
+  const [myExpenses, setMyExpenses] = useState<GroupClaimExpense[]>([]);
   const seededRef = useRef(false);
   const hasPayloadRef = useRef(false);
   const signalRef = useRef<ShareSignalHandle | null>(null);
@@ -59,14 +66,26 @@ export function GroupClaimPage() {
     const res = await fetchGroupSplit(id, key);
     if (res.status === 'ok') {
       // Seed my pick + paid flag from the owner's view of my slot (my last posted
-      // state), so a returning guest keeps their choice.
+      // state), so a returning guest keeps their choice. Also rehydrate my own
+      // authored-expense draft (DEC-340) so a reload keeps my pending additions.
       if (!seededRef.current) {
         const mine = res.payload.event.participants.find((p) => p.claimedByActorId === actorId);
         if (mine) {
           setClaimedId(mine.id);
           setMarkedPaid(mine.paymentStatus !== 'unpaid');
         }
+        setMyExpenses(loadGuestExpenses(id));
         seededRef.current = true;
+      }
+      // Honest sync state: drop any of my drafts the owner has tombstoned (deleted),
+      // so a removed expense never lingers as a ghost "pending" on my board.
+      const hidden = res.payload.event.hiddenExpenseIds ?? [];
+      if (hidden.length > 0) {
+        setMyExpenses((prev) => {
+          const next = prev.filter((e) => !hidden.includes(e.id));
+          if (next.length !== prev.length) saveGuestExpenses(id, next);
+          return next;
+        });
       }
       hasPayloadRef.current = true;
       setLoad({ kind: 'live', payload: res.payload });
@@ -103,7 +122,9 @@ export function GroupClaimPage() {
     };
   }, [id, isLive, refetch]);
 
-  // Post my claim snapshot (debounced) once I have picked a name.
+  // Post my claim snapshot (debounced) once I have picked a name. The snapshot
+  // carries my paid flag AND my authored expenses (DEC-340) — the owner folds the
+  // latest one add-or-retract, so this is the single channel for everything I post.
   useEffect(() => {
     if (!isLive || !id || !key || !claimedId) return;
     const timer = setTimeout(() => {
@@ -112,13 +133,14 @@ export function GroupClaimPage() {
         fromName: getGuestName() ?? '',
         claimedParticipantId: claimedId,
         markedPaid,
+        expenses: myExpenses,
       });
       void postGroupClaim(id, key, response)
         .then(() => signalRef.current?.send({ t: 'resp' }))
         .catch(() => {});
     }, POST_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [claimedId, markedPaid, isLive, id, key, actorId]);
+  }, [claimedId, markedPaid, myExpenses, isLive, id, key, actorId]);
 
   if (load.kind === 'loading') {
     return (
@@ -145,12 +167,41 @@ export function GroupClaimPage() {
     );
   }
 
+  const addExpense = (draft: { description: string; amountCents: number; paidByParticipantId: string }) => {
+    if (!id || !claimedId) return;
+    const participantIds = load.payload.event.participants.map((p) => p.id);
+    const expense: GroupClaimExpense = {
+      id: newGuestExpenseId(actorId),
+      description: draft.description.trim(),
+      amountCents: draft.amountCents,
+      paidByParticipantId: draft.paidByParticipantId,
+      splitMode: 'equal',
+      participantIds,
+      occurredAt: new Date().toISOString().slice(0, 10),
+    };
+    setMyExpenses((prev) => {
+      const next = [...prev, expense];
+      saveGuestExpenses(id, next);
+      return next;
+    });
+  };
+
+  const removeExpense = (expenseId: string) => {
+    if (!id) return;
+    setMyExpenses((prev) => {
+      const next = prev.filter((e) => e.id !== expenseId);
+      saveGuestExpenses(id, next);
+      return next;
+    });
+  };
+
   return (
     <ClaimBoard
       event={load.payload.event}
       actorId={actorId}
       claimedId={claimedId}
       markedPaid={markedPaid}
+      myExpenses={myExpenses}
       onPick={(pid) => {
         setClaimedId(pid);
         setMarkedPaid(false);
@@ -158,6 +209,8 @@ export function GroupClaimPage() {
       onChangeName={() => setClaimedId(null)}
       onTogglePaid={() => setMarkedPaid((v) => !v)}
       onSaveName={(name) => setGuestName(name)}
+      onAddExpense={addExpense}
+      onRemoveExpense={removeExpense}
     />
   );
 }
@@ -167,20 +220,27 @@ interface ClaimBoardProps {
   actorId: string;
   claimedId: string | null;
   markedPaid: boolean;
+  myExpenses: GroupClaimExpense[];
   onPick: (participantId: string) => void;
   onChangeName: () => void;
   onTogglePaid: () => void;
   onSaveName: (name: string) => void;
+  onAddExpense: (draft: { description: string; amountCents: number; paidByParticipantId: string }) => void;
+  onRemoveExpense: (expenseId: string) => void;
 }
 
 function ClaimBoard({
   event,
+  actorId,
   claimedId,
   markedPaid,
+  myExpenses,
   onPick,
   onChangeName,
   onTogglePaid,
   onSaveName,
+  onAddExpense,
+  onRemoveExpense,
 }: ClaimBoardProps) {
   const { t } = useTranslation();
   const balances = useMemo(() => computeGroupBalances(event), [event]);
@@ -203,6 +263,17 @@ function ClaimBoard({
         : (claimed?.paymentStatus ?? 'unpaid');
 
   const iOwe = (myBalance?.netCents ?? 0) < 0;
+
+  // DEC-340 — merge the owner's ledger with my own draft:
+  //  • folded = the live expenses, minus my own ones I just retracted locally
+  //    (hidden optimistically until the owner's retract round-trips);
+  //  • pending = my drafts the owner hasn't folded yet (shown "pending").
+  const myDraftIds = new Set(myExpenses.map((e) => e.id));
+  const folded = event.expenses.filter(
+    (e) => !(e.authoredByActorId === actorId && !myDraftIds.has(e.id)),
+  );
+  const foldedIds = new Set(event.expenses.map((e) => e.id));
+  const pending = myExpenses.filter((e) => !foldedIds.has(e.id));
 
   return (
     <div className="min-h-screen bg-surface-base px-5 py-8 flex flex-col gap-5 max-w-md mx-auto">
@@ -345,37 +416,256 @@ function ClaimBoard({
         </>
       )}
 
-      {/* Expenses (read-only) */}
+      {/* Expenses — the owner's ledger plus my own pending drafts (DEC-340). */}
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-bold text-on-surface px-1">{t('group_split.expenses_title')}</h2>
-        {event.expenses.length === 0 ? (
+        {folded.length === 0 && pending.length === 0 ? (
           <div className="bg-surface-container rounded-xl p-5 text-center">
             <p className="text-sm text-on-surface-dim">{t('group_split.no_expenses')}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {event.expenses.map((exp) => (
-              <div key={exp.id} className="bg-surface-container rounded-xl p-3.5 flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-on-surface truncate">{exp.description}</p>
-                  <p className="text-[11px] text-on-surface-faint">
-                    {t('group_split.paid_by', { name: nameById.get(exp.paidByParticipantId) ?? '?' })}
-                  </p>
-                </div>
-                <span className="text-sm font-bold tabular text-on-surface shrink-0">
-                  {formatMoney(exp.amountCents, event.currency)}
-                </span>
-              </div>
+            {folded.map((exp) => (
+              <ClaimExpenseRow
+                key={exp.id}
+                description={exp.description}
+                paidByName={nameById.get(exp.paidByParticipantId) ?? '?'}
+                amountCents={exp.amountCents}
+                currency={event.currency}
+                items={exp.items}
+                mine={exp.authoredByActorId === actorId}
+                onRemove={exp.authoredByActorId === actorId ? () => onRemoveExpense(exp.id) : undefined}
+              />
+            ))}
+            {pending.map((exp) => (
+              <ClaimExpenseRow
+                key={exp.id}
+                description={exp.description}
+                paidByName={nameById.get(exp.paidByParticipantId) ?? '?'}
+                amountCents={exp.amountCents}
+                currency={event.currency}
+                items={exp.items}
+                mine
+                pending
+                onRemove={() => onRemoveExpense(exp.id)}
+              />
             ))}
           </div>
         )}
+
+        {/* Everyone contributes — a guest with no app can author an expense; it
+            folds into everyone's view once the owner syncs (shown pending here). */}
+        {claimed !== null && (
+          <AddExpenseInline
+            event={event}
+            defaultPayerId={claimed.id}
+            onAdd={onAddExpense}
+          />
+        )}
       </section>
+
+      <GetAppCta />
 
       <footer className="text-center pt-2">
         <span className="text-[11px] text-on-surface-faint">{t('group_claim.made_with')}</span>
       </footer>
       <HiddenNameSync claimedName={claimed?.name ?? null} onSaveName={onSaveName} />
     </div>
+  );
+}
+
+/** One expense row on the guest board: read-only for others, removable + item-aware
+ *  for mine, with a "pending" hint while the owner hasn't folded it yet (DEC-340). */
+function ClaimExpenseRow({
+  description,
+  paidByName,
+  amountCents,
+  currency,
+  items,
+  mine,
+  pending,
+  onRemove,
+}: {
+  description: string;
+  paidByName: string;
+  amountCents: number;
+  currency: string;
+  items?: { id: string; description: string; amountCents: number; qty: number }[];
+  mine?: boolean;
+  pending?: boolean;
+  onRemove?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [showItems, setShowItems] = useState(false);
+  const hasItems = !!items && items.length > 0;
+  return (
+    <div className={`bg-surface-container rounded-xl p-3.5 flex flex-col gap-2 ${pending ? 'opacity-80' : ''}`}>
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-on-surface truncate">{description}</p>
+            {mine && (
+              <span className="text-[9px] font-bold uppercase tracking-wide text-primary bg-primary/15 rounded px-1 py-0.5 shrink-0">
+                {t('group_claim.your_tag')}
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-on-surface-faint truncate">
+            {t('group_split.paid_by', { name: paidByName })}
+            {hasItems && (
+              <button onClick={() => setShowItems((v) => !v)} className="ml-1.5 text-primary font-semibold btn-press">
+                · {items!.length} {t('group_split.items_title').toLowerCase()}
+              </button>
+            )}
+          </p>
+          {pending && <p className="text-[10px] text-warning mt-0.5">{t('group_claim.pending')}</p>}
+        </div>
+        <span className="text-sm font-bold tabular text-on-surface shrink-0">
+          {formatMoney(amountCents, currency)}
+        </span>
+        {onRemove && (
+          <button
+            onClick={onRemove}
+            aria-label={t('group_claim.remove')}
+            className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-on-surface-faint hover:text-error hover:bg-error/10 btn-press"
+          >
+            <Icon name="close" size={16} />
+          </button>
+        )}
+      </div>
+      {hasItems && showItems && (
+        <div className="flex flex-col gap-1 pl-1 border-l-2 border-on-surface/10">
+          {items!.map((it) => (
+            <div key={it.id} className="flex items-center justify-between text-[11px] text-on-surface-dim">
+              <span className="truncate">
+                {it.qty > 1 ? `${it.qty}× ` : ''}
+                {it.description || t('group_split.unnamed_item')}
+              </span>
+              <span className="tabular shrink-0 ml-2">{formatMoney(it.amountCents, currency)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Inline add-expense form for a no-app guest (DEC-340). Description + amount +
+ *  who-paid (defaults to me); the split is equal across everyone, just like the
+ *  owner's quick add. Author-stamped on the owner's fold; removable until then. */
+function AddExpenseInline({
+  event,
+  defaultPayerId,
+  onAdd,
+}: {
+  event: GroupSplitEvent;
+  defaultPayerId: string;
+  onAdd: (draft: { description: string; amountCents: number; paidByParticipantId: string }) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [payerId, setPayerId] = useState(defaultPayerId);
+  const amountCents = toCents(parseFloat(amount) || 0);
+  const canAdd = description.trim().length > 0 && amountCents > 0;
+
+  const reset = () => {
+    setDescription('');
+    setAmount('');
+    setPayerId(defaultPayerId);
+    setOpen(false);
+  };
+
+  const submit = () => {
+    if (!canAdd) return;
+    onAdd({ description, amountCents, paidByParticipantId: payerId });
+    reset();
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-on-surface/20 text-sm font-semibold text-on-surface-dim btn-press"
+      >
+        <Icon name="add" size={18} className="text-primary" />
+        {t('group_claim.add_expense')}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1 bg-surface-container rounded-xl p-3 flex flex-col gap-2.5">
+      <input
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder={t('group_claim.expense_desc_ph')}
+        autoFocus
+        className="bg-surface-high rounded-lg px-3 py-2 text-sm text-on-surface outline-none w-full"
+      />
+      <input
+        type="number"
+        inputMode="decimal"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && submit()}
+        placeholder="0.00"
+        className="bg-surface-high rounded-lg px-3 py-2 text-sm text-on-surface outline-none w-full"
+      />
+      <div>
+        <p className="text-[11px] text-on-surface-faint mb-1.5">{t('group_claim.who_paid')}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {event.participants.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPayerId(p.id)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium btn-press ${
+                payerId === p.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-2 pt-0.5">
+        <button onClick={reset} className="px-3 py-2 rounded-lg bg-surface-high text-on-surface-dim text-sm font-semibold btn-press">
+          {t('common.cancel')}
+        </button>
+        <button
+          onClick={submit}
+          disabled={!canAdd}
+          className="flex-1 py-2 rounded-lg bg-primary text-on-surface text-sm font-semibold btn-press disabled:opacity-40"
+        >
+          {t('common.add')}
+        </button>
+      </div>
+      <p className="text-[10px] text-on-surface-faint leading-relaxed">{t('group_claim.add_expense_hint')}</p>
+    </div>
+  );
+}
+
+/** "Baixe o app" — a gentle nudge for the web guest to get TripPilot for their
+ *  own trips. Links to the public origin (the PWA), never store-gated. */
+function GetAppCta() {
+  const { t } = useTranslation();
+  return (
+    <a
+      href={getShareOrigin()}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 bg-primary/10 rounded-xl p-3.5 btn-press"
+    >
+      <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+        <Icon name="travel_explore" size={20} className="text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-on-surface leading-tight">{t('group_claim.get_app_title')}</p>
+        <p className="text-[11px] text-primary font-semibold mt-0.5">{t('group_claim.get_app_cta')} →</p>
+      </div>
+    </a>
   );
 }
 

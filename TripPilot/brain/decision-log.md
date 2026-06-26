@@ -2508,12 +2508,21 @@
 - **Alternatives**: link-only (rejected).
 
 ### DEC-340 — Everyone contributes via owner-as-reducer (no login) [Council C1]
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G4).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G4, shipped 1.2.3-rc).
 - **Decision**: any group member/guest (no account) can **author their own expenses**; the **owner
   device stays the single money authority** and folds guest-authored expenses **idempotently** via an
   extended `GroupClaimResponse` carrying **client-stable expense ids**; non-folded items read
   **pending**; only the author or owner may remove an authored expense (hide-never-delete). Identity =
   device actorId + chosen name; **login stays out of V1**.
+- **Implementation (1.2.3-rc)**: `GroupExpense.authoredByActorId?` + `GroupSplitEvent.hiddenExpenseIds?`
+  (additive, non-indexed, carried over the `/g/` share). `GroupClaimResponse.expenses?` is the device's
+  full authored **snapshot** (id `g:<actorId>:<rand>`). `reduceGroupClaims` folds **add-or-retract,
+  never-replace**: add a valid/unseen/non-tombstoned expense (validated vs participants + integer cents,
+  invalid dropped), retract one gone from the snapshot, never clobber a folded one, skip tombstones;
+  `foldClaimExpense` owner-stamps `createdAt`/`source`/`authoredByActorId` + the claimed slot as
+  registrant. `removeExpense` auto-tombstones guest rows. The owner poll persists on participant **or**
+  expense change. Guest UI: inline add-expense + per-share local draft + pending/removable rows + a
+  "baixe o app" CTA. Covered by 6 idempotent-fold unit tests (concrete cents) + a two-context E2E.
 - **Rationale**: Julio: "o grupo é de todo mundo — cada um adiciona seus gastos, sem criar conta."
   Owner-as-reducer reuses the proven `reduceGroupClaims` loop and avoids a new consistency model for
   integer-cents truth. Council C1 (Architect/Advocate/Critic + red team).

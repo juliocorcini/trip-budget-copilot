@@ -2720,7 +2720,16 @@
     "revoked": "This link was closed by the organizer.",
     "not_found": "Group not found. Check the link.",
     "bad_key": "Invalid or incomplete link.",
-    "error": "Couldn't open it right now. Try again."
+    "error": "Couldn't open it right now. Try again.",
+    "add_expense": "Add expense",
+    "add_expense_hint": "Log a bill you know about — it shows up for everyone once the organizer syncs.",
+    "expense_desc_ph": "Description (e.g. Taxi)",
+    "who_paid": "Who paid",
+    "pending": "Pending — waiting to sync",
+    "your_tag": "you",
+    "remove": "Remove",
+    "get_app_title": "Plan and split your own trips",
+    "get_app_cta": "Get TripPilot"
   },
   "profile_presets": {
     "restaurants": "Restaurants",

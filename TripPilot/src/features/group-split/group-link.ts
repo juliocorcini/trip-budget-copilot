@@ -19,8 +19,10 @@ import {
   buildGroupSharePayload,
   parseGroupSharePayload,
   parseGroupClaimResponse,
+  parseGroupClaimExpense,
   type GroupSharePayload,
   type GroupClaimResponse,
+  type GroupClaimExpense,
 } from '@/domain/group-split';
 import type { GroupSplitEvent } from '@/domain/group-split';
 
@@ -223,4 +225,52 @@ export function clearGroupLive(eventId: string): void {
   } catch {
     // ignore
   }
+}
+
+/* ── guest authored-expenses draft (DEC-340, per share id) ─────────────────── */
+
+const GUEST_EXPENSES_KEY = 'group.guest.expenses';
+
+type GuestExpensesMap = Record<string, GroupClaimExpense[]>;
+
+function readGuestExpensesMap(): GuestExpensesMap {
+  try {
+    const raw = localStorage.getItem(GUEST_EXPENSES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') return parsed as GuestExpensesMap;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * DEC-340 — the guest's locally-kept authored-expense draft for a share, used as
+ * the snapshot they re-post on every change (the owner folds it add-or-retract).
+ * Each entry is re-validated through the domain schema so a corrupt/old draft can
+ * never post a malformed expense. A no-app web guest survives reloads with this.
+ */
+export function loadGuestExpenses(shareId: string): GroupClaimExpense[] {
+  const list = readGuestExpensesMap()[shareId];
+  if (!Array.isArray(list)) return [];
+  return list.map((e) => parseGroupClaimExpense(e)).filter((e): e is GroupClaimExpense => e !== null);
+}
+
+export function saveGuestExpenses(shareId: string, expenses: GroupClaimExpense[]): void {
+  try {
+    const map = readGuestExpensesMap();
+    if (expenses.length === 0) delete map[shareId];
+    else map[shareId] = expenses;
+    localStorage.setItem(GUEST_EXPENSES_KEY, JSON.stringify(map));
+  } catch {
+    // Private mode / no storage: the draft still lives in component state.
+  }
+}
+
+/** A client-stable id for a guest-authored expense (`g:<actorId>:<rand>`), so a
+ *  re-posted snapshot never double-books it (the reducer keys on this id). */
+export function newGuestExpenseId(actorId: string): string {
+  const rand = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).replace(/-/g, '').slice(0, 10);
+  return `g:${actorId}:${rand}`;
 }

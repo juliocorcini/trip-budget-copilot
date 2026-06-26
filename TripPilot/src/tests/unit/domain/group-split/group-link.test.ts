@@ -5,6 +5,8 @@ import {
   buildGroupExpense,
   addParticipant,
   addExpense,
+  removeExpense,
+  computeGroupBalances,
   setParticipantPayment,
   buildGroupSharePayload,
   parseGroupSharePayload,
@@ -12,7 +14,7 @@ import {
   parseGroupClaimResponse,
   reduceGroupClaims,
 } from '@/domain/group-split';
-import type { GroupSplitEvent } from '@/domain/group-split';
+import type { GroupSplitEvent, GroupClaimExpense } from '@/domain/group-split';
 
 /** Builds the canonical 3-person "churrasco" event A(owner)/B/C with one expense. */
 function buildAbcEvent(): { event: GroupSplitEvent; a: string; b: string; c: string } {
@@ -184,5 +186,92 @@ describe('reduceGroupClaims (owner-authoritative reducer)', () => {
     const once = reduceGroupClaims(event, batch);
     const twice = reduceGroupClaims(once, batch);
     expect(twice.participants).toEqual(once.participants);
+  });
+});
+
+describe('reduceGroupClaims — guest-authored expenses (DEC-340 add-or-retract)', () => {
+  // A claim snapshot from `actor` claiming `slot`, carrying `expenses`.
+  function claimWith(expenses: GroupClaimExpense[], actor: string, slot: string) {
+    return buildGroupClaimResponse({
+      fromActorId: actor,
+      fromName: 'Bruno',
+      claimedParticipantId: slot,
+      markedPaid: false,
+      expenses,
+    });
+  }
+
+  it('folds an authored expense, stamps the author, and balances stay cents-exact', () => {
+    const { event, a, b, c } = buildAbcEvent();
+    const exp: GroupClaimExpense = { id: 'g:dev-bruno:1', description: 'Bebida', amountCents: 3000, paidByParticipantId: b, splitMode: 'equal', participantIds: [a, b, c] };
+    const next = reduceGroupClaims(event, [claimWith([exp], 'dev-bruno', b)]);
+    const folded = next.expenses.find((e) => e.id === 'g:dev-bruno:1');
+    expect(folded).toBeTruthy();
+    expect(folded!.authoredByActorId).toBe('dev-bruno');
+    expect(folded!.source).toBe('manual');
+    // A paid 9000 (share 4000) = +5000; B paid 3000 (share 4000) = -1000; C = -4000.
+    const byId = new Map(computeGroupBalances(next).map((x) => [x.participantId, x.netCents]));
+    expect(byId.get(a)).toBe(5000);
+    expect(byId.get(b)).toBe(-1000);
+    expect(byId.get(c)).toBe(-4000);
+    expect([...byId.values()].reduce((s, n) => s + n, 0)).toBe(0);
+  });
+
+  it('is idempotent — re-folding never duplicates and keeps the first stamp', () => {
+    const { event, a, b, c } = buildAbcEvent();
+    const exp: GroupClaimExpense = { id: 'g:dev-bruno:1', description: 'Bebida', amountCents: 3000, paidByParticipantId: b, splitMode: 'equal', participantIds: [a, b, c] };
+    const once = reduceGroupClaims(event, [claimWith([exp], 'dev-bruno', b)]);
+    const twice = reduceGroupClaims(once, [claimWith([exp], 'dev-bruno', b)]);
+    expect(twice.expenses.filter((e) => e.id === 'g:dev-bruno:1')).toHaveLength(1);
+    expect(twice.expenses).toEqual(once.expenses);
+  });
+
+  it('retracts an authored expense the author dropped from their snapshot', () => {
+    const { event, a, b, c } = buildAbcEvent();
+    const exp: GroupClaimExpense = { id: 'g:dev-bruno:1', description: 'Bebida', amountCents: 3000, paidByParticipantId: b, splitMode: 'equal', participantIds: [a, b, c] };
+    const folded = reduceGroupClaims(event, [claimWith([exp], 'dev-bruno', b)]);
+    expect(folded.expenses.some((e) => e.id === 'g:dev-bruno:1')).toBe(true);
+    const retracted = reduceGroupClaims(folded, [claimWith([], 'dev-bruno', b)]);
+    expect(retracted.expenses.some((e) => e.id === 'g:dev-bruno:1')).toBe(false);
+  });
+
+  it('never overwrites an already-folded expense (owner is the authority)', () => {
+    const { event, a, b, c } = buildAbcEvent();
+    const exp: GroupClaimExpense = { id: 'g:dev-bruno:1', description: 'Bebida', amountCents: 3000, paidByParticipantId: b, splitMode: 'equal', participantIds: [a, b, c] };
+    const folded = reduceGroupClaims(event, [claimWith([exp], 'dev-bruno', b)]);
+    const tampered: GroupClaimExpense = { ...exp, amountCents: 999999, description: 'HACK' };
+    const after = reduceGroupClaims(folded, [claimWith([tampered], 'dev-bruno', b)]);
+    const still = after.expenses.find((e) => e.id === 'g:dev-bruno:1')!;
+    expect(still.amountCents).toBe(3000);
+    expect(still.description).toBe('Bebida');
+  });
+
+  it('owner removal tombstones it so a stale snapshot cannot resurrect it', () => {
+    const { event, a, b, c } = buildAbcEvent();
+    const exp: GroupClaimExpense = { id: 'g:dev-bruno:1', description: 'Bebida', amountCents: 3000, paidByParticipantId: b, splitMode: 'equal', participantIds: [a, b, c] };
+    const folded = reduceGroupClaims(event, [claimWith([exp], 'dev-bruno', b)]);
+    const removed = removeExpense(folded, 'g:dev-bruno:1');
+    expect(removed.hiddenExpenseIds).toContain('g:dev-bruno:1');
+    const reposted = reduceGroupClaims(removed, [claimWith([exp], 'dev-bruno', b)]);
+    expect(reposted.expenses.some((e) => e.id === 'g:dev-bruno:1')).toBe(false);
+  });
+
+  it('drops claims that reference unknown participants or non-positive amounts', () => {
+    const { event, a, b, c } = buildAbcEvent();
+    const badPayer = claimWith(
+      [{ id: 'g:x:1', description: 'X', amountCents: 1000, paidByParticipantId: 'ghost', splitMode: 'equal', participantIds: [a, b] }],
+      'dev-x',
+      c,
+    );
+    const unknownShare = claimWith(
+      [{ id: 'g:y:1', description: 'Y', amountCents: 1000, paidByParticipantId: a, splitMode: 'equal', participantIds: [a, 'ghost'] }],
+      'dev-y',
+      c,
+    );
+    const next = reduceGroupClaims(event, [badPayer, unknownShare]);
+    expect(next.expenses.some((e) => e.id === 'g:x:1')).toBe(false);
+    expect(next.expenses.some((e) => e.id === 'g:y:1')).toBe(false);
+    // The event's original single expense is untouched.
+    expect(next.expenses).toHaveLength(1);
   });
 });

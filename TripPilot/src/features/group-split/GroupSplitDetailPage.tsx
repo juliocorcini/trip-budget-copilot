@@ -117,9 +117,10 @@ export function GroupSplitDetailPage() {
     }
   }, [applyCreds]);
 
-  // Owner poll — fold every guest's claim snapshot (pick name + marked paid) into
-  // the live event while it is open and shared. Deterministic + idempotent: only
-  // a real change persists/re-publishes, so this converges and never loops.
+  // Owner poll — fold every guest's claim snapshot (pick name + marked paid +
+  // DEC-340 authored expenses) into the live event while it is open and shared.
+  // Deterministic + idempotent: only a real change persists/re-publishes, so this
+  // converges and never loops.
   useEffect(() => {
     if (!creds || !event || event.status !== 'open') return;
     let cancelled = false;
@@ -129,7 +130,12 @@ export function GroupSplitDetailPage() {
         const current = eventRef.current;
         if (!current || cancelled) return;
         const next = reduceGroupClaims(current, claims);
-        if (JSON.stringify(next.participants) !== JSON.stringify(current.participants)) {
+        // DEC-340 — the reducer can now fold/retract guest-authored expenses, so a
+        // change in EITHER participants or expenses must be persisted + re-published.
+        const changed =
+          JSON.stringify(next.participants) !== JSON.stringify(current.participants) ||
+          JSON.stringify(next.expenses) !== JSON.stringify(current.expenses);
+        if (changed) {
           await save(next);
         }
       } catch {

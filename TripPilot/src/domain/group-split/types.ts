@@ -87,6 +87,12 @@ export interface GroupExpense {
   createdByParticipantId?: string;
   /** DEC-337 — receipt lines this expense was built from (item-selection capture). Additive. */
   items?: GroupExpenseLineItem[];
+  /**
+   * DEC-340 — the guest device (actorId) that AUTHORED this expense through the
+   * public board. Additive; absent on owner-authored expenses. Drives idempotent
+   * folding (add-or-retract by author) and the "who can remove" rule.
+   */
+  authoredByActorId?: string;
 }
 
 export type GroupSplitStatus = 'open' | 'settled';
@@ -104,6 +110,12 @@ export interface GroupSplitEvent {
   expenses: GroupExpense[];
   status: GroupSplitStatus;
   createdAt: string;
+  /**
+   * DEC-340 — owner tombstones for guest-authored expenses the owner removed
+   * (hide-never-delete): the reducer refuses to re-fold these ids when a guest's
+   * stale snapshot still lists them. Additive; absent = none hidden.
+   */
+  hiddenExpenseIds?: string[];
 }
 
 /* ── derived (computed, never persisted) ─────────────────────────────────── */
