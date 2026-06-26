@@ -37,7 +37,6 @@ import { selectActivePhasePool } from '@/domain/budget';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
 import { participantRepository, peerLinkRepository, sessionRepository, groupSplitRepository } from '@/data/repositories';
-import { groupSplitsToTripDebts, computeGroupBalances } from '@/domain/group-split';
 import type { GroupSplitEvent } from '@/domain/group-split';
 import { saveJoinedGroup } from '@/features/group-split/group-link';
 import type { PeerLink } from '@/domain/types/peer-link';
@@ -48,8 +47,12 @@ import type { Wallet } from '@/domain/types/wallet';
 import {
   buildConnectionViews,
   findReconnectCandidate,
+  buildPeopleView,
+  partitionPeople,
+  searchPeople,
   type ConnectionView,
   type ReconnectCandidate,
+  type PersonView,
 } from '@/domain/connections';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -98,6 +101,9 @@ import { enabledPaymentMethods } from '@/domain/payment';
 /** DEC-206: how many rows show before a "ver mais (N)" toggle reveals the rest. */
 const SHARED_LIST_PAGE = 6;
 const STATEMENT_PAGE = 8;
+// G9 · DEC-356/359: the /shared people zone shows a short rich preview; the full
+// list (search + connect + status sections) opens in the Pessoas full-screen sheet.
+const PEOPLE_PREVIEW = 3;
 
 // C11 · DEC-304: the per-share lifecycle stage colors. `confirmed` (accepted,
 // awaiting payment) is a calm tint; `paid` is a solid success chip — the only
@@ -117,6 +123,74 @@ const CONNECTION_STATUS_DOT: Record<ConnectionView['status'], string> = {
 };
 
 type Translate = ReturnType<typeof useTranslation>['t'];
+
+// G9 · DEC-357 — the ONE badge vocabulary, as a per-person attribute (not a
+// separate list): connected = live-chargeable, invited = paired/queued, noapp =
+// name-only. Tints stay calm; only an open balance pulls the eye (the subline).
+const PERSON_BADGE_STYLE: Record<PersonView['status'], string> = {
+  connected: 'bg-success/15 text-success',
+  invited: 'bg-warning/15 text-warning',
+  noapp: 'bg-surface-high text-on-surface-faint',
+};
+
+const PERSON_BADGE_KEY: Record<PersonView['status'], string> = {
+  connected: 'shared.people_badge_connected',
+  invited: 'shared.people_badge_invited',
+  noapp: 'shared.people_badge_noapp',
+};
+
+/**
+ * G9 · DEC-356 — a rich, 2-line "Pessoas" row (avatar + name + status badge on
+ * line 1; the signed balance, color-coded, on line 2). It is the SAME visual in
+ * the `/shared` preview and the full Pessoas sheet, so a person reads identically
+ * wherever they appear. Money shown is the exact ledger net the row carries.
+ */
+function PersonRow({
+  person,
+  t,
+  currency,
+  onTap,
+}: {
+  person: PersonView;
+  t: Translate;
+  currency: string;
+  onTap: () => void;
+}) {
+  const money =
+    person.balanceCents < 0
+      ? {
+          text: t('shared.balance_owes', { amount: formatMoney(Math.abs(person.balanceCents), currency) }),
+          cls: 'text-error',
+        }
+      : person.balanceCents > 0
+        ? {
+            text: t('shared.balance_owed', { amount: formatMoney(person.balanceCents, currency) }),
+            cls: 'text-success',
+          }
+        : { text: t('shared.balance_zero'), cls: 'text-on-surface-faint' };
+  return (
+    <button
+      onClick={onTap}
+      className="bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 w-full text-left btn-press"
+    >
+      <span className="w-9 h-9 rounded-full bg-surface-high text-on-surface-dim text-xs font-bold flex items-center justify-center shrink-0">
+        {person.initials}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-on-surface flex items-center gap-1.5">
+          <span className="truncate">{person.name}</span>
+          <span
+            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${PERSON_BADGE_STYLE[person.status]}`}
+          >
+            {t(PERSON_BADGE_KEY[person.status])}
+          </span>
+        </p>
+        <p className={`text-xs font-semibold tabular truncate ${money.cls}`}>{money.text}</p>
+      </div>
+      <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
+    </button>
+  );
+}
 
 export function SharedExpensesPage() {
   const { t } = useTranslation();
@@ -142,6 +216,14 @@ export function SharedExpensesPage() {
   // a participant's itemized statement — only the first page shows until "ver mais".
   const [showAllShared, setShowAllShared] = useState(false);
   const [showAllStatement, setShowAllStatement] = useState(false);
+  // G9 · DEC-356 — the "Mais" zone keeps Gastos compartilhados collapsed (one tap)
+  // so the screen opens on intent, not on a long expense dump.
+  const [sharedOpen, setSharedOpen] = useState(false);
+  // G9 · DEC-359 — the full Pessoas view (search + status sections + pagination)
+  // ships as a sanctioned full-screen sheet that reuses the already-loaded ledger.
+  const [peopleSheetOpen, setPeopleSheetOpen] = useState(false);
+  const [peopleQuery, setPeopleQuery] = useState('');
+  const [peopleShown, setPeopleShown] = useState(STATEMENT_PAGE);
 
   useEffect(() => {
     if (!trip) return;
@@ -173,12 +255,6 @@ export function SharedExpensesPage() {
   // FB-27 (DEC-277): optional structured method of the recorded repayment.
   const [settleMethod, setSettleMethod] = useState<SettlementMethod | null>(null);
   const [showSimplified, setShowSimplified] = useState(false);
-  // DL-3: P2P machinery (QR, receive, mirrored statements) lives in a collapsed
-  // "Conexões" section. It is hidden via CSS — NEVER unmounted — so the mirror's
-  // live sockets keep running while collapsed (council Architect HIGH risk).
-  // D05 · DEC-347: connections are surfaced (open by default) so paired devices and
-  // the add-by-QR path are visible without a tap. Section stays MOUNTED when closed.
-  const [connectionsOpen, setConnectionsOpen] = useState(true);
   // DEC-102 (R-25): tap on a participant opens their itemized statement.
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
   // DEC-206: a fresh statement always opens collapsed (first page only).
@@ -693,6 +769,12 @@ export function SharedExpensesPage() {
   }
 
   const balances = debtSummary ? calculateParticipantBalances(debtSummary.debts) : new Map<string, number>();
+  // G9 · DEC-357 — the ONE unified people list (status badge + ledger balance,
+  // deduped), driving the z3 preview and the full Pessoas page. `participantById`
+  // maps a row back to its Participant for the statement / charge / pay sheets.
+  const peopleView = buildPeopleView(participants, balances, peerLinks);
+  const participantById = new Map(participants.map((p) => [p.id, p]));
+  const peoplePreview = peopleView.slice(0, PEOPLE_PREVIEW);
   // DL-3: owner-centric settle-up summary (A receber / A pagar / net) for the hero.
   const ownerSummary =
     debtSummary && ownerParticipant
@@ -723,37 +805,24 @@ export function SharedExpensesPage() {
     ownerSummary.receivableCents > 0 &&
     enabledPaymentMethods(settings?.paymentMethods ?? []).length === 0;
 
-  // C23/DEC-306: the owner's receivable/payable that comes from trip-linked
-  // Tricount events (read-only — the settle action stays in the group). Same
-  // currency as the trip base only; a debtor drops out once confirmed in-group.
-  const groupTripDebts = ownerParticipant
-    ? groupSplitsToTripDebts(groupEvents, trip.id, trip.baseCurrency)
-    : [];
-  const groupOwnerSummary =
-    ownerParticipant && groupTripDebts.length > 0
-      ? summarizeOwnerDebts(groupTripDebts, ownerParticipant.id)
-      : null;
-  const groupSettleRows = groupEvents
-    .filter((e) => e.tripId === trip.id && e.currency === trip.baseCurrency)
-    .map((e) => ({
-      id: e.id,
-      name: e.name,
-      ownerNet: computeGroupBalances(e).find((b) => b.participantId === e.ownerParticipantId)?.netCents ?? 0,
-    }))
-    .filter((row) => row.ownerNet !== 0);
+  // C23/DEC-306 · DEC-360 (G9): the trip's group divisions feed a single
+  // discoverability POINTER to /groups (the canonical list). No second list and
+  // no money is restated here — the breakdown lives inside /groups.
+  const tripGroupEvents = groupEvents.filter((e) => e.tripId === trip.id);
+  const activeGroupNames = tripGroupEvents.slice(0, 2).map((e) => e.name).join(', ');
 
-  // D05 · DEC-306: trip-linked groups already surface below as a settle summary
-  // (with a per-group link AND a "see all" link to /groups). When that section is
-  // shown, the generic "open group splits" button at the top would be a SECOND
-  // doorway to the same place — so it only renders when there is no group-settle
-  // section, keeping exactly one group entry point on the settle-up screen.
-  const hasGroupSettle =
-    !!groupOwnerSummary &&
-    (groupOwnerSummary.receivableCents > 0 || groupOwnerSummary.payableCents > 0);
+  // G9 · DEC-356 — the settle screen recomposes into Variante O's intent zones
+  // (Situação → Resolver → Pessoas → Atividade → Divisões → Mais) under a sticky
+  // header. The zones are sequenced with flex `order` so the re-composition is a
+  // low-risk overlay on the existing, tested blocks (no ledger logic moved).
+  const resolverCount = inboundItems.length + (debtSummary?.debts.length ?? 0);
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
-      <div className="flex items-center gap-3">
+      {/* G9 · DEC-356 — sticky header so "Acerto de contas" + a fixed Meu QR stay
+          reachable while scrolling. The body below is sequenced into Variante O's
+          intent zones with flex `order` (a low-risk overlay on tested blocks). */}
+      <div className="order-[0] flex items-center gap-3 sticky top-0 z-20 bg-surface py-2">
         {/* R5-08: same back-button header pattern as the other "More" subpages. */}
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
@@ -771,14 +840,20 @@ export function SharedExpensesPage() {
         </button>
       </div>
 
+      {/* (z2) Resolver agora — the action zone directly under the balance hero. One
+          umbrella label over the accept-first inbox + pending debts; each row keeps
+          its OWN labelled action (Aceitar / Liquidar / Lembrar / Confirmar), never
+          merged into one ambiguous tap (DEC-356 — four distinct authority models). */}
+      {resolverCount > 0 && (
+        <p className="order-[18] text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1 -mb-2">
+          {t('shared.resolve_now', { count: resolverCount })}
+        </p>
+      )}
+
       {/* DEC-345/346 (G7) — accept-first inbox: inbound debts/payments wait here
-          PENDING and fold into the ledger ONLY on an explicit tap. Sits at the
-          very top so a new request is the first thing seen (the toast routed here). */}
+          PENDING and fold into the ledger ONLY on an explicit tap. */}
       {inboundItems.length > 0 && (
-        <section className="flex flex-col gap-2" data-p2p-inbox>
-          <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1">
-            {t('p2p.inbox_title')}
-          </p>
+        <section className="order-[20] flex flex-col gap-2" data-p2p-inbox>
           {inboundItems.map((item) => {
             const busy = p2pBusy === item.itemId;
             if (item.kind === 'debt' && item.debt) {
@@ -904,32 +979,35 @@ export function SharedExpensesPage() {
         </section>
       )}
 
-      {/* C23 (DEC-297): entry to the Tricount group splits (many expenses/payers),
-          a sibling of single-bill sharing. D05 · DEC-306: shown only when the
-          group-settle section below is NOT present, so there is exactly one group
-          doorway on this screen (no duplicate entry point). */}
-      {!hasGroupSettle && (
-        <button
-          onClick={() => navigate('/groups')}
-          className="bg-surface-container rounded-2xl p-4 flex items-center gap-3 text-left btn-press"
-        >
-          <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center shrink-0">
-            <Icon name="groups" size={22} className="text-primary" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-on-surface">{t('group_split.title')}</p>
-            <p className="text-[11px] text-on-surface-faint">{t('group_split.subtitle')}</p>
-          </div>
-          <Icon name="chevron_right" size={20} className="text-on-surface-faint shrink-0" />
-        </button>
-      )}
+      {/* (z6) DEC-360 (G9) — group divisions are discovered via a SINGLE pointer to
+          /groups (the canonical list). No second list and no money is restated here;
+          the per-group breakdown + settle action live inside the group. */}
+      <button
+        onClick={() => navigate('/groups')}
+        className="order-[50] bg-surface-container rounded-2xl p-4 flex items-center gap-3 text-left btn-press"
+      >
+        <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+          <Icon name="groups" size={22} className="text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-on-surface">
+            {tripGroupEvents.length > 0 ? t('shared.group_pointer_title') : t('group_split.title')}
+          </p>
+          <p className="text-[11px] text-on-surface-faint truncate">
+            {tripGroupEvents.length > 0
+              ? t('shared.group_pointer_sub', { count: tripGroupEvents.length, names: activeGroupNames })
+              : t('group_split.subtitle')}
+          </p>
+        </div>
+        <Icon name="chevron_right" size={20} className="text-on-surface-faint shrink-0" />
+      </button>
 
       {/* DL-3: settle-up hero — opens with the answer ("quem me deve e quanto").
           Pure derivation of calculateDebts via summarizeOwnerDebts (confirmed
           debts only); connected-pending sits in its own group below. */}
       {ownerSummary &&
         (ownerSummary.receivableCents > 0 || ownerSummary.payableCents > 0 ? (
-          <div className="rounded-2xl p-4 bg-surface-container">
+          <div className="order-[10] rounded-2xl p-4 bg-surface-container">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
@@ -963,81 +1041,18 @@ export function SharedExpensesPage() {
         ) : settlementStanding?.allSettled ? (
           // DEC-294 (M18): the proud "tudo acertado ✓" seal — shown exactly when
           // real splitting happened and the whole group's balance has zeroed.
-          <div className="rounded-2xl p-5 text-center bg-success/10 border border-success/30" data-all-settled-seal>
+          <div className="order-[10] rounded-2xl p-5 text-center bg-success/10 border border-success/30" data-all-settled-seal>
             <Icon name="verified" size={30} className="text-success mx-auto mb-1.5" />
             <p className="text-sm font-bold text-success">{t('shared.all_settled_title')}</p>
             <p className="text-xs text-on-surface-faint mt-0.5">{t('shared.all_settled_hint')}</p>
           </div>
         ) : (
-          <div className="rounded-2xl p-5 bg-surface-container text-center">
+          <div className="order-[10] rounded-2xl p-5 bg-surface-container text-center">
             <Icon name="handshake" size={30} className="text-success mx-auto mb-1.5" />
             <p className="text-sm font-bold text-on-surface">{t('shared.summary_net_even')}</p>
             <p className="text-xs text-on-surface-faint mt-0.5">{t('shared.summary_empty')}</p>
           </div>
         ))}
-
-      {/* C23/DEC-306: trip-linked Tricount events that feed THIS settle-up,
-          read-only. Receivable/payable from groups + a deep link per group; the
-          settle action lives in the group (mark → confirm), so a confirmed
-          payment drops out here automatically. Hidden when nothing is owed. */}
-      {groupOwnerSummary && (groupOwnerSummary.receivableCents > 0 || groupOwnerSummary.payableCents > 0) && (
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider">
-              {t('shared.group_settle_title')}
-            </p>
-            {/* D05: the single doorway to the full group list lives here when the
-                settle section is shown (the generic top button is hidden then). */}
-            <button
-              onClick={() => navigate('/groups')}
-              className="text-[11px] font-semibold text-primary btn-press shrink-0"
-            >
-              {t('common.view_all')}
-            </button>
-          </div>
-          <div className="rounded-2xl p-4 bg-surface-container flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
-                  {t('shared.summary_receivable')}
-                </p>
-                <p className="text-xl font-extrabold tabular text-success leading-tight mt-0.5">
-                  {formatMoney(groupOwnerSummary.receivableCents, trip.baseCurrency)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
-                  {t('shared.summary_payable')}
-                </p>
-                <p className="text-xl font-extrabold tabular text-error leading-tight mt-0.5">
-                  {formatMoney(groupOwnerSummary.payableCents, trip.baseCurrency)}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5 pt-1">
-              {groupSettleRows.map((row) => (
-                <button
-                  key={row.id}
-                  onClick={() => navigate(`/groups/${row.id}`)}
-                  className="flex items-center gap-2 text-left btn-press"
-                >
-                  <Icon name="groups" size={16} className="text-on-surface-faint shrink-0" />
-                  <span className="text-sm text-on-surface flex-1 truncate">{row.name}</span>
-                  <span className={`text-xs font-semibold tabular shrink-0 ${row.ownerNet > 0 ? 'text-success' : 'text-on-surface'}`}>
-                    {row.ownerNet > 0
-                      ? t('group_split.row_you_get', { amount: formatMoney(row.ownerNet, trip.baseCurrency) })
-                      : t('group_split.row_you_owe', { amount: formatMoney(-row.ownerNet, trip.baseCurrency) })}
-                  </span>
-                  <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] text-on-surface-faint leading-relaxed pt-1 border-t border-[var(--border-faint)]">
-              {t('shared.group_settle_hint')}
-            </p>
-          </div>
-        </section>
-      )}
 
       {/* G4 (DEC-244): one-line nudge to publish a payment method so the
           "Lembrar" message can carry the owner's Pix/Wise/bank. Only when money
@@ -1045,7 +1060,7 @@ export function SharedExpensesPage() {
       {showAddPaymentHint && (
         <button
           onClick={() => navigate('/settings/payment-methods')}
-          className="flex items-center gap-3 w-full text-left rounded-2xl px-4 py-3 bg-surface-container btn-press"
+          className="order-[26] flex items-center gap-3 w-full text-left rounded-2xl px-4 py-3 bg-surface-container btn-press"
           data-add-payment-hint
         >
           <Icon name="payments" size={20} className="text-primary shrink-0" />
@@ -1056,65 +1071,72 @@ export function SharedExpensesPage() {
         </button>
       )}
 
-      <div>
-        <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
+      {/* (z3) Pessoas — DEC-357's ONE unified list (status badge + ledger balance,
+          deduped). The screen shows a rich 3-row PREVIEW; "ver todas" opens the full
+          Pessoas sheet (search + status sections). Connecting lives WITH the people
+          (a slim row right below the preview), never a separate "Conexões" list. */}
+      <div className="order-[30] flex flex-col gap-2">
+        <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1">
           {t('shared.people_section')}
+          {peopleView.length > 0 ? ` · ${peopleView.length}` : ''}
         </p>
-        {participants.map((p) => {
-          const balance = balances.get(p.id) ?? 0;
-          // B2 wave 3 — conservative "new device" suggestion (only when the linked
-          // device is truly unreachable and exactly one same-name keyed peer exists).
-          const reconnect = p.isOwner ? null : findReconnectCandidate(p, peerLinks, Date.now());
-          return (
-            <div key={p.id} className="mb-1">
-              {/* DEC-102 (R-25): tap opens the itemized statement for this person. */}
-              <button
-                onClick={() => setStatementTarget(p)}
-                className="bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 w-full text-left btn-press"
-              >
-                <Icon name="person" size={20} className="text-on-surface-dim" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-on-surface truncate flex items-center gap-1.5">
-                    {p.name}
-                    {p.nickname && (
-                      <span className="text-on-surface-faint"> · {p.nickname}</span>
-                    )}
-                    {/* DEC-105: paired badge */}
-                    {p.linkedActorId && (
-                      <Icon name="link" size={14} className="text-primary shrink-0" />
-                    )}
-                  </p>
-                  {p.isOwner && <p className="text-xs text-primary">{t('shared.owner_tag')}</p>}
-                </div>
-                <p
-                  className={`text-xs font-semibold tabular shrink-0 ${
-                    balance < 0 ? 'text-error' : balance > 0 ? 'text-success' : 'text-on-surface-faint'
-                  }`}
-                >
-                  {balance < 0
-                    ? t('shared.balance_owes', { amount: formatMoney(Math.abs(balance), trip.baseCurrency) })
-                    : balance > 0
-                      ? t('shared.balance_owed', { amount: formatMoney(balance, trip.baseCurrency) })
-                      : t('shared.balance_zero')}
-                </p>
-                <Icon name="chevron_right" size={16} className="text-on-surface-faint shrink-0" />
-              </button>
-              {reconnect && (
-                <button
-                  onClick={() => handleReconnect(reconnect)}
-                  disabled={saving}
-                  className="w-full mt-1 px-3 py-2 rounded-xl bg-warning/10 text-warning text-xs font-semibold flex items-center justify-center gap-1.5 btn-press disabled:opacity-40"
-                >
-                  <Icon name="sync" size={15} className="text-warning" />
-                  {t('connections.reconnect_device', { name: reconnect.displayName })}
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        {showForm ? (
-          <div className="bg-surface-container rounded-xl p-4 mt-2 flex flex-col gap-3">
+        {peopleView.length === 0 ? (
+          <p className="text-xs text-on-surface-faint px-1 py-2">{t('shared.people_empty')}</p>
+        ) : (
+          peoplePreview.map((person) => (
+            <PersonRow
+              key={person.participantId}
+              person={person}
+              t={t}
+              currency={trip.baseCurrency}
+              onTap={() => {
+                const target = participantById.get(person.participantId);
+                if (target) setStatementTarget(target);
+              }}
+            />
+          ))
+        )}
+        {peopleView.length > PEOPLE_PREVIEW && (
+          <button
+            onClick={() => {
+              setPeopleQuery('');
+              setPeopleShown(STATEMENT_PAGE);
+              setPeopleSheetOpen(true);
+            }}
+            data-see-all-people
+            className="w-full px-3 py-2.5 rounded-xl bg-surface-high text-on-surface-dim text-xs font-bold btn-press flex items-center justify-center gap-1.5"
+          >
+            <Icon name="search" size={15} className="text-on-surface-dim" />
+            {t('shared.see_all_people', { count: peopleView.length })}
+          </button>
+        )}
+        {/* DEC-359 — connect is a VERB that lives with the people (Meu QR · Ler QR ·
+            Adicionar), right below the list — never a separate tab or "Conectar" card. */}
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setShowMyQr(true)}
+            className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-surface-container btn-press"
+          >
+            <Icon name="qr_code_2" size={18} className="text-primary" />
+            <span className="text-[11px] font-semibold text-on-surface">{t('sync.my_qr')}</span>
+          </button>
+          <button
+            onClick={() => setShowQrAdd(true)}
+            className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-surface-container btn-press"
+          >
+            <Icon name="qr_code_scanner" size={18} className="text-primary" />
+            <span className="text-[11px] font-semibold text-on-surface">{t('shared.connect_read_qr')}</span>
+          </button>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-surface-container btn-press"
+          >
+            <Icon name="person_add" size={18} className="text-primary" />
+            <span className="text-[11px] font-semibold text-on-surface">{t('shared.connect_add')}</span>
+          </button>
+        </div>
+        {showForm && (
+          <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
             {/* B2 wave 3 — reuse a connected friend in one tap (mirrors the split's
                 add-person picker). Linking by actorId means debts ride the mirror. */}
             {availableFriends.length > 0 && (
@@ -1195,38 +1217,20 @@ export function SharedExpensesPage() {
               </button>
             </div>
           </div>
-        ) : (
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
-              style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
-            >
-              <Icon name="person_add" size={18} className="text-primary" />
-              {t('shared.add_participant')}
-            </button>
-            {/* DEC-105: pairing is an optional upgrade — typing a name stays default */}
-            <button
-              onClick={() => setShowQrAdd(true)}
-              className="py-3 px-4 rounded-xl flex items-center justify-center gap-2 btn-press font-semibold text-sm"
-              style={{ background: '#C75B3918', color: 'var(--primary)', border: '1px dashed #C75B3940' }}
-            >
-              <Icon name="qr_code_scanner" size={18} className="text-primary" />
-              {t('sync.add_by_qr')}
-            </button>
-          </div>
         )}
       </div>
 
-      {/* G9 (audit §4.15): the single shared "how splitting works" explainer. D05:
-          moved below People so the add-person row sits higher on the screen. */}
-      <SplitExplainer />
+      {/* G9 (audit §4.15): the single shared "how splitting works" explainer, wrapped
+          so it sequences right after Pessoas in the Variante O order. */}
+      <div className="order-[34]">
+        <SplitExplainer />
+      </div>
 
       {/* DL-3: connected-pending shares, surfaced explicitly so nothing is ever
           hidden. Display-only — the counterparty accepts on THEIR phone/link;
           the owner's debt total (hero) is already real and unaffected. */}
       {awaitingShares.length > 0 && (
-        <div className="rounded-2xl p-4" style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}>
+        <div className="order-[22] rounded-2xl p-4" style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}>
           <div className="flex items-center gap-2">
             <Icon name="schedule" size={18} className="text-warning" />
             <p className="text-sm font-bold text-warning flex-1">
@@ -1245,7 +1249,15 @@ export function SharedExpensesPage() {
         </div>
       )}
 
-      {/* DEC-071 (FIELD-03): shared expenses with per-share confirmation status */}
+      {/* (z7) Mais — collapsed-but-on-screen. Gastos compartilhados (one tap, NOT
+          removed — statuses kept) + the device-backup pointer that MOVED OUT to
+          Settings (connecting a friend ≠ backing up your own devices). DEC-356. */}
+      <p className="order-[58] text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1 mt-1">
+        {t('shared.more_section')}
+      </p>
+
+      {/* DEC-071 (FIELD-03): shared expenses with per-share confirmation status,
+          collapsed by default so the screen opens on intent, not on a long dump. */}
       {(() => {
         const sharedTxs = transactions.filter(
           (tx) => tx.isShared && tx.type === 'expense' && tx.deletedAt === null,
@@ -1257,40 +1269,66 @@ export function SharedExpensesPage() {
         const groups = groupSharedExpenses(sharedTxs);
         const visibleGroups = showAllShared ? groups : groups.slice(0, SHARED_LIST_PAGE);
         return (
-          <div>
-            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-1 px-1">
-              {t('shared.shared_expenses_title')}
-            </p>
-            {/* M1: spell out what the status pills mean — "Pendente/Confirmado"
-                alone left people guessing what action (if any) was expected. */}
-            <p className="text-[11px] text-on-surface-faint leading-snug mb-2 px-1">
-              {t('shared.status_hint')}
-            </p>
-            {visibleGroups.map((group) => (
-              <SharedExpenseRow
-                key={group.key}
-                group={group}
-                sessionName={group.sessionId ? (sessionNameById[group.sessionId] ?? null) : null}
-                shares={shares}
-                nameById={nameById}
-                onOpenTx={(id) => navigate(`/expenses/${id}`)}
-                t={t}
+          <div className="order-[60] bg-surface-container rounded-2xl overflow-hidden">
+            <button
+              onClick={() => setSharedOpen((v) => !v)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left btn-press"
+            >
+              <Icon name="receipt_long" size={20} className="text-on-surface-dim shrink-0" />
+              <span className="flex-1 text-sm font-semibold text-on-surface">
+                {t('shared.shared_expenses_collapsed')}
+              </span>
+              <span className="text-xs text-on-surface-faint tabular">{groups.length}</span>
+              <Icon
+                name={sharedOpen ? 'expand_less' : 'expand_more'}
+                size={20}
+                className="text-on-surface-faint shrink-0"
               />
-            ))}
-            {groups.length > SHARED_LIST_PAGE && (
-              <button
-                onClick={() => setShowAllShared((v) => !v)}
-                className="w-full mt-1 mb-2 p-2.5 rounded-xl text-xs font-bold text-primary btn-press flex items-center justify-center gap-1"
-              >
-                <Icon name={showAllShared ? 'expand_less' : 'expand_more'} size={16} />
-                {showAllShared
-                  ? t('common.show_less')
-                  : t('shared.show_all_count', { count: groups.length })}
-              </button>
+            </button>
+            {sharedOpen && (
+              <div className="px-3 pb-3">
+                {/* M1: spell out what the status pills mean. */}
+                <p className="text-[11px] text-on-surface-faint leading-snug mb-2 px-1">
+                  {t('shared.status_hint')}
+                </p>
+                {visibleGroups.map((group) => (
+                  <SharedExpenseRow
+                    key={group.key}
+                    group={group}
+                    sessionName={group.sessionId ? (sessionNameById[group.sessionId] ?? null) : null}
+                    shares={shares}
+                    nameById={nameById}
+                    onOpenTx={(id) => navigate(`/expenses/${id}`)}
+                    t={t}
+                  />
+                ))}
+                {groups.length > SHARED_LIST_PAGE && (
+                  <button
+                    onClick={() => setShowAllShared((v) => !v)}
+                    className="w-full mt-1 p-2.5 rounded-xl text-xs font-bold text-primary btn-press flex items-center justify-center gap-1"
+                  >
+                    <Icon name={showAllShared ? 'expand_less' : 'expand_more'} size={16} />
+                    {showAllShared
+                      ? t('common.show_less')
+                      : t('shared.show_all_count', { count: groups.length })}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         );
       })()}
+
+      {/* DEC-356 — backup MOVED OUT of the settle screen (connect a friend ≠ back up
+          your own devices). A pointer keeps the path discoverable (→ device backup). */}
+      <button
+        onClick={() => navigate('/sync')}
+        className="order-[64] text-[11px] text-on-surface-faint leading-relaxed px-1 flex items-center gap-1.5 text-left btn-press"
+      >
+        <Icon name="devices" size={14} className="text-on-surface-faint shrink-0" />
+        <span className="flex-1">{t('shared.backup_moved')}</span>
+        <Icon name="chevron_right" size={14} className="text-on-surface-faint shrink-0" />
+      </button>
 
       {debtSummary && debtSummary.debts.length > 0 && (() => {
         const simplified = suggestSimplifiedSettlements(debtSummary.debts);
@@ -1301,11 +1339,7 @@ export function SharedExpensesPage() {
         const visibleDebts = showSimplified && canSimplify ? simplified : debtSummary.debts;
 
         return (
-          <div>
-            <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
-              {t('shared.pending_debts')}
-            </p>
-
+          <div className="order-[24]">
             {canSimplify && (
               <button
                 onClick={() => setShowSimplified((v) => !v)}
@@ -1989,89 +2023,153 @@ export function SharedExpensesPage() {
         )}
       </BottomSheet>
 
-      {/* DL-3: P2P machinery demoted to a collapsed "Conexões" section. Kept
-          MOUNTED (CSS-hidden, not unmounted) so the mirror's live sockets keep
-          running while collapsed (council Architect HIGH risk). */}
-      <div>
-        <button
-          onClick={() => setConnectionsOpen((v) => !v)}
-          className="w-full flex items-center gap-2 px-1 mb-2 btn-press"
-        >
-          <Icon name="hub" size={16} className="text-on-surface-faint" />
-          <span className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider flex-1 text-left">
-            {t('shared.connections_section')}
-          </span>
-          <Icon
-            name={connectionsOpen ? 'expand_less' : 'expand_more'}
-            size={18}
-            className="text-on-surface-faint"
-          />
-        </button>
-        <div className={connectionsOpen ? 'flex flex-col gap-3' : 'hidden'}>
-          <p className="text-[11px] text-on-surface-faint leading-snug px-1 -mt-1">
-            {t('shared.connections_hint')}
-          </p>
-          {/* B2 wave 2: the honest friend list — every paired device, its honest
-              reachability (connected/waiting/reconnect) and when it was last seen.
-              Reconnect = re-pair via "Meu QR" / scan below (same plumbing). */}
-          {connectionViews.length > 0 && (
-            <div className="bg-surface-container rounded-xl p-2 flex flex-col gap-1">
-              <p className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide px-2 pt-1">
-                {t('connections.list_title')}
-              </p>
-              {connectionViews.map((conn) => (
-                <div key={conn.actorId} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-                  <span className="w-8 h-8 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                    {conn.displayName.trim().slice(0, 2).toUpperCase()}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-on-surface truncate">{conn.displayName}</p>
-                    <p className="flex items-center gap-1.5 text-[10px] text-on-surface-faint">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: CONNECTION_STATUS_DOT[conn.status] }}
-                      />
-                      <span>{t(`connections.status_${conn.status}`)}</span>
-                      <span aria-hidden>·</span>
-                      <span className="truncate">
-                        {conn.lastSyncAt
-                          ? t('connections.last_seen', { date: formatShortDate(conn.lastSyncAt) })
-                          : t('connections.never_synced')}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* DEC-106 (P2P-13): statements received from paired owner devices */}
-          <MirroredStatementsSection />
-
-          {/* D06 · DEC-347: device-to-device transfer is a SEPARATE concern from
-              connecting a friend (which is "Meu QR" top-right + add-by-QR above).
-              Relabelled and fenced off as "Backup de aparelho" so the old QR
-              asymmetry no longer reads as a second way to add people. */}
-          <div className="pt-1">
-            <p className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide px-1 mb-1.5">
-              {t('shared.device_backup_label')}
-            </p>
+      {/* (DEC-359) The full "Pessoas" view — shipped as the orchestrator-sanctioned
+          full-screen sheet that REUSES the already-loaded ledger (no duplicate data
+          path; the dedicated /shared/people route is deferred to G_last). Search +
+          connect row + status sections (Precisam de ação → Conectados → Convidados →
+          Sem app) + pagination, all over the same unified view-model (DEC-357). */}
+      <BottomSheet
+        open={peopleSheetOpen}
+        onClose={() => setPeopleSheetOpen(false)}
+        title={t('shared.people_section')}
+      >
+        <div className="flex flex-col gap-3 mt-2">
+          <div className="flex items-center gap-2 rounded-xl bg-surface-high px-3 py-2">
+            <Icon name="search" size={18} className="text-on-surface-faint shrink-0" />
+            <input
+              type="text"
+              value={peopleQuery}
+              onChange={(e) => setPeopleQuery(e.target.value)}
+              placeholder={t('shared.people_search_placeholder')}
+              className="bg-transparent text-on-surface text-sm outline-none w-full"
+            />
+          </div>
+          {/* DEC-359 — connect stays WITH the people in the full view too. */}
+          <div className="grid grid-cols-3 gap-2">
             <button
-              onClick={() => navigate('/sync')}
-              className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
+              onClick={() => {
+                setPeopleSheetOpen(false);
+                setShowMyQr(true);
+              }}
+              className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-surface-high btn-press"
             >
-              <Icon name="devices" size={22} className="text-on-surface-dim shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-on-surface">{t('shared.device_backup_title')}</p>
-                <p className="text-xs text-on-surface-faint">{t('shared.device_backup_desc')}</p>
-              </div>
-              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+              <Icon name="qr_code_2" size={18} className="text-primary" />
+              <span className="text-[11px] font-semibold text-on-surface">{t('sync.my_qr')}</span>
+            </button>
+            <button
+              onClick={() => {
+                setPeopleSheetOpen(false);
+                setShowQrAdd(true);
+              }}
+              className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-surface-high btn-press"
+            >
+              <Icon name="qr_code_scanner" size={18} className="text-primary" />
+              <span className="text-[11px] font-semibold text-on-surface">{t('shared.connect_read_qr')}</span>
+            </button>
+            <button
+              onClick={() => {
+                setPeopleSheetOpen(false);
+                setShowForm(true);
+              }}
+              className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-surface-high btn-press"
+            >
+              <Icon name="person_add" size={18} className="text-primary" />
+              <span className="text-[11px] font-semibold text-on-surface">{t('shared.connect_add')}</span>
             </button>
           </div>
+          {(() => {
+            const filtered = searchPeople(peopleView, peopleQuery);
+            if (filtered.length === 0) {
+              return (
+                <p className="text-xs text-on-surface-faint px-1 py-4 text-center">
+                  {t('shared.people_empty')}
+                </p>
+              );
+            }
+            const part = partitionPeople(filtered);
+            const ordered: Array<{ key: string; label: string; rows: PersonView[] }> = [
+              { key: 'need', label: t('shared.people_sec_need_action'), rows: part.needAction },
+              { key: 'con', label: t('shared.people_sec_connected'), rows: part.connected },
+              { key: 'inv', label: t('shared.people_sec_invited'), rows: part.invited },
+              { key: 'noapp', label: t('shared.people_sec_noapp'), rows: part.noapp },
+            ];
+            // DEC-359 pagination — a single budget across the status sections so the
+            // sheet shows a first page and grows on "ver mais", priority order first.
+            let remaining = peopleShown;
+            const sections = ordered
+              .filter((s) => s.rows.length > 0)
+              .map((s) => {
+                const take = Math.min(s.rows.length, Math.max(0, remaining));
+                remaining -= take;
+                return { ...s, rows: s.rows.slice(0, take) };
+              })
+              .filter((s) => s.rows.length > 0);
+            return (
+              <>
+                {sections.map((section) => (
+                  <div key={section.key} className="flex flex-col gap-1.5">
+                    <p className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide px-1">
+                      {section.label}
+                    </p>
+                    {section.rows.map((person) => {
+                      const target = participantById.get(person.participantId);
+                      const reconnect =
+                        target && !target.isOwner
+                          ? findReconnectCandidate(target, peerLinks, Date.now())
+                          : null;
+                      return (
+                        <div key={person.participantId} className="flex flex-col gap-1">
+                          <PersonRow
+                            person={person}
+                            t={t}
+                            currency={trip.baseCurrency}
+                            onTap={() => {
+                              if (target) {
+                                setPeopleSheetOpen(false);
+                                setStatementTarget(target);
+                              }
+                            }}
+                          />
+                          {reconnect && (
+                            <button
+                              onClick={() => handleReconnect(reconnect)}
+                              disabled={saving}
+                              className="w-full px-3 py-2 rounded-xl bg-warning/10 text-warning text-xs font-semibold flex items-center justify-center gap-1.5 btn-press disabled:opacity-40"
+                            >
+                              <Icon name="sync" size={15} className="text-warning" />
+                              {t('connections.reconnect_device', { name: reconnect.displayName })}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                {filtered.length > peopleShown && (
+                  <button
+                    onClick={() => setPeopleShown((n) => n + STATEMENT_PAGE)}
+                    className="w-full p-2.5 rounded-xl text-xs font-bold text-primary btn-press flex items-center justify-center gap-1"
+                  >
+                    <Icon name="expand_more" size={16} />
+                    {t('shared.people_see_more', { count: filtered.length - peopleShown })}
+                  </button>
+                )}
+              </>
+            );
+          })()}
         </div>
+      </BottomSheet>
+
+      {/* DEC-106 (P2P-13) — statements received from paired owner devices live in
+          "Mais" (a feature, not a people list). The separate device-"Conexões" list
+          is GONE (DEC-357): connection is now a per-person badge inside Pessoas, and
+          backup moved to Settings (the pointer above keeps it discoverable). */}
+      <div className="order-[62]">
+        <MirroredStatementsSection />
       </div>
 
       {settlements.length > 0 && (
-        <div>
+        <div className="order-[63]">
           <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
             {t('shared.settlements_done')}
           </p>

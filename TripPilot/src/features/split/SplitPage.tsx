@@ -43,6 +43,7 @@ import { selectActivePhasePool } from '@/domain/budget';
 import { formatMoney, toCents, convertToBaseCents, resolveFrozenRate } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
+import { ConceptHint } from '@/components/ConceptHint';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import { BottomSheet } from '@/components/BottomSheet';
 import { useImageSourceChooser } from '@/components/ImageSourceChooser';
@@ -617,6 +618,8 @@ export function SplitPage() {
 
       {phase === 'capture' && !resuming && (
         <div className="flex flex-col gap-3">
+          {/* DEC-358: the "which split mode" explainer, mounted at this door. */}
+          <ConceptHint current="bill" />
           {!cloudEnabled ? (
             <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--surface-container)' }}>
               <div className="flex items-center gap-2">

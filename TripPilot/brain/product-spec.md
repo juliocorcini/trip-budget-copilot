@@ -375,6 +375,11 @@ apartment"), add people, then log many expenses over days/weeks and the app keep
   For a **trip-linked** event, confirmed group payments surface **read-only** in the trip's
   "Acerto de contas" via a contained bridge (DEC-306) — the settle action stays in the group and
   the trip money ledger is never mutated (no phantom transactions).
+- **Discovery (DEC-360)**: `/groups` is the **one canonical list** of group divisions. Every door
+  converges there — the FAB "Dividir → Divisão em grupo", a first-level **"Divisões em grupo (N)"**
+  tile in the Viagem hub grid, and a summary pointer on `/shared` — never a second list. The two
+  split modes ("Dividir conta" by items vs "Divisão em grupo") are explained at every door via a
+  reusable `<ConceptHint>` (DEC-358).
 
 ### 29. State Dictionary — the app speaks one language (Coherence wave — DEC-304)
 

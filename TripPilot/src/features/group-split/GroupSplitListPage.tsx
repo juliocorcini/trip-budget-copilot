@@ -16,6 +16,7 @@ import { buildConnectionViews } from '@/domain/connections';
 import { publishGroupSplit, saveGroupLive, listJoinedGroups, type JoinedGroup } from './group-link';
 import { formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
+import { ConceptHint } from '@/components/ConceptHint';
 import { showToast } from '@/components/Toast';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { GroupSplitRecord } from '@/domain/types/group-split-record';
@@ -221,6 +222,9 @@ export function GroupSplitListPage() {
         <h1 className="text-heading font-bold text-on-surface">{t('group_split.title')}</h1>
       </div>
       <p className="text-xs text-on-surface-faint -mt-2">{t('group_split.subtitle')}</p>
+
+      {/* DEC-358: the "which split mode" explainer, mounted at this door. */}
+      <ConceptHint current="group" />
 
       {creating ? (
         <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">

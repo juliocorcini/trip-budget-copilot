@@ -51,8 +51,10 @@ test.describe('Discovery & Clarity G3 — discovery hub + "Dividir" chooser', ()
     await expect(page.getByText('Divisão em grupo')).toBeVisible();
 
     await page.getByText('Divisão em grupo').click();
-    await page.waitForURL(/\/groups/);
-    // ?new=1 opens the create form straight away.
-    await expect(page.getByPlaceholder(/nome|name|nombre/i).first()).toBeVisible();
+    // DEC-360: the group door now lands on the LIST (the discoverability fix),
+    // which surfaces its own "+ Novo grupo" affordance — it no longer jumps
+    // straight into an auto-opened create form (?new=1).
+    await page.waitForURL(/\/groups$/);
+    await expect(page.getByRole('button', { name: 'Novo grupo' })).toBeVisible();
   });
 });

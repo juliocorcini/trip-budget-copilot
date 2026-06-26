@@ -35,6 +35,7 @@ import {
   scenarioPlanRepository,
   scenarioAllocationItemRepository,
   phaseProfileSettingRepository,
+  groupSplitRepository,
 } from '@/data/repositories';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 
@@ -44,6 +45,8 @@ interface StructureItem {
   icon: string;
   label: string;
   path: string;
+  /** DEC-360: optional count chip (e.g. active group divisions). */
+  badge?: number;
 }
 
 /**
@@ -64,6 +67,9 @@ export function TripHubPage() {
   const [selectedPhaseId, setSelectedPhaseId] = useState<Selection | null>(null);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
+  // DEC-360 (G9): the count behind the first-level "Divisões em grupo (N)" tile —
+  // discovery of group splits without a second list (the list stays at /groups).
+  const [groupCount, setGroupCount] = useState(0);
   const [addTrechoOpen, setAddTrechoOpen] = useState(false);
   // GATE 4 (master §3.3/§6): the single "Planejar um gasto" door. The FAB deep-
   // links here with ?plan=1; the section CTA opens it directly.
@@ -123,6 +129,9 @@ export function TripHubPage() {
     let cancelled = false;
     activityProfileRepository.getByTripId(trip.id).then((p) => {
       if (!cancelled) setProfiles(p);
+    });
+    groupSplitRepository.listEvents(trip.id).then((records) => {
+      if (!cancelled) setGroupCount(records.length);
     });
     return () => {
       cancelled = true;
@@ -304,7 +313,11 @@ export function TripHubPage() {
   const structureItems: StructureItem[] = [
     { icon: 'timeline', label: t('more.edit_phases'), path: '/trip/edit' },
     { icon: 'category', label: t('more.profiles'), path: '/profiles' },
-    { icon: 'groups', label: t('more.participants'), path: '/shared' },
+    // DEC-360 (G9): "Participantes" (→ /shared) is renamed to "Acerto de contas"
+    // (what the screen actually does), and group divisions get their OWN first-
+    // level tile → /groups (the single canonical list), with an active count.
+    { icon: 'account_balance_wallet', label: t('more.settle'), path: '/shared' },
+    { icon: 'groups', label: t('more.group_divisions'), path: '/groups', badge: groupCount },
     { icon: 'credit_card', label: t('more.wallets'), path: '/wallets' },
     { icon: 'history', label: t('more.outing_history'), path: '/expenses?tab=outings' },
   ];
@@ -773,8 +786,13 @@ export function TripHubPage() {
               onClick={() => navigate(item.path)}
               className="bg-surface-container rounded-xl p-3 btn-press flex flex-col items-center text-center gap-2 h-full"
             >
-              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-surface-high">
+              <div className="relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-surface-high">
                 <Icon name={item.icon} size={20} className="text-on-surface-dim" />
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-on-surface text-[10px] font-bold flex items-center justify-center tabular">
+                    {item.badge}
+                  </span>
+                )}
               </div>
               <span className="text-[11px] font-semibold text-on-surface leading-tight line-clamp-2">
                 {item.label}

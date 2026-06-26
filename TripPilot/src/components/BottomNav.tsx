@@ -136,7 +136,10 @@ export function BottomNav() {
         }}
         onChooseGroup={() => {
           setDivideOpen(false);
-          navigate('/groups?new=1');
+          // DEC-360 (G9): land on the LIST (which has its own "+ Nova"), not
+          // `?new=1`. The list is the discoverability fix — jumping straight to
+          // create hid every existing division behind the form.
+          navigate('/groups');
         }}
       />
       <SplitResumeSheet open={splitChoiceOpen} onClose={() => setSplitChoiceOpen(false)} />

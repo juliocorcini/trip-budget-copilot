@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.3-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Acerto de contas mais claro: seu saldo (a receber/a pagar) e "o que resolver agora" aparecem logo no topo.',
+        'Uma só lista de Pessoas, com etiquetas de status (conectado · convidado · sem app) — acabou a confusão entre Pessoas e Conexões.',
+        '"Ver todas as pessoas" abre uma tela com busca e a linha de conectar (Meu QR · Ler QR · Adicionar).',
+        'Divisões em grupo agora têm entrada própria na viagem, com a contagem de grupos ativos; e uma ajuda explica quando usar Dividir conta x Divisão em grupo.',
+      ],
+      en: [
+        'Clearer settle-up: your balance (to receive / to pay) and "what to resolve now" sit right at the top.',
+        'One single People list with status badges (connected · invited · no app) — no more People-vs-Connections confusion.',
+        '"See all people" opens a screen with search and the connect row (My QR · Scan QR · Add).',
+        'Group splits now have their own entry on the trip, with the active-group count; and a hint explains when to use Split a bill vs Group split.',
+      ],
+      es: [
+        'Ajuste de cuentas más claro: tu saldo (a recibir / a pagar) y "qué resolver ahora" aparecen arriba del todo.',
+        'Una sola lista de Personas con etiquetas de estado (conectado · invitado · sin app) — se acabó la confusión Personas vs Conexiones.',
+        '"Ver todas las personas" abre una pantalla con búsqueda y la fila de conectar (Mi QR · Leer QR · Añadir).',
+        'Las divisiones en grupo ahora tienen su propia entrada en el viaje, con el conteo de grupos activos; y una ayuda explica cuándo usar Dividir una cuenta vs División en grupo.',
+      ],
+    },
+  },
+  {
     version: '1.4.2-rc',
     date: '2026-06-26',
     items: {
