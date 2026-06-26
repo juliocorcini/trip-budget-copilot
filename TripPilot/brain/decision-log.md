@@ -2668,7 +2668,7 @@
 - **Alternatives**: derive-only, no storage (rejected: loses moderation authorship/order); full event-sourcing (rejected: overkill).
 
 ### DEC-355 — Add existing/connected/trip people at group creation [Council C8, wave 2026-06-26]
-- **Date**: 2026-06-26 · **Status**: PROPOSED (G8; council rec).
+- **Date**: 2026-06-26 · **Status**: ✅ APPROVED — shipped G8 `1.4.2-rc` (pure people-picker rank/dedupe of connected+trip+recents wired into create; new P2P `group_invite` kind seals the `/g/` read creds accept-first; accept persists a JoinedGroup + opens the live board; linked picks seed `connected` slots by real id + auto-publish + invite; manual+linked coexist; +22 tests).
 - **Decision**: the create-group flow offers, besides manual entry, a **compact people picker** — **recents / most-used → "da viagem" → "conectados" → "ver mais" (search)** — that links the **real participant/actor id** (not a loose name); adding a **linked** person sends an **accept-first** invite (rides DEC-352 real-time + DEC-345 accept) so the group appears on their app; manual and linked people coexist in the same add row; dedupe by actorId/name. **No 40-name wall.**
 - **Rationale**: Julio: "na criação quero adicionar quem já existe / já é conectado, sem lista gigante — e tem que ligar pelo id e avisar a pessoa." Council C8 (Advocate/Architect/Critic): show the few likely people first, search behind "ver mais"; linking the real id enables live debt; invites are accept-first (consent).
 - **Alternatives**: full searchable list (rejected: the wall Julio called out); connected-only (rejected: trip/recents matter too).

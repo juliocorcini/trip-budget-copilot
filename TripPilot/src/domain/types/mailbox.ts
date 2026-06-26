@@ -7,9 +7,16 @@
 // DEC-344 (G6): `connect` carries a peer's identity so the recipient upserts the
 // reverse peerLink — the two-way handshake. DEC-345/346 (G7): `debt` shares an
 // owed amount (accept-first) and `payment` announces a P2P repayment (settle +
-// fund-credit). All are opaque to the Worker (sealed inside the ciphertext,
-// addressed only by recipient actorId).
-export type MailboxPayloadKind = 'statement' | 'backup' | 'connect' | 'debt' | 'payment';
+// fund-credit). DEC-355 (G8): `group_invite` carries a group's `/g/` read creds so
+// a linked friend's app shows the group accept-first. All are opaque to the Worker
+// (sealed inside the ciphertext, addressed only by recipient actorId).
+export type MailboxPayloadKind =
+  | 'statement'
+  | 'backup'
+  | 'connect'
+  | 'debt'
+  | 'payment'
+  | 'group_invite';
 
 /**
  * The plaintext carried inside a sealed mailbox blob. The sender's identity

@@ -10,6 +10,17 @@ import type { GroupSplitRecord } from '@/domain/types/group-split-record';
  * logic out of components and the persistence in one place.
  */
 
+/**
+ * DEC-355 (G8) — an existing/connected/trip person picked at creation. Seeded as a
+ * `connected` slot linked by the real trip-participant id (so settle-up sync works);
+ * the accept-first `group_invite` addresses their `actorId` separately, in the page.
+ */
+export interface CreateGroupSplitPerson {
+  name: string;
+  /** The trip Participant this maps to (settle-up sync), when on this trip. */
+  linkedParticipantId?: string | null;
+}
+
 export interface CreateGroupSplitInput {
   name: string;
   currency: string;
@@ -19,9 +30,15 @@ export interface CreateGroupSplitInput {
   /** Owner's trip Participant id, when this event lives inside a trip. */
   ownerLinkedParticipantId?: string | null;
   /**
-   * DEC-338 — extra participants (names) to seed at creation, in order. Blanks are
-   * skipped; the owner is always seeded by `createGroupSplitEvent` first. Optional:
-   * creating with no extra people still yields a valid owner-only event.
+   * DEC-355 (G8) — existing/connected/trip people picked at creation, seeded FIRST
+   * as `connected` slots linked by real id. The invite to their device is sent by
+   * the caller (it needs the published creds). Coexists with manual `peopleNames`.
+   */
+  linkedPeople?: CreateGroupSplitPerson[];
+  /**
+   * DEC-338 — extra participants (manual names) to seed at creation, in order.
+   * Blanks are skipped; the owner is always seeded by `createGroupSplitEvent` first.
+   * Optional: creating with no extra people still yields a valid owner-only event.
    */
   peopleNames?: string[];
 }
@@ -35,6 +52,20 @@ export async function createGroupSplit(input: CreateGroupSplitInput): Promise<Gr
     tripId: input.tripId ?? null,
     ownerLinkedParticipantId: input.ownerLinkedParticipantId ?? null,
   });
+  // Picked existing/connected people first (kind `connected`, linked by real id)…
+  for (const person of input.linkedPeople ?? []) {
+    const name = person.name.trim();
+    if (name.length === 0) continue;
+    event = addParticipant(
+      event,
+      createGroupParticipant({
+        name,
+        kind: 'connected',
+        linkedParticipantId: person.linkedParticipantId ?? null,
+      }),
+    );
+  }
+  // …then any manually-typed names (kind `manual`).
   for (const rawName of input.peopleNames ?? []) {
     const name = rawName.trim();
     if (name.length === 0) continue;

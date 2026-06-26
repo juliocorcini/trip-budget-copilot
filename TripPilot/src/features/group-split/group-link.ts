@@ -274,3 +274,76 @@ export function newGuestExpenseId(actorId: string): string {
   const rand = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).replace(/-/g, '').slice(0, 10);
   return `g:${actorId}:${rand}`;
 }
+
+/* ── joined groups (DEC-355, G8 — invitee side) ────────────────────────────── */
+
+const JOINED_GROUPS_KEY = 'group.joined';
+
+/**
+ * DEC-355 (G8) — a group I was INVITED to (I'm a guest, not the owner). Stores the
+ * `/g/` read credentials a `group_invite` carried, so the group shows in my list
+ * and opens the live board. The owner stays the money authority — I never get the
+ * write token, only the read capability a `/g/` link grants.
+ */
+export interface JoinedGroup {
+  shareId: string;
+  /** The AES read key (base64url). */
+  key: string;
+  name: string;
+  /** Who invited me (display only). */
+  invitedByName: string;
+  joinedAt: string;
+}
+
+type JoinedGroupsMap = Record<string, JoinedGroup>;
+
+function isJoinedGroup(g: Partial<JoinedGroup> | undefined): g is JoinedGroup {
+  return (
+    !!g &&
+    typeof g.shareId === 'string' &&
+    typeof g.key === 'string' &&
+    typeof g.name === 'string'
+  );
+}
+
+function readJoinedGroupsMap(): JoinedGroupsMap {
+  try {
+    const raw = localStorage.getItem(JOINED_GROUPS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') return parsed as JoinedGroupsMap;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/** Persist (or refresh) a group I accepted an invite to, keyed by its share id. */
+export function saveJoinedGroup(group: JoinedGroup): void {
+  try {
+    const map = readJoinedGroupsMap();
+    map[group.shareId] = group;
+    localStorage.setItem(JOINED_GROUPS_KEY, JSON.stringify(map));
+  } catch {
+    // Private mode / no storage: the live link still works for this session.
+  }
+}
+
+/** Every group I was invited to and accepted, newest first. */
+export function listJoinedGroups(): JoinedGroup[] {
+  return Object.values(readJoinedGroupsMap())
+    .filter(isJoinedGroup)
+    .sort((a, b) => (b.joinedAt ?? '').localeCompare(a.joinedAt ?? ''));
+}
+
+export function removeJoinedGroup(shareId: string): void {
+  try {
+    const map = readJoinedGroupsMap();
+    if (shareId in map) {
+      delete map[shareId];
+      localStorage.setItem(JOINED_GROUPS_KEY, JSON.stringify(map));
+    }
+  } catch {
+    // ignore
+  }
+}

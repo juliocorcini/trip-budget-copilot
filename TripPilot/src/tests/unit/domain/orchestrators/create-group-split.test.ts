@@ -39,4 +39,26 @@ describe('createGroupSplit — inline people seeding (A01/DEC-338)', () => {
     expect(none.expenses).toEqual([]);
     expect(none.status).toBe('open');
   });
+
+  // F24 / DEC-355 (G8) — picked existing/connected people are seeded as `connected`
+  // slots linked by their real trip-participant id, BEFORE the manually-typed names.
+  it('seeds linked (picked) people as connected slots, before manual names', async () => {
+    const event = await createGroupSplit({
+      name: 'Trip',
+      currency: 'BRL',
+      ownerName: 'Ana',
+      linkedPeople: [
+        { name: 'Bruno', linkedParticipantId: 'part-bruno' },
+        { name: 'Carla', linkedParticipantId: null },
+      ],
+      peopleNames: ['Dani'],
+    });
+    expect(event.participants.map((p) => p.name)).toEqual(['Ana', 'Bruno', 'Carla', 'Dani']);
+    const [, bruno, carla, dani] = event.participants;
+    expect(bruno!.kind).toBe('connected');
+    expect(bruno!.linkedParticipantId).toBe('part-bruno');
+    expect(carla!.kind).toBe('connected');
+    expect(carla!.linkedParticipantId).toBeNull();
+    expect(dani!.kind).toBe('manual');
+  });
 });

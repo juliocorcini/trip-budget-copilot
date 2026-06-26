@@ -13,6 +13,7 @@ const VALID_KINDS: ReadonlySet<MailboxPayloadKind> = new Set([
   'connect',
   'debt',
   'payment',
+  'group_invite',
 ]);
 
 export function buildMailboxEnvelope(input: {

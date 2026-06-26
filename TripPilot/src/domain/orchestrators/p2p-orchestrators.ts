@@ -18,10 +18,14 @@ import {
   buildExpenseFromSharedDebt,
   externalRefForDebt,
   resolvePaymentParties,
+  buildGroupInvitePayload,
+  parseGroupInvitePayload,
   type SharedDebtPayload,
   type PaymentPayload,
   type PaymentDirection,
+  type GroupInvitePayload,
 } from '@/domain/sync';
+import type { MailboxPayloadKind } from '@/domain/types/mailbox';
 import { createParticipant, createSettlement } from '@/domain/splitting';
 import { createIncomeTransaction } from '@/domain/transactions';
 import { flushOutbox, type SendToMailboxResult } from './mailbox-orchestrators';
@@ -43,8 +47,8 @@ async function sealAndQueue(
   peerActorId: string,
   peerPublicKey: string,
   peerName: string,
-  kind: 'debt' | 'payment',
-  data: SharedDebtPayload | PaymentPayload,
+  kind: Extract<MailboxPayloadKind, 'debt' | 'payment' | 'group_invite'>,
+  data: SharedDebtPayload | PaymentPayload | GroupInvitePayload,
 ): Promise<SendToMailboxResult> {
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
@@ -158,16 +162,42 @@ export async function announcePaymentToPeer(input: AnnouncePaymentInput): Promis
   return sealAndQueue(input.peerActorId, peer.publicKey, peer.displayName, 'payment', payload);
 }
 
+export interface ShareGroupInviteInput {
+  peerActorId: string;
+  shareId: string;
+  /** The `/g/` AES read key (the link-fragment secret). */
+  key: string;
+  groupName: string;
+}
+
+/**
+ * DEC-355 (G8) — invite a connected peer to a group split. Seals the group's `/g/`
+ * read credentials (id + key, NOT the write token) to the peer's mailbox so their
+ * app shows the group accept-first. No-op if the peer has no key (re-pair to
+ * enable async). The owner stays the money authority — this only grants reading.
+ */
+export async function sendGroupInvite(input: ShareGroupInviteInput): Promise<SendToMailboxResult> {
+  const peer = await peerLinkRepository.getByActorId(input.peerActorId);
+  if (!peer?.publicKey) return { delivered: false };
+  const payload = buildGroupInvitePayload({
+    shareId: input.shareId,
+    key: input.key,
+    groupName: input.groupName,
+  });
+  return sealAndQueue(input.peerActorId, peer.publicKey, peer.displayName, 'group_invite', payload);
+}
+
 /** A pending inbound P2P item, parsed for the UI (accept/confirm surface). */
 export interface InboundP2pItem {
   itemId: string;
-  kind: 'debt' | 'payment';
+  kind: 'debt' | 'payment' | 'group_invite';
   fromName: string;
   debt?: SharedDebtPayload;
   payment?: PaymentPayload;
+  invite?: GroupInvitePayload;
 }
 
-/** Pending inbound debts + payments awaiting the user's accept/confirm. */
+/** Pending inbound debts + payments + group invites awaiting the user's accept/confirm. */
 export async function getInboundP2pItems(): Promise<InboundP2pItem[]> {
   const items = await mailboxQueueRepository.pendingInbox();
   const out: InboundP2pItem[] = [];
@@ -179,6 +209,9 @@ export async function getInboundP2pItems(): Promise<InboundP2pItem[]> {
     } else if (item.kind === 'payment') {
       const payment = parsePaymentPayload(item.envelope.data);
       if (payment) out.push({ itemId: item.id, kind: 'payment', fromName: item.fromName ?? payment.fromName, payment });
+    } else if (item.kind === 'group_invite') {
+      const invite = parseGroupInvitePayload(item.envelope.data);
+      if (invite) out.push({ itemId: item.id, kind: 'group_invite', fromName: item.fromName ?? '', invite });
     }
   }
   return out;
@@ -312,6 +345,20 @@ export async function confirmInboundPayment(itemId: string, target: ConfirmPayme
 
   await mailboxQueueRepository.remove(itemId);
   return true;
+}
+
+/**
+ * DEC-355 (G8) — ACCEPT a pending group invite: drop the inbox item and return
+ * its `/g/` read credentials so the caller can persist the joined group + open the
+ * live board. Returns null if the item/payload is gone (the item is still cleared).
+ * Storing the credentials is the caller's job (a client-only localStorage map —
+ * the orchestrator stays free of that boundary, like the owner-live creds).
+ */
+export async function acceptGroupInvite(itemId: string): Promise<GroupInvitePayload | null> {
+  const item = await findInboxItem(itemId);
+  const invite = item?.envelope ? parseGroupInvitePayload(item.envelope.data) : null;
+  if (item) await mailboxQueueRepository.remove(itemId);
+  return invite;
 }
 
 /** REJECT/dismiss a pending inbound item (hide-never-corrupt: just drop it). */

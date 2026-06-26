@@ -39,6 +39,7 @@ import { settlementRepository } from '@/data/repositories/settlement-repository'
 import { participantRepository, peerLinkRepository, sessionRepository, groupSplitRepository } from '@/data/repositories';
 import { groupSplitsToTripDebts, computeGroupBalances } from '@/domain/group-split';
 import type { GroupSplitEvent } from '@/domain/group-split';
+import { saveJoinedGroup } from '@/features/group-split/group-link';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Wallet } from '@/domain/types/wallet';
@@ -77,6 +78,7 @@ import {
   getInboundP2pItems,
   acceptInboundDebt,
   confirmInboundPayment,
+  acceptGroupInvite,
   dismissInboundP2p,
   shareDebtWithPeer,
   announcePaymentToPeer,
@@ -546,6 +548,34 @@ export function SharedExpensesPage() {
     }
   };
 
+  // DEC-355 (G8) — accept a group invite: persist the joined group locally (so it
+  // shows in my list), then open the live `/g/` board — the SAME capability a link
+  // grants. Accept-first: nothing joins my list until this explicit tap.
+  const handleAcceptInvite = async (item: InboundP2pItem) => {
+    if (p2pBusy) return;
+    setP2pBusy(item.itemId);
+    try {
+      const invite = await acceptGroupInvite(item.itemId);
+      if (!invite) {
+        showToast(t('p2p.send_failed'), 'danger');
+        await refreshInbox();
+        return;
+      }
+      saveJoinedGroup({
+        shareId: invite.shareId,
+        key: invite.key,
+        name: invite.groupName,
+        invitedByName: item.fromName,
+        joinedAt: new Date().toISOString(),
+      });
+      showToast(t('p2p.invite_accepted'), 'success');
+      await refreshInbox();
+      navigate(`/g/${encodeURIComponent(invite.shareId)}#k=${invite.key}`);
+    } finally {
+      setP2pBusy(null);
+    }
+  };
+
   const handleConfirmPayment = async (item: InboundP2pItem) => {
     if (!trip || !ownerParticipant || p2pBusy) return;
     // L8: a payment that means I RECEIVED the cash is a real inflow → pick the
@@ -826,6 +856,44 @@ export function SharedExpensesPage() {
                       className="flex-1 py-2 rounded-xl bg-success/20 text-success text-xs font-bold btn-press disabled:opacity-40"
                     >
                       {t('p2p.confirm')}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            // DEC-355 (G8) — group invite: accept-first. Accept opens the live board
+            // (read + claim a name); reject just drops it. No money folds here.
+            if (item.kind === 'group_invite' && item.invite) {
+              return (
+                <div
+                  key={item.itemId}
+                  className="rounded-2xl p-4 bg-surface-container border border-[var(--border-faint)] flex flex-col gap-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <Icon name="groups" size={18} className="text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-on-surface truncate">
+                        {t('p2p.invite_label', { name: item.fromName })}
+                      </p>
+                      <p className="text-xs text-on-surface-faint truncate">{item.invite.groupName}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRejectInbound(item)}
+                      disabled={busy}
+                      className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press disabled:opacity-40"
+                    >
+                      {t('p2p.reject')}
+                    </button>
+                    <button
+                      onClick={() => handleAcceptInvite(item)}
+                      disabled={busy}
+                      className="flex-1 py-2 rounded-xl bg-primary/20 text-primary text-xs font-bold btn-press disabled:opacity-40"
+                    >
+                      {t('p2p.accept')}
                     </button>
                   </div>
                 </div>

@@ -20,6 +20,7 @@ import { parseMigrationPayload } from '@/domain/sync/migration-payload';
 import { buildConnectPayload, parseConnectPayload } from '@/domain/sync/connect-payload';
 import { parseSharedDebtPayload } from '@/domain/sync/debt-payload';
 import { parsePaymentPayload } from '@/domain/sync/payment-payload';
+import { parseGroupInvitePayload } from '@/domain/sync/group-invite-payload';
 import {
   storeMirroredStatement,
   upsertPeerLinkFromConnect,
@@ -186,6 +187,8 @@ export interface DrainResult {
   debts: number;
   /** DEC-346 (G7) — inbound P2P payments queued PENDING (confirm-first). */
   payments: number;
+  /** DEC-355 (G8) — inbound group invites queued PENDING (accept-first). */
+  invites: number;
 }
 
 /**
@@ -194,14 +197,15 @@ export interface DrainResult {
  */
 export async function drainMailboxIntoApp(): Promise<DrainResult> {
   const settings = await appSettingsRepository.get();
-  if (!settings.mailboxEnabled) return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0 };
+  if (!settings.mailboxEnabled)
+    return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0, invites: 0 };
 
   const me = await getDeviceIdentity();
   let messages;
   try {
     messages = await drainMailbox(me.actorId);
   } catch {
-    return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0 };
+    return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0, invites: 0 };
   }
 
   let statements = 0;
@@ -209,6 +213,7 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
   let connects = 0;
   let debts = 0;
   let payments = 0;
+  let invites = 0;
   for (const message of messages) {
     const packed = await openForMe(message.blob);
     if (!packed) continue;
@@ -280,8 +285,24 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
       }
       continue;
     }
+
+    // DEC-355 (G8) — inbound group invite: queue PENDING for one-tap accept
+    // (accept-first ÂNCORA — the group only joins my list when I accept it).
+    if (envelope.kind === 'group_invite') {
+      const invite = parseGroupInvitePayload(envelope.data);
+      if (invite) {
+        await mailboxQueueRepository.enqueueIn({
+          kind: 'group_invite',
+          fromActorId: envelope.fromActorId,
+          fromName: envelope.fromName,
+          envelope,
+        });
+        invites++;
+      }
+      continue;
+    }
   }
-  return { statements, backups, connects, debts, payments };
+  return { statements, backups, connects, debts, payments, invites };
 }
 
 /** The backups drained from the mailbox awaiting the traveler's confirm. */

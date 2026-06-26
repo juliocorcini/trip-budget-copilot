@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.2-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Ao criar um grupo, agora dá para escolher amigos conectados e pessoas da viagem — sem digitar tudo de novo.',
+        'O amigo escolhido recebe um convite: o grupo só entra na conta dele quando ele aceita.',
+        'Quem você digita à mão e quem você escolhe da lista convivem no mesmo grupo.',
+      ],
+      en: [
+        'When creating a group you can now pick connected friends and trip people — no need to retype names.',
+        'A picked friend gets an invite: the group only joins their app once they accept it.',
+        'Manually-typed names and picked people live together in the same group.',
+      ],
+      es: [
+        'Al crear un grupo ahora puedes elegir amigos conectados y personas del viaje — sin volver a escribir.',
+        'El amigo elegido recibe una invitación: el grupo entra en su app solo cuando la acepta.',
+        'Los nombres escritos a mano y las personas elegidas conviven en el mismo grupo.',
+      ],
+    },
+  },
+  {
     version: '1.4.1-rc',
     date: '2026-06-26',
     items: {

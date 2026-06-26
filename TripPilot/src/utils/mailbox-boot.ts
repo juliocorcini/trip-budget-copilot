@@ -31,8 +31,8 @@ export async function runMailboxSync(force = false): Promise<void> {
   lastRunAt = now;
   try {
     await flushOutbox();
-    const { statements, backups, connects, debts, payments } = await drainMailboxIntoApp();
-    if (statements > 0 || backups > 0 || connects > 0 || debts > 0 || payments > 0) {
+    const { statements, backups, connects, debts, payments, invites } = await drainMailboxIntoApp();
+    if (statements > 0 || backups > 0 || connects > 0 || debts > 0 || payments > 0 || invites > 0) {
       window.dispatchEvent(new CustomEvent(MAILBOX_DRAINED_EVENT));
     }
     if (statements > 0) {
@@ -53,11 +53,16 @@ export async function runMailboxSync(force = false): Promise<void> {
     if (payments > 0) {
       showToast(i18n.t('mailbox.received_payments', { count: payments }), 'info');
     }
-    // DEC-352 (F18, G6): a charge/payment that arrived in real-time (or while
+    // DEC-355 (G8): inbound group invites wait PENDING (accept-first) — toast so the
+    // user goes to accept; the group only joins their list on accept.
+    if (invites > 0) {
+      showToast(i18n.t('mailbox.received_invites', { count: invites }), 'info');
+    }
+    // DEC-352 (F18, G6): a charge/payment/invite that arrived in real-time (or while
     // backgrounded) also fires a native OS notification so it is felt at once and
     // survives a missed toast. Connect handshakes are silent here (the toast above
     // is enough); only the actionable items escalate to the OS layer.
-    const actionable = debts + payments;
+    const actionable = debts + payments + invites;
     if (actionable > 0) {
       void showLocalNotification(
         i18n.t('mailbox.native_title'),

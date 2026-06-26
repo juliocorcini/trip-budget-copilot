@@ -1,14 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { groupSplitRepository } from '@/data/repositories';
-import { createGroupSplit } from '@/domain/orchestrators';
-import { computeGroupBalances, groupTotalCents } from '@/domain/group-split';
+import { groupSplitRepository, peerLinkRepository } from '@/data/repositories';
+import { createGroupSplit, sendGroupInvite } from '@/domain/orchestrators';
+import {
+  computeGroupBalances,
+  groupTotalCents,
+  buildPeoplePicker,
+  filterPeoplePicker,
+  collectRecentGroupNames,
+  type PeoplePickerCandidate,
+} from '@/domain/group-split';
+import { buildConnectionViews } from '@/domain/connections';
+import { publishGroupSplit, saveGroupLive, listJoinedGroups, type JoinedGroup } from './group-link';
 import { formatMoney } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
+import type { PeerLink } from '@/domain/types/peer-link';
 import type { GroupSplitRecord } from '@/domain/types/group-split-record';
+
+/** Suggestions shown before the "ver mais" search reveals the full deduped list. */
+const PICKER_PREVIEW = 6;
+
+/** Case/accent-insensitive name key, to dedupe a typed name against a picked one. */
+function nameKey(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
 
 const CURRENCIES = ['EUR', 'USD', 'BRL', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY'];
 
@@ -24,6 +46,9 @@ export function GroupSplitListPage() {
   const { trip, participants, settings } = useAppData();
 
   const [records, setRecords] = useState<GroupSplitRecord[] | null>(null);
+  // F24/DEC-355 — groups I was INVITED to and accepted (I'm a guest, read-only
+  // creds). They live beside the groups I own so /groups stays the ONE list (DEC-360).
+  const [joinedGroups, setJoinedGroups] = useState<JoinedGroup[]>([]);
   // D03 · DEC-310: the "Dividir" chooser deep-links here with `?new=1` to open
   // the create form straight away (the "start a group split" intent).
   const [creating, setCreating] = useState(() => searchParams.get('new') === '1');
@@ -36,13 +61,56 @@ export function GroupSplitListPage() {
   const [newPerson, setNewPerson] = useState('');
   const newPersonRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
+  // F24/DEC-355 — the people picker: pick existing/connected/trip people (linked by
+  // real id, invited accept-first) instead of re-typing a wall of names.
+  const [peerLinks, setPeerLinks] = useState<PeerLink[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [pickerQuery, setPickerQuery] = useState('');
+  const [showAllPicker, setShowAllPicker] = useState(false);
 
   const ownerName =
     participants.find((p) => p.isOwner)?.name ?? t('onboarding.default_owner_name');
 
   useEffect(() => {
     void groupSplitRepository.listEvents().then(setRecords);
+    void peerLinkRepository.getAll().then(setPeerLinks);
+    setJoinedGroups(listJoinedGroups());
   }, []);
+
+  // F24/DEC-355 — the deduped, intent-ranked candidates: connected friends, this
+  // trip's participants, then recently-used names (the same person once).
+  const candidates = useMemo(
+    () =>
+      buildPeoplePicker({
+        connections: buildConnectionViews(peerLinks, Date.now()),
+        tripParticipants: participants.map((p) => ({
+          id: p.id,
+          name: p.name,
+          isOwner: p.isOwner,
+          linkedActorId: p.linkedActorId ?? null,
+        })),
+        recentNames: collectRecentGroupNames((records ?? []).map((r) => r.event)),
+      }),
+    [peerLinks, participants, records],
+  );
+  const filteredCandidates = useMemo(
+    () => filterPeoplePicker(candidates, pickerQuery),
+    [candidates, pickerQuery],
+  );
+  const visibleCandidates =
+    showAllPicker || pickerQuery.trim().length > 0
+      ? filteredCandidates
+      : filteredCandidates.slice(0, PICKER_PREVIEW);
+  const selectedCandidates = candidates.filter((c) => selectedKeys.has(c.key));
+
+  const toggleCandidate = (candidate: PeoplePickerCandidate) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(candidate.key)) next.delete(candidate.key);
+      else next.add(candidate.key);
+      return next;
+    });
+  };
 
   const addPerson = () => {
     const trimmed = newPerson.trim();
@@ -61,6 +129,31 @@ export function GroupSplitListPage() {
     setCreating(false);
     setPeople([]);
     setNewPerson('');
+    setSelectedKeys(new Set());
+    setPickerQuery('');
+    setShowAllPicker(false);
+  };
+
+  // F24/DEC-355 — after the event exists, the connected picks get an accept-first
+  // group invite. It needs the published `/g/` creds, so we publish once (storing
+  // the owner creds so the detail screen reuses the SAME link) and seal in parallel.
+  const inviteConnectedPicks = async (
+    event: Awaited<ReturnType<typeof createGroupSplit>>,
+    invitees: PeoplePickerCandidate[],
+  ): Promise<number> => {
+    const creds = await publishGroupSplit(event, 1);
+    saveGroupLive(event.id, creds);
+    const results = await Promise.all(
+      invitees.map((inv) =>
+        sendGroupInvite({
+          peerActorId: inv.actorId as string,
+          shareId: creds.shareId,
+          key: creds.key,
+          groupName: event.name,
+        }),
+      ),
+    );
+    return results.filter((r) => r.delivered).length;
   };
 
   const handleCreate = async () => {
@@ -69,18 +162,48 @@ export function GroupSplitListPage() {
     setSubmitting(true);
     try {
       const owner = participants.find((p) => p.isOwner) ?? null;
-      // Fold a half-typed name in the field so it is never silently dropped.
+      // Fold a half-typed name in the field so it is never silently dropped, and
+      // drop any typed name that duplicates a picked person (one slot per person).
       const pending = newPerson.trim();
-      const peopleNames = pending.length > 0 ? [...people, pending] : people;
+      const typedNames = pending.length > 0 ? [...people, pending] : people;
+      const pickedNameKeys = new Set(selectedCandidates.map((c) => nameKey(c.name)));
+      const peopleNames = typedNames.filter((n) => !pickedNameKeys.has(nameKey(n)));
+      // Picked people are seeded as connected slots, linked by real id ONLY when the
+      // participant is on THIS trip (a cross-trip link would mis-key the ledger).
+      const linkedPeople = selectedCandidates.map((c) => ({
+        name: c.name,
+        linkedParticipantId:
+          c.participantId && participants.some((p) => p.id === c.participantId)
+            ? c.participantId
+            : null,
+      }));
       const event = await createGroupSplit({
         name: trimmed,
         currency,
         ownerName,
         tripId: trip?.id ?? null,
         ownerLinkedParticipantId: owner?.id ?? null,
+        linkedPeople,
         peopleNames,
       });
-      showToast(t('group_split.created'), 'success');
+
+      const invitees = selectedCandidates.filter((c) => c.canInvite && c.actorId);
+      if (invitees.length > 0) {
+        try {
+          const delivered = await inviteConnectedPicks(event, invitees);
+          showToast(
+            delivered > 0
+              ? t('group_split.invites_sent', { count: delivered })
+              : t('group_split.invites_queued', { count: invitees.length }),
+            delivered > 0 ? 'success' : 'info',
+          );
+        } catch {
+          // The event is created regardless; the link can still be shared manually.
+          showToast(t('group_split.created'), 'success');
+        }
+      } else {
+        showToast(t('group_split.created'), 'success');
+      }
       navigate(`/groups/${event.id}`);
     } catch (err) {
       console.error('[group-split] create failed', err);
@@ -128,6 +251,66 @@ export function GroupSplitListPage() {
               ))}
             </div>
           </div>
+          {/* F24/DEC-355 — pick existing/connected/trip people (no giant list): a
+              short ranked preview, "ver mais" reveals search; connected picks get
+              an accept-first invite to their real device on create. */}
+          {candidates.length > 0 && (
+            <div>
+              <label className="text-xs text-on-surface-faint block mb-2">
+                {t('group_split.picker_title')}
+              </label>
+              {(showAllPicker || pickerQuery.trim().length > 0) && (
+                <input
+                  value={pickerQuery}
+                  onChange={(e) => setPickerQuery(e.target.value)}
+                  placeholder={t('group_split.picker_search_ph')}
+                  className="bg-surface-high rounded-lg px-3 py-2 text-sm text-on-surface outline-none w-full mb-2"
+                />
+              )}
+              <div className="flex flex-wrap gap-2">
+                {visibleCandidates.map((c) => {
+                  const selected = selectedKeys.has(c.key);
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => toggleCandidate(c)}
+                      className={`flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-lg text-sm font-medium btn-press border ${
+                        selected
+                          ? 'bg-primary/20 text-primary border-primary/40'
+                          : 'bg-surface-high text-on-surface-dim border-transparent'
+                      }`}
+                    >
+                      <Icon
+                        name={selected ? 'check_circle' : 'add_circle'}
+                        size={15}
+                        className={selected ? 'text-primary' : 'text-on-surface-faint'}
+                      />
+                      <span className="truncate max-w-[10rem]">{c.name}</span>
+                      {c.source === 'connected' && (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ background: c.canInvite ? 'var(--success)' : 'var(--warning)' }}
+                          aria-label={t('group_split.picker_connected')}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {pickerQuery.trim().length === 0 && filteredCandidates.length > PICKER_PREVIEW && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllPicker((v) => !v)}
+                  className="mt-2 text-xs font-semibold text-primary btn-press"
+                >
+                  {showAllPicker
+                    ? t('common.show_less')
+                    : t('group_split.picker_more', { count: filteredCandidates.length - PICKER_PREVIEW })}
+                </button>
+              )}
+            </div>
+          )}
           {/* A01/DEC-338 — seed people inline; owner is added automatically. */}
           <div>
             <label className="text-xs text-on-surface-faint block mb-2">{t('group_split.people_title')}</label>
@@ -205,6 +388,32 @@ export function GroupSplitListPage() {
         <div className="flex flex-col gap-2">
           {records.map((r) => (
             <GroupRow key={r.id} record={r} onOpen={() => navigate(`/groups/${r.id}`)} />
+          ))}
+        </div>
+      )}
+
+      {/* F24/DEC-355 — groups I joined via an invite (read-only guest board). Tapping
+          opens the live `/g/` board with the stored read creds, exactly like the link. */}
+      {joinedGroups.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-on-surface-faint mt-2">{t('group_split.joined_title')}</p>
+          {joinedGroups.map((g) => (
+            <button
+              key={g.shareId}
+              onClick={() => navigate(`/g/${encodeURIComponent(g.shareId)}#k=${g.key}`)}
+              className="bg-surface-container rounded-xl p-4 flex items-center gap-3 text-left btn-press"
+            >
+              <div className="w-10 h-10 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                <Icon name="groups" size={20} className="text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-on-surface truncate">{g.name}</p>
+                <p className="text-[11px] text-on-surface-faint truncate">
+                  {t('group_split.joined_meta', { name: g.invitedByName })}
+                </p>
+              </div>
+              <Icon name="chevron_right" size={20} className="text-on-surface-faint shrink-0" />
+            </button>
           ))}
         </div>
       )}

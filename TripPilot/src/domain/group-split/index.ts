@@ -66,6 +66,17 @@ export type {
 export { buildGroupSharePayload, parseGroupSharePayload } from './share-payload';
 export type { GroupSharePayload } from './share-payload';
 export {
+  buildPeoplePicker,
+  filterPeoplePicker,
+  collectRecentGroupNames,
+} from './people-picker';
+export type {
+  PeoplePickerCandidate,
+  PeoplePickerSource,
+  PickerTripParticipant,
+  BuildPeoplePickerInput,
+} from './people-picker';
+export {
   buildGroupClaimResponse,
   parseGroupClaimResponse,
   parseGroupClaimExpense,

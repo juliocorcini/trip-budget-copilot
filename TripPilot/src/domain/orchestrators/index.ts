@@ -167,18 +167,21 @@ export {
   persistGroupSplit,
   deleteGroupSplit,
 } from './group-split-orchestrators';
-export type { CreateGroupSplitInput } from './group-split-orchestrators';
+export type { CreateGroupSplitInput, CreateGroupSplitPerson } from './group-split-orchestrators';
 export {
   shareDebtWithPeer,
   announcePaymentToPeer,
+  sendGroupInvite,
   getInboundP2pItems,
   acceptInboundDebt,
   confirmInboundPayment,
+  acceptGroupInvite,
   dismissInboundP2p,
 } from './p2p-orchestrators';
 export type {
   ShareDebtInput,
   AnnouncePaymentInput,
+  ShareGroupInviteInput,
   InboundP2pItem,
   AcceptDebtTarget,
   ConfirmPaymentTarget,

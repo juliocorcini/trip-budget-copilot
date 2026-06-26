@@ -3,6 +3,7 @@ import { db } from '@/data/db/database';
 import {
   acceptInboundDebt,
   confirmInboundPayment,
+  acceptGroupInvite,
   dismissInboundP2p,
   getInboundP2pItems,
 } from '@/domain/orchestrators';
@@ -13,7 +14,7 @@ import {
   settlementRepository,
   mailboxQueueRepository,
 } from '@/data/repositories';
-import { buildSharedDebtPayload, buildPaymentPayload } from '@/domain/sync';
+import { buildSharedDebtPayload, buildPaymentPayload, buildGroupInvitePayload } from '@/domain/sync';
 import { buildMailboxEnvelope } from '@/domain/sync/mailbox-envelope';
 import { createParticipant, calculateDebts } from '@/domain/splitting';
 import type { Participant } from '@/domain/types/participant';
@@ -63,6 +64,23 @@ async function enqueuePayment(direction: 'paid' | 'received', amountCents: numbe
   });
   const envelope = buildMailboxEnvelope({ kind: 'payment', fromActorId: SENDER, fromName: 'Bruno', data: payment });
   const item = await mailboxQueueRepository.enqueueIn({ kind: 'payment', fromActorId: SENDER, fromName: 'Bruno', envelope });
+  return item.id;
+}
+
+async function enqueueInvite(shareId = 'g_share1', key = 'read-key', groupName = 'Lisbon'): Promise<string> {
+  const invite = buildGroupInvitePayload({ shareId, key, groupName });
+  const envelope = buildMailboxEnvelope({
+    kind: 'group_invite',
+    fromActorId: SENDER,
+    fromName: 'Bruno',
+    data: invite,
+  });
+  const item = await mailboxQueueRepository.enqueueIn({
+    kind: 'group_invite',
+    fromActorId: SENDER,
+    fromName: 'Bruno',
+    envelope,
+  });
   return item.id;
 }
 
@@ -220,5 +238,35 @@ describe('P2P inbound orchestrators (DEC-345/346)', () => {
 
     const { settlements } = await readLedger();
     expect(settlements).toHaveLength(1);
+  });
+
+  // DEC-355 (G8) — group invite: accept-first, read-only. It surfaces as a pending
+  // item and accept returns the `/g/` read creds (id+key, NEVER a write token) and
+  // clears the inbox; the ledger is untouched (a group never folds money here).
+  it('a queued group_invite surfaces as a pending item with its read credentials', async () => {
+    await enqueueInvite('g_abc', 'k_xyz', 'Weekend');
+
+    const pending = await getInboundP2pItems();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]!.kind).toBe('group_invite');
+    expect(pending[0]!.invite).toEqual({ v: 1, shareId: 'g_abc', key: 'k_xyz', groupName: 'Weekend' });
+    expect(pending[0]!.fromName).toBe('Bruno');
+  });
+
+  it('acceptGroupInvite returns the read creds, clears the inbox, and folds NO money', async () => {
+    await seedOwner();
+    const itemId = await enqueueInvite('g_abc', 'k_xyz', 'Weekend');
+
+    const invite = await acceptGroupInvite(itemId);
+    expect(invite).toEqual({ v: 1, shareId: 'g_abc', key: 'k_xyz', groupName: 'Weekend' });
+
+    expect(await getInboundP2pItems()).toHaveLength(0);
+    const { transactions, settlements } = await readLedger();
+    expect(transactions).toHaveLength(0);
+    expect(settlements).toHaveLength(0);
+  });
+
+  it('acceptGroupInvite on a missing item returns null (no throw)', async () => {
+    expect(await acceptGroupInvite('nope')).toBeNull();
   });
 });
