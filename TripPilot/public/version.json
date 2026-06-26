@@ -1,8 +1,8 @@
 {
-  "version": "1.2.5-rc",
+  "version": "1.3.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.5-rc.zip",
-  "notes": "Conexão em duas vias: ao escanear o QR de alguém (ou abrir o link), vocês passam a aparecer um no aparelho do outro automaticamente, sem o outro precisar escanear de volta — basta conectar uma vez. A tela de acerto de contas ficou mais clara: \"Meu QR\" fixo no topo, conexões à vista e o backup entre seus aparelhos separado de conectar um amigo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.3.0-rc.zip",
+  "notes": "Dívidas e pagamentos ao vivo: depois de conectar uma vez, você pode cobrar um amigo direto pelo app — uma notificação chega no aparelho dele e, com um toque, ele aceita (a dívida aparece para os dois). Ao registrar um pagamento, a conta fecha dos dois lados, sem ninguém ficar \"no vermelho\", e quem recebe o dinheiro escolhe em qual fundo/carteira ele entrou (entrada real, não uma cópia da despesa)."
 }

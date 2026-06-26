@@ -2585,7 +2585,8 @@
   mobile/background — Julio's own pain).
 
 ### DEC-345 — Inbound shared debt/expense is accept-first [Council C4]
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G7).
+- **Date**: 2026-06-25 · **Status**: **APPROVED (G7, shipped `1.3.0-rc`)**.
+- **Shipped**: a new `debt` `MailboxPayloadKind` (opaque to the Worker) + pure `SharedDebtPayload`/`buildSharedDebtPayload`/`parseSharedDebtPayload` (Zod, `debtId` UUID idempotency). Drain routes inbound debts to a **PENDING inbox** (`enqueueIn`, never auto-folded) + a boot/visibility **toast**; `/shared` shows an accept-first card at the top with **Aceitar/Recusar**. ACCEPT (`acceptInboundDebt`) folds it via the pure `buildExpenseFromSharedDebt` mapper — the sender becomes a trip participant = the payer, a single **confirmed** share = my owed amount — auto-resolving the active phase's pool (`resolveActivePhase` + `selectActivePhasePool`); idempotent via the expense `externalRef` (`debt:<actorId>:<debtId>`). REJECT (`dismissInboundP2p`) drops the item. Send side: **"Cobrar pelo app"** (`shareDebtWithPeer`) — my ledger is untouched (data-invariance) until THEY accept. +13 tests (cents-verified math + idempotency + receiver data-invariance). **No Worker change** (rides the existing E2E mailbox). The reciprocal reject-notify back-channel is a small follow-up.
 - **Decision**: a sealed `debt`/`expense` envelope creates a **pending** shared item + a **notification**
   ("{name} shared a debt of X — accept?"); a **one-tap accept** folds it in and **reciprocally notifies**
   the sender; a **reject** also informs the sender (so totals never silently lie). An optional
@@ -2595,7 +2596,8 @@
 - **Alternatives**: born-confirmed (rejected: spam/abuse risk, contradicts honest-state).
 
 ### DEC-346 — Payment settlement closes the obligation AND always credits a fund [Council C4 · L8 OVERRIDE]
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G7) · **LOCKED by Julio 2026-06-25 (overrides the council's ledger-neutral default).**
+- **Date**: 2026-06-25 · **Status**: **APPROVED (G7, shipped `1.3.0-rc`)** · **LOCKED by Julio 2026-06-25 (overrides the council's ledger-neutral default).**
+- **Shipped**: a new `payment` `MailboxPayloadKind` + pure `PaymentPayload` (Zod, `paymentId` UUID idempotency, `direction: 'paid' | 'received'`). Both sides close via a `createSettlement` (never red); the pure `resolvePaymentParties` maps direction→debtor/creditor + `iReceived`. **L8 honored**: whenever I am the one who RECEIVED the cash, confirmation **always** opens a **fund/wallet picker** and credits it with `createIncomeTransaction` (a real inflow — reuses the funds engine), defaulting to the active phase's pool; settlement-only when I paid. Idempotent via a settlement `externalRef` (`payment:<actorId>:<paymentId>`). Inbound `confirmInboundPayment` (PENDING inbox + toast + `/shared` Confirmar card); send side `announcePaymentToPeer` ("Eu paguei / Eu recebi", settles my side immediately + credits my fund when I received). The trip settle-bridge **DEC-306 stays read-only** (untouched). +13 tests (settlement direction + fund-credit cents + idempotency). **No Worker change.**
 - **Decision**: a `payment` envelope marks the obligation **confirmed/paid on both sides** (lifecycle
   pending→confirmed→paid, **never red**). **On confirmation the receiver is ALWAYS prompted to credit the
   received cash to a chosen fund/wallet** — a **real inflow** (the debtor returned money the receiver had

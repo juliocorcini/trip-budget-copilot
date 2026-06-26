@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useLocation } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -32,13 +32,16 @@ import {
   type SettlementMethod,
 } from '@/domain/payment/payment-methods';
 import { formatMoney, toCents } from '@/domain/money';
-import { formatShortDate } from '@/domain/dates';
+import { formatShortDate, resolveActivePhase } from '@/domain/dates';
+import { selectActivePhasePool } from '@/domain/budget';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
 import { participantRepository, peerLinkRepository, sessionRepository, groupSplitRepository } from '@/data/repositories';
 import { groupSplitsToTripDebts, computeGroupBalances } from '@/domain/group-split';
 import type { GroupSplitEvent } from '@/domain/group-split';
 import type { PeerLink } from '@/domain/types/peer-link';
+import type { BudgetPool } from '@/domain/types/budget-pool';
+import type { Wallet } from '@/domain/types/wallet';
 // B2 wave 2 (coherence §2.2): the honest "Amigos/Conexões" list under one roof.
 // B2 wave 3: reuse a friend when charging + suggest reconnecting a new device.
 import {
@@ -69,8 +72,16 @@ import {
   applyPeerResponses,
   sendPayloadToPeerMailbox,
   reconnectParticipantDevice,
+  getInboundP2pItems,
+  acceptInboundDebt,
+  confirmInboundPayment,
+  dismissInboundP2p,
+  shareDebtWithPeer,
+  announcePaymentToPeer,
+  type InboundP2pItem,
 } from '@/domain/orchestrators';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
+import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import { shareOrCopyLink, shareOrCopyText } from '@/utils/native/link-share';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
@@ -108,7 +119,7 @@ export function SharedExpensesPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const buildRemindMessage = useRemindMessage();
-  const { trip, transactions, participants, settings, loading, error, retry, reload } = useAppData();
+  const { trip, transactions, participants, settings, phases, pools, links, wallets, loading, error, retry, reload } = useAppData();
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
@@ -183,6 +194,25 @@ export function SharedExpensesPage() {
   const [peerLinks, setPeerLinks] = useState<PeerLink[]>([]);
   const [mailboxSending, setMailboxSending] = useState(false);
 
+  // DEC-345/346 (G7) — live P2P: inbound debts/payments waiting PENDING (accept-
+  // first ÂNCORA), and the send sheets ("Cobrar" / "Registrar pagamento").
+  const [inboundItems, setInboundItems] = useState<InboundP2pItem[]>([]);
+  const [p2pBusy, setP2pBusy] = useState<string | null>(null);
+  // L8: confirming a payment I RECEIVED opens a fund/wallet picker (real inflow).
+  const [confirmPayItem, setConfirmPayItem] = useState<InboundP2pItem | null>(null);
+  // Send sheets, keyed by the target person (must be a connected peer).
+  const [chargeTarget, setChargeTarget] = useState<Participant | null>(null);
+  const [chargeAmount, setChargeAmount] = useState('');
+  const [chargeNote, setChargeNote] = useState('');
+  const [payTarget, setPayTarget] = useState<Participant | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payDirection, setPayDirection] = useState<'paid' | 'received'>('paid');
+  // The L8 fund picker is shared by the inbound-confirm sheet and the outbound
+  // "Eu recebi" path; both write the same chosen pool + wallet.
+  const [fundPoolId, setFundPoolId] = useState<string | null>(null);
+  const [fundWalletId, setFundWalletId] = useState<string | null>(null);
+  const [p2pSending, setP2pSending] = useState(false);
+
   const ownerParticipant = participants.find((p) => p.isOwner);
   // FIELD item 8: the identity QR now carries the device public key so a scan
   // captures it for sealing async messages. Built async (key load), so it lives
@@ -213,6 +243,18 @@ export function SharedExpensesPage() {
   useEffect(() => {
     void peerLinkRepository.getAll().then(setPeerLinks);
   }, [participants]);
+
+  // DEC-345/346 (G7) — the pending inbox is refreshed on mount and whenever a
+  // drain lands new debts/payments (the boot/visibility sync fires the event).
+  const refreshInbox = useCallback(async () => {
+    setInboundItems(await getInboundP2pItems());
+  }, []);
+  useEffect(() => {
+    void refreshInbox();
+    const onDrained = () => void refreshInbox();
+    window.addEventListener(MAILBOX_DRAINED_EVENT, onDrained);
+    return () => window.removeEventListener(MAILBOX_DRAINED_EVENT, onDrained);
+  }, [refreshInbox]);
 
   // B5: arriving from the post-split nudge — open the share sheet for that
   // person once their participant record is loaded, then clear the nav state so
@@ -454,6 +496,163 @@ export function SharedExpensesPage() {
     }
   };
 
+  // DEC-345/346 (G7) — the operational fund to default the L8 picker to: the
+  // active phase's pool (same resolver the dashboard/receipt use), falling back
+  // to the first pool. The user can still pick another.
+  const defaultFundPoolId = (): string | null => {
+    const activePhaseId = resolveActivePhase(phases)?.id ?? null;
+    return (
+      selectActivePhasePool(pools, links, activePhaseId)?.id ??
+      pools.find((p) => p.deletedAt === null)?.id ??
+      pools[0]?.id ??
+      null
+    );
+  };
+
+  // DEC-345 — accept a pending debt: fold it onto the active phase's pool as a
+  // shared expense (the sender is the payer). Auto-resolved, so it is one tap.
+  const resolveDebtTarget = (): { tripId: string; phaseId: string; budgetPoolId: string } | null => {
+    if (!trip) return null;
+    const activePhaseId = resolveActivePhase(phases)?.id ?? phases[0]?.id ?? null;
+    const pool = selectActivePhasePool(pools, links, activePhaseId) ?? pools[0] ?? null;
+    if (!activePhaseId || !pool) return null;
+    return { tripId: trip.id, phaseId: activePhaseId, budgetPoolId: pool.id };
+  };
+
+  const handleAcceptDebt = async (item: InboundP2pItem) => {
+    const target = resolveDebtTarget();
+    if (!target || p2pBusy) return;
+    setP2pBusy(item.itemId);
+    try {
+      const ok = await acceptInboundDebt(item.itemId, target);
+      showToast(ok ? t('p2p.accepted') : t('p2p.send_failed'), ok ? 'success' : 'danger');
+      await Promise.all([reload(), refreshInbox()]);
+    } finally {
+      setP2pBusy(null);
+    }
+  };
+
+  const handleRejectInbound = async (item: InboundP2pItem) => {
+    if (p2pBusy) return;
+    setP2pBusy(item.itemId);
+    try {
+      await dismissInboundP2p(item.itemId);
+      showToast(t('p2p.rejected'), 'info');
+      await refreshInbox();
+    } finally {
+      setP2pBusy(null);
+    }
+  };
+
+  const handleConfirmPayment = async (item: InboundP2pItem) => {
+    if (!trip || !ownerParticipant || p2pBusy) return;
+    // L8: a payment that means I RECEIVED the cash is a real inflow → pick the
+    // fund/wallet first. When I PAID, there is no inflow → confirm in one tap.
+    if (item.payment?.direction === 'paid') {
+      setFundPoolId(defaultFundPoolId());
+      setFundWalletId(wallets.find((w) => w.deletedAt === null)?.id ?? null);
+      setConfirmPayItem(item);
+      return;
+    }
+    setP2pBusy(item.itemId);
+    try {
+      const ok = await confirmInboundPayment(item.itemId, {
+        tripId: trip.id,
+        myParticipantId: ownerParticipant.id,
+      });
+      showToast(ok ? t('p2p.payment_confirmed') : t('p2p.send_failed'), ok ? 'success' : 'danger');
+      await Promise.all([reload(), refreshInbox()]);
+    } finally {
+      setP2pBusy(null);
+    }
+  };
+
+  const handleConfirmPaymentWithFund = async () => {
+    if (!trip || !ownerParticipant || !confirmPayItem) return;
+    const activePhaseId = resolveActivePhase(phases)?.id ?? phases[0]?.id ?? null;
+    if (!activePhaseId || !fundPoolId) {
+      showToast(t('p2p.send_failed'), 'danger');
+      return;
+    }
+    setP2pSending(true);
+    try {
+      const ok = await confirmInboundPayment(confirmPayItem.itemId, {
+        tripId: trip.id,
+        myParticipantId: ownerParticipant.id,
+        fundCredit: { phaseId: activePhaseId, budgetPoolId: fundPoolId, walletId: fundWalletId },
+      });
+      showToast(ok ? t('p2p.payment_confirmed') : t('p2p.send_failed'), ok ? 'success' : 'danger');
+      setConfirmPayItem(null);
+      await Promise.all([reload(), refreshInbox()]);
+    } finally {
+      setP2pSending(false);
+    }
+  };
+
+  const chargeAmountCents = (() => {
+    const parsed = Number(chargeAmount.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return toCents(parsed);
+  })();
+
+  const handleSendCharge = async () => {
+    if (!trip || !chargeTarget?.linkedActorId || chargeAmountCents === null || !chargeNote.trim()) return;
+    setP2pSending(true);
+    try {
+      const { delivered } = await shareDebtWithPeer({
+        peerActorId: chargeTarget.linkedActorId,
+        amountCents: chargeAmountCents,
+        currency: trip.baseCurrency,
+        description: chargeNote.trim(),
+      });
+      showToast(delivered ? t('p2p.charge_sent') : t('p2p.queued'), delivered ? 'success' : 'info');
+      setChargeTarget(null);
+      setChargeAmount('');
+      setChargeNote('');
+    } catch {
+      showToast(t('p2p.send_failed'), 'danger');
+    } finally {
+      setP2pSending(false);
+    }
+  };
+
+  const payAmountCents = (() => {
+    const parsed = Number(payAmount.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return toCents(parsed);
+  })();
+
+  const handleAnnouncePayment = async () => {
+    if (!trip || !ownerParticipant || !payTarget?.linkedActorId || payAmountCents === null) return;
+    const activePhaseId = resolveActivePhase(phases)?.id ?? phases[0]?.id ?? null;
+    const fundCredit =
+      payDirection === 'received' && activePhaseId && fundPoolId
+        ? { phaseId: activePhaseId, budgetPoolId: fundPoolId, walletId: fundWalletId }
+        : null;
+    setP2pSending(true);
+    try {
+      const { delivered } = await announcePaymentToPeer({
+        peerActorId: payTarget.linkedActorId,
+        peerParticipantId: payTarget.id,
+        myParticipantId: ownerParticipant.id,
+        tripId: trip.id,
+        amountCents: payAmountCents,
+        currency: trip.baseCurrency,
+        direction: payDirection,
+        fundCredit,
+      });
+      showToast(delivered ? t('p2p.pay_done') : t('p2p.queued'), delivered ? 'success' : 'info');
+      setPayTarget(null);
+      setPayAmount('');
+      setPayDirection('paid');
+      await reload();
+    } catch {
+      showToast(t('p2p.send_failed'), 'danger');
+    } finally {
+      setP2pSending(false);
+    }
+  };
+
   // BUG-014: recovery on DB error instead of a blank page.
   if (!trip) {
     if (error) return <DataErrorScreen onRetry={retry} />;
@@ -539,6 +738,101 @@ export function SharedExpensesPage() {
           <span className="text-xs font-semibold text-on-surface">{t('sync.my_qr')}</span>
         </button>
       </div>
+
+      {/* DEC-345/346 (G7) — accept-first inbox: inbound debts/payments wait here
+          PENDING and fold into the ledger ONLY on an explicit tap. Sits at the
+          very top so a new request is the first thing seen (the toast routed here). */}
+      {inboundItems.length > 0 && (
+        <section className="flex flex-col gap-2" data-p2p-inbox>
+          <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider px-1">
+            {t('p2p.inbox_title')}
+          </p>
+          {inboundItems.map((item) => {
+            const busy = p2pBusy === item.itemId;
+            if (item.kind === 'debt' && item.debt) {
+              return (
+                <div
+                  key={item.itemId}
+                  className="rounded-2xl p-4 bg-surface-container border border-[var(--border-faint)] flex flex-col gap-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <Icon name="call_received" size={18} className="text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-on-surface truncate">
+                        {t('p2p.debt_label', { name: item.fromName })}
+                      </p>
+                      <p className="text-xs text-on-surface-faint truncate">{item.debt.description}</p>
+                    </div>
+                    <p className="text-sm font-extrabold tabular text-on-surface shrink-0">
+                      {formatMoney(item.debt.amountCents, item.debt.currency)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRejectInbound(item)}
+                      disabled={busy}
+                      className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press disabled:opacity-40"
+                    >
+                      {t('p2p.reject')}
+                    </button>
+                    <button
+                      onClick={() => handleAcceptDebt(item)}
+                      disabled={busy}
+                      className="flex-1 py-2 rounded-xl bg-success/20 text-success text-xs font-bold btn-press disabled:opacity-40"
+                    >
+                      {t('p2p.accept')}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            if (item.kind === 'payment' && item.payment) {
+              const iReceived = item.payment.direction === 'paid';
+              return (
+                <div
+                  key={item.itemId}
+                  className="rounded-2xl p-4 bg-surface-container border border-[var(--border-faint)] flex flex-col gap-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-success/15 flex items-center justify-center shrink-0">
+                      <Icon name="payments" size={18} className="text-success" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-on-surface truncate">
+                        {iReceived
+                          ? t('p2p.payment_in_label', { name: item.fromName })
+                          : t('p2p.payment_out_label', { name: item.fromName })}
+                      </p>
+                    </div>
+                    <p className="text-sm font-extrabold tabular text-success shrink-0">
+                      {formatMoney(item.payment.amountCents, item.payment.currency)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRejectInbound(item)}
+                      disabled={busy}
+                      className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press disabled:opacity-40"
+                    >
+                      {t('p2p.dismiss')}
+                    </button>
+                    <button
+                      onClick={() => handleConfirmPayment(item)}
+                      disabled={busy}
+                      className="flex-1 py-2 rounded-xl bg-success/20 text-success text-xs font-bold btn-press disabled:opacity-40"
+                    >
+                      {t('p2p.confirm')}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })}
+        </section>
+      )}
 
       {/* C23 (DEC-297): entry to the Tricount group splits (many expenses/payers),
           a sibling of single-bill sharing. D05 · DEC-306: shown only when the
@@ -1236,6 +1530,42 @@ export function SharedExpensesPage() {
                   })}
                 </button>
               )}
+
+              {/* DEC-345/346 (G7) — live P2P with a connected peer: charge them or
+                  record a real payment. Both seal an E2E message; the peer accepts/
+                  confirms on their device. Only for peers we hold a key for. */}
+              {!statementTarget.isOwner && peerLinkFor(statementTarget.id)?.publicKey && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const target = statementTarget;
+                      setStatementTarget(null);
+                      setChargeAmount('');
+                      setChargeNote('');
+                      setChargeTarget(target);
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface font-semibold text-xs flex items-center justify-center gap-1.5 btn-press"
+                  >
+                    <Icon name="request_quote" size={16} className="text-primary" />
+                    {t('p2p.charge_action')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const target = statementTarget;
+                      setStatementTarget(null);
+                      setPayAmount('');
+                      setPayDirection('paid');
+                      setFundPoolId(defaultFundPoolId());
+                      setFundWalletId(wallets.find((w) => w.deletedAt === null)?.id ?? null);
+                      setPayTarget(target);
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface font-semibold text-xs flex items-center justify-center gap-1.5 btn-press"
+                  >
+                    <Icon name="payments" size={16} className="text-success" />
+                    {t('p2p.pay_action')}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -1420,6 +1750,173 @@ export function SharedExpensesPage() {
         )}
       </BottomSheet>
 
+      {/* DEC-345 (G7) — charge a connected peer: amount + what-for → sealed debt.
+          My ledger is untouched (data-invariance); it lands when THEY accept. */}
+      <BottomSheet
+        open={chargeTarget !== null}
+        onClose={() => setChargeTarget(null)}
+        title={chargeTarget ? t('p2p.charge_title', { name: chargeTarget.nickname ?? chargeTarget.name }) : ''}
+      >
+        {chargeTarget && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-on-surface-dim">
+              {t('p2p.charge_desc', { name: chargeTarget.nickname ?? chargeTarget.name })}
+            </p>
+            <div>
+              <label className="text-xs text-on-surface-faint mb-1 block">{t('p2p.charge_amount')}</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={chargeAmount}
+                onChange={(e) => setChargeAmount(e.target.value)}
+                className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full tabular"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs text-on-surface-faint mb-1 block">{t('p2p.charge_note')}</label>
+              <input
+                type="text"
+                value={chargeNote}
+                onChange={(e) => setChargeNote(e.target.value)}
+                className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+              />
+            </div>
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setChargeTarget(null)}
+                className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleSendCharge}
+                disabled={chargeAmountCents === null || !chargeNote.trim() || p2pSending}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-on-surface font-semibold text-sm btn-press disabled:opacity-40"
+              >
+                {t('p2p.charge_send')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* DEC-346 (G7, L8) — record a P2P payment. "Eu recebi" credits a chosen
+          fund/wallet (real inflow); both directions settle + notify the peer. */}
+      <BottomSheet
+        open={payTarget !== null}
+        onClose={() => setPayTarget(null)}
+        title={payTarget ? t('p2p.pay_title', { name: payTarget.nickname ?? payTarget.name }) : ''}
+      >
+        {payTarget && (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              {(['paid', 'received'] as const).map((dir) => (
+                <button
+                  key={dir}
+                  type="button"
+                  onClick={() => setPayDirection(dir)}
+                  aria-pressed={payDirection === dir}
+                  className={`py-2.5 rounded-xl text-sm font-semibold btn-press ${
+                    payDirection === dir ? 'bg-primary/20 text-primary' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {dir === 'paid' ? t('p2p.pay_i_paid') : t('p2p.pay_i_received')}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label className="text-xs text-on-surface-faint mb-1 block">{t('p2p.charge_amount')}</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full tabular"
+                autoFocus
+              />
+            </div>
+            {payDirection === 'received' && (
+              <div className="flex flex-col gap-2 rounded-xl bg-surface-high p-3">
+                <p className="text-[11px] text-on-surface-faint leading-snug">{t('p2p.fund_hint')}</p>
+                <FundPicker
+                  pools={pools}
+                  wallets={wallets}
+                  poolId={fundPoolId}
+                  walletId={fundWalletId}
+                  onPool={setFundPoolId}
+                  onWallet={setFundWalletId}
+                  t={t}
+                />
+              </div>
+            )}
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setPayTarget(null)}
+                className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleAnnouncePayment}
+                disabled={payAmountCents === null || p2pSending || (payDirection === 'received' && !fundPoolId)}
+                className="flex-1 py-2.5 rounded-xl bg-success/20 text-success font-semibold text-sm btn-press disabled:opacity-40"
+              >
+                {t('p2p.pay_send')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* DEC-346 (G7, L8) — confirming a payment I RECEIVED: it is a real inflow,
+          so I must pick the fund/wallet it grew before it settles both sides. */}
+      <BottomSheet
+        open={confirmPayItem !== null}
+        onClose={() => setConfirmPayItem(null)}
+        title={t('p2p.fund_title')}
+      >
+        {confirmPayItem?.payment && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-bold text-on-surface">
+              {t('p2p.payment_in_label', { name: confirmPayItem.fromName })}
+            </p>
+            <p className="text-2xl font-extrabold tabular text-success">
+              {formatMoney(confirmPayItem.payment.amountCents, confirmPayItem.payment.currency)}
+            </p>
+            <p className="text-[11px] text-on-surface-faint leading-snug">{t('p2p.fund_hint')}</p>
+            <FundPicker
+              pools={pools}
+              wallets={wallets}
+              poolId={fundPoolId}
+              walletId={fundWalletId}
+              onPool={setFundPoolId}
+              onWallet={setFundWalletId}
+              t={t}
+            />
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setConfirmPayItem(null)}
+                className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleConfirmPaymentWithFund}
+                disabled={!fundPoolId || p2pSending}
+                className="flex-1 py-2.5 rounded-xl bg-success/20 text-success font-semibold text-sm btn-press disabled:opacity-40"
+              >
+                {t('p2p.confirm')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
       {/* DL-3: P2P machinery demoted to a collapsed "Conexões" section. Kept
           MOUNTED (CSS-hidden, not unmounted) so the mirror's live sockets keep
           running while collapsed (council Architect HIGH risk). */}
@@ -1527,6 +2024,86 @@ export function SharedExpensesPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * DEC-346 (G7, L8): the fund + wallet picker for a received P2P payment — a real
+ * inflow must grow a chosen pool (and optionally a wallet). Pure presentational;
+ * the parent owns the selection state and the default (active phase's pool).
+ */
+function FundPicker({
+  pools,
+  wallets,
+  poolId,
+  walletId,
+  onPool,
+  onWallet,
+  t,
+}: {
+  pools: BudgetPool[];
+  wallets: Wallet[];
+  poolId: string | null;
+  walletId: string | null;
+  onPool: (id: string) => void;
+  onWallet: (id: string | null) => void;
+  t: Translate;
+}) {
+  const activePools = pools.filter((p) => p.deletedAt === null);
+  const activeWallets = wallets.filter((w) => w.deletedAt === null);
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <label className="text-[11px] text-on-surface-faint mb-1 block uppercase tracking-wide font-semibold">
+          {t('p2p.fund_pool')}
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {activePools.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onPool(p.id)}
+              aria-pressed={poolId === p.id}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                poolId === p.id ? 'bg-primary/20 text-primary' : 'bg-surface-container text-on-surface-dim'
+              }`}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="text-[11px] text-on-surface-faint mb-1 block uppercase tracking-wide font-semibold">
+          {t('p2p.fund_wallet')}
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {activeWallets.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              onClick={() => onWallet(w.id)}
+              aria-pressed={walletId === w.id}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                walletId === w.id ? 'bg-primary/20 text-primary' : 'bg-surface-container text-on-surface-dim'
+              }`}
+            >
+              {w.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => onWallet(null)}
+            aria-pressed={walletId === null}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+              walletId === null ? 'bg-primary/20 text-primary' : 'bg-surface-container text-on-surface-dim'
+            }`}
+          >
+            {t('p2p.fund_no_wallet')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

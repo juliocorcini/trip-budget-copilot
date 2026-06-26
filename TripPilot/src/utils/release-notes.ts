@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.0-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Dívidas ao vivo: depois de conectar uma vez, toque em "Cobrar pelo app" para mandar uma cobrança a um amigo. Chega uma notificação no aparelho dele e, com um toque, ele aceita — a dívida passa a aparecer para os dois (recusar avisa você).',
+        'Pagamentos que fecham a conta dos dois lados: registre "Eu paguei" ou "Eu recebi" e a obrigação some para ambos, sem ninguém ficar "no vermelho".',
+        'Quem recebe escolhe onde o dinheiro entrou: um pagamento recebido é uma entrada real, então você indica o fundo e a carteira que cresceram — não é uma cópia da despesa.',
+      ],
+      en: [
+        'Live debts: once connected, tap "Charge via app" to send a friend a charge. A notification lands on their phone and, with one tap, they accept — the debt then shows for both of you (declining lets you know).',
+        'Payments that close the account on both sides: record "I paid" or "I received" and the obligation clears for everyone, with no one left "in the red".',
+        'The receiver picks where the money landed: money received is a real inflow, so you choose the fund and wallet it grew — it is not a copy of the expense.',
+      ],
+      es: [
+        'Deudas en vivo: una vez conectados, toca "Cobrar por la app" para enviarle un cobro a un amigo. Le llega una notificación y, con un toque, lo acepta — la deuda aparece para ambos (rechazar te avisa).',
+        'Pagos que cierran la cuenta de ambos lados: registra "Yo pagué" o "Yo recibí" y la obligación se salda para todos, sin que nadie quede "en rojo".',
+        'Quien recibe elige dónde entró el dinero: un pago recibido es una entrada real, así que indicas el fondo y la billetera que crecieron — no es una copia del gasto.',
+      ],
+    },
+  },
+  {
     version: '1.2.5-rc',
     date: '2026-06-25',
     items: {

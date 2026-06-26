@@ -17,6 +17,8 @@ import {
 import { parseStatementPayload } from '@/domain/sync/statement-payload';
 import { parseMigrationPayload } from '@/domain/sync/migration-payload';
 import { buildConnectPayload, parseConnectPayload } from '@/domain/sync/connect-payload';
+import { parseSharedDebtPayload } from '@/domain/sync/debt-payload';
+import { parsePaymentPayload } from '@/domain/sync/payment-payload';
 import {
   storeMirroredStatement,
   upsertPeerLinkFromConnect,
@@ -170,6 +172,10 @@ export interface DrainResult {
   backups: number;
   /** DEC-344 (G6) — reverse `connect` handshakes folded into peerLinks this drain. */
   connects: number;
+  /** DEC-345 (G7) — inbound shared debts queued PENDING (accept-first). */
+  debts: number;
+  /** DEC-346 (G7) — inbound P2P payments queued PENDING (confirm-first). */
+  payments: number;
 }
 
 /**
@@ -178,19 +184,21 @@ export interface DrainResult {
  */
 export async function drainMailboxIntoApp(): Promise<DrainResult> {
   const settings = await appSettingsRepository.get();
-  if (!settings.mailboxEnabled) return { statements: 0, backups: 0, connects: 0 };
+  if (!settings.mailboxEnabled) return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0 };
 
   const me = await getDeviceIdentity();
   let messages;
   try {
     messages = await drainMailbox(me.actorId);
   } catch {
-    return { statements: 0, backups: 0, connects: 0 };
+    return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0 };
   }
 
   let statements = 0;
   let backups = 0;
   let connects = 0;
+  let debts = 0;
+  let payments = 0;
   for (const message of messages) {
     const packed = await openForMe(message.blob);
     if (!packed) continue;
@@ -228,9 +236,42 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
         });
         backups++;
       }
+      continue;
+    }
+
+    // DEC-345 (G7) — inbound shared debt: queue PENDING for one-tap accept
+    // (accept-first ÂNCORA — nothing folds into the ledger until the user accepts).
+    if (envelope.kind === 'debt') {
+      const debt = parseSharedDebtPayload(envelope.data);
+      if (debt) {
+        await mailboxQueueRepository.enqueueIn({
+          kind: 'debt',
+          fromActorId: envelope.fromActorId,
+          fromName: envelope.fromName,
+          envelope,
+        });
+        debts++;
+      }
+      continue;
+    }
+
+    // DEC-346 (G7) — inbound P2P payment: queue PENDING for confirm (+ L8 fund
+    // credit when I received the cash). Never auto-settles.
+    if (envelope.kind === 'payment') {
+      const payment = parsePaymentPayload(envelope.data);
+      if (payment) {
+        await mailboxQueueRepository.enqueueIn({
+          kind: 'payment',
+          fromActorId: envelope.fromActorId,
+          fromName: envelope.fromName,
+          envelope,
+        });
+        payments++;
+      }
+      continue;
     }
   }
-  return { statements, backups, connects };
+  return { statements, backups, connects, debts, payments };
 }
 
 /** The backups drained from the mailbox awaiting the traveler's confirm. */

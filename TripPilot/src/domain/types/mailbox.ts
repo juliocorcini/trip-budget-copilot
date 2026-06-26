@@ -5,9 +5,11 @@
  */
 
 // DEC-344 (G6): `connect` carries a peer's identity so the recipient upserts the
-// reverse peerLink — the two-way handshake. Like the others it is opaque to the
-// Worker (sealed inside the ciphertext, addressed only by recipient actorId).
-export type MailboxPayloadKind = 'statement' | 'backup' | 'connect';
+// reverse peerLink — the two-way handshake. DEC-345/346 (G7): `debt` shares an
+// owed amount (accept-first) and `payment` announces a P2P repayment (settle +
+// fund-credit). All are opaque to the Worker (sealed inside the ciphertext,
+// addressed only by recipient actorId).
+export type MailboxPayloadKind = 'statement' | 'backup' | 'connect' | 'debt' | 'payment';
 
 /**
  * The plaintext carried inside a sealed mailbox blob. The sender's identity
