@@ -179,6 +179,19 @@ describe('C03 / E11 (DEC-331) — scrollbars stay hidden app-wide (permanent loc
     expect(webkitRule).toMatch(/display:\s*none\s*!important/);
   });
 
+  it('hardens the zoomed native viewport (html.cap-native scrollbar — the old-APK WebView vector, Item B)', () => {
+    // On an aged Android System WebView the ZOOMED native viewport re-paints the
+    // document bar in the zoom coordinate space; the global html/body pseudo is
+    // not reliably matched across that boundary, so the native viewport must be
+    // named explicitly. This lock prevents the regression from leaking back.
+    const idx = css.indexOf('html.cap-native::-webkit-scrollbar');
+    expect(idx, 'a html.cap-native viewport scrollbar rule must exist').toBeGreaterThan(-1);
+    const rule = css.slice(idx, css.indexOf('}', idx) + 1);
+    expect(rule).toContain('html.cap-native::-webkit-scrollbar');
+    expect(rule).toContain('html.cap-native body::-webkit-scrollbar');
+    expect(rule).toMatch(/display:\s*none\s*!important/);
+  });
+
   it('no source file reintroduces a visible scrollbar (gutter / auto / thin / color / always-on scroll)', () => {
     // Also ban `overflow*: scroll` and the Tailwind `overflow-scroll` utilities —
     // they force an always-on track on some engines, the usual regression vector.

@@ -203,6 +203,23 @@ html.cap-native #root *::-webkit-scrollbar {
   display: none !important;
 }
 
+/* Item B (Distribuição & Clareza) — the OLD Android APK regression. On an aged
+   Android System WebView the ZOOMED native viewport (html.cap-native / its body)
+   re-paints the document scrollbar even though the global html/body pseudo is
+   already set, because that bar lives in the zoom coordinate space and the
+   universal pseudo is not reliably matched across that boundary (the vector the
+   #root re-assertion above did NOT name). Re-assert the hide directly on the
+   native viewport itself, at higher specificity. NOTE: a stale APK that runs its
+   own baked-in web layer can only be fully cured by installing a fresh build
+   (Item A) — this OTA-able CSS covers the case where the old shell loads current
+   web. Locked by style-hygiene.test.ts so it cannot silently regress. */
+html.cap-native::-webkit-scrollbar,
+html.cap-native body::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
    Motion system (DEC-194). CSS-first: every animation is transform/opacity only
    (GPU-composited, 60fps in the Capacitor WebView, 0 KB JS). Entrances use the

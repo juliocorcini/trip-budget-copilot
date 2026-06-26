@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.9-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Barra de rolagem: reforço extra para não reaparecer no app instalado em Android (WebView com zoom) — e um teste que trava esse caso. Se você usa um APK antigo, instale a versão mais nova para garantir.',
+      ],
+      en: [
+        'Scrollbar: extra hardening so it can\'t reappear in the installed Android app (zoomed WebView) — plus a test locking that case. If you\'re on an old APK, install the latest build to be sure.',
+      ],
+      es: [
+        'Barra de desplazamiento: refuerzo extra para que no reaparezca en la app instalada en Android (WebView con zoom) — y una prueba que fija ese caso. Si usas un APK antiguo, instala la versión más reciente.',
+      ],
+    },
+  },
+  {
     version: '1.4.8-rc',
     date: '2026-06-26',
     items: {

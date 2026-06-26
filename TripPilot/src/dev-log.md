@@ -5,12 +5,15 @@
 > Source plan: `brain/documents/2026-06-26-install-vocab-proof-split-wave-plan.md` (Julio answered every ⛳ inline). Five items, shipped per-item: **E** chooser copy · **B** scrollbar regression · **C** rename Trecho→Verba (System 1) · **A** install flow (PWA+APK+/install) · **D** P2P payment proof. Order by value/risk (§7): E → B → C → A → D. Non-negotiables hold: money=cents · domain pure TS · `t()` pt/en/es · code English · ledger-math invariance · DEC-207 (messages/debts/names stay E2E; images carve-out). Single session, deploy per item (Pages OTA unless noted).
 
 ### CURRENT STATE
-- **Active item**: **E ✅ shipped `1.4.8-rc`** (chooser copy). Next: **B** (scrollbar regression — Android installed-WebView vector).
-- **Tests**: baseline **2502 pass / 2504** (2 known Node-18 WebCrypto `split-live-loop` — green on CI Node 22). `tsc` clean; build green.
-- **Risks**: a parallel session authored the source plan but is idle at `2250b83` (clean tree); commit+push per milestone, `git fetch` before each push to avoid collision.
+- **Active item**: **B ✅ shipped `1.4.9-rc`** (scrollbar hardening). Next: **C** (rename Trecho→Verba, System 1).
+- **Tests**: **2503 pass / 2505** (+1 style-hygiene cap-native lock; 2 known Node-18 WebCrypto `split-live-loop` — green on CI Node 22). `tsc` clean; build green.
+- **Risks**: a parallel session authored the source plan but is idle at `2250b83` (clean tree); commit+push per milestone, `git fetch` before each push to avoid collision. **Item B is device-pending** for the exact old-APK confirmation (couldn't repro the aged Android WebView here) — the CSS+test hardens the named zoom-viewport vector; the stale APK itself is cured by Item A's fresh build.
 
 ### E — chooser copy (Council 2) — ✅ `1.4.8-rc`
 - `DivideChooserSheet.tsx` + `divideChooser.*` (pt/en/es): subtitle is now the **discriminator** ("É uma conta agora, ou várias contas ao longo do tempo?"); each card carries a **scope chip** (agora · 1 conta × contínuo · a viagem toda), a **concrete example** (jantar €80 pra 4 × a viagem toda — casa/carro/mercado), and the group title anchors to **"· tipo Tricount"**. Removed the verbose `bill_desc`/`group_desc` (only the sheet used them; parity kept by swapping for `*_scope`/`*_example` in all three locales). Copy/visual only — both flows untouched.
+
+### B — scrollbar regression hardening — ✅ `1.4.9-rc`
+- Julio's report: Android, **old APK installed**, the bar came back. The DEC-331 global lock (`*` + html/body pseudo) was already strong; the uncovered vector is the one the existing `#root` comment names but did NOT cover — the **zoomed native viewport** (`html.cap-native` / its body) on aged Android System WebView, where the document bar is painted in the `zoom` coordinate space and the universal pseudo isn't reliably matched. `globals.css`: added a higher-specificity `html.cap-native::-webkit-scrollbar` + `html.cap-native body::-webkit-scrollbar` hide. `style-hygiene.test.ts`: **+1** lock asserting that rule (so it can't silently regress). **Honest caveat:** couldn't reproduce the actual old-APK WebView here — a stale APK running its own baked-in web layer is only fully cured by a fresh build (Item A); this OTA CSS covers the old-shell-loads-current-web case. No ledger/logic touched (CSS + test only).
 
 ## Docs Sync & Vocabulary wave (2026-06-26) — 1.4.4-rc → 1.4.7-rc — ✅ COMPLETE
 

@@ -1,8 +1,8 @@
 {
-  "version": "1.4.8-rc",
+  "version": "1.4.9-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.8-rc.zip",
-  "notes": "Tela de \"Dividir\" mais clara: a pergunta \"uma conta agora ou várias ao longo do tempo?\", um exemplo real e um selo de escopo em cada opção."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.9-rc.zip",
+  "notes": "Barra de rolagem: reforço para não reaparecer no app instalado em Android (WebView com zoom). Se você usa um APK antigo, instale a versão mais nova."
 }
