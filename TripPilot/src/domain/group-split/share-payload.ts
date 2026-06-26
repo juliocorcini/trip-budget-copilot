@@ -16,9 +16,33 @@ import type { GroupSplitEvent } from './types';
  */
 
 const participantKindSchema = z.enum(['owner', 'manual', 'connected']);
-const paymentStatusSchema = z.enum(['unpaid', 'marked', 'confirmed']);
+// DEC-353 (G7) — the lifecycle gained `contested`/`cancelled`; the schema must
+// accept them or an event carrying one would parse as a broken link on guests.
+const paymentStatusSchema = z.enum(['unpaid', 'marked', 'confirmed', 'contested', 'cancelled']);
 const expenseSourceSchema = z.enum(['manual', 'ai', 'receipt']);
 const splitModeSchema = z.enum(['equal', 'custom']);
+// DEC-354 (G7) — the append-only movement history rides the E2E payload.
+const groupActivitySchema = z.object({
+  id: z.string(),
+  ts: z.string(),
+  actorId: z.string().nullable(),
+  actorName: z.string(),
+  kind: z.enum([
+    'expense_added',
+    'expense_removed',
+    'payment_marked',
+    'payment_confirmed',
+    'payment_override',
+    'payment_contested',
+    'payment_cancelled',
+    'participant_joined',
+    'share_revoked',
+  ]),
+  subjectName: z.string().optional(),
+  counterpartName: z.string().optional(),
+  detail: z.string().optional(),
+  amountCents: z.number().int().optional(),
+});
 
 const groupParticipantSchema = z.object({
   id: z.string(),
@@ -71,6 +95,8 @@ const groupSplitEventSchema = z.object({
   createdAt: z.string(),
   // DEC-340 — owner tombstones travel so a guest's stale snapshot can't resurrect.
   hiddenExpenseIds: z.array(z.string()).optional(),
+  // DEC-354 — append-only movement history (display-only; additive/optional).
+  activity: z.array(groupActivitySchema).optional(),
 });
 
 export const groupSharePayloadSchema = z.object({

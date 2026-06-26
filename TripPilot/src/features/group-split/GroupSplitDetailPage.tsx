@@ -8,12 +8,17 @@ import { persistGroupSplit, deleteGroupSplit } from '@/domain/orchestrators';
 import {
   addExpense,
   addParticipant,
+  appendGroupActivity,
+  buildGroupSettlementStatus,
   canRemoveParticipant,
   computeGroupBalances,
   computeGroupTransfers,
   createGroupParticipant,
+  groupActivityTimeline,
   groupExpenseImages,
   groupExpensesByDay,
+  groupPaymentTone,
+  groupPaymentStatusLabelKey,
   groupTotalCents,
   reduceGroupClaims,
   removeExpense,
@@ -42,7 +47,7 @@ import {
   clearGroupLive,
   type GroupLiveCreds,
 } from './group-link';
-import type { GroupExpense, GroupSplitEvent, GroupPaymentStatus } from '@/domain/group-split';
+import type { GroupActivity, GroupExpense, GroupSplitEvent, GroupPaymentStatus } from '@/domain/group-split';
 
 const POLL_FLOOR_MS = 6000;
 
@@ -51,6 +56,49 @@ function formatDayLabel(dayKey: string): string {
   const d = new Date(`${dayKey}T12:00:00`);
   if (Number.isNaN(d.getTime())) return dayKey;
   return d.toLocaleDateString(getActiveIntlLocale(), { weekday: 'short', day: '2-digit', month: 'short' });
+}
+
+/** A loosely-typed `t` that allows interpolation params (for the activity copy). */
+type TranslateFn = (key: string, opts?: Record<string, string | number>) => string;
+
+/** DEC-354 — a short, locale-aware timestamp for one history entry. */
+function formatActivityTime(ts: string): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(getActiveIntlLocale(), {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** The Material icon for each activity kind (data-driven, no branching in JSX). */
+const ACTIVITY_ICONS: Record<GroupActivity['kind'], string> = {
+  expense_added: 'add_circle',
+  expense_removed: 'do_not_disturb_on',
+  payment_marked: 'schedule',
+  payment_confirmed: 'check_circle',
+  payment_override: 'gavel',
+  payment_contested: 'report',
+  payment_cancelled: 'cancel',
+  participant_joined: 'person_add',
+  share_revoked: 'link_off',
+};
+
+function activityIcon(kind: GroupActivity['kind']): string {
+  return ACTIVITY_ICONS[kind] ?? 'history';
+}
+
+/** DEC-354 — the human sentence for one history entry, via `t()` + `formatMoney`. */
+function activityText(entry: GroupActivity, t: TranslateFn, currency: string): string {
+  return t(`group_split.activity_${entry.kind}`, {
+    actor: entry.actorName,
+    subject: entry.subjectName ?? '',
+    counterpart: entry.counterpartName ?? '',
+    detail: entry.detail ?? '',
+    amount: typeof entry.amountCents === 'number' ? formatMoney(entry.amountCents, currency) : '',
+  });
 }
 
 /**
@@ -77,7 +125,9 @@ export function GroupSplitDetailPage() {
   // A04/DEC-335 + F01: balances ("Pagamentos") and transfers ("Quem paga quem")
   // live behind buttons — expenses are the primary surface, not the math. Only
   // ONE panel is open at a time (F01 accordion exclusivity).
-  const [openPanel, setOpenPanel] = useState<'none' | 'balances' | 'transfers'>('none');
+  const [openPanel, setOpenPanel] = useState<'none' | 'balances' | 'transfers' | 'history'>('none');
+  // F23 — show only the most recent activity until the user expands "ver tudo".
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   // A02/DEC-338: keep focus on the add-person field after each add.
   const newPersonRef = useRef<HTMLInputElement>(null);
 
@@ -161,7 +211,20 @@ export function GroupSplitDetailPage() {
           JSON.stringify(next.participants) !== JSON.stringify(current.participants) ||
           JSON.stringify(next.expenses) !== JSON.stringify(current.expenses);
         if (changed) {
-          await save(next);
+          // DEC-354 — log participants who newly claimed a slot via the link this
+          // tick (null → actorId, once). The change-guard above keeps it converging.
+          const priorClaimed = new Map(current.participants.map((p) => [p.id, p.claimedByActorId]));
+          let logged = next;
+          for (const p of next.participants) {
+            if ((priorClaimed.get(p.id) ?? null) === null && p.claimedByActorId !== null) {
+              logged = appendGroupActivity(logged, {
+                kind: 'participant_joined',
+                actorId: p.claimedByActorId,
+                actorName: p.name,
+              });
+            }
+          }
+          await save(logged);
         }
       } catch {
         // ignore — the next tick retries.
@@ -177,6 +240,10 @@ export function GroupSplitDetailPage() {
 
   const balances = useMemo(() => (event ? computeGroupBalances(event) : []), [event]);
   const transfers = useMemo(() => (event ? computeGroupTransfers(event) : []), [event]);
+  // F22 — each transfer tagged with the debtor's lifecycle state + settled/pending counts.
+  const settlement = useMemo(() => (event ? buildGroupSettlementStatus(event) : null), [event]);
+  // F23 — newest-first movement history (display-only; DEC-354).
+  const timeline = useMemo(() => (event ? groupActivityTimeline(event) : []), [event]);
   // DEC-336 — expenses bucketed by the day they happened (newest fields fall back to createdAt).
   const expenseDays = useMemo(() => (event ? groupExpensesByDay(event.expenses) : []), [event]);
   const total = event ? groupTotalCents(event) : 0;
@@ -204,6 +271,8 @@ export function GroupSplitDetailPage() {
   if (event === null) return null;
 
   const nameById = new Map(event.participants.map((p) => [p.id, p.name]));
+  // The owner device is the actor for detail-page actions (DEC-354 activity log).
+  const ownerName = nameById.get(event.ownerParticipantId) ?? '';
   // DEC-348 — every image across all expenses (multi-photo), flattened for the gallery.
   const imageItems = event.expenses.flatMap((e) => groupExpenseImages(e).map((ref) => ({ exp: e, ref })));
 
@@ -236,7 +305,17 @@ export function GroupSplitDetailPage() {
   const handleSaveExpense = (expense: GroupExpense) => {
     // DEC-348 — the editor already uploaded + attached `imageRefs`; just persist.
     const prior = event.expenses.find((e) => e.id === expense.id);
-    void save(prior ? updateExpense(event, expense) : addExpense(event, expense));
+    const updated = prior ? updateExpense(event, expense) : addExpense(event, expense);
+    // DEC-354 — log a NEW expense (edits are not movement-history events).
+    const next = prior
+      ? updated
+      : appendGroupActivity(updated, {
+          kind: 'expense_added',
+          actorName: ownerName,
+          detail: expense.description,
+          amountCents: expense.amountCents,
+        });
+    void save(next);
     setEditing(null);
   };
 
@@ -245,7 +324,16 @@ export function GroupSplitDetailPage() {
     // Best-effort delete the expense's image blobs (hide-never-delete is for the
     // ledger; an orphaned receipt blob has no value and the TTL also reaps it).
     if (prior) for (const ref of groupExpenseImages(prior)) void deleteSharedImage(ref);
-    void save(removeExpense(event, expenseId));
+    let next = removeExpense(event, expenseId);
+    if (prior) {
+      next = appendGroupActivity(next, {
+        kind: 'expense_removed',
+        actorName: ownerName,
+        detail: prior.description,
+        amountCents: prior.amountCents,
+      });
+    }
+    void save(next);
     setEditing(null);
   };
 
@@ -285,27 +373,63 @@ export function GroupSplitDetailPage() {
     // and strips their now-orphaned refs so the gallery never renders a broken image.
     const refs = event.expenses.flatMap((e) => groupExpenseImages(e));
     for (const ref of refs) void deleteSharedImage(ref);
-    if (refs.length > 0) {
-      const stripped: GroupSplitEvent = {
-        ...event,
-        expenses: event.expenses.map((e) => {
-          if (!e.imageRef && !e.imageRefs) return e;
-          const copy = { ...e };
-          delete copy.imageRef;
-          delete copy.imageRefs;
-          return copy;
-        }),
-      };
-      await persistGroupSplit(stripped);
-      setEvent(stripped);
-    }
+    const stripped: GroupSplitEvent =
+      refs.length > 0
+        ? {
+            ...event,
+            expenses: event.expenses.map((e) => {
+              if (!e.imageRef && !e.imageRefs) return e;
+              const copy = { ...e };
+              delete copy.imageRef;
+              delete copy.imageRefs;
+              return copy;
+            }),
+          }
+        : event;
+    // DEC-354 — record the revoke in the movement history.
+    const next = appendGroupActivity(stripped, { kind: 'share_revoked', actorName: ownerName });
+    await persistGroupSplit(next);
+    setEvent(next);
     clearGroupLive(event.id);
     applyCreds(null);
     showToast(t('group_split.link_revoked'), 'info');
   };
 
+  /**
+   * DEC-353/354 — set a debtor's payment state AND log it. The receiver confirms;
+   * when the OWNER confirms a payment whose creditor is someone else, that is an
+   * organizer **override** and is written to the activity log (never silent). A
+   * `marked` payment never closes the obligation (the payer isn't penalised).
+   */
   const handleSetPayment = (participantId: string, status: GroupPaymentStatus) => {
-    void save(setParticipantPayment(event, participantId, status));
+    const subject = event.participants.find((p) => p.id === participantId);
+    if (!subject) return;
+    let next = setParticipantPayment(event, participantId, status);
+    const debtorTransfers = transfers.filter((tr) => tr.fromParticipantId === participantId);
+    const amountCents = debtorTransfers.reduce((s, tr) => s + tr.amountCents, 0) || undefined;
+    if (status === 'confirmed') {
+      const creditorIds = debtorTransfers.map((tr) => tr.toParticipantId);
+      const receiverIsOwner = creditorIds.length > 0 && creditorIds.every((cid) => cid === event.ownerParticipantId);
+      if (receiverIsOwner) {
+        next = appendGroupActivity(next, { kind: 'payment_confirmed', actorName: ownerName, subjectName: subject.name, amountCents });
+      } else {
+        const creditorName = debtorTransfers.find((tr) => tr.toParticipantId !== event.ownerParticipantId)?.toName;
+        next = appendGroupActivity(next, {
+          kind: 'payment_override',
+          actorName: ownerName,
+          subjectName: subject.name,
+          counterpartName: creditorName,
+          amountCents,
+        });
+      }
+    } else if (status === 'marked') {
+      next = appendGroupActivity(next, { kind: 'payment_marked', actorName: subject.name, amountCents });
+    } else if (status === 'contested') {
+      next = appendGroupActivity(next, { kind: 'payment_contested', actorName: ownerName, subjectName: subject.name });
+    } else if (status === 'cancelled') {
+      next = appendGroupActivity(next, { kind: 'payment_cancelled', actorName: ownerName, subjectName: subject.name });
+    }
+    void save(next);
   };
 
   const handleDeleteEvent = async () => {
@@ -606,16 +730,62 @@ export function GroupSplitDetailPage() {
             </div>
           )}
 
-          {openPanel === 'transfers' && transfers.length > 0 && (
-            <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2">
-              {transfers.map((tr, i) => (
+          {openPanel === 'transfers' && settlement && settlement.lines.length > 0 && (
+            <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
+              {/* F22 — who already paid vs who is still pending. */}
+              <p className="text-[11px] font-semibold text-on-surface-dim">
+                {t('group_split.settled_count', { settled: settlement.settledCount, total: settlement.lines.length })}
+              </p>
+              {settlement.lines.map((line, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm text-on-surface">
-                  <span className="font-medium truncate">{tr.fromName}</span>
-                  <Icon name="arrow_forward" size={16} className="text-on-surface-faint shrink-0" />
-                  <span className="font-medium truncate">{tr.toName}</span>
-                  <span className="ml-auto font-bold tabular shrink-0">{formatMoney(tr.amountCents, event.currency)}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-medium truncate">{line.fromName}</span>
+                    <Icon name="arrow_forward" size={14} className="text-on-surface-faint shrink-0" />
+                    <span className="font-medium truncate">{line.toName}</span>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2 shrink-0">
+                    <PaymentTone status={line.status} t={t} />
+                    <span className="font-bold tabular">{formatMoney(line.amountCents, event.currency)}</span>
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* F23 / DEC-354 — movement history (display-only). Behind a toggle so it
+          never competes with the money; respects F01 exclusivity (one panel). */}
+      {timeline.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <button
+            onClick={() => setOpenPanel((p) => (p === 'history' ? 'none' : 'history'))}
+            aria-expanded={openPanel === 'history'}
+            className="py-2.5 px-3 rounded-xl bg-surface-container text-on-surface font-semibold text-sm btn-press flex items-center justify-center gap-1.5"
+          >
+            <Icon name="history" size={16} className="text-on-surface-dim" />
+            {t('group_split.history_title')}
+            <Icon name={openPanel === 'history' ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
+          </button>
+          {openPanel === 'history' && (
+            <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
+              {(historyExpanded ? timeline : timeline.slice(0, 8)).map((entry) => (
+                <div key={entry.id} className="flex items-start gap-2.5">
+                  <Icon name={activityIcon(entry.kind)} size={16} className="text-on-surface-faint shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-on-surface leading-snug">{activityText(entry, t, event.currency)}</p>
+                    <p className="text-[10px] text-on-surface-faint">{formatActivityTime(entry.ts)}</p>
+                  </div>
+                </div>
+              ))}
+              {!historyExpanded && timeline.length > 8 && (
+                <button
+                  onClick={() => setHistoryExpanded(true)}
+                  className="text-xs font-semibold text-primary btn-press self-start"
+                >
+                  {t('group_split.history_see_all', { count: timeline.length })}
+                </button>
+              )}
             </div>
           )}
         </section>
@@ -657,9 +827,11 @@ export function GroupSplitDetailPage() {
 }
 
 /**
- * The owner's settle control for one debtor: confirm a guest's self-reported
- * payment, or mark a cash/in-person settlement directly. Tapping a confirmed row
- * reverts it (Â9: nothing is destructive/irreversible). Worded, never colour-only.
+ * DEC-353 — the owner's settle control for one debtor. The RECEIVER confirms a
+ * self-reported "paguei" (`marked → confirmed`) or can **contestar** it; the owner
+ * can also mark a cash/in-person settle directly. `marked` is shown neutral
+ * (warning, never red) — the payer is never penalised while awaiting. Â9: every
+ * state is revertible. Worded, never colour-only.
  */
 function PaymentControl({
   status,
@@ -683,14 +855,34 @@ function PaymentControl({
   }
   if (status === 'marked') {
     return (
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onSet('confirmed')}
+          className="text-[11px] font-semibold text-warning px-2 py-1 rounded-lg bg-warning/15 btn-press"
+        >
+          {t('group_split.confirm_receipt')}
+        </button>
+        <button
+          onClick={() => onSet('contested')}
+          className="text-[11px] font-medium text-on-surface-faint px-1.5 py-1 btn-press"
+        >
+          {t('group_split.contest')}
+        </button>
+      </div>
+    );
+  }
+  if (status === 'contested') {
+    return (
       <button
         onClick={() => onSet('confirmed')}
-        className="text-[11px] font-semibold text-warning px-2 py-1 rounded-lg bg-warning/15 btn-press"
+        className="flex items-center gap-1 text-[11px] font-semibold text-error px-2 py-1 rounded-lg bg-error/15 btn-press"
       >
-        {t('group_split.confirm_receipt')}
+        <Icon name="report" size={14} className="text-error" />
+        {t('group_split.pay_status_contested')}
       </button>
     );
   }
+  // unpaid / cancelled — owner marks a cash/in-person settle directly.
   return (
     <button
       onClick={() => onSet('confirmed')}
@@ -698,5 +890,23 @@ function PaymentControl({
     >
       {t('group_split.mark_received')}
     </button>
+  );
+}
+
+/** A small status pill (F22 who-paid): the lifecycle state in its fairness tone. */
+function PaymentTone({ status, t }: { status: GroupPaymentStatus; t: (key: string) => string }) {
+  const tone = groupPaymentTone(status);
+  const cls =
+    tone === 'positive'
+      ? 'text-success bg-success/15'
+      : tone === 'danger'
+        ? 'text-error bg-error/15'
+        : tone === 'neutral'
+          ? 'text-warning bg-warning/15'
+          : 'text-on-surface-faint bg-surface-high';
+  return (
+    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg ${cls}`}>
+      {t(groupPaymentStatusLabelKey(status))}
+    </span>
   );
 }

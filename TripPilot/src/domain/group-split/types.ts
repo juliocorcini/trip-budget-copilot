@@ -19,8 +19,18 @@ import type { ImageRef } from '@/domain/media';
 
 export type GroupParticipantKind = 'owner' | 'manual' | 'connected';
 
-/** Per-person net settlement lifecycle (DEC-297: debtor marks paid → owner confirms). */
-export type GroupPaymentStatus = 'unpaid' | 'marked' | 'confirmed';
+/**
+ * Per-person net settlement lifecycle.
+ * - DEC-297 (legacy): `unpaid` → debtor `marked` paid → owner `confirmed`.
+ * - DEC-353 (G7, this wave): extends the lifecycle with **fairness states** so the
+ *   payer is never penalised for the receiver's inaction. `marked` now means
+ *   "marked-paid · awaiting confirmation" and renders **neutral, never red** — only
+ *   a `confirmed` (by the receiver, or a logged organizer override) closes the
+ *   obligation. `contested` = the receiver rejected a false "paguei"; `cancelled` =
+ *   the mark was withdrawn (back to owing). The settlement arithmetic is unchanged —
+ *   these states are metadata over the same debt engine.
+ */
+export type GroupPaymentStatus = 'unpaid' | 'marked' | 'confirmed' | 'contested' | 'cancelled';
 
 export interface GroupParticipant {
   /** Stable id within the event. */
@@ -113,6 +123,44 @@ export interface GroupExpense {
 
 export type GroupSplitStatus = 'open' | 'settled';
 
+/**
+ * DEC-354 (G7) — one append-only entry in the group's movement history. A pure,
+ * display-only record (NEVER a money source) of who did what: added/removed an
+ * expense, marked/confirmed/contested/cancelled a payment, an organizer override,
+ * a join via link, a revoke. Structured (not pre-formatted) so the UI renders the
+ * human string via `t()` + `formatMoney`. Lives INSIDE the event (so it rides the
+ * E2E share payload + backup, never as Worker-readable metadata — DEC-207).
+ */
+export type GroupActivityKind =
+  | 'expense_added'
+  | 'expense_removed'
+  | 'payment_marked'
+  | 'payment_confirmed'
+  | 'payment_override'
+  | 'payment_contested'
+  | 'payment_cancelled'
+  | 'participant_joined'
+  | 'share_revoked';
+
+export interface GroupActivity {
+  id: string;
+  /** ISO timestamp the action happened. */
+  ts: string;
+  /** The device actor that performed it; null for owner-device/local actions. */
+  actorId: string | null;
+  /** The person who performed it (resolved name), for display. */
+  actorName: string;
+  kind: GroupActivityKind;
+  /** The person the action is ABOUT (e.g. the debtor/payer), when relevant. */
+  subjectName?: string;
+  /** The receiver/creditor, for payment confirmations + overrides. */
+  counterpartName?: string;
+  /** A short label of the thing acted on (e.g. an expense description). */
+  detail?: string;
+  /** Integer cents involved (expense amount / payment amount), when relevant. */
+  amountCents?: number;
+}
+
 export interface GroupSplitEvent {
   id: string;
   name: string;
@@ -132,6 +180,12 @@ export interface GroupSplitEvent {
    * stale snapshot still lists them. Additive; absent = none hidden.
    */
   hiddenExpenseIds?: string[];
+  /**
+   * DEC-354 (G7) — append-only movement history (display-only). Additive; absent
+   * on legacy rows (the timeline shows what exists, no backfill required). Capped
+   * (oldest trimmed) by {@link appendGroupActivity}.
+   */
+  activity?: GroupActivity[];
 }
 
 /* ── derived (computed, never persisted) ─────────────────────────────────── */

@@ -17,6 +17,7 @@ export {
   groupExpensesByDay,
   computeGroupBalances,
   computeGroupTransfers,
+  buildGroupSettlementStatus,
   isGroupSettled,
   setGroupStatus,
   everyDebtorConfirmed,
@@ -28,12 +29,32 @@ export type {
   AddGroupExpenseInput,
   GroupExpenseError,
   GroupExpenseDay,
+  GroupSettlementLine,
+  GroupSettlementStatus,
 } from './group-split';
+export {
+  GROUP_PAYMENT_TRANSITIONS,
+  canTransitionGroupPayment,
+  isGroupObligationClosed,
+  groupPaymentTone,
+  isGroupPaymentActionable,
+  groupPaymentStatusLabelKey,
+} from './group-payment-status';
+export type { GroupPaymentTone } from './group-payment-status';
+export {
+  GROUP_ACTIVITY_CAP,
+  buildGroupActivity,
+  appendGroupActivity,
+  groupActivityTimeline,
+} from './group-activity';
+export type { BuildGroupActivityInput } from './group-activity';
 export type {
   GroupSplitEvent,
   GroupParticipant,
   GroupParticipantKind,
   GroupPaymentStatus,
+  GroupActivity,
+  GroupActivityKind,
   GroupExpense,
   GroupExpenseLineItem,
   GroupExpenseSource,

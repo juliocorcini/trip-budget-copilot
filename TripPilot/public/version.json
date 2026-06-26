@@ -1,8 +1,8 @@
 {
-  "version": "1.4.0-rc",
+  "version": "1.4.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.0-rc.zip",
-  "notes": "Cobranças e pagamentos de amigos agora chegam na hora, sem precisar recarregar: aparecem na central de notificações, na tela inicial e como notificação do celular. Se o app estiver fechado, chega assim que você abrir."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.1-rc.zip",
+  "notes": "Pagamentos de grupo mais justos e claros: quem marcou como pago nunca aparece em vermelho, quem recebeu é quem confirma, e agora há um painel de quem já pagou / quem falta e um histórico de tudo que aconteceu no grupo."
 }

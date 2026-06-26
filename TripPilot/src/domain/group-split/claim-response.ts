@@ -162,9 +162,11 @@ export function reduceGroupClaims(event: GroupSplitEvent, batches: GroupClaimRes
       }
       // The owner slot is never claimable through /responses.
       if (p.kind === 'owner') return p;
+      // DEC-353 — owner DECISIONS (confirmed/contested/cancelled) are authoritative
+      // and stick over a guest's self-report; only unpaid/marked follow the claim.
       const nextStatus =
-        p.paymentStatus === 'confirmed'
-          ? 'confirmed'
+        p.paymentStatus === 'confirmed' || p.paymentStatus === 'contested' || p.paymentStatus === 'cancelled'
+          ? p.paymentStatus
           : batch.markedPaid
             ? 'marked'
             : 'unpaid';

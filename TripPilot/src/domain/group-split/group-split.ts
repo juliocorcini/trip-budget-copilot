@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { splitEqually, sumCents } from '@/domain/money';
 import type { ImageRef } from '@/domain/media';
+import { isGroupObligationClosed } from './group-payment-status';
 import type {
   GroupBalance,
   GroupExpense,
@@ -8,6 +9,7 @@ import type {
   GroupExpenseSource,
   GroupParticipant,
   GroupParticipantKind,
+  GroupPaymentStatus,
   GroupSplitEvent,
   GroupSplitMode,
   GroupTransfer,
@@ -338,6 +340,41 @@ export function computeGroupTransfers(event: GroupSplitEvent): GroupTransfer[] {
     if (creditor.cents === 0) ci++;
   }
   return transfers;
+}
+
+/* ── who-paid / who-owes status (F22 / DEC-353) ──────────────────────────── */
+
+/** One suggested transfer plus the debtor's current payment lifecycle state. */
+export interface GroupSettlementLine extends GroupTransfer {
+  /** The payer's (debtor's) lifecycle state for this obligation. */
+  status: GroupPaymentStatus;
+}
+
+/** "Quem pagou / quem falta": the transfers, each tagged with its closure state. */
+export interface GroupSettlementStatus {
+  lines: GroupSettlementLine[];
+  /** Obligations the receiver has confirmed (closed). */
+  settledCount: number;
+  /** Obligations still open (pending / marked-awaiting / contested). */
+  pendingCount: number;
+}
+
+/**
+ * The settle-up status view (F22): each minimum-transfer obligation tagged with
+ * the debtor's payment lifecycle state, plus settled/pending counts. Pure — reads
+ * the same transfers the settle panel shows and the per-person `paymentStatus`;
+ * only a `confirmed` debtor counts as settled (DEC-353 — a `marked` payment is
+ * still awaiting the receiver and never counts the payer as done).
+ */
+export function buildGroupSettlementStatus(event: GroupSplitEvent): GroupSettlementStatus {
+  const transfers = computeGroupTransfers(event);
+  const statusById = new Map(event.participants.map((p) => [p.id, p.paymentStatus]));
+  const lines: GroupSettlementLine[] = transfers.map((tr) => ({
+    ...tr,
+    status: statusById.get(tr.fromParticipantId) ?? 'unpaid',
+  }));
+  const settledCount = lines.filter((l) => isGroupObligationClosed(l.status)).length;
+  return { lines, settledCount, pendingCount: lines.length - settledCount };
 }
 
 /** True when there is at least one expense and every net balance is zero. */

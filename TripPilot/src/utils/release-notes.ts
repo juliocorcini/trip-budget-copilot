@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.1-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Pagamentos de grupo mais justos: quem marcou como pago nunca aparece em vermelho enquanto aguarda confirmação.',
+        'Quem recebeu é quem confirma — se o organizador confirmar no lugar, fica registrado no histórico.',
+        'Novo painel "quem já pagou / quem falta" e um histórico de tudo que aconteceu no grupo.',
+      ],
+      en: [
+        'Fairer group payments: a person who marked paid never shows red while awaiting confirmation.',
+        'The receiver is who confirms — if the organizer confirms instead, it is logged in the history.',
+        'New "who paid / who is left" panel and a full history of everything that happened in the group.',
+      ],
+      es: [
+        'Pagos de grupo más justos: quien marcó como pagado nunca aparece en rojo mientras espera confirmación.',
+        'Quien recibió es quien confirma — si el organizador confirma en su lugar, queda registrado en el historial.',
+        'Nuevo panel de "quién ya pagó / quién falta" y un historial de todo lo que pasó en el grupo.',
+      ],
+    },
+  },
+  {
     version: '1.4.0-rc',
     date: '2026-06-26',
     items: {
