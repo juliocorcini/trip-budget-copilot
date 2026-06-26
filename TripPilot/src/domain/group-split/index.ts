@@ -49,6 +49,7 @@ export {
   parseGroupClaimResponse,
   parseGroupClaimExpense,
   reduceGroupClaims,
+  foldEventForViewer,
 } from './claim-response';
 export type { GroupClaimResponse, GroupClaimExpense, BuildGroupClaimResponseInput } from './claim-response';
 export { groupSplitToDebts, groupSplitsToTripDebts } from './settle-bridge';

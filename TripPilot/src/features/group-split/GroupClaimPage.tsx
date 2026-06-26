@@ -6,8 +6,10 @@ import {
   buildGroupClaimResponse,
   computeGroupBalances,
   computeGroupTransfers,
+  foldEventForViewer,
   groupExpenseImages,
   type GroupClaimExpense,
+  type GroupClaimResponse,
   type GroupSharePayload,
   type GroupSplitEvent,
 } from '@/domain/group-split';
@@ -19,6 +21,7 @@ import type { ImageRef } from '@/domain/media';
 import { GroupImage, ImageLightbox } from './GroupImage';
 import {
   fetchGroupSplit,
+  fetchGroupResponses,
   postGroupClaim,
   loadGuestExpenses,
   saveGuestExpenses,
@@ -57,6 +60,9 @@ export function GroupClaimPage() {
   const [markedPaid, setMarkedPaid] = useState(false);
   // DEC-340 — the guest's own authored expenses (a snapshot the owner folds).
   const [myExpenses, setMyExpenses] = useState<GroupClaimExpense[]>([]);
+  // G3 / DEC-349 — every device's claim snapshot, folded locally so the board is
+  // LIVE for everyone (a guest's add/remove shows without the owner opening the app).
+  const [responses, setResponses] = useState<GroupClaimResponse[]>([]);
   const seededRef = useRef(false);
   const hasPayloadRef = useRef(false);
   const signalRef = useRef<ShareSignalHandle | null>(null);
@@ -89,6 +95,14 @@ export function GroupClaimPage() {
           if (next.length !== prev.length) saveGuestExpenses(id, next);
           return next;
         });
+      }
+      // G3 / DEC-349 — pull every device's claim snapshot so we fold the live board
+      // locally (F10/F11). The link key already decrypts all /responses. Best-effort:
+      // a failed pull keeps the prior folded view instead of dropping to the bare base.
+      try {
+        setResponses(await fetchGroupResponses(id, key));
+      } catch {
+        /* keep prior responses */
       }
       hasPayloadRef.current = true;
       setLoad({ kind: 'live', payload: res.payload });
@@ -198,9 +212,15 @@ export function GroupClaimPage() {
     });
   };
 
+  // G3 / DEC-349 — the live read-fold: project the owner-published base through
+  // every pulled snapshot so the board (total, balances, expenses) is live for
+  // every viewer. The owner stays the money authority — the base's tombstones +
+  // confirmed slots still win inside the fold.
+  const liveEvent = foldEventForViewer(load.payload.event, responses);
+
   return (
     <ClaimBoard
-      event={load.payload.event}
+      event={liveEvent}
       actorId={actorId}
       claimedId={claimedId}
       markedPaid={markedPaid}

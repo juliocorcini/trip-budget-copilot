@@ -1,8 +1,8 @@
 {
-  "version": "1.3.2-rc",
+  "version": "1.3.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.3.2-rc.zip",
-  "notes": "Fotos de comprovantes agora salvam na hora e continuam lá quando você reabre a despesa, dá pra anexar várias fotos numa mesma despesa, e elas aparecem para todo mundo que abre o link compartilhado — inclusive quem não tem o app — e podem ser baixadas."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.3.3-rc.zip",
+  "notes": "O quadro do grupo agora é ao vivo: o que um convidado adiciona ou remove aparece para todo mundo na hora, sem o organizador precisar abrir o app — e apagar uma despesa corrige o total e os saldos na mesma hora."
 }

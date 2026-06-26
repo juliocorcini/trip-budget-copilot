@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.3-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'O quadro do grupo agora é ao vivo: o que um convidado adiciona aparece para todo mundo na hora, sem o organizador precisar abrir o app.',
+        'Apagar uma despesa corrige o total e os saldos na mesma hora (acabou o total que ficava "preso" no valor antigo).',
+      ],
+      en: [
+        'The group board is now live: whatever a guest adds shows up for everyone right away, without the organizer opening the app.',
+        'Deleting an expense fixes the total and balances instantly (no more total stuck on the old value).',
+      ],
+      es: [
+        'El tablero del grupo ahora es en vivo: lo que agrega un invitado aparece para todos al instante, sin que el organizador abra la app.',
+        'Borrar un gasto corrige el total y los saldos al instante (se acabó el total que quedaba "pegado" en el valor anterior).',
+      ],
+    },
+  },
+  {
     version: '1.3.2-rc',
     date: '2026-06-26',
     items: {

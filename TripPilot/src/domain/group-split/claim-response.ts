@@ -126,6 +126,23 @@ export function parseGroupClaimExpense(raw: unknown): GroupClaimExpense | null {
  *  - SKIP any id in `hiddenExpenseIds` (the owner tombstoned it — hide-never-delete).
  * Pure: returns a new event; the panel recomputes balances/transfers from it.
  */
+/**
+ * G3 / DEC-349 (live read-fold; AMENDS DEC-340) — the READ-side projection that
+ * **every viewer** (the `/g/` guest board + any non-owner detail) renders: fold
+ * all pulled response snapshots onto the owner-published `base` so a guest's
+ * add / remove / retract recalculates the **total + balances for everyone**
+ * WITHOUT the owner opening the app (F10), and a deletion corrects the total at
+ * once (F11 — the "120€" bug). It is **exactly** the owner's `reduceGroupClaims`,
+ * reused on the read side — so the projection is identical to what the owner will
+ * eventually re-publish (no divergent math, ledger-math invariance holds). The
+ * owner stays the **money authority + moderator**: canonical settlement still
+ * uses the owner-published base, and the base's tombstones (`hiddenExpenseIds`) +
+ * `confirmed` slots still win on fold. Pure + idempotent.
+ */
+export function foldEventForViewer(base: GroupSplitEvent, responses: GroupClaimResponse[]): GroupSplitEvent {
+  return reduceGroupClaims(base, responses);
+}
+
 export function reduceGroupClaims(event: GroupSplitEvent, batches: GroupClaimResponse[]): GroupSplitEvent {
   const latestByActor = new Map<string, GroupClaimResponse>();
   for (const batch of [...batches].sort((a, b) => a.at.localeCompare(b.at))) {
