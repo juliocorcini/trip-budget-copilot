@@ -82,6 +82,8 @@ export {
 } from './pots';
 export { resolveProgressTone } from './progress-tone';
 export type { ProgressTone, ProgressToneInput } from './progress-tone';
+export { poolNature, poolNatureLabelKey } from './pool-nature';
+export type { PoolNature } from './pool-nature';
 export { classifyBudgetSignal } from './budget-signal';
 export type { BudgetSignal, BudgetSignalKind, BudgetSignalInput } from './budget-signal';
 export type {

@@ -29,7 +29,7 @@ import {
   softDeleteOutingSessionsBatch,
   restoreOutingSessionsBatch,
 } from '@/domain/orchestrators';
-import { selectActivePhasePool } from '@/domain/budget';
+import { selectActivePhasePool, poolNature, poolNatureLabelKey } from '@/domain/budget';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
@@ -768,16 +768,32 @@ export function ExpenseListPage() {
         title={t('selection.move_pool_title')}
       >
         <div className="flex flex-col gap-2">
-          {pools.map((pool) => (
-            <button
-              key={pool.id}
-              onClick={() => handleMovePool(pool.id)}
-              className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
-            >
-              <Icon name="account_balance" size={18} className="text-on-surface-dim" />
-              <span className="text-sm font-semibold text-on-surface">{pool.name}</span>
-            </button>
-          ))}
+          {pools.map((pool) => {
+            const nature = poolNature(pool);
+            return (
+              <button
+                key={pool.id}
+                onClick={() => handleMovePool(pool.id)}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon name="account_balance" size={18} className="text-on-surface-dim" />
+                <span className="flex-1 min-w-0 truncate text-sm font-semibold text-on-surface">
+                  {pool.name}
+                </span>
+                <span
+                  className={`shrink-0 rounded bg-surface-container px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                    nature === 'trecho'
+                      ? 'text-primary'
+                      : nature === 'pote'
+                        ? 'text-warning'
+                        : 'text-on-surface-faint'
+                  }`}
+                >
+                  {t(poolNatureLabelKey(nature))}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </BottomSheet>
 

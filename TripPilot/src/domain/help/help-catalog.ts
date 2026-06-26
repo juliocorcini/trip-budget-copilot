@@ -112,6 +112,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   // ── Money: where it sits ───────────────────────────────────────────────────
   a('funds', 'savings', 'money', '/funds', [
     'fundos potes orcamento reserva protegida envelope dinheiro', 'funds pools budget protected reserve envelope money', 'orcamento da viagem', 'reserva de emergencia', 'fondos presupuesto reserva',
+    'trecho pote tramo reserva orcamento por perna objetivo guardar dinheiro', 'segment pot leg budget bucket goal set money aside', 'trechos e potes', 'tramos y fondos',
   ]),
   a('piggy', 'savings', 'money', '/dashboard', [
     'cofrinho economia sobrou guardou dia poupanca buffer', 'piggy bank savings leftover saved per day', 'cofrinho extrato', 'quanto economizei', 'alcancia ahorro',
@@ -140,12 +141,15 @@ export const HELP_ARTICLES: HelpArticle[] = [
   ]),
   a('settle', 'group', 'people', '/shared', [
     'acerto de contas quem me deve cobrar lembrar conexao pix wise', 'settle up who owes me remind connection pix wise', 'acertar contas', 'cobrar amigo', 'ajuste de cuentas quien me debe',
+    'resolver agora pessoas conectado convidado tempo real confirmar pagamento quem pagou quem falta', 'resolve now people connected invited real time confirm payment who paid who is left', 'confirmar que recebi', 'lista de pessoas status', 'confirmar pago en tiempo real',
   ]),
   a('reimbursement', 'request_quote', 'people', '/shared', [
     'reembolso recebi pagamento de volta pix wise dinheiro registrar', 'reimbursement got paid back received payment pix wise cash record', 'me pagaram de volta', 'registrar reembolso recebido', 'reembolso me pagaron',
+    'confirmar pagamento recebido quem recebe confirma zera dos dois lados', 'confirm received payment receiver confirms clears both sides', 'confirmar recebido', 'confirmar reembolso', 'confirmar pago recibido',
   ]),
   a('group_split', 'groups', 'people', '/groups', [
     'divisao de grupo tricount varias despesas varios pagadores viagem rachar grupo link convidar escolher nome marcar pago', 'group split tricount many expenses many payers trip share link invite pick name mark paid', 'dividir gastos do grupo', 'racha da viagem inteira', 'evento de grupo despesas', 'division en grupo tricount gastos varios pagadores invitar enlace',
+    'convidar amigo conectado aceitar convite em tempo real confirmar quem pagou quem falta historico atividade marcar pago neutro', 'invite connected friend accept invite real time confirm who paid who is left history activity mark paid neutral', 'convite de grupo aceitar', 'historico do grupo quem pagou', 'aceptar invitacion grupo confirmar pago',
   ]),
 
   // ── Copilot: the smart reads ───────────────────────────────────────────────
@@ -174,6 +178,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   ]),
   a('notifications', 'notifications', 'data_privacy', '/notifications', [
     'notificacoes avisos alertas lembrete silenciar', 'notifications alerts reminders mute', 'ativar notificacoes', 'avisos do app', 'notificaciones avisos',
+    'tempo real cobranca pagamento convite acao pendente central de notificacoes amigo conectado', 'real time charge payment invite pending action notification center connected friend', 'aviso na hora', 'acoes pendentes', 'accion pendiente en tiempo real',
   ]),
   a('about', 'info', 'data_privacy', '/about', [
     'sobre versao atualizar novidades app update release notes', 'about version update what is new app', 'atualizar o app', 'qual versao', 'acerca version actualizar',

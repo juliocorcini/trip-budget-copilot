@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.5-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Ajuda, tutoriais e textos do app foram revisados para refletir tudo que chegou recentemente (acerto de contas, lista única de Pessoas, convites de grupo e atualização em tempo real).',
+        'Os "fundos" agora aparecem com o nome certo: Trecho (orçamento de uma parte da viagem) ou Pote (dinheiro guardado para um objetivo) — com uma etiqueta em cada um, na tela de orçamento e ao mover despesas.',
+      ],
+      en: [
+        'Help, tutorials and in-app copy were reviewed to reflect everything added recently (settle-up, the single People list, group invites and real-time updates).',
+        '"Funds" now show their real name: Segment (the budget for a part of the trip) or Pot (money set aside for a goal) — with a label on each, on the budget screen and when moving expenses.',
+      ],
+      es: [
+        'Se revisaron la ayuda, los tutoriales y los textos de la app para reflejar todo lo añadido recientemente (ajuste de cuentas, la lista única de Personas, invitaciones de grupo y actualización en tiempo real).',
+        'Los "fondos" ahora muestran su nombre real: Tramo (el presupuesto de una parte del viaje) o Fondo (dinero apartado para un objetivo) — con una etiqueta en cada uno, en la pantalla de presupuesto y al mover gastos.',
+      ],
+    },
+  },
+  {
     version: '1.4.4-rc',
     date: '2026-06-26',
     items: {

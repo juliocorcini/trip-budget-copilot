@@ -6,6 +6,8 @@ import {
   createPoolSummary,
   createEnvelope,
   calculateRecommendedFloor,
+  poolNature,
+  poolNatureLabelKey,
 } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { formatMoney } from '@/domain/money';
@@ -232,13 +234,27 @@ export function FundsPage() {
             (e) => e.budgetPoolId === pool.id && e.deletedAt === null,
           );
           const isExpanded = expandedPoolId === pool.id;
+          const nature = poolNature(pool);
 
           return (
             <div key={pool.id} className="bg-surface-container rounded-xl p-4">
               <button onClick={() => toggleExpanded(pool.id)} className="w-full text-left btn-press">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm font-bold text-on-surface">{pool.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-on-surface">{pool.name}</p>
+                      <span
+                        className={`shrink-0 rounded bg-surface-high px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                          nature === 'trecho'
+                            ? 'text-primary'
+                            : nature === 'pote'
+                              ? 'text-warning'
+                              : 'text-on-surface-faint'
+                        }`}
+                      >
+                        {t(poolNatureLabelKey(nature))}
+                      </span>
+                    </div>
                     <p className="text-xs text-on-surface-faint mt-0.5">
                       {pool.scope === 'global'
                         ? t('funds.scope_global')

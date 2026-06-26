@@ -1,8 +1,8 @@
 {
-  "version": "1.4.4-rc",
+  "version": "1.4.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.4-rc.zip",
-  "notes": "Polimento: ao confirmar o pagamento de outra pessoa, o histórico do grupo agora mostra que foi uma ação do organizador e o que mudou; e você pode marcar um amigo para aceitar os convites de grupo dele automaticamente."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.5-rc.zip",
+  "notes": "Revisão geral de textos, ajuda e tutoriais para refletir as funções recentes; e os \"fundos\" agora aparecem com o nome certo — Trecho ou Pote — com etiquetas na tela de orçamento e ao mover despesas."
 }

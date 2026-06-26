@@ -1,6 +1,26 @@
 # Dev Log — TripPilot Implementation
 
-## Grupos Confiáveis & Acerto Claro wave (2026-06-26) — base 1.3.0-rc → 1.4.4-rc — 🟢 ACTIVE (G0→G9 + G_last)
+## Docs Sync & Vocabulary wave (2026-06-26) — 1.4.4-rc → 1.4.5-rc — ✅ COMPLETE
+
+> Two focused fronts after the Grupos wave closed, per Julio: (1) a **documentation sweep** so every recently-shipped function is findable & correctly explained; (2) **DEC-228 deferred half / OD-2** — the **Trecho/Pote** funds-vocab migration as the council-mandated **nature-aware** pass. UI strings + one pure resolver only — **zero code-id / schema / ledger-math change**.
+
+### CURRENT STATE
+- **Status**: ✅ shipped `1.4.5-rc`.
+- **Tests**: **2502 pass / 2504** (only the 2 Node-18 WebCrypto `split-live-loop` baseline — pass on CI Node 22; **+5** `pool-nature`). `tsc --noEmit` clean; `npm run build` green. Locale parity = **3080 keys** in each of pt-BR/en/es.
+
+### Front 1 — documentation sweep
+- Help articles **settle / reimbursement / group_split / notifications** reworded to current behavior (q/a/steps); **discovery keywords** enriched in `help-catalog.ts`; guide descriptions **group_split_d / shared_d / notifications_d** refreshed; contextual/glossary copy checked. `guide ⊆ help ⊆ router` parity held by test (help-catalog/guide/glossary/help-content suites green).
+
+### Front 2 — DEC-228/OD-2 Trecho/Pote (nature-aware)
+- **Resolver**: new pure `domain/budget/pool-nature.ts` — `poolNature(pool)` → `trecho` (scope `linked_phases`) | `pote` (scope `global`) | `generic` (neutral fallback, never throws); `poolNatureLabelKey` → `funds.nature_<nature>`. Barrel-exported; **5 unit tests** (distinctness + fallback + key-mapping).
+- **Copy (pt-BR/en/es)**: reworded `funds.*` editor (nature nouns Trecho/Pote/Reserva · Segment/Pot/Reserve · Tramo/Fondo/Reserva), `selection.*` move-pool + `expenses.*` pool-picker, `plan.*` creation door, `help.funds.*` + `help_center.a.funds`, the `wallets.*` "Carteira × Trecho/Pote" contrast, AdvancedTripView container labels (`advanced_funds`/`advanced_links`/`advanced_manage_funds`), and the `guide.funds_t/_d` discovery card. Spanish keeps "Fondo" for pots (its existing convention).
+- **UI wiring**: a **nature chip** (Trecho/Pote/Reserva, color-coded primary/warning/faint) now renders next to the pool name on **FundsPage** cards and on each **move-pool picker** row (`ExpenseListPage`), via `poolNature` + `poolNatureLabelKey`.
+- **Deliberate deferral**: the two compact **nav-tab labels** `planner.funds` / `trip.funds` ("Fundos") were left as-is — renaming a tab to "Trechos e potes" is a length/UX call and the council cautioned against happy-path blanket renames. Flagged for Julio.
+
+### Deploy
+- Bumped `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release note pt/en/es) → 1.4.5-rc; commit + push `master` → Cloudflare Pages OTA (Pages-only — no Worker change).
+
+## Grupos Confiáveis & Acerto Claro wave (2026-06-26) — base 1.3.0-rc → 1.4.4-rc — ✅ COMPLETE (G0→G9 + G_last)
 
 > Execution truth: `brain/documents/2026-06-26-group-reliability-settle-redesign-orchestrator.md` (gates G0→G9, change-set **F01–F28**, decisions **DEC-348→360** PROPOSED at G0 → APPROVED per shipping gate; all four §16 forks **L-IMG / L-LIVE / L-RT / L-IA LOCKED by Julio 2026-06-26**). This wave answers Julio's **3rd field review** (the 1.3.0-rc device test): it is mostly **bug-fixes + two REVERSALS** of the predecessor wave (image E2E → access-controlled plaintext on R2; owner-as-reducer pending-gate → a **live shared board**) + a **deep settle-up IA redesign** (Variante O). **Ledger-math invariance** holds (the arithmetic is unchanged — we fix *when/where* truth propagates and *how* it's shown). Single continuous session, deploy per gate; **G2 & G6 also `wrangler deploy`**. Most recent gate entry first.
 
