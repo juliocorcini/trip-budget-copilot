@@ -2464,7 +2464,10 @@
     "pay_via": "Puedes pagar con:",
     "add_payment_hint": "Agrega cómo pueden pagarte (Pix, Wise, cuenta…) — entra en el recordatorio.",
     "connections_section": "Conexiones",
-    "connections_hint": "Vincular dispositivos, mostrar tu QR y ver extractos recibidos."
+    "connections_hint": "Dispositivos vinculados y los extractos que te enviaron. Usa \"Mi QR\" arriba para conectar a alguien nuevo.",
+    "device_backup_label": "Copia de dispositivo",
+    "device_backup_title": "Mueve datos entre tus dispositivos",
+    "device_backup_desc": "Recibe una copia o extracto de otro teléfono tuyo."
   },
   "payment": {
     "title": "Formas de pago",
@@ -2925,6 +2928,7 @@
     "send_statement": "Enviar por el buzón",
     "received_statements": "{{count}} división recibida por el buzón",
     "received_backups": "{{count}} copia recibida por el buzón",
+    "received_connections": "{{count}} nueva conexión",
     "inbox_title": "Copias recibidas",
     "inbox_from": "Copia de {{name}}",
     "unknown_sender": "otro dispositivo",

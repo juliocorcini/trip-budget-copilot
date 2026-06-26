@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.2.5-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Conexão em duas vias: agora basta UMA pessoa escanear o QR da outra (ou abrir o link) — vocês passam a aparecer um no aparelho do outro automaticamente, sem o segundo escaneamento de volta.',
+        'A tela de "Acerto de contas" ficou mais clara: o botão "Meu QR" fica fixo no topo (alguém pode te adicionar a qualquer momento) e suas conexões já aparecem abertas.',
+        'Separamos "conectar um amigo" de "backup entre seus aparelhos" — o envio por QR entre seus próprios aparelhos agora está rotulado como backup, sem confundir com adicionar uma pessoa.',
+      ],
+      en: [
+        'Two-way connect: now just ONE person scans the other\'s QR (or opens the link) — you both show up on each other\'s phones automatically, with no second scan back.',
+        'The "Settle up" screen is clearer: the "My QR" button is pinned at the top (someone can add you any time) and your connections are shown expanded.',
+        'We split "connect a friend" from "device backup" — sending by QR between your own phones is now labelled as a backup, so it no longer reads as a second way to add a person.',
+      ],
+      es: [
+        'Conexión en dos vías: ahora basta con que UNA persona escanee el QR de la otra (o abra el enlace) — ambos aparecen en el teléfono del otro automáticamente, sin un segundo escaneo de vuelta.',
+        'La pantalla de "Ajustar cuentas" quedó más clara: el botón "Mi QR" está fijo arriba (alguien puede añadirte en cualquier momento) y tus conexiones se muestran abiertas.',
+        'Separamos "conectar a un amigo" de "copia entre tus dispositivos" — enviar por QR entre tus propios teléfonos ahora se llama copia de dispositivo, sin confundirse con añadir a una persona.',
+      ],
+    },
+  },
+  {
     version: '1.2.4-rc',
     date: '2026-06-25',
     items: {

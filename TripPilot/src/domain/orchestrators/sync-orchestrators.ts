@@ -53,6 +53,22 @@ async function upsertPeerLink(
   return peerLinkRepository.create(link);
 }
 
+/**
+ * DEC-344 (G6) — receive side of the two-way handshake. A drained `connect`
+ * envelope means a peer I paired with is announcing who they are; upsert the
+ * reverse `peerLink` (with their public key) so they appear in my connections and
+ * I can seal async messages back. No trip participant is created here — they
+ * surface under "Conexões" and can be added to a trip in one tap when needed.
+ * `participantId: null` preserves any existing mapping (upsert keeps it).
+ */
+export async function upsertPeerLinkFromConnect(connect: {
+  actorId: string;
+  name: string;
+  pk: string;
+}): Promise<PeerLink> {
+  return upsertPeerLink(connect.actorId, connect.name, null, connect.pk);
+}
+
 export type PairResult =
   | { status: 'created'; participant: Participant }
   | { status: 'linked'; participant: Participant }

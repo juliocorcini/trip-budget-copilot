@@ -2,7 +2,12 @@ import {
   appSettingsRepository,
   mailboxQueueRepository,
 } from '@/data/repositories';
-import { getDeviceIdentity, sealForPeer, openForMe } from '@/data/sync/identity-crypto';
+import {
+  getDeviceIdentity,
+  getDevicePublicKeyB64,
+  sealForPeer,
+  openForMe,
+} from '@/data/sync/identity-crypto';
 import { postToMailbox, drainMailbox } from '@/data/sync/mailbox-client';
 import {
   buildMailboxEnvelope,
@@ -11,8 +16,16 @@ import {
 } from '@/domain/sync/mailbox-envelope';
 import { parseStatementPayload } from '@/domain/sync/statement-payload';
 import { parseMigrationPayload } from '@/domain/sync/migration-payload';
-import { storeMirroredStatement } from './sync-orchestrators';
+import { buildConnectPayload, parseConnectPayload } from '@/domain/sync/connect-payload';
+import {
+  storeMirroredStatement,
+  upsertPeerLinkFromConnect,
+  pairParticipantFromIdentity,
+  linkParticipantToIdentity,
+  type PairResult,
+} from './sync-orchestrators';
 import { importBackup, type ImportMode } from './backup-orchestrators';
+import type { IdentityQrPayload } from '@/domain/sync/identity';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { MailboxPayloadKind, MailboxQueueItem } from '@/domain/types/mailbox';
 
@@ -57,6 +70,81 @@ export async function sendPayloadToPeerMailbox(
   return { delivered: sentIds.includes(item.id) };
 }
 
+/**
+ * DEC-344 (G6) — send side of the two-way handshake. After I pair with a peer (I
+ * scanned their identity QR / opened their link, so I hold their public key), seal
+ * a `connect` envelope carrying MY identity back to them, so their device upserts
+ * the reverse `peerLink` on its next drain — both appear on each other's phones,
+ * with no second scan. No-op if the peer has no key (paired pre-mailbox → they
+ * re-share to enable async). Mirrors `sendPayloadToPeerMailbox`'s send semantics.
+ */
+export async function sendConnectHandshake(peer: {
+  actorId: string;
+  publicKey: string | null;
+  name?: string;
+}): Promise<SendToMailboxResult> {
+  if (!peer.publicKey) return { delivered: false };
+  const me = await getDeviceIdentity();
+  const settings = await appSettingsRepository.get();
+  const myPublicKey = await getDevicePublicKeyB64();
+  const payload = buildConnectPayload({
+    actorId: me.actorId,
+    name: settings.deviceName,
+    pk: myPublicKey,
+  });
+  const envelope = buildMailboxEnvelope({
+    kind: 'connect',
+    fromActorId: me.actorId,
+    fromName: settings.deviceName,
+    data: payload,
+  });
+  const sealed = await sealForPeer(peer.publicKey, packEnvelope(envelope));
+  const item = await mailboxQueueRepository.enqueueOut({
+    recipientActorId: peer.actorId,
+    recipientName: peer.name ?? '',
+    kind: 'connect',
+    sealedBlob: sealed,
+  });
+  const sentIds = await flushOutbox();
+  return { delivered: sentIds.includes(item.id) };
+}
+
+/**
+ * DEC-344 (G6) — pair + auto-connect in one step. Pairs the scanned identity into
+ * the trip (the scanner's forward link) AND sends the reverse `connect` handshake
+ * so the peer auto-adds me too. Best-effort on the handshake: a pairing must never
+ * fail because the peer is momentarily unreachable (the next drain/re-pair retries).
+ */
+export async function connectPeerFromIdentity(
+  identity: IdentityQrPayload,
+  tripId: string,
+): Promise<PairResult> {
+  const result = await pairParticipantFromIdentity(identity, tripId);
+  try {
+    await sendConnectHandshake({ actorId: identity.actorId, publicKey: identity.pk ?? null, name: identity.name });
+  } catch {
+    // Handshake is best-effort — the forward pairing already succeeded locally.
+  }
+  return result;
+}
+
+/** DEC-344 (G6) — retroactive link of an existing participant + reverse handshake. */
+export async function linkConnectFromIdentity(
+  participantId: string,
+  identity: IdentityQrPayload,
+  tripId: string,
+): Promise<PairResult | null> {
+  const result = await linkParticipantToIdentity(participantId, identity, tripId);
+  if (result) {
+    try {
+      await sendConnectHandshake({ actorId: identity.actorId, publicKey: identity.pk ?? null, name: identity.name });
+    } catch {
+      // Best-effort handshake; the local link already succeeded.
+    }
+  }
+  return result;
+}
+
 /** Posts every pending outgoing blob. Returns the ids that reached the worker. */
 export async function flushOutbox(): Promise<string[]> {
   const pending = await mailboxQueueRepository.pendingOut();
@@ -80,6 +168,8 @@ export async function flushOutbox(): Promise<string[]> {
 export interface DrainResult {
   statements: number;
   backups: number;
+  /** DEC-344 (G6) — reverse `connect` handshakes folded into peerLinks this drain. */
+  connects: number;
 }
 
 /**
@@ -88,18 +178,19 @@ export interface DrainResult {
  */
 export async function drainMailboxIntoApp(): Promise<DrainResult> {
   const settings = await appSettingsRepository.get();
-  if (!settings.mailboxEnabled) return { statements: 0, backups: 0 };
+  if (!settings.mailboxEnabled) return { statements: 0, backups: 0, connects: 0 };
 
   const me = await getDeviceIdentity();
   let messages;
   try {
     messages = await drainMailbox(me.actorId);
   } catch {
-    return { statements: 0, backups: 0 };
+    return { statements: 0, backups: 0, connects: 0 };
   }
 
   let statements = 0;
   let backups = 0;
+  let connects = 0;
   for (const message of messages) {
     const packed = await openForMe(message.blob);
     if (!packed) continue;
@@ -111,6 +202,17 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
       if (payload) {
         await storeMirroredStatement(payload);
         statements++;
+      }
+      continue;
+    }
+
+    // DEC-344 (G6) — a peer announcing themselves: upsert the reverse peerLink so
+    // they appear in my connections (no second scan) and I can seal back to them.
+    if (envelope.kind === 'connect') {
+      const connect = parseConnectPayload(envelope.data);
+      if (connect) {
+        await upsertPeerLinkFromConnect(connect);
+        connects++;
       }
       continue;
     }
@@ -128,7 +230,7 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
       }
     }
   }
-  return { statements, backups };
+  return { statements, backups, connects };
 }
 
 /** The backups drained from the mailbox awaiting the traveler's confirm. */

@@ -1,8 +1,8 @@
 {
-  "version": "1.2.4-rc",
+  "version": "1.2.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.4-rc.zip",
-  "notes": "Agora você pode anexar uma foto (recibo ou comprovante) a uma despesa do grupo. A foto é enviada de forma criptografada de ponta a ponta — a nuvem guarda só o conteúdo embaralhado — e todo mundo do grupo (inclusive quem abre o link no navegador) vê e baixa. Some junto com o link quando você revoga."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.5-rc.zip",
+  "notes": "Conexão em duas vias: ao escanear o QR de alguém (ou abrir o link), vocês passam a aparecer um no aparelho do outro automaticamente, sem o outro precisar escanear de volta — basta conectar uma vez. A tela de acerto de contas ficou mais clara: \"Meu QR\" fixo no topo, conexões à vista e o backup entre seus aparelhos separado de conectar um amigo."
 }

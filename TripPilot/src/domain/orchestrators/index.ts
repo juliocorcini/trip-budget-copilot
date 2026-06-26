@@ -77,6 +77,7 @@ export type {
 export {
   pairParticipantFromIdentity,
   linkParticipantToIdentity,
+  upsertPeerLinkFromConnect,
   storeMirroredStatement,
   answerMirroredStatementLine,
   markResponsesSent,
@@ -130,6 +131,9 @@ export type {
 } from './import-orchestrators';
 export {
   sendPayloadToPeerMailbox,
+  sendConnectHandshake,
+  connectPeerFromIdentity,
+  linkConnectFromIdentity,
   flushOutbox,
   drainMailboxIntoApp,
   getInboxBackups,

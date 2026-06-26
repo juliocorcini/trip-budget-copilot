@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { parsePairIdentityFromHash } from '@/domain/sync';
-import { pairParticipantFromIdentity } from '@/domain/orchestrators';
+import { connectPeerFromIdentity } from '@/domain/orchestrators';
 import { Icon } from '@/components/Icon';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -59,7 +59,7 @@ export function PairPage() {
     if (pairing) return;
     setPairing(true);
     try {
-      const result = await pairParticipantFromIdentity(identity, trip.id);
+      const result = await connectPeerFromIdentity(identity, trip.id);
       await reload();
       showToast(
         result.status === 'already_paired'

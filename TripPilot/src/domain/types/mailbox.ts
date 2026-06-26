@@ -4,7 +4,10 @@
  * open. The worker only ever stores opaque ciphertext.
  */
 
-export type MailboxPayloadKind = 'statement' | 'backup';
+// DEC-344 (G6): `connect` carries a peer's identity so the recipient upserts the
+// reverse peerLink — the two-way handshake. Like the others it is opaque to the
+// Worker (sealed inside the ciphertext, addressed only by recipient actorId).
+export type MailboxPayloadKind = 'statement' | 'backup' | 'connect';
 
 /**
  * The plaintext carried inside a sealed mailbox blob. The sender's identity

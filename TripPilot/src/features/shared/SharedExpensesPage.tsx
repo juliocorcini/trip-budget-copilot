@@ -64,8 +64,8 @@ import {
 } from '@/domain/sync';
 import { getInstallationId } from '@/utils/entity-factory';
 import {
-  pairParticipantFromIdentity,
-  linkParticipantToIdentity,
+  connectPeerFromIdentity,
+  linkConnectFromIdentity,
   applyPeerResponses,
   sendPayloadToPeerMailbox,
   reconnectParticipantDevice,
@@ -161,7 +161,9 @@ export function SharedExpensesPage() {
   // DL-3: P2P machinery (QR, receive, mirrored statements) lives in a collapsed
   // "Conexões" section. It is hidden via CSS — NEVER unmounted — so the mirror's
   // live sockets keep running while collapsed (council Architect HIGH risk).
-  const [connectionsOpen, setConnectionsOpen] = useState(false);
+  // D05 · DEC-347: connections are surfaced (open by default) so paired devices and
+  // the add-by-QR path are visible without a tap. Section stays MOUNTED when closed.
+  const [connectionsOpen, setConnectionsOpen] = useState(true);
   // DEC-102 (R-25): tap on a participant opens their itemized statement.
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
   // DEC-206: a fresh statement always opens collapsed (first page only).
@@ -273,7 +275,8 @@ export function SharedExpensesPage() {
     const decoded = decodeQrPayload(text);
     if (!decoded || decoded.kind !== 'identity') return;
     setShowQrAdd(false);
-    const result = await pairParticipantFromIdentity(decoded, trip.id);
+    // DEC-344 — pair + reverse connect handshake so we appear on each other's phones.
+    const result = await connectPeerFromIdentity(decoded, trip.id);
     if (result.status === 'already_paired') {
       showToast(t('sync.already_connected'), 'info');
     } else {
@@ -288,7 +291,7 @@ export function SharedExpensesPage() {
     if (!decoded || decoded.kind !== 'identity') return;
     const target = linkTarget;
     setLinkTarget(null);
-    const result = await linkParticipantToIdentity(target.id, decoded, trip.id);
+    const result = await linkConnectFromIdentity(target.id, decoded, trip.id);
     if (!result) return;
     if (result.status === 'already_paired' && result.participant.id !== target.id) {
       showToast(t('sync.already_connected'), 'info');
@@ -417,7 +420,7 @@ export function SharedExpensesPage() {
     setSaving(true);
     try {
       const peer = peerLinks.find((l) => l.actorId === conn.actorId && l.deletedAt === null);
-      await pairParticipantFromIdentity(
+      await connectPeerFromIdentity(
         buildIdentityQrPayload(
           { actorId: conn.actorId, displayName: conn.displayName },
           peer?.publicKey ?? null,
@@ -524,7 +527,17 @@ export function SharedExpensesPage() {
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
-        <h1 className="text-heading font-bold text-on-surface">{t('shared.hub_title')}</h1>
+        <h1 className="text-heading font-bold text-on-surface flex-1">{t('shared.hub_title')}</h1>
+        {/* D05 · DEC-347: "Meu QR" is a fixed top-right action — someone can always
+            add me in one tap, instead of it hiding at the bottom of Conexões. */}
+        <button
+          onClick={() => setShowMyQr(true)}
+          className="btn-press flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-surface-container"
+          aria-label={t('sync.my_qr')}
+        >
+          <Icon name="qr_code_2" size={18} className="text-primary" />
+          <span className="text-xs font-semibold text-on-surface">{t('sync.my_qr')}</span>
+        </button>
       </div>
 
       {/* C23 (DEC-297): entry to the Tricount group splits (many expenses/payers),
@@ -678,9 +691,6 @@ export function SharedExpensesPage() {
           <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
         </button>
       )}
-
-      {/* G9 (audit §4.15): the single shared "how splitting works" explainer. */}
-      <SplitExplainer />
 
       <div>
         <p className="text-xs text-on-surface-faint font-semibold uppercase tracking-wider mb-2 px-1">
@@ -843,6 +853,10 @@ export function SharedExpensesPage() {
           </div>
         )}
       </div>
+
+      {/* G9 (audit §4.15): the single shared "how splitting works" explainer. D05:
+          moved below People so the add-person row sits higher on the screen. */}
+      <SplitExplainer />
 
       {/* DL-3: connected-pending shares, surfaced explicitly so nothing is ever
           hidden. Display-only — the counterparty accepts on THEIR phone/link;
@@ -1461,31 +1475,29 @@ export function SharedExpensesPage() {
               ))}
             </div>
           )}
-          {/* DEC-105: my identity QR — the other person scans it to pair */}
-          <button
-            onClick={() => setShowMyQr(true)}
-            className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
-          >
-            <Icon name="qr_code_2" size={22} className="text-primary shrink-0" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-on-surface">{t('sync.my_qr')}</p>
-              <p className="text-xs text-on-surface-faint">{t('sync.my_qr_hint')}</p>
-            </div>
-          </button>
-          {/* D-BUG-20: receive a statement/connection from another device — the
-              SAME /sync flow as Backup → import, surfaced here. */}
-          <button
-            onClick={() => navigate('/sync')}
-            className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
-          >
-            <Icon name="qr_code_scanner" size={22} className="text-success shrink-0" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-on-surface">{t('sync.receive_from_device')}</p>
-              <p className="text-xs text-on-surface-faint">{t('sync.receive_from_device_desc')}</p>
-            </div>
-          </button>
           {/* DEC-106 (P2P-13): statements received from paired owner devices */}
           <MirroredStatementsSection />
+
+          {/* D06 · DEC-347: device-to-device transfer is a SEPARATE concern from
+              connecting a friend (which is "Meu QR" top-right + add-by-QR above).
+              Relabelled and fenced off as "Backup de aparelho" so the old QR
+              asymmetry no longer reads as a second way to add people. */}
+          <div className="pt-1">
+            <p className="text-[11px] font-semibold text-on-surface-faint uppercase tracking-wide px-1 mb-1.5">
+              {t('shared.device_backup_label')}
+            </p>
+            <button
+              onClick={() => navigate('/sync')}
+              className="bg-surface-container rounded-xl p-4 flex items-center gap-3 btn-press text-left w-full"
+            >
+              <Icon name="devices" size={22} className="text-on-surface-dim shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-on-surface">{t('shared.device_backup_title')}</p>
+                <p className="text-xs text-on-surface-faint">{t('shared.device_backup_desc')}</p>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          </div>
         </div>
       </div>
 

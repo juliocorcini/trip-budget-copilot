@@ -23,8 +23,8 @@ export async function runMailboxSync(): Promise<void> {
   lastRunAt = now;
   try {
     await flushOutbox();
-    const { statements, backups } = await drainMailboxIntoApp();
-    if (statements > 0 || backups > 0) {
+    const { statements, backups, connects } = await drainMailboxIntoApp();
+    if (statements > 0 || backups > 0 || connects > 0) {
       window.dispatchEvent(new CustomEvent(MAILBOX_DRAINED_EVENT));
     }
     if (statements > 0) {
@@ -32,6 +32,10 @@ export async function runMailboxSync(): Promise<void> {
     }
     if (backups > 0) {
       showToast(i18n.t('mailbox.received_backups', { count: backups }), 'info');
+    }
+    // DEC-344 (G6): a peer connected back — surface it so the new connection is felt.
+    if (connects > 0) {
+      showToast(i18n.t('mailbox.received_connections', { count: connects }), 'info');
     }
   } catch {
     // Offline or worker down — the queue persists for the next attempt.

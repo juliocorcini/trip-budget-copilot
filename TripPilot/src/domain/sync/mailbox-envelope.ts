@@ -7,7 +7,7 @@ import type { MailboxEnvelope, MailboxPayloadKind } from '@/domain/types/mailbox
  * cap) and base64url it so it can be handed straight to `seal()`.
  */
 
-const VALID_KINDS: ReadonlySet<MailboxPayloadKind> = new Set(['statement', 'backup']);
+const VALID_KINDS: ReadonlySet<MailboxPayloadKind> = new Set(['statement', 'backup', 'connect']);
 
 export function buildMailboxEnvelope(input: {
   kind: MailboxPayloadKind;

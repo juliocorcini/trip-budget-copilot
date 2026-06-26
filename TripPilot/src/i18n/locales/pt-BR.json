@@ -2468,7 +2468,10 @@
     "pay_via": "Pode pagar por:",
     "add_payment_hint": "Adicione como querem te pagar (Pix, Wise, conta…) — entra no lembrete de cobrança.",
     "connections_section": "Conexões",
-    "connections_hint": "Parear aparelhos, mostrar seu QR e ver extratos recebidos."
+    "connections_hint": "Aparelhos pareados e os extratos que enviaram. Use \"Meu QR\" no topo para conectar alguém novo.",
+    "device_backup_label": "Backup de aparelho",
+    "device_backup_title": "Mover dados entre seus aparelhos",
+    "device_backup_desc": "Receba um backup ou extrato de outro aparelho seu."
   },
   "payment": {
     "title": "Formas de pagamento",
@@ -2929,6 +2932,7 @@
     "send_statement": "Enviar pela caixa postal",
     "received_statements": "{{count}} divisão recebida pela caixa postal",
     "received_backups": "{{count}} backup recebido pela caixa postal",
+    "received_connections": "{{count}} nova conexão",
     "inbox_title": "Backups recebidos",
     "inbox_from": "Backup de {{name}}",
     "unknown_sender": "outro aparelho",

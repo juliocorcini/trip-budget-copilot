@@ -2569,7 +2569,8 @@
 - **Alternatives**: embed bytes in the event JSON (rejected: bloats the encrypted board/backup).
 
 ### DEC-344 — Two-way connection handshake + live-on-open/ping transport [Council C3]
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Date**: 2026-06-25 · **Status**: **APPROVED (G6, shipped `1.2.5-rc`)** — connect handshake live; signal-DO peer-ping deferred to G7 (the "live-on-ping" half).
+- **Shipped**: a new `connect` `MailboxPayloadKind` (opaque to the Worker — sealed inside the blob) + pure `ConnectPayload`/`parseConnectPayload`; receive-side `upsertPeerLinkFromConnect` (reverse `peerLink`, `participantId: null` ⇒ ledger-neutral, preserves mappings); send-side `sendConnectHandshake` + composed `connectPeerFromIdentity`/`linkConnectFromIdentity` (best-effort — pairing never fails on a transient send), wired into every pair entry point (PairPage + the 3 SharedExpensesPage paths); drain routing folds connects + a boot toast. Drain-on-open/focus already existed. **No Worker change.** +8 tests.
 - **Decision**: pairing becomes **bidirectional** — on pair (QR/link), the device **seals a `connect`
   envelope** to the peer (carrying its identity + pubkey, authenticated by the scanned pubkey + sealed
   sender) so the peer **upserts the reverse `peerLink`** automatically; both then appear on each other's
@@ -2610,7 +2611,8 @@
   is the future one-tap shortcut).
 
 ### DEC-347 — Settle-up "Acerto de contas" IA + QR roles [Council C5]
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G6).
+- **Date**: 2026-06-25 · **Status**: **APPROVED (G6, shipped `1.2.5-rc`)**.
+- **Shipped**: `/shared` recomposed — **"Meu QR" pinned top-right** in the header, the splitting explainer moved **below People** (add-person sits higher), **Conexões open by default** (kept mounted when collapsed so the mirror stays live), and the `/sync` QR device-transfer **relabelled + fenced as "Backup de aparelho"** (own `device_backup_*` keys + `devices` icon), with the in-section duplicate "Meu QR" removed — killing the scan-asymmetry that read as a 2nd add-person path. Ships with DEC-344 so two-way actually works.
 - **Decision**: re-compose `/shared` so the **header band** carries **"sobre mim"** + a **fixed "Meu QR"
   action (top-right)** + **"Adicionar pessoa"**, with **Conexões surfaced** right below; the debt list
   stays the body. The QR **device-transfer** (`/sync`) is relabeled **"backup de aparelho"** and clearly

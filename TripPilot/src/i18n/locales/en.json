@@ -2464,7 +2464,10 @@
     "pay_via": "You can pay via:",
     "add_payment_hint": "Add how people can pay you back (Pix, Wise, bank…) — it goes into the reminder.",
     "connections_section": "Connections",
-    "connections_hint": "Pair devices, show your QR and see received statements."
+    "connections_hint": "Paired devices and the statements they sent you. Use \"My QR\" at the top to connect someone new.",
+    "device_backup_label": "Device backup",
+    "device_backup_title": "Move data between your devices",
+    "device_backup_desc": "Receive a backup or statement from another phone you own."
   },
   "payment": {
     "title": "Payment methods",
@@ -2925,6 +2928,7 @@
     "send_statement": "Send via mailbox",
     "received_statements": "{{count}} split received via mailbox",
     "received_backups": "{{count}} backup received via mailbox",
+    "received_connections": "{{count}} new connection",
     "inbox_title": "Received backups",
     "inbox_from": "Backup from {{name}}",
     "unknown_sender": "another device",

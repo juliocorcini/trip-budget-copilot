@@ -5,6 +5,7 @@ export * from './mailbox-envelope';
 export * from './protocol';
 export * from './qr-codec';
 export * from './statement-payload';
+export * from './connect-payload';
 export * from './migration-payload';
 export * from './mirrored';
 export * from './share-link';
