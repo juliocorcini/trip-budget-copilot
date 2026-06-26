@@ -994,7 +994,8 @@ export default {
       return stub.fetch(new Request(`https://mailbox.internal/${request.method === 'POST' ? 'put' : 'drain'}`, request));
     }
 
-    // DEC-342/343 (G5) — E2E-encrypted image channel on R2 (ciphertext only).
+    // DEC-348 (G2) — access-controlled plaintext image channel on R2 (real
+    // content-type; legacy octet-stream served verbatim). DEC-207 unchanged.
     if (url.pathname.startsWith('/img/')) {
       return handleImg(request, env, url);
     }
