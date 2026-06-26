@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
 import { QrScanner } from '@/components/QrScanner';
-import { decodeQrPayload } from '@/domain/sync';
+import { decodeQrPayload, extractQrEnvelope } from '@/domain/sync';
 import type { SyncPurpose, SyncPayloadKind, HelloMessage, StatementQrPayload } from '@/domain/sync';
 import { getInstallationId } from '@/utils/entity-factory';
 import { APP_VERSION } from '@/utils/app-version';
@@ -214,7 +214,9 @@ export function SyncTransferFlow({
 
   const handleScan = (text: string) => {
     if (scanLockRef.current) return;
-    const decoded = decodeQrPayload(text);
+    // DEC-351: a scanned statement QR is now a `/sync#…` URL; live signaling QRs
+    // stay raw (no `#`) and pass through unchanged.
+    const decoded = decodeQrPayload(extractQrEnvelope(text) ?? text);
     if (!decoded) return;
     scanLockRef.current = true;
 

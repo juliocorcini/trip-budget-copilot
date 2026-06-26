@@ -2644,7 +2644,7 @@
 - **Resolved sub-choice**: **onboarding owner name first**, `profileName` only as a fallback when absent (Julio's directive 2026-06-26). The original options (new `profileName` field / relabel `deviceName`) are superseded by this.
 
 ### DEC-351 — Every app QR is a URL (deep link), never raw payload [Council C4, wave 2026-06-26]
-- **Date**: 2026-06-26 · **Status**: PROPOSED (G5; council rec — directive).
+- **Date**: 2026-06-26 · **Status**: ✅ APPROVED — shipped G5 `1.3.5-rc` (2026-06-26). `buildQrUrl(kind, encoded, origin)` (identity → `/pair`, statement → `/sync`) + tolerant `extractQrEnvelope`; scanners accept URL **and** legacy raw; payload stays in the client-only `#fragment`; live WebRTC signaling QRs stay raw (carve-out).
 - **Decision**: a single **`buildQrUrl(kind, payload)`** helper renders **every** QR the app shows as a real `https://…/<route>#<payload>` (the payload lives in the **client-only `#fragment`**, never sent to the server); the matching route parses the fragment and performs the action — or, when a live in-app scan is unavoidable, lands on "abra no app e escaneie aqui." A **default phone camera** scanning any app QR opens a working link, never raw text.
 - **Rationale**: Julio: "todo QR do app tem que ser um link — quem lê com a câmera normal vê um texto inútil." Reuses the existing route + `#fragment` pattern (already used by `/g/` and shares). Council C4 (Architect/Critic): keep the payload small so it stays scannable; a pubkey-in-fragment is no more exposed than today's raw QR.
 - **Alternatives**: instruction card over a raw QR (rejected: still useless in a default camera); server shortener (rejected: round-trip + storage liability for connect data).

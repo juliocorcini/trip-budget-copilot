@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.5-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Todo QR code do app agora é um link: a câmera comum do celular abre direto o TripPilot (ou a versão web), sem mais aquele texto embaralhado.',
+        'Funciona para conectar com amigos (seu QR) e para receber um acerto de contas por QR.',
+      ],
+      en: [
+        'Every QR code in the app is now a link: your phone\'s default camera opens TripPilot directly (or the web version), with no more scrambled text.',
+        'Works for connecting with friends (your QR) and for receiving a settle-up by QR.',
+      ],
+      es: [
+        'Todo código QR de la app ahora es un enlace: la cámara normal del celular abre TripPilot directo (o la versión web), sin más texto enredado.',
+        'Funciona para conectar con amigos (tu QR) y para recibir un ajuste de cuentas por QR.',
+      ],
+    },
+  },
+  {
     version: '1.3.4-rc',
     date: '2026-06-26',
     items: {

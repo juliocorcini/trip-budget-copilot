@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { analyzeImport } from '@/domain/backup';
 import type { BackupData, ImportAnalysis } from '@/domain/backup';
 import { buildFullBackup, importBackup } from '@/domain/orchestrators';
-import { parseMigrationPayload, parseStatementPayload } from '@/domain/sync';
+import {
+  parseMigrationPayload,
+  parseStatementPayload,
+  decodeQrPayload,
+  extractQrEnvelope,
+} from '@/domain/sync';
 import type { StatementQrPayload } from '@/domain/sync';
 import { storeMirroredStatement, markResponsesSent } from '@/domain/orchestrators/sync-orchestrators';
 import { sendResponses } from '@/data/sync';
@@ -22,6 +27,7 @@ import type { SyncFlowResult } from './SyncTransferFlow';
 export function SyncReceivePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { settings, reload } = useAppData();
   const [importData, setImportData] = useState<BackupData | null>(null);
   const [importAnalysis, setImportAnalysis] = useState<ImportAnalysis | null>(null);
@@ -62,11 +68,30 @@ export function SyncReceivePage() {
   };
 
   /** Single-QR offline statement (DEC-103 level 1): store, answers queue for later. */
-  const handleStatementQr = async (qr: StatementQrPayload) => {
-    await storeMirroredStatement(qr.data);
-    await reload();
-    showToast(t('sync.statement_received', { name: qr.data.owner.name }), 'success');
-  };
+  const handleStatementQr = useCallback(
+    async (qr: StatementQrPayload) => {
+      await storeMirroredStatement(qr.data);
+      await reload();
+      showToast(t('sync.statement_received', { name: qr.data.owner.name }), 'success');
+    },
+    [reload, t],
+  );
+
+  // DEC-351 (F16): a default phone camera that scans the statement QR opens
+  // `/sync#<payload>`. Decode the fragment once on mount, store the statement, and
+  // land the user on the settle-up surface. In-app camera scans use the flow below.
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandledRef.current) return;
+    const envelope = extractQrEnvelope(location.hash);
+    if (!envelope) return;
+    const decoded = decodeQrPayload(envelope);
+    if (decoded?.kind !== 'statement') return;
+    deepLinkHandledRef.current = true;
+    // Clear the fragment so a reload/back doesn't re-import the same statement.
+    window.history.replaceState(null, '', location.pathname + location.search);
+    void handleStatementQr(decoded).then(() => navigate('/shared', { replace: true }));
+  }, [location.hash, location.pathname, location.search, handleStatementQr, navigate]);
 
   const handleImport = async () => {
     if (!importData) return;

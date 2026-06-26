@@ -64,6 +64,8 @@ import {
   fitsInSingleQr,
   buildStatementPayload,
   pairLinkFromEncoded,
+  buildQrUrl,
+  extractQrEnvelope,
 } from '@/domain/sync';
 import { getInstallationId } from '@/utils/entity-factory';
 import {
@@ -314,7 +316,7 @@ export function SharedExpensesPage() {
 
   const handlePairScan = async (text: string) => {
     if (!trip) return;
-    const decoded = decodeQrPayload(text);
+    const decoded = decodeQrPayload(extractQrEnvelope(text) ?? '');
     if (!decoded || decoded.kind !== 'identity') return;
     setShowQrAdd(false);
     // DEC-344 — pair + reverse connect handshake so we appear on each other's phones.
@@ -329,7 +331,7 @@ export function SharedExpensesPage() {
 
   const handleLinkScan = async (text: string) => {
     if (!trip || !linkTarget) return;
-    const decoded = decodeQrPayload(text);
+    const decoded = decodeQrPayload(extractQrEnvelope(text) ?? '');
     if (!decoded || decoded.kind !== 'identity') return;
     const target = linkTarget;
     setLinkTarget(null);
@@ -1574,7 +1576,9 @@ export function SharedExpensesPage() {
       {/* DEC-105: my identity QR + F19: the same identity as a shareable link */}
       <BottomSheet open={showMyQr} onClose={() => setShowMyQr(false)} title={t('sync.my_qr')}>
         <div className="flex flex-col gap-3">
-          <QrCodeDisplay value={myIdentityQr} />
+          <QrCodeDisplay
+            value={myIdentityQr ? buildQrUrl('identity', myIdentityQr, getShareOrigin()) : ''}
+          />
           <p className="text-xs text-on-surface-dim text-center">{t('sync.my_qr_hint')}</p>
 
           {/* F19: no camera? send a link instead — opens straight to the
@@ -1646,7 +1650,7 @@ export function SharedExpensesPage() {
       >
         {sendTarget && statementQrText && (
           <div className="flex flex-col gap-3">
-            <QrCodeDisplay value={statementQrText} />
+            <QrCodeDisplay value={buildQrUrl('statement', statementQrText, getShareOrigin())} />
             <p className="text-xs text-on-surface-dim text-center">{t('sync.scan_hint')}</p>
             <button
               onClick={() => {

@@ -10,13 +10,15 @@
  */
 import { encodeQrPayload, decodeQrPayload } from './qr-codec';
 import { buildIdentityQrPayload, type ActorIdentity, type IdentityQrPayload } from './identity';
+import { buildQrUrl, QR_URL_ROUTES } from './qr-url';
 
-export const PAIR_PATH = '/pair';
+export const PAIR_PATH = QR_URL_ROUTES.identity;
 
-/** Wrap an already-encoded identity envelope into a shareable pairing URL. */
+/** Wrap an already-encoded identity envelope into a shareable pairing URL.
+ * DEC-351: delegates to the single `buildQrUrl` helper so every QR URL is built
+ * in one place. */
 export function pairLinkFromEncoded(origin: string, encoded: string): string {
-  const base = origin.replace(/\/+$/, '');
-  return `${base}${PAIR_PATH}#${encodeURIComponent(encoded)}`;
+  return buildQrUrl('identity', encoded, origin);
 }
 
 /** Build the full pairing URL for a device identity (+ optional public key). */
