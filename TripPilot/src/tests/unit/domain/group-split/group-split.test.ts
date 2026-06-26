@@ -9,6 +9,8 @@ import {
   canRemoveParticipant,
   expenseShares,
   groupTotalCents,
+  groupExpenseDayKey,
+  groupExpensesByDay,
   computeGroupBalances,
   computeGroupTransfers,
   isGroupSettled,
@@ -200,6 +202,116 @@ describe('group-split — validation', () => {
       }),
     ).toBe('custom_mismatch');
     expect(validateGroupExpense(event, { ...base, description: 'Valid' })).toBeNull();
+  });
+});
+
+describe('group-split — expense date, registrant & items (DEC-336/337, additive)', () => {
+  it('carries occurredAt, createdByParticipantId and items onto a built expense', () => {
+    const { a, b } = buildAbcEvent();
+    const expense = buildGroupExpense({
+      description: 'Mercado',
+      amountCents: 1200,
+      paidByParticipantId: a,
+      splitMode: 'equal',
+      participantIds: [a, b],
+      occurredAt: '2026-06-20',
+      createdByParticipantId: b,
+      items: [
+        { id: 'i1', description: 'Pão', amountCents: 500, qty: 1 },
+        { id: 'i2', description: 'Leite', amountCents: 700, qty: 2 },
+      ],
+    });
+    expect(expense.occurredAt).toBe('2026-06-20');
+    expect(expense.createdByParticipantId).toBe(b);
+    expect(expense.items).toHaveLength(2);
+    // Additive only: the split math is untouched (data-invariance).
+    const shares = expenseShares(expense);
+    expect(shares[a]! + shares[b]!).toBe(1200);
+  });
+
+  it('omits the optional fields entirely on a legacy-style expense', () => {
+    const { a, b } = buildAbcEvent();
+    const expense = buildGroupExpense({
+      description: 'Taxi',
+      amountCents: 1000,
+      paidByParticipantId: a,
+      splitMode: 'equal',
+      participantIds: [a, b],
+    });
+    expect(expense.occurredAt).toBeUndefined();
+    expect(expense.createdByParticipantId).toBeUndefined();
+    expect(expense.items).toBeUndefined();
+  });
+
+  it('groupExpenseDayKey prefers occurredAt and falls back to createdAt', () => {
+    const dated = buildGroupExpense({
+      description: 'A',
+      amountCents: 100,
+      paidByParticipantId: 'x',
+      splitMode: 'equal',
+      participantIds: ['x'],
+      occurredAt: '2026-01-02',
+    });
+    expect(groupExpenseDayKey(dated)).toBe('2026-01-02');
+    // No occurredAt → the createdAt day (built just now).
+    const legacy = buildGroupExpense({
+      description: 'B',
+      amountCents: 100,
+      paidByParticipantId: 'x',
+      splitMode: 'equal',
+      participantIds: ['x'],
+    });
+    expect(groupExpenseDayKey(legacy)).toBe(legacy.createdAt.slice(0, 10));
+  });
+
+  it('buckets expenses by day, oldest first, preserving in-day order', () => {
+    const mk = (id: string, day: string) =>
+      ({
+        ...buildGroupExpense({
+          description: id,
+          amountCents: 100,
+          paidByParticipantId: 'x',
+          splitMode: 'equal',
+          participantIds: ['x'],
+          occurredAt: day,
+        }),
+        id,
+      });
+    const days = groupExpensesByDay([mk('a', '2026-06-21'), mk('b', '2026-06-20'), mk('c', '2026-06-21')]);
+    expect(days.map((d) => d.day)).toEqual(['2026-06-20', '2026-06-21']);
+    expect(days[1]!.expenses.map((e) => e.id)).toEqual(['a', 'c']);
+  });
+
+  it('keeps the event total identical regardless of day grouping (data-invariance)', () => {
+    const { event, a, b } = buildAbcEvent();
+    let e = addExpense(
+      event,
+      buildGroupExpense({
+        description: 'Day1',
+        amountCents: 3000,
+        paidByParticipantId: a,
+        splitMode: 'equal',
+        participantIds: [a, b],
+        occurredAt: '2026-06-20',
+      }),
+    );
+    e = addExpense(
+      e,
+      buildGroupExpense({
+        description: 'Day2',
+        amountCents: 2000,
+        paidByParticipantId: b,
+        splitMode: 'equal',
+        participantIds: [a, b],
+        occurredAt: '2026-06-22',
+      }),
+    );
+    const flatTotal = groupTotalCents(e);
+    const groupedTotal = groupExpensesByDay(e.expenses)
+      .flatMap((d) => d.expenses)
+      .reduce((s, x) => s + x.amountCents, 0);
+    expect(groupedTotal).toBe(flatTotal);
+    expect(flatTotal).toBe(5000);
   });
 });
 

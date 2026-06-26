@@ -12,6 +12,8 @@ export {
   claimParticipant,
   expenseShares,
   groupTotalCents,
+  groupExpenseDayKey,
+  groupExpensesByDay,
   computeGroupBalances,
   computeGroupTransfers,
   isGroupSettled,
@@ -24,6 +26,7 @@ export type {
   CreateGroupSplitEventInput,
   AddGroupExpenseInput,
   GroupExpenseError,
+  GroupExpenseDay,
 } from './group-split';
 export type {
   GroupSplitEvent,
@@ -31,6 +34,7 @@ export type {
   GroupParticipantKind,
   GroupPaymentStatus,
   GroupExpense,
+  GroupExpenseLineItem,
   GroupExpenseSource,
   GroupSplitMode,
   GroupSplitStatus,

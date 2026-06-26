@@ -5,6 +5,7 @@ import { summarizeReceiptTotal, dominantReceiptCategory } from '@/domain/receipt
 import { EXPENSE_CATEGORY_KEYS } from '@/domain/assistant';
 import { toCents } from '@/domain/money';
 import type { AssistantContextPack } from '@/domain/assistant';
+import type { GroupExpenseLineItem } from '@/domain/group-split';
 
 /**
  * C23 / DEC-297 (m3) — AI/receipt entry for a Tricount expense. A group split
@@ -45,6 +46,33 @@ export async function scanReceiptForGroup(file: File): Promise<GroupAiOutcome> {
         category: dominantReceiptCategory(outcome.plan.items) ?? 'other',
       },
     };
+  } catch {
+    return { ok: false, error: 'failed' };
+  }
+}
+
+export type GroupItemsOutcome =
+  | { ok: true; merchant: string; items: GroupExpenseLineItem[] }
+  | { ok: false; error: GroupAiError };
+
+/**
+ * DEC-337 — scan a receipt photo → its line items (the "selecionar itens" mode).
+ * Reuses the same `/ocr` boundary as the whole-bill scan; returns the priced
+ * lines so the editor can let the user keep only the items the group shares.
+ */
+export async function scanReceiptItemsForGroup(file: File): Promise<GroupItemsOutcome> {
+  try {
+    const image = await compressImageFile(file);
+    const dataUrl = await blobToDataUrl(image.blob);
+    const outcome = await extractReceiptViaCloud(dataUrl);
+    if (!outcome.ok) {
+      return { ok: false, error: outcome.error === 'rate_limited' ? 'rate_limited' : outcome.error };
+    }
+    const items: GroupExpenseLineItem[] = outcome.plan.items
+      .filter((it) => it.amountCents > 0)
+      .map((it) => ({ id: it.id, description: it.description, amountCents: it.amountCents, qty: it.qty }));
+    if (items.length === 0) return { ok: false, error: 'empty' };
+    return { ok: true, merchant: outcome.plan.merchant ?? '', items };
   } catch {
     return { ok: false, error: 'failed' };
   }

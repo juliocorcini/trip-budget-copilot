@@ -3,6 +3,7 @@ import { splitEqually, sumCents } from '@/domain/money';
 import type {
   GroupBalance,
   GroupExpense,
+  GroupExpenseLineItem,
   GroupExpenseSource,
   GroupParticipant,
   GroupParticipantKind,
@@ -70,11 +71,17 @@ export interface AddGroupExpenseInput {
   customAmountsCents?: Record<string, number>;
   category?: string;
   source?: GroupExpenseSource;
+  /** DEC-336 — when the expense happened (YYYY-MM-DD). */
+  occurredAt?: string;
+  /** DEC-336 — who registered it (a participant id). */
+  createdByParticipantId?: string;
+  /** DEC-337 — receipt lines this expense was built from. */
+  items?: GroupExpenseLineItem[];
 }
 
-/** Builds a new expense (pure; id + timestamp generated). */
+/** Builds a new expense (pure; id + timestamp generated). Optional date/registrant/items are additive. */
 export function buildGroupExpense(input: AddGroupExpenseInput): GroupExpense {
-  return {
+  const expense: GroupExpense = {
     id: uuidv4(),
     description: input.description.trim(),
     amountCents: input.amountCents,
@@ -86,6 +93,10 @@ export function buildGroupExpense(input: AddGroupExpenseInput): GroupExpense {
     source: input.source ?? 'manual',
     createdAt: new Date().toISOString(),
   };
+  if (input.occurredAt) expense.occurredAt = input.occurredAt;
+  if (input.createdByParticipantId) expense.createdByParticipantId = input.createdByParticipantId;
+  if (input.items && input.items.length > 0) expense.items = input.items.map((it) => ({ ...it }));
+  return expense;
 }
 
 /* ── immutable mutations ─────────────────────────────────────────────────── */
@@ -190,6 +201,40 @@ export function expenseShares(expense: GroupExpense): Record<string, number> {
 
 export function groupTotalCents(event: GroupSplitEvent): number {
   return sumCents(event.expenses.map((e) => e.amountCents));
+}
+
+/* ── day grouping (DEC-336 / A12) ────────────────────────────────────────── */
+
+/**
+ * The calendar day (`YYYY-MM-DD`) a group expense is filed under: the chosen
+ * `occurredAt`, else the day it was logged (`createdAt`). Pure + deterministic
+ * (slices the stored ISO/date string — no timezone math).
+ */
+export function groupExpenseDayKey(expense: GroupExpense): string {
+  return (expense.occurredAt ?? expense.createdAt).slice(0, 10);
+}
+
+export interface GroupExpenseDay {
+  /** `YYYY-MM-DD`. */
+  day: string;
+  expenses: GroupExpense[];
+}
+
+/**
+ * Buckets expenses by their effective calendar day (`groupExpenseDayKey`), oldest
+ * day first, preserving each expense's relative order within a day. The UI renders
+ * day headers only when there is more than one bucket (a single-day event stays a
+ * flat list). Exposure only — never touches amounts or balances (data-invariance).
+ */
+export function groupExpensesByDay(expenses: GroupExpense[]): GroupExpenseDay[] {
+  const byDay = new Map<string, GroupExpense[]>();
+  for (const expense of expenses) {
+    const day = groupExpenseDayKey(expense);
+    const bucket = byDay.get(day);
+    if (bucket) bucket.push(expense);
+    else byDay.set(day, [expense]);
+  }
+  return [...byDay.keys()].sort().map((day) => ({ day, expenses: byDay.get(day)! }));
 }
 
 /**

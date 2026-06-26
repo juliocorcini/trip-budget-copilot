@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.2.1-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Cada despesa de grupo agora tem uma data (começa em hoje) — e a lista agrupa as despesas por dia quando o grupo passa de um dia.',
+        'Ao fotografar a nota, você escolhe entre "Nota completa" (lança o total) ou "Selecionar itens" (marca só o que o grupo divide; o valor vira a soma dos itens marcados).',
+        'Abrir uma despesa mostra os itens que vieram da nota.',
+        'Nomes das pessoas e valores ganharam fontes maiores, mais fáceis de ler.',
+      ],
+      en: [
+        'Every group expense now has a date (it starts on today) — and the list groups expenses by day once a group spans more than one day.',
+        'When you photograph the receipt you choose between "Whole bill" (logs the total) or "Pick items" (keep only what the group shares; the amount becomes the sum of the kept items).',
+        'Opening an expense shows the items it came from.',
+        'People names and amounts got bigger, easier-to-read fonts.',
+      ],
+      es: [
+        'Cada gasto de grupo ahora tiene una fecha (empieza en hoy) — y la lista agrupa los gastos por día cuando el grupo abarca más de un día.',
+        'Al fotografiar el recibo eliges entre "Recibo completo" (registra el total) o "Elegir ítems" (conserva solo lo que el grupo divide; el importe pasa a ser la suma de los ítems elegidos).',
+        'Al abrir un gasto se ven los ítems de los que proviene.',
+        'Los nombres de las personas y los importes tienen fuentes más grandes y legibles.',
+      ],
+    },
+  },
+  {
     version: '1.2.0-rc',
     date: '2026-06-25',
     items: {

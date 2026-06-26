@@ -52,6 +52,30 @@ describe('group share-payload (C23/DEC-297 public link)', () => {
     expect(buildGroupSharePayload(event, -5).revision).toBe(0);
   });
 
+  it('preserves the additive expense fields (occurredAt/registrant/items) over the link', () => {
+    const { event, a, b } = buildAbcEvent();
+    const withMeta = addExpense(
+      event,
+      buildGroupExpense({
+        description: 'Mercado',
+        amountCents: 1200,
+        paidByParticipantId: a,
+        splitMode: 'equal',
+        participantIds: [a, b],
+        occurredAt: '2026-06-20',
+        createdByParticipantId: b,
+        items: [{ id: 'i1', description: 'Pão', amountCents: 1200, qty: 1 }],
+      }),
+    );
+    const json = JSON.parse(JSON.stringify(buildGroupSharePayload(withMeta, 1)));
+    const parsed = parseGroupSharePayload(json);
+    expect(parsed).not.toBeNull();
+    const round = parsed!.event.expenses.find((e) => e.description === 'Mercado')!;
+    expect(round.occurredAt).toBe('2026-06-20');
+    expect(round.createdByParticipantId).toBe(b);
+    expect(round.items).toEqual([{ id: 'i1', description: 'Pão', amountCents: 1200, qty: 1 }]);
+  });
+
   it('rejects a corrupt/foreign payload with null (broken link, never throws)', () => {
     expect(parseGroupSharePayload({ v: 2, event: {} })).toBeNull();
     expect(parseGroupSharePayload('garbage')).toBeNull();

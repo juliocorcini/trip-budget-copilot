@@ -10,7 +10,7 @@ vi.mock('@/utils/image/compress', () => ({
   blobToDataUrl: vi.fn(async () => 'data:image/jpeg;base64,xx'),
 }));
 
-import { scanReceiptForGroup, parseTextForGroup } from '@/features/group-split/group-ai';
+import { scanReceiptForGroup, scanReceiptItemsForGroup, parseTextForGroup } from '@/features/group-split/group-ai';
 
 function plan(overrides: Record<string, unknown> = {}) {
   return {
@@ -51,6 +51,38 @@ describe('scanReceiptForGroup (m3 — receipt → one group expense)', () => {
   it('returns empty when the receipt has no readable total/items', async () => {
     extractReceiptViaCloud.mockResolvedValue({ ok: true, plan: plan({ readTotalCents: null, items: [] }) });
     expect(await scanReceiptForGroup(file)).toEqual({ ok: false, error: 'empty' });
+  });
+});
+
+describe('scanReceiptItemsForGroup (DEC-337 — receipt → selectable line items)', () => {
+  it('returns the priced lines (merchant + items) for item selection', async () => {
+    extractReceiptViaCloud.mockResolvedValue({ ok: true, plan: plan() });
+    const out = await scanReceiptItemsForGroup(file);
+    expect(out).toEqual({
+      ok: true,
+      merchant: 'Mercado Dia',
+      items: [
+        { id: '1', description: 'carne', amountCents: 6000, qty: 1 },
+        { id: '2', description: 'cerveja', amountCents: 3000, qty: 1 },
+      ],
+    });
+  });
+
+  it('drops zero/negative lines and reports empty when none priced', async () => {
+    extractReceiptViaCloud.mockResolvedValue({
+      ok: true,
+      plan: plan({
+        items: [
+          { id: '1', description: 'noise', qty: 1, amountCents: 0, category: 'market', include: true, participantIds: [], paidByParticipantId: null },
+        ],
+      }),
+    });
+    expect(await scanReceiptItemsForGroup(file)).toEqual({ ok: false, error: 'empty' });
+  });
+
+  it('maps a rate-limited cloud outcome to a typed error', async () => {
+    extractReceiptViaCloud.mockResolvedValue({ ok: false, error: 'rate_limited' });
+    expect(await scanReceiptItemsForGroup(file)).toEqual({ ok: false, error: 'rate_limited' });
   });
 });
 

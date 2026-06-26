@@ -2474,7 +2474,7 @@
 - **Alternatives**: keep balances-first (rejected: contradicts the primary intent of adding expenses).
 
 ### DEC-336 — Group expense gains date + registrant
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G2).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G2, shipped 1.2.1-rc) — `occurredAt` + `createdByParticipantId` additive on `GroupExpense`; editor date field (defaults today), detail "registrado por {name}" when registrant ≠ payer, and day-grouping via pure `groupExpensesByDay` (exposure only; data-invariance held).
 - **Decision**: `GroupExpense` gets optional, **additive, non-indexed** `occurredAt` (when the expense
   happened) and `createdByParticipantId` (who registered it, distinct from the payer). Rows show the
   date + "registrado por {name}"; lists **group by day** when dates differ.
@@ -2483,7 +2483,7 @@
 - **Alternatives**: a full date-indexed model (rejected: no query need; keep it additive).
 
 ### DEC-337 — Group expense capture: "nota completa | selecionar itens"
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G2).
+- **Date**: 2026-06-25 · **Status**: APPROVED (G2, shipped 1.2.1-rc) — two scan buttons (whole-bill vs item-selection via new `scanReceiptItemsForGroup`); item-mode amount = Σ included lines; items persisted on the expense + shown on open; name/value fonts bumped to `text-base`.
 - **Decision**: the group expense editor offers **whole-bill (default)** OR **item-selection**, reusing
   the `SplitPage` scan→items→pick primitives; payer + "dividir entre" with a live preview; **larger name
   fonts**; an expense detail view exposes its items/value.

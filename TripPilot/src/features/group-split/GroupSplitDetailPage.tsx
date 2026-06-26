@@ -11,6 +11,7 @@ import {
   computeGroupBalances,
   computeGroupTransfers,
   createGroupParticipant,
+  groupExpensesByDay,
   groupTotalCents,
   reduceGroupClaims,
   removeExpense,
@@ -20,6 +21,7 @@ import {
   updateExpense,
 } from '@/domain/group-split';
 import { formatMoney } from '@/domain/money';
+import { getActiveIntlLocale } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
@@ -39,6 +41,13 @@ import {
 import type { GroupExpense, GroupSplitEvent, GroupPaymentStatus } from '@/domain/group-split';
 
 const POLL_FLOOR_MS = 6000;
+
+/** DEC-336 — a short, locale-aware header for a `YYYY-MM-DD` expense day. */
+function formatDayLabel(dayKey: string): string {
+  const d = new Date(`${dayKey}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return dayKey;
+  return d.toLocaleDateString(getActiveIntlLocale(), { weekday: 'short', day: '2-digit', month: 'short' });
+}
 
 /**
  * C23 / DEC-297 — one Tricount event: people, expenses (manual now; AI/receipt in
@@ -137,6 +146,8 @@ export function GroupSplitDetailPage() {
 
   const balances = useMemo(() => (event ? computeGroupBalances(event) : []), [event]);
   const transfers = useMemo(() => (event ? computeGroupTransfers(event) : []), [event]);
+  // DEC-336 — expenses bucketed by the day they happened (newest fields fall back to createdAt).
+  const expenseDays = useMemo(() => (event ? groupExpensesByDay(event.expenses) : []), [event]);
   const total = event ? groupTotalCents(event) : 0;
   const netByPid = useMemo(() => new Map(balances.map((b) => [b.participantId, b.netCents])), [balances]);
   const link = creds ? buildGroupSplitLink(creds) : null;
@@ -340,27 +351,51 @@ export function GroupSplitDetailPage() {
             <p className="text-sm text-on-surface-dim">{t('group_split.no_expenses')}</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {event.expenses.map((exp) => (
-              <button
-                key={exp.id}
-                onClick={() => setEditing(exp)}
-                className="bg-surface-container rounded-xl p-3.5 flex items-center gap-3 text-left btn-press"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-on-surface truncate">{exp.description}</p>
-                  <p className="text-[11px] text-on-surface-faint">
-                    {t('group_split.paid_by', { name: nameById.get(exp.paidByParticipantId) ?? '?' })}
-                    {' · '}
-                    {exp.splitMode === 'equal'
-                      ? t('group_split.split_equal_n', { count: exp.participantIds.length })
-                      : t('group_split.split_custom_n', { count: exp.participantIds.length })}
+          <div className="flex flex-col gap-3">
+            {expenseDays.map((day) => (
+              <div key={day.day} className="flex flex-col gap-2">
+                {/* DEC-336 — day headers only when the group spans more than one day. */}
+                {expenseDays.length > 1 && (
+                  <p className="text-[11px] font-semibold text-on-surface-faint px-1 capitalize">
+                    {formatDayLabel(day.day)}
                   </p>
-                </div>
-                <span className="text-sm font-bold tabular text-on-surface shrink-0">
-                  {formatMoney(exp.amountCents, event.currency)}
-                </span>
-              </button>
+                )}
+                {day.expenses.map((exp) => {
+                  const registrant = exp.createdByParticipantId;
+                  const showRegistrant = !!registrant && registrant !== exp.paidByParticipantId;
+                  return (
+                    <button
+                      key={exp.id}
+                      onClick={() => setEditing(exp)}
+                      className="bg-surface-container rounded-xl p-3.5 flex items-center gap-3 text-left btn-press"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-semibold text-on-surface truncate flex items-center gap-1.5">
+                          <span className="truncate">{exp.description}</span>
+                          {!!exp.items && exp.items.length > 0 && (
+                            <Icon name="checklist" size={15} className="text-on-surface-faint shrink-0" />
+                          )}
+                        </p>
+                        <p className="text-[11px] text-on-surface-faint">
+                          {t('group_split.paid_by', { name: nameById.get(exp.paidByParticipantId) ?? '?' })}
+                          {' · '}
+                          {exp.splitMode === 'equal'
+                            ? t('group_split.split_equal_n', { count: exp.participantIds.length })
+                            : t('group_split.split_custom_n', { count: exp.participantIds.length })}
+                        </p>
+                        {showRegistrant && (
+                          <p className="text-[11px] text-on-surface-faint">
+                            {t('group_split.registered_by', { name: nameById.get(registrant) ?? '?' })}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-sm font-bold tabular text-on-surface shrink-0">
+                        {formatMoney(exp.amountCents, event.currency)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             ))}
           </div>
         )}
@@ -379,7 +414,7 @@ export function GroupSplitDetailPage() {
                   <span className="text-xs font-bold text-on-surface-dim">{p.name.slice(0, 1).toUpperCase()}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm text-on-surface truncate block">{p.name}</span>
+                  <span className="text-base text-on-surface truncate block">{p.name}</span>
                   {p.claimedByActorId !== null && !isOwner && (
                     <span className="text-[10px] text-success">{t('group_split.joined_via_link')}</span>
                   )}

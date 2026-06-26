@@ -28,6 +28,13 @@ const groupParticipantSchema = z.object({
   paymentStatus: paymentStatusSchema,
 });
 
+const groupExpenseLineItemSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  amountCents: z.number().int(),
+  qty: z.number(),
+});
+
 const groupExpenseSchema = z.object({
   id: z.string(),
   description: z.string(),
@@ -39,6 +46,10 @@ const groupExpenseSchema = z.object({
   category: z.string(),
   source: expenseSourceSchema,
   createdAt: z.string(),
+  // DEC-336/337 additive fields — kept so the `/g/` board can surface date/registrant/items.
+  occurredAt: z.string().optional(),
+  createdByParticipantId: z.string().optional(),
+  items: z.array(groupExpenseLineItemSchema).optional(),
 });
 
 const groupSplitEventSchema = z.object({

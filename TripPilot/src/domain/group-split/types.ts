@@ -42,6 +42,21 @@ export interface GroupParticipant {
 export type GroupExpenseSource = 'manual' | 'ai' | 'receipt';
 export type GroupSplitMode = 'equal' | 'custom';
 
+/**
+ * DEC-337 — one line read off a receipt and kept on a group expense. Slim by
+ * design: a group expense splits as a WHOLE among its participants, so items are
+ * descriptive metadata (they explain the total + power the detail view, A10),
+ * never per-person claims. Additive.
+ */
+export interface GroupExpenseLineItem {
+  id: string;
+  description: string;
+  /** Line total in integer cents. */
+  amountCents: number;
+  /** Printed quantity (defaults to 1). */
+  qty: number;
+}
+
 export interface GroupExpense {
   id: string;
   description: string;
@@ -58,6 +73,20 @@ export interface GroupExpense {
   /** How the expense got in (manual form, AI parse, or receipt photo). */
   source: GroupExpenseSource;
   createdAt: string;
+  /**
+   * DEC-336 — the calendar day the expense happened (`YYYY-MM-DD`), distinct from
+   * `createdAt` (when it was logged). Additive, non-indexed. Absent on legacy rows
+   * (they fall back to `createdAt` for display/grouping).
+   */
+  occurredAt?: string;
+  /**
+   * DEC-336 — the participant who REGISTERED the expense, distinct from the payer.
+   * Additive. Absent on legacy rows; owner-authored on the owner device, guest-
+   * authored from the public board (G4).
+   */
+  createdByParticipantId?: string;
+  /** DEC-337 — receipt lines this expense was built from (item-selection capture). Additive. */
+  items?: GroupExpenseLineItem[];
 }
 
 export type GroupSplitStatus = 'open' | 'settled';

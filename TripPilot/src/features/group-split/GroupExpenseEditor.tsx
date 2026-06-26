@@ -6,14 +6,18 @@ import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { showToast } from '@/components/Toast';
 import { formatMoney, toCents, fromCents } from '@/domain/money';
 import { buildGroupExpense, expenseShares, validateGroupExpense } from '@/domain/group-split';
-import { scanReceiptForGroup, parseTextForGroup, type GroupAiError } from './group-ai';
+import { scanReceiptForGroup, scanReceiptItemsForGroup, parseTextForGroup, type GroupAiError } from './group-ai';
 import type {
   AddGroupExpenseInput,
   GroupExpense,
+  GroupExpenseLineItem,
   GroupExpenseSource,
   GroupSplitEvent,
   GroupSplitMode,
 } from '@/domain/group-split';
+
+/** A scanned receipt line plus whether the group keeps it (DEC-337). */
+type EditorItem = GroupExpenseLineItem & { include: boolean };
 
 interface Props {
   event: GroupSplitEvent;
@@ -47,11 +51,25 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
   const [aiBusy, setAiBusy] = useState(false);
   const [showAiText, setShowAiText] = useState(false);
   const [aiText, setAiText] = useState('');
-  // E13 · DEC-333: the receipt prefill uses the shared camera-or-gallery chooser
-  // (it was a camera-only input), so this entry offers the gallery too — same
-  // pattern as every other capture surface.
-  const receiptChooser = useImageSourceChooser((file) => {
-    void handleScanReceipt(file);
+  // DEC-336 — the day the expense happened: the stored day, else (legacy edit) the
+  // day it was logged, else today for a brand-new expense. Editing a legacy row
+  // therefore keeps its effective day instead of silently jumping to today.
+  const [occurredAt, setOccurredAt] = useState(
+    expense?.occurredAt ?? (expense ? expense.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+  );
+  // DEC-337 — "selecionar itens": the receipt lines the group keeps. The included
+  // lines' sum becomes the amount. Empty list = whole-bill ("nota completa").
+  const [items, setItems] = useState<EditorItem[]>(() =>
+    expense?.items ? expense.items.map((it) => ({ ...it, include: true })) : [],
+  );
+  const [itemsActive, setItemsActive] = useState(() => !!expense?.items && expense.items.length > 0);
+  // E13 · DEC-333: the receipt prefill uses the shared camera-or-gallery chooser.
+  // DEC-337: two scan modes — whole-bill prefill, or item-selection.
+  const fullChooser = useImageSourceChooser((file) => {
+    void handleScanFull(file);
+  });
+  const itemsChooser = useImageSourceChooser((file) => {
+    void handleScanItems(file);
   });
   const [shareIds, setShareIds] = useState<Set<string>>(
     () => new Set(expense ? expense.participantIds : event.participants.map((p) => p.id)),
@@ -64,8 +82,13 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
     return out;
   });
 
-  const amountCents = toCents(parseFloat(amount) || 0);
+  const includedItems = items.filter((it) => it.include);
+  const itemsTotalCents = includedItems.reduce((s, it) => s + it.amountCents, 0);
+  // In item-selection mode the amount is the sum of the kept lines; otherwise the typed amount.
+  const amountCents = itemsActive ? itemsTotalCents : toCents(parseFloat(amount) || 0);
   const orderedShareIds = event.participants.map((p) => p.id).filter((id) => shareIds.has(id));
+  // DEC-336 — the registrant: preserved on edit; the owner on a new owner-authored expense.
+  const registrantId = expense?.createdByParticipantId ?? event.ownerParticipantId;
 
   const buildInput = (): AddGroupExpenseInput => ({
     description,
@@ -75,6 +98,11 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
     participantIds: orderedShareIds,
     category,
     source,
+    occurredAt,
+    createdByParticipantId: registrantId,
+    items: itemsActive
+      ? includedItems.map((it) => ({ id: it.id, description: it.description, amountCents: it.amountCents, qty: it.qty }))
+      : undefined,
     customAmountsCents:
       mode === 'custom'
         ? Object.fromEntries(orderedShareIds.map((id) => [id, toCents(parseFloat(customById[id] ?? '') || 0)]))
@@ -97,7 +125,7 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
     setSource(src);
   };
 
-  const handleScanReceipt = async (file: File) => {
+  const handleScanFull = async (file: File) => {
     setAiBusy(true);
     const outcome = await scanReceiptForGroup(file);
     setAiBusy(false);
@@ -105,8 +133,35 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
       showToast(t(aiErrorKey(outcome.error)), 'danger');
       return;
     }
+    // Whole-bill mode clears any item selection so the typed total wins.
+    setItemsActive(false);
+    setItems([]);
     applyPrefill(outcome.prefill, 'receipt');
     showToast(t('group_split.ai_filled'), 'success');
+  };
+
+  const handleScanItems = async (file: File) => {
+    setAiBusy(true);
+    const outcome = await scanReceiptItemsForGroup(file);
+    setAiBusy(false);
+    if (!outcome.ok) {
+      showToast(t(aiErrorKey(outcome.error)), 'danger');
+      return;
+    }
+    setItems(outcome.items.map((it) => ({ ...it, include: true })));
+    setItemsActive(true);
+    setSource('receipt');
+    if (outcome.merchant && description.trim().length === 0) setDescription(outcome.merchant);
+    showToast(t('group_split.ai_filled'), 'success');
+  };
+
+  const toggleItem = (id: string) => {
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, include: !it.include } : it)));
+  };
+
+  const clearItems = () => {
+    setItemsActive(false);
+    setItems([]);
   };
 
   const handleAskAi = async () => {
@@ -130,7 +185,7 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
     const probe = buildGroupExpense(buildInput());
     return expenseShares(probe);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, mode, JSON.stringify(orderedShareIds), JSON.stringify(customById), paidById]);
+  }, [amount, mode, JSON.stringify(orderedShareIds), JSON.stringify(customById), paidById, itemsActive, itemsTotalCents]);
 
   const customSumCents = orderedShareIds.reduce((s, id) => s + toCents(parseFloat(customById[id] ?? '') || 0), 0);
 
@@ -160,36 +215,47 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
 
   return (
     <BottomSheet open onClose={onClose} title={isEdit ? t('group_split.edit_expense') : t('group_split.add_expense')}>
-      {receiptChooser.element}
+      {fullChooser.element}
+      {itemsChooser.element}
       <div className="flex flex-col gap-3 pt-2">
-        {/* m3 — AI/receipt prefill for a NEW expense (one bill = one group expense).
+        {/* m3 + DEC-337 — AI/receipt prefill for a NEW expense. Two scan modes:
+            whole-bill ("nota completa") or item-selection ("selecionar itens").
             Each is opt-in; the user still confirms payer + split. */}
         {!isEdit && (photoEnabled || aiTextEnabled) && (
           <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              {photoEnabled && (
+            {photoEnabled && (
+              <div className="flex gap-2">
                 <button
                   type="button"
                   disabled={aiBusy}
-                  onClick={() => receiptChooser.open()}
+                  onClick={() => fullChooser.open()}
                   className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <Icon name="photo_camera" size={18} className="text-primary" />
-                  {t('group_split.ai_scan')}
+                  <Icon name="receipt_long" size={18} className="text-primary" />
+                  {t('group_split.scan_full')}
                 </button>
-              )}
-              {aiTextEnabled && (
                 <button
                   type="button"
                   disabled={aiBusy}
-                  onClick={() => setShowAiText((v) => !v)}
+                  onClick={() => itemsChooser.open()}
                   className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <Icon name="auto_awesome" size={18} className="text-primary" />
-                  {t('group_split.ai_ask')}
+                  <Icon name="checklist" size={18} className="text-primary" />
+                  {t('group_split.scan_items')}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
+            {aiTextEnabled && (
+              <button
+                type="button"
+                disabled={aiBusy}
+                onClick={() => setShowAiText((v) => !v)}
+                className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                <Icon name="auto_awesome" size={18} className="text-primary" />
+                {t('group_split.ai_ask')}
+              </button>
+            )}
             {showAiText && (
               <div className="flex items-center gap-2">
                 <input
@@ -226,13 +292,72 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
           />
         </Labeled>
 
-        <Labeled label={t('group_split.expense_amount')}>
+        {/* DEC-337 — item-selection view (when a receipt's lines are kept), else the
+            manual amount field. In item mode the amount is the sum of kept lines. */}
+        {itemsActive ? (
+          <div className="bg-surface-high rounded-xl p-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-on-surface-faint">{t('group_split.items_title')}</span>
+              <button type="button" onClick={clearItems} className="text-[11px] text-primary font-semibold btn-press">
+                {t('group_split.use_full_bill')}
+              </button>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {items.map((it) => (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => toggleItem(it.id)}
+                  className="flex items-center gap-2 btn-press text-left"
+                >
+                  <span
+                    className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                      it.include ? 'bg-primary' : 'bg-surface-container'
+                    }`}
+                  >
+                    {it.include && <Icon name="check" size={14} className="text-on-surface" />}
+                  </span>
+                  <span
+                    className={`text-sm flex-1 truncate ${
+                      it.include ? 'text-on-surface' : 'text-on-surface-faint line-through'
+                    }`}
+                  >
+                    {it.qty > 1 ? `${it.qty}× ` : ''}
+                    {it.description || t('group_split.unnamed_item')}
+                  </span>
+                  <span
+                    className={`text-xs tabular shrink-0 ${it.include ? 'text-on-surface-dim' : 'text-on-surface-faint'}`}
+                  >
+                    {formatMoney(it.amountCents, event.currency)}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between pt-1.5 border-t border-on-surface/10">
+              <span className="text-xs font-semibold text-on-surface">{t('group_split.items_total')}</span>
+              <span className="text-sm font-bold tabular text-on-surface">
+                {formatMoney(itemsTotalCents, event.currency)}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <Labeled label={t('group_split.expense_amount')}>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="bg-transparent text-sm text-on-surface outline-none w-full"
+            />
+          </Labeled>
+        )}
+
+        <Labeled label={t('group_split.expense_date')}>
           <input
-            type="number"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
+            type="date"
+            value={occurredAt}
+            onChange={(e) => setOccurredAt(e.target.value)}
             className="bg-transparent text-sm text-on-surface outline-none w-full"
           />
         </Labeled>
@@ -245,7 +370,7 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
                 key={p.id}
                 type="button"
                 onClick={() => setPaidById(p.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium btn-press ${
                   paidById === p.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
                 }`}
               >
@@ -281,7 +406,7 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
                     >
                       {checked && <Icon name="check" size={14} className="text-on-surface" />}
                     </span>
-                    <span className="text-sm text-on-surface truncate">{p.name}</span>
+                    <span className="text-base text-on-surface truncate">{p.name}</span>
                   </button>
                   {checked && mode === 'custom' ? (
                     <input
