@@ -1,0 +1,53 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=393, initial-scale=1"/><title>Variante D — Linha do tempo</title>
+<link rel="stylesheet" href="mockup.css"/>
+<style>
+  .balstrip{display:flex;align-items:center;gap:14px;margin:14px 16px 0;padding:13px 16px;
+    background:var(--card2);border:1px solid var(--line);border-radius:14px}
+  .balstrip .b1{font-size:15px}.balstrip .b1 b{font-weight:800}.balstrip .g{color:var(--green)}
+  .balstrip .pay{margin-left:auto;font-size:13px;color:var(--mut)}
+  .tl{margin:8px 16px 0;position:relative;padding-left:26px}
+  .tl:before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:2px;background:var(--line)}
+  .ev{position:relative;padding:12px 0}
+  .ev .dot{position:absolute;left:-22px;top:16px;width:12px;height:12px;border-radius:50%;
+    background:var(--bg);border:2px solid var(--faint)}
+  .ev.act .dot{border-color:var(--accent);background:var(--accent)}
+  .ev .when{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px}
+  .ev .body{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 13px;margin-top:6px}
+  .ev .tt{font-size:14.5px;font-weight:600}.ev .tt .amt{font-weight:800}
+  .ev .ts{font-size:12px;color:var(--mut);margin-top:2px}
+  .ev .acts{display:flex;gap:7px;margin-top:10px}
+  .ev .done{font-size:12px;color:var(--green);margin-top:6px}
+</style></head><body>
+<div class="caption"><b>VARIANTE D — Linha do tempo.</b> Feed cronológico de movimentos com ações inline. Forte pra auditar "o que aconteceu".</div>
+<div class="hdr"><div class="bk">&#8592;</div><h1>Acerto de contas</h1><div class="qr"><b>&#9783;</b> Meu QR</div></div>
+
+<div class="balstrip"><div class="b1">No saldo, <b class="g">te devem € 11,00</b></div><div class="pay">a pagar € 0,00</div></div>
+<div class="seclabel">Atividade</div>
+
+<div class="tl">
+  <div class="ev act"><div class="dot"></div><div class="when">Agora</div>
+    <div class="body"><div class="tt">Ingrid te cobrou <span class="amt">€ 50,00</span></div><div class="ts">pelo app · aguardando você</div>
+      <div class="acts"><button class="btn pri">Aceitar</button><button class="btn gho">Recusar</button></div></div></div>
+  <div class="ev act"><div class="dot"></div><div class="when">Hoje</div>
+    <div class="body"><div class="tt">Ana deve <span class="amt">€ 11,00</span> a você</div><div class="ts">Compras no Mercadona · registrado por Ana</div>
+      <div class="acts"><button class="btn pri">Liquidar</button><button class="btn gho">Lembrar</button></div></div></div>
+  <div class="ev act"><div class="dot"></div><div class="when">Ontem</div>
+    <div class="body"><div class="tt">Sua parte: Show flamenco <span class="amt">€ 9,00</span></div><div class="ts">aguardando seu aceite</div>
+      <div class="acts"><button class="btn pri">Aceitar</button></div></div></div>
+  <div class="ev"><div class="dot"></div><div class="when">Ontem</div>
+    <div class="body"><div class="tt">Ingrid pagou Débora <span class="amt">€ 75,00</span></div><div class="done">&#10003; você confirmou o recebimento</div></div></div>
+  <div class="ev"><div class="dot"></div><div class="when">Seg</div>
+    <div class="body"><div class="tt">Beto conectou com você</div><div class="ts">agora dá pra cobrar pelo app</div></div></div>
+</div>
+
+<div class="seclabel" style="margin-top:18px">Pessoas &amp; mais</div>
+<div class="zone" style="margin-top:0"><div class="card" style="padding:0">
+  <div class="mrow"><div class="mi">&#128100;</div><div class="ml">Pessoas</div><div class="ms">4 &#8250;</div></div>
+  <div class="mrow"><div class="mi">&#129534;</div><div class="ml">Gastos compartilhados</div><div class="ms">&#8250;</div></div>
+  <div class="mrow"><div class="mi">&#128101;</div><div class="ml">Divisão em grupo</div><div class="ms">&#8250;</div></div>
+</div></div>
+<div class="moved">&#128241; <b>Backup entre aparelhos</b> &#8594; Ajustes › Seus aparelhos.</div>
+
+<div class="tabs"><div class="tab"><span class="ti">&#9638;</span>Início</div><div class="tab"><span class="ti">&#129534;</span>Gastos</div><div class="fab">+</div><div class="tab"><span class="ti">&#129517;</span>Viagem</div><div class="tab"><span class="ti">&#10024;</span>Copiloto</div></div>
+</body></html>

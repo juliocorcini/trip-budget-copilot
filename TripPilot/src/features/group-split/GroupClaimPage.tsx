@@ -398,9 +398,9 @@ function ClaimBoard({
                   </div>
                 ) : myStatus === 'marked' ? (
                   <>
-                    <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-surface-high text-on-surface font-semibold">
-                      <Icon name="schedule" size={18} className="text-on-surface-dim" />
-                      {t('group_claim.awaiting')}
+                    <div className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-surface-high text-on-surface font-semibold text-sm text-center">
+                      <Icon name="schedule" size={18} className="text-on-surface-dim shrink-0" />
+                      <span className="break-words">{t('group_claim.awaiting')}</span>
                     </div>
                     <button onClick={onTogglePaid} className="text-[11px] text-on-surface-faint btn-press py-1">
                       {t('group_claim.undo_paid')}
@@ -429,20 +429,27 @@ function ClaimBoard({
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {folded.map((exp) => (
-              <ClaimExpenseRow
-                key={exp.id}
-                description={exp.description}
-                paidByName={nameById.get(exp.paidByParticipantId) ?? '?'}
-                amountCents={exp.amountCents}
-                currency={event.currency}
-                items={exp.items}
-                imageRef={exp.imageRef}
-                onOpenImage={setLightboxUrl}
-                mine={exp.authoredByActorId === actorId}
-                onRemove={exp.authoredByActorId === actorId ? () => onRemoveExpense(exp.id) : undefined}
-              />
-            ))}
+            {folded.map((exp) => {
+              // F04 — show the registrant on the board too, when it differs from
+              // the payer (e.g. a guest-authored expense someone else paid).
+              const reg = exp.createdByParticipantId;
+              const registeredByName = reg && reg !== exp.paidByParticipantId ? nameById.get(reg) : undefined;
+              return (
+                <ClaimExpenseRow
+                  key={exp.id}
+                  description={exp.description}
+                  paidByName={nameById.get(exp.paidByParticipantId) ?? '?'}
+                  registeredByName={registeredByName}
+                  amountCents={exp.amountCents}
+                  currency={event.currency}
+                  items={exp.items}
+                  imageRef={exp.imageRef}
+                  onOpenImage={setLightboxUrl}
+                  mine={exp.authoredByActorId === actorId}
+                  onRemove={exp.authoredByActorId === actorId ? () => onRemoveExpense(exp.id) : undefined}
+                />
+              );
+            })}
             {pending.map((exp) => (
               <ClaimExpenseRow
                 key={exp.id}
@@ -488,6 +495,7 @@ function ClaimBoard({
 function ClaimExpenseRow({
   description,
   paidByName,
+  registeredByName,
   amountCents,
   currency,
   items,
@@ -499,6 +507,7 @@ function ClaimExpenseRow({
 }: {
   description: string;
   paidByName: string;
+  registeredByName?: string;
   amountCents: number;
   currency: string;
   items?: { id: string; description: string; amountCents: number; qty: number }[];
@@ -539,6 +548,11 @@ function ClaimExpenseRow({
               </button>
             )}
           </p>
+          {registeredByName && (
+            <p className="text-[11px] text-on-surface-faint truncate">
+              {t('group_split.registered_by', { name: registeredByName })}
+            </p>
+          )}
           {pending && <p className="text-[10px] text-warning mt-0.5">{t('group_claim.pending')}</p>}
         </div>
         <span className="text-sm font-bold tabular text-on-surface shrink-0">

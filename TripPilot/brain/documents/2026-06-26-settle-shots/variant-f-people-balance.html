@@ -1,0 +1,51 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=393, initial-scale=1"/><title>Variante F — Pessoas + saldo</title>
+<link rel="stylesheet" href="mockup.css"/>
+<style>
+  .pacc{margin:9px 16px 0}
+  .pacc .head{display:flex;align-items:center;gap:12px;padding:14px;background:var(--card);
+    border:1px solid var(--line);border-radius:14px}
+  .pacc.open .head{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:none}
+  .pacc .body{background:var(--card2);border:1px solid var(--line);border-top:none;
+    border-bottom-left-radius:14px;border-bottom-right-radius:14px;padding:6px 12px 12px}
+  .pacc+.pacc{margin-top:9px}
+  .ln{display:flex;align-items:center;gap:10px;padding:11px 4px;border-top:1px solid var(--line)}
+  .ln:first-child{border-top:none}
+  .ln .li{width:30px;height:30px;border-radius:9px;background:#222b38;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .ln .lm{flex:1}.ln .lt{font-size:13.5px}.ln .ls{font-size:11.5px;color:var(--mut);margin-top:1px}
+  .ln .la{display:flex;gap:6px}
+  .caret{color:var(--faint);font-size:16px}
+</style></head><body>
+<div class="caption"><b>VARIANTE F — Pessoas + saldo claro.</b> Corrige a E: hero "a receber / a pagar" no topo, depois a lista de pessoas (cada uma expande).</div>
+<div class="hdr"><div class="bk">&#8592;</div><h1>Acerto de contas</h1><div class="qr"><b>&#9783;</b> Meu QR</div></div>
+
+<div class="zone"><div class="card"><div class="hero">
+  <div class="col"><div class="k">A receber</div><div class="vg">€ 11,00</div></div>
+  <div class="col"><div class="k">A pagar</div><div class="vr">€ 0,00</div></div>
+</div><div class="netline" style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">No saldo, <b>te devem € 11,00</b> · <span style="color:var(--amber)">1 cobrança nova</span></div></div></div>
+
+<div class="seclabel">Pessoas</div>
+<div class="pacc"><div class="head"><div class="av">I</div><div class="pn"><div class="nm">Ingrid <span class="badge b-con">conectado</span></div></div><div class="st r">te cobrou € 50,00</div><div class="caret">&#9662;</div></div></div>
+<div class="pacc open">
+  <div class="head"><div class="av">A</div><div class="pn"><div class="nm">Ana <span class="badge b-inv">convidado</span></div></div><div class="st r">deve € 11,00</div><div class="caret">&#9652;</div></div>
+  <div class="body">
+    <div class="ln"><div class="li">&#128176;</div><div class="lm"><div class="lt">Compras no Mercadona · € 11,00</div><div class="ls">dívida pendente · registrado por Ana</div></div><div class="la"><button class="btn pri">Liquidar</button><button class="btn gho">Lembrar</button></div></div>
+    <div class="ln"><div class="li">&#9203;</div><div class="lm"><div class="lt">Show flamenco · € 9,00</div><div class="ls">aguardando seu aceite</div></div><div class="la"><button class="btn pri">Aceitar</button></div></div>
+    <div class="ln"><div class="li">&#128228;</div><div class="lm"><div class="lt">Enviar extrato / cobrar pelo app</div></div><div class="la"><button class="btn">Abrir</button></div></div>
+  </div>
+</div>
+<div class="pacc"><div class="head"><div class="av">B</div><div class="pn"><div class="nm">Beto <span class="badge b-con">conectado</span></div></div><div class="st g">recebe € 11,00</div><div class="caret">&#9662;</div></div></div>
+<div class="pacc"><div class="head"><div class="av">M</div><div class="pn"><div class="nm">Marcos <span class="badge b-noapp">sem app</span></div></div><div class="st m">em dia</div><div class="caret">&#9662;</div></div></div>
+
+<div class="add" style="margin:11px 16px 0"><div class="ab">+ Adicionar pessoa</div><div class="ab">&#9783; Por QR</div></div>
+
+<div class="seclabel" style="margin-top:20px">Mais</div>
+<div class="zone" style="margin-top:0"><div class="card" style="padding:0">
+  <div class="mrow"><div class="mi">&#128220;</div><div class="ml">Histórico &amp; liquidações</div><div class="ms">linha do tempo &#8250;</div></div>
+  <div class="mrow"><div class="mi">&#129534;</div><div class="ml">Gastos compartilhados</div><div class="ms">&#8250;</div></div>
+  <div class="mrow"><div class="mi">&#128101;</div><div class="ml">Divisão em grupo</div><div class="ms">&#8250;</div></div>
+</div></div>
+<div class="moved">&#128241; <b>Backup entre aparelhos</b> &#8594; Ajustes › Seus aparelhos.</div>
+
+<div class="tabs"><div class="tab"><span class="ti">&#9638;</span>Início</div><div class="tab"><span class="ti">&#129534;</span>Gastos</div><div class="fab">+</div><div class="tab"><span class="ti">&#129517;</span>Viagem</div><div class="tab"><span class="ti">&#10024;</span>Copiloto</div></div>
+</body></html>

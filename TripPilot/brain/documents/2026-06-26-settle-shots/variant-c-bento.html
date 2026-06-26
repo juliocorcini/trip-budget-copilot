@@ -1,0 +1,39 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=393, initial-scale=1"/><title>Variante C — Bento</title>
+<link rel="stylesheet" href="mockup.css"/>
+<style>
+  .bento{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 16px 0}
+  .bcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px;position:relative}
+  .bcard .k{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut)}
+  .bcard .v{font-size:26px;font-weight:800;margin-top:7px}
+  .bcard .s{font-size:11.5px;color:var(--faint);margin-top:5px}
+  .bcard .go{position:absolute;top:13px;right:13px;color:var(--faint);font-size:16px}
+  .v.g{color:var(--green)}.v.r{color:var(--red)}.v.a{color:var(--amber)}.v.b{color:var(--blue)}
+</style></head><body>
+<div class="caption"><b>VARIANTE C — Bento / dashboard.</b> Cartões-resumo glanceáveis; cada um abre o detalhe. Visão de relance.</div>
+<div class="hdr"><div class="bk">&#8592;</div><h1>Acerto de contas</h1><div class="qr"><b>&#9783;</b> Meu QR</div></div>
+
+<div class="bento">
+  <div class="bcard"><div class="go">&#8250;</div><div class="k">A receber</div><div class="v g">€ 11,00</div><div class="s">de 1 pessoa</div></div>
+  <div class="bcard"><div class="go">&#8250;</div><div class="k">A pagar</div><div class="v r">€ 0,00</div><div class="s">você está em dia</div></div>
+  <div class="bcard"><div class="go">&#8250;</div><div class="k">Pra resolver</div><div class="v a">3</div><div class="s">cobranças e dívidas</div></div>
+  <div class="bcard"><div class="go">&#8250;</div><div class="k">Pessoas</div><div class="v b">4</div><div class="s">1 conectada</div></div>
+</div>
+
+<div class="seclabel" style="margin-top:22px">Resolver agora</div>
+<div class="zone" style="margin-top:0">
+  <div class="todo"><div class="ic">&#128229;</div><div class="mid"><div class="t1">Ingrid te cobrou · <span class="amt">€ 50,00</span></div><div class="t2">recebida agora</div></div><div class="acts"><button class="btn pri">Aceitar</button></div></div>
+  <div class="todo"><div class="ic">&#128176;</div><div class="mid"><div class="t1">Ana &#8594; você · <span class="amt">€ 11,00</span></div><div class="t2">dívida pendente</div></div><div class="acts"><button class="btn pri">Liquidar</button></div></div>
+  <div class="todo"><div class="ic">&#9203;</div><div class="mid"><div class="t1">Aceite · <span class="amt">€ 9,00</span></div><div class="t2">Show flamenco</div></div><div class="acts"><button class="btn pri">Aceitar</button></div></div>
+</div>
+
+<div class="seclabel" style="margin-top:20px">Mais</div>
+<div class="zone" style="margin-top:0"><div class="card" style="padding:0">
+  <div class="mrow"><div class="mi">&#128101;</div><div class="ml">Divisão em grupo</div><div class="ms">&#8250;</div></div>
+  <div class="mrow"><div class="mi">&#129534;</div><div class="ml">Gastos compartilhados</div><div class="ms">&#8250;</div></div>
+  <div class="mrow"><div class="mi">&#128220;</div><div class="ml">Histórico &amp; liquidações</div><div class="ms">&#8250;</div></div>
+</div></div>
+<div class="moved">&#128241; <b>Backup entre aparelhos</b> &#8594; Ajustes › Seus aparelhos.</div>
+
+<div class="tabs"><div class="tab"><span class="ti">&#9638;</span>Início</div><div class="tab"><span class="ti">&#129534;</span>Gastos</div><div class="fab">+</div><div class="tab"><span class="ti">&#129517;</span>Viagem</div><div class="tab"><span class="ti">&#10024;</span>Copiloto</div></div>
+</body></html>

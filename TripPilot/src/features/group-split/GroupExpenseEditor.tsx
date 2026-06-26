@@ -117,6 +117,10 @@ export function GroupExpenseEditor({
     }
     return out;
   });
+  // F05 — manual line items: add an item by hand (description + amount) into the
+  // same `items` list a scan produces; the amount becomes Σ included lines.
+  const [newItemDesc, setNewItemDesc] = useState('');
+  const [newItemAmount, setNewItemAmount] = useState('');
 
   const includedItems = items.filter((it) => it.include);
   const itemsTotalCents = includedItems.reduce((s, it) => s + it.amountCents, 0);
@@ -252,6 +256,24 @@ export function GroupExpenseEditor({
   const clearItems = () => {
     setItemsActive(false);
     setItems([]);
+  };
+
+  // F05 — append a hand-typed line; switches into item mode so the amount is the
+  // running sum of kept lines (an empty description falls back to "Item").
+  const addManualItem = () => {
+    const cents = toCents(parseFloat(newItemAmount) || 0);
+    if (cents <= 0) return;
+    const item: EditorItem = {
+      id: `m-${crypto.randomUUID()}`,
+      description: newItemDesc.trim(),
+      amountCents: cents,
+      qty: 1,
+      include: true,
+    };
+    setItems((prev) => [...prev, item]);
+    setItemsActive(true);
+    setNewItemDesc('');
+    setNewItemAmount('');
   };
 
   const handleAskAi = async () => {
@@ -430,6 +452,33 @@ export function GroupExpenseEditor({
                 </button>
               ))}
             </div>
+            {/* F05 — add a line item by hand (feeds the same `items` list). */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                value={newItemDesc}
+                onChange={(e) => setNewItemDesc(e.target.value)}
+                placeholder={t('group_split.item_desc_ph')}
+                className="flex-1 min-w-0 bg-surface-container rounded-lg px-2.5 py-1.5 text-sm text-on-surface outline-none"
+              />
+              <input
+                type="number"
+                inputMode="decimal"
+                value={newItemAmount}
+                onChange={(e) => setNewItemAmount(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addManualItem()}
+                placeholder="0.00"
+                className="w-16 bg-surface-container rounded-lg px-2 py-1.5 text-sm text-on-surface outline-none text-right"
+              />
+              <button
+                type="button"
+                onClick={addManualItem}
+                disabled={toCents(parseFloat(newItemAmount) || 0) <= 0}
+                aria-label={t('group_split.add_item')}
+                className="btn-press w-8 h-8 rounded-lg bg-primary text-on-surface flex items-center justify-center shrink-0 disabled:opacity-40"
+              >
+                <Icon name="add" size={18} className="text-on-surface" />
+              </button>
+            </div>
             <div className="flex items-center justify-between pt-1.5 border-t border-on-surface/10">
               <span className="text-xs font-semibold text-on-surface">{t('group_split.items_total')}</span>
               <span className="text-sm font-bold tabular text-on-surface">
@@ -438,16 +487,27 @@ export function GroupExpenseEditor({
             </div>
           </div>
         ) : (
-          <Labeled label={t('group_split.expense_amount')}>
-            <input
-              type="number"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="bg-transparent text-sm text-on-surface outline-none w-full"
-            />
-          </Labeled>
+          <>
+            <Labeled label={t('group_split.expense_amount')}>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="bg-transparent text-sm text-on-surface outline-none w-full"
+              />
+            </Labeled>
+            {/* F05 — itemize a manual expense: switches to item mode (amount = Σ items). */}
+            <button
+              type="button"
+              onClick={() => setItemsActive(true)}
+              className="self-start -mt-1 text-[13px] text-primary font-semibold btn-press flex items-center gap-1"
+            >
+              <Icon name="add" size={16} className="text-primary" />
+              {t('group_split.add_item')}
+            </button>
+          </>
         )}
 
         <Labeled label={t('group_split.expense_date')}>
@@ -518,23 +578,24 @@ export function GroupExpenseEditor({
               <ModeChip active={mode === 'custom'} label={t('group_split.mode_custom')} onClick={() => setMode('custom')} />
             </div>
           </div>
-          <div className="flex flex-col gap-1.5">
+          {/* F03 — 2 columns, bigger names + bigger checkboxes + breathing room. */}
+          <div className="grid grid-cols-2 gap-2">
             {event.participants.map((p) => {
               const checked = shareIds.has(p.id);
               const shareCents = preview?.[p.id];
               return (
-                <div key={p.id} className="flex items-center gap-2">
+                <div key={p.id} className="bg-surface-high rounded-xl p-2.5 flex flex-col gap-1.5">
                   <button
                     type="button"
                     onClick={() => toggleShare(p.id)}
-                    className="flex items-center gap-2 flex-1 btn-press text-left"
+                    className="flex items-center gap-2 btn-press text-left"
                   >
                     <span
-                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
-                        checked ? 'bg-primary' : 'bg-surface-high'
+                      className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                        checked ? 'bg-primary' : 'bg-surface-container'
                       }`}
                     >
-                      {checked && <Icon name="check" size={14} className="text-on-surface" />}
+                      {checked && <Icon name="check" size={16} className="text-on-surface" />}
                     </span>
                     <span className="text-base text-on-surface truncate">{p.name}</span>
                   </button>
@@ -545,10 +606,10 @@ export function GroupExpenseEditor({
                       value={customById[p.id] ?? ''}
                       onChange={(e) => setCustomById((prev) => ({ ...prev, [p.id]: e.target.value }))}
                       placeholder="0.00"
-                      className="w-20 bg-surface-high rounded-lg px-2 py-1 text-xs text-on-surface outline-none text-right"
+                      className="w-full bg-surface-container rounded-lg px-2 py-1 text-xs text-on-surface outline-none text-right"
                     />
                   ) : checked && shareCents !== undefined ? (
-                    <span className="text-xs text-on-surface-faint tabular shrink-0">
+                    <span className="text-xs text-on-surface-faint tabular pl-8">
                       {formatMoney(shareCents, event.currency)}
                     </span>
                   ) : null}

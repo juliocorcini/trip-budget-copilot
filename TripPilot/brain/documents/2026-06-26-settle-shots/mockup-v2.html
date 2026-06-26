@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=393, initial-scale=1" />
+<title>Acerto de contas — v2 (proposta do conselho)</title>
+<style>
+  :root{
+    --bg:#0d1015; --card:#1b212b; --card2:#151a22; --line:#262e3a;
+    --tx:#e8ecf2; --mut:#8b94a4; --faint:#5f6776;
+    --green:#63d2a2; --red:#ef7c73; --amber:#e3a63c; --accent:#e06a37;
+    --pill-green-bg:#2c6e4e; --pill-green-tx:#e7fff2;
+    --tag:#e0a06a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+  html,body{background:var(--bg);color:var(--tx);
+    font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+  body{width:393px}
+  .caption{font-size:11px;letter-spacing:.5px;color:var(--accent);text-transform:uppercase;
+    text-align:center;padding:7px;background:#15110d;border-bottom:1px solid #3a2a1c}
+
+  /* sticky header */
+  .hdr{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;
+    padding:14px 16px;background:rgba(13,16,21,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line)}
+  .hdr .bk{font-size:22px;color:var(--tx);width:24px}
+  .hdr h1{font-size:19px;font-weight:700;flex:1}
+  .hdr .qr{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx);
+    border:1px solid var(--line);border-radius:20px;padding:7px 13px;background:var(--card)}
+  .hdr .qr b{color:var(--accent)}
+  .stickytag{font-size:10px;color:var(--faint);text-align:right;padding:2px 16px 0}
+
+  .wrap{padding:14px 16px}
+  .zone{margin:18px 16px 0}
+  .zlabel{display:flex;align-items:center;gap:8px;margin:0 2px 9px}
+  .znum{font-size:11px;font-weight:800;color:#0d1015;background:var(--tag);
+    width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .zlabel .zt{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);font-weight:700}
+  .zlabel .zh{font-size:11px;color:var(--faint);margin-left:auto}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .card+.card{margin-top:10px}
+
+  /* hero */
+  .hero{display:flex;gap:8px}
+  .hero .col{flex:1}
+  .hero .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)}
+  .hero .vg{font-size:30px;font-weight:800;color:var(--green);margin-top:6px}
+  .hero .vr{font-size:30px;font-weight:800;color:var(--red);margin-top:6px}
+  .hero .net{border-top:1px solid var(--line);margin-top:14px;padding-top:12px;font-size:14px;color:var(--mut)}
+  .hero .net b{color:var(--tx)}
+
+  /* resolver rows */
+  .todo{display:flex;align-items:center;gap:12px;padding:13px 14px;background:var(--card);
+    border:1px solid var(--line);border-radius:14px}
+  .todo+.todo{margin-top:9px}
+  .todo .ic{width:34px;height:34px;border-radius:10px;background:#222b38;display:flex;
+    align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .todo .mid{flex:1;min-width:0}
+  .todo .t1{font-size:15px;font-weight:600}
+  .todo .t2{font-size:12px;color:var(--mut);margin-top:2px}
+  .todo .amt{font-weight:700}
+  .todo .acts{display:flex;gap:7px;flex-shrink:0}
+  .btn{font-size:13px;font-weight:600;border-radius:10px;padding:8px 12px;border:1px solid var(--line);
+    color:var(--tx);background:transparent;white-space:nowrap}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.gho{color:var(--mut)}
+
+  /* pessoas */
+  .prow{display:flex;align-items:center;gap:12px;padding:13px 14px;background:var(--card);
+    border:1px solid var(--line);border-radius:14px}
+  .prow+.prow{margin-top:9px}
+  .av{width:34px;height:34px;border-radius:50%;background:#222b38;display:flex;align-items:center;
+    justify-content:center;font-size:15px;flex-shrink:0}
+  .prow .pn{flex:1;min-width:0}
+  .prow .nm{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .badge{font-size:10px;font-weight:700;letter-spacing:.3px;padding:2px 8px;border-radius:20px;
+    text-transform:uppercase}
+  .b-con{background:#163a2c;color:var(--green)}
+  .b-inv{background:#3a2f16;color:var(--amber)}
+  .b-noapp{background:#2a2f39;color:var(--faint)}
+  .b-you{background:#21304a;color:#7fb3ff}
+  .prow .st{font-size:13px;text-align:right}
+  .st.g{color:var(--green)} .st.r{color:var(--red)} .st.m{color:var(--mut)}
+  .chev{color:var(--faint);font-size:18px}
+  .add{display:flex;gap:9px;margin-top:11px}
+  .add .ab{flex:1;border:1px dashed #4a3a2c;color:var(--accent);border-radius:13px;padding:12px;
+    font-size:13px;font-weight:600;text-align:center;background:#170f08}
+
+  /* mais drawer */
+  .mrow{display:flex;align-items:center;gap:13px;padding:14px;border-bottom:1px solid var(--line)}
+  .mrow:last-child{border-bottom:none}
+  .mrow .mi{width:26px;text-align:center;font-size:17px}
+  .mrow .ml{flex:1;font-size:15px}
+  .mrow .ms{font-size:12px;color:var(--faint)}
+  .moved{font-size:12px;color:var(--faint);padding:12px 14px;line-height:1.5}
+  .moved b{color:var(--mut)}
+
+  /* tabbar */
+  .tabs{margin-top:22px;width:393px;display:flex;justify-content:space-around;
+    align-items:center;padding:9px 0 12px;background:#0c0f14;border-top:1px solid var(--line)}
+  .tab{font-size:10px;color:var(--faint);text-align:center}
+  .tab .ti{font-size:18px;display:block;margin-bottom:2px}
+  .fab{width:54px;height:54px;border-radius:50%;background:var(--accent);color:#fff;font-size:28px;
+    display:flex;align-items:center;justify-content:center;margin-top:-22px;box-shadow:0 6px 18px rgba(224,106,55,.45)}
+</style>
+</head>
+<body>
+  <div class="caption">Proposta v2 — 4 zonas por intenção (mockup do conselho)</div>
+
+  <div class="hdr">
+    <div class="bk">&#8592;</div>
+    <h1>Acerto de contas</h1>
+    <div class="qr"><b>&#9783;</b> Meu QR</div>
+  </div>
+  <div class="stickytag">header fixo ↑ (volta + Meu QR sempre visíveis)</div>
+
+  <!-- ZONE 1 -->
+  <div class="zone">
+    <div class="zlabel"><span class="znum">1</span><span class="zt">Situação</span>
+      <span class="zh">quanto?</span></div>
+    <div class="card hero">
+      <div style="display:flex;width:100%;gap:8px">
+        <div class="col"><div class="k">A receber</div><div class="vg">€ 11,00</div></div>
+        <div class="col"><div class="k">A pagar</div><div class="vr">€ 0,00</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:0;border-top-left-radius:0;border-top-right-radius:0;border-top:none">
+      <div style="font-size:14px;color:var(--mut)">No saldo, <b style="color:var(--tx)">te devem € 11,00</b></div>
+    </div>
+  </div>
+
+  <!-- ZONE 2 -->
+  <div class="zone">
+    <div class="zlabel"><span class="znum">2</span><span class="zt">Resolver</span>
+      <span class="zh">o que eu faço agora?</span></div>
+
+    <div class="todo">
+      <div class="ic">&#128176;</div>
+      <div class="mid"><div class="t1">Ana &#8594; você · <span class="amt">€ 11,00</span></div>
+        <div class="t2">dívida pendente</div></div>
+      <div class="acts"><button class="btn pri">Liquidar</button><button class="btn gho">Lembrar</button></div>
+    </div>
+
+    <div class="todo">
+      <div class="ic">&#9203;</div>
+      <div class="mid"><div class="t1">Aguardando seu aceite · <span class="amt">€ 9,00</span></div>
+        <div class="t2">Show flamenco — sua parte</div></div>
+      <div class="acts"><button class="btn pri">Aceitar</button></div>
+    </div>
+
+    <div class="todo">
+      <div class="ic">&#128229;</div>
+      <div class="mid"><div class="t1">Cobrança de Ingrid · <span class="amt">€ 50,00</span></div>
+        <div class="t2">recebida agora pelo app</div></div>
+      <div class="acts"><button class="btn pri">Aceitar</button><button class="btn gho">Recusar</button></div>
+    </div>
+  </div>
+
+  <!-- ZONE 3 -->
+  <div class="zone">
+    <div class="zlabel"><span class="znum">3</span><span class="zt">Pessoas</span>
+      <span class="zh">com quem? · lista única</span></div>
+
+    <div class="prow">
+      <div class="av">B</div>
+      <div class="pn"><div class="nm">Beto <span class="badge b-con">conectado</span></div></div>
+      <div class="st m">em dia</div><div class="chev">&#8250;</div>
+    </div>
+    <div class="prow">
+      <div class="av">J</div>
+      <div class="pn"><div class="nm">Julio <span class="badge b-you">você</span></div></div>
+      <div class="st g">recebe € 11,00</div><div class="chev">&#8250;</div>
+    </div>
+    <div class="prow">
+      <div class="av">A</div>
+      <div class="pn"><div class="nm">Ana <span class="badge b-inv">convidado</span></div></div>
+      <div class="st r">deve € 11,00</div><div class="chev">&#8250;</div>
+    </div>
+    <div class="prow">
+      <div class="av">M</div>
+      <div class="pn"><div class="nm">Marcos <span class="badge b-noapp">sem app</span></div></div>
+      <div class="st m">em dia</div><div class="chev">&#8250;</div>
+    </div>
+
+    <div class="add">
+      <div class="ab">+ Adicionar pessoa</div>
+      <div class="ab">&#9783; Por QR</div>
+    </div>
+  </div>
+
+  <!-- ZONE 4 -->
+  <div class="zone">
+    <div class="zlabel"><span class="znum">4</span><span class="zt">Mais</span>
+      <span class="zh">ferramentas (recolhido)</span></div>
+    <div class="card" style="padding:0">
+      <div class="mrow"><div class="mi">&#128101;</div><div class="ml">Divisão em grupo</div>
+        <div class="ms">2 grupos &#8250;</div></div>
+      <div class="mrow"><div class="mi">&#129534;</div><div class="ml">Gastos compartilhados</div>
+        <div class="ms">ver lista &#8250;</div></div>
+      <div class="mrow"><div class="mi">&#128220;</div><div class="ml">Histórico &amp; liquidações</div>
+        <div class="ms">&#8250;</div></div>
+      <div class="mrow"><div class="mi">&#128228;</div><div class="ml">Enviar extrato</div>
+        <div class="ms">&#8250;</div></div>
+      <div class="mrow"><div class="mi">&#9783;</div><div class="ml">Conectar novo (Meu QR)</div>
+        <div class="ms">&#8250;</div></div>
+    </div>
+    <div class="moved">&#128241; <b>Backup entre seus aparelhos</b> saiu daqui &#8594; agora vive em
+      <b>Ajustes › Seus aparelhos</b> (conectar amigo &#8800; backup).</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab"><span class="ti">&#9638;</span>Início</div>
+    <div class="tab"><span class="ti">&#129534;</span>Gastos</div>
+    <div class="fab">+</div>
+    <div class="tab"><span class="ti">&#129517;</span>Viagem</div>
+    <div class="tab"><span class="ti">&#10024;</span>Copiloto</div>
+  </div>
+</body>
+</html>

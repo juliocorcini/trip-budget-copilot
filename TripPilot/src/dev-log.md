@@ -1,5 +1,81 @@
 # Dev Log — TripPilot Implementation
 
+## Grupos Confiáveis & Acerto Claro wave (2026-06-26) — base 1.3.0-rc → 1.4.3-rc — 🟢 ACTIVE (G0→G9)
+
+> Execution truth: `brain/documents/2026-06-26-group-reliability-settle-redesign-orchestrator.md` (gates G0→G9, change-set **F01–F28**, decisions **DEC-348→360** PROPOSED at G0 → APPROVED per shipping gate; all four §16 forks **L-IMG / L-LIVE / L-RT / L-IA LOCKED by Julio 2026-06-26**). This wave answers Julio's **3rd field review** (the 1.3.0-rc device test): it is mostly **bug-fixes + two REVERSALS** of the predecessor wave (image E2E → access-controlled plaintext on R2; owner-as-reducer pending-gate → a **live shared board**) + a **deep settle-up IA redesign** (Variante O). **Ledger-math invariance** holds (the arithmetic is unchanged — we fix *when/where* truth propagates and *how* it's shown). Single continuous session, deploy per gate; **G2 & G6 also `wrangler deploy`**. Most recent gate entry first.
+
+### CURRENT STATE
+- **Active gate**: **G1 ✅ shipped `1.3.1-rc` — starting G2.**
+- **Last commit**: G1 `1.3.1-rc` (group-split UX F01–F05/F28 + tests + version bump). Predecessor head was `15e7426`.
+- **Tests**: **2396 pass / 2398** (Node v18.17.0 in this sandbox → the **2 documented WebCrypto `split-live-loop` cases fail only on Node 18**; they pass on Node 22/CI — known baseline, **not** a regression). **+10 vs G0** (manual-item component ×2 + i18n-parity ×8). `tsc --noEmit` clean (app **and** `worker/`); `build` green (`index` **415.47 KB** < 500 KB).
+- **Locks set**: **L-IMG / L-LIVE / L-RT / L-IA — all four IN** (Julio 2026-06-26). Execute G1→G9 in order, no stops for approval.
+- **Risks**: this wave edits files the predecessor wave just rewrote (symbols moved) → re-read each §6 file before editing. G2 reverses image E2E (delete the scramble path, keep a legacy read-shim). G3 amends the owner-gate (display converges eventually; canonical settle stays owner-published). G9 re-composes a ~2240-line settle screen (gate behind tests + the skeptic fallback).
+- **Scope**: G1 UX (no/low backend) · G2 images Worker+Pages (`wrangler deploy`) · G3 live board (Pages OTA) · G4 identity/connect/QR-zoom (Pages OTA) · G5 QR-as-URL (Pages OTA) · G6 real-time+notifications Worker+Pages (`wrangler deploy`) · G7 payment states+history (Pages OTA) · G8 compose people at creation (Pages OTA) · G9 settle-up Variante O + Pessoas page + Viagem entry (Pages OTA).
+
+### Deploy pipeline (this wave)
+- Bump `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release note pt/en/es) → `G=/usr/bin/git; "$G" commit -m "…"` + push `master` → **Cloudflare Pages auto-build** (`build:pages` → `dist/` + `bundles/<v>.zip` OTA). **G2 & G6 additionally `wrangler deploy`** (Worker: image content-type on G2; peer-ping room on G6). Verify `/version.json` + `/bundles/<v>.zip` (+ `/img` serves a JPEG after G2).
+- **Git note (WSL)**: the Shell harness injects `--trailer` into `git commit` (sandbox git 2.25.1 rejects it). **Bypass:** `G=/usr/bin/git; "$G" commit -m "…"` (HEREDOC for multi-line). Always `git --no-pager …`; never open a pager/editor.
+
+### Change-set (F01–F28, by theme)
+| # | Theme | What | Gate |
+|---|---|---|---|
+| F01 | G-UX | Accordion exclusivity (Pagamentos XOR Quem-paga) | G1 |
+| F02 | G-UX | Payment-status copy fits the card | G1 |
+| F03 | G-UX | Bigger names + 2 columns + bigger checkbox | G1 |
+| F04 | G-UX | "Registrado por {name}" on every surface | G1 |
+| F05 | G-UX | Capture rename + manual item add | G1 |
+| F28 | X-cut | Sticky header (back + right action) on internal pages | G1 |
+| F06 | Images | Remove image E2E → access-controlled plaintext on R2 | G2 |
+| F07 | Images | Fix photo persistence (upload on attach) | G2 |
+| F08 | Images | Multiple photos per expense (`imageRefs[]`) | G2 |
+| F09 | Images | Images viewable+downloadable incl. `/g/` web guest; revoke/TTL deletes | G2 |
+| F10 | Live | Live board (every viewer folds locally) | G3 |
+| F11 | Live | Delete recalcs total+balances immediately (the 120€ bug) | G3 |
+| F12 | Live | Owner = moderator, not a sync gate | G3 |
+| F13 | Identity | Onboarding owner name (`resolveSelfName`) in all P2P/connect/share | G4 |
+| F14 | Identity | Bilateral connect (both sides, correct names) | G4 |
+| F15 | Identity | Android QR zoom (1×/2×/3×) restored | G4 |
+| F16 | QR | Every app QR is a URL (deep link) | G5 |
+| F17 | RT | Real-time peer delivery (signal-DO peer-ping) | G6 |
+| F18 | RT | Inbound P2P → notification center + native + toast | G6 |
+| F19 | RT | Pending actions on the home screen | G6 |
+| F20 | Pay | Payment lifecycle states; never penalize marked-paid | G7 |
+| F21 | Pay | Receiver confirms; organizer override logged | G7 |
+| F22 | Pay | "Quem já pagou / quem falta" status view | G7 |
+| F23 | Pay | Group movement history / timeline | G7 |
+| F24 | Compose | Add existing/connected/trip people at creation | G8 |
+| F25 | Settle-IA | Settle-up IA v2 (Variante O, 4 intent zones) | G9 |
+| F26 | Settle-IA | Unify Pessoas + Amigos → one list w/ status badges | G9 |
+| F27 | Settle-IA | Explain "Dividir Conta" vs "Divisão em Grupo" | G1/G9 |
+
+### Gate checklist (Grupos Confiáveis & Acerto Claro)
+- [x] **G0** — baseline green (2386/2388, Node-18 WebCrypto baseline) + `tsc` clean (app+worker) + `build` green (415.47 KB) + dev-log seeded + DEC-348→360 PROPOSED + all four §16 locks IN.
+- [x] **G1** `1.3.1-rc` — group-split UX (F01–F05, F28) [council rec].
+- [ ] **G2** `1.3.2-rc` — images plaintext R2 + persistence + multi-photo (F06–F09) [✅ L-IMG] · `wrangler deploy`.
+- [ ] **G3** `1.3.3-rc` — live group board + delete-recalc + owner=moderator (F10–F12) [✅ L-LIVE].
+- [ ] **G4** `1.3.4-rc` — onboarding name + bilateral connect + Android QR zoom (F13–F15) [✅ DEC-350].
+- [ ] **G5** `1.3.5-rc` — every QR is a URL (F16) [council rec].
+- [ ] **G6** `1.4.0-rc` — real-time peer-ping + notif center + home + native (F17–F19) [✅ L-RT] · `wrangler deploy`.
+- [ ] **G7** `1.4.1-rc` — payment states + receiver-confirms + history (F20–F23) [council rec].
+- [ ] **G8** `1.4.2-rc` — add existing/connected/trip people at creation (F24) [council rec].
+- [ ] **G9** `1.4.3-rc` — settle-up Variante O + Pessoas page + Viagem entry (F25–F27) [✅ L-IA / L-PEOPLE / L-DIV].
+
+### G0 — Setup, baseline & brain seed (done 2026-06-26)
+- **Env**: Node v18.17.0 / npm 9.6.7 (EBADENGINE warnings for undici/wrangler expected in this sandbox; CI runs Node 22). `npm install` up to date. `git` at `/usr/bin/git` (commit bypass confirmed). Project root = `TripPilot/`.
+- **Baseline**: unit **2386 pass / 2388** (the 2 documented WebCrypto `split-live-loop` cases fail only on Node 18 — `crypto.subtle` undefined under jsdom on this Node; they pass on Node 22/CI). `npx tsc --noEmit` clean (app) + `tsc --noEmit -p worker/tsconfig.json` clean. `npm run build` green (`index` **415.47 KB** < 500 KB).
+- **Brain**: DEC-348→360 present in `decision-log.md` (DEC-359/360 ✅ LOCKED; DEC-348/349/352/356/357 PROPOSED with their §16 lock IN; DEC-350/351/353/354/355/358 PROPOSED, council-rec). Orchestrator at `brain/documents/2026-06-26-group-reliability-settle-redesign-orchestrator.md`; all four §16 forks **L-IMG / L-LIVE / L-RT / L-IA LOCKED by Julio**.
+
+### G1 — Group-split UX quick wins (done 2026-06-26) → `1.3.1-rc`
+- **F01 · accordion exclusivity (`GroupSplitDetailPage`).** Replaced the two independent booleans (`showBalances`/`showTransfers`) with a single `openPanel: 'none' | 'balances' | 'transfers'`. The **Pagamentos** and **Quem paga quem** buttons each toggle their own panel and **collapse the other** (one open at a time); both carry `aria-expanded`. **No math touched** — `computeGroupBalances`/`computeGroupTransfers`/`groupTotalCents` are byte-identical; only render visibility + a11y state changed (data-invariance ÂNCORA).
+- **F28 · sticky header (`GroupSplitDetailPage`).** The detail header now uses the shared `.page-sticky-header` + `useScrolled()` pattern (back + name + settled badge stay reachable while scrolling). Reused the existing CSS class/hook — no new styling primitive.
+- **F03 · bigger names + 2 columns + bigger checkbox (`GroupExpenseEditor`).** The "split among" list is now a `grid grid-cols-2` of touch cards: `w-6 h-6` checkbox, `text-base` name, per-person share/`custom` input inline. Easier to tap; no logic change to share selection.
+- **F05 · capture rename + manual item add (`GroupExpenseEditor`).** Capture labels renamed (pt) — `scan_full`→**"Enviar nota (tudo)"**, `scan_items`→**"Enviar nota e escolher itens"**, `ai_ask`→**"Descrever por texto"** (en/es parity). New **manual line item** row (description + amount → `addManualItem`) that appends to the same `items[]` a scan produces and flips `itemsActive`; the saved `amountCents` is the running **Σ of kept lines** (unit-verified €30+€60=€90 → `9000`). A "+ Adicionar item" affordance enters item-mode from a plain amount.
+- **F04 · "Registrado por {name}" on the guest board (`GroupClaimPage`).** `ClaimExpenseRow` gained `registeredByName`; the board computes it for folded rows where `createdByParticipantId ≠ paidByParticipantId` and renders it under "pago por" (reuses the G2 `group_split.registered_by` key — the owner detail already showed it).
+- **F02 · payment-status copy fits the card (`GroupClaimPage` + i18n).** `group_claim.awaiting` shortened to **"Marcado como pago · aguardando confirmação"** (en/es parity, all < 60 chars) and the chip wraps (`text-center` + `break-words`) so long copy never overflows.
+- **i18n (pt/en/es):** renamed `scan_full`/`scan_items`/`ai_ask`; added `add_item` + `item_desc_ph`; shortened `group_claim.awaiting`. No string hard-coded; parity guarded by a new test.
+- **Tests (+10):** new `tests/unit/features/group-split/group-expense-editor-items.test.tsx` (manual-item Σ = €90/`9000`; non-positive amount keeps Add disabled); new `tests/unit/i18n/group-split-keys.test.ts` (capture/item key presence + non-empty across 3 locales, `awaiting` < 60 chars, pt verbatim ×8); new `e2e/group-reliability-g1.spec.ts` (CI — header is sticky; Pagamentos/Quem-paga are mutually exclusive via `aria-expanded`). **Self-check (5-point):** (1) AC F01–F05 + F28 done; (2) earlier ACs verified — **ledger-math invariance** (group-split suite green; no arithmetic edited — only visibility/labels/additive item rows), **never-block-contribution** (manual item & save paths only add; nothing gates a save), **Worker-ciphertext for messages/debts/names** (no Worker touched — Pages-only OTA); (3) tests **2396/2398 = +10, 0 new failures**; (4) no out-of-scope files (group-split detail/editor/claim + i18n + version/release-notes/dev-log); (5) this entry.
+- **Gate close (G1):** unit **2396 pass / 2398** (2 WebCrypto Node-18 baseline only) · `npx tsc --noEmit` clean · `npm run build` green (`index` **415.47 KB** < 500 KB). Bump 1.3.0-rc→**1.3.1-rc** (package.json + app-version.ts + public/version.json `bundleUrl`→`1.3.1-rc.zip` + RELEASE_NOTES pt/en/es). **Deploy:** commit + push `master` → Cloudflare Pages auto-build (Pages-only OTA — no Worker diff).
+
 ## Grupos, Sincronia & Nuvem wave (2026-06-25) — base 1.1.9-rc → 1.3.0-rc — 🟢 ACTIVE (G0→G7)
 
 > Execution truth: `brain/documents/2026-06-25-groups-sync-cloud-orchestrator.md` (gates G0→G7, change-set **A01–A14/B01/C01–C04/D01–D06**, decisions **DEC-335→347** PROPOSED at G0 → APPROVED per shipping gate; all §16 forks **L1–L8 LOCKED by Julio 2026-06-25**). Three goals: (1) group split feels like a real shared ledger (Expenses-first IA, date+registrant, item-pick capture, everyone contributes), (2) connections become **two-way + live** (mailbox `connect` handshake + drain-on-open/focus + signal-DO peer-ping; live debt/payment with accept-first + notification), (3) shared images get a **cloud home** (R2, **E2E-encrypted**, mirroring the proven FestPilot DEC-059 pattern). **No money-math change in G1–G4 (data-invariance ÂNCORA).** Single continuous session, deploy per gate; G5–G7 also `wrangler deploy`. Most recent gate entry first.

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.1-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Na divisão em grupo, "Pagamentos" e "Quem paga quem" agora abrem um de cada vez — a tela fica limpa e fácil de ler.',
+        'Escolher quem divide a conta ficou mais fácil de tocar: nomes maiores, duas colunas e caixas de seleção bem maiores.',
+        'Ao adicionar uma despesa, os botões de captura ficaram mais claros e agora dá pra digitar os itens da conta na mão (a soma vira o total).',
+      ],
+      en: [
+        'In group split, "Payments" and "Who pays whom" now open one at a time — the screen stays clean and easy to read.',
+        'Picking who shares a bill is easier to tap: bigger names, two columns and much larger checkboxes.',
+        'When adding an expense, the capture buttons are clearer and you can now type the bill items by hand (the sum becomes the total).',
+      ],
+      es: [
+        'En la división en grupo, "Pagos" y "Quién paga a quién" ahora se abren de a uno — la pantalla queda limpia y fácil de leer.',
+        'Elegir quién comparte la cuenta es más fácil de tocar: nombres más grandes, dos columnas y casillas mucho más grandes.',
+        'Al agregar un gasto, los botones de captura son más claros y ahora puedes escribir los ítems de la cuenta a mano (la suma pasa a ser el total).',
+      ],
+    },
+  },
+  {
     version: '1.3.0-rc',
     date: '2026-06-25',
     items: {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
+import { useScrolled } from '@/hooks/useScrolled';
 import { groupSplitRepository } from '@/data/repositories';
 import { persistGroupSplit, deleteGroupSplit } from '@/domain/orchestrators';
 import {
@@ -64,6 +65,7 @@ export function GroupSplitDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { settings, trip, participants } = useAppData();
+  const scrolled = useScrolled();
   const photoEnabled = settings?.cloudReceiptOcrEnabled ?? false;
   const aiTextEnabled = settings?.aiQuickEntryEnabled ?? false;
 
@@ -73,10 +75,10 @@ export function GroupSplitDetailPage() {
   const [editing, setEditing] = useState<GroupExpense | 'new' | null>(null);
   const [creds, setCreds] = useState<GroupLiveCreds | null>(null);
   const [publishing, setPublishing] = useState(false);
-  // A04/DEC-335: balances ("Pagamentos") and transfers ("Quem paga quem") live
-  // behind buttons — expenses are the primary surface, not the math.
-  const [showBalances, setShowBalances] = useState(false);
-  const [showTransfers, setShowTransfers] = useState(false);
+  // A04/DEC-335 + F01: balances ("Pagamentos") and transfers ("Quem paga quem")
+  // live behind buttons — expenses are the primary surface, not the math. Only
+  // ONE panel is open at a time (F01 accordion exclusivity).
+  const [openPanel, setOpenPanel] = useState<'none' | 'balances' | 'transfers'>('none');
   // A02/DEC-338: keep focus on the add-person field after each add.
   const newPersonRef = useRef<HTMLInputElement>(null);
 
@@ -376,8 +378,9 @@ export function GroupSplitDetailPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4 py-6">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-4 pb-6">
+      {/* F28 — sticky header so back + status stay reachable while scrolling. */}
+      <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-4 pb-3 flex items-center gap-2`}>
         <button onClick={() => navigate(-1)} className="btn-press p-1" aria-label={t('common.back')}>
           <Icon name="arrow_back" size={24} className="text-on-surface" />
         </button>
@@ -644,28 +647,28 @@ export function GroupSplitDetailPage() {
         <section className="flex flex-col gap-2">
           <div className="flex gap-2">
             <button
-              onClick={() => setShowBalances((v) => !v)}
-              aria-expanded={showBalances}
+              onClick={() => setOpenPanel((p) => (p === 'balances' ? 'none' : 'balances'))}
+              aria-expanded={openPanel === 'balances'}
               className="flex-1 py-2.5 px-3 rounded-xl bg-surface-container text-on-surface font-semibold text-sm btn-press flex items-center justify-center gap-1.5"
             >
               <Icon name="account_balance_wallet" size={16} className="text-on-surface-dim" />
               {t('group_split.balances_title')}
-              <Icon name={showBalances ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
+              <Icon name={openPanel === 'balances' ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
             </button>
             {transfers.length > 0 && (
               <button
-                onClick={() => setShowTransfers((v) => !v)}
-                aria-expanded={showTransfers}
+                onClick={() => setOpenPanel((p) => (p === 'transfers' ? 'none' : 'transfers'))}
+                aria-expanded={openPanel === 'transfers'}
                 className="flex-1 py-2.5 px-3 rounded-xl bg-surface-container text-on-surface font-semibold text-sm btn-press flex items-center justify-center gap-1.5"
               >
                 <Icon name="swap_horiz" size={16} className="text-on-surface-dim" />
                 {t('group_split.transfers_title')}
-                <Icon name={showTransfers ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
+                <Icon name={openPanel === 'transfers' ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
               </button>
             )}
           </div>
 
-          {showBalances && (
+          {openPanel === 'balances' && (
             <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2.5">
               {balances.map((b) => (
                 <div key={b.participantId} className="flex items-center justify-between">
@@ -686,7 +689,7 @@ export function GroupSplitDetailPage() {
             </div>
           )}
 
-          {showTransfers && transfers.length > 0 && (
+          {openPanel === 'transfers' && transfers.length > 0 && (
             <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2">
               {transfers.map((tr, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm text-on-surface">

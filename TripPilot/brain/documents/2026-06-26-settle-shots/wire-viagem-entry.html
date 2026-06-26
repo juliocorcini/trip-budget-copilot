@@ -1,0 +1,36 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=393, initial-scale=1"/><title>Wireframe — Divisões em grupo no grid do hub Viagem</title>
+<link rel="stylesheet" href="mockup.css"/>
+<style>
+  .htitle{margin:8px 16px 0}.htitle h2{font-size:20px;font-weight:800}
+  .htitle p{font-size:13px;color:var(--mut);margin-top:3px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:0 16px}
+  .gtile{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px}
+  .gtile .gi{width:42px;height:42px;border-radius:50%;background:#222b38;display:flex;align-items:center;
+    justify-content:center;font-size:20px}
+  .gtile .gl{font-size:11.5px;font-weight:600;line-height:1.2;color:var(--fg)}
+  .gtile.hi{background:#2a1d16;border-color:var(--accent)}
+  .gtile.hi .gi{background:var(--accent)}
+  .gtile .cbadge{position:absolute;top:8px;right:9px;font-size:10px;font-weight:800;color:#fff;
+    background:var(--accent);border-radius:9px;min-width:17px;height:17px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .gtile .ncnt{position:absolute;top:9px;right:10px;font-size:10px;font-weight:700;color:var(--mut)}
+</style></head><body>
+<div class="caption"><b>WIREFRAME — "Divisões em grupo" no grid do hub Viagem (padrão atual).</b> Mesmo grid de 3 colunas que a tela já usa. Conselho Q3 / DEC-360: divisões ganham um tile de 1º nível (→ a lista `/groups` que já existe) + "Participantes" enganoso vira "Acerto de contas". Destino único: `/groups`.</div>
+
+<div class="hdr"><div class="bk">&#8592;</div><h1>Viagem</h1><div class="qr">&#8593; Compartilhar</div></div>
+<div class="htitle"><h2>Itália 2026</h2><p>Estrutura, pessoas e divisões da sua viagem.</p></div>
+
+<div class="seclabel" style="margin-top:18px">Estrutura</div>
+<div class="grid3">
+  <div class="gtile"><div class="gi">&#128198;</div><div class="gl">Editar fases</div></div>
+  <div class="gtile"><div class="gi">&#127991;</div><div class="gl">Perfis de gasto</div></div>
+  <div class="gtile"><div class="gi">&#128179;</div><div class="gl">Carteiras</div></div>
+  <div class="gtile"><div class="gi">&#128338;</div><div class="gl">Histórico de saídas</div></div>
+  <div class="gtile"><div class="gi">&#129534;</div><div class="gl">Acerto de contas</div></div>
+  <div class="gtile hi"><span class="cbadge">2</span><div class="gi">&#128101;</div><div class="gl">Divisões em grupo</div></div>
+</div>
+<div class="moved" style="background:transparent;border-color:var(--line)">"Divisões em grupo" leva à lista que já existe (`/groups`). Antes: "Participantes" levava ao Acerto de contas (rótulo enganoso) — agora cada tile diz pra onde vai.</div>
+
+<div class="tabs"><div class="tab"><span class="ti">&#9638;</span>Início</div><div class="tab"><span class="ti">&#129534;</span>Gastos</div><div class="fab">+</div><div class="tab" style="color:var(--accent)"><span class="ti" style="color:var(--accent)">&#129517;</span>Viagem</div><div class="tab"><span class="ti">&#10024;</span>Copiloto</div></div>
+</body></html>

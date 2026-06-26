@@ -1,8 +1,8 @@
 {
-  "version": "1.3.0-rc",
+  "version": "1.3.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.3.0-rc.zip",
-  "notes": "Dívidas e pagamentos ao vivo: depois de conectar uma vez, você pode cobrar um amigo direto pelo app — uma notificação chega no aparelho dele e, com um toque, ele aceita (a dívida aparece para os dois). Ao registrar um pagamento, a conta fecha dos dois lados, sem ninguém ficar \"no vermelho\", e quem recebe o dinheiro escolhe em qual fundo/carteira ele entrou (entrada real, não uma cópia da despesa)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.3.1-rc.zip",
+  "notes": "Divisão em grupo mais clara: \"Pagamentos\" e \"Quem paga quem\" agora abrem um de cada vez; escolher quem divide a conta ficou maior e mais fácil de tocar (duas colunas, caixas grandes); e ao adicionar uma despesa você já pode digitar os itens da conta na mão (a soma vira o total). Os botões de captura também ficaram mais claros."
 }
