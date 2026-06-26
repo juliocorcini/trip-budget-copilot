@@ -1,8 +1,8 @@
 {
-  "version": "1.4.3-rc",
+  "version": "1.4.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.3-rc.zip",
-  "notes": "A tela de acerto de contas ficou mais clara: seu saldo e o que resolver primeiro aparecem logo no topo, uma só lista de Pessoas com etiquetas de status, e as divisões em grupo agora têm entrada própria na viagem."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.4-rc.zip",
+  "notes": "Polimento: ao confirmar o pagamento de outra pessoa, o histórico do grupo agora mostra que foi uma ação do organizador e o que mudou; e você pode marcar um amigo para aceitar os convites de grupo dele automaticamente."
 }

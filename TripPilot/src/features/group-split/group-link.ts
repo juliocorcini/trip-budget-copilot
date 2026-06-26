@@ -347,3 +347,77 @@ export function removeJoinedGroup(shareId: string): void {
     // ignore
   }
 }
+
+/* ── auto-accept allowlist (G_last, DEC-355 — trusted inviters) ─────────────── */
+
+const AUTO_ACCEPT_KEY = 'group.invite.autoaccept';
+
+/**
+ * G_last (DEC-355) — a per-inviter allowlist: actorIds whose group invites I chose
+ * to accept silently (skipping the accept-first prompt). Mirrors the `JoinedGroup`
+ * localStorage map; the silent auto-accept pass (UI, on inbox refresh) consults it.
+ * This only changes WHO still prompts — never the capability: the owner still
+ * grants me READ creds only. Per-inviter, revocable; keyed by the sender actorId.
+ */
+export interface AutoAcceptInviter {
+  actorId: string;
+  /** Display name at the moment I trusted them (UI only). */
+  name: string;
+  since: string;
+}
+
+type AutoAcceptMap = Record<string, AutoAcceptInviter>;
+
+function isAutoAcceptInviterEntry(e: Partial<AutoAcceptInviter> | undefined): e is AutoAcceptInviter {
+  return !!e && typeof e.actorId === 'string' && typeof e.name === 'string';
+}
+
+function readAutoAcceptMap(): AutoAcceptMap {
+  try {
+    const raw = localStorage.getItem(AUTO_ACCEPT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') return parsed as AutoAcceptMap;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/** True when I have opted to silently accept group invites from this actor. */
+export function isAutoAcceptInviter(actorId: string): boolean {
+  if (!actorId) return false;
+  return actorId in readAutoAcceptMap();
+}
+
+/** Opt in to silently accepting FUTURE group invites from this actor. */
+export function addAutoAcceptInviter(actorId: string, name: string): void {
+  if (!actorId) return;
+  try {
+    const map = readAutoAcceptMap();
+    map[actorId] = { actorId, name, since: new Date().toISOString() };
+    localStorage.setItem(AUTO_ACCEPT_KEY, JSON.stringify(map));
+  } catch {
+    // Private mode / no storage: the preference simply won't persist.
+  }
+}
+
+/** Stop auto-accepting invites from this actor (future invites prompt again). */
+export function removeAutoAcceptInviter(actorId: string): void {
+  try {
+    const map = readAutoAcceptMap();
+    if (actorId in map) {
+      delete map[actorId];
+      localStorage.setItem(AUTO_ACCEPT_KEY, JSON.stringify(map));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Every inviter I currently auto-accept, newest trust first (UI seeding). */
+export function listAutoAcceptInviters(): AutoAcceptInviter[] {
+  return Object.values(readAutoAcceptMap())
+    .filter(isAutoAcceptInviterEntry)
+    .sort((a, b) => (b.since ?? '').localeCompare(a.since ?? ''));
+}

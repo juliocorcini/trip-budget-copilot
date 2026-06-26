@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.4-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'No histórico do grupo, quando você confirma o pagamento de outra pessoa, fica marcado como "ação do organizador" — e mostra o que mudou (ex.: estava em aberto).',
+        'Agora dá para marcar um amigo como confiável: os próximos convites de grupo dele entram automaticamente, sem precisar aceitar um a um.',
+      ],
+      en: [
+        'In the group history, confirming someone else\u2019s payment is now flagged as an "organizer action" — and shows what it changed (e.g. was unpaid).',
+        'You can now trust a friend: their future group invites join automatically, with no need to accept each one.',
+      ],
+      es: [
+        'En el historial del grupo, al confirmar el pago de otra persona ahora se marca como "acción del organizador" — y muestra qué cambió (p. ej. estaba pendiente).',
+        'Ahora puedes marcar a un amigo como de confianza: sus próximas invitaciones de grupo se aceptan automáticamente, sin tener que aceptar una por una.',
+      ],
+    },
+  },
+  {
     version: '1.4.3-rc',
     date: '2026-06-26',
     items: {

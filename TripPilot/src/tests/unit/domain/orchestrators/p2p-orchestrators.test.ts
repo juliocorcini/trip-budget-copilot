@@ -251,6 +251,9 @@ describe('P2P inbound orchestrators (DEC-345/346)', () => {
     expect(pending[0]!.kind).toBe('group_invite');
     expect(pending[0]!.invite).toEqual({ v: 1, shareId: 'g_abc', key: 'k_xyz', groupName: 'Weekend' });
     expect(pending[0]!.fromName).toBe('Bruno');
+    // G_last (DEC-355): the sender actorId is exposed so the UI can key the
+    // per-inviter auto-accept allowlist.
+    expect(pending[0]!.fromActorId).toBe(SENDER);
   });
 
   it('acceptGroupInvite returns the read creds, clears the inbox, and folds NO money', async () => {

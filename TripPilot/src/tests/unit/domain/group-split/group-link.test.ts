@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   createGroupSplitEvent,
   createGroupParticipant,
@@ -15,6 +15,12 @@ import {
   reduceGroupClaims,
 } from '@/domain/group-split';
 import type { GroupSplitEvent, GroupClaimExpense } from '@/domain/group-split';
+import {
+  isAutoAcceptInviter,
+  addAutoAcceptInviter,
+  removeAutoAcceptInviter,
+  listAutoAcceptInviters,
+} from '@/features/group-split/group-link';
 
 /** Builds the canonical 3-person "churrasco" event A(owner)/B/C with one expense. */
 function buildAbcEvent(): { event: GroupSplitEvent; a: string; b: string; c: string } {
@@ -273,5 +279,52 @@ describe('reduceGroupClaims — guest-authored expenses (DEC-340 add-or-retract)
     expect(next.expenses.some((e) => e.id === 'g:y:1')).toBe(false);
     // The event's original single expense is untouched.
     expect(next.expenses).toHaveLength(1);
+  });
+});
+
+describe('auto-accept allowlist (G_last, DEC-355 — trusted inviters)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('an unknown inviter is never auto-accepted; opting in flips it', () => {
+    expect(isAutoAcceptInviter('actor-bruno')).toBe(false);
+    addAutoAcceptInviter('actor-bruno', 'Bruno');
+    expect(isAutoAcceptInviter('actor-bruno')).toBe(true);
+  });
+
+  it('removing an inviter restores the prompt (future invites are not silent)', () => {
+    addAutoAcceptInviter('actor-bruno', 'Bruno');
+    removeAutoAcceptInviter('actor-bruno');
+    expect(isAutoAcceptInviter('actor-bruno')).toBe(false);
+  });
+
+  it('an empty actorId is never trusted and is never written (defensive)', () => {
+    addAutoAcceptInviter('', 'Ghost');
+    expect(isAutoAcceptInviter('')).toBe(false);
+    expect(listAutoAcceptInviters()).toHaveLength(0);
+  });
+
+  it('lists every trusted inviter with its display name (UI seeding)', () => {
+    addAutoAcceptInviter('actor-a', 'Ana');
+    addAutoAcceptInviter('actor-b', 'Bruno');
+    const list = listAutoAcceptInviters();
+    expect(list).toHaveLength(2);
+    // Order can tie within the same millisecond; assert membership, not order.
+    const byId = new Map(list.map((e) => [e.actorId, e.name]));
+    expect(byId.get('actor-a')).toBe('Ana');
+    expect(byId.get('actor-b')).toBe('Bruno');
+  });
+
+  it('re-trusting the same inviter updates the name in place (no duplicate)', () => {
+    addAutoAcceptInviter('actor-a', 'Ana');
+    addAutoAcceptInviter('actor-a', 'Ana Paula');
+    const list = listAutoAcceptInviters();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.name).toBe('Ana Paula');
+  });
+
+  it('a corrupt allowlist blob degrades to empty (never throws)', () => {
+    localStorage.setItem('group.invite.autoaccept', '{ not json');
+    expect(isAutoAcceptInviter('actor-bruno')).toBe(false);
+    expect(listAutoAcceptInviters()).toEqual([]);
   });
 });

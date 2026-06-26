@@ -191,6 +191,9 @@ export async function sendGroupInvite(input: ShareGroupInviteInput): Promise<Sen
 export interface InboundP2pItem {
   itemId: string;
   kind: 'debt' | 'payment' | 'group_invite';
+  /** G_last (DEC-355) — the sender's actorId, so the UI can key a per-inviter
+   *  auto-accept allowlist. Empty only for legacy items drained before it existed. */
+  fromActorId: string;
   fromName: string;
   debt?: SharedDebtPayload;
   payment?: PaymentPayload;
@@ -203,15 +206,16 @@ export async function getInboundP2pItems(): Promise<InboundP2pItem[]> {
   const out: InboundP2pItem[] = [];
   for (const item of items) {
     if (!item.envelope) continue;
+    const fromActorId = item.fromActorId ?? item.envelope.fromActorId ?? '';
     if (item.kind === 'debt') {
       const debt = parseSharedDebtPayload(item.envelope.data);
-      if (debt) out.push({ itemId: item.id, kind: 'debt', fromName: item.fromName ?? debt.fromName, debt });
+      if (debt) out.push({ itemId: item.id, kind: 'debt', fromActorId, fromName: item.fromName ?? debt.fromName, debt });
     } else if (item.kind === 'payment') {
       const payment = parsePaymentPayload(item.envelope.data);
-      if (payment) out.push({ itemId: item.id, kind: 'payment', fromName: item.fromName ?? payment.fromName, payment });
+      if (payment) out.push({ itemId: item.id, kind: 'payment', fromActorId, fromName: item.fromName ?? payment.fromName, payment });
     } else if (item.kind === 'group_invite') {
       const invite = parseGroupInvitePayload(item.envelope.data);
-      if (invite) out.push({ itemId: item.id, kind: 'group_invite', fromName: item.fromName ?? '', invite });
+      if (invite) out.push({ itemId: item.id, kind: 'group_invite', fromActorId, fromName: item.fromName ?? '', invite });
     }
   }
   return out;

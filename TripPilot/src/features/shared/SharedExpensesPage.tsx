@@ -38,7 +38,13 @@ import { participantShareRepository } from '@/data/repositories/participant-shar
 import { settlementRepository } from '@/data/repositories/settlement-repository';
 import { participantRepository, peerLinkRepository, sessionRepository, groupSplitRepository } from '@/data/repositories';
 import type { GroupSplitEvent } from '@/domain/group-split';
-import { saveJoinedGroup } from '@/features/group-split/group-link';
+import {
+  saveJoinedGroup,
+  isAutoAcceptInviter,
+  addAutoAcceptInviter,
+  removeAutoAcceptInviter,
+  listAutoAcceptInviters,
+} from '@/features/group-split/group-link';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { Wallet } from '@/domain/types/wallet';
@@ -278,6 +284,11 @@ export function SharedExpensesPage() {
   // first ÂNCORA), and the send sheets ("Cobrar" / "Registrar pagamento").
   const [inboundItems, setInboundItems] = useState<InboundP2pItem[]>([]);
   const [p2pBusy, setP2pBusy] = useState<string | null>(null);
+  // G_last (DEC-355) — inviter actorIds I auto-accept group invites from. Seeded
+  // from the persisted allowlist so the per-row checkbox reflects prior choices.
+  const [trustedInviters, setTrustedInviters] = useState<Set<string>>(
+    () => new Set(listAutoAcceptInviters().map((e) => e.actorId)),
+  );
   // L8: confirming a payment I RECEIVED opens a fund/wallet picker (real inflow).
   const [confirmPayItem, setConfirmPayItem] = useState<InboundP2pItem | null>(null);
   // Send sheets, keyed by the target person (must be a connected peer).
@@ -326,8 +337,30 @@ export function SharedExpensesPage() {
 
   // DEC-345/346 (G7) — the pending inbox is refreshed on mount and whenever a
   // drain lands new debts/payments (the boot/visibility sync fires the event).
+  // G_last (DEC-355): a SILENT auto-accept pass runs first — any group invite
+  // from an inviter I previously trusted is joined without a prompt (it never
+  // shows in the list). Capability is unchanged (read-only `/g/` creds); only the
+  // accept tap is skipped. Accepting drops the item, so the re-fetch can't loop.
   const refreshInbox = useCallback(async () => {
-    setInboundItems(await getInboundP2pItems());
+    let items = await getInboundP2pItems();
+    const trusted = items.filter(
+      (i) => i.kind === 'group_invite' && !!i.invite && isAutoAcceptInviter(i.fromActorId),
+    );
+    if (trusted.length > 0) {
+      for (const item of trusted) {
+        const invite = await acceptGroupInvite(item.itemId);
+        if (!invite) continue;
+        saveJoinedGroup({
+          shareId: invite.shareId,
+          key: invite.key,
+          name: invite.groupName,
+          invitedByName: item.fromName,
+          joinedAt: new Date().toISOString(),
+        });
+      }
+      items = await getInboundP2pItems();
+    }
+    setInboundItems(items);
   }, []);
   useEffect(() => {
     void refreshInbox();
@@ -652,6 +685,21 @@ export function SharedExpensesPage() {
     }
   };
 
+  // G_last (DEC-355) — opt a connected inviter in/out of silent auto-accept. This
+  // sets the preference for FUTURE invites only; the current item still needs an
+  // explicit Accept (the accept-first guarantee for what's already on screen).
+  const toggleAutoAccept = (actorId: string, name: string, on: boolean) => {
+    if (!actorId) return;
+    if (on) addAutoAcceptInviter(actorId, name);
+    else removeAutoAcceptInviter(actorId);
+    setTrustedInviters((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(actorId);
+      else next.delete(actorId);
+      return next;
+    });
+  };
+
   const handleConfirmPayment = async (item: InboundP2pItem) => {
     if (!trip || !ownerParticipant || p2pBusy) return;
     // L8: a payment that means I RECEIVED the cash is a real inflow → pick the
@@ -955,6 +1003,20 @@ export function SharedExpensesPage() {
                       <p className="text-xs text-on-surface-faint truncate">{item.invite.groupName}</p>
                     </div>
                   </div>
+                  {/* G_last (DEC-355): trust this inviter so FUTURE invites join
+                      silently. Hidden for legacy items that carry no actorId. */}
+                  {item.fromActorId && (
+                    <label className="flex items-center gap-2 text-[11px] text-on-surface-dim select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={trustedInviters.has(item.fromActorId)}
+                        onChange={(e) => toggleAutoAccept(item.fromActorId, item.fromName, e.target.checked)}
+                        disabled={busy}
+                        className="accent-primary w-4 h-4 shrink-0"
+                      />
+                      {t('p2p.invite_auto_accept', { name: item.fromName })}
+                    </label>
+                  )}
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRejectInbound(item)}

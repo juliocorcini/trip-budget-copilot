@@ -90,6 +90,17 @@ function activityIcon(kind: GroupActivity['kind']): string {
   return ACTIVITY_ICONS[kind] ?? 'history';
 }
 
+/**
+ * G_last (DEC-354) — localizes the prior-state token stored on an organizer-override
+ * entry's `detail` ("was unpaid" / "had marked as paid"), so the audit shows what the
+ * override changed. Falls back to the raw token for any unmapped state.
+ */
+function overridePrevLabel(prevToken: string, t: TranslateFn): string {
+  const key = `group_split.override_prev_${prevToken}`;
+  const label = t(key);
+  return label === key ? prevToken : label;
+}
+
 /** DEC-354 — the human sentence for one history entry, via `t()` + `formatMoney`. */
 function activityText(entry: GroupActivity, t: TranslateFn, currency: string): string {
   return t(`group_split.activity_${entry.kind}`, {
@@ -404,6 +415,9 @@ export function GroupSplitDetailPage() {
   const handleSetPayment = (participantId: string, status: GroupPaymentStatus) => {
     const subject = event.participants.find((p) => p.id === participantId);
     if (!subject) return;
+    // G_last (DEC-353/354): capture the prior state BEFORE mutating, so an
+    // organizer override records what it overrode (a richer audit trail).
+    const prevStatus: GroupPaymentStatus = subject.paymentStatus ?? 'unpaid';
     let next = setParticipantPayment(event, participantId, status);
     const debtorTransfers = transfers.filter((tr) => tr.fromParticipantId === participantId);
     const amountCents = debtorTransfers.reduce((s, tr) => s + tr.amountCents, 0) || undefined;
@@ -414,11 +428,14 @@ export function GroupSplitDetailPage() {
         next = appendGroupActivity(next, { kind: 'payment_confirmed', actorName: ownerName, subjectName: subject.name, amountCents });
       } else {
         const creditorName = debtorTransfers.find((tr) => tr.toParticipantId !== event.ownerParticipantId)?.toName;
+        // `detail` carries the prior-state token (display-only); rendered as a
+        // localized "estava: …" line + an organizer badge in the timeline.
         next = appendGroupActivity(next, {
           kind: 'payment_override',
           actorName: ownerName,
           subjectName: subject.name,
           counterpartName: creditorName,
+          detail: prevStatus,
           amountCents,
         });
       }
@@ -769,15 +786,31 @@ export function GroupSplitDetailPage() {
           </button>
           {openPanel === 'history' && (
             <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
-              {(historyExpanded ? timeline : timeline.slice(0, 8)).map((entry) => (
-                <div key={entry.id} className="flex items-start gap-2.5">
-                  <Icon name={activityIcon(entry.kind)} size={16} className="text-on-surface-faint shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-on-surface leading-snug">{activityText(entry, t, event.currency)}</p>
-                    <p className="text-[10px] text-on-surface-faint">{formatActivityTime(entry.ts)}</p>
+              {(historyExpanded ? timeline : timeline.slice(0, 8)).map((entry) => {
+                const isOverride = entry.kind === 'payment_override';
+                return (
+                  <div key={entry.id} className="flex items-start gap-2.5">
+                    <Icon
+                      name={activityIcon(entry.kind)}
+                      size={16}
+                      className={`shrink-0 mt-0.5 ${isOverride ? 'text-warning' : 'text-on-surface-faint'}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-on-surface leading-snug">{activityText(entry, t, event.currency)}</p>
+                      {/* G_last (DEC-354): an organizer override is a moderation action —
+                          flag it + show what state it overrode, so the trail is auditable. */}
+                      {isOverride && (
+                        <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-warning">
+                          <Icon name="gavel" size={11} className="text-warning" />
+                          {t('group_split.override_badge')}
+                          {entry.detail && ` · ${overridePrevLabel(entry.detail, t)}`}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-on-surface-faint">{formatActivityTime(entry.ts)}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {!historyExpanded && timeline.length > 8 && (
                 <button
                   onClick={() => setHistoryExpanded(true)}
