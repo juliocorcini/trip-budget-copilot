@@ -2,6 +2,7 @@ export {
   createGroupParticipant,
   createGroupSplitEvent,
   buildGroupExpense,
+  groupExpenseImages,
   addParticipant,
   removeParticipant,
   canRemoveParticipant,

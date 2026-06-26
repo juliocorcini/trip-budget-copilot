@@ -25,7 +25,6 @@ describe('GroupExpenseEditor — manual line items (F05)', () => {
         expense={null}
         photoEnabled={false}
         aiTextEnabled={false}
-        isShared={false}
         onClose={() => {}}
         onSave={onSave}
         onDelete={() => {}}
@@ -69,7 +68,6 @@ describe('GroupExpenseEditor — manual line items (F05)', () => {
         expense={null}
         photoEnabled={false}
         aiTextEnabled={false}
-        isShared={false}
         onClose={() => {}}
         onSave={onSave}
         onDelete={() => {}}

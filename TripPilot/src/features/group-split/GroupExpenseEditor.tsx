@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
 import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { showToast } from '@/components/Toast';
 import { formatMoney, toCents, fromCents } from '@/domain/money';
-import { buildGroupExpense, expenseShares, validateGroupExpense } from '@/domain/group-split';
-import { checkImageBytes } from '@/domain/media';
-import { compressImageFile, type CompressedImage } from '@/utils/image/compress';
-import { fetchDecryptedImageUrl } from '@/data/sync/media-link';
+import { buildGroupExpense, expenseShares, groupExpenseImages, validateGroupExpense } from '@/domain/group-split';
+import { checkImageBytes, type ImageRef } from '@/domain/media';
+import { compressImageFile } from '@/utils/image/compress';
+import { uploadImage, deleteSharedImage, imageUrl } from '@/data/sync/media-link';
+import { useDecryptedImage } from './GroupImage';
 import { scanReceiptForGroup, scanReceiptItemsForGroup, parseTextForGroup, type GroupAiError } from './group-ai';
 import type {
   AddGroupExpenseInput,
@@ -22,17 +23,6 @@ import type {
 /** A scanned receipt line plus whether the group keeps it (DEC-337). */
 type EditorItem = GroupExpenseLineItem & { include: boolean };
 
-/**
- * DEC-342/343 (G5) — the photo intent the editor hands back on save. The detail
- * page (which owns the share creds) does the encrypt+upload / delete: `pending` is
- * a freshly compressed image to upload; `removeExisting` means drop the currently
- * uploaded one (a plain remove, or the old half of a replace).
- */
-export interface GroupExpenseImageIntent {
-  pending: CompressedImage | null;
-  removeExisting: boolean;
-}
-
 interface Props {
   event: GroupSplitEvent;
   /** null = a brand-new expense; otherwise the expense being edited. */
@@ -40,10 +30,9 @@ interface Props {
   /** DEC-258/246 opt-ins — show the receipt-scan / ask-AI prefills (m3). */
   photoEnabled: boolean;
   aiTextEnabled: boolean;
-  /** DEC-342/343 — whether the event is live-shared (drives the upload-on-share hint). */
-  isShared: boolean;
   onClose: () => void;
-  onSave: (expense: GroupExpense, image: GroupExpenseImageIntent) => void;
+  /** The saved expense already carries its uploaded {@link GroupExpense.imageRefs}. */
+  onSave: (expense: GroupExpense) => void;
   onDelete: (expenseId: string) => void;
 }
 
@@ -59,7 +48,6 @@ export function GroupExpenseEditor({
   expense,
   photoEnabled,
   aiTextEnabled,
-  isShared,
   onClose,
   onSave,
   onDelete,
@@ -96,14 +84,17 @@ export function GroupExpenseEditor({
   const itemsChooser = useImageSourceChooser((file) => {
     void handleScanItems(file);
   });
-  // DEC-342/343 (G5) — attach a receipt/proof photo. `pendingImage` is a freshly
-  // compressed blob to upload on save; `removeExisting` drops the uploaded one
-  // (plain remove, or the old half of a replace). The detail page does the
-  // encrypt+upload / delete (it owns the share key) — the editor only captures.
-  const [pendingImage, setPendingImage] = useState<CompressedImage | null>(null);
-  const [removeExisting, setRemoveExisting] = useState(false);
+  // DEC-348 (G2) — receipt/proof photos. The editor uploads on attach (plaintext,
+  // persists immediately) and supports MANY per expense (F08). `imageRefs` is the
+  // working set; `addedRefs` are uploads made THIS session (deleted if the user
+  // cancels — orphan cleanup) and `removedExistingRefs` are pre-existing refs the
+  // user removed (deleted only when the edit is saved). The expense carries the
+  // final `imageRefs` on save, so the detail page no longer uploads on share.
+  const [imageRefs, setImageRefs] = useState<ImageRef[]>(() => groupExpenseImages(expense ?? ({} as GroupExpense)));
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [existingUrl, setExistingUrl] = useState<string | null>(null);
+  const addedRefsRef = useRef<ImageRef[]>([]);
+  const removedExistingRefsRef = useRef<ImageRef[]>([]);
+  const savedRef = useRef(false);
   const photoChooser = useImageSourceChooser((file) => {
     void handleAttachPhoto(file);
   });
@@ -165,33 +156,9 @@ export function GroupExpenseEditor({
     setSource(src);
   };
 
-  // Show the already-uploaded image (decrypted) when editing, unless the user is
-  // replacing or removing it. Revokes the blob URL on cleanup.
-  const hasPending = pendingImage !== null;
-  useEffect(() => {
-    const ref = expense?.imageRef;
-    if (!ref || removeExisting || hasPending) {
-      setExistingUrl(null);
-      return;
-    }
-    let active = true;
-    let created: string | null = null;
-    void fetchDecryptedImageUrl(ref).then((u) => {
-      if (!active) {
-        if (u) URL.revokeObjectURL(u);
-        return;
-      }
-      if (u) {
-        created = u;
-        setExistingUrl(u);
-      }
-    });
-    return () => {
-      active = false;
-      if (created) URL.revokeObjectURL(created);
-    };
-  }, [expense?.imageRef, removeExisting, hasPending]);
-
+  // DEC-348 — compress + upload on attach (plaintext), then append the ref. The
+  // upload persists immediately, so the photo survives a reload even before the
+  // event is shared (F07). A failed upload surfaces an honest toast.
   const handleAttachPhoto = async (file: File) => {
     setPhotoBusy(true);
     try {
@@ -201,9 +168,17 @@ export function GroupExpenseEditor({
         showToast(t('group_split.photo_too_large'), 'danger');
         return;
       }
-      setPendingImage(compressed);
-      // Attaching supersedes any previously uploaded image (replace = delete old).
-      setRemoveExisting(true);
+      const result = await uploadImage(compressed.blob, {
+        width: compressed.width,
+        height: compressed.height,
+        mimeType: compressed.mimeType,
+      });
+      if (!result.ok) {
+        showToast(t(result.reason === 'too_large' ? 'group_split.photo_too_large' : 'group_split.ai_failed'), 'danger');
+        return;
+      }
+      addedRefsRef.current.push(result.ref);
+      setImageRefs((prev) => [...prev, result.ref]);
     } catch {
       showToast(t('group_split.ai_failed'), 'danger');
     } finally {
@@ -211,13 +186,18 @@ export function GroupExpenseEditor({
     }
   };
 
-  const handleRemovePhoto = () => {
-    setPendingImage(null);
-    setRemoveExisting(true);
-    setExistingUrl(null);
+  // Remove a photo: a ref uploaded THIS session is an orphan → delete its blob now;
+  // a pre-existing ref is queued to delete only if the edit is saved.
+  const handleRemovePhoto = (ref: ImageRef) => {
+    setImageRefs((prev) => prev.filter((r) => r.r2Id !== ref.r2Id));
+    const addedAt = addedRefsRef.current.findIndex((r) => r.r2Id === ref.r2Id);
+    if (addedAt >= 0) {
+      addedRefsRef.current.splice(addedAt, 1);
+      void deleteSharedImage(ref);
+    } else {
+      removedExistingRefsRef.current.push(ref);
+    }
   };
-
-  const previewUrl = pendingImage?.thumbnailDataUrl ?? existingUrl;
 
   const handleScanFull = async (file: File) => {
     setAiBusy(true);
@@ -318,21 +298,35 @@ export function GroupExpenseEditor({
       return;
     }
     const built = buildGroupExpense(input);
-    // Preserve identity on edit so balances/history stay stable. DEC-342/343 —
-    // keep the existing imageRef unless the user removed/replaced it; the detail
-    // page applies the pending upload + deletes the old blob.
+    // Preserve identity on edit so balances/history stay stable.
     let finalExpense: GroupExpense;
     if (expense) {
       finalExpense = { ...built, id: expense.id, createdAt: expense.createdAt, source: expense.source };
-      if (!removeExisting && expense.imageRef) finalExpense.imageRef = expense.imageRef;
     } else {
       finalExpense = built;
     }
-    onSave(finalExpense, { pending: pendingImage, removeExisting });
+    // DEC-348 — attach the uploaded refs; drop the legacy single field (a legacy
+    // ref the user kept is already in `imageRefs`, read back via groupExpenseImages).
+    delete finalExpense.imageRef;
+    if (imageRefs.length > 0) finalExpense.imageRefs = imageRefs;
+    // Saving commits removals: delete the pre-existing blobs the user dropped.
+    for (const ref of removedExistingRefsRef.current) void deleteSharedImage(ref);
+    removedExistingRefsRef.current = [];
+    savedRef.current = true;
+    onSave(finalExpense);
+  };
+
+  // Cancelling discards this session's uploads (orphan cleanup); a save keeps them.
+  const handleCancel = () => {
+    if (!savedRef.current) {
+      for (const ref of addedRefsRef.current) void deleteSharedImage(ref);
+      addedRefsRef.current = [];
+    }
+    onClose();
   };
 
   return (
-    <BottomSheet open onClose={onClose} title={isEdit ? t('group_split.edit_expense') : t('group_split.add_expense')}>
+    <BottomSheet open onClose={handleCancel} title={isEdit ? t('group_split.edit_expense') : t('group_split.add_expense')}>
       {fullChooser.element}
       {itemsChooser.element}
       {photoChooser.element}
@@ -519,37 +513,32 @@ export function GroupExpenseEditor({
           />
         </Labeled>
 
-        {/* DEC-342/343 (G5) — attach a receipt/proof photo; it E2E-uploads to R2
-            when the group is shared so every member + the `/g/` guest can view it. */}
+        {/* DEC-348 (G2) — attach receipt/proof photos; each uploads on attach as
+            access-controlled plaintext, so it persists and every member + the
+            `/g/` web guest can view/download it. Multiple photos per expense (F08). */}
         <div className="bg-surface-high rounded-xl p-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-on-surface-faint">{t('group_split.photos_title')}</span>
-            {previewUrl && (
-              <button
-                type="button"
-                onClick={handleRemovePhoto}
-                className="text-[11px] text-error font-semibold btn-press"
-              >
-                {t('group_split.remove_photo')}
-              </button>
-            )}
-          </div>
-          {previewUrl ? (
-            <img src={previewUrl} alt="" className="w-full max-h-48 object-contain rounded-lg bg-surface-container" />
-          ) : (
-            <button
-              type="button"
-              disabled={photoBusy}
-              onClick={() => photoChooser.open()}
-              className="py-2.5 rounded-xl bg-surface-container text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
-            >
-              <Icon name="add_a_photo" size={18} className="text-primary" />
-              {photoBusy ? t('group_split.ai_thinking') : t('group_split.add_photo')}
-            </button>
+          <span className="text-xs text-on-surface-faint">{t('group_split.photos_title')}</span>
+          {imageRefs.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {imageRefs.map((ref) => (
+                <EditorThumb
+                  key={ref.r2Id}
+                  imageRef={ref}
+                  removeLabel={t('group_split.remove_photo')}
+                  onRemove={() => handleRemovePhoto(ref)}
+                />
+              ))}
+            </div>
           )}
-          {previewUrl && !isShared && (
-            <p className="text-[11px] text-on-surface-faint">{t('group_split.photo_pending_hint')}</p>
-          )}
+          <button
+            type="button"
+            disabled={photoBusy}
+            onClick={() => photoChooser.open()}
+            className="py-2.5 rounded-xl bg-surface-container text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            <Icon name="add_a_photo" size={18} className="text-primary" />
+            {photoBusy ? t('group_split.ai_thinking') : t('group_split.add_photo')}
+          </button>
         </div>
 
         <div>
@@ -654,6 +643,43 @@ export function GroupExpenseEditor({
 
 function nameOf(event: GroupSplitEvent, id: string): string {
   return event.participants.find((p) => p.id === id)?.name ?? '?';
+}
+
+/**
+ * One removable photo thumbnail in the editor. A plaintext ref renders from its
+ * direct URL; a legacy E2E ref (carries `key`) is decrypted for back-compat.
+ */
+function EditorThumb({
+  imageRef,
+  onRemove,
+  removeLabel,
+}: {
+  imageRef: ImageRef;
+  onRemove: () => void;
+  removeLabel: string;
+}) {
+  const legacy = !!imageRef.key;
+  const decrypted = useDecryptedImage(legacy ? imageRef : null);
+  const src = legacy ? (decrypted && decrypted !== 'failed' ? decrypted : null) : imageUrl(imageRef);
+  return (
+    <div className="relative w-20 h-20 rounded-lg overflow-hidden shrink-0 bg-surface-container">
+      {src ? (
+        <img src={src} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={removeLabel}
+        className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 btn-press"
+      >
+        <Icon name="close" size={14} className="text-white" />
+      </button>
+    </div>
+  );
 }
 
 function Labeled({ label, children }: { label: string; children: React.ReactNode }) {

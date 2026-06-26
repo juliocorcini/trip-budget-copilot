@@ -53,9 +53,10 @@ const groupExpenseSchema = z.object({
   items: z.array(groupExpenseLineItemSchema).optional(),
   // DEC-340 — preserve the authoring device so the board can mark mine + retract.
   authoredByActorId: z.string().optional(),
-  // DEC-342/343 — carry the E2E image reference so every member + the `/g/` guest
-  // can lazily fetch + decrypt the receipt photo (the key rides inside this ref).
+  // DEC-342/343 (legacy single) + DEC-348 (multi, plaintext) — carry the image
+  // reference(s) so every member + the `/g/` guest can view/download the receipt.
   imageRef: imageRefSchema.optional(),
+  imageRefs: z.array(imageRefSchema).optional(),
 });
 
 const groupSplitEventSchema = z.object({

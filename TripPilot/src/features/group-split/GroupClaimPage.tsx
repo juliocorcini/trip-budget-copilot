@@ -6,6 +6,7 @@ import {
   buildGroupClaimResponse,
   computeGroupBalances,
   computeGroupTransfers,
+  groupExpenseImages,
   type GroupClaimExpense,
   type GroupSharePayload,
   type GroupSplitEvent,
@@ -443,7 +444,7 @@ function ClaimBoard({
                   amountCents={exp.amountCents}
                   currency={event.currency}
                   items={exp.items}
-                  imageRef={exp.imageRef}
+                  imageRefs={groupExpenseImages(exp)}
                   onOpenImage={setLightboxUrl}
                   mine={exp.authoredByActorId === actorId}
                   onRemove={exp.authoredByActorId === actorId ? () => onRemoveExpense(exp.id) : undefined}
@@ -499,7 +500,7 @@ function ClaimExpenseRow({
   amountCents,
   currency,
   items,
-  imageRef,
+  imageRefs,
   onOpenImage,
   mine,
   pending,
@@ -511,7 +512,7 @@ function ClaimExpenseRow({
   amountCents: number;
   currency: string;
   items?: { id: string; description: string; amountCents: number; qty: number }[];
-  imageRef?: ImageRef;
+  imageRefs?: ImageRef[];
   onOpenImage?: (url: string) => void;
   mine?: boolean;
   pending?: boolean;
@@ -523,13 +524,18 @@ function ClaimExpenseRow({
   return (
     <div className={`bg-surface-container rounded-xl p-3.5 flex flex-col gap-2 ${pending ? 'opacity-80' : ''}`}>
       <div className="flex items-center gap-3">
-        {imageRef && (
-          <GroupImage
-            imageRef={imageRef}
-            alt={description}
-            className="w-11 h-11 rounded-lg shrink-0"
-            onOpen={onOpenImage}
-          />
+        {imageRefs && imageRefs.length > 0 && (
+          <div className="flex gap-1 shrink-0">
+            {imageRefs.map((ref) => (
+              <GroupImage
+                key={ref.r2Id}
+                imageRef={ref}
+                alt={description}
+                className="w-11 h-11 rounded-lg shrink-0"
+                onOpen={onOpenImage}
+              />
+            ))}
+          </div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">

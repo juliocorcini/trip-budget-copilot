@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { splitEqually, sumCents } from '@/domain/money';
+import type { ImageRef } from '@/domain/media';
 import type {
   GroupBalance,
   GroupExpense,
@@ -97,6 +98,19 @@ export function buildGroupExpense(input: AddGroupExpenseInput): GroupExpense {
   if (input.createdByParticipantId) expense.createdByParticipantId = input.createdByParticipantId;
   if (input.items && input.items.length > 0) expense.items = input.items.map((it) => ({ ...it }));
   return expense;
+}
+
+/**
+ * DEC-348 (G2) — the canonical read of an expense's images, unifying the new
+ * multi-photo {@link GroupExpense.imageRefs} (F08) with the LEGACY single
+ * {@link GroupExpense.imageRef} (E2E, 1.2.4-rc). Always prefer `imageRefs` when
+ * present; otherwise wrap the legacy single ref; otherwise none. Pure — every
+ * surface (owner detail, `/g/` board, bill-split) renders from this.
+ */
+export function groupExpenseImages(expense: GroupExpense): ImageRef[] {
+  if (expense.imageRefs && expense.imageRefs.length > 0) return expense.imageRefs;
+  if (expense.imageRef) return [expense.imageRef];
+  return [];
 }
 
 /* ── immutable mutations ─────────────────────────────────────────────────── */

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.2-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Fotos de comprovantes agora salvam na hora e continuam lá quando você reabre a despesa.',
+        'Dá para anexar várias fotos em uma mesma despesa.',
+        'As fotos aparecem para todo mundo que abre o link compartilhado — inclusive quem não tem o app — e podem ser baixadas.',
+      ],
+      en: [
+        'Receipt photos now save instantly and stay there when you reopen the expense.',
+        'You can attach several photos to a single expense.',
+        'Photos are visible to everyone who opens the shared link — including people without the app — and can be downloaded.',
+      ],
+      es: [
+        'Las fotos de comprobantes ahora se guardan al instante y siguen ahí cuando vuelves a abrir el gasto.',
+        'Puedes adjuntar varias fotos en un mismo gasto.',
+        'Las fotos se ven para todos los que abren el enlace compartido — incluso quienes no tienen la app — y se pueden descargar.',
+      ],
+    },
+  },
+  {
     version: '1.3.1-rc',
     date: '2026-06-26',
     items: {

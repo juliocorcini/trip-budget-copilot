@@ -96,13 +96,19 @@ export interface GroupExpense {
    */
   authoredByActorId?: string;
   /**
-   * DEC-342/343 (G5) — a reference to this expense's E2E-encrypted receipt/proof
-   * image on R2 (compress→encrypt→upload). Additive; present only once the photo
-   * has been uploaded for a SHARED event. The per-image AES key lives inside this
-   * ref (itself inside the already-E2E payload), so the Worker stores only opaque
-   * ciphertext. A private (unshared) expense keeps its photo device-local only.
+   * DEC-342/343 (G5) — LEGACY single receipt image (E2E). Kept for read back-compat
+   * with rows minted by 1.2.4-rc; new expenses use {@link GroupExpense.imageRefs}.
+   * Read both via `groupExpenseImages`.
    */
   imageRef?: ImageRef;
+  /**
+   * DEC-348 (G2, this wave) — receipt/proof images for this expense, stored as
+   * access-controlled plaintext on R2 and **uploaded on attach** (so they persist
+   * across reload, unlike the old upload-on-share). Additive; multiple per expense
+   * (F08). Each ref's `r2Id` is the unguessable read capability inside the E2E
+   * payload, so every member + the `/g/` web guest can view/download it.
+   */
+  imageRefs?: ImageRef[];
 }
 
 export type GroupSplitStatus = 'open' | 'settled';

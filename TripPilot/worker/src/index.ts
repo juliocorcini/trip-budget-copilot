@@ -54,13 +54,14 @@ export interface Env {
    */
   ADMIN_TOKEN?: string;
   /**
-   * DEC-342/343 (G5): R2 bucket for shared images. The Worker stores ONLY
-   * client-side E2E-encrypted ciphertext (`application/octet-stream`) — the AES
-   * key lives in the share fragment and never reaches here, so the bucket is
-   * unreadable to us. Objects carry an `expiresAt` in customMetadata; GET
-   * enforces the TTL (delete-on-read-if-expired) and a bucket lifecycle rule is
-   * the hard backstop. Absent in older deploys → `/img` reports
-   * `images_not_configured` and the app keeps photos device-local.
+   * DEC-348 (G2, this wave): R2 bucket for shared images, now stored as
+   * ACCESS-CONTROLLED PLAINTEXT (real content-type) so members + `/g/` web guests
+   * can view/download them; secrecy is the unguessable id + TTL + delete-on-revoke
+   * (DEC-207 unchanged — messages/debts/names stay ciphertext; only images here).
+   * Legacy E2E ciphertext (`application/octet-stream`) is still served verbatim.
+   * Objects carry an `expiresAt` in customMetadata; GET enforces the TTL
+   * (delete-on-read-if-expired) and a bucket lifecycle rule is the hard backstop.
+   * Absent in older deploys → `/img` reports `images_not_configured`.
    */
   MEDIA?: R2Bucket;
 }
@@ -104,31 +105,42 @@ const SHARE_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
 
 const SHARE_STMT_CHUNK_BYTES = 120_000; // DO value cap is 128 KiB; chunk the statement under it
 
-// DEC-342/343 (G5) — E2E-encrypted images on R2. Mirrors the proven FestPilot
-// DEC-059 adapter (allowlist→cap→store), but with TWO TripPilot deltas:
-//   1) the body is OPAQUE CIPHERTEXT (the client AES-GCM-encrypts the blob; the
-//      key lives in the E2E share payload and never reaches here), so the stored
-//      content-type is application/octet-stream and the Worker can read nothing.
+// DEC-348 (G2, this wave — REVERSES the image E2E of DEC-342/343) — shared images
+// on R2 as ACCESS-CONTROLLED PLAINTEXT. The Worker now stores + serves the REAL
+// content-type so a member or a no-app `/g/` web guest can `<img src>`/download it
+// directly. Deltas vs the old E2E note:
+//   1) the body is the real image (jpeg/png/webp); we store its content-type and
+//      echo it on GET. (Legacy `application/octet-stream` ciphertext uploaded by
+//      1.2.4-rc is still accepted + served verbatim, so old refs keep decrypting
+//      client-side.) DEC-207 still holds for messages/debts/names — only IMAGES
+//      are plaintext; the route only ever holds images.
 //   2) there is NO D1 budget ledger here (this worker has no D1) — instead each
 //      object carries an `expiresAt` in customMetadata and GET enforces it
 //      (delete-on-read-if-expired); a bucket lifecycle rule is the hard backstop
-//      and a dashboard budget alert is the cost guard (same as FestPilot's note).
+//      and a dashboard budget alert is the cost guard.
 // The id is the read capability (an unguessable UUID handed out only inside the
-// E2E payload), matching how the share link's id IS its read capability.
+// E2E share payload), matching how the share link's id IS its read capability.
 const IMG_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
-// Client compresses to a few hundred KB; after AES-GCM (12-byte IV + 16-byte tag
-// overhead) it stays well under 2 MB. 2.1 MB is the hard per-object ceiling.
+// Allowed stored content-types: real images + legacy ciphertext (octet-stream).
+const IMG_ALLOWED_CT = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/octet-stream',
+]);
+// Client compresses to a few hundred KB; 2.1 MB is the hard per-object ceiling.
 const IMG_MAX_BYTES = 2_100_000;
 const IMG_DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // matches the share statement TTL
 const IMG_MAX_TTL_MS = 180 * 24 * 60 * 60 * 1000; // bound any client-supplied TTL
-const IMG_CACHE_IMMUTABLE = 'public, max-age=31536000, immutable'; // ciphertext for an id never changes
+const IMG_CACHE_IMMUTABLE = 'public, max-age=31536000, immutable'; // the bytes for an id never change
 
 /**
- * DEC-342/343 (G5) — R2 image channel. Sub-routes under /img/:id:
- *   PUT    /img/:id   store ciphertext (octet-stream); optional X-Img-TTL (sec)
- *   GET    /img/:id   read ciphertext (TTL-enforced; 404 once expired)
+ * DEC-348 (G2) — R2 image channel. Sub-routes under /img/:id:
+ *   PUT    /img/:id   store an image; keeps its real Content-Type; optional X-Img-TTL (sec)
+ *   GET    /img/:id   serve the image with its real Content-Type (TTL-enforced; 404 once expired)
  *   DELETE /img/:id   owner/guest drops it (revoke / hide-cleanup)
- * The Worker stores ONLY ciphertext; secrecy is the AES key in the E2E payload.
+ * The route only ever holds images; secrecy is the unguessable id + TTL + revoke.
  */
 async function handleImg(request: Request, env: Env, url: URL): Promise<Response> {
   if (!env.MEDIA) return json({ error: 'images_not_configured' }, 503);
@@ -141,10 +153,14 @@ async function handleImg(request: Request, env: Env, url: URL): Promise<Response
     const body = await request.arrayBuffer();
     if (body.byteLength === 0) return json({ error: 'empty_image' }, 400);
     if (body.byteLength > IMG_MAX_BYTES) return json({ error: 'too_large' }, 413);
+    // Keep the real content-type so GET can serve a viewable/downloadable image;
+    // an unknown type falls back to jpeg (the client always sends jpeg).
+    const rawCt = (request.headers.get('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase();
+    const contentType = IMG_ALLOWED_CT.has(rawCt) ? rawCt : 'image/jpeg';
     const ttlMs = clampImgTtlMs(request.headers.get('X-Img-TTL'));
     const expiresAt = Date.now() + ttlMs;
     await env.MEDIA.put(id, body, {
-      httpMetadata: { contentType: 'application/octet-stream', cacheControl: IMG_CACHE_IMMUTABLE },
+      httpMetadata: { contentType, cacheControl: IMG_CACHE_IMMUTABLE },
       customMetadata: { expiresAt: String(expiresAt) },
     });
     return json({ ok: true, id, expiresAt });
@@ -161,7 +177,8 @@ async function handleImg(request: Request, env: Env, url: URL): Promise<Response
     }
     const headers = new Headers(CORS_HEADERS);
     object.writeHttpMetadata(headers);
-    headers.set('Content-Type', 'application/octet-stream');
+    // Serve the stored real content-type (legacy objects → octet-stream verbatim).
+    headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
     headers.set('Cache-Control', IMG_CACHE_IMMUTABLE);
     headers.set('Content-Length', String(object.size));
     return new Response(object.body, { status: 200, headers });

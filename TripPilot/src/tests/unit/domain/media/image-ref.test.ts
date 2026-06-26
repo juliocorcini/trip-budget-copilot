@@ -37,25 +37,26 @@ describe('checkImageBytes (DEC-342/343 L5 cap)', () => {
   });
 });
 
-describe('imageRefSchema (E2E payload carry)', () => {
-  const validRef: ImageRef = {
+describe('imageRefSchema (payload carry)', () => {
+  // DEC-348 — a PLAINTEXT ref (no key) is the new default; a legacy E2E ref still
+  // carries `key` and must keep parsing for back-compat.
+  const plaintextRef: ImageRef = {
     r2Id: '2b9d2f10-0d8e-4f7a-9c3a-7c1d2e3f4a5b',
-    key: 'a'.repeat(43),
     mime: 'image/jpeg',
     w: 1600,
     h: 1200,
   };
+  const legacyRef: ImageRef = { ...plaintextRef, key: 'a'.repeat(43) };
 
-  it('parses a well-formed ImageRef', () => {
-    expect(imageRefSchema.parse(validRef)).toEqual(validRef);
+  it('parses a plaintext ImageRef (no key — DEC-348)', () => {
+    expect(imageRefSchema.parse(plaintextRef)).toEqual(plaintextRef);
   });
 
-  it('rejects a ref missing the per-image key', () => {
-    const { key: _omit, ...noKey } = validRef;
-    expect(imageRefSchema.safeParse(noKey).success).toBe(false);
+  it('still parses a legacy E2E ref that carries the per-image key', () => {
+    expect(imageRefSchema.parse(legacyRef)).toEqual(legacyRef);
   });
 
   it('rejects non-numeric dimensions', () => {
-    expect(imageRefSchema.safeParse({ ...validRef, w: '1600' }).success).toBe(false);
+    expect(imageRefSchema.safeParse({ ...plaintextRef, w: '1600' }).success).toBe(false);
   });
 });

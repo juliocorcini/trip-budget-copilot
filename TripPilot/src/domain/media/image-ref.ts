@@ -1,22 +1,32 @@
 import { z } from 'zod';
 
 /**
- * DEC-342/343 (G5) — a reference to ONE E2E-encrypted image stored on R2. It is
- * the only thing that travels (inside an already-E2E payload: a group share, a
- * `/g/` board, a bill-split table, or a sealed mailbox envelope). The Worker
- * holds opaque ciphertext keyed by `r2Id`; the per-image AES `key` lives here, in
- * the encrypted payload, and never reaches the Worker — so the blob URL alone is
- * useless without the payload (the privacy win, mirrors the share `#fragment`).
+ * DEC-348 (G2, this wave — REVERSES DEC-342/343 for images): a reference to ONE
+ * shared image stored on R2 as **access-controlled plaintext**. The `r2Id` is an
+ * unguessable random id that doubles as the read capability; it travels inside the
+ * already-E2E payload (a group share, a `/g/` board, a bill-split table, a sealed
+ * mailbox envelope) so the URL is not guessable/indexed, and a TTL + delete-on-
+ * revoke bound exposure. The Worker serves the **real content-type** so a member
+ * or a no-app `/g/` web guest can `<img src>`/long-press-download it directly.
+ *
+ * `key` is **legacy-only**: refs minted by the old E2E path (1.2.4-rc) still carry
+ * the per-image AES key, and the read boundary decrypts those for back-compat. New
+ * refs omit it (plaintext). DEC-207 still holds — messages/debts/names/statements
+ * stay ciphertext-only; images are the single carve-out.
  *
  * Pure + transport-agnostic: the boundary (`data/sync/media-link.ts`) does the
- * compress→encrypt→PUT and the GET→decrypt; this module only describes + bounds.
+ * compress→PUT (plaintext) and builds the direct URL; this module only describes.
  */
 export interface ImageRef {
-  /** Opaque R2 object id (UUID) — the only address the Worker ever sees. */
+  /** Opaque, unguessable R2 object id (UUID) — also the read capability. */
   r2Id: string;
-  /** Per-image AES-GCM key (base64url), carried INSIDE the E2E payload. */
-  key: string;
-  /** Real mime of the decrypted image (R2 only ever stores octet-stream). */
+  /**
+   * LEGACY ONLY — the per-image AES-GCM key (base64url) of an E2E ref minted by
+   * the old image path. Present ⇒ the read boundary fetches + decrypts; absent ⇒
+   * the blob is plaintext and served directly (DEC-348). New refs never set it.
+   */
+  key?: string;
+  /** Real mime of the image (R2 now stores + serves it verbatim). */
   mime: string;
   /** Pixel width of the stored image (stable layout before the blob loads). */
   w: number;
@@ -51,10 +61,11 @@ export function checkImageBytes(
   return { ok: true };
 }
 
-/** Zod schema mirroring {@link ImageRef}, for the share-payload / claim schemas. */
+/** Zod schema mirroring {@link ImageRef}, for the share-payload / claim schemas.
+ *  `key` is optional (DEC-348): new refs are plaintext; legacy refs still carry it. */
 export const imageRefSchema = z.object({
   r2Id: z.string(),
-  key: z.string(),
+  key: z.string().optional(),
   mime: z.string(),
   w: z.number(),
   h: z.number(),

@@ -42,8 +42,10 @@ export const groupClaimExpenseSchema = z.object({
   category: z.string().optional(),
   occurredAt: z.string().optional(),
   items: z.array(groupClaimLineItemSchema).optional(),
-  // DEC-342/343 — a guest can author an expense with an E2E image (key in the ref).
+  // DEC-342/343 (legacy single) + DEC-348 (multi, plaintext) — a guest can author
+  // an expense carrying receipt image(s); the reducer folds them onto the expense.
   imageRef: imageRefSchema.optional(),
+  imageRefs: z.array(imageRefSchema).optional(),
 });
 
 export type GroupClaimExpense = z.infer<typeof groupClaimExpenseSchema>;
@@ -207,5 +209,6 @@ function foldClaimExpense(
   if (claim.occurredAt) expense.occurredAt = claim.occurredAt;
   if (claim.items && claim.items.length > 0) expense.items = claim.items.map((it) => ({ ...it }));
   if (claim.imageRef) expense.imageRef = { ...claim.imageRef };
+  if (claim.imageRefs && claim.imageRefs.length > 0) expense.imageRefs = claim.imageRefs.map((r) => ({ ...r }));
   return expense;
 }
