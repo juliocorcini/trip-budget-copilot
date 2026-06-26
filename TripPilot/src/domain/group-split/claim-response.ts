@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { imageRefSchema } from '@/domain/media';
 import type { GroupExpense, GroupSplitEvent } from './types';
 
 /**
@@ -41,6 +42,8 @@ export const groupClaimExpenseSchema = z.object({
   category: z.string().optional(),
   occurredAt: z.string().optional(),
   items: z.array(groupClaimLineItemSchema).optional(),
+  // DEC-342/343 — a guest can author an expense with an E2E image (key in the ref).
+  imageRef: imageRefSchema.optional(),
 });
 
 export type GroupClaimExpense = z.infer<typeof groupClaimExpenseSchema>;
@@ -203,5 +206,6 @@ function foldClaimExpense(
   if (participantIds.has(claimedParticipantId)) expense.createdByParticipantId = claimedParticipantId;
   if (claim.occurredAt) expense.occurredAt = claim.occurredAt;
   if (claim.items && claim.items.length > 0) expense.items = claim.items.map((it) => ({ ...it }));
+  if (claim.imageRef) expense.imageRef = { ...claim.imageRef };
   return expense;
 }

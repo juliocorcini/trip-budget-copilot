@@ -2538,7 +2538,7 @@
 - **Alternatives**: a custom history guard (rejected: the standard pop fixes it).
 
 ### DEC-342 — Cloud images on R2 are E2E-encrypted [Council C2]
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G5).
+- **Date**: 2026-06-25 · **Status**: APPROVED (shipped G5 `1.2.4-rc` 2026-06-25). **Per-image** AES-GCM key (not the share key — compromising one image ≠ the others), `ImageRef { r2Id, key, mime, w, h }` rides the E2E payload; Worker `/img/:id` PUT/GET/DELETE stores only `application/octet-stream` with a clamped-TTL `customMetadata.expiresAt` (delete-on-read-if-expired) + ≤2.1 MB ceiling; bucket `trippilot-media`. Deployed + live-smoke-verified.
 - **Decision**: shared/group images live on **Cloudflare R2 as opaque, client-side AES-encrypted bytes**
   with a TTL; the per-image AES key rides **inside the already-E2E share `#fragment` / sealed mailbox
   payload** — never the Worker. Images are **compressed before encryption**; **size/count caps** apply
@@ -2558,7 +2558,7 @@
   device-local only over P2P (rejected: can't serve a no-app `/g/` web guest).
 
 ### DEC-343 — Shared/group/bill-split images upload + galleries
-- **Date**: 2026-06-25 · **Status**: PROPOSED (G5) · depends on DEC-342.
+- **Date**: 2026-06-25 · **Status**: APPROVED (shipped G5 `1.2.4-rc` 2026-06-25 — group expense surface; bill-split image is a fast-follow). Owner attaches in the expense editor; the photo is **device-local until the group is shared**, then a reconcile-on-share effect E2E-uploads it and folds the `ImageRef` in. Surfaces shipped: owner **Fotos gallery** + the **`/g/` guest board row thumbnail**, both with a decrypt-on-mount `GroupImage` + a download lightbox. **delete-on-remove/replace/revoke** (revoking the link deletes the blobs + strips refs). Depends on DEC-342.
 - **Decision**: a **private** expense's image stays device-local (DEC-206 unchanged); when an expense
   becomes **shared** (shared expense, group expense, or live bill-split), its image **ascends to R2**
   (per DEC-342) and is **viewable + downloadable** by the other party / group members / the `/g/` guest.

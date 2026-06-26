@@ -26,7 +26,11 @@ import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { QrCodeDisplay } from '@/components/QrCodeDisplay';
 import { shareOrCopyLink } from '@/utils/native/link-share';
-import { GroupExpenseEditor } from './GroupExpenseEditor';
+import { GroupExpenseEditor, type GroupExpenseImageIntent } from './GroupExpenseEditor';
+import { GroupImage, ImageLightbox } from './GroupImage';
+import { uploadEncryptedImage, deleteSharedImage } from '@/data/sync/media-link';
+import type { CompressedImage } from '@/utils/image/compress';
+import type { ImageRef } from '@/domain/media';
 import {
   publishGroupSplit,
   republishGroupSplit,
@@ -75,6 +79,38 @@ export function GroupSplitDetailPage() {
   const [showTransfers, setShowTransfers] = useState(false);
   // A02/DEC-338: keep focus on the add-person field after each add.
   const newPersonRef = useRef<HTMLInputElement>(null);
+
+  // DEC-342/343 (G5) — image state. `pendingImages` are compressed photos waiting
+  // to E2E-upload (kept device-local until the event is shared → "private stays
+  // local"); `staleRefs` are uploaded blobs to delete (remove/replace/revoke).
+  const [pendingImages, setPendingImages] = useState<Record<string, CompressedImage>>({});
+  const staleRefsRef = useRef<ImageRef[]>([]);
+  const uploadingRef = useRef(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  // Tracks a lightbox URL WE created (a pending blob) so we revoke only our own.
+  const lightboxOwnedRef = useRef<string | null>(null);
+
+  const dropPending = useCallback((expenseId: string) => {
+    setPendingImages((prev) => {
+      if (!(expenseId in prev)) return prev;
+      const next = { ...prev };
+      delete next[expenseId];
+      return next;
+    });
+  }, []);
+
+  const openLightbox = useCallback((url: string, owned: boolean) => {
+    lightboxOwnedRef.current = owned ? url : null;
+    setLightboxUrl(url);
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    if (lightboxOwnedRef.current) {
+      URL.revokeObjectURL(lightboxOwnedRef.current);
+      lightboxOwnedRef.current = null;
+    }
+    setLightboxUrl(null);
+  }, []);
 
   // Refs keep the poller and the save seam reading the latest state without
   // re-subscribing the interval on every keystroke/edit.
@@ -150,6 +186,54 @@ export function GroupSplitDetailPage() {
     };
   }, [creds, event?.id, event?.status, save]);
 
+  // DEC-342/343 (G5) — image reconciliation. (1) Flush blob deletions (remove/
+  // replace/revoke) best-effort. (2) When the event is SHARED, encrypt + upload
+  // any pending photo and fold its ImageRef into the expense, then re-publish so
+  // every member + the `/g/` guest can fetch+decrypt it. Idempotent + guarded so
+  // it never double-uploads or races the claim poll.
+  useEffect(() => {
+    if (staleRefsRef.current.length > 0) {
+      const toDelete = staleRefsRef.current;
+      staleRefsRef.current = [];
+      for (const ref of toDelete) void deleteSharedImage(ref);
+    }
+    if (!creds || uploadingRef.current) return;
+    const pendingIds = Object.keys(pendingImages);
+    if (pendingIds.length === 0) return;
+    uploadingRef.current = true;
+    void (async () => {
+      try {
+        let working = eventRef.current;
+        let changed = false;
+        for (const eid of pendingIds) {
+          const compressed = pendingImages[eid];
+          const exp = working?.expenses.find((e) => e.id === eid);
+          if (!working || !exp || !compressed || exp.imageRef) {
+            dropPending(eid);
+            continue;
+          }
+          const result = await uploadEncryptedImage(compressed.blob, {
+            width: compressed.width,
+            height: compressed.height,
+            mimeType: compressed.mimeType,
+          });
+          if (result.ok) {
+            working = updateExpense(working, { ...exp, imageRef: result.ref });
+            changed = true;
+            dropPending(eid);
+          } else if (result.reason !== 'network') {
+            showToast(t('group_split.photo_too_large'), 'danger');
+            dropPending(eid);
+          }
+          // 'network' → keep pending; the next reconcile retries.
+        }
+        if (changed && working) await save(working);
+      } finally {
+        uploadingRef.current = false;
+      }
+    })();
+  }, [creds, event, pendingImages, dropPending, save, t]);
+
   const balances = useMemo(() => (event ? computeGroupBalances(event) : []), [event]);
   const transfers = useMemo(() => (event ? computeGroupTransfers(event) : []), [event]);
   // DEC-336 — expenses bucketed by the day they happened (newest fields fall back to createdAt).
@@ -179,6 +263,8 @@ export function GroupSplitDetailPage() {
   if (event === null) return null;
 
   const nameById = new Map(event.participants.map((p) => [p.id, p.name]));
+  // DEC-342/343 — expenses with a photo (uploaded ref or an owner-local pending one).
+  const imageExpenses = event.expenses.filter((e) => e.imageRef || pendingImages[e.id]);
 
   const handleAddPerson = () => {
     const trimmed = newPerson.trim();
@@ -206,13 +292,21 @@ export function GroupSplitDetailPage() {
     );
   };
 
-  const handleSaveExpense = (expense: GroupExpense) => {
-    const exists = event.expenses.some((e) => e.id === expense.id);
-    void save(exists ? updateExpense(event, expense) : addExpense(event, expense));
+  const handleSaveExpense = (expense: GroupExpense, image: GroupExpenseImageIntent) => {
+    const prior = event.expenses.find((e) => e.id === expense.id);
+    // DEC-342/343 — remove/replace deletes the previously uploaded blob; a freshly
+    // attached photo is stashed for the reconcile effect to upload on share.
+    if (image.removeExisting && prior?.imageRef) staleRefsRef.current.push(prior.imageRef);
+    if (image.pending) setPendingImages((prev) => ({ ...prev, [expense.id]: image.pending! }));
+    else if (image.removeExisting) dropPending(expense.id);
+    void save(prior ? updateExpense(event, expense) : addExpense(event, expense));
     setEditing(null);
   };
 
   const handleDeleteExpense = (expenseId: string) => {
+    const prior = event.expenses.find((e) => e.id === expenseId);
+    if (prior?.imageRef) staleRefsRef.current.push(prior.imageRef);
+    dropPending(expenseId);
     void save(removeExpense(event, expenseId));
     setEditing(null);
   };
@@ -248,6 +342,23 @@ export function GroupSplitDetailPage() {
       await revokeGroupSplit(c);
     } catch {
       // Already gone server-side — fall through and clear locally regardless.
+    }
+    // DEC-343 — revoking the link deletes the shared image blobs (best-effort) and
+    // strips their now-orphaned refs so the gallery never renders a broken image.
+    const refs = event.expenses.map((e) => e.imageRef).filter((r): r is ImageRef => !!r);
+    for (const ref of refs) void deleteSharedImage(ref);
+    if (refs.length > 0) {
+      const stripped: GroupSplitEvent = {
+        ...event,
+        expenses: event.expenses.map((e) => {
+          if (!e.imageRef) return e;
+          const copy = { ...e };
+          delete copy.imageRef;
+          return copy;
+        }),
+      };
+      await persistGroupSplit(stripped);
+      setEvent(stripped);
     }
     clearGroupLive(event.id);
     applyCreds(null);
@@ -381,6 +492,9 @@ export function GroupSplitDetailPage() {
                           {!!exp.items && exp.items.length > 0 && (
                             <Icon name="checklist" size={15} className="text-on-surface-faint shrink-0" />
                           )}
+                          {(exp.imageRef || pendingImages[exp.id]) && (
+                            <Icon name="photo" size={15} className="text-on-surface-faint shrink-0" />
+                          )}
                         </p>
                         <p className="text-[11px] text-on-surface-faint">
                           {t('group_split.paid_by', { name: nameById.get(exp.paidByParticipantId) ?? '?' })}
@@ -406,6 +520,45 @@ export function GroupSplitDetailPage() {
           </div>
         )}
       </section>
+
+      {/* Fotos (DEC-342/343) — each shared expense's receipt/proof photo, viewable
+          + downloadable by all members. A pending photo shows locally for the owner
+          until it uploads on share (private stays local). */}
+      {imageExpenses.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-bold text-on-surface px-1">{t('group_split.photos_title')}</h2>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {imageExpenses.map((exp) => {
+              const pending = pendingImages[exp.id];
+              if (exp.imageRef) {
+                return (
+                  <GroupImage
+                    key={exp.id}
+                    imageRef={exp.imageRef}
+                    alt={exp.description}
+                    className="w-24 h-24 rounded-xl shrink-0"
+                    onOpen={(url) => openLightbox(url, false)}
+                  />
+                );
+              }
+              if (!pending) return null;
+              return (
+                <button
+                  key={exp.id}
+                  type="button"
+                  onClick={() => openLightbox(URL.createObjectURL(pending.blob), true)}
+                  className="w-24 h-24 rounded-xl shrink-0 overflow-hidden btn-press relative"
+                >
+                  <img src={pending.thumbnailDataUrl} alt={exp.description} className="w-full h-full object-cover" />
+                  <span className="absolute bottom-1 right-1 bg-black/55 rounded-full p-0.5">
+                    <Icon name="cloud_upload" size={12} className="text-white" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* People */}
       <section className="flex flex-col gap-2">
@@ -572,11 +725,14 @@ export function GroupSplitDetailPage() {
           expense={editing === 'new' ? null : editing}
           photoEnabled={photoEnabled}
           aiTextEnabled={aiTextEnabled}
+          isShared={!!creds}
           onClose={() => setEditing(null)}
           onSave={handleSaveExpense}
           onDelete={handleDeleteExpense}
         />
       )}
+
+      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={closeLightbox} />}
     </div>
   );
 }

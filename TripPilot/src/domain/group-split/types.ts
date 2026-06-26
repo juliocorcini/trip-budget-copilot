@@ -15,6 +15,8 @@
  * as a denormalized number.
  */
 
+import type { ImageRef } from '@/domain/media';
+
 export type GroupParticipantKind = 'owner' | 'manual' | 'connected';
 
 /** Per-person net settlement lifecycle (DEC-297: debtor marks paid → owner confirms). */
@@ -93,6 +95,14 @@ export interface GroupExpense {
    * folding (add-or-retract by author) and the "who can remove" rule.
    */
   authoredByActorId?: string;
+  /**
+   * DEC-342/343 (G5) — a reference to this expense's E2E-encrypted receipt/proof
+   * image on R2 (compress→encrypt→upload). Additive; present only once the photo
+   * has been uploaded for a SHARED event. The per-image AES key lives inside this
+   * ref (itself inside the already-E2E payload), so the Worker stores only opaque
+   * ciphertext. A private (unshared) expense keeps its photo device-local only.
+   */
+  imageRef?: ImageRef;
 }
 
 export type GroupSplitStatus = 'open' | 'settled';

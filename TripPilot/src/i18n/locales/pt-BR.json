@@ -2704,7 +2704,13 @@
     "mark_received": "Marcar recebido",
     "add_from_trip": "Adicionar da viagem",
     "trip_settle_note": "Pagamentos confirmados aqui entram no acerto da viagem.",
-    "scan_to_join": "Aponte a câmera para entrar no grupo"
+    "scan_to_join": "Aponte a câmera para entrar no grupo",
+    "add_photo": "Adicionar foto",
+    "remove_photo": "Remover foto",
+    "photo_too_large": "Imagem muito grande (máx. 2 MB)",
+    "photo_pending_hint": "Ela sobe quando você compartilhar o grupo",
+    "photos_title": "Fotos",
+    "image_download": "Baixar"
   },
   "group_claim": {
     "kicker": "Divisão em grupo",

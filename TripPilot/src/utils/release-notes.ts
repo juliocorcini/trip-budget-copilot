@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.2.4-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Agora você pode anexar uma foto a uma despesa do grupo — um recibo, um comprovante, uma lembrança da conta.',
+        'A foto vai criptografada de ponta a ponta: a nuvem guarda só o conteúdo embaralhado e a chave viaja dentro do link do grupo, então nem o servidor consegue abrir a imagem.',
+        'Todo mundo do grupo vê e baixa a foto — inclusive quem abre o link pelo navegador, sem instalar nada. Ao revogar o link, as fotos também somem.',
+      ],
+      en: [
+        'You can now attach a photo to a group expense — a receipt, a proof of payment, a snapshot of the bill.',
+        'The photo is end-to-end encrypted: the cloud stores only scrambled bytes and the key travels inside the group link, so not even the server can open the image.',
+        'Everyone in the group can view and download it — including people who open the link in a browser, with nothing to install. Revoking the link also deletes the photos.',
+      ],
+      es: [
+        'Ahora puedes adjuntar una foto a un gasto del grupo — un recibo, un comprobante, una imagen de la cuenta.',
+        'La foto va cifrada de extremo a extremo: la nube guarda solo el contenido cifrado y la clave viaja dentro del enlace del grupo, así ni el servidor puede abrir la imagen.',
+        'Todos en el grupo la ven y la descargan — incluso quien abre el enlace en el navegador, sin instalar nada. Al revocar el enlace, las fotos también se borran.',
+      ],
+    },
+  },
+  {
     version: '1.2.3-rc',
     date: '2026-06-25',
     items: {

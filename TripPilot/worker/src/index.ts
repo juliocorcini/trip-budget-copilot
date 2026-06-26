@@ -53,6 +53,16 @@ export interface Env {
    * `admin_not_configured` (the dashboard then shows a setup notice).
    */
   ADMIN_TOKEN?: string;
+  /**
+   * DEC-342/343 (G5): R2 bucket for shared images. The Worker stores ONLY
+   * client-side E2E-encrypted ciphertext (`application/octet-stream`) — the AES
+   * key lives in the share fragment and never reaches here, so the bucket is
+   * unreadable to us. Objects carry an `expiresAt` in customMetadata; GET
+   * enforces the TTL (delete-on-read-if-expired) and a bucket lifecycle rule is
+   * the hard backstop. Absent in older deploys → `/img` reports
+   * `images_not_configured` and the app keeps photos device-local.
+   */
+  MEDIA?: R2Bucket;
 }
 
 /** No ambiguous chars (0/O, 1/I/L) — codes are sometimes read aloud. */
@@ -93,6 +103,85 @@ const SHARE_RESP_MAX_ITEM_BYTES = 60_000;
 const SHARE_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
 
 const SHARE_STMT_CHUNK_BYTES = 120_000; // DO value cap is 128 KiB; chunk the statement under it
+
+// DEC-342/343 (G5) — E2E-encrypted images on R2. Mirrors the proven FestPilot
+// DEC-059 adapter (allowlist→cap→store), but with TWO TripPilot deltas:
+//   1) the body is OPAQUE CIPHERTEXT (the client AES-GCM-encrypts the blob; the
+//      key lives in the E2E share payload and never reaches here), so the stored
+//      content-type is application/octet-stream and the Worker can read nothing.
+//   2) there is NO D1 budget ledger here (this worker has no D1) — instead each
+//      object carries an `expiresAt` in customMetadata and GET enforces it
+//      (delete-on-read-if-expired); a bucket lifecycle rule is the hard backstop
+//      and a dashboard budget alert is the cost guard (same as FestPilot's note).
+// The id is the read capability (an unguessable UUID handed out only inside the
+// E2E payload), matching how the share link's id IS its read capability.
+const IMG_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
+// Client compresses to a few hundred KB; after AES-GCM (12-byte IV + 16-byte tag
+// overhead) it stays well under 2 MB. 2.1 MB is the hard per-object ceiling.
+const IMG_MAX_BYTES = 2_100_000;
+const IMG_DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // matches the share statement TTL
+const IMG_MAX_TTL_MS = 180 * 24 * 60 * 60 * 1000; // bound any client-supplied TTL
+const IMG_CACHE_IMMUTABLE = 'public, max-age=31536000, immutable'; // ciphertext for an id never changes
+
+/**
+ * DEC-342/343 (G5) — R2 image channel. Sub-routes under /img/:id:
+ *   PUT    /img/:id   store ciphertext (octet-stream); optional X-Img-TTL (sec)
+ *   GET    /img/:id   read ciphertext (TTL-enforced; 404 once expired)
+ *   DELETE /img/:id   owner/guest drops it (revoke / hide-cleanup)
+ * The Worker stores ONLY ciphertext; secrecy is the AES key in the E2E payload.
+ */
+async function handleImg(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.MEDIA) return json({ error: 'images_not_configured' }, 503);
+  const match = url.pathname.match(/^\/img\/([^/]+)$/);
+  if (!match) return json({ error: 'not_found' }, 404);
+  const id = decodeURIComponent(match[1]!);
+  if (!IMG_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+
+  if (request.method === 'PUT') {
+    const body = await request.arrayBuffer();
+    if (body.byteLength === 0) return json({ error: 'empty_image' }, 400);
+    if (body.byteLength > IMG_MAX_BYTES) return json({ error: 'too_large' }, 413);
+    const ttlMs = clampImgTtlMs(request.headers.get('X-Img-TTL'));
+    const expiresAt = Date.now() + ttlMs;
+    await env.MEDIA.put(id, body, {
+      httpMetadata: { contentType: 'application/octet-stream', cacheControl: IMG_CACHE_IMMUTABLE },
+      customMetadata: { expiresAt: String(expiresAt) },
+    });
+    return json({ ok: true, id, expiresAt });
+  }
+
+  if (request.method === 'GET') {
+    const object = await env.MEDIA.get(id);
+    if (!object) return json({ error: 'not_found' }, 404);
+    // Anonymous TTL guard: an expired object is deleted on read and reported gone.
+    const expiresAt = Number(object.customMetadata?.expiresAt ?? 0);
+    if (expiresAt > 0 && Date.now() > expiresAt) {
+      await env.MEDIA.delete(id);
+      return json({ error: 'expired' }, 404);
+    }
+    const headers = new Headers(CORS_HEADERS);
+    object.writeHttpMetadata(headers);
+    headers.set('Content-Type', 'application/octet-stream');
+    headers.set('Cache-Control', IMG_CACHE_IMMUTABLE);
+    headers.set('Content-Length', String(object.size));
+    return new Response(object.body, { status: 200, headers });
+  }
+
+  if (request.method === 'DELETE') {
+    await env.MEDIA.delete(id);
+    return json({ ok: true });
+  }
+
+  return json({ error: 'method_not_allowed' }, 405);
+}
+
+/** Parse + bound an optional client TTL (seconds) into ms; default when absent. */
+function clampImgTtlMs(header: string | null): number {
+  if (!header) return IMG_DEFAULT_TTL_MS;
+  const seconds = Number(header);
+  if (!Number.isFinite(seconds) || seconds <= 0) return IMG_DEFAULT_TTL_MS;
+  return Math.min(Math.floor(seconds) * 1000, IMG_MAX_TTL_MS);
+}
 
 /**
  * Statement metadata held in the `ShareStore` DO. The ciphertext statement is
@@ -886,6 +975,11 @@ export default {
       if (!ACTOR_ID_RE.test(actorId)) return json({ error: 'bad_actor' }, 400);
       const stub = env.MAILBOX.get(env.MAILBOX.idFromName(actorId));
       return stub.fetch(new Request(`https://mailbox.internal/${request.method === 'POST' ? 'put' : 'drain'}`, request));
+    }
+
+    // DEC-342/343 (G5) — E2E-encrypted image channel on R2 (ciphertext only).
+    if (url.pathname.startsWith('/img/')) {
+      return handleImg(request, env, url);
     }
 
     // DEC-248 — anonymous usage telemetry ingest (NON-MONETARY; allowlisted).

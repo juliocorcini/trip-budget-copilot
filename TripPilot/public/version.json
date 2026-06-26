@@ -1,8 +1,8 @@
 {
-  "version": "1.2.3-rc",
+  "version": "1.2.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.3-rc.zip",
-  "notes": "Agora todo mundo do grupo pode ajudar a registrar as contas: quem abrir o link pode lançar uma despesa direto pelo navegador (sem instalar nada). Ela aparece como 'pendente' e entra para todos assim que o organizador sincroniza — o organizador segue no controle do dinheiro."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.4-rc.zip",
+  "notes": "Agora você pode anexar uma foto (recibo ou comprovante) a uma despesa do grupo. A foto é enviada de forma criptografada de ponta a ponta — a nuvem guarda só o conteúdo embaralhado — e todo mundo do grupo (inclusive quem abre o link no navegador) vê e baixa. Some junto com o link quando você revoga."
 }

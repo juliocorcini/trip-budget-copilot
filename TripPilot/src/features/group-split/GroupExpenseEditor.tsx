@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
@@ -6,6 +6,9 @@ import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { showToast } from '@/components/Toast';
 import { formatMoney, toCents, fromCents } from '@/domain/money';
 import { buildGroupExpense, expenseShares, validateGroupExpense } from '@/domain/group-split';
+import { checkImageBytes } from '@/domain/media';
+import { compressImageFile, type CompressedImage } from '@/utils/image/compress';
+import { fetchDecryptedImageUrl } from '@/data/sync/media-link';
 import { scanReceiptForGroup, scanReceiptItemsForGroup, parseTextForGroup, type GroupAiError } from './group-ai';
 import type {
   AddGroupExpenseInput,
@@ -19,6 +22,17 @@ import type {
 /** A scanned receipt line plus whether the group keeps it (DEC-337). */
 type EditorItem = GroupExpenseLineItem & { include: boolean };
 
+/**
+ * DEC-342/343 (G5) — the photo intent the editor hands back on save. The detail
+ * page (which owns the share creds) does the encrypt+upload / delete: `pending` is
+ * a freshly compressed image to upload; `removeExisting` means drop the currently
+ * uploaded one (a plain remove, or the old half of a replace).
+ */
+export interface GroupExpenseImageIntent {
+  pending: CompressedImage | null;
+  removeExisting: boolean;
+}
+
 interface Props {
   event: GroupSplitEvent;
   /** null = a brand-new expense; otherwise the expense being edited. */
@@ -26,8 +40,10 @@ interface Props {
   /** DEC-258/246 opt-ins — show the receipt-scan / ask-AI prefills (m3). */
   photoEnabled: boolean;
   aiTextEnabled: boolean;
+  /** DEC-342/343 — whether the event is live-shared (drives the upload-on-share hint). */
+  isShared: boolean;
   onClose: () => void;
-  onSave: (expense: GroupExpense) => void;
+  onSave: (expense: GroupExpense, image: GroupExpenseImageIntent) => void;
   onDelete: (expenseId: string) => void;
 }
 
@@ -38,7 +54,16 @@ const moneyStr = (cents: number) => (cents === 0 ? '' : String(fromCents(cents))
  * amount, who paid, who shares, and the split mode (equal now; custom per-person
  * in the same form — m2 + m4). Validation + math come from the pure domain.
  */
-export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled, onClose, onSave, onDelete }: Props) {
+export function GroupExpenseEditor({
+  event,
+  expense,
+  photoEnabled,
+  aiTextEnabled,
+  isShared,
+  onClose,
+  onSave,
+  onDelete,
+}: Props) {
   const { t, i18n } = useTranslation();
   const isEdit = expense !== null;
 
@@ -70,6 +95,17 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
   });
   const itemsChooser = useImageSourceChooser((file) => {
     void handleScanItems(file);
+  });
+  // DEC-342/343 (G5) — attach a receipt/proof photo. `pendingImage` is a freshly
+  // compressed blob to upload on save; `removeExisting` drops the uploaded one
+  // (plain remove, or the old half of a replace). The detail page does the
+  // encrypt+upload / delete (it owns the share key) — the editor only captures.
+  const [pendingImage, setPendingImage] = useState<CompressedImage | null>(null);
+  const [removeExisting, setRemoveExisting] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [existingUrl, setExistingUrl] = useState<string | null>(null);
+  const photoChooser = useImageSourceChooser((file) => {
+    void handleAttachPhoto(file);
   });
   const [shareIds, setShareIds] = useState<Set<string>>(
     () => new Set(expense ? expense.participantIds : event.participants.map((p) => p.id)),
@@ -124,6 +160,60 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
     setCategory(p.category);
     setSource(src);
   };
+
+  // Show the already-uploaded image (decrypted) when editing, unless the user is
+  // replacing or removing it. Revokes the blob URL on cleanup.
+  const hasPending = pendingImage !== null;
+  useEffect(() => {
+    const ref = expense?.imageRef;
+    if (!ref || removeExisting || hasPending) {
+      setExistingUrl(null);
+      return;
+    }
+    let active = true;
+    let created: string | null = null;
+    void fetchDecryptedImageUrl(ref).then((u) => {
+      if (!active) {
+        if (u) URL.revokeObjectURL(u);
+        return;
+      }
+      if (u) {
+        created = u;
+        setExistingUrl(u);
+      }
+    });
+    return () => {
+      active = false;
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [expense?.imageRef, removeExisting, hasPending]);
+
+  const handleAttachPhoto = async (file: File) => {
+    setPhotoBusy(true);
+    try {
+      const compressed = await compressImageFile(file);
+      const cap = checkImageBytes(compressed.byteSize);
+      if (!cap.ok) {
+        showToast(t('group_split.photo_too_large'), 'danger');
+        return;
+      }
+      setPendingImage(compressed);
+      // Attaching supersedes any previously uploaded image (replace = delete old).
+      setRemoveExisting(true);
+    } catch {
+      showToast(t('group_split.ai_failed'), 'danger');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPendingImage(null);
+    setRemoveExisting(true);
+    setExistingUrl(null);
+  };
+
+  const previewUrl = pendingImage?.thumbnailDataUrl ?? existingUrl;
 
   const handleScanFull = async (file: File) => {
     setAiBusy(true);
@@ -206,17 +296,24 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
       return;
     }
     const built = buildGroupExpense(input);
-    // Preserve identity on edit so balances/history stay stable.
-    const finalExpense: GroupExpense = expense
-      ? { ...built, id: expense.id, createdAt: expense.createdAt, source: expense.source }
-      : built;
-    onSave(finalExpense);
+    // Preserve identity on edit so balances/history stay stable. DEC-342/343 —
+    // keep the existing imageRef unless the user removed/replaced it; the detail
+    // page applies the pending upload + deletes the old blob.
+    let finalExpense: GroupExpense;
+    if (expense) {
+      finalExpense = { ...built, id: expense.id, createdAt: expense.createdAt, source: expense.source };
+      if (!removeExisting && expense.imageRef) finalExpense.imageRef = expense.imageRef;
+    } else {
+      finalExpense = built;
+    }
+    onSave(finalExpense, { pending: pendingImage, removeExisting });
   };
 
   return (
     <BottomSheet open onClose={onClose} title={isEdit ? t('group_split.edit_expense') : t('group_split.add_expense')}>
       {fullChooser.element}
       {itemsChooser.element}
+      {photoChooser.element}
       <div className="flex flex-col gap-3 pt-2">
         {/* m3 + DEC-337 — AI/receipt prefill for a NEW expense. Two scan modes:
             whole-bill ("nota completa") or item-selection ("selecionar itens").
@@ -361,6 +458,39 @@ export function GroupExpenseEditor({ event, expense, photoEnabled, aiTextEnabled
             className="bg-transparent text-sm text-on-surface outline-none w-full"
           />
         </Labeled>
+
+        {/* DEC-342/343 (G5) — attach a receipt/proof photo; it E2E-uploads to R2
+            when the group is shared so every member + the `/g/` guest can view it. */}
+        <div className="bg-surface-high rounded-xl p-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-on-surface-faint">{t('group_split.photos_title')}</span>
+            {previewUrl && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="text-[11px] text-error font-semibold btn-press"
+              >
+                {t('group_split.remove_photo')}
+              </button>
+            )}
+          </div>
+          {previewUrl ? (
+            <img src={previewUrl} alt="" className="w-full max-h-48 object-contain rounded-lg bg-surface-container" />
+          ) : (
+            <button
+              type="button"
+              disabled={photoBusy}
+              onClick={() => photoChooser.open()}
+              className="py-2.5 rounded-xl bg-surface-container text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              <Icon name="add_a_photo" size={18} className="text-primary" />
+              {photoBusy ? t('group_split.ai_thinking') : t('group_split.add_photo')}
+            </button>
+          )}
+          {previewUrl && !isShared && (
+            <p className="text-[11px] text-on-surface-faint">{t('group_split.photo_pending_hint')}</p>
+          )}
+        </div>
 
         <div>
           <p className="text-xs text-on-surface-faint mb-1.5">{t('group_split.paid_by_label')}</p>

@@ -48,6 +48,19 @@
       "id": "2807b56d02c04ce385fa3bc5bf6565bf"
     }
   ],
+  // DEC-342/343 (G5): R2 bucket for E2E-encrypted images. The Worker stores ONLY
+  // client-side ciphertext (application/octet-stream) — the AES key lives in the
+  // E2E share payload and never reaches here, so the bucket is unreadable to us.
+  // Per-object cap + per-object TTL (customMetadata.expiresAt, enforced on GET)
+  // are the abuse guards; set a ~$1 dashboard budget alert as the cost backstop
+  // (R2 free tier: 10 GB + 1M Class-A + 10M Class-B / mo). Created via
+  // `wrangler r2 bucket create trippilot-media`.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "trippilot-media"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

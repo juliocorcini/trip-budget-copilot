@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { imageRefSchema } from '@/domain/media';
 import type { GroupSplitEvent } from './types';
 
 /**
@@ -52,6 +53,9 @@ const groupExpenseSchema = z.object({
   items: z.array(groupExpenseLineItemSchema).optional(),
   // DEC-340 — preserve the authoring device so the board can mark mine + retract.
   authoredByActorId: z.string().optional(),
+  // DEC-342/343 — carry the E2E image reference so every member + the `/g/` guest
+  // can lazily fetch + decrypt the receipt photo (the key rides inside this ref).
+  imageRef: imageRefSchema.optional(),
 });
 
 const groupSplitEventSchema = z.object({

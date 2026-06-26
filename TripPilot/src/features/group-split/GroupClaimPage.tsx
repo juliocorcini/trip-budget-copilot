@@ -14,6 +14,8 @@ import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-si
 import { formatMoney, toCents } from '@/domain/money';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import { Icon } from '@/components/Icon';
+import type { ImageRef } from '@/domain/media';
+import { GroupImage, ImageLightbox } from './GroupImage';
 import {
   fetchGroupSplit,
   postGroupClaim,
@@ -247,6 +249,8 @@ function ClaimBoard({
   const transfers = useMemo(() => computeGroupTransfers(event), [event]);
   const total = useMemo(() => balances.reduce((s, b) => s + b.paidCents, 0), [balances]);
   const nameById = new Map(event.participants.map((p) => [p.id, p.name]));
+  // DEC-342/343 — lightbox for a decrypted receipt photo (already-fetched blob URL).
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const claimed = event.participants.find((p) => p.id === claimedId) ?? null;
   const myBalance = balances.find((b) => b.participantId === claimedId) ?? null;
@@ -433,6 +437,8 @@ function ClaimBoard({
                 amountCents={exp.amountCents}
                 currency={event.currency}
                 items={exp.items}
+                imageRef={exp.imageRef}
+                onOpenImage={setLightboxUrl}
                 mine={exp.authoredByActorId === actorId}
                 onRemove={exp.authoredByActorId === actorId ? () => onRemoveExpense(exp.id) : undefined}
               />
@@ -470,6 +476,9 @@ function ClaimBoard({
         <span className="text-[11px] text-on-surface-faint">{t('group_claim.made_with')}</span>
       </footer>
       <HiddenNameSync claimedName={claimed?.name ?? null} onSaveName={onSaveName} />
+      {/* The blob URL is owned + revoked by the GroupImage that produced it, so the
+          lightbox only clears its reference on close (no double-revoke). */}
+      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
     </div>
   );
 }
@@ -482,6 +491,8 @@ function ClaimExpenseRow({
   amountCents,
   currency,
   items,
+  imageRef,
+  onOpenImage,
   mine,
   pending,
   onRemove,
@@ -491,6 +502,8 @@ function ClaimExpenseRow({
   amountCents: number;
   currency: string;
   items?: { id: string; description: string; amountCents: number; qty: number }[];
+  imageRef?: ImageRef;
+  onOpenImage?: (url: string) => void;
   mine?: boolean;
   pending?: boolean;
   onRemove?: () => void;
@@ -501,6 +514,14 @@ function ClaimExpenseRow({
   return (
     <div className={`bg-surface-container rounded-xl p-3.5 flex flex-col gap-2 ${pending ? 'opacity-80' : ''}`}>
       <div className="flex items-center gap-3">
+        {imageRef && (
+          <GroupImage
+            imageRef={imageRef}
+            alt={description}
+            className="w-11 h-11 rounded-lg shrink-0"
+            onOpen={onOpenImage}
+          />
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-semibold text-on-surface truncate">{description}</p>

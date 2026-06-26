@@ -2700,7 +2700,13 @@
     "mark_received": "Mark received",
     "add_from_trip": "Add from trip",
     "trip_settle_note": "Payments confirmed here flow into the trip settle-up.",
-    "scan_to_join": "Point the camera to join the group"
+    "scan_to_join": "Point the camera to join the group",
+    "add_photo": "Add photo",
+    "remove_photo": "Remove photo",
+    "photo_too_large": "Image too large (max 2 MB)",
+    "photo_pending_hint": "It uploads when you share the group",
+    "photos_title": "Photos",
+    "image_download": "Download"
   },
   "group_claim": {
     "kicker": "Group split",

@@ -58,3 +58,32 @@ export async function decryptText(key: CryptoKey, encoded: string): Promise<stri
     return null;
   }
 }
+
+/**
+ * DEC-342/343 (G5): binary E2E for image blobs. Identical AES-GCM + 12-byte
+ * IV-prefix scheme as `encryptText`, but the IO is raw bytes — the ciphertext is
+ * uploaded to R2 as `application/octet-stream` (no base64 bloat on the wire).
+ * The key is the same share/session key, so an image rides the exact same
+ * secrecy boundary as the rest of the payload: the Worker only ever sees the
+ * opaque result and the key never leaves the device.
+ */
+export async function encryptBytes(key: CryptoKey, data: ArrayBuffer): Promise<Uint8Array<ArrayBuffer>> {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH_BYTES));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+  // `new Uint8Array(number)` is concretely ArrayBuffer-backed (not SharedArrayBuffer),
+  // so the result is a clean BodyInit/BlobPart for the R2 upload at the boundary.
+  const combined = new Uint8Array(IV_LENGTH_BYTES + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), IV_LENGTH_BYTES);
+  return combined;
+}
+
+export async function decryptBytes(key: CryptoKey, combined: Uint8Array): Promise<ArrayBuffer | null> {
+  try {
+    const iv = combined.subarray(0, IV_LENGTH_BYTES);
+    const ciphertext = combined.subarray(IV_LENGTH_BYTES);
+    return await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.slice() }, key, ciphertext.slice());
+  } catch {
+    return null;
+  }
+}
