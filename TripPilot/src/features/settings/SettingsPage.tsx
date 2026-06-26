@@ -1512,7 +1512,15 @@ export function SettingsPage() {
             </div>
           </button>
         )}
-        <div className="flex items-center justify-between gap-3">
+        {/* Item A (DEC-362): the unified, shareable install flow (App × PWA × Web
+            comparison + per-platform CTAs). Always reachable, even when the
+            one-tap PWA prompt above isn't offered by the browser. */}
+        <LinkRow
+          icon="install_desktop"
+          label={t('install.compare_title')}
+          onClick={() => navigate('/install')}
+        />
+        <div className="flex items-center justify-between gap-3 mt-3">
           <span className="text-sm text-on-surface">
             {t('settings.version_label', { version: APP_VERSION })}
           </span>

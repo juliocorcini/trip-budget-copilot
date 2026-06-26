@@ -2,6 +2,7 @@ import { Outlet } from 'react-router';
 import { BottomNav } from '@/components/BottomNav';
 import { ActiveOutingBar } from '@/components/ActiveOutingBar';
 import { ActiveSplitBar } from '@/components/ActiveSplitBar';
+import { InstallNudge } from '@/features/install/InstallNudge';
 import { useTabPaging } from '@/hooks/useTabPaging';
 import { useTabSwipePager } from '@/hooks/useTabSwipePager';
 
@@ -28,6 +29,9 @@ export function AppShell() {
           the fixed chrome (nav, active-outing bar) are siblings, so they stay
           put, and portaled sheets live outside #main entirely (DEC-195). */}
       <main ref={contentRef} className="px-[var(--page-padding-x)] will-change-transform">
+        {/* Item A (DEC-362): the dismissible install nudge — self-gating, shows
+            only to non-installed web users (snooze 7d / never). */}
+        <InstallNudge />
         <Outlet />
       </main>
       <ActiveOutingBar />

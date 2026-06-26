@@ -1,8 +1,8 @@
 {
-  "version": "1.4.10-rc",
+  "version": "1.4.11-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.10-rc.zip",
-  "notes": "O orçamento de uma parte da viagem agora se chama Verba (antes \"Trecho\") — soa a dinheiro. Potes e reservas continuam iguais."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.11-rc.zip",
+  "notes": "Instalar o TripPilot ficou simples: uma tela única (em Ajustes ou no link /install) compara App (APK) × Atalho (PWA) × Navegador e instala do jeito certo pro seu aparelho. Um aviso discreto sugere instalar e some por 7 dias quando você fecha."
 }

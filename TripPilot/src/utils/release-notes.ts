@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.11-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Instalar o TripPilot ficou simples: uma tela única (em Ajustes ou no link /install) compara App (APK) × Atalho (PWA) × Navegador e instala do jeito certo pro seu aparelho — APK no Android, atalho pelo navegador, e o passo a passo do Safari no iPhone. Um aviso discreto sugere instalar e some por 7 dias quando você fecha (ou para sempre, se preferir).',
+      ],
+      en: [
+        'Installing TripPilot is now simple: a single screen (in Settings or at the /install link) compares App (APK) × Shortcut (PWA) × Browser and installs the right way for your device — APK on Android, shortcut from the browser, and the Safari step-by-step on iPhone. A gentle banner suggests installing and hides for 7 days when you dismiss it (or forever, if you prefer).',
+      ],
+      es: [
+        'Instalar TripPilot ahora es simple: una sola pantalla (en Ajustes o en el enlace /install) compara App (APK) × Acceso directo (PWA) × Navegador e instala de la forma correcta para tu dispositivo — APK en Android, acceso directo desde el navegador y el paso a paso de Safari en iPhone. Un aviso discreto sugiere instalar y se oculta 7 días al cerrarlo (o para siempre, si lo prefieres).',
+      ],
+    },
+  },
+  {
     version: '1.4.10-rc',
     date: '2026-06-26',
     items: {

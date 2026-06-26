@@ -55,6 +55,7 @@ const ComparatorPage = lazyWithRetry(() => import('@/features/comparator/Compara
 const GroupSplitListPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitListPage').then(m => ({ default: m.GroupSplitListPage })));
 const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitDetailPage').then(m => ({ default: m.GroupSplitDetailPage })));
 const GroupClaimPage = lazyWithRetry(() => import('@/features/group-split/GroupClaimPage').then(m => ({ default: m.GroupClaimPage })));
+const InstallPage = lazyWithRetry(() => import('@/features/install/InstallPage').then(m => ({ default: m.InstallPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -201,6 +202,9 @@ export const router = createBrowserRouter([
       { path: '/comparator', element: <LazyRoute><ComparatorPage /></LazyRoute> },
       { path: '/rescue', element: <LazyRoute><RescuePage /></LazyRoute> },
       { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
+      // Item A (DEC-362): the shareable "Instalar o TripPilot" landing. Outside
+      // BootGate/AppShell so a cold visitor with no trip lands here directly.
+      { path: '/install', element: <LazyRoute><InstallPage /></LazyRoute> },
       { path: '/import/wise', element: <LazyRoute><ModeGuard><WiseImportPage /></ModeGuard></LazyRoute> },
       { path: '/receipt/scan', element: <LazyRoute><ReceiptScanPage /></LazyRoute> },
       // T1/T2 (bill split): "Dividir conta" — the receipt scanner's superset
