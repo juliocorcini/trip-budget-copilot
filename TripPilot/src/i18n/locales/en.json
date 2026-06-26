@@ -1143,11 +1143,13 @@
   },
   "divideChooser": {
     "title": "How do you want to split?",
-    "subtitle": "These are two different things — pick the one that fits your case.",
+    "subtitle": "Is it one bill now, or many bills over time?",
     "bill_title": "Split a bill",
-    "bill_desc": "One bill now, at the table: by item, evenly or just yours — with a live table.",
-    "group_title": "Group split",
-    "group_desc": "Many expenses across a group or event (Tricount): several payers, and the app works out who owes whom."
+    "bill_scope": "now · 1 bill",
+    "bill_example": "E.g.: tonight's dinner, €80 for 4",
+    "group_title": "Group split · like Tricount",
+    "group_scope": "ongoing · the whole trip",
+    "group_example": "E.g.: the trip with friends — house, car, groceries"
   },
   "conceptHint": {
     "q": "Which one: Split a bill or Group split?",

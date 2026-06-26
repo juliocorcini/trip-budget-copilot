@@ -1,5 +1,17 @@
 # Dev Log — TripPilot Implementation
 
+## Distribuição & Clareza wave (2026-06-26) — base 1.4.7-rc — 🚧 IN PROGRESS
+
+> Source plan: `brain/documents/2026-06-26-install-vocab-proof-split-wave-plan.md` (Julio answered every ⛳ inline). Five items, shipped per-item: **E** chooser copy · **B** scrollbar regression · **C** rename Trecho→Verba (System 1) · **A** install flow (PWA+APK+/install) · **D** P2P payment proof. Order by value/risk (§7): E → B → C → A → D. Non-negotiables hold: money=cents · domain pure TS · `t()` pt/en/es · code English · ledger-math invariance · DEC-207 (messages/debts/names stay E2E; images carve-out). Single session, deploy per item (Pages OTA unless noted).
+
+### CURRENT STATE
+- **Active item**: **E ✅ shipped `1.4.8-rc`** (chooser copy). Next: **B** (scrollbar regression — Android installed-WebView vector).
+- **Tests**: baseline **2502 pass / 2504** (2 known Node-18 WebCrypto `split-live-loop` — green on CI Node 22). `tsc` clean; build green.
+- **Risks**: a parallel session authored the source plan but is idle at `2250b83` (clean tree); commit+push per milestone, `git fetch` before each push to avoid collision.
+
+### E — chooser copy (Council 2) — ✅ `1.4.8-rc`
+- `DivideChooserSheet.tsx` + `divideChooser.*` (pt/en/es): subtitle is now the **discriminator** ("É uma conta agora, ou várias contas ao longo do tempo?"); each card carries a **scope chip** (agora · 1 conta × contínuo · a viagem toda), a **concrete example** (jantar €80 pra 4 × a viagem toda — casa/carro/mercado), and the group title anchors to **"· tipo Tricount"**. Removed the verbose `bill_desc`/`group_desc` (only the sheet used them; parity kept by swapping for `*_scope`/`*_example` in all three locales). Copy/visual only — both flows untouched.
+
 ## Docs Sync & Vocabulary wave (2026-06-26) — 1.4.4-rc → 1.4.7-rc — ✅ COMPLETE
 
 > Two focused fronts after the Grupos wave closed, per Julio: (1) a **documentation sweep** so every recently-shipped function is findable & correctly explained; (2) **DEC-228 deferred half / OD-2** — the **Trecho/Pote** funds-vocab migration as the council-mandated **nature-aware** pass. UI strings + one pure resolver only — **zero code-id / schema / ledger-math change**.

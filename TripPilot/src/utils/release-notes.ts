@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.8-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'A tela de "Dividir" agora deixa óbvio o que escolher: a pergunta "uma conta agora ou várias ao longo do tempo?", um exemplo real e um selo de escopo em cada opção (agora · 1 conta × contínuo · a viagem toda).',
+      ],
+      en: [
+        'The "Split" chooser now makes the choice obvious: the question "one bill now or many bills over time?", a real example and a scope tag on each option (now · 1 bill × ongoing · the whole trip).',
+      ],
+      es: [
+        'La pantalla de "Dividir" ahora deja claro qué elegir: la pregunta "¿una cuenta ahora o varias a lo largo del tiempo?", un ejemplo real y una etiqueta de alcance en cada opción (ahora · 1 cuenta × continuo · todo el viaje).',
+      ],
+    },
+  },
+  {
     version: '1.4.7-rc',
     date: '2026-06-26',
     items: {

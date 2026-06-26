@@ -1,8 +1,8 @@
 {
-  "version": "1.4.7-rc",
+  "version": "1.4.8-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.7-rc.zip",
-  "notes": "Vocabulário Trecho/Pote propagado para os últimos lugares: renda, pagamentos recebidos, o card de potes da home e ao associar um trecho a uma fase. Os últimos rótulos \"Fundo\" da interface viva sumiram."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.8-rc.zip",
+  "notes": "Tela de \"Dividir\" mais clara: a pergunta \"uma conta agora ou várias ao longo do tempo?\", um exemplo real e um selo de escopo em cada opção."
 }

@@ -40,9 +40,14 @@ export function DivideChooserSheet({
             <Icon name="splitscreen" size={24} className="text-[var(--ai-2)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-extrabold text-on-surface">{t('divideChooser.bill_title')}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[15px] font-extrabold text-on-surface">{t('divideChooser.bill_title')}</p>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shrink-0 bg-[var(--ai-bg)] text-[var(--ai-2)]">
+                {t('divideChooser.bill_scope')}
+              </span>
+            </div>
             <p className="text-[11px] font-semibold text-on-surface-dim leading-snug mt-0.5">
-              {t('divideChooser.bill_desc')}
+              {t('divideChooser.bill_example')}
             </p>
           </div>
           <Icon name="arrow_forward" size={18} className="text-[var(--ai-2)] shrink-0" />
@@ -60,9 +65,14 @@ export function DivideChooserSheet({
             <Icon name="groups" size={24} className="text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-extrabold text-on-surface">{t('divideChooser.group_title')}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[15px] font-extrabold text-on-surface">{t('divideChooser.group_title')}</p>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shrink-0 bg-primary/15 text-primary">
+                {t('divideChooser.group_scope')}
+              </span>
+            </div>
             <p className="text-[11px] font-semibold text-on-surface-dim leading-snug mt-0.5">
-              {t('divideChooser.group_desc')}
+              {t('divideChooser.group_example')}
             </p>
           </div>
           <Icon name="arrow_forward" size={18} className="text-on-surface-faint shrink-0" />

@@ -1147,11 +1147,13 @@
   },
   "divideChooser": {
     "title": "Como você quer dividir?",
-    "subtitle": "São duas coisas diferentes — escolha a que resolve o seu caso.",
+    "subtitle": "É uma conta agora, ou várias contas ao longo do tempo?",
     "bill_title": "Dividir uma conta",
-    "bill_desc": "Uma conta agora, na mesa: por item, por igual ou só o seu — com mesa ao vivo.",
-    "group_title": "Divisão em grupo",
-    "group_desc": "Várias despesas de um grupo ou evento (Tricount): vários pagadores e o app calcula quem deve a quem."
+    "bill_scope": "agora · 1 conta",
+    "bill_example": "Ex.: o jantar de hoje, €80 pra 4",
+    "group_title": "Divisão em grupo · tipo Tricount",
+    "group_scope": "contínuo · a viagem toda",
+    "group_example": "Ex.: a viagem com os amigos — casa, carro, mercado"
   },
   "conceptHint": {
     "q": "Qual usar: Dividir conta ou Divisão em grupo?",
