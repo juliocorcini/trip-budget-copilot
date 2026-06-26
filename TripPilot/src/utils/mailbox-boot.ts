@@ -1,4 +1,8 @@
 import { flushOutbox, drainMailboxIntoApp } from '@/domain/orchestrators';
+import { appSettingsRepository } from '@/data/repositories';
+import { getDeviceIdentity } from '@/data/sync/identity-crypto';
+import { subscribePeerPings } from '@/data/sync/peer-ping';
+import { showLocalNotification } from '@/utils/native/notifications';
 import { showToast } from '@/components/Toast';
 import i18n from '@/i18n';
 
@@ -15,10 +19,14 @@ const MIN_INTERVAL_MS = 30_000;
 let running = false;
 let lastRunAt = 0;
 
-export async function runMailboxSync(): Promise<void> {
+/**
+ * Drains the mailbox. `force` (a real-time peer-ping, DEC-352) bypasses the
+ * polling debounce — a poke means "there is something for you right now."
+ */
+export async function runMailboxSync(force = false): Promise<void> {
   if (running) return;
   const now = Date.now();
-  if (now - lastRunAt < MIN_INTERVAL_MS) return;
+  if (!force && now - lastRunAt < MIN_INTERVAL_MS) return;
   running = true;
   lastRunAt = now;
   try {
@@ -45,12 +53,25 @@ export async function runMailboxSync(): Promise<void> {
     if (payments > 0) {
       showToast(i18n.t('mailbox.received_payments', { count: payments }), 'info');
     }
+    // DEC-352 (F18, G6): a charge/payment that arrived in real-time (or while
+    // backgrounded) also fires a native OS notification so it is felt at once and
+    // survives a missed toast. Connect handshakes are silent here (the toast above
+    // is enough); only the actionable items escalate to the OS layer.
+    const actionable = debts + payments;
+    if (actionable > 0) {
+      void showLocalNotification(
+        i18n.t('mailbox.native_title'),
+        i18n.t('mailbox.native_body', { count: actionable }),
+      );
+    }
   } catch {
     // Offline or worker down — the queue persists for the next attempt.
   } finally {
     running = false;
   }
 }
+
+let pingHandle: ReturnType<typeof subscribePeerPings> = null;
 
 export function registerMailboxSync(): void {
   // Deferred so it never competes with first paint.
@@ -59,4 +80,19 @@ export function registerMailboxSync(): void {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void runMailboxSync();
   });
+  // DEC-352 (F17, G6): subscribe to MY OWN signal room so a peer's ping drains my
+  // mailbox in real-time. Best-effort — the boot/focus pull stays the floor.
+  void registerPeerPingSubscription();
+}
+
+async function registerPeerPingSubscription(): Promise<void> {
+  if (pingHandle) return;
+  try {
+    const settings = await appSettingsRepository.get();
+    if (!settings.mailboxEnabled) return;
+    const me = await getDeviceIdentity();
+    pingHandle = subscribePeerPings(me.actorId, () => void runMailboxSync(true));
+  } catch {
+    // No identity/settings yet — boot/focus draining still delivers, just slower.
+  }
 }

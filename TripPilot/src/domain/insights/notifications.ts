@@ -7,6 +7,7 @@ import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
  */
 
 export type AppNotificationKind =
+  | 'pending_p2p'
   | 'pending_share'
   | 'event_today'
   | 'backup_due'
@@ -29,6 +30,8 @@ export interface AppNotification {
 export const LONG_OUTING_THRESHOLD_MS = 8 * 60 * 60 * 1000;
 
 export interface BuildNotificationsInput {
+  /** DEC-352 (G6) — inbound P2P charges/payments awaiting accept/confirm. */
+  inboundP2pCount: number;
   /** Third-party shares awaiting the owner's confirmation. */
   pendingShareCount: number;
   pendingShareImpactCents: number;
@@ -46,6 +49,17 @@ export interface BuildNotificationsInput {
 
 export function buildNotifications(input: BuildNotificationsInput): AppNotification[] {
   const notifications: AppNotification[] = [];
+
+  // DEC-352 (G6): a peer is waiting on me — the most time-sensitive item, first.
+  if (input.inboundP2pCount > 0) {
+    notifications.push({
+      id: 'pending_p2p',
+      kind: 'pending_p2p',
+      tone: 'warning',
+      values: { count: input.inboundP2pCount },
+      destination: '/shared',
+    });
+  }
 
   if (input.pendingShareCount > 0) {
     notifications.push({

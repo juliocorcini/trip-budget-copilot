@@ -1169,6 +1169,27 @@ export function DashboardCards({
             />
           </>
         );
+      case 'pending_p2p':
+        // DEC-352 (F19, G6): inbound P2P charges/payments that arrived in
+        // real-time — a one-tap doorway to accept/confirm. Self-gates on count.
+        return model.inboundP2pCount > 0 ? (
+          <button
+            onClick={() => navigate('/shared')}
+            className="w-full mt-4 p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
+            style={{ background: '#D4A84312', border: '1px solid #D4A84320' }}
+          >
+            <Icon name="payments" className="text-warning" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-warning">
+                {t('dashboard.pending_p2p', { count: model.inboundP2pCount })}
+              </p>
+              <p className="text-xs font-semibold mt-0.5" style={{ color: '#D4A843aa' }}>
+                {t('dashboard.pending_p2p_hint')}
+              </p>
+            </div>
+            <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+          </button>
+        ) : null;
       case 'debt_summary':
         // DL-4: home "te devem / você deve" — confirmed debts only (the real
         // money), a one-tap doorway into the settle-up hub. Hidden when even.

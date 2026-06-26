@@ -80,3 +80,25 @@ export async function initNativeNotifications(): Promise<void> {
   if (!holder) return;
   void refreshNotificationPermission();
 }
+
+/**
+ * DEC-352 (F18, G6) — fire a one-off OS notification (e.g. a peer-ping delivered
+ * a charge while the app was backgrounded). Native + granted-permission only;
+ * a no-op on the web and fully best-effort (never throws). Android notification
+ * ids must fit a 32-bit int.
+ */
+export async function showLocalNotification(title: string, body: string): Promise<void> {
+  const holder = await loadPlugin();
+  if (!holder) return;
+  if (cachedPermission !== 'granted') {
+    const updated = await refreshNotificationPermission();
+    if (updated !== 'granted') return;
+  }
+  try {
+    await holder.plugin.schedule({
+      notifications: [{ id: Date.now() % 2_000_000_000, title, body }],
+    });
+  } catch {
+    // best-effort — a failed notification must never disrupt the drain
+  }
+}

@@ -10,10 +10,11 @@ import { getSyncWorkerUrl } from './config';
  * latency.
  */
 
-export type ShareSignalType = 'upd' | 'resp';
+export type ShareSignalType = 'upd' | 'resp' | 'p2p';
 
 export interface ShareSignalMessage {
-  /** 'upd' = owner re-published the statement; 'resp' = guest posted a response. */
+  /** 'upd' = owner re-published the statement; 'resp' = guest posted a response;
+   * 'p2p' (DEC-352/G6) = a peer-ping ("drain your mailbox now" — no payload). */
   t: ShareSignalType;
   /** Statement revision (owner → guest), informational. */
   rev?: number;
@@ -37,7 +38,7 @@ function parseSignal(data: unknown): ShareSignalMessage | null {
   if (typeof data !== 'string') return null;
   try {
     const obj = JSON.parse(data) as { t?: unknown; rev?: unknown };
-    if (obj.t === 'upd' || obj.t === 'resp') {
+    if (obj.t === 'upd' || obj.t === 'resp' || obj.t === 'p2p') {
       return { t: obj.t, rev: typeof obj.rev === 'number' ? obj.rev : undefined };
     }
   } catch {

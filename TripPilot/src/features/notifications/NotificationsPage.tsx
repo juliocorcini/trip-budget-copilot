@@ -9,6 +9,7 @@ import type { AppNotification, AppNotificationKind } from '@/domain/insights';
 
 /** DEC-090 (R-08): icon + tone per notification kind — data-driven. */
 const NOTIFICATION_ICONS: Record<AppNotificationKind, string> = {
+  pending_p2p: 'payments',
   pending_share: 'group',
   event_today: 'celebration',
   backup_due: 'cloud_upload',
@@ -28,6 +29,7 @@ const TONE_CLASS: Record<AppNotification['tone'], string> = {
 type NotificationGroup = 'action' | 'today' | 'reminders';
 
 const NOTIFICATION_GROUP: Record<AppNotificationKind, NotificationGroup> = {
+  pending_p2p: 'action',
   pending_share: 'action',
   phase_over_budget: 'action',
   event_today: 'today',
@@ -50,6 +52,8 @@ function notificationText(
 ): string {
   const v = notification.values;
   switch (notification.kind) {
+    case 'pending_p2p':
+      return t('notifications.pending_p2p', { count: v.count as number });
     case 'pending_share':
       return t('notifications.pending_share', {
         count: v.count as number,

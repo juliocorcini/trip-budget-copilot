@@ -9,6 +9,7 @@ const NOW_MS = new Date('2026-06-10T20:00:00.000Z').getTime();
 
 function baseInput(overrides: Partial<BuildNotificationsInput> = {}): BuildNotificationsInput {
   return {
+    inboundP2pCount: 0,
     pendingShareCount: 0,
     pendingShareImpactCents: 0,
     todayEvents: [],
@@ -24,6 +25,17 @@ function baseInput(overrides: Partial<BuildNotificationsInput> = {}): BuildNotif
 describe('buildNotifications (DEC-090 / R-08)', () => {
   it('quiet state → empty list (empty notifications center)', () => {
     expect(buildNotifications(baseInput())).toEqual([]);
+  });
+
+  it('inbound P2P (DEC-352) → warning FIRST, pointing to settle-up', () => {
+    const list = buildNotifications(
+      baseInput({ inboundP2pCount: 2, pendingShareCount: 1, pendingShareImpactCents: 500 }),
+    );
+    // A peer waiting on me is the most time-sensitive — it leads the list.
+    expect(list[0]!.kind).toBe('pending_p2p');
+    expect(list[0]!.tone).toBe('warning');
+    expect(list[0]!.values.count).toBe(2);
+    expect(list[0]!.destination).toBe('/shared');
   });
 
   it('pending shares → warning pointing to the confirmation sheet', () => {

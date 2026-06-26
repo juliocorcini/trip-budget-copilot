@@ -14,6 +14,7 @@ export type DashboardCardId =
   | 'active_outing'
   | 'hero'
   | 'suggest_outing'
+  | 'pending_p2p'
   | 'occasion_counters'
   | 'insights'
   | 'amigo_sincero'
@@ -72,6 +73,10 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   // several bar/restaurant expenses land back-to-back. Fixed like active_outing
   // (renders only when its derivation says so) so it is never reorderable noise.
   { id: 'suggest_outing', labelKey: 'dashboard.card_suggest_outing', fixed: true, quickAction: null },
+  // DEC-352 (F19, G6): inbound P2P charges/payments that arrived in real-time — a
+  // one-tap doorway into the accept/confirm surface. Fixed (self-gates on count)
+  // so it surfaces immediately under the hero and is never reorderable noise.
+  { id: 'pending_p2p', labelKey: 'dashboard.card_pending_p2p', fixed: true, quickAction: null },
   {
     // M14: savings goal progress — positive target next to the budget.
     id: 'savings_goal',

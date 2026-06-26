@@ -64,6 +64,8 @@ import {
   plannedPurchaseReservedRemainingCents,
 } from '@/domain/planning/planned-purchases';
 import { findPendingConfirmationShares, calculateDebts, summarizeOwnerDebts } from '@/domain/splitting';
+import { getInboundP2pItems } from '@/domain/orchestrators';
+import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
 import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
 import { buildDashboardInsights, extraToInsight, createForecastSnapshot } from '@/domain/insights';
 import { calculateSessionTotal, evaluateOutingSuggestion } from '@/domain/outing';
@@ -93,6 +95,10 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
   // R5-03: warn when the OS may evict IndexedDB (storage not persistent).
   const [storageNotPersisted, setStorageNotPersisted] = useState(false);
+  // DEC-352 (F19, G6): inbound P2P charges/payments awaiting accept/confirm —
+  // the count behind the home "pending actions" card. Lives in the mailbox inbox
+  // (not appData), so it loads separately + refreshes on a real-time drain.
+  const [inboundP2pCount, setInboundP2pCount] = useState(0);
 
   useEffect(() => {
     if (navigator.storage?.persisted) {
@@ -102,6 +108,25 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         .catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadInbound = async () => {
+      try {
+        const items = await getInboundP2pItems();
+        if (!cancelled) setInboundP2pCount(items.length);
+      } catch {
+        if (!cancelled) setInboundP2pCount(0);
+      }
+    };
+    void loadInbound();
+    const onDrained = () => void loadInbound();
+    window.addEventListener(MAILBOX_DRAINED_EVENT, onDrained);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(MAILBOX_DRAINED_EVENT, onDrained);
+    };
+  }, [transactions]);
 
   useEffect(() => {
     if (!trip) return;
@@ -798,7 +823,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     heatmapDayIso,
   ]);
 
-  return { ...derived, storageNotPersisted };
+  return { ...derived, storageNotPersisted, inboundP2pCount };
 }
 
 export type DashboardModel = ReturnType<typeof useDashboardModel>;

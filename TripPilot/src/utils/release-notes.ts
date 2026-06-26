@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.0-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Cobranças e pagamentos de amigos agora chegam na hora — sem precisar recarregar o app.',
+        'O que chega aparece na central de notificações, num card na tela inicial e como notificação do celular.',
+        'Se o app estiver fechado, a cobrança aparece assim que você abrir (nada se perde).',
+      ],
+      en: [
+        'Charges and payments from friends now arrive instantly — no need to reload the app.',
+        'What arrives shows in the notification center, a home-screen card, and a phone notification.',
+        'If the app is closed, the charge appears as soon as you open it (nothing is lost).',
+      ],
+      es: [
+        'Los cobros y pagos de amigos ahora llegan al instante — sin recargar la app.',
+        'Lo que llega aparece en el centro de notificaciones, en una tarjeta de inicio y como notificación del celular.',
+        'Si la app está cerrada, el cobro aparece en cuanto la abres (no se pierde nada).',
+      ],
+    },
+  },
+  {
     version: '1.3.5-rc',
     date: '2026-06-26',
     items: {

@@ -9,6 +9,8 @@ import { findPendingConfirmationShares } from '@/domain/splitting';
 import { isOccurrenceActiveToday } from '@/domain/planning';
 import { isBackupReminderDue } from '@/domain/backup';
 import { buildNotifications, type AppNotification } from '@/domain/insights';
+import { getInboundP2pItems } from '@/domain/orchestrators';
+import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
 
 /**
  * DEC-090 (R-08): derived notifications shared by the bell badge (Dashboard)
@@ -30,9 +32,10 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
         .filter((tx) => tx.isShared && tx.deletedAt === null)
         .map((tx) => tx.id);
 
-      const [activeSession, shares] = await Promise.all([
+      const [activeSession, shares, inboundP2p] = await Promise.all([
         sessionRepository.getActive(trip.id),
         owner ? participantShareRepository.getAllForTrip(sharedTxIds) : Promise.resolve([]),
+        getInboundP2pItems(),
       ]);
       if (cancelled) return;
 
@@ -70,6 +73,7 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
 
       setNotifications(
         buildNotifications({
+          inboundP2pCount: inboundP2p.length,
           pendingShareCount: pendingShares.length,
           pendingShareImpactCents: pendingShares.reduce(
             (sum, entry) => sum + entry.share.shareAmountCents,
@@ -87,8 +91,14 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
     };
     load();
 
+    // DEC-352 (G6): a real-time drain can add an inbound P2P item without any
+    // appData change — re-derive so the bell badge + center update immediately.
+    const onDrained = () => void load();
+    window.addEventListener(MAILBOX_DRAINED_EVENT, onDrained);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(MAILBOX_DRAINED_EVENT, onDrained);
     };
   }, [trip, phases, pools, links, envelopes, transactions, participants, occurrences, plannedPurchases, settings]);
 

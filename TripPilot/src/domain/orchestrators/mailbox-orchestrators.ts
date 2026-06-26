@@ -9,6 +9,7 @@ import {
   openForMe,
 } from '@/data/sync/identity-crypto';
 import { postToMailbox, drainMailbox } from '@/data/sync/mailbox-client';
+import { pingPeerMailbox } from '@/data/sync/peer-ping';
 import {
   buildMailboxEnvelope,
   packEnvelope,
@@ -166,6 +167,9 @@ export async function flushOutbox(): Promise<string[]> {
       await postToMailbox(item.recipientActorId, item.sealedBlob);
       await mailboxQueueRepository.remove(item.id);
       sent.push(item.id);
+      // DEC-352 (F17, G6) — the blob is in the peer's mailbox now: poke their room
+      // so an open app drains in real-time instead of waiting for its next open.
+      pingPeerMailbox(item.recipientActorId);
     } catch {
       await mailboxQueueRepository.bumpAttempt(item.id);
     }
