@@ -1,8 +1,8 @@
 {
-  "version": "1.4.5-rc",
+  "version": "1.4.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.5-rc.zip",
-  "notes": "Revisão geral de textos, ajuda e tutoriais para refletir as funções recentes; e os \"fundos\" agora aparecem com o nome certo — Trecho ou Pote — com etiquetas na tela de orçamento e ao mover despesas."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.6-rc.zip",
+  "notes": "Coerência de vocabulário: a seção e o botão de orçamento na viagem agora falam Trecho/Pote (antes \"Fundos\"), batendo com a tela de Trechos e potes."
 }

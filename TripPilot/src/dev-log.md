@@ -1,11 +1,11 @@
 # Dev Log — TripPilot Implementation
 
-## Docs Sync & Vocabulary wave (2026-06-26) — 1.4.4-rc → 1.4.5-rc — ✅ COMPLETE
+## Docs Sync & Vocabulary wave (2026-06-26) — 1.4.4-rc → 1.4.6-rc — ✅ COMPLETE
 
 > Two focused fronts after the Grupos wave closed, per Julio: (1) a **documentation sweep** so every recently-shipped function is findable & correctly explained; (2) **DEC-228 deferred half / OD-2** — the **Trecho/Pote** funds-vocab migration as the council-mandated **nature-aware** pass. UI strings + one pure resolver only — **zero code-id / schema / ledger-math change**.
 
 ### CURRENT STATE
-- **Status**: ✅ shipped `1.4.5-rc`.
+- **Status**: ✅ shipped `1.4.5-rc` + follow-up `1.4.6-rc` (live TripHub trecho-section labels).
 - **Tests**: **2502 pass / 2504** (only the 2 Node-18 WebCrypto `split-live-loop` baseline — pass on CI Node 22; **+5** `pool-nature`). `tsc --noEmit` clean; `npm run build` green. Locale parity = **3080 keys** in each of pt-BR/en/es.
 
 ### Front 1 — documentation sweep
@@ -15,10 +15,10 @@
 - **Resolver**: new pure `domain/budget/pool-nature.ts` — `poolNature(pool)` → `trecho` (scope `linked_phases`) | `pote` (scope `global`) | `generic` (neutral fallback, never throws); `poolNatureLabelKey` → `funds.nature_<nature>`. Barrel-exported; **5 unit tests** (distinctness + fallback + key-mapping).
 - **Copy (pt-BR/en/es)**: reworded `funds.*` editor (nature nouns Trecho/Pote/Reserva · Segment/Pot/Reserve · Tramo/Fondo/Reserva), `selection.*` move-pool + `expenses.*` pool-picker, `plan.*` creation door, `help.funds.*` + `help_center.a.funds`, the `wallets.*` "Carteira × Trecho/Pote" contrast, AdvancedTripView container labels (`advanced_funds`/`advanced_links`/`advanced_manage_funds`), and the `guide.funds_t/_d` discovery card. Spanish keeps "Fondo" for pots (its existing convention).
 - **UI wiring**: a **nature chip** (Trecho/Pote/Reserva, color-coded primary/warning/faint) now renders next to the pool name on **FundsPage** cards and on each **move-pool picker** row (`ExpenseListPage`), via `poolNature` + `poolNatureLabelKey`.
-- **Deliberate deferral**: the two compact **nav-tab labels** `planner.funds` / `trip.funds` ("Fundos") were left as-is — renaming a tab to "Trechos e potes" is a length/UX call and the council cautioned against happy-path blanket renames. Flagged for Julio.
+- **Follow-up `1.4.6-rc`**: a quick inline council found the LIVE **TripHub** trecho-section still said "Fundos" (`trip_hub.funds_title` / `fund_what_is` / `manage_funds` / `no_funds`) while the surrounding totals already said "trechos / Potes" — renamed nature-correct (**Trechos** · "Gerenciar trechos e potes" · Segments / Tramos) in pt/en/es. Confirmed `planner.funds` / `trip.funds` are **dead keys** (no `.tsx` reference anywhere) → left untouched (renaming dead keys is noise/risk). The section is code-restricted to trecho-nature pools (pots have their own "Potes e planejados" home), so "Trechos" is nature-correct, not a blanket rename.
 
 ### Deploy
-- Bumped `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release note pt/en/es) → 1.4.5-rc; commit + push `master` → Cloudflare Pages OTA (Pages-only — no Worker change).
+- Bumped `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release notes pt/en/es) → 1.4.5-rc, then → 1.4.6-rc (TripHub follow-up); commit + push `master` → Cloudflare Pages OTA (Pages-only — no Worker change).
 
 ## Grupos Confiáveis & Acerto Claro wave (2026-06-26) — base 1.3.0-rc → 1.4.4-rc — ✅ COMPLETE (G0→G9 + G_last)
 

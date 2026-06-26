@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.6-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Coerência: na tela da viagem, a seção e o botão de orçamento agora dizem Trecho/Pote (antes "Fundos"), batendo com a tela de Trechos e potes.',
+      ],
+      en: [
+        'Consistency: on the trip screen, the budget section and button now say Segment/Pot (was "Funds"), matching the Segments & pots screen.',
+      ],
+      es: [
+        'Coherencia: en la pantalla del viaje, la sección y el botón de presupuesto ahora dicen Tramo/Fondo (antes "Fondos"), igual que la pantalla de Tramos y fondos.',
+      ],
+    },
+  },
+  {
     version: '1.4.5-rc',
     date: '2026-06-26',
     items: {
