@@ -24,6 +24,7 @@ import {
   upsertPeerLinkFromConnect,
   pairParticipantFromIdentity,
   linkParticipantToIdentity,
+  resolveSelfShareName,
   type PairResult,
 } from './sync-orchestrators';
 import { importBackup, type ImportMode } from './backup-orchestrators';
@@ -55,10 +56,11 @@ export async function sendPayloadToPeerMailbox(
   if (!peer.publicKey) throw new Error('peer_no_public_key');
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
+  const fromName = await resolveSelfShareName(settings);
   const envelope = buildMailboxEnvelope({
     kind,
     fromActorId: me.actorId,
-    fromName: settings.deviceName,
+    fromName,
     data,
   });
   const sealed = await sealForPeer(peer.publicKey, packEnvelope(envelope));
@@ -89,15 +91,19 @@ export async function sendConnectHandshake(peer: {
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
   const myPublicKey = await getDevicePublicKeyB64();
+  // DEC-350 (F13/F14): the reverse handshake must announce my REAL name (the
+  // onboarding owner name), not the auto device label — otherwise the peer adds
+  // me back as "Android · Chrome". This is the core of the bilateral-name fix.
+  const selfName = await resolveSelfShareName(settings);
   const payload = buildConnectPayload({
     actorId: me.actorId,
-    name: settings.deviceName,
+    name: selfName,
     pk: myPublicKey,
   });
   const envelope = buildMailboxEnvelope({
     kind: 'connect',
     fromActorId: me.actorId,
-    fromName: settings.deviceName,
+    fromName: selfName,
     data: payload,
   });
   const sealed = await sealForPeer(peer.publicKey, packEnvelope(envelope));

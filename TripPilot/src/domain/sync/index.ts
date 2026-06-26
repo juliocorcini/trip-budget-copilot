@@ -1,4 +1,5 @@
 export * from './identity';
+export * from './self-name';
 export * from './encoding';
 export * from './ecies';
 export * from './mailbox-envelope';

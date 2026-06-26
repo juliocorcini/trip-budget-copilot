@@ -163,10 +163,15 @@ export function SettingsPage() {
   // F11: when a category is open (`/settings/c/:categoryId`) we render only that
   // category's sections; the bare `/settings` route shows the category list.
   const { categoryId } = useParams<{ categoryId?: string }>();
-  const { settings, wallets, trip, phases, pools, links, envelopes, transactions, reload } =
+  const { settings, wallets, trip, phases, pools, links, envelopes, transactions, participants, reload } =
     useAppData();
   // GATE 5 (D10): the effective state shown under the wallet-tracking control.
   const walletTrackingActive = useWalletTracking();
+  // DEC-350 (G4): the name peers see by default = the active trip's owner
+  // (onboarding) name; the "Seu nome" field below only OVERRIDES it. Show that
+  // resolved name as the field's placeholder so an empty field is honest.
+  const ownerName = participants.find((p) => p.isOwner && p.deletedAt === null)?.name?.trim();
+  const selfNamePlaceholder = ownerName || suggestDeviceName();
   const [quickAddInput, setQuickAddInput] = useState('');
   // M22: saving a template loads the trip's profiles on demand (not in useAppData).
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -1337,6 +1342,23 @@ export function SettingsPage() {
 
       <CollapsibleGroup {...groupProps('device')}>
 
+      {/* DEC-350 (G4): "Seu nome" — how friends see you in shares / connect /
+          P2P. Empty by default because your onboarding (trip owner) name already
+          flows to peers automatically; set this only to override it (or when you
+          have no trip yet). Writes the optional profileName — never the technical
+          device label, and never shown as "Android · Chrome" again. */}
+      <Section title={t('settings.your_name')}>
+        <input
+          type="text"
+          value={settings.profileName ?? ''}
+          onChange={(e) => updateSetting({ profileName: e.target.value })}
+          placeholder={selfNamePlaceholder}
+          aria-label={t('settings.your_name')}
+          className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('settings.your_name_hint')}</p>
+      </Section>
+
       <Section title={t('settings.device_name')}>
         <input
           type="text"
@@ -1346,6 +1368,7 @@ export function SettingsPage() {
           aria-label={t('settings.device_name')}
           className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
         />
+        <p className="text-xs text-on-surface-faint mt-2">{t('settings.device_name_hint')}</p>
       </Section>
 
       {/* GATE 5 (D10): progressive wallet tracking — Auto / always on / off.

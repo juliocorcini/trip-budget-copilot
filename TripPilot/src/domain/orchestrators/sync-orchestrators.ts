@@ -1,4 +1,5 @@
 import {
+  appSettingsRepository,
   participantRepository,
   participantShareRepository,
   peerLinkRepository,
@@ -7,8 +8,10 @@ import {
 import { db } from '@/data/db/database';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import { applyStatementResponses } from '@/domain/sync/statement-payload';
+import { resolveSelfName } from '@/domain/sync/self-name';
 import type { StatementPayload, StatementResponse } from '@/domain/sync/statement-payload';
 import type { IdentityQrPayload } from '@/domain/sync/identity';
+import type { AppSettings } from '@/domain/types/app-settings';
 import {
   buildMirroredStatement,
   answerMirroredLine,
@@ -23,6 +26,33 @@ import type { MirroredStatement } from '@/domain/types/mirrored-statement';
  * R4 orchestrators (DEC-105/106): thin persistence around the pure sync
  * domain — pairing, mirrored statements and owner-side confirmations.
  */
+
+/**
+ * DEC-350 (G4) — the impure side of `resolveSelfName`: read the active trip's
+ * OWNER participant name (the onboarding name) and resolve it ahead of the
+ * optional `profileName` and the technical `deviceName`. The single source every
+ * share / connect / P2P stamp now calls so a peer sees my real name, never
+ * "Android · Chrome". Pass the already-loaded `settings` to avoid a second read.
+ */
+export async function resolveSelfShareName(settings?: AppSettings): Promise<string> {
+  const resolved = settings ?? (await appSettingsRepository.get());
+  let ownerName: string | null = null;
+  try {
+    const tripId = resolved.activeTrip;
+    if (tripId) {
+      const participants = await participantRepository.getByTripId(tripId);
+      const owner = participants.find((p) => p.isOwner && p.deletedAt === null);
+      ownerName = owner?.name ?? null;
+    }
+  } catch {
+    // A read failure must never block a share — fall through to the settings name.
+  }
+  return resolveSelfName({
+    ownerName,
+    profileName: resolved.profileName ?? null,
+    deviceName: resolved.deviceName,
+  });
+}
 
 async function upsertPeerLink(
   actorId: string,

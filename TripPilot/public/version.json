@@ -1,8 +1,8 @@
 {
-  "version": "1.3.3-rc",
+  "version": "1.3.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.3.3-rc.zip",
-  "notes": "O quadro do grupo agora é ao vivo: o que um convidado adiciona ou remove aparece para todo mundo na hora, sem o organizador precisar abrir o app — e apagar uma despesa corrige o total e os saldos na mesma hora."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.3.4-rc.zip",
+  "notes": "Seus amigos agora te veem pelo seu nome (o que você colocou na viagem), nunca mais como \"Android Chrome\". Ao conectar, os dois lados aparecem com o nome certo, e o zoom da câmera de QR voltou no Android."
 }

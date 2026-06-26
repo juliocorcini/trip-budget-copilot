@@ -25,6 +25,7 @@ import {
 import { createParticipant, createSettlement } from '@/domain/splitting';
 import { createIncomeTransaction } from '@/domain/transactions';
 import { flushOutbox, type SendToMailboxResult } from './mailbox-orchestrators';
+import { resolveSelfShareName } from './sync-orchestrators';
 import type { Participant } from '@/domain/types/participant';
 import type { MailboxQueueItem } from '@/domain/types/mailbox';
 
@@ -47,10 +48,11 @@ async function sealAndQueue(
 ): Promise<SendToMailboxResult> {
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
+  const fromName = await resolveSelfShareName(settings);
   const envelope = buildMailboxEnvelope({
     kind,
     fromActorId: me.actorId,
-    fromName: settings.deviceName,
+    fromName,
     data,
   });
   const sealed = await sealForPeer(peerPublicKey, packEnvelope(envelope));
@@ -82,10 +84,11 @@ export async function shareDebtWithPeer(input: ShareDebtInput): Promise<SendToMa
   if (!peer?.publicKey) return { delivered: false };
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
+  const fromName = await resolveSelfShareName(settings);
   const payload = buildSharedDebtPayload({
     debtId: uuidv4(),
     fromActorId: me.actorId,
-    fromName: settings.deviceName,
+    fromName,
     currency: input.currency,
     amountCents: input.amountCents,
     description: input.description,
@@ -118,6 +121,7 @@ export async function announcePaymentToPeer(input: AnnouncePaymentInput): Promis
   const peer = await peerLinkRepository.getByActorId(input.peerActorId);
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
+  const selfName = await resolveSelfShareName(settings);
 
   const debtor = input.direction === 'paid' ? input.myParticipantId : input.peerParticipantId;
   const creditor = input.direction === 'paid' ? input.peerParticipantId : input.myParticipantId;
@@ -136,7 +140,7 @@ export async function announcePaymentToPeer(input: AnnouncePaymentInput): Promis
         walletId: input.fundCredit.walletId,
         amountCents: input.amountCents,
         currency: input.currency,
-        description: `${peer?.displayName ?? settings.deviceName} → ${settings.deviceName}`,
+        description: `${peer?.displayName ?? selfName} → ${selfName}`,
       }),
     );
   }
@@ -145,7 +149,7 @@ export async function announcePaymentToPeer(input: AnnouncePaymentInput): Promis
   const payload = buildPaymentPayload({
     paymentId: uuidv4(),
     fromActorId: me.actorId,
-    fromName: settings.deviceName,
+    fromName: selfName,
     currency: input.currency,
     amountCents: input.amountCents,
     direction: input.direction,
@@ -292,7 +296,7 @@ export async function confirmInboundPayment(itemId: string, target: ConfirmPayme
   await settlementRepository.create(settlement);
 
   if (parties.iReceived && target.fundCredit) {
-    const settings = await appSettingsRepository.get();
+    const selfName = await resolveSelfShareName();
     await transactionRepository.create(
       createIncomeTransaction({
         tripId: target.tripId,
@@ -301,7 +305,7 @@ export async function confirmInboundPayment(itemId: string, target: ConfirmPayme
         walletId: target.fundCredit.walletId,
         amountCents: payment.amountCents,
         currency: payment.currency,
-        description: `${payment.fromName} → ${settings.deviceName}`,
+        description: `${payment.fromName} → ${selfName}`,
       }),
     );
   }

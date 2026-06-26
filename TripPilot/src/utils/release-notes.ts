@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.4-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Seus amigos agora te veem pelo seu nome (o que você colocou na viagem), nunca mais como "Android Chrome".',
+        'Ao conectar com alguém, os dois lados passam a aparecer com o nome certo, sem precisar de uma segunda ação.',
+        'O zoom da câmera ao ler QR code voltou no Android (1×/2×/3× ou um controle deslizante).',
+        'Novo campo "Seu nome" nas configurações, caso queira usar um nome diferente do da viagem.',
+      ],
+      en: [
+        'Friends now see you by your name (the one you set on your trip), never again as "Android Chrome".',
+        'When you connect with someone, both sides now show up with the right name, with no second action.',
+        'QR camera zoom is back on Android (1×/2×/3× or a slider).',
+        'New "Your name" field in settings, in case you want a name different from your trip one.',
+      ],
+      es: [
+        'Tus amigos ahora te ven por tu nombre (el que pusiste en tu viaje), nunca más como "Android Chrome".',
+        'Al conectar con alguien, ambos lados aparecen con el nombre correcto, sin una segunda acción.',
+        'El zoom de la cámara al leer QR volvió en Android (1×/2×/3× o un control deslizante).',
+        'Nuevo campo "Tu nombre" en ajustes, por si quieres usar un nombre distinto al del viaje.',
+      ],
+    },
+  },
+  {
     version: '1.3.3-rc',
     date: '2026-06-26',
     items: {

@@ -27,6 +27,12 @@ export interface AppSettings {
   backupReminderDays: number;
   lastBackupDate: string | null;
   deviceName: string;
+  /** DEC-350 (G4): optional social name ("Seu nome" — how friends see you).
+   * Only a FALLBACK in `resolveSelfName` (after the active trip's onboarding
+   * owner name, before the technical `deviceName`). Most users never set it —
+   * their onboarding name flows to peers automatically. `undefined` on existing
+   * installs reads back as unset (non-indexed — no migration). */
+  profileName?: string | null;
   persistentStorageGranted: boolean;
   isDemo: boolean;
   onboardingCompleted: boolean;

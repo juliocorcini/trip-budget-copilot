@@ -78,6 +78,7 @@ export {
   pairParticipantFromIdentity,
   linkParticipantToIdentity,
   upsertPeerLinkFromConnect,
+  resolveSelfShareName,
   storeMirroredStatement,
   answerMirroredStatementLine,
   markResponsesSent,

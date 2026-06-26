@@ -36,6 +36,41 @@ export function computeZoomLevels(zoom: ZoomState | null): number[] {
 }
 
 /**
+ * F15 — pure: derive the usable zoom range a track reports. Android frequently
+ * returns an EMPTY or DEGENERATE ({min === max}) capability set right after
+ * `getUserMedia` and only fills a real range once the track has settled
+ * (`loadedmetadata`) — so this is re-run on settle + a couple of retries and the
+ * first usable range wins. Returns null when there is genuinely no zoom.
+ */
+export function deriveZoomState(
+  capabilities: ZoomCapabilities,
+  currentZoom?: number,
+): ZoomState | null {
+  const z = capabilities.zoom;
+  if (z && typeof z.min === 'number' && typeof z.max === 'number' && z.max > z.min) {
+    const current = typeof currentZoom === 'number' && currentZoom >= z.min && currentZoom <= z.max
+      ? currentZoom
+      : z.min;
+    return { min: z.min, max: z.max, current };
+  }
+  return null;
+}
+
+export type ZoomMode = 'none' | 'presets' | 'slider';
+
+/**
+ * F15 — pure: how to render zoom for a range. `presets` when ≥2 of 1×/2×/3× fall
+ * inside it; `slider` when the camera zooms but the presets don't qualify (e.g.
+ * Android's default stream reports {min:1,max:1.6}); `none` when there is no zoom.
+ * The fix: a degenerate preset set no longer HIDES zoom — it degrades to a
+ * continuous slider so Android keeps a working zoom control.
+ */
+export function zoomMode(zoom: ZoomState | null): ZoomMode {
+  if (!zoom) return 'none';
+  return computeZoomLevels(zoom).length > 1 ? 'presets' : 'slider';
+}
+
+/**
  * Camera QR scanner: getUserMedia → canvas sampling → jsQR.
  *
  * D-BUG-03: the switch button is a plain front↔back toggle (`facingMode`), not a
@@ -57,6 +92,7 @@ export function QrScanner({ onScan }: QrScannerProps) {
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
+    let zoomTimers: ReturnType<typeof setTimeout>[] = [];
     let cancelled = false;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -86,16 +122,22 @@ export function QrScanner({ onScan }: QrScannerProps) {
       const track = mediaStream.getVideoTracks()[0];
       if (!track) return;
 
-      const capabilities = (track.getCapabilities?.() ?? {}) as ZoomCapabilities;
-      if (capabilities.zoom && capabilities.zoom.max > capabilities.zoom.min) {
-        setZoom({
-          min: capabilities.zoom.min,
-          max: capabilities.zoom.max,
-          current: capabilities.zoom.min,
-        });
-      } else {
-        setZoom(null);
-      }
+      // F15 — Android exposes zoom only AFTER the track settles. Derive now, again
+      // on `loadedmetadata`, and on a couple of retries; keep the first usable
+      // range so the 1×/2×/3× presets (or a slider fallback) reappear on Android.
+      const deriveZoom = () => {
+        if (cancelled) return;
+        const live = streamRef.current?.getVideoTracks()[0];
+        if (!live) return;
+        const capabilities = (live.getCapabilities?.() ?? {}) as ZoomCapabilities;
+        const trackSettings = (live.getSettings?.() ?? {}) as { zoom?: number };
+        const next = deriveZoomState(capabilities, trackSettings.zoom);
+        if (next) setZoom((prev) => prev ?? next);
+      };
+
+      deriveZoom();
+      if (video) video.addEventListener('loadedmetadata', deriveZoom, { once: true });
+      zoomTimers = [250, 700, 1500].map((ms) => setTimeout(deriveZoom, ms));
 
       // Only to decide whether to offer the front/back toggle at all.
       void navigator.mediaDevices.enumerateDevices().then((devices) => {
@@ -129,6 +171,7 @@ export function QrScanner({ onScan }: QrScannerProps) {
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      zoomTimers.forEach(clearTimeout);
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
@@ -161,6 +204,7 @@ export function QrScanner({ onScan }: QrScannerProps) {
   }
 
   const zoomLevels = computeZoomLevels(zoom);
+  const mode = zoomMode(zoom);
 
   return (
     <div className="relative rounded-2xl overflow-hidden bg-black aspect-square">
@@ -183,7 +227,7 @@ export function QrScanner({ onScan }: QrScannerProps) {
           <Icon name="cameraswitch" size={22} />
         </button>
       )}
-      {zoomLevels.length > 1 && (
+      {mode === 'presets' && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
           {zoomLevels.map((level) => (
             <button
@@ -198,6 +242,28 @@ export function QrScanner({ onScan }: QrScannerProps) {
               {level}×
             </button>
           ))}
+        </div>
+      )}
+      {/* F15 — when presets don't fit the reported range (common on Android's
+          default stream), keep a working zoom as a continuous slider. */}
+      {mode === 'slider' && zoom && (
+        <div
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+        >
+          <Icon name="zoom_in" size={16} className="text-white" />
+          <input
+            type="range"
+            min={zoom.min}
+            max={zoom.max}
+            step={(zoom.max - zoom.min) / 20 || 0.1}
+            value={zoom.current}
+            onChange={(e) => applyZoom(Number(e.target.value))}
+            aria-label={t('sync.zoom')}
+            className="w-32"
+            style={{ accentColor: 'var(--primary)' }}
+          />
+          <span className="text-xs font-bold text-white tabular">{zoom.current.toFixed(1)}×</span>
         </div>
       )}
     </div>
