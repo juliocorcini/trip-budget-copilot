@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.7-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Vocabulário Trecho/Pote agora também na renda, em pagamentos recebidos, no card de potes da tela inicial e ao associar um trecho a uma fase — os últimos rótulos "Fundo" da interface sumiram.',
+      ],
+      en: [
+        'Segment/Pot vocabulary now also in income, received payments, the home pots card, and when linking a segment to a phase — the last "Fund" labels are gone.',
+      ],
+      es: [
+        'Vocabulario Tramo/Fondo también en ingresos, pagos recibidos, la tarjeta de fondos del inicio y al asociar un tramo a una fase — desaparecen las últimas etiquetas "Fondo".',
+      ],
+    },
+  },
+  {
     version: '1.4.6-rc',
     date: '2026-06-26',
     items: {

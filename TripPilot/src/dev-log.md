@@ -1,11 +1,11 @@
 # Dev Log — TripPilot Implementation
 
-## Docs Sync & Vocabulary wave (2026-06-26) — 1.4.4-rc → 1.4.6-rc — ✅ COMPLETE
+## Docs Sync & Vocabulary wave (2026-06-26) — 1.4.4-rc → 1.4.7-rc — ✅ COMPLETE
 
 > Two focused fronts after the Grupos wave closed, per Julio: (1) a **documentation sweep** so every recently-shipped function is findable & correctly explained; (2) **DEC-228 deferred half / OD-2** — the **Trecho/Pote** funds-vocab migration as the council-mandated **nature-aware** pass. UI strings + one pure resolver only — **zero code-id / schema / ledger-math change**.
 
 ### CURRENT STATE
-- **Status**: ✅ shipped `1.4.5-rc` + follow-up `1.4.6-rc` (live TripHub trecho-section labels).
+- **Status**: ✅ shipped `1.4.5-rc` + `1.4.6-rc` (live TripHub trecho-section labels) + `1.4.7-rc` (final live-straggler sweep — vocab migration complete on every live surface).
 - **Tests**: **2502 pass / 2504** (only the 2 Node-18 WebCrypto `split-live-loop` baseline — pass on CI Node 22; **+5** `pool-nature`). `tsc --noEmit` clean; `npm run build` green. Locale parity = **3080 keys** in each of pt-BR/en/es.
 
 ### Front 1 — documentation sweep
@@ -16,9 +16,10 @@
 - **Copy (pt-BR/en/es)**: reworded `funds.*` editor (nature nouns Trecho/Pote/Reserva · Segment/Pot/Reserve · Tramo/Fondo/Reserva), `selection.*` move-pool + `expenses.*` pool-picker, `plan.*` creation door, `help.funds.*` + `help_center.a.funds`, the `wallets.*` "Carteira × Trecho/Pote" contrast, AdvancedTripView container labels (`advanced_funds`/`advanced_links`/`advanced_manage_funds`), and the `guide.funds_t/_d` discovery card. Spanish keeps "Fondo" for pots (its existing convention).
 - **UI wiring**: a **nature chip** (Trecho/Pote/Reserva, color-coded primary/warning/faint) now renders next to the pool name on **FundsPage** cards and on each **move-pool picker** row (`ExpenseListPage`), via `poolNature` + `poolNatureLabelKey`.
 - **Follow-up `1.4.6-rc`**: a quick inline council found the LIVE **TripHub** trecho-section still said "Fundos" (`trip_hub.funds_title` / `fund_what_is` / `manage_funds` / `no_funds`) while the surrounding totals already said "trechos / Potes" — renamed nature-correct (**Trechos** · "Gerenciar trechos e potes" · Segments / Tramos) in pt/en/es. Confirmed `planner.funds` / `trip.funds` are **dead keys** (no `.tsx` reference anywhere) → left untouched (renaming dead keys is noise/risk). The section is code-restricted to trecho-nature pools (pots have their own "Potes e planejados" home), so "Trechos" is nature-correct, not a blanket rename.
+- **Follow-up `1.4.7-rc` (final vocab sweep)**: after a full locale grep for residual `fundo`/`fund` tokens, migrated every remaining **confirmed-live** user-facing straggler to the established **trecho/pote** umbrella, in pt/en/es — `trip.phase_fund` ("Fundo associado"→**"Trecho associado"**; a phase pool is always a trecho), the income pool-picker `income.grows_fund`, the received-payment picker `p2p.fund_pool` + `fund_hint`, the home **"Potes"** summary card `dashboard.card_funds_summary` + `card_action_open_funds` ("Abrir trechos e potes"), and the assistant `no_pool` guard. **Verified DEAD → left:** `more.funds` (the More menu in `TripHubPage` has no funds entry), `trip.funds`, `planner.funds`. **Intentional residual → left** (per the DEC-228 council ruling — umbrella/advanced/technical): runtime `{{fund}}`-interpolated messages, power-user planner hints, the **Advanced view** hint, backup/export entity lists, the app-store description, and the `pool_name` seed default. Vocab migration now complete on every live surface.
 
 ### Deploy
-- Bumped `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release notes pt/en/es) → 1.4.5-rc, then → 1.4.6-rc (TripHub follow-up); commit + push `master` → Cloudflare Pages OTA (Pages-only — no Worker change).
+- Bumped `package.json` + `src/utils/app-version.ts` + `public/version.json` (+ release notes pt/en/es) per bump → 1.4.5-rc (core), then 1.4.6-rc (TripHub labels), then 1.4.7-rc (final vocab sweep); commit + push `master` → Cloudflare Pages OTA (Pages-only — no Worker change).
 
 ## Grupos Confiáveis & Acerto Claro wave (2026-06-26) — base 1.3.0-rc → 1.4.4-rc — ✅ COMPLETE (G0→G9 + G_last)
 
