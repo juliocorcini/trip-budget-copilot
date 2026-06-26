@@ -1,5 +1,5 @@
 import { groupSplitRepository } from '@/data/repositories';
-import { createGroupSplitEvent } from '@/domain/group-split';
+import { createGroupSplitEvent, createGroupParticipant, addParticipant } from '@/domain/group-split';
 import type { GroupSplitEvent } from '@/domain/group-split';
 import type { GroupSplitRecord } from '@/domain/types/group-split-record';
 
@@ -18,17 +18,28 @@ export interface CreateGroupSplitInput {
   tripId?: string | null;
   /** Owner's trip Participant id, when this event lives inside a trip. */
   ownerLinkedParticipantId?: string | null;
+  /**
+   * DEC-338 — extra participants (names) to seed at creation, in order. Blanks are
+   * skipped; the owner is always seeded by `createGroupSplitEvent` first. Optional:
+   * creating with no extra people still yields a valid owner-only event.
+   */
+  peopleNames?: string[];
 }
 
-/** Builds a fresh event (owner seeded) and persists it; returns the live event. */
+/** Builds a fresh event (owner + any seeded people) and persists it; returns the live event. */
 export async function createGroupSplit(input: CreateGroupSplitInput): Promise<GroupSplitEvent> {
-  const event = createGroupSplitEvent({
+  let event = createGroupSplitEvent({
     name: input.name,
     currency: input.currency,
     ownerName: input.ownerName,
     tripId: input.tripId ?? null,
     ownerLinkedParticipantId: input.ownerLinkedParticipantId ?? null,
   });
+  for (const rawName of input.peopleNames ?? []) {
+    const name = rawName.trim();
+    if (name.length === 0) continue;
+    event = addParticipant(event, createGroupParticipant({ name }));
+  }
   await groupSplitRepository.createFromEvent(event);
   return event;
 }

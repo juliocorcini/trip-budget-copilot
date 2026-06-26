@@ -1,8 +1,8 @@
 {
-  "version": "1.2.1-rc",
+  "version": "1.2.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.1-rc.zip",
-  "notes": "Despesas de grupo ficaram mais completas: agora cada despesa tem uma data (começa em hoje) e a lista agrupa por dia quando o grupo passa de uma data. Ao fotografar a nota você escolhe entre \"Nota completa\" (um total) ou \"Selecionar itens\" (marca só o que o grupo divide). Nomes e valores ganharam fontes maiores, e ao abrir uma despesa você vê os itens dela."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.2.2-rc.zip",
+  "notes": "Criar um grupo ficou mais rápido: agora dá para adicionar as pessoas ali mesmo na criação — o teclado continua aberto e o foco já volta para o próximo nome. O grupo abre com todo mundo já dentro."
 }

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.2.2-rc',
+    date: '2026-06-25',
+    items: {
+      'pt-BR': [
+        'Ao criar um grupo, agora você adiciona as pessoas ali mesmo — o teclado continua aberto e o foco volta para o próximo nome, então dá para cadastrar várias seguidas.',
+        'O grupo abre já com todo mundo dentro. (Criar sem adicionar ninguém continua funcionando.)',
+      ],
+      en: [
+        'When you create a group you can now add the people right there — the keyboard stays open and focus returns to the next name, so you can add several in a row.',
+        'The group opens with everyone already in it. (Creating with no one added still works.)',
+      ],
+      es: [
+        'Al crear un grupo ahora agregas a las personas allí mismo — el teclado sigue abierto y el foco vuelve al próximo nombre, así cargas varias seguidas.',
+        'El grupo se abre con todos ya dentro. (Crear sin agregar a nadie sigue funcionando.)',
+      ],
+    },
+  },
+  {
     version: '1.2.1-rc',
     date: '2026-06-25',
     items: {

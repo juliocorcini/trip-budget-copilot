@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -31,6 +31,10 @@ export function GroupSplitListPage() {
   const [currency, setCurrency] = useState(
     () => trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR',
   );
+  // A01/DEC-338 — optional people seeded inline at creation, with focus-advance add.
+  const [people, setPeople] = useState<string[]>([]);
+  const [newPerson, setNewPerson] = useState('');
+  const newPersonRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const ownerName =
@@ -40,18 +44,41 @@ export function GroupSplitListPage() {
     void groupSplitRepository.listEvents().then(setRecords);
   }, []);
 
+  const addPerson = () => {
+    const trimmed = newPerson.trim();
+    if (trimmed.length === 0) return;
+    setPeople((prev) => [...prev, trimmed]);
+    setNewPerson('');
+    // A02 — keep the keyboard and bounce focus back for the next name.
+    newPersonRef.current?.focus();
+  };
+
+  const removePerson = (index: number) => {
+    setPeople((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const cancelCreate = () => {
+    setCreating(false);
+    setPeople([]);
+    setNewPerson('');
+  };
+
   const handleCreate = async () => {
     const trimmed = name.trim();
     if (submitting || trimmed.length === 0) return;
     setSubmitting(true);
     try {
       const owner = participants.find((p) => p.isOwner) ?? null;
+      // Fold a half-typed name in the field so it is never silently dropped.
+      const pending = newPerson.trim();
+      const peopleNames = pending.length > 0 ? [...people, pending] : people;
       const event = await createGroupSplit({
         name: trimmed,
         currency,
         ownerName,
         tripId: trip?.id ?? null,
         ownerLinkedParticipantId: owner?.id ?? null,
+        peopleNames,
       });
       showToast(t('group_split.created'), 'success');
       navigate(`/groups/${event.id}`);
@@ -101,9 +128,51 @@ export function GroupSplitListPage() {
               ))}
             </div>
           </div>
+          {/* A01/DEC-338 — seed people inline; owner is added automatically. */}
+          <div>
+            <label className="text-xs text-on-surface-faint block mb-2">{t('group_split.people_title')}</label>
+            {people.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {people.map((p, i) => (
+                  <span
+                    key={`${p}-${i}`}
+                    className="flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-lg bg-surface-high text-on-surface text-sm font-medium"
+                  >
+                    {p}
+                    <button
+                      type="button"
+                      onClick={() => removePerson(i)}
+                      aria-label={t('group_split.remove_person')}
+                      className="btn-press"
+                    >
+                      <Icon name="close" size={14} className="text-on-surface-faint" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                ref={newPersonRef}
+                value={newPerson}
+                onChange={(e) => setNewPerson(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addPerson()}
+                placeholder={t('group_split.add_person_ph')}
+                className="bg-surface-high rounded-lg px-3 py-2 text-sm text-on-surface outline-none flex-1"
+              />
+              <button
+                type="button"
+                onClick={addPerson}
+                disabled={newPerson.trim().length === 0}
+                className="btn-press px-3 py-2 rounded-lg bg-primary text-on-surface text-sm font-semibold disabled:opacity-40"
+              >
+                {t('common.add')}
+              </button>
+            </div>
+          </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setCreating(false)}
+              onClick={cancelCreate}
               className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-semibold btn-press"
             >
               {t('common.cancel')}

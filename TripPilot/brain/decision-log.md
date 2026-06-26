@@ -2492,7 +2492,7 @@
 - **Alternatives**: keep whole-bill-only prefill (rejected: loses the richer flow we already have).
 
 ### DEC-338 — Inline participants at group creation + focus-advance add
-- **Date**: 2026-06-25 · **Status**: PARTIAL — focus-advance **APPROVED** (G1, 1.2.0-rc, group detail); inline-creation part **PROPOSED** (G3).
+- **Date**: 2026-06-25 · **Status**: APPROVED — focus-advance shipped G1 (1.2.0-rc, group detail); **inline-creation shipped G3 (1.2.2-rc)** — create form seeds `peopleNames` via the pure orchestrator (owner first, blanks skipped, half-typed name folded on create), focus-advance add with removable chips, event opens pre-populated.
 - **Decision**: the create-group form lets you **add people inline**; everywhere we add a participant
   (create form, detail "People", `/shared`), after adding the **keyboard stays open and focus returns to
   an empty field**. Implements DEC-259.
