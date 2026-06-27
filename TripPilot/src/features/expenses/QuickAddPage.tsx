@@ -38,6 +38,7 @@ import {
   transferBetweenWallets,
   withdrawCash,
   softDeleteTransactionsBatch,
+  deliverManualSplitDebts,
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
 import {
@@ -567,6 +568,24 @@ export function QuickAddPage() {
   const persistExpense = async (): Promise<{ transaction: Transaction; shares: ParticipantShare[] }> => {
     const { transaction, shares } = buildExpense();
     await registerExpense({ transaction, shares });
+    // DEC-377 (G3, Â-CONSISTENT-SPLIT): a manual split with a CONNECTED person
+    // must deliver the slice as an accept-first debt — exactly like "Dividir
+    // conta" (DEC-366) — instead of dying as a local pending share. Best-effort
+    // in the BACKGROUND so the #1 action never waits (A5); idempotent by a
+    // stable debtId so a re-save never duplicates. The planner sends only when
+    // the OWNER fronted the money (a real "you owe me").
+    if (owner && transaction.isShared) {
+      void deliverManualSplitDebts({
+        transactionId: transaction.id,
+        ownerId: owner.id,
+        payerId: transaction.paidByParticipantId ?? owner.id,
+        currency: transaction.currency,
+        description: transaction.description,
+        occurredAt: transaction.date ?? null,
+        shares,
+        participants,
+      });
+    }
     // DEC-206 (G1): persist photos buffered during creation, now that the
     // transaction has an id. Cleared so a round-trip persist never reattaches them.
     if (pendingImages.length > 0) {

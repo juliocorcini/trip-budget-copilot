@@ -30,6 +30,10 @@ import { createParticipant, createSettlement } from '@/domain/splitting';
 import { createIncomeTransaction } from '@/domain/transactions';
 import { flushOutbox, resultForItem, type SendToMailboxResult } from './mailbox-orchestrators';
 import { resolveSelfShareName } from './sync-orchestrators';
+import {
+  planManualSplitDeliveries,
+  type ManualSplitDeliveryInput,
+} from '@/domain/settle-flows/manual-split-delivery';
 import type { Participant } from '@/domain/types/participant';
 import type { MailboxQueueItem } from '@/domain/types/mailbox';
 import type { ImageRef } from '@/domain/media';
@@ -76,6 +80,12 @@ export interface ShareDebtInput {
   currency: string;
   description: string;
   occurredAt?: string | null;
+  /**
+   * DEC-377 — a STABLE debt id, supplied when the debt must be idempotent across
+   * re-sends (the auto-delivered manual split derives it from the expense +
+   * person). Omitted for a one-off charge, where each send is a distinct debt.
+   */
+  debtId?: string;
 }
 
 /**
@@ -90,7 +100,7 @@ export async function shareDebtWithPeer(input: ShareDebtInput): Promise<SendToMa
   const settings = await appSettingsRepository.get();
   const fromName = await resolveSelfShareName(settings);
   const payload = buildSharedDebtPayload({
-    debtId: uuidv4(),
+    debtId: input.debtId ?? uuidv4(),
     fromActorId: me.actorId,
     fromName,
     currency: input.currency,
@@ -99,6 +109,33 @@ export async function shareDebtWithPeer(input: ShareDebtInput): Promise<SendToMa
     occurredAt: input.occurredAt ?? null,
   });
   return sealAndQueue(input.peerActorId, peer.publicKey, peer.displayName, 'debt', payload);
+}
+
+/**
+ * DEC-377 (G3, Â-CONSISTENT-SPLIT) — deliver a just-saved manual split's
+ * connected slices as accept-first debts, the SAME path as "Dividir conta"
+ * (`shareDebtWithPeer`). Best-effort and NEVER throws: a failed send stays
+ * queued (the local pending share already recorded the split), so the #1 action
+ * is never blocked (A5). Sequential because each send flushes the shared outbox
+ * — running them in parallel would race that flush. Idempotent by the stable
+ * `debtId` (DEC-377), so a re-save never folds a second debt on the recipient.
+ */
+export async function deliverManualSplitDebts(input: ManualSplitDeliveryInput): Promise<void> {
+  for (const delivery of planManualSplitDeliveries(input)) {
+    try {
+      await shareDebtWithPeer({
+        peerActorId: delivery.peerActorId,
+        amountCents: delivery.amountCents,
+        currency: delivery.currency,
+        description: delivery.description,
+        occurredAt: delivery.occurredAt,
+        debtId: delivery.debtId,
+      });
+    } catch {
+      // Best-effort — the split is already a local pending share; the queued
+      // outbox item retries on the next flush. Delivery never blocks the save.
+    }
+  }
 }
 
 export interface AnnouncePaymentInput {

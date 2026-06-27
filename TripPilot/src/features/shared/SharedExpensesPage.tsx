@@ -169,11 +169,14 @@ function PersonRow({
   person,
   t,
   currency,
+  awaitingCents,
   onTap,
 }: {
   person: PersonView;
   t: Translate;
   currency: string;
+  /** DEC-377 — sum of this person's delivered-but-unaccepted slices, display-only. */
+  awaitingCents: number;
   onTap: () => void;
 }) {
   const money = person.needsParticipant
@@ -191,7 +194,13 @@ function PersonRow({
             text: t('shared.balance_owed', { amount: formatMoney(person.balanceCents, currency) }),
             cls: 'text-success',
           }
-        : { text: t('shared.balance_zero'), cls: 'text-on-surface-faint' };
+        : awaitingCents > 0
+          ? // DEC-377 (Â-HONEST) — a connected friend with a delivered slice they
+            // haven't accepted yet is NOT "em dia": the debt only counts on accept
+            // (arithmetic invariant), so the sender honestly reads "aguardando
+            // aceitar" instead of a misleading zero.
+            { text: t('settle_state.awaiting_acceptance'), cls: 'text-warning' }
+          : { text: t('shared.balance_zero'), cls: 'text-on-surface-faint' };
   return (
     <button
       onClick={onTap}
@@ -1066,6 +1075,17 @@ export function SharedExpensesPage() {
       s.confirmationStatus === 'pending' &&
       s.participantId !== ownerParticipant?.id,
   );
+  // DEC-377 (m3, Â-HONEST) — per-person total of delivered-but-unaccepted slices,
+  // so a People row with a pending outbound debt reads "aguardando aceitar"
+  // instead of a misleading "em dia". Display-only — the balance arithmetic is
+  // untouched (pending never consolidates; DEC-071).
+  const awaitingByParticipant = new Map<string, number>();
+  for (const share of awaitingShares) {
+    awaitingByParticipant.set(
+      share.participantId,
+      (awaitingByParticipant.get(share.participantId) ?? 0) + share.shareAmountCents,
+    );
+  }
   // G4 discoverability (DEC-244): when someone owes the owner but no payment
   // method is published yet, nudge them to add one so the "Lembrar" message can
   // carry it. Self-hides the moment an enabled method exists (no nagging).
@@ -1395,6 +1415,7 @@ export function SharedExpensesPage() {
               person={person}
               t={t}
               currency={trip.baseCurrency}
+              awaitingCents={awaitingByParticipant.get(person.participantId) ?? 0}
               onTap={() => void handlePersonTap(person)}
             />
           ))
@@ -2687,6 +2708,7 @@ export function SharedExpensesPage() {
                             person={person}
                             t={t}
                             currency={trip.baseCurrency}
+                            awaitingCents={awaitingByParticipant.get(person.participantId) ?? 0}
                             onTap={() => void handlePersonTap(person)}
                           />
                           {reconnect && (

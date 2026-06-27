@@ -171,6 +171,7 @@ export {
 export type { CreateGroupSplitInput, CreateGroupSplitPerson } from './group-split-orchestrators';
 export {
   shareDebtWithPeer,
+  deliverManualSplitDebts,
   announcePaymentToPeer,
   sendGroupInvite,
   getInboundP2pItems,
