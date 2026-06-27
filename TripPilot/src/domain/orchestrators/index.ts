@@ -84,6 +84,7 @@ export {
   markResponsesSent,
   applyPeerResponses,
   reconnectParticipantDevice,
+  removeConnectedPerson,
 } from './sync-orchestrators';
 export type { PairResult } from './sync-orchestrators';
 export { applyPhaseLeftover } from './phase-cycle-orchestrators';

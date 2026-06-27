@@ -102,6 +102,41 @@ export function buildConnectionViews(links: PeerLink[], nowMs: number): Connecti
     });
 }
 
+/**
+ * I1 / DEC-370 — decide what "remove this connected person" tombstones. Pure: the
+ * orchestrator applies it. We tombstone every live `PeerLink` for this person —
+ * matched by the participant's linked device (`linkedActorId`) AND by any link
+ * mapped straight to this `participantId` — and unlink the participant so they
+ * stop reading as an active contact. The participant row, its shares and every
+ * past division stay untouched (hide-never-delete: only the live connection is
+ * severed; history is preserved). The ledger keys off `participantId`, never
+ * `actorId`, so severing the device link never moves a cent.
+ */
+export interface RemoveConnectionPlan {
+  /** PeerLink ids to tombstone (soft-delete). */
+  linkIdsToTombstone: string[];
+  /** Whether to clear the participant's device link (keeps the participant + history). */
+  unlinkParticipant: boolean;
+}
+
+export function planRemoveConnection(
+  participant: { id: string; linkedActorId: string | null },
+  links: PeerLink[],
+): RemoveConnectionPlan {
+  const ids = new Set<string>();
+  for (const link of links) {
+    if (link.deletedAt !== null) continue;
+    const matchesActor =
+      participant.linkedActorId !== null && link.actorId === participant.linkedActorId;
+    const matchesParticipant = link.participantId === participant.id;
+    if (matchesActor || matchesParticipant) ids.add(link.id);
+  }
+  return {
+    linkIdsToTombstone: [...ids],
+    unlinkParticipant: participant.linkedActorId !== null,
+  };
+}
+
 /** Accent- and case-insensitive name key, for matching "the same friend". */
 function normalizeName(name: string): string {
   return name

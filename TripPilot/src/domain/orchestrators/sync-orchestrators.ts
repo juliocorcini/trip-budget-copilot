@@ -18,6 +18,7 @@ import {
   clearSentResponses,
 } from '@/domain/sync/mirrored';
 import { createParticipant } from '@/domain/splitting';
+import { planRemoveConnection } from '@/domain/connections/connections';
 import type { Participant } from '@/domain/types/participant';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { MirroredStatement } from '@/domain/types/mirrored-statement';
@@ -81,6 +82,37 @@ async function upsertPeerLink(
     publicKey: publicKey ?? null,
   };
   return peerLinkRepository.create(link);
+}
+
+/**
+ * I1 / DEC-370 — remove a connected person. Tombstones every live `peerLink` for
+ * this person (hide-never-delete) and unlinks the trip participant so they stop
+ * reading as an active contact, while the participant row + all past divisions
+ * stay in history (the ledger keys off `participantId`, never `actorId`, so no
+ * balance moves). Returns what changed for the caller's confirmation copy.
+ */
+export async function removeConnectedPerson(participantId: string): Promise<{
+  tombstoned: number;
+  unlinked: boolean;
+}> {
+  const participant = await participantRepository.getById(participantId);
+  if (!participant) return { tombstoned: 0, unlinked: false };
+
+  const links = await peerLinkRepository.getAll();
+  const plan = planRemoveConnection(
+    { id: participant.id, linkedActorId: participant.linkedActorId },
+    links,
+  );
+
+  // Independent soft-deletes + the unlink run together (guideline 2.5).
+  await Promise.all([
+    ...plan.linkIdsToTombstone.map((id) => peerLinkRepository.delete(id)),
+    plan.unlinkParticipant
+      ? participantRepository.update({ ...participant, linkedActorId: null })
+      : Promise.resolve(),
+  ]);
+
+  return { tombstoned: plan.linkIdsToTombstone.length, unlinked: plan.unlinkParticipant };
 }
 
 /**

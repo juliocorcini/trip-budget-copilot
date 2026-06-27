@@ -20,6 +20,7 @@ import {
   postShareResponse,
 } from '@/data/sync/share-client';
 import { buildShareUrl } from '@/domain/sync/share-link';
+import { resolveSelfShareName } from './sync-orchestrators';
 import {
   buildShareResponseBatch,
   parseShareResponseBatch,
@@ -219,9 +220,12 @@ async function pushGuestResponses(
   if (!statement.share) return false;
   try {
     const settings = await appSettingsRepository.get().catch(() => null);
+    // I2 / DEC-350: the owner sees the guest's REAL onboarding name, never the
+    // technical device label ("Android · Chrome").
+    const fromName = (await resolveSelfShareName(settings ?? undefined).catch(() => '')) || 'Convidado';
     const batch = buildShareResponseBatch({
       fromActorId: getInstallationId(),
-      fromName: settings?.deviceName?.trim() || 'Convidado',
+      fromName,
       responses: statement.pendingResponses,
       settle,
     });

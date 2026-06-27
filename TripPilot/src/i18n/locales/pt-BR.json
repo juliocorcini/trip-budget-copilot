@@ -1004,7 +1004,12 @@
     "last_seen": "visto {{date}}",
     "never_synced": "ainda não sincronizou",
     "reconnect_device": "Reconectar novo aparelho de {{name}}",
-    "reconnected": "{{name}} reconectado ao novo aparelho"
+    "reconnected": "{{name}} reconectado ao novo aparelho",
+    "remove_action": "Remover pessoa",
+    "remove_title": "Remover {{name}}?",
+    "remove_desc": "{{name}} deixa de aparecer como contato ativo. As divisões e pagamentos antigos continuam no histórico — nada é apagado. Você pode conectar de novo quando quiser.",
+    "remove_confirm": "Remover pessoa",
+    "removed_toast": "{{name}} removido dos contatos"
   },
   "participants": {
     "add_title": "Adicionar pessoa",

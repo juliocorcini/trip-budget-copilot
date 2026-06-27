@@ -1000,7 +1000,12 @@
     "last_seen": "seen {{date}}",
     "never_synced": "not synced yet",
     "reconnect_device": "Reconnect {{name}}'s new device",
-    "reconnected": "{{name}} reconnected to the new device"
+    "reconnected": "{{name}} reconnected to the new device",
+    "remove_action": "Remove person",
+    "remove_title": "Remove {{name}}?",
+    "remove_desc": "{{name}} will no longer show as an active contact. Past splits and payments stay in your history — nothing is deleted. You can connect again anytime.",
+    "remove_confirm": "Remove person",
+    "removed_toast": "{{name}} removed from contacts"
   },
   "participants": {
     "add_title": "Add person",

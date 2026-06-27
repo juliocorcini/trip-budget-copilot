@@ -98,8 +98,10 @@ import {
   dismissInboundP2p,
   shareDebtWithPeer,
   announcePaymentToPeer,
+  removeConnectedPerson,
   type InboundP2pItem,
 } from '@/domain/orchestrators';
+import { resolveSelfName } from '@/domain/sync/self-name';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
 import { getShareOrigin } from '@/utils/native/public-origin';
@@ -302,6 +304,8 @@ export function SharedExpensesPage() {
   const [showSimplified, setShowSimplified] = useState(false);
   // DEC-102 (R-25): tap on a participant opens their itemized statement.
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
+  // I1 / DEC-370: confirm removing a connected person (tombstone, history kept).
+  const [removeTarget, setRemoveTarget] = useState<Participant | null>(null);
   // DEC-206: a fresh statement always opens collapsed (first page only).
   useEffect(() => {
     setShowAllStatement(false);
@@ -349,6 +353,20 @@ export function SharedExpensesPage() {
   const [p2pSending, setP2pSending] = useState(false);
 
   const ownerParticipant = participants.find((p) => p.isOwner);
+  // I2 / DEC-350 — the real name a peer sees for ME: onboarding owner name first,
+  // then the optional profile name, and only the technical device label as a last
+  // resort (never "Android · Chrome" when a real name exists). Used for every
+  // outgoing self-name surface (identity QR + statement transfer).
+  const selfShareName =
+    useMemo(
+      () =>
+        resolveSelfName({
+          ownerName: ownerParticipant?.name,
+          profileName: settings?.profileName,
+          deviceName: settings?.deviceName,
+        }),
+      [ownerParticipant?.name, settings?.profileName, settings?.deviceName],
+    ) || 'TripPilot';
   // FIELD item 8: the identity QR now carries the device public key so a scan
   // captures it for sealing async messages. Built async (key load), so it lives
   // in state instead of being computed inline.
@@ -363,7 +381,7 @@ export function SharedExpensesPage() {
           buildIdentityQrPayload(
             {
               actorId: getInstallationId(),
-              displayName: ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot',
+              displayName: selfShareName,
             },
             pk,
           ),
@@ -373,7 +391,7 @@ export function SharedExpensesPage() {
     return () => {
       active = false;
     };
-  }, [ownerParticipant?.name, settings?.deviceName]);
+  }, [selfShareName]);
 
   useEffect(() => {
     void peerLinkRepository.getAll().then(setPeerLinks);
@@ -701,6 +719,25 @@ export function SharedExpensesPage() {
       setPeerLinks(await peerLinkRepository.getAll());
       await reload();
       showToast(t('connections.reconnected', { name: candidate.displayName }), 'success');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // I1 / DEC-370 — remove a connected person: tombstone their peer link(s) and
+  // unlink the participant so they stop reading as an active contact. The
+  // participant + every past division stay in history (hide-never-delete) and the
+  // ledger is untouched (debts key off participantId, never actorId).
+  const handleRemovePerson = async () => {
+    if (!removeTarget || saving) return;
+    const name = removeTarget.nickname ?? removeTarget.name;
+    setSaving(true);
+    try {
+      await removeConnectedPerson(removeTarget.id);
+      setRemoveTarget(null);
+      setPeerLinks(await peerLinkRepository.getAll());
+      await reload();
+      showToast(t('connections.removed_toast', { name }), 'success');
     } finally {
       setSaving(false);
     }
@@ -1902,9 +1939,60 @@ export function SharedExpensesPage() {
                   </button>
                 </div>
               )}
+
+              {/* I1 / DEC-370 — remove a connected person (history preserved). Only
+                  when there is a connection to sever (linked device or a peer link). */}
+              {!statementTarget.isOwner &&
+                (statementTarget.linkedActorId !== null || peerLinkFor(statementTarget.id)) && (
+                  <button
+                    onClick={() => {
+                      const target = statementTarget;
+                      setStatementTarget(null);
+                      setRemoveTarget(target);
+                    }}
+                    className="w-full py-2.5 rounded-xl text-error text-xs font-semibold flex items-center justify-center gap-1.5 btn-press"
+                  >
+                    <Icon name="person_remove" size={16} className="text-error" />
+                    {t('connections.remove_action')}
+                  </button>
+                )}
             </div>
           );
         })()}
+      </BottomSheet>
+
+      {/* I1 / DEC-370 — confirm removing a connected person. Tombstones the peer
+          link + unlinks the participant; past divisions stay in the history. */}
+      <BottomSheet
+        open={removeTarget !== null}
+        onClose={() => setRemoveTarget(null)}
+        title={
+          removeTarget
+            ? t('connections.remove_title', { name: removeTarget.nickname ?? removeTarget.name })
+            : ''
+        }
+      >
+        {removeTarget && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-on-surface-dim leading-snug">
+              {t('connections.remove_desc', { name: removeTarget.nickname ?? removeTarget.name })}
+            </p>
+            <button
+              onClick={handleRemovePerson}
+              disabled={saving}
+              className="w-full py-3 rounded-xl bg-error text-white font-semibold text-sm flex items-center justify-center gap-2 btn-press disabled:opacity-40"
+            >
+              <Icon name="person_remove" size={18} />
+              {t('connections.remove_confirm')}
+            </button>
+            <button
+              onClick={() => setRemoveTarget(null)}
+              className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press"
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        )}
       </BottomSheet>
 
       {/* DEC-105: my identity QR + F19: the same identity as a shareable link */}
@@ -2010,7 +2098,7 @@ export function SharedExpensesPage() {
               <SyncTransferFlow
                 mode="send"
                 purpose="statement"
-                actorName={ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot'}
+                actorName={selfShareName}
                 buildPayload={async () => {
                   const payload = buildStatementForParticipant(sendTarget);
                   if (!payload) throw new Error('statement_unavailable');

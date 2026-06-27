@@ -1,8 +1,8 @@
 {
-  "version": "1.5.3-rc",
+  "version": "1.5.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.3-rc.zip",
-  "notes": "Cada gasto agora guarda o ponto no mapa ao salvar (sem atrasar o registro) e o detalhe do gasto mostra um mapa interativo. Quando o app adivinha o nome do lugar, ele aparece como 'provavelmente …' e marcado como não confirmado."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.4-rc.zip",
+  "notes": "Agora você pode remover uma pessoa conectada — as divisões e pagamentos antigos continuam no histórico, nada é apagado, e dá pra reconectar quando quiser. Nas conexões, no QR e nos envios aparece o seu nome (o do início), nunca o rótulo técnico do aparelho."
 }

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.4-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Agora você pode remover uma pessoa conectada. As divisões e pagamentos antigos continuam no seu histórico — nada é apagado — e você pode conectar de novo quando quiser.',
+        'Nas conexões, no QR e nos envios, agora aparece o seu nome (o que você colocou no início) em vez do rótulo técnico do aparelho.',
+      ],
+      en: [
+        'You can now remove a connected person. Past splits and payments stay in your history — nothing is deleted — and you can connect again anytime.',
+        'In connections, the QR code and shared items, your name (the one you set at the start) now shows instead of the technical device label.',
+      ],
+      es: [
+        'Ahora puedes quitar a una persona conectada. Las divisiones y pagos anteriores siguen en tu historial — no se borra nada — y puedes conectar de nuevo cuando quieras.',
+        'En las conexiones, el QR y los envíos, ahora aparece tu nombre (el que pusiste al inicio) en lugar de la etiqueta técnica del dispositivo.',
+      ],
+    },
+  },
+  {
     version: '1.5.3-rc',
     date: '2026-06-27',
     items: {

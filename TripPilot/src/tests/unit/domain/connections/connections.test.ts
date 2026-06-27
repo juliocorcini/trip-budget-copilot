@@ -5,6 +5,7 @@ import {
   toConnectionView,
   buildConnectionViews,
   findReconnectCandidate,
+  planRemoveConnection,
 } from '@/domain/connections';
 import type { PeerLink } from '@/domain/types/peer-link';
 
@@ -258,5 +259,59 @@ describe('findReconnectCandidate (B2 wave 3)', () => {
         NOW,
       ),
     ).toBeNull();
+  });
+});
+
+// I1 / DEC-370 — removing a connected person is hide-never-delete: tombstone the
+// peer link(s) and unlink the participant; the participant row + history stay.
+describe('planRemoveConnection (I1 / DEC-370)', () => {
+  it('tombstones the linked-device link and unlinks the participant', () => {
+    const plan = planRemoveConnection({ id: 'p1', linkedActorId: 'actor-1' }, [
+      link({ id: 'l1', actorId: 'actor-1', participantId: 'p1', publicKey: 'pk' }),
+    ]);
+    expect(plan.linkIdsToTombstone).toEqual(['l1']);
+    expect(plan.unlinkParticipant).toBe(true);
+  });
+
+  it('also tombstones a link mapped by participantId even with a different actorId', () => {
+    const plan = planRemoveConnection({ id: 'p1', linkedActorId: 'actor-1' }, [
+      link({ id: 'l1', actorId: 'actor-1', participantId: null, publicKey: 'pk' }),
+      link({ id: 'l2', actorId: 'actor-9', participantId: 'p1' }),
+    ]);
+    expect(plan.linkIdsToTombstone.sort()).toEqual(['l1', 'l2']);
+    expect(plan.unlinkParticipant).toBe(true);
+  });
+
+  it('never touches another person’s links', () => {
+    const plan = planRemoveConnection({ id: 'p1', linkedActorId: 'actor-1' }, [
+      link({ id: 'mine', actorId: 'actor-1', participantId: 'p1', publicKey: 'pk' }),
+      link({ id: 'theirs', actorId: 'actor-2', participantId: 'p2', publicKey: 'pk' }),
+    ]);
+    expect(plan.linkIdsToTombstone).toEqual(['mine']);
+  });
+
+  it('ignores already soft-deleted links (no double tombstone)', () => {
+    const plan = planRemoveConnection({ id: 'p1', linkedActorId: 'actor-1' }, [
+      link({ id: 'dead', actorId: 'actor-1', participantId: 'p1', deletedAt: daysAgo(0) }),
+    ]);
+    expect(plan.linkIdsToTombstone).toEqual([]);
+    // still unlink: the participant carries a (now-stale) linkedActorId.
+    expect(plan.unlinkParticipant).toBe(true);
+  });
+
+  it('an unlinked person with a peer link mapped by id is tombstoned without an unlink', () => {
+    const plan = planRemoveConnection({ id: 'p1', linkedActorId: null }, [
+      link({ id: 'l1', actorId: 'actor-7', participantId: 'p1', publicKey: 'pk' }),
+    ]);
+    expect(plan.linkIdsToTombstone).toEqual(['l1']);
+    expect(plan.unlinkParticipant).toBe(false);
+  });
+
+  it('a plain typed person with no link yields an empty no-op plan', () => {
+    const plan = planRemoveConnection({ id: 'p1', linkedActorId: null }, [
+      link({ id: 'other', actorId: 'actor-2', participantId: 'p2', publicKey: 'pk' }),
+    ]);
+    expect(plan.linkIdsToTombstone).toEqual([]);
+    expect(plan.unlinkParticipant).toBe(false);
   });
 });
