@@ -119,9 +119,30 @@ export function InstallOptions({ audience }: { audience: InstallAudience }) {
           </div>
         </button>
       ) : (
-        !apkPrimary && (
-          <p className="text-xs text-on-surface-dim leading-relaxed">{t('install.pwa_browser_hint')}</p>
-        )
+        /* DEC-364 (A5): when the browser can't fire the auto-prompt, NEVER
+           dead-end — always show the manual "atalho na tela inicial"
+           instructions. On Android this is the fallback so there is always a
+           path to install (Julio: "se o app não deu certo, instale o atalho —
+           o que importa é ter o app instalado"); off-Android it's the path. */
+        <div
+          className="w-full p-4 rounded-2xl flex items-center gap-3 text-left"
+          style={apkPrimary ? { background: 'var(--surface-high)' } : { background: 'var(--primary)' }}
+        >
+          <Icon
+            name="install_mobile"
+            size={22}
+            className={`shrink-0 ${apkPrimary ? 'text-primary' : 'text-on-surface'}`}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[15px] font-extrabold text-on-surface">{t('install.shortcut_cta')}</span>
+              {!apkPrimary && <RecommendedBadge label={t('install.recommended')} />}
+            </div>
+            <p className="text-[11px] font-semibold text-on-surface-dim leading-snug mt-0.5">
+              {t('install.pwa_browser_hint')}
+            </p>
+          </div>
+        </div>
       )}
 
       {apkPrimary && (

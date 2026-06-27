@@ -1,8 +1,8 @@
 {
-  "version": "1.4.13-rc",
+  "version": "1.4.14-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.13-rc.zip",
-  "notes": "Base para deixar divisões e cobranças entre pessoas mais claras: mapeamos todos os fluxos de acerto e os estados de cada divisão/cobrança/pagamento. As melhorias visíveis chegam nas próximas versões."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.14-rc.zip",
+  "notes": "Instalação mais clara e sem becos sem saída: o aviso de instalar agora abre as opções de verdade, a comparação mostra só o que faz sentido pro seu aparelho (no iPhone não aparece mais APK) e no Android sempre dá pra colocar o atalho na tela inicial, mesmo quando o navegador não abre o instalador."
 }

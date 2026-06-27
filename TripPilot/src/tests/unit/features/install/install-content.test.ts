@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   installAudience,
   columnRecommendation,
+  comparisonColumns,
   COMPARISON_ROWS,
   type InstallAudience,
   type InstallColumn,
@@ -52,22 +53,40 @@ describe('columnRecommendation (Item A, DEC-362)', () => {
   });
 });
 
-describe('COMPARISON_ROWS (Item A, DEC-362)', () => {
-  it('exposes at least the five core capabilities with valid support levels', () => {
+describe('COMPARISON_ROWS (Item A, DEC-362/364)', () => {
+  it('exposes at least the four core capabilities with valid support levels', () => {
     const valid = new Set(['yes', 'partial', 'no']);
-    expect(COMPARISON_ROWS.length).toBeGreaterThanOrEqual(5);
+    expect(COMPARISON_ROWS.length).toBeGreaterThanOrEqual(4);
     COMPARISON_ROWS.forEach((row) => {
       [row.app, row.pwa, row.web].forEach((level) => expect(valid.has(level)).toBe(true));
     });
   });
 
-  it('keeps the installed app more capable than the bare web tab overall', () => {
+  it('drops the OTA "updates" row (DEC-364 A4) so it never appears for any audience', () => {
+    expect(COMPARISON_ROWS.some((r) => r.id === 'updates')).toBe(false);
+  });
+
+  it('keeps the installed app at least as capable as the bare web tab on every remaining row', () => {
     const appTotal = COMPARISON_ROWS.reduce((sum, r) => sum + LEVEL_SCORE[r.app], 0);
     const webTotal = COMPARISON_ROWS.reduce((sum, r) => sum + LEVEL_SCORE[r.web], 0);
     expect(appTotal).toBeGreaterThan(webTotal);
-    // The ONLY capability where web/PWA can beat the native APK is OTA updates
-    // (the APK needs a manual reinstall). Any other inversion is a data error.
+    // With the OTA "updates" row gone, the native APK column dominates the bare
+    // web tab on EVERY remaining capability — no inversion is allowed anymore.
     const inversions = COMPARISON_ROWS.filter((r) => LEVEL_SCORE[r.web] > LEVEL_SCORE[r.app]);
-    expect(inversions.map((r) => r.id)).toEqual(['updates']);
+    expect(inversions.map((r) => r.id)).toEqual([]);
+  });
+});
+
+describe('comparisonColumns (DEC-364 A2/A3)', () => {
+  it('shows the App (APK) column only on Android', () => {
+    expect(comparisonColumns('android')).toEqual(['app', 'pwa', 'web']);
+  });
+
+  it('hides the App (APK) column where an APK cannot be installed (iOS/desktop)', () => {
+    (['ios', 'desktop', 'installed'] as InstallAudience[]).forEach((audience) => {
+      const columns = comparisonColumns(audience);
+      expect(columns).not.toContain('app');
+      expect(columns).toEqual(['pwa', 'web']);
+    });
   });
 });

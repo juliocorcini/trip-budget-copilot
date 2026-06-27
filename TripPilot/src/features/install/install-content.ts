@@ -41,16 +41,32 @@ export interface ComparisonRow {
   web: SupportLevel;
 }
 
+/**
+ * DEC-364 (wave 2026-06-27, A4) — the "Atualização automática" / updates row was
+ * removed for EVERY audience (Julio: "tira a linha de atualização automática").
+ * It was the one capability where the web/PWA beat the APK and only muddied the
+ * "the APK is the most complete install" message.
+ */
 export const COMPARISON_ROWS: ComparisonRow[] = [
   { id: 'home_icon', app: 'yes', pwa: 'yes', web: 'no' },
   { id: 'offline', app: 'yes', pwa: 'yes', web: 'partial' },
   { id: 'notifications', app: 'yes', pwa: 'partial', web: 'no' },
   { id: 'durability', app: 'yes', pwa: 'yes', web: 'no' },
-  { id: 'updates', app: 'partial', pwa: 'yes', web: 'yes' },
 ];
 
 export type InstallColumn = 'app' | 'pwa' | 'web';
 export type Recommendation = 'recommended' | 'ok' | 'discouraged';
+
+/**
+ * DEC-364 (A2/A3) — the comparison COLUMNS per audience. The App (APK) column
+ * exists ONLY on Android: an iPhone can't install an APK and a desktop has no
+ * APK build, so they compare **Atalho × Navegador** only. This kills the field
+ * bug where iOS saw an "App (APK)" column it can never use — the column is gone
+ * from the DATA on iOS, never just hidden by CSS (so it can't silently regress).
+ */
+export function comparisonColumns(audience: InstallAudience): InstallColumn[] {
+  return audience === 'android' ? ['app', 'pwa', 'web'] : ['pwa', 'web'];
+}
 
 /**
  * Per-column verdict. On Android the APK is the most-recommended path

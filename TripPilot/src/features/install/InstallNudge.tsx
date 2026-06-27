@@ -15,8 +15,6 @@ export function InstallNudge() {
   const [visible, setVisible] = useState(() => shouldShowInstallNudge());
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  if (!visible) return null;
-
   const snooze = () => {
     dismissInstallNudge(false);
     setVisible(false);
@@ -26,12 +24,17 @@ export function InstallNudge() {
     setVisible(false);
   };
 
+  // DEC-364 (A1): the sheet is rendered OUTSIDE the `visible` gate. The old
+  // `if (!visible) return null` above the sheet unmounted it the instant the CTA
+  // hid the banner — "clico no aviso e ele some sem levar a lugar nenhum". Now
+  // the banner is conditional but the sheet always stays mounted.
   return (
     <>
-      <div
-        className="mt-2 mb-3 p-3 rounded-2xl flex items-center gap-3"
-        style={{ background: 'var(--surface-container)', border: '1px solid var(--surface-high)' }}
-      >
+      {visible && (
+        <div
+          className="mt-2 mb-3 p-3 rounded-2xl flex items-center gap-3"
+          style={{ background: 'var(--surface-container)', border: '1px solid var(--surface-high)' }}
+        >
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{ background: 'var(--primary)' }}
@@ -65,7 +68,8 @@ export function InstallNudge() {
         >
           <Icon name="close" size={18} />
         </button>
-      </div>
+        </div>
+      )}
       <InstallSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
     </>
   );

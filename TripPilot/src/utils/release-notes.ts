@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.14-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Instalar ficou mais claro e sem becos sem saída: o aviso de instalar agora abre as opções de verdade (antes ele sumia sem levar a lugar nenhum).',
+        'A comparação mostra só o que faz sentido pro seu aparelho — no iPhone não aparece mais a coluna de APK, que o iPhone não consegue instalar.',
+        'No Android sempre dá pra colocar o atalho na tela inicial, mesmo quando o navegador não abre o instalador automático — o que importa é ter o TripPilot instalado.',
+      ],
+      en: [
+        'Installing is clearer with no dead ends: the install banner now actually opens the options (before it just disappeared and led nowhere).',
+        'The comparison shows only what makes sense for your device — on iPhone the APK column is gone, since an iPhone can’t install an APK.',
+        'On Android you can always add the home-screen shortcut, even when the browser won’t open the automatic installer — what matters is having TripPilot installed.',
+      ],
+      es: [
+        'Instalar es más claro y sin callejones sin salida: el aviso de instalar ahora abre las opciones de verdad (antes desaparecía sin llevar a ningún lado).',
+        'La comparación muestra solo lo que tiene sentido para tu dispositivo — en iPhone ya no aparece la columna de APK, que el iPhone no puede instalar.',
+        'En Android siempre puedes añadir el acceso directo a la pantalla de inicio, incluso cuando el navegador no abre el instalador automático — lo que importa es tener TripPilot instalado.',
+      ],
+    },
+  },
+  {
     version: '1.4.13-rc',
     date: '2026-06-27',
     items: {

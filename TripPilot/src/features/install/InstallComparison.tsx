@@ -3,13 +3,12 @@ import { Icon } from '@/components/Icon';
 import {
   COMPARISON_ROWS,
   columnRecommendation,
+  comparisonColumns,
   type InstallAudience,
-  type InstallColumn,
   type Recommendation,
   type SupportLevel,
 } from './install-content';
 
-const COLUMNS: InstallColumn[] = ['app', 'pwa', 'web'];
 const LEVEL_ICON: Record<SupportLevel, string> = { yes: 'check', partial: 'remove', no: 'close' };
 const LEVEL_COLOR: Record<SupportLevel, string> = { yes: '#16a34a', partial: '#d97706', no: '' };
 const VERDICT_STYLE: Record<Recommendation, React.CSSProperties> = {
@@ -21,13 +20,16 @@ const VERDICT_STYLE: Record<Recommendation, React.CSSProperties> = {
 /** Item A — the App(APK) × PWA × Web capability comparison (data from install-content). */
 export function InstallComparison({ audience }: { audience: InstallAudience }) {
   const { t } = useTranslation();
+  // DEC-364 (A2/A3): the App(APK) column shows only on Android; iOS/desktop see
+  // Atalho × Navegador. The set comes from the data, never hidden by CSS.
+  const columns = comparisonColumns(audience);
   return (
     <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--surface-high)' }}>
       <table className="w-full border-collapse text-left">
         <thead>
           <tr style={{ background: 'var(--surface-high)' }}>
             <th className="p-2.5 text-[11px] font-bold text-on-surface-dim">{t('install.cmp_feature')}</th>
-            {COLUMNS.map((col) => {
+            {columns.map((col) => {
               const rec = columnRecommendation(col, audience);
               return (
                 <th key={col} className="p-2 text-center align-top">
@@ -47,7 +49,7 @@ export function InstallComparison({ audience }: { audience: InstallAudience }) {
           {COMPARISON_ROWS.map((row) => (
             <tr key={row.id} style={{ borderTop: '1px solid var(--surface-high)' }}>
               <td className="p-2.5 text-[11px] font-semibold text-on-surface">{t(`install.cmp_${row.id}`)}</td>
-              {COLUMNS.map((col) => {
+              {columns.map((col) => {
                 const level = row[col];
                 return (
                   <td
