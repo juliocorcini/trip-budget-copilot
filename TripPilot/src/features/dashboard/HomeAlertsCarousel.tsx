@@ -19,8 +19,10 @@ const AUTO_ADVANCE_MS = 7000;
 export function HomeAlertsCarousel({ slides }: { slides: HomeAlertSlide[] }) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [boxHeight, setBoxHeight] = useState<number | null>(null);
   const pausedUntilRef = useRef(0);
   const count = slides.length;
 
@@ -45,6 +47,20 @@ export function HomeAlertsCarousel({ slides }: { slides: HomeAlertSlide[] }) {
     return () => window.clearInterval(timer);
   }, [count, reducedMotion]);
 
+  // DEC-379: track the ACTIVE slide's natural height so the row collapses to it
+  // instead of reserving the tallest slide's height (the "empty gap" Julio saw
+  // under short cards). A ResizeObserver keeps it correct as content reflows.
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined' || count === 0) return;
+    const el = slideRefs.current[Math.min(activeIndex, count - 1)];
+    if (!el) return;
+    const measure = () => setBoxHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [activeIndex, count]);
+
   if (count === 0) return null;
   // A single alert renders inline — identical to the pre-carousel layout.
   if (count === 1) return <>{slides[0]!.node}</>;
@@ -62,7 +78,8 @@ export function HomeAlertsCarousel({ slides }: { slides: HomeAlertSlide[] }) {
     <div>
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory"
+        className="flex items-start overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory transition-[height] duration-300 ease-out"
+        style={{ height: boxHeight ?? undefined }}
         onPointerDown={pause}
         onWheel={pause}
         onScroll={(e) => {
@@ -72,8 +89,14 @@ export function HomeAlertsCarousel({ slides }: { slides: HomeAlertSlide[] }) {
           if (idx !== activeIndex) setActiveIndex(idx);
         }}
       >
-        {slides.map((slide) => (
-          <div key={slide.id} className="w-full shrink-0 snap-center snap-always">
+        {slides.map((slide, i) => (
+          <div
+            key={slide.id}
+            ref={(el) => {
+              slideRefs.current[i] = el;
+            }}
+            className="w-full shrink-0 snap-center snap-always"
+          >
             {slide.node}
           </div>
         ))}
