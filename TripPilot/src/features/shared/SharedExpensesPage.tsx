@@ -103,6 +103,7 @@ import {
   announcePaymentToPeer,
   removeConnectedPerson,
   flushOutbox,
+  materializeConnectedParticipant,
   type InboundP2pItem,
 } from '@/domain/orchestrators';
 import { resolveSelfName } from '@/domain/sync/self-name';
@@ -175,8 +176,12 @@ function PersonRow({
   currency: string;
   onTap: () => void;
 }) {
-  const money =
-    person.balanceCents < 0
+  const money = person.needsParticipant
+    ? // DEC-376 — a freshly connected friend not yet in this trip: there is nothing
+      // to settle, so the subline is the action ("tap to charge or split"), not a
+      // fake "R$ 0,00" balance.
+      { text: t('shared.people_new_connection'), cls: 'text-primary' }
+    : person.balanceCents < 0
       ? {
           text: t('shared.balance_owes', { amount: formatMoney(Math.abs(person.balanceCents), currency) }),
           cls: 'text-error',
@@ -759,6 +764,34 @@ export function SharedExpensesPage() {
       showToast(t('connections.reconnected', { name: candidate.displayName }), 'success');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // DEC-376 (Â-BILATERAL) — open a person's statement. A connected friend who is
+  // not yet a participant of THIS trip (`needsParticipant`, surfaced straight from
+  // their peerLink) is materialized on-demand first — dedupe by actorId — so the
+  // very first tap can charge/split them; the row then reads as a normal person.
+  // No balance moves; this only creates the addressable person + stamps the link.
+  const handlePersonTap = async (person: PersonView) => {
+    if (person.needsParticipant) {
+      if (!trip || !person.linkedActorId || saving) return;
+      setSaving(true);
+      try {
+        const created = await materializeConnectedParticipant(trip.id, person.linkedActorId);
+        if (!created) return;
+        setPeerLinks(await peerLinkRepository.getAll());
+        await reload();
+        setPeopleSheetOpen(false);
+        setStatementTarget(created);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+    const target = participantById.get(person.participantId);
+    if (target) {
+      setPeopleSheetOpen(false);
+      setStatementTarget(target);
     }
   };
 
@@ -1358,14 +1391,11 @@ export function SharedExpensesPage() {
         ) : (
           peoplePreview.map((person) => (
             <PersonRow
-              key={person.participantId}
+              key={person.participantId || `actor:${person.linkedActorId}`}
               person={person}
               t={t}
               currency={trip.baseCurrency}
-              onTap={() => {
-                const target = participantById.get(person.participantId);
-                if (target) setStatementTarget(target);
-              }}
+              onTap={() => void handlePersonTap(person)}
             />
           ))
         )}
@@ -2648,18 +2678,16 @@ export function SharedExpensesPage() {
                         target && !target.isOwner
                           ? findReconnectCandidate(target, peerLinks, Date.now())
                           : null;
+                      // DEC-376 — synthetic connect-only rows have no participantId yet;
+                      // key them by actor so React never collapses two new friends.
+                      const rowKey = person.participantId || `actor:${person.linkedActorId}`;
                       return (
-                        <div key={person.participantId} className="flex flex-col gap-1">
+                        <div key={rowKey} className="flex flex-col gap-1">
                           <PersonRow
                             person={person}
                             t={t}
                             currency={trip.baseCurrency}
-                            onTap={() => {
-                              if (target) {
-                                setPeopleSheetOpen(false);
-                                setStatementTarget(target);
-                              }
-                            }}
+                            onTap={() => void handlePersonTap(person)}
                           />
                           {reconnect && (
                             <button

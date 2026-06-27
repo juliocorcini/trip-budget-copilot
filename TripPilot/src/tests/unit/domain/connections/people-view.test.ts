@@ -185,6 +185,76 @@ describe('buildPeopleView — de-dupe the same human (DEC-357)', () => {
   });
 });
 
+describe('buildPeopleView — bilateral connect surfaces unattached friends (DEC-376)', () => {
+  it('surfaces a connected peerLink with NO participant as a selectable, materializable row', () => {
+    const people = buildPeopleView(
+      [],
+      new Map(),
+      [link({ actorId: 'a-x', displayName: 'David', publicKey: 'pk', participantId: null })],
+    );
+    expect(people).toHaveLength(1);
+    const row = people[0]!;
+    expect(row.needsParticipant).toBe(true);
+    expect(row.status).toBe('connected');
+    expect(row.participantId).toBe(''); // no trip participant yet — materialized on action
+    expect(row.linkedActorId).toBe('a-x'); // carries the actor for on-demand dedupe
+    expect(row.balanceCents).toBe(0); // nothing to settle until materialized
+    expect(row.needsAction).toBe(false);
+    expect(row.name).toBe('David');
+  });
+
+  it('does NOT surface an unattached friend twice when a participant already maps the actor', () => {
+    const people = buildPeopleView(
+      [participant({ id: 'p-david', name: 'David', linkedActorId: 'a-x' })],
+      new Map(),
+      [link({ actorId: 'a-x', displayName: 'David', publicKey: 'pk', participantId: 'p-david' })],
+    );
+    expect(people).toHaveLength(1);
+    expect(people[0]!.participantId).toBe('p-david');
+    expect(people[0]!.needsParticipant).toBe(false);
+  });
+
+  it('never surfaces an offline (no key) peerLink as a materializable row', () => {
+    const people = buildPeopleView(
+      [],
+      new Map(),
+      [link({ actorId: 'a-x', displayName: 'David', publicKey: null, participantId: null })],
+    );
+    expect(people).toHaveLength(0);
+  });
+
+  it('never surfaces a soft-deleted peerLink', () => {
+    const people = buildPeopleView(
+      [],
+      new Map(),
+      [link({ actorId: 'a-x', displayName: 'David', publicKey: 'pk', deletedAt: '2026-02-01T00:00:00.000Z' })],
+    );
+    expect(people).toHaveLength(0);
+  });
+
+  it('dedupes multiple peerLinks for the same actor into ONE materializable row', () => {
+    const people = buildPeopleView(
+      [],
+      new Map(),
+      [
+        link({ id: 'l1', actorId: 'a-x', displayName: 'David', publicKey: 'pk' }),
+        link({ id: 'l2', actorId: 'a-x', displayName: 'David', publicKey: 'pk' }),
+      ],
+    );
+    expect(people).toHaveLength(1);
+    expect(people[0]!.linkedActorId).toBe('a-x');
+  });
+
+  it('skips an unattached friend with no usable name', () => {
+    const people = buildPeopleView(
+      [],
+      new Map(),
+      [link({ actorId: 'a-x', displayName: '   ', publicKey: 'pk' })],
+    );
+    expect(people).toHaveLength(0);
+  });
+});
+
 describe('partitionPeople — full Pessoas page sections (DEC-359)', () => {
   it('splits into needAction → connected → invited → noapp', () => {
     const people = buildPeopleView(

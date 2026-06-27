@@ -6,6 +6,7 @@ import {
   acceptGroupInvite,
   dismissInboundP2p,
   getInboundP2pItems,
+  materializeConnectedParticipant,
 } from '@/domain/orchestrators';
 import {
   participantRepository,
@@ -13,7 +14,9 @@ import {
   participantShareRepository,
   settlementRepository,
   mailboxQueueRepository,
+  peerLinkRepository,
 } from '@/data/repositories';
+import type { PeerLink } from '@/domain/types/peer-link';
 import { buildSharedDebtPayload, buildPaymentPayload, buildGroupInvitePayload } from '@/domain/sync';
 import { buildMailboxEnvelope } from '@/domain/sync/mailbox-envelope';
 import { createParticipant, calculateDebts } from '@/domain/splitting';
@@ -271,5 +274,79 @@ describe('P2P inbound orchestrators (DEC-345/346)', () => {
 
   it('acceptGroupInvite on a missing item returns null (no throw)', async () => {
     expect(await acceptGroupInvite('nope')).toBeNull();
+  });
+
+  // DEC-376 (G2, Â-BILATERAL) — a connected friend surfaced from a
+  // peerLink(participantId:null) is folded into a real trip participant the first
+  // time the user acts. Dedupe by actorId; zero ledger impact (only the person).
+  describe('materializeConnectedParticipant (DEC-376)', () => {
+    const FRIEND = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+
+    async function seedLink(over: Partial<PeerLink> = {}): Promise<void> {
+      const link: PeerLink = {
+        id: over.id ?? 'link-david',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        deletedAt: over.deletedAt ?? null,
+        revision: 0,
+        sourceDeviceId: 'device-1',
+        actorId: over.actorId ?? FRIEND,
+        displayName: over.displayName ?? 'David',
+        participantId: over.participantId ?? null,
+        lastSyncAt: over.lastSyncAt ?? null,
+        // Respect an explicit `null` (the no-key case) — `??` would mask it.
+        publicKey: 'publicKey' in over ? (over.publicKey ?? null) : 'pk-david',
+      };
+      await peerLinkRepository.create(link);
+    }
+
+    it('creates a trip participant for the keyed friend and stamps the peerLink', async () => {
+      await seedOwner();
+      await seedLink();
+
+      const created = await materializeConnectedParticipant(TRIP, FRIEND);
+      expect(created).toBeTruthy();
+      expect(created!.linkedActorId).toBe(FRIEND);
+      expect(created!.name).toBe('David');
+      expect(created!.isOwner).toBe(false);
+
+      // The peerLink now points at the new participant (dedupe anchor).
+      const link = await peerLinkRepository.getByActorId(FRIEND);
+      expect(link!.participantId).toBe(created!.id);
+
+      // No money moved — only the person exists.
+      const { transactions, settlements } = await readLedger();
+      expect(transactions).toHaveLength(0);
+      expect(settlements).toHaveLength(0);
+    });
+
+    it('dedupes by actorId — a second materialize returns the same participant, never a duplicate', async () => {
+      await seedOwner();
+      await seedLink();
+
+      const first = await materializeConnectedParticipant(TRIP, FRIEND);
+      const second = await materializeConnectedParticipant(TRIP, FRIEND);
+      expect(second!.id).toBe(first!.id);
+
+      const linkedForFriend = (await participantRepository.getByTripId(TRIP)).filter(
+        (p) => p.linkedActorId === FRIEND && p.deletedAt === null,
+      );
+      expect(linkedForFriend).toHaveLength(1);
+    });
+
+    it('returns null for a friend with no key (cannot deliver) — nothing is created', async () => {
+      await seedOwner();
+      await seedLink({ publicKey: null });
+
+      const result = await materializeConnectedParticipant(TRIP, FRIEND);
+      expect(result).toBeNull();
+      const linked = (await participantRepository.getByTripId(TRIP)).filter((p) => p.linkedActorId === FRIEND);
+      expect(linked).toHaveLength(0);
+    });
+
+    it('returns null when there is no link for the actor at all', async () => {
+      await seedOwner();
+      expect(await materializeConnectedParticipant(TRIP, 'unknown-actor')).toBeNull();
+    });
   });
 });

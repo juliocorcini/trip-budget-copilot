@@ -34,6 +34,14 @@ export interface PersonView {
   needsAction: boolean;
   /** 1–2 char avatar initials. */
   initials: string;
+  /**
+   * DEC-376 (Â-BILATERAL) — true for a connected friend who has NO trip
+   * participant yet (surfaced straight from a `peerLink(participantId:null)`, e.g.
+   * after a reverse connect handshake). `participantId` is empty until the UI
+   * materializes it on-demand (dedupe by `actorId`) on the first charge/split.
+   * Until then there is nothing to settle (`balanceCents` is 0).
+   */
+  needsParticipant: boolean;
 }
 
 export interface PeoplePartition {
@@ -113,6 +121,7 @@ export function buildPeopleView(
       balanceCents,
       needsAction: balanceCents !== 0,
       initials: initialsOf(p.nickname ?? p.name),
+      needsParticipant: false,
     };
   };
 
@@ -127,6 +136,37 @@ export function buildPeopleView(
     const view = toView(p);
     const existing = byKey.get(key);
     if (!existing || isBetterRow(view, existing)) byKey.set(key, view);
+  }
+
+  // DEC-376 (Â-BILATERAL) — a friend who connected with ME but whom I never added
+  // to THIS trip lives only as a `peerLink(participantId:null)` (e.g. a reverse
+  // connect handshake). Surface every such KEYED (live-chargeable) friend as a
+  // selectable row so the connection shows on BOTH sides; the participant is
+  // materialized on-demand (dedupe by `actorId`) the first time I charge/split
+  // them. We skip any actor already represented by a participant row, so the same
+  // human is never listed twice (dedupe key = actorId, the council's lock).
+  const shownActors = new Set<string>();
+  for (const view of byKey.values()) {
+    if (view.linkedActorId) shownActors.add(view.linkedActorId);
+  }
+  for (const link of peerLinks) {
+    if (link.deletedAt !== null) continue;
+    if (!link.publicKey) continue; // only friends we can actually deliver to
+    if (link.displayName.trim() === '') continue; // no usable name
+    const key = `actor:${link.actorId}`;
+    if (shownActors.has(link.actorId) || byKey.has(key)) continue;
+    byKey.set(key, {
+      participantId: '',
+      name: link.displayName,
+      fullName: link.displayName,
+      nickname: null,
+      linkedActorId: link.actorId,
+      status: 'connected',
+      balanceCents: 0,
+      needsAction: false,
+      initials: initialsOf(link.displayName),
+      needsParticipant: true,
+    });
   }
 
   return [...byKey.values()].sort(comparePeople);

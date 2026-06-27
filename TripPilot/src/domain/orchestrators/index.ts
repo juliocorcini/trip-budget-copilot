@@ -178,6 +178,7 @@ export {
   confirmInboundPayment,
   acceptGroupInvite,
   dismissInboundP2p,
+  materializeConnectedParticipant,
 } from './p2p-orchestrators';
 export type {
   ShareDebtInput,

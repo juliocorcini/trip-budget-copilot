@@ -247,6 +247,25 @@ async function resolveOrCreatePeerParticipant(
   return created;
 }
 
+/**
+ * DEC-376 (G2, Â-BILATERAL) — materialize a connected friend into THIS trip
+ * on-demand. The unified people list surfaces a `peerLink(participantId:null)` as
+ * a selectable row (`needsParticipant`); the first time the user charges/splits
+ * them, this folds them into a real trip participant — dedupe by `actorId` (reuse
+ * the mapped participant if it already exists) and stamp `peerLink.participantId`
+ * so the row stops reading as "new". Returns null when the link is gone / has no
+ * key (cannot deliver), so the caller stays a no-op. Moves zero cents (the ledger
+ * keys off `participantId`); it only creates the addressable person.
+ */
+export async function materializeConnectedParticipant(
+  tripId: string,
+  actorId: string,
+): Promise<Participant | null> {
+  const link = await peerLinkRepository.getByActorId(actorId);
+  if (!link || link.deletedAt !== null || !link.publicKey) return null;
+  return resolveOrCreatePeerParticipant(tripId, actorId, link.displayName);
+}
+
 export interface AcceptDebtTarget {
   tripId: string;
   phaseId: string;
