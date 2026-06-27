@@ -307,8 +307,13 @@ export function QuickAddPage() {
   const toggleShared = () => {
     setIsShared((prev) => {
       const next = !prev;
-      if (next && selectedParticipantIds.length === 0) {
-        setSelectedParticipantIds(participants.map((p) => p.id));
+      // DEC-378: turning sharing ON pre-selects only the OWNER (plus the payer
+      // when someone else already paid) — never everyone. With many people (40+)
+      // marking all was hostile; the user picks who actually shared.
+      if (next && selectedParticipantIds.length === 0 && owner) {
+        const seed = [owner.id];
+        if (effectivePaidById && effectivePaidById !== owner.id) seed.push(effectivePaidById);
+        setSelectedParticipantIds(seed);
       }
       return next;
     });
@@ -1224,19 +1229,27 @@ export function QuickAddPage() {
               {t('expenses.who_paid')}
             </label>
             <div className="flex gap-2 flex-wrap">
-              {participants.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => selectPayer(p.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                    effectivePaidById === p.id
-                      ? 'bg-primary text-on-surface'
-                      : 'bg-surface-high text-on-surface-dim'
-                  }`}
-                >
-                  {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
-                </button>
-              ))}
+              {participants.map((p) => {
+                // DEC-378: a green dot marks a CONNECTED person (paired device) so
+                // the user can tell who an action actually reaches.
+                const connected = p.linkedActorId !== null;
+                const label = p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name);
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => selectPayer(p.id)}
+                    aria-label={connected ? `${label} · ${t('shared.people_badge_connected')}` : undefined}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press inline-flex items-center gap-1.5 ${
+                      effectivePaidById === p.id
+                        ? 'bg-primary text-on-surface'
+                        : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {label}
+                    {connected && <span className="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true" />}
+                  </button>
+                );
+              })}
               <button
                 onClick={() => setAddPersonOpen(true)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium btn-press bg-surface-high text-primary border border-dashed border-outline"
@@ -1309,19 +1322,27 @@ export function QuickAddPage() {
                   {t('expenses.participants_label')}
                 </label>
                 <div className="flex gap-2 flex-wrap">
-                  {participants.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => toggleParticipant(p.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                        selectedParticipantIds.includes(p.id)
-                          ? 'bg-primary text-on-surface'
-                          : 'bg-surface-high text-on-surface-dim'
-                      }`}
-                    >
-                      {p.nickname ?? p.name}
-                    </button>
-                  ))}
+                  {participants.map((p) => {
+                    // DEC-378: green dot = connected (paired device), same affordance
+                    // as the "who paid" picker, so the cue reads identically.
+                    const connected = p.linkedActorId !== null;
+                    const label = p.nickname ?? p.name;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => toggleParticipant(p.id)}
+                        aria-label={connected ? `${label} · ${t('shared.people_badge_connected')}` : undefined}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press inline-flex items-center gap-1.5 ${
+                          selectedParticipantIds.includes(p.id)
+                            ? 'bg-primary text-on-surface'
+                            : 'bg-surface-high text-on-surface-dim'
+                        }`}
+                      >
+                        {label}
+                        {connected && <span className="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true" />}
+                      </button>
+                    );
+                  })}
                   <button
                     onClick={() => setAddPersonOpen(true)}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium btn-press bg-surface-high text-primary border border-dashed border-outline"
