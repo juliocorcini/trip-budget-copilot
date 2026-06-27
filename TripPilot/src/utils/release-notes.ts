@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.6-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Sincronização entre aparelhos mais leve e estável: o transporte em tempo real agora hiberna quando está ocioso, consumindo muito menos recursos.',
+        'O app ganhou um sinal de saúde da conexão, para nunca mais dizer “sem internet” quando você está online — quando algo falha, a mensagem passa a ser honesta.',
+      ],
+      en: [
+        'Lighter, steadier sync between devices: the real-time transport now hibernates while idle, using far fewer resources.',
+        'The app gained a connection health signal, so it never again says “no internet” while you’re online — when something fails, the message is now honest.',
+      ],
+      es: [
+        'Sincronización entre dispositivos más ligera y estable: el transporte en tiempo real ahora hiberna cuando está inactivo, consumiendo muchos menos recursos.',
+        'La app ahora tiene una señal de salud de la conexión, para no volver a decir “sin internet” cuando estás en línea — cuando algo falla, el mensaje es honesto.',
+      ],
+    },
+  },
+  {
     version: '1.5.5-rc',
     date: '2026-06-27',
     items: {

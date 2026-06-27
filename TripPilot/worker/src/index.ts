@@ -927,6 +927,22 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
+    // Â-TRANSPORT / DEC-375 — transport health probe. A minimal Durable Object
+    // round-trip (no storage, no socket) so the client can tell three states
+    // apart: "offline" (the fetch itself rejects), "server reachable" (2xx) and
+    // "server capacity cut" (5xx). When the account's daily Durable Object
+    // duration budget is exhausted, env.MAILBOX.get().fetch() throws — we map
+    // that to 503 so the UI can stop claiming "no internet" while online.
+    if (request.method === 'GET' && url.pathname === '/health') {
+      try {
+        const stub = env.MAILBOX.get(env.MAILBOX.idFromName('health'));
+        const res = await stub.fetch('https://mailbox.internal/__ping');
+        return json({ ok: res.ok }, res.ok ? 200 : 503);
+      } catch {
+        return json({ ok: false, reason: 'capacity' }, 503);
+      }
+    }
+
     if (request.method === 'POST' && url.pathname === '/rooms') {
       const code = generateRoomCode();
       const stub = env.SYNC_ROOM.get(env.SYNC_ROOM.idFromName(code));
@@ -1402,6 +1418,12 @@ export class Mailbox {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+
+    // Liveness round-trip for GET /health (Â-TRANSPORT). No storage access, so
+    // it costs the minimum Durable Object time and never mutates the mailbox.
+    if (request.method === 'GET' && url.pathname === '/__ping') {
+      return json({ ok: true });
+    }
 
     if (request.method === 'POST' && url.pathname === '/put') {
       let body: { blob?: unknown };

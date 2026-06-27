@@ -1,8 +1,8 @@
 {
-  "version": "1.5.5-rc",
+  "version": "1.5.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.5-rc.zip",
-  "notes": "Ajustes visuais nas telas de detalhe (gasto, lista e impacto): botões de excluir e avisos agora usam a cor de alerta padrão com melhor contraste, e o valor do gasto no detalhe ganhou um pouco mais de destaque."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.6-rc.zip",
+  "notes": "Sincronização entre aparelhos mais leve e estável: o transporte em tempo real passou a hibernar quando ocioso (consumo bem menor) e ganhou um sinal de saúde, para o app nunca mais dizer 'sem internet' quando a conexão está ok."
 }
