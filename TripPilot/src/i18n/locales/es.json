@@ -3117,6 +3117,11 @@
     "pay_done": "Pago registrado",
     "send_failed": "No pude enviar ahora",
     "queued": "Sin internet — se enviará al volver",
+    "delivery_offline": "Sin internet — se enviará al volver",
+    "delivery_server_error": "El servidor no respondió ahora. Inténtalo de nuevo.",
+    "delivery_no_connection": "Conéctate con {{name}} primero para enviar.",
+    "retry": "Reintentar",
+    "retry_sent": "Enviado",
     "no_key": "Conéctate primero (Mi QR) para usar esto."
   },
   "settle_state": {

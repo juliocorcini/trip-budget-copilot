@@ -3117,6 +3117,11 @@
     "pay_done": "Payment recorded",
     "send_failed": "Couldn't send right now",
     "queued": "Offline — it'll send when you're back",
+    "delivery_offline": "Offline — it'll send when you're back",
+    "delivery_server_error": "The server didn't respond just now. Try again.",
+    "delivery_no_connection": "Connect with {{name}} first to send.",
+    "retry": "Try again",
+    "retry_sent": "Sent",
     "no_key": "Connect first (My QR) to use this."
   },
   "settle_state": {

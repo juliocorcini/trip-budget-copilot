@@ -25,10 +25,13 @@ import type {
 import { findSubcategory } from '@/domain/outing';
 import {
   resolveSettlementDelivery,
+  resolveDeliveryFailureCopy,
   settleStateFromInboundKind,
   settleStateTone,
   settleStateLabelKey,
   type SettleTone,
+  type DeliveryReason,
+  type DeliveryFailureReason,
 } from '@/domain/settle-flows';
 import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
@@ -99,6 +102,7 @@ import {
   shareDebtWithPeer,
   announcePaymentToPeer,
   removeConnectedPerson,
+  flushOutbox,
   type InboundP2pItem,
 } from '@/domain/orchestrators';
 import { resolveSelfName } from '@/domain/sync/self-name';
@@ -470,6 +474,39 @@ export function SharedExpensesPage() {
   // home + Acerto + profile and they accept on their own phone), NOT the old
   // hidden mirrored-statement mailbox that "never arrived". A debt is "you owe me
   // X" — when nothing is owed we never invent one (resolveSettlementDelivery → 'none').
+  // DEC-375 (Â-HONEST) — a failed P2P send shows the TRUE reason (offline vs
+  // server error vs no connection), never a blanket "sem internet". A server
+  // error means the network is up, so it offers a real "try again" that re-runs
+  // the same send; offline/no-connection stay informative (the queue retries
+  // offline automatically, connecting first is the fix for no-key).
+  const showSendFailure = (reason: DeliveryReason, retry: () => void, name?: string) => {
+    const copy = resolveDeliveryFailureCopy(reason as DeliveryFailureReason);
+    showToast(
+      t(copy.messageKey, name ? { name } : undefined),
+      copy.tone,
+      copy.canRetry ? { actionLabel: t('p2p.retry'), onTap: retry } : undefined,
+    );
+  };
+
+  // DEC-375 — the real "try again" re-attempts delivery of what is ALREADY queued
+  // (the failed send left its sealed blob in the outbox). It never re-runs the
+  // action handler, so a server-error retry can't enqueue a second debt or
+  // re-settle a payment — idempotent by construction.
+  const retrySend = async () => {
+    try {
+      const flush = await flushOutbox();
+      const stillFailing = Object.values(flush.failures);
+      if (stillFailing.length === 0) {
+        showToast(t('p2p.retry_sent'), 'success');
+        await reload();
+      } else {
+        showSendFailure(stillFailing[0]!, () => void retrySend());
+      }
+    } catch {
+      showToast(t('p2p.send_failed'), 'danger');
+    }
+  };
+
   const handleSendSettlementDebt = async (participant: Participant) => {
     const link = peerLinkFor(participant.id);
     const owner = participants.find((p) => p.isOwner);
@@ -485,8 +522,9 @@ export function SharedExpensesPage() {
     // resolveSettlementDelivery flips the statement's sign convention internally
     // ("negative = the peer owes me") so we can't send a backwards debt: a peer I
     // actually owe resolves to 'none', preserving the settlement math (accept-first).
+    // DEC-375: read the real key off the peerLink instead of hardcoding true.
     const decision = resolveSettlementDelivery({
-      hasPublicKey: true,
+      hasPublicKey: Boolean(link.publicKey),
       statementNetCents: statement.netCents,
     });
     if (decision.channel !== 'debt') {
@@ -495,7 +533,7 @@ export function SharedExpensesPage() {
     }
     setMailboxSending(true);
     try {
-      const { delivered } = await shareDebtWithPeer({
+      const result = await shareDebtWithPeer({
         peerActorId: participant.linkedActorId,
         amountCents: decision.debtAmountCents,
         currency: trip.baseCurrency,
@@ -504,12 +542,12 @@ export function SharedExpensesPage() {
         description: `${t('p2p.settle_debt_desc')} · ${trip.name}`,
       });
       setSendTarget(null);
-      showToast(
-        delivered
-          ? t('p2p.settle_sent', { name: participant.nickname ?? participant.name })
-          : t('p2p.queued'),
-        delivered ? 'success' : 'info',
-      );
+      const name = participant.nickname ?? participant.name;
+      if (result.delivered) {
+        showToast(t('p2p.settle_sent', { name }), 'success');
+      } else {
+        showSendFailure(result.reason, () => void retrySend(), name);
+      }
     } catch {
       showToast(t('p2p.send_failed'), 'danger');
     } finally {
@@ -886,19 +924,26 @@ export function SharedExpensesPage() {
   })();
 
   const handleSendCharge = async () => {
-    if (!trip || !chargeTarget?.linkedActorId || chargeAmountCents === null || !chargeNote.trim()) return;
+    const target = chargeTarget;
+    if (!trip || !target?.linkedActorId || chargeAmountCents === null || !chargeNote.trim()) return;
+    const amountCents = chargeAmountCents;
+    const note = chargeNote.trim();
     setP2pSending(true);
     try {
-      const { delivered } = await shareDebtWithPeer({
-        peerActorId: chargeTarget.linkedActorId,
-        amountCents: chargeAmountCents,
+      const result = await shareDebtWithPeer({
+        peerActorId: target.linkedActorId,
+        amountCents,
         currency: trip.baseCurrency,
-        description: chargeNote.trim(),
+        description: note,
       });
-      showToast(delivered ? t('p2p.charge_sent') : t('p2p.queued'), delivered ? 'success' : 'info');
-      setChargeTarget(null);
-      setChargeAmount('');
-      setChargeNote('');
+      if (result.delivered) {
+        showToast(t('p2p.charge_sent'), 'success');
+        setChargeTarget(null);
+        setChargeAmount('');
+        setChargeNote('');
+      } else {
+        showSendFailure(result.reason, () => void retrySend(), target.nickname ?? target.name);
+      }
     } catch {
       showToast(t('p2p.send_failed'), 'danger');
     } finally {
@@ -921,7 +966,7 @@ export function SharedExpensesPage() {
         : null;
     setP2pSending(true);
     try {
-      const { delivered } = await announcePaymentToPeer({
+      const result = await announcePaymentToPeer({
         peerActorId: payTarget.linkedActorId,
         peerParticipantId: payTarget.id,
         myParticipantId: ownerParticipant.id,
@@ -933,7 +978,13 @@ export function SharedExpensesPage() {
         proof: payProof?.proof ?? null,
         proofThumb: payProof?.thumb ?? null,
       });
-      showToast(delivered ? t('p2p.pay_done') : t('p2p.queued'), delivered ? 'success' : 'info');
+      // The settlement is already recorded locally (the cash moved); only the peer
+      // notification can be queued/failed — so the copy is about reaching THEM.
+      if (result.delivered) {
+        showToast(t('p2p.pay_done'), 'success');
+      } else {
+        showSendFailure(result.reason, () => void retrySend(), payTarget.nickname ?? payTarget.name);
+      }
       setPayTarget(null);
       setPayAmount('');
       setPayDirection('paid');

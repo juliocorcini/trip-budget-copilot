@@ -30,6 +30,7 @@ import {
   type PairResult,
 } from './sync-orchestrators';
 import { importBackup, type ImportMode } from './backup-orchestrators';
+import { classifySendFailure, type DeliveryReason } from '@/domain/settle-flows/delivery-status';
 import type { IdentityQrPayload } from '@/domain/sync/identity';
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { MailboxPayloadKind, MailboxQueueItem } from '@/domain/types/mailbox';
@@ -44,6 +45,11 @@ import type { MailboxPayloadKind, MailboxQueueItem } from '@/domain/types/mailbo
 export interface SendToMailboxResult {
   /** true when the blob reached the worker now; false when it was queued. */
   delivered: boolean;
+  /**
+   * DEC-375 (Â-HONEST) — WHY it did/didn't reach the worker, so the UI tells the
+   * truth (offline vs server error vs no connection) instead of always "offline".
+   */
+  reason: DeliveryReason;
 }
 
 /**
@@ -72,8 +78,7 @@ export async function sendPayloadToPeerMailbox(
     kind,
     sealedBlob: sealed,
   });
-  const sentIds = await flushOutbox();
-  return { delivered: sentIds.includes(item.id) };
+  return resultForItem(item.id, await flushOutbox());
 }
 
 /**
@@ -89,7 +94,7 @@ export async function sendConnectHandshake(peer: {
   publicKey: string | null;
   name?: string;
 }): Promise<SendToMailboxResult> {
-  if (!peer.publicKey) return { delivered: false };
+  if (!peer.publicKey) return { delivered: false, reason: 'no_peer_key' };
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
   const myPublicKey = await getDevicePublicKeyB64();
@@ -115,8 +120,7 @@ export async function sendConnectHandshake(peer: {
     kind: 'connect',
     sealedBlob: sealed,
   });
-  const sentIds = await flushOutbox();
-  return { delivered: sentIds.includes(item.id) };
+  return resultForItem(item.id, await flushOutbox());
 }
 
 /**
@@ -155,10 +159,21 @@ export async function linkConnectFromIdentity(
   return result;
 }
 
-/** Posts every pending outgoing blob. Returns the ids that reached the worker. */
-export async function flushOutbox(): Promise<string[]> {
+export interface FlushResult {
+  /** Queue-item ids that reached the worker this pass. */
+  sent: string[];
+  /**
+   * DEC-375 — per-item failure reason for items that did NOT reach the worker
+   * this pass (so the caller can tell offline from a server error honestly).
+   */
+  failures: Record<string, Exclude<DeliveryReason, 'ok'>>;
+}
+
+/** Posts every pending outgoing blob. Reports what sent + why the rest didn't. */
+export async function flushOutbox(): Promise<FlushResult> {
   const pending = await mailboxQueueRepository.pendingOut();
   const sent: string[] = [];
+  const failures: FlushResult['failures'] = {};
   for (const item of pending) {
     if (!item.recipientActorId || !item.sealedBlob) {
       await mailboxQueueRepository.remove(item.id);
@@ -171,11 +186,20 @@ export async function flushOutbox(): Promise<string[]> {
       // DEC-352 (F17, G6) — the blob is in the peer's mailbox now: poke their room
       // so an open app drains in real-time instead of waiting for its next open.
       pingPeerMailbox(item.recipientActorId);
-    } catch {
+    } catch (error) {
       await mailboxQueueRepository.bumpAttempt(item.id);
+      // DEC-375 — keep WHY this item stayed queued (offline vs server error) so the
+      // sender sees honest copy instead of a blanket "no internet".
+      failures[item.id] = classifySendFailure(error);
     }
   }
-  return sent;
+  return { sent, failures };
+}
+
+/** Map a flush pass onto a single enqueued item's honest send result (DEC-375). */
+export function resultForItem(itemId: string, flush: FlushResult): SendToMailboxResult {
+  if (flush.sent.includes(itemId)) return { delivered: true, reason: 'ok' };
+  return { delivered: false, reason: flush.failures[itemId] ?? 'queued_offline' };
 }
 
 export interface DrainResult {

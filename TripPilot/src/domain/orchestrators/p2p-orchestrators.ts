@@ -28,7 +28,7 @@ import {
 import type { MailboxPayloadKind } from '@/domain/types/mailbox';
 import { createParticipant, createSettlement } from '@/domain/splitting';
 import { createIncomeTransaction } from '@/domain/transactions';
-import { flushOutbox, type SendToMailboxResult } from './mailbox-orchestrators';
+import { flushOutbox, resultForItem, type SendToMailboxResult } from './mailbox-orchestrators';
 import { resolveSelfShareName } from './sync-orchestrators';
 import type { Participant } from '@/domain/types/participant';
 import type { MailboxQueueItem } from '@/domain/types/mailbox';
@@ -67,8 +67,7 @@ async function sealAndQueue(
     kind,
     sealedBlob: sealed,
   });
-  const sent = await flushOutbox();
-  return { delivered: sent.includes(item.id) };
+  return resultForItem(item.id, await flushOutbox());
 }
 
 export interface ShareDebtInput {
@@ -86,7 +85,7 @@ export interface ShareDebtInput {
  */
 export async function shareDebtWithPeer(input: ShareDebtInput): Promise<SendToMailboxResult> {
   const peer = await peerLinkRepository.getByActorId(input.peerActorId);
-  if (!peer?.publicKey) return { delivered: false };
+  if (!peer?.publicKey) return { delivered: false, reason: 'no_peer_key' };
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
   const fromName = await resolveSelfShareName(settings);
@@ -157,7 +156,7 @@ export async function announcePaymentToPeer(input: AnnouncePaymentInput): Promis
     );
   }
 
-  if (!peer?.publicKey) return { delivered: false };
+  if (!peer?.publicKey) return { delivered: false, reason: 'no_peer_key' };
   const payload = buildPaymentPayload({
     paymentId: uuidv4(),
     fromActorId: me.actorId,
@@ -188,7 +187,7 @@ export interface ShareGroupInviteInput {
  */
 export async function sendGroupInvite(input: ShareGroupInviteInput): Promise<SendToMailboxResult> {
   const peer = await peerLinkRepository.getByActorId(input.peerActorId);
-  if (!peer?.publicKey) return { delivered: false };
+  if (!peer?.publicKey) return { delivered: false, reason: 'no_peer_key' };
   const payload = buildGroupInvitePayload({
     shareId: input.shareId,
     key: input.key,

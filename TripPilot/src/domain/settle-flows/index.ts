@@ -4,3 +4,4 @@
  */
 export * from './settle-state';
 export * from './p2p-delivery';
+export * from './delivery-status';
