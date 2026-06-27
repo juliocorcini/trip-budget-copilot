@@ -1,8 +1,8 @@
 {
-  "version": "1.4.11-rc",
+  "version": "1.4.12-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.11-rc.zip",
-  "notes": "Instalar o TripPilot ficou simples: uma tela única (em Ajustes ou no link /install) compara App (APK) × Atalho (PWA) × Navegador e instala do jeito certo pro seu aparelho. Um aviso discreto sugere instalar e some por 7 dias quando você fecha."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.12-rc.zip",
+  "notes": "Pagou alguém pelo app? Agora dá pra anexar um comprovante (opcional) ao dizer \"paguei\" — em divisões de grupo e em pagamentos diretos entre pessoas. Quem recebe vê a miniatura e confirma. Tudo continua ponta a ponta: só a imagem que você escolher anexar viaja, nada de dados bancários."
 }

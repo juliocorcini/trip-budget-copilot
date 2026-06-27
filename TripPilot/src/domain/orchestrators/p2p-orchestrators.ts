@@ -32,6 +32,7 @@ import { flushOutbox, type SendToMailboxResult } from './mailbox-orchestrators';
 import { resolveSelfShareName } from './sync-orchestrators';
 import type { Participant } from '@/domain/types/participant';
 import type { MailboxQueueItem } from '@/domain/types/mailbox';
+import type { ImageRef } from '@/domain/media';
 
 /**
  * DEC-345/346 (G7) — live P2P debt & payment over the E2E mailbox.
@@ -114,6 +115,13 @@ export interface AnnouncePaymentInput {
   direction: PaymentDirection;
   /** Required when direction = 'received' (I got the cash → L8 fund credit). */
   fundCredit?: { phaseId: string; budgetPoolId: string; walletId: string | null } | null;
+  /**
+   * DEC-363 (Item D) — an OPTIONAL payment proof (R2 image ref + inline thumb)
+   * sealed to the peer so they see it before confirming. Display-only; never
+   * touches the settlement math.
+   */
+  proof?: ImageRef | null;
+  proofThumb?: string | null;
 }
 
 /**
@@ -158,6 +166,8 @@ export async function announcePaymentToPeer(input: AnnouncePaymentInput): Promis
     amountCents: input.amountCents,
     direction: input.direction,
     note: null,
+    proof: input.proof ?? null,
+    proofThumb: input.proofThumb ?? null,
   });
   return sealAndQueue(input.peerActorId, peer.publicKey, peer.displayName, 'payment', payload);
 }

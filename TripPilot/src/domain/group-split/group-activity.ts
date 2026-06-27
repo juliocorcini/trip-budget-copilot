@@ -9,6 +9,7 @@
  * Pure: zero React, zero IO. The UI renders each entry's human string via `t()`.
  */
 import { v4 as uuidv4 } from 'uuid';
+import type { ImageRef } from '@/domain/media';
 import type { GroupActivity, GroupActivityKind, GroupSplitEvent } from './types';
 
 /** Keep the most recent N entries (a busy trip stays portable in the payload). */
@@ -22,6 +23,9 @@ export interface BuildGroupActivityInput {
   counterpartName?: string;
   detail?: string;
   amountCents?: number;
+  /** DEC-363 (Item D) — optional payment proof (full image on R2 + inline thumb). */
+  proof?: ImageRef;
+  proofThumb?: string;
   /** Overridable for tests / replay; defaults to now. */
   ts?: string;
   id?: string;
@@ -40,6 +44,10 @@ export function buildGroupActivity(input: BuildGroupActivityInput): GroupActivit
   if (input.counterpartName && input.counterpartName.trim()) entry.counterpartName = input.counterpartName.trim();
   if (input.detail && input.detail.trim()) entry.detail = input.detail.trim();
   if (typeof input.amountCents === 'number') entry.amountCents = input.amountCents;
+  // DEC-363 (Item D): carry an optional payment proof (additive — only present on
+  // a `payment_marked` the debtor chose to back with a receipt image).
+  if (input.proof) entry.proof = input.proof;
+  if (input.proofThumb && input.proofThumb.trim()) entry.proofThumb = input.proofThumb;
   return entry;
 }
 

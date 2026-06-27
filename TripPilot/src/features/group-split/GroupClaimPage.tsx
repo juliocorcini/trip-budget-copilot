@@ -29,6 +29,7 @@ import {
   type FetchGroupStatus,
 } from './group-link';
 import { getGuestActorId, getGuestName, setGuestName } from '@/features/split/live-link';
+import { ProofAttachField, ProofThumb, type AttachedProof } from '@/features/payment-proof/PaymentProof';
 
 const POLL_FLOOR_MS = 6000;
 const POST_DEBOUNCE_MS = 500;
@@ -58,6 +59,9 @@ export function GroupClaimPage() {
   const [load, setLoad] = useState<LoadState>({ kind: 'loading' });
   const [claimedId, setClaimedId] = useState<string | null>(null);
   const [markedPaid, setMarkedPaid] = useState(false);
+  // DEC-363 (Item D) — an OPTIONAL proof the guest attaches with their mark-paid;
+  // it rides the claim response and the owner folds it onto the timeline.
+  const [proof, setProof] = useState<AttachedProof | null>(null);
   // DEC-340 — the guest's own authored expenses (a snapshot the owner folds).
   const [myExpenses, setMyExpenses] = useState<GroupClaimExpense[]>([]);
   // G3 / DEC-349 — every device's claim snapshot, folded locally so the board is
@@ -151,13 +155,15 @@ export function GroupClaimPage() {
         claimedParticipantId: claimedId,
         markedPaid,
         expenses: myExpenses,
+        proof: proof?.proof ?? null,
+        proofThumb: proof?.thumb ?? null,
       });
       void postGroupClaim(id, key, response)
         .then(() => signalRef.current?.send({ t: 'resp' }))
         .catch(() => {});
     }, POST_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [claimedId, markedPaid, myExpenses, isLive, id, key, actorId]);
+  }, [claimedId, markedPaid, myExpenses, proof, isLive, id, key, actorId]);
 
   if (load.kind === 'loading') {
     return (
@@ -225,12 +231,23 @@ export function GroupClaimPage() {
       claimedId={claimedId}
       markedPaid={markedPaid}
       myExpenses={myExpenses}
+      proof={proof}
+      onChangeProof={setProof}
       onPick={(pid) => {
         setClaimedId(pid);
         setMarkedPaid(false);
+        setProof(null);
       }}
-      onChangeName={() => setClaimedId(null)}
-      onTogglePaid={() => setMarkedPaid((v) => !v)}
+      onChangeName={() => {
+        setClaimedId(null);
+        setProof(null);
+      }}
+      onTogglePaid={() =>
+        setMarkedPaid((v) => {
+          if (v) setProof(null);
+          return !v;
+        })
+      }
       onSaveName={(name) => setGuestName(name)}
       onAddExpense={addExpense}
       onRemoveExpense={removeExpense}
@@ -244,6 +261,8 @@ interface ClaimBoardProps {
   claimedId: string | null;
   markedPaid: boolean;
   myExpenses: GroupClaimExpense[];
+  proof: AttachedProof | null;
+  onChangeProof: (next: AttachedProof | null) => void;
   onPick: (participantId: string) => void;
   onChangeName: () => void;
   onTogglePaid: () => void;
@@ -258,6 +277,8 @@ function ClaimBoard({
   claimedId,
   markedPaid,
   myExpenses,
+  proof,
+  onChangeProof,
   onPick,
   onChangeName,
   onTogglePaid,
@@ -423,17 +444,27 @@ function ClaimBoard({
                       <Icon name="schedule" size={18} className="text-on-surface-dim shrink-0" />
                       <span className="break-words">{t('group_claim.awaiting')}</span>
                     </div>
+                    {proof && (
+                      <div className="flex items-center gap-2">
+                        <ProofThumb proof={proof.proof} thumb={proof.thumb} size={40} />
+                        <span className="text-[11px] text-on-surface-faint">{t('payment_proof.label')}</span>
+                      </div>
+                    )}
                     <button onClick={onTogglePaid} className="text-[11px] text-on-surface-faint btn-press py-1">
                       {t('group_claim.undo_paid')}
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={onTogglePaid}
-                    className="py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press"
-                  >
-                    {t('group_claim.mark_paid')}
-                  </button>
+                  <>
+                    {/* DEC-363 (Item D) — optionally back the mark-paid with a receipt. */}
+                    <ProofAttachField value={proof} onChange={onChangeProof} />
+                    <button
+                      onClick={onTogglePaid}
+                      className="py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press"
+                    >
+                      {t('group_claim.mark_paid')}
+                    </button>
+                  </>
                 )}
               </div>
             )}

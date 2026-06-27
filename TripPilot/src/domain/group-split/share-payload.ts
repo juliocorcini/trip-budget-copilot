@@ -42,6 +42,11 @@ const groupActivitySchema = z.object({
   counterpartName: z.string().optional(),
   detail: z.string().optional(),
   amountCents: z.number().int().optional(),
+  // DEC-363 (Item D) — an optional payment proof (full image ref on R2 + inline
+  // thumb) rides the E2E payload so the creditor sees it before confirming.
+  // Additive: an old guest snapshot without it still parses.
+  proof: imageRefSchema.optional(),
+  proofThumb: z.string().optional(),
 });
 
 const groupParticipantSchema = z.object({

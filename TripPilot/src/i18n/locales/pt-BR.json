@@ -3099,6 +3099,18 @@
     "queued": "Sem internet — vai enviar quando voltar",
     "no_key": "Conecte-se primeiro (Meu QR) para usar isso."
   },
+  "payment_proof": {
+    "attach": "Anexar comprovante",
+    "attach_optional": "Anexar comprovante (opcional)",
+    "attached": "Comprovante anexado",
+    "remove": "Remover",
+    "uploading": "Enviando…",
+    "too_large": "Imagem muito grande",
+    "upload_failed": "Não consegui enviar o comprovante",
+    "privacy": "O comprovante é opcional e fica protegido — só você e a outra pessoa da combinação conseguem abrir.",
+    "view": "Ver comprovante",
+    "label": "Comprovante"
+  },
   "shareLink": {
     "title": "Compartilhar com {{name}}",
     "open_action": "Compartilhar por link",

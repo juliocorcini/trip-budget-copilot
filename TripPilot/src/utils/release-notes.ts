@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.12-rc',
+    date: '2026-06-26',
+    items: {
+      'pt-BR': [
+        'Comprovante de pagamento: ao dizer "paguei" — numa divisão de grupo ou num pagamento direto entre pessoas — você pode anexar uma foto do comprovante (opcional). Quem recebe vê a miniatura e confirma com mais segurança. Continua tudo ponta a ponta: só a imagem que você escolher anexar viaja, sem expor dados bancários.',
+      ],
+      en: [
+        'Payment proof: when you say "I paid" — in a group split or a direct person-to-person payment — you can attach a photo of the receipt (optional). The person receiving sees the thumbnail and confirms with more confidence. Still end-to-end: only the image you choose to attach travels, with no bank details exposed.',
+      ],
+      es: [
+        'Comprobante de pago: al decir "pagué" — en una división de grupo o en un pago directo entre personas — puedes adjuntar una foto del comprobante (opcional). Quien recibe ve la miniatura y confirma con más seguridad. Sigue siendo de extremo a extremo: solo viaja la imagen que elijas adjuntar, sin exponer datos bancarios.',
+      ],
+    },
+  },
+  {
     version: '1.4.11-rc',
     date: '2026-06-26',
     items: {

@@ -48,6 +48,7 @@ import {
   type GroupLiveCreds,
 } from './group-link';
 import type { GroupActivity, GroupExpense, GroupSplitEvent, GroupPaymentStatus } from '@/domain/group-split';
+import { ProofThumb } from '@/features/payment-proof/PaymentProof';
 
 const POLL_FLOOR_MS = 6000;
 
@@ -225,6 +226,12 @@ export function GroupSplitDetailPage() {
           // DEC-354 — log participants who newly claimed a slot via the link this
           // tick (null → actorId, once). The change-guard above keeps it converging.
           const priorClaimed = new Map(current.participants.map((p) => [p.id, p.claimedByActorId]));
+          // DEC-363 (Item D) — and log a `payment_marked` the FIRST tick a slot turns
+          // marked, carrying the guest's OPTIONAL proof (latest claim for that slot)
+          // so the receipt lands in the timeline. Idempotent: the saved 'marked'
+          // status stops the next tick from re-logging (same converging guard).
+          const priorStatus = new Map(current.participants.map((p) => [p.id, p.paymentStatus]));
+          const nextTransfers = computeGroupTransfers(next);
           let logged = next;
           for (const p of next.participants) {
             if ((priorClaimed.get(p.id) ?? null) === null && p.claimedByActorId !== null) {
@@ -232,6 +239,24 @@ export function GroupSplitDetailPage() {
                 kind: 'participant_joined',
                 actorId: p.claimedByActorId,
                 actorName: p.name,
+              });
+            }
+            if (priorStatus.get(p.id) !== 'marked' && p.paymentStatus === 'marked') {
+              const claim = [...claims]
+                .filter((c) => c.claimedParticipantId === p.id)
+                .sort((a, b) => a.at.localeCompare(b.at))
+                .pop();
+              const owed =
+                nextTransfers
+                  .filter((tr) => tr.fromParticipantId === p.id)
+                  .reduce((s, tr) => s + tr.amountCents, 0) || undefined;
+              logged = appendGroupActivity(logged, {
+                kind: 'payment_marked',
+                actorId: p.claimedByActorId,
+                actorName: p.name,
+                amountCents: owed,
+                proof: claim?.proof,
+                proofThumb: claim?.proofThumb,
               });
             }
           }
@@ -255,6 +280,18 @@ export function GroupSplitDetailPage() {
   const settlement = useMemo(() => (event ? buildGroupSettlementStatus(event) : null), [event]);
   // F23 — newest-first movement history (display-only; DEC-354).
   const timeline = useMemo(() => (event ? groupActivityTimeline(event) : []), [event]);
+  // DEC-363 (Item D) — the LATEST proof a debtor attached when marking paid, keyed
+  // by their actorId (timeline is newest-first, so the first hit per actor wins).
+  // Surfaces a receipt thumbnail on that person's row so the owner reviews → confirms.
+  const proofByActorId = useMemo(() => {
+    const map = new Map<string, GroupActivity>();
+    for (const a of timeline) {
+      if (a.kind === 'payment_marked' && a.actorId && (a.proofThumb || a.proof) && !map.has(a.actorId)) {
+        map.set(a.actorId, a);
+      }
+    }
+    return map;
+  }, [timeline]);
   // DEC-336 — expenses bucketed by the day they happened (newest fields fall back to createdAt).
   const expenseDays = useMemo(() => (event ? groupExpensesByDay(event.expenses) : []), [event]);
   const total = event ? groupTotalCents(event) : 0;
@@ -643,6 +680,15 @@ export function GroupSplitDetailPage() {
                   <span className="text-[10px] text-on-surface-faint shrink-0">{t('group_split.owner_tag')}</span>
                 ) : (
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* DEC-363 (Item D) — the receipt the debtor attached when marking
+                        paid, shown right by the confirm action so the owner reviews it. */}
+                    {p.paymentStatus === 'marked' && p.claimedByActorId && proofByActorId.has(p.claimedByActorId) && (
+                      <ProofThumb
+                        proof={proofByActorId.get(p.claimedByActorId)?.proof}
+                        thumb={proofByActorId.get(p.claimedByActorId)?.proofThumb}
+                        size={32}
+                      />
+                    )}
                     {isDebtor && <PaymentControl status={p.paymentStatus} onSet={(s) => handleSetPayment(p.id, s)} t={t} />}
                     <button
                       onClick={() => handleRemovePerson(p.id)}
@@ -797,6 +843,13 @@ export function GroupSplitDetailPage() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-on-surface leading-snug">{activityText(entry, t, event.currency)}</p>
+                      {/* DEC-363 (Item D) — a mark-paid that carried a receipt shows it
+                          inline in the history (the durable proof of the event). */}
+                      {(entry.proofThumb || entry.proof) && (
+                        <div className="mt-1">
+                          <ProofThumb proof={entry.proof} thumb={entry.proofThumb} size={40} />
+                        </div>
+                      )}
                       {/* G_last (DEC-354): an organizer override is a moderation action —
                           flag it + show what state it overrode, so the trail is auditable. */}
                       {isOverride && (

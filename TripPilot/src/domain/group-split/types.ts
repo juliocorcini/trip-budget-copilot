@@ -159,6 +159,20 @@ export interface GroupActivity {
   detail?: string;
   /** Integer cents involved (expense amount / payment amount), when relevant. */
   amountCents?: number;
+  /**
+   * DEC-363 (Item D) — an OPTIONAL payment proof attached when a debtor marks
+   * paid. The full image is access-controlled plaintext on R2 (DEC-348 carve-out);
+   * only this ref rides the E2E `/g/` payload + backup. Additive; absent on every
+   * non-`payment_marked` entry and on legacy rows. Money math is untouched — a
+   * proof is display-only evidence, never a settlement source.
+   */
+  proof?: ImageRef;
+  /**
+   * DEC-363 — a tiny inline thumbnail (data URL, ~240px) for instant render. This
+   * is the DURABLE proof: it rides the payload/backup within the cap, so the
+   * evidence survives even if the full R2 image is later reaped by its TTL.
+   */
+  proofThumb?: string;
 }
 
 export interface GroupSplitEvent {

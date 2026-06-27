@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { imageRefSchema } from '@/domain/media';
+import { imageRefSchema, type ImageRef } from '@/domain/media';
 import type { GroupExpense, GroupSplitEvent } from './types';
 
 /**
@@ -61,6 +61,15 @@ export const groupClaimResponseSchema = z.object({
   /** The guest asserts they settled their net debt (owner still confirms). */
   markedPaid: z.boolean(),
   /**
+   * DEC-363 (Item D) — an OPTIONAL payment proof the guest attaches when they mark
+   * paid: the full image rides R2 as access-controlled plaintext (only the
+   * {@link ImageRef} travels), plus a tiny inline `proofThumb` data URL the owner
+   * renders instantly + folds onto the `payment_marked` timeline entry. Display
+   * only; never a money source. Capped so it stays inside the response envelope.
+   */
+  proof: imageRefSchema.optional(),
+  proofThumb: z.string().max(60_000).optional(),
+  /**
    * DEC-340 — the FULL set of expenses this device currently authors (a snapshot,
    * like `markedPaid`). The owner folds them add-or-retract: ids present here that
    * the owner hasn't seen are added; ids this author previously contributed that
@@ -78,6 +87,9 @@ export interface BuildGroupClaimResponseInput {
   claimedParticipantId: string;
   markedPaid: boolean;
   expenses?: GroupClaimExpense[];
+  /** DEC-363 (Item D) — optional proof for this mark-paid (only kept when paid). */
+  proof?: ImageRef | null;
+  proofThumb?: string | null;
 }
 
 export function buildGroupClaimResponse(input: BuildGroupClaimResponseInput): GroupClaimResponse {
@@ -90,6 +102,10 @@ export function buildGroupClaimResponse(input: BuildGroupClaimResponseInput): Gr
     at: new Date().toISOString(),
   };
   if (input.expenses && input.expenses.length > 0) response.expenses = input.expenses;
+  // DEC-363 — a proof is only meaningful alongside a paid assertion; drop it when
+  // the guest is un-marking (no orphan proof on an `unpaid` snapshot).
+  if (input.markedPaid && input.proof) response.proof = input.proof;
+  if (input.markedPaid && input.proofThumb) response.proofThumb = input.proofThumb;
   return response;
 }
 

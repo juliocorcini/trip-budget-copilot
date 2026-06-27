@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { imageRefSchema, type ImageRef } from '@/domain/media';
 
 /**
  * DEC-346 (G7, L8) — a peer announces a P2P repayment. Two directions, ONE confirm
@@ -23,6 +24,13 @@ export const paymentPayloadSchema = z.object({
   amountCents: z.number().int().positive(),
   direction: z.enum(['paid', 'received']),
   note: z.string().max(120).nullable(),
+  // DEC-363 (Item D) — an OPTIONAL payment proof the sender attached. The full
+  // image is access-controlled plaintext on R2 (DEC-348 carve-out); only this ref
+  // travels, sealed inside the E2E mailbox envelope. `proofThumb` is a tiny inline
+  // data URL for instant render on the recipient's confirm prompt. Additive: a
+  // legacy payment without them still parses.
+  proof: imageRefSchema.optional(),
+  proofThumb: z.string().max(60_000).optional(),
 });
 
 export type PaymentDirection = z.infer<typeof paymentPayloadSchema>['direction'];
@@ -36,8 +44,11 @@ export function buildPaymentPayload(input: {
   amountCents: number;
   direction: PaymentDirection;
   note?: string | null;
+  /** DEC-363 (Item D) — optional proof (R2 image ref + inline thumb). */
+  proof?: ImageRef | null;
+  proofThumb?: string | null;
 }): PaymentPayload {
-  return {
+  const payload: PaymentPayload = {
     v: 1,
     paymentId: input.paymentId,
     fromActorId: input.fromActorId,
@@ -47,6 +58,9 @@ export function buildPaymentPayload(input: {
     direction: input.direction,
     note: input.note?.trim().slice(0, 120) ?? null,
   };
+  if (input.proof) payload.proof = input.proof;
+  if (input.proofThumb) payload.proofThumb = input.proofThumb;
+  return payload;
 }
 
 export function parsePaymentPayload(raw: unknown): PaymentPayload | null {

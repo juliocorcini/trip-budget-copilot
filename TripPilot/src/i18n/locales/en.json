@@ -3095,6 +3095,18 @@
     "queued": "Offline — it'll send when you're back",
     "no_key": "Connect first (My QR) to use this."
   },
+  "payment_proof": {
+    "attach": "Attach proof",
+    "attach_optional": "Attach proof (optional)",
+    "attached": "Proof attached",
+    "remove": "Remove",
+    "uploading": "Uploading…",
+    "too_large": "Image too large",
+    "upload_failed": "Couldn't upload the proof",
+    "privacy": "The proof is optional and protected — only you and the other person in this settlement can open it.",
+    "view": "View proof",
+    "label": "Proof"
+  },
   "shareLink": {
     "title": "Share with {{name}}",
     "open_action": "Share via link",

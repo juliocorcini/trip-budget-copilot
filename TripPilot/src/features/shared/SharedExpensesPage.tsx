@@ -103,6 +103,7 @@ import { ShareLinkSheet } from './ShareLinkSheet';
 import { SplitExplainer } from './SplitExplainer';
 import { useRemindMessage } from '@/features/shared/useRemindMessage';
 import { enabledPaymentMethods } from '@/domain/payment';
+import { ProofAttachField, ProofThumb, type AttachedProof } from '@/features/payment-proof/PaymentProof';
 
 /** DEC-206: how many rows show before a "ver mais (N)" toggle reveals the rest. */
 const SHARED_LIST_PAGE = 6;
@@ -298,6 +299,8 @@ export function SharedExpensesPage() {
   const [payTarget, setPayTarget] = useState<Participant | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [payDirection, setPayDirection] = useState<'paid' | 'received'>('paid');
+  // DEC-363 (Item D) — an OPTIONAL payment proof attached to a P2P "paguei/recebi".
+  const [payProof, setPayProof] = useState<AttachedProof | null>(null);
   // The L8 fund picker is shared by the inbound-confirm sheet and the outbound
   // "Eu recebi" path; both write the same chosen pool + wallet.
   const [fundPoolId, setFundPoolId] = useState<string | null>(null);
@@ -796,11 +799,14 @@ export function SharedExpensesPage() {
         currency: trip.baseCurrency,
         direction: payDirection,
         fundCredit,
+        proof: payProof?.proof ?? null,
+        proofThumb: payProof?.thumb ?? null,
       });
       showToast(delivered ? t('p2p.pay_done') : t('p2p.queued'), delivered ? 'success' : 'info');
       setPayTarget(null);
       setPayAmount('');
       setPayDirection('paid');
+      setPayProof(null);
       await reload();
     } catch {
       showToast(t('p2p.send_failed'), 'danger');
@@ -965,6 +971,13 @@ export function SharedExpensesPage() {
                       {formatMoney(item.payment.amountCents, item.payment.currency)}
                     </p>
                   </div>
+                  {/* DEC-363 (Item D) — proof attached by the payer: review before confirming. */}
+                  {(item.payment.proofThumb || item.payment.proof) && (
+                    <div className="flex items-center gap-2 pl-12">
+                      <ProofThumb proof={item.payment.proof} thumb={item.payment.proofThumb} size={40} />
+                      <span className="text-[11px] text-on-surface-faint">{t('payment_proof.label')}</span>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRejectInbound(item)}
@@ -1721,6 +1734,7 @@ export function SharedExpensesPage() {
                       setStatementTarget(null);
                       setPayAmount('');
                       setPayDirection('paid');
+                      setPayProof(null);
                       setFundPoolId(defaultFundPoolId());
                       setFundWalletId(wallets.find((w) => w.deletedAt === null)?.id ?? null);
                       setPayTarget(target);
@@ -1975,7 +1989,10 @@ export function SharedExpensesPage() {
           fund/wallet (real inflow); both directions settle + notify the peer. */}
       <BottomSheet
         open={payTarget !== null}
-        onClose={() => setPayTarget(null)}
+        onClose={() => {
+          setPayTarget(null);
+          setPayProof(null);
+        }}
         title={payTarget ? t('p2p.pay_title', { name: payTarget.nickname ?? payTarget.name }) : ''}
       >
         {payTarget && (
@@ -2022,9 +2039,14 @@ export function SharedExpensesPage() {
                 />
               </div>
             )}
+            {/* DEC-363 (Item D) — optional proof for this P2P payment. */}
+            <ProofAttachField value={payProof} onChange={setPayProof} />
             <div className="flex gap-2 mt-1">
               <button
-                onClick={() => setPayTarget(null)}
+                onClick={() => {
+                  setPayTarget(null);
+                  setPayProof(null);
+                }}
                 className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press"
               >
                 {t('common.cancel')}
@@ -2056,6 +2078,19 @@ export function SharedExpensesPage() {
             <p className="text-2xl font-extrabold tabular text-success">
               {formatMoney(confirmPayItem.payment.amountCents, confirmPayItem.payment.currency)}
             </p>
+            {/* DEC-363 (Item D) — proof recap right before funding the confirmation. */}
+            {(confirmPayItem.payment.proofThumb || confirmPayItem.payment.proof) && (
+              <div className="flex items-center gap-2">
+                <ProofThumb
+                  proof={confirmPayItem.payment.proof}
+                  thumb={confirmPayItem.payment.proofThumb}
+                  size={48}
+                />
+                <span className="text-[12px] font-semibold text-on-surface-dim">
+                  {t('payment_proof.label')}
+                </span>
+              </div>
+            )}
             <p className="text-[11px] text-on-surface-faint leading-snug">{t('p2p.fund_hint')}</p>
             <FundPicker
               pools={pools}
