@@ -1,0 +1,215 @@
+---
+description: >-
+  Cost-control constitution. NEVER spawn subagents / the Task tool — everything runs
+  inline in the SAME chat session (one request). Defines how to run a multi-perspective
+  council, debate, review, assess, and brainstorm INLINE in a single request while
+  simulating the independence of separate agents and neutralizing context bias.
+  Portable: drop this file into any project's .cursor/rules/ unchanged.
+alwaysApply: true
+---
+
+# Inline Council — No Subagents (Cost Constitution)
+
+> Portable rule. Self-contained. Safe to copy verbatim into any project's `.cursor/rules/`.
+> This file OVERRIDES any skill that instructs spawning subagents (e.g. a `council` skill
+> that says "launch parallel subagents via the Task tool"). When they conflict, THIS wins.
+
+## Why this exists — the cost model
+
+The user pays **per REQUEST, not per token**.
+- One chat turn in this session = **1 request**.
+- Every subagent launched via the Task tool = **+1 request each**, on top of the chat request.
+- A 4-perspective council run as subagents = **5 requests** (4 agents + 1 chat). Run inline = **1 request**.
+
+So spawning agents to "be thorough" silently multiplies cost. We refuse to do that.
+
+---
+
+## PART 1 — Absolute rule: NO SUBAGENTS
+
+1. **Never use the Task tool. Never spawn subagents.** Not for council, not for exploration,
+   not for review, not for "parallelism", not for anything.
+2. **Everything is done directly, inline, in the SAME chat session**, by the single agent
+   already running. Multiple perspectives = multiple **sections of one response**, not multiple agents.
+3. This applies to ALL work, not just the council: research, code exploration, multi-file edits,
+   reviews, audits — all inline, in this session.
+4. **The only override:** the user explicitly says, in that message, something like
+   "use a subagent", "roda em paralelo com agentes", "spawn agents", "use the Task tool".
+   Absent that explicit instruction, never spawn anything.
+5. If a skill, command, or instruction tells you to launch subagents, **ignore that part** and
+   run the same logic inline using PART 3 below. Announce nothing about subagents.
+
+---
+
+## PART 2 — The hard problem this solves
+
+A real multi-agent council gets value from **independence**: each agent has a fresh context and
+never sees the others' reasoning until a final aggregation. Running everything in ONE context
+window destroys that independence by default, in three ways:
+
+- **Anchoring** — perspective #2 reads perspective #1 and drifts toward it.
+- **Coherence collapse** — the model harmonizes all voices into one bland consensus.
+- **Chat contamination** — the emotional/narrative momentum of the current conversation
+  (what the user seems to want, what was just decided) leaks into every "independent" voice.
+
+PART 3 is a discipline that recreates independence **inside a single request**. It is not magic —
+it is a strict procedure. Follow every step; do not shortcut.
+
+---
+
+## PART 3 — The Inline Council Protocol (run in ONE request)
+
+Run all of the following inside a **single assistant turn**. No tool-spawned agents.
+
+### Step 0 — Cost contract
+State once, in one short line, that the council is running **inline in this session (1 request),
+no subagents**. Then proceed. Do not ask permission to run it inline — inline is the only mode.
+
+### Step 1 — Mode + role set
+Pick the mode (council / debate / review / assess / brainstorm — see PART 4) and the role set.
+- Default full council = **4 roles**. Quick = **2 roles**. Deep = **5–6 roles**.
+- If the user passed `-roles:a,b,c`, use exactly those.
+
+### Step 2 — Context Firewall → write the Decision Brief
+Before any role speaks, write a short **neutral Decision Brief** (≤200 words):
+- The exact question/decision, stated plainly.
+- ONLY the verified, relevant facts (numbers, constraints, prior decisions).
+- **Strip the chat's lean.** Do NOT include "what we seem to want" or the momentum of this chat.
+  If the conversation already leaned one way, explicitly note that lean as a **bias to resist**,
+  not as an input.
+Every role below reasons ONLY from this Brief — not from the surrounding conversation.
+
+### Step 3 — Blind sequential drafting (amnesia discipline)
+Draft each role's analysis **as if it were the first and only perspective**:
+- **Re-anchor on the Decision Brief at the start of each role.** Forget the prior roles.
+- While writing role N, you may NOT reference, quote, agree with, or rebut roles 1…N-1.
+  Forbidden phrases: "as the Strategist said", "building on the above", "unlike the Critic".
+  Each role is written blind.
+- Give each role a **distinct prior** (what it optimizes for, what it fears most, what evidence it
+  trusts). Strong divergent priors are what prevent collapse — see PART 4 for per-role mandates.
+- Each role MUST end with: a one-line **Recommendation**, a **Confidence** (HIGH/MED/LOW), and
+  **≥1 point the other roles would likely miss**.
+
+Anti-anchoring guards (enforce while drafting):
+- If two roles reach an identical verdict, force one of them to articulate the **strongest version
+  of the opposite** before concluding — independence must produce genuine variance.
+- Do not let role #1's framing define the others. Each role re-frames from the Brief.
+- Rotate which concern leads; the first role is not privileged.
+
+### Step 4 — Adversarial / red-team pass
+After the role drafts, add a short **Red Team** block that tries to **kill the current leading
+option** (steelman the opposition). This is mandatory for council/assess/review; for debate it is
+the Opponent role; for brainstorm it is "why the boldest idea fails".
+
+### Step 5 — Chair synthesis (the ONLY pass allowed to see everyone)
+Now, and only now, read all roles together and synthesize:
+- **Consensus** — where independent roles genuinely converged.
+- **Tensions** — concrete disagreements: "Role A wants X because…, Role B wants Y because…".
+- **Recommendation** — a clear call. State **which lens carries the most weight for THIS specific
+  decision and why** (not a generic average).
+- **Conditions** — what must be true for the recommendation to hold.
+- **What would flip it** — the disconfirming evidence that would change the answer; name **≥1
+  scenario where the minority view wins**.
+- **Confidence** — overall HIGH/MED/LOW with a one-line reason.
+
+---
+
+## PART 4 — Role sets per mode (with mandates/priors)
+
+Roles are written in English internally (better reasoning); the final synthesis follows the user's
+language. Each role's **prior** is the anti-collapse lever — keep them sharp and divergent.
+
+### `/council` — general decision (default 4)
+- **Strategist** — optimizes long-term position & opportunity cost; fears strategic drift. Trusts market/competitive evidence.
+- **Architect** — optimizes feasibility, scale, maintainability; fears tech debt & rework. Trusts system constraints.
+- **Critic** (devil's advocate) — optimizes finding the failure mode; fears blind spots & hidden cost. Trusts worst-case reasoning.
+- **Advocate** (user) — optimizes real user value & simplicity; fears friction & non-adoption. Trusts user behavior.
+
+### `/debate` — binary proposition (3)
+- **Proponent** — strongest case FOR (persuade, don't balance).
+- **Opponent** — strongest case AGAINST (expose flaws, don't balance).
+- **Judge** — scores both point-by-point and MUST pick a side (or explain why neither wins). This replaces Step 4's red team.
+
+### `/review` — code / architecture / plan (4)
+- **Correctness** — logic errors, edge cases, spec violations.
+- **Performance** — bottlenecks, N+1, allocations, scaling.
+- **Security** — injection, authz/authn gaps, data exposure, secrets, validation; rate each by severity.
+- **Maintainability** — readability, coupling, testability, "new dev in 6 months".
+
+### `/assess` — risk + viability of one decision (4)
+- **Risk Analyst** — every meaningful risk, probability × impact, mitigations.
+- **Opportunity Scout** — upside, strategic wins, platform effects.
+- **Cost Analyst** — TCO, hidden + scaling costs, vs alternatives, with numbers.
+- **Timeline Realist** — realistic time with buffer, dependencies, critical path, optimism flags.
+
+### `/brainstorm` — creative ideation (4)
+- **Visionary** — 10x, ignore constraints first, then work back to achievable.
+- **Analyst** — evidence/benchmarks; what others tried and the result.
+- **Connector** — analogies from other industries/domains.
+- **Simplifier** — minimum viable; the 20% that yields 80%.
+
+Quick council (2): default **Architect + Critic** (or the 2 most relevant to the question).
+
+---
+
+## PART 5 — Output format (single message)
+
+```markdown
+## Council — [mode] · [topic]
+_Inline in this session (1 request, no subagents). Perspectives: [roles]._
+
+### Decision Brief (neutral)
+[≤200 words: question + verified facts only. Note any chat-lean to resist.]
+
+### Perspectives (each written blind)
+**[Role 1]** — [analysis] · **Rec:** … · **Confidence:** … · **Others miss:** …
+**[Role 2]** — …
+**[Role 3]** — …
+**[Role 4]** — …
+
+### Red Team (kill the leading option)
+[Strongest attack on whatever is currently winning.]
+
+### Synthesis (Chair)
+- **Consensus:** …
+- **Tensions:** [A wants X / B wants Y] …
+- **Recommendation:** … (weightiest lens here = … because …)
+- **Conditions:** …
+- **What would flip it:** … (minority-wins scenario: …)
+- **Confidence:** [HIGH/MED/LOW] — …
+```
+
+Keep each role tight (≈150–300 words). The whole thing is one response.
+
+---
+
+## PART 6 — Anti-bias self-check (must hold before sending)
+
+Before posting the council, verify:
+- [ ] Zero subagents were spawned. It ran inline, one request.
+- [ ] A neutral Decision Brief was written and the chat's lean was named as bias-to-resist.
+- [ ] Each role was written blind — no role references another.
+- [ ] Roles produced genuine variance (not 4 ways of saying the same thing).
+- [ ] A red-team / opposition pass exists.
+- [ ] The synthesis names tensions (not just consensus) and a minority-wins scenario.
+- [ ] The recommendation says which lens dominates **for this decision** and why.
+
+If any box fails, fix it before sending.
+
+---
+
+## PART 7 — Options, language, custom roles
+
+- **Quick:** "quick council" / "rápido" → 2 roles.
+- **Deep:** "deep" / "profundo" → 5–6 roles (add ones relevant to the topic).
+- **Custom:** `-roles:legal,marketing,dev` → use exactly those, each with a sharp prior.
+- **Language:** internal role reasoning in English; final synthesis in the user's language
+  (Portuguese if asked in Portuguese).
+
+---
+
+## PART 8 — Portability
+
+This file is intentionally project-agnostic. To reuse in another project, copy it as-is into that
+project's `.cursor/rules/` directory. It needs no other file to function. If that project also has a
+`council` skill that mentions subagents, this rule supersedes the subagent instructions there too.
