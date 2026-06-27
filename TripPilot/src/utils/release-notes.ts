@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.6.0-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Conexão nos dois aparelhos: quando alguém conecta com você, essa pessoa já aparece pronta para cobrar ou dividir — sem refazer o QR. É só tocar nela no Acerto.',
+        'Mensagem honesta no envio: quando uma cobrança ou pagamento não chega, o app agora diz o motivo de verdade (sem internet, erro do servidor ou falta conectar) — nunca mais “sem internet” quando você está online — e oferece “tentar de novo” quando faz sentido.',
+      ],
+      en: [
+        'Connection on both phones: when someone connects with you, that person now shows up ready to charge or split — no need to redo the QR. Just tap them in the settle-up.',
+        'Honest send status: when a charge or payment doesn’t go through, the app now tells the real reason (offline, server error or not connected yet) — never again “no internet” while you’re online — and offers “try again” when it makes sense.',
+      ],
+      es: [
+        'Conexión en los dos dispositivos: cuando alguien conecta contigo, esa persona ya aparece lista para cobrar o dividir — sin rehacer el QR. Solo tócala en el ajuste de cuentas.',
+        'Mensaje honesto al enviar: cuando un cobro o pago no llega, la app ahora dice el motivo real (sin internet, error del servidor o falta conectar) — nunca más “sin internet” cuando estás en línea — y ofrece “reintentar” cuando tiene sentido.',
+      ],
+    },
+  },
+  {
     version: '1.5.6-rc',
     date: '2026-06-27',
     items: {

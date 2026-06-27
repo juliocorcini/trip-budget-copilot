@@ -1,8 +1,8 @@
 {
-  "version": "1.5.6-rc",
+  "version": "1.6.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.6-rc.zip",
-  "notes": "Sincronização entre aparelhos mais leve e estável: o transporte em tempo real passou a hibernar quando ocioso (consumo bem menor) e ganhou um sinal de saúde, para o app nunca mais dizer 'sem internet' quando a conexão está ok."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.0-rc.zip",
+  "notes": "O acerto P2P chega nos dois aparelhos: quem conecta com você agora aparece como pessoa pronta para cobrar ou dividir (sem refazer QR), e quando um envio falha o app diz o motivo de verdade — nunca mais 'sem internet' quando você está online — com 'tentar de novo' quando faz sentido."
 }
