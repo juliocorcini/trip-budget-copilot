@@ -3115,6 +3115,38 @@
     "queued": "Sem internet — vai enviar quando voltar",
     "no_key": "Conecte-se primeiro (Meu QR) para usar isso."
   },
+  "settle_state": {
+    "draft": "Rascunho",
+    "created": "Criada",
+    "sending": "Enviando…",
+    "sent": "Enviada",
+    "received": "Recebida",
+    "awaiting_acceptance": "Aguardando aceite",
+    "accepted": "Aceita",
+    "rejected": "Rejeitada",
+    "awaiting_payment": "Aguardando pagamento",
+    "marked_paid": "Marcada como paga",
+    "awaiting_confirmation": "Aguardando confirmação",
+    "confirmed": "Confirmada",
+    "cancelled": "Cancelada",
+    "send_failed": "Erro no envio",
+    "expired": "Expirada"
+  },
+  "settle_detail": {
+    "title_debt": "Cobrança recebida",
+    "title_payment": "Pagamento informado",
+    "field_from": "De",
+    "field_what": "Referente a",
+    "field_amount": "Valor",
+    "field_date": "Data",
+    "field_status": "Situação",
+    "field_channel": "Canal",
+    "channel_app": "Pelo app (conectado)",
+    "accept_division": "Aceitar a divisão",
+    "confirm_receipt": "Confirmar recebimento",
+    "open_hint": "Toque para ver os detalhes",
+    "pending_from_person": "Esperando você"
+  },
   "payment_proof": {
     "attach": "Anexar comprovante",
     "attach_optional": "Anexar comprovante (opcional)",

@@ -3111,6 +3111,38 @@
     "queued": "Offline — it'll send when you're back",
     "no_key": "Connect first (My QR) to use this."
   },
+  "settle_state": {
+    "draft": "Draft",
+    "created": "Created",
+    "sending": "Sending…",
+    "sent": "Sent",
+    "received": "Received",
+    "awaiting_acceptance": "Awaiting acceptance",
+    "accepted": "Accepted",
+    "rejected": "Declined",
+    "awaiting_payment": "Awaiting payment",
+    "marked_paid": "Marked as paid",
+    "awaiting_confirmation": "Awaiting confirmation",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "send_failed": "Send failed",
+    "expired": "Expired"
+  },
+  "settle_detail": {
+    "title_debt": "Incoming charge",
+    "title_payment": "Payment reported",
+    "field_from": "From",
+    "field_what": "For",
+    "field_amount": "Amount",
+    "field_date": "Date",
+    "field_status": "Status",
+    "field_channel": "Channel",
+    "channel_app": "In-app (connected)",
+    "accept_division": "Accept the split",
+    "confirm_receipt": "Confirm receipt",
+    "open_hint": "Tap to see details",
+    "pending_from_person": "Waiting for you"
+  },
   "payment_proof": {
     "attach": "Attach proof",
     "attach_optional": "Attach proof (optional)",

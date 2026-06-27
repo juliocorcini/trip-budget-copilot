@@ -15,6 +15,7 @@ import {
   settleStateLabelKey,
   describeSettleState,
   settleStateFromGroupPayment,
+  settleStateFromInboundKind,
 } from '@/domain/settle-flows';
 import type { SettleState } from '@/domain/settle-flows';
 import type { GroupPaymentStatus } from '@/domain/group-split';
@@ -205,5 +206,31 @@ describe('DEC-371 — bridge to the DEC-353 group payment model', () => {
       const closed = isSettleObligationClosed(settleStateFromGroupPayment(g));
       expect(closed).toBe(g === 'confirmed');
     }
+  });
+});
+
+describe('DEC-371 (G6) — bridge to inbound P2P items (receiver viewpoint)', () => {
+  it('an inbound debt is awaiting MY acceptance', () => {
+    expect(settleStateFromInboundKind('debt')).toBe('awaiting_acceptance');
+  });
+
+  it('an inbound payment is awaiting MY confirmation of receipt', () => {
+    expect(settleStateFromInboundKind('payment')).toBe('awaiting_confirmation');
+  });
+
+  it('FAIRNESS — neither inbound state ever reads as "owing" or as danger', () => {
+    for (const kind of ['debt', 'payment'] as const) {
+      const state = settleStateFromInboundKind(kind);
+      expect(settleShowsAsOwing(state)).toBe(false);
+      expect(settleStateTone(state)).not.toBe('danger');
+    }
+  });
+
+  it('both inbound states are open (not closed) and the receiver/creator must act', () => {
+    expect(isSettleObligationClosed(settleStateFromInboundKind('debt'))).toBe(false);
+    expect(isSettleObligationClosed(settleStateFromInboundKind('payment'))).toBe(false);
+    // The debt awaits the receiver; the payment confirmation awaits the creditor (creator convention).
+    expect(settleActionableBy(settleStateFromInboundKind('debt'))).toBe('receiver');
+    expect(settleActionableBy(settleStateFromInboundKind('payment'))).toBe('creator');
   });
 });

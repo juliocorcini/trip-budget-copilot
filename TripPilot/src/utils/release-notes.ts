@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.1-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Pendências de acerto agora abrem uma tela de detalhe: toque em uma cobrança ou pagamento recebido para ver de quem é, o valor, a data e o status — e aja ali mesmo (aceitar a divisão, confirmar recebimento ou recusar).',
+        'Os botões ficaram mais claros: "Aceitar a divisão" e "Confirmar recebimento" agora são ações distintas. A pendência também aparece no perfil da pessoa.',
+      ],
+      en: [
+        'Settle-up pending items now open a detail screen: tap a charge or a received payment to see who it’s from, the amount, the date and the status — and act right there (accept the split, confirm receipt or decline).',
+        'Clearer buttons: "Accept the split" and "Confirm receipt" are now distinct actions. The pending item also shows in the person’s profile.',
+      ],
+      es: [
+        'Los pendientes de ajuste ahora abren una pantalla de detalle: toca un cobro o un pago recibido para ver de quién es, el importe, la fecha y el estado — y actúa ahí mismo (aceptar la división, confirmar recepción o rechazar).',
+        'Botones más claros: "Aceptar la división" y "Confirmar recepción" ahora son acciones distintas. El pendiente también aparece en el perfil de la persona.',
+      ],
+    },
+  },
+  {
     version: '1.5.0-rc',
     date: '2026-06-27',
     items: {

@@ -342,3 +342,18 @@ export function settleStateFromGroupPayment(status: GroupPaymentStatus): SettleS
       return 'cancelled';
   }
 }
+
+/** The inbound P2P kinds that carry a settle obligation (a `group_invite` does not). */
+export type InboundSettleKind = 'debt' | 'payment';
+
+/**
+ * DEC-371 (G6) — map an inbound P2P item, from MY (the recipient's) viewpoint, to
+ * the 15-state vocabulary so the inbox + detail render one state language:
+ *  - an inbound `debt` ("you owe me X") is awaiting MY acceptance ⇒ `awaiting_acceptance`;
+ *  - an inbound `payment` ("I paid you" / "you paid me") is awaiting MY confirmation
+ *    of receipt ⇒ `awaiting_confirmation` (FAIRNESS: never reads as "owing").
+ * Pure + total over the obligation kinds (a `group_invite` is not a settle state).
+ */
+export function settleStateFromInboundKind(kind: InboundSettleKind): SettleState {
+  return kind === 'debt' ? 'awaiting_acceptance' : 'awaiting_confirmation';
+}

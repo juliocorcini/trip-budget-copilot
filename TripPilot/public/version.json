@@ -1,8 +1,8 @@
 {
-  "version": "1.5.0-rc",
+  "version": "1.5.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.0-rc.zip",
-  "notes": "Acerto direto com quem usa o app: ao cobrar o saldo de uma pessoa conectada, a cobrança chega na hora no celular dela (aviso + tela inicial + Acerto de contas) para aceitar com um toque — sem precisar mandar link. Para quem ainda não usa o app, segue o envio por link/QR."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.1-rc.zip",
+  "notes": "Pendências de acerto agora abrem uma tela de detalhe: toque em uma cobrança ou pagamento recebido para ver de quem é, o valor, a data e o status, e aja ali mesmo — aceitar a divisão, confirmar recebimento ou recusar. Os botões ficaram mais claros e a pendência também aparece no perfil da pessoa."
 }

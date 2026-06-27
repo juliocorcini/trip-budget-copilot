@@ -23,7 +23,13 @@ import type {
   StatementLineGroup,
 } from '@/domain/splitting';
 import { findSubcategory } from '@/domain/outing';
-import { resolveSettlementDelivery } from '@/domain/settle-flows';
+import {
+  resolveSettlementDelivery,
+  settleStateFromInboundKind,
+  settleStateTone,
+  settleStateLabelKey,
+  type SettleTone,
+} from '@/domain/settle-flows';
 import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
@@ -198,6 +204,38 @@ function PersonRow({
   );
 }
 
+// G6 · DEC-371 — the 15-state model's display tones → design tokens (same fairness
+// palette as the group `PaymentTone` pill). `pending` waits on someone (amber),
+// `neutral` is "in good standing, in progress" (never danger), `muted` is voided.
+const SETTLE_TONE_PILL: Record<SettleTone, string> = {
+  positive: 'text-success bg-success/15',
+  neutral: 'text-primary bg-primary/15',
+  pending: 'text-warning bg-warning/15',
+  danger: 'text-error bg-error/15',
+  muted: 'text-on-surface-faint bg-surface-high',
+};
+
+/** G6 · DEC-371 — a small status pill rendering a settle state in its fairness tone. */
+function SettleStateChip({ state, t }: { state: ReturnType<typeof settleStateFromInboundKind>; t: Translate }) {
+  return (
+    <span
+      className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg shrink-0 ${SETTLE_TONE_PILL[settleStateTone(state)]}`}
+    >
+      {t(settleStateLabelKey(state))}
+    </span>
+  );
+}
+
+/** G6 · DEC-369 (F3) — one label/value row of the inbound-item detail screen. */
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs text-on-surface-dim shrink-0">{label}</span>
+      <span className="text-xs font-semibold text-on-surface text-right truncate">{value}</span>
+    </div>
+  );
+}
+
 export function SharedExpensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -291,6 +329,9 @@ export function SharedExpensesPage() {
   );
   // L8: confirming a payment I RECEIVED opens a fund/wallet picker (real inflow).
   const [confirmPayItem, setConfirmPayItem] = useState<InboundP2pItem | null>(null);
+  // G6 · DEC-369 (F2/F3) — tapping an inbox card opens this per-item detail screen
+  // (who/what/total/date/proof/status + the per-state actions).
+  const [detailItem, setDetailItem] = useState<InboundP2pItem | null>(null);
   // Send sheets, keyed by the target person (must be a connected peer).
   const [chargeTarget, setChargeTarget] = useState<Participant | null>(null);
   const [chargeAmount, setChargeAmount] = useState('');
@@ -945,7 +986,11 @@ export function SharedExpensesPage() {
                   key={item.itemId}
                   className="rounded-2xl p-4 bg-surface-container border border-[var(--border-faint)] flex flex-col gap-2"
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDetailItem(item)}
+                    className="flex items-center gap-3 w-full text-left btn-press"
+                  >
                     <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                       <Icon name="call_received" size={18} className="text-primary" />
                     </div>
@@ -954,11 +999,15 @@ export function SharedExpensesPage() {
                         {t('p2p.debt_label', { name: item.fromName })}
                       </p>
                       <p className="text-xs text-on-surface-faint truncate">{item.debt.description}</p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <SettleStateChip state={settleStateFromInboundKind('debt')} t={t} />
+                        <span className="text-[10px] text-on-surface-faint">{t('settle_detail.open_hint')}</span>
+                      </div>
                     </div>
                     <p className="text-sm font-extrabold tabular text-on-surface shrink-0">
                       {formatMoney(item.debt.amountCents, item.debt.currency)}
                     </p>
-                  </div>
+                  </button>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRejectInbound(item)}
@@ -972,7 +1021,7 @@ export function SharedExpensesPage() {
                       disabled={busy}
                       className="flex-1 py-2 rounded-xl bg-success/20 text-success text-xs font-bold btn-press disabled:opacity-40"
                     >
-                      {t('p2p.accept')}
+                      {t('settle_detail.accept_division')}
                     </button>
                   </div>
                 </div>
@@ -985,7 +1034,11 @@ export function SharedExpensesPage() {
                   key={item.itemId}
                   className="rounded-2xl p-4 bg-surface-container border border-[var(--border-faint)] flex flex-col gap-2"
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDetailItem(item)}
+                    className="flex items-center gap-3 w-full text-left btn-press"
+                  >
                     <div className="w-9 h-9 rounded-full bg-success/15 flex items-center justify-center shrink-0">
                       <Icon name="payments" size={18} className="text-success" />
                     </div>
@@ -995,11 +1048,15 @@ export function SharedExpensesPage() {
                           ? t('p2p.payment_in_label', { name: item.fromName })
                           : t('p2p.payment_out_label', { name: item.fromName })}
                       </p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <SettleStateChip state={settleStateFromInboundKind('payment')} t={t} />
+                        <span className="text-[10px] text-on-surface-faint">{t('settle_detail.open_hint')}</span>
+                      </div>
                     </div>
                     <p className="text-sm font-extrabold tabular text-success shrink-0">
                       {formatMoney(item.payment.amountCents, item.payment.currency)}
                     </p>
-                  </div>
+                  </button>
                   {/* DEC-363 (Item D) — proof attached by the payer: review before confirming. */}
                   {(item.payment.proofThumb || item.payment.proof) && (
                     <div className="flex items-center gap-2 pl-12">
@@ -1020,7 +1077,7 @@ export function SharedExpensesPage() {
                       disabled={busy}
                       className="flex-1 py-2 rounded-xl bg-success/20 text-success text-xs font-bold btn-press disabled:opacity-40"
                     >
-                      {t('p2p.confirm')}
+                      {t('settle_detail.confirm_receipt')}
                     </button>
                   </div>
                 </div>
@@ -1599,6 +1656,16 @@ export function SharedExpensesPage() {
             if (line.category) return t(`categories.${line.category}` as never);
             return t('shared.statement_unnamed');
           };
+          // G6 · DEC-369 (F1) — surface the SAME pending action inside the person's
+          // profile: a connected peer's awaiting debt/payment shows here too (not only
+          // in the top resolver), and tapping it opens the shared detail screen.
+          const pendingFromPerson = statementTarget.linkedActorId
+            ? inboundItems.filter(
+                (i) =>
+                  i.fromActorId === statementTarget.linkedActorId &&
+                  (i.kind === 'debt' || i.kind === 'payment'),
+              )
+            : [];
           return (
             <div className="flex flex-col gap-3">
               <p
@@ -1620,6 +1687,48 @@ export function SharedExpensesPage() {
                       })
                     : t('shared.balance_zero')}
               </p>
+
+              {pendingFromPerson.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint">
+                    {t('settle_detail.pending_from_person')}
+                  </p>
+                  {pendingFromPerson.map((item) => {
+                    const amountCents =
+                      item.kind === 'debt'
+                        ? (item.debt?.amountCents ?? 0)
+                        : (item.payment?.amountCents ?? 0);
+                    const itemCurrency =
+                      (item.kind === 'debt' ? item.debt?.currency : item.payment?.currency) ??
+                      trip.baseCurrency;
+                    return (
+                      <button
+                        key={item.itemId}
+                        onClick={() => {
+                          setStatementTarget(null);
+                          setDetailItem(item);
+                        }}
+                        className="w-full flex items-center justify-between gap-2 bg-warning/10 rounded-xl px-3 py-2.5 btn-press text-left"
+                      >
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <span className="text-xs font-semibold text-on-surface truncate">
+                            {item.kind === 'debt'
+                              ? t('p2p.debt_label', { name: item.fromName })
+                              : t('p2p.payment_in_label', { name: item.fromName })}
+                          </span>
+                          <SettleStateChip state={settleStateFromInboundKind(item.kind === 'debt' ? 'debt' : 'payment')} t={t} />
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-sm font-bold tabular text-on-surface">
+                            {formatMoney(amountCents, itemCurrency)}
+                          </span>
+                          <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {statement.lines.length === 0 && statement.settlements.length === 0 && (
                 <p className="text-sm text-on-surface-dim">{t('shared.statement_empty')}</p>
@@ -2162,7 +2271,120 @@ export function SharedExpensesPage() {
                 disabled={!fundPoolId || p2pSending}
                 className="flex-1 py-2.5 rounded-xl bg-success/20 text-success font-semibold text-sm btn-press disabled:opacity-40"
               >
-                {t('p2p.confirm')}
+                {t('settle_detail.confirm_receipt')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* G6 · DEC-369 (F2/F3) — the per-item detail screen an inbox card opens to:
+          who / what / total / date / channel / status (the 15-state chip) + the
+          per-state actions, with the verbs kept distinct (F4: accept the split ≠
+          confirm receipt ≠ dismiss). Reuses the same accept/confirm/reject paths. */}
+      <BottomSheet
+        open={detailItem !== null}
+        onClose={() => setDetailItem(null)}
+        title={
+          detailItem?.kind === 'payment'
+            ? t('settle_detail.title_payment')
+            : t('settle_detail.title_debt')
+        }
+      >
+        {detailItem?.kind === 'debt' && detailItem.debt && (
+          <div className="flex flex-col gap-3">
+            <p className="text-2xl font-extrabold tabular text-on-surface">
+              {formatMoney(detailItem.debt.amountCents, detailItem.debt.currency)}
+            </p>
+            <div className="flex flex-col gap-2 rounded-xl bg-surface-container p-3">
+              <DetailField label={t('settle_detail.field_from')} value={detailItem.fromName} />
+              <DetailField
+                label={t('settle_detail.field_what')}
+                value={detailItem.debt.description || t('shared.statement_unnamed')}
+              />
+              {detailItem.debt.occurredAt && (
+                <DetailField
+                  label={t('settle_detail.field_date')}
+                  value={formatShortDate(detailItem.debt.occurredAt)}
+                />
+              )}
+              <DetailField label={t('settle_detail.field_channel')} value={t('settle_detail.channel_app')} />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-on-surface-dim">{t('settle_detail.field_status')}</span>
+                <SettleStateChip state={settleStateFromInboundKind('debt')} t={t} />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => {
+                  handleRejectInbound(detailItem);
+                  setDetailItem(null);
+                }}
+                disabled={p2pBusy === detailItem.itemId}
+                className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press disabled:opacity-40"
+              >
+                {t('p2p.reject')}
+              </button>
+              <button
+                onClick={() => {
+                  handleAcceptDebt(detailItem);
+                  setDetailItem(null);
+                }}
+                disabled={p2pBusy === detailItem.itemId}
+                className="flex-1 py-2.5 rounded-xl bg-success/20 text-success font-semibold text-sm btn-press disabled:opacity-40"
+              >
+                {t('settle_detail.accept_division')}
+              </button>
+            </div>
+          </div>
+        )}
+        {detailItem?.kind === 'payment' && detailItem.payment && (
+          <div className="flex flex-col gap-3">
+            <p className="text-2xl font-extrabold tabular text-success">
+              {formatMoney(detailItem.payment.amountCents, detailItem.payment.currency)}
+            </p>
+            <div className="flex flex-col gap-2 rounded-xl bg-surface-container p-3">
+              <DetailField label={t('settle_detail.field_from')} value={detailItem.fromName} />
+              <DetailField
+                label={t('settle_detail.field_what')}
+                value={
+                  detailItem.payment.direction === 'paid'
+                    ? t('p2p.payment_in_label', { name: detailItem.fromName })
+                    : t('p2p.payment_out_label', { name: detailItem.fromName })
+                }
+              />
+              <DetailField label={t('settle_detail.field_channel')} value={t('settle_detail.channel_app')} />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-on-surface-dim">{t('settle_detail.field_status')}</span>
+                <SettleStateChip state={settleStateFromInboundKind('payment')} t={t} />
+              </div>
+            </div>
+            {(detailItem.payment.proofThumb || detailItem.payment.proof) && (
+              <div className="flex items-center gap-2">
+                <ProofThumb proof={detailItem.payment.proof} thumb={detailItem.payment.proofThumb} size={48} />
+                <span className="text-[12px] font-semibold text-on-surface-dim">{t('payment_proof.label')}</span>
+              </div>
+            )}
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => {
+                  handleRejectInbound(detailItem);
+                  setDetailItem(null);
+                }}
+                disabled={p2pBusy === detailItem.itemId}
+                className="flex-1 py-2.5 rounded-xl bg-surface-high text-on-surface-dim font-medium text-sm btn-press disabled:opacity-40"
+              >
+                {t('p2p.dismiss')}
+              </button>
+              <button
+                onClick={() => {
+                  handleConfirmPayment(detailItem);
+                  setDetailItem(null);
+                }}
+                disabled={p2pBusy === detailItem.itemId}
+                className="flex-1 py-2.5 rounded-xl bg-success/20 text-success font-semibold text-sm btn-press disabled:opacity-40"
+              >
+                {t('settle_detail.confirm_receipt')}
               </button>
             </div>
           </div>
