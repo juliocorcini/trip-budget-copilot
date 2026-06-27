@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.6.1-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Dividir um gasto que você registrou com alguém conectado agora envia a cobrança automaticamente — igual ao “Dividir conta”. Não precisa mais cobrar à mão depois.',
+        'Enquanto a pessoa não aceita, você vê “Aguardando aceite” em vez de “em dia”, então o acerto sempre conta a verdade.',
+      ],
+      en: [
+        'Splitting an expense you logged with a connected person now delivers the charge automatically — just like “Split the bill”. No more charging by hand afterwards.',
+        'Until they accept, you see “Awaiting acceptance” instead of “all settled”, so the settle-up always tells the truth.',
+      ],
+      es: [
+        'Dividir un gasto que registraste con alguien conectado ahora envía el cobro automáticamente — igual que “Dividir la cuenta”. Ya no hace falta cobrar a mano después.',
+        'Hasta que la persona acepte, ves “Esperando aceptación” en vez de “al día”, así el ajuste de cuentas siempre dice la verdad.',
+      ],
+    },
+  },
+  {
     version: '1.6.0-rc',
     date: '2026-06-27',
     items: {

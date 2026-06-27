@@ -1,8 +1,8 @@
 {
-  "version": "1.6.0-rc",
+  "version": "1.6.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.0-rc.zip",
-  "notes": "O acerto P2P chega nos dois aparelhos: quem conecta com você agora aparece como pessoa pronta para cobrar ou dividir (sem refazer QR), e quando um envio falha o app diz o motivo de verdade — nunca mais 'sem internet' quando você está online — com 'tentar de novo' quando faz sentido."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.1-rc.zip",
+  "notes": "Dividir um gasto que você registrou com alguém conectado agora envia a cobrança automaticamente — igual ao 'Dividir conta'. Enquanto a pessoa não aceita, você vê 'Aguardando aceite' no lugar de 'em dia'."
 }

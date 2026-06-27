@@ -1,6 +1,6 @@
 # Dev Log — TripPilot Implementation
 
-## Leva "Acerto que chega de verdade" — transporte P2P (duração) + conexão bilateral + entrega + campo #5 (2026-06-27) — base `1.5.5-rc` → target `1.6.4-rc` — 🟡 IN PROGRESS (G0✅ G1✅ → G6)
+## Leva "Acerto que chega de verdade" — transporte P2P (duração) + conexão bilateral + entrega + campo #5 (2026-06-27) — base `1.5.5-rc` → target `1.6.4-rc` — 🟡 IN PROGRESS (G0✅ G1✅ G2✅ G3✅ → G6)
 
 > Execution truth: `brain/documents/2026-06-27-p2p-delivery-truth-orchestrator.md` (gates **G0→G6**, **DEC-374→384**). Re-teste de campo da leva settle-flows (DEC-366/369 — código cliente certo, **invisível porque o transporte estava capado por DURAÇÃO** no free tier). Keystone: o `500/1101` **não é bug** — é o teto de duração (13k GB-s/dia) cortando os Durable Objects até o **reset diário (28/06 00:00 UTC)**; ~99% veio do `ShareSignal` (WebSocket sem Hibernation), amplificado por dev/preview/E2E batendo em produção. **Aritmética do acerto INVARIANTE.** Single session, deploy por gate (Pages OTA; G1 também worker). Gate mais recente primeiro.
 
@@ -12,10 +12,10 @@
 - Hide-never-delete; `t()` sempre; código em inglês; reusar DEC-366/369/371, não reinventar.
 
 ### CURRENT STATE
-- **Active gate**: **G2 ✅ shipped `1.6.0-rc`** (HEADLINE — conexão bilateral + status honesto) → próximo **G3** (split manual entrega igual ao dividir, L-SPLIT, `1.6.1-rc`).
-- **Last commit**: G2 `1.6.0-rc` — DEC-375 status honesto (`0bc04d9`) + DEC-376 conexão bilateral (`4b1b562`) + bump/brain. Push → Pages auto-build. Worker **inalterado** desde G1 (nenhuma mudança de worker no G2). Prior: G1 `1.5.6-rc` worker `/health` (CF `d30dc1a6`) + keystone `ab50fa1` (hibernação + env, prod CF `bfa12d49…`).
-- **Tests**: **2658 pass / 2660** (G0 base 2639/2641; **+19**: +9 `delivery-status` (DEC-375), +6 `people-view` + +4 `p2p-orchestrators` (DEC-376)). As 2 falhas `split-live-loop` "real worker" seguem WebCrypto/Node-18 + worker capado — **não-regressão**, verdes no CI Node 22 pós-reset. `tsc --noEmit` limpo; `npm run build` verde (`index` 431.86 KB < 500 KB; chunk `SharedExpensesPage` 75.89 KB). (Um timeout isolado em `money.test` num run paralelo build+test = flake de contenção; passa sozinho 25/25.)
-- **Risks**: verificação ao vivo de 2xx (prod) + métrica de duração caindo **dependem do reset 28/06 00:00 UTC** (ou Workers Paid) — **não bloqueia G2→G6** (codificáveis/testáveis com domínio puro + staging). Pendências manuais (dashboard, não-bloqueantes): Pages → Preview env `VITE_SYNC_WORKER_URL`=staging; alerta de orçamento de duração.
+- **Active gate**: **G3 ✅ shipped `1.6.1-rc`** (L-SPLIT — split manual entrega igual ao "Dividir conta") → próximo **G4** (seleção não-marca-todos + badge conectado, `1.6.2-rc`).
+- **Last commit**: G3 `1.6.1-rc` — DEC-377 split manual auto-entrega (`217fa10`) + bump/brain. Push → Pages auto-build. Worker **inalterado** desde G1 (G2/G3 são só cliente). Prior: G2 `1.6.0-rc` (`0bc04d9`+`4b1b562`+`1dd1a29`); G1 `1.5.6-rc` worker `/health` (CF `d30dc1a6`) + keystone `ab50fa1` (hibernação + env, prod CF `bfa12d49…`).
+- **Tests**: **2665 pass / 2667** (G0 base 2639/2641; **+26**: +9 `delivery-status` (DEC-375), +6 `people-view` + +4 `p2p-orchestrators` (DEC-376), **+7 `manual-split-delivery` (DEC-377)**). As 2 falhas `split-live-loop` "real worker" seguem WebCrypto/Node-18 + worker capado — **não-regressão**, verdes no CI Node 22 pós-reset. `tsc --noEmit` limpo; `npm run build` verde (`index` 431.87 KB < 500 KB; chunk `SharedExpensesPage` 76.17 KB).
+- **Risks**: verificação ao vivo de 2xx (prod) + métrica de duração caindo **dependem do reset 28/06 00:00 UTC** (ou Workers Paid) — **não bloqueia G4→G6** (codificáveis/testáveis com domínio puro + staging). Pendências manuais (dashboard, não-bloqueantes): Pages → Preview env `VITE_SYNC_WORKER_URL`=staging; alerta de orçamento de duração.
 - **Scope**: G1 worker `/health` + bump · G2 bilateral+honest · G3 split manual entrega · G4 seleção+badge · G5 carrossel/install/deep-link · G6 câmera Android (P2).
 
 ### G3 — split manual entrega igual ao "Dividir conta" (done 2026-06-27) — `1.6.1-rc` (L-SPLIT · DEC-377)
