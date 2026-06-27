@@ -37,21 +37,50 @@ export async function ensureLocationPermission(): Promise<LocationPermission> {
 }
 
 /**
+ * DEC-367 (G8): a full GPS fix — coordinates plus the accuracy (meters, when
+ * the platform reports it) and the capture timestamp. Used by the save path to
+ * stamp a point on every expense; `getCurrentCoords` is the thin coords-only
+ * view kept for existing callers.
+ */
+export interface LocationFix {
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+  capturedAt: string;
+}
+
+/** Coerces a possibly-undefined accuracy reading to `number | null`. */
+function normalizeAccuracy(value: number | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Reads the current GPS fix (coords + accuracy + timestamp). Opt-in — only call
+ * when the traveler enabled location capture. NEVER throws and NEVER blocks a
+ * save: resolves null on denial, timeout, unsupported, or any error
+ * (ÂNCORA 8 / 10). Works fully offline and never leaves the device.
+ */
+export function getCurrentFix(timeoutMs: number = 8000): Promise<LocationFix | null> {
+  if (isNativeApp()) return getNativeFix(timeoutMs);
+  return getWebFix(timeoutMs);
+}
+
+/**
  * Reads the current GPS coordinates. Opt-in — only call when the traveler has
  * enabled location capture. NEVER throws and NEVER blocks a save: resolves null
  * on denial, timeout, unsupported, or any error (ÂNCORA 8 / 10). Coordinates
  * work fully offline and never leave the device.
  */
-export function getCurrentCoords(timeoutMs: number = 8000): Promise<Coords | null> {
-  if (isNativeApp()) return getNativeCoords(timeoutMs);
-  return getWebCoords(timeoutMs);
+export async function getCurrentCoords(timeoutMs: number = 8000): Promise<Coords | null> {
+  const fix = await getCurrentFix(timeoutMs);
+  return fix ? { lat: fix.lat, lng: fix.lng } : null;
 }
 
-function getWebCoords(timeoutMs: number): Promise<Coords | null> {
+function getWebFix(timeoutMs: number): Promise<LocationFix | null> {
   if (!isGeolocationSupported()) return Promise.resolve(null);
   return new Promise((resolve) => {
     let settled = false;
-    const finish = (value: Coords | null) => {
+    const finish = (value: LocationFix | null) => {
       if (settled) return;
       settled = true;
       resolve(value);
@@ -59,7 +88,12 @@ function getWebCoords(timeoutMs: number): Promise<Coords | null> {
     try {
       navigator.geolocation.getCurrentPosition(
         (position) =>
-          finish({ lat: position.coords.latitude, lng: position.coords.longitude }),
+          finish({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: normalizeAccuracy(position.coords.accuracy),
+            capturedAt: new Date().toISOString(),
+          }),
         () => finish(null),
         { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 60_000 },
       );
@@ -69,7 +103,7 @@ function getWebCoords(timeoutMs: number): Promise<Coords | null> {
   });
 }
 
-async function getNativeCoords(timeoutMs: number): Promise<Coords | null> {
+async function getNativeFix(timeoutMs: number): Promise<LocationFix | null> {
   try {
     const { Geolocation } = await import('@capacitor/geolocation');
     const position = await Geolocation.getCurrentPosition({
@@ -77,7 +111,12 @@ async function getNativeCoords(timeoutMs: number): Promise<Coords | null> {
       timeout: timeoutMs,
       maximumAge: 60_000,
     });
-    return { lat: position.coords.latitude, lng: position.coords.longitude };
+    return {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+      accuracy: normalizeAccuracy(position.coords.accuracy),
+      capturedAt: new Date().toISOString(),
+    };
   } catch {
     return null;
   }

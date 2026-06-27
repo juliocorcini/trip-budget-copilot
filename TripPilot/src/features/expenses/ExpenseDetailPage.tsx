@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
@@ -31,12 +31,16 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
 import { AttachmentSection } from '@/features/attachments/AttachmentSection';
 import { PlaceField } from '@/features/location/PlaceField';
-import { placeToTransactionFields } from '@/domain/location';
+import { placeToTransactionFields, resolveLocationDisplay } from '@/domain/location';
 import type { Transaction } from '@/domain/types/transaction';
 import type { Session } from '@/domain/types/session';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { CurrentPlace } from '@/domain/types/common';
+
+// DEC-368 (G8): the Leaflet map is code-split — it only downloads when a detail
+// screen with coordinates is actually opened.
+const ExpenseLocationMap = lazy(() => import('@/features/location/ExpenseLocationMap'));
 
 const CATEGORY_KEYS = [
   'bar',
@@ -160,6 +164,22 @@ export function ExpenseDetailPage() {
       )
     : null;
 
+  // DEC-367/368 (G8): decide what the location shows. A PROBABLE (auto) name is
+  // rendered "provavelmente {name}"; an interactive map renders when coordinates
+  // exist, with an "unconfirmed" caption unless the traveler named the place.
+  const locationDisplay = resolveLocationDisplay({
+    latitude: tx.latitude,
+    longitude: tx.longitude,
+    placeLabel: tx.placeLabel,
+    placeNameSource: tx.placeNameSource,
+  });
+  const locationRowText =
+    locationDisplay.caption.kind === 'probable'
+      ? t('expenses.location_probable', { name: locationDisplay.caption.name })
+      : locationDisplay.caption.kind === 'named'
+        ? locationDisplay.caption.name
+        : null;
+
   const startEdit = () => {
     setEditAmount(fromCents(tx.amountCents).toFixed(2));
     setEditDescription(tx.description);
@@ -214,6 +234,9 @@ export function ExpenseDetailPage() {
         walletId: editWalletId,
         date: newDate,
         ...placeToTransactionFields(editPlace),
+        // DEC-367 (G8): a place picked in "detalhes" is traveler-confirmed, so it
+        // drops any earlier PROBABLE flag (no more "provavelmente").
+        placeNameSource: editPlace ? 'user' : null,
       });
       setTx(updated);
       setShares(newShares);
@@ -325,7 +348,9 @@ export function ExpenseDetailPage() {
             <DetailRow label={t('expenses.date')} value={formatDate(localDayOf(tx.date))} />
             {/* M5: local wall-clock time + place (place row only when present). */}
             <DetailRow label={t('expenses.time')} value={localClockTime(tx.date)} />
-            {tx.placeLabel && <DetailRow label={t('expenses.location_label')} value={tx.placeLabel} />}
+            {locationRowText && (
+              <DetailRow label={t('expenses.location_label')} value={locationRowText} />
+            )}
             <DetailRow label={t('expenses.fund')} value={pool?.name ?? '—'} />
             <DetailRow
               label={t('expenses.wallet')}
@@ -345,6 +370,30 @@ export function ExpenseDetailPage() {
               </>
             )}
           </div>
+
+          {/* DEC-368 (G8): interactive map for the saved point — lazy Leaflet, so
+              it only downloads when an expense with coordinates is opened. The
+              caption flags an unconfirmed point unless the traveler named it. */}
+          {locationDisplay.hasMap && (
+            <div className="space-y-1">
+              <Suspense
+                fallback={
+                  <div className="w-full h-44 rounded-xl bg-surface-container animate-pulse" />
+                }
+              >
+                <ExpenseLocationMap
+                  lat={tx.latitude as number}
+                  lng={tx.longitude as number}
+                  label={locationRowText ?? t('expenses.location_label')}
+                />
+              </Suspense>
+              {locationDisplay.caption.kind !== 'named' && (
+                <p className="text-[11px] text-on-surface-faint px-1">
+                  {t('expenses.location_unverified')}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* G9 (audit §4.5): name the two technical labels in one plain line. */}
           {tx.isShared && (

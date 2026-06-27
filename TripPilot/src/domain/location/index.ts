@@ -12,6 +12,18 @@ export {
 } from './location';
 export type { Coords, TransactionPlaceFields, RecentPlace, PlaceTotal, PlaceSuggestion } from './location';
 export {
+  resolveSaveLocation,
+  resolveLocationDisplay,
+} from './save-location';
+export type {
+  SaveLocationInput,
+  SaveLocationFields,
+  SaveLocationFix,
+  LocationDisplayInput,
+  LocationDisplay,
+  LocationCaption,
+} from './save-location';
+export {
   osmFiltersForCategory,
   buildOverpassQuery,
   parseOverpassPlaces,

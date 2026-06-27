@@ -13,8 +13,10 @@ import {
 } from '@/domain/transactions';
 import type { ExpenseSuggestion } from '@/domain/transactions';
 import { resolvePayerExpense, collectSplitNotifyTargets } from '@/domain/splitting';
-import { placeToTransactionFields, placesEqual } from '@/domain/location';
-import { appSettingsRepository, attachmentRepository } from '@/data/repositories';
+import { placeToTransactionFields, placesEqual, resolveSaveLocation } from '@/domain/location';
+import { getCurrentFix } from '@/utils/geolocation';
+import { reverseGeocodePlace } from '@/utils/places';
+import { appSettingsRepository, attachmentRepository, transactionRepository } from '@/data/repositories';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Transaction } from '@/domain/types/transaction';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
@@ -539,6 +541,29 @@ export function QuickAddPage() {
     return { transaction: tx, shares: finalShares };
   };
 
+  // DEC-367 (G8): best-effort BACKGROUND location stamp so the #1 action never
+  // waits. Captures the current GPS fix, then a PROBABLE (unverified) name only
+  // when the expense has no name yet, and patches the saved record. Never throws.
+  const stampExpenseLocation = async (saved: Transaction, wasDetailsOpen: boolean): Promise<void> => {
+    const fix = await getCurrentFix();
+    if (!fix) return;
+    const hasName = saved.placeLabel !== null && saved.placeLabel.trim() !== '';
+    const autoName = hasName ? null : await reverseGeocodePlace({ lat: fix.lat, lng: fix.lng });
+    const loc = resolveSaveLocation({
+      detailsOpen: wasDetailsOpen,
+      chosen: {
+        placeLabel: saved.placeLabel,
+        latitude: null,
+        longitude: null,
+        placeId: saved.placeId,
+      },
+      fix,
+      autoName,
+    });
+    await transactionRepository.update({ ...saved, ...loc });
+    notifyAppDataChanged();
+  };
+
   const persistExpense = async (): Promise<{ transaction: Transaction; shares: ParticipantShare[] }> => {
     const { transaction, shares } = buildExpense();
     await registerExpense({ transaction, shares });
@@ -563,6 +588,12 @@ export function QuickAddPage() {
     }
     if (Object.keys(settingsPatch).length > 0) {
       await appSettingsRepository.update(settingsPatch);
+    }
+    // DEC-367 (G8): when the chosen place carries no coordinates (a fast save
+    // with "detalhes" closed), stamp the point in the background — the save
+    // returns instantly and the expense still lands on the map.
+    if (locationEnabled && transaction.latitude === null) {
+      void stampExpenseLocation(transaction, detailsOpen);
     }
     // GAP-R2-005: idempotent — ensures storage persistence after the first expense.
     requestPersistentStorage();

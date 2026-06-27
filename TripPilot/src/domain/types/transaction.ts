@@ -25,6 +25,18 @@ export interface Transaction extends SyncMetadata {
   latitude: number | null;
   longitude: number | null;
   placeId: string | null;
+  /**
+   * DEC-367 (G8): provenance of `placeLabel`. `'user'` = the traveler opened
+   * "detalhes" and chose/confirmed the place (verified). `'auto'` = the app
+   * reverse-geocoded a PROBABLE name on the save path without confirmation
+   * (shown as "provavelmente {name}"). null/undefined = no name or a legacy
+   * record. Additive + NOT indexed (no Dexie migration).
+   */
+  placeNameSource?: 'auto' | 'user' | null;
+  /** DEC-367 (G8): GPS accuracy in meters at capture, when known. Additive. */
+  locationAccuracy?: number | null;
+  /** DEC-367 (G8): ISO timestamp of the coordinate capture. Additive. */
+  locationCapturedAt?: string | null;
   description: string;
   date: string;
   isShared: boolean;

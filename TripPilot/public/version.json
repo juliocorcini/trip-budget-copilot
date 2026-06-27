@@ -1,8 +1,8 @@
 {
-  "version": "1.5.2-rc",
+  "version": "1.5.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.2-rc.zip",
-  "notes": "O leitor de QR do app agora abre qualquer QR do TripPilot (conexão, extrato, divisão em grupo, link compartilhado) na tela certa — antes só servia para conectar. E todo QR que o app mostra é um link, então a câmera comum do celular abre direto, sem 'nenhum dado usável'."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.3-rc.zip",
+  "notes": "Cada gasto agora guarda o ponto no mapa ao salvar (sem atrasar o registro) e o detalhe do gasto mostra um mapa interativo. Quando o app adivinha o nome do lugar, ele aparece como 'provavelmente …' e marcado como não confirmado."
 }

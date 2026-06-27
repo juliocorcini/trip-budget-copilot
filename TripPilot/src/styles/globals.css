@@ -405,3 +405,24 @@ a.bg-primary,
 [role='button'].bg-primary {
   color: #fff;
 }
+
+/* DEC-368 (G8): expense location map (Leaflet, lazy). The marker is a CSS dot so
+   no image asset is needed under the bundler; the default Leaflet div-icon box
+   (white background + border) is stripped. Container inherits the app font. */
+.leaflet-container {
+  font: inherit;
+  background: var(--surface-high, #e5e7eb);
+}
+.expense-map-pin {
+  background: transparent;
+  border: 0;
+}
+.expense-map-pin__dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.18);
+}

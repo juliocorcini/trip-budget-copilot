@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.3-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Cada gasto agora guarda o ponto no mapa quando você salva — mesmo sem abrir os detalhes — e sem atrasar o registro (o local é capturado em segundo plano).',
+        'O detalhe do gasto mostra um mapa interativo do lugar. Quando o app adivinha o nome do local, ele aparece como "provavelmente …" e marcado como não confirmado.',
+      ],
+      en: [
+        'Every expense now saves its point on the map when you save — even without opening the details — without slowing the entry down (the location is captured in the background).',
+        'The expense detail shows an interactive map of the place. When the app guesses the place name, it appears as "probably …" and flagged as unconfirmed.',
+      ],
+      es: [
+        'Cada gasto ahora guarda su punto en el mapa cuando lo guardas — incluso sin abrir los detalles — sin ralentizar el registro (la ubicación se captura en segundo plano).',
+        'El detalle del gasto muestra un mapa interactivo del lugar. Cuando la app adivina el nombre del lugar, aparece como "probablemente …" y marcado como no confirmado.',
+      ],
+    },
+  },
+  {
     version: '1.5.2-rc',
     date: '2026-06-27',
     items: {
