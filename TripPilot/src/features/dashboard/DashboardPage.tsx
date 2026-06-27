@@ -8,6 +8,7 @@ import { formatDate, localDateString } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import { isNativeApp } from '@/utils/native/platform';
+import { shouldShowInstallNudge } from '@/features/install/install-nudge';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
 import {
@@ -430,6 +431,11 @@ export function DashboardPage() {
     isDemo: settings.isDemo,
     storageAtRisk: showStorageWarning,
     locationNoticeActive,
+    // DEC-380: the InstallNudge banner already carries the install prompt, so the
+    // carousel drops the duplicate install/storage card (kept only for a real
+    // backup CTA, which is a distinct action).
+    installNudgeActive: shouldShowInstallNudge(),
+    backupCtaActive: strongBackupCta,
   }).map((id) => ({ id, node: alertNodeById[id] }));
 
   return (

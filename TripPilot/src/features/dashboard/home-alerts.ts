@@ -17,14 +17,31 @@ export interface HomeAlertConditions {
   storageAtRisk: boolean;
   /** First-run location-default notice still unacknowledged. */
   locationNoticeActive: boolean;
+  /**
+   * DEC-380: the dedicated `InstallNudge` banner is currently showing. When it
+   * is, the carousel's install-flavored storage card duplicates it — so we drop
+   * the card unless it is a genuine backup prompt (see `backupCtaActive`).
+   */
+  installNudgeActive: boolean;
+  /**
+   * DEC-380: the storage card is a real "back up your data" prompt (existing
+   * data to protect), a concern distinct from installing — kept even while the
+   * install nudge shows.
+   */
+  backupCtaActive: boolean;
 }
 
 export function selectHomeAlertIds(c: HomeAlertConditions): HomeAlertId[] {
   // In demo, only the calm informational notice — never a fear banner.
   if (c.isDemo) return ['demo'];
   const ids: HomeAlertId[] = [];
-  // Data-loss risk leads (most urgent), then the one-time transparency notice.
-  if (c.storageAtRisk) ids.push('storage_warning');
+  // DEC-380: data-loss risk leads, BUT when the InstallNudge already owns the
+  // install prompt the card is a redundant second "install to protect your
+  // data" — drop it, unless it is a real backup prompt (distinct action).
+  if (c.storageAtRisk && (c.backupCtaActive || !c.installNudgeActive)) {
+    ids.push('storage_warning');
+  }
+  // Then the one-time transparency notice.
   if (c.locationNoticeActive) ids.push('location_notice');
   return ids;
 }

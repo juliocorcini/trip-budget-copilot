@@ -7,8 +7,9 @@ import { dismissInstallNudge, shouldShowInstallNudge } from './install-nudge';
 /**
  * Item A (DEC-362) — the gentle, dismissible install nudge. Mounted once in the
  * app shell; shows only to non-installed web users (gate in `install-nudge`).
- * "X" snoozes for 7 days; "não mostrar de novo" silences it for good. Opening
- * the sheet also hides the banner for this session.
+ * DEC-380: dismissal is ONLY a 7-day snooze ("X") — the easy permanent "don't
+ * show again" is gone, so a traveler who needs the install reminder always sees
+ * it again. Opening the sheet also hides the banner for this session.
  */
 export function InstallNudge() {
   const { t } = useTranslation();
@@ -17,10 +18,6 @@ export function InstallNudge() {
 
   const snooze = () => {
     dismissInstallNudge(false);
-    setVisible(false);
-  };
-  const never = () => {
-    dismissInstallNudge(true);
     setVisible(false);
   };
 
@@ -44,12 +41,6 @@ export function InstallNudge() {
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-bold text-on-surface leading-tight">{t('install.nudge_title')}</p>
           <p className="text-[11px] text-on-surface-dim leading-snug">{t('install.nudge_subtitle')}</p>
-          <button
-            onClick={never}
-            className="text-[10px] font-semibold text-on-surface-faint mt-1 btn-press"
-          >
-            {t('install.nudge_never')}
-          </button>
         </div>
         <button
           onClick={() => {
