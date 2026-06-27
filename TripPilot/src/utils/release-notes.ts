@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.15-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Privacidade do microfone: depois de usar a voz na Entrada por IA, o microfone é liberado na hora — antes, no iPhone, o indicador podia ficar aceso como se ainda estivesse gravando.',
+        'A tela mostra claramente os estados da voz (ouvindo… / processando…), e fechar ou cancelar libera o microfone imediatamente.',
+      ],
+      en: [
+        'Microphone privacy: after using voice in AI Quick Entry, the mic is released right away — before, on iPhone, the indicator could stay lit as if it were still recording.',
+        'The screen now clearly shows the voice states (listening… / processing…), and closing or cancelling frees the microphone immediately.',
+      ],
+      es: [
+        'Privacidad del micrófono: después de usar la voz en la Entrada por IA, el micrófono se libera al instante — antes, en iPhone, el indicador podía quedar encendido como si siguiera grabando.',
+        'La pantalla ahora muestra claramente los estados de la voz (escuchando… / procesando…), y cerrar o cancelar libera el micrófono de inmediato.',
+      ],
+    },
+  },
+  {
     version: '1.4.14-rc',
     date: '2026-06-27',
     items: {

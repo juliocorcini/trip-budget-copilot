@@ -37,6 +37,17 @@ import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
 import { isNativeApp } from '@/utils/native/platform';
+import { isVoiceListening, type VoiceState } from '@/domain/voice/voice-state';
+
+/**
+ * DEC-365 (B1): a uniform mic handle. Whatever the capture path (Web Speech,
+ * PCM, MediaRecorder), `stop()` ends gracefully (keep the result) and `cancel()`
+ * releases the mic NOW (close / unmount). Both guarantee the mic is freed.
+ */
+interface VoiceHandle {
+  stop: () => void;
+  cancel: () => void;
+}
 import { bumpTelemetryCounter } from '@/utils/telemetry-events';
 import { showToast } from '@/components/Toast';
 import type { Participant } from '@/domain/types/participant';
@@ -111,6 +122,8 @@ export interface UseAssistant {
   /** True while the current preview came from a scanned photo (offers "open items"). */
   fromPhoto: boolean;
   listening: boolean;
+  /** DEC-365 (B1): the explicit mic lifecycle state for the UI status label. */
+  voiceState: VoiceState;
   voiceAvailable: boolean;
   setText: (value: string) => void;
   submit: (textOverride?: string) => Promise<void>;
@@ -165,7 +178,10 @@ export function useAssistant(): UseAssistant {
   const [clarification, setClarification] = useState<Clarification | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
-  const [listening, setListening] = useState(false);
+  // DEC-365 (B1): the explicit mic lifecycle (off/asking/capturing/processing/…).
+  // `listening` (the live pulse) is derived so the two can never desync.
+  const [voiceState, setVoiceState] = useState<VoiceState>('off');
+  const listening = isVoiceListening(voiceState);
   // FB-26 (DEC-276): when Groq's free tier is exhausted the AI triggers gate
   // until the cooldown expires. The ref is the source of truth read inside async
   // callbacks (no stale closure / dep churn); `cooldownTick` only re-renders the
@@ -191,7 +207,7 @@ export function useAssistant(): UseAssistant {
   // receipt page without a second OCR call (no token spent twice).
   const receiptPlanRef = useRef<ReceiptPlan | null>(null);
   const receiptImageRef = useRef<CompressedImage | null>(null);
-  const stopVoiceRef = useRef<(() => void) | null>(null);
+  const voiceRef = useRef<VoiceHandle | null>(null);
   const transcriptRef = useRef('');
 
   const enabled = data.settings?.aiQuickEntryEnabled ?? false;
@@ -764,23 +780,35 @@ export function useAssistant(): UseAssistant {
         setPhase('error');
         return;
       }
-      setListening(true);
-      stopVoiceRef.current = () => {
-        stopVoiceRef.current = null;
+      setVoiceState('capturing');
+      // `recording.stop()` releases the mic synchronously (its cleanup runs before
+      // the first await), so both stop and cancel free the device immediately;
+      // only `deliver` decides whether we then transcribe.
+      let pcmDone = false;
+      const finishPcm = (deliver: boolean): void => {
+        if (pcmDone) return;
+        pcmDone = true;
+        voiceRef.current = null;
         void (async () => {
           let blob: Blob;
           try {
             blob = await recording.stop();
           } catch {
-            setListening(false);
+            setVoiceState('error');
             setErrorKey('error.failed');
             setPhase('error');
             return;
           }
-          setListening(false);
+          if (!deliver) {
+            setVoiceState('off');
+            return;
+          }
+          setVoiceState('processing');
           await transcribeAndSubmit(blob);
+          setVoiceState('off');
         })();
       };
+      voiceRef.current = { stop: () => finishPcm(true), cancel: () => finishPcm(false) };
       return;
     }
 
@@ -794,15 +822,19 @@ export function useAssistant(): UseAssistant {
       };
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
-        setListening(false);
-        stopVoiceRef.current = null;
+        voiceRef.current = null;
+        setVoiceState('processing');
         const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
         await transcribeAndSubmit(blob);
+        setVoiceState('off');
       };
       recorder.start();
-      setListening(true);
-      stopVoiceRef.current = () => recorder.stop();
+      setVoiceState('capturing');
+      // stop() ends gracefully (onstop transcribes); cancel() also stops the
+      // recorder — onstop still releases the tracks, so the mic is freed either way.
+      voiceRef.current = { stop: () => recorder.stop(), cancel: () => recorder.stop() };
     } catch {
+      setVoiceState('error');
       setErrorKey('error.mic_denied');
       setPhase('error');
     }
@@ -810,7 +842,8 @@ export function useAssistant(): UseAssistant {
 
   const toggleVoice = useCallback(async () => {
     if (listening) {
-      stopVoiceRef.current?.();
+      // A second tap = "I'm done": end gracefully so the final transcript lands.
+      voiceRef.current?.stop();
       return;
     }
     if (blockedByCooldown()) return;
@@ -822,33 +855,39 @@ export function useAssistant(): UseAssistant {
     // the Whisper path, whose getUserMedia triggers the real RECORD_AUDIO prompt.
     if (!isNativeApp() && isSpeechRecognitionSupported()) {
       transcriptRef.current = '';
-      setListening(true);
-      const stop = startVoiceCapture(i18n.language, {
+      setVoiceState('capturing');
+      const controller = startVoiceCapture(i18n.language, {
         onResult: (transcript) => {
           transcriptRef.current = transcript;
           setText(transcript);
         },
+        // The boundary already aborted + released the mic before calling back.
         onError: () => {
-          setListening(false);
-          stopVoiceRef.current = null;
+          voiceRef.current = null;
+          setVoiceState('error');
         },
         onEnd: () => {
-          setListening(false);
-          stopVoiceRef.current = null;
+          voiceRef.current = null;
           const transcript = transcriptRef.current.trim();
-          if (transcript !== '') void submit(transcript);
+          if (transcript !== '') {
+            setVoiceState('off');
+            void submit(transcript);
+          } else {
+            setVoiceState('off');
+          }
         },
       });
-      stopVoiceRef.current = stop;
-      if (!stop) setListening(false);
+      voiceRef.current = controller;
+      if (!controller) setVoiceState('off');
       return;
     }
     await startWhisperCapture();
   }, [listening, i18n.language, submit, startWhisperCapture, blockedByCooldown]);
 
   const reset = useCallback(() => {
-    stopVoiceRef.current?.();
-    stopVoiceRef.current = null;
+    // Hard-release the mic immediately (close/clear must drop the OS indicator).
+    voiceRef.current?.cancel();
+    voiceRef.current = null;
     intentRef.current = null;
     planRef.current = null;
     intentsRef.current = [];
@@ -867,15 +906,17 @@ export function useAssistant(): UseAssistant {
     setClarification(null);
     setNote(null);
     setErrorKey(null);
-    setListening(false);
+    setVoiceState('off');
     setFromPhoto(false);
     setPhase('input');
   }, []);
 
-  // Stop any live capture if the consumer unmounts mid-listen.
+  // DEC-365 (B1): release the mic if the consumer unmounts mid-listen — `cancel`
+  // aborts the engine / stops the tracks so the OS recording indicator clears.
   useEffect(() => {
     return () => {
-      stopVoiceRef.current?.();
+      voiceRef.current?.cancel();
+      voiceRef.current = null;
     };
   }, []);
 
@@ -899,6 +940,7 @@ export function useAssistant(): UseAssistant {
     photoEnabled,
     fromPhoto,
     listening,
+    voiceState,
     voiceAvailable,
     setText,
     submit,

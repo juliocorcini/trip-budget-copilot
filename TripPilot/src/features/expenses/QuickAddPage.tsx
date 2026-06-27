@@ -38,7 +38,11 @@ import {
   softDeleteTransactionsBatch,
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
-import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
+import {
+  isSpeechRecognitionSupported,
+  startVoiceCapture,
+  type VoiceCaptureController,
+} from '@/utils/speech-recognition';
 import { recordExpenseForSnapshot } from '@/utils/emergency-snapshot';
 import { recordDailyLocalSnapshot } from '@/utils/local-snapshot';
 import { parseSharedExpense } from '@/domain/sharing';
@@ -148,6 +152,15 @@ export function QuickAddPage() {
   const [splitNudgeAmounts, setSplitNudgeAmounts] = useState<Map<string, number>>(new Map());
   // M11: optional voice capture — only offered when the browser supports it.
   const [listening, setListening] = useState(false);
+  // DEC-365 (B1): hold the live capture so we can hard-release the mic on a
+  // second tap or on unmount (Web Speech leaves the iOS indicator lit otherwise).
+  const voiceControllerRef = useRef<VoiceCaptureController | null>(null);
+  useEffect(() => {
+    return () => {
+      voiceControllerRef.current?.cancel();
+      voiceControllerRef.current = null;
+    };
+  }, []);
 
   // DEC-246 (AI Quick Entry escape hatch): a fully pre-filled draft handed over
   // by the assistant sheet for the heavy cases (foreign currency, custom split,
@@ -377,9 +390,15 @@ export function QuickAddPage() {
   // M11: speak the expense — fills amount + description; the user reviews it.
   const voiceSupported = !isTransferLike && isSpeechRecognitionSupported();
   const handleVoiceCapture = () => {
-    if (listening) return;
+    // DEC-365 (B1): a second tap while listening cancels + releases the mic NOW.
+    if (listening) {
+      voiceControllerRef.current?.cancel();
+      voiceControllerRef.current = null;
+      setListening(false);
+      return;
+    }
     setListening(true);
-    startVoiceCapture(i18n.language, {
+    voiceControllerRef.current = startVoiceCapture(i18n.language, {
       onResult: (transcript) => {
         const parsed = parseVoiceExpense(transcript);
         if (parsed.amountCents !== null && parsed.amountCents > 0) {
@@ -387,9 +406,16 @@ export function QuickAddPage() {
         }
         if (parsed.description !== '') setDescription(parsed.description);
       },
-      onError: () => setListening(false),
-      onEnd: () => setListening(false),
+      onError: () => {
+        voiceControllerRef.current = null;
+        setListening(false);
+      },
+      onEnd: () => {
+        voiceControllerRef.current = null;
+        setListening(false);
+      },
     });
+    if (!voiceControllerRef.current) setListening(false);
   };
 
   // DEC-128: mental anchor while typing — "€20 ≈ R$ 124".
@@ -831,7 +857,6 @@ export function QuickAddPage() {
         {voiceSupported && (
           <button
             onClick={handleVoiceCapture}
-            disabled={listening}
             className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg btn-press ${
               listening ? 'bg-primary/20 ring-1 ring-primary' : 'bg-surface-high'
             }`}

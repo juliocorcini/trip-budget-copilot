@@ -2538,6 +2538,15 @@
     "settings_entry": "Payment methods",
     "settings_hint": "Pix, Wise, bank account or free text — added to the reminder message."
   },
+  "voice": {
+    "state_off": "Microphone off",
+    "state_asking": "Requesting microphone…",
+    "state_capturing": "Listening…",
+    "state_processing": "Processing…",
+    "state_done": "Done",
+    "state_error": "Couldn’t hear that",
+    "state_cancelled": "Microphone released"
+  },
   "pwa": {
     "offline_ready": "Ready for offline use",
     "update_available": "New version available — tap to update",

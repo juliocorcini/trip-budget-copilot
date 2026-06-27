@@ -9,6 +9,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { formatMoney, toCents, evaluateAmountExpression } from '@/domain/money';
 import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
+import { isVoiceBusy, voiceStateLabelKey, type VoiceState } from '@/domain/voice/voice-state';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
 import { EXPENSE_CATEGORY_KEYS, ownerPersonalCostCents } from '@/domain/assistant';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -174,6 +175,7 @@ export function AssistantSheet() {
                 value={assistant.text}
                 disabled={busy}
                 listening={assistant.listening}
+                voiceState={assistant.voiceState}
                 voiceAvailable={assistant.voiceAvailable}
                 photoEnabled={assistant.photoEnabled}
                 onChange={assistant.setText}
@@ -278,6 +280,7 @@ function InputArea(props: {
   value: string;
   disabled: boolean;
   listening: boolean;
+  voiceState: VoiceState;
   voiceAvailable: boolean;
   photoEnabled: boolean;
   onChange: (value: string) => void;
@@ -359,6 +362,13 @@ function InputArea(props: {
           {t('assistant.send')}
         </button>
       </div>
+      {/* DEC-365 (B1): surface the explicit mic state so the user can see it's
+          listening — and, crucially, that it has STOPPED (no silent recording). */}
+      {isVoiceBusy(props.voiceState) && (
+        <p className="text-xs font-medium text-on-surface-dim px-1" aria-live="polite">
+          {t(voiceStateLabelKey(props.voiceState))}
+        </p>
+      )}
       {photoChooser.element}
 
       {/* E13 · DEC-333: cloud receipt OCR is opt-in (DEC-206) — when the camera is

@@ -1,8 +1,8 @@
 {
-  "version": "1.4.14-rc",
+  "version": "1.4.15-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.14-rc.zip",
-  "notes": "Instalação mais clara e sem becos sem saída: o aviso de instalar agora abre as opções de verdade, a comparação mostra só o que faz sentido pro seu aparelho (no iPhone não aparece mais APK) e no Android sempre dá pra colocar o atalho na tela inicial, mesmo quando o navegador não abre o instalador."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.15-rc.zip",
+  "notes": "Privacidade do microfone: depois de usar a voz na Entrada por IA, o microfone é liberado na hora — e a tela agora mostra claramente quando está ouvindo e quando parou. Fechar ou cancelar libera o microfone imediatamente."
 }

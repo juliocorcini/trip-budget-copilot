@@ -2538,6 +2538,15 @@
     "settings_entry": "Formas de pago",
     "settings_hint": "Pix, Wise, cuenta bancaria o texto libre — se añaden al mensaje de cobro."
   },
+  "voice": {
+    "state_off": "Micrófono apagado",
+    "state_asking": "Pidiendo acceso al micrófono…",
+    "state_capturing": "Escuchando…",
+    "state_processing": "Procesando…",
+    "state_done": "Listo",
+    "state_error": "No pude escuchar",
+    "state_cancelled": "Micrófono liberado"
+  },
   "pwa": {
     "offline_ready": "Listo para uso sin conexión",
     "update_available": "Nueva versión disponible — toca para actualizar",
