@@ -3143,6 +3143,10 @@
     "open_hint": "Tap to see details",
     "pending_from_person": "Waiting for you"
   },
+  "qr_scan": {
+    "scan_elsewhere": "Open the right screen in the app and scan again.",
+    "need_connect_qr": "Scan the person's connect QR."
+  },
   "payment_proof": {
     "attach": "Attach proof",
     "attach_optional": "Attach proof (optional)",

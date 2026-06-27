@@ -3143,6 +3143,10 @@
     "open_hint": "Toca para ver los detalles",
     "pending_from_person": "Esperándote"
   },
+  "qr_scan": {
+    "scan_elsewhere": "Abre la pantalla correcta en la app y escanea de nuevo.",
+    "need_connect_qr": "Escanea el QR de conexión de la persona."
+  },
   "payment_proof": {
     "attach": "Adjuntar comprobante",
     "attach_optional": "Adjuntar comprobante (opcional)",

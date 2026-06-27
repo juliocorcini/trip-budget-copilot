@@ -83,6 +83,7 @@ import {
   pairLinkFromEncoded,
   buildQrUrl,
   extractQrEnvelope,
+  classifyScannedQr,
 } from '@/domain/sync';
 import { getInstallationId } from '@/utils/entity-factory';
 import {
@@ -498,25 +499,48 @@ export function SharedExpensesPage() {
     }
   };
 
+  // G7 · DEC-373 — the universal scan router: the "Ler QR" scanner used to act
+  // ONLY on an identity (connect) payload and silently ignore every other app QR.
+  // Now it classifies the scan and either pairs inline (identity), navigates
+  // in-app to the matching screen (extrato `/sync`, group `/g/`, shared link
+  // `/s/`, live split `/t/`), or shows a clear "open the right screen and scan
+  // again" hint — never a dead end.
   const handlePairScan = async (text: string) => {
     if (!trip) return;
-    const decoded = decodeQrPayload(extractQrEnvelope(text) ?? '');
-    if (!decoded || decoded.kind !== 'identity') return;
-    setShowQrAdd(false);
-    // DEC-344 — pair + reverse connect handshake so we appear on each other's phones.
-    const result = await connectPeerFromIdentity(decoded, trip.id);
-    if (result.status === 'already_paired') {
-      showToast(t('sync.already_connected'), 'info');
-    } else {
-      showToast(t('sync.pairing_done', { name: result.participant.name }), 'success');
+    const scanned = classifyScannedQr(text);
+    if (scanned.kind === 'identity') {
+      setShowQrAdd(false);
+      // DEC-344 — pair + reverse connect handshake so we appear on each other's phones.
+      const result = await connectPeerFromIdentity(scanned.payload, trip.id);
+      if (result.status === 'already_paired') {
+        showToast(t('sync.already_connected'), 'info');
+      } else {
+        showToast(t('sync.pairing_done', { name: result.participant.name }), 'success');
+      }
+      await reload();
+      return;
     }
-    await reload();
+    if (scanned.kind === 'app_route') {
+      setShowQrAdd(false);
+      navigate(scanned.route);
+      return;
+    }
+    if (scanned.kind === 'statement') {
+      setShowQrAdd(false);
+      navigate(buildQrUrl('statement', scanned.encoded, ''));
+      return;
+    }
+    // live_signal (belongs to device transfer) or unknown.
+    showToast(t('qr_scan.scan_elsewhere'), 'info');
   };
 
   const handleLinkScan = async (text: string) => {
     if (!trip || !linkTarget) return;
     const decoded = decodeQrPayload(extractQrEnvelope(text) ?? '');
-    if (!decoded || decoded.kind !== 'identity') return;
+    if (!decoded || decoded.kind !== 'identity') {
+      showToast(t('qr_scan.need_connect_qr'), 'info');
+      return;
+    }
     const target = linkTarget;
     setLinkTarget(null);
     const result = await linkConnectFromIdentity(target.id, decoded, trip.id);

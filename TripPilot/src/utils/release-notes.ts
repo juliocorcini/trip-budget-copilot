@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.2-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'O leitor de QR do app agora entende qualquer QR do TripPilot — conexão, extrato, divisão em grupo, link compartilhado — e abre a tela certa na hora. Antes, ele só servia para conectar pessoas.',
+        'Todo QR que o app mostra é um link: a câmera comum do celular abre direto, sem aquele "nenhum dado usável".',
+      ],
+      en: [
+        'The app’s QR reader now understands any TripPilot QR — connect, statement, group split, shared link — and opens the right screen instantly. Before, it only worked for connecting people.',
+        'Every QR the app shows is a link, so your phone’s default camera opens it directly — no more "no usable data".',
+      ],
+      es: [
+        'El lector de QR de la app ahora entiende cualquier QR de TripPilot — conexión, extracto, división en grupo, enlace compartido — y abre la pantalla correcta al instante. Antes solo servía para conectar personas.',
+        'Cada QR que muestra la app es un enlace, así que la cámara normal del teléfono lo abre directamente — sin el "no hay datos utilizables".',
+      ],
+    },
+  },
+  {
     version: '1.5.1-rc',
     date: '2026-06-27',
     items: {

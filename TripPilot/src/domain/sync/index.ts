@@ -1,6 +1,7 @@
 export * from './identity';
 export * from './self-name';
 export * from './qr-url';
+export * from './qr-scan-router';
 export * from './encoding';
 export * from './ecies';
 export * from './mailbox-envelope';
