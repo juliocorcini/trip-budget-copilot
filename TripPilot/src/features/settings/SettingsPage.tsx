@@ -251,6 +251,19 @@ export function SettingsPage() {
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
+  // DEC-381: the ModeGuard "ir para os ajustes" deep-links here with
+  // ?section=mode — scroll the App simple/complete toggle into view AND flash a
+  // highlight, so the traveler who was blocked lands right on the switch.
+  const [highlightMode, setHighlightMode] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('section') !== 'mode') return;
+    const el = document.getElementById('app-mode-section');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightMode(true);
+    const timer = window.setTimeout(() => setHighlightMode(false), 2400);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   // DEC-124 (R-11 v2): the toggle owns the preference; turning it on also
   // requests browser permission and immediately syncs an active outing.
   const outingNotifActive =
@@ -757,25 +770,34 @@ export function SettingsPage() {
 
       <CollapsibleGroup {...groupProps('preferences')}>
 
-      {/* M21: app mode — simple hides advanced surfaces; complete shows all */}
-      <Section title={t('settings.mode_title')}>
-        <div className="flex gap-2">
-          {(['simple', 'complete'] as AppMode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => updateSetting({ appMode: m })}
-              className={`flex-1 py-2 rounded-xl text-xs font-medium btn-press ${
-                settings.appMode === m ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
-              }`}
-            >
-              {t(`settings.mode_${m}`)}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-on-surface-faint mt-2">
-          {t(settings.appMode === 'simple' ? 'settings.mode_simple_hint' : 'settings.mode_complete_hint')}
-        </p>
-      </Section>
+      {/* M21: app mode — simple hides advanced surfaces; complete shows all.
+          DEC-381: the deep-link target (#app-mode-section) flashes a ring when
+          a ModeGuard interstitial sends the traveler here. */}
+      <div
+        id="app-mode-section"
+        className={`rounded-xl transition-shadow duration-500 ${
+          highlightMode ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface-base' : ''
+        }`}
+      >
+        <Section title={t('settings.mode_title')}>
+          <div className="flex gap-2">
+            {(['simple', 'complete'] as AppMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => updateSetting({ appMode: m })}
+                className={`flex-1 py-2 rounded-xl text-xs font-medium btn-press ${
+                  settings.appMode === m ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                }`}
+              >
+                {t(`settings.mode_${m}`)}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-on-surface-faint mt-2">
+            {t(settings.appMode === 'simple' ? 'settings.mode_simple_hint' : 'settings.mode_complete_hint')}
+          </p>
+        </Section>
+      </div>
 
       <Section title={t('settings.alert_tone')}>
         <div className="flex gap-2">

@@ -37,7 +37,7 @@ export function ModeGuard({ children }: { children: ReactNode }) {
           {t('mode_guard.open_anyway')}
         </button>
         <button
-          onClick={() => navigate('/settings')}
+          onClick={() => navigate('/settings/c/preferences?section=mode')}
           className="w-full py-3 rounded-xl bg-surface-container text-on-surface-dim font-semibold text-sm btn-press"
         >
           {t('mode_guard.go_settings')}
