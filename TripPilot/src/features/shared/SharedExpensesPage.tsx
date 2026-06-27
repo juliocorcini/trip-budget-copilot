@@ -23,6 +23,7 @@ import type {
   StatementLineGroup,
 } from '@/domain/splitting';
 import { findSubcategory } from '@/domain/outing';
+import { resolveSettlementDelivery } from '@/domain/settle-flows';
 import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
@@ -82,7 +83,6 @@ import {
   connectPeerFromIdentity,
   linkConnectFromIdentity,
   applyPeerResponses,
-  sendPayloadToPeerMailbox,
   reconnectParticipantDevice,
   getInboundP2pItems,
   acceptInboundDebt,
@@ -405,23 +405,53 @@ export function SharedExpensesPage() {
     [connectionViews, participants],
   );
 
-  // FIELD item 8: deliver the statement to the peer's mailbox — no need to be
-  // side by side. Reuses the exact payload the live transfer builds.
-  const handleSendViaMailbox = async (participant: Participant) => {
+  // DEC-366 (G5, HEADLINE) — a connected peer who owes me gets the net delivered
+  // as a real-time, accept-first `debt` (it lands in their notification center +
+  // home + Acerto + profile and they accept on their own phone), NOT the old
+  // hidden mirrored-statement mailbox that "never arrived". A debt is "you owe me
+  // X" — when nothing is owed we never invent one (resolveSettlementDelivery → 'none').
+  const handleSendSettlementDebt = async (participant: Participant) => {
     const link = peerLinkFor(participant.id);
-    if (!link?.publicKey || mailboxSending) return;
-    const payload = buildStatementForParticipant(participant);
-    if (!payload) return;
+    const owner = participants.find((p) => p.isOwner);
+    if (!trip || !owner || !participant.linkedActorId || !link?.publicKey || mailboxSending) return;
+    const statement = buildParticipantStatement(
+      participant.id,
+      transactions,
+      shares,
+      participants,
+      settlements,
+      owner.id,
+    );
+    // resolveSettlementDelivery flips the statement's sign convention internally
+    // ("negative = the peer owes me") so we can't send a backwards debt: a peer I
+    // actually owe resolves to 'none', preserving the settlement math (accept-first).
+    const decision = resolveSettlementDelivery({
+      hasPublicKey: true,
+      statementNetCents: statement.netCents,
+    });
+    if (decision.channel !== 'debt') {
+      showToast(t('p2p.settle_nothing'), 'info');
+      return;
+    }
     setMailboxSending(true);
     try {
-      const { delivered } = await sendPayloadToPeerMailbox(link, 'statement', payload);
+      const { delivered } = await shareDebtWithPeer({
+        peerActorId: participant.linkedActorId,
+        amountCents: decision.debtAmountCents,
+        currency: trip.baseCurrency,
+        // Provenance ("de onde veio"): the trip name rides in the debt description so
+        // the recipient's inbox + folded expense record where the settlement came from.
+        description: `${t('p2p.settle_debt_desc')} · ${trip.name}`,
+      });
       setSendTarget(null);
       showToast(
-        delivered ? t('mailbox.sent') : t('mailbox.queued'),
+        delivered
+          ? t('p2p.settle_sent', { name: participant.nickname ?? participant.name })
+          : t('p2p.queued'),
         delivered ? 'success' : 'info',
       );
     } catch {
-      showToast(t('mailbox.send_failed'), 'danger');
+      showToast(t('p2p.send_failed'), 'danger');
     } finally {
       setMailboxSending(false);
     }
@@ -1834,73 +1864,99 @@ export function SharedExpensesPage() {
             </button>
           </div>
         )}
-        {sendTarget && !statementQrText && (
-          <div className="flex flex-col gap-3">
-            {/* FIELD item 8: async delivery — drop the statement in the peer's
-                encrypted mailbox so they get it whenever they next open the app. */}
-            {peerLinkFor(sendTarget.id)?.publicKey && (
-              <button
-                onClick={() => handleSendViaMailbox(sendTarget)}
-                disabled={mailboxSending}
-                className="w-full py-3 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Icon name="mail" size={18} className="text-primary" />
-                {t('mailbox.send_statement')}
-              </button>
-            )}
-            <SyncTransferFlow
-              mode="send"
-              purpose="statement"
-              actorName={ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot'}
-              buildPayload={async () => {
-                const payload = buildStatementForParticipant(sendTarget);
-                if (!payload) throw new Error('statement_unavailable');
-                return { kind: 'statement', payload };
-              }}
-              onSent={async (session) => {
-                // The mirror flushes its queued answers on this same session.
-                try {
-                  const items = await waitForResponses(session, 30_000);
-                  session.send({ t: 'ack', ok: true, error: null });
-                  if (items.length > 0) {
-                    const applied = await applyPeerResponses(sendTarget.id, items);
-                    if (applied > 0) {
-                      showToast(
-                        t('sync.responses_applied', {
-                          count: applied,
-                          name: sendTarget.nickname ?? sendTarget.name,
-                        }),
-                        'success',
-                      );
+        {sendTarget && !statementQrText && (() => {
+          // DEC-366 (G5, m5) — connected ⇒ the real-time accept-first `debt` IS the
+          // way (it lands in notif + home + Acerto + profile on their phone). The
+          // live transfer / QR statement is demoted to a secondary, optional
+          // "informative extract" (Flow F). For a NON-connected person the link/QR
+          // is the only channel we have, so it stays primary with a connect hint.
+          const hasKey = !!peerLinkFor(sendTarget.id)?.publicKey;
+          const peerName = sendTarget.nickname ?? sendTarget.name;
+          const transferBlock = (
+            <>
+              <SyncTransferFlow
+                mode="send"
+                purpose="statement"
+                actorName={ownerParticipant?.name ?? settings?.deviceName ?? 'TripPilot'}
+                buildPayload={async () => {
+                  const payload = buildStatementForParticipant(sendTarget);
+                  if (!payload) throw new Error('statement_unavailable');
+                  return { kind: 'statement', payload };
+                }}
+                onSent={async (session) => {
+                  // The mirror flushes its queued answers on this same session.
+                  try {
+                    const items = await waitForResponses(session, 30_000);
+                    session.send({ t: 'ack', ok: true, error: null });
+                    if (items.length > 0) {
+                      const applied = await applyPeerResponses(sendTarget.id, items);
+                      if (applied > 0) {
+                        showToast(
+                          t('sync.responses_applied', { count: applied, name: peerName }),
+                          'success',
+                        );
+                      }
                     }
+                  } catch {
+                    // Peer sent no responses — statement still delivered.
                   }
-                } catch {
-                  // Peer sent no responses — statement still delivered.
-                }
-                await reload();
-              }}
-              onDone={() => {
-                setSendTarget(null);
-                showToast(t('sync.statement_sent'), 'success');
-              }}
-              onCancel={() => setSendTarget(null)}
-            />
-            {(() => {
-              const payload = buildStatementForParticipant(sendTarget);
-              if (!payload) return null;
-              const encoded = encodeQrPayload({ v: 1, kind: 'statement', data: payload });
-              if (!fitsInSingleQr(encoded)) return null;
-              return (
-                <button
-                  onClick={() => setStatementQrText(encoded)}
-                  className="text-xs text-primary btn-press mx-auto"
-                >
-                  {t('sync.show_as_qr')}
-                </button>
-              );
-            })()}
-          </div>
-        )}
+                  await reload();
+                }}
+                onDone={() => {
+                  setSendTarget(null);
+                  showToast(t('sync.statement_sent'), 'success');
+                }}
+                onCancel={() => setSendTarget(null)}
+              />
+              {(() => {
+                const payload = buildStatementForParticipant(sendTarget);
+                if (!payload) return null;
+                const encoded = encodeQrPayload({ v: 1, kind: 'statement', data: payload });
+                if (!fitsInSingleQr(encoded)) return null;
+                return (
+                  <button
+                    onClick={() => setStatementQrText(encoded)}
+                    className="text-xs text-primary btn-press mx-auto"
+                  >
+                    {t('sync.show_as_qr')}
+                  </button>
+                );
+              })()}
+            </>
+          );
+          return (
+            <div className="flex flex-col gap-3">
+              {hasKey ? (
+                <>
+                  <button
+                    onClick={() => handleSendSettlementDebt(sendTarget)}
+                    disabled={mailboxSending}
+                    className="w-full py-3 rounded-xl bg-primary text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Icon name="request_quote" size={18} />
+                    {t('p2p.settle_send')}
+                  </button>
+                  <p className="text-xs text-on-surface-dim leading-snug">
+                    {t('p2p.settle_desc', { name: peerName })}
+                  </p>
+                  <details className="rounded-xl border border-outline/40">
+                    <summary className="cursor-pointer select-none px-3 py-2 text-xs text-on-surface-dim">
+                      {t('p2p.extract_optional')}
+                    </summary>
+                    <div className="flex flex-col gap-3 p-3 pt-0">{transferBlock}</div>
+                  </details>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-on-surface-dim leading-snug">
+                    {t('p2p.link_only_hint', { name: peerName })}
+                  </p>
+                  {transferBlock}
+                </>
+              )}
+            </div>
+          );
+        })()}
       </BottomSheet>
 
       {/* DEC-207: shared participant link — generate/manage from here */}

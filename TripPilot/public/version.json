@@ -1,8 +1,8 @@
 {
-  "version": "1.4.16-rc",
+  "version": "1.5.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.16-rc.zip",
-  "notes": "Textos mais claros: trocamos termos técnicos como \"caixa postal\" e \"Recebidos de outros aparelhos\" por linguagem do dia a dia, e tiramos o explicador \"Como funciona a divisão\" da tela de Acerto de contas (ele continua nas telas onde você lança a divisão)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.0-rc.zip",
+  "notes": "Acerto direto com quem usa o app: ao cobrar o saldo de uma pessoa conectada, a cobrança chega na hora no celular dela (aviso + tela inicial + Acerto de contas) para aceitar com um toque — sem precisar mandar link. Para quem ainda não usa o app, segue o envio por link/QR."
 }

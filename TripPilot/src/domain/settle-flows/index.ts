@@ -3,3 +3,4 @@
  * See `brain/documents/2026-06-27-settle-flows-map.md` for the flow map.
  */
 export * from './settle-state';
+export * from './p2p-delivery';

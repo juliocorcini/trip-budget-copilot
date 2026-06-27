@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.0-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Acerto com quem usa o app ficou direto: ao cobrar o saldo de uma pessoa conectada, a cobrança chega na hora no celular dela — com aviso, na tela inicial e no Acerto de contas — para aceitar com um toque. Não precisa mais mandar link.',
+        'Para quem ainda não usa o app, continua o envio por link/QR. O resumo informativo virou opcional, fora do caminho principal.',
+      ],
+      en: [
+        'Settling up with people on the app is now direct: when you charge a connected person’s balance, it arrives instantly on their phone — with a notification, on the home screen and in Settle up — to accept in one tap. No more sending a link.',
+        'For people not on the app yet, link/QR sharing still works. The informative summary is now optional, off the main path.',
+      ],
+      es: [
+        'Saldar con quien usa la app ahora es directo: al cobrar el saldo de una persona conectada, le llega al instante a su teléfono — con aviso, en la pantalla de inicio y en Ajuste de cuentas — para aceptar con un toque. Ya no hace falta enviar un enlace.',
+        'Para quienes aún no usan la app, sigue el envío por enlace/QR. El resumen informativo ahora es opcional, fuera del camino principal.',
+      ],
+    },
+  },
+  {
     version: '1.4.16-rc',
     date: '2026-06-27',
     items: {
