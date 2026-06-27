@@ -1,8 +1,8 @@
 {
-  "version": "1.4.12-rc",
+  "version": "1.4.13-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.12-rc.zip",
-  "notes": "Pagou alguém pelo app? Agora dá pra anexar um comprovante (opcional) ao dizer \"paguei\" — em divisões de grupo e em pagamentos diretos entre pessoas. Quem recebe vê a miniatura e confirma. Tudo continua ponta a ponta: só a imagem que você escolher anexar viaja, nada de dados bancários."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.13-rc.zip",
+  "notes": "Base para deixar divisões e cobranças entre pessoas mais claras: mapeamos todos os fluxos de acerto e os estados de cada divisão/cobrança/pagamento. As melhorias visíveis chegam nas próximas versões."
 }

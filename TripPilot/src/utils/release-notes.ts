@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.13-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Base para deixar divisões e cobranças entre pessoas mais claras e confiáveis: mapeamos todos os fluxos de acerto e os estados de cada divisão/cobrança/pagamento. As melhorias visíveis chegam nas próximas versões.',
+      ],
+      en: [
+        'Groundwork to make person-to-person splits and charges clearer and more reliable: we mapped every settle flow and the states of each split/charge/payment. The visible improvements land in the next versions.',
+      ],
+      es: [
+        'Base para que las divisiones y cobros entre personas sean más claros y confiables: mapeamos todos los flujos de ajuste y los estados de cada división/cobro/pago. Las mejoras visibles llegan en las próximas versiones.',
+      ],
+    },
+  },
+  {
     version: '1.4.12-rc',
     date: '2026-06-26',
     items: {

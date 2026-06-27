@@ -5,9 +5,9 @@
 > Execution truth: `brain/documents/2026-06-27-settle-flows-reliability-orchestrator.md` (gates **G0→G9**, change-set Themes **C/A/B/D/E/F/G/H/I/J**, councils **C1–C6** + direct verdicts; **DEC-364→373** PROPOSED at G0 → APPROVED per shipping gate). Answers Julio's **4th field review** (`Trippilot_original.txt` + structured briefing) — the predecessor `2026-06-26-group-reliability-settle-redesign` fixed the **group (`/g/`)** path; this wave fixes the **person-to-person P2P** path (still using the hidden "caixa postal"/"Recebidos de outros aparelhos" mailbox instead of the real-time `debt` path), plus **install**, **microphone privacy**, **language**, **QR**, **location/map**, and **remove-connected-person**. **Ledger-math invariance holds** (arithmetic untouched — we fix *where/when* P2P truth arrives + *how* it shows). Single continuous session, deploy per gate (Pages OTA; Worker already deployed — peer-ping reuses `ShareSignal`). Most recent gate entry first.
 
 ### CURRENT STATE
-- **Active gate**: **G0 ✅ done → starting G1** (flows doc + pure 15-state types).
-- **Last commit**: baseline `27676de` (backup builder, post-`1.4.12-rc`); version `1.4.12-rc`.
-- **Tests**: **2527 pass / 2529** baseline (the 2 known `split-live-loop` WebCrypto cases fail **only on Node 18** in this sandbox — green on CI Node 22; **not** a regression). `tsc --noEmit` clean; `npm run build` green (`index` 426.39 KB < 500 KB; `i18n-locales` 476.52 KB).
+- **Active gate**: **G1 ✅ shipped `1.4.13-rc` → starting G2** (install A1–A6).
+- **Last commit**: G1 `1.4.13-rc` (flows doc + pure 15-state types). Base was `27676de`.
+- **Tests**: **2546 pass / 2548** (+19 settle-state; the 2 known `split-live-loop` WebCrypto cases fail **only on Node 18** — green on CI Node 22; **not** a regression). `tsc --noEmit` clean; `npm run build` green (`index` 426.39 KB < 500 KB — pure types not yet bundled; `i18n-locales` 476.52 KB).
 - **Locks (§16) — ALL RESOLVED by Julio (inline in orchestrator §16, 2026-06-27)**:
   - **L-DELIVERY (G5/DEC-366) = ✅ APPROVE (a)** — connected ⇒ `debt` real-time; **+requirement**: shows on **both phones** + history records **who sent the debt / where it came from**.
   - **L-MAP (G8/DEC-368) = ✅ (b) interactive real map** (Leaflet/OSM lazy — "ver tudo da cidade, me achar"). Future full clustering "Mapa" view = backlog.
@@ -33,7 +33,7 @@
 
 ### Gate checklist
 - [x] **G0** — baseline green (2527/2529 Node-18 baseline) + `tsc` clean + `build` green (426.39 KB) + dev-log seeded + DEC-364→373 PROPOSED + §16 locks RESOLVED (Julio).
-- [ ] **G1** `1.4.13-rc` — flows doc `2026-06-27-settle-flows-map.md` (7 flows + 15 states) + pure state types + tests.
+- [x] **G1** `1.4.13-rc` — flows doc `2026-06-27-settle-flows-map.md` (7 flows + 15 states) + pure `settle-state` types + 19 tests.
 - [ ] **G2** `1.4.14-rc` — install A1–A6 (DEC-364).
 - [ ] **G3** `1.4.15-rc` — mic B1 (DEC-365, harden Web Speech).
 - [ ] **G4** `1.4.16-rc` — language D1–D3 + I3 (DEC-372).
@@ -42,6 +42,13 @@
 - [ ] **G7** `1.5.2-rc` — QR-as-URL + scanner (DEC-373).
 - [ ] **G8** `1.5.3-rc` — location-on-save + Leaflet map H1–H2 (DEC-367/368).
 - [ ] **G9** `1.5.4-rc` — remove person + real name I1–I2 (DEC-370).
+
+### G1 — Flows document + pure 15-state model (done 2026-06-27) — `1.4.13-rc`
+- **m1 (doc)**: `brain/documents/2026-06-27-settle-flows-map.md` — maps the **7 flows** (A divisão-conectado · B divisão-sem-app · C cobrança · D pagar-dívida · E pagamento-manual · F enviar-extrato · G QR) with the full per-flow matrix (quem cria/recebe · entidade · onde aparece · status inicial · ação · accept/reject/pay/confirm · sync dos dois lados · notificações · home cards · Acerto · perfil · central · link público · sem/com app), the **15-state table** (creator-sees/receiver-sees/where/actions/notification per state), the cross-surface matrix (§3, "Recebidos…" leaves the action column), and **Julio's DEC-366 provenance lock** (§4: both phones + history of who-sent / where-from). **This doc gates G4–G7** (no settle gate edits a flow not mapped here).
+- **m2 (pure types)**: `domain/settle-flows/settle-state.ts` (+ barrel `index.ts`) — the DEC-371 15-state machine, **data-driven** over `SETTLE_STATE_META` (tone · closesObligation · terminal · inFlight · showsAsOwing · actionableBy · notifies) + `SETTLE_STATE_TRANSITIONS` (total + Â9-reversible). Helpers: `canTransitionSettleState`, `settleStateTone`, `isSettleObligationClosed`, `isSettleTerminal`, `isSettleInFlight`, `settleShowsAsOwing`, `settleActionableBy`/`isSettleActionableBy`, `settleNotifies`, `settleStateLabelKey`, `describeSettleState`, and the **bridge** `settleStateFromGroupPayment` (reconciles the DEC-353 5-state group model). **No UI wiring** (application is G6); **no money math** touched.
+- **Tests +19** (`settle-flows/settle-state.test.ts`): all-15-exist + no-dupes; meta+transition totality; tone-domain; **fairness** (marked_paid/awaiting_confirmation are neutral, never danger, never "deve"; the debtor isn't the one to act); only-confirmed-closes; terminal/in-flight classification; happy-path + Â9 recovery + bounced-"paguei" transitions; illegal/no-op rejects; notifies per transition; label keys; descriptor; group-bridge (incl. the closed-only-on-confirmed invariant through the bridge).
+- **5-point check**: (1) ACs G1 met — doc covers 7 flows + 15 states with the matrix; pure types compile + tested. (2) Regression ACs verified — **math invariance** (no money/ledger file touched; module is metadata-only), **never-block** (no spend/delivery path touched), **DEC-207 ciphertext** (no transport/Worker change). (3) Tests **2546/2548**, no new fails. (4) No out-of-scope files (new domain folder + version bump + brain only). (5) dev-log updated.
+- **Deploy**: bump `package.json` + `app-version.ts` + `version.json` + `release-notes.ts` → `1.4.13-rc` → commit + push master → Cloudflare Pages OTA (Pages-only; runtime unchanged, pure types not yet bundled).
 
 ### G0 — Setup, baseline & brain seed (done 2026-06-27)
 - **Env**: Node v18.17.0 / npm 9.6.7 (EBADENGINE warnings expected; CI runs Node 22). `npm install` up to date. `git` at `/usr/bin/git`. Project root = `TripPilot/`. Base version `1.4.12-rc` confirmed; HEAD `27676de` (post-wave backup builder, treated as base).
