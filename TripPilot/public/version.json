@@ -1,8 +1,8 @@
 {
-  "version": "1.6.1-rc",
+  "version": "1.6.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.1-rc.zip",
-  "notes": "Dividir um gasto que você registrou com alguém conectado agora envia a cobrança automaticamente — igual ao 'Dividir conta'. Enquanto a pessoa não aceita, você vê 'Aguardando aceite' no lugar de 'em dia'."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.2-rc.zip",
+  "notes": "Ao marcar um gasto como compartilhado, o app não seleciona mais todo mundo de uma vez — você escolhe quem realmente participou. E um ponto verde mostra quem está conectado, pra você saber quem a cobrança alcança de verdade."
 }

@@ -2803,7 +2803,7 @@
 
 ---
 
-## Leva "Acerto que chega de verdade" (P2P transporte/duração + conexão bilateral + entrega + campo #5) (2026-06-27) — DEC-374/375/376/377/383/384 APPROVED (G1 `1.5.6-rc` + G2 `1.6.0-rc` + G3 `1.6.1-rc`); DEC-378→382 PROPOSED (G4→G6)
+## Leva "Acerto que chega de verdade" (P2P transporte/duração + conexão bilateral + entrega + campo #5) (2026-06-27) — DEC-374/375/376/377/378/383/384 APPROVED (G1 `1.5.6-rc` + G2 `1.6.0-rc` + G3 `1.6.1-rc` + G4 `1.6.2-rc`); DEC-379→382 PROPOSED (G5→G6)
 
 > Source plan: `brain/documents/2026-06-27-p2p-delivery-truth-orchestrator.md` (gates G0→G6) + kickoff. Answers Julio's **5th field review** (review do iPhone/Android). **É o re-teste de campo da leva settle-flows (DEC-364→373, shipped 1.4.13→1.5.5-rc HOJE):** o código cliente do P2P (DEC-366/369) está correto, mas ficou invisível porque o transporte estava **capado**. **Descoberta keystone (diagnóstico do Julio 2026-06-27, confiança ALTA — números do dashboard reconciliados com o e-mail da Cloudflare e a doc oficial):** o `500/`error code: 1101`` do curl é o **corte por DURAÇÃO do free tier** (13k GB-s/dia; requests OK, 17k/100k), **não** bug de código — a Cloudflare corta as requisições a Durable Objects até o **reset diário (28/06 00:00 UTC)**. **~99% da duração veio do `ShareSignal`** (WebSocket `server.accept()` **sem** Hibernation API → cobra o socket conectado mesmo ocioso), **amplificado por dev/preview/E2E apontando para o worker de PRODUÇÃO** (`config.ts` nunca seta `VITE_SYNC_WORKER_URL`). O app individual nunca caiu (local-first). **Status: PROPOSED** no authoring; cada → APPROVED pelo gate que shippa. **§16: doc ACTIVE com defaults adotados**; 3 calls confirmáveis em 1 linha — **L-CONNECT** (conexão bilateral visível, G2/DEC-376), **L-SPLIT** (split manual auto-entrega no salvar, G3/DEC-377) e **L-PLAN** (free tier vs Workers Paid US$5, G1/DEC-384, default free). Ledger-math invariante. Next free id após este batch = DEC-385.
 
@@ -2850,9 +2850,10 @@
 - **Alternatives**: entregar só sob clique "enviar" com nudge pós-salvar (alternativa do lock — minoria; recuo se entregas indesejadas aparecerem); nascer owed em vez de accept-first (rejeitado: contraria DEC-366/DEC-241 para conectados). **O que viraria**: entregas indesejadas em campo → mover para "enviar" explícito.
 
 ### DEC-378 — Seleção de participantes não marca todos + indicador de "conectado" [direto, wave 2026-06-27]
-- **Date**: 2026-06-27 · **Status**: PROPOSED (→ APPROVED no G4 ship `1.6.2-rc`)
+- **Date**: 2026-06-27 · **Status**: ✅ APPROVED — shipped G4 `1.6.2-rc` (2026-06-27)
 - **Decision**: `QuickAddPage.toggleShared` (L306-314) **para de pré-selecionar todos** (`participants.map(p=>p.id)`); pré-seleciona **só o dono** (+ pagador quando já escolhido via `selectPayer`), mostra todos, o user marca. Picker do QuickAdd + listas de pessoas ganham um **indicador visual de "conectado"** (`participant.linkedActorId !== null`) — ponto/badge consistente com `aria-label`.
 - **Rationale**: Julio: "quando seleciono compartilhado não é pra marcar todo mundo; vai ter 40 pessoas; e diferencie quem é conectado (bolinha verde)."
+- **Implementation (G4 `1.6.2-rc`)**: `toggleShared` semeia `[owner.id]` (+ `effectivePaidById` quando ≠ owner) ao ativar com seleção vazia — fim do marca-todos; o caminho `otherPaid` já semeava `[owner, payer]` via `selectPayer` (preservado). Badge: ponto `bg-success` `aria-hidden` nos **dois** pickers do QuickAdd ("quem pagou" + "dividir") quando `linkedActorId !== null`, com `aria-label`=`{nome} · {t('shared.people_badge_connected')}` (reuso de chave; sem nova i18n). **UI-only** — nenhuma math/transporte tocado (a aritmética vem de `selectedParticipantIds` que o user controla); sem novo unit test (estado de UI + JSX), verificado por `tsc`+`build`+suíte verde (2665/2667).
 - **Alternatives**: manter marca-todos com "limpar" (rejeitado: hostil em escala); badge só em uma tela (rejeitado: consistência app-wide é melhor).
 
 ### DEC-379 — Carrossel da home com altura adaptativa ao slide ativo [direto, wave 2026-06-27]

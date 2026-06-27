@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.6.2-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Ao marcar um gasto como compartilhado, o app não seleciona mais todo mundo de uma vez — você escolhe quem realmente participou (bem melhor com grupos grandes).',
+        'Um ponto verde agora mostra quem está conectado nas listas de pessoas, pra você saber de relance quem uma cobrança alcança de verdade.',
+      ],
+      en: [
+        'When you mark an expense as shared, the app no longer selects everyone at once — you choose who actually took part (much better with big groups).',
+        'A green dot now shows who is connected in the people pickers, so you can tell at a glance who a charge actually reaches.',
+      ],
+      es: [
+        'Al marcar un gasto como compartido, la app ya no selecciona a todos de una vez — eliges quién participó de verdad (mucho mejor con grupos grandes).',
+        'Un punto verde ahora muestra quién está conectado en las listas de personas, para que sepas de un vistazo a quién llega realmente un cobro.',
+      ],
+    },
+  },
+  {
     version: '1.6.1-rc',
     date: '2026-06-27',
     items: {
