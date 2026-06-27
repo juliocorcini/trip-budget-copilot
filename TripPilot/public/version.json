@@ -1,8 +1,8 @@
 {
-  "version": "1.5.4-rc",
+  "version": "1.5.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.4-rc.zip",
-  "notes": "Agora você pode remover uma pessoa conectada — as divisões e pagamentos antigos continuam no histórico, nada é apagado, e dá pra reconectar quando quiser. Nas conexões, no QR e nos envios aparece o seu nome (o do início), nunca o rótulo técnico do aparelho."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.5.5-rc.zip",
+  "notes": "Ajustes visuais nas telas de detalhe (gasto, lista e impacto): botões de excluir e avisos agora usam a cor de alerta padrão com melhor contraste, e o valor do gasto no detalhe ganhou um pouco mais de destaque."
 }

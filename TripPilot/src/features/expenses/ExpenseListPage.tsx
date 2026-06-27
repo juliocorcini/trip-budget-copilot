@@ -747,8 +747,7 @@ export function ExpenseListPage() {
           </p>
           <button
             onClick={batchSheet === 'deleteOutings' ? handleDeleteOutings : handleDeleteExpenses}
-            className="w-full py-3 rounded-xl text-sm font-bold btn-press"
-            style={{ background: '#D9404015', color: 'var(--error)' }}
+            className="w-full py-3 rounded-xl text-sm font-bold btn-press bg-error/10 text-error"
           >
             {t('selection.delete_confirm', { count: selection.selectedIds.length })}
           </button>

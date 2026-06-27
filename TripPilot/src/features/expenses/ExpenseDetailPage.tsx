@@ -301,13 +301,10 @@ export function ExpenseDetailPage() {
       {!editing ? (
         <>
           <div className="bg-surface-container rounded-2xl p-5 text-center">
-            <div
-              className="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2"
-              style={{ background: '#C75B3918' }}
-            >
+            <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2 bg-primary/10">
               <Icon name={getCategoryIcon(tx.category)} size={24} className="text-primary" />
             </div>
-            <p className="text-[32px] font-extrabold tabular text-on-surface leading-none">
+            <p className="text-display font-extrabold tabular text-on-surface leading-none">
               {formatMoney(tx.amountCents, tx.currency)}
             </p>
             {/* E9 (M9): foreign expense — show the frozen base-currency equivalent. */}
@@ -506,8 +503,7 @@ export function ExpenseDetailPage() {
           <div className="flex gap-3">
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex-1 py-3 rounded-xl font-medium btn-press"
-              style={{ background: '#D9404015', color: 'var(--error)' }}
+              className="flex-1 py-3 rounded-xl font-medium btn-press bg-error/10 text-error"
             >
               {t('common.delete')}
             </button>
@@ -732,8 +728,7 @@ export function ExpenseDetailPage() {
             </button>
             <button
               onClick={handleDelete}
-              className="flex-1 py-2.5 rounded-xl font-semibold text-sm btn-press"
-              style={{ background: '#D9404015', color: 'var(--error)', border: '1px solid #D9404040' }}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm btn-press bg-error/10 text-error border border-error/30"
             >
               {t('common.delete')}
             </button>

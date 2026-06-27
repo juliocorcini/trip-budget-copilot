@@ -166,10 +166,7 @@ export function ImpactDetailPage() {
       {/* DEC-236: when the phase is broke, lead with that — never bury it under
           a per-category table. */}
       {phaseBroke && (
-        <div
-          className="mt-3 p-4 rounded-2xl flex items-start gap-3"
-          style={{ background: '#D9404012', border: '1px solid #D9404026' }}
-        >
+        <div className="mt-3 p-4 rounded-2xl flex items-start gap-3 bg-error/10 border border-error/30">
           <Icon name="priority_high" size={20} className="text-error mt-0.5 shrink-0" />
           <div className="min-w-0">
             <p className="text-sm font-bold text-error">{t('impact.phase_broke_title')}</p>
@@ -295,12 +292,9 @@ export function ImpactDetailPage() {
 
       {/* Reserve risk */}
       <div
-        className="mt-3 p-4 rounded-2xl flex items-center gap-3"
-        style={
-          reserveDate
-            ? { background: '#D4A84312', border: '1px solid #D4A84320' }
-            : { background: '#6B8F7112', border: '1px solid #6B8F7118' }
-        }
+        className={`mt-3 p-4 rounded-2xl flex items-center gap-3 border ${
+          reserveDate ? 'bg-warning/10 border-warning/30' : 'bg-success/10 border-success/30'
+        }`}
       >
         <Icon
           name={reserveDate ? 'warning' : 'verified_user'}

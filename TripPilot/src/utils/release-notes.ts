@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.5-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Ajustes finos de visual nas telas de detalhe (gasto, lista e impacto): os botões de excluir e os avisos passaram a usar a cor de alerta padrão do app, com contraste melhor, e o valor do gasto no detalhe ganhou um pouco mais de destaque.',
+      ],
+      en: [
+        'Visual refinements on the detail screens (expense, list and impact): delete buttons and alerts now use the app’s standard alert color with better contrast, and the expense amount in the detail is a bit more prominent.',
+      ],
+      es: [
+        'Ajustes finos de diseño en las pantallas de detalle (gasto, lista e impacto): los botones de eliminar y los avisos ahora usan el color de alerta estándar de la app, con mejor contraste, y el importe del gasto en el detalle resalta un poco más.',
+      ],
+    },
+  },
+  {
     version: '1.5.4-rc',
     date: '2026-06-27',
     items: {
