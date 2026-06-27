@@ -100,7 +100,6 @@ import { shareOrCopyLink, shareOrCopyText } from '@/utils/native/link-share';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
-import { SplitExplainer } from './SplitExplainer';
 import { useRemindMessage } from '@/features/shared/useRemindMessage';
 import { enabledPaymentMethods } from '@/domain/payment';
 import { ProofAttachField, ProofThumb, type AttachedProof } from '@/features/payment-proof/PaymentProof';
@@ -1293,12 +1292,6 @@ export function SharedExpensesPage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* G9 (audit §4.15): the single shared "how splitting works" explainer, wrapped
-          so it sequences right after Pessoas in the Variante O order. */}
-      <div className="order-[34]">
-        <SplitExplainer />
       </div>
 
       {/* DL-3: connected-pending shares, surfaced explicitly so nothing is ever

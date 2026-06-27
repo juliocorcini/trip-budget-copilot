@@ -1,8 +1,8 @@
 {
-  "version": "1.4.15-rc",
+  "version": "1.4.16-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.15-rc.zip",
-  "notes": "Privacidade do microfone: depois de usar a voz na Entrada por IA, o microfone é liberado na hora — e a tela agora mostra claramente quando está ouvindo e quando parou. Fechar ou cancelar libera o microfone imediatamente."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.4.16-rc.zip",
+  "notes": "Textos mais claros: trocamos termos técnicos como \"caixa postal\" e \"Recebidos de outros aparelhos\" por linguagem do dia a dia, e tiramos o explicador \"Como funciona a divisão\" da tela de Acerto de contas (ele continua nas telas onde você lança a divisão)."
 }

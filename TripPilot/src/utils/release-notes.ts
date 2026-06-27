@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.4.16-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Textos mais claros no app: trocamos termos técnicos como "caixa postal" e "Recebidos de outros aparelhos" por linguagem do dia a dia.',
+        'O explicador "Como funciona a divisão" saiu da tela de Acerto de contas — ele continua nas telas onde você realmente lança uma divisão.',
+      ],
+      en: [
+        'Clearer wording across the app: we replaced technical terms like "mailbox" and "Received from other devices" with everyday language.',
+        'The "How splitting works" explainer was removed from the settle-up screen — it stays on the screens where you actually create a split.',
+      ],
+      es: [
+        'Textos más claros en la app: reemplazamos términos técnicos como "buzón" y "Recibidos de otros dispositivos" por lenguaje cotidiano.',
+        'El explicador "Cómo funciona la división" salió de la pantalla de ajuste de cuentas — sigue en las pantallas donde realmente creas una división.',
+      ],
+    },
+  },
+  {
     version: '1.4.15-rc',
     date: '2026-06-27',
     items: {

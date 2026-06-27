@@ -6,6 +6,11 @@ import { test, expect, type Page } from '@playwright/test';
  * ONE shared component ("Como funciona a divisão"), shown with identical copy
  * everywhere it appears. Anti-regression: it is collapsed by default and changes
  * no split behaviour.
+ *
+ * DEC-372 / I3 (2026-06-27) — the explainer was intentionally REMOVED from the
+ * "Acerto de contas" (/shared) hub: it was noise on a settlement screen, not a
+ * capture surface. It still lives on the three capture surfaces (QuickAdd,
+ * Receipt, Wise importer). The /shared test below now guards its ABSENCE.
  */
 async function loadDemoData(page: Page) {
   await page.goto('/');
@@ -30,11 +35,13 @@ test.describe('GATE 11 — single split explainer', () => {
     await expect(page.getByText(/o app sugere quem paga quem/i)).toBeVisible();
   });
 
-  test('the Shared screen shows the same explainer (consistent wording)', async ({ page }) => {
+  test('the Acerto (/shared) hub does NOT show the explainer (DEC-372 / I3)', async ({ page }) => {
     await page.goto('/shared');
+    // Anchor on the hub heading so the page is fully rendered before asserting absence.
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(
       page.getByRole('button', { name: /Como funciona a divisão/i }),
-    ).toBeVisible();
+    ).toHaveCount(0);
   });
 
   // 0.99.11 (OD-3 / DEC-242) — the 4th and final split surface: classifying a
