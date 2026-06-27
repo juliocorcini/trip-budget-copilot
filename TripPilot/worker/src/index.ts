@@ -1020,16 +1020,14 @@ export default {
 };
 
 export class SyncRoom {
-  private sockets: WebSocket[] = [];
-  private opened = false;
-
   constructor(private state: DurableObjectState) {}
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === 'POST' && url.pathname === '/open') {
-      this.opened = true;
+      // The alarm is the room's source of truth ("opened, not yet expired"),
+      // and it survives hibernation where an in-memory flag would not.
       await this.state.storage.setAlarm(Date.now() + ROOM_TTL_MS);
       return json({ ok: true });
     }
@@ -1037,68 +1035,83 @@ export class SyncRoom {
     if (request.headers.get('Upgrade') !== 'websocket') {
       return json({ error: 'expected_websocket' }, 426);
     }
-    if (!this.opened && this.sockets.length === 0) {
-      // The DO may have restarted; accept reconnects to a known-named room
-      // only within the alarm window. A fresh instance without an alarm is
-      // an expired/unknown room.
+    const live = this.state.getWebSockets();
+    if (live.length === 0) {
+      // No live peer: the room exists only if it was opened and is still inside
+      // the alarm window — this also accepts a reconnect after both peers
+      // dropped. A fresh/expired instance has no alarm → unknown room.
       const alarm = await this.state.storage.getAlarm();
       if (alarm === null) return json({ error: 'room_not_found' }, 404);
-      this.opened = true;
     }
-    if (this.sockets.length >= 2) {
+    if (live.length >= 2) {
       return json({ error: 'room_full' }, 409);
     }
 
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.accept();
-    this.sockets.push(server);
+    // Hibernatable accept — no socket is held in instance memory, so the room
+    // can be evicted between messages and stops billing the 128 MB while idle.
+    this.state.acceptWebSocket(server);
 
-    server.addEventListener('message', (event) => {
-      for (const socket of this.sockets) {
-        if (socket !== server) {
-          try {
-            socket.send(event.data);
-          } catch {
-            // Peer already gone; close handler cleans up.
-          }
-        }
-      }
-    });
-
-    const cleanup = () => {
-      this.sockets = this.sockets.filter((s) => s !== server);
-      for (const socket of this.sockets) {
+    if (this.state.getWebSockets().length === 2) {
+      for (const socket of this.state.getWebSockets()) {
         try {
-          socket.send(JSON.stringify({ type: 'peer-left' }));
+          socket.send(JSON.stringify({ type: 'peer-joined' }));
         } catch {
-          // Ignore: socket on its way out.
+          // Ignore: a socket on its way out.
         }
-      }
-    };
-    server.addEventListener('close', cleanup);
-    server.addEventListener('error', cleanup);
-
-    if (this.sockets.length === 2) {
-      for (const socket of this.sockets) {
-        socket.send(JSON.stringify({ type: 'peer-joined' }));
       }
     }
 
     return new Response(null, { status: 101, webSocket: client });
   }
 
+  /** Relay an opaque frame to the other peer in the room. */
+  webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): void {
+    for (const socket of this.state.getWebSockets()) {
+      if (socket === ws) continue;
+      try {
+        socket.send(message);
+      } catch {
+        // Peer already gone; its close handler notifies the survivor.
+      }
+    }
+  }
+
+  webSocketClose(ws: WebSocket): void {
+    this.dropAndNotify(ws);
+  }
+
+  webSocketError(ws: WebSocket): void {
+    this.dropAndNotify(ws);
+  }
+
+  /** Release the closing socket and tell the surviving peer that it left. */
+  private dropAndNotify(ws: WebSocket): void {
+    try {
+      ws.close();
+    } catch {
+      // Already closing.
+    }
+    for (const socket of this.state.getWebSockets()) {
+      if (socket === ws) continue;
+      try {
+        socket.send(JSON.stringify({ type: 'peer-left' }));
+      } catch {
+        // Ignore: socket on its way out.
+      }
+    }
+  }
+
   async alarm(): Promise<void> {
-    for (const socket of this.sockets) {
+    for (const socket of this.state.getWebSockets()) {
       try {
         socket.close(4000, 'room_expired');
       } catch {
         // Already closed.
       }
     }
-    this.sockets = [];
-    this.opened = false;
     await this.state.storage.deleteAll();
   }
 }
@@ -1116,46 +1129,58 @@ const SHARE_SIGNAL_MAX_SOCKETS = 8; // owner + a few guest tabs; abuse guard
 const SHARE_SIGNAL_MAX_FRAME_BYTES = 2_000; // a signal is a few dozen bytes
 
 export class ShareSignal {
-  private sockets: WebSocket[] = [];
-
   constructor(private state: DurableObjectState) {}
 
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') {
       return json({ error: 'expected_websocket' }, 426);
     }
-    if (this.sockets.length >= SHARE_SIGNAL_MAX_SOCKETS) {
+    if (this.state.getWebSockets().length >= SHARE_SIGNAL_MAX_SOCKETS) {
       return json({ error: 'relay_full' }, 409);
     }
 
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.accept();
-    this.sockets.push(server);
-
-    server.addEventListener('message', (event) => {
-      // Drop oversized frames — a signal is tiny; anything large is abuse.
-      const size = typeof event.data === 'string' ? event.data.length : (event.data as ArrayBuffer).byteLength;
-      if (size > SHARE_SIGNAL_MAX_FRAME_BYTES) return;
-      for (const socket of this.sockets) {
-        if (socket !== server) {
-          try {
-            socket.send(event.data);
-          } catch {
-            // Peer gone; close handler cleans up.
-          }
-        }
-      }
-    });
-
-    const cleanup = () => {
-      this.sockets = this.sockets.filter((s) => s !== server);
-    };
-    server.addEventListener('close', cleanup);
-    server.addEventListener('error', cleanup);
+    // Hibernatable accept — reverses the duration cost of a plain accept(): the
+    // relay holds NOTHING in instance memory, so the runtime can evict it between
+    // signals and we stop being billed for the 128 MB while every socket sits
+    // idle (which is ~all the time — a signal is rare). The fanout re-reads the
+    // live socket set on each message instead of a per-instance array.
+    this.state.acceptWebSocket(server);
 
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** Relay one tiny frame to the OTHER sockets in this room (oversized = abuse). */
+  webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): void {
+    const size = typeof message === 'string' ? message.length : message.byteLength;
+    if (size > SHARE_SIGNAL_MAX_FRAME_BYTES) return;
+    for (const socket of this.state.getWebSockets()) {
+      if (socket === ws) continue;
+      try {
+        socket.send(message);
+      } catch {
+        // Peer gone; its own close removes it from the live set.
+      }
+    }
+  }
+
+  webSocketClose(ws: WebSocket): void {
+    this.closeSocket(ws);
+  }
+
+  webSocketError(ws: WebSocket): void {
+    this.closeSocket(ws);
+  }
+
+  /** Complete the server half of the close so the socket is released promptly. */
+  private closeSocket(ws: WebSocket): void {
+    try {
+      ws.close();
+    } catch {
+      // Already closing.
+    }
   }
 }
 
