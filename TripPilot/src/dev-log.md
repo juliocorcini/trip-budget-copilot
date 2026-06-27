@@ -1,5 +1,54 @@
 # Dev Log — TripPilot Implementation
 
+## Acerto Confiável (P2P) + Instalação + Microfone wave (2026-06-27) — base 1.4.12-rc → target 1.5.4-rc — 🟡 IN PROGRESS (G0✅ → G9)
+
+> Execution truth: `brain/documents/2026-06-27-settle-flows-reliability-orchestrator.md` (gates **G0→G9**, change-set Themes **C/A/B/D/E/F/G/H/I/J**, councils **C1–C6** + direct verdicts; **DEC-364→373** PROPOSED at G0 → APPROVED per shipping gate). Answers Julio's **4th field review** (`Trippilot_original.txt` + structured briefing) — the predecessor `2026-06-26-group-reliability-settle-redesign` fixed the **group (`/g/`)** path; this wave fixes the **person-to-person P2P** path (still using the hidden "caixa postal"/"Recebidos de outros aparelhos" mailbox instead of the real-time `debt` path), plus **install**, **microphone privacy**, **language**, **QR**, **location/map**, and **remove-connected-person**. **Ledger-math invariance holds** (arithmetic untouched — we fix *where/when* P2P truth arrives + *how* it shows). Single continuous session, deploy per gate (Pages OTA; Worker already deployed — peer-ping reuses `ShareSignal`). Most recent gate entry first.
+
+### CURRENT STATE
+- **Active gate**: **G0 ✅ done → starting G1** (flows doc + pure 15-state types).
+- **Last commit**: baseline `27676de` (backup builder, post-`1.4.12-rc`); version `1.4.12-rc`.
+- **Tests**: **2527 pass / 2529** baseline (the 2 known `split-live-loop` WebCrypto cases fail **only on Node 18** in this sandbox — green on CI Node 22; **not** a regression). `tsc --noEmit` clean; `npm run build` green (`index` 426.39 KB < 500 KB; `i18n-locales` 476.52 KB).
+- **Locks (§16) — ALL RESOLVED by Julio (inline in orchestrator §16, 2026-06-27)**:
+  - **L-DELIVERY (G5/DEC-366) = ✅ APPROVE (a)** — connected ⇒ `debt` real-time; **+requirement**: shows on **both phones** + history records **who sent the debt / where it came from**.
+  - **L-MAP (G8/DEC-368) = ✅ (b) interactive real map** (Leaflet/OSM lazy — "ver tudo da cidade, me achar"). Future full clustering "Mapa" view = backlog.
+  - **L-MIC (G3/DEC-365) = ✅ harden Web Speech first** (route iOS→PCM deferred as a post-device-smoke follow-up).
+  - **DEC-367 amendment**: auto path also stores a **probable** reverse-geocoded name, **flagged unverified** ("provavelmente {name}") vs a user-confirmed verified name.
+- **Risks**: G5 is the headline routing change (connected ⇒ `debt`) — biggest blast radius; gated by G1 flows doc + tests + math-invariance. G3 hardened Web Speech is **device-pending** (real acceptance = the iOS indicator clearing on a physical iPhone). G8 lazy-Leaflet must not weigh the cold bundle. Node-18 sandbox keeps the 2 baseline `split-live-loop` fails.
+- **Scope**: G1 docs+types · G2 install UI · G3 mic lifecycle · G4 i18n+surface demote · G5 P2P delivery routing (headline) · G6 detail screens+states · G7 QR-as-URL+scanner · G8 location-on-save+Leaflet map · G9 remove-person+real-name. No money math, no Worker change expected (peer-ping reuses `ShareSignal`).
+
+### Change-set (Themes C/A/B/D/E/F/G/H/I/J)
+| Theme | Item | What | Gate |
+|---|---|---|---|
+| C | C1 | Complete settle-flows document (7 flows + 15-state model) — unblocks all settle gates | G1 |
+| J | J1 | 15-state model spec (pure types G1; applied to display G6) | G1/G6 |
+| A | A1–A6 | Install: nudge opens sheet · iOS no-APK · per-platform tables · drop "updates" row · Android always-offer atalho · drop "PWA" | G2 |
+| B | B1 | Mic released after AI entry — harden Web Speech teardown + state machine | G3 |
+| D | D1–D3 | Human language (kill "caixa postal"/technical strings) + demote "Recebidos…" | G4 |
+| I | I3 | Remove "Como funciona a divisão?" card from group area in Acerto | G4 |
+| E | E1–E3 | Connected ⇒ `debt` real-time delivery (notif+home+acerto+profile); link only for non-connected; both sides update | G5 |
+| F | F1–F4 | Pending actions actionable: clickable "aguardando aceite" · per-charge detail · distinct verbs (accept/pay/confirm/manual) | G6 |
+| G | G1–G2 | Every QR = URL + universal in-app scanner | G7 |
+| H | H1–H2 | Location at save (no-block) + interactive Leaflet map in detail | G8 |
+| I | I1–I2 | Remove connected person (tombstone) + real onboarding name (never "Android Chrome") | G9 |
+
+### Gate checklist
+- [x] **G0** — baseline green (2527/2529 Node-18 baseline) + `tsc` clean + `build` green (426.39 KB) + dev-log seeded + DEC-364→373 PROPOSED + §16 locks RESOLVED (Julio).
+- [ ] **G1** `1.4.13-rc` — flows doc `2026-06-27-settle-flows-map.md` (7 flows + 15 states) + pure state types + tests.
+- [ ] **G2** `1.4.14-rc` — install A1–A6 (DEC-364).
+- [ ] **G3** `1.4.15-rc` — mic B1 (DEC-365, harden Web Speech).
+- [ ] **G4** `1.4.16-rc` — language D1–D3 + I3 (DEC-372).
+- [ ] **G5** `1.5.0-rc` — connected ⇒ debt delivery E1–E3 (DEC-366, headline).
+- [ ] **G6** `1.5.1-rc` — actions F1–F4 + apply states J1 (DEC-369/371).
+- [ ] **G7** `1.5.2-rc` — QR-as-URL + scanner (DEC-373).
+- [ ] **G8** `1.5.3-rc` — location-on-save + Leaflet map H1–H2 (DEC-367/368).
+- [ ] **G9** `1.5.4-rc` — remove person + real name I1–I2 (DEC-370).
+
+### G0 — Setup, baseline & brain seed (done 2026-06-27)
+- **Env**: Node v18.17.0 / npm 9.6.7 (EBADENGINE warnings expected; CI runs Node 22). `npm install` up to date. `git` at `/usr/bin/git`. Project root = `TripPilot/`. Base version `1.4.12-rc` confirmed; HEAD `27676de` (post-wave backup builder, treated as base).
+- **Baseline**: `npm run test` → **2527 pass / 2529** (2 `split-live-loop` WebCrypto, Node-18-only). `npm run build` → green (`index` 426.39 KB < 500 KB). `npx tsc --noEmit` → exit 0, clean.
+- **Brain**: dev-log seeded (this section); `decision-log.md` DEC-364→373 PROPOSED + the 3 §16 locks reconciled to Julio's decisions (DEC-365 harden-Web-Speech, DEC-366 both-phones+history, DEC-367 probable-name amendment, DEC-368 interactive Leaflet).
+- **Locks printed**: L-DELIVERY=✅(a)+both-phones+history · L-MAP=✅(b) Leaflet · L-MIC=✅ harden Web Speech. → **no open lock blocks any gate**; proceed G1→G9.
+
 ## Distribuição & Clareza wave (2026-06-26) — base 1.4.7-rc → 1.4.12-rc — ✅ COMPLETE (E·B·C·A·D)
 
 > Source plan: `brain/documents/2026-06-26-install-vocab-proof-split-wave-plan.md` (Julio answered every ⛳ inline). Five items, shipped per-item: **E** chooser copy · **B** scrollbar regression · **C** rename Trecho→Verba (System 1) · **A** install flow (PWA+APK+/install) · **D** P2P payment proof. Order by value/risk (§7): E → B → C → A → D. Non-negotiables hold: money=cents · domain pure TS · `t()` pt/en/es · code English · ledger-math invariance · DEC-207 (messages/debts/names stay E2E; images carve-out). Single session, deploy per item (Pages OTA unless noted).
