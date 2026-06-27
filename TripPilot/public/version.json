@@ -1,8 +1,8 @@
 {
-  "version": "1.6.2-rc",
+  "version": "1.6.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.2-rc.zip",
-  "notes": "Ao marcar um gasto como compartilhado, o app não seleciona mais todo mundo de uma vez — você escolhe quem realmente participou. E um ponto verde mostra quem está conectado, pra você saber quem a cobrança alcança de verdade."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.3-rc.zip",
+  "notes": "Acabamos com aquele espaço vazio embaixo dos avisos da home, tiramos o card de instalar repetido e o aviso de instalar agora só tira uma soneca (volta depois). E quando uma tela pede o modo completo, 'ir para os ajustes' já te leva direto pro botão certo."
 }

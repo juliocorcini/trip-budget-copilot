@@ -2803,7 +2803,7 @@
 
 ---
 
-## Leva "Acerto que chega de verdade" (P2P transporte/duração + conexão bilateral + entrega + campo #5) (2026-06-27) — DEC-374/375/376/377/378/383/384 APPROVED (G1 `1.5.6-rc` + G2 `1.6.0-rc` + G3 `1.6.1-rc` + G4 `1.6.2-rc`); DEC-379→382 PROPOSED (G5→G6)
+## Leva "Acerto que chega de verdade" (P2P transporte/duração + conexão bilateral + entrega + campo #5) (2026-06-27) — DEC-374/375/376/377/378/379/380/381/383/384 APPROVED (G1 `1.5.6-rc` + G2 `1.6.0-rc` + G3 `1.6.1-rc` + G4 `1.6.2-rc` + G5 `1.6.3-rc`); DEC-382 PROPOSED (G6)
 
 > Source plan: `brain/documents/2026-06-27-p2p-delivery-truth-orchestrator.md` (gates G0→G6) + kickoff. Answers Julio's **5th field review** (review do iPhone/Android). **É o re-teste de campo da leva settle-flows (DEC-364→373, shipped 1.4.13→1.5.5-rc HOJE):** o código cliente do P2P (DEC-366/369) está correto, mas ficou invisível porque o transporte estava **capado**. **Descoberta keystone (diagnóstico do Julio 2026-06-27, confiança ALTA — números do dashboard reconciliados com o e-mail da Cloudflare e a doc oficial):** o `500/`error code: 1101`` do curl é o **corte por DURAÇÃO do free tier** (13k GB-s/dia; requests OK, 17k/100k), **não** bug de código — a Cloudflare corta as requisições a Durable Objects até o **reset diário (28/06 00:00 UTC)**. **~99% da duração veio do `ShareSignal`** (WebSocket `server.accept()` **sem** Hibernation API → cobra o socket conectado mesmo ocioso), **amplificado por dev/preview/E2E apontando para o worker de PRODUÇÃO** (`config.ts` nunca seta `VITE_SYNC_WORKER_URL`). O app individual nunca caiu (local-first). **Status: PROPOSED** no authoring; cada → APPROVED pelo gate que shippa. **§16: doc ACTIVE com defaults adotados**; 3 calls confirmáveis em 1 linha — **L-CONNECT** (conexão bilateral visível, G2/DEC-376), **L-SPLIT** (split manual auto-entrega no salvar, G3/DEC-377) e **L-PLAN** (free tier vs Workers Paid US$5, G1/DEC-384, default free). Ledger-math invariante. Next free id após este batch = DEC-385.
 
@@ -2857,21 +2857,24 @@
 - **Alternatives**: manter marca-todos com "limpar" (rejeitado: hostil em escala); badge só em uma tela (rejeitado: consistência app-wide é melhor).
 
 ### DEC-379 — Carrossel da home com altura adaptativa ao slide ativo [direto, wave 2026-06-27]
-- **Date**: 2026-06-27 · **Status**: PROPOSED (→ APPROVED no G5 ship `1.6.3-rc`)
+- **Date**: 2026-06-27 · **Status**: ✅ APPROVED — shipped G5 `1.6.3-rc` (2026-06-27)
 - **Decision**: `HomeAlertsCarousel` mede a altura do **slide ativo** (medição/ResizeObserver) e aplica no container com transição, em vez de herdar a altura do maior slide (hoje o container flex L63-80 não gere altura → reserva o maior → "vão vazio" sob cards curtos). 1 alerta segue inline (já faz). Conteúdo dos alertas intacto (DEC-293).
 - **Rationale**: Julio: "embaixo do card menor tem um espaço bem grande — parece bug; o carrossel devia ter a altura do que está sendo exibido."
+- **Implementation (G5 `1.6.3-rc`)**: `ResizeObserver` sobre o filho do `activeIndex` → `setBoxHeight(offsetHeight)`; scroller com `style={{height}}` + `transition-[height] duration-300`, `items-start` (filhos não esticam) e `overflow-y-hidden` (vizinho mais alto cortado no swipe até o snap). Guard `typeof ResizeObserver === 'undefined'` (SSR/jsdom → altura natural). E2E (layout real) diferido.
 - **Alternatives**: altura fixa máxima (rejeitado: o vão é exatamente o problema); sem auto-advance (rejeitado: ortogonal).
 
 ### DEC-380 — Consolidação do install: dedupe do card do carrossel + dispensa só por soneca [Council-lite C-C, wave 2026-06-27] (AMENDS DEC-362/364)
-- **Date**: 2026-06-27 · **Status**: PROPOSED (→ APPROVED no G5 ship `1.6.3-rc`)
+- **Date**: 2026-06-27 · **Status**: ✅ APPROVED — shipped G5 `1.6.3-rc` (2026-06-27)
 - **Decision**: **(a)** dedupe — o card de install/storage do carrossel (`home-alerts.ts › storage_warning`, que só abre ajustes) **some** quando o `InstallNudge` real cobre a instalação (iOS/Android não instalado); mantém-se só se for sobre **persistência/backup**, não install. **(b)** dispensa do `InstallNudge` = **só soneca** (X = 7 dias / "agora não"); **remover o "não mostrar de novo"** (`never()` L22-25) do caminho fácil (no máximo escondido em ajustes) — Julio quer que o user **veja de novo**. Hide-never-delete: nada é removido, só sonecado.
 - **Rationale**: Julio: "esse card menor de instalar não precisa mais (duplica o aviso real); e o nudge não devia ter 'nunca mais' fácil — só soneca 7 dias / agora não, porque a pessoa precisa instalar."
+- **Implementation (G5 `1.6.3-rc`)**: `selectHomeAlertIds` (puro) ganha `installNudgeActive` + `backupCtaActive`; regra `storageAtRisk && (backupCtaActive || !installNudgeActive)` → suprime o card quando o nudge é dono do install, preserva o CTA de backup real (**+4 testes**). `DashboardPage` passa `shouldShowInstallNudge()` + `strongBackupCta`. `InstallNudge`: `never()` + botão "não mostrar de novo" removidos; "X" = `dismissInstallNudge(false)` (soneca 7d). Módulo puro `install-nudge.ts` (capacidade `never`) intocado; chave i18n `install.nudge_never` fica órfã (copy, não removida).
 - **Alternatives**: manter os dois prompts (rejeitado: redundância confunde); manter "nunca mais" (rejeitado: mata a reconversão que Julio quer).
 
 ### DEC-381 — Deep-link do recurso avançado para o toggle de modo [direto, wave 2026-06-27]
-- **Date**: 2026-06-27 · **Status**: PROPOSED (→ APPROVED no G5 ship `1.6.3-rc`)
-- **Decision**: o `ModeGuard` "Ir para os ajustes" passa a navegar para `/settings?section=mode`; `SettingsPage` (que já suporta deep-link por `?section=`) rola até e **destaca** o toggle App simples/completo. O user que clicou chega com a ação de ativar à mão.
+- **Date**: 2026-06-27 · **Status**: ✅ APPROVED — shipped G5 `1.6.3-rc` (2026-06-27)
+- **Decision**: o `ModeGuard` "Ir para os ajustes" passa a navegar para `/settings/c/preferences?section=mode`; `SettingsPage` (que já suporta deep-link por `?section=`) rola até e **destaca** o toggle App simples/completo. O user que clicou chega com a ação de ativar à mão.
 - **Rationale**: Julio: "essa página de recurso avançado é boa, mas 'ir para os ajustes' devia cair direto no toggle simples/completo, já na minha cara."
+- **Implementation (G5 `1.6.3-rc`)**: alvo é a **subpágina** `/settings/c/preferences` (não `/settings` nu — lá o `CollapsibleGroup` retorna `null`, o toggle só existe como subpágina); efeito `?section=mode` rola até `#app-mode-section` e pisca `ring-2 ring-primary` por 2.4s. Espelha o padrão `?section=amigo`; sem nova i18n. E2E (scroll real) diferido.
 - **Alternatives**: abrir ajustes no topo (rejeitado: o user tem que caçar o toggle); ativar o modo completo direto (rejeitado: o user deve confirmar a ação).
 
 ### DEC-382 — Câmera Android: lente traseira principal + zoom (best-effort, P2) [direto, wave 2026-06-27]

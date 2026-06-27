@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.6.3-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Os avisos no topo da home não deixam mais um espaço vazio embaixo dos cards mais curtos.',
+        'Tiramos o card de "instalar" repetido — agora só aparece um convite de instalação por vez.',
+        'O convite para instalar o app agora só tira uma soneca quando você fecha (volta depois), em vez de sumir para sempre.',
+        'Quando uma tela pede o modo completo, "ir para os ajustes" já te leva direto ao botão de App simples/completo e o destaca.',
+      ],
+      en: [
+        'The home alerts no longer leave an empty gap under the shorter cards.',
+        'Removed the duplicate "install" card — you now see a single install invite at a time.',
+        'Closing the install invite now just snoozes it (it comes back later) instead of hiding it forever.',
+        'When a screen needs the full mode, "go to settings" now takes you straight to the simple/complete switch and highlights it.',
+      ],
+      es: [
+        'Los avisos del inicio ya no dejan un espacio vacío debajo de las tarjetas más cortas.',
+        'Quitamos la tarjeta de "instalar" repetida — ahora ves una sola invitación de instalación a la vez.',
+        'Cerrar la invitación de instalar ahora solo la pospone (vuelve más tarde) en lugar de ocultarla para siempre.',
+        'Cuando una pantalla necesita el modo completo, "ir a ajustes" te lleva directo al botón de App simple/completa y lo resalta.',
+      ],
+    },
+  },
+  {
     version: '1.6.2-rc',
     date: '2026-06-27',
     items: {
