@@ -1,8 +1,8 @@
 {
-  "version": "1.6.3-rc",
+  "version": "1.6.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.3-rc.zip",
-  "notes": "Acabamos com aquele espaço vazio embaixo dos avisos da home, tiramos o card de instalar repetido e o aviso de instalar agora só tira uma soneca (volta depois). E quando uma tela pede o modo completo, 'ir para os ajustes' já te leva direto pro botão certo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.4-rc.zip",
+  "notes": "No Android, o leitor de QR agora prefere a câmera traseira principal em vez da grande-angular, ficando mais fácil ler o código para conectar com um amigo."
 }

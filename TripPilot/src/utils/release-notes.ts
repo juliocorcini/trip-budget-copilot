@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.6.4-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'No Android, o leitor de QR agora prefere a câmera traseira principal em vez da grande-angular — fica mais fácil ler o código para conectar com um amigo.',
+      ],
+      en: [
+        'On Android, the QR scanner now prefers the main rear camera over the ultra-wide — making it easier to read the code to connect with a friend.',
+      ],
+      es: [
+        'En Android, el lector de QR ahora prefiere la cámara trasera principal en lugar de la gran angular — facilita leer el código para conectar con un amigo.',
+      ],
+    },
+  },
+  {
     version: '1.6.3-rc',
     date: '2026-06-27',
     items: {
