@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.7.5-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'No acerto de contas, agora aparece só o que é seu: quem te deve e quem você deve. Dívidas entre outras pessoas (que você só registrou) saíram da sua lista principal.',
+        "Essas cobranças entre outros não somem — ficam guardadas num menu separado “Cobranças entre outros (que registrei)”, sem entrar no seu saldo.",
+      ],
+      en: [
+        "Settle-up now shows only what's yours: who owes you and who you owe. Debts between other people (that you just recorded) are out of your main list.",
+        "Those charges between others don't disappear — they're kept in a separate “Charges I recorded between others” menu, without counting toward your balance.",
+      ],
+      es: [
+        'El ajuste de cuentas ahora muestra solo lo tuyo: quién te debe y a quién le debes. Las deudas entre otras personas (que solo registraste) salieron de tu lista principal.',
+        'Esos cobros entre otros no desaparecen — quedan en un menú aparte “Cobros entre otros (que registré)”, sin contar en tu saldo.',
+      ],
+    },
+  },
+  {
     version: '1.7.4-rc',
     date: '2026-06-27',
     items: {

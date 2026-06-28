@@ -1,8 +1,8 @@
 {
-  "version": "1.7.4-rc",
+  "version": "1.7.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.4-rc.zip",
-  "notes": "Quando você (ou a IA) nomeia o lugar de um gasto, o app agora procura o local exato desse nome e coloca o gasto no mapa ali — e, se não encontrar, salva com a localização de onde você estava."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.5-rc.zip",
+  "notes": "No acerto de contas, agora aparece só o que é seu: quem te deve e quem você deve. Dívidas entre outras pessoas que você só registrou saem da lista principal e ficam num menu separado, sem entrar no seu saldo."
 }
