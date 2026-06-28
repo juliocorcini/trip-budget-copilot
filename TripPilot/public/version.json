@@ -1,8 +1,8 @@
 {
-  "version": "1.7.1-rc",
+  "version": "1.7.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.1-rc.zip",
-  "notes": "A reserva de um evento agora é consumida pelo gasto, em vez de voltar inteira pro livre quando o evento começa — o seu “livre hoje” não pula mais e o evento não conta em dobro. O card do evento mostra quanto ainda resta e quanto dá pra gastar por dia."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.2-rc.zip",
+  "notes": "Ao importar do Wise, agora dá para marcar as transações que fazem parte de um evento — quando há um evento no dia da transação, basta um toque para atribuí-la, e o gasto entra na reserva do evento."
 }

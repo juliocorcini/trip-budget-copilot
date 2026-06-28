@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.7.2-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Ao importar do Wise, agora dá para marcar quais transações fazem parte de um evento: quando há um evento no dia da transação, ela aparece com a opção logo abaixo — um toque atribui, e o gasto passa a consumir a reserva daquele evento.',
+        'A atribuição é por transação e só aparece nas que você escolheu importar, então você decide exatamente o que entra em cada evento.',
+      ],
+      en: [
+        'When importing from Wise you can now mark which transactions are part of an event: if an event covers the transaction\'s day, the option shows right below it — one tap attributes it, and the spend starts consuming that event\'s reserve.',
+        'Attribution is per transaction and only appears on the ones you chose to import, so you decide exactly what goes into each event.',
+      ],
+      es: [
+        'Al importar desde Wise ahora puedes marcar qué transacciones forman parte de un evento: si hay un evento en el día de la transacción, la opción aparece justo debajo — un toque la atribuye y el gasto pasa a consumir la reserva de ese evento.',
+        'La atribución es por transacción y solo aparece en las que elegiste importar, así decides exactamente qué entra en cada evento.',
+      ],
+    },
+  },
+  {
     version: '1.7.1-rc',
     date: '2026-06-27',
     items: {
