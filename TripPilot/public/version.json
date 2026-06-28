@@ -1,8 +1,8 @@
 {
-  "version": "1.8.0-rc",
+  "version": "1.8.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.0-rc.zip",
-  "notes": "Agora, quando um evento está acontecendo, ele continua à vista na tela inicial — mesmo com uma saída aberta. Você vê quanto já gastou (com o quê e quando), quanto sobra, quanto dá por dia e quantos dias faltam."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.1-rc.zip",
+  "notes": "O \"livre do dia\" agora conta a verdade: a média até o fim da fase é uma média de verdade (não o ritmo de pico), o evento de hoje aparece junto do livre, e o detalhe do dia mostra base do dia comum + pico + evento. No detalhe, a reserva do evento mostra só o que ainda sobra por dia."
 }

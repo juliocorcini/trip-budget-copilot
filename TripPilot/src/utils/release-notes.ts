@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.1-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'O "livre do dia" conta a verdade: a "média até o fim da fase" agora é uma média de verdade (livre ÷ dias), e o ritmo de pico aparece à parte, como "ritmo de hoje" — sem mais um número de pico rotulado como "média".',
+        'O evento de hoje aparece junto do livre na tela inicial ("+ X do evento hoje"), e o detalhe do dia mostra a base de um dia comum + o extra do dia de pico + o que está reservado.',
+        'No detalhe do dia, a reserva de um evento mostra só o que ainda sobra dela, dividido pelos dias que faltam — e recalcula sozinho conforme você gasta.',
+      ],
+      en: [
+        'The "free for today" tells the truth: the "average until the phase ends" is now a real average (free ÷ days), and the peak pace shows separately as "today\'s rhythm" — no more a peak number mislabeled as an "average".',
+        'Today\'s event shows up next to your free amount on the home screen ("+ X from today\'s event"), and the day detail breaks it down as a regular day\'s base + the peak-day extra + what\'s reserved.',
+        "In the day detail, an event's reserve now shows only what is still left of it, split over the remaining days — and recomputes on its own as you spend.",
+      ],
+      es: [
+        'El "libre del día" cuenta la verdad: el "promedio hasta el fin de la fase" ahora es un promedio de verdad (libre ÷ días), y el ritmo pico aparece aparte, como "ritmo de hoy" — ya no un número pico rotulado como "promedio".',
+        'El evento de hoy aparece junto a tu libre en la pantalla de inicio ("+ X del evento de hoy"), y el detalle del día lo desglosa como base de un día normal + el extra del día pico + lo reservado.',
+        'En el detalle del día, la reserva de un evento ahora muestra solo lo que aún queda de ella, repartido entre los días restantes — y se recalcula sola a medida que gastas.',
+      ],
+    },
+  },
+  {
     version: '1.8.0-rc',
     date: '2026-06-28',
     items: {
