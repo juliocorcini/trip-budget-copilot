@@ -6,6 +6,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { InfoDot } from '@/components/InfoDot';
 import { formatMoney, fromCents, toCents } from '@/domain/money';
 import { buildFreeToSpendBreakdown, type FtsBreakdownKey } from '@/domain/budget';
+import type { PendingEventLeftover } from '@/domain/budget';
 import type { GlossaryTermId } from '@/domain/help';
 import {
   getDashboardCard,
@@ -19,7 +20,7 @@ import type { DashboardInsight } from '@/domain/insights';
 import type { PhaseLeftover } from '@/domain/phases';
 import type { ValueSuggestion } from '@/domain/profiles';
 import type { TripPriorsOffer } from '@/domain/templates';
-import type { PhaseLeftoverDestination } from '@/domain/orchestrators';
+import type { PhaseLeftoverDestination, EventLeftoverDestination } from '@/domain/orchestrators';
 import type { Trip } from '@/domain/types/trip';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import { InsightDetail } from './InsightDetail';
@@ -57,6 +58,9 @@ interface DashboardSheetsProps {
   phaseLeftover: PhaseLeftover | null;
   leftoverTargets: BudgetPool[];
   onPhaseLeftover: (destination: PhaseLeftoverDestination, targetPoolId: string | null) => void;
+  // DEC-387 (G4): ended-event leftover decision sheet (null = nothing pending)
+  eventLeftover: PendingEventLeftover | null;
+  onEventLeftover: (destination: EventLeftoverDestination) => void;
   // M19: in-trip value suggestion (null = nothing diverges / simple mode)
   valueSuggestion: ValueSuggestion | null;
   onValueSuggestion: (accept: boolean) => void;
@@ -176,6 +180,8 @@ export function DashboardSheets({
   phaseLeftover,
   leftoverTargets,
   onPhaseLeftover,
+  eventLeftover,
+  onEventLeftover,
   valueSuggestion,
   onValueSuggestion,
   tripPriors,
@@ -184,6 +190,10 @@ export function DashboardSheets({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const configCard = configCardId !== null ? getDashboardCard(configCardId) : null;
+  // DEC-387 (G4): the event-leftover prompt is never auto-decided — dismissing it
+  // only hides it for THIS session (the event stays pending and the prompt
+  // reappears on the next open, A4) until the user picks a destination.
+  const [dismissedEventLeftoverId, setDismissedEventLeftoverId] = useState<string | null>(null);
 
   return (
     <>
@@ -481,6 +491,72 @@ export function DashboardSheets({
                   </span>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* DEC-387 (G4): an event ended with reserve money still unspent — ask where
+          it goes (free / cofrinho / pote), conserving it 1:1. Never auto-decided:
+          dismissing only hides it this session; the event stays pending (A4). */}
+      <BottomSheet
+        open={eventLeftover !== null && eventLeftover.occurrence.id !== dismissedEventLeftoverId}
+        onClose={() => eventLeftover && setDismissedEventLeftoverId(eventLeftover.occurrence.id)}
+        title={t('dashboard.event_leftover_title')}
+      >
+        {eventLeftover && (
+          <div className="flex flex-col gap-4">
+            <div className="text-center">
+              <p className="text-4xl font-extrabold tabular text-success">
+                {formatMoney(eventLeftover.leftoverCents, trip.baseCurrency)}
+              </p>
+              <p className="mt-2 text-sm text-on-surface-dim">
+                {t('dashboard.event_leftover_body', { event: eventLeftover.occurrence.name })}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => onEventLeftover('free')}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon name="account_balance_wallet" size={18} className="text-primary" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-on-surface">
+                    {t('dashboard.event_leftover_free')}
+                  </span>
+                  <span className="block text-[11px] text-on-surface-faint">
+                    {t('dashboard.event_leftover_free_hint')}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => onEventLeftover('piggy')}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon name="savings" size={18} className="text-on-surface-dim" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-on-surface">
+                    {t('dashboard.event_leftover_piggy')}
+                  </span>
+                  <span className="block text-[11px] text-on-surface-faint">
+                    {t('dashboard.event_leftover_piggy_hint')}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => onEventLeftover('pot')}
+                className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+              >
+                <Icon name="shopping_bag" size={18} className="text-on-surface-dim" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-on-surface">
+                    {t('dashboard.event_leftover_pot')}
+                  </span>
+                  <span className="block text-[11px] text-on-surface-faint">
+                    {t('dashboard.event_leftover_pot_hint')}
+                  </span>
+                </span>
+              </button>
             </div>
           </div>
         )}

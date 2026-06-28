@@ -6,6 +6,9 @@ import {
   eventReserveRemainingCents,
   eventDaysLeftInclusive,
   eventDailyAllowanceCents,
+  eventHasEnded,
+  isEventLeftoverPending,
+  selectPendingEventLeftovers,
 } from '@/domain/budget';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { createPlannedOccurrence } from '@/domain/planning';
@@ -188,5 +191,102 @@ describe('eventDailyAllowanceCents (DEC-385 · G2)', () => {
     expect(
       eventDailyAllowanceCents(occ, [mkExpense({ occurrenceId: 'evt-1', amountCents: 1000 })], '2026-06-12'),
     ).toBe(0);
+  });
+});
+
+describe('eventHasEnded (DEC-387 · G4)', () => {
+  it('is true only once the end date is strictly before today (day-granular)', () => {
+    const occ = mkEvent({ plannedDate: '2026-06-12', endDate: '2026-06-15' });
+    expect(eventHasEnded(occ, '2026-06-15')).toBe(false); // last day is not "ended"
+    expect(eventHasEnded(occ, '2026-06-16')).toBe(true);
+    expect(eventHasEnded(occ, '2026-06-16T03:00:00.000Z')).toBe(true); // time ignored
+  });
+
+  it('uses the single plannedDate when there is no end date', () => {
+    const occ = mkEvent({ plannedDate: '2026-06-12', endDate: null });
+    expect(eventHasEnded(occ, '2026-06-12')).toBe(false);
+    expect(eventHasEnded(occ, '2026-06-13')).toBe(true);
+  });
+
+  it('never ends a dateless event', () => {
+    expect(eventHasEnded(mkEvent({ plannedDate: null, endDate: null }), '2026-12-31')).toBe(false);
+  });
+});
+
+describe('isEventLeftoverPending (DEC-387 · G4)', () => {
+  const ended = { plannedDate: '2026-06-10', endDate: '2026-06-12' };
+  const today = '2026-06-20';
+
+  it('is true for an ended event whose reserve still holds unspent money', () => {
+    const occ = mkEvent({ id: 'evt-1', ...ended, reservedCents: 5000 });
+    expect(isEventLeftoverPending(occ, [mkExpense({ occurrenceId: 'evt-1', amountCents: 2000 })], today)).toBe(
+      true,
+    );
+  });
+
+  it('is false while the event has not ended yet', () => {
+    const occ = mkEvent({ id: 'evt-1', plannedDate: '2026-06-19', endDate: '2026-06-25', reservedCents: 5000 });
+    expect(isEventLeftoverPending(occ, [], today)).toBe(false);
+  });
+
+  it('is false when the reserve is fully consumed (nothing left to resolve)', () => {
+    const occ = mkEvent({ id: 'evt-1', ...ended, reservedCents: 5000 });
+    expect(isEventLeftoverPending(occ, [mkExpense({ occurrenceId: 'evt-1', amountCents: 5000 })], today)).toBe(
+      false,
+    );
+  });
+
+  it('is false for an already-resolved, deleted, or track-only event', () => {
+    expect(isEventLeftoverPending(mkEvent({ ...ended, isConfirmed: true }), [], today)).toBe(false);
+    expect(isEventLeftoverPending(mkEvent({ ...ended, deletedAt: '2026-06-13T00:00:00.000Z' }), [], today)).toBe(
+      false,
+    );
+    expect(isEventLeftoverPending(mkEvent({ ...ended, reservedCents: null }), [], today)).toBe(false);
+  });
+
+  it('is false for an occurrence that is not an event (e.g. a sub-destination)', () => {
+    const occ = mkEvent({ id: 'evt-1', ...ended, kind: 'sub_destination', reservedCents: 5000 });
+    expect(isEventLeftoverPending(occ, [], today)).toBe(false);
+  });
+});
+
+describe('selectPendingEventLeftovers (DEC-387 · G4)', () => {
+  const today = '2026-06-20';
+
+  it('returns each pending leftover with its held amount, oldest-ended first', () => {
+    const older = mkEvent({
+      id: 'evt-old',
+      plannedDate: '2026-06-08',
+      endDate: '2026-06-09',
+      reservedCents: 4000,
+    });
+    const newer = mkEvent({
+      id: 'evt-new',
+      plannedDate: '2026-06-14',
+      endDate: '2026-06-15',
+      reservedCents: 3000,
+    });
+    const txs = [
+      mkExpense({ occurrenceId: 'evt-old', amountCents: 1000 }), // 4000−1000 = 3000 left
+      mkExpense({ occurrenceId: 'evt-new', amountCents: 500 }), // 3000−500 = 2500 left
+    ];
+    // Passed newest-first to prove the sort orders by end date ascending.
+    const result = selectPendingEventLeftovers([newer, older], txs, today);
+    expect(result.map((r) => r.occurrence.id)).toEqual(['evt-old', 'evt-new']);
+    expect(result.map((r) => r.leftoverCents)).toEqual([3000, 2500]);
+  });
+
+  it('excludes events that have not ended, are resolved, or are fully consumed', () => {
+    const pending = mkEvent({ id: 'evt-1', plannedDate: '2026-06-10', endDate: '2026-06-11', reservedCents: 2000 });
+    const future = mkEvent({ id: 'evt-2', plannedDate: '2026-06-25', endDate: '2026-06-26', reservedCents: 2000 });
+    const resolved = mkEvent({
+      id: 'evt-3',
+      plannedDate: '2026-06-10',
+      endDate: '2026-06-11',
+      reservedCents: 2000,
+      isConfirmed: true,
+    });
+    const result = selectPendingEventLeftovers([pending, future, resolved], [], today);
+    expect(result.map((r) => r.occurrence.id)).toEqual(['evt-1']);
   });
 });

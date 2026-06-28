@@ -31,7 +31,11 @@ export {
   eventReserveRemainingCents,
   eventDaysLeftInclusive,
   eventDailyAllowanceCents,
+  eventHasEnded,
+  isEventLeftoverPending,
+  selectPendingEventLeftovers,
 } from './event-budget';
+export type { PendingEventLeftover } from './event-budget';
 export {
   buildHonestFriendV2,
   projectReserveStartDate,

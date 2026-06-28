@@ -26,6 +26,7 @@ import {
   selectOtherPhasePots,
   eventReserveRemainingCents,
   eventDailyAllowanceCents,
+  selectPendingEventLeftovers,
 } from '@/domain/budget';
 import {
   filterTransactionsByPool,
@@ -428,6 +429,11 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       handledPhaseIds: settings?.phaseLeftoverHandled ?? [],
     });
 
+    // DEC-387 (G4): an ended event whose reserve still holds money prompts the
+    // user to resolve the leftover (free / cofrinho / pote). One at a time
+    // (oldest first); never auto-decided — dismissing leaves it pending (A4).
+    const eventLeftover = selectPendingEventLeftovers(occurrences, transactions, todayIso)[0] ?? null;
+
     // DEC-175: planned purchases summary — what's still set aside from
     // free-to-spend, plus the top open buys for the dashboard card.
     const openPlannedPurchases = plannedPurchases.filter(isPlannedPurchaseOpen);
@@ -774,6 +780,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       occasionCounters,
       todayIso,
       todayEvents,
+      eventLeftover,
       upcomingEvents,
       hasPendingExpenses,
       pendingImpactCents,

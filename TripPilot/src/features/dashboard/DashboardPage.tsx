@@ -27,6 +27,8 @@ import {
   resolveShareConfirmation,
   applyPhaseLeftover,
   type PhaseLeftoverDestination,
+  resolveEventLeftover,
+  type EventLeftoverDestination,
   applyValueSuggestion,
   dismissValueSuggestion,
   saveTripTemplate,
@@ -230,6 +232,32 @@ export function DashboardPage() {
         }),
         'success',
       );
+    }
+    await reload();
+  };
+
+  // DEC-387 (G4): resolve an ended event's leftover. Only an explicit choice
+  // runs the atomic orchestrator — dismissing the sheet leaves it pending (A4).
+  // The destination (free / cofrinho / pote) is off-screen, so announce it.
+  const handleEventLeftover = async (destination: EventLeftoverDestination) => {
+    if (!model.eventLeftover || !trip) return;
+    const { occurrence, leftoverCents } = model.eventLeftover;
+    const leftoverLabel = t('dashboard.event_leftover_label', { event: occurrence.name });
+    await resolveEventLeftover({
+      occurrenceId: occurrence.id,
+      amountCents: leftoverCents,
+      destination,
+      leftoverLabel,
+      tripId: trip.id,
+      currency: trip.baseCurrency,
+    });
+    const amount = formatMoney(leftoverCents, trip.baseCurrency);
+    if (destination === 'free') {
+      showToast(t('dashboard.event_leftover_moved_free', { amount }), 'success');
+    } else if (destination === 'piggy') {
+      showToast(t('dashboard.event_leftover_moved_piggy', { amount }), 'success');
+    } else {
+      showToast(t('dashboard.event_leftover_moved_pot', { amount }), 'success');
     }
     await reload();
   };
@@ -634,6 +662,8 @@ export function DashboardPage() {
         phaseLeftover={isSimpleMode || ongoing ? null : model.phaseLeftover}
         leftoverTargets={model.globalPoolSummaries.map((g) => g.pool)}
         onPhaseLeftover={handlePhaseLeftover}
+        eventLeftover={ongoing ? null : model.eventLeftover}
+        onEventLeftover={handleEventLeftover}
         valueSuggestion={isSimpleMode || ongoing ? null : model.valueSuggestion}
         onValueSuggestion={handleValueSuggestion}
         tripPriors={isSimpleMode || ongoing ? null : model.tripPriors}

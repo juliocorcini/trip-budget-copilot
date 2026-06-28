@@ -125,3 +125,64 @@ export function isEventSessionExclusive(
   const hasSession = tx.sessionId !== null && tx.sessionId !== undefined;
   return !(hasEvent && hasSession);
 }
+
+/**
+ * DEC-387 (G4): whether the event's date interval is fully in the past — its end
+ * (the `endDate`, or the single `plannedDate`) is strictly before today. A
+ * dateless event never "ends". Pure (day-granular, time component ignored).
+ */
+export function eventHasEnded(occ: PlannedOccurrence, todayIso: string): boolean {
+  const end = occ.endDate ?? occ.plannedDate;
+  if (end === null) return false;
+  return end.slice(0, 10) < todayIso.slice(0, 10);
+}
+
+/** DEC-387 (G4): an ended event whose reserve still holds unspent money. */
+export interface PendingEventLeftover {
+  occurrence: PlannedOccurrence;
+  /** `max(0, reserved − consumed)` still held — the amount to be resolved. */
+  leftoverCents: number;
+}
+
+/**
+ * DEC-387 (G4): an event has a PENDING leftover when it has ended (its days are
+ * past) and its consumable reserve still holds money (`remaining > 0`) that the
+ * user has not yet resolved (`isConfirmed` false — set true once resolved). The
+ * money is never auto-decided: it stays held (out of free) until the user picks a
+ * destination, so nothing is lost (Â-LEFTOVER-CONSERVED, A4). Pure.
+ */
+export function isEventLeftoverPending(
+  occ: PlannedOccurrence,
+  transactions: Transaction[],
+  todayIso: string,
+): boolean {
+  return (
+    occ.kind === 'event' &&
+    occ.deletedAt === null &&
+    eventHasEnded(occ, todayIso) &&
+    eventReserveRemainingCents(occ, transactions) > 0
+  );
+}
+
+/**
+ * DEC-387 (G4): every event with a pending leftover, oldest-ended first, each
+ * carrying the still-held amount. The UI resolves them one at a time (the prompt
+ * never auto-decides). Pure.
+ */
+export function selectPendingEventLeftovers(
+  occurrences: PlannedOccurrence[],
+  transactions: Transaction[],
+  todayIso: string,
+): PendingEventLeftover[] {
+  return occurrences
+    .filter((o) => isEventLeftoverPending(o, transactions, todayIso))
+    .map((occurrence) => ({
+      occurrence,
+      leftoverCents: eventReserveRemainingCents(occurrence, transactions),
+    }))
+    .sort((a, b) =>
+      (a.occurrence.endDate ?? a.occurrence.plannedDate ?? '').localeCompare(
+        b.occurrence.endDate ?? b.occurrence.plannedDate ?? '',
+      ),
+    );
+}

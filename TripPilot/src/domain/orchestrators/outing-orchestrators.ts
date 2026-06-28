@@ -3,6 +3,7 @@ import { endSession, createSessionItem } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { updateProfileFromTransaction } from '@/domain/forecasting';
 import { isPaidByOwner, resolvePayerExpense } from '@/domain/splitting';
+import { createBudgetPool, createEnvelope, computePoolTransfer } from '@/domain/budget';
 import { markUpdated, softDelete } from '@/utils/entity-factory';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -231,6 +232,81 @@ export async function deleteEventKeepingExpenses(occurrenceId: string): Promise<
     for (const tx of attributed) {
       await db.transactions.put(markUpdated({ ...tx, occurrenceId: null }));
     }
+  });
+}
+
+/**
+ * DEC-387 (G4): how the still-held leftover of an ended event is resolved. Mirrors
+ * the phase-leftover destinations (DEC-217 `applyPhaseLeftover`), conserving money
+ * 1:1 (Â-LEFTOVER-CONSERVED):
+ *  - free:  the reserve simply closes (`isConfirmed`); the leftover returns to the
+ *           phase free-to-spend. No pool/envelope changes.
+ *  - piggy: a labeled `protected_reserve` envelope ("Sobra de {evento}") on the
+ *           event's pool — the money stays in the pool but set aside; pool totals
+ *           untouched, so the trip total is preserved.
+ *  - pot:   a dedicated `global` pot ("Sobra de {evento}") receives the leftover via
+ *           an atomic pool→pool transfer (source ↓ = pot ↑) — trip total invariant.
+ */
+export type EventLeftoverDestination = 'free' | 'piggy' | 'pot';
+
+export interface ResolveEventLeftoverInput {
+  occurrenceId: string;
+  /** The leftover (`max(0, reserved − consumed)`) the UI computed for this event. */
+  amountCents: number;
+  destination: EventLeftoverDestination;
+  /** Localized "Sobra de {evento}" label for the envelope/pot (UI supplies t()). */
+  leftoverLabel: string;
+  /** Trip + currency — only used to create the dedicated pot. */
+  tripId: string;
+  currency: string;
+}
+
+/**
+ * DEC-387 (G4): apply the user's choice for an ended event's leftover, atomically.
+ * Every destination first marks the event resolved (`isConfirmed`) so the reserve
+ * stops deducting and the prompt never reopens; piggy/pot then re-home the money
+ * without changing the trip total. Never auto-decided — only an explicit choice
+ * runs this (a dismissed prompt leaves the event pending, A4).
+ */
+export async function resolveEventLeftover(input: ResolveEventLeftoverInput): Promise<void> {
+  await db.transaction('rw', [db.plannedOccurrences, db.envelopes, db.budgetPools], async () => {
+    const occurrence = await db.plannedOccurrences.get(input.occurrenceId);
+    if (!occurrence || occurrence.deletedAt !== null) return;
+    // Resolve the event: the consumable reserve returns 0 from here on, releasing
+    // the held leftover back into the pool's free-to-spend.
+    await db.plannedOccurrences.put(markUpdated({ ...occurrence, isConfirmed: true }));
+
+    if (input.amountCents <= 0 || input.destination === 'free') return;
+
+    if (input.destination === 'piggy') {
+      // Set the leftover aside in the same pool as a labeled protected reserve —
+      // free −= L cancels the release above, so net free is unchanged and the
+      // money is conserved, now visibly earmarked "Sobra de {evento}".
+      await db.envelopes.add(
+        createEnvelope({
+          budgetPoolId: occurrence.budgetPoolId,
+          kind: 'protected_reserve',
+          name: input.leftoverLabel,
+          amountCents: input.amountCents,
+        }),
+      );
+      return;
+    }
+
+    // 'pot' — move the leftover into a dedicated global pot, conserving the trip
+    // total (source pool ↓ = pot ↑, computePoolTransfer / ÂNCORA 13).
+    const source = await db.budgetPools.get(occurrence.budgetPoolId);
+    if (!source) return;
+    const pot = createBudgetPool({
+      tripId: input.tripId,
+      name: input.leftoverLabel,
+      scope: 'global',
+      totalAmountCents: 0,
+      currency: input.currency,
+    });
+    const moved = computePoolTransfer(source.totalAmountCents, pot.totalAmountCents, input.amountCents);
+    await db.budgetPools.put(markUpdated({ ...source, totalAmountCents: moved.sourceTotalCents }));
+    await db.budgetPools.add({ ...pot, totalAmountCents: moved.targetTotalCents });
   });
 }
 
