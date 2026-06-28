@@ -42,6 +42,13 @@ export type ExecOp =
       description: string;
       date?: string;
       place: CurrentPlace | null;
+      /**
+       * DEC-397 (G6): the event this spend is attributed to (consumes its reserve,
+       * DEC-385/386), or null/undefined = none. The planner leaves it unset; the
+       * user picks it in the sheet (`patchDraft`) and it survives the QuickAdd
+       * hand-off. Â-ATTRIBUTION: an event attribution drops any outing session.
+       */
+      occurrenceId?: string | null;
       ownerId: string;
       /** Who handed over the money (owner id, or another participant). */
       payerId: string;

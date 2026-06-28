@@ -147,6 +147,18 @@ describe('expenseOpToQuickAddDraft', () => {
     const draft = expenseOpToQuickAddDraft(expenseOp({ description: '   ' }), 'EUR');
     expect(draft.description).toBeUndefined();
   });
+
+  it('carries the event attribution so the hand-off never loses it (DEC-397)', () => {
+    const draft = expenseOpToQuickAddDraft(expenseOp({ occurrenceId: 'occ-9' }), 'EUR');
+    expect(draft.occurrenceId).toBe('occ-9');
+    expect(draft.poolId).toBe('pool-1');
+    expect(draft.walletId).toBe('w1');
+  });
+
+  it('maps a missing event attribution to null (DEC-397)', () => {
+    const draft = expenseOpToQuickAddDraft(expenseOp(), 'EUR');
+    expect(draft.occurrenceId).toBeNull();
+  });
 });
 
 describe('resolveDraftSplitState', () => {

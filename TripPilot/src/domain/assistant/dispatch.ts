@@ -103,6 +103,10 @@ async function executeExpense(
     category: op.category,
     description: op.description,
     date: op.date,
+    // DEC-397 (G6): carry the event attribution so an AI expense consumes the
+    // right event reserve (DEC-385). createExpenseTransaction drops any session
+    // when an occurrence is set (Â-ATTRIBUTION).
+    occurrenceId: op.occurrenceId ?? null,
     ...placeToTransactionFields(op.place),
   });
 

@@ -94,6 +94,9 @@ export interface AssistantSplitNudge {
  */
 export interface AssistantBatchView {
   items: AssistantPreview[];
+  /** DEC-397 (G6): the editable op behind each `items[i]` (same order/length), so
+   *  the batch can enrich fund/event/wallet per item and hand one to QuickAdd. */
+  ops: ExecOp[];
   blocked: { reasonKey: string; preview: AssistantPreview | null }[];
   count: number;
   ownerTotalCents: number;
@@ -140,6 +143,10 @@ export interface UseAssistant {
   confirmBatch: () => Promise<void>;
   /** Edit a field of the drafted expense before confirming (in-sheet parity). */
   patchDraft: (patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => void;
+  /** DEC-397 (G6): enrich one batch item's fund/event/wallet in place. */
+  patchBatchItem: (index: number, patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => void;
+  /** DEC-397 (G6): hand one batch item to the full QuickAdd editor (pre-filled). */
+  openBatchItemEditor: (index: number) => void;
   /** Hand the (edited) draft to the full QuickAdd form for the heavy cases. */
   openFullEditor: () => void;
   /** FB-09 (DEC-258): scan a receipt photo → one summarized expense preview. */
@@ -385,6 +392,7 @@ export function useAssistant(): UseAssistant {
     setClarification(null);
     setBatchView({
       items: plan.ready.map((r) => r.preview),
+      ops: plan.ready.map((r) => r.op),
       blocked: plan.blocked.map((b) => ({ reasonKey: b.reasonKey, preview: b.preview })),
       count: plan.ready.length,
       ownerTotalCents,
@@ -634,6 +642,40 @@ export function useAssistant(): UseAssistant {
     navigate('/quick-add');
     setPhase('done');
   }, [navigate, draftOp]);
+
+  // DEC-397 (G6): enrich one batch item in place — set its fund/event/wallet
+  // without leaving the list. Only the expense kind is editable; the headline
+  // (amount/who) is unaffected by these fields, so the total/preview stay valid.
+  const patchBatchItem = useCallback(
+    (index: number, patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => {
+      const ready = batchReadyRef.current;
+      const item = ready[index];
+      if (!item || item.op.kind !== 'expense') return;
+      const nextOp: ExecOp = { ...item.op, ...patch };
+      batchReadyRef.current = ready.map((r, i) => (i === index ? { ...r, op: nextOp } : r));
+      setBatchView((prev) =>
+        prev ? { ...prev, ops: batchReadyRef.current.map((r) => r.op) } : prev,
+      );
+    },
+    [],
+  );
+
+  // DEC-397 (G6): hand ONE batch item to the full QuickAdd editor, pre-filled
+  // (incl. the event). The handed item is dropped from the batch so it can never
+  // double-commit; the rest stay pending. Mirrors `openFullEditor` per item.
+  const openBatchItemEditor = useCallback(
+    (index: number) => {
+      const ready = batchReadyRef.current;
+      const item = ready[index];
+      if (!item || item.op.kind !== 'expense') return;
+      const base = dataRef.current.trip?.baseCurrency ?? 'EUR';
+      setAssistantQuickAddDraft(expenseOpToQuickAddDraft(item.op, base));
+      batchReadyRef.current = ready.filter((_, i) => i !== index);
+      navigate('/quick-add');
+      setPhase('done');
+    },
+    [navigate],
+  );
 
   const dismissNudge = useCallback(() => setSplitNudge(null), []);
 
@@ -975,6 +1017,8 @@ export function useAssistant(): UseAssistant {
     confirm,
     confirmBatch,
     patchDraft,
+    patchBatchItem,
+    openBatchItemEditor,
     openFullEditor,
     scanReceiptPhoto,
     openReceiptItems,

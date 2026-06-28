@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.5-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'Quando você registra gastos pela IA (texto, voz ou foto), agora dá pra definir o fundo, o evento e a carteira de cada um — antes vinham "crus", sem essas informações.',
+        'Num lote de vários gastos da IA, cada item pode ser ajustado ali mesmo ou aberto na tela de gasto completa, já preenchido (inclusive com o evento que ele entra).',
+        'O confirmar de um toque continua igual — pra quando você só quer registrar tudo sem mexer em nada.',
+      ],
+      en: [
+        "When you log expenses via the AI (text, voice or photo), you can now set each one's fund, event and wallet — before they came in \"raw\", without those.",
+        'In a batch of several AI expenses, each item can be tweaked right there or opened in the full expense screen pre-filled (including the event it belongs to).',
+        "The one-tap confirm still works exactly as before — for when you just want to log everything without touching anything.",
+      ],
+      es: [
+        'Cuando registras gastos con la IA (texto, voz o foto), ahora puedes definir el fondo, el evento y la billetera de cada uno — antes venían "crudos", sin eso.',
+        'En un lote de varios gastos de la IA, cada ítem se puede ajustar ahí mismo o abrir en la pantalla de gasto completa, ya rellenado (incluido el evento al que entra).',
+        'El confirmar de un toque sigue igual — para cuando solo quieres registrar todo sin tocar nada.',
+      ],
+    },
+  },
+  {
     version: '1.8.4-rc',
     date: '2026-06-28',
     items: {

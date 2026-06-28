@@ -323,6 +323,12 @@ export function QuickAddPage() {
     if (aiDraft.place) setPlace(aiDraft.place);
     if (aiDraft.poolId) setPoolId(aiDraft.poolId);
     if (aiDraft.walletId !== undefined) setWalletId(aiDraft.walletId);
+    // DEC-397 (G6): pre-select the event the AI draft carried, and mark the
+    // attribution touched so the lone-event auto-suggest never overrides it.
+    if (aiDraft.occurrenceId) {
+      eventAttributionTouchedRef.current = true;
+      setAttributedOccurrenceId(aiDraft.occurrenceId);
+    }
     if (aiDraft.shareType) setSplitMode(aiDraft.shareType);
 
     if (owner) {

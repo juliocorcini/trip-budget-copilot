@@ -12,6 +12,7 @@ import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
 import { isVoiceBusy, voiceStateLabelKey, type VoiceState } from '@/domain/voice/voice-state';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
 import { EXPENSE_CATEGORY_KEYS, ownerPersonalCostCents } from '@/domain/assistant';
+import { selectAttributableEvents } from '@/domain/planning';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { PlaceField } from '@/features/location/PlaceField';
 import { SplitShareNudgeSheet } from '@/features/shared/SplitShareNudgeSheet';
@@ -24,6 +25,7 @@ import { useAssistant, type AssistantBatchView } from './useAssistant';
 import type { AssistantPreview, ExecOp } from '@/domain/assistant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { Transaction } from '@/domain/types/transaction';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { CurrentPlace } from '@/domain/types/common';
 
 type ExpenseOp = Extract<ExecOp, { kind: 'expense' }>;
@@ -33,10 +35,17 @@ interface EditContext {
   selectablePools: { id: string; name: string }[];
   wallets: Wallet[];
   transactions: Transaction[];
+  /** DEC-397 (G6): events available for attribution, narrowed per the op's day. */
+  occurrences: PlannedOccurrence[];
   walletTrackingActive: boolean;
   locationEnabled: boolean;
   rememberedPlace: CurrentPlace | null;
   baseCurrency: string;
+}
+
+/** DEC-397 (G6): the local day an expense op falls on (its date, else today). */
+function opDayIso(op: ExpenseOp): string {
+  return op.date ? op.date.slice(0, 10) : new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -125,6 +134,7 @@ export function AssistantSheet() {
     selectablePools: [...availablePools.operational, ...availablePools.global],
     wallets,
     transactions,
+    occurrences,
     walletTrackingActive,
     locationEnabled: !!settings?.locationCaptureEnabled,
     rememberedPlace: settings?.currentPlace ?? null,
@@ -219,7 +229,10 @@ export function AssistantSheet() {
             {assistant.phase === 'batch_preview' && assistant.batchView && (
               <BatchPreviewArea
                 view={assistant.batchView}
+                edit={editContext}
                 money={money}
+                patchBatchItem={assistant.patchBatchItem}
+                onItemFullEditor={assistant.openBatchItemEditor}
                 onConfirm={() => void assistant.confirmBatch()}
                 onCancel={assistant.cancelClarification}
               />
@@ -720,7 +733,10 @@ const BATCH_BLOCKED_KEY: Record<string, string> = {
  */
 function BatchPreviewArea(props: {
   view: AssistantBatchView;
+  edit: EditContext;
   money: (cents?: number, currency?: string) => string;
+  patchBatchItem: (index: number, patch: Partial<ExpenseOp>) => void;
+  onItemFullEditor: (index: number) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -742,29 +758,15 @@ function BatchPreviewArea(props: {
 
       <div className="flex flex-col gap-2">
         {view.items.map((item, i) => (
-          <div
+          <BatchItemRow
             key={i}
-            className="rounded-2xl p-3 flex items-start gap-3"
-            style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
-          >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'var(--ai-bg)' }}
-            >
-              <Icon name={PREVIEW_ICON[item.op] ?? 'auto_awesome'} size={18} className="text-[var(--ai-2)]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] font-semibold text-on-surface leading-snug">
-                {composePreview(item, t as never, props.money)}
-              </p>
-              {(item.categoryKey || item.placeLabel) && (
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {item.categoryKey && <Chip>{t(`categories.${item.categoryKey}`)}</Chip>}
-                  {item.placeLabel && <Chip>{item.placeLabel}</Chip>}
-                </div>
-              )}
-            </div>
-          </div>
+            item={item}
+            op={view.ops[i] ?? null}
+            edit={props.edit}
+            money={props.money}
+            onPatch={(patch) => props.patchBatchItem(i, patch)}
+            onFullEditor={() => props.onItemFullEditor(i)}
+          />
         ))}
       </div>
 
@@ -799,6 +801,154 @@ function BatchPreviewArea(props: {
         style={{ background: 'var(--surface-high)' }}
       >
         {t('assistant.action.edit')}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * DEC-397 (G6): one row of the batch preview. An expense item can be expanded to
+ * enrich its fund/event/wallet in place, or handed to the full QuickAdd editor
+ * (pre-filled, incl. the event). Non-expense items render the headline only.
+ */
+function BatchItemRow(props: {
+  item: AssistantPreview;
+  op: ExecOp | null;
+  edit: EditContext;
+  money: (cents?: number, currency?: string) => string;
+  onPatch: (patch: Partial<ExpenseOp>) => void;
+  onFullEditor: () => void;
+}) {
+  const { t } = useTranslation();
+  const { item, op, edit } = props;
+  const [showEdit, setShowEdit] = useState(false);
+  const expenseOp = op && op.kind === 'expense' ? op : null;
+
+  const fundName =
+    expenseOp && edit.selectablePools.length > 1
+      ? (edit.selectablePools.find((p) => p.id === expenseOp.budgetPoolId)?.name ?? null)
+      : null;
+  const eventName =
+    expenseOp && expenseOp.occurrenceId
+      ? (edit.occurrences.find((o) => o.id === expenseOp.occurrenceId)?.name ?? null)
+      : null;
+
+  return (
+    <div
+      className="rounded-2xl p-3"
+      style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: 'var(--ai-bg)' }}
+        >
+          <Icon name={PREVIEW_ICON[item.op] ?? 'auto_awesome'} size={18} className="text-[var(--ai-2)]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13.5px] font-semibold text-on-surface leading-snug">
+            {composePreview(item, t as never, props.money)}
+          </p>
+          {(item.categoryKey || item.placeLabel || fundName || eventName) && (
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {item.categoryKey && <Chip>{t(`categories.${item.categoryKey}`)}</Chip>}
+              {item.placeLabel && <Chip>{item.placeLabel}</Chip>}
+              {fundName && (
+                <Chip>
+                  <Icon name="savings" size={11} className="text-on-surface-faint" /> {fundName}
+                </Chip>
+              )}
+              {eventName && (
+                <Chip>
+                  <Icon name="celebration" size={11} className="text-on-surface-faint" /> {eventName}
+                </Chip>
+              )}
+            </div>
+          )}
+        </div>
+        {expenseOp && (
+          <button
+            type="button"
+            onClick={() => setShowEdit((v) => !v)}
+            aria-expanded={showEdit}
+            aria-label={t('assistant.edit.toggle')}
+            className="btn-press w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: 'var(--surface-container)' }}
+          >
+            <Icon
+              name="tune"
+              size={16}
+              className="text-on-surface-dim transition-transform"
+              style={showEdit ? { transform: 'rotate(90deg)' } : undefined}
+            />
+          </button>
+        )}
+      </div>
+
+      {showEdit && expenseOp && (
+        <BatchItemEditor
+          op={expenseOp}
+          edit={edit}
+          onPatch={props.onPatch}
+          onFullEditor={props.onFullEditor}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * DEC-397 (G6): the compact per-batch-item enricher — fund/event/wallet only
+ * (the fields a "raw" AI expense is missing). Deeper edits (amount/split/rate)
+ * go through "open full editor", which hands this one op to QuickAdd pre-filled.
+ */
+function BatchItemEditor(props: {
+  op: ExpenseOp;
+  edit: EditContext;
+  onPatch: (patch: Partial<ExpenseOp>) => void;
+  onFullEditor: () => void;
+}) {
+  const { t } = useTranslation();
+  const { op, edit } = props;
+  return (
+    <div className="flex flex-col gap-2 mt-2.5">
+      {edit.selectablePools.length > 1 && (
+        <Field label={t('expenses.fund')}>
+          <ChipPicker
+            items={edit.selectablePools.map((p) => ({ id: p.id, label: p.name }))}
+            selectedId={op.budgetPoolId}
+            onSelect={(id) => props.onPatch({ budgetPoolId: id })}
+          />
+        </Field>
+      )}
+
+      <EventPicker
+        op={op}
+        occurrences={edit.occurrences}
+        onSelect={(occurrenceId) => props.onPatch({ occurrenceId })}
+      />
+
+      {edit.walletTrackingActive && (
+        <Field label={t('expenses.wallet')}>
+          <ChipPicker
+            items={[
+              { id: WALLET_NONE, label: t('expenses.wallet_not_set') },
+              ...edit.wallets.map((w) => ({ id: w.id, label: w.name })),
+            ]}
+            selectedId={op.walletId ?? WALLET_NONE}
+            onSelect={(id) => props.onPatch({ walletId: id === WALLET_NONE ? null : id })}
+          />
+        </Field>
+      )}
+
+      <button
+        type="button"
+        onClick={props.onFullEditor}
+        className="btn-press w-full h-10 rounded-xl flex items-center justify-center gap-2 font-semibold text-[13px] text-on-surface-dim"
+        style={{ background: 'var(--surface-container)' }}
+      >
+        <Icon name="open_in_full" size={15} />
+        {t('assistant.action.full_editor')}
       </button>
     </div>
   );
@@ -917,6 +1067,12 @@ function ExpenseEditor(props: {
         </Field>
       )}
 
+      <EventPicker
+        op={op}
+        occurrences={edit.occurrences}
+        onSelect={(occurrenceId) => patchDraft({ occurrenceId })}
+      />
+
       {isSplit && (
         <Field label={t('assistant.edit.split')}>
           <button
@@ -934,6 +1090,35 @@ function ExpenseEditor(props: {
 }
 
 const WALLET_NONE = '__none__';
+const EVENT_NONE = '__no_event__';
+
+/**
+ * DEC-397 (G6): the event-attribution picker shared by the single sheet editor
+ * and each batch item — narrows the events to those active on the op's day
+ * (`selectAttributableEvents`, the SAME set QuickAdd offers) and renders nothing
+ * when none apply, so it never adds noise on a plain day.
+ */
+function EventPicker(props: {
+  op: ExpenseOp;
+  occurrences: PlannedOccurrence[];
+  onSelect: (occurrenceId: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const events = selectAttributableEvents(props.occurrences, opDayIso(props.op));
+  if (events.length === 0) return null;
+  return (
+    <Field label={t('assistant.edit.event')}>
+      <ChipPicker
+        items={[
+          { id: EVENT_NONE, label: t('expenses.event_attribution_none') },
+          ...events.map((e) => ({ id: e.id, label: e.name })),
+        ]}
+        selectedId={props.op.occurrenceId ?? EVENT_NONE}
+        onSelect={(id) => props.onSelect(id === EVENT_NONE ? null : id)}
+      />
+    </Field>
+  );
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

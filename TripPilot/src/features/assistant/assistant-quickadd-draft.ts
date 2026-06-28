@@ -25,6 +25,9 @@ export interface AssistantQuickAddDraft {
   place?: CurrentPlace | null;
   poolId?: string;
   walletId?: string | null;
+  /** DEC-397 (G6): the event the spend is attributed to, so QuickAdd pre-selects
+   *  it and the AI→manual hand-off never loses the event. */
+  occurrenceId?: string | null;
   /** Split — payerId null = the owner paid. */
   payerId?: string | null;
   participantIds?: string[];
@@ -59,6 +62,7 @@ export function expenseOpToQuickAddDraft(
     place: op.place,
     poolId: op.budgetPoolId,
     walletId: op.walletId,
+    occurrenceId: op.occurrenceId ?? null,
     payerId: op.payerId,
     participantIds: op.participantIds,
     shareType: 'equal',

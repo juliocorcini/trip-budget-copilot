@@ -59,7 +59,8 @@
     "edit": {
       "toggle": "Adjust details",
       "split": "Split",
-      "adjust_split": "Adjust who paid / split"
+      "adjust_split": "Adjust who paid / split",
+      "event": "Event"
     },
     "foreign_currency_notice": "A {{currency}} expense needs an exchange rate — open the full editor to set it.",
     "insight": {

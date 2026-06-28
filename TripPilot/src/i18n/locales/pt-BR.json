@@ -59,7 +59,8 @@
     "edit": {
       "toggle": "Ajustar detalhes",
       "split": "Divisão",
-      "adjust_split": "Ajustar quem pagou / divisão"
+      "adjust_split": "Ajustar quem pagou / divisão",
+      "event": "Evento"
     },
     "foreign_currency_notice": "Gasto em {{currency}} precisa de câmbio — abra a edição completa pra definir a taxa.",
     "insight": {
