@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.0-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'O evento que está acontecendo agora continua à vista na tela inicial — antes ele sumia quando você abria a saída. Você vê quanto já gastou (com o quê e quando), quanto ainda sobra, quanto dá por dia e quantos dias faltam.',
+        'O bloco do evento e o card da saída convivem sem contar o gasto duas vezes: gastos manuais e da saída entram no mesmo progresso.',
+      ],
+      en: [
+        "The event that's happening now stays in view on the home screen — it used to disappear once you opened the outing. You see how much you've spent (on what and when), how much is left, how much per day, and how many days remain.",
+        'The event block and the outing card live together without double-counting: both manual and outing spends feed the same progress.',
+      ],
+      es: [
+        'El evento que está en curso ahora sigue a la vista en la pantalla de inicio — antes desaparecía al abrir la salida. Ves cuánto gastaste (en qué y cuándo), cuánto queda, cuánto por día y cuántos días faltan.',
+        'El bloque del evento y la tarjeta de la salida conviven sin contar el gasto dos veces: tanto los gastos manuales como los de la salida alimentan el mismo progreso.',
+      ],
+    },
+  },
+  {
     version: '1.7.5-rc',
     date: '2026-06-27',
     items: {

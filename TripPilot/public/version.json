@@ -1,8 +1,8 @@
 {
-  "version": "1.7.5-rc",
+  "version": "1.8.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.5-rc.zip",
-  "notes": "No acerto de contas, agora aparece só o que é seu: quem te deve e quem você deve. Dívidas entre outras pessoas que você só registrou saem da lista principal e ficam num menu separado, sem entrar no seu saldo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.0-rc.zip",
+  "notes": "Agora, quando um evento está acontecendo, ele continua à vista na tela inicial — mesmo com uma saída aberta. Você vê quanto já gastou (com o quê e quando), quanto sobra, quanto dá por dia e quantos dias faltam."
 }
