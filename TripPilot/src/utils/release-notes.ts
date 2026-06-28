@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.3-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'Em "Pessoas", o saldo de cada um agora é fiel ao que há entre você e ela — acabou o número roteado por terceiros ("fulano recebe X" sem ter nada a ver com você).',
+        'Abrir uma pessoa mostra só os gastos e acertos entre vocês dois; uma cobrança que ela tem com um terceiro (e que você só registrou) não aparece mais no perfil dela.',
+        'As "cobranças entre outros" desceram para um registro à parte, recolhido — continuam guardadas, sem sumir. Seu total a receber/pagar não muda.',
+      ],
+      en: [
+        'In "People", each balance is now faithful to what is between you and them — no more a number routed through a third party ("so-and-so receives X" with nothing to do with you).',
+        "Opening a person shows only the expenses and settlements between the two of you; a debt they have with a third party (that you merely recorded) no longer shows in their profile.",
+        '"Charges between others" moved to a separate, collapsed registry — still kept, never gone. Your total to receive/pay is unchanged.',
+      ],
+      es: [
+        'En "Personas", el saldo de cada uno ahora es fiel a lo que hay entre tú y esa persona — se acabó el número ruteado por terceros ("fulano recibe X" sin tener nada que ver contigo).',
+        'Abrir una persona muestra solo los gastos y arreglos entre ustedes dos; una deuda que tiene con un tercero (y que solo registraste) ya no aparece en su perfil.',
+        'Los "cobros entre otros" bajaron a un registro aparte, plegado — siguen guardados, sin desaparecer. Tu total a recibir/pagar no cambia.',
+      ],
+    },
+  },
+  {
     version: '1.8.2-rc',
     date: '2026-06-28',
     items: {

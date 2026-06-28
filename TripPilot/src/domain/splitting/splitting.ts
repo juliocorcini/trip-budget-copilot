@@ -750,6 +750,41 @@ export function buildParticipantStatement(
   };
 }
 
+/**
+ * DEC-394 (G4 · S-EGO-PEOPLE) — narrow a participant's statement to the lines and
+ * settlements that involve ONE counterparty (the owner). Opening a person in
+ * "Pessoas" then shows only what is between THEM and me — never a line about a
+ * debt they have with a third party that I merely recorded. The net is recomputed
+ * from the kept confirmed lines + settlements, so it equals that person's
+ * `ownerPairwiseBalances` entry (same sign: negative = they owe).
+ */
+export function filterStatementToCounterparty(
+  statement: ParticipantStatement,
+  counterpartyId: string,
+): ParticipantStatement {
+  const lines = statement.lines.filter((l) => l.counterpartyId === counterpartyId);
+  const settlements = statement.settlements.filter(
+    (s) =>
+      s.debtorParticipantId === counterpartyId || s.creditorParticipantId === counterpartyId,
+  );
+  const confirmedNet = sumCents(
+    lines
+      .filter((l) => l.confirmationStatus === 'confirmed')
+      .map((l) => (l.kind === 'owes' ? -l.amountCents : l.amountCents)),
+  );
+  const settlementNet = sumCents(
+    settlements.map((s) =>
+      s.debtorParticipantId === statement.participantId ? s.amountCents : -s.amountCents,
+    ),
+  );
+  return {
+    participantId: statement.participantId,
+    lines,
+    settlements,
+    netCents: confirmedNet + settlementNet,
+  };
+}
+
 /** Net balance per participant: positive = is owed money, negative = owes money. */
 export function calculateParticipantBalances(debts: DebtEntry[]): Map<string, number> {
   const balances = new Map<string, number>();
@@ -757,6 +792,72 @@ export function calculateParticipantBalances(debts: DebtEntry[]): Map<string, nu
     balances.set(debt.debtorId, (balances.get(debt.debtorId) ?? 0) - debt.amountCents);
     balances.set(debt.creditorId, (balances.get(debt.creditorId) ?? 0) + debt.amountCents);
   }
+  return balances;
+}
+
+/**
+ * DEC-394 (G4 · S-EGO-PEOPLE) — the FAITHFUL pairwise net between the owner and
+ * each OTHER person, read straight from confirmed shares + settlements. Unlike
+ * `calculateParticipantBalances` (which reads the min-transfer graph, where the
+ * owner's debt can be ROUTED through a third party and so land on the wrong
+ * person), this keeps only owner↔person edges, so "Pessoas" answers exactly
+ * "what is between ME and this person?". Debts between two non-owners are dropped
+ * (they live in the third-party registry instead).
+ *
+ * Sign is the PERSON's, matching `PersonView.balanceCents`: `> 0` they receive
+ * (the owner owes them), `< 0` they owe the owner.
+ *
+ * INVARIANCE (A6): `−Σ balances` equals the owner's net in `calculateDebts` /
+ * `summarizeOwnerDebts` (the min-transfer preserves every node's net), so the
+ * owner's TOTAL is unchanged — only the per-person attribution becomes faithful.
+ */
+export function ownerPairwiseBalances(
+  transactions: Transaction[],
+  shares: ParticipantShare[],
+  settlements: Settlement[],
+  ownerId: string,
+): Map<string, number> {
+  const balances = new Map<string, number>();
+  const add = (pid: string, cents: number) => balances.set(pid, (balances.get(pid) ?? 0) + cents);
+
+  const sharedTxs = transactions.filter(
+    (t) => t.isShared && t.type === 'expense' && t.deletedAt === null,
+  );
+  for (const tx of sharedTxs) {
+    const payerId = tx.paidByParticipantId ?? ownerId;
+    const txShares = shares.filter(
+      (s) =>
+        s.transactionId === tx.id &&
+        s.deletedAt === null &&
+        s.confirmationStatus === 'confirmed',
+    );
+    for (const share of txShares) {
+      if (share.participantId === payerId) continue;
+      if (payerId === ownerId && share.participantId !== ownerId) {
+        // The sharer owes the owner → from the person's view, they owe.
+        add(share.participantId, -share.shareAmountCents);
+      } else if (share.participantId === ownerId && payerId !== ownerId) {
+        // The owner owes the payer → from the person's view, they receive.
+        add(payerId, share.shareAmountCents);
+      }
+      // else: a debt between two non-owners — outside the owner's pairwise view.
+    }
+  }
+
+  for (const settlement of settlements) {
+    if (settlement.deletedAt !== null) continue;
+    if (settlement.creditorParticipantId === ownerId && settlement.debtorParticipantId !== ownerId) {
+      // The person paid the owner → their debt shrinks (balance rises).
+      add(settlement.debtorParticipantId, settlement.amountCents);
+    } else if (
+      settlement.debtorParticipantId === ownerId &&
+      settlement.creditorParticipantId !== ownerId
+    ) {
+      // The owner paid the person → what they are owed shrinks (balance falls).
+      add(settlement.creditorParticipantId, -settlement.amountCents);
+    }
+  }
+
   return balances;
 }
 

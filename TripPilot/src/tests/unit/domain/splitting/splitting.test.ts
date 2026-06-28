@@ -8,10 +8,12 @@ import {
   createParticipant,
   scaleSharesToTotal,
   calculateParticipantBalances,
+  ownerPairwiseBalances,
   findPendingConfirmationShares,
   calculateOwnerPersonalCost,
   suggestSimplifiedSettlements,
   buildParticipantStatement,
+  filterStatementToCounterparty,
   thirdPartyDebts,
   ownerInvolvedDebts,
   summarizeOwnerDebts,
@@ -20,6 +22,7 @@ import type { DebtEntry } from '@/domain/splitting';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Participant } from '@/domain/types/participant';
+import type { Settlement } from '@/domain/types/settlement';
 
 const meta = {
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -490,6 +493,136 @@ describe('calculateParticipantBalances', () => {
 
   it('returns empty map when there are no debts', () => {
     expect(calculateParticipantBalances([]).size).toBe(0);
+  });
+});
+
+describe('ownerPairwiseBalances + filterStatementToCounterparty (DEC-394 · G4 · S-EGO-PEOPLE)', () => {
+  const OWNER = 'julio';
+  const participants: Participant[] = [
+    { ...meta, id: OWNER, tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'ana', tripId: 'trip-1', name: 'Ana', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'bruno', tripId: 'trip-1', name: 'Bruno', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'debora', tripId: 'trip-1', name: 'Débora', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+  ];
+
+  const mkTx = (id: string, payerId: string | null): Transaction => ({
+    ...meta, id, tripId: 'trip-1', phaseId: 'ph-1',
+    budgetPoolId: 'pool-1', walletId: null, sessionId: null,
+    type: 'expense', amountCents: 20000, personalCostCents: null,
+    currency: 'EUR', baseCurrencyAmountCents: 20000, exchangeRate: null,
+    category: 'bar', subcategoryId: null, placeLabel: null, latitude: null, longitude: null, placeId: null,
+    description: id, date: '2026-07-01T00:00:00.000Z',
+    isShared: true, paidByParticipantId: payerId,
+    activityProfileId: null, isSpecialOccasion: false, excludeFromLearning: false,
+    sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
+  });
+
+  const mkShare = (
+    id: string,
+    txId: string,
+    participantId: string,
+    cents: number,
+    status: ParticipantShare['confirmationStatus'] = 'confirmed',
+  ): ParticipantShare => ({
+    ...meta, id, transactionId: txId, participantId, shareAmountCents: cents,
+    shareType: 'equal', isPaid: false, confirmationStatus: status, notes: null,
+  });
+
+  const mkSettlement = (
+    id: string,
+    debtorId: string,
+    creditorId: string,
+    cents: number,
+  ): Settlement => ({
+    ...meta, id, tripId: 'trip-1', debtorParticipantId: debtorId, creditorParticipantId: creditorId,
+    amountCents: cents, currency: 'EUR', settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null,
+  });
+
+  // The keystone scenario: I paid for Ana (Ana owes me) AND Bruno paid for Débora
+  // (a pure third-party debt I only recorded). The min-transfer can route my
+  // receivable through Bruno/Débora and mislabel them.
+  const txOwnerPaid = mkTx('tx-owner', OWNER); // owner paid, split owner+Ana
+  const txThirdParty = mkTx('tx-3p', 'bruno'); // Bruno paid, split Bruno+Débora
+  const shares: ParticipantShare[] = [
+    mkShare('s1', 'tx-owner', OWNER, 10000),
+    mkShare('s2', 'tx-owner', 'ana', 10000),
+    mkShare('s3', 'tx-3p', 'bruno', 10000),
+    mkShare('s4', 'tx-3p', 'debora', 10000),
+  ];
+
+  it('keeps only owner↔person edges — Ana owes me, third-party Bruno/Débora are 0', () => {
+    const balances = ownerPairwiseBalances([txOwnerPaid, txThirdParty], shares, [], OWNER);
+    expect(balances.get('ana')).toBe(-10000); // negative = Ana owes the owner
+    expect(balances.get('bruno') ?? 0).toBe(0); // a third-party creditor — not my business
+    expect(balances.get('debora') ?? 0).toBe(0); // a third-party debtor — not my business
+  });
+
+  it('is FAITHFUL where the min-transfer leaks: a third party gets a phantom balance', () => {
+    const { debts } = calculateDebts([txOwnerPaid, txThirdParty], shares, participants, [], OWNER);
+    const minTransfer = calculateParticipantBalances(debts);
+    const pairwise = ownerPairwiseBalances([txOwnerPaid, txThirdParty], shares, [], OWNER);
+    // The OLD path routes my receivable through the third-party pair, so at least
+    // one non-owner-related person shows a non-zero balance ("Bruno recebe …").
+    const leaked = (minTransfer.get('bruno') ?? 0) !== 0 || (minTransfer.get('debora') ?? 0) !== 0;
+    expect(leaked).toBe(true);
+    // The faithful pairwise keeps those same people at 0.
+    expect(pairwise.get('bruno') ?? 0).toBe(0);
+    expect(pairwise.get('debora') ?? 0).toBe(0);
+  });
+
+  it('A6 invariance: −Σ pairwise == the owner net from summarizeOwnerDebts (== baseline)', () => {
+    const { debts } = calculateDebts([txOwnerPaid, txThirdParty], shares, participants, [], OWNER);
+    const pairwise = ownerPairwiseBalances([txOwnerPaid, txThirdParty], shares, [], OWNER);
+    const pairwiseOwnerNet = -[...pairwise.values()].reduce((a, b) => a + b, 0);
+    expect(pairwiseOwnerNet).toBe(summarizeOwnerDebts(debts, OWNER).netCents);
+    expect(pairwiseOwnerNet).toBe(10000); // I am owed €100 net, regardless of routing
+  });
+
+  it('owner-as-debtor reads positive (the person receives)', () => {
+    const txAnaPaid = mkTx('tx-ana', 'ana'); // Ana paid, split owner+Ana → I owe Ana
+    const anaShares = [mkShare('a1', 'tx-ana', OWNER, 10000), mkShare('a2', 'tx-ana', 'ana', 10000)];
+    const balances = ownerPairwiseBalances([txAnaPaid], anaShares, [], OWNER);
+    expect(balances.get('ana')).toBe(10000); // positive = Ana receives (I owe Ana)
+  });
+
+  it('applies owner↔person settlements and ignores third-party ones; pending shares excluded', () => {
+    const pendingTx = mkTx('tx-pend', OWNER);
+    const withPending = [
+      ...shares,
+      mkShare('p1', 'tx-pend', OWNER, 5000),
+      mkShare('p2', 'tx-pend', 'ana', 5000, 'pending'), // not yet confirmed → ignored
+    ];
+    const settlements: Settlement[] = [
+      mkSettlement('set-1', 'ana', OWNER, 4000), // Ana paid me back €40 → her debt shrinks
+      mkSettlement('set-2', 'debora', 'bruno', 9000), // third-party settlement → ignored
+    ];
+    const balances = ownerPairwiseBalances([txOwnerPaid, txThirdParty, pendingTx], withPending, settlements, OWNER);
+    expect(balances.get('ana')).toBe(-6000); // −10000 + 4000 settled; pending €50 not counted
+    expect(balances.get('bruno') ?? 0).toBe(0);
+    expect(balances.get('debora') ?? 0).toBe(0);
+  });
+
+  it('filterStatementToCounterparty drops third-party lines and matches the pairwise net', () => {
+    // Débora owes ME (I paid) AND owes Bruno (he paid) — her profile must show only us.
+    const txIPaidForDebora = mkTx('tx-id', OWNER);
+    const txBrunoPaidForDebora = mkTx('tx-bd', 'bruno');
+    const dShares = [
+      mkShare('d1', 'tx-id', OWNER, 10000),
+      mkShare('d2', 'tx-id', 'debora', 10000),
+      mkShare('d3', 'tx-bd', 'bruno', 10000),
+      mkShare('d4', 'tx-bd', 'debora', 10000),
+    ];
+    const full = buildParticipantStatement('debora', [txIPaidForDebora, txBrunoPaidForDebora], dShares, participants, [], OWNER);
+    expect(full.lines).toHaveLength(2); // owes me + owes Bruno
+    expect(full.netCents).toBe(-20000);
+
+    const ownerOnly = filterStatementToCounterparty(full, OWNER);
+    expect(ownerOnly.lines).toHaveLength(1);
+    expect(ownerOnly.lines[0]!.counterpartyId).toBe(OWNER);
+    expect(ownerOnly.netCents).toBe(-10000);
+
+    const pairwise = ownerPairwiseBalances([txIPaidForDebora, txBrunoPaidForDebora], dShares, [], OWNER);
+    expect(ownerOnly.netCents).toBe(pairwise.get('debora'));
   });
 });
 

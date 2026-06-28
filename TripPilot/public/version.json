@@ -1,8 +1,8 @@
 {
-  "version": "1.8.2-rc",
+  "version": "1.8.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.2-rc.zip",
-  "notes": "O cofrinho agora mede contra o ritmo real de cada dia: nos dias de pico o ideal é maior e nos dias calmos é menor, em vez de um valor fixo igual pra todo dia. O saldo final continua o mesmo — muda só o ritmo de quanto entra a cada dia."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.3-rc.zip",
+  "notes": "Em \"Pessoas\", o saldo de cada um agora mostra só o que há entre você e ela — nada mais de número roteado por terceiros (\"fulano recebe X\"). Abrir uma pessoa mostra só os gastos entre vocês dois; as cobranças entre outros que você só registrou descem pra um registro à parte. Seu total a receber/pagar continua o mesmo."
 }

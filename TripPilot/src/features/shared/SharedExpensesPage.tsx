@@ -9,9 +9,10 @@ import {
   ownerInvolvedDebts,
   createSettlement,
   createParticipant,
-  calculateParticipantBalances,
+  ownerPairwiseBalances,
   resolveSettlementStanding,
   buildParticipantStatement,
+  filterStatementToCounterparty,
   groupSharedExpenses,
   groupStatementLines,
   resolveShareStage,
@@ -1049,7 +1050,16 @@ export function SharedExpensesPage() {
     return <Navigate to="/welcome" replace />;
   }
 
-  const balances = debtSummary ? calculateParticipantBalances(debtSummary.debts) : new Map<string, number>();
+  // DEC-394 (G4 · S-EGO-PEOPLE): the people list balances are the FAITHFUL
+  // owner↔person pairwise nets (read from confirmed shares + settlements), not the
+  // min-transfer graph — which could route the owner's debt through a third party
+  // and so show the wrong person's number ("Bruno recebe 122"). The owner's TOTAL
+  // is unchanged (−Σ == summarizeOwnerDebts net); only per-person attribution
+  // becomes honest. Third-party-only people read 0 here (they live in the registry).
+  const balances =
+    debtSummary && ownerParticipant
+      ? ownerPairwiseBalances(transactions, shares, settlements, ownerParticipant.id)
+      : new Map<string, number>();
   // G9 · DEC-357 — the ONE unified people list (status badge + ledger balance,
   // deduped), driving the z3 preview and the full Pessoas page. `participantById`
   // maps a row back to its Participant for the statement / charge / pay sheets.
@@ -1709,12 +1719,12 @@ export function SharedExpensesPage() {
         </div>
       )}
 
-      {/* DEC-388 (G6 · S-EGO): debts between OTHER people that the owner only
-          sees because they recorded the expense. Display-only registry, collapsed
-          by default — never the owner's debt (out of the hero/main list), but
-          never lost either (A4). */}
+      {/* DEC-388 (G6 · S-EGO) + DEC-394 (G4): debts between OTHER people that the
+          owner only sees because they recorded the expense. Display-only registry,
+          collapsed by default and moved BELOW the people list (order-[61]) — never
+          the owner's debt (out of the hero/main list), but never lost either (A4). */}
       {otherDebts.length > 0 && (
-        <div className="order-[25]">
+        <div className="order-[61]">
           <button
             onClick={() => setShowThirdParty((v) => !v)}
             className="w-full p-3 rounded-xl flex items-center gap-2.5 btn-press text-left bg-surface-container"
@@ -1850,12 +1860,19 @@ export function SharedExpensesPage() {
         {statementTarget && (() => {
           const owner = participants.find((p) => p.isOwner);
           if (!owner) return null;
-          const statement = buildParticipantStatement(
-            statementTarget.id,
-            transactions,
-            shares,
-            participants,
-            settlements,
+          // DEC-394 (G4 · S-EGO-PEOPLE): show only what is between THIS person and
+          // me — owner-involved lines/settlements — so a third-party debt I merely
+          // recorded never surfaces inside their profile. Net then matches their
+          // faithful pairwise balance in the list.
+          const statement = filterStatementToCounterparty(
+            buildParticipantStatement(
+              statementTarget.id,
+              transactions,
+              shares,
+              participants,
+              settlements,
+              owner.id,
+            ),
             owner.id,
           );
           const lineLabel = (line: (typeof statement.lines)[number]): string => {
