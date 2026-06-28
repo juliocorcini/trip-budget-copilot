@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.7.3-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Quando um evento termina e ainda sobra dinheiro reservado, o app pergunta uma vez para onde a sobra vai: de volta para o seu "livre", guardada num cofrinho rotulado, ou para um pote separado.',
+        'A escolha conserva o valor exato e nunca é automática — enquanto você não decidir, a sobra fica pendente e o app volta a perguntar.',
+      ],
+      en: [
+        'When an event ends with reserve money still unspent, the app asks once where the leftover goes: back to your "free to spend", kept in a labeled piggy bank, or into a separate pot.',
+        'The choice keeps the exact amount and is never automatic — until you decide, the leftover stays pending and the app asks again.',
+      ],
+      es: [
+        'Cuando un evento termina y aún sobra dinero reservado, la app pregunta una vez a dónde va el sobrante: de vuelta a tu "libre", guardado en una alcancía etiquetada, o a un bote separado.',
+        'La elección conserva el importe exacto y nunca es automática — hasta que decidas, el sobrante queda pendiente y la app vuelve a preguntar.',
+      ],
+    },
+  },
+  {
     version: '1.7.2-rc',
     date: '2026-06-27',
     items: {

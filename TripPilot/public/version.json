@@ -1,8 +1,8 @@
 {
-  "version": "1.7.2-rc",
+  "version": "1.7.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.2-rc.zip",
-  "notes": "Ao importar do Wise, agora dá para marcar as transações que fazem parte de um evento — quando há um evento no dia da transação, basta um toque para atribuí-la, e o gasto entra na reserva do evento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.3-rc.zip",
+  "notes": "Quando um evento termina e ainda sobra dinheiro da reserva, o app pergunta uma vez para onde a sobra vai: volta para o seu \"livre\", fica guardada num cofrinho rotulado, ou vai para um pote separado — sempre conservando o valor."
 }
