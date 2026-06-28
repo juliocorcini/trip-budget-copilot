@@ -75,7 +75,12 @@ export {
   calculateSavingsGoalProgress,
   calculatePiggyBank,
 } from './motivation';
-export { buildPiggyLedger, linearDailyIdealCents, buildPiggySpendByDay } from './piggy-ledger';
+export {
+  buildPiggyLedger,
+  linearDailyIdealCents,
+  buildRhythmDailyIdeals,
+  buildPiggySpendByDay,
+} from './piggy-ledger';
 export { resolveSavingDestination } from './saving-destination';
 export type { SavingDestination, SavingDestinationInput } from './saving-destination';
 export type {
@@ -83,6 +88,7 @@ export type {
   PiggyLedgerEntry,
   PiggyDaySpend,
   PiggyEntryKind,
+  RhythmDayWeight,
   BuildPiggyLedgerInput,
   BuildPiggySpendByDayInput,
 } from './piggy-ledger';

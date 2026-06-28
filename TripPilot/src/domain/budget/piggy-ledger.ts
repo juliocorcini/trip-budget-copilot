@@ -65,10 +65,28 @@ export interface PiggyLedger {
 }
 
 export interface BuildPiggyLedgerInput {
-  /** Constant linear daily ideal (phaseBudget / totalDays), integer cents. */
+  /**
+   * Constant linear daily ideal (phaseBudget / totalDays), integer cents — the
+   * FALLBACK used for any day not present in `idealByDayCents`.
+   */
   dailyIdealCents: number;
+  /**
+   * DEC-393 (G3): a RHYTHM-AWARE ideal per ISO day (see `buildRhythmDailyIdeals`).
+   * When provided, a day's ideal is `idealByDayCents.get(dateIso)` (a peak day's
+   * ideal is larger than a quiet day's) instead of the flat `dailyIdealCents`.
+   * Days missing from the map fall back to `dailyIdealCents`. The replay (and
+   * therefore every C14 reconciliation invariant) is unchanged — only the value
+   * of `idealCents` per day differs.
+   */
+  idealByDayCents?: Map<string, number>;
   /** One item per ELAPSED day (zero-spend days included with `spentCents: 0`). */
   spendByDay: PiggyDaySpend[];
+}
+
+export interface RhythmDayWeight {
+  dateIso: string;
+  /** Relative spending weight of the day (peak > common; 0 = excluded). */
+  weight: number;
 }
 
 /**
@@ -83,12 +101,44 @@ export function linearDailyIdealCents(phaseBudgetCents: number, totalDays: numbe
 }
 
 /**
+ * DEC-393 (G3) — the rhythm-aware daily ideal series. Each day gets a share of
+ * the budget proportional to its spending weight (`getDaySpendingWeight`), so a
+ * peak day's ideal is larger than a quiet weekday's and the cofrinho measures
+ * each day against its REAL pace — not a single flat average that reads as "8,72
+ * every day" even on a peak day worth ~27.
+ *
+ * Σ ideals === budget EXACTLY (the rounding remainder rides the last weighted
+ * day), so the cofrinho's total notion still reconciles to the budget (C14).
+ * Zero-weight days are excluded (no ideal entry). Pure — no dates, no I/O.
+ */
+export function buildRhythmDailyIdeals(
+  budgetCents: number,
+  weightByDay: RhythmDayWeight[],
+): Map<string, number> {
+  const ideals = new Map<string, number>();
+  const positives = weightByDay.filter((d) => d.weight > 0);
+  const totalWeight = positives.reduce((sum, d) => sum + d.weight, 0);
+  if (budgetCents <= 0 || totalWeight <= 0) return ideals;
+
+  let allocatedCents = 0;
+  positives.forEach((day, i) => {
+    const shareCents =
+      i === positives.length - 1
+        ? Math.max(0, budgetCents - allocatedCents)
+        : Math.round((budgetCents * day.weight) / totalWeight);
+    ideals.set(day.dateIso, shareCents);
+    allocatedCents += shareCents;
+  });
+  return ideals;
+}
+
+/**
  * Replay the immutable daily spend into the day-ordered buffer ledger. Pure:
  * the same input always yields the same series, and editing a past day simply
  * re-runs this from the start (recalculates forward).
  */
 export function buildPiggyLedger(input: BuildPiggyLedgerInput): PiggyLedger {
-  const idealCents = Math.max(0, Math.round(input.dailyIdealCents));
+  const fallbackIdealCents = Math.max(0, Math.round(input.dailyIdealCents));
   const days = [...input.spendByDay].sort((a, b) => a.dateIso.localeCompare(b.dateIso));
 
   const entries: PiggyLedgerEntry[] = [];
@@ -98,6 +148,9 @@ export function buildPiggyLedger(input: BuildPiggyLedgerInput): PiggyLedger {
   let totalUncoveredCents = 0;
 
   for (const day of days) {
+    // DEC-393: the day's RHYTHM-aware ideal when present, else the flat fallback.
+    const dayIdeal = input.idealByDayCents?.get(day.dateIso);
+    const idealCents = Math.max(0, Math.round(dayIdeal ?? fallbackIdealCents));
     const spentCents = Math.max(0, Math.round(day.spentCents));
     const gross = balanceCents + idealCents - spentCents;
     const nextBalance = Math.max(0, gross);

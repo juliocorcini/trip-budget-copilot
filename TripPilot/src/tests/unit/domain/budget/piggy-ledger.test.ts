@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPiggyLedger,
   linearDailyIdealCents,
+  buildRhythmDailyIdeals,
   buildPiggySpendByDay,
   type PiggyDaySpend,
 } from '@/domain/budget/piggy-ledger';
@@ -41,6 +42,83 @@ describe('linearDailyIdealCents', () => {
     expect(linearDailyIdealCents(100_000, -5)).toBe(0);
     expect(linearDailyIdealCents(0, 10)).toBe(0);
     expect(linearDailyIdealCents(-100, 10)).toBe(0);
+  });
+});
+
+describe('buildRhythmDailyIdeals (DEC-393 · parte 2, G3 — rhythm-aware daily ideal)', () => {
+  it('distributes the budget by weight: a peak day gets a larger ideal than a common day', () => {
+    // 4 days, two of them peak (1.5) and two common (1.0) → total weight 5.0.
+    const ideals = buildRhythmDailyIdeals(50_000, [
+      { dateIso: '2026-06-01', weight: 1.0 },
+      { dateIso: '2026-06-02', weight: 1.5 },
+      { dateIso: '2026-06-03', weight: 1.0 },
+      { dateIso: '2026-06-04', weight: 1.5 },
+    ]);
+    // 50_000 × 1.0 / 5.0 = 10_000 (common); × 1.5 / 5.0 = 15_000 (peak).
+    expect(ideals.get('2026-06-01')).toBe(10_000);
+    expect(ideals.get('2026-06-02')).toBe(15_000);
+    expect(ideals.get('2026-06-02')!).toBeGreaterThan(ideals.get('2026-06-01')!);
+  });
+
+  it('Σ ideals === budget EXACTLY (the rounding remainder rides the last weighted day) — C14', () => {
+    // A budget that does not divide evenly by the weights.
+    const budget = 100_000;
+    const ideals = buildRhythmDailyIdeals(budget, [
+      { dateIso: '2026-06-01', weight: 0.8 },
+      { dateIso: '2026-06-02', weight: 1.5 },
+      { dateIso: '2026-06-03', weight: 0.6 },
+    ]);
+    const sum = [...ideals.values()].reduce((a, b) => a + b, 0);
+    expect(sum).toBe(budget);
+  });
+
+  it('excludes zero-weight days (an event-reserve day would carry weight 0 → no ideal entry)', () => {
+    const ideals = buildRhythmDailyIdeals(30_000, [
+      { dateIso: '2026-06-01', weight: 1.0 },
+      { dateIso: '2026-06-02', weight: 0 }, // excluded
+      { dateIso: '2026-06-03', weight: 1.0 },
+    ]);
+    expect(ideals.has('2026-06-02')).toBe(false);
+    expect([...ideals.values()].reduce((a, b) => a + b, 0)).toBe(30_000);
+  });
+
+  it('returns an empty map for a non-positive budget or zero total weight', () => {
+    expect(buildRhythmDailyIdeals(0, [{ dateIso: '2026-06-01', weight: 1 }]).size).toBe(0);
+    expect(buildRhythmDailyIdeals(-10, [{ dateIso: '2026-06-01', weight: 1 }]).size).toBe(0);
+    expect(buildRhythmDailyIdeals(10_000, [{ dateIso: '2026-06-01', weight: 0 }]).size).toBe(0);
+  });
+});
+
+describe('buildPiggyLedger — per-day rhythm ideal (DEC-393, replay unchanged)', () => {
+  it('applies each day its own ideal and still reconciles (balance == Σ deltas)', () => {
+    // Peak day ideal 15_000, common day ideal 10_000; spend 12_000 each day.
+    const idealByDayCents = new Map<string, number>([
+      ['2026-06-01', 10_000], // common: spend 12_000 → withdraws 2_000 (empty → uncovered)
+      ['2026-06-02', 15_000], // peak: spend 12_000 → deposits 3_000
+    ]);
+    const ledger = buildPiggyLedger({
+      dailyIdealCents: 0,
+      idealByDayCents,
+      spendByDay: days([12_000, 12_000]),
+    });
+    expect(ledger.entries[0]!.idealCents).toBe(10_000);
+    expect(ledger.entries[1]!.idealCents).toBe(15_000);
+    // Day 1: max(0, 0 + 10_000 − 12_000) = 0 (2_000 uncovered). Day 2: 0 + 15_000 − 12_000 = 3_000.
+    expect(ledger.entries.map((e) => e.balanceCents)).toEqual([0, 3_000]);
+    expect(ledger.balanceCents).toBe(ledger.totalDepositedCents - ledger.totalWithdrawnCents);
+    expect(ledger.entries[0]!.uncoveredCents).toBe(2_000);
+  });
+
+  it('falls back to the flat dailyIdealCents for a day missing from the map', () => {
+    const idealByDayCents = new Map<string, number>([['2026-06-01', 20_000]]);
+    const ledger = buildPiggyLedger({
+      dailyIdealCents: 5_000, // fallback for 2026-06-02
+      idealByDayCents,
+      spendByDay: days([0, 0]),
+    });
+    expect(ledger.entries[0]!.idealCents).toBe(20_000);
+    expect(ledger.entries[1]!.idealCents).toBe(5_000);
+    expect(ledger.balanceCents).toBe(25_000);
   });
 });
 

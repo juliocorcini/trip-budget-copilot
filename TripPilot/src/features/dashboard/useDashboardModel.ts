@@ -4,6 +4,7 @@ import {
   resolveActivePhase,
   getDayNumber,
   getTotalDays,
+  addDaysIso,
   localDateString,
   localDayOf,
 } from '@/domain/dates';
@@ -20,6 +21,7 @@ import {
   calculateSavingsGoalProgress,
   buildPiggyLedger,
   linearDailyIdealCents,
+  buildRhythmDailyIdeals,
   buildPiggySpendByDay,
   selectActivePhasePool,
   selectVisiblePots,
@@ -59,6 +61,7 @@ import { detectTripPriorsOffer } from '@/domain/templates';
 import {
   calculateTodayFreeBudget,
   buildPhaseAllowanceMap,
+  getDaySpendingWeight,
   findEndedPhaseWithSuccessor,
   detectPhaseLeftover,
 } from '@/domain/phases';
@@ -618,10 +621,35 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // can never diverge from the numbers shown elsewhere. Hidden (null) for
     // ongoing/no-date spaces where there is no daily ideal.
     const piggyDailyIdealCents = linearDailyIdealCents(motivationBudgetCents, tripTotalDays);
+    // DEC-393 (G3): the cofrinho measures each day against its REAL pace, not a
+    // flat ideal. Distribute the budget across the trip's days by the rhythm
+    // weight of the phase each day falls in (peak day → larger ideal); days in no
+    // phase get the base weight 1.0. Σ ideals == budget, so the buffer still
+    // reconciles (C14). NOTE: event-reserve days are NOT yet excluded here — that
+    // sub-part needs a dynamic free-budget normalization that destabilizes the
+    // path-dependent reconciliation, so it is deferred (the documented L-PIGGY
+    // fallback for the unstable part); the rhythm awareness ships now.
+    const piggyIdealByDayCents =
+      trip && tripTotalDays > 0
+        ? buildRhythmDailyIdeals(
+            motivationBudgetCents,
+            Array.from({ length: tripTotalDays }, (_unused, i) => {
+              const dateIso = addDaysIso(trip.startDate, i);
+              const phaseOfDay = phases.find(
+                (p) => dateIso >= p.startDate.slice(0, 10) && dateIso <= p.endDate.slice(0, 10),
+              );
+              return {
+                dateIso,
+                weight: phaseOfDay ? getDaySpendingWeight(phaseOfDay, dateIso) : 1,
+              };
+            }),
+          )
+        : new Map<string, number>();
     const piggyLedger =
       fts && trip && piggyDailyIdealCents > 0
         ? buildPiggyLedger({
             dailyIdealCents: piggyDailyIdealCents,
+            idealByDayCents: piggyIdealByDayCents,
             spendByDay: buildPiggySpendByDay({
               transactions: primaryPoolTxs,
               startDateIso: trip.startDate,

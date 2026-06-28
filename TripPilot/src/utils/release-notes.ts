@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.2-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'O cofrinho agora segue o ritmo da viagem: ele guarda contra o ideal real de cada dia — maior nos dias de pico, menor nos dias calmos — em vez de um valor fixo igual pra todos os dias.',
+        'O saldo do fim continua o mesmo; muda só o ritmo de quanto entra a cada dia, então o que você economiza (ou cobre) reflete o dia de verdade.',
+      ],
+      en: [
+        "The piggy bank now follows your trip's rhythm: it saves against each day's real ideal — bigger on peak days, smaller on calm days — instead of one flat amount for every day.",
+        'The final balance stays the same; only the pace of what goes in each day changes, so what you save (or cover) reflects the real day.',
+      ],
+      es: [
+        'La alcancía ahora sigue el ritmo del viaje: guarda contra el ideal real de cada día — mayor en los días pico, menor en los días tranquilos — en vez de un valor fijo igual para todos los días.',
+        'El saldo final sigue siendo el mismo; solo cambia el ritmo de cuánto entra cada día, así lo que ahorras (o cubres) refleja el día de verdad.',
+      ],
+    },
+  },
+  {
     version: '1.8.1-rc',
     date: '2026-06-28',
     items: {
