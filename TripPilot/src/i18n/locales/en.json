@@ -1327,6 +1327,7 @@
     "bridge_suggestion": "{{name}} sent {{in}} — refund for {{total}}?",
     "bridge_linked": "Split with {{name}} · {{share}}",
     "bridge_split_with": "Split w/ {{name}}",
+    "event_tag_label": "Part of the event?",
     "bridge_someone": "someone",
     "bridge_review": "Review",
     "bridge_sheet_title": "Link refund",

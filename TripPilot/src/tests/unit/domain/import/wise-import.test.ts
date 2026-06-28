@@ -462,6 +462,39 @@ describe('commitWiseImport', () => {
     expect(second.drafts.every((d) => d.includeByDefault === false)).toBe(true);
   });
 
+  // DEC-386 (G3): the user tags chosen rows as part of an event on import. Those
+  // expenses carry `occurrenceId` (the third attribution path), enforce event XOR
+  // session (sessionId null), and untagged rows stay free of any event.
+  it('attributes tagged rows to an event (occurrenceId, event XOR session)', async () => {
+    const plan = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    await commitWiseImport({
+      drafts: plan.drafts,
+      tripId: 'trip-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'wise-wallet',
+      fallbackPhaseId: 'phase-jun',
+      occurrenceByRowId: {
+        'CARD-3927313014': 'evt-burgos',
+        'CARD-3914350459': 'evt-burgos',
+      },
+    });
+
+    const stored = await db.transactions.toArray();
+    const tagged = stored.filter((t) => t.occurrenceId === 'evt-burgos');
+    expect(tagged).toHaveLength(2);
+    // Event XOR session: an event-tagged expense never also rides a session.
+    expect(tagged.every((t) => t.sessionId === null)).toBe(true);
+    expect(tagged.map((t) => t.externalRef).sort()).toEqual(
+      [wiseExternalRef('CARD-3914350459'), wiseExternalRef('CARD-3927313014')].sort(),
+    );
+    // Untagged rows carry no event.
+    const untagged = stored.filter((t) => t.externalRef !== wiseExternalRef('CARD-3927313014') && t.externalRef !== wiseExternalRef('CARD-3914350459'));
+    expect(untagged.every((t) => (t.occurrenceId ?? null) === null)).toBe(true);
+  });
+
   // Julio field feedback: each imported row must land in the pool of the phase
   // that owns ITS date — not the first linked pool. With two trechos split by
   // date, the 13–15 Jun rows go to the late pool, the 02/12 Jun rows to early.

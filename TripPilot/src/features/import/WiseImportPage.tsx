@@ -36,6 +36,8 @@ import {
 } from '@/domain/orchestrators';
 import { resolveActivePhase, formatShortDate, sortPhasesByOrder } from '@/domain/dates';
 import { selectActivePhasePool } from '@/domain/budget';
+import { selectAttributableEvents } from '@/domain/planning';
+import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import { getDefaultWallet } from '@/domain/wallets';
 import { createPhase, getNextPhaseOrder } from '@/domain/phases';
 import { formatMoney, sumCents, toCents } from '@/domain/money';
@@ -88,7 +90,7 @@ const STATUS_STYLE: Record<WiseDraftStatus, { bg: string; color: string }> = {
 export function WiseImportPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, links, wallets, transactions, participants, loading, error, retry, reload } =
+  const { trip, phases, pools, links, wallets, transactions, participants, occurrences, loading, error, retry, reload } =
     useAppData();
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -113,6 +115,20 @@ export function WiseImportPage() {
   // Julio field feedback: optional "force every row into this phase" override.
   // null = AUTO (each row to the phase of its own date — the default).
   const [phaseOverride, setPhaseOverride] = useState<string | null>(null);
+  // DEC-386 (G3): draft.rowId → the event the user tagged this imported row as
+  // part of. The third attribution path (manual/AI/Wise); feeds the consumable
+  // event reserve. Only ever set for included expense rows whose date is inside
+  // the event's interval (selectAttributableEvents). Event XOR session.
+  const [eventByRow, setEventByRow] = useState<Record<string, string>>({});
+
+  const setEventForRow = (rowId: string, occurrenceId: string | null) => {
+    setEventByRow((prev) => {
+      const next = { ...prev };
+      if (occurrenceId === null) delete next[rowId];
+      else next[rowId] = occurrenceId;
+      return next;
+    });
+  };
 
   const baseCurrency = trip?.baseCurrency ?? 'EUR';
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
@@ -454,6 +470,13 @@ export function WiseImportPage() {
           if (b) bridges[draft.rowId] = { participantId: b.participantId, shareAmountCents: b.shareAmountCents };
         }
         const hasBridges = Object.keys(bridges).length > 0;
+        // DEC-386 (G3): only tag rows actually being imported with their event.
+        const occurrenceByRowId: Record<string, string> = {};
+        for (const draft of selectedDrafts) {
+          const occId = eventByRow[draft.rowId];
+          if (occId) occurrenceByRowId[draft.rowId] = occId;
+        }
+        const hasEventTags = Object.keys(occurrenceByRowId).length > 0;
         const result = await commitWiseImport({
           drafts: selectedDrafts,
           tripId: trip.id,
@@ -463,6 +486,7 @@ export function WiseImportPage() {
           poolByPhaseId,
           forcePhaseId: phaseOverride,
           ...(hasBridges && owner ? { ownerId: owner.id, bridges } : {}),
+          ...(hasEventTags ? { occurrenceByRowId } : {}),
         });
         transactionIds.push(...result.transactionIds);
       }
@@ -720,20 +744,39 @@ export function WiseImportPage() {
               <div className="flex flex-col gap-2">
                 {plan.drafts
                   .filter((d) => d.kind !== 'transfer')
-                  .map((draft) => (
-                    <DraftRow
-                      key={draft.rowId}
-                      draft={draft}
-                      checked={included.has(draft.rowId)}
-                      onToggle={() => toggle(draft.rowId)}
-                      baseCurrency={baseCurrency}
-                      linkedName={
-                        bridgeState[draft.rowId]
-                          ? participantName(participants, bridgeState[draft.rowId]!.participantId)
-                          : null
-                      }
-                    />
-                  ))}
+                  .map((draft) => {
+                    const isIncluded = included.has(draft.rowId);
+                    const rowEvents =
+                      isIncluded && draft.importable && draft.status !== 'duplicate_import'
+                        ? selectAttributableEvents(occurrences, draft.localDay)
+                        : [];
+                    const taggedId = eventByRow[draft.rowId] ?? null;
+                    const taggedName =
+                      taggedId !== null ? rowEvents.find((e) => e.id === taggedId)?.name ?? null : null;
+                    return (
+                      <div key={draft.rowId} className="flex flex-col gap-1">
+                        <DraftRow
+                          draft={draft}
+                          checked={isIncluded}
+                          onToggle={() => toggle(draft.rowId)}
+                          baseCurrency={baseCurrency}
+                          linkedName={
+                            bridgeState[draft.rowId]
+                              ? participantName(participants, bridgeState[draft.rowId]!.participantId)
+                              : null
+                          }
+                          eventName={taggedName}
+                        />
+                        {rowEvents.length > 0 && (
+                          <EventTagPicker
+                            events={rowEvents}
+                            selectedId={taggedId}
+                            onSelect={(id) => setEventForRow(draft.rowId, id)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             </>
           )}
@@ -856,12 +899,14 @@ function DraftRow({
   onToggle,
   baseCurrency,
   linkedName,
+  eventName,
 }: {
   draft: WiseImportDraft;
   checked: boolean;
   onToggle: () => void;
   baseCurrency: string;
   linkedName?: string | null;
+  eventName?: string | null;
 }) {
   const { t } = useTranslation();
   const canToggle = draft.importable && draft.status !== 'duplicate_import';
@@ -920,6 +965,13 @@ function DraftRow({
             {t('wiseImport.bridge_split_with', { name: linkedName })}
           </span>
         )}
+        {eventName && (
+          <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: 'rgba(124,160,255,0.16)', color: 'var(--primary)' }}>
+            <Icon name="celebration" size={10} />
+            {eventName}
+          </span>
+        )}
       </span>
 
       <span className="flex flex-col items-end gap-1 shrink-0">
@@ -939,6 +991,61 @@ function DraftRow({
         )}
       </span>
     </button>
+  );
+}
+
+/* ────────────────── DEC-386 (G3): per-row event attribution ────────────────── */
+
+/**
+ * The thin chip row under an included expense that lets the user tag it as part
+ * of an event (the third attribution path: manual/AI/Wise). One tap to attribute,
+ * tap the selected chip again — or "Não" — to opt out. Only rendered when an open
+ * event covers the row's date, so the question is explicit and never auto-decided
+ * (Â-ATTRIBUTION). The committed expense carries `occurrenceId`, event XOR session.
+ */
+function EventTagPicker({
+  events,
+  selectedId,
+  onSelect,
+}: {
+  events: PlannedOccurrence[];
+  selectedId: string | null;
+  onSelect: (occurrenceId: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex gap-1.5 flex-wrap pl-12 pr-1">
+      <span className="text-[9px] font-bold text-on-surface-faint self-center inline-flex items-center gap-1">
+        <Icon name="celebration" size={11} className="text-primary" />
+        {t('wiseImport.event_tag_label')}
+      </span>
+      {events.map((event) => {
+        const selected = selectedId === event.id;
+        return (
+          <button
+            key={event.id}
+            type="button"
+            onClick={() => onSelect(selected ? null : event.id)}
+            aria-pressed={selected}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold btn-press ${
+              selected ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+            }`}
+          >
+            {event.name}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        aria-pressed={selectedId === null}
+        className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold btn-press ${
+          selectedId === null ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+        }`}
+      >
+        {t('expenses.event_attribution_none')}
+      </button>
+    </div>
   );
 }
 

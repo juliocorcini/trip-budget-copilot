@@ -1327,6 +1327,7 @@
     "bridge_suggestion": "{{name}} envió {{in}} — ¿reembolso de {{total}}?",
     "bridge_linked": "Dividido con {{name}} · {{share}}",
     "bridge_split_with": "Dividido c/ {{name}}",
+    "event_tag_label": "¿Parte del evento?",
     "bridge_someone": "alguien",
     "bridge_review": "Revisar",
     "bridge_sheet_title": "Vincular reembolso",

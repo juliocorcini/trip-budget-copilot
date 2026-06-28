@@ -49,6 +49,14 @@ export interface CommitWiseImportInput {
   ownerId?: string;
   /** F16: draft.rowId → split-on-import bridge. The purchase becomes shared. */
   bridges?: Record<string, WiseExpenseBridge>;
+  /**
+   * DEC-386 (G3): draft.rowId → the event (`PlannedOccurrence`) the user tagged
+   * this imported purchase as part of. Sets `occurrenceId` on the expense, so the
+   * Wise statement is a third explicit attribution path (manual/AI/Wise) that
+   * feeds the consumable event reserve (DEC-385). Event XOR session is enforced
+   * by the factory; a credit/income row is never event-tagged. Absent → no event.
+   */
+  occurrenceByRowId?: Record<string, string>;
 }
 
 /**
@@ -137,6 +145,8 @@ export async function commitWiseImport(
       // F16 bridge: the owner paid the whole card charge, split with the person.
       isShared: bridge !== undefined,
       paidByParticipantId: bridge && input.ownerId ? input.ownerId : null,
+      // DEC-386 (G3): the event the user tagged this row as part of (if any).
+      occurrenceId: input.occurrenceByRowId?.[draft.rowId] ?? null,
     });
 
     if (bridge && input.ownerId) {
