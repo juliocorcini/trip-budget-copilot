@@ -298,6 +298,29 @@ describe('summarizeWeekdayPattern', () => {
     expect(summarizeWeekdayPattern([mkTx(1000, { date: '2026-06-10' })])).toBeNull(); // weekday only
     expect(summarizeWeekdayPattern([mkTx(1000, { date: '2026-06-13' })])).toBeNull(); // weekend only
   });
+
+  it('self-censors with fewer than two distinct days on a side (DEC-396)', () => {
+    // weekday: 06-10 Wed + 06-11 Thu (2 days); weekend: only 06-13 Sat (1 day) → null.
+    expect(
+      summarizeWeekdayPattern([
+        mkTx(1000, { date: '2026-06-10' }),
+        mkTx(1000, { date: '2026-06-11' }),
+        mkTx(1000, { date: '2026-06-13' }),
+      ]),
+    ).toBeNull();
+  });
+
+  it('self-censors when one purchase dominates the totals (DEC-396)', () => {
+    // ≥2 distinct days per side, but 20000 of 23000 (≈87%) is one Saturday buy → null.
+    expect(
+      summarizeWeekdayPattern([
+        mkTx(1000, { date: '2026-06-10' }), // Wed
+        mkTx(1000, { date: '2026-06-11' }), // Thu
+        mkTx(20000, { date: '2026-06-13' }), // Sat — dominant
+        mkTx(1000, { date: '2026-06-14' }), // Sun
+      ]),
+    ).toBeNull();
+  });
 });
 
 describe('summarizeOutingEfficiency', () => {
@@ -468,6 +491,28 @@ describe('summarizePeakHour', () => {
       { ...mkExpenseAt(99999, '2026-06-13T22:00:00'), type: 'settlement' as const },
     ]);
     expect(peak?.hour).toBe(9);
+  });
+
+  it('self-censors below three distinct spending days (DEC-396)', () => {
+    // 3 expenses but only 2 distinct days → not a time-of-day habit → null.
+    expect(
+      summarizePeakHour([
+        mkExpenseAt(5000, '2026-06-10T20:00:00'),
+        mkExpenseAt(3000, '2026-06-10T20:30:00'),
+        mkExpenseAt(2000, '2026-06-11T13:00:00'),
+      ]),
+    ).toBeNull();
+  });
+
+  it('self-censors when one purchase dominates the spend (DEC-396)', () => {
+    // 3 distinct days, but 20000 of 22000 (≈91%) is one buy → no honest peak → null.
+    expect(
+      summarizePeakHour([
+        mkExpenseAt(20000, '2026-06-10T20:00:00'),
+        mkExpenseAt(1000, '2026-06-11T13:00:00'),
+        mkExpenseAt(1000, '2026-06-12T14:00:00'),
+      ]),
+    ).toBeNull();
   });
 });
 

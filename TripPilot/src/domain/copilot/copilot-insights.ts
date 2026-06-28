@@ -223,9 +223,41 @@ export interface WeekdayPattern {
 }
 
 /**
+ * DEC-396 (C-HONEST): an insight that claims a "pattern" must not be the echo of
+ * ONE purchase. When a single expense is ≥ this share of the metric's total, the
+ * distribution is dominated by that buy, so the pattern read self-censors (null).
+ */
+export const SINGLE_EXPENSE_DOMINANCE = 0.6;
+/** DEC-396: "hora de pico" needs spend on ≥ this many distinct days to be a
+ * time-of-day habit, not a one-day artifact. */
+const PEAK_HOUR_MIN_DISTINCT_DAYS = 3;
+/** DEC-396: the weekday/weekend read needs ≥ this many distinct days on EACH side
+ * so a single day per side can't define the ratio. */
+const WEEKDAY_MIN_DAYS_PER_SIDE = 2;
+
+/** DEC-396: the largest single base personal-cost across the (non-deleted)
+ * expenses — the dominance numerator the pattern guards divide by the total. */
+function maxSingleExpenseCents(transactions: Transaction[]): number {
+  let max = 0;
+  for (const tx of transactions) {
+    if (tx.deletedAt !== null || tx.type !== 'expense') continue;
+    const cents = transactionBasePersonalCostCents(tx);
+    if (cents > max) max = cents;
+  }
+  return max;
+}
+
+/** DEC-396: true when one expense alone makes up ≥ the dominance share of the
+ * metric total — the signal is a single buy, not a pattern. */
+function isDominatedBySingleExpense(maxSingleCents: number, totalCents: number): boolean {
+  return totalCents > 0 && maxSingleCents / totalCents >= SINGLE_EXPENSE_DOMINANCE;
+}
+
+/**
  * "Dia da semana" (DEC-183) — what a weekend day costs vs a weekday day. Days
  * are bucketed locally, then averaged per distinct spending day of each kind.
- * Null until there's at least one of each with spend.
+ * DEC-396 (C-HONEST): null until there are ≥2 distinct days on EACH side AND no
+ * single purchase dominates the totals — so one big buy/day can't invent a ratio.
  */
 export function summarizeWeekdayPattern(transactions: Transaction[]): WeekdayPattern | null {
   const byDay = new Map<string, number>();
@@ -252,7 +284,10 @@ export function summarizeWeekdayPattern(transactions: Transaction[]): WeekdayPat
       weekdayDays += 1;
     }
   }
-  if (weekendDays === 0 || weekdayDays === 0) return null;
+  if (weekendDays < WEEKDAY_MIN_DAYS_PER_SIDE || weekdayDays < WEEKDAY_MIN_DAYS_PER_SIDE) return null;
+  if (isDominatedBySingleExpense(maxSingleExpenseCents(transactions), weekendSum + weekdaySum)) {
+    return null;
+  }
 
   const weekdayAvgCents = Math.round(weekdaySum / weekdayDays);
   const weekendAvgCents = Math.round(weekendSum / weekendDays);
@@ -388,14 +423,17 @@ export interface PeakHour {
 
 /**
  * "Hora de pico" (B10) — the local hour of day when the most money goes out.
- * Buckets expenses by their local hour; null until there's a real sample (≥3
- * expenses) and a non-zero peak.
+ * Buckets expenses by their local hour. DEC-396 (C-HONEST): null until there's a
+ * real sample (≥3 expenses) spread over ≥3 distinct days AND not dominated by a
+ * single purchase — one big buy must not invent a "peak hour".
  */
 export function summarizePeakHour(transactions: Transaction[]): PeakHour | null {
   const centsByHour = new Array<number>(24).fill(0);
   const countByHour = new Array<number>(24).fill(0);
   let totalCents = 0;
   let expenseCount = 0;
+  let maxSingleCents = 0;
+  const spendingDays = new Set<string>();
   for (const tx of transactions) {
     if (tx.deletedAt !== null || tx.type !== 'expense') continue;
     const cents = transactionBasePersonalCostCents(tx);
@@ -406,8 +444,12 @@ export function summarizePeakHour(transactions: Transaction[]): PeakHour | null 
     countByHour[hour] = (countByHour[hour] ?? 0) + 1;
     totalCents += cents;
     expenseCount += 1;
+    if (cents > maxSingleCents) maxSingleCents = cents;
+    spendingDays.add(localDayOf(tx.date));
   }
   if (expenseCount < 3 || totalCents <= 0) return null;
+  if (spendingDays.size < PEAK_HOUR_MIN_DISTINCT_DAYS) return null;
+  if (isDominatedBySingleExpense(maxSingleCents, totalCents)) return null;
   let hour = 0;
   for (let h = 1; h < 24; h += 1) {
     if (centsByHour[h]! > centsByHour[hour]!) hour = h;

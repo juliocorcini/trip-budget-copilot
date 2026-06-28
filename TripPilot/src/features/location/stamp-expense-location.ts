@@ -59,3 +59,45 @@ export async function stampExpenseLocation(saved: Transaction, detailsOpen: bool
   await transactionRepository.update({ ...saved, ...loc });
   notifyAppDataChanged();
 }
+
+/**
+ * DEC-395 (G5 · W-PLACE): forward-geocode just-imported Wise expenses to their
+ * venue, reusing the SAME Nominatim forward geocoder as the manual/AI save
+ * (`searchPlaceByName`, DEC-389) so the import gains place parity. The query is
+ * the merchant DESCRIPTION (the Wise statement names the merchant — e.g.
+ * "MERCADONA LISBOA" — far more reliably than the extracted city), falling back
+ * to the city label when there is no description.
+ *
+ * Best-effort and honest: opt-in only, online-only (the geocoder resolves null
+ * offline), never throws, and runs in the BACKGROUND so the import never blocks
+ * (A5). Unlike the live save it does NOT fall back to the current GPS fix — a
+ * statement is imported later and elsewhere, so the device's "now" location is
+ * not the venue; a miss simply leaves the row unlocated (it never wrong-pins a
+ * historical purchase at home). Only un-located expenses are touched; the stored
+ * label is kept, and a resolved name fills in only when the row had none.
+ */
+export async function stampImportedExpenseLocations(
+  transactions: Transaction[],
+  locationEnabled: boolean,
+): Promise<void> {
+  if (!locationEnabled) return;
+  let changed = false;
+  for (const tx of transactions) {
+    if (tx.type !== 'expense' || tx.latitude !== null) continue;
+    const query = (tx.description ?? '').trim() || (tx.placeLabel ?? '').trim();
+    if (query === '') continue;
+    const place = await searchPlaceByName(query, null);
+    if (!place) continue;
+    const hadLabel = tx.placeLabel !== null && tx.placeLabel.trim() !== '';
+    await transactionRepository.update({
+      ...tx,
+      latitude: place.lat,
+      longitude: place.lng,
+      placeId: place.placeId,
+      placeLabel: hadLabel ? tx.placeLabel : place.label,
+      placeNameSource: hadLabel ? tx.placeNameSource ?? null : 'auto',
+    });
+    changed = true;
+  }
+  if (changed) notifyAppDataChanged();
+}

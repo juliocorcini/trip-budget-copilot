@@ -1,8 +1,8 @@
 {
-  "version": "1.8.3-rc",
+  "version": "1.8.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.3-rc.zip",
-  "notes": "Em \"Pessoas\", o saldo de cada um agora mostra só o que há entre você e ela — nada mais de número roteado por terceiros (\"fulano recebe X\"). Abrir uma pessoa mostra só os gastos entre vocês dois; as cobranças entre outros que você só registrou descem pra um registro à parte. Seu total a receber/pagar continua o mesmo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.4-rc.zip",
+  "notes": "Importou do Wise? Cada gasto agora tenta achar o lugar sozinho pelo nome do estabelecimento e aparece no mapa — opcional, em segundo plano, nunca trava a importação; se não achar, fica sem local em vez de cravar no lugar errado. E o copiloto ficou mais honesto: \"hora de pico\" e \"dia da semana\" não concluem de uma única compra grande nem de pouquíssimos dias."
 }

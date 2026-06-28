@@ -75,6 +75,11 @@ function resolveWisePhasePool(
 export interface CommitWiseImportResult {
   /** Ids of the inserted transactions — drives the undo toast. */
   transactionIds: string[];
+  /**
+   * DEC-395 (G5): the inserted records, so the caller can forward-geocode each
+   * imported expense to its venue in the background (place parity, A5).
+   */
+  transactions: Transaction[];
 }
 
 /**
@@ -92,7 +97,7 @@ export async function commitWiseImport(
   input: CommitWiseImportInput,
 ): Promise<CommitWiseImportResult> {
   const importable = input.drafts.filter((d) => d.importable);
-  if (importable.length === 0) return { transactionIds: [] };
+  if (importable.length === 0) return { transactionIds: [], transactions: [] };
 
   const transactions: Transaction[] = [];
   const shares: ParticipantShare[] = [];
@@ -183,7 +188,7 @@ export async function commitWiseImport(
     if (shares.length > 0) await db.participantShares.bulkAdd(shares);
   });
 
-  return { transactionIds: transactions.map((tx) => tx.id) };
+  return { transactionIds: transactions.map((tx) => tx.id), transactions };
 }
 
 /* ─────────────────── FIELD-14: Wise TRANSFER commit ─────────────────── */

@@ -34,6 +34,8 @@ import {
   undoWiseImportBatch,
   type WiseTransferCommitSpec,
 } from '@/domain/orchestrators';
+import { stampImportedExpenseLocations } from '@/features/location/stamp-expense-location';
+import type { Transaction } from '@/domain/types/transaction';
 import { resolveActivePhase, formatShortDate, sortPhasesByOrder } from '@/domain/dates';
 import { selectActivePhasePool } from '@/domain/budget';
 import { selectAttributableEvents } from '@/domain/planning';
@@ -90,7 +92,7 @@ const STATUS_STYLE: Record<WiseDraftStatus, { bg: string; color: string }> = {
 export function WiseImportPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, links, wallets, transactions, participants, occurrences, loading, error, retry, reload } =
+  const { trip, phases, pools, links, wallets, transactions, participants, occurrences, settings, loading, error, retry, reload } =
     useAppData();
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -461,6 +463,9 @@ export function WiseImportPage() {
 
       const transactionIds: string[] = [];
       const settlementIds: string[] = [];
+      // DEC-395 (G5): the imported expense records, forward-geocoded to their
+      // venue in the background after the batch lands (place parity, A5).
+      const importedExpenses: Transaction[] = [];
 
       if (hasExpenses) {
         // F16: only forward bridges whose purchase is actually being imported.
@@ -489,6 +494,7 @@ export function WiseImportPage() {
           ...(hasEventTags ? { occurrenceByRowId } : {}),
         });
         transactionIds.push(...result.transactionIds);
+        importedExpenses.push(...result.transactions);
       }
 
       if (hasTransfers && owner) {
@@ -513,6 +519,12 @@ export function WiseImportPage() {
       }
 
       await reload();
+
+      // DEC-395 (G5 · W-PLACE): forward-geocode the imported expenses to their
+      // venue in the background — opt-in, online-only, never blocks the import.
+      if (importedExpenses.length > 0) {
+        void stampImportedExpenseLocations(importedExpenses, !!settings?.locationCaptureEnabled);
+      }
 
       const count = transactionIds.length + settlementIds.length;
       showToast(t('wiseImport.imported_toast', { count }), 'success', {

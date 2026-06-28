@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.4-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'Ao importar do Wise, cada gasto agora tenta achar o lugar sozinho pelo nome do estabelecimento — assim ele aparece no mapa sem você marcar um por um.',
+        'É opcional (só com a localização ligada), roda em segundo plano e nunca trava a importação; se não achar, a linha fica sem local — nunca crava um gasto antigo no lugar onde você está agora.',
+        'O copiloto ficou mais honesto: "hora de pico" e "dia da semana" não tiram conclusão de uma única compra grande nem de pouquíssimos dias — com dado fino demais, o insight some em vez de inventar um padrão.',
+      ],
+      en: [
+        'When importing from Wise, each expense now tries to find its place on its own from the merchant name — so it shows on the map without you tagging one by one.',
+        "It's optional (only with location on), runs in the background and never blocks the import; if it can't find it, the row just stays unlocated — it never pins an old expense at wherever you are now.",
+        'The copilot got more honest: "peak hour" and "day of week" no longer conclude from a single big purchase or from too few days — when the data is too thin, the insight hides instead of inventing a pattern.',
+      ],
+      es: [
+        'Al importar de Wise, cada gasto ahora intenta encontrar su lugar solo por el nombre del comercio — así aparece en el mapa sin marcarlos uno por uno.',
+        'Es opcional (solo con la ubicación activada), corre en segundo plano y nunca bloquea la importación; si no lo encuentra, la fila queda sin ubicación — nunca clava un gasto viejo donde estás ahora.',
+        'El copiloto se volvió más honesto: "hora pico" y "día de la semana" ya no concluyen de una sola compra grande ni de muy pocos días — con datos demasiado escasos, el insight desaparece en vez de inventar un patrón.',
+      ],
+    },
+  },
+  {
     version: '1.8.3-rc',
     date: '2026-06-28',
     items: {
