@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.7.1-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'A reserva de um evento agora é consumida pelo gasto: quando o evento começa, ela não volta mais inteira para o "livre" — o seu "livre hoje" parou de pular e o valor do evento não conta mais em dobro.',
+        'O card do evento no dia mostra quanto ainda resta da reserva e quanto dá para gastar por dia ali, ajustando sozinho conforme você gasta.',
+      ],
+      en: [
+        'An event\'s reserve is now consumed by your spending: when the event starts it no longer snaps back in full to your "free to spend" — your "free today" stopped jumping and the event no longer counts twice.',
+        "The day's event card shows how much of the reserve is still left and how much you can spend per day there, adjusting itself as you spend.",
+      ],
+      es: [
+        'La reserva de un evento ahora se consume con el gasto: cuando el evento empieza ya no vuelve entera a tu "libre" — tu "libre hoy" dejó de saltar y el evento ya no cuenta doble.',
+        'La tarjeta del evento del día muestra cuánto queda de la reserva y cuánto puedes gastar por día allí, ajustándose sola a medida que gastas.',
+      ],
+    },
+  },
+  {
     version: '1.7.0-rc',
     date: '2026-06-27',
     items: {
