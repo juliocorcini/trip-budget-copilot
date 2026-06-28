@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.7.0-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Agora dá para marcar um gasto como parte de um evento: quando há um evento acontecendo no dia, o app pergunta e já sugere o evento — você confirma com um toque, na entrada manual ou pela IA.',
+        'Se você apagar um evento, os gastos que tinham sido marcados como dele continuam salvos (só o vínculo com o evento é removido).',
+      ],
+      en: [
+        "You can now mark a spend as part of an event: when an event is happening that day, the app asks and pre-suggests it — confirm with one tap, in manual or AI entry.",
+        'If you delete an event, the spends you had marked as belonging to it stay saved (only the link to the event is removed).',
+      ],
+      es: [
+        'Ahora puedes marcar un gasto como parte de un evento: cuando hay un evento ese día, la app pregunta y ya sugiere el evento — lo confirmas con un toque, en la entrada manual o por IA.',
+        'Si borras un evento, los gastos que habías marcado como suyos siguen guardados (solo se elimina el vínculo con el evento).',
+      ],
+    },
+  },
+  {
     version: '1.6.4-rc',
     date: '2026-06-27',
     items: {

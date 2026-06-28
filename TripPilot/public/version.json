@@ -1,8 +1,8 @@
 {
-  "version": "1.6.4-rc",
+  "version": "1.7.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.6.4-rc.zip",
-  "notes": "No Android, o leitor de QR agora prefere a câmera traseira principal em vez da grande-angular, ficando mais fácil ler o código para conectar com um amigo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.0-rc.zip",
+  "notes": "Agora você pode marcar um gasto como parte de um evento ativo (na entrada manual ou por IA) — o app já sugere o evento do dia e você confirma com um toque."
 }
