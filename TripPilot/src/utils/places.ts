@@ -15,8 +15,19 @@ export interface PlaceResult {
   placeId: string | null;
 }
 
+/** DEC-389 (G5): a place resolved FROM a name — carries the exact coordinates. */
+export interface NamedPlaceResult {
+  label: string;
+  lat: number;
+  lng: number;
+  placeId: string | null;
+}
+
 // OpenStreetMap Nominatim reverse geocoder (free, public, attribution: © OSM).
 const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
+
+// OpenStreetMap Nominatim forward geocoder (name → coordinates).
+const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 
 // OpenStreetMap Overpass API for nearby POIs by category (free, no API key).
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
@@ -99,6 +110,70 @@ export async function reverseGeocodePlace(
     const rawId = data['place_id'];
     const placeId = rawId == null ? null : String(rawId);
     return { label, placeId };
+  } catch {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * DEC-389 (G5): forward-geocode an establishment name to its exact coordinates —
+ * the symmetric twin of `reverseGeocodePlace`. The AI captures the place NAME; this
+ * resolves WHERE that name is so the expense lands on the real venue, not just the
+ * GPS reading. Same boundary contract as every location lookup here: opt-in,
+ * online-only, NEVER throws — returns null on offline, empty name, timeout, HTTP
+ * error, no match, or unparsable payload, so the caller falls back to the GPS fix.
+ *
+ * When a `near` coordinate is given (the current fix), the search is BIASED to a
+ * box around it and bounded to it, so a globally common name ("Starbucks") resolves
+ * to the local venue instead of one in another country; a miss inside the box simply
+ * returns null and the caller stamps the GPS point. Coordinates are sent for this
+ * explicit lookup only (ÂNCORA 8).
+ */
+export async function searchPlaceByName(
+  name: string,
+  near?: Coords | null,
+  timeoutMs = 6000,
+): Promise<NamedPlaceResult | null> {
+  const query = name.trim();
+  if (query === '' || !isOnline() || typeof fetch === 'undefined') return null;
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  try {
+    const params = new URLSearchParams({
+      format: 'jsonv2',
+      q: query,
+      limit: '1',
+      addressdetails: '1',
+    });
+    // Bias + restrict to a ~50km box around the current location when known.
+    if (near) {
+      const d = 0.45;
+      params.set('viewbox', `${near.lng - d},${near.lat - d},${near.lng + d},${near.lat + d}`);
+      params.set('bounded', '1');
+    }
+    const response = await fetch(`${NOMINATIM_SEARCH_URL}?${params.toString()}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller?.signal,
+    });
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as unknown;
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const first = data[0] as Record<string, unknown>;
+
+    const lat = Number(first['lat']);
+    const lng = Number(first['lon']);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    const displayName = readString(first, 'display_name');
+    const label = readString(first, 'name') ?? (displayName ? displayName.split(',')[0]!.trim() : query);
+    const rawId = first['place_id'];
+    return { label, lat, lng, placeId: rawId == null ? null : String(rawId) };
   } catch {
     return null;
   } finally {

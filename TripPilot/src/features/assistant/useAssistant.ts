@@ -24,6 +24,7 @@ import {
   type BatchReady,
   type Clarification,
   type ExecOp,
+  type ExecutionResult,
   type PlanContext,
   type AiCooldown,
 } from '@/domain/assistant';
@@ -34,6 +35,7 @@ import { extractReceiptViaCloud } from '@/utils/ai-ocr';
 import { summarizeReceiptTotal, dominantReceiptCategory, type ReceiptPlan } from '@/domain/receipt';
 import { setReceiptReviewHandoff } from '@/features/receipt/receipt-review-handoff';
 import { expenseOpToQuickAddDraft, setAssistantQuickAddDraft } from './assistant-quickadd-draft';
+import { stampExpenseLocation } from '@/features/location/stamp-expense-location';
 import { isSpeechRecognitionSupported, startVoiceCapture } from '@/utils/speech-recognition';
 import { isPcmRecordingSupported, startPcmRecording, type PcmRecording } from '@/utils/audio-recorder';
 import { isNativeApp } from '@/utils/native/platform';
@@ -158,6 +160,20 @@ function mergeParticipants(base: Participant[], extra: Participant[]): Participa
 
 function twoLetter(language: string): string {
   return language.slice(0, 2);
+}
+
+/**
+ * DEC-389 (G5): fire-and-forget background stamp for an AI expense that captured a
+ * place NAME but no coordinates — forward-geocodes the name to the real venue
+ * (GPS fallback), exactly like the manual QuickAdd save. Gated on opt-in location
+ * capture; no name / already located → nothing to do. Never blocks, never throws.
+ */
+function maybeStampAiExpenseLocation(result: ExecutionResult, locationEnabled: boolean): void {
+  const tx = result.transaction;
+  if (!locationEnabled || !tx) return;
+  const hasName = tx.placeLabel !== null && tx.placeLabel.trim() !== '';
+  if (!hasName || tx.latitude !== null) return;
+  void stampExpenseLocation(tx, false);
 }
 
 export function useAssistant(): UseAssistant {
@@ -658,6 +674,11 @@ export function useAssistant(): UseAssistant {
         lastExpenseCategory: d.settings?.lastExpenseCategory ?? null,
       });
       bumpTelemetryCounter('aiEntries'); // DEC-248: count a successful AI action.
+      // DEC-389 (G5): an AI expense that captured a place NAME but no coordinates
+      // gets the SAME background location stamp QuickAdd does — forward-geocode
+      // the name to the real venue (GPS fallback). Fire-and-forget; never blocks
+      // the confirm and never throws (A5).
+      maybeStampAiExpenseLocation(result, d.settings?.locationCaptureEnabled ?? false);
       showToast(t(`assistant.done.${result.summaryKey}`), 'success', {
         actionLabel: t('common.undo'),
         durationMs: 6000,
@@ -710,6 +731,8 @@ export function useAssistant(): UseAssistant {
       try {
         const result = await executeOp(finalOp, dispatchCtx);
         undos.push(result.undo);
+        // DEC-389 (G5): same name→venue stamp as the single flow, per item.
+        maybeStampAiExpenseLocation(result, d.settings?.locationCaptureEnabled ?? false);
         done += 1;
       } catch {
         failed += 1;

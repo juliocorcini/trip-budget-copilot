@@ -55,6 +55,12 @@ export interface ExecutionResult {
    * the payer — otherwise the debt isn't mine to charge). Absent for non-splits.
    */
   splitNudge?: { targets: Participant[]; amountByParticipantId: Map<string, number> };
+  /**
+   * DEC-389 (G5): the saved expense, so the UI boundary can run the SAME
+   * background location stamp QuickAdd does (forward-geocode the captured name,
+   * GPS fallback). Only set for expense ops; the domain stays free of GPS/network.
+   */
+  transaction?: Transaction;
 }
 
 export interface DispatchContext {
@@ -135,6 +141,7 @@ async function executeExpense(
   return {
     summaryKey: 'saved',
     splitNudge: buildSplitNudge(op, shares, ctx),
+    transaction: tx,
     undo: async () => {
       await softDeleteTransactionWithShares(tx.id);
       notifyAppDataChanged();
