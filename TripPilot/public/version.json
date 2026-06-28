@@ -1,8 +1,8 @@
 {
-  "version": "1.7.3-rc",
+  "version": "1.7.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.3-rc.zip",
-  "notes": "Quando um evento termina e ainda sobra dinheiro da reserva, o app pergunta uma vez para onde a sobra vai: volta para o seu \"livre\", fica guardada num cofrinho rotulado, ou vai para um pote separado — sempre conservando o valor."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.7.4-rc.zip",
+  "notes": "Quando você (ou a IA) nomeia o lugar de um gasto, o app agora procura o local exato desse nome e coloca o gasto no mapa ali — e, se não encontrar, salva com a localização de onde você estava."
 }

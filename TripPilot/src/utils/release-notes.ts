@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.7.4-rc',
+    date: '2026-06-27',
+    items: {
+      'pt-BR': [
+        'Quando você (ou a IA) dá o nome do lugar de um gasto, o app agora procura o local exato desse nome e coloca o gasto no mapa ali — buscando perto de onde você está.',
+        'Se não encontrar o local pelo nome, o gasto é salvo com a localização de onde você estava, então ele nunca fica sem lugar no mapa.',
+      ],
+      en: [
+        'When you (or the AI) name the place of a spend, the app now looks up that exact name and pins the spend on the map there — searching near where you are.',
+        "If it can't find the place by name, the spend is saved with where you were, so it never ends up with no spot on the map.",
+      ],
+      es: [
+        'Cuando tú (o la IA) das el nombre del lugar de un gasto, la app ahora busca ese lugar exacto y coloca el gasto en el mapa allí — buscando cerca de dónde estás.',
+        'Si no encuentra el lugar por el nombre, el gasto se guarda con dónde estabas, así nunca se queda sin sitio en el mapa.',
+      ],
+    },
+  },
+  {
     version: '1.7.3-rc',
     date: '2026-06-27',
     items: {
