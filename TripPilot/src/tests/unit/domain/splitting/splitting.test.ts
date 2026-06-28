@@ -12,6 +12,9 @@ import {
   calculateOwnerPersonalCost,
   suggestSimplifiedSettlements,
   buildParticipantStatement,
+  thirdPartyDebts,
+  ownerInvolvedDebts,
+  summarizeOwnerDebts,
 } from '@/domain/splitting';
 import type { DebtEntry } from '@/domain/splitting';
 import type { Transaction } from '@/domain/types/transaction';
@@ -379,6 +382,98 @@ describe('suggestSimplifiedSettlements (GAP-032)', () => {
       netOut.set(r.creditorId, (netOut.get(r.creditorId) ?? 0) + r.amountCents);
     }
     for (const value of netOut.values()) expect(value).toBe(0);
+  });
+});
+
+describe('thirdPartyDebts / ownerInvolvedDebts (DEC-388 · G6 · S-EGO)', () => {
+  const debt = (
+    debtorId: string,
+    creditorId: string,
+    amountCents: number,
+  ): DebtEntry => ({
+    debtorId,
+    debtorName: debtorId.toUpperCase(),
+    creditorId,
+    creditorName: creditorId.toUpperCase(),
+    amountCents,
+  });
+
+  const OWNER = 'julio';
+  // A real settle graph: someone owes the owner, the owner owes someone, and a
+  // pure third-party pair (Débora → Bruno) the owner only sees because they
+  // recorded it.
+  const graph: DebtEntry[] = [
+    debt('ana', OWNER, 3000), // Ana owes me
+    debt(OWNER, 'leo', 1200), // I owe Leo
+    debt('debora', 'bruno', 4900), // none of my business
+  ];
+
+  it('thirdPartyDebts keeps only pairs with neither side the owner', () => {
+    const result = thirdPartyDebts(graph, OWNER);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ debtorId: 'debora', creditorId: 'bruno', amountCents: 4900 });
+  });
+
+  it('ownerInvolvedDebts keeps only pairs the owner is a party to', () => {
+    const result = ownerInvolvedDebts(graph, OWNER);
+    expect(result).toHaveLength(2);
+    expect(result.some((d) => d.creditorId === OWNER && d.debtorId === 'ana')).toBe(true);
+    expect(result.some((d) => d.debtorId === OWNER && d.creditorId === 'leo')).toBe(true);
+    expect(result.some((d) => d.debtorId === 'debora')).toBe(false);
+  });
+
+  it('partitions the graph with nothing lost or double-counted', () => {
+    const owner = ownerInvolvedDebts(graph, OWNER);
+    const third = thirdPartyDebts(graph, OWNER);
+    expect(owner.length + third.length).toBe(graph.length);
+    // Every original debt lands in exactly one bucket.
+    const recombined = [...owner, ...third];
+    expect(recombined).toHaveLength(graph.length);
+    const total = recombined.reduce((s, d) => s + d.amountCents, 0);
+    expect(total).toBe(graph.reduce((s, d) => s + d.amountCents, 0));
+  });
+
+  it('drops zero / non-positive amounts from both sides', () => {
+    const noisy = [debt('ana', OWNER, 0), debt('debora', 'bruno', 0), debt('ana', OWNER, 500)];
+    expect(ownerInvolvedDebts(noisy, OWNER)).toHaveLength(1);
+    expect(thirdPartyDebts(noisy, OWNER)).toHaveLength(0);
+  });
+
+  it('owner-net is faithful: summarizeOwnerDebts(ownerInvolvedDebts) == baseline net', () => {
+    // The ego-centric list must never change the owner's bottom line.
+    const baselineNet = summarizeOwnerDebts(graph, OWNER).netCents;
+    const egoNet = summarizeOwnerDebts(ownerInvolvedDebts(graph, OWNER), OWNER).netCents;
+    expect(egoNet).toBe(baselineNet);
+    // 3000 received − 1200 paid = +1800.
+    expect(egoNet).toBe(1800);
+  });
+
+  it('matches a real calculateDebts graph: a non-owner-paid split is third-party', () => {
+    const participants: Participant[] = [
+      { ...meta, id: OWNER, tripId: 'trip-1', name: 'Julio', nickname: null, isOwner: true, email: null, linkedUserAccountId: null, linkedActorId: null },
+      { ...meta, id: 'bruno', tripId: 'trip-1', name: 'Bruno', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+      { ...meta, id: 'debora', tripId: 'trip-1', name: 'Débora', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+    ];
+    // Bruno paid €98, split equally with Débora — the owner is NOT a participant.
+    const tx: Transaction = {
+      ...meta, id: 'tx-tp', tripId: 'trip-1', phaseId: 'ph-1',
+      budgetPoolId: 'pool-1', walletId: null, sessionId: null,
+      type: 'expense', amountCents: 9800, personalCostCents: null,
+      currency: 'EUR', baseCurrencyAmountCents: 9800, exchangeRate: null,
+      category: 'bar', subcategoryId: null, placeLabel: null, latitude: null, longitude: null, placeId: null, description: 'Bar', date: '2026-07-01T00:00:00.000Z',
+      isShared: true, paidByParticipantId: 'bruno',
+      activityProfileId: null, isSpecialOccasion: false, excludeFromLearning: false,
+      sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
+    };
+    const shares: ParticipantShare[] = [
+      { ...meta, id: 's1', transactionId: 'tx-tp', participantId: 'bruno', shareAmountCents: 4900, shareType: 'equal', isPaid: true, confirmationStatus: 'confirmed', notes: null },
+      { ...meta, id: 's2', transactionId: 'tx-tp', participantId: 'debora', shareAmountCents: 4900, shareType: 'equal', isPaid: false, confirmationStatus: 'confirmed', notes: null },
+    ];
+    const { debts } = calculateDebts([tx], shares, participants, [], OWNER);
+    expect(ownerInvolvedDebts(debts, OWNER)).toHaveLength(0);
+    const third = thirdPartyDebts(debts, OWNER);
+    expect(third).toHaveLength(1);
+    expect(third[0]).toMatchObject({ debtorId: 'debora', creditorId: 'bruno', amountCents: 4900 });
   });
 });
 

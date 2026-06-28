@@ -389,6 +389,42 @@ export function summarizeOwnerDebts(
 }
 
 /**
+ * DEC-388 (G6 · S-EGO) — debts between two people who are BOTH not the owner,
+ * surfaced only because the owner RECORDED the expense. The ego-centric settle
+ * screen keeps these OUT of the owner's main list (which answers "what is MINE?")
+ * and lists them in a separate display-only "charges I recorded between others"
+ * registry — so a third-party debt is never shown as the owner's debt, yet never
+ * vanishes either (A4). Pure partition of the very same `calculateDebts` graph
+ * the hero reads (`summarizeOwnerDebts`), so the settle math stays invariant:
+ * `ownerInvolvedDebts ∪ thirdPartyDebts` = every positive debt, nothing lost or
+ * double-counted.
+ */
+export function thirdPartyDebts(
+  debts: readonly DebtEntry[],
+  ownerId: string,
+): DebtEntry[] {
+  return debts.filter(
+    (d) => d.amountCents > 0 && d.debtorId !== ownerId && d.creditorId !== ownerId,
+  );
+}
+
+/**
+ * DEC-388 (G6 · S-EGO) — the complement of `thirdPartyDebts`: every debt the
+ * owner is a party to (owner is the debtor or the creditor). Drives the
+ * ego-centric main settle list; its owner-net is identical to the baseline
+ * (`summarizeOwnerDebts` reads owner-involved edges only), so the hero/home
+ * arithmetic is untouched.
+ */
+export function ownerInvolvedDebts(
+  debts: readonly DebtEntry[],
+  ownerId: string,
+): DebtEntry[] {
+  return debts.filter(
+    (d) => d.amountCents > 0 && (d.debtorId === ownerId || d.creditorId === ownerId),
+  );
+}
+
+/**
  * M18 (DEC-294) — the group-wide settle-up standing that drives the "tudo
  * acertado ✓" seal. `allSettled` is true ONLY when real splitting happened (a
  * shared expense or a recorded settlement exists) AND no debt is left

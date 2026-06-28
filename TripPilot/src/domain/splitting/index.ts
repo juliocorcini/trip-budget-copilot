@@ -5,6 +5,8 @@ export {
   calculatePersonalCost,
   calculateDebts,
   summarizeOwnerDebts,
+  thirdPartyDebts,
+  ownerInvolvedDebts,
   resolveSettlementStanding,
   createSettlement,
   suggestSimplifiedSettlements,

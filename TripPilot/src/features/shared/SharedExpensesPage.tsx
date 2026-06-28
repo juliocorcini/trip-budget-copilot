@@ -5,11 +5,12 @@ import { useAppData } from '@/hooks/useAppData';
 import {
   calculateDebts,
   summarizeOwnerDebts,
+  thirdPartyDebts,
+  ownerInvolvedDebts,
   createSettlement,
   createParticipant,
   calculateParticipantBalances,
   resolveSettlementStanding,
-  suggestSimplifiedSettlements,
   buildParticipantStatement,
   groupSharedExpenses,
   groupStatementLines,
@@ -319,7 +320,9 @@ export function SharedExpensesPage() {
   const [settleAmount, setSettleAmount] = useState('');
   // FB-27 (DEC-277): optional structured method of the recorded repayment.
   const [settleMethod, setSettleMethod] = useState<SettlementMethod | null>(null);
-  const [showSimplified, setShowSimplified] = useState(false);
+  // DEC-388 (G6 · S-EGO): the "charges I recorded between others" registry is a
+  // collapsed-by-default secondary menu — never the owner's main settle list.
+  const [showThirdParty, setShowThirdParty] = useState(false);
   // DEC-102 (R-25): tap on a participant opens their itemized statement.
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
   // I1 / DEC-370: confirm removing a connected person (tombstone, history kept).
@@ -1058,6 +1061,19 @@ export function SharedExpensesPage() {
     debtSummary && ownerParticipant
       ? summarizeOwnerDebts(debtSummary.debts, ownerParticipant.id)
       : null;
+  // DEC-388 (G6 · S-EGO): the main settle list answers "what is MINE?" — only the
+  // debts the owner is a party to. Debts between two OTHER people (surfaced just
+  // because the owner recorded the expense) move to a display-only registry so
+  // they never read as the owner's debt yet never vanish (A4). Pure partition of
+  // the same `calculateDebts` graph the hero reads — the settle math is invariant.
+  const ownerDebts =
+    debtSummary && ownerParticipant
+      ? ownerInvolvedDebts(debtSummary.debts, ownerParticipant.id)
+      : [];
+  const otherDebts =
+    debtSummary && ownerParticipant
+      ? thirdPartyDebts(debtSummary.debts, ownerParticipant.id)
+      : [];
   // M18 (DEC-294): the group-wide settle-up standing → the "tudo acertado ✓"
   // seal shows only after real splitting AND once every debt is cleared.
   const sharedExpenseCount = transactions.filter(
@@ -1104,7 +1120,10 @@ export function SharedExpensesPage() {
   // (Situação → Resolver → Pessoas → Atividade → Divisões → Mais) under a sticky
   // header. The zones are sequenced with flex `order` so the re-composition is a
   // low-risk overlay on the existing, tested blocks (no ledger logic moved).
-  const resolverCount = inboundItems.length + (debtSummary?.debts.length ?? 0);
+  // DEC-388 (G6): the "Resolver" badge counts only what the owner can actually
+  // settle (owner-involved debts) + inbound items — third-party records are not
+  // the owner's to resolve.
+  const resolverCount = inboundItems.length + ownerDebts.length;
 
   return (
     <div className="flex flex-col gap-4 pb-4 pt-2">
@@ -1648,69 +1667,96 @@ export function SharedExpensesPage() {
         <Icon name="chevron_right" size={14} className="text-on-surface-faint shrink-0" />
       </button>
 
-      {debtSummary && debtSummary.debts.length > 0 && (() => {
-        const simplified = suggestSimplifiedSettlements(debtSummary.debts);
-        const involvedIds = new Set(
-          debtSummary.debts.flatMap((d) => [d.debtorId, d.creditorId]),
-        );
-        const canSimplify = involvedIds.size >= 3 && simplified.length < debtSummary.debts.length;
-        const visibleDebts = showSimplified && canSimplify ? simplified : debtSummary.debts;
-
-        return (
-          <div className="order-[24]">
-            {canSimplify && (
-              <button
-                onClick={() => setShowSimplified((v) => !v)}
-                className="w-full mb-2 p-3 rounded-xl flex items-center gap-2.5 btn-press text-left"
-                style={{ background: '#C75B3918', border: '1px dashed #C75B3940' }}
-              >
-                <Icon name="merge" size={16} className="text-primary" />
-                <p className="text-xs font-semibold text-primary flex-1">
-                  {showSimplified
-                    ? t('shared.show_original_debts')
-                    : t('shared.simplify_debts', { count: simplified.length })}
-                </p>
-              </button>
-            )}
-
-            {visibleDebts.map((debt, i) => {
-              // DL-5: "Lembrar" only makes sense when someone owes the OWNER.
-              const ownerIsCreditor = debt.creditorId === ownerParticipant?.id;
-              return (
-                <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs text-on-surface-dim truncate">
-                        {debt.debtorName} → {debt.creditorName}
-                      </p>
-                      <p className="text-sm font-semibold text-on-surface tabular">
-                        {formatMoney(debt.amountCents, trip.baseCurrency)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {ownerIsCreditor && (
-                        <button
-                          onClick={() => handleRemind(debt)}
-                          className="px-3 py-1.5 rounded-lg bg-primary/15 text-primary text-xs font-medium btn-press flex items-center gap-1"
-                        >
-                          <Icon name="notifications" size={14} />
-                          {t('shared.remind')}
-                        </button>
-                      )}
+      {/* DEC-388 (G6 · S-EGO): the MAIN settle list shows only what is MINE —
+          debts where the owner is the debtor or creditor. */}
+      {ownerDebts.length > 0 && (
+        <div className="order-[24]">
+          {ownerDebts.map((debt, i) => {
+            // DL-5: "Lembrar" only makes sense when someone owes the OWNER.
+            const ownerIsCreditor = debt.creditorId === ownerParticipant?.id;
+            return (
+              <div key={i} className="bg-surface-container rounded-xl p-4 mb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs text-on-surface-dim truncate">
+                      {debt.debtorName} → {debt.creditorName}
+                    </p>
+                    <p className="text-sm font-semibold text-on-surface tabular">
+                      {formatMoney(debt.amountCents, trip.baseCurrency)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {ownerIsCreditor && (
                       <button
-                        onClick={() => openSettleSheet(debt)}
-                        className="px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium btn-press"
+                        onClick={() => handleRemind(debt)}
+                        className="px-3 py-1.5 rounded-lg bg-primary/15 text-primary text-xs font-medium btn-press flex items-center gap-1"
                       >
-                        {t('shared.settle')}
+                        <Icon name="notifications" size={14} />
+                        {t('shared.remind')}
                       </button>
-                    </div>
+                    )}
+                    <button
+                      onClick={() => openSettleSheet(debt)}
+                      className="px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium btn-press"
+                    >
+                      {t('shared.settle')}
+                    </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        );
-      })()}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* DEC-388 (G6 · S-EGO): debts between OTHER people that the owner only
+          sees because they recorded the expense. Display-only registry, collapsed
+          by default — never the owner's debt (out of the hero/main list), but
+          never lost either (A4). */}
+      {otherDebts.length > 0 && (
+        <div className="order-[25]">
+          <button
+            onClick={() => setShowThirdParty((v) => !v)}
+            className="w-full p-3 rounded-xl flex items-center gap-2.5 btn-press text-left bg-surface-container"
+            aria-expanded={showThirdParty}
+          >
+            <Icon name="group" size={16} className="text-on-surface-faint shrink-0" />
+            <span className="flex-1 min-w-0">
+              <span className="block text-xs font-semibold text-on-surface">
+                {t('shared.third_party_title')}
+              </span>
+              <span className="block text-[11px] text-on-surface-faint">
+                {t('shared.third_party_subtitle', { count: otherDebts.length })}
+              </span>
+            </span>
+            <Icon
+              name={showThirdParty ? 'expand_less' : 'expand_more'}
+              size={18}
+              className="text-on-surface-faint shrink-0"
+            />
+          </button>
+
+          {showThirdParty && (
+            <div className="mt-2 flex flex-col gap-2">
+              <p className="text-[11px] text-on-surface-faint leading-relaxed px-1">
+                {t('shared.third_party_hint')}
+              </p>
+              {otherDebts.map((debt, i) => (
+                <div key={i} className="bg-surface-container rounded-xl p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-on-surface-dim truncate min-w-0">
+                      {debt.debtorName} → {debt.creditorName}
+                    </p>
+                    <p className="text-sm font-semibold text-on-surface tabular shrink-0">
+                      {formatMoney(debt.amountCents, trip.baseCurrency)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* GAP-032: settle confirmation with partial amount */}
       <BottomSheet
