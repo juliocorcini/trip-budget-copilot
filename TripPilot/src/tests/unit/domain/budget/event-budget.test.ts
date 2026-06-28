@@ -9,6 +9,7 @@ import {
   eventHasEnded,
   isEventLeftoverPending,
   selectPendingEventLeftovers,
+  buildLiveEventProgress,
 } from '@/domain/budget';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { createPlannedOccurrence } from '@/domain/planning';
@@ -191,6 +192,69 @@ describe('eventDailyAllowanceCents (DEC-385 · G2)', () => {
     expect(
       eventDailyAllowanceCents(occ, [mkExpense({ occurrenceId: 'evt-1', amountCents: 1000 })], '2026-06-12'),
     ).toBe(0);
+  });
+});
+
+describe('buildLiveEventProgress (DEC-390 · parte 2 · G1)', () => {
+  it('reports consumed/remaining/per-day/days-left and lists the contributing spends newest-first', () => {
+    const occ = mkEvent({
+      id: 'evt-1',
+      plannedDate: '2026-06-12',
+      endDate: '2026-06-15',
+      reservedCents: 4000,
+      linkedSessionId: 'sess-1',
+    });
+    const txs = [
+      mkExpense({ occurrenceId: 'evt-1', amountCents: 1000, date: '2026-06-12T10:00:00.000Z', description: 'Ticket' }),
+      mkExpense({ sessionId: 'sess-1', amountCents: 500, date: '2026-06-13T20:00:00.000Z', description: 'Round' }),
+      mkExpense({ occurrenceId: 'evt-2', amountCents: 9999, date: '2026-06-13T21:00:00.000Z' }), // other event
+      mkExpense({ sessionId: 'sess-2', amountCents: 8888, date: '2026-06-13T22:00:00.000Z' }), // other session
+    ];
+    const live = buildLiveEventProgress(occ, txs, '2026-06-13T12:00:00.000Z');
+    expect(live.reservedCents).toBe(4000);
+    // 1000 attributed + 500 from the linked outing; the other event/session are out.
+    expect(live.consumedCents).toBe(1500);
+    expect(live.remainingCents).toBe(2500);
+    expect(live.daysLeftInclusive).toBe(3); // 13,14,15
+    expect(live.perDayCents).toBe(833); // floor(2500 / 3)
+    expect(live.linkedSessionId).toBe('sess-1');
+    expect(live.expenses.map((e) => e.description)).toEqual(['Round', 'Ticket']);
+    expect(live.expenses.map((e) => e.source)).toEqual(['outing', 'attributed']);
+    // The listed lines net bit-for-bit to consumed — no double count (Â-LIVE-EVENT).
+    expect(live.expenses.reduce((sum, e) => sum + e.baseCostCents, 0)).toBe(live.consumedCents);
+  });
+
+  it('lists no spend and holds the full reserve before anything is spent', () => {
+    const live = buildLiveEventProgress(mkEvent({ id: 'evt-1', reservedCents: 5000 }), [], '2026-06-12');
+    expect(live.expenses).toEqual([]);
+    expect(live.consumedCents).toBe(0);
+    expect(live.remainingCents).toBe(5000);
+  });
+
+  it('handles a track-only event (no reserve): consumed counts, remaining stays zero', () => {
+    const occ = mkEvent({ id: 'evt-1', reservedCents: null });
+    const live = buildLiveEventProgress(
+      occ,
+      [mkExpense({ occurrenceId: 'evt-1', amountCents: 1200, date: '2026-06-12T10:00:00.000Z' })],
+      '2026-06-12',
+    );
+    expect(live.reservedCents).toBeNull();
+    expect(live.consumedCents).toBe(1200);
+    expect(live.remainingCents).toBe(0);
+    expect(live.perDayCents).toBe(0);
+    expect(live.expenses).toHaveLength(1);
+  });
+
+  it('excludes a soft-deleted contributing spend from the list and the consumed total', () => {
+    const occ = mkEvent({ id: 'evt-1', linkedSessionId: 'sess-1', reservedCents: 5000 });
+    const dead: Transaction = {
+      ...mkExpense({ occurrenceId: 'evt-1', amountCents: 3000 }),
+      deletedAt: '2026-06-12T00:00:00.000Z',
+    };
+    const alive = mkExpense({ sessionId: 'sess-1', amountCents: 700, date: '2026-06-12T10:00:00.000Z' });
+    const progress = buildLiveEventProgress(occ, [dead, alive], '2026-06-12');
+    expect(progress.consumedCents).toBe(700);
+    expect(progress.expenses).toHaveLength(1);
   });
 });
 

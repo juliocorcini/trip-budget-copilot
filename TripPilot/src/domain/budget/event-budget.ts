@@ -111,6 +111,81 @@ export function eventDailyAllowanceCents(
   return Math.floor(remaining / eventDaysLeftInclusive(occ, todayIso));
 }
 
+/** DEC-390 (parte 2, G1): one contributing spend in the live-event block. */
+export interface LiveEventExpense {
+  id: string;
+  date: string;
+  description: string;
+  category: string | null;
+  /** Base-currency personal cost — the SAME unit that nets into `consumedCents`. */
+  baseCostCents: number;
+  /** How this spend draws on the event: explicitly attributed XOR via the outing. */
+  source: 'attributed' | 'outing';
+}
+
+/** DEC-390 (parte 2, G1): the live progress of an event that is happening now. */
+export interface LiveEventProgress {
+  occurrence: PlannedOccurrence;
+  /** The reserve set aside for the event (null = track-only, no envelope). */
+  reservedCents: number | null;
+  /** What has actually been drawn (attributed + linked-outing spend). */
+  consumedCents: number;
+  /** Still-held reserve: `max(0, reserved − consumed)` (0 when track-only). */
+  remainingCents: number;
+  /** Today's share of what is left: `remaining / daysLeft` (0 when exhausted). */
+  perDayCents: number;
+  /** Inclusive days the event still spans, from today to its end. */
+  daysLeftInclusive: number;
+  /** The outing started from this event, if any (the live tally lives there). */
+  linkedSessionId: string | null;
+  /** The spends that make up `consumedCents` — what/when/how-much, newest first. */
+  expenses: LiveEventExpense[];
+}
+
+/**
+ * DEC-390 (parte 2, G1): the live-event progress view-model — everything the Home
+ * "Evento acontecendo" block needs to answer "how is my event going?" in one
+ * glance: consumed (with the contributing spends, what/when/how-much), still-held
+ * reserve, today's per-day share, and days left. The contributing spends are the
+ * SAME union `eventConsumedSpentCents` sums (explicit `occurrenceId` XOR the
+ * linked outing's `sessionId`), so the listed lines net bit-for-bit to
+ * `consumedCents` with NO double count, and the block coexists with the outing
+ * card (Â-LIVE-EVENT) instead of replacing it. Pure (TS only, no React).
+ */
+export function buildLiveEventProgress(
+  occ: PlannedOccurrence,
+  transactions: Transaction[],
+  todayIso: string,
+): LiveEventProgress {
+  const expenses: LiveEventExpense[] = transactions
+    .filter(
+      (t) =>
+        t.deletedAt === null &&
+        (t.type === 'expense' || t.type === 'adjustment') &&
+        (t.occurrenceId === occ.id ||
+          (occ.linkedSessionId !== null && t.sessionId === occ.linkedSessionId)),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((t) => ({
+      id: t.id,
+      date: t.date,
+      description: t.description,
+      category: t.category,
+      baseCostCents: transactionBasePersonalCostCents(t),
+      source: t.occurrenceId === occ.id ? 'attributed' : 'outing',
+    }));
+  return {
+    occurrence: occ,
+    reservedCents: occ.reservedCents,
+    consumedCents: eventConsumedSpentCents(occ, transactions),
+    remainingCents: eventReserveRemainingCents(occ, transactions),
+    perDayCents: eventDailyAllowanceCents(occ, transactions, todayIso),
+    daysLeftInclusive: eventDaysLeftInclusive(occ, todayIso),
+    linkedSessionId: occ.linkedSessionId,
+    expenses,
+  };
+}
+
 /**
  * Â-ATTRIBUTION (DEC-386): a spend belongs to an event XOR an outing session,
  * never both. True when at most one of the two links is set. The expense factory

@@ -9,6 +9,7 @@
 
 export type DashboardCardId =
   | 'today_events'
+  | 'live_event'
   | 'savings_goal'
   | 'piggy_bank'
   | 'active_outing'
@@ -77,6 +78,11 @@ export const DASHBOARD_CARD_CATALOG: DashboardCardDescriptor[] = [
   // one-tap doorway into the accept/confirm surface. Fixed (self-gates on count)
   // so it surfaces immediately under the hero and is never reorderable noise.
   { id: 'pending_p2p', labelKey: 'dashboard.card_pending_p2p', fixed: true, quickAction: null },
+  // DEC-390 (parte 2, G1): the live-event block — an event HAPPENING now stays
+  // visible with real progress even after its outing starts (Â-LIVE-EVENT).
+  // Fixed (self-gates on `model.liveEvents`) so it surfaces right under the hero
+  // cluster and is never reorderable noise.
+  { id: 'live_event', labelKey: 'dashboard.card_live_event', fixed: true, quickAction: null },
   {
     // M14: savings goal progress — positive target next to the budget.
     id: 'savings_goal',

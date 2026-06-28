@@ -45,7 +45,9 @@ describe('resolveDashboardCardSequence', () => {
         id !== 'active_outing' &&
         id !== 'hero' &&
         id !== 'suggest_outing' &&
-        id !== 'pending_p2p',
+        id !== 'pending_p2p' &&
+        // DEC-390 (parte 2, G1): the live-event block is a fixed anchor too.
+        id !== 'live_event',
     );
     expect(movable[0]).toBe('recent_expenses');
     expect(movable[1]).toBe('insights');
@@ -109,7 +111,8 @@ describe('moveDashboardCard', () => {
         id !== 'active_outing' &&
         id !== 'hero' &&
         id !== 'suggest_outing' &&
-        id !== 'pending_p2p',
+        id !== 'pending_p2p' &&
+        id !== 'live_event',
     );
     // recent_expenses is the last movable card; moving it up swaps with the
     // planned_purchases tile, which becomes last.

@@ -61,26 +61,54 @@ export function isOccurrenceActiveToday(occ: PlannedOccurrence, todayIso: string
 }
 
 /**
- * DEC-386 (G1): the OPEN events a spend on `dayIso` can be attributed to — kind
- * 'event', not deleted, not confirmed/resolved, whose date interval contains the
- * day. Deliberately decoupled from the outing session (Â-ATTRIBUTION): the user
- * attributes manual/AI/Wise spends to the event WITHOUT the active outing, so an
- * event with a live session is still attributable. The QuickAdd selector
- * pre-suggests from this set (date inference) and the user confirms. Sorted
- * chronologically. Pure.
+ * DEC-386 (G1) / DEC-390 (parte 2, G1): is the event happening on `dayIso` —
+ * kind 'event', not deleted, not confirmed/resolved, today inside its date
+ * interval — REGARDLESS of whether an outing session is linked? This is the
+ * shared predicate behind both event-attribution (a spend can attach to it) and
+ * the live-event Home block. It deliberately IGNORES `linkedSessionId` (unlike
+ * `isOccurrenceActiveToday`/`isEventVisibleOnHome`, which hand a started event to
+ * the live outing): a manual/Wise/AI spend draws on the event without the outing,
+ * so the event must stay attributable AND visible with its progress while it is
+ * live. Pure.
+ */
+export function isEventInProgress(occ: PlannedOccurrence, dayIso: string): boolean {
+  return (
+    occ.deletedAt === null &&
+    occ.kind === 'event' &&
+    !occ.isConfirmed &&
+    isWithinOccurrenceInterval(occ, dayIso)
+  );
+}
+
+/**
+ * DEC-386 (G1): the OPEN events a spend on `dayIso` can be attributed to. Shares
+ * the `isEventInProgress` predicate so attribution and the live Home block never
+ * diverge. The QuickAdd selector pre-suggests from this set (date inference) and
+ * the user confirms. Sorted chronologically. Pure.
  */
 export function selectAttributableEvents(
   occurrences: PlannedOccurrence[],
   dayIso: string,
 ): PlannedOccurrence[] {
   return occurrences
-    .filter(
-      (o) =>
-        o.deletedAt === null &&
-        o.kind === 'event' &&
-        !o.isConfirmed &&
-        isWithinOccurrenceInterval(o, dayIso),
-    )
+    .filter((o) => isEventInProgress(o, dayIso))
+    .sort((a, b) => dayOf(a.plannedDate ?? '').localeCompare(dayOf(b.plannedDate ?? '')));
+}
+
+/**
+ * DEC-390 (parte 2, G1): the events that are HAPPENING right now — the live-event
+ * Home block. Same set as `selectAttributableEvents` (the `isEventInProgress`
+ * predicate, `linkedSessionId`-agnostic) but named for its display intent: an
+ * event with a started outing is STILL in progress, so it keeps showing its
+ * progress instead of vanishing into the outing card. Sorted chronologically.
+ * Pure.
+ */
+export function selectActiveEventsInProgress(
+  occurrences: PlannedOccurrence[],
+  todayIso: string,
+): PlannedOccurrence[] {
+  return occurrences
+    .filter((o) => isEventInProgress(o, todayIso))
     .sort((a, b) => dayOf(a.plannedDate ?? '').localeCompare(dayOf(b.plannedDate ?? '')));
 }
 

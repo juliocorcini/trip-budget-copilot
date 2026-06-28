@@ -539,6 +539,151 @@ export function DashboardCards({
             ))}
           </>
         );
+      case 'live_event':
+        // DEC-390 (parte 2, G1): the live-event block — an event HAPPENING now
+        // stays visible with real progress (consumed/what-when, remaining, per-day,
+        // days left) EVEN with an outing started (Â-LIVE-EVENT). Coexists with the
+        // active-outing card: the listed spends net to `consumedCents` (no double
+        // count); with an outing linked the action opens it (the live tally lives
+        // there), otherwise it offers the same start/postpone as the day card.
+        return (
+          <>
+            {model.liveEvents.map((live) => {
+              const { occurrence: occ } = live;
+              const pct =
+                live.reservedCents !== null && live.reservedCents > 0
+                  ? Math.min(100, Math.round((live.consumedCents / live.reservedCents) * 100))
+                  : 0;
+              return (
+                <div
+                  key={occ.id}
+                  className="mt-4 p-4 rounded-2xl"
+                  style={{ background: 'var(--surface-deep)', border: '1px solid #C75B3925' }}
+                >
+                  <button
+                    className="flex items-center gap-2.5 w-full text-left btn-press"
+                    onClick={() => navigate(`/trip/edit?occurrence=${occ.id}`)}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: '#C75B3925' }}
+                    >
+                      <Icon name="celebration" size={18} filled className="text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-primary">
+                        {t('dashboard.live_event_title')}
+                      </p>
+                      <p className="text-base font-extrabold text-on-surface truncate">{occ.name}</p>
+                      {live.linkedSessionId !== null && (
+                        <p className="text-[11px] font-semibold text-on-surface-faint truncate">
+                          {t('dashboard.live_event_outing_link', { name: occ.name })}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold tabular text-on-surface-dim text-right shrink-0">
+                      {live.reservedCents !== null
+                        ? t('dashboard.live_event_spent_of', {
+                            spent: formatMoney(live.consumedCents, trip.baseCurrency),
+                            reserved: formatMoney(live.reservedCents, trip.baseCurrency),
+                          })
+                        : t('dashboard.live_event_spent_only', {
+                            spent: formatMoney(live.consumedCents, trip.baseCurrency),
+                          })}
+                    </span>
+                  </button>
+
+                  {live.reservedCents !== null && live.reservedCents > 0 && (
+                    <div
+                      className="w-full h-2 rounded-full overflow-hidden mt-3"
+                      style={{ background: 'var(--surface-container-high)' }}
+                    >
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${pct}%`, background: 'var(--primary)' }}
+                      />
+                    </div>
+                  )}
+
+                  {live.reservedCents !== null && (
+                    <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-2 text-[11px] font-semibold text-on-surface-dim">
+                      <span className="text-success font-bold">
+                        {t('dashboard.live_event_remaining', {
+                          amount: formatMoney(live.remainingCents, trip.baseCurrency),
+                        })}
+                      </span>
+                      {live.perDayCents > 0 && (
+                        <span>
+                          {t('dashboard.live_event_per_day', {
+                            amount: formatMoney(live.perDayCents, trip.baseCurrency),
+                          })}
+                        </span>
+                      )}
+                      <span>
+                        {t('dashboard.live_event_days_left', { count: live.daysLeftInclusive })}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    {live.expenses.length === 0 ? (
+                      <p className="text-[11px] font-medium text-on-surface-faint">
+                        {t('dashboard.live_event_no_spend')}
+                      </p>
+                    ) : (
+                      <>
+                        {live.expenses.slice(0, 3).map((e) => (
+                          <div key={e.id} className="flex items-center gap-2 text-xs">
+                            <span className="flex-1 min-w-0 truncate text-on-surface-dim font-medium">
+                              {e.description || t(`categories.${e.category ?? 'other'}` as never)}
+                            </span>
+                            <span className="text-on-surface-faint tabular text-[11px] shrink-0">
+                              {formatShortDate(e.date)}
+                            </span>
+                            <span className="tabular font-bold text-on-surface shrink-0">
+                              {formatMoney(e.baseCostCents, trip.baseCurrency)}
+                            </span>
+                          </div>
+                        ))}
+                        {live.expenses.length > 3 && (
+                          <p className="text-[11px] font-semibold text-on-surface-faint">
+                            {t('dashboard.live_event_more', { count: live.expenses.length - 3 })}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 mt-3">
+                    {live.linkedSessionId !== null ? (
+                      <button
+                        onClick={() => navigate('/outings/active')}
+                        className="flex-1 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
+                      >
+                        {t('dashboard.live_event_open_outing')}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => navigate(`/outings/new?occurrence=${occ.id}`)}
+                          className="flex-1 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
+                        >
+                          {t('dashboard.event_start_now')}
+                        </button>
+                        <button
+                          onClick={() => onPostponeEvent(occ.id)}
+                          className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press"
+                        >
+                          {t('dashboard.event_postpone')}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        );
       case 'savings_goal': {
         // M14 (E6): savings goal vs projected end-of-trip surplus. READ-ONLY —
         // shown only when the traveler set a goal (ÂNCORA 11 / DEC-088).

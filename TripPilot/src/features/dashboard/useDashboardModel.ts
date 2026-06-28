@@ -27,6 +27,7 @@ import {
   eventReserveRemainingCents,
   eventDailyAllowanceCents,
   selectPendingEventLeftovers,
+  buildLiveEventProgress,
 } from '@/domain/budget';
 import {
   filterTransactionsByPool,
@@ -61,7 +62,11 @@ import {
   findEndedPhaseWithSuccessor,
   detectPhaseLeftover,
 } from '@/domain/phases';
-import { isOccurrenceActiveToday, selectVisibleEvents } from '@/domain/planning';
+import {
+  isOccurrenceActiveToday,
+  selectVisibleEvents,
+  selectActiveEventsInProgress,
+} from '@/domain/planning';
 import {
   isPlannedPurchaseOpen,
   plannedPurchaseReservedRemainingCents,
@@ -295,10 +300,17 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
 
     // Local date, not UTC — toISOString() would skip to tomorrow after 21:00 in UTC-3.
     const todayIso = localDateString(new Date());
+    // DEC-390 (parte 2, G1): the day card now hosts only non-event occurrences
+    // (sub-destinations) active today without a session — kind 'event' moves to
+    // the dedicated live-event block below (with/without an outing), so an
+    // in-progress event is never rendered twice (anti-pattern §13: no double count).
     const todayEvents = (
       activePhase
         ? occurrences.filter(
-            (o) => o.phaseId === activePhase.id && isOccurrenceActiveToday(o, todayIso),
+            (o) =>
+              o.phaseId === activePhase.id &&
+              o.kind !== 'event' &&
+              isOccurrenceActiveToday(o, todayIso),
           )
         : []
     ).map((occ) => ({
@@ -308,6 +320,21 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       remainingCents: eventReserveRemainingCents(occ, transactions),
       perDayCents: eventDailyAllowanceCents(occ, transactions, todayIso),
     }));
+
+    // DEC-390 (parte 2, G1): events HAPPENING right now — visible with real
+    // progress (consumed/what-when, remaining, per-day, days left) EVEN with an
+    // outing started (Â-LIVE-EVENT). `selectActiveEventsInProgress` ignores
+    // `linkedSessionId`, so a started event no longer vanishes from the Home; the
+    // block coexists with the outing card (no double count — the listed spends net
+    // to `consumedCents`).
+    const liveEvents = (
+      activePhase
+        ? selectActiveEventsInProgress(
+            occurrences.filter((o) => o.phaseId === activePhase.id),
+            todayIso,
+          )
+        : []
+    ).map((occ) => buildLiveEventProgress(occ, transactions, todayIso));
 
     // GATE 4 (M4.4 / D8): events approaching (owner trecho active OR within the
     // D-7 window) rise onto the Home as a heads-up, minus the ones already shown
@@ -780,6 +807,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       occasionCounters,
       todayIso,
       todayEvents,
+      liveEvents,
       eventLeftover,
       upcomingEvents,
       hasPendingExpenses,

@@ -3,7 +3,9 @@ import {
   createPlannedOccurrence,
   isOccurrenceActiveToday,
   isWithinOccurrenceInterval,
+  isEventInProgress,
   selectAttributableEvents,
+  selectActiveEventsInProgress,
   postponeOccurrence,
   sumSpentInOccurrenceInterval,
 } from '@/domain/planning';
@@ -143,5 +145,52 @@ describe('selectAttributableEvents (DEC-386 · G1 selector)', () => {
       '2026-06-12T10:00:00.000Z',
     );
     expect(result).toEqual([]);
+  });
+});
+
+// DEC-390 (parte 2, G1): the live-event Home block must keep showing an event
+// that is HAPPENING even after its outing starts (the keystone bug: it used to
+// vanish once `linkedSessionId` was set).
+describe('isEventInProgress / selectActiveEventsInProgress (DEC-390 · G1)', () => {
+  it('keeps an in-progress event visible even with a live outing session', () => {
+    const linked = { ...mkOccurrence({ endDate: '2026-06-14' }), linkedSessionId: 's1' };
+    expect(isEventInProgress(linked, '2026-06-13T10:00:00.000Z')).toBe(true);
+    expect(
+      selectActiveEventsInProgress([linked], '2026-06-13T10:00:00.000Z').map((o) => o.id),
+    ).toEqual([linked.id]);
+  });
+
+  it('matches isOccurrenceActiveToday for a no-session event, but does NOT drop it once linked', () => {
+    const open = mkOccurrence({ endDate: '2026-06-14' });
+    const linked = { ...open, linkedSessionId: 's1' };
+    const day = '2026-06-13T10:00:00.000Z';
+    // No session: both rules agree it is active today.
+    expect(isOccurrenceActiveToday(open, day)).toBe(true);
+    expect(isEventInProgress(open, day)).toBe(true);
+    // Once an outing is linked, the day-card rule drops it but the live rule keeps it.
+    expect(isOccurrenceActiveToday(linked, day)).toBe(false);
+    expect(isEventInProgress(linked, day)).toBe(true);
+  });
+
+  it('excludes deleted, confirmed, off-interval and non-event occurrences', () => {
+    const deleted = { ...mkOccurrence(), deletedAt: '2026-06-12T00:00:00.000Z', linkedSessionId: 's1' };
+    const confirmed = { ...mkOccurrence(), isConfirmed: true, linkedSessionId: 's1' };
+    const offDay = { ...mkOccurrence({ plannedDate: '2026-06-20' }), linkedSessionId: 's1' };
+    const subDest = { ...mkOccurrence({ kind: 'sub_destination' }), linkedSessionId: 's1' };
+    expect(isEventInProgress(deleted, '2026-06-12')).toBe(false);
+    expect(isEventInProgress(confirmed, '2026-06-12')).toBe(false);
+    expect(isEventInProgress(offDay, '2026-06-12')).toBe(false);
+    expect(isEventInProgress(subDest, '2026-06-12')).toBe(false);
+    expect(
+      selectActiveEventsInProgress([deleted, confirmed, offDay, subDest], '2026-06-12T10:00:00.000Z'),
+    ).toEqual([]);
+  });
+
+  it('sorts the in-progress events chronologically by start', () => {
+    const a = { ...mkOccurrence({ name: 'A', plannedDate: '2026-06-12' }), linkedSessionId: 's1' };
+    const b = mkOccurrence({ name: 'B', plannedDate: '2026-06-10', endDate: '2026-06-13' });
+    expect(
+      selectActiveEventsInProgress([a, b], '2026-06-12T15:00:00.000Z').map((o) => o.name),
+    ).toEqual(['B', 'A']);
   });
 });

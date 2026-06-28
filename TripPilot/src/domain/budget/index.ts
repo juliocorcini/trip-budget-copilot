@@ -34,8 +34,9 @@ export {
   eventHasEnded,
   isEventLeftoverPending,
   selectPendingEventLeftovers,
+  buildLiveEventProgress,
 } from './event-budget';
-export type { PendingEventLeftover } from './event-budget';
+export type { PendingEventLeftover, LiveEventProgress, LiveEventExpense } from './event-budget';
 export {
   buildHonestFriendV2,
   projectReserveStartDate,
