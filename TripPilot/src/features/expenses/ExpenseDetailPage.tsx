@@ -39,8 +39,14 @@ import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { CurrentPlace } from '@/domain/types/common';
 
 // DEC-368 (G8): the Leaflet map is code-split — it only downloads when a detail
-// screen with coordinates is actually opened.
-const ExpenseLocationMap = lazy(() => import('@/features/location/ExpenseLocationMap'));
+// screen with coordinates is actually opened. DEC-398 (G7): the field renders a
+// non-interactive preview (no scroll trap) that taps to expand into an interactive
+// full-screen map.
+const ExpenseLocationMapField = lazy(() =>
+  import('@/features/location/ExpenseLocationMap').then((m) => ({
+    default: m.ExpenseLocationMapField,
+  })),
+);
 
 const CATEGORY_KEYS = [
   'bar',
@@ -368,9 +374,10 @@ export function ExpenseDetailPage() {
             )}
           </div>
 
-          {/* DEC-368 (G8): interactive map for the saved point — lazy Leaflet, so
-              it only downloads when an expense with coordinates is opened. The
-              caption flags an unconfirmed point unless the traveler named it. */}
+          {/* DEC-368 (G8): map for the saved point — lazy Leaflet, so it only
+              downloads when an expense with coordinates is opened. DEC-398 (G7):
+              the inline preview is static (never traps the page scroll) and taps
+              to expand. The caption flags an unconfirmed point unless named. */}
           {locationDisplay.hasMap && (
             <div className="space-y-1">
               <Suspense
@@ -378,7 +385,7 @@ export function ExpenseDetailPage() {
                   <div className="w-full h-44 rounded-xl bg-surface-container animate-pulse" />
                 }
               >
-                <ExpenseLocationMap
+                <ExpenseLocationMapField
                   lat={tx.latitude as number}
                   lng={tx.longitude as number}
                   label={locationRowText ?? t('expenses.location_label')}

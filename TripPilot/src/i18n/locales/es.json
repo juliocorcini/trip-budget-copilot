@@ -913,6 +913,8 @@
     "location_probable": "probablemente {{name}}",
     "location_approx": "Ubicación aproximada",
     "location_unverified": "Ubicación aproximada — no confirmada",
+    "map_expand": "Ampliar mapa",
+    "map_expand_hint": "Ampliar",
     "location_detecting": "Detectando ubicación…",
     "location_name_placeholder": "Nombre del lugar",
     "location_rename": "Renombrar lugar",

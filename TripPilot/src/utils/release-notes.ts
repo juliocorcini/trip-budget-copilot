@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.6-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'O mapa do gasto agora fica fixo: rolar a página passando por cima dele não trava mais a rolagem.',
+        'Toque no mapa pra abrir em tela cheia — aí sim dá pra mover e dar zoom à vontade; fechar volta ao normal.',
+      ],
+      en: [
+        "The expense map is now static: scrolling the page over it no longer traps the scroll.",
+        'Tap the map to open it full-screen — there you can pan and zoom freely; closing returns to the preview.',
+      ],
+      es: [
+        'El mapa del gasto ahora queda fijo: desplazar la página por encima ya no atrapa el scroll.',
+        'Toca el mapa para abrirlo en pantalla completa — ahí sí puedes mover y hacer zoom libremente; al cerrar vuelve al preview.',
+      ],
+    },
+  },
+  {
     version: '1.8.5-rc',
     date: '2026-06-28',
     items: {

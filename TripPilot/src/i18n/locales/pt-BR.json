@@ -917,6 +917,8 @@
     "location_probable": "provavelmente {{name}}",
     "location_approx": "Local aproximado",
     "location_unverified": "Local aproximado — não confirmado",
+    "map_expand": "Expandir mapa",
+    "map_expand_hint": "Ampliar",
     "location_detecting": "Detectando local…",
     "location_name_placeholder": "Nome do lugar",
     "location_rename": "Renomear local",

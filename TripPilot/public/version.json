@@ -1,8 +1,8 @@
 {
-  "version": "1.8.5-rc",
+  "version": "1.8.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.5-rc.zip",
-  "notes": "Gastos pela IA (texto, voz ou foto) agora deixam você definir o fundo, o evento e a carteira de cada um — inclusive em lote, ajustando cada item na hora ou abrindo na tela de gasto completa já preenchida (com o evento). O confirmar de um toque continua igual."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.6-rc.zip",
+  "notes": "O mapa do gasto agora fica fixo: rolar a página passando por cima dele não trava mais a rolagem. Toque no mapa pra abrir em tela cheia e aí sim mover e dar zoom à vontade."
 }
