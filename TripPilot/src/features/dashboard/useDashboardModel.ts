@@ -336,6 +336,13 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         : []
     ).map((occ) => buildLiveEventProgress(occ, transactions, todayIso));
 
+    // DEC-392 (G2): the slice of TODAY that belongs to events — the per-day
+    // consumable allowance of every event spanning today. The hero surfaces it
+    // as "+X do evento hoje" so the free number is read honestly (free + event),
+    // matching the day-detail total. Additive display only; the hero free math is
+    // untouched (the reserve already left `trueFree`).
+    const todayEventAllowanceCents = liveEvents.reduce((acc, e) => acc + Math.max(0, e.perDayCents), 0);
+
     // GATE 4 (M4.4 / D8): events approaching (owner trecho active OR within the
     // D-7 window) rise onto the Home as a heads-up, minus the ones already shown
     // as today's day-card — so Tomorrowland surfaces "começa em 7 dias" without
@@ -544,6 +551,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             plannedPurchases: plannedPurchases.filter(
               (p) => p.deletedAt === null && (p.phaseId === activePhase.id || p.phaseId === null),
             ),
+            transactions,
           })
         : null;
 
@@ -808,6 +816,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       todayIso,
       todayEvents,
       liveEvents,
+      todayEventAllowanceCents,
       eventLeftover,
       upcomingEvents,
       hasPendingExpenses,

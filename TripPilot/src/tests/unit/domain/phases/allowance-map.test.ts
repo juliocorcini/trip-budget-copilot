@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { buildPhaseAllowanceMap, calculateTodayFreeBudget } from '@/domain/phases';
+import { createExpenseTransaction } from '@/domain/transactions';
 import type { Phase, PhaseRhythmPreset } from '@/domain/types/phase';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
+import type { Transaction } from '@/domain/types/transaction';
 
 const meta = {
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -304,6 +306,117 @@ describe('buildPhaseAllowanceMap — multi-day event reserve spread (Julio field
     map.days
       .filter((d) => d.dateIso !== '2026-06-11')
       .forEach((d) => expect(d.planTotalCents).toBe(0));
+  });
+});
+
+function mkEventExpense(occurrenceId: string, amountCents: number): Transaction {
+  return createExpenseTransaction({
+    tripId: 'trip-1',
+    phaseId: 'ph-1',
+    budgetPoolId: 'pool-1',
+    walletId: 'w1',
+    amountCents,
+    currency: 'EUR',
+    category: 'bar',
+    description: 'Event spend',
+    occurrenceId,
+  });
+}
+
+describe('buildPhaseAllowanceMap — DEC-391 (consumable event reserve in the day detail)', () => {
+  // Phase 2026-06-08 → 2026-06-14; an event "Festas" spanning 06-10..06-12 (3 days)
+  // with €100 reserved. Today is 06-10. The day detail must show what is STILL
+  // held (reserve − spend) per remaining day, recomputing as money is spent —
+  // never the full reserve flat across the days.
+  const phase = mkPhase(null, null);
+  const today = '2026-06-10';
+  const eventDays = ['2026-06-10', '2026-06-11', '2026-06-12'];
+
+  const eventShareOn = (map: ReturnType<typeof buildPhaseAllowanceMap>, dayIso: string) =>
+    map.days.find((d) => d.dateIso === dayIso)?.planItems.find((i) => i.id === 'evt-festas')
+      ?.amountCents ?? 0;
+
+  const sumEventShares = (map: ReturnType<typeof buildPhaseAllowanceMap>) =>
+    eventDays.reduce((acc, d) => acc + eventShareOn(map, d), 0);
+
+  it('spreads the FULL reserve across remaining days when nothing was spent yet', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: today,
+      occurrences: [
+        mkOccurrence({ id: 'evt-festas', name: 'Festas', plannedDate: today, endDate: '2026-06-12', reservedCents: 10_000 }),
+      ],
+      plannedPurchases: [],
+      transactions: [],
+    });
+    expect(sumEventShares(map)).toBe(10_000); // €100 split 3_333 + 3_333 + 3_334
+    expect(eventShareOn(map, '2026-06-10')).toBe(3_333);
+  });
+
+  it('shows only the CONSUMABLE remainder once part of the reserve is spent (~€31,67/day)', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: today,
+      occurrences: [
+        mkOccurrence({ id: 'evt-festas', name: 'Festas', plannedDate: today, endDate: '2026-06-12', reservedCents: 10_000 }),
+      ],
+      plannedPurchases: [],
+      transactions: [mkEventExpense('evt-festas', 500)], // €5 spent → €95 left
+    });
+    // €95 over the 3 remaining days = 3_166 + 3_166 + 3_168 (remainder rides last).
+    expect(sumEventShares(map)).toBe(9_500);
+    expect(eventShareOn(map, '2026-06-10')).toBe(3_166);
+    expect(eventShareOn(map, '2026-06-12')).toBe(3_168);
+  });
+
+  it('places nothing on days OUTSIDE the event interval', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: today,
+      occurrences: [
+        mkOccurrence({ id: 'evt-festas', name: 'Festas', plannedDate: today, endDate: '2026-06-12', reservedCents: 10_000 }),
+      ],
+      plannedPurchases: [],
+      transactions: [],
+    });
+    expect(eventShareOn(map, '2026-06-13')).toBe(0); // after the event ends
+    expect(eventShareOn(map, '2026-06-14')).toBe(0);
+  });
+
+  it('a fully-consumed reserve leaves nothing on the day detail', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: today,
+      occurrences: [
+        mkOccurrence({ id: 'evt-festas', name: 'Festas', plannedDate: today, endDate: '2026-06-12', reservedCents: 10_000 }),
+      ],
+      plannedPurchases: [],
+      transactions: [mkEventExpense('evt-festas', 12_000)], // spent past the reserve
+    });
+    expect(sumEventShares(map)).toBe(0);
+  });
+
+  it('an event whose days are all in the past contributes nothing (no division by zero)', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents: 40_000,
+      todaySpentCents: 0,
+      phase,
+      todayIso: today, // 06-10
+      occurrences: [
+        mkOccurrence({ id: 'evt-past', name: 'Ontem', plannedDate: '2026-06-08', endDate: '2026-06-09', reservedCents: 6_000 }),
+      ],
+      plannedPurchases: [],
+      transactions: [],
+    });
+    expect(map.days.every((d) => d.planItems.every((i) => i.id !== 'evt-past'))).toBe(true);
   });
 });
 

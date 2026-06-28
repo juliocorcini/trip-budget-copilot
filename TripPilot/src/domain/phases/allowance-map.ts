@@ -1,6 +1,8 @@
 import type { Phase } from '@/domain/types/phase';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
+import type { Transaction } from '@/domain/types/transaction';
+import { eventReserveRemainingCents } from '@/domain/budget/event-budget';
 import {
   calculateEffectiveSpendingDays,
   getBaseDayWeight,
@@ -92,6 +94,11 @@ export interface BuildPhaseAllowanceMapInput {
   occurrences: PlannedOccurrence[];
   /** Planned purchases scoped to this phase or trip-wide (and not deleted). */
   plannedPurchases: PlannedPurchase[];
+  /**
+   * DEC-391: trip transactions, so a reserved EVENT shows its CONSUMABLE reserve
+   * (held − spent) per remaining day, not the full reserve. Defaults to none.
+   */
+  transactions?: Transaction[];
 }
 
 /** Effective (remaining) reserve of a planned item; null reserve = track-only. */
@@ -120,12 +127,31 @@ function occurrenceSpanDays(plannedDate: string, endDate: string | null): string
   return days;
 }
 
+/** Spreads `amountCents` evenly across `days`, the remainder riding the last day. */
+function spreadOverDays(
+  days: string[],
+  amountCents: number,
+  item: Omit<DayPlanItem, 'amountCents'>,
+  push: (dateIso: string, item: DayPlanItem) => void,
+): void {
+  if (days.length === 0 || amountCents <= 0) return;
+  const perDayCents = Math.floor(amountCents / days.length);
+  days.forEach((day, i) => {
+    const shareCents =
+      i === days.length - 1 ? amountCents - perDayCents * (days.length - 1) : perDayCents;
+    if (shareCents > 0) push(day, { ...item, amountCents: shareCents });
+  });
+}
+
 /** Groups dated reserves by their ISO day for O(1) lookup while walking days. */
 function indexPlanByDay(
   occurrences: PlannedOccurrence[],
   plannedPurchases: PlannedPurchase[],
+  transactions: Transaction[],
+  todayIso: string,
 ): Map<string, DayPlanItem[]> {
   const byDay = new Map<string, DayPlanItem[]>();
+  const today = todayIso.slice(0, 10);
   const push = (dateIso: string, item: DayPlanItem) => {
     const day = dateIso.slice(0, 10);
     const list = byDay.get(day);
@@ -135,20 +161,29 @@ function indexPlanByDay(
 
   occurrences.forEach((o) => {
     if (!o.plannedDate || o.linkedTransactionId) return;
+
+    // DEC-391 (parte 2, G2): a reserved EVENT shows its CONSUMABLE reserve in the
+    // day detail — what is STILL held (reserve − spend attributed to it, DEC-385)
+    // split over the days it still spans FROM today — instead of dumping the full
+    // reserve flat across every day. This matches the day-card and recomputes as
+    // money is spent. Past days are dropped (the map only walks today→end anyway).
+    if (o.kind === 'event' && o.reservedCents !== null) {
+      const remainingCents = eventReserveRemainingCents(o, transactions);
+      if (remainingCents <= 0) return;
+      const remainingDays = occurrenceSpanDays(o.plannedDate, o.endDate).filter((d) => d >= today);
+      spreadOverDays(remainingDays, remainingCents, { id: o.id, name: o.name, kind: 'occurrence' }, push);
+      return;
+    }
+
+    // Julio field feedback: a MULTI-DAY sub-destination (e.g. 26→30 with €100
+    // reserved) spreads its reserve evenly across each of its days, so "available
+    // per day" shows the daily average (€20/day) instead of dumping the whole €100
+    // on the start day. Integer-cents: the remainder rides the last day so the
+    // parts sum back to the exact reserve. Single-day items are unchanged.
     const amountCents = occurrenceReserve(o);
     if (amountCents <= 0) return;
-    // Julio field feedback: a MULTI-DAY event (e.g. 26→30 with €100 reserved)
-    // spreads its reserve evenly across each of its days, so "available per day"
-    // shows the daily average (€20/day) instead of dumping the whole €100 on the
-    // start day. Integer-cents: the remainder rides the last day so the parts sum
-    // back to the exact reserve. Single-day events are unchanged (one day, full).
     const span = occurrenceSpanDays(o.plannedDate, o.endDate);
-    const perDayCents = Math.floor(amountCents / span.length);
-    span.forEach((day, i) => {
-      const shareCents =
-        i === span.length - 1 ? amountCents - perDayCents * (span.length - 1) : perDayCents;
-      if (shareCents > 0) push(day, { id: o.id, name: o.name, amountCents: shareCents, kind: 'occurrence' });
-    });
+    spreadOverDays(span, amountCents, { id: o.id, name: o.name, kind: 'occurrence' }, push);
   });
 
   plannedPurchases.forEach((p) => {
@@ -163,6 +198,7 @@ function indexPlanByDay(
 
 export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): PhaseAllowanceMap {
   const { trueFreeCents, todaySpentCents, phase, todayIso, occurrences, plannedPurchases } = input;
+  const transactions = input.transactions ?? [];
 
   const baseFreeCents = Math.max(0, trueFreeCents + todaySpentCents);
   const effectiveDays = calculateEffectiveSpendingDays(phase, todayIso);
@@ -172,7 +208,7 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
       ? Math.round((baseFreeCents * getBaseDayWeight(phase)) / effectiveDays)
       : 0;
 
-  const planByDay = indexPlanByDay(occurrences, plannedPurchases);
+  const planByDay = indexPlanByDay(occurrences, plannedPurchases, transactions, todayIso);
 
   const undatedPlanItems: DayPlanItem[] = plannedPurchases
     .filter((p) => p.status === 'planned' && !p.targetDate && plannedPurchaseReserve(p) > 0)

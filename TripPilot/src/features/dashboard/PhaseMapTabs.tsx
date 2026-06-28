@@ -226,19 +226,30 @@ export function DayBreakdown({
         </div>
       )}
 
+      {/* DEC-392 (G2): lead with the common-day BASE amount, then the explicit
+          peak DELTA, then the reserved/event — so "why €52" reads as base + pico
+          + evento instead of a single weighted "free". Display-only: these are the
+          start-of-day shares; the actual free/total rows above are untouched. */}
       {explain && (
         <div className="mt-2 pt-2 border-t border-[var(--border-faint)] space-y-1">
-          <ExplainLine icon="savings" text={t('dashboard.day_explain_base')} />
-          {explain.hasRhythm && day.isPeakDay && (
-            <ExplainLine
+          <ExplainAmount
+            icon="savings"
+            label={t('dashboard.day_explain_base_amount')}
+            amount={formatMoney(explain.normalAllowanceCents, currency)}
+          />
+          {explain.hasRhythm && day.isPeakDay && day.allowanceCents > explain.normalAllowanceCents && (
+            <ExplainAmount
               icon="trending_up"
-              text={t('dashboard.day_explain_peak', {
-                amount: formatMoney(explain.normalAllowanceCents, currency),
-              })}
+              label={t('dashboard.day_explain_peak_delta')}
+              amount={`+ ${formatMoney(day.allowanceCents - explain.normalAllowanceCents, currency)}`}
             />
           )}
-          {day.planItems.length > 0 && (
-            <ExplainLine icon="event_available" text={t('dashboard.day_explain_planned')} />
+          {day.planTotalCents > 0 && (
+            <ExplainAmount
+              icon="event_available"
+              label={t('dashboard.day_explain_reserved')}
+              amount={`+ ${formatMoney(day.planTotalCents, currency)}`}
+            />
           )}
         </div>
       )}
@@ -246,11 +257,14 @@ export function DayBreakdown({
   );
 }
 
-function ExplainLine({ icon, text }: { icon: string; text: string }) {
+function ExplainAmount({ icon, label, amount }: { icon: string; label: string; amount: string }) {
   return (
-    <p className="text-[11px] text-on-surface-faint leading-snug flex items-start gap-1">
-      <Icon name={icon} size={12} className="flex-shrink-0 mt-px" />
-      <span>{text}</span>
+    <p className="text-[11px] text-on-surface-faint leading-snug flex items-center justify-between gap-2">
+      <span className="inline-flex items-center gap-1 min-w-0">
+        <Icon name={icon} size={12} className="flex-shrink-0" />
+        <span className="truncate">{label}</span>
+      </span>
+      <span className="tabular font-semibold flex-shrink-0">{amount}</span>
     </p>
   );
 }

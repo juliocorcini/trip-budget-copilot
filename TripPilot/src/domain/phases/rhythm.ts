@@ -1,4 +1,5 @@
 import type { Phase, PhaseRhythmPreset } from '@/domain/types/phase';
+import { getTotalDays } from '@/domain/dates';
 
 /**
  * DEC-075 (FIELD-02): phase rhythm weighting. Peak days weigh 1.5; the
@@ -83,8 +84,19 @@ export interface TodayFreeBudget {
   todaySpentCents: number;
   /** "Free to use today" = allowance − spent today. Negative when overspent. */
   freeTodayCents: number;
-  /** Secondary metric: recalculated daily average until the phase end. */
+  /**
+   * Today's RHYTHM pace projected forward: free × today's weight ÷ effective
+   * days. On a peak day this is inflated by the peak weight — it answers "at
+   * today's pace, how much per day", NOT a flat average. Labeled "today's
+   * rhythm" in the UI (DEC-392).
+   */
   avgDailyUntilEndCents: number;
+  /**
+   * DEC-392 (parte 2, G2): the HONEST flat average — remaining free money ÷
+   * remaining CALENDAR days (unweighted). This is the "média até o fim" the user
+   * expects (≈€18, not the peak-weighted ≈€32). Independent of which day is peak.
+   */
+  avgUntilEndFlatCents: number;
   isPeakDay: boolean;
 }
 
@@ -103,6 +115,11 @@ export function calculateTodayFreeBudget(
   const peak = isPeakDay(phase, todayIso);
   const effectiveDays = calculateEffectiveSpendingDays(phase, todayIso);
   const startOfDayFreeCents = freeToSpendCents + todaySpentCents;
+  const calendarDaysLeft = Math.max(0, getTotalDays(todayIso, phase.endDate));
+  const avgUntilEndFlatCents =
+    calendarDaysLeft > 0
+      ? Math.round(Math.max(0, freeToSpendCents) / calendarDaysLeft)
+      : Math.max(0, freeToSpendCents);
 
   if (effectiveDays <= 0 || startOfDayFreeCents <= 0) {
     return {
@@ -110,6 +127,7 @@ export function calculateTodayFreeBudget(
       todaySpentCents,
       freeTodayCents: Math.max(0, startOfDayFreeCents) - todaySpentCents,
       avgDailyUntilEndCents: Math.max(0, freeToSpendCents),
+      avgUntilEndFlatCents,
       isPeakDay: peak,
     };
   }
@@ -127,6 +145,7 @@ export function calculateTodayFreeBudget(
       0,
       Math.round((freeToSpendCents * todayWeight) / effectiveDays),
     ),
+    avgUntilEndFlatCents,
     isPeakDay: peak,
   };
 }

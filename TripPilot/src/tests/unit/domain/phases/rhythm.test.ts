@@ -162,3 +162,47 @@ describe('calculateTodayFreeBudget (DEC-088 / R-06)', () => {
     expect(result.freeTodayCents).toBe(1_000);
   });
 });
+
+describe('avgUntilEndFlatCents (DEC-392 · parte 2, G2 — honest flat average)', () => {
+  it('flat average = free ÷ remaining CALENDAR days, independent of the peak weight', () => {
+    // Julio scenario: €327 free over 18 calendar days → ~€18,17/day, NOT the
+    // peak-weighted ~€32 the old "average" line showed.
+    const phase: Phase = {
+      ...meta,
+      id: 'ph-1',
+      tripId: 'trip-1',
+      name: 'Long phase',
+      startDate: '2026-06-08', // Monday
+      endDate: '2026-06-25', // 18 calendar days inclusive
+      order: 0,
+      rhythmPreset: 'moderate',
+      peakDays: [1], // Mondays peak → today (06-08) is a peak day
+      notes: null,
+    };
+    const result = calculateTodayFreeBudget(32_700, 0, phase, '2026-06-08');
+
+    expect(result.isPeakDay).toBe(true);
+    expect(result.avgUntilEndFlatCents).toBe(Math.round(32_700 / 18)); // 1817 ≈ €18,17
+    // "Today's rhythm" (weighted) is inflated by the 1.5 peak weight → strictly higher.
+    expect(result.avgDailyUntilEndCents).toBeGreaterThan(result.avgUntilEndFlatCents);
+  });
+
+  it('flat average equals the weighted one on a uniform phase (no rhythm)', () => {
+    const phase = mkPhase(null, null); // 7 uniform days from 06-08 to 06-14
+    const result = calculateTodayFreeBudget(3_500, 200, phase, '2026-06-08');
+    expect(result.avgUntilEndFlatCents).toBe(500); // 3500 / 7 calendar days
+    expect(result.avgDailyUntilEndCents).toBe(500);
+  });
+
+  it('uses the post-spend free as its base (free already net of today)', () => {
+    const phase = mkPhase(null, null);
+    const result = calculateTodayFreeBudget(2_800, 700, phase, '2026-06-08');
+    expect(result.avgUntilEndFlatCents).toBe(Math.round(2_800 / 7)); // 400
+  });
+
+  it('phase ended → flat average is whatever is left (no division by zero)', () => {
+    const phase = mkPhase(null, null);
+    const result = calculateTodayFreeBudget(1_000, 0, phase, '2026-06-20');
+    expect(result.avgUntilEndFlatCents).toBe(1_000);
+  });
+});

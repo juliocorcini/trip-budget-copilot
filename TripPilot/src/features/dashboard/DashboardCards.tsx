@@ -929,18 +929,45 @@ export function DashboardCards({
                           {formatMoney(checkInTodayPlan.secondaryCents, trip.baseCurrency)}
                         </p>
                       )}
-                    {/* DEC-088: the recalculated average is a secondary metric — but
-                        when it lands within ~€0.50 of today's free amount it just
-                        repeats the line above (two identical numbers confuse), so
-                        only surface it when it differs AND no check-in reframes today. */}
+                    {/* DEC-392 (G2): the event's slice of TODAY, surfaced next to the
+                        free number so "livre 27" reads honestly as "+ 25 do evento
+                        hoje". Additive display — the reserve already left trueFree, so
+                        the hero free math is unchanged (Â-HONEST-DAY). */}
+                    {model.todayEventAllowanceCents > 0 && (
+                      <p className="text-[11px] font-semibold mt-0.5 text-primary">
+                        {t('dashboard.event_today_portion', {
+                          amount: formatMoney(model.todayEventAllowanceCents, trip.baseCurrency),
+                        })}
+                      </p>
+                    )}
+                    {/* DEC-392: the peak-WEIGHTED projection is "today's rhythm" (at
+                        today's pace, how much per day) — relabeled so a weighted number
+                        is never called an "average". Shown only when it differs from
+                        today's free and no check-in reframes today. */}
                     {!checkInTodayPlan &&
                       Math.abs(
                         model.todayBudget.avgDailyUntilEndCents - model.todayBudget.freeTodayCents,
                       ) > 50 && (
                         <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
-                          {t('dashboard.avg_daily_until_end', {
+                          {t('dashboard.today_rhythm', {
                             amount: formatMoney(
                               model.todayBudget.avgDailyUntilEndCents,
+                              trip.baseCurrency,
+                            ),
+                          })}
+                        </p>
+                      )}
+                    {/* DEC-392: the HONEST flat average until the phase ends — free ÷
+                        remaining calendar days (the ~€18 the user expects, not the
+                        peak-weighted ~€32). Hidden when it just repeats today's free. */}
+                    {!checkInTodayPlan &&
+                      Math.abs(
+                        model.todayBudget.avgUntilEndFlatCents - model.todayBudget.freeTodayCents,
+                      ) > 50 && (
+                        <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
+                          {t('dashboard.avg_until_end_flat', {
+                            amount: formatMoney(
+                              model.todayBudget.avgUntilEndFlatCents,
                               trip.baseCurrency,
                             ),
                           })}
