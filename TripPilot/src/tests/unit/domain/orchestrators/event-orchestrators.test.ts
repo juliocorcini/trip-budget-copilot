@@ -46,12 +46,12 @@ function mkSession(name = 'Parral') {
 describe('Parral lifecycle (DEC-072/073 — FIELD-05 resolves FIELD-04)', () => {
   beforeEach(clearAll);
 
-  it('startSessionForOccurrence links the occurrence and stops the reserve', async () => {
+  it('startSessionForOccurrence links the occurrence and HOLDS the reserve (DEC-385)', async () => {
     const occurrence = mkOccurrence();
     await db.plannedOccurrences.add(occurrence);
 
     // Before: €50 reserve deducts from freeToSpend.
-    expect(calculateEventReserves([occurrence], 'phase-1')).toBe(5000);
+    expect(calculateEventReserves([occurrence], 'phase-1', [])).toBe(5000);
 
     const session = mkSession();
     await startSessionForOccurrence({ session, occurrenceId: occurrence.id });
@@ -62,8 +62,24 @@ describe('Parral lifecycle (DEC-072/073 — FIELD-05 resolves FIELD-04)', () => 
     ]);
     expect(storedSession).toBeDefined();
     expect(storedOcc!.linkedSessionId).toBe(session.id);
-    // Linked → real spending takes over (Anchor Rule 10).
-    expect(calculateEventReserves([storedOcc!], 'phase-1')).toBe(0);
+    // DEC-385 keystone: linking no longer releases the reserve — it is HELD with
+    // no spend yet (the phase "livre" must not jump on day 1)…
+    expect(calculateEventReserves([storedOcc!], 'phase-1', [])).toBe(5000);
+
+    // …and it is CONSUMED by the outing's spend: a €20 session expense shrinks
+    // the still-reserved remainder to €30, never double counting.
+    const sessionTx = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: null,
+      amountCents: 2000,
+      currency: 'EUR',
+      category: 'outing',
+      description: 'Round',
+      sessionId: session.id,
+    });
+    expect(calculateEventReserves([storedOcc!], 'phase-1', [sessionTx])).toBe(3000);
   });
 
   it('endOutingSession confirms the linked occurrence', async () => {
@@ -99,7 +115,9 @@ describe('Parral lifecycle (DEC-072/073 — FIELD-05 resolves FIELD-04)', () => 
     const storedOcc = await db.plannedOccurrences.get(occurrence.id);
     expect(storedOcc!.isConfirmed).toBe(true);
     expect(storedOcc!.linkedTransactionId).toBe(tx.id);
-    expect(calculateEventReserves([storedOcc!], 'phase-1')).toBe(0);
+    // Confirmed/resolved → reserves nothing (leftover handled in G4); the €42
+    // already lives in pool spent, so the event still weighs exactly once.
+    expect(calculateEventReserves([storedOcc!], 'phase-1', [tx])).toBe(0);
   });
 
   it('one-off custom session creates a linked occurrence, NEVER an ActivityProfile', async () => {
@@ -129,7 +147,7 @@ describe('Parral lifecycle (DEC-072/073 — FIELD-05 resolves FIELD-04)', () => 
     expect(occurrences[0]!.linkedSessionId).toBe(session.id);
     expect(storedSession!.activityProfileId).toBeNull();
     // No reserve set → never deducts.
-    expect(calculateEventReserves(occurrences, 'phase-1')).toBe(0);
+    expect(calculateEventReserves(occurrences, 'phase-1', [])).toBe(0);
   });
 
   it('deleteEventKeepingExpenses tombstones the event but KEEPS its expenses (DEC-386 · m4)', async () => {

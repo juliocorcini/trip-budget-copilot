@@ -101,8 +101,13 @@ export function buildPhaseBurndown(input: BuildPhaseBurndownInput): PhaseBurndow
   if (input.todayIso < firstDay) return null;
 
   // Pending reserves were deducted from free-to-spend; the chart envelope
-  // adds them back so the ideal line can release them on their planned days.
-  const pendingReserveCents = calculateEventReserves(input.occurrences, input.phase.id);
+  // adds back what is STILL reserved (DEC-385 consumable remainder) so the ideal
+  // line can release it on the planned days without re-counting consumed spend.
+  const pendingReserveCents = calculateEventReserves(
+    input.occurrences,
+    input.phase.id,
+    input.transactions,
+  );
   const chartBudgetCents = input.phaseBudgetCents + pendingReserveCents;
   if (chartBudgetCents <= 0) return null;
 

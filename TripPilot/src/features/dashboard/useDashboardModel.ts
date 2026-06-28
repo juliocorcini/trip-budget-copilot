@@ -24,6 +24,8 @@ import {
   selectActivePhasePool,
   selectVisiblePots,
   selectOtherPhasePots,
+  eventReserveRemainingCents,
+  eventDailyAllowanceCents,
 } from '@/domain/budget';
 import {
   filterTransactionsByPool,
@@ -292,11 +294,19 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
 
     // Local date, not UTC — toISOString() would skip to tomorrow after 21:00 in UTC-3.
     const todayIso = localDateString(new Date());
-    const todayEvents = activePhase
-      ? occurrences.filter(
-          (o) => o.phaseId === activePhase.id && isOccurrenceActiveToday(o, todayIso),
-        )
-      : [];
+    const todayEvents = (
+      activePhase
+        ? occurrences.filter(
+            (o) => o.phaseId === activePhase.id && isOccurrenceActiveToday(o, todayIso),
+          )
+        : []
+    ).map((occ) => ({
+      occ,
+      // DEC-385 (G2): the day card shows the CONSUMABLE reserve — what is still
+      // held (shrinks with attributed/outing spend) and the per-day allowance.
+      remainingCents: eventReserveRemainingCents(occ, transactions),
+      perDayCents: eventDailyAllowanceCents(occ, transactions, todayIso),
+    }));
 
     // GATE 4 (M4.4 / D8): events approaching (owner trecho active OR within the
     // D-7 window) rise onto the Home as a heads-up, minus the ones already shown

@@ -450,7 +450,10 @@ export function DashboardCards({
         return (
           <>
             {/* §7 pos. 3 — DEC-072 (M6.3): DAY CARD — today's planned events without a session */}
-            {model.todayEvents.map((occ) => (
+            {model.todayEvents.map(({ occ, remainingCents, perDayCents }) => {
+              // DEC-385 (G2): the reserve is consumable — the model already netted
+              // what is STILL held + the per-day allowance against the spend.
+              return (
               <div
                 key={occ.id}
                 className="mt-4 p-4 rounded-2xl"
@@ -472,12 +475,20 @@ export function DashboardCards({
                   </p>
                   {occ.reservedCents !== null && (
                     <span className="text-xs font-bold tabular text-on-surface-dim">
-                      {t('dashboard.event_reserved', {
-                        amount: formatMoney(occ.reservedCents, trip.baseCurrency),
+                      {t('dashboard.event_remaining', {
+                        remaining: formatMoney(remainingCents, trip.baseCurrency),
+                        reserved: formatMoney(occ.reservedCents, trip.baseCurrency),
                       })}
                     </span>
                   )}
                 </button>
+                {occ.reservedCents !== null && perDayCents > 0 && (
+                  <p className="mt-1.5 text-[11px] font-semibold text-on-surface-faint pl-[30px]">
+                    {t('dashboard.event_per_day', {
+                      amount: formatMoney(perDayCents, trip.baseCurrency),
+                    })}
+                  </p>
+                )}
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => navigate(`/outings/new?occurrence=${occ.id}`)}
@@ -493,7 +504,8 @@ export function DashboardCards({
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
             {/* GATE 4 (M4.4 / D8): upcoming events as a discreet heads-up — they
                 rise here when the owner trecho is active or the D-7 window opens
                 (e.g. Tomorrowland once the Eurotrip starts), tapping into the

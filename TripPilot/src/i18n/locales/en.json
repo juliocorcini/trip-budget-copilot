@@ -720,6 +720,8 @@
     "checkin_notification_body": "Tap today's intent to tune the plan.",
     "event_today": "Today: {{name}}",
     "event_reserved": "reserved {{amount}}",
+    "event_remaining": "{{remaining}} of {{reserved}}",
+    "event_per_day": "{{amount}}/day here",
     "event_start_now": "Start now",
     "event_postpone": "Postpone",
     "event_starts_on": "Starts on {{date}}",

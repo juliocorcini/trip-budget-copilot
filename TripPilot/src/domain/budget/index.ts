@@ -24,7 +24,14 @@ export {
   createEnvelope,
   computePoolTransfer,
 } from './budget';
-export { eventAttributedSpent, isEventSessionExclusive } from './event-budget';
+export {
+  eventAttributedSpent,
+  isEventSessionExclusive,
+  eventConsumedSpentCents,
+  eventReserveRemainingCents,
+  eventDaysLeftInclusive,
+  eventDailyAllowanceCents,
+} from './event-budget';
 export {
   buildHonestFriendV2,
   projectReserveStartDate,

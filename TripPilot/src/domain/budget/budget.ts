@@ -10,6 +10,7 @@ import { sumCents } from '@/domain/money';
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
 import { calculatePlannedPurchaseReserves } from '@/domain/planning/planned-purchases';
 import { calculateEffectiveSpendingDays } from '@/domain/phases/rhythm';
+import { eventReserveRemainingCents } from './event-budget';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
 export interface FreeToSpendResult {
@@ -34,24 +35,25 @@ export interface FreeToSpendResult {
 }
 
 /**
- * DEC-072: money reserved for planned events deducts from freeToSpend until
- * the occurrence is confirmed or linked to a session — then the real spending
- * takes over (Anchor Rule 10).
+ * DEC-072 + DEC-385 (G2, keystone): money reserved for planned events deducts
+ * from freeToSpend as a CONSUMABLE reserve — `max(0, reserved − consumed)` per
+ * open event, summed. Unlike the original (which released the WHOLE reserve the
+ * moment the event linked an outing or confirmed → the phase "livre" jumped on
+ * day 1 and the event counted twice), the reserve is now HELD when the event
+ * starts and shrinks only as its attributed / outing spend lands in pool spent
+ * (`eventReserveRemainingCents`), so the event weighs on the budget exactly once
+ * and the daily allowance never spikes. A confirmed/resolved event reserves
+ * nothing (its leftover is settled in G4). Needs the transactions to measure
+ * what has been consumed.
  */
 export function calculateEventReserves(
   occurrences: PlannedOccurrence[],
   phaseId: string,
+  transactions: Transaction[],
 ): number {
   return occurrences
-    .filter(
-      (o) =>
-        o.deletedAt === null &&
-        o.phaseId === phaseId &&
-        !o.isConfirmed &&
-        o.linkedSessionId === null &&
-        o.reservedCents !== null,
-    )
-    .reduce((sum, o) => sum + (o.reservedCents ?? 0), 0);
+    .filter((o) => o.deletedAt === null && o.phaseId === phaseId)
+    .reduce((sum, o) => sum + eventReserveRemainingCents(o, transactions), 0);
 }
 
 export function calculateFreeToSpend(
@@ -82,10 +84,12 @@ export function calculateFreeToSpend(
 
   const futureFloorCents = calculateFutureFloor(phaseLinks, currentPhaseId);
 
-  // DEC-072: only reserves of occurrences charged to THIS pool deduct here.
+  // DEC-072 + DEC-385: only reserves of occurrences charged to THIS pool deduct
+  // here, now as a consumable remainder netted against the pool's transactions.
   const eventReservesCents = calculateEventReserves(
     occurrences.filter((o) => o.budgetPoolId === pool.id),
     currentPhaseId,
+    transactions,
   );
 
   // DEC-175: still-reserved total of OPEN planned purchases charged to THIS pool.

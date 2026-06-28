@@ -157,17 +157,19 @@ describe('calculateFreeToSpend', () => {
     });
 
     const occurrences = [
-      occurrence({ id: 'o1' }), // active reserve → deducts
-      occurrence({ id: 'o2', isConfirmed: true }), // confirmed → real spending takes over
-      occurrence({ id: 'o3', linkedSessionId: 's1' }), // session running → stops deducting
+      occurrence({ id: 'o1' }), // active reserve → deducts (held)
+      occurrence({ id: 'o2', isConfirmed: true }), // confirmed/resolved → reserves nothing
+      occurrence({ id: 'o3', linkedSessionId: 's1' }), // DEC-385: session running but unspent → STILL held
       occurrence({ id: 'o4', phaseId: 'phase-2' }), // other phase → ignored
       occurrence({ id: 'o5', budgetPoolId: 'pool-2' }), // other pool → ignored here
       occurrence({ id: 'o6', reservedCents: null }), // no reserve → nothing to deduct
     ];
 
+    // DEC-385 keystone: with no spend, both the plain reserve (o1) and the
+    // just-started one (o3) are held — the phase "livre" does not jump on start.
     const result = calculateFreeToSpend(pool, [], [], [], 'phase-1', occurrences, []);
-    expect(result.eventReservesCents).toBe(5000);
-    expect(result.freeToSpendCents).toBe(150000 - 5000);
+    expect(result.eventReservesCents).toBe(10000);
+    expect(result.freeToSpendCents).toBe(150000 - 10000);
   });
 
   it('deducts the still-reserved total of open planned purchases (DEC-175)', () => {
@@ -228,9 +230,75 @@ describe('calculateFreeToSpend', () => {
   });
 });
 
-describe('calculateEventReserves', () => {
+describe('calculateEventReserves (DEC-385 — consumable reserve, keystone)', () => {
+  const occ = (overrides: Partial<PlannedOccurrence>): PlannedOccurrence => ({
+    ...baseMeta,
+    id: 'o1',
+    tripId: 'trip-1',
+    phaseId: 'phase-1',
+    activityProfileId: null,
+    budgetPoolId: 'pool-1',
+    name: 'Parral',
+    plannedDate: '2026-06-12',
+    endDate: null,
+    kind: 'event',
+    estimatedCostCents: 5000,
+    reservedCents: 5000,
+    isConfirmed: false,
+    linkedTransactionId: null,
+    linkedSessionId: null,
+    notes: null,
+    ...overrides,
+  });
+
   it('returns 0 when there are no active reserves', () => {
-    expect(calculateEventReserves([], 'phase-1')).toBe(0);
+    expect(calculateEventReserves([], 'phase-1', [])).toBe(0);
+  });
+
+  it('holds the FULL reserve while nothing is spent — even after the outing starts', () => {
+    // The keystone: the old code released the whole reserve once linkedSessionId
+    // was set, making the phase "livre" jump. Now it stays held.
+    expect(calculateEventReserves([occ({ linkedSessionId: 's1' })], 'phase-1', [])).toBe(5000);
+  });
+
+  it('shrinks the reserve by the spend attributed via occurrenceId', () => {
+    const txs = [{ ...mkTx('t1', 2000), occurrenceId: 'o1' }];
+    // remaining = max(0, 5000 − 2000) = 3000
+    expect(calculateEventReserves([occ({ id: 'o1' })], 'phase-1', txs)).toBe(3000);
+  });
+
+  it("shrinks the reserve by the linked outing's spend (sessionId), never double counting", () => {
+    const txs = [{ ...mkTx('t1', 1500), sessionId: 's1' }];
+    expect(calculateEventReserves([occ({ id: 'o1', linkedSessionId: 's1' })], 'phase-1', txs)).toBe(
+      3500,
+    );
+  });
+
+  it('combines attributed + outing spend and never goes negative on overspend', () => {
+    const txs = [
+      { ...mkTx('t1', 4000), occurrenceId: 'o1' },
+      { ...mkTx('t2', 3000), sessionId: 's1' },
+    ];
+    // consumed 7000 > reserved 5000 → remaining floored at 0
+    expect(calculateEventReserves([occ({ id: 'o1', linkedSessionId: 's1' })], 'phase-1', txs)).toBe(
+      0,
+    );
+  });
+
+  it('a confirmed/resolved event and a track-only event reserve nothing', () => {
+    const occurrences = [
+      occ({ id: 'o1', isConfirmed: true }),
+      occ({ id: 'o2', reservedCents: null }),
+    ];
+    expect(calculateEventReserves(occurrences, 'phase-1', [])).toBe(0);
+  });
+
+  it('ignores deleted occurrences and other phases', () => {
+    const occurrences = [
+      occ({ id: 'o1', deletedAt: '2026-06-13T00:00:00.000Z' }),
+      occ({ id: 'o2', phaseId: 'phase-2' }),
+    ];
+    expect(calculateEventReserves(occurrences, 'phase-1', [])).toBe(0);
   });
 });
 

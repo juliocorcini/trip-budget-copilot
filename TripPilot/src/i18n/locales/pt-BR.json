@@ -724,6 +724,8 @@
     "checkin_notification_body": "Toque a intenção de hoje para ajustar o plano.",
     "event_today": "Hoje: {{name}}",
     "event_reserved": "reservado {{amount}}",
+    "event_remaining": "{{remaining}} de {{reserved}}",
+    "event_per_day": "{{amount}}/dia aqui",
     "event_start_now": "Iniciar agora",
     "event_postpone": "Adiar",
     "event_starts_on": "Começa em {{date}}",
