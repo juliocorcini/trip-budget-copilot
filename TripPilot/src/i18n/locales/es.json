@@ -3380,6 +3380,8 @@
     "net_you_owe": "Debes {{amount}}",
     "net_owes_you": "Te debe {{amount}}",
     "net_settled": "Todo saldado",
+    "third_party_toggle": "Otras deudas que {{name}} registró ({{count}})",
+    "third_party_hint": "No entran en el ajuste entre tú y {{name}} — es solo lo que {{name}} registró que otras personas deben o reciben.",
     "reject": "Rechazar",
     "responses_applied": "{{count}} respuesta(s) de {{name}} aplicadas",
     "responses_queued": "Guardado — se enviará en la próxima sincronización",

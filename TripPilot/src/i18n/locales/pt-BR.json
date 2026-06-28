@@ -3384,6 +3384,8 @@
     "net_you_owe": "Você deve {{amount}}",
     "net_owes_you": "Te deve {{amount}}",
     "net_settled": "Tudo quitado",
+    "third_party_toggle": "Outras dívidas que {{name}} registrou ({{count}})",
+    "third_party_hint": "Não entram no acerto entre você e {{name}} — é só o que {{name}} registrou que outras pessoas devem ou recebem.",
     "reject": "Rejeitar",
     "responses_applied": "{{count}} resposta(s) de {{name}} aplicadas",
     "responses_queued": "Salvo — vai ser enviado na próxima sincronização",

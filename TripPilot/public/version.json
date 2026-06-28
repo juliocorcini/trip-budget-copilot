@@ -1,8 +1,8 @@
 {
-  "version": "1.8.6-rc",
+  "version": "1.8.7-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.6-rc.zip",
-  "notes": "O mapa do gasto agora fica fixo: rolar a página passando por cima dele não trava mais a rolagem. Toque no mapa pra abrir em tela cheia e aí sim mover e dar zoom à vontade."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.7-rc.zip",
+  "notes": "Compartilhar a dívida de uma pessoa por link agora mostra só o que é entre vocês dois. O que outras pessoas devem aparece num menu separado, sem entrar na conta de cima."
 }

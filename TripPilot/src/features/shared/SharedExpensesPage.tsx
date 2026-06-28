@@ -84,7 +84,7 @@ import {
   encodeQrPayload,
   decodeQrPayload,
   fitsInSingleQr,
-  buildStatementPayload,
+  buildParticipantSharePayload,
   pairLinkFromEncoded,
   buildQrUrl,
   extractQrEnvelope,
@@ -653,23 +653,27 @@ export function SharedExpensesPage() {
     else if (outcome === 'copy_failed') showToast(t('sync.link_copy_failed'), 'danger');
   };
 
-  const buildStatementForParticipant = (participant: Participant) => {
+  // DEC-399 — the shared payload is redacted to owner↔participant (ego-centric,
+  // like the in-app People view), so a third-party debt I merely recorded never
+  // inflates what the recipient sees. `includeThirdParty` rides those debts along
+  // in a separate, display-only section for the link/live transfer; the QR omits
+  // them to stay within the single-frame budget.
+  const buildStatementForParticipant = (
+    participant: Participant,
+    opts?: { includeThirdParty?: boolean },
+  ) => {
     const owner = participants.find((p) => p.isOwner);
     if (!owner || !trip) return null;
-    const statement = buildParticipantStatement(
-      participant.id,
+    return buildParticipantSharePayload({
+      owner: { actorId: getInstallationId(), displayName: owner.name },
+      ownerParticipantId: owner.id,
+      participant,
       transactions,
       shares,
       participants,
       settlements,
-      owner.id,
-    );
-    return buildStatementPayload({
-      owner: { actorId: getInstallationId(), displayName: owner.name },
-      participant,
-      statement,
-      shares,
       currency: trip.baseCurrency,
+      includeThirdParty: opts?.includeThirdParty ?? false,
     });
   };
 
@@ -2265,7 +2269,9 @@ export function SharedExpensesPage() {
                 purpose="statement"
                 actorName={selfShareName}
                 buildPayload={async () => {
-                  const payload = buildStatementForParticipant(sendTarget);
+                  const payload = buildStatementForParticipant(sendTarget, {
+                    includeThirdParty: true,
+                  });
                   if (!payload) throw new Error('statement_unavailable');
                   return { kind: 'statement', payload };
                 }}
@@ -2295,6 +2301,7 @@ export function SharedExpensesPage() {
                 onCancel={() => setSendTarget(null)}
               />
               {(() => {
+                // QR stays ego-only (no third parties) to fit a single frame.
                 const payload = buildStatementForParticipant(sendTarget);
                 if (!payload) return null;
                 const encoded = encodeQrPayload({ v: 1, kind: 'statement', data: payload });
@@ -2359,7 +2366,7 @@ export function SharedExpensesPage() {
           <ShareLinkSheet
             participantId={shareTarget.id}
             participantName={shareTarget.nickname ?? shareTarget.name}
-            buildStatement={() => buildStatementForParticipant(shareTarget)}
+            buildStatement={() => buildStatementForParticipant(shareTarget, { includeThirdParty: true })}
             tripId={trip.id}
             ownerId={ownerParticipant.id}
             onReconciled={reload}

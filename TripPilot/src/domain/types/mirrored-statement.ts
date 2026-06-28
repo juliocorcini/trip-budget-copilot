@@ -25,6 +25,19 @@ export interface MirroredResponse {
   status: 'confirmed' | 'rejected';
 }
 
+/**
+ * DEC-399 — a debt the owner recorded that does NOT involve the owner (e.g.
+ * "Débora owes you"). Display-only on the mirror: never part of the headline
+ * `netCents`, never answerable — just shown so the guest sees what the owner has
+ * on record about them with other people.
+ */
+export interface MirroredThirdPartyGroup {
+  counterpartyId: string;
+  counterpartyName: string;
+  netCents: number;
+  lines: MirroredLine[];
+}
+
 export interface MirroredStatement extends SyncMetadata {
   peerActorId: string;
   peerName: string;
@@ -41,4 +54,9 @@ export interface MirroredStatement extends SyncMetadata {
    * statements read back `undefined`.
    */
   share?: { shareId: string; key: string } | null;
+  /**
+   * DEC-399 — display-only debts the owner recorded that don't involve the owner.
+   * Optional + additive; QR/older statements read back `undefined`.
+   */
+  thirdParty?: MirroredThirdPartyGroup[] | null;
 }

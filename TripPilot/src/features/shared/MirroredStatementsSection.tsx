@@ -179,25 +179,24 @@ export function MirroredStatementsSection() {
 
   if (statements.length === 0) return null;
 
-  const netLabel = (statement: MirroredStatement): { text: string; tone: string } => {
-    if (statement.netCents < 0) {
+  const netText = (netCents: number, currency: string): { text: string; tone: string } => {
+    if (netCents < 0) {
       return {
-        text: t('sync.net_you_owe', {
-          amount: formatMoney(Math.abs(statement.netCents), statement.currency),
-        }),
+        text: t('sync.net_you_owe', { amount: formatMoney(Math.abs(netCents), currency) }),
         tone: 'text-error',
       };
     }
-    if (statement.netCents > 0) {
+    if (netCents > 0) {
       return {
-        text: t('sync.net_owes_you', {
-          amount: formatMoney(statement.netCents, statement.currency),
-        }),
+        text: t('sync.net_owes_you', { amount: formatMoney(netCents, currency) }),
         tone: 'text-success',
       };
     }
     return { text: t('sync.net_settled'), tone: 'text-on-surface-faint' };
   };
+
+  const netLabel = (statement: MirroredStatement): { text: string; tone: string } =>
+    netText(statement.netCents, statement.currency);
 
   const lineLabel = (line: MirroredStatement['lines'][number]): string => {
     const sub = findSubcategory(line.subcategoryId);
@@ -307,6 +306,60 @@ export function MirroredStatementsSection() {
 
             {target.pendingResponses.length > 0 && (
               <p className="text-[10px] text-on-surface-faint">{t('sync.responses_queued')}</p>
+            )}
+
+            {/* DEC-399 — debts the owner recorded with OTHER people: display-only,
+                collapsed, and explicitly out of the settle-up between us. */}
+            {target.thirdParty && target.thirdParty.length > 0 && (
+              <details className="rounded-xl border border-outline/30">
+                <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-on-surface-dim flex items-center gap-1.5">
+                  <Icon name="group" size={14} className="text-on-surface-faint" />
+                  {t('sync.third_party_toggle', {
+                    name: target.peerName,
+                    count: target.thirdParty.length,
+                  })}
+                </summary>
+                <div className="flex flex-col gap-2 px-3 pb-3 pt-0">
+                  <p className="text-[10px] text-on-surface-faint leading-snug">
+                    {t('sync.third_party_hint', { name: target.peerName })}
+                  </p>
+                  {target.thirdParty.map((group) => {
+                    const groupNet = netText(group.netCents, target.currency);
+                    return (
+                      <div key={group.counterpartyId} className="bg-surface-high rounded-xl px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-bold text-on-surface truncate">
+                            {group.counterpartyName}
+                          </p>
+                          <p className={`text-xs font-bold tabular shrink-0 ${groupNet.tone}`}>
+                            {groupNet.text}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-1 mt-1.5">
+                          {group.lines.map((line) => (
+                            <div
+                              key={line.shareId}
+                              className="flex items-center justify-between gap-2"
+                            >
+                              <p className="text-[10px] text-on-surface-faint truncate">
+                                {formatShortDate(line.occurredAt)} · {lineLabel(line)}
+                              </p>
+                              <p
+                                className={`text-[10px] font-semibold tabular shrink-0 ${
+                                  line.kind === 'owes' ? 'text-error' : 'text-success'
+                                }`}
+                              >
+                                {line.kind === 'owes' ? '−' : '+'}
+                                {formatMoney(line.amountCents, target.currency)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
             )}
 
             {/* DEC-207 — link-origin actions: declare "I paid" + re-pull updates */}

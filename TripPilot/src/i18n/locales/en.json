@@ -3380,6 +3380,8 @@
     "net_you_owe": "You owe {{amount}}",
     "net_owes_you": "Owes you {{amount}}",
     "net_settled": "All settled",
+    "third_party_toggle": "Other debts {{name}} recorded ({{count}})",
+    "third_party_hint": "Not part of your settle-up with {{name}} — just what {{name}} recorded that other people owe or are owed.",
     "reject": "Reject",
     "responses_applied": "{{count}} answer(s) from {{name}} applied",
     "responses_queued": "Saved — it will be sent on the next sync",

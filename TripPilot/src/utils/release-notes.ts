@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.8.7-rc',
+    date: '2026-06-28',
+    items: {
+      'pt-BR': [
+        'Compartilhar a dívida de uma pessoa por link agora mostra só o que é entre vocês dois — antes podia somar o que outras pessoas deviam.',
+        'O que outras pessoas registradas devem ou recebem aparece num menu separado, deixado claro que não entra no acerto de vocês.',
+      ],
+      en: [
+        "Sharing a person's debt by link now shows only what's between the two of you — it used to add in what other people owed.",
+        'What other recorded people owe or are owed shows in a separate menu, clearly outside your settle-up.',
+      ],
+      es: [
+        'Compartir la deuda de una persona por enlace ahora muestra solo lo que hay entre ustedes dos — antes podía sumar lo que otras personas debían.',
+        'Lo que otras personas registradas deben o reciben aparece en un menú aparte, dejando claro que no entra en su ajuste.',
+      ],
+    },
+  },
+  {
     version: '1.8.6-rc',
     date: '2026-06-28',
     items: {

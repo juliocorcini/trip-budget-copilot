@@ -3,6 +3,8 @@ import { createSyncMetadata } from '@/utils/entity-factory';
 import { buildParticipantStatement } from '@/domain/splitting';
 import {
   buildStatementPayload,
+  buildParticipantSharePayload,
+  buildThirdPartyStatementGroups,
   applyStatementResponses,
   parseStatementPayload,
 } from '@/domain/sync';
@@ -147,6 +149,114 @@ describe('buildStatementPayload (DEC-106)', () => {
 
     // Round-trips through the Zod schema (what the mirror device validates).
     expect(parseStatementPayload(JSON.parse(JSON.stringify(payload)))).toEqual(payload);
+  });
+});
+
+// DEC-399 — Bruno is the payer on two shared expenses, so the owner (Julio) and a
+// third party (Debora) each owe Bruno. The owner shares Bruno's statement: the
+// recipient must see ONLY Julio↔Bruno (€74), never the €48 Debora owes Bruno.
+function buildLeakFixture() {
+  const julio = mkParticipant('Julio', true);
+  const bruno = mkParticipant('Bruno', false);
+  const debora = mkParticipant('Debora', false);
+
+  const dinner = mkSharedExpense('Dinner', 7400, bruno.id, '2026-06-10');
+  const taxi = mkSharedExpense('Taxi', 4800, bruno.id, '2026-06-09');
+  const drinks = mkSharedExpense('Drinks', 1000, bruno.id, '2026-06-08');
+
+  const shares = [
+    // Julio owes Bruno €74 (the only bilateral owner↔recipient line).
+    mkShare(dinner.id, julio.id, 7400, 'confirmed'),
+    // Debora owes Bruno €48 confirmed + €10 still pending — third-party only.
+    mkShare(taxi.id, debora.id, 4800, 'confirmed'),
+    mkShare(drinks.id, debora.id, 1000, 'pending'),
+  ];
+
+  return { julio, bruno, debora, transactions: [dinner, taxi, drinks], shares };
+}
+
+describe('buildParticipantSharePayload (DEC-399 — ego-centric share link)', () => {
+  const ownerActor = { actorId: createSyncMetadata().sourceDeviceId, displayName: 'Julio' };
+
+  it('redacts the headline net + lines to owner↔recipient — never leaks third parties', () => {
+    const { julio, bruno, debora, transactions, shares } = buildLeakFixture();
+
+    // The raw (pre-redaction) statement DOES total €122 — proving the leak source.
+    const full = buildParticipantStatement(bruno.id, transactions, shares, [julio, bruno, debora], [], julio.id);
+    expect(full.netCents).toBe(12200);
+
+    const payload = buildParticipantSharePayload({
+      owner: ownerActor,
+      ownerParticipantId: julio.id,
+      participant: bruno,
+      transactions,
+      shares,
+      participants: [julio, bruno, debora],
+      settlements: [],
+      currency: 'EUR',
+    });
+
+    // Headline is Julio↔Bruno only: €74, a single line, and it's about Julio.
+    expect(payload.netCents).toBe(7400);
+    expect(payload.lines).toHaveLength(1);
+    expect(payload.lines[0]!.counterpartyName).toBe('Julio');
+    expect(payload.lines[0]!.amountCents).toBe(7400);
+    // No line mentions Debora.
+    expect(payload.lines.some((l) => l.counterpartyName === 'Debora')).toBe(false);
+    // QR path (default): no third-party section at all.
+    expect(payload.thirdParty).toBeUndefined();
+  });
+
+  it('carries third-party debts in a separate, display-only section that stays out of the net', () => {
+    const { julio, bruno, debora, transactions, shares } = buildLeakFixture();
+
+    const payload = buildParticipantSharePayload({
+      owner: ownerActor,
+      ownerParticipantId: julio.id,
+      participant: bruno,
+      transactions,
+      shares,
+      participants: [julio, bruno, debora],
+      settlements: [],
+      currency: 'EUR',
+      includeThirdParty: true,
+    });
+
+    // Headline is unchanged by attaching third parties.
+    expect(payload.netCents).toBe(7400);
+    expect(payload.lines).toHaveLength(1);
+
+    // Debora rides along separately: net counts CONFIRMED only (€48, not €58).
+    expect(payload.thirdParty).toBeDefined();
+    expect(payload.thirdParty).toHaveLength(1);
+    const debGroup = payload.thirdParty![0]!;
+    expect(debGroup.counterpartyName).toBe('Debora');
+    expect(debGroup.netCents).toBe(4800);
+    // Both Debora lines (confirmed + pending) are listed, none in the headline.
+    expect(debGroup.lines).toHaveLength(2);
+
+    // Round-trips through the Zod schema the mirror validates (thirdParty included).
+    expect(parseStatementPayload(JSON.parse(JSON.stringify(payload)))).toEqual(payload);
+  });
+});
+
+describe('buildThirdPartyStatementGroups (DEC-399)', () => {
+  it('groups non-owner lines by counterparty with a confirmed-only net', () => {
+    const { julio, bruno, debora, transactions, shares } = buildLeakFixture();
+    const full = buildParticipantStatement(bruno.id, transactions, shares, [julio, bruno, debora], [], julio.id);
+
+    const groups = buildThirdPartyStatementGroups({
+      participant: bruno,
+      statement: full,
+      shares,
+      ownerParticipantId: julio.id,
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.counterpartyName).toBe('Debora');
+    expect(groups[0]!.netCents).toBe(4800);
+    // The owner (Julio) line is excluded — only third parties are grouped.
+    expect(groups.some((g) => g.counterpartyName === 'Julio')).toBe(false);
   });
 });
 

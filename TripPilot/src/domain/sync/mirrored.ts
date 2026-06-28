@@ -1,4 +1,9 @@
-import type { MirroredStatement, MirroredLine, MirroredResponse } from '@/domain/types/mirrored-statement';
+import type {
+  MirroredStatement,
+  MirroredLine,
+  MirroredResponse,
+  MirroredThirdPartyGroup,
+} from '@/domain/types/mirrored-statement';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import type { StatementPayload } from './statement-payload';
 
@@ -20,6 +25,18 @@ export function buildMirroredStatement(
 
   const lines: MirroredLine[] = payload.lines.map((line) => ({ ...line }));
 
+  // DEC-399 — display-only third-party debts ride along the payload (link/transfer).
+  // Always taken from the incoming payload (the owner's latest truth); never merged
+  // and never answerable, so there are no responses to preserve.
+  const thirdParty: MirroredThirdPartyGroup[] | null = payload.thirdParty
+    ? payload.thirdParty.map((group) => ({
+        counterpartyId: group.counterpartyId,
+        counterpartyName: group.counterpartyName,
+        netCents: group.netCents,
+        lines: group.lines.map((line) => ({ ...line })),
+      }))
+    : null;
+
   const base = existing ?? (createSyncMetadata() as MirroredStatement);
   return {
     ...base,
@@ -29,6 +46,7 @@ export function buildMirroredStatement(
     currency: payload.currency,
     netCents: payload.netCents,
     lines,
+    thirdParty,
     pendingResponses: preservedResponses,
     updatedAt: new Date().toISOString(),
     revision: existing ? existing.revision + 1 : 1,

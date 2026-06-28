@@ -36,10 +36,12 @@ import type { MirroredStatement } from '@/domain/types/mirrored-statement';
 
 /**
  * DEC-207 — orchestrators for the shared participant link. The owner publishes
- * a per-participant statement (reusing buildStatementPayload — already redacted
- * to one participant) as ciphertext to the worker; the guest opens the link,
- * decrypts with the key from the URL fragment, and answers/settles. Everything
- * crossing the wire is E2E encrypted with an AES key the worker never sees.
+ * a per-participant statement (built by buildParticipantSharePayload — DEC-399
+ * redacts the net + answerable lines to owner↔participant, with any third-party
+ * debts the owner recorded carried separately as a display-only section) as
+ * ciphertext to the worker; the guest opens the link, decrypts with the key from
+ * the URL fragment, and answers/settles. Everything crossing the wire is E2E
+ * encrypted with an AES key the worker never sees.
  */
 
 function safeJsonParse(text: string): unknown {
