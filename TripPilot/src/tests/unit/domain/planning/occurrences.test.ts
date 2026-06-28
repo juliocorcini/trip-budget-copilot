@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   createPlannedOccurrence,
   isOccurrenceActiveToday,
+  isWithinOccurrenceInterval,
+  selectAttributableEvents,
   postponeOccurrence,
   sumSpentInOccurrenceInterval,
 } from '@/domain/planning';
@@ -102,5 +104,44 @@ describe('sumSpentInOccurrenceInterval (sub-destinations)', () => {
     const occ = mkOccurrence({ plannedDate: '2026-06-10', endDate: '2026-06-12' });
     const shared = { ...tx('2026-06-11', 6000), personalCostCents: 2000 };
     expect(sumSpentInOccurrenceInterval(occ, [shared])).toBe(2000);
+  });
+});
+
+describe('isWithinOccurrenceInterval (DEC-386 · date core)', () => {
+  it('covers the inclusive interval, ignoring the link/confirmed state', () => {
+    const occ = { ...mkOccurrence({ endDate: '2026-06-14' }), linkedSessionId: 's1', isConfirmed: true };
+    expect(isWithinOccurrenceInterval(occ, '2026-06-12T10:00:00.000Z')).toBe(true);
+    expect(isWithinOccurrenceInterval(occ, '2026-06-09T10:00:00.000Z')).toBe(false);
+    expect(isWithinOccurrenceInterval(occ, '2026-06-15T10:00:00.000Z')).toBe(false);
+  });
+
+  it('is false for an undated occurrence', () => {
+    expect(isWithinOccurrenceInterval(mkOccurrence({ plannedDate: null }), '2026-06-12')).toBe(false);
+  });
+});
+
+describe('selectAttributableEvents (DEC-386 · G1 selector)', () => {
+  it('returns open events whose interval contains the day, chronologically', () => {
+    const a = mkOccurrence({ name: 'A', plannedDate: '2026-06-12' });
+    const b = mkOccurrence({ name: 'B', plannedDate: '2026-06-10', endDate: '2026-06-13' });
+    const result = selectAttributableEvents([a, b], '2026-06-12T15:00:00.000Z');
+    expect(result.map((o) => o.name)).toEqual(['B', 'A']);
+  });
+
+  it('includes an event that already has a live outing session (decoupled)', () => {
+    const linked = { ...mkOccurrence(), linkedSessionId: 's1' };
+    expect(selectAttributableEvents([linked], '2026-06-12').map((o) => o.id)).toEqual([linked.id]);
+  });
+
+  it('excludes deleted, confirmed, off-interval and non-event occurrences', () => {
+    const deleted = { ...mkOccurrence(), deletedAt: '2026-06-12T00:00:00.000Z' };
+    const confirmed = { ...mkOccurrence(), isConfirmed: true };
+    const offDay = mkOccurrence({ plannedDate: '2026-06-20' });
+    const subDest = mkOccurrence({ kind: 'sub_destination' });
+    const result = selectAttributableEvents(
+      [deleted, confirmed, offDay, subDest],
+      '2026-06-12T10:00:00.000Z',
+    );
+    expect(result).toEqual([]);
   });
 });

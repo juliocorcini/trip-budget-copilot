@@ -114,6 +114,9 @@ export const transactionSchema = syncMetadataSchema.extend({
   // DEC-200 (Wise import): optional provenance ref — older backups omit it
   // (defaults to absent/null), newer ones round-trip it.
   externalRef: z.string().nullable().optional(),
+  // DEC-386 (G1): optional event link — older backups omit it (absent/null),
+  // newer ones round-trip it. Additive, no Dexie migration.
+  occurrenceId: z.string().uuid().nullable().optional(),
   // DEC-367 (G8): optional location provenance/metadata — older backups omit
   // these (absent/null), newer ones round-trip them.
   placeNameSource: z.enum(['auto', 'user']).nullable().optional(),

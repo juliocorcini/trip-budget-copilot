@@ -38,16 +38,50 @@ export function createPlannedOccurrence(input: CreatePlannedOccurrenceInput): Pl
 }
 
 /**
+ * DEC-386 (G1): does `dayIso` fall inside the occurrence's date interval? The
+ * date-only core shared by `isOccurrenceActiveToday` and the event-attribution
+ * selector. A single-day occurrence (`endDate === null`) uses `plannedDate` as
+ * both ends.
+ */
+export function isWithinOccurrenceInterval(occ: PlannedOccurrence, dayIso: string): boolean {
+  if (occ.plannedDate === null) return false;
+  const start = occ.plannedDate.slice(0, 10);
+  const end = (occ.endDate ?? occ.plannedDate).slice(0, 10);
+  const day = dayIso.slice(0, 10);
+  return start <= day && day <= end;
+}
+
+/**
  * DEC-072: an occurrence is "active today" when today falls inside its date
  * interval and no outing session has been linked yet (day card rule).
  */
 export function isOccurrenceActiveToday(occ: PlannedOccurrence, todayIso: string): boolean {
   if (occ.deletedAt !== null || occ.isConfirmed || occ.linkedSessionId !== null) return false;
-  if (occ.plannedDate === null) return false;
-  const start = occ.plannedDate.slice(0, 10);
-  const end = (occ.endDate ?? occ.plannedDate).slice(0, 10);
-  const today = todayIso.slice(0, 10);
-  return start <= today && today <= end;
+  return isWithinOccurrenceInterval(occ, todayIso);
+}
+
+/**
+ * DEC-386 (G1): the OPEN events a spend on `dayIso` can be attributed to — kind
+ * 'event', not deleted, not confirmed/resolved, whose date interval contains the
+ * day. Deliberately decoupled from the outing session (Â-ATTRIBUTION): the user
+ * attributes manual/AI/Wise spends to the event WITHOUT the active outing, so an
+ * event with a live session is still attributable. The QuickAdd selector
+ * pre-suggests from this set (date inference) and the user confirms. Sorted
+ * chronologically. Pure.
+ */
+export function selectAttributableEvents(
+  occurrences: PlannedOccurrence[],
+  dayIso: string,
+): PlannedOccurrence[] {
+  return occurrences
+    .filter(
+      (o) =>
+        o.deletedAt === null &&
+        o.kind === 'event' &&
+        !o.isConfirmed &&
+        isWithinOccurrenceInterval(o, dayIso),
+    )
+    .sort((a, b) => dayOf(a.plannedDate ?? '').localeCompare(dayOf(b.plannedDate ?? '')));
 }
 
 /** GATE 4 event visibility window — same D-7 rule as pots (master §10.1). */

@@ -51,6 +51,53 @@ describe('createExpenseTransaction', () => {
     expect(tx.budgetPoolId).toBe('pool-1');
   });
 
+  it('defaults occurrenceId to null (no event attribution)', () => {
+    const tx = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'w1',
+      amountCents: 1000,
+      currency: 'EUR',
+      category: 'bar',
+      description: 'Drinks',
+    });
+    expect(tx.occurrenceId).toBeNull();
+  });
+
+  it('DEC-386: attributes the spend to an event and DROPS the session (event XOR session)', () => {
+    const tx = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'w1',
+      amountCents: 1000,
+      currency: 'EUR',
+      category: 'bar',
+      description: 'Drinks',
+      occurrenceId: 'evt-1',
+      sessionId: 'sess-1',
+    });
+    expect(tx.occurrenceId).toBe('evt-1');
+    expect(tx.sessionId).toBeNull();
+  });
+
+  it('keeps the session when there is no event attribution', () => {
+    const tx = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: 'w1',
+      amountCents: 1000,
+      currency: 'EUR',
+      category: 'bar',
+      description: 'Drinks',
+      sessionId: 'sess-1',
+    });
+    expect(tx.sessionId).toBe('sess-1');
+    expect(tx.occurrenceId).toBeNull();
+  });
+
   it('leaves personalCostCents null for shared expenses until shares resolve it', () => {
     const tx = createExpenseTransaction({
       tripId: 'trip-1',

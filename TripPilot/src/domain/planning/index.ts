@@ -9,6 +9,8 @@ export type { CreateScenarioPlanInput, CreateAllocationItemInput, SessionAdditio
 export {
   createPlannedOccurrence,
   isOccurrenceActiveToday,
+  isWithinOccurrenceInterval,
+  selectAttributableEvents,
   postponeOccurrence,
   sumSpentInOccurrenceInterval,
   isEventVisibleOnHome,

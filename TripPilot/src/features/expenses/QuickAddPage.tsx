@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
@@ -32,6 +32,7 @@ import {
   parseLocaleNumber,
 } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
+import { selectAttributableEvents } from '@/domain/planning';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import {
   registerExpense,
@@ -129,6 +130,11 @@ export function QuickAddPage() {
   // P2 (UX audit §4.3 / G2): progressive disclosure — the typical expense is
   // amount + category + description; date/place/fund/wallet/photos collapse here.
   const [showDetails, setShowDetails] = useState(false);
+  // DEC-386 (G1): the event this spend is attributed to (null = none). Pre-
+  // suggested by date inference (L-ATTRIBUTION refinement) but always asked — the
+  // user confirms or opts out, never auto-decided (Â-ATTRIBUTION).
+  const [attributedOccurrenceId, setAttributedOccurrenceId] = useState<string | null>(null);
+  const eventAttributionTouchedRef = useRef(false);
 
   // E9 (M8/M9): expense currency (default = trip base) + the conversion rate
   // (seeded from the frozen snapshot, editable as a manual rate).
@@ -265,6 +271,38 @@ export function QuickAddPage() {
 
   const owner = participants.find((p) => p.isOwner) ?? null;
   const effectivePaidById = paidById ?? owner?.id ?? null;
+
+  // DEC-386 (G1): the OPEN events whose interval contains the expense's day —
+  // the date-inference set the attribution prompt is built from. Based on the
+  // chosen date when set, otherwise today (UTC day, like the other "today" reads).
+  const expenseDayIso = customDate
+    ? toSafeIsoDate(customDate).slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+  const attributableEvents = useMemo(
+    () => selectAttributableEvents(occurrences, expenseDayIso),
+    [occurrences, expenseDayIso],
+  );
+  // L-ATTRIBUTION refinement (Julio): pre-suggest the LONE active event (date
+  // inference) so the user just confirms; never auto-pick when ambiguous, and
+  // drop a stale pick when the date moves out of the interval. Uses a functional
+  // update so it never loops on its own state.
+  useEffect(() => {
+    setAttributedOccurrenceId((current) => {
+      if (current !== null && !attributableEvents.some((e) => e.id === current)) return null;
+      if (
+        current === null &&
+        !eventAttributionTouchedRef.current &&
+        attributableEvents.length === 1
+      ) {
+        return attributableEvents[0]!.id;
+      }
+      return current;
+    });
+  }, [attributableEvents]);
+  const selectAttributedEvent = (id: string | null): void => {
+    eventAttributionTouchedRef.current = true;
+    setAttributedOccurrenceId(id);
+  };
 
   // DEC-246: apply the assistant draft once everything is loaded. setState in an
   // effect (not initializers) keeps it robust against an initial empty snapshot;
@@ -492,6 +530,12 @@ export function QuickAddPage() {
       isForeignCurrency && effectiveRate !== null
         ? convertToBaseCents(amountCents, effectiveRate)
         : amountCents;
+    // DEC-386 (G1): only attribute to an event that still matches the day (guards
+    // a date changed right before save); createExpenseTransaction enforces the
+    // event-XOR-session invariant.
+    const occurrenceId = attributableEvents.some((e) => e.id === attributedOccurrenceId)
+      ? attributedOccurrenceId
+      : null;
     const tx = createExpenseTransaction({
       tripId: trip!.id,
       phaseId: currentPhase!.id,
@@ -504,6 +548,7 @@ export function QuickAddPage() {
       category,
       description: description || t(`categories.${category}` as never),
       date: customDate ? toSafeIsoDate(customDate) : undefined,
+      occurrenceId,
       ...placeToTransactionFields(place),
     });
 
@@ -1002,6 +1047,55 @@ export function QuickAddPage() {
               {t('funds.add')}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* DEC-386 (G1): event attribution — surfaced by date inference (an event
+          is active on the expense's day) so the user is ALWAYS asked, never auto-
+          decided (Â-ATTRIBUTION). One tap; the lone active event is pre-suggested
+          and the user can opt out with "Não". Kept OUT of the collapsed details
+          so the question is never hidden. */}
+      {!isTransferLike && attributableEvents.length > 0 && (
+        <div className="bg-surface-container rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Icon name="celebration" size={16} className="text-primary shrink-0" />
+            <p className="text-sm font-semibold text-on-surface">
+              {t('expenses.event_attribution_question')}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {attributableEvents.map((event) => {
+              const selected = attributedOccurrenceId === event.id;
+              return (
+                <button
+                  key={event.id}
+                  type="button"
+                  onClick={() => selectAttributedEvent(selected ? null : event.id)}
+                  aria-pressed={selected}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    selected ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {event.name}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => selectAttributedEvent(null)}
+              aria-pressed={attributedOccurrenceId === null}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                attributedOccurrenceId === null
+                  ? 'bg-primary text-on-surface'
+                  : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {t('expenses.event_attribution_none')}
+            </button>
+          </div>
+          <p className="text-[10px] text-on-surface-faint mt-2">
+            {t('expenses.event_attribution_hint')}
+          </p>
         </div>
       )}
 

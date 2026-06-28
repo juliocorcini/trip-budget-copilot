@@ -11,6 +11,7 @@ export {
   discardOutingSession,
   startSessionForOccurrence,
   startOneOffEventSession,
+  deleteEventKeepingExpenses,
   quickAddSessionExpense,
   assignTransactionSubcategory,
   repeatLastSessionItem,

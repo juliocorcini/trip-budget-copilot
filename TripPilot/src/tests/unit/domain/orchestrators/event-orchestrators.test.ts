@@ -4,7 +4,9 @@ import {
   startSessionForOccurrence,
   startOneOffEventSession,
   endOutingSession,
+  deleteEventKeepingExpenses,
 } from '@/domain/orchestrators';
+import { eventAttributedSpent } from '@/domain/budget';
 import { createPlannedOccurrence } from '@/domain/planning';
 import { createSession } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
@@ -128,5 +130,50 @@ describe('Parral lifecycle (DEC-072/073 — FIELD-05 resolves FIELD-04)', () => 
     expect(storedSession!.activityProfileId).toBeNull();
     // No reserve set → never deducts.
     expect(calculateEventReserves(occurrences, 'phase-1')).toBe(0);
+  });
+
+  it('deleteEventKeepingExpenses tombstones the event but KEEPS its expenses (DEC-386 · m4)', async () => {
+    const occurrence = mkOccurrence();
+    await db.plannedOccurrences.add(occurrence);
+
+    const attributed = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: null,
+      amountCents: 3000,
+      currency: 'EUR',
+      category: 'bar',
+      description: 'From the event',
+      occurrenceId: occurrence.id,
+    });
+    const unrelated = createExpenseTransaction({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      walletId: null,
+      amountCents: 1000,
+      currency: 'EUR',
+      category: 'market',
+      description: 'Unrelated',
+    });
+    await db.transactions.bulkAdd([attributed, unrelated]);
+
+    await deleteEventKeepingExpenses(occurrence.id);
+
+    const [storedOcc, storedAttr, storedUnrelated] = await Promise.all([
+      db.plannedOccurrences.get(occurrence.id),
+      db.transactions.get(attributed.id),
+      db.transactions.get(unrelated.id),
+    ]);
+    // Event is tombstoned…
+    expect(storedOcc!.deletedAt).not.toBeNull();
+    // …but the expense survives, only the event link is cleared (A4).
+    expect(storedAttr!.deletedAt).toBeNull();
+    expect(storedAttr!.occurrenceId).toBeNull();
+    // …and an unrelated expense is untouched.
+    expect(storedUnrelated!.occurrenceId).toBeNull();
+    // The reserve stops counting the deleted event's spend.
+    expect(eventAttributedSpent(occurrence.id, [storedAttr!, storedUnrelated!])).toBe(0);
   });
 });

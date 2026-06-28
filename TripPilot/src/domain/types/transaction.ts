@@ -57,4 +57,13 @@ export interface Transaction extends SyncMetadata {
    * via the transaction schema's `.passthrough()`.
    */
   externalRef?: string | null;
+  /**
+   * DEC-386 (G1): explicit link to the PlannedOccurrence (event) this spend was
+   * attributed to — the way to "spend from an event" WITHOUT the active outing.
+   * A spend belongs to an event XOR a session, never both (Â-ATTRIBUTION): when
+   * `occurrenceId` is set, `sessionId` is forced null in the factory. Optional +
+   * NOT indexed (no Dexie migration); legacy records read back `undefined`
+   * (treated as "no event"). Rides backups via the schema's `.passthrough()`.
+   */
+  occurrenceId?: string | null;
 }

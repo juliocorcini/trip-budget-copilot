@@ -23,6 +23,7 @@ import {
   swapPhaseOrder,
   createProfileEnabledInPhase,
   setProfileEnabledInPhase,
+  deleteEventKeepingExpenses,
 } from '@/domain/orchestrators';
 import {
   ACTIVITY_PROFILE_PRESETS,
@@ -327,7 +328,9 @@ export function TripEditPage() {
   };
 
   const handleDeleteEvent = async (occurrenceId: string) => {
-    await plannedOccurrenceRepository.delete(occurrenceId);
+    // DEC-386 (m4): tombstone the event but KEEP its attributed expenses (A4) —
+    // the orchestrator clears `occurrenceId` on those txs so no money moves.
+    await deleteEventKeepingExpenses(occurrenceId);
     await reload();
   };
 

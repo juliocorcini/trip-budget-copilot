@@ -30,6 +30,9 @@ export interface CreateExpenseInput {
   paidByParticipantId?: string | null;
   activityProfileId?: string | null;
   sessionId?: string | null;
+  /** DEC-386 (G1): attribute this spend to an event. Event XOR session — when
+   * set, `sessionId` is forced null (Â-ATTRIBUTION). Default null. */
+  occurrenceId?: string | null;
   sourceWalletId?: string | null;
   targetWalletId?: string | null;
   notes?: string | null;
@@ -41,13 +44,18 @@ export interface CreateExpenseInput {
 
 export function createExpenseTransaction(input: CreateExpenseInput): Transaction {
   const now = new Date().toISOString();
+  // Â-ATTRIBUTION (DEC-386): a spend belongs to an event XOR an outing session,
+  // never both. An explicit event attribution wins — the session is dropped.
+  const occurrenceId = input.occurrenceId ?? null;
+  const sessionId = occurrenceId !== null ? null : (input.sessionId ?? null);
   return {
     ...createSyncMetadata(),
     tripId: input.tripId,
     phaseId: input.phaseId,
     budgetPoolId: input.budgetPoolId,
     walletId: input.walletId,
-    sessionId: input.sessionId ?? null,
+    sessionId,
+    occurrenceId,
     type: input.type ?? 'expense',
     amountCents: input.amountCents,
     personalCostCents:

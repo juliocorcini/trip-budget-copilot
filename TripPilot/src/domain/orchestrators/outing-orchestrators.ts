@@ -211,6 +211,29 @@ export async function startOneOffEventSession(
   });
 }
 
+/**
+ * DEC-386 (G1 · m4): delete (tombstone) a planned event and KEEP every expense
+ * attributed to it — only the event link is cleared (A4 hide-never-delete). The
+ * spends stay in the ledger as ordinary phase expenses (`occurrenceId → null`),
+ * so no money moves and the consumable reserve (DEC-385) simply stops counting a
+ * deleted event. `occurrenceId` is NOT indexed, so the attributed rows are found
+ * with a table `filter` (a one-off delete action, not a hot path). Atomic.
+ */
+export async function deleteEventKeepingExpenses(occurrenceId: string): Promise<void> {
+  await db.transaction('rw', [db.plannedOccurrences, db.transactions], async () => {
+    const occurrence = await db.plannedOccurrences.get(occurrenceId);
+    if (occurrence && occurrence.deletedAt === null) {
+      await db.plannedOccurrences.put(softDelete(occurrence));
+    }
+    const attributed = await db.transactions
+      .filter((tx) => tx.occurrenceId === occurrenceId && tx.deletedAt === null)
+      .toArray();
+    for (const tx of attributed) {
+      await db.transactions.put(markUpdated({ ...tx, occurrenceId: null }));
+    }
+  });
+}
+
 export interface QuickAddSessionExpenseInput {
   session: Session;
   amountCents: number;
