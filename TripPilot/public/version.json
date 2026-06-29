@@ -1,8 +1,8 @@
 {
-  "version": "1.9.7-rc",
+  "version": "1.9.8-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.7-rc.zip",
-  "notes": "Agora a IA cria eventos pra você: diga \"sábado tem o show, separo 100\" e ela já monta o evento (com reserva opcional) — confirme num toque e ajuste nome, data e reserva ali mesmo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.8-rc.zip",
+  "notes": "Correção: gasto pago pela reserva de um evento (ex.: import do Wise atribuído ao evento) não derruba mais o \"livre do dia\" — só o que passa da reserva mexe no livre."
 }

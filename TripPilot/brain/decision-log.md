@@ -3097,4 +3097,13 @@
 
 ---
 
+### DEC-411 — Livre do dia não conta gasto pago pela reserva do evento [bug de campo Julio 2026-06-29 · Â-MONEY-INVARIANT]
+- **Date**: 2026-06-29 · **Status**: ✅ APPROVED (shipped pós-leva `1.9.8-rc`, **worker não muda**) · corrige consumo do diário sobre a reserva consumível (DEC-385/390) e generaliza p/ compra planejada (DEC-175)
+- **Decision**: o termo "gasto de hoje" que alimenta o **diário** (`calculateTodayFreeBudget` + `buildPhaseAllowanceMap`) deixa de ser o **bruto** do dia e passa a ser a **queda real do pote livre hoje** — novo domínio **`calculateDailyFreePoolDrop`**. Um gasto coberto pela reserva consumível de um evento (ou de uma compra planejada) **não** derruba o livre do dia; só o **excedente** da reserva + o **discricionário** caem. O **recap de ontem mantém o bruto** (insight, não contabilidade).
+- **Rationale**: bug reportado por Julio — import do Wise atribuído ao evento ao vivo entrava no evento **e** ainda zerava/negativava o livre do dia (−€14). A reserva já saíra do livre quando o evento foi guardado (DEC-385); o diário reconstruía "início do dia" = `trueFree + brutoHoje` e subtraía o bruto de volta → a parte coberta pela reserva era **contada duas vezes** na fatia diária (o livre **total** já estava certo). Regra do Julio: "só mexe no livre se o valor **passar do guardado** para o evento".
+- **Alternatives**: (a) zerar o gasto do evento no diário sempre (rejeitado — o **excedente** acima da reserva é livre de verdade e tem de cair); (b) recomputar `trueFree` sem os gastos de hoje incluindo o reserve-de-plano de perfil (rejeitado — exigiria refazer todo o loop de allocations/forecasts; o termo correto é a queda do **pote livre**, que difere do bruto só quando há reserva consumível); (c) clampar a ≥0 (rejeitado — quebraria a invariância em dia de estorno). **O que viraria**: se aparecer um caso onde a queda-do-pote diverge do esperado, o bruto continua disponível p/ o recap e p/ a aba de gasto (heatmap).
+- **Shipped (`1.9.8-rc`)**: `calculateDailyFreePoolDrop` = `freeRaw(sem gastos de hoje) − freeRaw(agora)` com **`freeToSpendRawCents` sem floor** → linear: cobertura por reserva **anula** (remanescente sobe = spent desce), excedente/discricionário aparecem inteiros; **sem reserva = byte-idêntico** ao `calculateSpentOnDate` (inclusive estorno negativo, **não** clampado). `useDashboardModel` passa o termo ao hero **e** ao mapa (consistência FIELD-19 mantida); `buildYesterdayRecap` segue bruto. **Sem mudança de math fora do diário** (livre/trueFree/Trecho/Pote/net-do-owner intactos) — o fix **remove** um double-count. **+8 testes** `daily-free-pool-drop.test.ts` (2843/2845). **Worker não muda.**
+
+---
+
 *New decisions will be added as the project progresses.*

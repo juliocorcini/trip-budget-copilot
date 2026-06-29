@@ -1,5 +1,6 @@
 export {
   calculateFreeToSpend,
+  calculateDailyFreePoolDrop,
   buildFreeToSpendBreakdown,
   calculateTrueFree,
   isPhaseFullyPlanned,

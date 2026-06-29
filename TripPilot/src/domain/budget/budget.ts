@@ -11,6 +11,7 @@ import { sumCents } from '@/domain/money';
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
 import { calculatePlannedPurchaseReserves } from '@/domain/planning/planned-purchases';
 import { calculateEffectiveSpendingDays } from '@/domain/phases/rhythm';
+import { localDayOf } from '@/domain/dates';
 import { eventReserveRemainingCents } from './event-budget';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
@@ -128,6 +129,62 @@ export function calculateFreeToSpend(
     plannedPurchasesCents,
     allocationsCents,
   };
+}
+
+/**
+ * DEC-411 (field fix 2026-06-29): the spend term the DAILY allowance must use —
+ * how much the FREE POOL actually dropped today, NOT the raw spend of the day.
+ *
+ * A spend drawn from an event/planned CONSUMABLE reserve (DEC-385) consumes that
+ * reserve (which already left the free pool when it was set aside), so
+ * `freeToSpend` is unchanged and the daily allowance must NOT move; only the part
+ * that OVERFLOWS the reserve reduces the daily free. The daily-free reconstructs
+ * "start-of-day free" by adding this term back and then subtracts it again, so it
+ * has to be the real free-pool delta, not the gross spend (otherwise reserve
+ * spend is double-counted and "livre do dia" goes wrongly negative).
+ *
+ * Computed exactly as `freeRaw(without today's pool spend) − freeRaw(now)` using
+ * the UNFLOORED raw free, so it stays perfectly linear: the part of today's spend
+ * covered by a reserve nets to 0 (the reserve remainder rises by the same amount
+ * the spend falls), while discretionary spend and reserve OVERFLOW surface in
+ * full. With no reserve in play it is byte-identical to the gross
+ * `calculateSpentOnDate` it replaces — same filter, same base/personal-cost value
+ * — including refund/negative-adjustment days (so it is intentionally NOT clamped
+ * to ≥ 0). Pool-scoped `transactions` in, same as `calculateFreeToSpend`.
+ */
+export function calculateDailyFreePoolDrop(
+  pool: BudgetPool,
+  envelopes: Envelope[],
+  transactions: Transaction[],
+  phaseLinks: BudgetPoolPhaseLink[],
+  currentPhaseId: string,
+  occurrences: PlannedOccurrence[],
+  plannedPurchases: PlannedPurchase[],
+  todayIso: string,
+  sessions: Session[] = [],
+): number {
+  const freeRawOf = (txs: Transaction[]): number =>
+    calculateFreeToSpend(
+      pool,
+      envelopes,
+      txs,
+      phaseLinks,
+      currentPhaseId,
+      occurrences,
+      plannedPurchases,
+      sessions,
+    ).freeToSpendRawCents;
+
+  const withoutTodaySpend = transactions.filter(
+    (t) =>
+      !(
+        t.deletedAt === null &&
+        (t.type === 'expense' || t.type === 'adjustment') &&
+        localDayOf(t.date) === todayIso
+      ),
+  );
+
+  return freeRawOf(withoutTodaySpend) - freeRawOf(transactions);
 }
 
 /**

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.8-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'Corrigido o "livre do dia": um gasto pago pela reserva de um evento (por exemplo, um gasto importado do Wise e atribuído ao evento) não derruba mais o valor livre do dia — esse dinheiro já tinha saído do livre quando você reservou o evento.',
+        'Só mexe no livre do dia o que passa da reserva do evento (o excedente) e os gastos do dia a dia. Quando não há evento envolvido, o número continua exatamente igual ao de antes.',
+      ],
+      en: [
+        'Fixed the "free today" number: a spend paid by an event reserve (for example, an expense imported from Wise and attributed to the event) no longer knocks down your daily free — that money already left the free pool when you reserved the event.',
+        'Only the part that overflows the event reserve, plus everyday spending, moves the daily free now. With no event involved, the number stays exactly as before.',
+      ],
+      es: [
+        'Corregido el "libre del día": un gasto pagado por la reserva de un evento (por ejemplo, un gasto importado de Wise y atribuido al evento) ya no baja el libre diario — ese dinero ya había salido del libre cuando reservaste el evento.',
+        'Solo mueve el libre del día lo que supera la reserva del evento (el excedente) y los gastos del día a día. Cuando no hay un evento involucrado, el número queda exactamente igual que antes.',
+      ],
+    },
+  },
+  {
     version: '1.9.7-rc',
     date: '2026-06-29',
     items: {

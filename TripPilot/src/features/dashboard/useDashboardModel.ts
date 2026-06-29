@@ -10,6 +10,7 @@ import {
 } from '@/domain/dates';
 import {
   calculateFreeToSpend,
+  calculateDailyFreePoolDrop,
   calculateTrueFree,
   createPoolSummary,
   calculateLastOutingSavings,
@@ -552,9 +553,31 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // free amount, so the daily number excludes the plan the traveler already made.
     const primaryPoolTxs = primaryPool ? filterTransactionsByPool(transactions, primaryPool.id) : [];
     const todaySpentCents = primaryPool ? calculateSpentOnDate(primaryPoolTxs, todayIso) : 0;
+    // DEC-411 (field fix 2026-06-29): the DAILY number must subtract how much the
+    // FREE POOL actually dropped today — NOT the gross spend. A spend covered by an
+    // event/planned CONSUMABLE reserve (DEC-385) already left `trueFree` when it was
+    // set aside, so it must not knock the daily free again (the bug: a Wise import
+    // attributed to a live event drove "livre do dia" negative). Only the part that
+    // OVERFLOWS the reserve reduces the day. With no reserve in play this equals
+    // `todaySpentCents` exactly (Â-MONEY-INVARIANT); the gross value still feeds the
+    // recap insight below.
+    const freePoolDropTodayCents =
+      primaryPool && activePhase
+        ? calculateDailyFreePoolDrop(
+            primaryPool,
+            envelopes.filter((e) => e.budgetPoolId === primaryPool.id),
+            primaryPoolTxs,
+            links.filter((l) => l.budgetPoolId === primaryPool.id),
+            activePhase.id,
+            occurrences,
+            plannedPurchases,
+            todayIso,
+            allSessions,
+          )
+        : todaySpentCents;
     const todayBudget =
       trueFree && activePhase
-        ? calculateTodayFreeBudget(trueFree.trueFreeCents, todaySpentCents, activePhase, todayIso)
+        ? calculateTodayFreeBudget(trueFree.trueFreeCents, freePoolDropTodayCents, activePhase, todayIso)
         : null;
 
     // FIELD-19: per-day allowance map — same start-of-day base/weights as the
@@ -564,7 +587,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       trueFree && activePhase
         ? buildPhaseAllowanceMap({
             trueFreeCents: trueFree.trueFreeCents,
-            todaySpentCents,
+            todaySpentCents: freePoolDropTodayCents,
             phase: activePhase,
             todayIso,
             occurrences: occurrences.filter(
