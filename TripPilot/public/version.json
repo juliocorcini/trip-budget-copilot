@@ -1,8 +1,8 @@
 {
-  "version": "1.9.5-rc",
+  "version": "1.9.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.5-rc.zip",
-  "notes": "Mapa do gasto: ao expandir, ele agora fica fixo de verdade (não rola junto nem some atrás do botão de fechar). E o cartão flutuante não fecha mais quando você rola dentro de um campo de texto."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.6-rc.zip",
+  "notes": "Agora dá para colar a foto da nota direto no campo da IA (Ctrl/Cmd+V). Cole uma ou várias — elas ficam acumuladas e, ao enviar, a IA lê todas e lança os gastos de uma vez."
 }

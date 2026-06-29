@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.6-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'Agora você pode colar a foto da nota direto no campo da IA (Ctrl/Cmd+V ou colar no celular) — sem precisar abrir a câmera.',
+        'Dá para colar várias imagens: elas ficam acumuladas como miniaturas (com X para remover) e, ao enviar, a IA lê todas e lança os gastos de uma vez.',
+      ],
+      en: [
+        'You can now paste a receipt photo straight into the AI box (Ctrl/Cmd+V, or paste on mobile) — no need to open the camera.',
+        'Paste several images at once: they stack as thumbnails (with an X to remove), and on send the AI reads them all and logs the expenses in one go.',
+      ],
+      es: [
+        'Ahora puedes pegar la foto de la cuenta directamente en el campo de la IA (Ctrl/Cmd+V o pegar en el móvil) — sin abrir la cámara.',
+        'Puedes pegar varias imágenes: se acumulan como miniaturas (con una X para quitarlas) y, al enviar, la IA las lee todas y registra los gastos de una vez.',
+      ],
+    },
+  },
+  {
     version: '1.9.5-rc',
     date: '2026-06-29',
     items: {

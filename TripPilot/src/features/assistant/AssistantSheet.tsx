@@ -21,7 +21,8 @@ import { computeExpenseInsights, type ExpenseInsights } from './assistant-insigh
 import { composePreview } from './assistant-preview-text';
 import { subscribeAssistantOpen } from './assistant-bus';
 import { ASSISTANT_EXAMPLE_GROUPS } from './assistant-examples';
-import { useAssistant, type AssistantBatchView } from './useAssistant';
+import { imageFilesFromTransfer } from './paste-images';
+import { useAssistant, type AssistantBatchView, type PendingImage } from './useAssistant';
 import type { AssistantPreview, ExecOp } from '@/domain/assistant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { Transaction } from '@/domain/types/transaction';
@@ -188,10 +189,13 @@ export function AssistantSheet() {
                 voiceState={assistant.voiceState}
                 voiceAvailable={assistant.voiceAvailable}
                 photoEnabled={assistant.photoEnabled}
+                pendingImages={assistant.pendingImages}
                 onChange={assistant.setText}
                 onSubmit={() => void assistant.submit()}
                 onToggleVoice={() => void assistant.toggleVoice()}
                 onPickPhoto={(file) => void assistant.scanReceiptPhoto(file)}
+                onAddImages={assistant.addPendingImages}
+                onRemoveImage={assistant.removePendingImage}
                 onEnablePhoto={enablePhoto}
               />
             )}
@@ -296,10 +300,13 @@ function InputArea(props: {
   voiceState: VoiceState;
   voiceAvailable: boolean;
   photoEnabled: boolean;
+  pendingImages: PendingImage[];
   onChange: (value: string) => void;
   onSubmit: () => void;
   onToggleVoice: () => void;
   onPickPhoto: (file: File) => void;
+  onAddImages: (files: File[]) => void;
+  onRemoveImage: (id: string) => void;
   onEnablePhoto: () => Promise<void>;
 }) {
   const { t } = useTranslation();
@@ -309,6 +316,32 @@ function InputArea(props: {
   // then opens the chooser (it is no longer hidden until a capability is granted).
   const photoChooser = useImageSourceChooser(props.onPickPhoto);
   const [photoConsentOpen, setPhotoConsentOpen] = useState(false);
+  // DEC-408 (G7): images pasted before OCR consent was granted wait here; the
+  // effect below flushes them once consent flips on (avoids a stale-closure add).
+  const pendingPasteRef = useRef<File[]>([]);
+  // DEC-408: after `onPaste` opens the consent sheet, do nothing else until the
+  // user accepts — `enableThenAddPasted` flips the consent and the effect adds.
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = imageFilesFromTransfer(e.clipboardData);
+    if (files.length === 0) return; // plain text paste — let the textarea handle it.
+    e.preventDefault();
+    if (props.photoEnabled) {
+      props.onAddImages(files);
+      return;
+    }
+    pendingPasteRef.current = files;
+    setPhotoConsentOpen(true);
+  };
+
+  const { photoEnabled, onAddImages } = props;
+  useEffect(() => {
+    if (photoEnabled && pendingPasteRef.current.length > 0) {
+      const files = pendingPasteRef.current;
+      pendingPasteRef.current = [];
+      onAddImages(files);
+      setPhotoConsentOpen(false);
+    }
+  }, [photoEnabled, onAddImages]);
 
   const onCameraTap = () => {
     if (props.photoEnabled) photoChooser.open();
@@ -318,8 +351,11 @@ function InputArea(props: {
   const enableThenPick = async () => {
     await props.onEnablePhoto();
     setPhotoConsentOpen(false);
-    photoChooser.open();
+    // A pasted image awaiting consent → the flush effect adds it; nothing to scan.
+    if (pendingPasteRef.current.length === 0) photoChooser.open();
   };
+
+  const canSend = !props.disabled && (props.value.trim() !== '' || props.pendingImages.length > 0);
   return (
     <div className="flex flex-col gap-2">
       <textarea
@@ -327,6 +363,7 @@ function InputArea(props: {
         value={props.value}
         disabled={props.disabled}
         onChange={(e) => props.onChange(e.target.value)}
+        onPaste={onPaste}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -338,6 +375,32 @@ function InputArea(props: {
         className="w-full resize-none rounded-2xl px-4 py-3 text-[15px] text-on-surface outline-none"
         style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
       />
+
+      {/* DEC-408 (G7): pasted receipt images, accumulated until send (OCR'd then).
+          Each is removable so a mis-paste never forces a re-open. */}
+      {props.pendingImages.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {props.pendingImages.map((img) => (
+            <div
+              key={img.id}
+              className="relative w-16 h-16 rounded-xl overflow-hidden"
+              style={{ border: '1px solid var(--border-subtle)' }}
+            >
+              <img src={img.previewUrl} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => props.onRemoveImage(img.id)}
+                aria-label={t('assistant.remove_image')}
+                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.6)' }}
+              >
+                <Icon name="close" size={13} className="text-white" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         {props.voiceAvailable && (
           <button
@@ -367,7 +430,7 @@ function InputArea(props: {
         </button>
         <button
           onClick={props.onSubmit}
-          disabled={props.disabled || props.value.trim() === ''}
+          disabled={!canSend}
           className="btn-press flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40"
           style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
         >

@@ -1,2 +1,2 @@
 /** Keep in sync with package.json version. */
-export const APP_VERSION = '1.9.5-rc';
+export const APP_VERSION = '1.9.6-rc';

@@ -87,6 +87,60 @@ export interface AssistantSplitNudge {
 }
 
 /**
+ * DEC-408 (G7): an image pasted/attached into the assistant input, kept until the
+ * user sends. `previewUrl` is an object URL for the thumbnail (revoked on remove /
+ * send / reset). On send each is OCR'd (reusing the receipt pipeline) and merged
+ * with the typed text into the batch flow.
+ */
+export interface PendingImage {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
+// DEC-408: keep the attach list bounded — a sane cap, not an abuse vector.
+const MAX_PENDING_IMAGES = 6;
+
+let pendingImageSeq = 0;
+function makePendingImageId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid ?? `pending-${Date.now()}-${++pendingImageSeq}`;
+}
+
+/**
+ * DEC-258 / DEC-408: map an extracted receipt plan to a single `log_expense`
+ * intent — the same shape used for a snapped photo, so OCR'd images flow through
+ * the exact text plan/preview machinery (full parity, one-tap confirm). Carries
+ * the OCR'd place + date so the spend lands on its real venue/day, not now/here.
+ */
+export function receiptPlanToIntent(
+  plan: ReceiptPlan,
+  summary: { amountCents: number; merchant: string | null },
+): AiIntent {
+  return {
+    action: 'log_expense',
+    amount: summary.amountCents / 100,
+    currency: plan.currency,
+    toCurrency: null,
+    description: summary.merchant,
+    category: dominantReceiptCategory(plan.items),
+    person: null,
+    participants: [],
+    payer: null,
+    direction: null,
+    fromWallet: null,
+    toWallet: null,
+    place: plan.placeLabel,
+    date: plan.purchaseDate,
+    itemName: null,
+    comparisonItems: [],
+    screen: null,
+    note: null,
+    confidence: null,
+  };
+}
+
+/**
  * Multi-action (DEC-246 multi): the preview of a whole message's events. `items`
  * are the previews the sheet lists; `blocked` are events that can't run
  * unattended (each with a reason key). `ownerTotalCents` is what the batch costs
@@ -126,6 +180,8 @@ export interface UseAssistant {
   photoEnabled: boolean;
   /** True while the current preview came from a scanned photo (offers "open items"). */
   fromPhoto: boolean;
+  /** DEC-408 (G7): images pasted into the input, awaiting OCR on send. */
+  pendingImages: PendingImage[];
   listening: boolean;
   /** DEC-365 (B1): the explicit mic lifecycle state for the UI status label. */
   voiceState: VoiceState;
@@ -149,6 +205,10 @@ export interface UseAssistant {
   openBatchItemEditor: (index: number) => void;
   /** Hand the (edited) draft to the full QuickAdd form for the heavy cases. */
   openFullEditor: () => void;
+  /** DEC-408 (G7): queue pasted/attached image(s) to OCR on the next send. */
+  addPendingImages: (files: File[]) => void;
+  /** DEC-408 (G7): drop one queued image before sending. */
+  removePendingImage: (id: string) => void;
   /** FB-09 (DEC-258): scan a receipt photo → one summarized expense preview. */
   scanReceiptPhoto: (file: File) => Promise<void>;
   /** FB-09: open the scanned photo as the full item-by-item receipt instead. */
@@ -231,6 +291,14 @@ export function useAssistant(): UseAssistant {
   // FB-09 (DEC-258): when the active preview was built from a scanned photo, the
   // sheet offers "open items" (the full receipt) beside "confirm".
   const [fromPhoto, setFromPhoto] = useState(false);
+  // DEC-408 (G7): images pasted into the input, OCR'd on send. The ref mirrors the
+  // state so the async `submit` reads the freshest list without a stale closure.
+  const [pendingImages, setPendingImagesRaw] = useState<PendingImage[]>([]);
+  const pendingImagesRef = useRef<PendingImage[]>([]);
+  const setPendingImages = useCallback((next: PendingImage[]) => {
+    pendingImagesRef.current = next;
+    setPendingImagesRaw(next);
+  }, []);
 
   const intentRef = useRef<AiIntent | null>(null);
   const planRef = useRef<ActionPlan | null>(null);
@@ -456,29 +524,7 @@ export function useAssistant(): UseAssistant {
         }
         receiptPlanRef.current = outcome.plan;
         receiptImageRef.current = image;
-        const intent: AiIntent = {
-          action: 'log_expense',
-          amount: summary.amountCents / 100,
-          currency: outcome.plan.currency,
-          toCurrency: null,
-          description: summary.merchant,
-          category: dominantReceiptCategory(outcome.plan.items),
-          person: null,
-          participants: [],
-          payer: null,
-          direction: null,
-          fromWallet: null,
-          toWallet: null,
-          // FB-10 (DEC-258): photo-in-AI parity — carry the date/place the OCR read
-          // so a snapped note lands on its real day and venue, not "now"/nowhere.
-          place: outcome.plan.placeLabel,
-          date: outcome.plan.purchaseDate,
-          itemName: null,
-          comparisonItems: [],
-          screen: null,
-          note: null,
-          confidence: null,
-        };
+        const intent = receiptPlanToIntent(outcome.plan, summary);
         intentRef.current = intent;
         modeRef.current = 'single';
         runPlan(intent);
@@ -490,6 +536,166 @@ export function useAssistant(): UseAssistant {
       }
     },
     [photoEnabled, buildPlanContext, runPlan, blockedByCooldown, enterCooldown],
+  );
+
+  // DEC-408 (G7): build the cloud router context pack. Extracted so the text
+  // submit and the pasted-image flow share one definition (no drift).
+  const buildRouterPack = useCallback(() => {
+    const d = dataRef.current;
+    return buildAssistantContext({
+      language: i18n.language,
+      baseCurrency: d.trip?.baseCurrency ?? 'EUR',
+      place: d.settings?.locationCaptureEnabled ? d.settings.currentPlace ?? null : null,
+      participants: mergeParticipants(d.participants, localParticipantsRef.current),
+      wallets: d.wallets,
+      privateNames: d.settings?.aiQuickEntryPrivateNames ?? false,
+    });
+  }, [i18n.language]);
+
+  // DEC-408 (G7): queue pasted/attached images (bounded), each kept as an
+  // object-URL thumbnail until send/remove. Gated by the cloud-OCR opt-in (the
+  // same gate as the camera) — without it there is no pipeline to read them.
+  const addPendingImages = useCallback(
+    (files: File[]) => {
+      if (!photoEnabled) return;
+      const images = files.filter((f) => f.type.startsWith('image/'));
+      if (images.length === 0) return;
+      const current = pendingImagesRef.current;
+      const room = MAX_PENDING_IMAGES - current.length;
+      if (room <= 0) return;
+      const added = images.slice(0, room).map((file) => ({
+        id: makePendingImageId(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      setPendingImages([...current, ...added]);
+    },
+    [photoEnabled, setPendingImages],
+  );
+
+  const removePendingImage = useCallback(
+    (id: string) => {
+      const current = pendingImagesRef.current;
+      const target = current.find((img) => img.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      setPendingImages(current.filter((img) => img.id !== id));
+    },
+    [setPendingImages],
+  );
+
+  const clearPendingImages = useCallback(() => {
+    for (const img of pendingImagesRef.current) URL.revokeObjectURL(img.previewUrl);
+    setPendingImages([]);
+  }, [setPendingImages]);
+
+  // DEC-408 (G7): OCR one pasted image through the SAME receipt pipeline as a
+  // snapped photo, folding it into one summarized `log_expense` intent. Never
+  // throws — transport/parse failures map to a typed result so a single bad
+  // image cannot dead-end the rest (A5 never-block).
+  const ocrPendingImage = useCallback(
+    async (
+      img: PendingImage,
+    ): Promise<
+      | { ok: true; plan: ReceiptPlan; image: CompressedImage; intent: AiIntent }
+      | { ok: false; error: 'rate_limited'; cooldown: AiCooldown }
+      | { ok: false; error: 'failed' }
+    > => {
+      try {
+        const image = await compressImageFile(img.file);
+        const dataUrl = await blobToDataUrl(image.blob);
+        const outcome = await extractReceiptViaCloud(dataUrl);
+        if (!outcome.ok) {
+          if (outcome.error === 'rate_limited' && outcome.cooldown) {
+            return { ok: false, error: 'rate_limited', cooldown: outcome.cooldown };
+          }
+          return { ok: false, error: 'failed' };
+        }
+        const summary = summarizeReceiptTotal(outcome.plan);
+        if (!summary) return { ok: false, error: 'failed' };
+        return { ok: true, plan: outcome.plan, image, intent: receiptPlanToIntent(outcome.plan, summary) };
+      } catch (err) {
+        console.error('[assistant] pending image OCR failed', err);
+        return { ok: false, error: 'failed' };
+      }
+    },
+    [],
+  );
+
+  // DEC-408 (G7): the send path when images were pasted — OCR every image, append
+  // any typed-text intents, then route through the SAME preview/batch machinery.
+  // One image + no text keeps single-photo "open items" parity; anything more
+  // lands on the batch list (one confirm). A rate-limit on any call gates the lot.
+  const runImagesThenText = useCallback(
+    async (value: string, images: PendingImage[]) => {
+      if (!buildPlanContext()) {
+        setErrorKey('unsupported.no_trip');
+        setPhase('error');
+        return;
+      }
+      const results = await Promise.all(images.map(ocrPendingImage));
+      const limited = results.find(
+        (r): r is { ok: false; error: 'rate_limited'; cooldown: AiCooldown } =>
+          !r.ok && r.error === 'rate_limited',
+      );
+      if (limited) {
+        enterCooldown(limited.cooldown);
+        return;
+      }
+      const scanned = results.filter((r): r is Extract<typeof r, { ok: true }> => r.ok);
+      const imageIntents = scanned.map((r) => r.intent);
+
+      let textIntents: AiIntent[] = [];
+      if (value !== '') {
+        const outcome = await requestAssistantIntents(value, buildRouterPack());
+        if (!outcome.ok) {
+          if (outcome.error === 'rate_limited') {
+            enterCooldown(outcome.cooldown);
+            return;
+          }
+          // Text failed but images scanned: proceed on images alone (A5).
+          if (imageIntents.length === 0) {
+            setErrorKey(`error.${outcome.error}`);
+            setPhase('error');
+            return;
+          }
+        } else {
+          textIntents = outcome.intents;
+        }
+      }
+
+      const combined = [...imageIntents, ...textIntents];
+      if (combined.length === 0) {
+        setErrorKey('error.photo_failed');
+        setPhase('error');
+        return;
+      }
+      clearPendingImages();
+
+      // One image, no text → single preview with "open items" (full receipt).
+      if (combined.length === 1 && imageIntents.length === 1 && textIntents.length === 0) {
+        const first = scanned[0]!;
+        receiptPlanRef.current = first.plan;
+        receiptImageRef.current = first.image;
+        intentRef.current = first.intent;
+        modeRef.current = 'single';
+        runPlan(first.intent);
+        setFromPhoto(true);
+        return;
+      }
+      if (combined.length === 1) {
+        const only = combined[0]!;
+        modeRef.current = 'single';
+        intentRef.current = only;
+        setNote(only.note);
+        runPlan(only);
+        return;
+      }
+      modeRef.current = 'batch';
+      intentsRef.current = combined;
+      setNote(null);
+      runBatch();
+    },
+    [buildPlanContext, ocrPendingImage, enterCooldown, buildRouterPack, clearPendingImages, runPlan, runBatch],
   );
 
   // FB-09: escalate the scanned photo to the full item-by-item receipt — hands
@@ -510,7 +716,8 @@ export function useAssistant(): UseAssistant {
   const submit = useCallback(
     async (textOverride?: string) => {
       const value = (textOverride ?? text).trim();
-      if (value === '') return;
+      const images = pendingImagesRef.current;
+      if (value === '' && images.length === 0) return;
       if (!enabled) {
         setErrorKey('error.disabled');
         setPhase('error');
@@ -525,17 +732,13 @@ export function useAssistant(): UseAssistant {
       localParticipantsRef.current = [];
       setPhase('thinking');
 
-      const d = dataRef.current;
-      const pack = buildAssistantContext({
-        language: i18n.language,
-        baseCurrency: d.trip?.baseCurrency ?? 'EUR',
-        place: d.settings?.locationCaptureEnabled ? d.settings.currentPlace ?? null : null,
-        participants: mergeParticipants(d.participants, localParticipantsRef.current),
-        wallets: d.wallets,
-        privateNames: d.settings?.aiQuickEntryPrivateNames ?? false,
-      });
+      // DEC-408 (G7): pasted images → OCR-then-text merged flow.
+      if (images.length > 0) {
+        await runImagesThenText(value, images);
+        return;
+      }
 
-      const outcome = await requestAssistantIntents(value, pack);
+      const outcome = await requestAssistantIntents(value, buildRouterPack());
       if (!outcome.ok) {
         if (outcome.error === 'rate_limited') enterCooldown(outcome.cooldown);
         else {
@@ -565,7 +768,7 @@ export function useAssistant(): UseAssistant {
       setNote(intent.note);
       runPlan(intent);
     },
-    [text, enabled, i18n.language, runPlan, runBatch, blockedByCooldown, enterCooldown],
+    [text, enabled, runPlan, runBatch, blockedByCooldown, enterCooldown, runImagesThenText, buildRouterPack],
   );
 
   const answerAmount = useCallback(
@@ -979,6 +1182,7 @@ export function useAssistant(): UseAssistant {
     receiptPlanRef.current = null;
     receiptImageRef.current = null;
     transcriptRef.current = '';
+    clearPendingImages();
     setText('');
     setPreview(null);
     setDraftOp(null);
@@ -990,7 +1194,7 @@ export function useAssistant(): UseAssistant {
     setVoiceState('off');
     setFromPhoto(false);
     setPhase('input');
-  }, []);
+  }, [clearPendingImages]);
 
   // DEC-365 (B1): release the mic if the consumer unmounts mid-listen — `cancel`
   // aborts the engine / stops the tracks so the OS recording indicator clears.
@@ -998,6 +1202,8 @@ export function useAssistant(): UseAssistant {
     return () => {
       voiceRef.current?.cancel();
       voiceRef.current = null;
+      // DEC-408: release any pending image object URLs on unmount.
+      for (const img of pendingImagesRef.current) URL.revokeObjectURL(img.previewUrl);
     };
   }, []);
 
@@ -1020,6 +1226,7 @@ export function useAssistant(): UseAssistant {
     enabled,
     photoEnabled,
     fromPhoto,
+    pendingImages,
     listening,
     voiceState,
     voiceAvailable,
@@ -1036,6 +1243,8 @@ export function useAssistant(): UseAssistant {
     patchBatchItem,
     openBatchItemEditor,
     openFullEditor,
+    addPendingImages,
+    removePendingImage,
     scanReceiptPhoto,
     openReceiptItems,
     dismissNudge,

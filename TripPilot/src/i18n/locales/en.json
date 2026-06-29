@@ -8,6 +8,7 @@
     "send": "Send",
     "voice": "Speak",
     "photo": "Photograph the receipt",
+    "remove_image": "Remove image",
     "thinking": "Understanding…",
     "transcribing": "Transcribing…",
     "voice_unclear": "Didn't catch that. Try again, closer to the mic.",
