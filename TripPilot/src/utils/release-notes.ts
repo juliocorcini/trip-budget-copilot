@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.3-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'A IA agora escreve uma descrição de verdade do gasto (ex.: "almoço no Bar do Zé"), tirada do que você disse — nunca mais joga a categoria ("Outros") no lugar do nome.',
+        'Quando não há uma descrição clara, ela usa o nome do lugar; só cai num rótulo neutro quando não há nada — a categoria nunca vira o título.',
+      ],
+      en: [
+        'The AI now writes a real description of the spend (e.g. "lunch at Joe\u2019s Bar"), taken from what you said — it no longer drops the category ("Other") in place of the name.',
+        'When there is no clear description, it uses the place name; it only falls back to a neutral label when there is nothing — the category never becomes the title.',
+      ],
+      es: [
+        'La IA ahora escribe una descripción real del gasto (ej.: "almuerzo en el Bar de Pepe"), tomada de lo que dijiste — ya no pone la categoría ("Otros") en lugar del nombre.',
+        'Cuando no hay una descripción clara, usa el nombre del lugar; solo recurre a una etiqueta neutra cuando no hay nada — la categoría nunca se vuelve el título.',
+      ],
+    },
+  },
+  {
     version: '1.9.2-rc',
     date: '2026-06-29',
     items: {

@@ -1,6 +1,7 @@
 {
   "assistant": {
     "title": "Entrada rápida",
+    "expense_fallback": "Gasto",
     "fab_title": "Entrada por IA",
     "fab_desc": "Fale, escreva ou fotografe — a IA lança",
     "placeholder": "Ex: o Bruno me pagou uma cerveja de 2 euros",

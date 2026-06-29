@@ -170,6 +170,21 @@ function twoLetter(language: string): string {
 }
 
 /**
+ * DEC-403 (G4): the FACTUAL fallback for an AI expense the model left without a
+ * description. Prefer the resolved place name, then a neutral label — but NEVER
+ * the category (which used to surface "Outros"/"Restaurant" as the description).
+ * Pure; the worker prompt already makes the model write a real description, so
+ * this only runs on the rare empty case.
+ */
+export function fallbackExpenseDescription(
+  op: Extract<ExecOp, { kind: 'expense' }>,
+  t: (key: string) => string,
+): string {
+  const place = op.place?.label.trim();
+  return place && place.length > 0 ? place : t('assistant.expense_fallback');
+}
+
+/**
  * DEC-389 (G5): fire-and-forget background stamp for an AI expense that captured a
  * place NAME but no coordinates — forward-geocodes the name to the real venue
  * (GPS fallback), exactly like the manual QuickAdd save. Gated on opt-in location
@@ -702,9 +717,10 @@ export function useAssistant(): UseAssistant {
     setErrorKey(null);
     const owner = d.participants.find((p) => p.isOwner);
     let op: ExecOp = baseOp;
-    // Localized fallback for an expense the user didn't describe ("uma cerveja").
+    // DEC-403: factual fallback for an expense with no description — place name,
+    // then a neutral label; never the category.
     if (op.kind === 'expense' && op.description.trim() === '') {
-      op = { ...op, description: t(`categories.${op.category}`) };
+      op = { ...op, description: fallbackExpenseDescription(op, t) };
     }
 
     try {
@@ -768,7 +784,7 @@ export function useAssistant(): UseAssistant {
     for (const { op } of ops) {
       let finalOp: ExecOp = op;
       if (op.kind === 'expense' && op.description.trim() === '') {
-        finalOp = { ...op, description: t(`categories.${op.category}`) };
+        finalOp = { ...op, description: fallbackExpenseDescription(op, t) };
       }
       try {
         const result = await executeOp(finalOp, dispatchCtx);

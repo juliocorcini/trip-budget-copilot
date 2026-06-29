@@ -1,6 +1,7 @@
 {
   "assistant": {
     "title": "Quick entry",
+    "expense_fallback": "Expense",
     "fab_title": "AI entry",
     "fab_desc": "Speak, type or snap a photo — AI logs it",
     "placeholder": "e.g. Bruno bought me a beer for 2 euros",
