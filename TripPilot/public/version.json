@@ -1,8 +1,8 @@
 {
-  "version": "1.9.4-rc",
+  "version": "1.9.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.4-rc.zip",
-  "notes": "O seletor de local agora tem busca por nome: digite \"Bar do Zé\" e toque no lugar real — ele salva as coordenadas certas, não mais um texto solto."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.5-rc.zip",
+  "notes": "Mapa do gasto: ao expandir, ele agora fica fixo de verdade (não rola junto nem some atrás do botão de fechar). E o cartão flutuante não fecha mais quando você rola dentro de um campo de texto."
 }

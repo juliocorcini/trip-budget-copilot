@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.5-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'O mapa do gasto, ao expandir, agora fica fixo de verdade: não rola junto com a página nem aparece um retângulo por cima escondendo o botão de fechar.',
+        'O cartão flutuante não fecha mais sem querer quando você rola dentro de um campo de texto ou de uma lista interna.',
+      ],
+      en: [
+        'The expense map, when expanded, now stays truly fixed: it no longer scrolls with the page or shows a rectangle on top hiding the close button.',
+        'The floating card no longer closes by accident when you scroll inside a text field or an inner list.',
+      ],
+      es: [
+        'El mapa del gasto, al expandirse, ahora queda realmente fijo: ya no se desplaza con la página ni aparece un rectángulo encima tapando el botón de cerrar.',
+        'La tarjeta flotante ya no se cierra sin querer cuando desplazas dentro de un campo de texto o de una lista interna.',
+      ],
+    },
+  },
+  {
     version: '1.9.4-rc',
     date: '2026-06-29',
     items: {

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Icon } from '@/components/Icon';
 import { registerOverlayDismiss } from '@/utils/overlay-dismiss';
+import { overlayHost } from '@/utils/overlay-host';
 
 /**
  * DEC-368 (G8) — interactive map for an expense's saved point. Default export so
@@ -137,32 +139,41 @@ export function ExpenseLocationMapField({ lat, lng, label }: ExpenseLocationMapP
         </span>
       </button>
 
-      {expanded && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col"
-          role="dialog"
-          aria-modal="true"
-          aria-label={label}
-          style={{ background: 'var(--scrim)' }}
-        >
+      {/* DEC-406: portal the expanded map to the overlay host so it escapes the
+          scrolling page's transformed ancestor (`fixed` becomes viewport-fixed
+          again, not page-relative) and the inline preview maps' Leaflet panes can
+          no longer pierce it. Mirrors the BottomSheet / AttachmentViewer pattern. */}
+      {expanded &&
+        createPortal(
           <div
-            className="flex items-center justify-between gap-3 p-4"
-            style={{ paddingTop: 'var(--safe-top, 16px)' }}
+            className="fixed inset-0 z-50 flex flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-label={label}
+            style={{ background: 'var(--scrim)' }}
           >
-            <p className="text-sm font-semibold text-on-surface truncate">{label}</p>
-            <button
-              onClick={() => setExpanded(false)}
-              className="btn-press p-1 shrink-0"
-              aria-label={t('common.close')}
+            <div
+              className="flex items-center justify-between gap-3 p-4"
+              style={{ paddingTop: 'var(--safe-top, 16px)' }}
             >
-              <Icon name="close" size={26} className="text-on-surface" />
-            </button>
-          </div>
-          <div className="flex-1 min-h-0 px-3 pb-3" style={{ paddingBottom: 'var(--safe-bottom, 12px)' }}>
-            <ExpenseLocationMap lat={lat} lng={lng} label={label} interactive />
-          </div>
-        </div>
-      )}
+              <p className="text-sm font-semibold text-on-surface truncate">{label}</p>
+              <button
+                onClick={() => setExpanded(false)}
+                className="btn-press p-1 shrink-0"
+                aria-label={t('common.close')}
+              >
+                <Icon name="close" size={26} className="text-on-surface" />
+              </button>
+            </div>
+            <div
+              className="flex-1 min-h-0 px-3 pb-3"
+              style={{ paddingBottom: 'var(--safe-bottom, 12px)' }}
+            >
+              <ExpenseLocationMap lat={lat} lng={lng} label={label} interactive />
+            </div>
+          </div>,
+          overlayHost(),
+        )}
     </>
   );
 }

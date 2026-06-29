@@ -3056,14 +3056,16 @@
 - **Desvio honesto**: a busca expõe `searchPlacesByName` (lista de N), não o `searchPlaceByName` single — o doc pedia "lista de resultados reais", então generalizei o util (aditivo) mantendo o single byte-idêntico; e as strings ficaram em `expenses.location_*` (família existente) em vez de um namespace `places.*` novo (consistência).
 
 ### DEC-406 — Mapa do gasto expandido vai por portal (fixo de verdade, sem retângulo por cima) [direto · Â-MAP-NO-TRAP]
-- **Date**: 2026-06-29 · **Status**: ⏳ PROPOSED (G6, target `1.9.5-rc`)
-- **Bug (lido no código)**: `ExpenseLocationMap.tsx › ExpenseLocationMapField` renderiza o overlay `fixed inset-0 z-50` **sem portal** → dentro de um ancestral transformado (página rolável) o `fixed` vira relativo ao ancestral (rola junto, esconde header/X), e os panes do Leaflet inline (z 200-700) furam o `z-50`.
+- **Date**: 2026-06-29 · **Status**: ✅ APPROVED — shipped `1.9.5-rc` (G6)
+- **Shipped (G6 · `1.9.5-rc`)**: novo `utils/overlay-host.ts › overlayHost()` (extraído 1:1 do `BottomSheet`, que agora o importa — fonte única). `ExpenseLocationMapField`: o overlay expandido agora é `createPortal(<overlay>, overlayHost())` → escapa o ancestral transformado (`.route-view`) e fica num stacking-context de topo, então `fixed` volta a ser do viewport e os panes Leaflet dos previews inline não furam mais. Preview segue `pointer-events-none`. Espelha `BottomSheet`/`AttachmentViewer`. Zero math.
+- **Bug (lido no código)**: `ExpenseLocationMap.tsx › ExpenseLocationMapField` renderizava o overlay `fixed inset-0 z-50` **sem portal** → dentro de um ancestral transformado (página rolável) o `fixed` vira relativo ao ancestral (rola junto, esconde header/X), e os panes do Leaflet inline (z 200-700) furam o `z-50`.
 - **Decision**: o overlay expandido vai por **`createPortal(overlayHost())`** (escapa o ancestral transformado → `fixed` de verdade) + z acima dos panes do Leaflet; o preview segue `pointer-events-none`. Espelha `BottomSheet`/`AttachmentViewer`. Só UI/CSS, zero math.
 - **Rationale**: Julio: "abro o mapa e ele rola junto, esconde o X; e o retângulo aparece por cima." DEC-398 desligou a interação inline; faltou portar o overlay.
 - **Alternatives**: hackear z-index sem portal (rejeitado — não conserta o `fixed` no ancestral transformado).
 
 ### DEC-407 — Card flutuante não fecha ao rolar texto/scrollable aninhado [direto]
-- **Date**: 2026-06-29 · **Status**: ⏳ PROPOSED (G6, target `1.9.5-rc`)
+- **Date**: 2026-06-29 · **Status**: ✅ APPROVED — shipped `1.9.5-rc` (G6)
+- **Shipped (G6 · `1.9.5-rc`)**: `decideBodyDrag(dy,dx,atTop,nestedCanScroll=false)` ganha o 4º param → `abort` quando um scrollable aninhado ainda pode rolar (3-arg calls antigas seguem via default). `isNoSheetDragTarget(target,boundary)` (walk detectando `textarea/input/select/[contenteditable]:not([false])/[data-no-sheet-drag]`) + `nearestNestedScrollable(target,boundary)` (acha o scrollable aninhado). `onBodyTouchStart` faz bail total nas no-drag zones e guarda o `scrollEl`; `onBodyTouchMove` calcula `nestedCanScroll = scrollEl && scrollEl.scrollTop>0`. +7 testes. Puro/testável; zero math.
 - **Bug (lido no código)**: `BottomSheet.tsx › onBodyTouchStart` (L122-131) só checa `bodyRef.scrollTop`. Um textarea/scrollable aninhado rola internamente (bodyRef em scrollTop 0), então `decideBodyDrag` retorna `drag` e começa a fechar o sheet.
 - **Decision**: `onBodyTouchStart`/`onBodyTouchMove`/`decideBodyDrag` ganham guard: **bail** (não inicia drag) quando o toque nasce dentro de `textarea`/`input`/`[contenteditable]`/`[data-no-sheet-drag]` ou de um scrollable aninhado que ainda pode rolar na direção do gesto. Puro/testável.
 - **Rationale**: Julio: "rolo dentro da caixa de texto e o menu começa a fechar." Só UI/gesto.

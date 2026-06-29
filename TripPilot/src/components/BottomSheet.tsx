@@ -2,28 +2,76 @@ import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { registerOverlayDismiss } from '@/utils/overlay-dismiss';
+import { overlayHost } from '@/utils/overlay-host';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
-
-/** DEC-195: portal target — the overlay host inside #root (keeps cap-native zoom),
- *  falling back to <body> if it isn't mounted yet (tests, very early render). */
-function overlayHost(): HTMLElement {
-  return document.getElementById('app-overlay-root') ?? document.body;
-}
 
 // FIELD R2 item 3 (F3): dragging the grab handle down past this distance (or a
 // quick downward flick) dismisses the sheet; below it, the sheet snaps back.
 const CLOSE_DISTANCE_PX = 90;
 
+// DEC-407: elements that own the touch outright — a drag-to-dismiss must never
+// start inside them. Text fields scroll/select internally; `[data-no-sheet-drag]`
+// is the explicit opt-out for any custom scroller the heuristic can't detect.
+const NO_SHEET_DRAG_SELECTOR =
+  'textarea, input, select, [contenteditable]:not([contenteditable="false"]), [data-no-sheet-drag]';
+
+/**
+ * DEC-407: true when the touch began inside a text field / explicit opt-out within
+ * the sheet body — the body drag must bow out entirely so scrolling or selecting
+ * text never starts closing the sheet. Walks up to (and including) the boundary.
+ */
+export function isNoSheetDragTarget(
+  target: EventTarget | null,
+  boundary: HTMLElement | null,
+): boolean {
+  let el = target instanceof Element ? target : null;
+  while (el) {
+    if (el instanceof HTMLElement && el.matches(NO_SHEET_DRAG_SELECTOR)) return true;
+    if (el === boundary) break;
+    el = el.parentElement;
+  }
+  return false;
+}
+
+/**
+ * DEC-407: the nearest scrollable ancestor between the touch target and the sheet
+ * body (exclusive) that has room to scroll vertically — a nested list/textarea
+ * that should consume the gesture instead of dragging the sheet.
+ */
+export function nearestNestedScrollable(
+  target: EventTarget | null,
+  boundary: HTMLElement | null,
+): HTMLElement | null {
+  let el = target instanceof HTMLElement ? target : null;
+  while (el && el !== boundary) {
+    if (el.scrollHeight > el.clientHeight) {
+      const overflowY = getComputedStyle(el).overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 /**
  * D-BUG-12: decide whether a touch that began INSIDE the sheet body should turn
  * into a drag-to-dismiss ("pull the content down from the top to close"), keep
  * waiting, or yield to the native scroll. Pure so the gesture rule is testable.
- *  - `abort`   → not a close gesture (moving up, horizontal, or list not at top)
- *                → let the body scroll normally.
+ *  - `abort`   → not a close gesture (moving up, horizontal, list not at top, or
+ *                a nested scrollable still owns the gesture) → let it scroll.
  *  - `pending` → too small to tell yet; keep watching.
  *  - `drag`    → a clear downward, vertical pull while the body is at the top.
+ *
+ * DEC-407: `nestedCanScroll` is true when a nested scrollable under the finger can
+ * still absorb a downward pull (it is not at its own top); the sheet then yields.
  */
-export function decideBodyDrag(dy: number, dx: number, atTop: boolean): 'pending' | 'abort' | 'drag' {
+export function decideBodyDrag(
+  dy: number,
+  dx: number,
+  atTop: boolean,
+  nestedCanScroll = false,
+): 'pending' | 'abort' | 'drag' {
+  if (nestedCanScroll) return 'abort';
   if (dy < -2) return 'abort';
   if (Math.abs(dx) > Math.abs(dy)) return 'abort';
   if (dy <= 6) return 'pending';
@@ -53,7 +101,14 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
   const [dragClosing, setDragClosing] = useState(false);
   // D-BUG-12: a drag can also begin in the body when the content is at the top.
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  const bodyDrag = useRef<{ startY: number; startX: number; active: boolean } | null>(null);
+  // DEC-407: `scrollEl` is the nested scrollable under the finger (if any) so the
+  // move handler can yield the gesture while it still has room to scroll.
+  const bodyDrag = useRef<{
+    startY: number;
+    startX: number;
+    active: boolean;
+    scrollEl: HTMLElement | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -123,11 +178,23 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
     if (dragStartY.current !== null) return;
     const touch = e.touches[0];
     if (e.touches.length !== 1 || !touch) return;
+    // DEC-407: a touch that begins inside a text field / opt-out never drags the
+    // sheet — typing, selecting or scrolling there must not start a dismiss.
+    if (isNoSheetDragTarget(e.target, bodyRef.current)) {
+      bodyDrag.current = null;
+      return;
+    }
     if ((bodyRef.current?.scrollTop ?? 0) > 0) {
       bodyDrag.current = null;
       return;
     }
-    bodyDrag.current = { startY: touch.clientY, startX: touch.clientX, active: false };
+    bodyDrag.current = {
+      startY: touch.clientY,
+      startX: touch.clientX,
+      active: false,
+      // DEC-407: remember a nested scroller so the move handler can yield to it.
+      scrollEl: nearestNestedScrollable(e.target, bodyRef.current),
+    };
   };
 
   const onBodyTouchMove = (e: TouchEvent) => {
@@ -138,7 +205,10 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
     const dx = touch.clientX - drag.startX;
     if (!drag.active) {
       const atTop = (bodyRef.current?.scrollTop ?? 0) <= 0;
-      const decision = decideBodyDrag(dy, dx, atTop);
+      // DEC-407: a nested scrollable that isn't at its own top still owns a
+      // downward pull — yield the gesture instead of dragging the sheet.
+      const nestedCanScroll = drag.scrollEl !== null && drag.scrollEl.scrollTop > 0;
+      const decision = decideBodyDrag(dy, dx, atTop, nestedCanScroll);
       if (decision === 'abort') {
         bodyDrag.current = null;
         return;
