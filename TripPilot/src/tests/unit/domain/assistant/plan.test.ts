@@ -548,6 +548,90 @@ describe('buildActionPlan — other actions', () => {
   });
 });
 
+describe('buildActionPlan — plan_event (DEC-410, G8)', () => {
+  // now = 2026-07-10; "future" = after today, "now" = today/past.
+  it('event with a stated reserve + future date → track-and-reserve, NOT started yet', () => {
+    const r = buildActionPlan(
+      mkIntent({ action: 'plan_event', description: 'show do Coldplay', amount: 100, currency: 'EUR', date: '2026-07-18' }),
+      mkCtx(),
+    );
+    if (r.status !== 'ready' || r.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = r.plan;
+    if (op.kind !== 'event') return;
+    expect(op.name).toBe('show do Coldplay');
+    expect(op.reservedCents).toBe(10000);
+    expect(op.dateIso.slice(0, 10)).toBe('2026-07-18');
+    expect(op.startNow).toBe(false); // future → just planned
+    expect(op.phaseId).toBe('ph-1');
+    expect(op.budgetPoolId).toBe('pool-1');
+    expect(preview.op).toBe('event');
+    expect(preview.itemName).toBe('show do Coldplay');
+    expect(preview.amountCents).toBe(10000);
+    expect(preview.eventStartsNow).toBe(false);
+  });
+
+  it('event with no reserve and no date → track-only, starts now (it is happening)', () => {
+    const r = buildActionPlan(mkIntent({ action: 'plan_event', description: 'jantar de aniversário' }), mkCtx());
+    if (r.status !== 'ready' || r.plan.type !== 'execute') throw new Error('expected execute');
+    const { op, preview } = r.plan;
+    if (op.kind !== 'event') return;
+    expect(op.reservedCents).toBeNull(); // track-only
+    expect(op.startNow).toBe(true); // undated → now
+    expect(op.dateIso.slice(0, 10)).toBe('2026-07-10');
+    expect(preview.amountCents).toBeUndefined();
+    expect(preview.eventStartsNow).toBe(true);
+  });
+
+  it("today's date starts the event now; a past date does too (<= today)", () => {
+    const today = buildActionPlan(
+      mkIntent({ action: 'plan_event', description: 'feira', date: '2026-07-10' }),
+      mkCtx(),
+    );
+    const past = buildActionPlan(
+      mkIntent({ action: 'plan_event', description: 'feira', date: '2026-07-01' }),
+      mkCtx(),
+    );
+    for (const r of [today, past]) {
+      if (r.status !== 'ready' || r.plan.type !== 'execute') throw new Error('expected execute');
+      if (r.plan.op.kind !== 'event') return;
+      expect(r.plan.op.startNow).toBe(true);
+    }
+  });
+
+  it('falls back to the event NAME from itemName when description is absent', () => {
+    const r = buildActionPlan(
+      mkIntent({ action: 'plan_event', itemName: 'Museu do Prado', date: '2026-07-20' }),
+      mkCtx(),
+    );
+    if (r.status !== 'ready' || r.plan.type !== 'execute') throw new Error('expected execute');
+    if (r.plan.op.kind !== 'event') return;
+    expect(r.plan.op.name).toBe('Museu do Prado');
+  });
+
+  it('a zero/negative reserve is treated as track-only (never a 0 reserve)', () => {
+    const r = buildActionPlan(
+      mkIntent({ action: 'plan_event', description: 'x', amount: 0, date: '2026-07-20' }),
+      mkCtx(),
+    );
+    if (r.status !== 'ready' || r.plan.type !== 'execute') throw new Error('expected execute');
+    if (r.plan.op.kind !== 'event') return;
+    expect(r.plan.op.reservedCents).toBeNull();
+  });
+
+  it('with no name to anchor it, routes to the manual planner door (never a nameless event)', () => {
+    const r = buildActionPlan(mkIntent({ action: 'plan_event', amount: 50 }), mkCtx());
+    expect(r.status === 'ready' && r.plan.type === 'navigate' && r.plan.to).toBe('/viagem?plan=1');
+  });
+
+  it('an event without a fund is unsupported (never block, asks for a pool)', () => {
+    const r = buildActionPlan(
+      mkIntent({ action: 'plan_event', description: 'show' }),
+      mkCtx({ defaultPoolId: null }),
+    );
+    expect(r).toEqual({ status: 'unsupported', messageKey: 'no_pool' });
+  });
+});
+
 describe('ownerPersonalCostCents — the budget/anomaly figure (device-test 2026-06-20)', () => {
   const expenseBase: Extract<ExecOp, { kind: 'expense' }> = {
     kind: 'expense',

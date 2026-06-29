@@ -8,7 +8,7 @@ import { appSettingsRepository } from '@/data/repositories';
 import { useAppData } from '@/hooks/useAppData';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { formatMoney, toCents, evaluateAmountExpression } from '@/domain/money';
-import { resolveActivePhase, toSafeIsoDate } from '@/domain/dates';
+import { resolveActivePhase, toSafeIsoDate, formatDate } from '@/domain/dates';
 import { isVoiceBusy, voiceStateLabelKey, type VoiceState } from '@/domain/voice/voice-state';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
 import { EXPENSE_CATEGORY_KEYS, ownerPersonalCostCents } from '@/domain/assistant';
@@ -30,6 +30,7 @@ import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { CurrentPlace } from '@/domain/types/common';
 
 type ExpenseOp = Extract<ExecOp, { kind: 'expense' }>;
+type EventOp = Extract<ExecOp, { kind: 'event' }>;
 
 /** Everything the in-sheet editor needs to render parity pickers (DEC-246). */
 interface EditContext {
@@ -242,7 +243,18 @@ export function AssistantSheet() {
               />
             )}
 
-            {assistant.phase === 'preview' && assistant.preview && (
+            {assistant.phase === 'preview' && assistant.preview && assistant.preview.op === 'event' && (
+              <EventPreviewArea
+                draftOp={assistant.draftOp}
+                baseCurrency={baseCurrency}
+                money={money}
+                patchEventDraft={assistant.patchEventDraft}
+                onConfirm={() => void assistant.confirm()}
+                onCancel={assistant.cancelClarification}
+              />
+            )}
+
+            {assistant.phase === 'preview' && assistant.preview && assistant.preview.op !== 'event' && (
               <PreviewArea
                 preview={assistant.preview}
                 draftOp={assistant.draftOp}
@@ -577,6 +589,7 @@ const PREVIEW_ICON: Record<string, string> = {
   withdraw: 'local_atm',
   settle: 'handshake',
   plan_purchase: 'edit_calendar',
+  event: 'celebration',
   navigate: 'arrow_forward',
 };
 
@@ -776,6 +789,194 @@ function PreviewArea(props: {
           {t('assistant.action.edit')}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * DEC-410 (G8): the preview of an EVENT the AI planned from natural language
+ * ("vou no show sábado, separo €100"). One-tap confirm creates it; a `tune`
+ * toggle reveals the in-sheet editor (name/date/reserve/start) so the user
+ * adjusts before committing — the same progressive-disclosure parity expenses
+ * have. The "starts now" cue is a chip; the reserve is optional (track-only).
+ */
+function EventPreviewArea(props: {
+  draftOp: ExecOp | null;
+  baseCurrency: string;
+  money: (cents?: number, currency?: string) => string;
+  patchEventDraft: (patch: Partial<EventOp>) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const [showEdit, setShowEdit] = useState(false);
+  const eventOp = props.draftOp && props.draftOp.kind === 'event' ? props.draftOp : null;
+  if (!eventOp) return null;
+
+  // Live headline reflects in-sheet edits (name/reserve/start), so the summary
+  // the user confirms always matches the draft they just adjusted.
+  const live: AssistantPreview = {
+    op: 'event',
+    itemName: eventOp.name,
+    amountCents: eventOp.reservedCents ?? undefined,
+    currency: props.baseCurrency,
+    dateIso: eventOp.dateIso,
+    eventStartsNow: eventOp.startNow,
+  };
+  const headline = composePreview(live, t as never, props.money);
+  const canConfirm = eventOp.name.trim() !== '';
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div
+        className="rounded-2xl p-4 flex items-start gap-3"
+        style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+      >
+        <div
+          className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ background: 'var(--ai-bg)' }}
+        >
+          <Icon name="celebration" size={22} className="text-[var(--ai-2)]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-bold text-on-surface leading-snug">{headline}</p>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            <Chip>
+              <Icon name="event" size={11} className="text-on-surface-faint" /> {formatDate(eventOp.dateIso)}
+            </Chip>
+            {eventOp.reservedCents != null ? (
+              <Chip>
+                <Icon name="savings" size={11} className="text-on-surface-faint" />{' '}
+                {props.money(eventOp.reservedCents, props.baseCurrency)}
+              </Chip>
+            ) : (
+              <Chip>{t('assistant.event.track_only')}</Chip>
+            )}
+            {eventOp.startNow && (
+              <Chip>
+                <Icon name="bolt" size={11} className="text-on-surface-faint" /> {t('assistant.event.starts_now')}
+              </Chip>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowEdit((v) => !v)}
+        aria-expanded={showEdit}
+        className="btn-press rounded-2xl px-4 py-3 flex items-center gap-3 text-left"
+        style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+      >
+        <Icon name="tune" size={18} className="text-on-surface-dim shrink-0" />
+        <span className="flex-1 text-[14px] font-semibold text-on-surface">{t('assistant.edit.toggle')}</span>
+        <Icon
+          name="expand_more"
+          size={20}
+          className="text-on-surface-faint shrink-0 transition-transform"
+          style={showEdit ? { transform: 'rotate(180deg)' } : undefined}
+        />
+      </button>
+      {showEdit && (
+        <EventEditor op={eventOp} baseCurrency={props.baseCurrency} patchEventDraft={props.patchEventDraft} />
+      )}
+
+      <button
+        onClick={props.onConfirm}
+        disabled={!canConfirm}
+        className="btn-press w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-50"
+        style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}
+      >
+        <Icon name="check" size={18} />
+        {t('assistant.action.confirm')}
+      </button>
+
+      <button
+        onClick={props.onCancel}
+        className="btn-press w-full h-11 rounded-2xl font-semibold text-[14px] text-on-surface-dim"
+        style={{ background: 'var(--surface-high)' }}
+      >
+        {t('assistant.action.edit')}
+      </button>
+    </div>
+  );
+}
+
+/** DEC-410: in-sheet editor for the drafted event (mirrors ExpenseEditor). */
+function EventEditor(props: {
+  op: EventOp;
+  baseCurrency: string;
+  patchEventDraft: (patch: Partial<EventOp>) => void;
+}) {
+  const { t } = useTranslation();
+  const { op, patchEventDraft } = props;
+  const [reserveText, setReserveText] = useState(() =>
+    op.reservedCents != null ? String(op.reservedCents / 100) : '',
+  );
+
+  const onReserve = (value: string) => {
+    setReserveText(value);
+    if (value.trim() === '') {
+      patchEventDraft({ reservedCents: null });
+      return;
+    }
+    const parsed = evaluateAmountExpression(value);
+    if (parsed !== null && parsed >= 0) patchEventDraft({ reservedCents: toCents(parsed) });
+  };
+
+  return (
+    <div className="flex flex-col gap-3 max-h-[46vh] overflow-y-auto pr-0.5">
+      <Field label={t('assistant.event.name')}>
+        <input
+          type="text"
+          value={op.name}
+          onChange={(e) => patchEventDraft({ name: e.target.value })}
+          className="bg-transparent text-[14px] text-on-surface outline-none w-full"
+        />
+      </Field>
+
+      <Field label={t('assistant.event.date')}>
+        <input
+          type="date"
+          value={op.dateIso.slice(0, 10)}
+          onChange={(e) => {
+            if (e.target.value) patchEventDraft({ dateIso: toSafeIsoDate(e.target.value) });
+          }}
+          aria-label={t('assistant.event.date')}
+          className="bg-transparent text-[14px] text-on-surface outline-none w-full"
+        />
+      </Field>
+
+      <Field label={t('assistant.event.reserve')}>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-on-surface-dim text-[13px]">{props.baseCurrency}</span>
+          <input
+            inputMode="decimal"
+            value={reserveText}
+            onChange={(e) => onReserve(e.target.value)}
+            placeholder={t('assistant.event.reserve_optional')}
+            className="bg-transparent text-[18px] font-bold text-on-surface tabular outline-none w-full"
+          />
+        </div>
+      </Field>
+
+      <Field label={t('assistant.event.start')}>
+        <button
+          type="button"
+          onClick={() => patchEventDraft({ startNow: !op.startNow })}
+          className="btn-press w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2"
+          style={{ background: 'var(--surface-high)' }}
+        >
+          <span className="text-[13px] text-on-surface-dim">
+            {t(op.startNow ? 'assistant.event.start_now' : 'assistant.event.start_later')}
+          </span>
+          <Icon
+            name={op.startNow ? 'toggle_on' : 'toggle_off'}
+            size={22}
+            className={op.startNow ? 'text-primary' : 'text-on-surface-faint'}
+          />
+        </button>
+      </Field>
     </div>
   );
 }

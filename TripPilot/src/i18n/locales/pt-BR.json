@@ -29,7 +29,9 @@
       "settle_i_owe": "Acertar {{amount}} que você deve a {{person}}",
       "settle_owes_me": "Acertar {{amount}} que {{person}} te deve",
       "settle_full": "tudo",
-      "plan_purchase": "Planejar {{item}} (~{{amount}})"
+      "plan_purchase": "Planejar {{item}} (~{{amount}})",
+      "plan_event": "Criar evento {{name}} (reserva {{amount}})",
+      "plan_event_track": "Criar evento {{name}}"
     },
     "nav": {
       "split_bill": "Abrir divisão de conta",
@@ -63,6 +65,17 @@
       "split": "Divisão",
       "adjust_split": "Ajustar quem pagou / divisão",
       "event": "Evento"
+    },
+    "event": {
+      "name": "Nome do evento",
+      "date": "Data",
+      "reserve": "Reserva",
+      "reserve_optional": "Opcional",
+      "track_only": "Só acompanhar",
+      "starts_now": "Começa agora",
+      "start": "Início",
+      "start_now": "Começar agora",
+      "start_later": "Planejar (começa depois)"
     },
     "foreign_currency_notice": "Gasto em {{currency}} precisa de câmbio — abra a edição completa pra definir a taxa.",
     "insight": {
@@ -178,6 +191,8 @@
       "saved": "Lançamento salvo",
       "settled": "Acerto registrado",
       "planned": "Compra planejada",
+      "event_planned": "Evento planejado",
+      "event_started": "Evento iniciado",
       "batch": "{{count}} lançamentos salvos"
     },
     "error": {

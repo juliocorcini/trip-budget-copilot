@@ -7,7 +7,7 @@ import {
   calculateDebts,
   collectSplitNotifyTargets,
 } from '@/domain/splitting';
-import { createPlannedPurchase } from '@/domain/planning';
+import { createPlannedPurchase, createPlannedOccurrence } from '@/domain/planning';
 import { findParticipantByName } from '@/domain/participants';
 import { placeToTransactionFields, placesEqual } from '@/domain/location';
 import {
@@ -15,6 +15,7 @@ import {
   participantShareRepository,
   settlementRepository,
   plannedPurchaseRepository,
+  plannedOccurrenceRepository,
   participantRepository,
   appSettingsRepository,
 } from '@/data/repositories';
@@ -86,6 +87,8 @@ export async function executeOp(op: ExecOp, ctx: DispatchContext): Promise<Execu
       return executeSettle(op, ctx);
     case 'plan_purchase':
       return executePlanPurchase(op);
+    case 'event':
+      return executeEvent(op);
   }
 }
 
@@ -272,6 +275,37 @@ async function executeSettle(op: Extract<ExecOp, { kind: 'settle' }>, ctx: Dispa
     summaryKey: 'settled',
     undo: async () => {
       await settlementRepository.delete(settlement.id);
+      notifyAppDataChanged();
+    },
+  };
+}
+
+/**
+ * DEC-410 (G8): create the event the AI planned — a `PlannedOccurrence`
+ * (kind='event') via the SAME factory the manual flows use. An optional
+ * consumable reserve (DEC-385) and, when it is happening now, an immediate
+ * `startedAt` (DEC-400) so it is live on Home/guide. Undo soft-deletes it.
+ */
+async function executeEvent(op: Extract<ExecOp, { kind: 'event' }>): Promise<ExecutionResult> {
+  const base = createPlannedOccurrence({
+    tripId: op.tripId,
+    phaseId: op.phaseId,
+    budgetPoolId: op.budgetPoolId,
+    name: op.name,
+    plannedDate: op.dateIso,
+    endDate: null,
+    kind: 'event',
+    estimatedCostCents: op.reservedCents ?? 0,
+    reservedCents: op.reservedCents,
+    activityProfileId: null,
+  });
+  const occurrence = op.startNow ? { ...base, startedAt: new Date().toISOString() } : base;
+  await plannedOccurrenceRepository.create(occurrence);
+  notifyAppDataChanged();
+  return {
+    summaryKey: op.startNow ? 'event_started' : 'event_planned',
+    undo: async () => {
+      await plannedOccurrenceRepository.delete(occurrence.id);
       notifyAppDataChanged();
     },
   };

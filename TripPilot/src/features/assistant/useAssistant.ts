@@ -199,6 +199,8 @@ export interface UseAssistant {
   confirmBatch: () => Promise<void>;
   /** Edit a field of the drafted expense before confirming (in-sheet parity). */
   patchDraft: (patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => void;
+  /** DEC-410 (G8): edit the drafted event (name/date/reserve/start) before confirm. */
+  patchEventDraft: (patch: Partial<Extract<ExecOp, { kind: 'event' }>>) => void;
   /** DEC-397 (G6): enrich one batch item's fund/event/wallet in place. */
   patchBatchItem: (index: number, patch: Partial<Extract<ExecOp, { kind: 'expense' }>>) => void;
   /** DEC-397 (G6): hand one batch item to the full QuickAdd editor (pre-filled). */
@@ -847,6 +849,11 @@ export function useAssistant(): UseAssistant {
     setDraftOp((prev) => (prev && prev.kind === 'expense' ? { ...prev, ...patch } : prev));
   }, []);
 
+  // DEC-410 (G8): in-sheet edits to the drafted EVENT (name/date/reserve/start).
+  const patchEventDraft = useCallback((patch: Partial<Extract<ExecOp, { kind: 'event' }>>) => {
+    setDraftOp((prev) => (prev && prev.kind === 'event' ? { ...prev, ...patch } : prev));
+  }, []);
+
   // Escape hatch: hand the (edited) expense draft to the full QuickAdd form for
   // the heavy cases the sheet doesn't duplicate (foreign rate, custom split,
   // photos) — pre-filled, so nothing the AI captured is lost.
@@ -1240,6 +1247,7 @@ export function useAssistant(): UseAssistant {
     confirm,
     confirmBatch,
     patchDraft,
+    patchEventDraft,
     patchBatchItem,
     openBatchItemEditor,
     openFullEditor,

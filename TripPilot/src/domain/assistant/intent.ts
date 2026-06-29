@@ -25,6 +25,7 @@ export const AI_ACTIONS = [
   'withdraw', // cash withdrawal (bank → cash wallet)
   'settle_debt', // record a settlement with {person}
   'plan_purchase', // earmark a future purchase
+  'plan_event', // DEC-410: create an event ("vou no show sábado, reservo €100")
   // — open (navigate to an existing screen/flow) —
   'open_split_bill', // the full itemized bill-split flow
   'open_scan_receipt', // the receipt scanner
@@ -341,6 +342,7 @@ const EXECUTE_ACTIONS: ReadonlySet<AiAction> = new Set<AiAction>([
   'withdraw',
   'settle_debt',
   'plan_purchase',
+  'plan_event',
 ]);
 
 /** True when the action writes data (vs. merely navigating to a screen). */

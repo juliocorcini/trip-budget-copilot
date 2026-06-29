@@ -94,6 +94,22 @@ export type ExecOp =
       name: string;
       category: ExpenseCategoryKey;
       estimatedCostCents: number;
+    }
+  | {
+      // DEC-410 (G8): the AI creates an EVENT (a PlannedOccurrence kind='event').
+      // Reuses the event lifecycle (DEC-400): an optional consumable reserve
+      // (DEC-385) and, when it is happening now, an immediate `startedAt`.
+      kind: 'event';
+      tripId: string;
+      phaseId: string;
+      budgetPoolId: string;
+      name: string;
+      /** ISO day the event happens (defaults to today when unstated). */
+      dateIso: string;
+      /** Consumable reserve in base-currency cents, or null = track-only. */
+      reservedCents: number | null;
+      /** Start the lifecycle now (it is happening today), vs. just plan it. */
+      startNow: boolean;
     };
 
 /**
@@ -131,6 +147,10 @@ export interface AssistantPreview {
   walletFromName?: string;
   walletToName?: string;
   itemName?: string;
+  /** DEC-410: the ISO day a planned event happens (preview chip). */
+  dateIso?: string;
+  /** DEC-410: true when the planned event will start now (it is happening today). */
+  eventStartsNow?: boolean;
   /** For `navigate` previews: a label key under `assistant.nav.*`. */
   navKey?: string;
 }
@@ -275,6 +295,8 @@ export function buildActionPlan(intent: AiIntent, ctx: PlanContext): PlanResult 
       return planSettle(intent, ctx);
     case 'plan_purchase':
       return planPurchase(intent, ctx);
+    case 'plan_event':
+      return planEvent(intent, ctx);
     case 'open_split_bill':
       return navigate('/split/scan', 'split_bill');
     case 'open_scan_receipt':
@@ -603,6 +625,49 @@ function planPurchase(intent: AiIntent, ctx: PlanContext): PlanResult {
     amountCents: amount.amountCents,
     currency: amount.currency,
     categoryKey: category,
+  });
+}
+
+/**
+ * DEC-410 (G8): plan an EVENT the user described ("vou no show sábado, reservo
+ * €100", "criar evento jantar de aniversário"). The amount is OPTIONAL — an event
+ * with no reserve is track-only (DEC-385). The event starts its lifecycle now
+ * (DEC-400) when it is happening today/already; a future-dated one is just planned
+ * (the user starts it later). With no name to anchor it, fall back to the manual
+ * planner door rather than create a nameless event (never block).
+ */
+function planEvent(intent: AiIntent, ctx: PlanContext): PlanResult {
+  if (!ctx.phaseId) return unsupported('no_phase');
+  if (!ctx.defaultPoolId) return unsupported('no_pool');
+
+  const name = (intent.description ?? intent.itemName ?? '').trim();
+  if (name === '') return navigate('/viagem?plan=1', 'plan_expense');
+
+  const dateIso = resolveDate(intent.date, ctx.now) ?? ctx.now.toISOString();
+  const eventDay = dateIso.slice(0, 10);
+  const todayDay = ctx.now.toISOString().slice(0, 10);
+  const startNow = eventDay <= todayDay;
+
+  const amount = resolveAmount(intent.amount, intent.currency, ctx.baseCurrency);
+  const reservedCents = amount ? amount.amountCents : null;
+
+  const op: ExecOp = {
+    kind: 'event',
+    tripId: ctx.tripId,
+    phaseId: ctx.phaseId,
+    budgetPoolId: ctx.defaultPoolId,
+    name,
+    dateIso,
+    reservedCents,
+    startNow,
+  };
+  return ready(op, {
+    op: 'event',
+    itemName: name,
+    amountCents: reservedCents ?? undefined,
+    currency: amount?.currency ?? ctx.baseCurrency,
+    dateIso,
+    eventStartsNow: startNow,
   });
 }
 

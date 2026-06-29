@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.7-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'A IA agora cria eventos: diga algo como "sábado tem o show do Coldplay, separo 100 euros" e ela monta o evento já com a reserva — ou "cria um evento jantar de aniversário" para só acompanhar, sem reservar.',
+        'Antes de confirmar, dá para ajustar nome, data, reserva e se o evento começa agora — tudo no mesmo cartão, num toque.',
+      ],
+      en: [
+        'The AI now creates events: say something like "Saturday there\'s the Coldplay show, set aside 100 euros" and it builds the event with the reserve — or "create a birthday dinner event" to just track it, no reserve.',
+        'Before confirming, you can adjust the name, date, reserve and whether it starts now — all in the same card, in one tap.',
+      ],
+      es: [
+        'La IA ahora crea eventos: di algo como "el sábado está el show de Coldplay, aparto 100 euros" y arma el evento con la reserva — o "crea un evento cena de cumpleaños" para solo seguirlo, sin reservar.',
+        'Antes de confirmar, puedes ajustar el nombre, la fecha, la reserva y si empieza ahora — todo en la misma tarjeta, en un toque.',
+      ],
+    },
+  },
+  {
     version: '1.9.6-rc',
     date: '2026-06-29',
     items: {

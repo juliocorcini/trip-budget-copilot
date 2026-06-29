@@ -57,5 +57,11 @@ export function composePreview(preview: AssistantPreview, t: Translate, money: F
   }
   if (preview.op === 'plan_purchase')
     return t('assistant.preview.plan_purchase', { item: preview.itemName, amount });
+  if (preview.op === 'event') {
+    // DEC-410: "create event {name}" — with a reserve when one was stated, else a
+    // track-only event. The "starts now" cue is shown as a chip, not the headline.
+    const key = preview.amountCents ? 'assistant.preview.plan_event' : 'assistant.preview.plan_event_track';
+    return t(key, { name: preview.itemName ?? '', amount });
+  }
   return amount;
 }

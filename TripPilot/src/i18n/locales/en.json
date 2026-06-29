@@ -29,7 +29,9 @@
       "settle_i_owe": "Settle {{amount}} you owe {{person}}",
       "settle_owes_me": "Settle {{amount}} {{person}} owes you",
       "settle_full": "everything",
-      "plan_purchase": "Plan {{item}} (~{{amount}})"
+      "plan_purchase": "Plan {{item}} (~{{amount}})",
+      "plan_event": "Create event {{name}} (reserve {{amount}})",
+      "plan_event_track": "Create event {{name}}"
     },
     "nav": {
       "split_bill": "Open bill split",
@@ -63,6 +65,17 @@
       "split": "Split",
       "adjust_split": "Adjust who paid / split",
       "event": "Event"
+    },
+    "event": {
+      "name": "Event name",
+      "date": "Date",
+      "reserve": "Reserve",
+      "reserve_optional": "Optional",
+      "track_only": "Track only",
+      "starts_now": "Starts now",
+      "start": "Start",
+      "start_now": "Start now",
+      "start_later": "Plan (start later)"
     },
     "foreign_currency_notice": "A {{currency}} expense needs an exchange rate — open the full editor to set it.",
     "insight": {
@@ -178,6 +191,8 @@
       "saved": "Entry saved",
       "settled": "Settlement recorded",
       "planned": "Purchase planned",
+      "event_planned": "Event planned",
+      "event_started": "Event started",
       "batch": "{{count}} entries saved"
     },
     "error": {
