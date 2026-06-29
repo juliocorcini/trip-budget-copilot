@@ -1,8 +1,8 @@
 {
-  "version": "1.9.1-rc",
+  "version": "1.9.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.1-rc.zip",
-  "notes": "Cada evento agora tem um guia próprio: abra o evento para ver o ritmo (quanto sobra por dia), todas as despesas com o lugar, as saídas e a saída ao vivo embutida — e encerrar o evento por ali."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.2-rc.zip",
+  "notes": "O que você compartilha agora bate certo: os pagamentos já feitos aparecem como linhas e somam com as despesas até o saldo final, e cada item mostra o local (com mini-mapa) — quem recebe confere tudo, sem ver seus fundos."
 }

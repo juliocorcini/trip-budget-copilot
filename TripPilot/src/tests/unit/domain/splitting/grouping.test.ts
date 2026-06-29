@@ -76,6 +76,10 @@ const mkLine = (
   counterpartyName: 'Bruno',
   confirmationStatus: 'confirmed',
   isPaid: false,
+  placeLabel: null,
+  latitude: null,
+  longitude: null,
+  placeId: null,
 });
 
 describe('groupSharedExpenses', () => {

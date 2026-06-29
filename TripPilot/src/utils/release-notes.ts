@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.2-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'O acerto que você compartilha agora reconcilia: os pagamentos já feitos aparecem como linhas e somam com as despesas até o saldo final — aquele pagamento que ficava "invisível" agora aparece.',
+        'Cada item compartilhado mostra o local onde aconteceu, com um mini-mapa sob demanda, para quem recebe conferir.',
+        'Continua privado: quem recebe vê só o que é entre vocês (despesas + pagamentos + local), nunca seus fundos, carteiras ou pote.',
+      ],
+      en: [
+        'The settle-up you share now reconciles: payments already made show up as lines and add up with the expenses to the final balance — the payment that used to be "invisible" now appears.',
+        'Each shared item shows where it happened, with an on-demand mini-map for the recipient to check.',
+        'Still private: the recipient sees only what is between you (expenses + payments + place), never your funds, wallets or pool.',
+      ],
+      es: [
+        'El ajuste que compartes ahora reconcilia: los pagos ya hechos aparecen como líneas y suman con los gastos hasta el saldo final — el pago que quedaba "invisible" ahora aparece.',
+        'Cada ítem compartido muestra el lugar donde ocurrió, con un mini-mapa bajo demanda para que quien recibe lo verifique.',
+        'Sigue siendo privado: quien recibe ve solo lo que hay entre ustedes (gastos + pagos + lugar), nunca tus fondos, billeteras o bolsa.',
+      ],
+    },
+  },
+  {
     version: '1.9.1-rc',
     date: '2026-06-29',
     items: {

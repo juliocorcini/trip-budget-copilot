@@ -18,6 +18,30 @@ export interface MirroredLine {
   amountCents: number;
   counterpartyName: string;
   confirmationStatus: 'pending' | 'confirmed' | 'rejected';
+  /**
+   * DEC-402 (G3): where the shared expense happened, so the guest can open each
+   * item's place/detail (a map). Optional + additive; older statements read back
+   * `undefined`. Display-only — never internal owner data.
+   */
+  placeLabel?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  placeId?: string | null;
+}
+
+/**
+ * DEC-402 (G3): a payment between the owner and the guest, mirrored as a line so
+ * the received statement reconciles (items + payments = headline net). `kind` is
+ * from the GUEST's point of view: `paid` = the guest paid (credit, shown `+`),
+ * `received` = the owner paid the guest (shown `−`). Display-only, never
+ * answerable.
+ */
+export interface MirroredSettlement {
+  settlementId: string;
+  kind: 'paid' | 'received';
+  amountCents: number;
+  settledAt: string;
+  note: string | null;
 }
 
 export interface MirroredResponse {
@@ -45,6 +69,11 @@ export interface MirroredStatement extends SyncMetadata {
   currency: string;
   netCents: number;
   lines: MirroredLine[];
+  /**
+   * DEC-402 (G3): payments mirrored as lines so the statement reconciles to
+   * `netCents`. Optional + additive; older/QR statements read back `undefined`.
+   */
+  settlements?: MirroredSettlement[] | null;
   /** Confirm/reject answers queued while offline; flushed on the next session. */
   pendingResponses: MirroredResponse[];
   /**

@@ -12,6 +12,7 @@ const SHARE_C = '33333333-3333-4333-8333-333333333333';
 const TX = '44444444-4444-4444-8444-444444444444';
 const OWNER = '55555555-5555-4555-8555-555555555555';
 const PARTICIPANT = '66666666-6666-4666-8666-666666666666';
+const SETTLE = '77777777-7777-4777-8777-777777777777';
 
 function line(shareId: string, amountCents: number, status: StatementPayloadLine['confirmationStatus']): StatementPayloadLine {
   return {
@@ -91,6 +92,39 @@ describe('mirrored statement lifecycle (DEC-106 mirror side)', () => {
     expect(refreshed.id).toBe(statement.id);
     expect(refreshed.pendingResponses).toEqual([{ shareId: SHARE_A, status: 'confirmed' }]);
     expect(refreshed.lines.map((l) => l.shareId)).toEqual([SHARE_A, SHARE_C]);
+  });
+
+  it('mirrors settlements and item places so the guest reconciles items + payments (DEC-402)', () => {
+    const base = payload([line(SHARE_A, 7000, 'confirmed')], -5000);
+    const incoming: StatementPayload = {
+      ...base,
+      lines: [{ ...base.lines[0]!, placeLabel: 'Cantina', latitude: 38.7, longitude: -9.1, placeId: null }],
+      settlements: [
+        { settlementId: SETTLE, kind: 'paid', amountCents: 2000, settledAt: '2026-06-10T10:00:00.000Z', note: null },
+      ],
+    };
+
+    const statement = buildMirroredStatement(incoming, null);
+
+    expect(statement.lines[0]!.placeLabel).toBe('Cantina');
+    expect(statement.lines[0]!.latitude).toBe(38.7);
+    expect(statement.settlements).toHaveLength(1);
+    expect(statement.settlements![0]!.kind).toBe('paid');
+
+    // RECONCILES: −7000 confirmed items + 2000 payment = −5000 = the headline net.
+    const lineSum = statement.lines
+      .filter((l) => l.confirmationStatus === 'confirmed')
+      .reduce((sum, l) => sum + (l.kind === 'owes' ? -l.amountCents : l.amountCents), 0);
+    const settleSum = statement.settlements!.reduce(
+      (sum, s) => sum + (s.kind === 'paid' ? s.amountCents : -s.amountCents),
+      0,
+    );
+    expect(lineSum + settleSum).toBe(statement.netCents);
+  });
+
+  it('reads back null settlements for an older payload without the field', () => {
+    const statement = buildMirroredStatement(payload([line(SHARE_A, 1250, 'pending')], -1250), null);
+    expect(statement.settlements).toBeNull();
   });
 
   it('clears only acked responses after a flush', () => {

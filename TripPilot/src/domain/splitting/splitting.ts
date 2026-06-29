@@ -651,6 +651,15 @@ export interface StatementLine {
   confirmationStatus: ParticipantShare['confirmationStatus'];
   /** C11/DEC-304: whether this share was marked paid — feeds the lifecycle stage. */
   isPaid: boolean;
+  /**
+   * DEC-402 (G3): where the expense happened — copied off the transaction (like
+   * description/category) so a shared statement can show each item's place/detail.
+   * Display-only; the math (amounts, net) is unchanged.
+   */
+  placeLabel: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  placeId: string | null;
 }
 
 export interface ParticipantStatement {
@@ -704,6 +713,11 @@ export function buildParticipantStatement(
         amountCents: share.shareAmountCents,
         confirmationStatus: share.confirmationStatus,
         isPaid: share.isPaid,
+        // DEC-402 (G3): expense location rides with the line (display-only).
+        placeLabel: tx.placeLabel,
+        latitude: tx.latitude,
+        longitude: tx.longitude,
+        placeId: tx.placeId,
       };
       if (share.participantId === participantId) {
         lines.push({

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MirroredStatement } from '@/domain/types/mirrored-statement';
+import type { MirroredStatement, MirroredLine } from '@/domain/types/mirrored-statement';
 import { mirroredStatementRepository } from '@/data/repositories';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync';
 import {
@@ -15,6 +15,15 @@ import { findSubcategory } from '@/domain/outing';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
+
+// DEC-402 (G3): the per-item place reuses the lazy, code-split Leaflet field
+// (DEC-398). It mounts only when the guest taps "ver local", so a statement with
+// many items never spins up dozens of maps.
+const ExpenseLocationMapField = lazy(() =>
+  import('@/features/location/ExpenseLocationMap').then((m) => ({
+    default: m.ExpenseLocationMapField,
+  })),
+);
 
 /**
  * DEC-106 mirror side (P2P-13): read-only statements received from paired
@@ -284,6 +293,8 @@ export function MirroredStatementsSection() {
                       {t(`shared.status_${line.confirmationStatus}` as never)}
                     </span>
                   </div>
+                  {/* DEC-402 — each item's place/detail (map on demand). */}
+                  <MirroredLinePlace line={line} />
                   {line.confirmationStatus === 'pending' && (
                     <div className="flex gap-2 mt-2">
                       <button
@@ -303,6 +314,39 @@ export function MirroredStatementsSection() {
                 </div>
               ))}
             </div>
+
+            {/* DEC-402 — payments mirrored as lines so items + payments reconcile
+                to the headline net (the €20 paid is no longer invisible). */}
+            {target.settlements && target.settlements.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
+                  {t('shared.settlements_done')}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {target.settlements.map((s) => (
+                    <div
+                      key={s.settlementId}
+                      className="bg-surface-high rounded-xl px-3 py-2 flex items-center justify-between gap-2"
+                    >
+                      <p className="text-[10px] text-on-surface-faint truncate">
+                        {formatShortDate(s.settledAt)} ·{' '}
+                        {s.kind === 'paid'
+                          ? t('shared.statement_you_paid')
+                          : t('shared.statement_paid_you', { name: target.peerName })}
+                      </p>
+                      <p
+                        className={`text-xs font-bold tabular shrink-0 ${
+                          s.kind === 'paid' ? 'text-success' : 'text-error'
+                        }`}
+                      >
+                        {s.kind === 'paid' ? '+' : '−'}
+                        {formatMoney(s.amountCents, target.currency)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {target.pendingResponses.length > 0 && (
               <p className="text-[10px] text-on-surface-faint">{t('sync.responses_queued')}</p>
@@ -388,6 +432,51 @@ export function MirroredStatementsSection() {
           </div>
         )}
       </BottomSheet>
+    </div>
+  );
+}
+
+/**
+ * DEC-402 (G3): one item's place inside a received statement — the label, and (when
+ * the owner shared coordinates) a "ver local" toggle that lazy-mounts the Leaflet
+ * mini-map only on demand. Renders nothing when the item has no place at all.
+ */
+function MirroredLinePlace({ line }: { line: MirroredLine }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const hasCoords = line.latitude != null && line.longitude != null;
+  const label = line.placeLabel ?? null;
+  if (!hasCoords && !label) return null;
+
+  return (
+    <div className="mt-1.5">
+      {hasCoords ? (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary btn-press"
+        >
+          <Icon name={open ? 'expand_less' : 'place'} size={12} className="text-primary" />
+          {label ?? t('shared.statement_view_place')}
+        </button>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-[10px] text-on-surface-faint">
+          <Icon name="place" size={12} className="text-on-surface-faint" />
+          {label}
+        </span>
+      )}
+      {hasCoords && open && (
+        <div className="mt-1.5 h-40">
+          <Suspense
+            fallback={<div className="w-full h-40 rounded-xl bg-surface-container animate-pulse" />}
+          >
+            <ExpenseLocationMapField
+              lat={line.latitude as number}
+              lng={line.longitude as number}
+              label={label ?? t('expenses.location_label')}
+            />
+          </Suspense>
+        </div>
+      )}
     </div>
   );
 }

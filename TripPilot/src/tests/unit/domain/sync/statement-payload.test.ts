@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSyncMetadata } from '@/utils/entity-factory';
-import { buildParticipantStatement } from '@/domain/splitting';
+import { buildParticipantStatement, createSettlement } from '@/domain/splitting';
 import {
   buildStatementPayload,
   buildParticipantSharePayload,
@@ -237,6 +237,84 @@ describe('buildParticipantSharePayload (DEC-399 — ego-centric share link)', ()
 
     // Round-trips through the Zod schema the mirror validates (thirdParty included).
     expect(parseStatementPayload(JSON.parse(JSON.stringify(payload)))).toEqual(payload);
+  });
+});
+
+describe('buildParticipantSharePayload reconciles settlements + place (DEC-402 · G3)', () => {
+  const ownerActor = { actorId: createSyncMetadata().sourceDeviceId, displayName: 'Julio' };
+
+  it('carries the payment as a line so items + payments add up to the net, and each item keeps its place', () => {
+    const julio = mkParticipant('Julio', true);
+    const debora = mkParticipant('Debora', false);
+
+    // Julio paid two confirmed expenses Debora owes half of: €50 + €20 = €70 owed.
+    const dinner = {
+      ...mkSharedExpense('Jantar', 10000, julio.id, '2026-06-10'),
+      placeLabel: 'Cantina',
+      latitude: 38.7,
+      longitude: -9.1,
+      placeId: 'osm:1',
+    };
+    const taxi = mkSharedExpense('Taxi', 4000, julio.id, '2026-06-09');
+    const shares = [
+      mkShare(dinner.id, julio.id, 5000, 'confirmed'),
+      mkShare(dinner.id, debora.id, 5000, 'confirmed'),
+      mkShare(taxi.id, julio.id, 2000, 'confirmed'),
+      mkShare(taxi.id, debora.id, 2000, 'confirmed'),
+    ];
+    // Debora already paid Julio €20 — the payment that used to be invisible.
+    const settlement = createSettlement(TRIP_ID, debora.id, julio.id, 2000, 'EUR');
+
+    const payload = buildParticipantSharePayload({
+      owner: ownerActor,
+      ownerParticipantId: julio.id,
+      participant: debora,
+      transactions: [dinner, taxi],
+      shares,
+      participants: [julio, debora],
+      settlements: [settlement],
+      currency: 'EUR',
+    });
+
+    // Two owes-lines and one payment line: from Debora's POV she PAID €20.
+    expect(payload.lines).toHaveLength(2);
+    expect(payload.settlements).toBeDefined();
+    expect(payload.settlements).toHaveLength(1);
+    expect(payload.settlements![0]!.kind).toBe('paid');
+    expect(payload.settlements![0]!.amountCents).toBe(2000);
+
+    // RECONCILES: −(50+20) confirmed items + (+20) payment = −50 = the net.
+    const lineSum = payload.lines
+      .filter((l) => l.confirmationStatus === 'confirmed')
+      .reduce((sum, l) => sum + (l.kind === 'owes' ? -l.amountCents : l.amountCents), 0);
+    const settleSum = payload.settlements!.reduce(
+      (sum, s) => sum + (s.kind === 'paid' ? s.amountCents : -s.amountCents),
+      0,
+    );
+    expect(lineSum + settleSum).toBe(payload.netCents);
+    expect(payload.netCents).toBe(-5000);
+
+    // Place rides with the dinner line (display-only); never any internal data.
+    const dinnerLine = payload.lines.find((l) => l.transactionId === dinner.id)!;
+    expect(dinnerLine.placeLabel).toBe('Cantina');
+    expect(dinnerLine.latitude).toBe(38.7);
+    expect(dinnerLine.longitude).toBe(-9.1);
+
+    // Round-trips through the Zod schema the mirror validates (settlements + place).
+    expect(parseStatementPayload(JSON.parse(JSON.stringify(payload)))).toEqual(payload);
+  });
+
+  it('omits the settlements field entirely when there are none (older-payload shape)', () => {
+    const { julio, debora, transactions, shares } = buildFixture();
+    const statement = buildParticipantStatement(debora.id, transactions, shares, [julio, debora], [], julio.id);
+    const payload = buildStatementPayload({
+      owner: ownerActor,
+      participant: debora,
+      statement,
+      shares,
+      currency: 'EUR',
+    });
+    expect(payload.settlements).toBeUndefined();
   });
 });
 

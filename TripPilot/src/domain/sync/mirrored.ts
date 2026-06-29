@@ -2,6 +2,7 @@ import type {
   MirroredStatement,
   MirroredLine,
   MirroredResponse,
+  MirroredSettlement,
   MirroredThirdPartyGroup,
 } from '@/domain/types/mirrored-statement';
 import { createSyncMetadata } from '@/utils/entity-factory';
@@ -25,6 +26,13 @@ export function buildMirroredStatement(
 
   const lines: MirroredLine[] = payload.lines.map((line) => ({ ...line }));
 
+  // DEC-402 (G3) — payments mirrored as lines so the statement reconciles to the
+  // headline net. Always taken from the incoming payload (the owner's truth);
+  // display-only, never answerable.
+  const settlements: MirroredSettlement[] | null = payload.settlements
+    ? payload.settlements.map((s) => ({ ...s }))
+    : null;
+
   // DEC-399 — display-only third-party debts ride along the payload (link/transfer).
   // Always taken from the incoming payload (the owner's latest truth); never merged
   // and never answerable, so there are no responses to preserve.
@@ -46,6 +54,7 @@ export function buildMirroredStatement(
     currency: payload.currency,
     netCents: payload.netCents,
     lines,
+    settlements,
     thirdParty,
     pendingResponses: preservedResponses,
     updatedAt: new Date().toISOString(),

@@ -28,6 +28,33 @@ export const statementLineSchema = z.object({
   amountCents: z.number().int().positive(),
   counterpartyName: z.string(),
   confirmationStatus: z.enum(['pending', 'confirmed', 'rejected']),
+  /**
+   * DEC-402 (G3): where the shared expense happened — so the recipient can see
+   * each item's place/detail (a map), the same context the owner sees. Additive +
+   * optional → older payloads read back `undefined` (no place). It is ALWAYS the
+   * expense location only; NEVER any internal fund/wallet/pool/balance data.
+   */
+  placeLabel: z.string().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  placeId: z.string().nullable().optional(),
+});
+
+/**
+ * DEC-402 (G3): a payment that already moved between the owner and the recipient,
+ * carried as an explicit line so the shared statement RECONCILES — items plus
+ * payments add up to the headline `netCents`. Before this, the net silently
+ * folded settlements the recipient could not see (items €70 but net €50, the €20
+ * payment invisible). `kind` is from the RECIPIENT's point of view: `paid` = the
+ * recipient paid (offsets what they owe → shown as a credit `+`), `received` =
+ * the owner paid the recipient (shown as `−`). Additive + optional.
+ */
+export const statementSettlementSchema = z.object({
+  settlementId: z.string().uuid(),
+  kind: z.enum(['paid', 'received']),
+  amountCents: z.number().int().positive(),
+  settledAt: z.string(),
+  note: z.string().nullable(),
 });
 
 /**
@@ -57,6 +84,13 @@ export const statementPayloadSchema = z.object({
   generatedAt: z.string(),
   lines: z.array(statementLineSchema),
   /**
+   * DEC-402 (G3): payments between the owner and the recipient, so the shared
+   * statement reconciles (Σ confirmed lines + Σ settlements = `netCents`).
+   * Additive + optional → older payloads (and payloads with no settlement)
+   * read back `undefined`; no migration.
+   */
+  settlements: z.array(statementSettlementSchema).optional(),
+  /**
    * DEC-399 — optional, display-only debts the recipient has with third parties.
    * Additive + optional → older/QR payloads (and the redacted owner-only headline)
    * read back `undefined`; no migration.
@@ -65,6 +99,7 @@ export const statementPayloadSchema = z.object({
 });
 
 export type StatementPayloadLine = z.infer<typeof statementLineSchema>;
+export type StatementPayloadSettlement = z.infer<typeof statementSettlementSchema>;
 export type StatementThirdPartyGroup = z.infer<typeof statementThirdPartyGroupSchema>;
 export type StatementPayload = z.infer<typeof statementPayloadSchema>;
 
@@ -113,6 +148,31 @@ function toPayloadLine(
     amountCents: line.amountCents,
     counterpartyName: line.counterpartyName,
     confirmationStatus: line.confirmationStatus,
+    // DEC-402 (G3): carry the expense location so the recipient can see each
+    // item's place/detail. Copied from the statement line (which copied it off
+    // the transaction) — display-only, never internal data.
+    placeLabel: line.placeLabel,
+    latitude: line.latitude,
+    longitude: line.longitude,
+    placeId: line.placeId,
+  };
+}
+
+/**
+ * DEC-402 (G3): maps one settlement of the statement to its payload line, with the
+ * direction expressed from the RECIPIENT's point of view so the guest reads
+ * "you paid" / "{owner} paid you" and the sign reconciles against the net.
+ */
+function toPayloadSettlement(
+  settlement: Settlement,
+  recipientId: string,
+): StatementPayloadSettlement {
+  return {
+    settlementId: settlement.id,
+    kind: settlement.debtorParticipantId === recipientId ? 'paid' : 'received',
+    amountCents: settlement.amountCents,
+    settledAt: settlement.settledAt,
+    note: settlement.notes,
   };
 }
 
@@ -126,7 +186,12 @@ export function buildStatementPayload(input: BuildStatementPayloadInput): Statem
     if (payloadLine) lines.push(payloadLine);
   }
 
-  return {
+  // DEC-402 (G3): the settlements already folded into `statement.netCents` ride
+  // along as explicit lines so the recipient can reconcile items + payments to
+  // the net. Omitted entirely when there are none (older-payload shape).
+  const settlements = statement.settlements.map((s) => toPayloadSettlement(s, participant.id));
+
+  const payload: StatementPayload = {
     v: 1,
     owner: { actorId: owner.actorId, name: owner.displayName.trim().slice(0, 60) },
     participantId: participant.id,
@@ -136,6 +201,7 @@ export function buildStatementPayload(input: BuildStatementPayloadInput): Statem
     generatedAt: new Date().toISOString(),
     lines,
   };
+  return settlements.length > 0 ? { ...payload, settlements } : payload;
 }
 
 export interface BuildThirdPartyGroupsInput {
