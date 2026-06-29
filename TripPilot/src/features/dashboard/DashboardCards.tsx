@@ -68,6 +68,8 @@ interface DashboardCardsProps {
   onOpenConfirmSheet: () => void;
   onConfigCard: (id: DashboardCardId) => void;
   onPostponeEvent: (occurrenceId: string) => void;
+  onStartEvent: (occurrenceId: string) => void;
+  onEndEvent: (occurrenceId: string) => void;
   onInsightTap: (insight: DashboardInsight) => void;
   onSelectCheckIn: (intent: CheckInIntent) => void;
   onOpenHeroBreakdown: () => void;
@@ -125,6 +127,8 @@ export function DashboardCards({
   onOpenConfirmSheet,
   onConfigCard,
   onPostponeEvent,
+  onStartEvent,
+  onEndEvent,
   onInsightTap,
   onSelectCheckIn,
   onOpenHeroBreakdown,
@@ -575,7 +579,7 @@ export function DashboardCards({
                         {t('dashboard.live_event_title')}
                       </p>
                       <p className="text-base font-extrabold text-on-surface truncate">{occ.name}</p>
-                      {live.linkedSessionId !== null && (
+                      {live.activeSessionId !== null && (
                         <p className="text-[11px] font-semibold text-on-surface-faint truncate">
                           {t('dashboard.live_event_outing_link', { name: occ.name })}
                         </p>
@@ -654,31 +658,70 @@ export function DashboardCards({
                     )}
                   </div>
 
-                  <div className="flex gap-2 mt-3">
-                    {live.linkedSessionId !== null ? (
+                  {/* DEC-400/409 (G1): the event's own lifecycle. Before it is
+                      started → the single "iniciar evento" gesture (+ postpone).
+                      Once started → the PRIMARY action is a direct event expense,
+                      with "iniciar saída" as the secondary focus mode and an
+                      explicit "encerrar evento"; a running outing is embedded here
+                      (no 2nd card). */}
+                  {occ.startedAt == null ? (
+                    <div className="flex gap-2 mt-3">
                       <button
-                        onClick={() => navigate('/outings/active')}
+                        onClick={() => onStartEvent(occ.id)}
                         className="flex-1 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
                       >
-                        {t('dashboard.live_event_open_outing')}
+                        {t('dashboard.event_start')}
                       </button>
-                    ) : (
-                      <>
+                      <button
+                        onClick={() => onPostponeEvent(occ.id)}
+                        className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press"
+                      >
+                        {t('dashboard.event_postpone')}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {live.activeSessionId !== null ? (
                         <button
-                          onClick={() => navigate(`/outings/new?occurrence=${occ.id}`)}
-                          className="flex-1 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
+                          onClick={() => navigate('/outings/active')}
+                          className="w-full mt-3 px-3 py-2.5 rounded-xl flex items-center gap-2.5 btn-press text-left"
+                          style={{ background: 'var(--surface-container-high)' }}
                         >
-                          {t('dashboard.event_start_now')}
+                          <span className="relative flex h-2 w-2 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                          </span>
+                          <span className="flex-1 min-w-0 text-xs font-bold text-on-surface truncate">
+                            {t('dashboard.live_event_active_outing')}
+                          </span>
+                          <span className="text-[11px] font-bold text-primary shrink-0">
+                            {t('dashboard.live_event_open_outing')}
+                          </span>
                         </button>
-                        <button
-                          onClick={() => onPostponeEvent(occ.id)}
-                          className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press"
-                        >
-                          {t('dashboard.event_postpone')}
-                        </button>
-                      </>
-                    )}
-                  </div>
+                      ) : (
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => navigate(`/quick-add?occurrence=${occ.id}`)}
+                            className="flex-1 py-2 rounded-xl bg-primary text-on-surface text-xs font-bold btn-press"
+                          >
+                            {t('dashboard.live_event_log_expense')}
+                          </button>
+                          <button
+                            onClick={() => navigate(`/outings/new?occurrence=${occ.id}`)}
+                            className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press"
+                          >
+                            {t('dashboard.live_event_start_outing')}
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => onEndEvent(occ.id)}
+                        className="w-full mt-2 py-1.5 text-[11px] font-bold text-on-surface-faint btn-press"
+                      >
+                        {t('dashboard.event_end')}
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -768,6 +811,9 @@ export function DashboardCards({
           </button>
         ) : null;
       case 'active_outing':
+        // DEC-409 (G1): an outing that belongs to a live event is shown EMBEDDED
+        // inside that event's card — suppress the standalone card (no 2nd card).
+        if (model.activeOutingEmbedded) return null;
         return (
           <>
             {/* §7 pos. 4 — ACTIVE OUTING CARD */}

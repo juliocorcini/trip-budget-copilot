@@ -27,6 +27,7 @@ export {
 export {
   eventAttributedSpent,
   isEventSessionExclusive,
+  eventOutingSessionIds,
   eventConsumedSpentCents,
   eventReserveRemainingCents,
   eventDaysLeftInclusive,

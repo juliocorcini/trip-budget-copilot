@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.0-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'Eventos agora têm vida própria: toque em "Iniciar evento" e ele fica ao vivo até você "Encerrar evento" — não some mais sozinho ao fechar uma saída.',
+        'Um evento pode ter várias saídas ao longo do tempo. Encerrar ou descartar uma saída não apaga nem encerra o evento.',
+        'No card do evento ao vivo: o botão principal registra um gasto direto do evento; "Iniciar saída" abre o modo foco; e a saída em andamento aparece embutida ali mesmo (sem um segundo card).',
+        'O número grande do evento mostra o que já foi consumido — somando todas as saídas e os gastos diretos uma única vez, sem contar em dobro.',
+      ],
+      en: [
+        'Events now have their own life: tap "Start event" and it stays live until you "End event" — it no longer disappears when you close an outing.',
+        'An event can hold several outings over time. Ending or discarding an outing never deletes or ends the event.',
+        "On the live-event card: the primary button logs a direct event expense; \"Start outing\" opens focus mode; and a running outing shows embedded right there (no second card).",
+        'The event\u2019s big number shows what\u2019s been consumed — summing every outing and direct expense exactly once, never double counted.',
+      ],
+      es: [
+        'Los eventos ahora tienen vida propia: toca "Iniciar evento" y queda en vivo hasta que "Finalizas el evento" — ya no desaparece al cerrar una salida.',
+        'Un evento puede tener varias salidas a lo largo del tiempo. Finalizar o descartar una salida nunca borra ni finaliza el evento.',
+        'En la tarjeta del evento en vivo: el botón principal registra un gasto directo del evento; "Iniciar salida" abre el modo enfoque; y la salida en curso aparece embebida ahí mismo (sin una segunda tarjeta).',
+        'El número grande del evento muestra lo consumido — sumando cada salida y gasto directo una sola vez, sin contar doble.',
+      ],
+    },
+  },
+  {
     version: '1.8.7-rc',
     date: '2026-06-28',
     items: {

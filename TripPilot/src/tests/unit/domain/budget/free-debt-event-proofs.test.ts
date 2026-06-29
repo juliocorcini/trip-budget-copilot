@@ -9,6 +9,7 @@ import {
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { createPlannedOccurrence } from '@/domain/planning';
+import { createSession } from '@/domain/outing';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import type { BudgetPoolPhaseLink } from '@/domain/types/budget-pool-phase-link';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
@@ -156,5 +157,53 @@ describe('DEC-404 · Point 4 — what I owe (logged as a spend) already leaves f
     // The budget impact is the personal cost in BOTH cases — payer is irrelevant.
     expect(freeCents([iPaid])).toBe(99000);
     expect(freeCents([friendPaid])).toBe(99000);
+  });
+});
+
+describe('DEC-400 (G1) — one event owns N outings: free nets the spend exactly ONCE', () => {
+  const mkOuting = (name: string) =>
+    createSession({
+      tripId: 'trip-1',
+      phaseId: 'phase-1',
+      budgetPoolId: 'pool-1',
+      activityProfileId: null,
+      name,
+      limits: { targetCents: 5000, ceilingCents: 6000, maxCents: 7000, avgDrinkPriceCents: null },
+      quickAddValuesCents: [],
+      occurrenceId: 'evt-1',
+    });
+  const out1 = mkOuting('Round 1');
+  const out2 = mkOuting('Round 2');
+  const sessions = [out1, out2];
+  const tx1 = createExpenseTransaction({
+    tripId: 'trip-1', phaseId: 'phase-1', budgetPoolId: 'pool-1', walletId: null,
+    amountCents: 3000, currency: 'EUR', category: 'outing', description: 'R1', sessionId: out1.id,
+  });
+  const tx2 = createExpenseTransaction({
+    tripId: 'trip-1', phaseId: 'phase-1', budgetPoolId: 'pool-1', walletId: null,
+    amountCents: 2000, currency: 'EUR', category: 'outing', description: 'R2', sessionId: out2.id,
+  });
+
+  it('reserve held = €100 − (€30+€20) = €50; free falls by exactly €50 (Â-EVENT-NO-DOUBLE-COUNT)', () => {
+    const occ = mkEvent({ reservedCents: 10000 });
+    const free = calculateFreeToSpend(pool, [], [tx1, tx2], links, 'phase-1', [occ], [], sessions);
+    expect(free.totalSpentCents).toBe(5000); // €50 in pool spent (once)
+    expect(free.eventReservesCents).toBe(5000); // €50 reserve still held
+    // €1000 − €50 spent − €50 held = €900, NOT €850 (which a double count gives).
+    expect(free.freeToSpendCents).toBe(90000);
+  });
+
+  it('consumed sums both outings; the live view-model flags the running one', () => {
+    const occ = mkEvent({ reservedCents: 10000 });
+    expect(eventConsumedSpentCents(occ, [tx1, tx2], sessions)).toBe(5000);
+    const progress = buildLiveEventProgress(
+      occ,
+      [tx1, tx2],
+      '2026-06-12T12:00:00.000Z',
+      [{ ...out1, status: 'completed' as const }, out2],
+    );
+    expect(progress.consumedCents).toBe(5000);
+    expect(progress.expenses).toHaveLength(2);
+    expect(progress.activeSessionId).toBe(out2.id); // out1 closed, out2 running
   });
 });

@@ -29,6 +29,8 @@ import {
   type PhaseLeftoverDestination,
   resolveEventLeftover,
   type EventLeftoverDestination,
+  startEvent,
+  endEvent,
   applyValueSuggestion,
   dismissValueSuggestion,
   saveTripTemplate,
@@ -330,6 +332,27 @@ export function DashboardPage() {
     await reload();
   };
 
+  // DEC-400 (G1): "iniciar evento" — the event goes live (and stays live until
+  // explicitly ended); from here the card offers direct event expenses + outings.
+  const handleStartEvent = async (occurrenceId: string) => {
+    const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
+    if (!occurrence) return;
+    await startEvent(occurrenceId);
+    showToast(t('dashboard.event_started', { name: occurrence.name }), 'success');
+    await reload();
+  };
+
+  // DEC-400 (G1): "encerrar evento" — closes any running outing and ends the
+  // event; an unspent reserve then surfaces the leftover prompt (DEC-387), which
+  // the user resolves (never auto-decided, A4).
+  const handleEndEvent = async (occurrenceId: string) => {
+    const occurrence = await plannedOccurrenceRepository.getById(occurrenceId);
+    if (!occurrence) return;
+    await endEvent(occurrenceId);
+    showToast(t('dashboard.event_ended', { name: occurrence.name }), 'success');
+    await reload();
+  };
+
   // DEC-091 (R-09): tap opens the CONTENT of each insight.
   const handleInsightTap = (insight: DashboardInsight) => {
     switch (insight.kind) {
@@ -614,6 +637,8 @@ export function DashboardPage() {
             onOpenConfirmSheet={() => setConfirmSheetOpen(true)}
             onConfigCard={setConfigCardId}
             onPostponeEvent={handlePostponeEvent}
+            onStartEvent={handleStartEvent}
+            onEndEvent={handleEndEvent}
             onInsightTap={handleInsightTap}
             onSelectCheckIn={handleSelectCheckIn}
             onOpenHeroBreakdown={() => setHeroBreakdownOpen(true)}

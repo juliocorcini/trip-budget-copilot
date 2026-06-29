@@ -1,5 +1,6 @@
 import type { Transaction } from '@/domain/types/transaction';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
+import type { Session } from '@/domain/types/session';
 import { sumCents } from '@/domain/money';
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
 import { getTotalDays } from '@/domain/dates';
@@ -42,23 +43,50 @@ export function eventAttributedSpent(
 }
 
 /**
- * DEC-385 (G2): the spend that CONSUMES an event's reserve. Two disjoint draws on
- * the same reserved money (a spend is event XOR session, Â-ATTRIBUTION): the
- * explicitly attributed spend (`occurrenceId`) PLUS the spend of an outing
- * started from the event (its `linkedSessionId`). Including the outing spend is
- * what prevents the keystone double count — without it a running event would
- * hold its full reserve AND its outing expenses would land in pool spent, so the
- * event would weigh on the budget twice. Pure.
+ * DEC-400 (G1): the set of outing sessions that belong to an event — its N
+ * outings over time. New outings back-link via `Session.occurrenceId` ("iniciar
+ * saída"); the legacy 1:1 `PlannedOccurrence.linkedSessionId` still counts as
+ * one of them. A `Set` so a session linked both ways is counted ONCE (no double
+ * count). Pure.
+ */
+export function eventOutingSessionIds(
+  occ: PlannedOccurrence,
+  sessions: Session[],
+): Set<string> {
+  const ids = new Set<string>();
+  if (occ.linkedSessionId !== null) ids.add(occ.linkedSessionId);
+  for (const session of sessions) {
+    if (session.occurrenceId === occ.id) ids.add(session.id);
+  }
+  return ids;
+}
+
+/**
+ * DEC-385 (G2) / DEC-400 (G1): the spend that CONSUMES an event's reserve. Two
+ * disjoint draws on the same reserved money (a spend is event XOR session,
+ * Â-ATTRIBUTION): the explicitly attributed spend (`occurrenceId`) PLUS the spend
+ * of EVERY outing started from the event (`eventOutingSessionIds` — the legacy
+ * `linkedSessionId` and all `Session.occurrenceId` back-links, deduped). Summing
+ * every outing is what lets one event own N outings WITHOUT double counting:
+ * each outing expense is removed from free once via pool spent and netted here
+ * once against the reserve (Â-EVENT-NO-DOUBLE-COUNT). With no sessions passed it
+ * falls back to the legacy single link, so existing call sites stay bit-for-bit.
+ * Pure.
  */
 export function eventConsumedSpentCents(
   occ: PlannedOccurrence,
   transactions: Transaction[],
+  sessions: Session[] = [],
 ): number {
   const attributed = eventAttributedSpent(occ.id, transactions);
+  const sessionIds = eventOutingSessionIds(occ, sessions);
   const sessionSpent =
-    occ.linkedSessionId === null
+    sessionIds.size === 0
       ? 0
-      : liveSpendBaseCostCents(transactions, (t) => t.sessionId === occ.linkedSessionId);
+      : liveSpendBaseCostCents(
+          transactions,
+          (t) => t.sessionId != null && sessionIds.has(t.sessionId),
+        );
   return attributed + sessionSpent;
 }
 
@@ -74,9 +102,10 @@ export function eventConsumedSpentCents(
 export function eventReserveRemainingCents(
   occ: PlannedOccurrence,
   transactions: Transaction[],
+  sessions: Session[] = [],
 ): number {
   if (occ.reservedCents === null || occ.isConfirmed) return 0;
-  return Math.max(0, occ.reservedCents - eventConsumedSpentCents(occ, transactions));
+  return Math.max(0, occ.reservedCents - eventConsumedSpentCents(occ, transactions, sessions));
 }
 
 /**
@@ -105,8 +134,9 @@ export function eventDailyAllowanceCents(
   occ: PlannedOccurrence,
   transactions: Transaction[],
   todayIso: string,
+  sessions: Session[] = [],
 ): number {
-  const remaining = eventReserveRemainingCents(occ, transactions);
+  const remaining = eventReserveRemainingCents(occ, transactions, sessions);
   if (remaining <= 0) return 0;
   return Math.floor(remaining / eventDaysLeftInclusive(occ, todayIso));
 }
@@ -136,8 +166,15 @@ export interface LiveEventProgress {
   perDayCents: number;
   /** Inclusive days the event still spans, from today to its end. */
   daysLeftInclusive: number;
-  /** The outing started from this event, if any (the live tally lives there). */
+  /** The legacy single outing linked to this event, if any (DEC-072). */
   linkedSessionId: string | null;
+  /**
+   * DEC-400/409 (G1): the event's currently RUNNING outing, if any (`status`
+   * 'active', via `Session.occurrenceId` or the legacy `linkedSessionId`). The
+   * Home embeds this outing INSIDE the event card and suppresses the standalone
+   * outing card (no 2nd card); `null` when no outing is running.
+   */
+  activeSessionId: string | null;
   /** The spends that make up `consumedCents` — what/when/how-much, newest first. */
   expenses: LiveEventExpense[];
 }
@@ -156,14 +193,15 @@ export function buildLiveEventProgress(
   occ: PlannedOccurrence,
   transactions: Transaction[],
   todayIso: string,
+  sessions: Session[] = [],
 ): LiveEventProgress {
+  const sessionIds = eventOutingSessionIds(occ, sessions);
   const expenses: LiveEventExpense[] = transactions
     .filter(
       (t) =>
         t.deletedAt === null &&
         (t.type === 'expense' || t.type === 'adjustment') &&
-        (t.occurrenceId === occ.id ||
-          (occ.linkedSessionId !== null && t.sessionId === occ.linkedSessionId)),
+        (t.occurrenceId === occ.id || (t.sessionId != null && sessionIds.has(t.sessionId))),
     )
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((t) => ({
@@ -174,14 +212,18 @@ export function buildLiveEventProgress(
       baseCostCents: transactionBasePersonalCostCents(t),
       source: t.occurrenceId === occ.id ? 'attributed' : 'outing',
     }));
+  const activeSession = sessions.find(
+    (s) => s.status === 'active' && s.deletedAt === null && sessionIds.has(s.id),
+  );
   return {
     occurrence: occ,
     reservedCents: occ.reservedCents,
-    consumedCents: eventConsumedSpentCents(occ, transactions),
-    remainingCents: eventReserveRemainingCents(occ, transactions),
-    perDayCents: eventDailyAllowanceCents(occ, transactions, todayIso),
+    consumedCents: eventConsumedSpentCents(occ, transactions, sessions),
+    remainingCents: eventReserveRemainingCents(occ, transactions, sessions),
+    perDayCents: eventDailyAllowanceCents(occ, transactions, todayIso, sessions),
     daysLeftInclusive: eventDaysLeftInclusive(occ, todayIso),
     linkedSessionId: occ.linkedSessionId,
+    activeSessionId: activeSession?.id ?? null,
     expenses,
   };
 }
@@ -220,23 +262,29 @@ export interface PendingEventLeftover {
 }
 
 /**
- * DEC-387 (G4): an event has a PENDING leftover when it has ended (its days are
- * past) and its consumable reserve still holds money (`remaining > 0`) that the
- * user has not yet resolved (`isConfirmed` false — set true once resolved). The
- * money is never auto-decided: it stays held (out of free) until the user picks a
- * destination, so nothing is lost (Â-LEFTOVER-CONSERVED, A4). Pure.
+ * DEC-387 (G4) / DEC-400 (G1): an event has a PENDING leftover when it is "over"
+ * and its consumable reserve still holds money (`remaining > 0`) the user has not
+ * resolved (`isConfirmed` false — set true once resolved). "Over" now respects
+ * the explicit lifecycle: an event that was STARTED stays live until explicitly
+ * ENDED, so it is "over" only when `endedAt` is set — it is NEVER auto-prompted
+ * by its date passing (the live card's "encerrar evento" drives it,
+ * Â-EVENT-LIFECYCLE). An event that was never explicitly started keeps the
+ * baseline behaviour: its date interval elapsing makes it over (legacy rows read
+ * `startedAt`/`endedAt` undefined ≡ null, so this is bit-for-bit the old prompt).
+ * The money is never auto-decided: it stays held (out of free) until the user
+ * picks a destination (Â-LEFTOVER-CONSERVED, A4). Pure.
  */
 export function isEventLeftoverPending(
   occ: PlannedOccurrence,
   transactions: Transaction[],
   todayIso: string,
+  sessions: Session[] = [],
 ): boolean {
-  return (
-    occ.kind === 'event' &&
-    occ.deletedAt === null &&
-    eventHasEnded(occ, todayIso) &&
-    eventReserveRemainingCents(occ, transactions) > 0
-  );
+  if (occ.kind !== 'event' || occ.deletedAt !== null) return false;
+  const isOver =
+    occ.endedAt != null || (occ.startedAt == null && eventHasEnded(occ, todayIso));
+  if (!isOver) return false;
+  return eventReserveRemainingCents(occ, transactions, sessions) > 0;
 }
 
 /**
@@ -248,12 +296,13 @@ export function selectPendingEventLeftovers(
   occurrences: PlannedOccurrence[],
   transactions: Transaction[],
   todayIso: string,
+  sessions: Session[] = [],
 ): PendingEventLeftover[] {
   return occurrences
-    .filter((o) => isEventLeftoverPending(o, transactions, todayIso))
+    .filter((o) => isEventLeftoverPending(o, transactions, todayIso, sessions))
     .map((occurrence) => ({
       occurrence,
-      leftoverCents: eventReserveRemainingCents(occurrence, transactions),
+      leftoverCents: eventReserveRemainingCents(occurrence, transactions, sessions),
     }))
     .sort((a, b) =>
       (a.occurrence.endDate ?? a.occurrence.plannedDate ?? '').localeCompare(

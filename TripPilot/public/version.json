@@ -1,8 +1,8 @@
 {
-  "version": "1.8.7-rc",
+  "version": "1.9.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.8.7-rc.zip",
-  "notes": "Compartilhar a dívida de uma pessoa por link agora mostra só o que é entre vocês dois. O que outras pessoas devem aparece num menu separado, sem entrar na conta de cima."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.0-rc.zip",
+  "notes": "Eventos agora têm vida própria: você inicia o evento, faz quantas saídas quiser e só ele some quando você encerra. Encerrar ou descartar uma saída não apaga mais o evento."
 }

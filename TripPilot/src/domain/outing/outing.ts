@@ -134,6 +134,12 @@ export interface CreateSessionInput {
   name: string;
   limits: SessionLimits;
   quickAddValuesCents: number[];
+  /**
+   * DEC-400 (G1): the event this outing belongs to ("iniciar saída"). Set at
+   * creation so the in-memory session the caller later ENDS already carries the
+   * back-link (endOutingSession round-trips the caller's object). Defaults null.
+   */
+  occurrenceId?: string | null;
 }
 
 export function createSession(input: CreateSessionInput): Session {
@@ -144,6 +150,7 @@ export function createSession(input: CreateSessionInput): Session {
     budgetPoolId: input.budgetPoolId,
     activityProfileId: input.activityProfileId,
     status: 'active',
+    occurrenceId: input.occurrenceId ?? null,
     name: input.name,
     targetCents: input.limits.targetCents,
     ceilingCents: input.limits.ceilingCents,

@@ -63,6 +63,7 @@ import {
   discardOutingSession,
   createProfileEnabledInPhase,
   startSessionForOccurrence,
+  startOutingForEvent,
   startOneOffEventSession,
   softDeleteSessionExpense,
   repeatLastSessionItem,
@@ -535,6 +536,10 @@ export function OutingPage() {
   // the link is recorded atomically and the reserve stops deducting.
   const handleStartForOccurrence = async (config: SessionStartConfig) => {
     if (!trip || !currentPhase || !defaultPool || !configuringOccurrence) return;
+    // DEC-400 (G1): an EVENT owns N outings over time via `Session.occurrenceId`
+    // (set at creation so the in-memory session the review later ENDS carries the
+    // back-link); a sub-destination keeps the legacy 1:1 `linkedSessionId`.
+    const isEvent = configuringOccurrence.kind === 'event';
     const sess = createSession({
       tripId: trip.id,
       phaseId: currentPhase.id,
@@ -543,8 +548,13 @@ export function OutingPage() {
       name: config.name,
       limits: config.limits,
       quickAddValuesCents: config.quickAddValuesCents,
+      occurrenceId: isEvent ? configuringOccurrence.id : null,
     });
-    await startSessionForOccurrence({ session: sess, occurrenceId: configuringOccurrence.id });
+    if (isEvent) {
+      await startOutingForEvent({ session: sess, occurrenceId: configuringOccurrence.id });
+    } else {
+      await startSessionForOccurrence({ session: sess, occurrenceId: configuringOccurrence.id });
+    }
     setConfiguringOccurrence(null);
     setSession(sess);
     setSessionTxs([]);

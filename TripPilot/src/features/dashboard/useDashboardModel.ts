@@ -111,6 +111,15 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
   // (not appData), so it loads separately + refreshes on a real-time drain.
   const [inboundP2pCount, setInboundP2pCount] = useState(0);
 
+  // DEC-400 (G1): the event reserve now nets EVERY outing of an event (its N
+  // `Session.occurrenceId` back-links + the legacy single `linkedSessionId`), so
+  // every free/reserve computation is fed the full session set (active +
+  // completed). With no event outings this is inert — the math stays baseline.
+  const allSessions = useMemo<Session[]>(
+    () => (activeSession ? [activeSession, ...completedSessions] : completedSessions),
+    [activeSession, completedSessions],
+  );
+
   useEffect(() => {
     if (navigator.storage?.persisted) {
       navigator.storage
@@ -242,6 +251,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         phase.id,
         occurrences,
         plannedPurchases,
+        allSessions,
       );
       const spentCents = calculatePoolSpent(phaseTxs);
       const daysOfData = Math.max(1, getDayNumber(phase.startDate));
@@ -263,7 +273,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       );
     };
     persist();
-  }, [trip, phases, pools, envelopes, links, transactions, occurrences, plannedPurchases]);
+  }, [trip, phases, pools, envelopes, links, transactions, occurrences, plannedPurchases, allSessions]);
 
   // Heavy derivations — one memo over every real input, so UI-only re-renders
   // (sheets, carousels) never re-run the budget/insight/heatmap math.
@@ -298,6 +308,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             activePhase.id,
             occurrences,
             plannedPurchases,
+            allSessions,
           )
         : null;
 
@@ -320,8 +331,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       occ,
       // DEC-385 (G2): the day card shows the CONSUMABLE reserve — what is still
       // held (shrinks with attributed/outing spend) and the per-day allowance.
-      remainingCents: eventReserveRemainingCents(occ, transactions),
-      perDayCents: eventDailyAllowanceCents(occ, transactions, todayIso),
+      remainingCents: eventReserveRemainingCents(occ, transactions, allSessions),
+      perDayCents: eventDailyAllowanceCents(occ, transactions, todayIso, allSessions),
     }));
 
     // DEC-390 (parte 2, G1): events HAPPENING right now — visible with real
@@ -337,7 +348,13 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             todayIso,
           )
         : []
-    ).map((occ) => buildLiveEventProgress(occ, transactions, todayIso));
+    ).map((occ) => buildLiveEventProgress(occ, transactions, todayIso, allSessions));
+
+    // DEC-409 (G1): when the active outing belongs to a live event, it is shown
+    // EMBEDDED inside that event's card — so the standalone active-outing card is
+    // suppressed (no 2nd card). False when the active outing is a plain outing.
+    const activeOutingEmbedded =
+      activeSession != null && liveEvents.some((e) => e.activeSessionId === activeSession.id);
 
     // DEC-392 (G2): the slice of TODAY that belongs to events — the per-day
     // consumable allowance of every event spanning today. The hero surfaces it
@@ -457,6 +474,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             leftoverTransition.next.id,
             occurrences,
             plannedPurchases,
+            allSessions,
           ).freeToSpendCents
         : 0;
     const phaseLeftover = detectPhaseLeftover({
@@ -469,7 +487,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // DEC-387 (G4): an ended event whose reserve still holds money prompts the
     // user to resolve the leftover (free / cofrinho / pote). One at a time
     // (oldest first); never auto-decided — dismissing leaves it pending (A4).
-    const eventLeftover = selectPendingEventLeftovers(occurrences, transactions, todayIso)[0] ?? null;
+    const eventLeftover =
+      selectPendingEventLeftovers(occurrences, transactions, todayIso, allSessions)[0] ?? null;
 
     // DEC-175: planned purchases summary — what's still set aside from
     // free-to-spend, plus the top open buys for the dashboard card.
@@ -844,6 +863,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       todayIso,
       todayEvents,
       liveEvents,
+      activeOutingEmbedded,
       todayEventAllowanceCents,
       eventLeftover,
       upcomingEvents,
@@ -894,6 +914,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     plannedPurchases,
     settings,
     activeSession,
+    allSessions,
     sessionTxs,
     completedSessions,
     profiles,

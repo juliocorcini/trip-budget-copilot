@@ -21,5 +21,21 @@ export interface PlannedOccurrence extends SyncMetadata {
   linkedTransactionId: string | null;
   /** DEC-072: bridge to the Outing Mode session started from this event. */
   linkedSessionId: string | null;
+  /**
+   * DEC-400 (G1): when the event was explicitly STARTED ("iniciar evento"). A
+   * started event is live (and stays live past its date) until it is explicitly
+   * ended — it never disappears on its own (Â-EVENT-LIFECYCLE). Additive and
+   * optional (legacy rows read back `undefined` ≡ never started → date-based
+   * liveness, exactly the baseline).
+   */
+  startedAt?: string | null;
+  /**
+   * DEC-400 (G1): when the event was explicitly ENDED ("encerrar evento"). Marks
+   * the event as no longer live and hands any unspent reserve to the leftover
+   * flow (DEC-387) — distinct from `isConfirmed`, which only the leftover
+   * resolution sets, so the held money is never auto-released (A4). Additive and
+   * optional.
+   */
+  endedAt?: string | null;
   notes: string | null;
 }

@@ -89,12 +89,16 @@ export async function endOutingSession(
       }
       await db.sessions.put(completedSession);
 
-      // DEC-072 (M6.4): a session linked to a planned event confirms the
-      // occurrence — its reserve stops deducting and real spending takes over.
+      // DEC-072 (M6.4): a SUB-DESTINATION outing confirms its occurrence — the
+      // reserve stops deducting and real spending takes over. DEC-400 (G1): an
+      // EVENT is NEVER confirmed by ending one of its outings — it owns N outings
+      // over time and only "encerrar evento" ends it (Â-EVENT-LIFECYCLE). Ending
+      // an event-outing leaves the event live; its reserve is already netted by
+      // the outing spend (eventConsumedSpentCents), so no double count.
       const occurrence = await db.plannedOccurrences
         .filter((o) => o.linkedSessionId === input.session.id && o.deletedAt === null)
         .first();
-      if (occurrence && !occurrence.isConfirmed) {
+      if (occurrence && occurrence.kind === 'sub_destination' && !occurrence.isConfirmed) {
         await db.plannedOccurrences.put(
           markUpdated({
             ...occurrence,
@@ -209,6 +213,78 @@ export async function startOneOffEventSession(
   await db.transaction('rw', [db.sessions, db.plannedOccurrences], async () => {
     await db.sessions.add(input.session);
     await db.plannedOccurrences.add({ ...input.occurrence, linkedSessionId: input.session.id });
+  });
+}
+
+/**
+ * DEC-400 (G1): "iniciar evento" — mark the event explicitly started. From here
+ * it is live and STAYS live (even past its date) until "encerrar evento"; it
+ * never disappears on its own (Â-EVENT-LIFECYCLE). Idempotent — a re-start keeps
+ * the first timestamp. No money moves. Atomic single write.
+ */
+export async function startEvent(occurrenceId: string): Promise<void> {
+  await db.transaction('rw', [db.plannedOccurrences], async () => {
+    const occurrence = await db.plannedOccurrences.get(occurrenceId);
+    if (!occurrence || occurrence.deletedAt !== null || occurrence.startedAt != null) return;
+    await db.plannedOccurrences.put(
+      markUpdated({ ...occurrence, startedAt: new Date().toISOString() }),
+    );
+  });
+}
+
+export interface StartOutingForEventInput {
+  session: Session;
+  occurrenceId: string;
+}
+
+/**
+ * DEC-400 (G1): "iniciar saída" from a live event — start an outing that BELONGS
+ * to the event (back-linked via `Session.occurrenceId`) WITHOUT touching the
+ * legacy 1:1 `linkedSessionId`, so the event can own several outings over time.
+ * Starting an outing implies the event is live, so it is marked started if it was
+ * not. The outing's spend nets into the event reserve exactly once
+ * (eventConsumedSpentCents — Â-EVENT-NO-DOUBLE-COUNT). Atomic.
+ */
+export async function startOutingForEvent(input: StartOutingForEventInput): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.plannedOccurrences], async () => {
+    await db.sessions.add({ ...input.session, occurrenceId: input.occurrenceId });
+    const occurrence = await db.plannedOccurrences.get(input.occurrenceId);
+    if (occurrence && occurrence.deletedAt === null && occurrence.startedAt == null) {
+      await db.plannedOccurrences.put(
+        markUpdated({ ...occurrence, startedAt: new Date().toISOString() }),
+      );
+    }
+  });
+}
+
+/**
+ * DEC-400 (G1): "encerrar evento" — explicitly end the event. Closes every still
+ * RUNNING outing of the event (legacy `linkedSessionId` + `Session.occurrenceId`
+ * back-links; their expenses already live in the ledger, so no money moves) and
+ * marks the event ended (`endedAt`). It is NOT confirmed here: any unspent
+ * reserve stays held and surfaces the leftover prompt (DEC-387), which the user
+ * resolves to free/cofrinho/pote — never auto-decided (A4). Atomic.
+ */
+export async function endEvent(occurrenceId: string): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await db.transaction('rw', [db.plannedOccurrences, db.sessions], async () => {
+    const occurrence = await db.plannedOccurrences.get(occurrenceId);
+    if (!occurrence || occurrence.deletedAt !== null) return;
+
+    const outingIds = new Set<string>();
+    if (occurrence.linkedSessionId !== null) outingIds.add(occurrence.linkedSessionId);
+    const backLinked = await db.sessions
+      .filter((s) => s.occurrenceId === occurrenceId && s.deletedAt === null)
+      .toArray();
+    for (const session of backLinked) outingIds.add(session.id);
+    for (const sessionId of outingIds) {
+      const session = await db.sessions.get(sessionId);
+      if (session && session.deletedAt === null && session.status === 'active') {
+        await db.sessions.put(markUpdated(endSession(session)));
+      }
+    }
+
+    await db.plannedOccurrences.put(markUpdated({ ...occurrence, endedAt: nowIso }));
   });
 }
 

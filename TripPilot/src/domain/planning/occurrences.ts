@@ -33,6 +33,8 @@ export function createPlannedOccurrence(input: CreatePlannedOccurrenceInput): Pl
     isConfirmed: false,
     linkedTransactionId: null,
     linkedSessionId: null,
+    startedAt: null,
+    endedAt: null,
     notes: null,
   };
 }
@@ -72,12 +74,14 @@ export function isOccurrenceActiveToday(occ: PlannedOccurrence, todayIso: string
  * live. Pure.
  */
 export function isEventInProgress(occ: PlannedOccurrence, dayIso: string): boolean {
-  return (
-    occ.deletedAt === null &&
-    occ.kind === 'event' &&
-    !occ.isConfirmed &&
-    isWithinOccurrenceInterval(occ, dayIso)
-  );
+  if (occ.deletedAt !== null || occ.kind !== 'event' || occ.isConfirmed) return false;
+  // DEC-400 (G1): an explicitly ENDED event is no longer live (its leftover is
+  // handled by the prompt). An explicitly STARTED event stays live regardless of
+  // its date — it never disappears on its own (Â-EVENT-LIFECYCLE). With neither
+  // marker set (legacy/never-started rows, `startedAt`/`endedAt` undefined) this
+  // is exactly the baseline date-interval liveness.
+  if (occ.endedAt != null) return false;
+  return occ.startedAt != null || isWithinOccurrenceInterval(occ, dayIso);
 }
 
 /**
@@ -137,6 +141,11 @@ export function isEventVisibleOnHome(
 ): boolean {
   if (occ.deletedAt !== null || occ.kind !== 'event') return false;
   if (occ.isConfirmed || occ.linkedSessionId !== null) return false;
+  // DEC-400 (G1): a started or ended event is NOT a heads-up — a started event
+  // is live (shown in the live-event block) and an ended one is over. Either way
+  // it must not also surface as an "approaching" card (no double render). Legacy
+  // rows read these undefined → unchanged.
+  if (occ.startedAt != null || occ.endedAt != null) return false;
   if (occ.plannedDate === null) return false;
 
   const startDay = dayOf(occ.plannedDate);

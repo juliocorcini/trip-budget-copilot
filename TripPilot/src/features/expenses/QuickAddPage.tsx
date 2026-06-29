@@ -134,6 +134,9 @@ export function QuickAddPage() {
   // user confirms or opts out, never auto-decided (Â-ATTRIBUTION).
   const [attributedOccurrenceId, setAttributedOccurrenceId] = useState<string | null>(null);
   const eventAttributionTouchedRef = useRef(false);
+  // DEC-400/409 (G1): "registrar gasto do evento" deep-links here as
+  // /quick-add?occurrence=<id> — applied once.
+  const occurrenceParamAppliedRef = useRef(false);
 
   // E9 (M8/M9): expense currency (default = trip base) + the conversion rate
   // (seeded from the frozen snapshot, editable as a manual rate).
@@ -302,6 +305,18 @@ export function QuickAddPage() {
     eventAttributionTouchedRef.current = true;
     setAttributedOccurrenceId(id);
   };
+
+  // DEC-400/409 (G1): pre-attribute the expense to the event the live-event card
+  // deep-linked (?occurrence=<id>), once it is attributable. Marks the attribution
+  // touched so the lone-event auto-suggest never overrides the explicit choice.
+  useEffect(() => {
+    if (occurrenceParamAppliedRef.current) return;
+    const occurrenceId = searchParams.get('occurrence');
+    if (!occurrenceId || !attributableEvents.some((e) => e.id === occurrenceId)) return;
+    occurrenceParamAppliedRef.current = true;
+    eventAttributionTouchedRef.current = true;
+    setAttributedOccurrenceId(occurrenceId);
+  }, [searchParams, attributableEvents]);
 
   // DEC-246: apply the assistant draft once everything is loaded. setState in an
   // effect (not initializers) keeps it robust against an initial empty snapshot;

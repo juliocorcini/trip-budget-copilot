@@ -4,6 +4,7 @@ import type { Envelope } from '@/domain/types/envelope';
 import type { Transaction } from '@/domain/types/transaction';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
+import type { Session } from '@/domain/types/session';
 import type { BudgetPoolScope } from '@/domain/types/common';
 import type { Phase } from '@/domain/types/phase';
 import { sumCents } from '@/domain/money';
@@ -50,10 +51,11 @@ export function calculateEventReserves(
   occurrences: PlannedOccurrence[],
   phaseId: string,
   transactions: Transaction[],
+  sessions: Session[] = [],
 ): number {
   return occurrences
     .filter((o) => o.deletedAt === null && o.phaseId === phaseId)
-    .reduce((sum, o) => sum + eventReserveRemainingCents(o, transactions), 0);
+    .reduce((sum, o) => sum + eventReserveRemainingCents(o, transactions, sessions), 0);
 }
 
 export function calculateFreeToSpend(
@@ -64,6 +66,7 @@ export function calculateFreeToSpend(
   currentPhaseId: string,
   occurrences: PlannedOccurrence[],
   plannedPurchases: PlannedPurchase[],
+  sessions: Session[] = [],
 ): FreeToSpendResult {
   const totalBudgetCents = pool.totalAmountCents;
 
@@ -90,6 +93,7 @@ export function calculateFreeToSpend(
     occurrences.filter((o) => o.budgetPoolId === pool.id),
     currentPhaseId,
     transactions,
+    sessions,
   );
 
   // DEC-175: still-reserved total of OPEN planned purchases charged to THIS pool.
