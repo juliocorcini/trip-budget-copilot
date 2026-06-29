@@ -1,8 +1,8 @@
 {
-  "version": "1.9.3-rc",
+  "version": "1.9.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.3-rc.zip",
-  "notes": "A IA agora escreve uma descrição de verdade do gasto (tirada do que você disse), nunca a categoria; sem descrição clara usa o nome do lugar e só então um rótulo neutro."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.4-rc.zip",
+  "notes": "O seletor de local agora tem busca por nome: digite \"Bar do Zé\" e toque no lugar real — ele salva as coordenadas certas, não mais um texto solto."
 }

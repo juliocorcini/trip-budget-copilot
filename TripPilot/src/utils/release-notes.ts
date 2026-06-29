@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.4-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'O seletor de local ganhou busca por nome: digite "Bar do Zé" e toque no lugar real — ele salva as coordenadas certas, não mais um texto solto.',
+        'A busca aparece em todos os lugares onde você escolhe um local (gasto rápido, edição de gasto e a IA) e dá pra refinar pelo que está perto de você.',
+      ],
+      en: [
+        'The place selector now has search-by-name: type "Joe\u2019s Bar" and tap the real venue — it saves the right coordinates, no more a loose string.',
+        'Search shows up everywhere you pick a place (quick add, expense edit and the AI) and is biased to what is near you.',
+      ],
+      es: [
+        'El selector de lugar ahora tiene búsqueda por nombre: escribe "Bar de Pepe" y toca el lugar real — guarda las coordenadas correctas, ya no un texto suelto.',
+        'La búsqueda aparece en todos los lugares donde eliges un sitio (gasto rápido, edición de gasto y la IA) y se orienta a lo que está cerca de ti.',
+      ],
+    },
+  },
+  {
     version: '1.9.3-rc',
     date: '2026-06-29',
     items: {

@@ -1,5 +1,11 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { reverseGeocodePlace, searchNearbyPlaces, searchPlaceByName, isOnline } from '@/utils/places';
+import {
+  reverseGeocodePlace,
+  searchNearbyPlaces,
+  searchPlaceByName,
+  searchPlacesByName,
+  isOnline,
+} from '@/utils/places';
 
 function setOnline(value: boolean): void {
   Object.defineProperty(navigator, 'onLine', { value, configurable: true });
@@ -226,5 +232,95 @@ describe('searchPlaceByName (DEC-389 · G5 — name → coordinates)', () => {
     setOnline(true);
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('nominatim down')));
     await expect(searchPlaceByName('Whatever', near)).resolves.toBeNull();
+  });
+});
+
+describe('searchPlacesByName (DEC-405 · G5 — name → list of real venues)', () => {
+  const near = { lat: 38.7167, lng: -9.1399 };
+
+  it('returns [] when offline (never touches the network)', async () => {
+    setOnline(false);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(searchPlacesByName('Bar do Zé', near)).resolves.toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns [] for an empty / whitespace name (never touches the network)', async () => {
+    setOnline(true);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(searchPlacesByName('   ', near)).resolves.toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('maps EVERY match to a real venue with exact coordinates (order preserved)', async () => {
+    setOnline(true);
+    mockFetchOnce({
+      ok: true,
+      json: async () => [
+        { name: 'Bar do Zé', lat: '38.71', lon: '-9.14', place_id: 11 },
+        { display_name: 'Bar do Zé 2, Lisboa, Portugal', lat: '38.72', lon: '-9.15', place_id: 22 },
+      ],
+    });
+    await expect(searchPlacesByName('Bar do Zé', near)).resolves.toEqual([
+      { label: 'Bar do Zé', lat: 38.71, lng: -9.14, placeId: '11' },
+      { label: 'Bar do Zé 2', lat: 38.72, lng: -9.15, placeId: '22' },
+    ]);
+  });
+
+  it('caps the result count at the requested limit', async () => {
+    setOnline(true);
+    mockFetchOnce({
+      ok: true,
+      json: async () => [
+        { name: 'A', lat: '1', lon: '1', place_id: 1 },
+        { name: 'B', lat: '2', lon: '2', place_id: 2 },
+        { name: 'C', lat: '3', lon: '3', place_id: 3 },
+      ],
+    });
+    const result = await searchPlacesByName('cafe', near, 2);
+    expect(result.map((p) => p.label)).toEqual(['A', 'B']);
+  });
+
+  it('skips entries with unparsable coordinates but keeps the valid ones', async () => {
+    setOnline(true);
+    mockFetchOnce({
+      ok: true,
+      json: async () => [
+        { name: 'Bad', lat: 'x', lon: 'y', place_id: 1 },
+        { name: 'Good', lat: '38.70', lon: '-9.13', place_id: 2 },
+      ],
+    });
+    await expect(searchPlacesByName('mix', near)).resolves.toEqual([
+      { label: 'Good', lat: 38.7, lng: -9.13, placeId: '2' },
+    ]);
+  });
+
+  it('biases AND bounds the search to a box around the fix when one is given', async () => {
+    setOnline(true);
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ name: 'Local', lat: '38.71', lon: '-9.14', place_id: 9 }],
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    await searchPlacesByName('Starbucks', near, 5);
+    const url = String(fetchSpy.mock.calls[0]![0]);
+    expect(url).toContain('nominatim.openstreetmap.org/search');
+    expect(url).toContain('bounded=1');
+    expect(url).toContain('viewbox=');
+    expect(url).toContain('limit=5');
+  });
+
+  it('returns [] on a non-OK HTTP status', async () => {
+    setOnline(true);
+    mockFetchOnce({ ok: false, json: async () => [] });
+    await expect(searchPlacesByName('whatever', near)).resolves.toEqual([]);
+  });
+
+  it('returns [] when the request throws (never blocks the field)', async () => {
+    setOnline(true);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('nominatim down')));
+    await expect(searchPlacesByName('whatever', near)).resolves.toEqual([]);
   });
 });

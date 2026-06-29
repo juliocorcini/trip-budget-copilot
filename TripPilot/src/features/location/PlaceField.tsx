@@ -8,7 +8,8 @@ import {
 } from '@/domain/location';
 import type { RecentPlace, NearbyPlace, Coords } from '@/domain/location';
 import { getCurrentCoords } from '@/utils/geolocation';
-import { reverseGeocodePlace, searchNearbyPlaces, isOnline } from '@/utils/places';
+import { reverseGeocodePlace, searchNearbyPlaces, searchPlacesByName, isOnline } from '@/utils/places';
+import type { NamedPlaceResult } from '@/utils/places';
 import { NearbyPlaceList } from '@/components/NearbyPlaceList';
 import { Icon } from '@/components/Icon';
 import type { CurrentPlace } from '@/domain/types/common';
@@ -69,6 +70,10 @@ export function PlaceField({
   );
   const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
   const [loadingNearby, setLoadingNearby] = useState(false);
+  // DEC-405 (G5): forward-geocode the typed name to real venues.
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<NamedPlaceResult[]>([]);
+  const [searchingPlace, setSearchingPlace] = useState(false);
   const placeCapturedRef = useRef(false);
   const nearbyKeyRef = useRef<string | null>(null);
   // The one-shot capture effect reads the freshest place without re-running.
@@ -138,6 +143,41 @@ export function PlaceField({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationFeaturesEnabled, gpsCoords, category]);
 
+  // DEC-405 (G5): forward-geocode the typed name to real venues (debounced,
+  // opt-in, online-only). Best-effort — never blocks; offline/empty/short query
+  // simply yields no results. Biased to the current fix (or the saved coords) so
+  // a common name resolves to the local venue.
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!locationFeaturesEnabled || !isOnline() || query.length < 3) {
+      setSearchResults([]);
+      setSearchingPlace(false);
+      return;
+    }
+    let active = true;
+    setSearchingPlace(true);
+    const handle = setTimeout(() => {
+      const current = valueRef.current;
+      const near =
+        gpsCoords ??
+        (current?.lat != null && current?.lng != null
+          ? { lat: current.lat, lng: current.lng }
+          : null);
+      void searchPlacesByName(query, near, 6)
+        .then((list) => {
+          if (active) setSearchResults(list);
+        })
+        .finally(() => {
+          if (active) setSearchingPlace(false);
+        });
+    }, 350);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, locationFeaturesEnabled, gpsCoords]);
+
   // M4: recent places derived purely from history (offline), nearest first when
   // the current place has coordinates, else by recency.
   const placeCoords =
@@ -178,6 +218,15 @@ export function PlaceField({
     setEditingPlace(false);
   };
 
+  // DEC-405 (G5): a searched venue carries real coordinates — save them so the
+  // expense lands on the actual place, not a loose string.
+  const applySearchedPlace = (place: NamedPlaceResult) => {
+    onChange({ label: place.label, lat: place.lat, lng: place.lng, placeId: place.placeId });
+    setSearchQuery('');
+    setSearchResults([]);
+    setEditingPlace(false);
+  };
+
   // Edit mode: opt into the live location on demand (the expense may be happening
   // where the traveler is right now). Seeds the placeholder, then nearby resolves.
   const useMyLocation = async () => {
@@ -208,6 +257,10 @@ export function PlaceField({
   };
 
   const showUseMyLocation = locationFeaturesEnabled && !autoCapture;
+  // DEC-405 (G5): name search needs the network; the field itself stays usable
+  // offline (rename/recents), so this only gates the search affordance.
+  const searchEnabled = locationFeaturesEnabled && isOnline();
+  const trimmedQuery = searchQuery.trim();
 
   return (
     <div className="bg-surface-container rounded-xl p-4">
@@ -254,6 +307,51 @@ export function PlaceField({
               </button>
             )}
           </div>
+
+          {/* DEC-405 (G5): search a place by name → real coordinates. */}
+          {searchEnabled && (
+            <div className="mt-2">
+              <div className="flex items-center gap-2 bg-surface-high rounded-lg px-3 py-2">
+                <Icon name="search" size={16} className="text-on-surface-faint shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('expenses.location_search_placeholder')}
+                  className="bg-transparent text-on-surface text-sm outline-none flex-1 min-w-0"
+                />
+              </div>
+              {searchingPlace && (
+                <p className="text-xs text-on-surface-faint mt-1 px-1">
+                  {t('expenses.location_search_searching')}
+                </p>
+              )}
+              {!searchingPlace && searchResults.length > 0 && (
+                <ul className="mt-1 flex flex-col gap-1">
+                  {searchResults.map((result) => (
+                    <li key={result.placeId ?? `${result.lat},${result.lng}`}>
+                      <button
+                        onClick={() => applySearchedPlace(result)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-high btn-press text-left"
+                      >
+                        <Icon
+                          name="location_on"
+                          size={14}
+                          className="text-on-surface-dim shrink-0"
+                        />
+                        <span className="text-sm text-on-surface truncate">{result.label}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!searchingPlace && trimmedQuery.length >= 3 && searchResults.length === 0 && (
+                <p className="text-xs text-on-surface-faint mt-1 px-1">
+                  {t('expenses.location_search_empty')}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Edit mode: opt into the live GPS fix (QuickAdd captures it on open). */}
           {showUseMyLocation && (

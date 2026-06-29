@@ -3047,11 +3047,13 @@
 - **Alternatives**: nenhuma (é confirmação). Edge não-coberto registrado: dívida P2P puramente espelhada (sem gasto local) **não** entra no livre — comportamento correto (é gasto do outro).
 
 ### DEC-405 — Seletor de local ganha busca por nome → coordenadas reais (forward-geocode) [direto · Â-PLACE-REAL]
-- **Date**: 2026-06-29 · **Status**: ⏳ PROPOSED (G5, target `1.9.4-rc`)
-- **Bug (lido no código)**: `PlaceField.tsx` só oferece renomear (string solta), GPS atual, próximos, reverse e recentes — **sem** campo que digita um nome e resolve coords. `utils/places.ts › searchPlaceByName` (DEC-389) existe mas só roda no save da IA/Wise.
+- **Date**: 2026-06-29 · **Status**: ✅ APPROVED — shipped `1.9.4-rc` (G5)
+- **Shipped (G5 · `1.9.4-rc`)**: `utils/places.ts` ganha `searchPlacesByName(name, near?, limit=5)` (forward-geocode → até N venues reais, biased/bounded à caixa do fix); `searchPlaceByName` delega (`[0] ?? null`, byte-idêntico — 21 testes antigos verdes). `PlaceField` ganha campo de busca (debounce 350ms, ≥3 chars, online-only) → lista → tap `applySearchedPlace` salva `{label, lat, lng, placeId}` reais; `placeNameSource` resolvido no save (`resolveSaveLocation`). Como `PlaceField` é o seletor único, a busca tem paridade em QuickAdd + ExpenseDetail + AssistantSheet. i18n `expenses.location_search_*` pt/en/es. +8 testes (`searchPlacesByName`). Best-effort (offline/erro → []), nunca bloqueia. Zero math.
+- **Bug (lido no código)**: `PlaceField.tsx` só oferecia renomear (string solta), GPS atual, próximos, reverse e recentes — **sem** campo que digita um nome e resolve coords. `utils/places.ts › searchPlaceByName` (DEC-389) existia mas só rodava no save da IA/Wise.
 - **Decision**: `PlaceField` ganha campo de **busca por nome** (debounce) → `searchPlaceByName(name, near=coords atuais)` → lista de resultados reais → escolher salva `placeLabel + latitude/longitude + placeId` (`placeNameSource='user'`). Best-effort, nunca bloqueia. Auditar os demais seletores de local e dar paridade. Melhora a UI.
 - **Rationale**: Julio: "quero digitar o nome e buscar no GPS o local real, não ficar string como hoje." Reusa a função que já existe.
 - **Alternatives**: manter só próximos/recentes (rejeitado — é exatamente a dor).
+- **Desvio honesto**: a busca expõe `searchPlacesByName` (lista de N), não o `searchPlaceByName` single — o doc pedia "lista de resultados reais", então generalizei o util (aditivo) mantendo o single byte-idêntico; e as strings ficaram em `expenses.location_*` (família existente) em vez de um namespace `places.*` novo (consistência).
 
 ### DEC-406 — Mapa do gasto expandido vai por portal (fixo de verdade, sem retângulo por cima) [direto · Â-MAP-NO-TRAP]
 - **Date**: 2026-06-29 · **Status**: ⏳ PROPOSED (G6, target `1.9.5-rc`)

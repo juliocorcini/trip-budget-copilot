@@ -136,8 +136,29 @@ export async function searchPlaceByName(
   near?: Coords | null,
   timeoutMs = 6000,
 ): Promise<NamedPlaceResult | null> {
+  return (await searchPlacesByName(name, near, 1, timeoutMs))[0] ?? null;
+}
+
+/**
+ * DEC-405 (G5): forward-geocode a name to UP TO `limit` real venues so the place
+ * selector can offer a list to pick from (the user types "Bar do Zé" and taps the
+ * actual venue, getting its real coordinates instead of a loose string). Biased +
+ * bounded to a box around `near` when known, so a globally common name resolves to
+ * the local venue. {@link searchPlaceByName} is the single-result twin used by the
+ * AI/import save path. Same boundary contract as every lookup here: opt-in,
+ * online-only, NEVER throws — returns [] on offline, empty name, timeout, HTTP
+ * error, no match, or unparsable payload, so the caller falls back gracefully.
+ * Coordinates are sent for this explicit lookup only (ÂNCORA 8).
+ */
+export async function searchPlacesByName(
+  name: string,
+  near?: Coords | null,
+  limit = 5,
+  timeoutMs = 6000,
+): Promise<NamedPlaceResult[]> {
   const query = name.trim();
-  if (query === '' || !isOnline() || typeof fetch === 'undefined') return null;
+  const max = Math.max(1, Math.min(limit, 10));
+  if (query === '' || !isOnline() || typeof fetch === 'undefined') return [];
 
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -146,7 +167,7 @@ export async function searchPlaceByName(
     const params = new URLSearchParams({
       format: 'jsonv2',
       q: query,
-      limit: '1',
+      limit: String(max),
       addressdetails: '1',
     });
     // Bias + restrict to a ~50km box around the current location when known.
@@ -160,22 +181,28 @@ export async function searchPlaceByName(
       headers: { Accept: 'application/json' },
       signal: controller?.signal,
     });
-    if (!response.ok) return null;
+    if (!response.ok) return [];
 
     const data = (await response.json()) as unknown;
-    if (!Array.isArray(data) || data.length === 0) return null;
-    const first = data[0] as Record<string, unknown>;
+    if (!Array.isArray(data)) return [];
 
-    const lat = Number(first['lat']);
-    const lng = Number(first['lon']);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-    const displayName = readString(first, 'display_name');
-    const label = readString(first, 'name') ?? (displayName ? displayName.split(',')[0]!.trim() : query);
-    const rawId = first['place_id'];
-    return { label, lat, lng, placeId: rawId == null ? null : String(rawId) };
+    const results: NamedPlaceResult[] = [];
+    for (const entry of data) {
+      if (results.length >= max) break;
+      if (entry == null || typeof entry !== 'object') continue;
+      const record = entry as Record<string, unknown>;
+      const lat = Number(record['lat']);
+      const lng = Number(record['lon']);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const displayName = readString(record, 'display_name');
+      const label =
+        readString(record, 'name') ?? (displayName ? displayName.split(',')[0]!.trim() : query);
+      const rawId = record['place_id'];
+      results.push({ label, lat, lng, placeId: rawId == null ? null : String(rawId) });
+    }
+    return results;
   } catch {
-    return null;
+    return [];
   } finally {
     if (timer) clearTimeout(timer);
   }
