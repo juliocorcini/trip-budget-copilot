@@ -566,7 +566,7 @@ export function DashboardCards({
                 >
                   <button
                     className="flex items-center gap-2.5 w-full text-left btn-press"
-                    onClick={() => navigate(`/trip/edit?occurrence=${occ.id}`)}
+                    onClick={() => navigate(`/event/${occ.id}`)}
                   >
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
@@ -650,9 +650,13 @@ export function DashboardCards({
                           </div>
                         ))}
                         {live.expenses.length > 3 && (
-                          <p className="text-[11px] font-semibold text-on-surface-faint">
+                          <button
+                            onClick={() => navigate(`/event/${occ.id}`)}
+                            className="text-[11px] font-semibold text-primary btn-press self-start flex items-center gap-0.5"
+                          >
                             {t('dashboard.live_event_more', { count: live.expenses.length - 3 })}
-                          </p>
+                            <Icon name="chevron_right" size={12} className="text-primary" />
+                          </button>
                         )}
                       </>
                     )}

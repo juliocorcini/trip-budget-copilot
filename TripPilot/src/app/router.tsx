@@ -33,6 +33,7 @@ const FundsPage = lazyWithRetry(() => import('@/features/funds/FundsPage').then(
 const PlannedPurchasesPage = lazyWithRetry(() => import('@/features/planned/PlannedPurchasesPage').then(m => ({ default: m.PlannedPurchasesPage })));
 const ProfilesPage = lazyWithRetry(() => import('@/features/profiles/ProfilesPage').then(m => ({ default: m.ProfilesPage })));
 const ExpenseDetailPage = lazyWithRetry(() => import('@/features/expenses/ExpenseDetailPage').then(m => ({ default: m.ExpenseDetailPage })));
+const EventGuidePage = lazyWithRetry(() => import('@/features/event/EventGuidePage').then(m => ({ default: m.EventGuidePage })));
 const AboutPage = lazyWithRetry(() => import('@/features/more/AboutPage').then(m => ({ default: m.AboutPage })));
 const GuidePage = lazyWithRetry(() => import('@/features/guide/GuidePage').then(m => ({ default: m.GuidePage })));
 const HelpPage = lazyWithRetry(() => import('@/features/help/HelpPage').then(m => ({ default: m.HelpPage })));
@@ -136,6 +137,10 @@ export const router = createBrowserRouter([
           { path: '/dashboard', element: <LazyRoute><DashboardPage /></LazyRoute> },
           { path: '/expenses', element: <LazyRoute><ExpenseListPage /></LazyRoute> },
           { path: '/expenses/:id', element: <LazyRoute><ExpenseDetailPage /></LazyRoute> },
+          // DEC-401 (G2): the event guide — follow/understand/remember an event
+          // (rhythm, all spends, outings, edit, end). The live-event card + its
+          // "+N mais" navigate here.
+          { path: '/event/:id', element: <LazyRoute><EventGuidePage /></LazyRoute> },
           { path: '/outings/:id/review', element: <LazyRoute><OutingReviewPage /></LazyRoute> },
           { path: '/planner', element: <LazyRoute><ModeGuard><PlannerPage /></ModeGuard></LazyRoute> },
           // Redesign (G1): the new IA. "Viagem" = plan/structure hub, "Copiloto"

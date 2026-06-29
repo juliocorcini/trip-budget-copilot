@@ -1,8 +1,8 @@
 {
-  "version": "1.9.0-rc",
+  "version": "1.9.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.0-rc.zip",
-  "notes": "Eventos agora têm vida própria: você inicia o evento, faz quantas saídas quiser e só ele some quando você encerra. Encerrar ou descartar uma saída não apaga mais o evento."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.1-rc.zip",
+  "notes": "Cada evento agora tem um guia próprio: abra o evento para ver o ritmo (quanto sobra por dia), todas as despesas com o lugar, as saídas e a saída ao vivo embutida — e encerrar o evento por ali."
 }

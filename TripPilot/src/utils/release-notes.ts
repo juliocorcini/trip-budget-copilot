@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.1-rc',
+    date: '2026-06-29',
+    items: {
+      'pt-BR': [
+        'Cada evento agora tem um guia próprio: toque no evento para abrir a tela dedicada e acompanhar tudo num só lugar.',
+        'O guia mostra o ritmo factual: quanto já foi consumido, quanto sobra, quanto dá por dia e um aviso leve quando o gasto do dia pede para segurar.',
+        'Todas as despesas do evento aparecem agrupadas por dia, com o lugar de cada uma e um mini-mapa sob demanda.',
+        'As saídas do evento ficam listadas no guia, com a saída ao vivo embutida; editar o evento abre a folha de edição de sempre e dá para encerrar o evento ali mesmo.',
+      ],
+      en: [
+        'Every event now has its own guide: tap an event to open the dedicated screen and follow everything in one place.',
+        'The guide shows a factual rhythm: how much is consumed, how much is left, how much per day, and a light nudge when today\u2019s spending says to ease up.',
+        'All event spends are grouped by day, each with its place and an on-demand mini-map.',
+        'The event\u2019s outings are listed in the guide, with the live outing embedded; editing the event opens the usual edit sheet, and you can end the event right there.',
+      ],
+      es: [
+        'Cada evento ahora tiene su propia guía: toca un evento para abrir la pantalla dedicada y seguir todo en un solo lugar.',
+        'La guía muestra un ritmo factual: cuánto se consumió, cuánto queda, cuánto por día y un aviso leve cuando el gasto del día pide frenar.',
+        'Todos los gastos del evento se agrupan por día, cada uno con su lugar y un mini-mapa bajo demanda.',
+        'Las salidas del evento se listan en la guía, con la salida en vivo embebida; editar el evento abre la hoja de edición de siempre y puedes finalizar el evento ahí mismo.',
+      ],
+    },
+  },
+  {
     version: '1.9.0-rc',
     date: '2026-06-29',
     items: {

@@ -10,6 +10,7 @@ import {
   isEventLeftoverPending,
   selectPendingEventLeftovers,
   buildLiveEventProgress,
+  buildEventGuide,
 } from '@/domain/budget';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { createPlannedOccurrence } from '@/domain/planning';
@@ -255,6 +256,83 @@ describe('buildLiveEventProgress (DEC-390 · parte 2 · G1)', () => {
     const progress = buildLiveEventProgress(occ, [dead, alive], '2026-06-12');
     expect(progress.consumedCents).toBe(700);
     expect(progress.expenses).toHaveLength(1);
+  });
+});
+
+describe('buildEventGuide (DEC-401 · G2)', () => {
+  it('extends live progress with today spend, an "on pace" cue, and carries place per spend', () => {
+    const occ = mkEvent({ id: 'evt-1', plannedDate: '2026-06-12', endDate: '2026-06-15', reservedCents: 4000 });
+    const txs = [
+      mkExpense({
+        occurrenceId: 'evt-1',
+        amountCents: 600,
+        date: '2026-06-12T12:00:00.000Z',
+        placeLabel: 'Bar do Centro',
+        latitude: 41.1,
+        longitude: -8.6,
+      }),
+      mkExpense({ occurrenceId: 'evt-1', amountCents: 300, date: '2026-06-13T12:00:00.000Z' }),
+    ];
+    const guide = buildEventGuide(occ, txs, '2026-06-13T12:00:00.000Z');
+    expect(guide.consumedCents).toBe(900);
+    expect(guide.remainingCents).toBe(3100);
+    // remaining 3100 over 3 days (13,14,15) → floor(3100/3) = 1033; today 300 ≤ 1033.
+    expect(guide.perDayCents).toBe(1033);
+    expect(guide.spentTodayCents).toBe(300);
+    expect(guide.pace).toBe('on_pace');
+    const withPlace = guide.expenses.find((e) => e.placeLabel === 'Bar do Centro');
+    expect(withPlace?.latitude).toBe(41.1);
+    expect(withPlace?.longitude).toBe(-8.6);
+  });
+
+  it('flags "ease up" when today already passed the per-day allowance', () => {
+    const occ = mkEvent({ id: 'evt-1', plannedDate: '2026-06-12', endDate: '2026-06-15', reservedCents: 4000 });
+    const txs = [mkExpense({ occurrenceId: 'evt-1', amountCents: 3500, date: '2026-06-13T12:00:00.000Z' })];
+    const guide = buildEventGuide(occ, txs, '2026-06-13T12:00:00.000Z');
+    // remaining 500 over 3 days → per-day 166; today 3500 ≫ 166 → ease up.
+    expect(guide.spentTodayCents).toBe(3500);
+    expect(guide.pace).toBe('ease_up');
+  });
+
+  it('has no pace cue for a track-only event or once the reserve is exhausted', () => {
+    const trackOnly = mkEvent({ id: 'evt-1', reservedCents: null });
+    const trackGuide = buildEventGuide(
+      trackOnly,
+      [mkExpense({ occurrenceId: 'evt-1', amountCents: 1200, date: '2026-06-12T12:00:00.000Z' })],
+      '2026-06-12T12:00:00.000Z',
+    );
+    expect(trackGuide.pace).toBe('none');
+    expect(trackGuide.spentTodayCents).toBe(1200);
+
+    const spentOut = mkEvent({ id: 'evt-1', reservedCents: 1000 });
+    const spentOutGuide = buildEventGuide(
+      spentOut,
+      [mkExpense({ occurrenceId: 'evt-1', amountCents: 1000, date: '2026-06-12T12:00:00.000Z' })],
+      '2026-06-12T12:00:00.000Z',
+    );
+    expect(spentOutGuide.remainingCents).toBe(0);
+    expect(spentOutGuide.pace).toBe('none');
+  });
+
+  it('matches buildLiveEventProgress for consumed/remaining/per-day (no new money math)', () => {
+    const occ = mkEvent({
+      id: 'evt-1',
+      plannedDate: '2026-06-12',
+      endDate: '2026-06-15',
+      reservedCents: 4000,
+      linkedSessionId: 'sess-1',
+    });
+    const txs = [
+      mkExpense({ occurrenceId: 'evt-1', amountCents: 1000, date: '2026-06-12T12:00:00.000Z' }),
+      mkExpense({ sessionId: 'sess-1', amountCents: 500, date: '2026-06-13T12:00:00.000Z' }),
+    ];
+    const today = '2026-06-13T12:00:00.000Z';
+    const live = buildLiveEventProgress(occ, txs, today);
+    const guide = buildEventGuide(occ, txs, today);
+    expect(guide.consumedCents).toBe(live.consumedCents);
+    expect(guide.remainingCents).toBe(live.remainingCents);
+    expect(guide.perDayCents).toBe(live.perDayCents);
+    expect(guide.expenses.length).toBe(live.expenses.length);
   });
 });
 

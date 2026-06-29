@@ -3,7 +3,7 @@ import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 import type { Session } from '@/domain/types/session';
 import { sumCents } from '@/domain/money';
 import { transactionBasePersonalCostCents } from '@/domain/money/exchange';
-import { getTotalDays } from '@/domain/dates';
+import { getTotalDays, localDayOf } from '@/domain/dates';
 
 /**
  * The budget impact (base-currency personal cost, the SAME rule as
@@ -151,6 +151,10 @@ export interface LiveEventExpense {
   baseCostCents: number;
   /** How this spend draws on the event: explicitly attributed XOR via the outing. */
   source: 'attributed' | 'outing';
+  /** DEC-401 (G2): the spend's place, for the guide's per-expense mini-map. */
+  placeLabel: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 /** DEC-390 (parte 2, G1): the live progress of an event that is happening now. */
@@ -211,6 +215,9 @@ export function buildLiveEventProgress(
       category: t.category,
       baseCostCents: transactionBasePersonalCostCents(t),
       source: t.occurrenceId === occ.id ? 'attributed' : 'outing',
+      placeLabel: t.placeLabel ?? null,
+      latitude: t.latitude ?? null,
+      longitude: t.longitude ?? null,
     }));
   const activeSession = sessions.find(
     (s) => s.status === 'active' && s.deletedAt === null && sessionIds.has(s.id),
@@ -226,6 +233,57 @@ export function buildLiveEventProgress(
     activeSessionId: activeSession?.id ?? null,
     expenses,
   };
+}
+
+/**
+ * DEC-401 (G2): the factual rhythm verdict of an event — a LIGHT cue derived
+ * straight from numbers, never an opinion. `none` when there is nothing to pace
+ * (track-only event, or the reserve is spent / the event is over so the per-day
+ * allowance is 0). Otherwise: `ease_up` when today's spend already passed the
+ * day's allowance, `on_pace` when it is still within it.
+ */
+export type EventPace = 'none' | 'on_pace' | 'ease_up';
+
+/**
+ * DEC-401 (G2): the event GUIDE view-model — everything the dedicated
+ * `/event/:id` screen needs, layered on the live progress (consumed/remaining/
+ * per-day/days + the contributing spends, now carrying each spend's place for
+ * the mini-map). It adds only the two derived numbers the rhythm line needs:
+ * today's event spend and the factual pace cue. No new money math — `consumed`,
+ * `remaining` and `perDay` come verbatim from `buildLiveEventProgress`, so the
+ * guide is bit-for-bit consistent with the Home card (Â-MONEY-INVARIANT). Pure.
+ */
+export interface EventGuide extends LiveEventProgress {
+  /** The event spend dated TODAY (base-currency personal cost). */
+  spentTodayCents: number;
+  /** The factual rhythm cue vs the per-day allowance. */
+  pace: EventPace;
+}
+
+/**
+ * DEC-401 (G2): build the event guide view-model. Reuses `buildLiveEventProgress`
+ * (same union, same `consumedCents`) and derives the rhythm inputs: today's event
+ * spend (the contributing spends dated today) and a factual pace cue measured
+ * against `perDayCents` (the SAME per-day ruler the Home shows). Pure (TS only).
+ */
+export function buildEventGuide(
+  occ: PlannedOccurrence,
+  transactions: Transaction[],
+  todayIso: string,
+  sessions: Session[] = [],
+): EventGuide {
+  const progress = buildLiveEventProgress(occ, transactions, todayIso, sessions);
+  const today = todayIso.slice(0, 10);
+  const spentTodayCents = sumCents(
+    progress.expenses.filter((e) => localDayOf(e.date) === today).map((e) => e.baseCostCents),
+  );
+  const pace: EventPace =
+    progress.reservedCents === null || progress.perDayCents <= 0
+      ? 'none'
+      : spentTodayCents > progress.perDayCents
+        ? 'ease_up'
+        : 'on_pace';
+  return { ...progress, spentTodayCents, pace };
 }
 
 /**
