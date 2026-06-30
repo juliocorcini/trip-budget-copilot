@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.9.9-rc',
+    date: '2026-06-30',
+    items: {
+      'pt-BR': [
+        'No celular (Android), colar imagem no campo da IA era bloqueado pelo teclado — agora é só tocar no botão de câmera/galeria ao lado: a foto da nota vira miniatura e a IA lê no enviar, igual ao colar.',
+        'Dá para escolher várias fotos da galeria de uma vez; elas se acumulam como miniaturas (com X para remover) e a IA lança todos os gastos num envio só. Colar continua funcionando no computador.',
+      ],
+      en: [
+        'On mobile (Android), pasting an image into the AI box was blocked by the keyboard — now just tap the camera/gallery button next to it: the receipt photo becomes a thumbnail and the AI reads it on send, just like paste.',
+        'You can pick several photos from the gallery at once; they stack as thumbnails (with an X to remove) and the AI logs all the expenses in a single send. Pasting still works on desktop.',
+      ],
+      es: [
+        'En el móvil (Android), pegar una imagen en el campo de la IA estaba bloqueado por el teclado — ahora basta con tocar el botón de cámara/galería al lado: la foto de la cuenta se vuelve miniatura y la IA la lee al enviar, igual que pegar.',
+        'Puedes elegir varias fotos de la galería a la vez; se acumulan como miniaturas (con una X para quitarlas) y la IA registra todos los gastos en un solo envío. Pegar sigue funcionando en el ordenador.',
+      ],
+    },
+  },
+  {
     version: '1.9.8-rc',
     date: '2026-06-29',
     items: {

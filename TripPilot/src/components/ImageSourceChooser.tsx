@@ -6,6 +6,12 @@ import { BottomSheet } from '@/components/BottomSheet';
 interface UseImageSourceChooserOptions {
   /** Override the sheet title (defaults to attachments.source_title). */
   title?: string;
+  /**
+   * CC-IMG-MULTI: let the GALLERY picker select several images at once (the
+   * camera always takes a single shot). When set, `onPick` fires once per chosen
+   * file. Defaults to false → unchanged single-pick behavior for every caller.
+   */
+  multiple?: boolean;
 }
 
 interface ImageSourceChooser {
@@ -35,9 +41,12 @@ export function useImageSourceChooser(
   const [open, setOpen] = useState(false);
 
   const handlePick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const picked = Array.from(event.target.files ?? []);
     event.target.value = '';
-    if (file) onPick(file);
+    if (picked.length === 0) return;
+    // Multi-select (gallery) fires onPick once per file; single mode is unchanged.
+    if (options?.multiple) picked.forEach((file) => onPick(file));
+    else onPick(picked[0]!);
   };
 
   const pickFrom = (source: 'camera' | 'gallery') => {
@@ -56,7 +65,14 @@ export function useImageSourceChooser(
         className="hidden"
         onChange={handlePick}
       />
-      <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handlePick} />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        multiple={options?.multiple ?? false}
+        className="hidden"
+        onChange={handlePick}
+      />
 
       <BottomSheet open={open} onClose={() => setOpen(false)} title={options?.title ?? t('attachments.source_title')}>
         <div className="flex flex-col gap-2 mt-4">

@@ -194,7 +194,6 @@ export function AssistantSheet() {
                 onChange={assistant.setText}
                 onSubmit={() => void assistant.submit()}
                 onToggleVoice={() => void assistant.toggleVoice()}
-                onPickPhoto={(file) => void assistant.scanReceiptPhoto(file)}
                 onAddImages={assistant.addPendingImages}
                 onRemoveImage={assistant.removePendingImage}
                 onEnablePhoto={enablePhoto}
@@ -316,7 +315,6 @@ function InputArea(props: {
   onChange: (value: string) => void;
   onSubmit: () => void;
   onToggleVoice: () => void;
-  onPickPhoto: (file: File) => void;
   onAddImages: (files: File[]) => void;
   onRemoveImage: (id: string) => void;
   onEnablePhoto: () => Promise<void>;
@@ -326,7 +324,14 @@ function InputArea(props: {
   // gallery chooser used everywhere. E13 · DEC-333: it is ALWAYS offered now;
   // tapping it while cloud OCR is still opt-out shows the one-time consent and
   // then opens the chooser (it is no longer hidden until a capability is granted).
-  const photoChooser = useImageSourceChooser(props.onPickPhoto);
+  // CC-IMG-MULTI (Android paste fix): pasting an image into a <textarea> is
+  // blocked by the mobile IME (text-only field), so on Android the camera/gallery
+  // button is the only reliable way to attach a receipt photo. It now feeds the
+  // SAME accumulate-then-OCR-on-send pipeline as paste (DEC-408) and the gallery
+  // allows picking several images at once — parity with paste on every platform.
+  const photoChooser = useImageSourceChooser((file) => props.onAddImages([file]), {
+    multiple: true,
+  });
   const [photoConsentOpen, setPhotoConsentOpen] = useState(false);
   // DEC-408 (G7): images pasted before OCR consent was granted wait here; the
   // effect below flushes them once consent flips on (avoids a stale-closure add).

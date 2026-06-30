@@ -211,8 +211,6 @@ export interface UseAssistant {
   addPendingImages: (files: File[]) => void;
   /** DEC-408 (G7): drop one queued image before sending. */
   removePendingImage: (id: string) => void;
-  /** FB-09 (DEC-258): scan a receipt photo → one summarized expense preview. */
-  scanReceiptPhoto: (file: File) => Promise<void>;
   /** FB-09: open the scanned photo as the full item-by-item receipt instead. */
   openReceiptItems: () => void;
   /** Dismiss the post-split nudge (the action already committed). */
@@ -485,60 +483,6 @@ export function useAssistant(): UseAssistant {
     });
     setPhase('batch_preview');
   }, [buildPlanContext]);
-
-  // FB-09 (DEC-258): scan a receipt photo INSIDE the assistant → one summarized
-  // expense, previewed through the SAME plan/preview machinery as text (full
-  // parity, one-tap confirm). The plan + photo are kept so "open items" can hand
-  // off to the full receipt without a second OCR call. Gated by cloud OCR opt-in.
-  const scanReceiptPhoto = useCallback(
-    async (file: File) => {
-      if (!photoEnabled) return;
-      if (blockedByCooldown()) return;
-      setErrorKey(null);
-      setNote(null);
-      setFromPhoto(false);
-      overridesRef.current = {};
-      localParticipantsRef.current = [];
-      setPhase('thinking');
-      try {
-        const image = await compressImageFile(file);
-        const dataUrl = await blobToDataUrl(image.blob);
-        const outcome = await extractReceiptViaCloud(dataUrl);
-        if (!outcome.ok) {
-          if (outcome.error === 'rate_limited') enterCooldown(outcome.cooldown);
-          else {
-            setErrorKey('error.photo_failed');
-            setPhase('error');
-          }
-          return;
-        }
-        const summary = summarizeReceiptTotal(outcome.plan);
-        if (!summary) {
-          setErrorKey('error.photo_failed');
-          setPhase('error');
-          return;
-        }
-        const ctx = buildPlanContext();
-        if (!ctx) {
-          setErrorKey('unsupported.no_trip');
-          setPhase('error');
-          return;
-        }
-        receiptPlanRef.current = outcome.plan;
-        receiptImageRef.current = image;
-        const intent = receiptPlanToIntent(outcome.plan, summary);
-        intentRef.current = intent;
-        modeRef.current = 'single';
-        runPlan(intent);
-        setFromPhoto(true);
-      } catch (err) {
-        console.error('[assistant] photo scan failed', err);
-        setErrorKey('error.photo_failed');
-        setPhase('error');
-      }
-    },
-    [photoEnabled, buildPlanContext, runPlan, blockedByCooldown, enterCooldown],
-  );
 
   // DEC-408 (G7): build the cloud router context pack. Extracted so the text
   // submit and the pasted-image flow share one definition (no drift).
@@ -1253,7 +1197,6 @@ export function useAssistant(): UseAssistant {
     openFullEditor,
     addPendingImages,
     removePendingImage,
-    scanReceiptPhoto,
     openReceiptItems,
     dismissNudge,
     toggleVoice,

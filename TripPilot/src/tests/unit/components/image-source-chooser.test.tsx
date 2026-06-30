@@ -9,8 +9,8 @@ import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 //   2. each option fires the matching hidden <input> (camera has capture=environment),
 //   3. picking a file calls onPick once and resets the input (re-pick the same file).
 
-function Harness({ onPick }: { onPick: (file: File) => void }) {
-  const chooser = useImageSourceChooser(onPick);
+function Harness({ onPick, multiple }: { onPick: (file: File) => void; multiple?: boolean }) {
+  const chooser = useImageSourceChooser(onPick, multiple ? { multiple: true } : undefined);
   return (
     <>
       <button onClick={chooser.open}>open-chooser</button>
@@ -94,5 +94,37 @@ describe('useImageSourceChooser (CC-IMG / DEC-275)', () => {
     fireEvent.change(gallery!, { target: { files: [] } });
 
     expect(onPick).not.toHaveBeenCalled();
+  });
+
+  // CC-IMG-MULTI (Android paste fix): the assistant feeds its camera/gallery
+  // button into the accumulate-then-OCR-on-send pipeline, so the gallery must
+  // allow several images at once and surface each one to onPick.
+  it('single mode (default) keeps the gallery without the multiple attribute', () => {
+    render(<Harness onPick={vi.fn()} />);
+    const { gallery } = fileInputs();
+    expect(gallery!.hasAttribute('multiple')).toBe(false);
+  });
+
+  it('multiple mode marks the gallery input multiple but never the camera', () => {
+    render(<Harness onPick={vi.fn()} multiple />);
+    const { camera, gallery } = fileInputs();
+    expect(gallery!.hasAttribute('multiple')).toBe(true);
+    // The camera always takes a single shot — it must not become multiple.
+    expect(camera!.hasAttribute('multiple')).toBe(false);
+  });
+
+  it('multiple mode fires onPick once per chosen file (each File surfaced)', () => {
+    const onPick = vi.fn();
+    render(<Harness onPick={onPick} multiple />);
+    const { gallery } = fileInputs();
+    const a = new File(['a'], 'a.jpg', { type: 'image/jpeg' });
+    const b = new File(['b'], 'b.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(gallery!, { target: { files: [a, b] } });
+
+    expect(onPick).toHaveBeenCalledTimes(2);
+    expect(onPick).toHaveBeenNthCalledWith(1, a);
+    expect(onPick).toHaveBeenNthCalledWith(2, b);
+    expect(gallery!.value).toBe('');
   });
 });
