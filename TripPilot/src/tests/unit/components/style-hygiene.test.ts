@@ -205,3 +205,25 @@ describe('C03 / E11 (DEC-331) — scrollbars stay hidden app-wide (permanent loc
     expect(offenders.map((f) => f.replace(SRC, 'src'))).toEqual([]);
   });
 });
+
+describe('DEC-425 (G1) — Leaflet map surface keeps the scrollbar hidden', () => {
+  const css = readFileSync(GLOBALS, 'utf8');
+
+  it('re-asserts scrollbar-width:none on the Leaflet container and its descendants (named, not only the universal `*`)', () => {
+    // Leaflet builds its panes/controls at runtime; on some WebView versions the
+    // universal pseudo is not reliably matched inside that subtree, so it must be
+    // named explicitly (the same reason html/body and html.cap-native #root are).
+    expect(css).toMatch(
+      /\.leaflet-container,\s*\.leaflet-container \*\s*\{[\s\S]*?scrollbar-width:\s*none\s*!important/,
+    );
+  });
+
+  it('hides the WebKit scrollbar on the Leaflet container/panes with display:none !important (kills the phantom track)', () => {
+    const idx = css.indexOf('.leaflet-container::-webkit-scrollbar');
+    expect(idx, 'a .leaflet-container::-webkit-scrollbar rule must exist').toBeGreaterThan(-1);
+    const rule = css.slice(idx, css.indexOf('}', idx) + 1);
+    expect(rule).toContain('.leaflet-container *::-webkit-scrollbar');
+    expect(rule).toContain('.leaflet-pane::-webkit-scrollbar');
+    expect(rule).toMatch(/display:\s*none\s*!important/);
+  });
+});

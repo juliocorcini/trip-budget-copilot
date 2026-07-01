@@ -1,8 +1,8 @@
 {
-  "version": "1.9.9-rc",
+  "version": "2.0.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/1.9.9-rc.zip",
-  "notes": "No celular (Android), colar imagem no campo da IA é bloqueado pelo teclado — agora o botão de câmera/galeria anexa a foto da nota (e dá para escolher várias da galeria); a IA lê tudo no enviar."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.0-rc.zip",
+  "notes": "A barra de rolagem que reaparecia na tela do mapa sumiu de novo — a superfície do mapa (Leaflet) agora esconde a barra como o resto do app."
 }

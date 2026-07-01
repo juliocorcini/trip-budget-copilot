@@ -12,11 +12,17 @@
 - Local do import = coords **REAIS** (nunca inventa); satélite/tiles/refresh/geocode best-effort e offline-safe; nunca bloquear; schema aditivo; sem barra de rolagem; t(); código em inglês.
 
 ### CURRENT STATE
-- **Active gate**: **G0 ✅ COMPLETO** (baseline + provas + DEC-413→425 PROPOSED). Próximo: **G1** (barra de rolagem some → `2.0.0-rc`).
-- **Last commit**: `c03be79` — `1.9.9-rc` (DEC-412, base confirmada; topo do `git log`). G0 não commita código de produção (só provas + brain).
-- **Tests**: **2853 pass / 2855** (baseline 2846/2848 + **7** provas G0 em `field-fixes-g0-proofs.test.ts`). As 2 falhas `split-live-loop` seguem WebCrypto/Node-18 (verdes no CI Node 22) → **não-regressão / known-base**. `tsc --noEmit` limpo; `npm run build` verde.
+- **Active gate**: **G1 ✅ shipped `2.0.0-rc`** (barra de rolagem some). Próximo: **G2** (import idempotente + transfer desmarcável → `2.0.1-rc`, keystone).
+- **Last commit**: `2.0.0-rc` (DEC-425). Base `1.9.9-rc` (`c03be79`) confirmada; G0 provas em `21925d8`.
+- **Tests**: **2855 pass / 2857** (2853 + **2** novos em `style-hygiene.test.ts` — Leaflet container/panes escondem a barra). As 2 falhas `split-live-loop` seguem WebCrypto/Node-18 (verdes no CI Node 22) → **não-regressão / known-base**. `tsc --noEmit` limpo; `npm run build` verde.
 - **Risks**: G4 é o gate de maior cuidado (dinheiro — teste-âncora obrigatório antes de fechar); G2 keystone (união de refs tx∪settlements + toggle); G11 dep nova (`leaflet.markercluster`) só no chunk lazy.
-- **Scope**: G0 (provas) ✅. G1→G11 pendentes. **Worker não muda em nenhum gate.**
+- **Scope**: G0 (provas) ✅, G1 (scrollbar) ✅. G2→G11 pendentes. **Worker não muda em nenhum gate.**
+
+### G1 — Barra de rolagem some (done 2026-07-01) — `2.0.0-rc` (DEC-425, Â-NO-SCROLLBAR)
+- **Why (investigação-primeiro)**: o global (`styles/globals.css`) já é blindado — `html,body,* { scrollbar-width:none !important }` + `html/body/*::-webkit-scrollbar { width:0; height:0; display:none !important }` + reforços `html.cap-native #root/body` (DEC-331/D-BUG-07/E11, travados por `style-hygiene.test.ts`). Logo a "volta" da barra **não** é regra apagada: é a superfície do **Leaflet**, que injeta stylesheet própria e monta panes/controles/popups em runtime — e em algumas versões de Chrome/Android WebView o pseudo universal `*::-webkit-scrollbar` **não** é confiavelmente casado dentro desse subtree criado dinamicamente (mesma fronteira que o reforço `html.cap-native #root` já cobre por especificidade nomeada).
+- **Fix (CSS · endurecimento nomeado) — ✅**: novo bloco em `globals.css` re-afirma o hide **direto** no `.leaflet-container` + `.leaflet-container *` (`scrollbar-width:none !important`) e nos pseudos `.leaflet-container::-webkit-scrollbar`, `.leaflet-container *::-webkit-scrollbar`, `.leaflet-pane::-webkit-scrollbar`, `.leaflet-control-container::-webkit-scrollbar` (`width/height:0` + **`display:none !important`** — é o `display:none`, não só `width:0`, que mata o track fantasma nos engines onde `width:0` deixa gutter). Maior especificidade + **nomeado** (não depende do `*`). Nenhuma nova superfície com `overflow` foi introduzida (o overlay do mapa usa `flex`/`min-h-0`, o preview usa `overflow-hidden`).
+- **5-point**: (1) AC — a barra some na superfície do mapa; o global segue intacto; nada de novo `overflow:scroll`. (2) Regressão — **Â-NO-SCROLLBAR** reforçada (não afrouxada); **A1/A6 invariância** intacta (CSS puro, zero math); **A5 nunca bloquear** (só visual). (3) Testes **2855/2857** (+2, sem novas falhas; as 2 `split-live-loop` seguem); `tsc` limpo; build verde. (4) Fora de escopo: nenhum. (5) dev-log + decision-log (DEC-425 → APPROVED).
+- **Deploy**: bump `2.0.0-rc` (`package.json`+`app-version.ts`+`public/version.json`+`release-notes.ts` pt/en/es + `package-lock.json`) → commit + push master → Pages auto-build. **Worker não muda.**
 
 ### G0 — Setup & baseline + provas (done 2026-07-01)
 - **Baseline**: `npm install` OK (Node-18 sandbox; warnings EBADENGINE wrangler/undici/node esperados; "up to date"); **testes 2846 pass / 2848** (2 falhas `split-live-loop` WebCrypto/Node-18 = baseline conhecido, não-regressão); `npm run build` verde (`index` 459.90 KB < 500 KB); `tsc --noEmit` limpo (exit 0).

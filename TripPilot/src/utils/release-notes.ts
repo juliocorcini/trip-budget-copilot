@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.0-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'A barra de rolagem que tinha voltado a aparecer na tela do mapa sumiu de novo — a superfície do mapa (Leaflet) agora esconde a barra como o resto do app.',
+      ],
+      en: [
+        'The scrollbar that had reappeared on the map screen is gone again — the map surface (Leaflet) now hides the bar like the rest of the app.',
+      ],
+      es: [
+        'La barra de desplazamiento que había vuelto a aparecer en la pantalla del mapa desapareció de nuevo — la superficie del mapa (Leaflet) ahora oculta la barra como el resto de la app.',
+      ],
+    },
+  },
+  {
     version: '1.9.9-rc',
     date: '2026-06-30',
     items: {

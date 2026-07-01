@@ -220,6 +220,31 @@ html.cap-native body::-webkit-scrollbar {
   display: none !important;
 }
 
+/* DEC-425 (G1) — the scrollbar "came back" on the map surface. The global CSS
+   above is bulletproof (display:none on the universal + root pseudos), so the
+   regression is a SPECIFIC surface: Leaflet injects its own stylesheet and builds
+   map panes / zoom+attribution controls / popups at runtime, and on some Chrome /
+   Android WebView versions the universal `*::-webkit-scrollbar` pseudo is not
+   reliably matched inside that dynamically-built subtree — the same matching
+   boundary the `html.cap-native #root` re-assertion above already covers. Re-assert
+   the hide directly on the Leaflet container and every descendant, at higher
+   specificity and NAMED (not relying on `*`), so no pane/control can re-paint a
+   track. `display:none` (not just width:0) is what kills the phantom track on the
+   engines where width:0 leaves a gutter. Locked by style-hygiene.test.ts (DEC-425). */
+.leaflet-container,
+.leaflet-container * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.leaflet-container::-webkit-scrollbar,
+.leaflet-container *::-webkit-scrollbar,
+.leaflet-pane::-webkit-scrollbar,
+.leaflet-control-container::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
    Motion system (DEC-194). CSS-first: every animation is transform/opacity only
    (GPU-composited, 60fps in the Capacitor WebView, 0 KB JS). Entrances use the
