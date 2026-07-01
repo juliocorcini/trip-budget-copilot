@@ -206,3 +206,85 @@ describe('avgUntilEndFlatCents (DEC-392 · parte 2, G2 — honest flat average)'
     expect(result.avgUntilEndFlatCents).toBe(1_000);
   });
 });
+
+// DEC-415 (G4) — the cofrinho cap. ÂNCORA test (Â-MONEY-INVARIANT): the cap only
+// changes the DAILY reading (`todayAllowance`/`freeToday`), never the total free
+// nor `avgUntilEndFlat`, and is byte-identical to the pre-DEC-415 behavior when no
+// cap is passed. Uniform 10-day phase, €90 free, nothing spent — the exact G0
+// proof-B scenario where under-spending inflates the next day's hero €9 → €10.
+describe('calculateTodayFreeBudget cofrinho cap (DEC-415 · Â-MONEY-INVARIANT)', () => {
+  const phase10: Phase = {
+    ...meta,
+    id: 'ph-10',
+    tripId: 'trip-1',
+    name: 'Ten days',
+    startDate: '2026-06-10',
+    endDate: '2026-06-19', // 10 calendar days inclusive, uniform
+    order: 0,
+    rhythmPreset: null,
+    peakDays: null,
+    notes: null,
+  };
+  const FREE = 9_000;
+
+  it('without a cap, an under-spent day still inflates the next day (baseline, byte-identical)', () => {
+    // No 5th arg → the pre-DEC-415 numbers exactly (locks back-compat).
+    expect(calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-10').todayAllowanceCents).toBe(900); // 9000/10
+    expect(calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-11').todayAllowanceCents).toBe(1_000); // 9000/9 (inflation)
+  });
+
+  it('with a positive cofrinho, day 2 is capped at the ideal-base — no inflation', () => {
+    const capped = calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-11', {
+      balanceCents: 100, // buffer holds the parked leftover
+      baseDailyIdealCents: 900, // €90 / 10 days
+    });
+    expect(capped.todayAllowanceCents).toBe(900); // capped, not 1000
+    expect(capped.freeTodayCents).toBe(900);
+  });
+
+  it('the cap only touches the daily reading — avgUntilEndFlat and total free are untouched', () => {
+    const uncapped = calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-11');
+    const capped = calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-11', {
+      balanceCents: 100,
+      baseDailyIdealCents: 900,
+    });
+    // Only the hero changed; the honest flat average is identical bit-for-bit.
+    expect(capped.avgUntilEndFlatCents).toBe(uncapped.avgUntilEndFlatCents); // 9000/9 = 1000
+    // The exact amount removed from the daily hero is what the cofrinho parks.
+    expect(uncapped.todayAllowanceCents - capped.todayAllowanceCents).toBe(100);
+  });
+
+  it('the cap is gated on a positive balance — a zero cofrinho changes nothing', () => {
+    const result = calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-11', {
+      balanceCents: 0,
+      baseDailyIdealCents: 900,
+    });
+    expect(result.todayAllowanceCents).toBe(1_000); // gate off → unchanged
+  });
+
+  it('the cap never RAISES the allowance (min only)', () => {
+    // Ideal-base far above the (already small) allowance → allowance is kept.
+    const result = calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-11', {
+      balanceCents: 5_000,
+      baseDailyIdealCents: 5_000,
+    });
+    expect(result.todayAllowanceCents).toBe(1_000); // min(1000, 5000) = 1000
+  });
+
+  it('subtractive invariant survives the cap: spending €2 drops "free today" by exactly €2', () => {
+    const cap = { balanceCents: 100, baseDailyIdealCents: 900 } as const;
+    const before = calculateTodayFreeBudget(FREE, 0, phase10, '2026-06-11', cap);
+    const after = calculateTodayFreeBudget(FREE - 200, 200, phase10, '2026-06-11', cap);
+    expect(before.freeTodayCents - after.freeTodayCents).toBe(200);
+  });
+
+  it('never caps on the phase-over edge — the last leftover is fully spendable', () => {
+    // After the phase end the allowance is the full remaining free even with a cap
+    // (there is no "tomorrow" to save for), so the cap is deliberately ignored.
+    const result = calculateTodayFreeBudget(1_000, 0, phase10, '2026-06-25', {
+      balanceCents: 500,
+      baseDailyIdealCents: 100,
+    });
+    expect(result.todayAllowanceCents).toBe(1_000);
+  });
+});

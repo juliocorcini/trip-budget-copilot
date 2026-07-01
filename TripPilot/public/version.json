@@ -1,8 +1,8 @@
 {
-  "version": "2.0.2-rc",
+  "version": "2.0.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.2-rc.zip",
-  "notes": "O import agora acerta melhor a categoria (mais lojas/marcas, saque em caixa e chip/telefone deixam de cair em \"Outros\") e coloca os gastos no lugar certo do mapa sem ser barrado por limite de consultas."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.3-rc.zip",
+  "notes": "O \"livre de hoje\" parou de inflar quando você gasta menos: em vez de subir a mesada de amanhã, a sobra vai para o cofrinho. O total livre não muda — só a leitura do dia fica estável."
 }

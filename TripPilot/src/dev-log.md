@@ -1,6 +1,6 @@
 # Dev Log — TripPilot Implementation
 
-## Leva "Import/cofrinho/acerto de verdade + mapas de satélite e exploração + conversor/IA/amigo completos" (2026-06-30) — base `1.9.9-rc` → alvo `2.1.0-rc` — 🚧 EM ANDAMENTO (G0✅ · G1✅ · G2✅ · G3✅ · G4→G11 pendentes · DEC-413→425)
+## Leva "Import/cofrinho/acerto de verdade + mapas de satélite e exploração + conversor/IA/amigo completos" (2026-06-30) — base `1.9.9-rc` → alvo `2.1.0-rc` — 🚧 EM ANDAMENTO (G0✅ · G1✅ · G2✅ · G3✅ · G4✅ · G5→G11 pendentes · DEC-413→425)
 
 > Execution truth: `brain/documents/2026-06-30-field-fixes-maps-money-truth-orchestrator.md` (gates **G0→G11**, **DEC-413→425**). Travas §16 **CONFIRMADAS** (todas em (a)) + 4 perguntas abertas nos defaults (FX 12h; majors BRL/USD/EUR/CAD/CHF/GBP/JPY; mover dívida por itens; categorias enriquecer + poucas novas). 14 pedidos do Julio → 11 gates de trabalho + G0 (provas). Keystone = **import de verdade** (transferência dedupada e desmarcável). **Nenhum gate toca o worker** — tudo device/Pages (geocode via Nominatim/Overpass, FX via open.er-api, direto do device). Deploy por gate (Pages OTA). Gate mais recente primeiro.
 
@@ -12,11 +12,20 @@
 - Local do import = coords **REAIS** (nunca inventa); satélite/tiles/refresh/geocode best-effort e offline-safe; nunca bloquear; schema aditivo; sem barra de rolagem; t(); código em inglês.
 
 ### CURRENT STATE
-- **Active gate**: **G3 ✅ shipped `2.0.2-rc`** (import geocoda + categoriza melhor). Próximo: **G4** (livre hoje não infla / cofrinho → `2.0.3-rc`, **invariante — teste-âncora obrigatório**).
-- **Last commit**: `2.0.2-rc` (DEC-419/420). Base `1.9.9-rc` (`c03be79`); G0 `21925d8` · G1 `f2e082a` · G2 `a2cd267`.
-- **Tests**: **2864 pass / 2866** (+5 em `wise-import.test.ts` — marcas enriquecidas, `communication`, `cash_adjustment`, sinal `detailsType`, guardas de precisão; receipt-parse 45 intacto). As 2 falhas `split-live-loop` seguem WebCrypto/Node-18 (verdes no CI Node 22) → **não-regressão / known-base**. `tsc --noEmit` limpo; `npm run build` verde (`index` 461 KB < 500 KB).
-- **Risks**: **G4 é o gate de maior cuidado (dinheiro — teste-âncora Â-MONEY-INVARIANT obrigatório antes de fechar)**; G11 dep nova (`leaflet.markercluster`) só no chunk lazy.
-- **Scope**: G0 (provas) ✅, G1 (scrollbar) ✅, G2 (import idempotente) ✅, G3 (geocode rate-limit + categorias) ✅. G4→G11 pendentes. **Worker não muda em nenhum gate.**
+- **Active gate**: **G4 ✅ shipped `2.0.3-rc`** (livre hoje não infla / cofrinho — gate de dinheiro, teste-âncora passou). Próximo: **G5** (Amigo Sincero varia → `2.0.4-rc`).
+- **Last commit**: `2.0.3-rc` (DEC-415). Base `1.9.9-rc` (`c03be79`); G0 `21925d8` · G1 `f2e082a` · G2 `a2cd267` · G3 `f620099`.
+- **Tests**: **2871 pass / 2873** (+7 em `rhythm.test.ts` — teste-âncora do cap do cofrinho: byte-idêntico sem cap, capa com cofrinho>0, `avgUntilEndFlat`/total intactos, gate em balance=0, `min` nunca infla, subtrativo sobrevive, edge fase-encerrada). As 2 falhas `split-live-loop` seguem WebCrypto/Node-18 (verdes no CI Node 22) → **não-regressão / known-base**. `tsc --noEmit` limpo; `npm run build` verde (`index` 461 KB < 500 KB).
+- **Risks**: G11 dep nova (`leaflet.markercluster`) só no chunk lazy. Gate de dinheiro (G4) fechado com Â-MONEY-INVARIANT provado.
+- **Scope**: G0 ✅, G1 ✅, G2 ✅, G3 ✅, G4 (cap do cofrinho) ✅. G5→G11 pendentes. **Worker não muda em nenhum gate.**
+
+### G4 — "Livre hoje" não infla / cofrinho (done 2026-07-01) — `2.0.3-rc` (DEC-415, **Â-MONEY-INVARIANT** — gate de dinheiro)
+- **Why (G0 proof B)**: `calculateTodayFreeBudget` faz `round(startOfDayFree × pesoDoDia / effectiveDays)`. Subgastar mantém `free` alto e `effectiveDays` cai a cada dia → a mesada do dia seguinte **infla** (€9→€10 com €90 em 10→9 dias). O cofrinho **já** acumula a sobra certo (`buildPiggyLedger`), mas o herói também re-espalhava a mesma sobra → dupla contagem visual.
+- **Fix (só a leitura do dia; total intacto)**:
+  - **Domínio (`rhythm.ts`)**: `calculateTodayFreeBudget` ganhou 5º arg **opcional** `piggyCap?: { balanceCents; baseDailyIdealCents }` (objeto — extends interface, evita optional args soltos). Com `balanceCents>0` **e** `baseDailyIdealCents>0`: `todayAllowance = min(rawAllowance, baseDailyIdeal)` e `freeToday = capped − spent`. **`min` só capa, nunca infla.** O **edge** (fase encerrada / `effectiveDays≤0` / `startOfDayFree≤0`) **não** capa (o último dia é 100% gastável). `avgUntilEndFlat` e o `free` de entrada **intactos** → zero mudança de total.
+  - **Wiring (`useDashboardModel.ts`)**: movi o `const todayBudget` para **depois** do bloco do piggy (só usado na definição + no return; move seguro) e passo `piggyBankCents>0 ? { balanceCents: piggyBankCents, baseDailyIdealCents: piggyIdealByDayCents.get(todayIso) ?? piggyDailyIdealCents } : undefined` — **a mesma série de ideais** que alimenta o cofrinho, então herói e cofrinho batem bit-a-bit.
+  - **UI**: rótulo inline "· cofrinho €Y" **não** adicionado — o card `piggy_bank` de 1ª classe (mostra "cofrinho €Y") + o insight `piggy_covered_today` já vivem no hero (reuse over duplication; sem clutter no gate sensível).
+- **5-point**: (1) **AC** — subgastar não infla mais a mesada de amanhã (capa no ideal-base); a sobra fica no cofrinho; total do livre/Trecho/Pote **inalterado**. (2) **Regressão / Â-MONEY-INVARIANT** — teste-âncora prova: sem cap = **byte-idêntico** (€9→€10 do G0); `avgUntilEndFlat` e total intactos; `Σ(mesada liberada) + diff = cofrinho` (diff do herói == saldo); **A5 nunca bloquear** (só leitura); **Â-IMPORT-IDEMPOTENT**/scrollbar intactos (não tocados). (3) **Testes 2871/2873** (+7; 2 known-base seguem); `tsc` limpo; build verde. (4) **Fora de escopo**: nenhum (`rhythm.ts` + `useDashboardModel.ts` + teste). (5) dev-log + decision-log (DEC-415 → APPROVED).
+- **Deploy**: bump `2.0.3-rc` (todos os arquivos de versão + release note pt/en/es) → commit + push master → Pages auto-build. **Worker não muda.**
 
 ### G3 — Import geocoda o local + categoriza melhor (done 2026-07-01) — `2.0.2-rc` (DEC-419/420, Â-PLACE-REAL/Â-NEVER-BLOCK)
 - **Why (investigação-primeiro, 2 achados)**: **(419)** o geocode do import **já existia** (DEC-395: `stampImportedExpenseLocations` roda pós-commit no `WiseImportPage` L603-604, `searchPlaceByName(description||placeLabel)` → grava coords/placeId, opt-in/background). A premissa "nunca roda" do orchestrator estava **desatualizada**. O gap REAL, lido no código: o loop dispara os lookups **em rajada** e `searchPlaceByName` **não** tem throttle interno → o Nominatim (≤1 req/s) derruba imports com várias linhas → poucos/nenhum local carimbado. **(420)** `CATEGORY_RULES` tinha só 8 regras EU-enxutas → muita coisa em "Outros".

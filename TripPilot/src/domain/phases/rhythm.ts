@@ -101,16 +101,39 @@ export interface TodayFreeBudget {
 }
 
 /**
+ * DEC-415 (G4): the cofrinho cap. When the buffer (piggy) has a positive balance,
+ * the day's leftover is already being PARKED in the cofrinho — so the daily hero
+ * must NOT also re-inflate by re-spreading the same leftover over fewer days. The
+ * allowance is capped at the day's ideal-base, and the difference is exactly what
+ * the cofrinho holds (Â-MONEY-INVARIANT: the TOTAL free is untouched; only the
+ * daily READING changes). Absent → byte-identical to the pre-DEC-415 behavior.
+ */
+export interface TodayFreeBudgetPiggyCap {
+  /** Current cofrinho (buffer) balance; the cap applies only when this is > 0. */
+  balanceCents: number;
+  /** Today's ideal-base (linear or rhythm-aware) — the allowance ceiling. */
+  baseDailyIdealCents: number;
+}
+
+/**
  * DEC-088 (R-06): subtractive "free to use today". The day's allowance is the
  * weighted share of the budget as it was at the START of the day (today's
  * spending added back), so registering a €2 expense drops the number by
  * exactly €2 — not by €2 ÷ remaining days.
+ *
+ * DEC-415 (G4): when a `piggyCap` with a positive balance is passed, the daily
+ * allowance (and the derived "free today") is capped at the day's ideal-base so
+ * an under-spent day no longer inflates the next day's hero — the leftover lives
+ * in the cofrinho instead. The cap never RAISES the allowance (min only), never
+ * applies on the last day / phase-over edge, and leaves `avgUntilEndFlat` and the
+ * total free untouched.
  */
 export function calculateTodayFreeBudget(
   freeToSpendCents: number,
   todaySpentCents: number,
   phase: Phase,
   todayIso: string,
+  piggyCap?: TodayFreeBudgetPiggyCap,
 ): TodayFreeBudget {
   const peak = isPeakDay(phase, todayIso);
   const effectiveDays = calculateEffectiveSpendingDays(phase, todayIso);
@@ -133,9 +156,15 @@ export function calculateTodayFreeBudget(
   }
 
   const todayWeight = getDaySpendingWeight(phase, todayIso);
-  const todayAllowanceCents = Math.round(
-    (startOfDayFreeCents * todayWeight) / effectiveDays,
-  );
+  const rawAllowanceCents = Math.round((startOfDayFreeCents * todayWeight) / effectiveDays);
+  // DEC-415: cap at the ideal-base only when the cofrinho is actually holding the
+  // parked leftover (balance > 0). `min` never inflates; the difference is exactly
+  // the cofrinho balance (the total free stays whole).
+  const capActive =
+    piggyCap !== undefined && piggyCap.balanceCents > 0 && piggyCap.baseDailyIdealCents > 0;
+  const todayAllowanceCents = capActive
+    ? Math.min(rawAllowanceCents, piggyCap!.baseDailyIdealCents)
+    : rawAllowanceCents;
 
   return {
     todayAllowanceCents,

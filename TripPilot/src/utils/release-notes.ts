@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.3-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'O "livre de hoje" parou de inflar quando você gasta menos que o ideal do dia: antes a sobra subia a mesada do dia seguinte; agora ela vai para o cofrinho e o número do dia fica no ideal, estável.',
+        'O total livre da fase e do trecho continua exatamente o mesmo — só a leitura do dia mudou. O cofrinho segue guardando a diferença certinho.',
+      ],
+      en: [
+        'The "free today" number stopped inflating when you spend under the day\'s ideal: it used to raise the next day\'s allowance; now the leftover goes to the cofrinho and the daily number stays at the ideal, stable.',
+        'Your total free budget for the phase and trip is exactly the same — only the daily reading changed. The cofrinho keeps holding the difference precisely.',
+      ],
+      es: [
+        'El "libre de hoy" dejó de inflarse cuando gastas menos que el ideal del día: antes subía la asignación del día siguiente; ahora el sobrante va a la alcancía y el número del día se queda en el ideal, estable.',
+        'Tu presupuesto libre total de la fase y del viaje es exactamente el mismo — solo cambió la lectura diaria. La alcancía sigue guardando la diferencia con precisión.',
+      ],
+    },
+  },
+  {
     version: '2.0.2-rc',
     date: '2026-07-01',
     items: {

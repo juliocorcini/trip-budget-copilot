@@ -575,10 +575,6 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             allSessions,
           )
         : todaySpentCents;
-    const todayBudget =
-      trueFree && activePhase
-        ? calculateTodayFreeBudget(trueFree.trueFreeCents, freePoolDropTodayCents, activePhase, todayIso)
-        : null;
 
     // FIELD-19: per-day allowance map — same start-of-day base/weights as the
     // hero, projected over every remaining day so "free today" reads as a point
@@ -706,6 +702,28 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       piggyLedger && piggyLedger.entries.length > 0
         ? piggyLedger.entries[piggyLedger.entries.length - 1]!.deltaCents
         : 0;
+
+    // DEC-415 (G4): the daily hero, now cofrinho-aware. When the buffer holds a
+    // positive balance the day's leftover is already parked there, so cap "livre
+    // hoje" at today's ideal-base instead of re-inflating it over fewer days. The
+    // cofrinho and this cap share the SAME ideal series (piggyIdealByDayCents /
+    // piggyDailyIdealCents), so the reading stays consistent bit-for-bit; the total
+    // free is untouched (Â-MONEY-INVARIANT). Absent buffer → identical to before.
+    const todayBudget =
+      trueFree && activePhase
+        ? calculateTodayFreeBudget(
+            trueFree.trueFreeCents,
+            freePoolDropTodayCents,
+            activePhase,
+            todayIso,
+            piggyBankCents > 0
+              ? {
+                  balanceCents: piggyBankCents,
+                  baseDailyIdealCents: piggyIdealByDayCents.get(todayIso) ?? piggyDailyIdealCents,
+                }
+              : undefined,
+          )
+        : null;
     const savingsGoal =
       fts && settings?.savingsGoalCents != null
         ? calculateSavingsGoalProgress({
