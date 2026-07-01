@@ -15,6 +15,7 @@ import {
   createPoolSummary,
   calculateLastOutingSavings,
   buildHonestFriendV2,
+  selectAmigoTrigger,
   buildHonestFriendExtras,
   filterHomeAmigoExtras,
   calculatePoolSpent,
@@ -737,14 +738,24 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           })
         : null;
 
-    // DEC-093 (R-11) + DEC-236: Honest Friend v2. The trigger is the MOST RECENT
-    // expense of the phase — NO LONGER filtered to activity-profile expenses — so
-    // a plain "Outros" that drained the budget is finally visible. Phase truth
-    // (free ≤ 0 → over_budget) dominates the category read inside the domain.
-    const amigoTriggerTx =
-      [...phaseTxsForInsights]
-        .filter((tx) => tx.type === 'expense')
-        .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+    // DEC-093 (R-11) + DEC-236 + DEC-417 (G5): Honest Friend v2. The trigger is the
+    // most RELEVANT recent expense — the biggest deviation from the phase median
+    // among the recent window — rotating across the notable ones by day, never just
+    // the latest (which fixated the friend on the wrong expense). NO LONGER filtered
+    // to activity-profile expenses, so a plain "Outros" that drained the budget is
+    // still visible. Phase truth (free ≤ 0 → over_budget) dominates inside the domain.
+    const phaseExpenses = phaseTxsForInsights.filter((tx) => tx.type === 'expense');
+    const amigoTriggerSelection = selectAmigoTrigger(
+      phaseExpenses.map((tx) => ({
+        id: tx.id,
+        date: tx.date,
+        costCents: tx.personalCostCents ?? tx.amountCents,
+      })),
+      { daySeed: dayNum ?? 0 },
+    );
+    const amigoTriggerTx = amigoTriggerSelection
+      ? phaseExpenses.find((tx) => tx.id === amigoTriggerSelection.id) ?? null
+      : null;
     const amigoProfile = amigoTriggerTx?.activityProfileId
       ? profiles.find((p) => p.id === amigoTriggerTx.activityProfileId) ?? null
       : null;

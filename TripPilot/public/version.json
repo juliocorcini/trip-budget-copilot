@@ -1,8 +1,8 @@
 {
-  "version": "2.0.3-rc",
+  "version": "2.0.4-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.3-rc.zip",
-  "notes": "O \"livre de hoje\" parou de inflar quando você gasta menos: em vez de subir a mesada de amanhã, a sobra vai para o cofrinho. O total livre não muda — só a leitura do dia fica estável."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.4-rc.zip",
+  "notes": "O Amigo Sincero parou de ficar preso no mesmo gasto: agora ele comenta o gasto que mais se destaca (não o último) e varia de um dia para o outro, sem repetir. Quando faz mais sentido, ele abre pelo seu ritmo do dia."
 }

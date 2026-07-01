@@ -1,6 +1,6 @@
 # Dev Log — TripPilot Implementation
 
-## Leva "Import/cofrinho/acerto de verdade + mapas de satélite e exploração + conversor/IA/amigo completos" (2026-06-30) — base `1.9.9-rc` → alvo `2.1.0-rc` — 🚧 EM ANDAMENTO (G0✅ · G1✅ · G2✅ · G3✅ · G4✅ · G5→G11 pendentes · DEC-413→425)
+## Leva "Import/cofrinho/acerto de verdade + mapas de satélite e exploração + conversor/IA/amigo completos" (2026-06-30) — base `1.9.9-rc` → alvo `2.1.0-rc` — 🚧 EM ANDAMENTO (G0✅ · G1✅ · G2✅ · G3✅ · G4✅ · G5✅ · G6→G11 pendentes · DEC-413→425)
 
 > Execution truth: `brain/documents/2026-06-30-field-fixes-maps-money-truth-orchestrator.md` (gates **G0→G11**, **DEC-413→425**). Travas §16 **CONFIRMADAS** (todas em (a)) + 4 perguntas abertas nos defaults (FX 12h; majors BRL/USD/EUR/CAD/CHF/GBP/JPY; mover dívida por itens; categorias enriquecer + poucas novas). 14 pedidos do Julio → 11 gates de trabalho + G0 (provas). Keystone = **import de verdade** (transferência dedupada e desmarcável). **Nenhum gate toca o worker** — tudo device/Pages (geocode via Nominatim/Overpass, FX via open.er-api, direto do device). Deploy por gate (Pages OTA). Gate mais recente primeiro.
 
@@ -12,11 +12,21 @@
 - Local do import = coords **REAIS** (nunca inventa); satélite/tiles/refresh/geocode best-effort e offline-safe; nunca bloquear; schema aditivo; sem barra de rolagem; t(); código em inglês.
 
 ### CURRENT STATE
-- **Active gate**: **G4 ✅ shipped `2.0.3-rc`** (livre hoje não infla / cofrinho — gate de dinheiro, teste-âncora passou). Próximo: **G5** (Amigo Sincero varia → `2.0.4-rc`).
-- **Last commit**: `2.0.3-rc` (DEC-415). Base `1.9.9-rc` (`c03be79`); G0 `21925d8` · G1 `f2e082a` · G2 `a2cd267` · G3 `f620099`.
-- **Tests**: **2871 pass / 2873** (+7 em `rhythm.test.ts` — teste-âncora do cap do cofrinho: byte-idêntico sem cap, capa com cofrinho>0, `avgUntilEndFlat`/total intactos, gate em balance=0, `min` nunca infla, subtrativo sobrevive, edge fase-encerrada). As 2 falhas `split-live-loop` seguem WebCrypto/Node-18 (verdes no CI Node 22) → **não-regressão / known-base**. `tsc --noEmit` limpo; `npm run build` verde (`index` 461 KB < 500 KB).
-- **Risks**: G11 dep nova (`leaflet.markercluster`) só no chunk lazy. Gate de dinheiro (G4) fechado com Â-MONEY-INVARIANT provado.
-- **Scope**: G0 ✅, G1 ✅, G2 ✅, G3 ✅, G4 (cap do cofrinho) ✅. G5→G11 pendentes. **Worker não muda em nenhum gate.**
+- **Active gate**: **G5 ✅ shipped `2.0.4-rc`** (Amigo Sincero varia — relevância + rodízio + preferir ritmo). Próximo: **G6** (mover dívida entre pessoas → `2.0.5-rc`).
+- **Last commit**: `2.0.4-rc` (DEC-417). Base `1.9.9-rc` (`c03be79`); G0 `21925d8` · G1 `f2e082a` · G2 `a2cd267` · G3 `f620099` · G4 `c58ba0c`.
+- **Tests**: **2884 pass / 2886** (+13: `amigo-trigger.test.ts` +10, `honest-friend.test.ts` +3 — `verdictLeadsCarousel`; card 10 intacto). As 2 falhas `split-live-loop` seguem WebCrypto/Node-18 (verdes no CI Node 22) → **não-regressão / known-base**. `tsc --noEmit` limpo; `npm run build` verde (`index` 461 KB < 500 KB).
+- **Risks**: G6 é dinheiro entre pessoas (net pairwise INVARIANTE, só muda titular) — próximo gate delicado. G11 dep nova (`leaflet.markercluster`) só no chunk lazy.
+- **Scope**: G0 ✅, G1 ✅, G2 ✅, G3 ✅, G4 ✅, G5 (Amigo varia) ✅. G6→G11 pendentes. **Worker não muda em nenhum gate.**
+- **Nota de escopo (G4)**: `brain/documents/sistemaDeLogs` (nota avulsa do Julio, 562 B, sem extensão) foi capturada pelo `git add -A` no commit do G4 — inofensiva (`brain/` já é versionada e não vai pro Pages), sinalizada; remover se indesejada.
+
+### G5 — Amigo Sincero varia (done 2026-07-01) — `2.0.4-rc` (DEC-417, L-AMIGO-VARIETY=a)
+- **Why (G0 proof C)**: `amigoTriggerTx = [...phaseTxs].filter(expense).sort((a,b)=>b.date.localeCompare(a.date))[0]` — o **mais recente por data**. Em lote, fixava num gasto trivial recente OU num caro antigo (o mais novo do batch), e o veredito `no_plan` papagaiava "esse gasto levou X%" pra sempre. Relevância nunca entrava.
+- **Fix (3 partes, tudo puro/testável)**:
+  - **(1) Relevância** — novo `domain/budget/amigo-trigger.ts › selectAmigoTrigger` (puro): entre os N mais recentes (janela 8), rankeia por **maior desvio absoluto vs a mediana da fase** e escolhe entre os **notáveis** (custo > mediana), cap 3. Fallback: nada acima da mediana (gasto plano) → o mais deviante único (**não força** variedade num set sem sinal — freio do Critic).
+  - **(2) Rodízio + dedupe** — `index = daySeed>0 && pool>1 ? daySeed % pool.length : 0`, `daySeed = dayNum` (nº do dia da fase). Estável no dia (não pisca); dias consecutivos → índices consecutivos ⇒ **nunca repete o pick de ontem**. Sem estado persistido (Red-Team: nada dessincroniza em backup/restore).
+  - **(3) Preferir ritmo** — `honest-friend.ts › verdictLeadsCarousel(kind, hasRhythmRead)`: veredito `no_plan` **cede a liderança** do carrossel a uma leitura de ritmo (`RHYTHM_EXTRA_IDS = daily_left|phase_progress`) quando existe; veredito mais forte sempre lidera. `AmigoSinceroCard` reordena (veredito no fim quando cede). `useDashboardModel` troca `sort(date)[0]` por `selectAmigoTrigger(...)` + relookup por id (mantém a Transaction completa).
+- **5-point**: (1) **AC** — trigger = mais relevante (não o último); varia por dia sem repetir; `no_plan` abre pelo ritmo quando há. (2) **Regressão** — **G5 não toca math**: total livre/Trecho/Pote/net-do-owner **inalterado** (Amigo só lê); Â-IMPORT-IDEMPOTENT/cofrinho-cap(G4)/scrollbar(G1) intactos (não tocados); A5 nunca bloquear (só leitura). (3) **Testes 2884/2886** (+13; 2 known-base seguem); `tsc` limpo; build verde (index 461 KB). (4) **Fora de escopo**: nenhum (amigo-trigger novo + honest-friend/extras/index + useDashboardModel + card + 2 testes). (5) dev-log + decision-log (DEC-417 → APPROVED).
+- **Deploy**: bump `2.0.4-rc` (todos os arquivos de versão + release note pt/en/es) → commit + push master → Pages auto-build. **Worker não muda.**
 
 ### G4 — "Livre hoje" não infla / cofrinho (done 2026-07-01) — `2.0.3-rc` (DEC-415, **Â-MONEY-INVARIANT** — gate de dinheiro)
 - **Why (G0 proof B)**: `calculateTodayFreeBudget` faz `round(startOfDayFree × pesoDoDia / effectiveDays)`. Subgastar mantém `free` alto e `effectiveDays` cai a cada dia → a mesada do dia seguinte **infla** (€9→€10 com €90 em 10→9 dias). O cofrinho **já** acumula a sobra certo (`buildPiggyLedger`), mas o herói também re-espalhava a mesma sobra → dupla contagem visual.

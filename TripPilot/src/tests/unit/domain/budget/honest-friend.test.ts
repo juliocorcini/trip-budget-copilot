@@ -4,6 +4,7 @@ import {
   getHonestFriendTone,
   projectReserveStartDate,
   evaluateBorrowFromTomorrow,
+  verdictLeadsCarousel,
   type HonestFriendV2,
   type HonestFriendV2Input,
 } from '@/domain/budget';
@@ -375,5 +376,25 @@ describe('evaluateBorrowFromTomorrow (E2 / M12 / DEC-053)', () => {
 
   it('non-positive amount → no borrow', () => {
     expect(evaluateBorrowFromTomorrow(0, 5_000, 20_000).kind).toBe('none');
+  });
+});
+
+// DEC-417 (G5): a plain `no_plan` verdict ("this expense took X%") is the weakest,
+// most repetitive read — it yields the carousel lead to a rhythm read when one
+// exists. Every stronger verdict always leads.
+describe('verdictLeadsCarousel (DEC-417)', () => {
+  it('no_plan yields the lead when a rhythm read exists', () => {
+    expect(verdictLeadsCarousel('no_plan', true)).toBe(false);
+  });
+
+  it('no_plan keeps the lead when there is no rhythm read to defer to', () => {
+    expect(verdictLeadsCarousel('no_plan', false)).toBe(true);
+  });
+
+  it('every stronger verdict leads regardless of rhythm reads', () => {
+    for (const kind of ['over_budget', 'over_pace', 'over_plan', 'on_plan'] as const) {
+      expect(verdictLeadsCarousel(kind, true)).toBe(true);
+      expect(verdictLeadsCarousel(kind, false)).toBe(true);
+    }
   });
 });

@@ -153,6 +153,22 @@ export function getHonestFriendTone(amigo: HonestFriendV2): HonestFriendTone {
 }
 
 /**
+ * DEC-417 (G5): should the verdict take the carousel LEAD (slide 0)? A plain
+ * `no_plan` read ("this expense took X% of your free") is the weakest, most
+ * repetitive verdict — the one Julio flagged as "always the same expense". When a
+ * rhythm read is available (the daily pace / phase progress the extras carry), it
+ * yields the lead to that fresher read and becomes just one rotating slide instead
+ * of the fixed hero. Every stronger verdict (phase truth / plan reads) always leads.
+ * Pure and deterministic.
+ */
+export function verdictLeadsCarousel(
+  verdictKind: HonestFriendV2['kind'],
+  hasRhythmRead: boolean,
+): boolean {
+  return verdictKind === 'no_plan' ? !hasRhythmRead : true;
+}
+
+/**
  * E2 (M12): "borrow from tomorrow" — an honest warning, never a block
  * (DEC-053). Triggered when a spend overflows TODAY's allowance but still
  * fits the phase's free-to-spend: the money has to come from another day.

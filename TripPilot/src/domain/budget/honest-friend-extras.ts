@@ -52,6 +52,14 @@ export interface HonestFriendExtrasInput {
   piggyLastMovementCents?: number;
 }
 
+/**
+ * DEC-417 (G5): the extras that read as a "rhythm" (daily pace / phase progress).
+ * When the verdict is the weak `no_plan`, `verdictLeadsCarousel` yields the lead to
+ * one of these — the pace is fresher and less repetitive than "this expense took
+ * X%". Shared here so the card and the domain agree on what counts as rhythm.
+ */
+export const RHYTHM_EXTRA_IDS: readonly HonestFriendExtra['id'][] = ['daily_left', 'phase_progress'];
+
 const clampPercent = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
 
 /**

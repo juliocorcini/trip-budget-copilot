@@ -9,6 +9,8 @@ import {
   pickVoiceLineIndex,
   voiceLineKey,
   resolveAmigoSlideCtas,
+  verdictLeadsCarousel,
+  RHYTHM_EXTRA_IDS,
   DEFAULT_HONEST_FRIEND_VOICE,
   type AmigoSlideKind,
   type HonestFriendExtra,
@@ -122,12 +124,21 @@ export function AmigoSinceroCard({
   const verdictShown =
     amigo.kind !== 'none' && !(hideOnPlan && amigo.kind === 'on_plan');
 
-  // The carousel = the verdict (slide 0, when shown) followed by each extra. Each
-  // slide is the friend saying ONE honest thing; they swipe like the insights.
-  const realSlides: ({ kind: 'verdict' } | { kind: 'extra'; extra: HonestFriendExtra })[] = [
-    ...(verdictShown ? [{ kind: 'verdict' as const }] : []),
-    ...extras.map((extra) => ({ kind: 'extra' as const, extra })),
-  ];
+  // The carousel = the verdict followed by each extra. Each slide is the friend
+  // saying ONE honest thing; they swipe like the insights.
+  // DEC-417 (G5): a plain `no_plan` verdict ("this expense took X%") yields the
+  // LEAD to a rhythm read when one exists, so the friend opens with the fresher
+  // daily pace and the expense-impact becomes just one rotating slide — never the
+  // fixed hero Julio flagged. Every stronger verdict still leads (slide 0).
+  const extraSlides = extras.map((extra) => ({ kind: 'extra' as const, extra }));
+  const hasRhythmExtra = extras.some((extra) => RHYTHM_EXTRA_IDS.includes(extra.id));
+  const verdictSlide = { kind: 'verdict' as const };
+  const realSlides: ({ kind: 'verdict' } | { kind: 'extra'; extra: HonestFriendExtra })[] =
+    !verdictShown
+      ? extraSlides
+      : verdictLeadsCarousel(amigo.kind, hasRhythmExtra)
+        ? [verdictSlide, ...extraSlides]
+        : [...extraSlides, verdictSlide];
   // FB-12 · DEC-264: a discovery slide for the voice picker, appended PAST the
   // last dot. It is reachable only by swiping to the very end and is excluded
   // from both the dots and the auto-rotation (`realCount` below), so the friend

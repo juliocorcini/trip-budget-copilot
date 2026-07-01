@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.4-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'O Amigo Sincero parou de ficar preso no mesmo gasto. Antes ele comentava sempre o mais recente (às vezes um cafezinho, às vezes um gasto caro de semanas atrás); agora ele escolhe o gasto que mais se destaca do seu padrão e varia de um dia para o outro, sem repetir o do dia anterior.',
+        'Quando não há um plano para aquele gasto, ele prefere abrir pelo seu ritmo do dia (quanto sobra por dia) em vez de repetir "esse gasto levou X%". A escolha é estável no dia — não fica piscando.',
+      ],
+      en: [
+        'The Honest Friend stopped fixating on the same expense. It used to always comment on the most recent one (sometimes a coffee, sometimes a big spend from weeks ago); now it picks the expense that stands out most from your pattern and varies day to day, never repeating the day before.',
+        'When there is no plan for that spend, it prefers to open with your daily rhythm (how much is left per day) instead of repeating "this expense took X%". The pick is stable within a day — no flicker.',
+      ],
+      es: [
+        'El Amigo Sincero dejó de fijarse siempre en el mismo gasto. Antes comentaba siempre el más reciente (a veces un café, a veces un gasto caro de semanas atrás); ahora elige el gasto que más se destaca de tu patrón y varía de un día a otro, sin repetir el del día anterior.',
+        'Cuando no hay un plan para ese gasto, prefiere abrir con tu ritmo del día (cuánto queda por día) en lugar de repetir "este gasto se llevó X%". La elección es estable en el día — no parpadea.',
+      ],
+    },
+  },
+  {
     version: '2.0.3-rc',
     date: '2026-07-01',
     items: {
