@@ -12,6 +12,7 @@ import {
   SCHEMA_V10,
   SCHEMA_V11,
   SCHEMA_V12,
+  SCHEMA_V13,
 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import { recordCrash } from '@/utils/crash-log';
@@ -44,6 +45,7 @@ import type { Attachment } from '@/domain/types/attachment';
 import type { ShareLink } from '@/domain/types/share-link';
 import type { SplitRecord } from '@/domain/types/split-record';
 import type { GroupSplitRecord } from '@/domain/types/group-split-record';
+import type { DebtMovement } from '@/domain/types/debt-movement';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -77,6 +79,7 @@ export class TripPilotDB extends Dexie {
   shareLinks!: EntityTable<ShareLink, 'id'>;
   splitSessions!: EntityTable<SplitRecord, 'id'>;
   groupSplitEvents!: EntityTable<GroupSplitRecord, 'id'>;
+  debtMovements!: EntityTable<DebtMovement, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -155,6 +158,10 @@ export class TripPilotDB extends Dexie {
     // C23 (Tricount group split, DEC-297): new groupSplitEvents table. New table
     // → no upgrade() callback; existing data is preserved untouched on open.
     this.version(12).stores(SCHEMA_V12);
+
+    // DEC-414 (G6 — move debt between people): new debtMovements audit table. New
+    // table → no upgrade() callback; existing data is preserved untouched on open.
+    this.version(13).stores(SCHEMA_V13);
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {

@@ -25,3 +25,4 @@ export { attachmentRepository } from './attachment-repository';
 export { shareLinkRepository } from './share-link-repository';
 export { splitRepository } from './split-repository';
 export { groupSplitRepository } from './group-split-repository';
+export { debtMovementRepository } from './debt-movement-repository';

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.5-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'Agora dá para mover uma dívida de uma pessoa para outra. Quando quem gastou não é quem vai pagar, abra o extrato da pessoa, toque em "Mover dívida para outra pessoa", escolha para quem e quais itens passar. O valor total não muda — só troca de titular.',
+        'A dívida movida mostra "veio da {nome}" no extrato de quem recebeu, e você pode desfazer com um toque. O acerto entre você e cada pessoa continua batendo certinho (o total nunca muda, só de mãos).',
+      ],
+      en: [
+        'You can now move a debt from one person to another. When whoever spent isn\'t the one who\'ll pay, open the person\'s statement, tap "Move debt to another person", and pick who takes it and which items. The total amount never changes — only the holder does.',
+        'The moved debt shows "moved from {name}" on the new holder\'s statement, and you can undo it with one tap. Your balance with each person stays exact (the total never changes, only whose it is).',
+      ],
+      es: [
+        'Ahora puedes mover una deuda de una persona a otra. Cuando quien gastó no es quien va a pagar, abre el resumen de la persona, toca "Mover deuda a otra persona" y elige a quién pasarla y qué ítems. El total no cambia — solo cambia de titular.',
+        'La deuda movida muestra "viene de {nombre}" en el resumen de quien la recibió, y puedes deshacerla con un toque. Tu saldo con cada persona sigue exacto (el total nunca cambia, solo de manos).',
+      ],
+    },
+  },
+  {
     version: '2.0.4-rc',
     date: '2026-07-01',
     items: {

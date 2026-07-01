@@ -96,6 +96,8 @@ const ownerStatement: ParticipantStatement = {
       latitude: null,
       longitude: null,
       placeId: null,
+      reassignedFromId: null,
+      reassignedFromName: null,
     },
     {
       kind: 'owes',
@@ -114,6 +116,8 @@ const ownerStatement: ParticipantStatement = {
       latitude: null,
       longitude: null,
       placeId: null,
+      reassignedFromId: null,
+      reassignedFromName: null,
     },
   ],
   settlements: [],

@@ -80,6 +80,8 @@ const mkLine = (
   latitude: null,
   longitude: null,
   placeId: null,
+  reassignedFromId: null,
+  reassignedFromName: null,
 });
 
 describe('groupSharedExpenses', () => {

@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -136,4 +136,16 @@ export const SCHEMA_V11: Record<string, string> = {
 export const SCHEMA_V12: Record<string, string> = {
   ...SCHEMA_V11,
   groupSplitEvents: 'id, tripId, status, deletedAt',
+};
+
+// V13 (DEC-414 — G6: move a debt between people): a brand-new table holding the
+// DebtMovement audit log (who → whom, which shares, when). Brand-new table → no
+// upgrade() callback; Dexie creates it on open and leaves every existing table/row
+// untouched (schema additive — no data migration). DEVICE-LOCAL: it never
+// participates in BackupData (not in BACKUP_TABLE_KEYS) — the authoritative truth
+// is the reassigned shares themselves (participantId + reassignedFrom), which ARE
+// backed up. Indexed by tripId (a trip's movements) and deletedAt (soft-delete).
+export const SCHEMA_V13: Record<string, string> = {
+  ...SCHEMA_V12,
+  debtMovements: 'id, tripId, deletedAt',
 };

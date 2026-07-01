@@ -23,6 +23,10 @@ export {
   resolveShareStage,
   isPaidByOwner,
   collectSplitNotifyTargets,
+  isShareReassignable,
+  reassignShares,
+  revertReassignedShares,
+  createDebtMovement,
 } from './splitting';
 export type {
   DebtEntry,

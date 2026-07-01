@@ -2,6 +2,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare, ShareConfirmationStatus } from '@/domain/types/participant-share';
 import type { Participant } from '@/domain/types/participant';
 import type { Settlement } from '@/domain/types/settlement';
+import type { DebtMovement } from '@/domain/types/debt-movement';
 import type { SettlementMethod } from '@/domain/payment/payment-methods';
 import { splitEqually, sumCents } from '@/domain/money';
 import { createSyncMetadata } from '@/utils/entity-factory';
@@ -660,6 +661,13 @@ export interface StatementLine {
   latitude: number | null;
   longitude: number | null;
   placeId: string | null;
+  /**
+   * DEC-414 (G6): when this line's share was MOVED here from another person, the
+   * origin's id + name — so the recipient's statement shows "moved from {name}".
+   * Null when the share was never reassigned. Display-only; the math is unchanged.
+   */
+  reassignedFromId: string | null;
+  reassignedFromName: string | null;
 }
 
 export interface ParticipantStatement {
@@ -718,6 +726,11 @@ export function buildParticipantStatement(
         latitude: tx.latitude,
         longitude: tx.longitude,
         placeId: tx.placeId,
+        // DEC-414 (G6): the "moved from {name}" trail rides with the line.
+        reassignedFromId: share.reassignedFrom ?? null,
+        reassignedFromName: share.reassignedFrom
+          ? (nameById.get(share.reassignedFrom) ?? null)
+          : null,
       };
       if (share.participantId === participantId) {
         lines.push({
@@ -901,4 +914,83 @@ export function collectSplitNotifyTargets(
       !participant.isOwner &&
       owedParticipantIds.has(participant.id),
   );
+}
+
+/* ── DEC-414 (G6): move a debt between people by reassigning shares ─────── */
+
+/**
+ * DEC-414 (G6 · Â-DEBT-TRACEABLE): a share may be MOVED to another person ONLY
+ * when it is a LOCAL, open, confirmed debt whose original debtor is NOT mirrored
+ * over P2P. Reassigning an item the counterparty already accepted through the
+ * mirror would break their device's copy (the Critic's lock), so those are
+ * excluded — they must be settled first. Pending/rejected/paid/deleted shares are
+ * never movable (only a live, unpaid debt can travel).
+ */
+export function isShareReassignable(
+  share: Pick<ParticipantShare, 'deletedAt' | 'confirmationStatus' | 'isPaid'>,
+  fromIsP2PConnected: boolean,
+): boolean {
+  return (
+    share.deletedAt === null &&
+    share.confirmationStatus === 'confirmed' &&
+    !share.isPaid &&
+    !fromIsP2PConnected
+  );
+}
+
+/**
+ * DEC-414 (G6): the pure reassignment — flip each given share's `participantId` to
+ * the recipient and stamp `reassignedFrom` with the origin (for the "moved from
+ * {name}" trail and undo). Amounts are NEVER touched, so the owner's TOTAL pairwise
+ * net is INVARIANT — only the per-person holder changes. Sync metadata is bumped by
+ * the repository on persist (`markUpdated`), so this function stays pure.
+ */
+export function reassignShares(
+  shares: ParticipantShare[],
+  fromParticipantId: string,
+  toParticipantId: string,
+): ParticipantShare[] {
+  return shares.map((share) => ({
+    ...share,
+    participantId: toParticipantId,
+    reassignedFrom: fromParticipantId,
+  }));
+}
+
+/**
+ * DEC-414 (G6): undo a move — send the shares back to their origin and clear the
+ * trail. Restores the exact pre-move holder; amounts untouched (net invariant).
+ */
+export function revertReassignedShares(
+  shares: ParticipantShare[],
+  fromParticipantId: string,
+): ParticipantShare[] {
+  return shares.map((share) => ({
+    ...share,
+    participantId: fromParticipantId,
+    reassignedFrom: null,
+  }));
+}
+
+/**
+ * DEC-414 (G6): create the audit record for a completed move. The shares remain
+ * the source of truth; this log groups one move action for history + one-tap undo.
+ */
+export function createDebtMovement(
+  tripId: string,
+  fromParticipantId: string,
+  toParticipantId: string,
+  shareIds: string[],
+  amountCents: number,
+): DebtMovement {
+  return {
+    ...createSyncMetadata(),
+    tripId,
+    fromParticipantId,
+    toParticipantId,
+    shareIds,
+    amountCents,
+    movedAt: new Date().toISOString(),
+    undoneAt: null,
+  };
 }

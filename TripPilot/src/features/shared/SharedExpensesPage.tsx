@@ -16,6 +16,10 @@ import {
   groupSharedExpenses,
   groupStatementLines,
   resolveShareStage,
+  isShareReassignable,
+  reassignShares,
+  revertReassignedShares,
+  createDebtMovement,
 } from '@/domain/splitting';
 import type {
   DebtSummary,
@@ -38,6 +42,7 @@ import {
 import type { Participant } from '@/domain/types/participant';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
+import type { DebtMovement } from '@/domain/types/debt-movement';
 import {
   SETTLEMENT_METHOD_KINDS,
   SETTLEMENT_METHOD_ICONS,
@@ -48,7 +53,7 @@ import { formatShortDate, resolveActivePhase } from '@/domain/dates';
 import { selectActivePhasePool } from '@/domain/budget';
 import { participantShareRepository } from '@/data/repositories/participant-share-repository';
 import { settlementRepository } from '@/data/repositories/settlement-repository';
-import { participantRepository, peerLinkRepository, sessionRepository, groupSplitRepository } from '@/data/repositories';
+import { participantRepository, peerLinkRepository, sessionRepository, groupSplitRepository, debtMovementRepository } from '@/data/repositories';
 import type { GroupSplitEvent } from '@/domain/group-split';
 import {
   saveJoinedGroup,
@@ -267,6 +272,8 @@ export function SharedExpensesPage() {
   const { trip, transactions, participants, settings, phases, pools, links, wallets, loading, error, retry, reload } = useAppData();
   const [shares, setShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
+  // DEC-414 (G6): device-local log of debts moved between people (history + undo).
+  const [debtMovements, setDebtMovements] = useState<DebtMovement[]>([]);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
   // C23/DEC-306: trip-linked Tricount events feed the settle-up READ-ONLY (the
   // settle action stays in the group). Loaded here; bridged via groupSplitToDebts.
@@ -296,16 +303,18 @@ export function SharedExpensesPage() {
     if (!trip) return;
     const load = async () => {
       const txIds = transactions.filter((tx) => tx.isShared).map((tx) => tx.id);
-      const [sh, se, sessions, groupRecords] = await Promise.all([
+      const [sh, se, sessions, groupRecords, movements] = await Promise.all([
         participantShareRepository.getAllForTrip(txIds),
         settlementRepository.getByTripId(trip.id),
         sessionRepository.getByTripId(trip.id),
         groupSplitRepository.listEvents(trip.id),
+        debtMovementRepository.getByTripId(trip.id),
       ]);
       setShares(sh);
       setSettlements(se);
       setSessionNameById(Object.fromEntries(sessions.map((s) => [s.id, s.name])));
       setGroupEvents(groupRecords.map((r) => r.event));
+      setDebtMovements(movements);
 
       const owner = participants.find((p) => p.isOwner);
       if (owner) {
@@ -328,6 +337,13 @@ export function SharedExpensesPage() {
   const [statementTarget, setStatementTarget] = useState<Participant | null>(null);
   // I1 / DEC-370: confirm removing a connected person (tombstone, history kept).
   const [removeTarget, setRemoveTarget] = useState<Participant | null>(null);
+  // DEC-414 (G6): move a debt to another person — the "from" person (opened from
+  // their statement), the chosen destination, and the selected share ids. Only
+  // LOCAL (non-P2P) people on both ends, so the move stays device-safe.
+  const [moveFrom, setMoveFrom] = useState<Participant | null>(null);
+  const [moveDestId, setMoveDestId] = useState<string | null>(null);
+  const [moveShareIds, setMoveShareIds] = useState<Set<string>>(new Set());
+  const [movingDebt, setMovingDebt] = useState(false);
   // DEC-206: a fresh statement always opens collapsed (first page only).
   useEffect(() => {
     setShowAllStatement(false);
@@ -471,6 +487,77 @@ export function SharedExpensesPage() {
 
   const peerLinkFor = (participantId: string): PeerLink | undefined =>
     peerLinks.find((link) => link.participantId === participantId && link.deletedAt === null);
+
+  // DEC-414 (G6): a person is "local" (safe to move debts to/from) when there is no
+  // live P2P mirror — no linked device and no peer link. Moving a share a connected
+  // peer already accepted would desync their device, so we keep the whole op local.
+  const isPersonLocal = useCallback(
+    (participantId: string): boolean => {
+      const p = participants.find((x) => x.id === participantId);
+      return !!p && p.linkedActorId === null && !peerLinkFor(participantId);
+    },
+    // peerLinks/participants are the only inputs; peerLinkFor is a thin closure over them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [participants, peerLinks],
+  );
+
+  // DEC-414 (G6): the shares a person can hand off — the debts THEY owe someone else
+  // (payer ≠ them) that are still open (confirmed, unpaid, live) and not P2P-accepted.
+  const movableSharesFor = useCallback(
+    (personId: string): ParticipantShare[] => {
+      const payerByTx = new Map(transactions.map((tx) => [tx.id, tx.paidByParticipantId]));
+      const connected = !isPersonLocal(personId);
+      return shares.filter((s) => {
+        if (s.participantId !== personId) return false;
+        if (!isShareReassignable(s, connected)) return false;
+        const payer = payerByTx.get(s.transactionId) ?? null;
+        return payer !== personId; // a real debt owed to someone else, not their own share
+      });
+    },
+    [shares, transactions, isPersonLocal],
+  );
+
+  // DEC-414 (G6): reassign the selected shares from `moveFrom` to the chosen person,
+  // then record ONE device-local movement (history + undo). Amounts never change, so
+  // the owner's total net is invariant — only the holder moves (Â-DEBT-TRACEABLE).
+  const handleConfirmMove = async () => {
+    if (!trip || !moveFrom || !moveDestId || moveShareIds.size === 0 || movingDebt) return;
+    setMovingDebt(true);
+    try {
+      const toMove = shares.filter((s) => moveShareIds.has(s.id));
+      const reassigned = reassignShares(toMove, moveFrom.id, moveDestId);
+      await Promise.all(reassigned.map((s) => participantShareRepository.update(s)));
+      const totalCents = toMove.reduce((sum, s) => sum + s.shareAmountCents, 0);
+      const movement = createDebtMovement(
+        trip.id,
+        moveFrom.id,
+        moveDestId,
+        reassigned.map((s) => s.id),
+        totalCents,
+      );
+      await debtMovementRepository.create(movement);
+      setMoveFrom(null);
+      await reload();
+    } finally {
+      setMovingDebt(false);
+    }
+  };
+
+  // DEC-414 (G6): undo a move — send its shares back to the origin, clear the trail,
+  // and tombstone the movement (kept for history, dropped from "active").
+  const handleUndoMove = async (movement: DebtMovement) => {
+    if (movingDebt) return;
+    setMovingDebt(true);
+    try {
+      const affected = shares.filter((s) => movement.shareIds.includes(s.id));
+      const reverted = revertReassignedShares(affected, movement.fromParticipantId);
+      await Promise.all(reverted.map((s) => participantShareRepository.update(s)));
+      await debtMovementRepository.update({ ...movement, undoneAt: new Date().toISOString() });
+      await reload();
+    } finally {
+      setMovingDebt(false);
+    }
+  };
 
   // B2 wave 2 — the honest friend list (all paired devices, cross-trip), derived
   // from the SAME peerLinks the page already loads. One roof for "who am I
@@ -2026,6 +2113,49 @@ export function SharedExpensesPage() {
                 </div>
               )}
 
+              {/* DEC-414 (G6) — debts that were MOVED onto this person: shows the
+                  "moved from {name}" origin + one-tap undo (returns it to them). */}
+              {(() => {
+                const movedHere = debtMovements.filter(
+                  (m) => m.undoneAt === null && m.toParticipantId === statementTarget.id,
+                );
+                if (movedHere.length === 0) return null;
+                const nameOf = (id: string): string => {
+                  const p = participants.find((x) => x.id === id);
+                  return p?.nickname ?? p?.name ?? t('shared.statement_unnamed');
+                };
+                return (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint">
+                      {t('shared.moved_here_label')}
+                    </p>
+                    {movedHere.map((m) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between gap-2 bg-surface-high rounded-xl px-3 py-2"
+                      >
+                        <span className="text-xs text-on-surface-dim truncate flex items-center gap-1.5">
+                          <Icon name="swap_horiz" size={14} className="text-primary shrink-0" />
+                          {t('shared.moved_from', { name: nameOf(m.fromParticipantId) })}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs font-bold tabular text-on-surface">
+                            {formatMoney(m.amountCents, trip.baseCurrency)}
+                          </span>
+                          <button
+                            onClick={() => handleUndoMove(m)}
+                            disabled={movingDebt}
+                            className="text-[11px] font-bold text-primary btn-press disabled:opacity-50"
+                          >
+                            {t('common.undo')}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {/* DEC-207: shared participant link — the no-pairing headline path.
                   Works for ANY non-owner: generate a link, send it, the guest
                   opens it in a browser (no app/account needed). */}
@@ -2109,6 +2239,29 @@ export function SharedExpensesPage() {
                 </div>
               )}
 
+              {/* DEC-414 (G6) — move THIS person's debt to someone else (local
+                  people only). Reassigns the shares (net invariant), leaving a
+                  "moved from" trail + undo. Shown when they owe me and have an
+                  open, non-P2P share to hand off. */}
+              {!statementTarget.isOwner &&
+                isPersonLocal(statementTarget.id) &&
+                statement.netCents < 0 &&
+                movableSharesFor(statementTarget.id).length > 0 && (
+                  <button
+                    onClick={() => {
+                      const target = statementTarget;
+                      setStatementTarget(null);
+                      setMoveDestId(null);
+                      setMoveShareIds(new Set(movableSharesFor(target.id).map((s) => s.id)));
+                      setMoveFrom(target);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface text-xs font-semibold flex items-center justify-center gap-1.5 btn-press"
+                  >
+                    <Icon name="swap_horiz" size={16} className="text-primary" />
+                    {t('shared.move_debt_action')}
+                  </button>
+                )}
+
               {/* I1 / DEC-370 — remove a connected person (history preserved). Only
                   when there is a connection to sever (linked device or a peer link). */}
               {!statementTarget.isOwner &&
@@ -2125,6 +2278,127 @@ export function SharedExpensesPage() {
                     {t('connections.remove_action')}
                   </button>
                 )}
+            </div>
+          );
+        })()}
+      </BottomSheet>
+
+      {/* DEC-414 (G6) — move a debt to another person. Pick a destination (local
+          people) and which items to move; amounts stay, only the holder changes,
+          so the owner's total net is invariant (Â-DEBT-TRACEABLE). */}
+      <BottomSheet
+        open={moveFrom !== null}
+        onClose={() => setMoveFrom(null)}
+        title={t('shared.move_debt_title', { name: moveFrom?.nickname ?? moveFrom?.name ?? '' })}
+      >
+        {moveFrom && (() => {
+          const movable = movableSharesFor(moveFrom.id);
+          const destinations = participants.filter(
+            (p) => !p.isOwner && p.id !== moveFrom.id && isPersonLocal(p.id),
+          );
+          const labelForShare = (s: ParticipantShare): string => {
+            const tx = transactions.find((x) => x.id === s.transactionId);
+            if (!tx) return t('shared.statement_unnamed');
+            const sub = findSubcategory(tx.subcategoryId);
+            if (sub) return t(sub.labelKey as never);
+            if (tx.description) return tx.description;
+            if (tx.category) return t(`categories.${tx.category}` as never);
+            return t('shared.statement_unnamed');
+          };
+          const selectedTotal = movable
+            .filter((s) => moveShareIds.has(s.id))
+            .reduce((sum, s) => sum + s.shareAmountCents, 0);
+          const toggle = (id: string) =>
+            setMoveShareIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            });
+          const destName = (id: string | null): string => {
+            const p = destinations.find((x) => x.id === id);
+            return p?.nickname ?? p?.name ?? '';
+          };
+          return (
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-on-surface-dim">{t('shared.move_debt_help')}</p>
+
+              {destinations.length === 0 ? (
+                <p className="text-sm text-on-surface-dim">{t('shared.move_debt_no_dest')}</p>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
+                      {t('shared.move_debt_to')}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {destinations.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setMoveDestId(p.id)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold btn-press ${
+                            moveDestId === p.id
+                              ? 'bg-primary text-on-surface'
+                              : 'bg-surface-high text-on-surface-dim'
+                          }`}
+                        >
+                          {p.nickname ?? p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
+                      {t('shared.move_debt_items')}
+                    </p>
+                    <div className="flex flex-col gap-1.5 max-h-[36vh] overflow-y-auto no-scrollbar">
+                      {movable.map((s) => {
+                        const on = moveShareIds.has(s.id);
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => toggle(s.id)}
+                            className="w-full flex items-center justify-between gap-2 bg-surface-high rounded-xl px-3 py-2.5 btn-press text-left"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Icon
+                                name={on ? 'check_box' : 'check_box_outline_blank'}
+                                size={18}
+                                className={on ? 'text-primary shrink-0' : 'text-on-surface-faint shrink-0'}
+                              />
+                              <span className="text-xs font-semibold text-on-surface truncate">
+                                {labelForShare(s)}
+                              </span>
+                            </div>
+                            <span className="text-xs font-bold tabular text-on-surface shrink-0">
+                              {formatMoney(s.shareAmountCents, trip.baseCurrency)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-on-surface-dim">{t('shared.move_debt_total')}</span>
+                    <span className="text-sm font-extrabold tabular text-on-surface">
+                      {formatMoney(selectedTotal, trip.baseCurrency)}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleConfirmMove}
+                    disabled={!moveDestId || moveShareIds.size === 0 || movingDebt}
+                    className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold text-sm flex items-center justify-center gap-2 btn-press disabled:opacity-50"
+                  >
+                    <Icon name="swap_horiz" size={18} />
+                    {moveDestId
+                      ? t('shared.move_debt_confirm', { name: destName(moveDestId) })
+                      : t('shared.move_debt_pick_dest')}
+                  </button>
+                </>
+              )}
             </div>
           );
         })()}
@@ -3078,6 +3352,12 @@ function StatementGroupRow({
             {t(`shared.status_${resolveShareStage(line)}` as never)}
           </span>
         </div>
+        {line.reassignedFromName && (
+          <p className="text-[10px] text-primary font-semibold mt-1 flex items-center gap-1">
+            <Icon name="swap_horiz" size={12} />
+            {t('shared.moved_from', { name: line.reassignedFromName })}
+          </p>
+        )}
       </div>
     );
   }
@@ -3112,7 +3392,12 @@ function StatementGroupRow({
         <div className="px-2.5 pb-2 flex flex-col gap-1">
           {group.lines.map((line, i) => (
             <div key={i} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-surface-container">
-              <span className="text-[11px] text-on-surface-dim truncate">{lineLabel(line)}</span>
+              <span className="text-[11px] text-on-surface-dim truncate">
+                {lineLabel(line)}
+                {line.reassignedFromName && (
+                  <span className="text-primary"> · {t('shared.moved_from', { name: line.reassignedFromName })}</span>
+                )}
+              </span>
               <span
                 className={`text-[11px] font-bold tabular shrink-0 ${
                   line.kind === 'owes' ? 'text-error' : 'text-success'

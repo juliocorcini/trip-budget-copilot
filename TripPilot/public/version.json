@@ -1,8 +1,8 @@
 {
-  "version": "2.0.4-rc",
+  "version": "2.0.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.4-rc.zip",
-  "notes": "O Amigo Sincero parou de ficar preso no mesmo gasto: agora ele comenta o gasto que mais se destaca (não o último) e varia de um dia para o outro, sem repetir. Quando faz mais sentido, ele abre pelo seu ritmo do dia."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.5-rc.zip",
+  "notes": "Agora dá para mover uma dívida de uma pessoa para outra: se quem gastou não vai pagar, você reatribui os itens para quem vai. O total não muda — só troca de titular — e fica registrado 'veio da {nome}', com um toque para desfazer."
 }
