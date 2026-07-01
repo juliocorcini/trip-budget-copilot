@@ -27,6 +27,7 @@ export {
   reassignShares,
   revertReassignedShares,
   createDebtMovement,
+  isParticipantSettled,
 } from './splitting';
 export type {
   DebtEntry,

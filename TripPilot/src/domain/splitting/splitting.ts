@@ -973,6 +973,25 @@ export function revertReassignedShares(
 }
 
 /**
+ * DEC-418 (G7 · Â-PERSON-HIDE-NEVER-BREAK) — can this person be removed without
+ * orphaning a debt? Only when they are FULLY out of the debt graph: their
+ * owner-pairwise net is exactly 0 AND they appear in no open debt edge (owner OR
+ * third-party). Hiding anyone still owing/owed would corrupt the ledger, so the UI
+ * blocks removal and asks to settle first. Pure — reused by the remove flow + tests.
+ */
+export function isParticipantSettled(
+  participantId: string,
+  ownerPairwise: Map<string, number>,
+  debts: DebtEntry[],
+): boolean {
+  if ((ownerPairwise.get(participantId) ?? 0) !== 0) return false;
+  return !debts.some(
+    (d) =>
+      (d.debtorId === participantId || d.creditorId === participantId) && d.amountCents !== 0,
+  );
+}
+
+/**
  * DEC-414 (G6): create the audit record for a completed move. The shares remain
  * the source of truth; this log groups one move action for history + one-tap undo.
  */

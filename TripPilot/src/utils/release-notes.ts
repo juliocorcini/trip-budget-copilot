@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.6-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'Agora dá para remover uma pessoa de vez, não só desconectar. Antes, remover só desvinculava o aparelho e a pessoa continuava na lista — e quem você só digitou o nome (sem app) nem tinha o botão. Agora o botão "Remover pessoa" aparece para qualquer um, e ela some das suas listas.',
+        'O histórico é preservado: os gastos e acertos passados continuam com o nome dela. E há uma trava de segurança — se ainda houver saldo em aberto, o app pede para acertar as contas antes, para nenhuma dívida ficar perdida.',
+      ],
+      en: [
+        'You can now remove a person for good, not just disconnect. Removing used to only unlink their device and leave them on the list — and someone you only typed by name (no app) had no button at all. Now the "Remove person" button shows for anyone, and they leave your lists.',
+        'History is preserved: past expenses and settlements keep their name. And there\'s a safety guard — if there\'s still an open balance, the app asks you to settle up first, so no debt gets lost.',
+      ],
+      es: [
+        'Ahora puedes eliminar a una persona de una vez, no solo desconectarla. Antes, eliminar solo desvinculaba su dispositivo y la persona seguía en la lista — y a quien solo escribiste por nombre (sin app) ni siquiera tenía el botón. Ahora el botón "Eliminar persona" aparece para cualquiera, y desaparece de tus listas.',
+        'El historial se preserva: los gastos y ajustes pasados siguen con su nombre. Y hay un seguro — si todavía hay saldo abierto, la app te pide saldar las cuentas primero, para que ninguna deuda se pierda.',
+      ],
+    },
+  },
+  {
     version: '2.0.5-rc',
     date: '2026-07-01',
     items: {

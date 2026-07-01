@@ -20,6 +20,7 @@ import {
   reassignShares,
   revertReassignedShares,
   createDebtMovement,
+  isParticipantSettled,
 } from '@/domain/splitting';
 import type {
   DebtSummary,
@@ -108,7 +109,7 @@ import {
   dismissInboundP2p,
   shareDebtWithPeer,
   announcePaymentToPeer,
-  removeConnectedPerson,
+  removePerson,
   flushOutbox,
   materializeConnectedParticipant,
   type InboundP2pItem,
@@ -903,12 +904,14 @@ export function SharedExpensesPage() {
   // unlink the participant so they stop reading as an active contact. The
   // participant + every past division stay in history (hide-never-delete) and the
   // ledger is untouched (debts key off participantId, never actorId).
+  // DEC-418 (G7) — remove a person for good: soft-delete the participant (severing
+  // any live link first) so they leave every list, for any status. History stays.
   const handleRemovePerson = async () => {
     if (!removeTarget || saving) return;
     const name = removeTarget.nickname ?? removeTarget.name;
     setSaving(true);
     try {
-      await removeConnectedPerson(removeTarget.id);
+      await removePerson(removeTarget.id);
       setRemoveTarget(null);
       setPeerLinks(await peerLinkRepository.getAll());
       await reload();
@@ -2262,22 +2265,23 @@ export function SharedExpensesPage() {
                   </button>
                 )}
 
-              {/* I1 / DEC-370 — remove a connected person (history preserved). Only
-                  when there is a connection to sever (linked device or a peer link). */}
-              {!statementTarget.isOwner &&
-                (statementTarget.linkedActorId !== null || peerLinkFor(statementTarget.id)) && (
-                  <button
-                    onClick={() => {
-                      const target = statementTarget;
-                      setStatementTarget(null);
-                      setRemoveTarget(target);
-                    }}
-                    className="w-full py-2.5 rounded-xl text-error text-xs font-semibold flex items-center justify-center gap-1.5 btn-press"
-                  >
-                    <Icon name="person_remove" size={16} className="text-error" />
-                    {t('connections.remove_action')}
-                  </button>
-                )}
+              {/* DEC-418 (G7) — remove a person for good (soft-delete). Now shown
+                  for ANY non-owner status, including a plain typed name that never
+                  had a connection. The balance=0 guard lives in the confirm sheet,
+                  so hiding someone never orphans an open debt. */}
+              {!statementTarget.isOwner && (
+                <button
+                  onClick={() => {
+                    const target = statementTarget;
+                    setStatementTarget(null);
+                    setRemoveTarget(target);
+                  }}
+                  className="w-full py-2.5 rounded-xl text-error text-xs font-semibold flex items-center justify-center gap-1.5 btn-press"
+                >
+                  <Icon name="person_remove" size={16} className="text-error" />
+                  {t('shared.remove_person_action')}
+                </button>
+              )}
             </div>
           );
         })()}
@@ -2404,38 +2408,59 @@ export function SharedExpensesPage() {
         })()}
       </BottomSheet>
 
-      {/* I1 / DEC-370 — confirm removing a connected person. Tombstones the peer
-          link + unlinks the participant; past divisions stay in the history. */}
+      {/* DEC-418 (G7 · Â-PERSON-HIDE-NEVER-BREAK) — confirm removing a person for
+          good (soft-delete, any status). Guarded by balance=0: if they still owe /
+          are owed, removal is blocked with a "settle first" message so no debt is
+          orphaned. History is preserved (past shares/settlements keep the name). */}
       <BottomSheet
         open={removeTarget !== null}
         onClose={() => setRemoveTarget(null)}
         title={
           removeTarget
-            ? t('connections.remove_title', { name: removeTarget.nickname ?? removeTarget.name })
+            ? t('shared.remove_person_title', { name: removeTarget.nickname ?? removeTarget.name })
             : ''
         }
       >
-        {removeTarget && (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-on-surface-dim leading-snug">
-              {t('connections.remove_desc', { name: removeTarget.nickname ?? removeTarget.name })}
-            </p>
-            <button
-              onClick={handleRemovePerson}
-              disabled={saving}
-              className="w-full py-3 rounded-xl bg-error text-white font-semibold text-sm flex items-center justify-center gap-2 btn-press disabled:opacity-40"
-            >
-              <Icon name="person_remove" size={18} />
-              {t('connections.remove_confirm')}
-            </button>
-            <button
-              onClick={() => setRemoveTarget(null)}
-              className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press"
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        )}
+        {removeTarget && (() => {
+          const settled = isParticipantSettled(
+            removeTarget.id,
+            balances,
+            debtSummary?.debts ?? [],
+          );
+          const name = removeTarget.nickname ?? removeTarget.name;
+          return (
+            <div className="flex flex-col gap-3">
+              {settled ? (
+                <>
+                  <p className="text-sm text-on-surface-dim leading-snug">
+                    {t('shared.remove_person_desc', { name })}
+                  </p>
+                  <button
+                    onClick={handleRemovePerson}
+                    disabled={saving}
+                    className="w-full py-3 rounded-xl bg-error text-white font-semibold text-sm flex items-center justify-center gap-2 btn-press disabled:opacity-40"
+                  >
+                    <Icon name="person_remove" size={18} />
+                    {t('shared.remove_person_confirm')}
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-start gap-2 bg-warning/10 rounded-xl px-3 py-2.5">
+                  <Icon name="info" size={18} className="text-warning shrink-0 mt-0.5" />
+                  <p className="text-sm text-on-surface leading-snug">
+                    {t('shared.remove_person_blocked', { name })}
+                  </p>
+                </div>
+              )}
+              <button
+                onClick={() => setRemoveTarget(null)}
+                className="w-full py-2.5 rounded-xl bg-surface-high text-on-surface text-sm font-semibold btn-press"
+              >
+                {settled ? t('common.cancel') : t('common.close')}
+              </button>
+            </div>
+          );
+        })()}
       </BottomSheet>
 
       {/* DEC-105: my identity QR + F19: the same identity as a shareable link */}

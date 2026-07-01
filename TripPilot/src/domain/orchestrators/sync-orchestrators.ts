@@ -116,6 +116,32 @@ export async function removeConnectedPerson(participantId: string): Promise<{
 }
 
 /**
+ * DEC-418 (G7 · Â-PERSON-HIDE-NEVER-BREAK) — remove a person "for good": soft-delete
+ * the participant so they leave every list, for ANY status (a plain typed name, an
+ * invited, or a connected peer), reusing `removeConnectedPerson` to sever any live
+ * link first. History is PRESERVED (shares/settlements keep their captured names via
+ * id; the tombstoned participant is simply hidden). The OWNER is never removable.
+ *
+ * The caller (UI) is responsible for the balance=0 guard (`isParticipantSettled`) so
+ * hiding someone never orphans an open debt — this op only performs the removal.
+ */
+export async function removePerson(participantId: string): Promise<{
+  tombstoned: number;
+  unlinked: boolean;
+  removed: boolean;
+}> {
+  const participant = await participantRepository.getById(participantId);
+  if (!participant || participant.isOwner) return { tombstoned: 0, unlinked: false, removed: false };
+
+  // Sever any live connection first (tombstone peer links + unlink), then hide the
+  // participant. The soft-delete reads the row AFTER the unlink, so it is consistent.
+  const { tombstoned, unlinked } = await removeConnectedPerson(participantId);
+  await participantRepository.delete(participantId);
+
+  return { tombstoned, unlinked, removed: true };
+}
+
+/**
  * DEC-344 (G6) — receive side of the two-way handshake. A drained `connect`
  * envelope means a peer I paired with is announcing who they are; upsert the
  * reverse `peerLink` (with their public key) so they appear in my connections and

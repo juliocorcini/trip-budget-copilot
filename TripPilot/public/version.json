@@ -1,8 +1,8 @@
 {
-  "version": "2.0.5-rc",
+  "version": "2.0.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.5-rc.zip",
-  "notes": "Agora dá para mover uma dívida de uma pessoa para outra: se quem gastou não vai pagar, você reatribui os itens para quem vai. O total não muda — só troca de titular — e fica registrado 'veio da {nome}', com um toque para desfazer."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.6-rc.zip",
+  "notes": "Agora dá para remover uma pessoa de vez — inclusive quem você só digitou o nome (sem app). Ela some das suas listas e o histórico é mantido. Se ainda houver saldo em aberto, o app pede para acertar antes, para nenhuma dívida ficar perdida."
 }
