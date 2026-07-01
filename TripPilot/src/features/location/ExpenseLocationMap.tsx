@@ -38,7 +38,9 @@ export default function ExpenseLocationMap({
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const tileRef = useRef<L.TileLayer | null>(null);
+  // DEC-426: satellite is a LayerGroup (imagery + label overlays), street a tile
+  // layer — both are `L.Layer`, so the ref holds the common base type.
+  const tileRef = useRef<L.Layer | null>(null);
   // DEC-422 (G9): satellite (Esri) is the default surface; the toggle (interactive
   // only) swaps to the street map. A ref mirrors the state so the map-mount effect
   // can add the right layer without depending on `layer` (which would re-create
@@ -79,7 +81,11 @@ export default function ExpenseLocationMap({
       iconSize: [18, 18],
       iconAnchor: [9, 9],
     });
-    L.marker([lat, lng], { icon: pin, title: label, keyboard: false }).addTo(map);
+    // DEC-426: tapping the pin surfaces the place name (the `label` is the
+    // geocoded name). `title` stays for the desktop hover tooltip.
+    L.marker([lat, lng], { icon: pin, title: label, keyboard: false })
+      .addTo(map)
+      .bindPopup(label);
 
     // DEC-368/398: re-measure once the card animates in AND whenever the container
     // resizes — expanding the preview into the overlay grows the map after mount,

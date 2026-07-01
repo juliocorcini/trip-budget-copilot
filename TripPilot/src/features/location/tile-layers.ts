@@ -24,6 +24,25 @@ export const SATELLITE_TILES: TileConfig = {
   },
 };
 
+/**
+ * DEC-426 (Field v2): plain imagery is "blind" — no street/place names. Esri
+ * publishes transparent REFERENCE overlays on the SAME ArcGIS `{z}/{y}/{x}`
+ * scheme that are meant to sit on top of imagery: boundaries + place labels, and
+ * transportation (road) labels. Stacking them turns the satellite into a labelled
+ * hybrid without leaving the satellite look. Best-effort/offline-safe like any
+ * tile (Â-MAP-COORDS-REAL): if a reference tile 404s the imagery still shows.
+ */
+export const SATELLITE_REFERENCE_TILES: TileConfig[] = [
+  {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    options: { maxZoom: 19 },
+  },
+  {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+    options: { maxZoom: 19 },
+  },
+];
+
 export const STREET_TILES: TileConfig = {
   url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   options: {
@@ -40,8 +59,21 @@ export const TILE_CONFIG: Record<MapLayerKind, TileConfig> = {
 /** The surface shown by default across every map in the app (DEC-422 default a). */
 export const DEFAULT_MAP_LAYER: MapLayerKind = 'satellite';
 
-/** Build a Leaflet tile layer for a kind — the single spot that reads the config. */
-export function createTileLayer(kind: MapLayerKind): L.TileLayer {
-  const { url, options } = TILE_CONFIG[kind];
+/**
+ * Build the Leaflet layer for a surface — the single spot that reads the config.
+ *
+ * DEC-426: satellite is now a `LayerGroup` = imagery + the Esri reference (label)
+ * overlays, so street/place names show on top of the photo. Street stays a single
+ * tile layer. Returns `L.Layer` (the common base of `TileLayer`/`LayerGroup`) so
+ * callers `.addTo(map)`/`.remove()` it uniformly regardless of the surface.
+ */
+export function createTileLayer(kind: MapLayerKind): L.Layer {
+  if (kind === 'satellite') {
+    return L.layerGroup([
+      L.tileLayer(SATELLITE_TILES.url, SATELLITE_TILES.options),
+      ...SATELLITE_REFERENCE_TILES.map((t) => L.tileLayer(t.url, t.options)),
+    ]);
+  }
+  const { url, options } = STREET_TILES;
   return L.tileLayer(url, options);
 }

@@ -56,7 +56,9 @@ export function ExpenseMapPage() {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const tileRef = useRef<L.TileLayer | null>(null);
+  // DEC-426: satellite is now a LayerGroup (imagery + label overlays) — hold the
+  // common `L.Layer` base so the toggle can swap either surface in place.
+  const tileRef = useRef<L.Layer | null>(null);
   const layerRef = useRef<MapLayerKind>(DEFAULT_MAP_LAYER);
   const [layer, setLayer] = useState<MapLayerKind>(DEFAULT_MAP_LAYER);
   const [selected, setSelected] = useState<ExpenseMapPoint | null>(null);
