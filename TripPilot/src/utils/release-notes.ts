@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.7-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'O conversor de moedas ficou mais fácil de usar: as moedas mais comuns (Real, Dólar, Euro, Dólar canadense, Franco suíço, Libra e Iene) aparecem no topo da lista, e cada uma mostra a bandeira e o nome — não só o código.',
+        'A cotação agora se atualiza sozinha, em segundo plano, quando está com mais de 12 horas e você está online. Continua funcionando offline (com a última cotação salva) e você ainda pode atualizar na mão ou digitar uma taxa manual quando quiser.',
+      ],
+      en: [
+        'The currency converter is easier to use: the most common currencies (Real, US Dollar, Euro, Canadian Dollar, Swiss Franc, Pound and Yen) now lead the list, each showing its flag and name — not just the code.',
+        'Rates now refresh on their own, in the background, when they are over 12 hours old and you are online. It still works offline (with the last saved rate), and you can still refresh manually or type a manual rate whenever you want.',
+      ],
+      es: [
+        'El conversor de monedas es más fácil de usar: las monedas más comunes (Real, Dólar, Euro, Dólar canadiense, Franco suizo, Libra y Yen) aparecen al principio de la lista, cada una con su bandera y su nombre — no solo el código.',
+        'Las cotizaciones ahora se actualizan solas, en segundo plano, cuando tienen más de 12 horas y estás en línea. Sigue funcionando sin conexión (con la última cotización guardada) y aún puedes actualizar a mano o escribir una tasa manual cuando quieras.',
+      ],
+    },
+  },
+  {
     version: '2.0.6-rc',
     date: '2026-07-01',
     items: {

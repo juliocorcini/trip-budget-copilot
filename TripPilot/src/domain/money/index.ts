@@ -25,5 +25,13 @@ export {
   convertWithManualRate,
   converterCurrencies,
   rateAgeDays,
+  isFxSnapshotStale,
+  FX_REFRESH_INTERVAL_MS,
 } from './converter';
 export type { ConversionResult } from './converter';
+export {
+  MAJOR_CURRENCY_CODES,
+  currencyPriority,
+  sortByCurrencyPriority,
+  currencyFlag,
+} from './currency-meta';

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -7,6 +7,8 @@ import {
   convertWithManualRate,
   converterCurrencies,
   rateAgeDays,
+  isFxSnapshotStale,
+  currencyFlag,
   parseLocaleNumber,
   toCents,
   formatMoney,
@@ -14,6 +16,7 @@ import {
 } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { fetchExchangeRates } from '@/utils/exchange-rates';
+import { isOnline } from '@/utils/places';
 import { appSettingsRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
 import { OfflineSeal } from '@/components/OfflineSeal';
@@ -43,6 +46,7 @@ export function ConverterPage() {
   const [manualRate, setManualRate] = useState('');
   const [fetching, setFetching] = useState(false);
   const initedRef = useRef(false);
+  const autoRefreshedRef = useRef(false);
 
   const frozen = settings?.frozenRates ?? null;
   const baseCurrency = trip?.baseCurrency ?? settings?.defaultCurrency ?? 'EUR';
@@ -114,23 +118,39 @@ export function ConverterPage() {
     setTo(from);
   };
 
-  const refreshRates = async () => {
+  // DEC-256 manual refresh + DEC-423 (G8) silent auto-refresh. `silent` suppresses
+  // the toasts for the background 12h refresh; the manual button always speaks.
+  const refreshRates = async (silent = false) => {
     setFetching(true);
     try {
       const rates = await fetchExchangeRates(baseCurrency);
       if (rates) {
         await appSettingsRepository.update({ frozenRates: rates });
         await reload();
-        showToast(t('converter.updated'), 'success');
-      } else {
+        if (!silent) showToast(t('converter.updated'), 'success');
+      } else if (!silent) {
         showToast(t('converter.update_failed'), 'warning');
       }
     } catch {
-      showToast(t('converter.update_failed'), 'warning');
+      if (!silent) showToast(t('converter.update_failed'), 'warning');
     } finally {
       setFetching(false);
     }
   };
+
+  // DEC-423 (G8): auto-refresh the FX snapshot once per open when it is stale
+  // (> 12h) and the device is online. Best-effort and offline-safe — `isOnline`
+  // + `fetchExchangeRates` both guard, failures are swallowed, and it NEVER blocks
+  // the render or the manual/offline path. The API returns all currencies for the
+  // base, so the majors are always included in the refreshed snapshot.
+  useEffect(() => {
+    if (autoRefreshedRef.current || !settings) return;
+    autoRefreshedRef.current = true;
+    if (isOnline() && isFxSnapshotStale(frozen, new Date())) {
+      void refreshRates(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
 
   const formatRate = (rate: number): string =>
     new Intl.NumberFormat(getActiveIntlLocale(), {
@@ -138,9 +158,32 @@ export function ConverterPage() {
       maximumFractionDigits: rate < 1 ? 4 : 2,
     }).format(rate);
 
+  // DEC-423 (G8): a friendlier picker row — flag + code + the localized currency
+  // name (via Intl.DisplayNames, so pt/en/es come for free, no name table). Falls
+  // back gracefully to just the code when a name/flag can't be resolved.
+  const currencyNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames([i18n.language], { type: 'currency' });
+    } catch {
+      return null;
+    }
+  }, [i18n.language]);
+
+  const currencyLabel = (code: string): string => {
+    const flag = currencyFlag(code);
+    let name = '';
+    try {
+      name = currencyNames?.of(code) ?? '';
+    } catch {
+      name = '';
+    }
+    const namePart = name && name.toUpperCase() !== code ? ` · ${name}` : '';
+    return `${flag ? `${flag} ` : ''}${code}${namePart}`;
+  };
+
   const currencyOption = (code: string) => (
     <option key={code} value={code}>
-      {code}
+      {currencyLabel(code)}
     </option>
   );
 
@@ -219,7 +262,7 @@ export function ConverterPage() {
       <div className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ background: 'var(--surface-container)' }}>
         <span className="text-[11px] text-on-surface-faint">{ageLabel}</span>
         <button
-          onClick={refreshRates}
+          onClick={() => refreshRates()}
           disabled={fetching}
           className="text-[11px] font-semibold text-primary btn-press flex items-center gap-1 disabled:opacity-50"
         >

@@ -102,3 +102,27 @@ export function rateAgeDays(rates: FrozenExchangeRates | null, now: Date): numbe
   if (ms < 0) return 0;
   return Math.floor(ms / 86_400_000);
 }
+
+/**
+ * DEC-423 (G8): how old a snapshot may get before an online device refreshes it
+ * in the background. 12h is Julio's confirmed default — fresh enough for a daily
+ * traveler, cheap enough for the free daily-rate API.
+ */
+export const FX_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * DEC-423 (G8): is the snapshot stale enough to auto-refresh? A missing or
+ * unparsable snapshot counts as stale (so a first online open pulls rates). A
+ * future timestamp is treated as fresh. Pure — the caller still gates on
+ * `isOnline()` and swallows failures (best-effort, offline-safe, never blocks).
+ */
+export function isFxSnapshotStale(
+  rates: FrozenExchangeRates | null,
+  now: Date,
+  maxAgeMs: number = FX_REFRESH_INTERVAL_MS,
+): boolean {
+  if (!rates) return true;
+  const fetched = Date.parse(rates.fetchedAt);
+  if (!Number.isFinite(fetched)) return true;
+  return now.getTime() - fetched >= maxAgeMs;
+}

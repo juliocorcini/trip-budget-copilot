@@ -1,8 +1,8 @@
 {
-  "version": "2.0.6-rc",
+  "version": "2.0.7-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.6-rc.zip",
-  "notes": "Agora dá para remover uma pessoa de vez — inclusive quem você só digitou o nome (sem app). Ela some das suas listas e o histórico é mantido. Se ainda houver saldo em aberto, o app pede para acertar antes, para nenhuma dívida ficar perdida."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.7-rc.zip",
+  "notes": "O conversor ficou melhor: as moedas mais usadas (BRL, USD, EUR, CAD, CHF, GBP, JPY) aparecem no topo, cada uma com bandeira e nome. E a cotação se atualiza sozinha quando está com mais de 12h e você está online — sem deixar de funcionar offline."
 }

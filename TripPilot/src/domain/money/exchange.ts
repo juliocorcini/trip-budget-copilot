@@ -1,5 +1,6 @@
 import type { Transaction } from '@/domain/types/transaction';
 import type { FrozenExchangeRates } from '@/domain/types/common';
+import { sortByCurrencyPriority } from './currency-meta';
 
 /**
  * E9 (Phase 5): multi-currency conversion. The traveler may log an expense in a
@@ -50,6 +51,11 @@ export function resolveFrozenRate(
  * The list of currencies offered in the expense form: always the base first,
  * then any wallet/snapshot currencies, de-duplicated and upper-cased. Pure so
  * the QuickAdd selector stays data-driven (no hard-coded currency list).
+ *
+ * DEC-423 (G8): the tail (everything after the base) is ordered by priority —
+ * the majors (BRL/USD/EUR/CAD/CHF/GBP/JPY) first, then the rest alphabetically —
+ * so the currencies a traveler actually uses lead the picker. The base stays
+ * pinned at index 0 (it is THE trip currency, even when it is not a major).
  */
 export function listSelectableCurrencies(
   baseCurrency: string,
@@ -63,5 +69,7 @@ export function listSelectableCurrencies(
     seen.add(code);
     result.push(code);
   }
-  return result;
+  if (result.length <= 2) return result;
+  const [base, ...tail] = result;
+  return [base!, ...sortByCurrencyPriority(tail)];
 }
