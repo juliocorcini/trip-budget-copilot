@@ -3113,4 +3113,91 @@
 
 ---
 
+## Leva "Import/cofrinho/acerto de verdade + mapas + conversor/IA/amigo" (2026-06-30 → base `1.9.9-rc`) — DEC-413→425
+
+> Orchestrator: `brain/documents/2026-06-30-field-fixes-maps-money-truth-orchestrator.md`. 14 pedidos do Julio → 11 gates + G0. Todas as 7 travas §16 CONFIRMADAS em (a) + 4 perguntas abertas nos defaults (FX 12h; majors BRL/USD/EUR/CAD/CHF/GBP/JPY; mover dívida por itens; categorias enriquecer + poucas novas). PROPOSED aqui; cada uma vira APPROVED ao fechar seu gate. Nenhum gate toca o worker.
+
+### DEC-413 — Import idempotente: dedupe por externalRef contra transactions ∪ settlements + transfer desmarcável [Council A /council · Â-IMPORT-IDEMPOTENT] (L-WISE-DEDUP=a)
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G2, `2.0.1-rc`, keystone)
+- **Decision (default a)**: `classifyWiseRows` deduz por `externalRef` contra **transactions ∪ settlements** (o loop de `existingSettlements` já existe no domínio; falta o **caller** `WiseImportPage` passar `existingSettlements`); a transferência ganha `status` (`duplicate_import`/`new`), `includeByDefault=false` quando dup, e **toggle por linha** com o motivo ("já importada em DD/MM"), paridade com os outros kinds; `undoWiseImportBatch` inalterado.
+- **Rationale (Council A)**: Architect (dedupe por settlement + toggle, reusa `wiseExternalRef`) + Advocate (paridade total de UX: "já importei → vem desligado") com o cinto do Critic (dedupe pela **união** de refs + teste de idempotência E2E: 2ª importação = 0 novos).
+- **Alternatives**: (b) + tabela leve de "refs já importados" (tombstone) por trip, se algum caminho comitar sem `externalRef`.
+- **G0 proof**: `field-fixes-g0-proofs.test.ts` — a transferência comita como Settlement (sem transaction) com `externalRef`; re-classificando como o caller faz hoje (só `existingTransactions`) ela volta como `new` (bug); passando `existingSettlements` vira `duplicate_import` (domínio já pronto → G2 é wiring + toggle).
+
+### DEC-414 — Mover dívida entre pessoas = reatribuir shares A→B com reassignedFrom + log [Council B /council · Â-DEBT-TRACEABLE] (L-DEBT-MOVE=a)
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G6, `2.0.5-rc`)
+- **Decision (default a)**: nova op pura `reassignShares(fromId, toId, shareIds)`: seta `share.participantId=to` + `share.reassignedFrom=from` (aditivo, `.passthrough()`) + grava um `DebtMovement` (log `fromId/toId/shareIds/at`); `buildParticipantStatement` mostra os itens "movido de {nome}"; só shares **locais não aceitas por P2P**; net pairwise **total** do owner intacto (só troca de titular). "Mover €X" = conveniência que seleciona itens até somar o valor (por itens, fiel). UI no `SharedExpensesPage` (statement da pessoa: "mover para…") + undo.
+- **Rationale (Council B)**: Advocate + Architect (itens viajam, origem visível) com o freio do Critic (retroatividade/espelho P2P → só shares locais não-aceitas; `reassignedFrom` audita).
+- **Alternatives**: (b) settlements sintéticos (origem→owner + cobrança owner→destino com nota, sem itens) se a reatribuição histórica for arriscada demais.
+
+### DEC-415 — Capar "livre hoje" no ideal-base do dia quando cofrinho>0 (total intacto) [Council C /council · Â-MONEY-INVARIANT] (L-COFRINHO-DAILY=a)
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G4, `2.0.3-rc`, invariante — gate de maior cuidado)
+- **Decision (default a)**: `calculateTodayFreeBudget` ganha `piggyBalanceCents?`/`baseDailyIdealCents?` (opcionais, retrocompat); com buffer>0, `todayAllowance = min(idealBaseDoDia, allowance)` (idem `freeToday`); `avgUntilEndFlat` e o **total** livre **inalterados**. `useDashboardModel` passa `piggyLedger.balance` + `baseDailyIdeal`. UI: "hoje até €X · cofrinho €Y".
+- **Rationale (Council C)**: Advocate (teto estável + cofrinho crescendo) + garantia do Critic (o cap afeta **só** a leitura do dia; teste-âncora Σ(mesada diária liberada) + cofrinho = livre consumível, bit-a-bit vs baseline; sem params = byte-idêntico; dias de pico respeitados).
+- **Alternatives**: (b) não capar; só rotular ("livre acumulado; ideal €X; cofrinho €Y").
+- **G0 proof**: `field-fixes-g0-proofs.test.ts` — subgastar um dia sobe a mesada do dia seguinte (€9→€10 com €90 em 10→9 dias); o total não muda, só a leitura diária infla.
+
+### DEC-416 — Tela de gastos no mapa: clusters + satélite + tap→detalhe; heatmap follow-up [Council D /council] (L-MAP-SCREEN=a)
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G11, `2.1.0-rc`)
+- **Decision (default a)**: rota `/mapa` **lazy**; `domain/map/expense-map.ts › buildExpenseMapPoints` (puro) → pontos {lat,lng,count,totalCents,txIds}; UI com `leaflet.markercluster` (**dentro do chunk lazy**, core inalterado) + tiles Esri (reusa G9); tap no cluster/ponto → sheet com lista paginada → item abre `/expenses/:id`; empty-state honesto + CTA "preencher locais" (G3). **Heatmap = follow-up** (fase 2, `leaflet.heat`).
+- **Rationale (Council D)**: Advocate + Architect (MVP rápido/bonito, lib pronta) com Critic/Red (dep nova só no chunk lazy; só coords reais; offline não trava; não compartilhável — é local do dono).
+- **Alternatives**: (b) cluster caseiro por grid (sem dep nova) ou heatmap já no G11.
+
+### DEC-417 — Amigo Sincero varia: relevância + preferir ritmo + rodízio/dedupe por dia [Council E /council] (L-AMIGO-VARIETY=a)
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G5, `2.0.4-rc`)
+- **Decision (default a)**: (1) `amigoTriggerTx` = mais **relevante** (maior desvio vs mediana da fase) entre os top-N recentes, não `sort(date)[0]`; (2) quando `no_plan` e há ritmo/plano, o veredito de **ritmo** tem prioridade; (3) rodízio **derivado do dia** (muda ≤1x/dia) escolhe o slide de destaque, sem repetir a última tx citada. Tudo puro/testável, determinístico por dia (não pisca).
+- **Rationale (Council E)**: Advocate + Architect (variedade viva, seleção por relevância) com freio do Critic (rodízio estável por dia; régua de relevância reusa `SINGLE_EXPENSE_DOMINANCE`/desvio; nunca força sem sinal).
+- **Alternatives**: (b) mínimo — só dedupe (não repetir a mesma tx 2 sessões seguidas).
+- **G0 proof**: `field-fixes-g0-proofs.test.ts` — a seleção atual (mirror L726-729) escolhe uma tx trivial recente sobre uma antiga muito maior; magnitude/relevância nunca entram.
+
+### DEC-418 — Remover pessoa de vez = soft-delete p/ qualquer status, trava saldo=0 [Council F /council · Â-PERSON-HIDE-NEVER-BREAK] (L-REMOVE-PERSON=a)
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G7, `2.0.6-rc`)
+- **Decision (default a)**: nova op `removePerson(id)`: soft-delete `deletedAt` + tombstone de peerLink se houver (reusa `removeConnectedPerson` como sub-passo); `buildPeopleView`/repo excluem `deletedAt`; botão "remover pessoa" pra **todos** os status (inclusive `noapp` puro), com trava de **saldo aberto = 0** (senão CTA "acertar antes"); histórico credita o nome via id; owner **nunca** removível.
+- **Rationale (Council F)**: Advocate (remover = sumir da lista, qualquer status) com freio do Critic/Red (esconder alguém com dívida corrompe o net → trava saldo=0; histórico preservado).
+- **Alternatives**: (b) permitir sempre, com aviso forte "o saldo será descartado/mantido no histórico".
+
+### DEC-419 — Import geocoda o local sem IA (merchant/title/extractCity→coords, batelado/best-effort) [direto · Â-PLACE-REAL/Â-NEVER-BLOCK]
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G3, `2.0.2-rc`)
+- **Decision**: após `commitWiseImport`, enfileirar as despesas importadas no pipeline de stamp (`stamp-expense-location.ts`) usando `merchant`/`description`/`extractCity` como consulta → `searchPlaceByName` grava `placeLabel+coords+placeId` (`placeNameSource='import'`). Batelado + rate-limit (Nominatim ~1 req/s), best-effort, offline-safe; sem match → fica sem local (nunca inventa).
+- **Rationale**: Julio: import sem local/mapa; `searchPlaceByName` já existe mas nunca rodava pro import.
+- **Alternatives**: geocode síncrono no commit (rejeitado — bloqueia/rate-limit).
+
+### DEC-420 — CATEGORY_RULES expandido + sinais (detailsType/POI) [direto]
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G3, `2.0.2-rc`)
+- **Decision**: enriquecer as 8 categorias atuais (mais marcas/keywords) + **poucas** novas de alto valor (ex.: `services`, `cash`/saque), usar `detailsType`/direção como sinal e, quando o local for resolvido (DEC-419), o tipo do POI como fallback. Data-driven (a lista continua a fonte). Preview segue editável (1 toque corrige).
+- **Rationale**: Julio: muita coisa cai em "Outros"; dicionário curto/EU.
+- **Alternatives**: taxonomia grande nova (rejeitado — enriquecer + poucas novas, resposta do Julio).
+
+### DEC-421 — Detalhe do gasto mostra o evento → /event/:id [direto]
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G9, `2.0.8-rc`)
+- **Decision**: `ExpenseDetailPage` lê `tx.occurrenceId`; se houver, renderiza uma linha "Evento" com o nome, linkando pra `/event/:id` (guia, DEC-401). Reuso puro (sem math).
+- **Rationale**: Julio: detalhe só mostra fundo/wallet, nunca o evento.
+- **Alternatives**: nenhuma (feature óbvia).
+
+### DEC-422 — Mapa do detalhe em satélite (Esri) + toggle [direto] (L-SATELLITE=a)
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G9, `2.0.8-rc`)
+- **Decision (default a)**: `ExpenseLocationMap` troca o `tileLayer` pra **Esri World Imagery** (`server.arcgisonline.com/.../World_Imagery/MapServer/tile/{z}/{y}/{x}`, `maxZoom:19`, attribution Esri) com **toggle mapa/satélite** (satélite default). Mesmo provider reusado no G11.
+- **Rationale**: Julio: detalhe em OSM, quer satélite.
+- **Alternatives**: (b) satélite only (sem toggle).
+
+### DEC-423 — Conversor: currency-meta (nome/país/prioridade) + majors no topo + auto-refresh [direto]
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G8, `2.0.7-rc`)
+- **Decision**: novo `domain/money/currency-meta.ts` (mapa `code → {name, country, flag, priority}`, majors **BRL/USD/EUR/CAD/CHF/GBP/JPY** no topo por prioridade, resto alfabético); `listSelectableCurrencies` ordena por prioridade; a UI mostra código + nome/país. `frozenRates` **auto-refresha** quando online e stale (> **12h**), sempre incluindo as majors (base-anchored já converte qualquer par). Best-effort/offline-safe.
+- **Rationale**: Julio: majors no topo com nome/país + só a moeda da conta carregada; refresh 12h e majors confirmados nos defaults.
+- **Alternatives**: refresh manual only (rejeitado — a dor é taxa velha/parca).
+
+### DEC-424 — IA add com divisão + paridade de campos [direto]
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G10, `2.0.9-rc`)
+- **Decision**: `AssistantSheet › ExpenseEditor` ganha um editor de **divisão** (participantes multi-select, pagador, igual/custom) escrevendo `participantIds/payerId/didSplit`/shares, + campos faltantes pra paridade com o QuickAdd (hora, nota, `isShared`). Reusa os componentes de split existentes. Confirm 1-toque intacto.
+- **Rationale**: Julio: IA add não tem editor de divisão; o `ExpenseOp` já carrega os campos.
+- **Alternatives**: nenhuma (paridade óbvia).
+
+### DEC-425 — Barra de rolagem some (endurecer global + Leaflet) [direto · Â-NO-SCROLLBAR]
+- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G1, `2.0.0-rc`, ganho rápido)
+- **Decision**: investigar a superfície que reexpõe (provável Leaflet/`width:0` deixando track fantasma); endurecer o global com `display:none !important` no `*::-webkit-scrollbar` (além do `width:0`), cobrir os panes/containers do Leaflet, e adicionar a asserção no `style-hygiene.test.ts`.
+- **Rationale**: Julio: barra de rolagem voltou; o CSS global é blindado (guardado por teste) → é superfície específica.
+- **Alternatives**: nenhuma (endurecimento do que já existe).
+
+---
+
 *New decisions will be added as the project progresses.*
