@@ -1,8 +1,8 @@
 {
-  "version": "2.0.7-rc",
+  "version": "2.0.8-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.7-rc.zip",
-  "notes": "O conversor ficou melhor: as moedas mais usadas (BRL, USD, EUR, CAD, CHF, GBP, JPY) aparecem no topo, cada uma com bandeira e nome. E a cotação se atualiza sozinha quando está com mais de 12h e você está online — sem deixar de funcionar offline."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.8-rc.zip",
+  "notes": "No detalhe do gasto, quando ele faz parte de um evento, agora aparece um atalho pro evento. E o mapa do gasto vem em satélite, com um botão pra alternar entre satélite e mapa comum."
 }

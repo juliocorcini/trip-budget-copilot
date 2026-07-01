@@ -64,7 +64,7 @@ export function ExpenseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { trip, pools, wallets, participants, transactions, plannedPurchases, settings, loading, reload } =
+  const { trip, pools, wallets, participants, transactions, occurrences, plannedPurchases, settings, loading, reload } =
     useAppData();
   // GATE 5 (D10): the wallet field only shows when wallet tracking is active.
   const walletTrackingActive = useWalletTracking();
@@ -160,6 +160,11 @@ export function ExpenseDetailPage() {
   const participantById = new Map(participants.map((p) => [p.id, p]));
   const payer = tx.paidByParticipantId ? participantById.get(tx.paidByParticipantId) : null;
   const owner = participants.find((p) => p.isOwner) ?? null;
+  // DEC-421 (G9): a spend attributed to an event (Â-ATTRIBUTION: event XOR outing)
+  // points back to its event guide, the same way an outing item links to its
+  // parent outing. Pure lookup — no math, no write.
+  const occurrence =
+    tx.occurrenceId ? (occurrences.find((o) => o.id === tx.occurrenceId) ?? null) : null;
 
   // DEC-128: mental anchor under the amount ("≈ R$ 124").
   const anchorHint = settings
@@ -338,6 +343,23 @@ export function ExpenseDetailPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] text-on-surface-faint">{t('expenses.part_of_outing')}</p>
                 <p className="text-sm font-semibold text-on-surface truncate">{parentSession.name}</p>
+              </div>
+              <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
+            </button>
+          )}
+
+          {/* DEC-421 (G9): spend attributed to an event → open its guide. */}
+          {occurrence && (
+            <button
+              onClick={() => navigate(`/event/${occurrence.id}`)}
+              className="w-full bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3 btn-press text-left"
+            >
+              <div className="w-9 h-9 rounded-full bg-surface-high flex items-center justify-center shrink-0">
+                <Icon name="calendar_month" size={18} className="text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-on-surface-faint">{t('expenses.part_of_event')}</p>
+                <p className="text-sm font-semibold text-on-surface truncate">{occurrence.name}</p>
               </div>
               <Icon name="chevron_right" size={18} className="text-on-surface-faint shrink-0" />
             </button>

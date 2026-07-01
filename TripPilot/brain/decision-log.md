@@ -3176,13 +3176,15 @@
 - **Alternatives**: taxonomia grande nova (rejeitado — enriquecer + poucas novas, resposta do Julio).
 
 ### DEC-421 — Detalhe do gasto mostra o evento → /event/:id [direto]
-- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G9, `2.0.8-rc`)
+- **Date**: 2026-06-30 · **Status**: ✅ APPROVED — shipped `2.0.8-rc` (G9)
+- **Shipped (G9 · `2.0.8-rc`)**: `ExpenseDetailPage` agora lê `occurrences` do `useAppData` e, quando `tx.occurrenceId` bate com uma ocorrência, renderiza um botão "Parte do evento" (ícone `calendar_month`) linkando pra `/event/:id` — espelhando o botão "Parte de {saída}" (`parentSession`). Como um gasto pertence a evento **XOR** saída (Â-ATTRIBUTION), os dois nunca aparecem juntos. Lookup puro, zero math/write. i18n `expenses.part_of_event` (pt/en/es).
 - **Decision**: `ExpenseDetailPage` lê `tx.occurrenceId`; se houver, renderiza uma linha "Evento" com o nome, linkando pra `/event/:id` (guia, DEC-401). Reuso puro (sem math).
 - **Rationale**: Julio: detalhe só mostra fundo/wallet, nunca o evento.
 - **Alternatives**: nenhuma (feature óbvia).
 
 ### DEC-422 — Mapa do detalhe em satélite (Esri) + toggle [direto] (L-SATELLITE=a)
-- **Date**: 2026-06-30 · **Status**: ⏳ PROPOSED (G9, `2.0.8-rc`)
+- **Date**: 2026-06-30 · **Status**: ✅ APPROVED — shipped `2.0.8-rc` (G9)
+- **Shipped (G9 · `2.0.8-rc`, default a)**: novo módulo compartilhado `features/location/tile-layers.ts` — `SATELLITE_TILES` (Esri World Imagery `server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}`, `maxZoom:19`, attribution Esri), `STREET_TILES` (OSM), `TILE_CONFIG`, `DEFAULT_MAP_LAYER='satellite'`, `createTileLayer(kind)`. **Reusado no G11** (contrato do provider fixado por teste — inclui a ordem de eixo ArcGIS `{z}/{y}/{x}` ≠ `{z}/{x}/{y}` do OSM, senão tiles embaralham). `ExpenseLocationMap` cria o layer via `createTileLayer(layerRef.current)` (satélite default), e um 2º effect troca o tile **in-place** (sem recriar o mapa → center/zoom/pin preservados). **Toggle mapa/satélite** só nas superfícies interativas (o preview é `pointer-events-none`), como um segmented pill top-right (fora do container Leaflet → taps não vazam pro mapa; top-right pra não colidir com o zoom top-left). i18n `expenses.map_satellite`/`map_street` (pt/en/es).
 - **Decision (default a)**: `ExpenseLocationMap` troca o `tileLayer` pra **Esri World Imagery** (`server.arcgisonline.com/.../World_Imagery/MapServer/tile/{z}/{y}/{x}`, `maxZoom:19`, attribution Esri) com **toggle mapa/satélite** (satélite default). Mesmo provider reusado no G11.
 - **Rationale**: Julio: detalhe em OSM, quer satélite.
 - **Alternatives**: (b) satélite only (sem toggle).

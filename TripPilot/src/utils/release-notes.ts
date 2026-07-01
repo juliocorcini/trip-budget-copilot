@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.8-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'No detalhe de um gasto que faz parte de um evento, agora aparece um atalho direto para o evento — do mesmo jeito que um item de uma saída já linkava para a saída.',
+        'O mapa do gasto agora abre em satélite (imagem de verdade do lugar), com um botão para alternar entre "Satélite" e "Mapa" quando você amplia.',
+      ],
+      en: [
+        'When an expense belongs to an event, its detail screen now shows a shortcut straight to the event — just like an outing item already linked to its outing.',
+        'The expense map now opens in satellite (a real image of the place), with a button to switch between "Satellite" and "Map" when you expand it.',
+      ],
+      es: [
+        'Cuando un gasto forma parte de un evento, su detalle ahora muestra un acceso directo al evento — igual que un ítem de una salida ya enlazaba con la salida.',
+        'El mapa del gasto ahora abre en satélite (una imagen real del lugar), con un botón para alternar entre "Satélite" y "Mapa" al ampliarlo.',
+      ],
+    },
+  },
+  {
     version: '2.0.7-rc',
     date: '2026-07-01',
     items: {

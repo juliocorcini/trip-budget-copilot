@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { Icon } from '@/components/Icon';
 import { registerOverlayDismiss } from '@/utils/overlay-dismiss';
 import { overlayHost } from '@/utils/overlay-host';
+import { createTileLayer, DEFAULT_MAP_LAYER, type MapLayerKind } from './tile-layers';
 
 /**
  * DEC-368 (G8) — interactive map for an expense's saved point. Default export so
@@ -34,7 +35,16 @@ export default function ExpenseLocationMap({
   label,
   interactive = false,
 }: ExpenseLocationMapProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const tileRef = useRef<L.TileLayer | null>(null);
+  // DEC-422 (G9): satellite (Esri) is the default surface; the toggle (interactive
+  // only) swaps to the street map. A ref mirrors the state so the map-mount effect
+  // can add the right layer without depending on `layer` (which would re-create
+  // the whole map on every toggle).
+  const [layer, setLayer] = useState<MapLayerKind>(DEFAULT_MAP_LAYER);
+  const layerRef = useRef<MapLayerKind>(DEFAULT_MAP_LAYER);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -56,11 +66,12 @@ export default function ExpenseLocationMap({
       tapHold: interactive,
       zoomControl: interactive,
     });
+    mapRef.current = map;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
+    // DEC-422 (G9): start on whatever surface is currently selected (satellite by
+    // default) so re-mounts — e.g. expanding into the overlay — keep the choice.
+    const tile = createTileLayer(layerRef.current).addTo(map);
+    tileRef.current = tile;
 
     const pin = L.divIcon({
       className: 'expense-map-pin',
@@ -84,18 +95,49 @@ export default function ExpenseLocationMap({
       cancelAnimationFrame(raf);
       ro?.disconnect();
       map.remove();
+      mapRef.current = null;
+      tileRef.current = null;
     };
   }, [lat, lng, label, interactive]);
 
+  // DEC-422 (G9): swap the tile source in place when the surface changes — no map
+  // teardown, so the center/zoom and the pin stay put across a toggle.
+  useEffect(() => {
+    layerRef.current = layer;
+    const map = mapRef.current;
+    if (!map) return;
+    tileRef.current?.remove();
+    tileRef.current = createTileLayer(layer).addTo(map);
+  }, [layer]);
+
   return (
     <div
-      ref={containerRef}
-      role="img"
-      aria-label={label}
-      className={`w-full h-full rounded-xl overflow-hidden bg-surface-high${
+      className={`relative w-full h-full rounded-xl overflow-hidden bg-surface-high${
         interactive ? '' : ' pointer-events-none'
       }`}
-    />
+    >
+      <div ref={containerRef} role="img" aria-label={label} className="w-full h-full" />
+      {/* DEC-422 (G9): map/satellite toggle, interactive surfaces only (the inline
+          preview is pointer-events-none). Sibling of the Leaflet container, so its
+          taps never reach the map. Placed top-right to clear the top-left zoom. */}
+      {interactive && (
+        <div className="absolute top-2 right-2 z-[1000] flex rounded-full bg-surface/90 p-0.5 shadow-sm">
+          {(['satellite', 'street'] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => setLayer(kind)}
+              aria-pressed={layer === kind}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold btn-press transition-colors ${
+                layer === kind ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
+              }`}
+            >
+              {t(kind === 'satellite' ? 'expenses.map_satellite' : 'expenses.map_street')}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
