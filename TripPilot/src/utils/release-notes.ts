@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.1-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'Importar o mesmo extrato do Wise de novo não recria mais a transferência que você já tinha importado (a que virou uma dívida paga): ela aparece marcada como "já importada" e não é duplicada.',
+        'Cada transferência agora pode ser desmarcada antes de importar — toque no círculo à esquerda para incluir ou deixar de fora, do mesmo jeito que os gastos.',
+      ],
+      en: [
+        'Re-importing the same Wise statement no longer recreates a transfer you already imported (the one that became a paid debt): it now shows up marked as "already imported" and is never duplicated.',
+        'Each transfer can now be unchecked before importing — tap the circle on the left to include it or leave it out, just like expenses.',
+      ],
+      es: [
+        'Volver a importar el mismo extracto de Wise ya no recrea la transferencia que ya habías importado (la que se convirtió en una deuda pagada): ahora aparece marcada como "ya importada" y no se duplica.',
+        'Cada transferencia se puede desmarcar antes de importar — toca el círculo de la izquierda para incluirla o dejarla fuera, igual que los gastos.',
+      ],
+    },
+  },
+  {
     version: '2.0.0-rc',
     date: '2026-07-01',
     items: {

@@ -1,8 +1,8 @@
 {
-  "version": "2.0.0-rc",
+  "version": "2.0.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.0-rc.zip",
-  "notes": "A barra de rolagem que reaparecia na tela do mapa sumiu de novo — a superfície do mapa (Leaflet) agora esconde a barra como o resto do app."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.1-rc.zip",
+  "notes": "Importar o mesmo extrato de novo não recria mais a transferência já importada — ela aparece marcada como \"já importada\" e não é duplicada. Cada transferência também pode ser desmarcada antes de importar."
 }

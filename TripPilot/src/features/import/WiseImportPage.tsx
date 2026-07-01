@@ -36,6 +36,7 @@ import {
 } from '@/domain/orchestrators';
 import { stampImportedExpenseLocations } from '@/features/location/stamp-expense-location';
 import type { Transaction } from '@/domain/types/transaction';
+import type { Settlement } from '@/domain/types/settlement';
 import { resolveActivePhase, formatShortDate, sortPhasesByOrder } from '@/domain/dates';
 import { selectActivePhasePool } from '@/domain/budget';
 import { selectAttributableEvents } from '@/domain/planning';
@@ -108,6 +109,13 @@ export function WiseImportPage() {
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
   const [transferState, setTransferState] = useState<Record<string, TransferClassification>>({});
   const [activeTransferId, setActiveTransferId] = useState<string | null>(null);
+  // DEC-413 (G2): the trip's settlements — loaded once so a re-imported transfer
+  // that only committed as a Settlement (a paid debt, no transaction) is still
+  // recognized as a duplicate by `classifyWiseRows` (Â-IMPORT-IDEMPOTENT).
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  // DEC-413 (G2): transfers the user explicitly toggled OFF ("desmarcável"). A
+  // ready transfer commits unless its rowId is here; empty = today's behavior.
+  const [excludedTransfers, setExcludedTransfers] = useState<Set<string>>(new Set());
   // F16: reimbursement bridges — purchase.rowId → confirmed split + the transfer
   // that repays it. Built from suggestions, always user-confirmed.
   const [bridgeState, setBridgeState] = useState<
@@ -134,6 +142,26 @@ export function WiseImportPage() {
 
   const baseCurrency = trip?.baseCurrency ?? 'EUR';
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
+
+  // DEC-413 (G2): load the trip's settlements as soon as the trip is known, so the
+  // dedupe set in `classifyWiseRows` includes settlement refs before any CSV is
+  // parsed (the page renders a loader until trip data is ready, so this lands well
+  // before the user picks a file). Best-effort; a fetch error leaves it empty.
+  useEffect(() => {
+    if (!trip) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await settlementRepository.getByTripId(trip.id);
+        if (!cancelled) setSettlements(rows);
+      } catch (err) {
+        console.error('[wise-import] settlements load failed', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [trip]);
 
   const sortedPhases = useMemo(
     () => sortPhasesByOrder(phases.filter((p) => p.deletedAt === null)),
@@ -234,10 +262,49 @@ export function WiseImportPage() {
   };
 
   const readyTransferIds = useMemo(
-    () => transferDrafts.filter((d) => isTransferReady(d.rowId)).map((d) => d.rowId),
+    () =>
+      transferDrafts
+        .filter((d) => isTransferReady(d.rowId) && !excludedTransfers.has(d.rowId))
+        .map((d) => d.rowId),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [transferDrafts, transferState],
+    [transferDrafts, transferState, excludedTransfers],
   );
+
+  const toggleTransfer = (rowId: string) => {
+    setExcludedTransfers((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  };
+
+  // DEC-413 (G2): duplicate transfers ("já importada") shown read-only so the user
+  // sees WHY a re-imported transfer is not offered again, instead of it vanishing.
+  const duplicateTransferDrafts = useMemo(
+    () =>
+      plan
+        ? plan.drafts.filter((d) => d.kind === 'transfer' && d.status === 'duplicate_import')
+        : [],
+    [plan],
+  );
+
+  // DEC-413 (G2): every externalRef already on the device (transactions ∪
+  // settlements) — the last-line idempotency guard passed to commitWiseTransfers.
+  const importedRefs = useMemo(() => {
+    const refs = new Set<string>();
+    for (const tx of transactions) {
+      if (tx.deletedAt === null && typeof tx.externalRef === 'string' && tx.externalRef.length > 0) {
+        refs.add(tx.externalRef);
+      }
+    }
+    for (const s of settlements) {
+      if (s.deletedAt === null && typeof s.externalRef === 'string' && s.externalRef.length > 0) {
+        refs.add(s.externalRef);
+      }
+    }
+    return refs;
+  }, [transactions, settlements]);
 
   const patchTransfer = (rowId: string, patch: Partial<TransferClassification>) => {
     setTransferState((prev) => {
@@ -290,7 +357,13 @@ export function WiseImportPage() {
       order: getNextPhaseOrder(phases),
     });
     await phaseRepository.create(phase);
-    setPlan(classifyWiseRows(rows, { existingTransactions: transactions, phases: [...phases, phase] }));
+    setPlan(
+      classifyWiseRows(rows, {
+        existingTransactions: transactions,
+        existingSettlements: settlements,
+        phases: [...phases, phase],
+      }),
+    );
     setShowCreatePhase(false);
     showToast(t('wiseImport.phase_created', { name: name.trim() }), 'success');
     await reload();
@@ -361,7 +434,11 @@ export function WiseImportPage() {
       setParsing(true);
       try {
         const parsedRows = nonEmpty.flatMap((text) => parseWiseCsv(text));
-        const built = classifyWiseRows(parsedRows, { existingTransactions: transactions, phases });
+        const built = classifyWiseRows(parsedRows, {
+          existingTransactions: transactions,
+          existingSettlements: settlements,
+          phases,
+        });
         setRows(parsedRows);
         setPlan(built);
         setIncluded(new Set(built.drafts.filter((d) => d.includeByDefault).map((d) => d.rowId)));
@@ -378,7 +455,7 @@ export function WiseImportPage() {
         setParsing(false);
       }
     },
-    [transactions, phases, wallets, t],
+    [transactions, settlements, phases, wallets, t],
   );
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -513,6 +590,7 @@ export function WiseImportPage() {
           poolByPhaseId,
           forcePhaseId: phaseOverride,
           baseCurrency,
+          existingRefs: importedRefs,
         });
         transactionIds.push(...result.transactionIds);
         settlementIds.push(...result.settlementIds);
@@ -713,7 +791,7 @@ export function WiseImportPage() {
           )}
 
           {/* FIELD-14: transfers to people — classified, not auto-imported. */}
-          {transferDrafts.length > 0 && (
+          {(transferDrafts.length > 0 || duplicateTransferDrafts.length > 0) && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 mt-1">
                 <Icon name="swap_horiz" size={16} className="text-primary" />
@@ -721,9 +799,11 @@ export function WiseImportPage() {
                   {t('wiseImport.transfers_title')}
                 </p>
               </div>
-              <p className="text-[11px] text-on-surface-faint -mt-1">
-                {t('wiseImport.transfers_hint')}
-              </p>
+              {transferDrafts.length > 0 && (
+                <p className="text-[11px] text-on-surface-faint -mt-1">
+                  {t('wiseImport.transfers_hint')}
+                </p>
+              )}
               {transferDrafts.map((draft) => (
                 <TransferRow
                   key={draft.rowId}
@@ -731,9 +811,16 @@ export function WiseImportPage() {
                   classification={transferState[draft.rowId]}
                   participants={participants}
                   ready={isTransferReady(draft.rowId)}
+                  included={!excludedTransfers.has(draft.rowId)}
                   baseCurrency={baseCurrency}
                   onOpen={() => setActiveTransferId(draft.rowId)}
+                  onToggle={() => toggleTransfer(draft.rowId)}
                 />
+              ))}
+              {/* DEC-413 (G2): transfers recognized as already imported — shown
+                  read-only so the user understands why they are not offered again. */}
+              {duplicateTransferDrafts.map((draft) => (
+                <DuplicateTransferRow key={draft.rowId} draft={draft} baseCurrency={baseCurrency} />
               ))}
             </div>
           )}
@@ -1352,15 +1439,19 @@ function TransferRow({
   classification,
   participants,
   ready,
+  included,
   baseCurrency,
   onOpen,
+  onToggle,
 }: {
   draft: WiseImportDraft;
   classification: TransferClassification | undefined;
   participants: Participant[];
   ready: boolean;
+  included: boolean;
   baseCurrency: string;
   onOpen: () => void;
+  onToggle: () => void;
 }) {
   const { t } = useTranslation();
   const currency = draft.currency || baseCurrency;
@@ -1369,49 +1460,101 @@ function TransferRow({
   const sign = draft.direction === 'in' ? '+' : '−';
 
   return (
-    <button
-      onClick={onOpen}
-      className="w-full text-left bg-surface-container rounded-xl p-3 flex items-center gap-3 btn-press"
+    <div
+      className={`w-full bg-surface-container rounded-xl p-3 flex items-center gap-3 transition-opacity ${included ? '' : 'opacity-45'}`}
     >
+      {/* DEC-413 (G2): include/exclude toggle — a transfer is "desmarcável". */}
+      <button
+        onClick={onToggle}
+        aria-pressed={included}
+        aria-label={included ? t('wiseImport.transfer_exclude') : t('wiseImport.transfer_include')}
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 btn-press"
+        style={{
+          background: included ? 'rgba(124,160,255,0.16)' : 'var(--surface-container-high, rgba(255,255,255,0.06))',
+        }}
+      >
+        <Icon
+          name={included ? 'check_circle' : 'radio_button_unchecked'}
+          size={18}
+          className={included ? 'text-primary' : 'text-on-surface-faint'}
+        />
+      </button>
+
+      <button onClick={onOpen} className="flex-1 min-w-0 text-left btn-press flex items-center gap-3">
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-on-surface truncate">
+            {draft.counterpartyName ?? draft.description}
+          </span>
+          <span className="block text-[11px] text-on-surface-faint truncate">
+            {summary.length > 0
+              ? summary
+              : matchedName
+                ? t('wiseImport.transfer_tap_classify')
+                : t('wiseImport.transfer_tap_classify')}
+          </span>
+        </span>
+
+        <span className="flex flex-col items-end gap-1 shrink-0">
+          <span
+            className={`text-sm font-extrabold tabular ${draft.direction === 'in' ? 'text-success' : 'text-on-surface'}`}
+          >
+            {sign}
+            {formatMoney(draft.amountCents, currency).replace(/^[-−+]/, '')}
+          </span>
+          <span
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1"
+            style={{
+              background: ready ? 'rgba(106,196,140,0.18)' : 'var(--warning-surface, rgba(212,160,80,0.18))',
+              color: ready ? 'var(--success)' : 'var(--warning)',
+            }}
+          >
+            <Icon name={ready ? 'check_circle' : 'tune'} size={10} />
+            {ready ? t('wiseImport.transfer_ready') : t('wiseImport.transfer_review')}
+          </span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+/**
+ * DEC-413 (G2): a transfer recognized as already imported (its externalRef lives
+ * on an earlier settlement/transaction). Read-only — no toggle, no classify — so
+ * re-importing the same statement never offers the transfer again, and the user
+ * sees WHY it is greyed out instead of it silently disappearing.
+ */
+function DuplicateTransferRow({
+  draft,
+  baseCurrency,
+}: {
+  draft: WiseImportDraft;
+  baseCurrency: string;
+}) {
+  const { t } = useTranslation();
+  const currency = draft.currency || baseCurrency;
+  const sign = draft.direction === 'in' ? '+' : '−';
+
+  return (
+    <div className="w-full bg-surface-container rounded-xl p-3 flex items-center gap-3 opacity-55">
       <span
         className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-        style={{ background: 'rgba(124,160,255,0.16)' }}
+        style={{ background: 'var(--surface-container-high, rgba(255,255,255,0.06))' }}
       >
-        <Icon name="swap_horiz" size={18} className="text-primary" />
+        <Icon name="task_alt" size={18} className="text-on-surface-faint" />
       </span>
-
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-semibold text-on-surface truncate">
           {draft.counterpartyName ?? draft.description}
         </span>
         <span className="block text-[11px] text-on-surface-faint truncate">
-          {summary.length > 0
-            ? summary
-            : matchedName
-              ? t('wiseImport.transfer_tap_classify')
-              : t('wiseImport.transfer_tap_classify')}
+          {t('wiseImport.transfer_already_imported')}
         </span>
       </span>
-
-      <span className="flex flex-col items-end gap-1 shrink-0">
-        <span
-          className={`text-sm font-extrabold tabular ${draft.direction === 'in' ? 'text-success' : 'text-on-surface'}`}
-        >
-          {sign}
-          {formatMoney(draft.amountCents, currency).replace(/^[-−+]/, '')}
-        </span>
-        <span
-          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1"
-          style={{
-            background: ready ? 'rgba(106,196,140,0.18)' : 'var(--warning-surface, rgba(212,160,80,0.18))',
-            color: ready ? 'var(--success)' : 'var(--warning)',
-          }}
-        >
-          <Icon name={ready ? 'check_circle' : 'tune'} size={10} />
-          {ready ? t('wiseImport.transfer_ready') : t('wiseImport.transfer_review')}
-        </span>
+      <span className="text-sm font-extrabold tabular text-on-surface-faint shrink-0">
+        {sign}
+        {formatMoney(draft.amountCents, currency).replace(/^[-−+]/, '')}
       </span>
-    </button>
+    </div>
   );
 }
 

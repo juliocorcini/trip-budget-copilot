@@ -217,6 +217,14 @@ export interface CommitWiseTransfersInput {
   poolByPhaseId?: Record<string, string>;
   /** Force every transfer slice into this phase (import override). */
   forcePhaseId?: string | null;
+  /**
+   * DEC-413 (G2): externalRefs already present on the device (from transactions
+   * AND settlements). A spec whose ref is here is skipped, so re-committing an
+   * already-imported transfer never recreates it — the belt-and-suspenders behind
+   * the classify-time dedupe (Â-IMPORT-IDEMPOTENT). Absent → nothing is skipped
+   * (byte-identical to the pre-DEC-413 behavior).
+   */
+  existingRefs?: ReadonlySet<string>;
 }
 
 export interface CommitWiseTransfersResult {
@@ -250,6 +258,10 @@ export async function commitWiseTransfers(
   for (const spec of input.specs) {
     const { draft, participantId, allocations } = spec;
     const ref = wiseExternalRef(draft.rowId);
+    // DEC-413 (G2): never recreate a transfer already on the device (its ref lives
+    // on the earlier transaction/settlement). The classify step already hides dups,
+    // this is the last-line guard so a stray spec can't duplicate a settlement.
+    if (input.existingRefs?.has(ref)) continue;
     const target = resolveWisePhasePool(input, draft.phaseId);
     const phaseId = target.phaseId;
     const expensePoolId = target.budgetPoolId;

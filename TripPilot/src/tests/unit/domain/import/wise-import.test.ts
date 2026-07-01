@@ -547,3 +547,100 @@ describe('commitWiseImport', () => {
     expect(stored.every((t) => t.budgetPoolId === 'pool-early')).toBe(true);
   });
 });
+
+// DEC-413 (G2, keystone · Â-IMPORT-IDEMPOTENT): re-importing the same statement
+// must never recreate a transfer that only committed as a Settlement (a paid
+// debt, so there is NO transaction to dedupe against). The domain already dedupes
+// against `existingSettlements`; these lock (1) the full two-import cycle once the
+// caller passes settlements, and (2) the commitWiseTransfers `existingRefs` guard
+// as the last line of defense.
+describe('DEC-413 (G2): re-import idempotency — transfer dedupe via settlements', () => {
+  const transferDraft = () =>
+    classifyWiseRows(parseWiseCsv(STATEMENT), { existingTransactions: [], phases: PHASES }).drafts.find(
+      (d) => d.kind === 'transfer',
+    )!;
+
+  const payDebtSpec = (draft = transferDraft()) => ({
+    draft,
+    participantId: 'bruno',
+    allocations: [{ id: newAllocationId(), kind: 'pay_debt' as const, amountCents: draft.amountCents }],
+  });
+
+  const commitInput = (specs: ReturnType<typeof payDebtSpec>[], existingRefs?: ReadonlySet<string>) => ({
+    specs,
+    tripId: 'trip-1',
+    ownerId: 'owner-1',
+    budgetPoolId: 'pool-1',
+    sourceWalletId: 'wise-wallet',
+    fallbackPhaseId: 'phase-jun',
+    baseCurrency: 'EUR',
+    ...(existingRefs ? { existingRefs } : {}),
+  });
+
+  beforeEach(async () => {
+    await db.transactions.clear();
+    await db.settlements.clear();
+    await db.participantShares.clear();
+  });
+
+  it('a paid-debt transfer commits ONLY as a settlement carrying the wise externalRef (no transaction)', async () => {
+    const result = await commitWiseTransfers(commitInput([payDebtSpec()]));
+    const settlements = await db.settlements.toArray();
+    const txs = await db.transactions.toArray();
+
+    expect(result.transactionIds).toHaveLength(0);
+    expect(txs).toHaveLength(0);
+    expect(settlements).toHaveLength(1);
+    expect(settlements[0]!.externalRef).toBe(wiseExternalRef('TRANSFER-2188321339'));
+  });
+
+  it('once the caller passes existingSettlements, the re-imported transfer is duplicate_import (not offered again)', async () => {
+    await commitWiseTransfers(commitInput([payDebtSpec()]));
+    const storedSettlements = await db.settlements.toArray();
+
+    // The bug: reclassifying the way the page used to (transactions only) shows the
+    // already-paid transfer as an actionable NEW transfer again.
+    const withoutSettlements = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      phases: PHASES,
+    });
+    const asBug = withoutSettlements.drafts.find((d) => d.kind === 'transfer')!;
+    expect(asBug.status).toBe('new');
+    expect(withoutSettlements.summary.transferCount).toBe(1);
+
+    // The fix (G2 wiring): passing the settlements dedupes it — transferCount drops
+    // to 0 and it is counted as an already-imported duplicate.
+    const withSettlements = classifyWiseRows(parseWiseCsv(STATEMENT), {
+      existingTransactions: [],
+      existingSettlements: storedSettlements,
+      phases: PHASES,
+    });
+    const deduped = withSettlements.drafts.find((d) => d.kind === 'transfer')!;
+    expect(deduped.status).toBe('duplicate_import');
+    expect(deduped.includeByDefault).toBe(false);
+    expect(withSettlements.summary.transferCount).toBe(0);
+    expect(withSettlements.summary.duplicateImportCount).toBe(1);
+  });
+
+  it('commitWiseTransfers skips any spec whose ref is already on the device (existingRefs guard)', async () => {
+    // First import creates the settlement.
+    await commitWiseTransfers(commitInput([payDebtSpec()]));
+    const ref = wiseExternalRef('TRANSFER-2188321339');
+    expect((await db.settlements.toArray()).map((s) => s.externalRef)).toContain(ref);
+
+    // A stray re-commit of the SAME transfer, now guarded, is a no-op.
+    const guarded = await commitWiseTransfers(commitInput([payDebtSpec()], new Set([ref])));
+    expect(guarded.settlementIds).toHaveLength(0);
+    expect(guarded.transactionIds).toHaveLength(0);
+    expect(await db.settlements.count()).toBe(1); // still exactly one — never duplicated
+  });
+
+  it('without the guard the same spec still commits normally (byte-identical to the pre-DEC-413 path)', async () => {
+    const first = await commitWiseTransfers(commitInput([payDebtSpec()]));
+    expect(first.settlementIds).toHaveLength(1);
+    // No existingRefs → the orchestrator behaves exactly as before (would re-create).
+    const second = await commitWiseTransfers(commitInput([payDebtSpec()]));
+    expect(second.settlementIds).toHaveLength(1);
+    expect(await db.settlements.count()).toBe(2);
+  });
+});
