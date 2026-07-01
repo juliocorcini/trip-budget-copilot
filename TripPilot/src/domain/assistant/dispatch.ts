@@ -124,8 +124,10 @@ async function executeExpense(
       payerId: op.payerId,
       didSplit: op.didSplit,
       participantIds: op.participantIds,
-      shareType: 'equal',
-      customAmountsCents: {},
+      // DEC-424 (G10): honor the sheet's split editor. `resolvePayerExpense` still
+      // forces 'equal' when nothing was split, so a plain op is unaffected.
+      shareType: op.shareType ?? 'equal',
+      customAmountsCents: op.customAmountsCents ?? {},
       connectedParticipantIds: op.connectedParticipantIds,
     });
     tx.isShared = resolution.isShared;

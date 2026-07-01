@@ -27,7 +27,8 @@ import type { AssistantPreview, ExecOp } from '@/domain/assistant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { Transaction } from '@/domain/types/transaction';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
-import type { CurrentPlace } from '@/domain/types/common';
+import type { Participant } from '@/domain/types/participant';
+import type { CurrentPlace, ShareType } from '@/domain/types/common';
 
 type ExpenseOp = Extract<ExecOp, { kind: 'expense' }>;
 type EventOp = Extract<ExecOp, { kind: 'event' }>;
@@ -39,6 +40,9 @@ interface EditContext {
   transactions: Transaction[];
   /** DEC-397 (G6): events available for attribution, narrowed per the op's day. */
   occurrences: PlannedOccurrence[];
+  /** DEC-424 (G10): the people the in-sheet split editor offers (owner included). */
+  participants: Participant[];
+  ownerId: string;
   walletTrackingActive: boolean;
   locationEnabled: boolean;
   rememberedPlace: CurrentPlace | null;
@@ -60,7 +64,7 @@ function opDayIso(op: ExpenseOp): string {
 export function AssistantSheet() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, pools, links, phases, wallets, transactions, envelopes, occurrences, plannedPurchases, settings, reload } =
+  const { trip, pools, links, phases, wallets, transactions, participants, envelopes, occurrences, plannedPurchases, settings, reload } =
     useAppData();
   const walletTrackingActive = useWalletTracking();
   const [open, setOpen] = useState(false);
@@ -132,11 +136,14 @@ export function AssistantSheet() {
   const availablePools = currentPhase
     ? getAvailablePoolsForPhase(pools, links, currentPhase.id)
     : { operational: [], global: [], autoSelectedPoolId: null };
+  const owner = participants.find((p) => p.isOwner) ?? null;
   const editContext: EditContext = {
     selectablePools: [...availablePools.operational, ...availablePools.global],
     wallets,
     transactions,
     occurrences,
+    participants,
+    ownerId: owner?.id ?? '',
     walletTrackingActive,
     locationEnabled: !!settings?.locationCaptureEnabled,
     rememberedPlace: settings?.currentPlace ?? null,
@@ -729,7 +736,6 @@ function PreviewArea(props: {
               op={expenseOp}
               edit={props.edit}
               patchDraft={props.patchDraft}
-              onAdjustSplit={props.onFullEditor}
             />
           )}
         </>
@@ -1227,7 +1233,6 @@ function ExpenseEditor(props: {
   op: ExpenseOp;
   edit: EditContext;
   patchDraft: (patch: Partial<ExpenseOp>) => void;
-  onAdjustSplit: () => void;
 }) {
   const { t } = useTranslation();
   const { op, edit, patchDraft } = props;
@@ -1238,8 +1243,6 @@ function ExpenseEditor(props: {
     const parsed = evaluateAmountExpression(value);
     if (parsed !== null && parsed > 0) patchDraft({ amountCents: toCents(parsed) });
   };
-
-  const isSplit = op.didSplit || op.payerId !== op.ownerId;
 
   return (
     <div className="flex flex-col gap-3 max-h-[46vh] overflow-y-auto pr-0.5">
@@ -1342,19 +1345,192 @@ function ExpenseEditor(props: {
         onSelect={(occurrenceId) => patchDraft({ occurrenceId })}
       />
 
-      {isSplit && (
-        <Field label={t('assistant.edit.split')}>
-          <button
-            onClick={props.onAdjustSplit}
-            className="btn-press w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2"
-            style={{ background: 'var(--surface-high)' }}
-          >
-            <span className="text-[13px] text-on-surface-dim">{t('assistant.edit.adjust_split')}</span>
-            <Icon name="open_in_full" size={14} className="text-on-surface-faint" />
-          </button>
-        </Field>
+      {/* DEC-424 (G10): full in-sheet split editor (who paid, who shares,
+          equal/custom) — the AI flow can now divide without leaving the sheet. */}
+      {edit.participants.length > 1 && edit.ownerId !== '' && (
+        <SplitEditor
+          op={op}
+          participants={edit.participants}
+          ownerId={edit.ownerId}
+          currency={op.currency}
+          patchDraft={patchDraft}
+        />
       )}
     </div>
+  );
+}
+
+/**
+ * DEC-424 (G10): the in-sheet split editor — parity with QuickAdd's split (who
+ * paid, who shares, equal/custom) so the AI flow divides an expense WITHOUT
+ * bouncing to the full form. It writes only the op fields
+ * (payerId/didSplit/participantIds/shareType/customAmountsCents); the SAME
+ * `resolvePayerExpense` engine turns them into the exact shares at confirm, so
+ * the money matches a manual entry bit-for-bit. Reuses QuickAdd's i18n keys.
+ */
+function SplitEditor(props: {
+  op: ExpenseOp;
+  participants: Participant[];
+  ownerId: string;
+  currency: string;
+  patchDraft: (patch: Partial<ExpenseOp>) => void;
+}) {
+  const { t } = useTranslation();
+  const { op, participants, ownerId, currency, patchDraft } = props;
+  const shareType: ShareType = op.shareType ?? 'equal';
+
+  // Local text state for the custom inputs (like QuickAdd) so typing "1." never
+  // gets reformatted mid-edit; the cents are committed to the op on each change.
+  const [customText, setCustomText] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const [id, cents] of Object.entries(op.customAmountsCents ?? {})) {
+      init[id] = String((cents as number) / 100);
+    }
+    return init;
+  });
+
+  const labelFor = (p: Participant): string =>
+    p.isOwner || p.id === ownerId ? t('shared.owner_tag') : (p.nickname ?? p.name);
+
+  const toggleSplit = () => {
+    if (op.didSplit) {
+      patchDraft({ didSplit: false, participantIds: [], shareType: 'equal', customAmountsCents: {} });
+    } else {
+      // Default to an equal split among everyone, mirroring QuickAdd's toggle.
+      patchDraft({ didSplit: true, participantIds: participants.map((p) => p.id), shareType: 'equal' });
+    }
+  };
+
+  const toggleParticipant = (id: string) => {
+    const next = new Set(op.participantIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    patchDraft({ participantIds: [...next] });
+  };
+
+  const setShareType = (mode: ShareType) =>
+    patchDraft({ shareType: mode, ...(mode === 'equal' ? { customAmountsCents: {} } : {}) });
+
+  const setCustom = (id: string, value: string) => {
+    setCustomText((prev) => ({ ...prev, [id]: value }));
+    const parsed = parseFloat(value.replace(',', '.'));
+    const next = { ...(op.customAmountsCents ?? {}) };
+    if (Number.isNaN(parsed) || parsed <= 0) delete next[id];
+    else next[id] = toCents(parsed);
+    patchDraft({ customAmountsCents: next });
+  };
+
+  const selected = participants.filter((p) => op.participantIds.includes(p.id));
+  const customEnteredCents = selected.reduce((sum, p) => sum + (op.customAmountsCents?.[p.id] ?? 0), 0);
+  const remainderCents = op.amountCents - customEnteredCents;
+
+  return (
+    <>
+      <Field label={t('expenses.who_paid')}>
+        <ChipPicker
+          items={participants.map((p) => ({ id: p.id, label: labelFor(p) }))}
+          selectedId={op.payerId}
+          onSelect={(id) => patchDraft({ payerId: id })}
+        />
+      </Field>
+
+      <button
+        type="button"
+        onClick={toggleSplit}
+        className="w-full flex items-center justify-between btn-press rounded-2xl p-3"
+        style={{ background: 'var(--surface-high)', border: '1px solid var(--border-subtle)' }}
+      >
+        <span className="text-[13px] text-on-surface font-medium flex items-center gap-2">
+          <Icon name="group" size={16} className="text-on-surface-dim" />
+          {t('expenses.shared_toggle')}
+        </span>
+        <span
+          className="w-10 h-6 rounded-full relative transition-colors"
+          style={{ background: op.didSplit ? 'var(--primary)' : 'var(--surface-container)' }}
+        >
+          <span
+            className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-[left]"
+            style={{ left: op.didSplit ? '18px' : '2px' }}
+          />
+        </span>
+      </button>
+
+      {op.didSplit && (
+        <>
+          <Field label={t('expenses.participants_label')}>
+            <div className="flex gap-1.5 flex-wrap">
+              {participants.map((p) => {
+                const on = op.participantIds.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleParticipant(p.id)}
+                    className="btn-press px-3 py-1.5 rounded-lg text-[12px] font-medium"
+                    style={{
+                      background: on ? 'var(--primary)' : 'var(--surface-container)',
+                      color: on ? 'var(--on-primary)' : 'var(--on-surface-dim)',
+                    }}
+                  >
+                    {labelFor(p)}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+
+          <Field label={t('expenses.split_mode')}>
+            <div className="flex gap-2">
+              {(['equal', 'custom'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setShareType(mode)}
+                  className="flex-1 py-2 rounded-lg text-[12px] font-medium btn-press"
+                  style={{
+                    background: shareType === mode ? 'var(--primary)' : 'var(--surface-container)',
+                    color: shareType === mode ? 'var(--on-primary)' : 'var(--on-surface-dim)',
+                  }}
+                >
+                  {t(mode === 'equal' ? 'expenses.split_equal' : 'expenses.split_custom')}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          {shareType === 'custom' && (
+            <div className="flex flex-col gap-2">
+              {selected.map((p) => (
+                <div key={p.id} className="flex items-center gap-2">
+                  <span className="text-[12px] text-on-surface-dim flex-1 truncate">{labelFor(p)}</span>
+                  <div
+                    className="flex items-baseline gap-1 rounded-lg px-3 py-1.5 w-28"
+                    style={{ background: 'var(--surface-container)' }}
+                  >
+                    <span className="text-on-surface-faint text-[11px]">{currency}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      value={customText[p.id] ?? ''}
+                      onChange={(e) => setCustom(p.id, e.target.value)}
+                      placeholder="0,00"
+                      className="bg-transparent text-[12px] text-on-surface tabular outline-none w-full"
+                    />
+                  </div>
+                </div>
+              ))}
+              {remainderCents !== 0 && op.amountCents > 0 && (
+                <p className="text-[11px] text-warning">
+                  {t('expenses.split_remaining', { amount: formatMoney(remainderCents, currency) })}{' '}
+                  {t('expenses.split_remainder_to_payer')}
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 }
 

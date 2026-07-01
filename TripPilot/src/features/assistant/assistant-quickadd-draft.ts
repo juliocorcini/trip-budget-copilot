@@ -65,7 +65,9 @@ export function expenseOpToQuickAddDraft(
     occurrenceId: op.occurrenceId ?? null,
     payerId: op.payerId,
     participantIds: op.participantIds,
-    shareType: 'equal',
+    // DEC-424 (G10): carry the chosen split mode so a hand-off to the full editor
+    // keeps equal/custom (defaults to equal for every planner-emitted op).
+    shareType: op.shareType ?? 'equal',
   };
 }
 

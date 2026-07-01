@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.9-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'Ao registrar um gasto pela IA, agora você pode dividir ali mesmo na tela: escolher quem pagou, marcar quem participa e definir se a divisão é igual ou com valores personalizados — sem precisar abrir o formulário completo.',
+        'Na divisão personalizada, o que faltar para fechar o valor total vai automaticamente para quem pagou, igualzinho ao registro manual.',
+      ],
+      en: [
+        'When you log an expense through the AI, you can now split it right there on the sheet: pick who paid, choose who takes part, and set an equal or custom split — no need to open the full form.',
+        'On a custom split, whatever is left to reach the total is automatically assigned to whoever paid, exactly like the manual entry.',
+      ],
+      es: [
+        'Al registrar un gasto con la IA, ahora puedes dividirlo ahí mismo: elegir quién pagó, marcar quién participa y definir si la división es igual o con montos personalizados — sin abrir el formulario completo.',
+        'En la división personalizada, lo que falte para llegar al total se asigna automáticamente a quien pagó, igual que en el registro manual.',
+      ],
+    },
+  },
+  {
     version: '2.0.8-rc',
     date: '2026-07-01',
     items: {

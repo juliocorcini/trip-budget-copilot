@@ -1,6 +1,6 @@
 import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
-import type { CurrentPlace } from '@/domain/types/common';
+import type { CurrentPlace, ShareType } from '@/domain/types/common';
 import type { AiIntent, AiDirection, AiScreen } from './intent';
 import {
   normalizeText,
@@ -56,6 +56,15 @@ export type ExecOp =
       /** Split participants (for `i_paid_for` this is the single counterpart). */
       participantIds: string[];
       connectedParticipantIds: string[];
+      /**
+       * DEC-424 (G10): how a split divides — 'equal' (default) or 'custom'
+       * per-person amounts in cents, keyed by participant id (the remainder falls
+       * to the payer, mirroring QuickAdd). The planner always emits an equal
+       * split; the in-sheet split editor may switch to custom. Optional so every
+       * other flow and older drafts read back as a plain equal split.
+       */
+      shareType?: ShareType;
+      customAmountsCents?: Record<string, number>;
     }
   | {
       kind: 'income';

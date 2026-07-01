@@ -1,8 +1,8 @@
 {
-  "version": "2.0.8-rc",
+  "version": "2.0.9-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.8-rc.zip",
-  "notes": "No detalhe do gasto, quando ele faz parte de um evento, agora aparece um atalho pro evento. E o mapa do gasto vem em satélite, com um botão pra alternar entre satélite e mapa comum."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.9-rc.zip",
+  "notes": "Ao registrar um gasto pela IA, agora dá pra dividir ali mesmo: escolher quem pagou, quem participa e se a divisão é igual ou personalizada — sem precisar abrir o formulário completo."
 }
