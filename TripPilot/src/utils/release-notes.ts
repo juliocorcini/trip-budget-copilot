@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.1.1-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'Divisão em grupo (estilo Tricount): se você lança gastos e só depois adiciona as pessoas, agora elas entram automaticamente nos gastos que eram divididos com todos — acabou aquele "deve 0" errado.',
+        'Na hora de acertar as contas, quem deve já vê como pagar: o Pix, Wise, conta ou texto que o organizador cadastrou aparece ali, com um toque para copiar.',
+      ],
+      en: [
+        'Group split (Tricount-style): if you log expenses and only add people afterwards, they now automatically join the expenses that were split with everyone — no more wrong "owes 0".',
+        'When settling up, whoever owes now sees how to pay: the Pix, Wise, bank or note the organizer set up shows right there, one tap to copy.',
+      ],
+      es: [
+        'División en grupo (estilo Tricount): si registras gastos y recién después agregas a las personas, ahora entran automáticamente en los gastos que se dividían con todos — se acabó el "debe 0" equivocado.',
+        'Al saldar cuentas, quien debe ya ve cómo pagar: el Pix, Wise, banco o nota que el organizador cargó aparece ahí, con un toque para copiar.',
+      ],
+    },
+  },
+  {
     version: '2.1.0-rc',
     date: '2026-07-01',
     items: {

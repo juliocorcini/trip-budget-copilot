@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { splitEqually, sumCents } from '@/domain/money';
+import { enabledPaymentMethods, type PaymentMethod } from '@/domain/payment';
 import type { ImageRef } from '@/domain/media';
 import { isGroupObligationClosed } from './group-payment-status';
 import type {
@@ -122,6 +123,39 @@ export function addParticipant(event: GroupSplitEvent, participant: GroupPartici
 }
 
 /**
+ * DEC-432 (Field v2) — retroactive "whole-group" re-split. Jotting the bill before
+ * the group is filled is common: you add the expenses, THEN add who was there. An
+ * `equal` expense whose sharers are EXACTLY everyone who existed at that moment is
+ * understood as "split with the whole group", so a newcomer joins it too and their
+ * balance stops reading a false 0. Deliberate exclusions are respected: a strict
+ * subset (an equal split that left someone out) and ANY custom split are left
+ * untouched — only a full-group equal expense grows. Pure; returns the event plus
+ * how many expenses changed (for an honest toast). Money invariant is preserved:
+ * `expenseShares` re-divides equally so Σ(shares) == amountCents after widening.
+ */
+export function includeParticipantInWholeGroupExpenses(
+  event: GroupSplitEvent,
+  newParticipantId: string,
+): { event: GroupSplitEvent; updatedCount: number } {
+  const priorIds = event.participants.map((p) => p.id).filter((id) => id !== newParticipantId);
+  if (priorIds.length === 0) return { event, updatedCount: 0 };
+  const priorSet = new Set(priorIds);
+  const coversWholeGroup = (ids: string[]): boolean =>
+    ids.length === priorSet.size && ids.every((id) => priorSet.has(id));
+
+  let updatedCount = 0;
+  const expenses = event.expenses.map((e) => {
+    if (e.splitMode !== 'equal') return e;
+    if (e.participantIds.includes(newParticipantId)) return e;
+    if (!coversWholeGroup(e.participantIds)) return e;
+    updatedCount += 1;
+    return { ...e, participantIds: [...e.participantIds, newParticipantId] };
+  });
+  if (updatedCount === 0) return { event, updatedCount: 0 };
+  return { event: { ...event, expenses }, updatedCount };
+}
+
+/**
  * Removes a participant only when it is safe: never the owner, and never someone
  * who still appears in an expense (as payer or sharer). Returns the event
  * unchanged when the removal is unsafe (the caller surfaces the reason).
@@ -141,6 +175,33 @@ export function canRemoveParticipant(event: GroupSplitEvent, participantId: stri
 
 export function addExpense(event: GroupSplitEvent, expense: GroupExpense): GroupSplitEvent {
   return { ...event, expenses: [...event.expenses, expense] };
+}
+
+/**
+ * DEC-433 (Field v2) — stamp the OWNER participant with their ENABLED repayment
+ * methods so the `/g/` board can show a debtor how to pay the owner and copy the
+ * key. Only enabled, non-empty methods travel (the owner curates what is shown);
+ * when there are none the field is stripped so the payload stays clean/additive.
+ * Pure and money-neutral — the returned event is used ONLY for publish, never for
+ * the split math, so it never touches balances.
+ */
+export function withOwnerPaymentMethods(
+  event: GroupSplitEvent,
+  methods: PaymentMethod[],
+): GroupSplitEvent {
+  const usable = enabledPaymentMethods(methods);
+  return {
+    ...event,
+    participants: event.participants.map((p) => {
+      if (p.id !== event.ownerParticipantId) return p;
+      if (usable.length === 0) {
+        if (!p.paymentMethods) return p;
+        const { paymentMethods: _drop, ...rest } = p;
+        return rest;
+      }
+      return { ...p, paymentMethods: usable };
+    }),
+  };
 }
 
 export function updateExpense(event: GroupSplitEvent, expense: GroupExpense): GroupSplitEvent {

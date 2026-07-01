@@ -15,6 +15,7 @@ import {
 } from '@/domain/group-split';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-signal';
 import { formatMoney, toCents } from '@/domain/money';
+import { PAYMENT_METHOD_ICONS, resolvePaymentLabel, type PaymentMethod } from '@/domain/payment';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import { Icon } from '@/components/Icon';
 import type { ImageRef } from '@/domain/media';
@@ -406,24 +407,35 @@ function ClaimBoard({
             </div>
 
             {myTransfers.length > 0 && (
-              <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2">
+              <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
                 {myTransfers.map((tr, i) => {
                   const iAmPayer = tr.fromParticipantId === claimedId;
+                  // DEC-433 — when I owe this person, show how to pay them + copy the
+                  // key, straight from the methods they published on the board.
+                  const creditor = iAmPayer
+                    ? event.participants.find((p) => p.id === tr.toParticipantId)
+                    : undefined;
+                  const payMethods = creditor?.paymentMethods ?? [];
                   return (
-                    <div key={i} className="flex items-center gap-2 text-sm text-on-surface">
-                      <Icon
-                        name={iAmPayer ? 'arrow_upward' : 'arrow_downward'}
-                        size={16}
-                        className={iAmPayer ? 'text-on-surface-faint shrink-0' : 'text-success shrink-0'}
-                      />
-                      <span className="truncate">
-                        {iAmPayer
-                          ? t('group_claim.pay_to', { name: nameById.get(tr.toParticipantId) ?? '?' })
-                          : t('group_claim.receive_from', { name: nameById.get(tr.fromParticipantId) ?? '?' })}
-                      </span>
-                      <span className="ml-auto font-bold tabular shrink-0">
-                        {formatMoney(tr.amountCents, event.currency)}
-                      </span>
+                    <div key={i} className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-sm text-on-surface">
+                        <Icon
+                          name={iAmPayer ? 'arrow_upward' : 'arrow_downward'}
+                          size={16}
+                          className={iAmPayer ? 'text-on-surface-faint shrink-0' : 'text-success shrink-0'}
+                        />
+                        <span className="truncate">
+                          {iAmPayer
+                            ? t('group_claim.pay_to', { name: nameById.get(tr.toParticipantId) ?? '?' })
+                            : t('group_claim.receive_from', { name: nameById.get(tr.fromParticipantId) ?? '?' })}
+                        </span>
+                        <span className="ml-auto font-bold tabular shrink-0">
+                          {formatMoney(tr.amountCents, event.currency)}
+                        </span>
+                      </div>
+                      {iAmPayer && payMethods.length > 0 && (
+                        <PayInstructions name={creditor?.name ?? ''} methods={payMethods} />
+                      )}
                     </div>
                   );
                 })}
@@ -735,6 +747,57 @@ function AddExpenseInline({
         </button>
       </div>
       <p className="text-[10px] text-on-surface-faint leading-relaxed">{t('group_claim.add_expense_hint')}</p>
+    </div>
+  );
+}
+
+/**
+ * DEC-433 (Field v2) — "Como pagar {name}": the creditor's published repayment
+ * methods (Pix/Wise/bank/free-text), each a tap-to-copy row so the debtor grabs the
+ * key without leaving the board. Display-only; copies the raw value to the clipboard
+ * with a brief "copied" confirmation. Never touches balances.
+ */
+function PayInstructions({ name, methods }: { name: string; methods: PaymentMethod[] }) {
+  const { t } = useTranslation();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const kindLabels = {
+    pix: t('payment.kind_pix'),
+    wise: t('payment.kind_wise'),
+    bank: t('payment.kind_bank'),
+    other: t('payment.kind_other'),
+  };
+  const copy = async (method: PaymentMethod) => {
+    try {
+      await navigator.clipboard.writeText(method.value);
+      setCopiedId(method.id);
+      setTimeout(() => setCopiedId((c) => (c === method.id ? null : c)), 1500);
+    } catch {
+      /* clipboard blocked — the value is visible to copy manually */
+    }
+  };
+  return (
+    <div className="flex flex-col gap-1.5 border-t border-on-surface/10 pt-2">
+      <p className="text-[11px] text-on-surface-faint">{t('group_claim.how_to_pay', { name })}</p>
+      {methods.map((method) => (
+        <button
+          key={method.id}
+          type="button"
+          onClick={() => void copy(method)}
+          className="flex items-center gap-2 text-left btn-press rounded-lg -mx-1 px-1 py-0.5 hover:bg-surface-high"
+        >
+          <Icon name={PAYMENT_METHOD_ICONS[method.kind]} size={16} className="text-primary shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] text-on-surface-faint leading-tight">
+              {resolvePaymentLabel(method, kindLabels)}
+            </span>
+            <span className="block text-sm text-on-surface truncate">{method.value}</span>
+          </span>
+          <span className="text-[11px] font-semibold text-primary shrink-0 flex items-center gap-0.5">
+            <Icon name={copiedId === method.id ? 'check' : 'content_copy'} size={13} className="text-primary" />
+            {copiedId === method.id ? t('group_claim.copied_value') : t('group_claim.copy')}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }

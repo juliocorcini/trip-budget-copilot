@@ -16,6 +16,7 @@
  */
 
 import type { ImageRef } from '@/domain/media';
+import type { PaymentMethod } from '@/domain/payment';
 
 export type GroupParticipantKind = 'owner' | 'manual' | 'connected';
 
@@ -49,6 +50,15 @@ export interface GroupParticipant {
   claimedByActorId: string | null;
   /** Net settlement stage for this person across the whole event. */
   paymentStatus: GroupPaymentStatus;
+  /**
+   * DEC-433 (Field v2) — this person's published repayment methods (Pix/Wise/bank/
+   * free-text) so a debtor on the `/g/` board can see HOW to pay this creditor and
+   * copy the key. Only the OWNER's ENABLED methods are stamped (from AppSettings) at
+   * publish time via {@link withOwnerPaymentMethods}. Additive + optional (absent on
+   * legacy rows, manual guests, and anyone who published no method). Display-only —
+   * NEVER a money source; the split math ignores it entirely.
+   */
+  paymentMethods?: PaymentMethod[];
 }
 
 export type GroupExpenseSource = 'manual' | 'ai' | 'receipt';

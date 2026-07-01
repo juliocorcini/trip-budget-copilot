@@ -14,6 +14,7 @@ import {
   computeGroupBalances,
   computeGroupTransfers,
   createGroupParticipant,
+  includeParticipantInWholeGroupExpenses,
   groupActivityTimeline,
   groupExpenseImages,
   groupExpensesByDay,
@@ -26,7 +27,9 @@ import {
   setGroupStatus,
   setParticipantPayment,
   updateExpense,
+  withOwnerPaymentMethods,
 } from '@/domain/group-split';
+import type { PaymentMethod } from '@/domain/payment';
 import { formatMoney } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
@@ -168,6 +171,11 @@ export function GroupSplitDetailPage() {
   const eventRef = useRef<GroupSplitEvent | null>(null);
   eventRef.current = event;
   const credsRef = useRef<GroupLiveCreds | null>(null);
+  // DEC-433 — the owner's repayment methods, read fresh at publish time so the
+  // `/g/` board always shows the current Pix/Wise; kept in a ref so the stable
+  // `save` seam can read them without re-subscribing on every settings change.
+  const ownerMethodsRef = useRef<PaymentMethod[]>([]);
+  ownerMethodsRef.current = settings?.paymentMethods ?? [];
 
   const applyCreds = useCallback((next: GroupLiveCreds | null) => {
     credsRef.current = next;
@@ -197,7 +205,9 @@ export function GroupSplitDetailPage() {
     applyCreds(bumped);
     saveGroupLive(next.id, bumped);
     try {
-      await republishGroupSplit(bumped, next, bumped.revision);
+      // DEC-433 — the published mirror carries the owner's repayment methods; the
+      // locally persisted event stays clean (methods live in AppSettings, not here).
+      await republishGroupSplit(bumped, withOwnerPaymentMethods(next, ownerMethodsRef.current), bumped.revision);
     } catch {
       // A transient network failure leaves the link live at the prior revision;
       // the next edit re-publishes. Never block the local edit on the network.
@@ -327,11 +337,23 @@ export function GroupSplitDetailPage() {
   const handleAddPerson = () => {
     const trimmed = newPerson.trim();
     if (trimmed.length === 0) return;
-    void save(addParticipant(event, createGroupParticipant({ name: trimmed })));
+    addPersonAndResplit(createGroupParticipant({ name: trimmed }));
     setNewPerson('');
     // DEC-338: a button tap blurs the input — restore focus so the keyboard
     // stays open and the next name can be typed straight away.
     newPersonRef.current?.focus();
+  };
+
+  // DEC-432 (Field v2) — a person added AFTER expenses were logged still counts:
+  // any equal expense that split the whole group so far grows to include them, so
+  // their balance never reads a false 0. Honest toast when it changed the math.
+  const addPersonAndResplit = (person: ReturnType<typeof createGroupParticipant>) => {
+    const withPerson = addParticipant(event, person);
+    const { event: resplit, updatedCount } = includeParticipantInWholeGroupExpenses(withPerson, person.id);
+    void save(resplit);
+    if (updatedCount > 0) {
+      showToast(t('group_split.person_added_resplit', { name: person.name, count: updatedCount }), 'info');
+    }
   };
 
   const handleRemovePerson = (participantId: string) => {
@@ -345,8 +367,8 @@ export function GroupSplitDetailPage() {
   // C23/DEC-306: add a trip teammate as a LINKED participant so their group net
   // can flow into the trip settle-up. Only offered for a trip-scoped event.
   const handleAddTripPerson = (tripParticipantId: string, name: string) => {
-    void save(
-      addParticipant(event, createGroupParticipant({ name, kind: 'connected', linkedParticipantId: tripParticipantId })),
+    addPersonAndResplit(
+      createGroupParticipant({ name, kind: 'connected', linkedParticipantId: tripParticipantId }),
     );
   };
 
@@ -398,7 +420,7 @@ export function GroupSplitDetailPage() {
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      const c = await publishGroupSplit(event, 1);
+      const c = await publishGroupSplit(withOwnerPaymentMethods(event, ownerMethodsRef.current), 1);
       applyCreds(c);
       saveGroupLive(event.id, c);
       await shareLink(buildGroupSplitLink(c));

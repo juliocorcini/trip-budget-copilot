@@ -1,8 +1,8 @@
 {
-  "version": "2.1.0-rc",
+  "version": "2.1.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.1.0-rc.zip",
-  "notes": "Nova tela \"Gastos no mapa\": veja num mapa de satélite onde você gastou, com os lugares agrupados. Toque num ponto para ver os gastos daquele lugar e o total, e abra qualquer um."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.1.1-rc.zip",
+  "notes": "Divisão em grupo: quem entra depois de gastos já lançados agora é incluído automaticamente nos gastos divididos com todos (acabou o \"deve 0\" errado). E, na hora de acertar, quem deve vê o Pix/Wise de quem recebe, com um toque para copiar."
 }

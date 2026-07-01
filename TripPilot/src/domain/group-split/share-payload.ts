@@ -49,6 +49,17 @@ const groupActivitySchema = z.object({
   proofThumb: z.string().optional(),
 });
 
+// DEC-433 (Field v2) — the owner's published repayment methods ride the payload so
+// a debtor on the `/g/` board sees how to pay + can copy the key. Mirrors
+// `domain/payment/payment-methods.ts`; additive + optional (old snapshots parse).
+const paymentMethodSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['pix', 'wise', 'bank', 'other']),
+  label: z.string(),
+  value: z.string(),
+  enabled: z.boolean(),
+});
+
 const groupParticipantSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -56,6 +67,7 @@ const groupParticipantSchema = z.object({
   linkedParticipantId: z.string().nullable(),
   claimedByActorId: z.string().nullable(),
   paymentStatus: paymentStatusSchema,
+  paymentMethods: z.array(paymentMethodSchema).optional(),
 });
 
 const groupExpenseLineItemSchema = z.object({
