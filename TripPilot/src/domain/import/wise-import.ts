@@ -95,19 +95,41 @@ export interface ClassifyWiseContext {
  * ambiguous tokens (`bar`, `pub`, `cine`) are whole-word `\b…\b` to avoid
  * matching inside city names ("BARcelona"). The preview is fully editable, so
  * a rare wrong guess costs the user one tap.
+ *
+ * DEC-420 (G3): enriched with more EU/BR/LATAM brands + two under-used existing
+ * categories (`cash_adjustment` for ATM cash-outs, `communication` for SIM /
+ * telco top-ups) so fewer rows fall into "other". Only DISTINCTIVE brand tokens
+ * were added — ambiguous words (dia, orange, o2, claro, gol) were deliberately
+ * left out so a richer dictionary never trades precision for recall.
  */
 const CATEGORY_RULES: ReadonlyArray<readonly [string, RegExp]> = [
-  ['transport', /taxi|\bcab\b|uber|bolt|cabify|free ?now|renfe|train|metro|tram|\bbus\b|flixbus|blablacar|parking|peaje|\btoll\b|gasolin|petrol|\bfuel\b|combust|repsol|cepsa|shell/],
-  ['accommodation', /hotel|hostal|hostel|camping|albergue|alojam|booking|airbnb|guesthouse|pension|pousada/],
-  ['health', /farmac|pharma|botica|clinic|hospital|\bsalud\b|\bsaude\b|dentist|medic|optic/],
-  ['market', /super|market|mercad|aliment|grocer|carrefour|mercadona|lidl|aldi|\bspar\b|eroski|consum|alcampo|hipercor|coviran/],
-  ['bar', /\bbar\b|\bpub\b|cerv|brew|tasca|taberna|bodega|cocktail|nightclub|recreativ|discotec/],
-  ['restaurant', /rest|asador|meson|pizz|burger|kebab|comida|\bfood\b|dining|cocina|grill|tapas|cafeter|confiter|pasteler|panaderi|bakery|cafe|coffee|brunch|churr|heladeri|gelat/],
+  // ATM / cash withdrawal — a bank cash-out, kept first (most specific) and also
+  // reinforced by the detailsType signal (DETAILS_TYPE_CATEGORY) below.
+  ['cash_adjustment', /\batm\b|cajero|geldautomat|cash ?withdrawal|\bsaque\b|retirada de efectivo|caixa ?eletron/],
+  ['transport', /taxi|\bcab\b|uber|bolt|cabify|free ?now|\bdidi\b|\b99\b|renfe|train|trainline|omio|metro|tram|\bbus\b|flixbus|blablacar|\balsa\b|parking|peaje|\btoll\b|via ?verde|autopista|gasolin|petrol|\bfuel\b|combust|repsol|cepsa|shell|\bgalp\b|ryanair|easyjet|vueling|\bklm\b|lufthansa|wizz ?air|transavia|\baena\b|aeroport|airport|\bemt\b|\btmb\b|cercanias|europcar|\bhertz\b|\bavis\b|\bsixt\b/],
+  ['accommodation', /hotel|hostal|hostel|camping|albergue|alojam|booking|airbnb|guesthouse|pension|pousada|\bibis\b|novotel|melia|barcelo|\briu\b|marriott|hilton|paradores|selina|expedia|hostelworld/],
+  ['health', /farmac|parafarm|pharma|botica|drogaria|drogasil|panvel|\braia\b|clinic|hospital|\bsalud\b|\bsaude\b|dentist|medic|optic|\bfisio\b|laborator/],
+  // SIM cards, mobile top-ups and telco — distinctive carrier brands only.
+  ['communication', /vodafone|movistar|yoigo|simyo|masmovil|jazztel|lycamobile|lebara|\besim\b|holafly|airalo|recarga ?movil|\btop ?up\b/],
+  ['market', /super|market|mercad|aliment|grocer|carrefour|mercadona|lidl|aldi|\bspar\b|eroski|consum|alcampo|hipercor|coviran|continente|pingo ?doce|auchan|caprabo|froiz|gadis|\bkaufland\b|\btesco\b|sainsbury|\boxxo\b|walmart/],
+  ['bar', /\bbar\b|\bpub\b|cerv|brew|birra|tasca|taberna|bodega|vermut|cocktail|nightclub|recreativ|discotec|\bpint\b/],
+  ['restaurant', /rest|asador|meson|pizz|burger|kebab|comida|\bfood\b|dining|cocina|grill|tapas|cafeter|confiter|pasteler|panaderi|padaria|bakery|cafe|coffee|brunch|churr|heladeri|gelat|mcdonald|\bkfc\b|telepizza|domino|starbucks|\bvips\b|goiko|sushi|\bramen\b|noodle|\bdoner\b|shawarma|falafel|nandos|five ?guys|subway|\btacos?\b|arepa|boteco/],
   // F16c: ticketing platforms + festival/venue terms — a "Paylogic" or "Eventim"
   // charge is an event ticket, not a generic "other" (Julio's Tomorrowland case).
   // Distinctive brands match as stems; short ambiguous tokens stay whole-word.
-  ['entertainment', /museo|museum|\btour\b|monument|catedral|palacio|castillo|teatro|theat|cinema|\bcine\b|entrada|ticket|festival|concert|\bpark\b|\bzoo\b|aquarium|paylogic|eventim|ticketmaster|ticketone|ticketek|see ?tickets|ticketswap|ticombo|viagogo|stubhub|eventbrite|wegow|tomorrowland|\bdice\b|\bfever\b|\baxs\b|ra\.co|resident ?advisor|ingresse|sympla/],
-  ['clothing', /\bzara\b|h&m|primark|decathlon|nike|adidas|tienda|\bstore\b|\bshop\b|boutique|\bmoda\b|apparel|clothes|\bropa\b|calzado|\bshoe/],
+  ['entertainment', /museo|museum|\btour\b|monument|catedral|palacio|castillo|teatro|theat|cinema|\bcine\b|entrada|ticket|festival|concert|\bpark\b|\bzoo\b|aquarium|paylogic|eventim|ticketmaster|ticketone|ticketek|see ?tickets|ticketswap|ticombo|viagogo|stubhub|eventbrite|wegow|tomorrowland|\bdice\b|\bfever\b|\baxs\b|ra\.co|resident ?advisor|ingresse|sympla|spotify|netflix|\bhbo\b|prime ?video|\bdazn\b|filmin|playstation|nintendo|bowling|escape ?room|laser ?tag/],
+  ['clothing', /\bzara\b|h&m|primark|decathlon|nike|adidas|tienda|\bstore\b|\bshop\b|boutique|\bmoda\b|apparel|clothes|\bropa\b|calzado|\bshoe|bershka|pull ?& ?bear|stradivarius|massimo ?dutti|uniqlo|c&a|renner|riachuelo|springfield|lefties|foot ?locker|jd ?sports|oysho|intimissimi/],
+];
+
+/**
+ * DEC-420 (G3): the statement's own `Transaction Details Type` is a strong,
+ * merchant-independent signal. An ATM cash-out has no useful merchant text, so
+ * the type maps it directly (checked before the keyword rules). Data-driven and
+ * harmless when Wise emits a type we don't map (the keyword rules still run).
+ */
+const DETAILS_TYPE_CATEGORY: ReadonlyArray<readonly [string, string]> = [
+  ['ATM', 'cash_adjustment'],
+  ['CASH_WITHDRAWAL', 'cash_adjustment'],
 ];
 
 function normalizeText(value: string): string {
@@ -117,8 +139,15 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-/** Heuristic category for an importable debit; defaults to `other`. */
-export function guessCategory(merchant: string | null, description: string): string {
+/**
+ * Heuristic category for an importable debit; defaults to `other`. The optional
+ * `detailsType` (Wise's uppercase `Transaction Details Type`) is consulted first
+ * as a merchant-independent signal (DEC-420); receipt OCR omits it.
+ */
+export function guessCategory(merchant: string | null, description: string, detailsType = ''): string {
+  for (const [token, category] of DETAILS_TYPE_CATEGORY) {
+    if (detailsType.includes(token)) return category;
+  }
   const haystack = normalizeText(`${merchant ?? ''} ${description}`);
   for (const [category, pattern] of CATEGORY_RULES) {
     if (pattern.test(haystack)) return category;
@@ -286,7 +315,7 @@ export function classifyWiseRows(
       counterpartyName: kind === 'transfer' ? (row.payeeName?.trim() || null) : null,
       direction: row.signedAmountCents < 0 ? 'out' : 'in',
       city: extractCity(row.merchant),
-      category: kind === 'credit' ? 'other' : guessCategory(row.merchant, row.description),
+      category: kind === 'credit' ? 'other' : guessCategory(row.merchant, row.description, row.detailsType),
       dateIso: row.dateIso,
       localDay: row.localDay,
       phaseId: phase?.id ?? null,

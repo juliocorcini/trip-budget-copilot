@@ -1,8 +1,8 @@
 {
-  "version": "2.0.1-rc",
+  "version": "2.0.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.1-rc.zip",
-  "notes": "Importar o mesmo extrato de novo não recria mais a transferência já importada — ela aparece marcada como \"já importada\" e não é duplicada. Cada transferência também pode ser desmarcada antes de importar."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.2-rc.zip",
+  "notes": "O import agora acerta melhor a categoria (mais lojas/marcas, saque em caixa e chip/telefone deixam de cair em \"Outros\") e coloca os gastos no lugar certo do mapa sem ser barrado por limite de consultas."
 }

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.0.2-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'O import do Wise passou a acertar mais a categoria: muito mais lojas, mercados, restaurantes, transporte e marcas são reconhecidos, e saque em caixa (ATM) vira "Ajuste de caixa" e chip/telefone viram "Comunicação" — bem menos coisa cai em "Outros".',
+        'Ao importar vários gastos, o app agora respeita o limite do serviço de mapas e coloca cada gasto no lugar certo do mapa sem ser bloqueado (roda em segundo plano, sem travar o import).',
+      ],
+      en: [
+        'Wise import now guesses the category far better: many more shops, markets, restaurants, transport and brands are recognized, ATM cash-outs become "Cash adjustment" and SIM/phone charges become "Communication" — much less lands in "Other".',
+        'When importing several expenses, the app now respects the map service rate limit and pins each expense to the right spot without being blocked (runs in the background, never stalls the import).',
+      ],
+      es: [
+        'La importación de Wise ahora acierta mucho mejor la categoría: se reconocen muchas más tiendas, mercados, restaurantes, transporte y marcas, los retiros de cajero (ATM) pasan a "Ajuste de caja" y el chip/teléfono a "Comunicación" — mucho menos cae en "Otros".',
+        'Al importar varios gastos, la app ahora respeta el límite del servicio de mapas y coloca cada gasto en el sitio correcto sin ser bloqueada (se ejecuta en segundo plano, nunca detiene la importación).',
+      ],
+    },
+  },
+  {
     version: '2.0.1-rc',
     date: '2026-07-01',
     items: {

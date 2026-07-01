@@ -90,6 +90,56 @@ describe('guessCategory', () => {
     // "fever" is whole-word only, so it must not fire inside another token.
     expect(guessCategory('Feverish Cafe BURGOS', '')).toBe('restaurant');
   });
+
+  // DEC-420 (G3): a richer, still precision-first dictionary + two under-used
+  // existing categories (cash_adjustment, communication) + the detailsType signal.
+  it('DEC-420: enriched brands map into their category instead of "other"', () => {
+    expect(guessCategory('Ryanair', '')).toBe('transport');
+    expect(guessCategory('EUROPCAR MALAGA', '')).toBe('transport');
+    expect(guessCategory('Hotel Ibis LISBOA', '')).toBe('accommodation');
+    expect(guessCategory('Continente MODELO PORTO', '')).toBe('market');
+    expect(guessCategory('Tesco Express LONDON', '')).toBe('market');
+    expect(guessCategory("McDonald's MADRID", '')).toBe('restaurant');
+    expect(guessCategory('Starbucks Coffee', '')).toBe('restaurant');
+    expect(guessCategory('Bershka VALENCIA', '')).toBe('clothing');
+    expect(guessCategory('UNIQLO', '')).toBe('clothing');
+    expect(guessCategory('Netflix', 'monthly')).toBe('entertainment');
+    expect(guessCategory('Drogaria Pacheco', '')).toBe('health');
+  });
+
+  it('DEC-420: SIM / mobile top-ups map to communication', () => {
+    expect(guessCategory('Vodafone ES', '')).toBe('communication');
+    expect(guessCategory('Movistar Prepago', '')).toBe('communication');
+    expect(guessCategory('Holafly eSIM', '')).toBe('communication');
+    expect(guessCategory('Airalo', '')).toBe('communication');
+  });
+
+  it('DEC-420: ATM / cash withdrawals map to cash_adjustment (keyword)', () => {
+    expect(guessCategory('Cajero BBVA BURGOS', '')).toBe('cash_adjustment');
+    expect(guessCategory(null, 'Cash withdrawal')).toBe('cash_adjustment');
+    expect(guessCategory(null, 'Saque em caixa eletronico')).toBe('cash_adjustment');
+  });
+
+  it('DEC-420: the detailsType signal categorizes an ATM row with no useful merchant text', () => {
+    // Wise gives ATM cash-outs a distinct Transaction Details Type; the merchant is
+    // often just a bank, so the type resolves it even when keywords miss.
+    expect(guessCategory('Banco Santander', '', 'ATM')).toBe('cash_adjustment');
+    expect(guessCategory('Some Bank', '', 'CASH_WITHDRAWAL')).toBe('cash_adjustment');
+    // A generic type is NOT a signal — the merchant rules still decide.
+    expect(guessCategory('Mercadona', '', 'CARD')).toBe('market');
+  });
+
+  it('DEC-420: precision preserved — ambiguous words never hijack a category', () => {
+    // "alsa" (bus co.) is whole-word, so it must not fire inside "salsa".
+    expect(guessCategory('Salsa Restaurant SEVILLA', '')).toBe('restaurant');
+    // "doner"/"ramen" are whole-word, so they must not fire inside other tokens.
+    expect(guessCategory('The Londoner Pub DUBLIN', '')).toBe('bar');
+    expect(guessCategory('Sacramento Bakery', '')).toBe('restaurant');
+    // "iberia" was deliberately NOT added (it collides with "Hotel Iberia").
+    expect(guessCategory('Hotel Iberia MADRID', '')).toBe('accommodation');
+    // A truly unknown merchant still falls through to "other".
+    expect(guessCategory('Dulcycor VILLATORO', '')).toBe('other');
+  });
 });
 
 describe('extractCity', () => {

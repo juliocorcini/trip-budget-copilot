@@ -2,8 +2,13 @@ import { resolveSaveLocation } from '@/domain/location';
 import { transactionRepository } from '@/data/repositories';
 import { notifyAppDataChanged } from '@/hooks/useAppData';
 import { getCurrentFix } from '@/utils/geolocation';
-import { reverseGeocodePlace, searchPlaceByName } from '@/utils/places';
+import { isOnline, reverseGeocodePlace, searchPlaceByName } from '@/utils/places';
 import type { Transaction } from '@/domain/types/transaction';
+
+/** DEC-419 (G3): Nominatim asks for ≤1 request/second; keep a safe margin. */
+const IMPORT_GEOCODE_INTERVAL_MS = 1100;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * DEC-367 (G8) + DEC-389 (G5): the shared, best-effort BACKGROUND location stamp
@@ -80,12 +85,18 @@ export async function stampImportedExpenseLocations(
   transactions: Transaction[],
   locationEnabled: boolean,
 ): Promise<void> {
-  if (!locationEnabled) return;
+  if (!locationEnabled || !isOnline()) return;
   let changed = false;
+  let requested = false;
   for (const tx of transactions) {
     if (tx.type !== 'expense' || tx.latitude !== null) continue;
     const query = (tx.description ?? '').trim() || (tx.placeLabel ?? '').trim();
     if (query === '') continue;
+    // DEC-419 (G3): space the lookups out so a multi-row import is not throttled or
+    // blocked by Nominatim's ~1 req/s policy. Background-only — the import already
+    // returned, so the pause is invisible to the user (A5, never blocks).
+    if (requested) await sleep(IMPORT_GEOCODE_INTERVAL_MS);
+    requested = true;
     const place = await searchPlaceByName(query, null);
     if (!place) continue;
     const hadLabel = tx.placeLabel !== null && tx.placeLabel.trim() !== '';
