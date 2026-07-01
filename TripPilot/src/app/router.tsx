@@ -53,6 +53,9 @@ const SpacesPage = lazyWithRetry(() => import('@/features/spaces/SpacesPage').th
 const NewSpacePage = lazyWithRetry(() => import('@/features/spaces/NewSpacePage').then(m => ({ default: m.NewSpacePage })));
 const ConverterPage = lazyWithRetry(() => import('@/features/converter/ConverterPage').then(m => ({ default: m.ConverterPage })));
 const ComparatorPage = lazyWithRetry(() => import('@/features/comparator/ComparatorPage').then(m => ({ default: m.ComparatorPage })));
+// DEC-416 (G11): "spends on the map". Lazy so Leaflet + the marker-cluster plugin
+// (imported only inside this page) ship in the `/mapa` chunk, not the core bundle.
+const ExpenseMapPage = lazyWithRetry(() => import('@/features/map/ExpenseMapPage').then(m => ({ default: m.ExpenseMapPage })));
 const GroupSplitListPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitListPage').then(m => ({ default: m.GroupSplitListPage })));
 const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitDetailPage').then(m => ({ default: m.GroupSplitDetailPage })));
 const GroupClaimPage = lazyWithRetry(() => import('@/features/group-split/GroupClaimPage').then(m => ({ default: m.GroupClaimPage })));
@@ -205,6 +208,9 @@ export const router = createBrowserRouter([
       // DEC-283: the cost-benefit comparator (price per kg/L/unit) is a pure,
       // mode-agnostic tool like the converter, so it lives outside ModeGuard.
       { path: '/comparator', element: <LazyRoute><ComparatorPage /></LazyRoute> },
+      // DEC-416 (G11): "spends on the map" — a full-screen, satellite-first map of
+      // every located spend. Standalone (immersive, no bottom nav) like the tools.
+      { path: '/mapa', element: <LazyRoute><ExpenseMapPage /></LazyRoute> },
       { path: '/rescue', element: <LazyRoute><RescuePage /></LazyRoute> },
       { path: '/sync', element: <LazyRoute><SyncReceivePage /></LazyRoute> },
       // Item A (DEC-362): the shareable "Instalar o TripPilot" landing. Outside

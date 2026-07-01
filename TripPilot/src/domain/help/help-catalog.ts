@@ -91,6 +91,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   a('outing', 'local_bar', 'day_to_day', '/outings/new', [
     'saida rolê balada bar noite mesa ao vivo limite gauge', 'outing night out bar live session limit gauge', 'noitada controle', 'sessao ao vivo gastos', 'salida noche bar en vivo',
   ]),
+  a('expense_map', 'map', 'day_to_day', '/mapa', [
+    'mapa dos gastos onde gastei satelite lugares pontos agrupados clusters', 'spends map where i spent satellite places points clustered', 'ver gastos no mapa', 'mapa da viagem satelite', 'gastos en el mapa donde gaste satelite lugares',
+  ]),
 
   // ── Planning ahead ─────────────────────────────────────────────────────────
   a('planner', 'tune', 'planning', '/planner', [

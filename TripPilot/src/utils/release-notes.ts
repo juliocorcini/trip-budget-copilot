@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.1.0-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'Nova tela "Gastos no mapa": veja num mapa de satélite onde você gastou na viagem. Os gastos do mesmo lugar aparecem juntos e se agrupam conforme você dá zoom.',
+        'Toque num ponto (ou grupo) para ver os gastos daquele lugar, com o total, e abra qualquer um direto pelo detalhe. Funciona offline (as imagens podem não carregar, mas os pontos continuam lá).',
+      ],
+      en: [
+        'New "Spends on the map" screen: see where you spent on the trip on a satellite map. Spends at the same place appear together and cluster as you zoom.',
+        'Tap a point (or cluster) to see that place\'s spends with the total, and open any one straight to its detail. Works offline (imagery may not load, but your points are still there).',
+      ],
+      es: [
+        'Nueva pantalla "Gastos en el mapa": mira en un mapa satelital dónde gastaste en el viaje. Los gastos del mismo lugar aparecen juntos y se agrupan al hacer zoom.',
+        'Toca un punto (o grupo) para ver los gastos de ese lugar con el total, y abre cualquiera directo a su detalle. Funciona sin conexión (las imágenes pueden no cargar, pero tus puntos siguen ahí).',
+      ],
+    },
+  },
+  {
     version: '2.0.9-rc',
     date: '2026-07-01',
     items: {

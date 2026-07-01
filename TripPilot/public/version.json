@@ -1,8 +1,8 @@
 {
-  "version": "2.0.9-rc",
+  "version": "2.1.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.0.9-rc.zip",
-  "notes": "Ao registrar um gasto pela IA, agora dá pra dividir ali mesmo: escolher quem pagou, quem participa e se a divisão é igual ou personalizada — sem precisar abrir o formulário completo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.1.0-rc.zip",
+  "notes": "Nova tela \"Gastos no mapa\": veja num mapa de satélite onde você gastou, com os lugares agrupados. Toque num ponto para ver os gastos daquele lugar e o total, e abra qualquer um."
 }

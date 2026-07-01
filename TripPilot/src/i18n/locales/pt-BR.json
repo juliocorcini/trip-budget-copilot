@@ -1906,6 +1906,19 @@
     "backup_link": "Backup e exportação de dados",
     "local_first": "Seus dados ficam apenas neste dispositivo. Faça backups regulares para não perder nada."
   },
+  "map": {
+    "title": "Gastos no mapa",
+    "empty_title": "Ainda não há gastos no mapa",
+    "empty_body": "Seus gastos aparecem aqui quando têm um local. Abra um gasto para adicionar o lugar — ou importe seu extrato, que o TripPilot tenta descobrir o local sozinho.",
+    "empty_cta": "Ver meus gastos",
+    "offline_hint": "Você está offline: as imagens do mapa podem não carregar, mas seus pontos continuam aqui.",
+    "total_label": "Total",
+    "spends_count_one": "{{count}} gasto",
+    "spends_count_other": "{{count}} gastos",
+    "sheet_title_fallback": "Gastos deste lugar",
+    "show_more": "Ver mais",
+    "loading": "Carregando o mapa…"
+  },
   "guide": {
     "title": "Tudo que dá pra fazer",
     "intro": "O TripPilot faz bem mais do que aparece de cara. Aqui está tudo que você pode fazer — toque em qualquer item para abrir.",
@@ -1914,6 +1927,8 @@
     "register_expense_d": "Lance o que gastou em segundos e veja o impacto na hora.",
     "expenses_t": "Ver todos os gastos",
     "expenses_d": "Lista completa com busca, filtros e edição de qualquer lançamento.",
+    "expense_map_t": "Gastos no mapa",
+    "expense_map_d": "Veja num mapa de satélite onde você gastou, com os lugares agrupados e o total de cada um.",
     "checkin_t": "Check-in do dia",
     "checkin_d": "Diga como vai ser o dia e veja quanto dá pra usar hoje, sem culpa.",
     "outing_t": "Sair / rodada",
@@ -2041,6 +2056,11 @@
         "q": "Como uso o modo saída/rolê ao vivo?",
         "a": "Abra uma saída e o app junta os gastos da noite num lugar só, com um medidor de limite ao vivo — no fim você fecha ou divide.",
         "steps": ["Toque em iniciar uma saída", "Vá lançando os gastos durante a noite", "No fim, encerre ou divida a conta"]
+      },
+      "expense_map": {
+        "q": "Como vejo meus gastos no mapa?",
+        "a": "A tela \"Gastos no mapa\" mostra num mapa de satélite onde você gastou. Os gastos do mesmo lugar aparecem juntos; toque num ponto para ver a lista e o total, e abra qualquer gasto.",
+        "steps": ["Abra \"Gastos no mapa\"", "Toque num ponto ou grupo para ver os gastos dali", "Toque num gasto para abrir o detalhe"]
       },
       "planner": {
         "q": "Para que serve o planejador de cenários?",

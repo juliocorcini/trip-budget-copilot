@@ -1902,6 +1902,19 @@
     "backup_link": "Backup and data export",
     "local_first": "Your data lives only on this device. Back up regularly so you never lose anything."
   },
+  "map": {
+    "title": "Spends on the map",
+    "empty_title": "No spends on the map yet",
+    "empty_body": "Your spends show up here once they have a location. Open a spend to add its place — or import your statement and TripPilot will try to find the location for you.",
+    "empty_cta": "See my spends",
+    "offline_hint": "You're offline: the map imagery may not load, but your points are still here.",
+    "total_label": "Total",
+    "spends_count_one": "{{count}} spend",
+    "spends_count_other": "{{count}} spends",
+    "sheet_title_fallback": "Spends at this place",
+    "show_more": "Show more",
+    "loading": "Loading the map…"
+  },
   "guide": {
     "title": "Everything you can do",
     "intro": "TripPilot does a lot more than meets the eye. Here's everything you can do — tap any item to open it.",
@@ -1910,6 +1923,8 @@
     "register_expense_d": "Record what you spent in seconds and see the impact instantly.",
     "expenses_t": "See all expenses",
     "expenses_d": "Full list with search, filters and editing of any entry.",
+    "expense_map_t": "Spends on the map",
+    "expense_map_d": "See where you spent on a satellite map, with places grouped and each one's total.",
     "checkin_t": "Daily check-in",
     "checkin_d": "Tell it how the day looks and see how much you can spend today, guilt-free.",
     "outing_t": "Night out / round",
@@ -2037,6 +2052,11 @@
         "q": "How do I use the live outing/night-out mode?",
         "a": "Start an outing and the app groups the night's expenses in one place, with a live limit gauge — at the end you close or split.",
         "steps": ["Tap to start an outing", "Keep logging expenses through the night", "At the end, close or split the bill"]
+      },
+      "expense_map": {
+        "q": "How do I see my spends on the map?",
+        "a": "The \"Spends on the map\" screen shows where you spent on a satellite map. Spends at the same place are grouped; tap a point to see the list and total, and open any spend.",
+        "steps": ["Open \"Spends on the map\"", "Tap a point or cluster to see the spends there", "Tap a spend to open its detail"]
       },
       "planner": {
         "q": "What is the scenario planner for?",

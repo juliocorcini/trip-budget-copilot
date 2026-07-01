@@ -31,6 +31,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     entries: [
       { id: 'register_expense', icon: 'add', titleKey: 'guide.register_expense_t', descKey: 'guide.register_expense_d', route: '/quick-add' },
       { id: 'expenses', icon: 'receipt_long', titleKey: 'guide.expenses_t', descKey: 'guide.expenses_d', route: '/expenses' },
+      { id: 'expense_map', icon: 'map', titleKey: 'guide.expense_map_t', descKey: 'guide.expense_map_d', route: '/mapa' },
       { id: 'checkin', icon: 'wb_sunny', titleKey: 'guide.checkin_t', descKey: 'guide.checkin_d', route: '/dashboard' },
       { id: 'outing', icon: 'local_bar', titleKey: 'guide.outing_t', descKey: 'guide.outing_d', route: '/outings/new' },
     ],
