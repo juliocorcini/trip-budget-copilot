@@ -13,23 +13,29 @@
 - **Â-WORKER-GUARDS-KEPT**: rate-limit/CORS/logger/headers (DEC-436→444) intocados; rotas novas com logEvent; leituras sem rate limit.
 
 ### CURRENT STATE
-- **Active gate**: G1 CONCLUÍDO (`2.2.1-rc` deployed) — iniciando G2 (investigação dos números, sem deploy).
+- **Active gate**: G2 CONCLUÍDO (investigação, sem deploy) — iniciando G3 (`PhaseSpendLens` + explainers, `2.2.2-rc`).
 - **Deploy G1**: Pages `0d4611b8` (conta e146e88b). Apex verde: `/version.json`=2.2.1-rc, `/bundles/2.2.1-rc.zip` 200 (2.641.573 B), `/trippilot.apk` **8.469.341 B** (landmine evitada: `fetch-live-apk` re-rodado após o bundle), sw `trippilot-v81`.
-- **Tests**: **3005 pass / 3005** (302 files; +10 novos: expense-filters 7, notifications 2 novas+1 ajustada, onboarding theme-step 2). `tsc` app limpo. 2 unhandled errors do jsdom (scrollIntoView) corrigidos com stub no teste novo.
+- **Tests**: **3022 pass / 3022** (303 files; +17 do G2: `phase-numbers-investigation.test.ts`). `tsc` app limpo.
 - **Baseline (G0, Node 22.22.3)**: testes **2995 pass / 2995** (301 files); `tsc --noEmit` app **e** worker limpos; `npm run build` verde. DEC-445→451 PROPOSED confirmados no decision-log. Pipeline: Pages conta **e146e88b**, worker `trippilot-sync`; landmine APK: re-rodar `fetch-live-apk` DEPOIS do bundle (APK correto = 8.469.341 B).
-- **Last commit**: `be9e070` (autoria da leva). G1 commit a seguir.
+- **Last commit**: `ac02d01` (G1). G2 commit a seguir.
 
 ### Gates
 | Gate | Status | Versão | Notas |
 |---|---|---|---|
 | G0 baseline | ✅ done | — | 2995/2995 · tsc ×2 limpos · build ok |
 | G1 quick wins (D04+D05+D06) | ✅ done | `2.2.1-rc` | Pages `0d4611b8` · DEC-448/449/450 APPROVED |
-| G2 investigação números (D03) | 🔄 | — | sem deploy |
-| G3 lente + explainers (D03) | ⏳ | `2.2.2-rc` | |
+| G2 investigação números (D03) | ✅ done | — | sem deploy · §6-A escrito · DEC-447 refinada · 17 testes-evidência |
+| G3 lente + explainers (D03) | 🔄 | `2.2.2-rc` | m4 = SÓ rótulos (G2: zero bug de matemática) |
 | G4 worker preview+slug (D01+D02) | ⏳ | worker | |
 | G5 OG + Pages Function (D01+D02) | ⏳ | `2.2.3-rc` | |
 | G6 debt_move conectado (D07) | ⏳ | `2.3.0-rc` | |
 | G7 brain sync | ⏳ | — | |
+
+### G2 — Investigação dos números com o caso real (done 2026-07-03, SEM deploy) — D03 parte 1
+- **m1 (fixture + reprodução)**: `src/tests/unit/domain/budget/phase-spend-lens.fixture.ts` espelha o relato — verba principal 62800 · evento reservado 4600 · gastos da verba 30000 · potes 30200 · hotel de fase futura noutra verba 13200. **Descoberta central: os 6 números são UM dataset em DOIS instantes** separados por um gasto de €63 na verba (hero 345 = instante anterior; 602/884/≈873/734 = posterior). Cada superfície reproduzida com as funções de produção em `phase-numbers-investigation.test.ts` (17 testes verdes).
+- **m2 (veredito por número — §6-A do orquestrador)**: 628 = `pool.totalAmountCents` (único configurado) ✅ rótulo "da verba"; 602 = `calculatePoolSpent(phaseTxs)` todas-as-verbas ✅ rótulo "atribuído"; **884 = free+spent reconstruído 🏷️ RÓTULO** (reconcilia: 628 − 46 evento + 302 potes; invariante a gasto da verba; infla com pote → 947; encolhe com gasto futuro pela verba → 752); 873 = projeção `spent×(1+restantes/decorridos)` ✅ correto (87290 no fixture); 345 = trueFree consumível ✅ correto por design (prova de impossibilidade de co-exibição com 884/602: hero ≤ 282 naquele instante); 734 = lista viagem-inteira `amountCents` bruto 🏷️ escopo (G1 já resolveu o default) + FLAG bruto-vs-pessoal. **Hipótese (c) REFUTADA**: hotel NÃO estava no 602 (734−602 = 132 = hotel) — zero bug de atribuição.
+- **Consequência para o G3**: m4 (correções de matemática) = **vazio**; a lente reconcilia com as linhas provadas: configurado − reserva de evento + gastos de outras verbas atribuídos = envelope calculado; envelope − atribuído = livre = hero (sem plano). Este suite é o baseline de invariância do G3 (Â-NUMBERS-EVIDENCE-FIRST).
+- **5-point**: (1) AC G2 ✓ (addendum §6-A escrito; 6 números com fórmula/arquivo→símbolo/veredito; DEC-447 refinada). (2) Regressão: zero código de produção tocado (só testes + brain) — links antigos e net de dívidas intocados por construção; suíte inteira verde. (3) 3022/3022, 0 falhas novas. (4) Fora de escopo: nenhum. (5) dev-log + DEC-447.
 
 ### G1 — Quick wins de confiança (done 2026-07-03) — `2.2.1-rc` (DEC-448/449/450 APPROVED)
 - **m1 (D04 filtro de fase)**: `expense-filters.ts` ganhou `phaseId: string | 'all'` + `resolvePhaseScopeDefault` (fase ativa em viagem com 2+ fases; ongoing/1-fase → 'all') + memória de sessão por trip (`recallPhaseScope`/`rememberPhaseScope`). `ExpenseListPage`: grupo "Fase" no painel de filtros (chips "Fase atual"/"Todas"/{fase}), chip removível no sumário colapsado, escopo aplicado no `matchesScope`, total do header NOMEIA o escopo (`total_scope_*`), `?phase=` via URL, escolha stale (fase apagada) degrada para 'all'. "Todas" a 1 toque = chip clear-all existente.

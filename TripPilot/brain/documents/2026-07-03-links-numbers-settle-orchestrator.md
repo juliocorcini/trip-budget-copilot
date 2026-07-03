@@ -219,6 +219,42 @@ Registrar baseline no dev-log → executar G1→G7 na ordem, fechando cada gate 
 
 ---
 
-## §6-A — Addendum de investigação dos números (preencher no G2)
+## §6-A — Addendum de investigação dos números (G2, 2026-07-03)
 
-> Reservado: fórmula por superfície (arquivo→símbolo), valor reproduzido do fixture, veredito rótulo-vs-bug, e a decisão final da lente.
+> Evidência executável: `src/tests/unit/domain/budget/phase-numbers-investigation.test.ts` (17 testes) sobre o fixture `phase-spend-lens.fixture.ts`. Este suite é o baseline de invariância do G3 (Â-NUMBERS-EVIDENCE-FIRST).
+
+### A descoberta central — os 6 números são UM dataset em DOIS instantes
+
+O relato inteiro se reproduz com: verba principal €628,00 · evento com reserva €46,00 · gastos da verba principal atribuídos à fase · gastos de pote €302,00 atribuídos à fase · hotel €132,00 de fase futura em outra verba. Os instantes são separados por **um único gasto de €63,00 na verba principal** (`tx-a9-last-63`):
+
+| Instante | hero (livre) | "orçamento da fase" | gasto atribuído | lista |
+|---|---|---|---|---|
+| Antes do gasto de €63 | **345,00** | 884,00 | 539,00 | 671,00 |
+| Depois do gasto de €63 | 282,00 | **884,00** | **602,00** | **734,00** |
+
+O "orçamento da fase" (884) é **invariante** a gastos da verba principal (free e spent movem juntos e se cancelam) — por isso o Julio viu 345 num momento e 602/884/873/734 noutro sem nada "bater". Prova matemática no teste: num mesmo instante, hero ≤ orçamento − gasto (= 282 < 345); co-exibição dos 6 números é impossível.
+
+### Fórmula, arquivo→símbolo e veredito por superfície
+
+| # | Número | Superfície | Fórmula (arquivo → símbolo) | Reproduzido | Veredito |
+|---|---|---|---|---|---|
+| 1 | **628** | Verbas (Funds) | `pool.totalAmountCents` → `createPoolSummary` (`FundsPage.tsx`) | 62800 | ✅ correto — é o ÚNICO número configurado. Rótulo deve dizer "orçamento da **verba**", não "da fase" |
+| 2 | **602** | InsightDetail "gasto até agora" | `calculatePoolSpent(phaseTxs)` onde `phaseTxs = tx.phaseId === fase ativa` em TODAS as verbas (`useDashboardModel.ts` L386-388; `insights.ts › phaseSpent`) | 60200 = 300 verba + 302 pote | ✅ correto — rótulo deve dizer "atribuído à fase (todas as verbas)" |
+| 3 | **884** | InsightDetail "orçamento da fase" | `fts.freeToSpendCents + calculatePoolSpent(phaseTxs)` (`useDashboardModel.ts` L455) | 88400 | 🏷️ **RÓTULO ENGANOSO** (não é bug de matemática): envelope DERIVADO ≠ configurado. Reconciliação que soma: **884 = 628 − 46 (reserva evento) + 302 (potes atribuídos)** |
+| 4 | **873** | Insight card "fecha em" | `buildPhaseProjection`: `spent + (spent ÷ diasEfetivosDecorridos) × diasEfetivosRestantes` (`insights.ts` L160-192) | 87290 (dia 20/29: 602 ÷ 20 × 9 + 602; "873" = arredondamento do relato) | ✅ matemática correta — explicar a base no detalhe |
+| 5 | **345** | Hero "Livre para usar" | `calculateTrueFree(fts.freeToSpendCents, plano)` com `free = verba − gastoDaVerba − protegido − piso − reservaEvento − compras` (`budget.ts › calculateFreeToSpend`; `useDashboardModel.ts` L432/550) | 34500 no instante-hero | ✅ correto por DESIGN (escopo consumível, DEC-427) — era outro INSTANTE (antes dos €63). Linha do hero deve entrar na lente para o drift ficar visível |
+| 6 | **734** | Lista de gastos (total) | `sumCents(expenses.map(tx => tx.amountCents))` — escopo viagem-inteira pré-G1 (`ExpenseListPage.tsx` L206) | 73400 = 602 fase + 132 hotel futuro | 🏷️ escopo (não bug) — G1 já entregou default fase-atual (60200). FLAG: usa `amountCents` BRUTO (diverge de `personalCost` com divisões — teste pina €20 de divergência) |
+
+### Anomalias pinadas em teste (motivam a lente do G3)
+
+- **A — invariância enganosa**: gastar €63 da verba principal NÃO move o "orçamento da fase" (884 → 884), mas o hero cai 345 → 282. O usuário não tem como entender o que "orçamento" mede.
+- **B — inflação por pote**: o MESMO gasto de €63 pago do pote INFLA o "orçamento da fase" para 947 (o gasto atribuído cresce e o free não cai). "Orçamento" que cresce quando se gasta = rótulo mentiroso.
+- **C — envelope comido em silêncio**: pagar o hotel da fase futura PELA verba principal derruba o "orçamento da fase" para 752 sem mudar o gasto atribuído (602). É a linha `paidNowOtherPhasesCents` da lente.
+- **Hipótese (c) do §10 REFUTADA**: o hotel NÃO estava dentro do 602 — os próprios números do relato provam (734 − 602 = 132 = exatamente o hotel). Não há bug de atribuição.
+
+### Decisão da lente (refina DEC-447)
+
+1. **Nenhuma correção de matemática no G3 m4** — todos os vereditos são rótulo/escopo. Qualquer mudança futura de fórmula exige novo DEC + este suite de invariância verde.
+2. `buildPhaseSpendLens` reconcilia com estas linhas (que SOMAM, verificado): configurado da verba (628) − reserva de evento (46) + gastos de outras verbas atribuídos à fase (302) = envelope calculado (884); envelope − atribuído (602) = livre (282) = hero quando não há plano reservado.
+3. `InsightDetail`/`ImpactDetail` renomeiam "orçamento da fase" → distinguir "orçamento configurado da verba" de "envelope disponível calculado", com as linhas da lente.
+4. Lista de gastos: linha de escopo sob o total (G3 m3); a divergência bruto-vs-pessoal fica DOCUMENTADA (flag) — mudar a base da lista para `personalCost` é candidato a DEC futuro, fora desta leva.
