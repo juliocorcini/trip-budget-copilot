@@ -24,6 +24,7 @@ import type { PhaseLeftoverDestination, EventLeftoverDestination } from '@/domai
 import type { Trip } from '@/domain/types/trip';
 import type { BudgetPool } from '@/domain/types/budget-pool';
 import { InsightDetail } from './InsightDetail';
+import { PhaseSpendLensBlock } from './PhaseSpendLensBlock';
 import { PhaseMapTabs } from './PhaseMapTabs';
 import type { DashboardModel } from './useDashboardModel';
 
@@ -253,6 +254,12 @@ export function DashboardSheets({
       {/* DEC-091 (R-09): "how we got here" — open calculation of the insight */}
       <BottomSheet open={detailInsight !== null} onClose={onCloseDetail} title={t('dashboard.insight_detail_title')}>
         {detailInsight && <InsightDetail insight={detailInsight} currency={trip.baseCurrency} />}
+        {/* DEC-447 (G3): the projection detail carries the PhaseSpendLens — the
+            reconciliation that explains the derived "orçamento disponível
+            calculado" line by line (the lines SUM). */}
+        {detailInsight?.kind === 'phase_projection' && model.phaseSpendLens && (
+          <PhaseSpendLensBlock lens={model.phaseSpendLens} currency={trip.baseCurrency} />
+        )}
       </BottomSheet>
 
       {/* DEC-119 (R-10): long-press card options — hide + contextual quick action */}

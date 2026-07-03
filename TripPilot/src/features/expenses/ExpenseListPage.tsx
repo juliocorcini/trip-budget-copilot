@@ -204,6 +204,14 @@ export function ExpenseListPage() {
   const incomes = transactions.filter((tx) => tx.type === 'income' && matchesScope(tx)).sort(byDateDesc);
 
   const totalCents = sumCents(expenses.map((tx) => tx.amountCents));
+  // DEC-447 (G3 m3): with the "Todas" scope, name how much of the total comes
+  // from OTHER phases (the future-hotel confusion of D03) — computed over the
+  // SAME filtered feed, so the line always matches what is on screen.
+  const otherPhasesCents =
+    filterPhaseId === 'all' && activePhase
+      ? totalCents -
+        sumCents(expenses.filter((tx) => tx.phaseId === activePhase.id).map((tx) => tx.amountCents))
+      : 0;
   const unassigned = getUnassignedTransactionCount(transactions);
 
   // DEC-206 (rollup): a receipt/outing is ONE session holding N transactions.
@@ -422,6 +430,22 @@ export function ExpenseListPage() {
                         ? t('expenses.total_scope_current')
                         : scopedPhase?.name ?? ''}
                   </p>
+                )}
+                {/* DEC-447 (G3 m3): "includes X from other phases" — one tap
+                    back to the current-phase scope (the G1 chip's setter). */}
+                {phaseScopeAvailable && filterPhaseId === 'all' && otherPhasesCents > 0 && activePhase && (
+                  <button
+                    type="button"
+                    data-expense-total-other-phases
+                    onClick={() => setPhaseScope(activePhase.id)}
+                    className="text-[10px] leading-tight font-semibold text-primary btn-press"
+                  >
+                    {t('expenses.total_includes_other', {
+                      amount: formatMoney(otherPhasesCents, trip.baseCurrency),
+                    })}
+                    {' · '}
+                    {t('expenses.total_see_current')}
+                  </button>
                 )}
               </div>
             )}

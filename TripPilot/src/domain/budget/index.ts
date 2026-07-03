@@ -99,6 +99,14 @@ export {
 } from './piggy-ledger';
 export { resolveSavingDestination } from './saving-destination';
 export type { SavingDestination, SavingDestinationInput } from './saving-destination';
+export { buildPhaseSpendLens } from './phase-spend-lens';
+export type {
+  PhaseSpendLens,
+  PhaseSpendLensLine,
+  PhaseSpendLensLineKey,
+  PhaseSpendLensLineKind,
+  BuildPhaseSpendLensInput,
+} from './phase-spend-lens';
 export type {
   PiggyLedger,
   PiggyLedgerEntry,

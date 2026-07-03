@@ -4,7 +4,13 @@ import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { resolveActivePhase, formatDate, localDateString, formatShortDate, localDayOf } from '@/domain/dates';
-import { calculateFreeToSpend, calculatePoolSpent, projectReserveStartDate } from '@/domain/budget';
+import {
+  calculateFreeToSpend,
+  calculatePoolSpent,
+  projectReserveStartDate,
+  buildPhaseSpendLens,
+} from '@/domain/budget';
+import { PhaseSpendLensBlock } from './PhaseSpendLensBlock';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { calculateEffectiveSpendingDays } from '@/domain/phases';
 import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
@@ -86,6 +92,18 @@ export function ImpactDetailPage() {
 
   const phaseSpentCents = calculatePoolSpent(phaseTxs);
   const phaseBudgetCents = fts ? fts.freeToSpendCents + phaseSpentCents : 0;
+
+  // DEC-447 (G3): the reconciliation behind the derived budget shown below —
+  // same fts + transactions, so the lens lines explain exactly these numbers.
+  const phaseSpendLens =
+    fts && activePhase && primaryPool
+      ? buildPhaseSpendLens({
+          fts,
+          transactions,
+          phaseId: activePhase.id,
+          poolId: primaryPool.id,
+        })
+      : null;
 
   // DEC-236: the spend that weighed MOST this phase — the real culprit. No
   // longer filtered to activity-profile expenses (a plain "Outros" can be the
@@ -287,6 +305,10 @@ export function ImpactDetailPage() {
               {formatMoney(Math.abs(projectionDiffCents), trip.baseCurrency)}
             </span>
           </div>
+          {/* DEC-447 (G3): the lines that SUM to the budget above. */}
+          {phaseSpendLens && (
+            <PhaseSpendLensBlock lens={phaseSpendLens} currency={trip.baseCurrency} />
+          )}
         </div>
       )}
 

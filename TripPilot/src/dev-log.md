@@ -13,11 +13,11 @@
 - **Â-WORKER-GUARDS-KEPT**: rate-limit/CORS/logger/headers (DEC-436→444) intocados; rotas novas com logEvent; leituras sem rate limit.
 
 ### CURRENT STATE
-- **Active gate**: G2 CONCLUÍDO (investigação, sem deploy) — iniciando G3 (`PhaseSpendLens` + explainers, `2.2.2-rc`).
-- **Deploy G1**: Pages `0d4611b8` (conta e146e88b). Apex verde: `/version.json`=2.2.1-rc, `/bundles/2.2.1-rc.zip` 200 (2.641.573 B), `/trippilot.apk` **8.469.341 B** (landmine evitada: `fetch-live-apk` re-rodado após o bundle), sw `trippilot-v81`.
-- **Tests**: **3022 pass / 3022** (303 files; +17 do G2: `phase-numbers-investigation.test.ts`). `tsc` app limpo.
+- **Active gate**: G3 CONCLUÍDO (`2.2.2-rc` no ar) — iniciando G4 (worker preview blob + slug).
+- **Deploy G3**: Pages `4ce9e249` (conta e146e88b, ID completo `e146e88b34b2694243b1d74cee8de743` — o prefixo sozinho dá auth error 10000). Apex verde: `/version.json`=2.2.2-rc, `/bundles/2.2.2-rc.zip` 200 (2.645.400 B), `/trippilot.apk` **8.469.341 B** (landmine evitada de novo), sw `trippilot-v82`.
+- **Tests**: **3033 pass / 3033** (305 files; +11 do G3: lente domínio 9 + bloco UI 2). `tsc` app limpo.
 - **Baseline (G0, Node 22.22.3)**: testes **2995 pass / 2995** (301 files); `tsc --noEmit` app **e** worker limpos; `npm run build` verde. DEC-445→451 PROPOSED confirmados no decision-log. Pipeline: Pages conta **e146e88b**, worker `trippilot-sync`; landmine APK: re-rodar `fetch-live-apk` DEPOIS do bundle (APK correto = 8.469.341 B).
-- **Last commit**: `ac02d01` (G1). G2 commit a seguir.
+- **Last commit**: G2+G3 commit a seguir.
 
 ### Gates
 | Gate | Status | Versão | Notas |
@@ -25,11 +25,18 @@
 | G0 baseline | ✅ done | — | 2995/2995 · tsc ×2 limpos · build ok |
 | G1 quick wins (D04+D05+D06) | ✅ done | `2.2.1-rc` | Pages `0d4611b8` · DEC-448/449/450 APPROVED |
 | G2 investigação números (D03) | ✅ done | — | sem deploy · §6-A escrito · DEC-447 refinada · 17 testes-evidência |
-| G3 lente + explainers (D03) | 🔄 | `2.2.2-rc` | m4 = SÓ rótulos (G2: zero bug de matemática) |
-| G4 worker preview+slug (D01+D02) | ⏳ | worker | |
+| G3 lente + explainers (D03) | ✅ done | `2.2.2-rc` | Pages `4ce9e249` · DEC-447 APPROVED · m4 vazio (G2: zero bug de matemática) |
+| G4 worker preview+slug (D01+D02) | 🔄 | worker | |
 | G5 OG + Pages Function (D01+D02) | ⏳ | `2.2.3-rc` | |
 | G6 debt_move conectado (D07) | ⏳ | `2.3.0-rc` | |
 | G7 brain sync | ⏳ | — | |
+
+### G3 — PhaseSpendLens + explainers que somam (done 2026-07-03) — `2.2.2-rc` — D03 parte 2
+- **m1 (domínio puro)**: `src/domain/budget/phase-spend-lens.ts` — `buildPhaseSpendLens({fts, transactions, phaseId, poolId})` reconcilia TODAS as leituras de "dinheiro da fase" num objeto só: configurado da verba → − reserva de evento → + gastos de outras verbas atribuídos → = envelope calculado (o ex-"884") → − gasto atribuído → = livre agora (raw). Linhas com sinal (`add`/`subtract`/`total`) que SOMAM exatamente (invariante testada); termos zero são omitidos; `paidNowOtherPhasesCents` e `otherPoolsCents` assinados (refunds ok). Exporta métricas extras para a lista: `tripTotalCents`/`phaseGrossCents`/`otherPhasesGrossCents` (brutos, base `amountCents` — a FLAG bruto-vs-pessoal do G2 fica documentada, sem mudança de base). 9 testes em `phase-spend-lens.test.ts` sobre o fixture do G2 (variantes: instante-hero, pote inflando 947, hotel comendo envelope 752, déficit, refund).
+- **m2 (explainers nas telas)**: `PhaseSpendLensBlock.tsx` (bloco "De onde vêm esses números" com linhas que somam na frente do usuário) renderizado no `InsightDetail` da projeção de fase (`DashboardSheets`, quando `detailInsight.kind==='phase_projection'`) e no card de projeção do `ImpactDetailPage`. `useDashboardModel` expõe `phaseSpendLens` (memo). Rename honesto: `detail_phase_budget` "Orçamento da fase" → **"Orçamento disponível calculado"** (pt/en/es) — raiz do 884≠628 explicada in-loco. 2 testes de componente (NBSP do Intl vs normalizador do testing-library: matcher com replace).
+- **m3 (escopo da lista)**: `ExpenseListPage` no escopo "Todas" mostra sob o total "Inclui {{amount}} de outras fases · ver só a fase atual" (botão 1-toque → `phaseScope=fase ativa`); só aparece com 2+ fases e valor > 0. i18n `expenses.total_includes_other`/`total_see_current` pt/en/es.
+- **m4 (correções de matemática)**: **vazio por veredito do G2** — zero mudança de fórmula; suite de invariância (17 testes) segue verde intocada (Â-NUMBERS-EVIDENCE-FIRST).
+- **5-point**: (1) ACs G3 ✓ (lente pura + explainers que somam + rename + escopo da lista; m4 vazio conforme veredito). (2) Regressão: fórmulas de `budget.ts`/`insights.ts` intocadas (invariância 17/17 verde); links antigos e splitting intocados; rename é só i18n. (3) Suíte 3033/3033, 0 falhas novas. (4) Fora de escopo: nenhum (deploy fix: account ID completo documentado). (5) dev-log + DEC-447 APPROVED.
 
 ### G2 — Investigação dos números com o caso real (done 2026-07-03, SEM deploy) — D03 parte 1
 - **m1 (fixture + reprodução)**: `src/tests/unit/domain/budget/phase-spend-lens.fixture.ts` espelha o relato — verba principal 62800 · evento reservado 4600 · gastos da verba 30000 · potes 30200 · hotel de fase futura noutra verba 13200. **Descoberta central: os 6 números são UM dataset em DOIS instantes** separados por um gasto de €63 na verba (hero 345 = instante anterior; 602/884/≈873/734 = posterior). Cada superfície reproduzida com as funções de produção em `phase-numbers-investigation.test.ts` (17 testes verdes).

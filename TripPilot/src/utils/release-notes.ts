@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.2.2-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'Os números da fase agora se explicam: o detalhe da projeção ("Como cheguei nisso") e a tela de impacto ganharam o bloco "De onde vêm esses números", com linhas que somam de verdade — orçamento configurado da verba, reservas de evento, gastos de outras verbas atribuídos à fase.',
+        'O rótulo "Orçamento da fase" virou "Orçamento disponível calculado" — ele nunca foi o valor que você configurou, e agora diz isso com todas as letras.',
+        'Na lista de gastos com escopo "Todas", uma linha sob o total avisa quanto vem de outras fases (aquele hotel futuro!) — com atalho de um toque para ver só a fase atual.',
+      ],
+      en: [
+        'Phase numbers now explain themselves: the projection detail ("How we got here") and the impact page gained a "Where these numbers come from" block whose lines truly add up — configured fund budget, event reserves, spending from other funds attributed to the phase.',
+        'The "Phase budget" label became "Calculated available budget" — it was never the value you configured, and now it says so explicitly.',
+        'In the expense list under the "All" scope, a line below the total tells how much comes from other phases (that future hotel!) — with a one-tap shortcut to see the current phase only.',
+      ],
+      es: [
+        'Los números de la fase ahora se explican: el detalle de la proyección ("Cómo llegamos aquí") y la pantalla de impacto ganaron el bloque "De dónde salen estos números", con líneas que realmente suman — presupuesto configurado del fondo, reservas de eventos, gastos de otros fondos atribuidos a la fase.',
+        'La etiqueta "Presupuesto de la fase" pasó a ser "Presupuesto disponible calculado" — nunca fue el valor que configuraste, y ahora lo dice claramente.',
+        'En la lista de gastos con alcance "Todas", una línea bajo el total indica cuánto viene de otras fases (¡ese hotel futuro!) — con un atajo de un toque para ver solo la fase actual.',
+      ],
+    },
+  },
+  {
     version: '2.2.1-rc',
     date: '2026-07-03',
     items: {

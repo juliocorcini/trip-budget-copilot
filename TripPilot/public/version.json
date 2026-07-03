@@ -1,8 +1,8 @@
 {
-  "version": "2.2.1-rc",
+  "version": "2.2.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.2.1-rc.zip",
-  "notes": "A lista de gastos agora abre na fase atual (com \"Todas\" a um toque), o onboarding pergunta se você prefere tema claro, escuro ou do sistema, e a notificação de divisão diz claramente de quem estamos aguardando o aceite."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.2.2-rc.zip",
+  "notes": "Os números da fase agora se explicam: o detalhe da projeção e a tela de impacto mostram \"de onde vêm esses números\" com linhas que somam — orçamento configurado, reservas, gastos de outras verbas — e a lista de gastos avisa quanto do total vem de outras fases."
 }

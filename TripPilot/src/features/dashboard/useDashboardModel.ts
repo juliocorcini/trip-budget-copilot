@@ -26,6 +26,7 @@ import {
   buildRhythmDailyIdeals,
   buildPiggySpendByDay,
   selectActivePhasePool,
+  buildPhaseSpendLens,
   selectVisiblePots,
   selectOtherPhasePots,
   eventReserveRemainingCents,
@@ -861,6 +862,19 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       ).map(extraToInsight),
     ];
 
+    // DEC-447 (G3): the PhaseSpendLens — the reconciliation block behind the
+    // phase-projection detail. Built from the SAME fts + transactions the
+    // insight uses, so the lines explain exactly the numbers on screen.
+    const phaseSpendLens =
+      fts && activePhase && primaryPool
+        ? buildPhaseSpendLens({
+            fts,
+            transactions,
+            phaseId: activePhase.id,
+            poolId: primaryPool.id,
+          })
+        : null;
+
     // DEC-130 + DEC-136: burn-down uses the same phase envelope as the insights.
     const burndown =
       fts && activePhase && primaryPool
@@ -941,6 +955,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       participantNameById,
       owner,
       insights: insightsWithFactual,
+      phaseSpendLens,
       phaseLeftover,
       globalPoolSummaries,
       visiblePotSummaries,
