@@ -3375,17 +3375,17 @@
 - **Alternatives**: só clarear rótulos (rejeitado pelo lock `lens` — os números voltariam a divergir); unificar tudo num escopo só (rejeitado — cada superfície responde uma pergunta diferente; o fix é reconciliar, não achatar).
 
 ### DEC-448 — Lista de gastos com escopo de fase; default = fase atual [council D04]
-- **Date**: 2026-07-03 · **Status**: 🔶 PROPOSED (G1)
+- **Date**: 2026-07-03 · **Status**: ✅ APPROVED (shipped `2.2.1-rc`, G1 2026-07-03)
 - **Decision**: `expense-filters.ts` ganha escopo `phaseId | 'all'`; chips "Fase atual / Todas / {fase}" no painel de filtros; default = fase ativa em viagem com fases (Dia a dia/ongoing → Todas); o total do header reflete e NOMEIA o escopo; escolha lembrada na sessão.
 - **Rationale**: pedido direto ("mostrar só os gastos da fase que está agora, ou poder escolher") + é metade da confusão D03 (o 734 mistura hotel futuro).
 
 ### DEC-449 — Onboarding pergunta o tema (claro/escuro/sistema) [council D05]
-- **Date**: 2026-07-03 · **Status**: 🔶 PROPOSED (G1)
+- **Date**: 2026-07-03 · **Status**: ✅ APPROVED (shipped `2.2.1-rc`, G1 2026-07-03)
 - **Decision**: passo de 1 toque nos DOIS fluxos do onboarding (viagem + ongoing): 3 cards (Claro/Escuro/Sistema), default `system`, pulável, persistindo o `themePreference` que já existe (`app-settings` + aplicação pronta das Settings).
 - **Rationale**: Julio: "eu usando o claro, gostei do claro também" — a preferência existe mas só é descoberta nas Settings. Critic: onboarding não ganha passo OBRIGATÓRIO (drop-off) — por isso pulável.
 
 ### DEC-450 — Notificação de divisão direcional: quem registra nunca é cobrado a confirmar [council D06]
-- **Date**: 2026-07-03 · **Status**: 🔶 PROPOSED (G1)
+- **Date**: 2026-07-03 · **Status**: ✅ APPROVED (shipped `2.2.1-rc`, G1 2026-07-03)
 - **Decision**: `pending_share` passa a dizer "aguardando aceite de {nomes}" (tom informativo) com destino `/shared` (lembrar/cobrar) — nunca o sheet de confirmação do owner; `buildNotifications` recebe os nomes dos conectados pendentes. AC-negativo: divisão só com não-conectados não gera notificação nenhuma (nasce `confirmed` — DEC-071/241, pinado em teste).
 - **Rationale**: relato do Julio ("qual a necessidade, se eu mesmo estou registrando?"). Verificado: o share do Bruno (conectado) nasce `pending` POR DESIGN aguardando o aceite DELE no espelho (DEC-345 accept-first) — a espera é legítima; o TEXTO é que inverte a direção ("aguardando SUA confirmação") e manda o owner confirmar o que ele mesmo criou.
 - **Alternatives**: suprimir a notificação inteira (rejeitado — saber que o Bruno ainda não aceitou é útil); nascer confirmado para conectados (rejeitado — contraria DEC-345/366 e o espelho do peer).

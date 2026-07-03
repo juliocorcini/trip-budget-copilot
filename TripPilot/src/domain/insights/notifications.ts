@@ -32,9 +32,15 @@ export const LONG_OUTING_THRESHOLD_MS = 8 * 60 * 60 * 1000;
 export interface BuildNotificationsInput {
   /** DEC-352 (G6) — inbound P2P charges/payments awaiting accept/confirm. */
   inboundP2pCount: number;
-  /** Third-party shares awaiting the owner's confirmation. */
+  /**
+   * DEC-450 (D06): shares awaiting the CONNECTED counterparty's acceptance.
+   * Only a connected peer is ever born `pending` (DEC-345 accept-first), so
+   * these are always "waiting on THEM", never on the owner who registered.
+   */
   pendingShareCount: number;
   pendingShareImpactCents: number;
+  /** Names of the connected peers whose acceptance is pending (deduped). */
+  pendingSharePeerNames: string[];
   /** Today's planned events of the active phase without a session. */
   todayEvents: Array<Pick<PlannedOccurrence, 'id' | 'name'>>;
   /** Backup reminder already due (domain rule isBackupReminderDue). */
@@ -61,16 +67,20 @@ export function buildNotifications(input: BuildNotificationsInput): AppNotificat
     });
   }
 
+  // DEC-450 (D06): whoever REGISTERS a split is never nagged to confirm it.
+  // The copy is directional ("aguardando aceite de {nomes}") and the tap lands
+  // on /shared (remind/charge), never on the owner's confirmation sheet.
   if (input.pendingShareCount > 0) {
     notifications.push({
       id: 'pending_share',
       kind: 'pending_share',
-      tone: 'warning',
+      tone: 'neutral',
       values: {
         count: input.pendingShareCount,
         impactCents: input.pendingShareImpactCents,
+        names: input.pendingSharePeerNames.join(', '),
       },
-      destination: '/dashboard?confirmShares=1',
+      destination: '/shared',
     });
   }
 

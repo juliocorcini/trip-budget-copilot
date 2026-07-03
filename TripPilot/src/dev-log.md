@@ -1,7 +1,43 @@
 # Dev Log — TripPilot Implementation
 
-> **PRÓXIMA LEVA (autorada 2026-07-03, execução PENDENTE — rode o kickoff):** mega-leva **"Links + Números + Acerto"** — `brain/documents/2026-07-03-links-numbers-settle-orchestrator.md` (+ `…-kickoff-prompt.md`), **DEC-445→451 PROPOSED**, locks §16 todos resolvidos, gates G0→G7, base `2.2.0-rc` → `2.3.0-rc` (preview OG rico default-ON + slugs + `PhaseSpendLens` + filtro de fase + tema no onboarding + notificação direcional + `debt_move` para conectado). O executor seeda a seção desta leva aqui no G0.
-> **Working tree**: commitado 2026-07-03 em 2 commits — `e026dc5` (Field v2.1 + scrollbar APK) e `feb1c15` (Endurecimento + mega-leva observabilidade). Árvore limpa.
+## Mega-leva "Links + Números + Acerto" (2026-07-03) — base `2.2.0-rc` → `2.3.0-rc` — 🔄 EM EXECUÇÃO (DEC-445→451 PROPOSED)
+
+> Orquestrador: `brain/documents/2026-07-03-links-numbers-settle-orchestrator.md`. Gates G0→G7: G1 quick wins (filtro de fase D04 + tema onboarding D05 + notificação direcional D06, `2.2.1-rc`) → G2 investigação números (D03, sem deploy) → G3 PhaseSpendLens + explainers (`2.2.2-rc`) → G4 worker preview+slug → G5 OG/Pages Function (`2.2.3-rc`) → G6 debt_move conectado (`2.3.0-rc`) → G7 brain sync.
+
+### ÂNCORAS (desta leva)
+- **Â-KEY-IN-FRAGMENT**: chave AES só no `#k=`; nunca em slug/preview/log/query.
+- **Â-PREVIEW-SUMMARY-ONLY**: preview ≤1KB: título/descrição/total/moeda/nº pessoas/updatedAt/imgId; NUNCA itens, nomes por item, chave, writeToken.
+- **Â-OLD-LINKS-LIVE**: link antigo por id cru abre para sempre; slug é camada nova.
+- **Â-NUMBERS-EVIDENCE-FIRST**: rótulo/explicação livre; matemática só com veredito do G2 + teste de invariância.
+- **Â-MOVE-VISIBLE-BOTH-SIDES**: mover dívida: imediato mas NUNCA silencioso; proveniência+histórico nos 2 aparelhos; undo propaga.
+- **Â-WORKER-GUARDS-KEPT**: rate-limit/CORS/logger/headers (DEC-436→444) intocados; rotas novas com logEvent; leituras sem rate limit.
+
+### CURRENT STATE
+- **Active gate**: G1 CONCLUÍDO (`2.2.1-rc` deployed) — iniciando G2 (investigação dos números, sem deploy).
+- **Deploy G1**: Pages `0d4611b8` (conta e146e88b). Apex verde: `/version.json`=2.2.1-rc, `/bundles/2.2.1-rc.zip` 200 (2.641.573 B), `/trippilot.apk` **8.469.341 B** (landmine evitada: `fetch-live-apk` re-rodado após o bundle), sw `trippilot-v81`.
+- **Tests**: **3005 pass / 3005** (302 files; +10 novos: expense-filters 7, notifications 2 novas+1 ajustada, onboarding theme-step 2). `tsc` app limpo. 2 unhandled errors do jsdom (scrollIntoView) corrigidos com stub no teste novo.
+- **Baseline (G0, Node 22.22.3)**: testes **2995 pass / 2995** (301 files); `tsc --noEmit` app **e** worker limpos; `npm run build` verde. DEC-445→451 PROPOSED confirmados no decision-log. Pipeline: Pages conta **e146e88b**, worker `trippilot-sync`; landmine APK: re-rodar `fetch-live-apk` DEPOIS do bundle (APK correto = 8.469.341 B).
+- **Last commit**: `be9e070` (autoria da leva). G1 commit a seguir.
+
+### Gates
+| Gate | Status | Versão | Notas |
+|---|---|---|---|
+| G0 baseline | ✅ done | — | 2995/2995 · tsc ×2 limpos · build ok |
+| G1 quick wins (D04+D05+D06) | ✅ done | `2.2.1-rc` | Pages `0d4611b8` · DEC-448/449/450 APPROVED |
+| G2 investigação números (D03) | 🔄 | — | sem deploy |
+| G3 lente + explainers (D03) | ⏳ | `2.2.2-rc` | |
+| G4 worker preview+slug (D01+D02) | ⏳ | worker | |
+| G5 OG + Pages Function (D01+D02) | ⏳ | `2.2.3-rc` | |
+| G6 debt_move conectado (D07) | ⏳ | `2.3.0-rc` | |
+| G7 brain sync | ⏳ | — | |
+
+### G1 — Quick wins de confiança (done 2026-07-03) — `2.2.1-rc` (DEC-448/449/450 APPROVED)
+- **m1 (D04 filtro de fase)**: `expense-filters.ts` ganhou `phaseId: string | 'all'` + `resolvePhaseScopeDefault` (fase ativa em viagem com 2+ fases; ongoing/1-fase → 'all') + memória de sessão por trip (`recallPhaseScope`/`rememberPhaseScope`). `ExpenseListPage`: grupo "Fase" no painel de filtros (chips "Fase atual"/"Todas"/{fase}), chip removível no sumário colapsado, escopo aplicado no `matchesScope`, total do header NOMEIA o escopo (`total_scope_*`), `?phase=` via URL, escolha stale (fase apagada) degrada para 'all'. "Todas" a 1 toque = chip clear-all existente.
+- **m2 (D05 tema no onboarding)**: passo de tema nos DOIS fluxos (viagem + ongoing), 3 cards (Claro/Escuro/Sistema, ícones light_mode/dark_mode/contrast), default `system` pré-selecionado, pulável (validator sempre true); persiste `themePreference` no MESMO write final que `appMode` (BUG-013 preservado — settings fora da transação do trip).
+- **m3 (D06 notificação direcional)**: `buildNotifications` recebe `pendingSharePeerNames` (derivados no `useNotifications` via participants dos shares pendentes, dedupe); copy pt/en/es "Aguardando aceite de {{names}} · {{amount}}", tom `neutral`, destino `/shared` (nunca o sheet do owner); grupo movido de "Precisa de você" → "Lembretes" no NotificationsPage. AC-negativo pinado: cadeia `resolveShareBirthStatus`→`findPendingConfirmationShares`→`buildNotifications` com só não-conectados = zero notificação.
+- **5-point**: (1) ACs D04/D05/D06 ✓. (2) Regressão verificada: links antigos intocados (zero código de link); net total de dívidas invariante (zero matemática de splitting tocada; suíte de splitting verde); rollup DEC-296 intacto (filtro de fase usa o mesmo matchesScope dos filtros existentes); ordem pending_p2p primeiro preservada (teste). (3) Suíte 3005/3005, 0 falhas novas. (4) Fora de escopo: nenhum. (5) dev-log + DECs.
+
+> **Working tree pré-leva**: commitado 2026-07-03 em 2 commits — `e026dc5` (Field v2.1 + scrollbar APK) e `feb1c15` (Endurecimento + mega-leva observabilidade) e `be9e070` (autoria desta leva). Árvore limpa.
 
 ## Mega-leva "Observabilidade + Rate Limit + PWA fallback" (2026-07-03) — base `2.1.4-rc` → `2.2.0-rc` — ✅ CONCLUÍDA (deploy único · DEC-439→444 SHIPPED)
 

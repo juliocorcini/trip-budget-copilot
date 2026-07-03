@@ -1,8 +1,8 @@
 {
-  "version": "2.2.0-rc",
+  "version": "2.2.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.2.0-rc.zip",
-  "notes": "Instalação mais fácil: o botão de atalho tenta instalar direto e mostra o passo a passo do seu navegador quando preciso. Recursos de IA com limite de uso por dispositivo (proteção contra abuso) e diagnóstico de falhas melhorado, sem dados pessoais."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.2.1-rc.zip",
+  "notes": "A lista de gastos agora abre na fase atual (com \"Todas\" a um toque), o onboarding pergunta se você prefere tema claro, escuro ou do sistema, e a notificação de divisão diz claramente de quem estamos aguardando o aceite."
 }

@@ -30,7 +30,9 @@ type NotificationGroup = 'action' | 'today' | 'reminders';
 
 const NOTIFICATION_GROUP: Record<AppNotificationKind, NotificationGroup> = {
   pending_p2p: 'action',
-  pending_share: 'action',
+  // DEC-450 (D06): waiting on a PEER's acceptance is informative, not "needs
+  // you" — the owner has nothing to confirm on what they registered themselves.
+  pending_share: 'reminders',
   phase_over_budget: 'action',
   event_today: 'today',
   long_outing: 'today',
@@ -55,7 +57,9 @@ function notificationText(
     case 'pending_p2p':
       return t('notifications.pending_p2p', { count: v.count as number });
     case 'pending_share':
+      // DEC-450 (D06): directional copy — who we are waiting ON, never "you".
       return t('notifications.pending_share', {
+        names: v.names as string,
         count: v.count as number,
         amount: formatMoney(v.impactCents as number, currency),
       });

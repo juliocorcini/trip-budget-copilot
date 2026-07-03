@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.2.1-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'A lista de gastos agora abre mostrando só a fase atual, com "Todas" a um toque — e dá para escolher qualquer fase específica. O total no topo diz qual escopo você está vendo.',
+        'O onboarding agora pergunta se você prefere tema claro, escuro ou o do sistema — um toque, pulável, e dá para mudar depois nos Ajustes.',
+        'A notificação de divisão ficou honesta com a direção: quando falta o aceite de alguém conectado, ela diz "Aguardando aceite de {nome}" e leva para o Acerto de contas — nunca mais pede para VOCÊ confirmar o que você mesmo registrou.',
+      ],
+      en: [
+        'The expense list now opens scoped to the current phase, with "All" one tap away — and you can pick any specific phase. The total at the top names the scope you are seeing.',
+        'Onboarding now asks whether you prefer light, dark or system theme — one tap, skippable, changeable later in Settings.',
+        'The split notification is now honest about direction: when a connected friend has not accepted yet, it says "Waiting for {name} to accept" and lands on Settle up — it never again asks YOU to confirm what you registered yourself.',
+      ],
+      es: [
+        'La lista de gastos ahora abre mostrando solo la fase actual, con "Todas" a un toque — y puedes elegir cualquier fase específica. El total de arriba indica qué alcance estás viendo.',
+        'El onboarding ahora pregunta si prefieres tema claro, oscuro o el del sistema — un toque, se puede saltar, y se cambia después en Ajustes.',
+        'La notificación de división ahora es honesta con la dirección: cuando falta la aceptación de alguien conectado, dice "Esperando la aceptación de {nombre}" y lleva al Ajuste de cuentas — nunca más te pide confirmar lo que tú mismo registraste.',
+      ],
+    },
+  },
+  {
     version: '2.2.0-rc',
     date: '2026-07-03',
     items: {

@@ -24,7 +24,7 @@ import { requestPersistentStorage } from '@/utils/pwa';
 import { showToast } from '@/components/Toast';
 import { Icon } from '@/components/Icon';
 import type { PhaseRhythmPreset } from '@/domain/types/phase';
-import type { AppMode } from '@/domain/types/common';
+import type { AppMode, ThemePreference } from '@/domain/types/common';
 import type { TripPresetId } from '@/domain/profiles';
 
 const RHYTHM_PRESETS: PhaseRhythmPreset[] = ['intense', 'moderate', 'relaxed'];
@@ -71,6 +71,9 @@ export function OnboardingPage() {
   const [walletName, setWalletName] = useState(() => t('onboarding.default_wallet_name'));
   const [addCashWallet, setAddCashWallet] = useState(false);
   const [cashWalletName, setCashWalletName] = useState(() => t('onboarding.cash_wallet_name'));
+  // DEC-449 (D05): theme chosen during onboarding — pre-selected on System,
+  // skippable (Próximo confirms), persisted in the same finishing write.
+  const [themeChoice, setThemeChoice] = useState<ThemePreference>('system');
 
   // M16: the quick path defaults everything but amount + end date, and the
   // chosen trip preset (if any) supplies rhythm/peak/reserve.
@@ -195,11 +198,13 @@ export function OnboardingPage() {
     // appSettings lives in its own store, so it stays out of the transaction
     // above — activeTrip can never point at a rolled-back trip.
     // M16: persist the chosen UX mode in the same write.
+    // DEC-449 (D05): the theme picked in the onboarding step rides along.
     await appSettingsRepository.update({
       activeTrip: entities.trip.id,
       onboardingCompleted: true,
       isDemo: false,
       appMode,
+      themePreference: themeChoice,
     });
 
     // GAP-R2-005: protect the freshly created trip data from browser eviction.
@@ -447,6 +452,48 @@ export function OnboardingPage() {
     </StepCard>
   );
 
+  // DEC-449 (D05): one-tap theme step in BOTH flows (viagem + Dia a dia) —
+  // 3 cards, System pre-selected, never blocks Próximo (skippable by design).
+  const themeStep = (
+    <StepCard key="theme">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('onboarding.theme_title')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.theme_subtitle')}</p>
+      </div>
+      {(
+        [
+          { key: 'light', icon: 'light_mode', labelKey: 'settings.theme_light' },
+          { key: 'dark', icon: 'dark_mode', labelKey: 'settings.theme_dark' },
+          { key: 'system', icon: 'contrast', labelKey: 'settings.theme_system' },
+        ] as const
+      ).map((opt) => (
+        <button
+          key={opt.key}
+          type="button"
+          onClick={() => setThemeChoice(opt.key)}
+          className={`bg-surface-container rounded-xl p-4 flex items-center gap-3 text-left btn-press ring-1 ${
+            themeChoice === opt.key ? 'ring-primary' : 'ring-transparent'
+          }`}
+          aria-pressed={themeChoice === opt.key}
+        >
+          <Icon
+            name={opt.icon}
+            size={22}
+            className={themeChoice === opt.key ? 'text-primary' : 'text-on-surface-dim'}
+          />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-on-surface">{t(opt.labelKey)}</p>
+            {opt.key === 'system' && (
+              <p className="text-xs text-on-surface-dim mt-0.5">{t('onboarding.theme_system_hint')}</p>
+            )}
+          </div>
+          {themeChoice === opt.key && <Icon name="check_circle" size={18} filled className="text-primary" />}
+        </button>
+      ))}
+      <p className="text-[10px] text-on-surface-faint px-1 leading-snug">{t('onboarding.theme_hint')}</p>
+    </StepCard>
+  );
+
   // M16: closing step in BOTH flows — choose the UX mode (sets appMode).
   const modeStep = (
     <StepCard key="mode">
@@ -516,8 +563,9 @@ export function OnboardingPage() {
 
   // DEC-290: ongoing replaces the trip steps with the single Dia a dia step.
   const baseSteps = isOngoing ? [ongoingStep] : flow === 'quick' ? [quickStep] : detailedSteps;
-  // DEC-252: identity first, then the flow's own steps, then the mode chooser.
-  const steps = [identityStep, ...baseSteps, modeStep];
+  // DEC-252: identity first, then the flow's own steps, then theme (DEC-449),
+  // then the mode chooser closes.
+  const steps = [identityStep, ...baseSteps, themeStep, modeStep];
   const isModeStep = step === steps.length - 1;
 
   // Per-step validators run PARALLEL to `steps` (data-driven — the index math
@@ -536,7 +584,8 @@ export function OnboardingPage() {
           () => Boolean(totalAmount),
           () => true,
         ];
-  const validators: Array<() => boolean> = [() => nameValid, ...baseValidators, () => true];
+  // Identity gate + the flow's own gates + theme (always valid — skippable) + mode.
+  const validators: Array<() => boolean> = [() => nameValid, ...baseValidators, () => true, () => true];
   const canNext = (validators[step] ?? (() => true))();
 
   return (

@@ -42,6 +42,16 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
       const pendingShares = owner
         ? findPendingConfirmationShares(transactions, shares, owner.id)
         : [];
+      // DEC-450 (D06): a share is only born pending for a CONNECTED peer, so
+      // the waiting names are the pending shares' participants (deduped).
+      const participantNameById = new Map(participants.map((p) => [p.id, p.name]));
+      const pendingSharePeerNames = [
+        ...new Set(
+          pendingShares
+            .map((entry) => participantNameById.get(entry.share.participantId))
+            .filter((name): name is string => Boolean(name)),
+        ),
+      ];
 
       const todayIso = localDateString(new Date());
       const activePhase = resolveActivePhase(phases);
@@ -79,6 +89,7 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
             (sum, entry) => sum + entry.share.shareAmountCents,
             0,
           ),
+          pendingSharePeerNames,
           todayEvents,
           backupDue: isBackupReminderDue(settings, Date.now()) && transactions.length > 0,
           activeSession: activeSession ?? null,

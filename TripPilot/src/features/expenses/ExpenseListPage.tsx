@@ -14,8 +14,10 @@ import {
   localDayOf,
   localClockTime,
   localDateString,
+  resolveActivePhase,
   sortPhasesByOrder,
 } from '@/domain/dates';
+import { isOngoing as isOngoingTrip } from '@/domain/spaces/spaces';
 import { aggregateByPlace } from '@/domain/location';
 import { getUnassignedTransactionCount } from '@/domain/wallets';
 import { calculateSessionTotal, formatSessionDuration } from '@/domain/outing';
@@ -39,7 +41,15 @@ import { showToast } from '@/components/Toast';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { isSplitCommitTransaction } from '@/domain/split';
 import { buildSessionFeed, groupFeedByDay } from './expense-feed';
-import { countActiveFilters, hasActiveFilter, type ExpenseFilterState } from './expense-filters';
+import {
+  countActiveFilters,
+  hasActiveFilter,
+  resolvePhaseScopeDefault,
+  recallPhaseScope,
+  rememberPhaseScope,
+  type ExpenseFilterState,
+  type PhaseScope,
+} from './expense-filters';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
@@ -79,6 +89,12 @@ export function ExpenseListPage() {
   const [filterWalletNull, setFilterWalletNull] = useState(false);
   // E8 (M7): filter the list by place ("gastos por lugar").
   const [filterPlace, setFilterPlace] = useState<string | null>(searchParams.get('place'));
+  // DEC-448 (D04): phase scope — null means "not chosen yet"; the effective
+  // scope then falls back to the session-remembered choice or the default
+  // (active phase on multi-phase trips). ?phase=<id|all> can pre-scope via URL.
+  const [phaseScopeChoice, setPhaseScopeChoice] = useState<PhaseScope | null>(
+    searchParams.get('phase'),
+  );
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   // DEC-079 (FIELD-09): outings ARE grouped expenses — they live in this screen.
   const [tab, setTabState] = useState<ListTab>(searchParams.get('tab') === 'outings' ? 'outings' : 'expenses');
@@ -135,6 +151,30 @@ export function ExpenseListPage() {
     ? profiles.find((p) => p.id === filterProfileId) ?? null
     : null;
 
+  // DEC-448 (D04): resolve the effective phase scope — explicit choice (state/URL)
+  // → session-remembered → default (active phase when the trip has 2+ phases).
+  const livePhases = sortPhasesByOrder(phases.filter((p) => p.deletedAt === null));
+  const activePhase = resolveActivePhase(livePhases);
+  const chosenPhaseScope: PhaseScope =
+    phaseScopeChoice ??
+    recallPhaseScope(trip.id) ??
+    resolvePhaseScopeDefault({
+      isOngoing: isOngoingTrip(trip),
+      activePhaseId: activePhase?.id ?? null,
+      phaseCount: livePhases.length,
+    });
+  const setPhaseScope = (next: PhaseScope) => {
+    rememberPhaseScope(trip.id, next);
+    setPhaseScopeChoice(next);
+  };
+  const scopedPhase =
+    chosenPhaseScope !== 'all' ? livePhases.find((p) => p.id === chosenPhaseScope) ?? null : null;
+  // A stale choice (deleted phase / bogus URL) degrades to 'all' instead of
+  // silently emptying the list.
+  const filterPhaseId: PhaseScope = chosenPhaseScope === 'all' || scopedPhase ? chosenPhaseScope : 'all';
+  // The scope UI only exists where it means something: 2+ live phases.
+  const phaseScopeAvailable = livePhases.length >= 2;
+
   const searchQuery = query.trim().toLowerCase();
   // G2: match on description, place and the (translated) category label.
   const matchesQuery = (tx: Transaction): boolean => {
@@ -149,6 +189,7 @@ export function ExpenseListPage() {
   // only surfaces while browsing or in a description search, exactly as planned.
   const matchesScope = (tx: Transaction): boolean =>
     tx.deletedAt === null &&
+    (filterPhaseId === 'all' || tx.phaseId === filterPhaseId) &&
     (!filterCategory || tx.category === filterCategory) &&
     (!filterProfileId || tx.activityProfileId === filterProfileId) &&
     (!filterWalletNull || tx.walletId === null) &&
@@ -184,7 +225,7 @@ export function ExpenseListPage() {
   const poolMap = new Map(pools.map((p) => [p.id, p.name]));
   const walletMap = new Map(wallets.map((w) => [w.id, w.name]));
   // Batch "change phase" target list (active trechos, in order).
-  const sortedPhases = sortPhasesByOrder(phases.filter((p) => p.deletedAt === null));
+  const sortedPhases = livePhases;
 
   const categories = [...new Set(transactions.filter((tx) => tx.category).map((tx) => tx.category!))];
   // E8 (M7): places ranked by spend — drive the "by place" filter chips.
@@ -218,6 +259,7 @@ export function ExpenseListPage() {
   const expenseGroups = groupFeedByDay(feed);
 
   const filterState: ExpenseFilterState = {
+    phaseId: filterPhaseId,
     category: filterCategory,
     profileId: filterProfileId,
     walletNull: filterWalletNull,
@@ -227,6 +269,7 @@ export function ExpenseListPage() {
   const anyFilterActive = hasActiveFilter(filterState);
 
   const clearFilters = () => {
+    setPhaseScope('all');
     setFilterCategory(null);
     setFilterProfileId(null);
     setFilterWalletNull(false);
@@ -366,9 +409,21 @@ export function ExpenseListPage() {
           <h1 className="text-heading font-bold text-on-surface truncate min-w-0">{t('expenses.title')}</h1>
           <div className="flex items-center gap-2 shrink-0">
             {tab === 'expenses' && (
-              <p data-expense-total className="text-sm font-semibold tabular text-on-surface">
-                {formatMoney(totalCents, trip.baseCurrency)}
-              </p>
+              <div className="text-right">
+                <p data-expense-total className="text-sm font-semibold tabular text-on-surface">
+                  {formatMoney(totalCents, trip.baseCurrency)}
+                </p>
+                {/* DEC-448 (D04): the header names the scope of the total. */}
+                {phaseScopeAvailable && (
+                  <p data-expense-total-scope className="text-[10px] leading-tight text-on-surface-faint">
+                    {filterPhaseId === 'all'
+                      ? t('expenses.total_scope_all')
+                      : scopedPhase?.id === activePhase?.id
+                        ? t('expenses.total_scope_current')
+                        : scopedPhase?.name ?? ''}
+                  </p>
+                )}
+              </div>
             )}
             {/* DEC-206: first AI feature — an accented, labelled entry (indigo
                 "smart" accent), not a hidden grey glyph. */}
@@ -462,7 +517,7 @@ export function ExpenseListPage() {
           </div>
         )}
 
-        {tab === 'expenses' && (categories.length > 0 || placeTotals.length > 0 || anyFilterActive) && (
+        {tab === 'expenses' && (categories.length > 0 || placeTotals.length > 0 || phaseScopeAvailable || anyFilterActive) && (
           <div
             className="flex flex-col gap-2"
             onTouchStart={(e) => e.stopPropagation()}
@@ -476,7 +531,7 @@ export function ExpenseListPage() {
                 active={!anyFilterActive}
                 onClick={clearFilters}
               />
-              {(categories.length > 0 || placeTotals.length > 0) && (
+              {(categories.length > 0 || placeTotals.length > 0 || phaseScopeAvailable) && (
                 <button
                   onClick={() => setFiltersOpen((o) => !o)}
                   className={`ml-auto shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold btn-press transition-colors ${
@@ -501,6 +556,19 @@ export function ExpenseListPage() {
             {/* Collapsed: a compact, removable summary of what's narrowing the list. */}
             {!filtersOpen && anyFilterActive && (
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {/* DEC-448: the phase scope is visible whenever it narrows; tap = back to Todas. */}
+                {filterPhaseId !== 'all' && (
+                  <FilterChip
+                    label={
+                      scopedPhase?.id === activePhase?.id
+                        ? t('expenses.phase_scope_current')
+                        : scopedPhase?.name ?? ''
+                    }
+                    icon="flag"
+                    active
+                    onClick={() => setPhaseScope('all')}
+                  />
+                )}
                 {filterCategory && (
                   <FilterChip label={t(`categories.${filterCategory}` as never)} active onClick={() => setFilterCategory(null)} />
                 )}
@@ -519,6 +587,34 @@ export function ExpenseListPage() {
             {/* Expanded: the same chips, now grouped and labelled by nature. */}
             {filtersOpen && (
               <div className="flex flex-col gap-2">
+                {/* DEC-448 (D04): phase scope — "Fase atual / Todas / {fase}". */}
+                {phaseScopeAvailable && (
+                  <FilterGroup label={t('expenses.filters_group_phase')}>
+                    {activePhase && (
+                      <FilterChip
+                        label={t('expenses.phase_scope_current')}
+                        icon="flag"
+                        active={filterPhaseId === activePhase.id}
+                        onClick={() => setPhaseScope(activePhase.id)}
+                      />
+                    )}
+                    <FilterChip
+                      label={t('expenses.phase_scope_all')}
+                      active={filterPhaseId === 'all'}
+                      onClick={() => setPhaseScope('all')}
+                    />
+                    {sortedPhases
+                      .filter((phase) => phase.id !== activePhase?.id)
+                      .map((phase) => (
+                        <FilterChip
+                          key={phase.id}
+                          label={phase.name}
+                          active={filterPhaseId === phase.id}
+                          onClick={() => setPhaseScope(phase.id)}
+                        />
+                      ))}
+                  </FilterGroup>
+                )}
                 {categories.length > 0 && (
                   <FilterGroup label={t('expenses.filters_group_categories')}>
                     {categories.map((cat) => (
