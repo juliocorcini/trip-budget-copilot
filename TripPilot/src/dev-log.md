@@ -1,5 +1,8 @@
 # Dev Log — TripPilot Implementation
 
+> **PRÓXIMA LEVA (autorada 2026-07-03, execução PENDENTE — rode o kickoff):** mega-leva **"Links + Números + Acerto"** — `brain/documents/2026-07-03-links-numbers-settle-orchestrator.md` (+ `…-kickoff-prompt.md`), **DEC-445→451 PROPOSED**, locks §16 todos resolvidos, gates G0→G7, base `2.2.0-rc` → `2.3.0-rc` (preview OG rico default-ON + slugs + `PhaseSpendLens` + filtro de fase + tema no onboarding + notificação direcional + `debt_move` para conectado). O executor seeda a seção desta leva aqui no G0.
+> **Working tree**: commitado 2026-07-03 em 2 commits — `e026dc5` (Field v2.1 + scrollbar APK) e `feb1c15` (Endurecimento + mega-leva observabilidade). Árvore limpa.
+
 ## Mega-leva "Observabilidade + Rate Limit + PWA fallback" (2026-07-03) — base `2.1.4-rc` → `2.2.0-rc` — ✅ CONCLUÍDA (deploy único · DEC-439→444 SHIPPED)
 
 > Fecha TODO o backlog restante do audit `brain/documents/2026-07-03-observability-security-pwa-audit.md` numa leva única ("fazer todas as levas de uma vez" — Julio): **SEC-2** rate limit de borda, **SEC-4** CORS allowlist no admin, **OBS-1/2** logger estruturado nos dois runtimes + migração dos console, **OBS-3** varredura dos catch de negócio, **OBS-4** `X-Request-Id` ponta a ponta, **PWA-1/2** fallback de instalação ativo. Orquestrador: `brain/documents/2026-07-03-observability-ratelimit-pwa-orchestrator.md`. Fora (deliberado): OBS-5/OpenTelemetry (audit D.11), CSP completa (Â-CSP-INCREMENTAL), catches de transporte best-effort.
@@ -16,7 +19,7 @@
 - **Probes ao vivo**: (1) 30 POSTs numa conexão reutilizada em `/assistant` → hits 1–20 `400 bad_text`, **21+ → 429 `assistant_rate_limited`** (shape `aiUnavailable` que o cliente já trata; ATENÇÃO: counters são por-colo — bursts por conexões novas podem espalhar entre colos e demorar mais pra tripar). (2) `X-Request-Id: probe-mega-leva-0001` → **ecoado** no response header. (3) `/admin/overview` com `Origin: evil.example` → **sem ACAO** + `Vary: Origin`; origem allowlisted → echo. (4) `wrangler tail` mostra 1 JSON por request com `requestId/installId/method/route/status/durationMs`.
 - **Tests**: **2995 pass / 2995** (Node 22; +23 novos: `logger.test.ts` 9, `worker-logger.test.ts` 6, `install-guide.test.ts` 8) + 1 teste adaptado (`use-app-data-error` asserta `logger.error` em vez de console spy). `tsc` app+worker limpos. Build + OTA bundle verdes.
 - **Scope**: worker (`wrangler.jsonc` ratelimits, `src/logger.ts` NOVO, `src/index.ts` middleware/rotas), app (`utils/logger.ts` NOVO, `features/install/install-guide.ts` NOVO, `InstallOptions.tsx`, `data/sync/config.ts` requestId, 4 boundaries de IA, 4 orchestrators, `media-link`/`share-client`, 13 arquivos da migração console→logger, i18n ×3 `install.guide.*`) + versionamento (package/version/app-version/release-notes/sw v80).
-- **Last commit**: NENHUM — o tree acumula Field v2.1 + Endurecimento + esta leva, todas deployadas; commitar é decisão do Julio.
+- **Last commit**: resolvido 2026-07-03 — Julio pediu o commit; tree dividido em `e026dc5` (Field v2.1) + `feb1c15` (Endurecimento + esta leva). Árvore limpa.
 - **Follow-up conhecido**: `make-ota-bundle` também copia o APK de DEBUG (17 MB) pra `Downloads/TripPilot-2.2.0-rc.apk` — aquele arquivo local NÃO é o de produção (o publicado no apex está certo, 8.4 MB).
 
 ### Frente SEC-2 — rate limit nativo (done 2026-07-03) — worker `85edfeed` (DEC-439)
