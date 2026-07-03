@@ -1,6 +1,6 @@
 # Dev Log — TripPilot Implementation
 
-## Mega-leva "Links + Números + Acerto" (2026-07-03) — base `2.2.0-rc` → `2.3.0-rc` — 🔄 EM EXECUÇÃO (DEC-445→451 PROPOSED)
+## Mega-leva "Links + Números + Acerto" (2026-07-03) — base `2.2.0-rc` → `2.3.0-rc` — ✅ COMPLETA (DEC-445→451 APPROVED)
 
 > Orquestrador: `brain/documents/2026-07-03-links-numbers-settle-orchestrator.md`. Gates G0→G7: G1 quick wins (filtro de fase D04 + tema onboarding D05 + notificação direcional D06, `2.2.1-rc`) → G2 investigação números (D03, sem deploy) → G3 PhaseSpendLens + explainers (`2.2.2-rc`) → G4 worker preview+slug → G5 OG/Pages Function (`2.2.3-rc`) → G6 debt_move conectado (`2.3.0-rc`) → G7 brain sync.
 
@@ -13,7 +13,8 @@
 - **Â-WORKER-GUARDS-KEPT**: rate-limit/CORS/logger/headers (DEC-436→444) intocados; rotas novas com logEvent; leituras sem rate limit.
 
 ### CURRENT STATE
-- **Active gate**: G6 CONCLUÍDO (`2.3.0-rc` no ar) — iniciando G7 (brain sync final).
+- **Active gate**: LEVA COMPLETA — G7 (brain sync) executado; §12 DoD TRUE exceto o teste manual do WhatsApp (Julio). Handoff: nada em voo; próximo trabalho começa leva nova.
+- **G7 (brain sync)**: `decision-log.md` banner reescrito (DEC-445→451 APPROVED, next free id DEC-452) + DEC-451 APPROVED com evidência; `project-status.md` "Last updated" + seção da leva completa; `product-spec.md` §31 (links que se apresentam), §32 (PhaseSpendLens), §33 (debt_move) + banner; `brain/README.md` banner SHIPPED; orquestrador marcado ✅ COMPLETE no header.
 - **Deploy G6**: Pages `9afbd67b` (conta `e146e88b34b2694243b1d74cee8de743`). Apex verde: `/version.json`=2.3.0-rc, entry `index-DcpzXcym.js` embute 2.3.0-rc (`app-version.ts` sincronizado ANTES do build desta vez), `/bundles/2.3.0-rc.zip` 200 (2.744.570 B), `/trippilot.apk` 8.469.341 B, sw `trippilot-v84`, Function OG segue no ar (slug do probe G4 foi revogado → card default, rota 200 — comportamento correto). **Worker intocado** (kind `debt_move` é opaco no relay — Â-WORKER-GUARDS-KEPT).
 - **Smoke 2 aparelhos (via testes de orquestrador, sem rede)**: apply → 2 tx no ledger do Bruno (payer=Julio materializado por `linkedActorId`, share única confirmada em Bruno, `reassignedFromName`="Débora", `calculateDebts` fecha em €20,00); redelivery = no-op (`externalRef` por item); revert derruba SÓ o que o apply criou (soft-delete) + remove card pendente; move sem viagem ativa → `false` (card ACIONÁVEL "Aplicar no caderno" — `applyPendingDebtMove` aplica depois e troca o card por informativo).
 - **Tests**: **3073 pass / 3073** (310 files; +14 do G6: payload 8 + orquestrador 6; debt-movement.test reescrito para DEC-451). `tsc` app e worker limpos.
@@ -30,7 +31,7 @@
 | G4 worker preview+slug (D01+D02) | ✅ done | worker | worker `a8b934b1` · probe produção 100% |
 | G5 OG + Pages Function (D01+D02) | ✅ done | `2.2.3-rc` | Pages `dcbb21aa` · crawler probe ✅ · DEC-445/446 APPROVED |
 | G6 debt_move conectado (D07) | ✅ done | `2.3.0-rc` | Pages `9afbd67b` · smoke 2-devices ✅ · DEC-451 APPROVED · worker intocado |
-| G7 brain sync | 🔄 | — | |
+| G7 brain sync | ✅ done | — | decision-log banner + project-status + product-spec §31-33 + README + orquestrador COMPLETE |
 
 ### G6 — debt_move: mover dívida para conectado, imediato e visível (done 2026-07-03) — `2.3.0-rc` — D07
 - **m1 (payload + fold do destinatário)**: `MailboxPayloadKind` + `VALID_KINDS` ganham **`debt_move`**; novo `domain/sync/debt-move-payload.ts` (zod: `{v:1, moveId(uuid do DebtMovement), direction apply|revert, role recipient|source, fromPersonName, toPersonName, movedByName, currency, items[{moveItemId, amountCents>0 int, description≤120, occurredAt}], appliedAt?/revertedAt?}` — anotações do drain SOBREVIVEM re-parse; clamp de nomes 60/desc 120, fallback '—'). `externalRefForDebtMoveItem` = `debt_move:{actor}:{moveId}:{itemId}` (prefix-searchable p/ revert). `inbound-ledger.buildExpenseFromMovedItem`: tx compartilhada payer=mover + share única CONFIRMADA no dono do aparelho com **`reassignedFromName`** (proveniência sobrevive a aparelho que nunca teve a Débora); `excludeFromLearning`.

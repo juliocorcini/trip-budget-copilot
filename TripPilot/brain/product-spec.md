@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-07-02 (Field v2.1 `2.1.3-rc`: the expense "local" now shows the **venue, not the city** — DEC-434; exchange rates are **automatic app-wide** with manual as override/offline and the "mental anchor" renamed **"Ver na minha moeda"** — DEC-435; see §"Where & when" + "Multi-currency". Prior 2026-06-17: reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207.)
+> Last updated: 2026-07-03 (Links+Números+Acerto `2.3.0-rc`: sharing links present themselves — summary-only preview blob DEFAULT-ON with kill-switch + readable slugs with the AES key always in the fragment + per-share OG via Pages Function — DEC-445/446, §31; phase numbers explain themselves via `PhaseSpendLens` with zero math change — DEC-447, §32; debt moves reach connected devices immediately with provenance on both sides and propagated undo via the new `debt_move` mailbox kind — DEC-451, §33; expense list opens phase-scoped — DEC-448; theme step in onboarding — DEC-449; directional split notification — DEC-450. Prior 2026-07-02: Field v2.1 `2.1.3-rc` venue-not-city + automatic FX — DEC-434/435. Prior 2026-06-17: reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207.)
 
 ## What is TripPilot?
 
@@ -425,6 +425,65 @@ read the same truth**: when the cofrinho already parks leftover, the daily allow
 there" mismatch), and the parked slice is surfaced inline as **"Guardado no cofrinho"**. This is a
 **display + consistency** change — `baseFree` and every total stay **invariant** (proven by an anchor
 test asserting today's cell equals the hero bit-for-bit).
+
+### 31. Links that present themselves — rich previews + readable slugs (Links+Números+Acerto wave — DEC-445/446, `2.2.3-rc`)
+
+Sharing links (`/g` group boards, `/t` live splits, `/s` statements) stay **end-to-end encrypted**
+(AES key only in the URL `#fragment` — it never reaches the server), but they now *present themselves*
+when pasted into WhatsApp/social:
+
+- **Preview blob (DEC-445, DEFAULT-ON with kill-switch)**: on publish, the client stores a plaintext
+  **summary-only** blob (≤1KB: title, description, total, currency, people count, updatedAt, imgId —
+  NEVER items, per-item names, the key or the writeToken) NEXT TO the ciphertext. A public
+  `GET /preview/:idOrSlug` (no rate limit, logged) serves it. Settings → "Prévia nos links" (default
+  ON) kills future previews and erases stored ones **without breaking the link**; revoking a share
+  erases preview + slug mapping.
+- **Readable slugs (DEC-446)**: new links come out as `/g/churras-do-bruno-x7f2#k=…` — a slugified
+  name + 4-char suffix mapped to the raw id in KV. The slug resolves everywhere (`/share`,
+  `/responses`, `/ws`, `/preview`); **old raw-id links keep working forever** (the slug is a new
+  layer, not a replacement).
+- **OG surface (DEC-445 part 2)**: `index.html` carries a branded static OG block (default card);
+  a **Cloudflare Pages Function** intercepts ONLY `/g/*`, `/t/*`, `/s/*` (via `_routes.json`) and
+  injects per-share `og:title/description/image` (HTML-escaped; R2 image when the share has one,
+  else a branded card per type). Any failure serves the untouched SPA shell — a link never breaks.
+  Crawler-probed (WhatsApp + facebookexternalhit UAs) on the apex.
+
+### 32. Phase numbers that explain themselves — PhaseSpendLens (DEC-447, `2.2.2-rc`)
+
+A field investigation of the real case (628 configured / 602 projection / 345 impact / 734 spent /
+873–884 heroes) concluded **zero math bugs** — every difference was labeling or scope. The fix is a
+single explaining lens, not new arithmetic (Â-NUMBERS-EVIDENCE-FIRST):
+
+- `PhaseSpendLens` (pure domain) reconciles the phase money canonically:
+  `configured − event reserves − pool spending − cross-phase attributions == remaining` (invariant
+  under test with the real-case fixture).
+- The projection detail ("Como cheguei nisso") and the impact screen show a **"De onde vêm esses
+  números"** block whose lines **actually add up** to the number on screen.
+- The label "Orçamento da fase" became **"Orçamento disponível calculado"** — it was never the
+  configured value, and now says so.
+- The "All phases" expense list shows how much of the total comes from **other phases**, with a
+  one-tap switch to the current phase (see also DEC-448: the list opens scoped to the current phase).
+
+### 33. Debt moves that reach the other device (Links+Números+Acerto wave — DEC-451, `2.3.0-rc`)
+
+Moving a debt (DEC-414's reassignment) now works for **connected people** too — immediate, never
+silent (Â-MOVE-VISIBLE-BOTH-SIDES), superseding DEC-430's "charge, don't move" for peers with a
+reachable mailbox:
+
+- **Owner side**: connected people with a mailbox key are direct move destinations
+  (`connected_movable`); the reassignment applies locally at once (total net invariant) and a new
+  encrypted **`debt_move`** mailbox payload propagates it. Key-less peers keep the honest
+  charge-only path.
+- **Recipient side**: the drain folds the moved items immediately — payer = the mover, a confirmed
+  share on me, and the share carries **`reassignedFromName`** so the statement shows "veio de
+  {original debtor}" even on a device where that person never existed. Idempotent per item
+  (`externalRef`); arriving before any trip exists leaves an **actionable card** ("Aplicar no
+  caderno") — nothing is lost.
+- **Source side (connected)**: gets an informative card — "your bills moved to {name}"; their ledger
+  never auto-mutates.
+- **Undo propagates**: the owner's undo sends a `revert` that surgically soft-deletes exactly what
+  the apply created and updates the cards. The worker relay is untouched — `debt_move` is opaque
+  ciphertext like every mailbox kind.
 
 ## V1 — In Scope With Constraints (reconciled 2026-06-17)
 
