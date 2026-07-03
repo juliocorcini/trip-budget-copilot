@@ -4,6 +4,7 @@ import {
   appSettingsRepository,
 } from '@/data/repositories';
 import { db } from '@/data/db/database';
+import { logger } from '@/utils/logger';
 import { createSyncMetadata, getInstallationId } from '@/utils/entity-factory';
 import {
   generateSessionKey,
@@ -235,7 +236,11 @@ async function pushGuestResponses(
     const blob = await encryptText(cryptoKey, JSON.stringify(batch));
     await postShareResponse(statement.share.shareId, crypto.randomUUID(), blob);
     return true;
-  } catch {
+  } catch (err) {
+    // The guest's marks/settle proposal did NOT reach the owner — exactly the
+    // silent-failure class the audit flagged (OBS-3). Still swallowed (the UI
+    // keeps the pending state and retries), but now it leaves a trace.
+    logger.warn('guest_response_push_failed', { module: 'share-link-orchestrators' }, err);
     return false;
   }
 }

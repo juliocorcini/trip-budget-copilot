@@ -1,5 +1,6 @@
 import i18n from '@/i18n';
 import { showToast } from '@/components/Toast';
+import { logger } from '@/utils/logger';
 import { shouldReloadOnUpdate } from '@/utils/sw-reload';
 
 // DEC-082 (GAP-R2-001): when a new SW is waiting, show a persistent toast.
@@ -52,7 +53,7 @@ export function registerServiceWorker(): void {
           });
         });
       })
-      .catch((err) => console.error('[SW] Registration failed:', err));
+      .catch((err) => logger.error('sw_register_failed', { module: 'pwa' }, err));
   });
 }
 
@@ -79,8 +80,7 @@ async function logStorageEstimate(): Promise<void> {
   try {
     if (!navigator.storage?.estimate) return;
     const { usage, quota } = await navigator.storage.estimate();
-    // eslint-disable-next-line no-console
-    console.info('[storage] persistence not granted — eviction risk', { usage, quota });
+    logger.info('storage_persistence_denied', { module: 'pwa', usage, quota });
   } catch {
     // estimate() unsupported on this engine — nothing to log.
   }

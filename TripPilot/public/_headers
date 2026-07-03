@@ -1,5 +1,20 @@
 # Cloudflare Pages headers.
 #
+# DEC-436 (2026-07-03 security audit, SEC-1): global security headers. Nothing
+# legitimate embeds TripPilot in an iframe, so denying framing kills clickjacking
+# on every route — including the guest pages /s/:id and /g/:id which show
+# balances. Deliberately NO full CSP (script-src/style-src) here: the app relies
+# on inline styles + Google Fonts, so a strict CSP needs its own tested wave.
+# Permissions-Policy must keep geolocation/microphone/camera enabled for self —
+# the app uses GPS stamping, voice entry and receipt capture.
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), microphone=(self), camera=(self)
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
 # DEC-206 fix: the native app runs at https://localhost (androidScheme: 'https'),
 # so its fetch of the version manifest on this host is cross-origin. Without an
 # Access-Control-Allow-Origin header the WebView blocks the response, the app can

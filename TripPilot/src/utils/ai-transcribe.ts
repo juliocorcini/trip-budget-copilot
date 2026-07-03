@@ -1,4 +1,5 @@
 import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
+import { logger } from '@/utils/logger';
 import { readCooldown } from '@/utils/ai-rate-limit';
 import type { AiCooldown } from '@/domain/assistant';
 
@@ -70,29 +71,37 @@ export async function transcribeAudio(blob: Blob, language?: string): Promise<Tr
   let audioBase64: string;
   try {
     audioBase64 = await blobToBase64(blob);
-  } catch {
+  } catch (err) {
+    logger.warn('transcribe_blob_read_failed', { module: 'ai-transcribe' }, err);
     return { ok: false, error: 'failed' };
   }
 
+  const headers = aiRequestHeaders();
+  const requestId = headers['X-Request-Id'];
   let response: Response;
   try {
     response = await fetch(`${getSyncWorkerUrl()}/transcribe`, {
       method: 'POST',
-      headers: aiRequestHeaders(),
+      headers,
       body: JSON.stringify({ audioBase64, mimeType: blob.type || 'audio/webm', language }),
     });
   } catch {
+    logger.info('transcribe_offline', { module: 'ai-transcribe', requestId });
     return { ok: false, error: 'offline' };
   }
 
   if (response.status === 503) return { ok: false, error: 'not_configured' };
   if (response.status === 429) return { ok: false, error: 'rate_limited', cooldown: await readCooldown(response) };
-  if (!response.ok) return { ok: false, error: 'failed' };
+  if (!response.ok) {
+    logger.warn('transcribe_http_failed', { module: 'ai-transcribe', requestId, status: response.status });
+    return { ok: false, error: 'failed' };
+  }
 
   try {
     const data = (await response.json()) as { text?: unknown };
     return { ok: true, text: typeof data.text === 'string' ? data.text : '' };
-  } catch {
+  } catch (err) {
+    logger.warn('transcribe_parse_failed', { module: 'ai-transcribe', requestId }, err);
     return { ok: false, error: 'failed' };
   }
 }

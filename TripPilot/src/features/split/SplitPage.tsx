@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { logger } from '@/utils/logger';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { compressImageFile, blobToDataUrl, type CompressedImage } from '@/utils/image/compress';
 import { extractReceiptViaCloud, type ReceiptOcrError } from '@/utils/ai-ocr';
@@ -280,7 +281,7 @@ export function SplitPage() {
         // Never strand the user on the "Retomando…" spinner: an unexpected
         // failure just falls back to the capture screen (creds are kept so a
         // later reopen can retry the table).
-        console.error('[split] resume failed', err);
+        logger.error('split_resume_failed', { module: 'split' }, err);
       } finally {
         if (resumeMountedRef.current) setResuming(false);
       }
@@ -371,7 +372,7 @@ export function SplitPage() {
         setPhase('divide');
       }
     } catch (err) {
-      console.error('[split] read failed', err);
+      logger.error('split_read_failed', { module: 'split' }, err);
       showToast(t('receiptScan.error_failed'), 'danger');
       setPhase('capture');
     }
@@ -579,7 +580,7 @@ export function SplitPage() {
       });
       navigate('/expenses');
     } catch (err) {
-      console.error('[split] commit failed', err);
+      logger.error('split_commit_failed', { module: 'split' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);

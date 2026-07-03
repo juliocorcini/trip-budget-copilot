@@ -1,9 +1,15 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { deviceBrowserFamily } from '@/utils/platform';
 import { APK_URL, type InstallAudience } from './install-content';
+import {
+  manualInstallStepKeys,
+  manualInstallTitleKey,
+  resolveInstallGuideFamily,
+} from './install-guide';
 
 function RecommendedBadge({ label }: { label: string }) {
   return (
@@ -16,6 +22,36 @@ function RecommendedBadge({ label }: { label: string }) {
   );
 }
 
+/** DEC-444 (PWA-2) — per-browser numbered steps shown when the native prompt is unavailable. */
+function ManualInstallGuide() {
+  const { t } = useTranslation();
+  const family = resolveInstallGuideFamily({
+    browser: deviceBrowserFamily(),
+    isAndroid: /Android/i.test(navigator.userAgent),
+  });
+
+  return (
+    <div className="p-4 rounded-2xl flex flex-col gap-2.5" style={{ background: 'var(--surface-high)' }}>
+      <p className="text-xs font-extrabold uppercase tracking-wide text-on-surface-dim">
+        {t(manualInstallTitleKey(family))}
+      </p>
+      <ol className="flex flex-col gap-2">
+        {manualInstallStepKeys(family).map((stepKey, index) => (
+          <li key={stepKey} className="flex items-start gap-2.5">
+            <span
+              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 mt-0.5"
+              style={{ background: 'var(--primary-subtle)', color: 'var(--primary)' }}
+            >
+              {index + 1}
+            </span>
+            <span className="text-[13px] font-semibold text-on-surface leading-snug">{t(stepKey)}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 /**
  * Item A (DEC-362) — the platform-aware install CTAs. Android leads with the APK
  * (Julio's "sempre o mais recomendado") + a one-tap PWA fallback; iOS shows the
@@ -25,10 +61,20 @@ function RecommendedBadge({ label }: { label: string }) {
 export function InstallOptions({ audience }: { audience: InstallAudience }) {
   const { t } = useTranslation();
   const { available, install } = useInstallPrompt();
+  const [showGuide, setShowGuide] = useState(false);
 
   const runPwaInstall = async () => {
     const outcome = await install();
     if (outcome === 'unavailable') showToast(t('install.pwa_unavailable'), 'info');
+    else if (outcome === 'dismissed') showToast(t('install.pwa_dismissed'), 'info');
+  };
+
+  // PWA-2 (DEC-444): the fallback CTA is ACTIVE — it still tries the native
+  // prompt first (it may have arrived after mount), and only then opens the
+  // per-browser step-by-step. Never a dead static hint again.
+  const runShortcutInstall = async () => {
+    const outcome = await install();
+    if (outcome === 'unavailable') setShowGuide((current) => !current);
     else if (outcome === 'dismissed') showToast(t('install.pwa_dismissed'), 'info');
   };
 
@@ -119,30 +165,39 @@ export function InstallOptions({ audience }: { audience: InstallAudience }) {
           </div>
         </button>
       ) : (
-        /* DEC-364 (A5): when the browser can't fire the auto-prompt, NEVER
-           dead-end — always show the manual "atalho na tela inicial"
-           instructions. On Android this is the fallback so there is always a
-           path to install (Julio: "se o app não deu certo, instale o atalho —
-           o que importa é ter o app instalado"); off-Android it's the path. */
-        <div
-          className="w-full p-4 rounded-2xl flex items-center gap-3 text-left"
-          style={apkPrimary ? { background: 'var(--surface-high)' } : { background: 'var(--primary)' }}
-        >
-          <Icon
-            name="install_mobile"
-            size={22}
-            className={`shrink-0 ${apkPrimary ? 'text-primary' : 'text-on-surface'}`}
-          />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[15px] font-extrabold text-on-surface">{t('install.shortcut_cta')}</span>
-              {!apkPrimary && <RecommendedBadge label={t('install.recommended')} />}
+        /* DEC-364 (A5) + DEC-444 (PWA-2): when the browser didn't fire the
+           auto-prompt, the CTA stays a real BUTTON — it retries the native
+           prompt and, if the platform truly won't offer it, expands an honest
+           per-browser step-by-step (Julio: "se o app não deu certo, instale o
+           atalho — o que importa é ter o app instalado"). */
+        <>
+          <button
+            onClick={runShortcutInstall}
+            className="w-full p-4 rounded-2xl flex items-center gap-3 btn-press text-left"
+            style={apkPrimary ? { background: 'var(--surface-high)' } : { background: 'var(--primary)' }}
+          >
+            <Icon
+              name="install_mobile"
+              size={22}
+              className={`shrink-0 ${apkPrimary ? 'text-primary' : 'text-on-surface'}`}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[15px] font-extrabold text-on-surface">{t('install.shortcut_cta')}</span>
+                {!apkPrimary && <RecommendedBadge label={t('install.recommended')} />}
+              </div>
+              <p className="text-[11px] font-semibold text-on-surface-dim leading-snug mt-0.5">
+                {t('install.shortcut_note')}
+              </p>
             </div>
-            <p className="text-[11px] font-semibold text-on-surface-dim leading-snug mt-0.5">
-              {t('install.pwa_browser_hint')}
-            </p>
-          </div>
-        </div>
+            <Icon
+              name={showGuide ? 'expand_less' : 'expand_more'}
+              size={20}
+              className={`shrink-0 ${apkPrimary ? 'text-on-surface-dim' : 'text-on-surface'}`}
+            />
+          </button>
+          {showGuide && <ManualInstallGuide />}
+        </>
       )}
 
       {apkPrimary && (

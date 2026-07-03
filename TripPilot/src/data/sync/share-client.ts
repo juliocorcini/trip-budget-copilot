@@ -1,4 +1,5 @@
 import { getSyncWorkerUrl } from './config';
+import { logger } from '@/utils/logger';
 
 /**
  * DEC-207 — HTTP client for the worker's persistent share channel. Mirrors
@@ -45,6 +46,9 @@ export async function getShareStatement(id: string): Promise<ShareStatementResul
     // `Cache-Control: no-store`, but forcing it here covers older deploys too.
     res = await fetch(shareUrl(`/${encodeURIComponent(id)}`), { cache: 'no-store' });
   } catch {
+    // info (dev-only): this is a poll loop — offline turns into a visible
+    // 'error' status upstream, and warn-level logging here would just be noise.
+    logger.info('share_statement_fetch_failed', { module: 'share-client' });
     return { status: 'error' };
   }
   if (res.status === 410) return { status: 'revoked' };

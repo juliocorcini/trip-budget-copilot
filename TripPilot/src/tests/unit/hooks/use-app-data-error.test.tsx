@@ -16,6 +16,7 @@ vi.mock('@/data/db/db-recovery', () => ({
 import { useAppData } from '@/hooks/useAppData';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { appSettingsRepository } from '@/data/repositories';
+import { logger } from '@/utils/logger';
 import {
   openWithWatchdog,
   recoverConnection,
@@ -61,7 +62,9 @@ describe('useAppData failure handling (DEC-109 / DEC-170)', () => {
     vi.spyOn(appSettingsRepository, 'get').mockRejectedValue(
       new Error('InvalidStateError: the database connection is closing'),
     );
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // DEC-176 "ALWAYS leave a trace", now through the structured logger
+    // (DEC-441/OBS-2) instead of a bare console.error.
+    const logSpy = vi.spyOn(logger, 'error');
     mockRecover.mockResolvedValue(false); // reopen fails
     mockEscalate.mockReturnValue(false); // reload budget spent
 
@@ -69,7 +72,7 @@ describe('useAppData failure handling (DEC-109 / DEC-170)', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 3000 });
     expect(result.current.error).toBe(true);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith('app_data_load_failed', expect.anything(), expect.anything());
   });
 
   it('recovers via manual retry once the DB responds again', async () => {

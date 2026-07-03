@@ -1,4 +1,5 @@
 import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
+import { logger } from '@/utils/logger';
 import { parseAssistantIntents, type AiIntent } from '@/domain/assistant';
 import type { AssistantContextPack, AiCooldown } from '@/domain/assistant';
 import { readCooldown } from '@/utils/ai-rate-limit';
@@ -29,24 +30,31 @@ async function postAssistant(
   text: string,
   context: AssistantContextPack,
 ): Promise<{ ok: true; raw: unknown } | { ok: false; error: AssistantError; cooldown?: AiCooldown }> {
+  const headers = aiRequestHeaders();
+  const requestId = headers['X-Request-Id'];
   let response: Response;
   try {
     response = await fetch(`${getSyncWorkerUrl()}/assistant`, {
       method: 'POST',
-      headers: aiRequestHeaders(),
+      headers,
       body: JSON.stringify({ text, context }),
     });
   } catch {
+    logger.info('assistant_offline', { module: 'ai-assistant', requestId });
     return { ok: false, error: 'offline' };
   }
 
   if (response.status === 503) return { ok: false, error: 'not_configured' };
   if (response.status === 429) return { ok: false, error: 'rate_limited', cooldown: await readCooldown(response) };
-  if (!response.ok) return { ok: false, error: 'failed' };
+  if (!response.ok) {
+    logger.warn('assistant_http_failed', { module: 'ai-assistant', requestId, status: response.status });
+    return { ok: false, error: 'failed' };
+  }
 
   try {
     return { ok: true, raw: await response.json() };
-  } catch {
+  } catch (err) {
+    logger.warn('assistant_body_parse_failed', { module: 'ai-assistant', requestId }, err);
     return { ok: false, error: 'failed' };
   }
 }
@@ -59,7 +67,12 @@ export async function requestAssistantIntents(
   const outcome = await postAssistant(text, context);
   if (!outcome.ok) return outcome;
   const parsed = parseAssistantIntents(outcome.raw);
-  if (!parsed.ok) return { ok: false, error: 'failed' };
+  if (!parsed.ok) {
+    // The model answered 200 but the payload failed schema validation — the
+    // exact "silent AI failure" class the audit flagged (OBS-3).
+    logger.warn('assistant_intent_parse_failed', { module: 'ai-assistant' });
+    return { ok: false, error: 'failed' };
+  }
   return { ok: true, intents: parsed.intents };
 }
 

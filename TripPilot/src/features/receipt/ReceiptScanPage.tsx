@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
+import { logger } from '@/utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { compressImageFile, blobToDataUrl, type CompressedImage } from '@/utils/image/compress';
@@ -286,7 +287,7 @@ export function ReceiptScanPage() {
         setPhase('review');
       }
     } catch (err) {
-      console.error('[receipt-scan] read failed', err);
+      logger.error('receipt_read_failed', { module: 'receipt-scan' }, err);
       showToast(t('receiptScan.error_failed'), 'danger');
       setPhase('capture');
     }
@@ -373,7 +374,7 @@ export function ReceiptScanPage() {
       });
       navigate('/expenses');
     } catch (err) {
-      console.error('[receipt-scan] commit failed', err);
+      logger.error('receipt_commit_failed', { module: 'receipt-scan' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);

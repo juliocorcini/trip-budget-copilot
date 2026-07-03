@@ -1,5 +1,6 @@
 import { db } from '@/data/db/database';
 import { APP_SETTINGS_ID, createDefaultAppSettings } from '@/data/db/seed';
+import { logger } from '@/utils/logger';
 import type { AppSettings } from '@/domain/types/app-settings';
 
 class AppSettingsRepository {
@@ -102,10 +103,7 @@ class AppSettingsRepository {
     if (updated.activeTrip == null) {
       const recovered = await this.findRecoverableTripId();
       if (recovered) {
-        console.warn(
-          '[appSettings] refused to persist activeTrip:null while trips exist — recovered to',
-          recovered,
-        );
+        logger.warn('active_trip_null_recovered', { module: 'app-settings-repository', recovered });
         updated.activeTrip = recovered;
       }
     }

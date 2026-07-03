@@ -1,6 +1,7 @@
 import { getSyncWorkerUrl } from './config';
 import { importSessionKey, decryptBytes } from './crypto';
 import { checkImageBytes, type ImageRef } from '@/domain/media';
+import { logger } from '@/utils/logger';
 
 /**
  * DEC-348 (G2, this wave — REVERSES the DEC-342/343 image E2E) — the ONLY place
@@ -56,8 +57,12 @@ export async function uploadImage(
       headers: { 'Content-Type': mime, 'X-Img-TTL': String(IMG_TTL_SECONDS) },
       body: new Blob([bytes], { type: mime }),
     });
-    if (!res.ok) return { ok: false, reason: 'network' };
-  } catch {
+    if (!res.ok) {
+      logger.warn('image_upload_rejected', { module: 'media-link', status: res.status });
+      return { ok: false, reason: 'network' };
+    }
+  } catch (err) {
+    logger.warn('image_upload_failed', { module: 'media-link' }, err);
     return { ok: false, reason: 'network' };
   }
   return { ok: true, ref: { r2Id, mime, w: dims.width, h: dims.height } };

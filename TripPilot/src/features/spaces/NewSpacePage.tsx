@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
+import { logger } from '@/utils/logger';
 import { useAppData } from '@/hooks/useAppData';
 import { createOnboardingEntities } from '@/domain/onboarding';
 import { createDefaultActivityProfiles } from '@/domain/profiles';
@@ -94,7 +95,7 @@ export function NewSpacePage() {
       showToast(t('spaces.created', { name: trimmed }), 'success');
       navigate('/dashboard');
     } catch (err) {
-      console.error('[spaces] create failed', err);
+      logger.error('space_create_failed', { module: 'spaces' }, err);
       showToast(t('spaces.create_error'), 'danger');
       setSubmitting(false);
     }

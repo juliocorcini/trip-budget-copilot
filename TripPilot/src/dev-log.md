@@ -1,5 +1,157 @@
 # Dev Log — TripPilot Implementation
 
+## Mega-leva "Observabilidade + Rate Limit + PWA fallback" (2026-07-03) — base `2.1.4-rc` → `2.2.0-rc` — ✅ CONCLUÍDA (deploy único · DEC-439→444 SHIPPED)
+
+> Fecha TODO o backlog restante do audit `brain/documents/2026-07-03-observability-security-pwa-audit.md` numa leva única ("fazer todas as levas de uma vez" — Julio): **SEC-2** rate limit de borda, **SEC-4** CORS allowlist no admin, **OBS-1/2** logger estruturado nos dois runtimes + migração dos console, **OBS-3** varredura dos catch de negócio, **OBS-4** `X-Request-Id` ponta a ponta, **PWA-1/2** fallback de instalação ativo. Orquestrador: `brain/documents/2026-07-03-observability-ratelimit-pwa-orchestrator.md`. Fora (deliberado): OBS-5/OpenTelemetry (audit D.11), CSP completa (Â-CSP-INCREMENTAL), catches de transporte best-effort.
+
+### ÂNCORAS (novas desta leva)
+- **Â-NO-PII-LOGS**: log NUNCA carrega `text`/`imageDataUrl`/`audioBase64`/`key`/`writeToken`/`token`/`authorization`/`pin`/valores/nomes. Denylist automática no logger do app + scrub de dígitos 4+ (requestId exempt); paths de share nos logs do worker viram TEMPLATE (`/share/:id`).
+- **Â-SWALLOW-BUT-LOG**: a UX "nunca estoura" fica intacta — catches continuam engolindo, mas a camada de NEGÓCIO loga antes (warn/error). Guardas triviais e contratos-null continuam mudos.
+- **Â-TELEMETRY-NO-LOOP**: `utils/telemetry.ts` e `utils/error-report.ts` seguem 100% silenciosos — logar o pipeline de erro cria loop.
+- **Â-RL-FAIL-OPEN**: limiter indisponível → allow (e loga `rate_limiter_error`). Reads (GET share/statement/img, drain, WS) SEM limite — o live split não pode quebrar.
+- **Â-CRASH-BUFFER-SANE**: só `error`/`fatal` gravam no crash buffer (10 entradas, alimenta `isCrashLooping`); `warn` é dev-only. ErrorBoundary loga `warn` (não `error`) porque já tem `recordCrash` próprio — sem dupla contagem.
+
+### CURRENT STATE
+- **Active gate**: **LEVA CONCLUÍDA — DEC-439→444 shipped `2.2.0-rc`.** Worker **`trippilot-sync` Version `85edfeed`** (2 deploys: o 2º adicionou log de falha do limiter). Pages **`6d4ec69e`** (conta pessoal **e146e88b**). Apex verde: `/version.json`=**2.2.0-rc**, `/bundles/2.2.0-rc.zip` **200**, `/trippilot.apk` **8.469.341 B** (landmine evitada de novo: `fetch-live-apk` re-rodado DEPOIS do `make-ota-bundle`), headers de segurança da leva anterior presentes, `sw.js` = **trippilot-v80**.
+- **Probes ao vivo**: (1) 30 POSTs numa conexão reutilizada em `/assistant` → hits 1–20 `400 bad_text`, **21+ → 429 `assistant_rate_limited`** (shape `aiUnavailable` que o cliente já trata; ATENÇÃO: counters são por-colo — bursts por conexões novas podem espalhar entre colos e demorar mais pra tripar). (2) `X-Request-Id: probe-mega-leva-0001` → **ecoado** no response header. (3) `/admin/overview` com `Origin: evil.example` → **sem ACAO** + `Vary: Origin`; origem allowlisted → echo. (4) `wrangler tail` mostra 1 JSON por request com `requestId/installId/method/route/status/durationMs`.
+- **Tests**: **2995 pass / 2995** (Node 22; +23 novos: `logger.test.ts` 9, `worker-logger.test.ts` 6, `install-guide.test.ts` 8) + 1 teste adaptado (`use-app-data-error` asserta `logger.error` em vez de console spy). `tsc` app+worker limpos. Build + OTA bundle verdes.
+- **Scope**: worker (`wrangler.jsonc` ratelimits, `src/logger.ts` NOVO, `src/index.ts` middleware/rotas), app (`utils/logger.ts` NOVO, `features/install/install-guide.ts` NOVO, `InstallOptions.tsx`, `data/sync/config.ts` requestId, 4 boundaries de IA, 4 orchestrators, `media-link`/`share-client`, 13 arquivos da migração console→logger, i18n ×3 `install.guide.*`) + versionamento (package/version/app-version/release-notes/sw v80).
+- **Last commit**: NENHUM — o tree acumula Field v2.1 + Endurecimento + esta leva, todas deployadas; commitar é decisão do Julio.
+- **Follow-up conhecido**: `make-ota-bundle` também copia o APK de DEBUG (17 MB) pra `Downloads/TripPilot-2.2.0-rc.apk` — aquele arquivo local NÃO é o de produção (o publicado no apex está certo, 8.4 MB).
+
+### Frente SEC-2 — rate limit nativo (done 2026-07-03) — worker `85edfeed` (DEC-439)
+- **Why**: proxies Groq públicos sem limite = um loop de retry ou abusador queima o RPD grátis de todos; writes de share/mailbox/img custam duração de DO.
+- **Fix**: binding `ratelimits` GA (custo zero) — `RL_AI` 20/min, `RL_INGEST` 30/min, `RL_SHARE_WRITE` 60/min; chave `installId||CF-Connecting-IP`; fail-open logado; 429 no shape do cooldown existente (FB-26). Reads/WS sem limite.
+- **5-point**: (1) AC — 429 ao vivo no 21º hit; leituras ilimitadas. (2) Regressão — live split polling intacto (GET sem limite); cooldown UI já tratava 429. (3) Suíte verde. (4) Fora de escopo: nenhum. (5) dev-log + DEC-439.
+
+### Frente SEC-4 — admin CORS allowlist (done 2026-07-03) — worker `85edfeed` (DEC-440)
+- **Why**: `/admin/*` herdava o CORS `*` global — com bearer no ar, qualquer origem poderia ler resposta admin.
+- **Fix**: `withAdminCors` (echo só de allowlist + `Vary: Origin`) em respostas E preflights do `/admin/*`; rotas públicas mantêm `*` (WebView/guest dependem).
+- **5-point**: (1) AC — probes evil/allowlisted ao vivo. (2) Regressão — dashboard admin segue no apex (origem allowlisted). (3) `tsc` limpo. (4) Nenhum. (5) dev-log + DEC-440.
+
+### Frente OBS-1/2 — logger estruturado + migração console (done 2026-07-03) — `2.2.0-rc` (DEC-441)
+- **Why**: worker cego (1 console em 2.185 linhas), app com 25 consoles sem esquema/mascaramento; prod sem trilha nenhuma.
+- **Fix**: `worker/src/logger.ts` (JSON p/ Workers Logs + `routeTemplate`) + middleware de request; `src/utils/logger.ts` (núcleo puro `buildLogEntry`, denylist PII, scrub, error/fatal→crash buffer→`/e`, console silencioso em prod, mudo em MODE=test); 25 consoles migrados.
+- **5-point**: (1) AC — 1 JSON/request no tail; zero console de produto fora do logger (`rg` limpo). (2) Regressão — ErrorBoundary sem dupla contagem no buffer; telemetry/error-report intocados. (3) 15 testes novos de esquema/mascaramento. (4) Nenhum. (5) dev-log + DEC-441.
+
+### Frente OBS-3 — catch sweep de negócio (done 2026-07-03) — `2.2.0-rc` (DEC-442)
+- **Why**: 237 catches mudos; os de negócio escondem falha real de entrega (marca do guest que não chegou, handshake que não pareou).
+- **Fix**: boundaries de IA logam HTTP/parse-fail (warn+requestId) e offline (info); orchestrators mailbox/p2p/share-link/sync logam antes de engolir; media-link upload warn. Transporte best-effort e contratos-null seguem mudos (Â-SWALLOW-BUT-LOG).
+- **5-point**: (1) AC — cada catch de negócio tem `logger.*` antes do return. (2) Regressão — nenhum catch deixou de engolir; contratos de retorno idênticos. (3) Suíte verde. (4) Nenhum. (5) dev-log + DEC-442.
+
+### Frente OBS-4 — X-Request-Id ponta a ponta (done 2026-07-03) — `2.2.0-rc` + worker (DEC-443)
+- **Why**: impossível cruzar um erro do app com a request do worker.
+- **Fix**: `newRequestId()` no `aiRequestHeaders()`; worker adota id são, loga e ecoa; boundaries logam o mesmo id; `Access-Control-Expose-Headers` inclui `X-Request-Id`.
+- **5-point**: (1) AC — echo ao vivo verificado. (2) Regressão — headers extras não quebram CORS (probe OK). (3) Testes de logger cobrem requestId exempt do scrub. (4) Nenhum. (5) dev-log + DEC-443.
+
+### Frente PWA-1/2 — fallback de instalação ativo (done 2026-07-03) — `2.2.0-rc` (DEC-444)
+- **Why**: quando `beforeinstallprompt` não vem (heurísticas/browser sem suporte), o card era um hint estático morto — a queixa original do Julio.
+- **Fix**: botão que tenta `install()` e, se `unavailable`, expande passo-a-passo numerado do navegador detectado (`install-guide.ts` puro: chrome/edge/samsung/firefox-android, desktop, generic) com i18n pt/en/es (`install.guide.*`); `shortcut_note` nova. iOS mantém infográfico.
+- **5-point**: (1) AC — 8 testes (mapeamento + toda chave i18n existe nas 3 línguas). (2) Regressão — fluxo `available=true` intacto; APK primário no Android intacto. (3) Suíte verde. (4) Nenhum. (5) dev-log + DEC-444.
+
+---
+
+## Leva "Endurecimento — headers de segurança + admin token + conversor" (2026-07-03) — base `2.1.3-rc` → `2.1.4-rc` — ✅ CONCLUÍDA (deploy único · DEC-436→438 SHIPPED)
+
+> 1ª leva cirúrgica da auditoria `brain/documents/2026-07-03-observability-security-pwa-audit.md` (segurança/conversor/PWA/observabilidade). Escolha do Julio (AskQuestion): implementar os 3 itens de melhor esforço/valor — **SEC-1** headers de segurança globais, **SEC-3** compare constante-no-tempo do `ADMIN_TOKEN`, **BUG-CONV** `min-w-0` no conversor. Orquestrador: `brain/documents/2026-07-03-security-converter-hardening-orchestrator.md`. **SEC-2 (rate limit), OBS-1..5 (logger estruturado) e PWA-1 (fallback ativo de instalação) ficam para as próximas levas.**
+
+### ÂNCORAS (novas desta leva)
+- **Â-CSP-INCREMENTAL**: anti-clickjacking já (`frame-ancestors 'none'` + `X-Frame-Options: DENY`, seguro — nada embute o app); **CSP completa (`script-src`/`style-src`) só em gate dedicado com testes** (estilos inline + Google Fonts quebrariam). `Permissions-Policy` SEMPRE libera `geolocation`/`microphone`/`camera` para `self` — o app usa GPS, voz e câmera.
+
+### CURRENT STATE
+- **Active gate**: **LEVA CONCLUÍDA — DEC-436→438 shipped `2.1.4-rc`.** Deploy Pages **direto** `8e889c05` (`wrangler pages deploy dist --project-name=trippilot --branch=master`, conta **e146e88b** — a pessoal; a OAuth tem 2 contas e a Febracorp `9dfdd1a5` dá "Project not found"). Worker **`trippilot-sync` Version `d36cdb89`** (`npx wrangler deploy`). Apex verde: `/version.json`=**2.1.4-rc**, os **6 headers de segurança** presentes no apex (`x-frame-options: DENY`, `content-security-policy: frame-ancestors 'none'`, `x-content-type-options: nosniff`, `referrer-policy: strict-origin-when-cross-origin`, `permissions-policy: geolocation=(self), microphone=(self), camera=(self)`, `strict-transport-security`), `/version.json` **mantém** `access-control-allow-origin: *` (OTA nativo intacto), `/bundles/2.1.4-rc.zip` **200 application/zip**, `/trippilot.apk` **8.469.341 bytes** (shell 0.56.0 preservado — `fetch-live-apk` re-rodado DEPOIS do `make-ota-bundle`, que republica o `app-debug.apk` local de 17 MB), entry JS `index-BJDDFmwJ.js` embute **2.1.4-rc**, `sw.js` = **trippilot-v79**. Probes admin: sem token → **401**, token errado → **401**.
+- **Last commit**: NENHUM nesta leva — o working tree já tinha a leva Field v2.1 (`2.1.3-rc`) não commitada; commitar tudo junto (ou separado) é decisão do Julio. Deploy foi direto do `dist/` (padrão das últimas levas).
+- **Tests**: **2972 pass / 2972** (suíte inteira no Node 22 — no Node 18 os 2 de `split-live-loop` falham por falta de `crypto.subtle`, ambiente e não regressão). `tsc --noEmit` limpo (app e worker). `build:pages` verde. Sem testes novos: SEC-1 é config Pages (não testável em Vitest; verificado por curl ao vivo), SEC-3 é troca de compare (verificado por probe 401), BUG-CONV é CSS (verificado por build + smoke).
+- **Scope**: 3 arquivos de produto (`public/_headers`, `worker/src/index.ts`, `ConverterPage.tsx`) + versionamento (`package.json`, `version.json`, `app-version.ts`, `release-notes.ts`, `sw.js` v79).
+
+### Frente SEC-1 — headers de segurança globais (done 2026-07-03) — `2.1.4-rc` (DEC-436)
+- **Why**: auditoria confirmou **zero** headers de segurança em todo o projeto — app inteiro iframeável (clickjacking), inclusive `/s/:id` e `/g/:id` que mostram saldos.
+- **Fix**: bloco `/*` no `public/_headers` — `X-Frame-Options: DENY`, `CSP: frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: geolocation=(self), microphone=(self), camera=(self)`, `HSTS max-age=31536000; includeSubDomains`. Blocos CORS OTA intactos.
+- **5-point**: (1) AC — 6 headers no apex ao vivo, CORS do `/version.json` preservado. (2) Regressão — Â-CSP-INCREMENTAL (sem CSP completa); GPS/voz/câmera liberados p/ self; OTA nativo (fetch cross-origin do manifest) não usa iframe → intacto. (3) Suíte verde. (4) Fora de escopo: nenhum. (5) dev-log + DEC-436.
+
+### Frente SEC-3 — `safeEqual` no admin (done 2026-07-03) — worker `d36cdb89` (DEC-437)
+- **Why**: `token !== env.ADMIN_TOKEN` sai no primeiro byte diferente → timing side-channel teórico no único gate do `/admin/*`.
+- **Fix**: `safeEqual(a,b)` (length-check + XOR acumulado) em `worker/src/index.ts`, usado no `handleAdmin`. Espelha `timingSafeEqualHex` do app-lock.
+- **5-point**: (1) AC — 401 sem token e com token errado (probes ao vivo pós-deploy). (2) Regressão — nenhuma rota/contrato mudou; token certo continua passando (mesma semântica de igualdade). (3) `tsc` worker limpo. (4) Fora de escopo: nenhum. (5) dev-log + DEC-437.
+
+### Frente BUG-CONV — seletor de moeda dentro do viewport (done 2026-07-03) — `2.1.4-rc` (DEC-438)
+- **Why**: relato de campo — na página de conversão o seletor de moeda saía do viewport. Root cause: flex item com `min-width:auto` + `<select>` intrinsecamente largo (nomes localizados DEC-423, ex. "🇧🇷 BRL · real brasileiro") → a linha de 3 filhos estourava os 430px.
+- **Fix**: `min-w-0 w-full` no `selectClass` + `min-w-0` nos dois wrappers `flex-1` (`ConverterPage.tsx`). Nenhuma mudança de comportamento/matemática.
+- **5-point**: (1) AC — selects encolhem abaixo do conteúdo intrínseco; sem scroll horizontal. (2) Regressão — Â-DATA-INVARIANCE (só classes CSS); `converter.test.ts` verde. (3) Build verde. (4) Fora de escopo: nenhum. (5) dev-log + DEC-438.
+
+## Leva "Field v2.1 — local do estabelecimento + cotação automática" (2026-07-02) — base `2.1.2-rc` → `2.1.3-rc` — ✅ CONCLUÍDA (deploy único · DEC-434→435 SHIPPED)
+
+> Novo review de campo do Julio em uso real (decisões via AskQuestion): (1) o **mapa acerta o ponto**, mas o campo **"local"** fica só a **cidade** ("Burgos") — o estabelecimento só aparecia na **descrição**, que deveria ser pra **o que** comprou; (2) **"Âncora mental"** é um nome horrível; (3) pede **taxa fixa** de câmbio, sendo que deveria ser **sempre automática**; (4) o **conversor** precisa já ter as **principais** prontas antes de entrar e converter qualquer→qualquer **sem botão**. Escolhas do Julio: renome = **"Ver na minha moeda"**; cotação = **automática** (manual só offline); descrição do Wise = **mantida**; escopo = **as 3 frentes + testes + deploy**. **Nenhuma mudança no worker** — tudo device/Pages (OTA), **deploy único** `2.1.3-rc`.
+
+### ÂNCORAS (novas desta leva)
+- **Â-PLACE-REAL**: o campo "local" mostra o **estabelecimento real** — no import derivamos o nome do merchant (tirando a cidade) e no geocode **promovemos** ao nome do OSM; um rótulo **verificado pelo usuário** (`placeNameSource='user'`) é **intocável**. Nunca inventamos nome; sem lugar → cai na cidade.
+- **Â-FX-AUTO-SAFE**: a cotação é **automática** a partir do snapshot FX vivo, mas o refresh é **best-effort/offline-safe** (nunca bloqueia, nunca lança) e a **taxa manual** continua como **fallback offline**. Nenhuma conversão fica sem taxa quando existe manual OU snapshot.
+
+### CURRENT STATE
+- **Active gate**: **LEVA CONCLUÍDA — DEC-434→435 shipped `2.1.3-rc`.** Deploy Pages **direto** `38da0627` (`wrangler pages deploy dist --project-name=trippilot --branch=master`, `CLOUDFLARE_ACCOUNT_ID` setado). Apex `trippilot.pages.dev` verde: `/version.json`=**2.1.3-rc** (apex **e** deployment), `/bundles/2.1.3-rc.zip` **200 application/zip**, `/trippilot.apk` **200** = **8.469.341 bytes** (shell verificado), entry JS embute **2.1.3-rc** (build fresco, sem stale).
+- **Last commit**: esta leva (Field v2.1 local/estabelecimento + cotação auto, `2.1.3-rc`, DEC-434→435). Base `2.1.2-rc` (leva Field v2 maps/money/clarity).
+- **Tests**: **2972 pass / 2972** (suíte inteira verde no Node 22). +17 nesta leva: `wise-import.test.ts › extractMerchantName` (5) + asserção do commit atualizada (`placeLabel='Dulcycor'`, `description='Dulcycor VILLATORO'`, `placeNameSource='auto'`), `save-location.test.ts › chooseGeocodedLabel` (4), `anchor.test.ts › anchorRateFromSnapshot` (5) + `resolveAnchorRate` (3). `language-sweep`/`group-split-keys` (paridade i18n) verdes. `tsc --noEmit` limpo; `build:pages` verde.
+- **Scope**: 3 frentes (local, moeda/cotação, conversor), tudo device/Pages. **Worker NÃO mudou.** APK **não** promovido — `fetch-live-apk.mjs` re-rodado **depois** do `build:pages` (que passa pelo `make-ota-bundle` — o qual republica o `app-debug.apk` local de 17 MB); `ls -la dist/trippilot.apk` confirmou ~8,47 MB antes do deploy.
+- **DEC-431 (barra de rolagem no APK)**: **root-caused + fix no fonte 2026-07-02** (ver Follow-up abaixo) — não é deploy Pages; aguarda build+install no device do Julio.
+
+### Frente A — "local" do gasto = estabelecimento (done 2026-07-02) — `2.1.3-rc` (DEC-434)
+- **Why**: import Wise (e outros) gravava a **cidade** no `placeLabel` e jogava o merchant completo na **descrição**; o mapa geocodificava certo mas o "local" lido pelo usuário ficava "Burgos".
+- **Fix**: (1) `domain/import/wise-import.ts › extractMerchantName(merchant)` — função **pura**, complemento do `extractCity`: remove o(s) token(s) de cidade em CAIXA-ALTA do fim ("Confiteria Juarreno BURGOS" → "Confiteria Juarreno"; retorna `null` se sobrar só cidade). (2) `domain/orchestrators/import-orchestrators.ts › commitWiseImport` grava `placeLabel = extractMerchantName(draft.merchant) ?? draft.city` e marca `tx.placeNameSource='auto'` (descrição segue com o texto do Wise). (3) `domain/location/save-location.ts › chooseGeocodedLabel({currentLabel,currentSource,resolvedLabel})` — **pura**: rótulo `'user'` é sagrado; `'auto'`/vazio é **promovido** ao nome real do OSM; `features/location/stamp-expense-location.ts` usa isso no forward-geocode em background.
+- **5-point**: (1) **AC** — Wise import mostra o estabelecimento no "local"; geocode promove; rótulo do usuário preservado. (2) **Regressão** — Â-PLACE-REAL (nunca inventa; sem lugar → cidade); descrição mantida (escolha do Julio). (3) **+9 testes** (`extractMerchantName` 5, `chooseGeocodedLabel` 4) + asserção do commit corrigida; suíte verde. (4) **Fora de escopo**: nenhum. (5) dev-log + DEC-434 SHIPPED.
+
+### Frente B — cotação automática app-wide + "Ver na minha moeda" (done 2026-07-02) — `2.1.3-rc` (DEC-435)
+- **Why**: "Âncora mental" = nome ruim; a taxa era **fixa/manual** (nunca atualizava) e o gasto estrangeiro pedia digitar a cotação; o conversor não pré-carregava as principais.
+- **Fix**: (1) **renome** i18n pt/en/es (`settings.anchor_title`→"Ver na minha moeda"/"See in my currency"/"Ver en mi moneda"; `anchor_hint` reescrito; `anchor_auto`/`anchor_manual_fallback` novos; `expenses.exchange_rate_frozen`→`exchange_rate_auto`). (2) `domain/money/anchor.ts › anchorRateFromSnapshot(snapshot,base,anchor)` (inverso de `ratesToBase[anchor]`) + `resolveAnchorRate(...)` (auto do snapshot, **fallback manual offline**); call sites QuickAdd/ExpenseDetail/Outing/Settings usam `resolveAnchorRate`. (3) `QuickAddPage.tsx`: gasto estrangeiro → `effectiveRate = manual ?? frozen`, campo manual começa vazio (placeholder = taxa auto) e `needsRate` só sem nenhuma taxa. (4) `hooks/useAppData.ts`: **warm-up global** — online + snapshot vencido (>12h; ausente conta vencido) → `fetchExchangeRates(base)` best-effort, 1×/mount (`fxWarmedRef`), atualiza `appSettingsRepository`+state. (5) `features/converter/ConverterPage.tsx`: sempre inclui `MAJOR_CURRENCY_CODES` nas moedas → any→any em 1 toque.
+- **5-point**: (1) **AC** — âncora/gasto estrangeiro/conversor usam taxa auto; manual só override/offline; conversor com principais prontas. (2) **Regressão** — Â-FX-AUTO-SAFE (warm-up nunca bloqueia/lança; manual fallback); **relaxa DEC-128** (manual→auto) e **estende DEC-423/ÂNCORA 10** (refresh do conversor → app inteiro). (3) **+8 testes** (`anchorRateFromSnapshot` 5, `resolveAnchorRate` 3); suíte verde. (4) **Fora de escopo**: nenhum. (5) dev-log + DEC-435 SHIPPED.
+
+### Follow-up — DEC-431 barra de rolagem no APK: **root cause = scrollbar NATIVA do WebView** (fix no fonte 2026-07-02, aguarda build no device)
+- **Investigação**: o APK carrega o web via **OTA (Capgo)** e serve o web **atual** quando o shell é recente (`requiredNativeVersion` publicado = `0.50.0`) → num aparelho em dia o CSS blindado **já roda**. A barra restante é a que o **Android System WebView desenha para a view toda** — `::-webkit-scrollbar` só esconde barras de nós **DOM**, nunca o track **nativo** do WebView. A `MainActivity` já matava o overscroll (item 13) mas **não** as scrollbars nativas.
+- **Fix (aplicado no fonte)**: `MainActivity.java` (mesmo bloco do overscroll) → `webView.setVerticalScrollBarEnabled(false)` + `setHorizontalScrollBarEnabled(false)` (API de `View`, inalcançável por CSS). Bump nativo `versionCode 22→23`, `versionName "0.69.0"→"0.70.0"` (`app/build.gradle`) pra instalar in-place + o nudge in-app reconhecer.
+- **Por que não deu deploy aqui**: este WSL **não tem** Android SDK/`gradlew`/sdkmanager → **não compila APK**. `version.json.latestNativeVersion` deixei **intocado** (mexer antes do APK existir cutucaria o app pra um APK 404) — sobe pra `0.70.0` junto com a publicação.
+- **Hand-off (device do Julio, Android Studio/SDK)**: `cd TripPilot && npm run build && npx cap sync android` → build (Android Studio ou `./gradlew assembleDebug`) → `node scripts/make-ota-bundle.mjs` → bump `version.json.latestNativeVersion="0.70.0"` → `wrangler pages deploy dist ...` → **instalar o APK novo** e confirmar a barra sumida. `style-hygiene.test.ts` (web) segue verde; a mudança é Java nativo (sem teste automatizado neste ambiente).
+
+## Leva "Field v2 — satélite com rótulos + verdade do dinheiro + mapa/cluster + acerto" (2026-07-01) — base `2.1.0-rc`/`2.1.1-rc` → `2.1.2-rc` — ✅ CONCLUÍDA (G1→G5 shipped num único bump · DEC-426→430 SHIPPED · DEC-431 deferido)
+
+> Orquestrador: `brain/documents/2026-07-01-field-v2-maps-money-clarity-orchestrator.md` (gates **G1→G5**, **DEC-426→430**). Novo review de campo do Julio refinando a leva anterior: (1) satélite "cego" sem rótulos; (2) **5 números** de dinheiro confusos + bug 5-vs-14 (mesmo dia mostra 5 no Home e 14 na tela por-dia); (3) `/mapa` só achável pela busca; (4) cluster só dá zoom; (5) mover dívida pra conectado some sem explicar. **Nenhum gate toca o worker** — tudo device/Pages (OTA). Como `2.1.1-rc` foi consumido pela leva-irmã Tricount/Pix, os 5 gates foram num **deploy único** `2.1.2-rc`.
+
+### ÂNCORAS (novas desta leva)
+- **Â-MONEY-READING-CONSISTENT**: "quanto posso gastar hoje" tem **UM** herói ("Livre para usar hoje") e é **idêntico** em Home/por-dia (bit-a-bit). O cap do cofrinho (DEC-415) vale pra **toda** superfície do "livre do dia". Corrigir a leitura **nunca** muda o total (`baseFree` intacto).
+- **Â-MAP-COORDS-REAL**: o mapa só mostra/usa coordenada **real** — o agregador de cluster reusa a coord do lugar-topo (real), **nunca** um centroide inventado. Satélite/rótulos/tiles = best-effort, offline-safe, nunca bloqueiam.
+- **Â-DEBT-SYNC-SAFE**: nenhuma operação de mover dívida **dessincroniza** o device de um peer conectado — o caminho pra conectado é **accept-first** (cobrança que a pessoa aceita); **nenhum share é flipado** no device alheio.
+
+### CURRENT STATE
+- **Active gate**: **LEVA CONCLUÍDA — G1→G5 shipped `2.1.2-rc`.** Deploy Pages **direto** `2ee3a0b2` (`wrangler pages deploy dist --project-name=trippilot --branch=master`). Apex `trippilot.pages.dev` verde: `/version.json`=**2.1.2-rc** (apex **e** deployment), `/bundles/2.1.2-rc.zip` **200 application/zip**, `/trippilot.apk` **200** = **8.469.341 bytes** (shell verificado), entry JS `index-CWyLYTbH.js` embute **2.1.2-rc** (build fresco, sem stale).
+- **Last commit**: esta leva (Field v2 maps/money/clarity, `2.1.2-rc`, DEC-426→430) — push `master` a seguir. Base `2.1.1-rc` (leva Tricount/Pix).
+- **Tests**: **2956 pass / 2956** (suíte inteira verde no Node 22 — os 2 `split-live-loop` WebCrypto passam aqui). +15 nesta leva: `allowance-map.test.ts › DEC-427` (5, teste-âncora consistência+invariância), `expense-map.test.ts › combineMapPoints` (6), `debt-movement.test.ts › classifyMoveDestination` (4); `tile-layers.test.ts` estendido (G1). `language-sweep`/`group-split-keys` (paridade i18n) verdes. `tsc --noEmit` limpo; `build:pages` verde.
+- **Scope**: G1–G5, tudo device/Pages. **Worker NÃO mudou.** APK **não** promovido (re-fetch do shell verificado ~8,47 MB **depois** do `make-ota-bundle` — que republica o `app-debug.apk` local de 17 MB; disciplina do dev-log reafirmada nesta leva).
+- **⚠️ tooling git**: `git commit` neste ambiente intercepta `--trailer` (git 2.25.1) → usar `/usr/bin/git` direto **ou** plumbing; nunca escrever msg dentro de `.git`.
+- **Deferido**: **DEC-431** (barra de rolagem no **APK**) — é rebuild nativo (Capacitor) + reinstalar, device-dependente; não entra num deploy Pages. Fica pra uma sessão com o aparelho do Julio (Gops).
+
+### Gate G1 — Satélite com rótulos + nome no ponto (done 2026-07-01) — `2.1.2-rc` (DEC-426)
+- **Why**: satélite só mostrava imagem (sem nome de rua/lugar); tocar o pin não dizia o lugar.
+- **Fix**: `features/location/tile-layers.ts` → `SATELLITE_REFERENCE_TILES` (Esri `World_Boundaries_and_Places` + `World_Transportation`, mesmo `{z}/{y}/{x}`); `createTileLayer('satellite')` devolve um `L.LayerGroup` (imagery + referências) e o tipo de retorno vira `L.Layer`; `'street'` segue `L.TileLayer`. `tileRef` em `ExpenseLocationMap.tsx`/`ExpenseMapPage.tsx` → `L.Layer`. Pin do detalhe ganha `.bindPopup(label)` (nome geocodificado ao tocar).
+- **5-point**: (1) **AC** — satélite com rótulos + tocar pin → nome; toggle intacto; offline não quebra. (2) **Regressão** — Â-MAP-COORDS-REAL (só coord real); tiles best-effort; nada bloqueia; sem scrollbar no mapa. (3) **`tile-layers.test.ts` estendido** (URLs de referência + LayerGroup no satélite / TileLayer único na rua); tsc/build verdes. (4) **Fora de escopo**: nenhum. (5) **Regressão de teste pega no gate de ship**: o mock de Leaflet em `expense-location-map.test.tsx` não tinha `layerGroup` nem cadeia `addTo().bindPopup()` — mock endurecido (fiel ao Leaflet: `addTo`/`bindPopup` retornam `this`).
+
+### Gate G2 — Verdade do dinheiro: bug + herói único (done 2026-07-01) — `2.1.2-rc` (DEC-427, **invariante**)
+- **Why**: 5 números diários confusos + bug real (mesmo dia = 5 no Home, 14 na tela por-dia) porque `buildPhaseAllowanceMap` usava a cota **crua** enquanto `calculateTodayFreeBudget` capava hoje no ideal-base (cofrinho>0, DEC-415).
+- **Fix (ordem)**: (1) **bug** — `allowance-map.ts` recebe `piggyCap` e capa **só a célula de hoje** (`Math.min(cotaCrua, baseDailyIdeal)`), expondo `piggyParkedCents` (= diferença capada); `useDashboardModel.ts` computa `todayPiggyCap` **uma vez** e passa **o mesmo** pro herói e pro mapa (hoje==herói bit-a-bit). (2) **simplificar** — Home: herói único "Livre para usar hoje"; "Ritmo de hoje"/"Média até o fim" saem da manchete pro explicador do herói (rotuladas como **projeção**); explicador por-dia (`PhaseMapTabs`) ganha "guardado no cofrinho: €X".
+- **5-point**: (1) **AC** — 1 manchete; hoje(por-dia)==herói; explicador base+pico−gasto+cofrinho; i18n pt/en/es. (2) **Regressão/invariância** — `baseFree` intacto; nenhum total muda; cap só quando cofrinho>0; dias futuros crus. (3) **+5 teste-âncora** (`allowance-map.test.ts › DEC-427`: caracteriza o bug SEM cap, prova hoje==herói COM cap, parked=diferença, futuro cru, money-invariante); rhythm+allowance 55/55. (4) **Fora de escopo**: nenhum. (5) dev-log + DEC-427 SHIPPED.
+
+### Gate G3 — Pílula "Mapa" na toolbar de Gastos (done 2026-07-01) — `2.1.2-rc` (DEC-428)
+- **Why**: `/mapa` só achável pela busca do guia; faltava um botão na tela de Gastos.
+- **Fix**: 3ª pílula `Icon "map"` + `t('expenses.open_map_short')` em `ExpenseListPage.tsx` → `navigate('/mapa')`, mesmo padrão de Escanear/Importar; `data-open-map` pro E2E; i18n `expenses.open_map`/`open_map_short` (pt/en/es).
+- **5-point**: (1) **AC** — botão visível/rotulado abre `/mapa`; header não quebra. (2) **Regressão** — só navegação; nada de math; guia segue. (3) `language-sweep` (paridade) verde; rota `/mapa` confirmada no router. (4) **Fora de escopo**: reorg do topo em menu "+" = follow-up opcional (não feito). (5) dev-log + DEC-428 SHIPPED.
+
+### Gate G4 — Cluster: segurar = lista (done 2026-07-01) — `2.1.2-rc` (DEC-429)
+- **Why**: tocar a bolinha de N gastos só dava zoom; faltava ver a lista da bolinha.
+- **Fix**: agregador **puro** `domain/map/combineMapPoints(points)` — soma count+total, concatena txIds na ordem estável (maior-primeiro), coord representativa = do lugar-topo **real** (Â-MAP-COORDS-REAL), label `null` (cluster cruza lugares). `ExpenseMapPage.tsx`: tocar segue = zoom (padrão markercluster); `clustercontextmenu`/long-press agrega `getAllChildMarkers()` → `combineMapPoints` → mesmo `BottomSheet` paginado; pin individual também abre no `contextmenu`.
+- **5-point**: (1) **AC** — tocar=zoom, segurar=lista+total paginado; pin individual ok; sem scrollbar. (2) **Regressão** — zero math de dinheiro (só SOMA de `totalCents` existente); Â-MAP-COORDS-REAL. (3) **+6 testes** (`expense-map.test.ts › combineMapPoints`: soma, ordem determinística sob shuffle, coord-real-nunca-centroide, single/empty, integração com `buildExpenseMapPoints`); 14/14. (4) **Fora de escopo**: nenhum (agregador no domínio, wiring na página). (5) dev-log + DEC-429 SHIPPED.
+
+### Gate G5 — Mover dívida pra conectado: explicação honesta + atalho (done 2026-07-01) — `2.1.2-rc` (DEC-430, §7-B)
+- **Why**: peer conectado (Bruno) sumia do destino de "mover dívida" (DEC-414 filtra por `isPersonLocal`) sem explicar.
+- **Fix**: classificador **puro** `domain/splitting/classifyMoveDestination({isOwner,isSource,isLocal})` → `null`/`eligible`/`connected_peer`. `SharedExpensesPage`: destinos locais seguem elegíveis (mover); peers conectados ganham bloco honesto ("Conectados: cobre, não mova") + atalho `Cobrar {nome}` que fecha a sheet e abre a **cobrança P2P existente** (`shareDebtWithPeer`, DEC-345/346) **pré-preenchida** com o total selecionado. **Nenhum share flipado** no device alheio (Â-DEBT-SYNC-SAFE); feature completa (accept-first + trilha/undo cross-device) = onda futura.
+- **5-point**: (1) **AC** — usuário entende por que conectado não é destino direto + tem caminho; local-only intacto; i18n. (2) **Regressão** — nada dessincroniza (accept-first via fluxo já testado); guard de entrada (origem local) intacto. (3) **+4 testes** (`debt-movement.test.ts › classifyMoveDestination`: local=elegível, conectado=connected_peer/"por que não", owner/origem=null); `language-sweep` verde. (4) **Fora de escopo**: nenhum (classificador no domínio, UI reusa a cobrança existente). (5) dev-log + DEC-430 SHIPPED.
+
 ## Leva "Field v2 — Tricount de verdade + acerto com Pix/Wise" (2026-07-01) — base `2.1.0-rc` → `2.1.1-rc` — ✅ CONCLUÍDA (Gate A + Gate B shipped · Gate C verificado · DEC-432/433 SHIPPED)
 
 > Review de campo do Julio (uso real, estilo Tricount): (1) adicionar pessoas **depois** de lançar gastos mostrava "deve 0" falso; (2) quem deve não via **como pagar** o credor; (3) "checar admin — gente usando e não aparece". A+B = código puro + testes; C = verificação (sem código). **Nenhum gate toca math de dinheiro nem o worker** — tudo device/Pages (OTA). Deploy único do par A+B (`2.1.1-rc`).

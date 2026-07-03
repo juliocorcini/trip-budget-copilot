@@ -1,3 +1,4 @@
+import { logger } from '@/utils/logger';
 import {
   appSettingsRepository,
   participantRepository,
@@ -45,8 +46,9 @@ export async function resolveSelfShareName(settings?: AppSettings): Promise<stri
       const owner = participants.find((p) => p.isOwner && p.deletedAt === null);
       ownerName = owner?.name ?? null;
     }
-  } catch {
+  } catch (err) {
     // A read failure must never block a share — fall through to the settings name.
+    logger.warn('self_name_read_failed', { module: 'sync-orchestrators' }, err);
   }
   return resolveSelfName({
     ownerName,

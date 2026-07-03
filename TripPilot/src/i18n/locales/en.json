@@ -677,6 +677,7 @@
     "day_explain_base_amount": "A regular day's base",
     "day_explain_peak_delta": "Peak day",
     "day_explain_reserved": "Reserved for the day",
+    "day_explain_piggy_parked": "Kept in the piggy bank",
     "day_spent_more": "+{{count}} in other categories",
     "day_spent_none": "No categorized spending that day.",
     "day_spent_recent_hint": "Summary by category. The full list is in Recent expenses.",
@@ -802,6 +803,8 @@
     "event_ended": "{{name}} ended",
     "today_rhythm": "Today's rhythm: {{amount}}",
     "avg_until_end_flat": "Average until phase end: {{amount}}",
+    "hero_projections_title": "Projections",
+    "hero_projections_hint": "Pace estimates — not what you can spend today.",
     "event_today_portion": "+ {{amount}} from today's event",
     "savings_last_outing": "On your last {{profile}} outing you spent {{spent}} — {{saved}} below your usual ({{typical}})",
     "insight_detail_title": "How we got here",
@@ -987,7 +990,7 @@
     "currency_label": "Currency",
     "currency_base": "{{code}} (trip currency)",
     "exchange_rate_label": "1 {{currency}} = ? {{base}}",
-    "exchange_rate_frozen": "Frozen rate (editable)",
+    "exchange_rate_auto": "Automatic rate — edit only to override",
     "exchange_rate_required": "Enter the rate to convert the amount.",
     "choose_pool_hint": "Choose a allowance or pot to register the expense.",
     "fund_other_phases": "Allowances from other phases",
@@ -999,6 +1002,8 @@
     "search_placeholder": "Search expenses",
     "import_statement": "Import expenses and transfers",
     "import_statement_short": "Import",
+    "open_map": "See expenses on the map",
+    "open_map_short": "Map",
     "search_clear": "Clear search",
     "search_empty_title": "Nothing found",
     "search_empty_body": "No expense matches \"{{query}}\". Try another term.",
@@ -1752,10 +1757,12 @@
     "location_capture": "Record the location of expenses",
     "location_hint": "Optional. Uses GPS only when you log an expense, stays 100% on-device and is never sent.",
     "location_denied": "Location permission denied. Enable GPS for TripPilot in your Android settings.",
-    "anchor_title": "Mental anchor",
-    "anchor_hint": "Shows amounts in your home currency too (\"€20 ≈ R$124\"), with a manual rate — works offline.",
+    "anchor_title": "See in my currency",
+    "anchor_hint": "Shows amounts in your home currency too (\"€20 ≈ R$124\"). The rate updates automatically; a manual rate is only for offline.",
     "anchor_off": "Off",
     "anchor_rate_prefix": "1 {{base}} =",
+    "anchor_auto": "Automatic rate (updated {{date}})",
+    "anchor_manual_fallback": "Manual rate — used only offline, when no saved rate exists",
     "fx_title": "Exchange rates",
     "fx_hint": "Pull today's rates once (online) to convert foreign-currency expenses even offline. Base: {{base}}.",
     "fx_none": "No rates saved yet.",
@@ -2571,6 +2578,10 @@
     "move_debt_total": "Total to move",
     "move_debt_pick_dest": "Pick who to move to",
     "move_debt_confirm": "Move to {{name}}",
+    "move_debt_connected_title": "Connected: charge, don't move",
+    "move_debt_connected_help": "Handing the debt straight to a connected person would desync their device. Instead, record a charge they accept — the selected amount comes pre-filled.",
+    "move_debt_charge_cta": "Charge {{name}}",
+    "move_debt_charge_note": "{{name}}'s debt you're covering",
     "remove_person_action": "Remove person",
     "remove_person_title": "Remove {{name}}?",
     "remove_person_desc": "{{name}} will disappear from your lists. History is kept — past expenses and settlements still carry their name.",
@@ -2711,7 +2722,7 @@
     "pwa_cta": "Install from the browser",
     "pwa_note": "One tap: adds the icon to your home screen.",
     "shortcut_cta": "Add the home-screen shortcut",
-    "pwa_browser_hint": "To install, open in Chrome or Edge and use “Add to Home screen”.",
+    "shortcut_note": "Tap here: we try to install directly; if the browser won’t allow it, we show the steps.",
     "pwa_unavailable": "Your browser can’t offer automatic install right now.",
     "pwa_dismissed": "Install cancelled — you can try again anytime.",
     "ios_intro": "On iPhone/iPad, install from Safari in 2 steps:",
@@ -2739,7 +2750,44 @@
     "nudge_subtitle": "Home-screen icon, opens offline.",
     "nudge_cta": "See how",
     "nudge_never": "Don’t show again",
-    "footer_note": "Your data stays on your device. Installing just helps it open faster and protects it from automatic cleanup."
+    "footer_note": "Your data stays on your device. Installing just helps it open faster and protects it from automatic cleanup.",
+    "guide": {
+      "chrome_android": {
+        "title": "In Chrome (Android)",
+        "step1": "Tap the ⋮ menu in the top-right corner.",
+        "step2": "Tap “Add to Home screen” (or “Install app”).",
+        "step3": "Confirm with “Install” — the icon appears on your home screen."
+      },
+      "edge_android": {
+        "title": "In Edge (Android)",
+        "step1": "Tap the ⋯ menu in the bottom bar.",
+        "step2": "Tap “Add to phone”.",
+        "step3": "Confirm — the icon appears on your home screen."
+      },
+      "samsung_android": {
+        "title": "In Samsung Internet",
+        "step1": "Tap the ☰ menu in the bottom bar.",
+        "step2": "Tap “Add page to”.",
+        "step3": "Choose “Home screen” and confirm."
+      },
+      "firefox_android": {
+        "title": "In Firefox (Android)",
+        "step1": "Tap the ⋮ menu.",
+        "step2": "Tap “Add to Home screen”.",
+        "step3": "Confirm with “Add”."
+      },
+      "desktop": {
+        "title": "On desktop (Chrome/Edge)",
+        "step1": "Click the install icon at the end of the address bar.",
+        "step2": "Click “Install” in the confirmation popup."
+      },
+      "generic": {
+        "title": "In this browser",
+        "step1": "Open this page in Chrome or Edge (easiest install).",
+        "step2": "Open the browser menu.",
+        "step3": "Tap “Add to Home screen” and confirm."
+      }
+    }
   },
   "errors": {
     "boundary_title": "Something went wrong",

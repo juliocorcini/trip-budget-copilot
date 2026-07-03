@@ -9,6 +9,7 @@ import {
   rateAgeDays,
   isFxSnapshotStale,
   currencyFlag,
+  MAJOR_CURRENCY_CODES,
   parseLocaleNumber,
   toCents,
   formatMoney,
@@ -60,8 +61,11 @@ export function ConverterPage() {
   const queryFrom = (searchParams.get('from') ?? '').trim().toUpperCase() || null;
   const queryTo = (searchParams.get('to') ?? '').trim().toUpperCase() || null;
 
+  // DEC-434: always offer the majors (BRL/USD/EUR/CAD/CHF/GBP/JPY) so any→any is
+  // one tap even before a snapshot loads; the app-wide warm-up fills their rates.
   const currencies = converterCurrencies(frozen, [
     baseCurrency,
+    ...MAJOR_CURRENCY_CODES,
     ...wallets.map((w) => w.currency),
     ...(homeCurrency ? [homeCurrency] : []),
     ...(queryFrom ? [queryFrom] : []),
@@ -187,8 +191,12 @@ export function ConverterPage() {
     </option>
   );
 
+  // min-w-0 + w-full: a flex item defaults to min-width:auto, and a native
+  // <select> is intrinsically as wide as its longest option — with localized
+  // currency names (DEC-423) that pushed the row past the 430px viewport.
+  // min-w-0 lets the item shrink below its content width (DEC-438).
   const selectClass =
-    'flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold bg-surface-container text-on-surface outline-none appearance-none text-center';
+    'flex-1 min-w-0 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-surface-container text-on-surface outline-none appearance-none text-center';
 
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 pt-2 min-h-screen px-[var(--page-padding-x)]">
@@ -215,7 +223,7 @@ export function ConverterPage() {
         </div>
 
         <div className="flex items-end gap-2">
-          <div className="flex flex-1 flex-col gap-1.5">
+          <div className="flex flex-1 min-w-0 flex-col gap-1.5">
             <label className="text-[11px] font-semibold text-on-surface-faint">{t('converter.from_label')}</label>
             <select value={from} onChange={(e) => setFrom(e.target.value)} className={selectClass}>
               {currencies.map(currencyOption)}
@@ -229,7 +237,7 @@ export function ConverterPage() {
           >
             <Icon name="swap_horiz" size={20} className="text-primary" />
           </button>
-          <div className="flex flex-1 flex-col gap-1.5">
+          <div className="flex flex-1 min-w-0 flex-col gap-1.5">
             <label className="text-[11px] font-semibold text-on-surface-faint">{t('converter.to_label')}</label>
             <select value={to} onChange={(e) => setTo(e.target.value)} className={selectClass}>
               {currencies.map(currencyOption)}

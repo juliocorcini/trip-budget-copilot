@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
+import { logger } from '@/utils/logger';
 import { useAppData } from '@/hooks/useAppData';
 import { groupSplitRepository, peerLinkRepository } from '@/data/repositories';
 import { createGroupSplit, sendGroupInvite } from '@/domain/orchestrators';
@@ -207,7 +208,7 @@ export function GroupSplitListPage() {
       }
       navigate(`/groups/${event.id}`);
     } catch (err) {
-      console.error('[group-split] create failed', err);
+      logger.error('group_split_create_failed', { module: 'group-split' }, err);
       showToast(t('group_split.create_error'), 'danger');
       setSubmitting(false);
     }

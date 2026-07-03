@@ -2,6 +2,7 @@ import {
   appSettingsRepository,
   mailboxQueueRepository,
 } from '@/data/repositories';
+import { logger } from '@/utils/logger';
 import {
   getDeviceIdentity,
   getDevicePublicKeyB64,
@@ -136,8 +137,9 @@ export async function connectPeerFromIdentity(
   const result = await pairParticipantFromIdentity(identity, tripId);
   try {
     await sendConnectHandshake({ actorId: identity.actorId, publicKey: identity.pk ?? null, name: identity.name });
-  } catch {
+  } catch (err) {
     // Handshake is best-effort — the forward pairing already succeeded locally.
+    logger.warn('connect_handshake_failed', { module: 'mailbox-orchestrators' }, err);
   }
   return result;
 }
@@ -152,8 +154,9 @@ export async function linkConnectFromIdentity(
   if (result) {
     try {
       await sendConnectHandshake({ actorId: identity.actorId, publicKey: identity.pk ?? null, name: identity.name });
-    } catch {
+    } catch (err) {
       // Best-effort handshake; the local link already succeeded.
+      logger.warn('link_handshake_failed', { module: 'mailbox-orchestrators' }, err);
     }
   }
   return result;
@@ -229,6 +232,9 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
   try {
     messages = await drainMailbox(me.actorId);
   } catch {
+    // info (dev-only): the drain runs on every app-open/foreground, so being
+    // offline here is routine — the next drain retries. Not worth prod noise.
+    logger.info('mailbox_drain_failed', { module: 'mailbox-orchestrators' });
     return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0, invites: 0 };
   }
 

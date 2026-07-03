@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
+import { logger } from '@/utils/logger';
 import { useAppData } from '@/hooks/useAppData';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import {
@@ -184,7 +185,7 @@ export function OnboardingPage() {
     } catch (err) {
       // Partial state is impossible (the transaction rolled back) — let the
       // user simply tap Finish again instead of stranding them.
-      console.error('[onboarding] trip creation failed', err);
+      logger.error('onboarding_trip_create_failed', { module: 'onboarding' }, err);
       showToast(t('onboarding.create_error'), 'danger');
       setSubmitting(false);
       return;

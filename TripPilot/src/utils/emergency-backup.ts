@@ -1,6 +1,7 @@
 import { appSettingsRepository } from '@/data/repositories';
 import { buildFullBackup } from '@/domain/orchestrators';
 import { generateBackupFilename } from '@/domain/backup';
+import { logger } from '@/utils/logger';
 
 /**
  * BUG-017: last-resort data export from the ErrorBoundary recovery screen.
@@ -22,7 +23,7 @@ export async function downloadEmergencyBackup(): Promise<boolean> {
     URL.revokeObjectURL(url);
     return true;
   } catch (err) {
-    console.error('[emergency-backup] failed', err);
+    logger.error('emergency_backup_failed', { module: 'emergency-backup' }, err);
     return false;
   }
 }

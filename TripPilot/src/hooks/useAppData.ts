@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import { logger } from '@/utils/logger';
 import type { Trip } from '@/domain/types/trip';
 import type { Phase } from '@/domain/types/phase';
 import type { BudgetPool } from '@/domain/types/budget-pool';
@@ -19,6 +20,9 @@ import {
 } from '@/data/db/db-recovery';
 import { recordCrash, describeError } from '@/utils/crash-log';
 import { repairDemoTripIfNeeded } from '@/data/demo-repair';
+import { isFxSnapshotStale } from '@/domain/money';
+import { fetchExchangeRates } from '@/utils/exchange-rates';
+import { isOnline } from '@/utils/places';
 
 // DEC-109: if IndexedDB hangs (known WebKit issue in standalone PWAs after
 // share-sheet/backgrounding), the load must fail loudly instead of leaving
@@ -98,6 +102,8 @@ export function useAppDataState(): AppData {
   // BUG-019: throttle the automatic foreground retry.
   const lastAutoRetryAtRef = useRef(0);
   const autoRetryCountRef = useRef(0);
+  // DEC-434: warm the FX snapshot at most once per mount.
+  const fxWarmedRef = useRef(false);
 
   const loadAll = useCallback(async () => {
     const s = await appSettingsRepository.get();
@@ -159,7 +165,7 @@ export function useAppDataState(): AppData {
       await withTimeout(loadAll());
       return true;
     } catch (err) {
-      console.error('[useAppData] reload after reopen failed:', err);
+      logger.error('app_data_reload_failed', { module: 'useAppData' }, err);
       return false;
     }
   }, [loadAll]);
@@ -191,7 +197,7 @@ export function useAppDataState(): AppData {
         // ("blink"), and the budget guard makes a reload loop impossible. Only
         // when even that is spent do we flag the error so the recovery screen
         // shows (never a redirect to the destructive /welcome).
-        console.error('[useAppData] load failed:', err);
+        logger.error('app_data_load_failed', { module: 'useAppData' }, err);
         // DEC-176: ALWAYS leave a trace. The old ladder only recorded a crash
         // when a reopen FAILED, so a transient wedge that self-healed left the
         // diagnostics empty — which is exactly why a recurring incident was
@@ -244,6 +250,28 @@ export function useAppDataState(): AppData {
     // First load shows the full-screen loader.
     runLoad({ showLoading: true });
   }, [runLoad]);
+
+  // DEC-434: keep the FX snapshot fresh app-wide so the converter, the "ver na
+  // minha moeda" hint and foreign-currency entry always show a current AUTO rate
+  // without a manual tap. Best-effort + offline-safe: gated on online + staleness
+  // (>12h; a missing snapshot counts as stale), the network boundary swallows
+  // every failure, and it runs at most once per mount. Extends the converter-only
+  // warm-up (DEC-423) to the whole app; updates settings in place (no reload).
+  useEffect(() => {
+    if (fxWarmedRef.current || !trip) return;
+    fxWarmedRef.current = true;
+    const base = trip.baseCurrency;
+    if (!base || !isOnline()) return;
+    if (!isFxSnapshotStale(settings?.frozenRates ?? null, new Date())) return;
+    void (async () => {
+      const rates = await fetchExchangeRates(base);
+      if (rates) {
+        await appSettingsRepository.update({ frozenRates: rates });
+        setSettings((prev) => (prev ? { ...prev, frozenRates: rates } : prev));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip, settings]);
 
   // DEC-126: refresh when another surface (undo toast, SW) changed the data.
   useEffect(() => {

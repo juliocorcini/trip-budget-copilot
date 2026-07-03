@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
+import { logger } from '@/utils/logger';
 import { importBackup } from '@/domain/orchestrators';
 import { formatDate } from '@/domain/dates';
 import {
@@ -42,7 +43,7 @@ export function EmergencyRestoreScreen({ onRestored }: EmergencyRestoreScreenPro
       await onRestored();
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      console.error('[emergency-restore] failed', err);
+      logger.error('emergency_restore_failed', { module: 'onboarding' }, err);
       showToast(t('recovery.restore_error'), 'danger');
       setRestoring(false);
     }

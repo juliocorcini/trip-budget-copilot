@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
+import { logger } from '@/utils/logger';
 import { isNativeApp } from '@/utils/native/platform';
 import { takePendingSharedCsv } from '@/utils/native/share-target';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
@@ -155,7 +156,7 @@ export function WiseImportPage() {
         const rows = await settlementRepository.getByTripId(trip.id);
         if (!cancelled) setSettlements(rows);
       } catch (err) {
-        console.error('[wise-import] settlements load failed', err);
+        logger.error('wise_import_settlements_load_failed', { module: 'wise-import' }, err);
       }
     })();
     return () => {
@@ -449,7 +450,7 @@ export function WiseImportPage() {
           null;
         setTarget(preferred ? preferred.id : 'new');
       } catch (err) {
-        console.error('[wise-import] parse failed', err);
+        logger.error('wise_import_parse_failed', { module: 'wise-import' }, err);
         showToast(t('wiseImport.parse_error'), 'danger');
       } finally {
         setParsing(false);
@@ -617,7 +618,7 @@ export function WiseImportPage() {
       });
       navigate('/expenses');
     } catch (err) {
-      console.error('[wise-import] commit failed', err);
+      logger.error('wise_import_commit_failed', { module: 'wise-import' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);

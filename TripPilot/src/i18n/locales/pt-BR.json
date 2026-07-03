@@ -681,6 +681,7 @@
     "day_explain_base_amount": "Base de um dia comum",
     "day_explain_peak_delta": "Dia de pico",
     "day_explain_reserved": "Reservado para o dia",
+    "day_explain_piggy_parked": "Guardado no cofrinho",
     "day_spent_more": "+{{count}} em outras categorias",
     "day_spent_none": "Sem gastos categorizados nesse dia.",
     "day_spent_recent_hint": "Resumo por categoria. A lista completa fica em Gastos recentes.",
@@ -806,6 +807,8 @@
     "event_ended": "{{name}} encerrado",
     "today_rhythm": "Ritmo de hoje: {{amount}}",
     "avg_until_end_flat": "Média até o fim da fase: {{amount}}",
+    "hero_projections_title": "Projeções",
+    "hero_projections_hint": "Estimativas de ritmo — não é o que você pode gastar hoje.",
     "event_today_portion": "+ {{amount}} do evento hoje",
     "savings_last_outing": "Na sua última saída de {{profile}}, você gastou {{spent}} — {{saved}} abaixo do seu normal ({{typical}})",
     "insight_detail_title": "Como cheguei nisso",
@@ -991,7 +994,7 @@
     "currency_label": "Moeda",
     "currency_base": "{{code}} (moeda da viagem)",
     "exchange_rate_label": "1 {{currency}} = ? {{base}}",
-    "exchange_rate_frozen": "Taxa congelada (dá pra editar)",
+    "exchange_rate_auto": "Cotação automática — edite só se quiser ajustar",
     "exchange_rate_required": "Informe a taxa para converter o valor.",
     "choose_pool_hint": "Escolha uma verba ou pote para registrar o gasto.",
     "fund_other_phases": "Verbas de outras fases",
@@ -1005,6 +1008,8 @@
     "search_placeholder": "Buscar gastos",
     "import_statement": "Importar gastos e movimentações",
     "import_statement_short": "Importar",
+    "open_map": "Ver gastos no mapa",
+    "open_map_short": "Mapa",
     "search_clear": "Limpar busca",
     "search_empty_title": "Nada encontrado",
     "search_empty_body": "Nenhum gasto combina com \"{{query}}\". Tente outro termo.",
@@ -1756,10 +1761,12 @@
     "location_capture": "Registrar o local dos gastos",
     "location_hint": "Opcional. Usa o GPS só quando você registra um gasto, fica 100% no aparelho e nunca é enviado.",
     "location_denied": "Permissão de localização negada. Ative o GPS para o TripPilot nas configurações do Android.",
-    "anchor_title": "Âncora mental",
-    "anchor_hint": "Mostra os valores também na sua moeda de origem (\"€20 ≈ R$ 124\"), com taxa manual — funciona offline.",
+    "anchor_title": "Ver na minha moeda",
+    "anchor_hint": "Mostra os valores também na sua moeda de origem (\"€20 ≈ R$ 124\"). A cotação é automática; a taxa manual serve só offline.",
     "anchor_off": "Desligada",
     "anchor_rate_prefix": "1 {{base}} =",
+    "anchor_auto": "Cotação automática (atualizada {{date}})",
+    "anchor_manual_fallback": "Taxa manual — usada só offline, quando não há cotação salva",
     "fx_title": "Câmbio",
     "fx_hint": "Baixe as taxas do dia uma vez (online) pra converter gastos em moeda estrangeira mesmo offline. Base: {{base}}.",
     "fx_none": "Nenhuma taxa salva ainda.",
@@ -2575,6 +2582,10 @@
     "move_debt_total": "Total a mover",
     "move_debt_pick_dest": "Escolha para quem mover",
     "move_debt_confirm": "Mover para {{name}}",
+    "move_debt_connected_title": "Conectados: cobre, não mova",
+    "move_debt_connected_help": "Passar a dívida direto pra quem está conectado dessincronizaria o aparelho da pessoa. Em vez disso, registre uma cobrança que ela aceita — o valor selecionado já vai preenchido.",
+    "move_debt_charge_cta": "Cobrar {{name}}",
+    "move_debt_charge_note": "Dívida de {{name}} que você vai cobrir",
     "remove_person_action": "Remover pessoa",
     "remove_person_title": "Remover {{name}}?",
     "remove_person_desc": "{{name}} vai sumir das suas listas. O histórico é mantido — os gastos e acertos passados continuam com o nome dela.",
@@ -2715,7 +2726,7 @@
     "pwa_cta": "Instalar pelo navegador",
     "pwa_note": "Um toque: adiciona o ícone na tela inicial.",
     "shortcut_cta": "Instalar o atalho na tela inicial",
-    "pwa_browser_hint": "Para instalar, abra no Chrome ou Edge e use “Adicionar à tela inicial”.",
+    "shortcut_note": "Toque aqui: tentamos instalar direto; se o navegador não deixar, mostramos o passo a passo.",
     "pwa_unavailable": "Seu navegador não oferece a instalação automática agora.",
     "pwa_dismissed": "Instalação cancelada — você pode tentar de novo quando quiser.",
     "ios_intro": "No iPhone/iPad, instale pelo Safari em 2 passos:",
@@ -2743,7 +2754,44 @@
     "nudge_subtitle": "Ícone na tela inicial e abre offline.",
     "nudge_cta": "Ver como",
     "nudge_never": "Não mostrar de novo",
-    "footer_note": "Seus dados ficam no seu dispositivo. Instalar só ajuda a abrir mais rápido e a proteger contra a limpeza automática."
+    "footer_note": "Seus dados ficam no seu dispositivo. Instalar só ajuda a abrir mais rápido e a proteger contra a limpeza automática.",
+    "guide": {
+      "chrome_android": {
+        "title": "No Chrome (Android)",
+        "step1": "Toque no menu ⋮ no canto superior direito.",
+        "step2": "Toque em “Adicionar à tela inicial” (ou “Instalar app”).",
+        "step3": "Confirme em “Instalar” — o ícone aparece na tela inicial."
+      },
+      "edge_android": {
+        "title": "No Edge (Android)",
+        "step1": "Toque no menu ⋯ na barra inferior.",
+        "step2": "Toque em “Adicionar ao telefone”.",
+        "step3": "Confirme — o ícone aparece na tela inicial."
+      },
+      "samsung_android": {
+        "title": "No Samsung Internet",
+        "step1": "Toque no menu ☰ na barra inferior.",
+        "step2": "Toque em “Adicionar página a”.",
+        "step3": "Escolha “Tela inicial” e confirme."
+      },
+      "firefox_android": {
+        "title": "No Firefox (Android)",
+        "step1": "Toque no menu ⋮.",
+        "step2": "Toque em “Adicionar à tela inicial”.",
+        "step3": "Confirme em “Adicionar”."
+      },
+      "desktop": {
+        "title": "No computador (Chrome/Edge)",
+        "step1": "Clique no ícone de instalar no fim da barra de endereço.",
+        "step2": "Clique em “Instalar” na janelinha de confirmação."
+      },
+      "generic": {
+        "title": "Neste navegador",
+        "step1": "Abra esta página no Chrome ou no Edge (instalação mais fácil).",
+        "step2": "Abra o menu do navegador.",
+        "step3": "Toque em “Adicionar à tela inicial” e confirme."
+      }
+    }
   },
   "errors": {
     "boundary_title": "Algo deu errado",

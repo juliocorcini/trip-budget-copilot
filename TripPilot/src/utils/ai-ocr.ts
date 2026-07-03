@@ -1,4 +1,5 @@
 import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
+import { logger } from '@/utils/logger';
 import { parseReceiptResponse } from '@/domain/receipt';
 import { bumpTelemetryCounter } from '@/utils/telemetry-events';
 import { readCooldown } from '@/utils/ai-rate-limit';
@@ -23,27 +24,34 @@ export type ReceiptOcrOutcome =
  * into a typed error — this function never throws.
  */
 export async function extractReceiptViaCloud(imageDataUrl: string): Promise<ReceiptOcrOutcome> {
+  const headers = aiRequestHeaders();
+  const requestId = headers['X-Request-Id'];
   let response: Response;
   try {
     response = await fetch(`${getSyncWorkerUrl()}/ocr`, {
       method: 'POST',
-      headers: aiRequestHeaders(),
+      headers,
       body: JSON.stringify({ imageDataUrl }),
     });
   } catch {
+    logger.info('ocr_offline', { module: 'ai-ocr', requestId });
     return { ok: false, error: 'offline' };
   }
 
   if (response.status === 503) return { ok: false, error: 'not_configured' };
   if (response.status === 429) return { ok: false, error: 'rate_limited', cooldown: await readCooldown(response) };
-  if (!response.ok) return { ok: false, error: 'failed' };
+  if (!response.ok) {
+    logger.warn('ocr_http_failed', { module: 'ai-ocr', requestId, status: response.status });
+    return { ok: false, error: 'failed' };
+  }
 
   try {
     const raw: unknown = await response.json();
     const plan = parseReceiptResponse(raw);
     bumpTelemetryCounter('receiptScans'); // DEC-248: count a successful cloud scan.
     return { ok: true, plan };
-  } catch {
+  } catch (err) {
+    logger.warn('ocr_parse_failed', { module: 'ai-ocr', requestId }, err);
     return { ok: false, error: 'failed' };
   }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router';
+import { logger } from '@/utils/logger';
 import { useAppData } from '@/hooks/useAppData';
 import {
   parseBackupFileSafe,
@@ -141,7 +142,7 @@ export function BackupPage() {
         'text/csv;charset=utf-8',
       );
     } catch (err) {
-      console.error('[backup] CSV export failed:', err);
+      logger.error('backup_csv_export_failed', { module: 'backup' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);
@@ -167,7 +168,7 @@ export function BackupPage() {
       await appSettingsRepository.update({ lastBackupDate: new Date().toISOString() });
       await reload();
     } catch (err) {
-      console.error('[backup] JSON export failed:', err);
+      logger.error('backup_json_export_failed', { module: 'backup' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);
@@ -189,7 +190,7 @@ export function BackupPage() {
       await reload();
       showToast(uri ? t('backup.save_device_done') : t('backup.save_device_web'), 'success');
     } catch (err) {
-      console.error('[backup] save to device failed:', err);
+      logger.error('backup_save_device_failed', { module: 'backup' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);
@@ -233,7 +234,7 @@ export function BackupPage() {
         'text/html;charset=utf-8',
       );
     } catch (err) {
-      console.error('[backup] HTML summary export failed:', err);
+      logger.error('backup_html_export_failed', { module: 'backup' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);
@@ -271,7 +272,7 @@ export function BackupPage() {
       setImportData(null);
       await reload();
     } catch (err) {
-      console.error('[backup] import failed:', err);
+      logger.error('backup_import_failed', { module: 'backup' }, err);
       showToast(t('backup.operation_failed'), 'danger');
     } finally {
       setBusy(false);

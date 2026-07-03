@@ -677,6 +677,7 @@
     "day_explain_base_amount": "Base de un día normal",
     "day_explain_peak_delta": "Día pico",
     "day_explain_reserved": "Reservado para el día",
+    "day_explain_piggy_parked": "Guardado en la alcancía",
     "day_spent_more": "+{{count}} en otras categorías",
     "day_spent_none": "Sin gastos categorizados ese día.",
     "day_spent_recent_hint": "Resumen por categoría. La lista completa está en Gastos recientes.",
@@ -802,6 +803,8 @@
     "event_ended": "{{name}} finalizado",
     "today_rhythm": "Ritmo de hoy: {{amount}}",
     "avg_until_end_flat": "Promedio hasta el fin de la fase: {{amount}}",
+    "hero_projections_title": "Proyecciones",
+    "hero_projections_hint": "Estimaciones de ritmo — no es lo que puedes gastar hoy.",
     "event_today_portion": "+ {{amount}} del evento de hoy",
     "savings_last_outing": "En tu última salida de {{profile}} gastaste {{spent}} — {{saved}} por debajo de lo habitual ({{typical}})",
     "insight_detail_title": "Cómo llegué a esto",
@@ -987,7 +990,7 @@
     "currency_label": "Moneda",
     "currency_base": "{{code}} (moneda del viaje)",
     "exchange_rate_label": "1 {{currency}} = ? {{base}}",
-    "exchange_rate_frozen": "Tasa congelada (editable)",
+    "exchange_rate_auto": "Tasa automática — edítala solo si quieres ajustar",
     "exchange_rate_required": "Indica la tasa para convertir el importe.",
     "choose_pool_hint": "Elige una asignación o fondo para registrar el gasto.",
     "fund_other_phases": "Asignaciones de otras fases",
@@ -999,6 +1002,8 @@
     "search_placeholder": "Buscar gastos",
     "import_statement": "Importar gastos y movimientos",
     "import_statement_short": "Importar",
+    "open_map": "Ver gastos en el mapa",
+    "open_map_short": "Mapa",
     "search_clear": "Limpiar búsqueda",
     "search_empty_title": "Nada encontrado",
     "search_empty_body": "Ningún gasto coincide con \"{{query}}\". Prueba otro término.",
@@ -1752,10 +1757,12 @@
     "location_capture": "Registrar el lugar de los gastos",
     "location_hint": "Opcional. Usa el GPS solo cuando registras un gasto, queda 100% en el dispositivo y nunca se envía.",
     "location_denied": "Permiso de ubicación denegado. Activa el GPS para TripPilot en los ajustes de Android.",
-    "anchor_title": "Ancla mental",
-    "anchor_hint": "Muestra los valores también en tu moneda de origen (\"€20 ≈ R$124\"), con tasa manual — funciona offline.",
+    "anchor_title": "Ver en mi moneda",
+    "anchor_hint": "Muestra los valores también en tu moneda de origen (\"€20 ≈ R$124\"). La tasa se actualiza automáticamente; la tasa manual es solo para offline.",
     "anchor_off": "Apagada",
     "anchor_rate_prefix": "1 {{base}} =",
+    "anchor_auto": "Tasa automática (actualizada {{date}})",
+    "anchor_manual_fallback": "Tasa manual — se usa solo offline, cuando no hay tasa guardada",
     "fx_title": "Tipo de cambio",
     "fx_hint": "Descarga las tasas del día una vez (online) para convertir gastos en moneda extranjera incluso sin conexión. Base: {{base}}.",
     "fx_none": "Aún no hay tasas guardadas.",
@@ -2571,6 +2578,10 @@
     "move_debt_total": "Total a mover",
     "move_debt_pick_dest": "Elige a quién mover",
     "move_debt_confirm": "Mover a {{name}}",
+    "move_debt_connected_title": "Conectados: cobra, no muevas",
+    "move_debt_connected_help": "Pasar la deuda directo a quien está conectado desincronizaría su dispositivo. En su lugar, registra un cobro que la persona acepta — el importe seleccionado ya va rellenado.",
+    "move_debt_charge_cta": "Cobrar a {{name}}",
+    "move_debt_charge_note": "Deuda de {{name}} que vas a cubrir",
     "remove_person_action": "Eliminar persona",
     "remove_person_title": "¿Eliminar a {{name}}?",
     "remove_person_desc": "{{name}} desaparecerá de tus listas. El historial se mantiene — los gastos y ajustes pasados siguen con su nombre.",
@@ -2711,7 +2722,7 @@
     "pwa_cta": "Instalar desde el navegador",
     "pwa_note": "Un toque: añade el icono a tu pantalla de inicio.",
     "shortcut_cta": "Instalar el acceso directo",
-    "pwa_browser_hint": "Para instalar, abre en Chrome o Edge y usa “Agregar a la pantalla de inicio”.",
+    "shortcut_note": "Toca aquí: intentamos instalar directo; si el navegador no lo permite, te mostramos los pasos.",
     "pwa_unavailable": "Tu navegador no ofrece la instalación automática ahora.",
     "pwa_dismissed": "Instalación cancelada — puedes intentarlo cuando quieras.",
     "ios_intro": "En iPhone/iPad, instala desde Safari en 2 pasos:",
@@ -2739,7 +2750,44 @@
     "nudge_subtitle": "Icono en inicio y abre sin conexión.",
     "nudge_cta": "Ver cómo",
     "nudge_never": "No mostrar de nuevo",
-    "footer_note": "Tus datos quedan en tu dispositivo. Instalar solo ayuda a abrir más rápido y protege contra la limpieza automática."
+    "footer_note": "Tus datos quedan en tu dispositivo. Instalar solo ayuda a abrir más rápido y protege contra la limpieza automática.",
+    "guide": {
+      "chrome_android": {
+        "title": "En Chrome (Android)",
+        "step1": "Toca el menú ⋮ en la esquina superior derecha.",
+        "step2": "Toca “Agregar a la pantalla de inicio” (o “Instalar app”).",
+        "step3": "Confirma con “Instalar” — el icono aparece en tu pantalla de inicio."
+      },
+      "edge_android": {
+        "title": "En Edge (Android)",
+        "step1": "Toca el menú ⋯ en la barra inferior.",
+        "step2": "Toca “Agregar al teléfono”.",
+        "step3": "Confirma — el icono aparece en tu pantalla de inicio."
+      },
+      "samsung_android": {
+        "title": "En Samsung Internet",
+        "step1": "Toca el menú ☰ en la barra inferior.",
+        "step2": "Toca “Añadir página a”.",
+        "step3": "Elige “Pantalla de inicio” y confirma."
+      },
+      "firefox_android": {
+        "title": "En Firefox (Android)",
+        "step1": "Toca el menú ⋮.",
+        "step2": "Toca “Agregar a la pantalla de inicio”.",
+        "step3": "Confirma con “Agregar”."
+      },
+      "desktop": {
+        "title": "En el ordenador (Chrome/Edge)",
+        "step1": "Haz clic en el icono de instalar al final de la barra de direcciones.",
+        "step2": "Haz clic en “Instalar” en la ventana de confirmación."
+      },
+      "generic": {
+        "title": "En este navegador",
+        "step1": "Abre esta página en Chrome o Edge (instalación más fácil).",
+        "step2": "Abre el menú del navegador.",
+        "step3": "Toca “Agregar a la pantalla de inicio” y confirma."
+      }
+    }
   },
   "errors": {
     "boundary_title": "Algo salió mal",

@@ -17,6 +17,96 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.2.0-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'Instalação mais fácil: o botão "Instalar o atalho" agora tenta instalar direto e, se o navegador não permitir, mostra o passo a passo certo para o seu navegador (Chrome, Edge, Samsung, Firefox ou computador).',
+        'Mais proteção contra abuso: os recursos de IA (foto de recibo, assistente e voz) ganharam um limite de uso por dispositivo que protege a cota gratuita de todos.',
+        'Diagnóstico melhor: falhas raras agora deixam um rastro anônimo e sem dados pessoais, o que acelera as correções.',
+      ],
+      en: [
+        'Easier install: the "Add shortcut" button now tries to install directly and, when the browser won\'t allow it, shows the right step-by-step for your browser (Chrome, Edge, Samsung, Firefox or desktop).',
+        'Better abuse protection: the AI features (receipt photo, assistant and voice) now have a per-device usage limit that protects everyone\'s free quota.',
+        'Better diagnostics: rare failures now leave an anonymous, PII-free trace, which speeds up fixes.',
+      ],
+      es: [
+        'Instalación más fácil: el botón "Instalar el acceso directo" ahora intenta instalar directamente y, si el navegador no lo permite, muestra los pasos correctos para tu navegador (Chrome, Edge, Samsung, Firefox u ordenador).',
+        'Más protección contra abusos: las funciones de IA (foto de recibo, asistente y voz) ahora tienen un límite de uso por dispositivo que protege la cuota gratuita de todos.',
+        'Mejor diagnóstico: los fallos raros ahora dejan un rastro anónimo y sin datos personales, lo que acelera las correcciones.',
+      ],
+    },
+  },
+  {
+    version: '2.1.4-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'No conversor, os seletores de moeda não saem mais da tela quando o nome da moeda é longo.',
+        'Segurança reforçada: o TripPilot não pode mais ser embutido em sites de terceiros (proteção anti-clickjacking em todas as páginas, incluindo os links compartilhados).',
+      ],
+      en: [
+        'In the converter, the currency selectors no longer overflow the screen when a currency name is long.',
+        'Hardened security: TripPilot can no longer be embedded in third-party sites (anti-clickjacking protection on every page, including shared links).',
+      ],
+      es: [
+        'En el conversor, los selectores de moneda ya no se salen de la pantalla cuando el nombre de la moneda es largo.',
+        'Seguridad reforzada: TripPilot ya no puede incrustarse en sitios de terceros (protección anti-clickjacking en todas las páginas, incluidos los enlaces compartidos).',
+      ],
+    },
+  },
+  {
+    version: '2.1.3-rc',
+    date: '2026-07-02',
+    items: {
+      'pt-BR': [
+        'O "local" do gasto agora mostra o estabelecimento, não só a cidade — inclusive nas importações da Wise. O mapa segue no ponto certo e o nome real do lugar é preenchido sozinho (a descrição continua sendo pra o que você comprou).',
+        '"Âncora mental" agora se chama "Ver na minha moeda" — mais fácil de entender.',
+        'A cotação é sempre atualizada automaticamente: nada de digitar uma taxa fixa. Gastos em moeda estrangeira já vêm convertidos, e a taxa manual fica só para uso offline.',
+        'Conversor já abre com as moedas principais prontas e converte de qualquer uma para qualquer outra sem apertar nenhum botão.',
+      ],
+      en: [
+        'A spend\'s "place" now shows the venue, not just the city — including Wise imports. The map still lands on the right spot and the real place name fills in on its own (the description stays for what you bought).',
+        '"Mental anchor" is now called "See in my currency" — easier to understand.',
+        'The exchange rate now updates automatically: no fixed rate to type. Foreign-currency spends come already converted, and a manual rate is only for offline use.',
+        'The converter opens with the main currencies ready and converts any of them to any other with no button to tap.',
+      ],
+      es: [
+        'El "lugar" del gasto ahora muestra el establecimiento, no solo la ciudad — también en las importaciones de Wise. El mapa sigue en el punto correcto y el nombre real del lugar se completa solo (la descripción queda para lo que compraste).',
+        '"Ancla mental" ahora se llama "Ver en mi moneda" — más fácil de entender.',
+        'La tasa de cambio se actualiza automáticamente: sin tasa fija que escribir. Los gastos en moneda extranjera ya vienen convertidos, y la tasa manual es solo para uso offline.',
+        'El conversor abre con las monedas principales listas y convierte de cualquiera a cualquier otra sin tocar ningún botón.',
+      ],
+    },
+  },
+  {
+    version: '2.1.2-rc',
+    date: '2026-07-01',
+    items: {
+      'pt-BR': [
+        'Mapa em satélite agora com rótulos: aparecem nomes de ruas e lugares, e tocar num ponto mostra o nome daquele lugar.',
+        'Home mais clara: um único número em destaque, "Livre para usar hoje" — e ele agora bate exatamente com a tela por-dia. "Ritmo" e "Média" viram detalhe (projeção) dentro do explicador.',
+        'Atalho "Mapa" na tela de Gastos, ao lado de Escanear e Importar.',
+        'No mapa, segure uma bolinha para ver a lista de gastos dela (tocar continua dando zoom).',
+        'Passar uma dívida para alguém que está conectado agora explica o caminho certo (registrar uma cobrança que a pessoa aceita) em vez de simplesmente não aparecer.',
+      ],
+      en: [
+        'Satellite map now has labels: street and place names show up, and tapping a point reveals that place\'s name.',
+        'Clearer Home: one headline number, "Free to spend today" — and it now matches the by-day screen exactly. "Rhythm" and "Average" move into the explainer as projections.',
+        'A "Map" shortcut on the Expenses screen, next to Scan and Import.',
+        'On the map, hold a bubble to see its list of spends (tapping still zooms).',
+        'Moving a debt to someone who is connected now explains the right path (record a charge they accept) instead of just not showing them.',
+      ],
+      es: [
+        'El mapa satelital ahora tiene etiquetas: aparecen nombres de calles y lugares, y al tocar un punto se muestra el nombre de ese lugar.',
+        'Home más clara: un único número destacado, "Libre para usar hoy" — y ahora coincide exactamente con la pantalla por día. "Ritmo" y "Promedio" pasan al explicador como proyecciones.',
+        'Un atajo "Mapa" en la pantalla de Gastos, junto a Escanear e Importar.',
+        'En el mapa, mantén presionada una burbuja para ver su lista de gastos (tocar sigue haciendo zoom).',
+        'Pasar una deuda a alguien que está conectado ahora explica el camino correcto (registrar un cobro que la persona acepta) en lugar de simplemente no aparecer.',
+      ],
+    },
+  },
+  {
     version: '2.1.1-rc',
     date: '2026-07-01',
     items: {

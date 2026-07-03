@@ -1,8 +1,8 @@
 {
-  "version": "2.1.1-rc",
+  "version": "2.2.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.1.1-rc.zip",
-  "notes": "Divisão em grupo: quem entra depois de gastos já lançados agora é incluído automaticamente nos gastos divididos com todos (acabou o \"deve 0\" errado). E, na hora de acertar, quem deve vê o Pix/Wise de quem recebe, com um toque para copiar."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.2.0-rc.zip",
+  "notes": "Instalação mais fácil: o botão de atalho tenta instalar direto e mostra o passo a passo do seu navegador quando preciso. Recursos de IA com limite de uso por dispositivo (proteção contra abuso) e diagnóstico de falhas melhorado, sem dados pessoais."
 }

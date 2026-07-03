@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import i18n from '@/i18n';
 import { recordCrash, isCrashLooping, clearCrashLog, describeError } from '@/utils/crash-log';
 import { downloadEmergencyBackup } from '@/utils/emergency-backup';
+import { logger } from '@/utils/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -27,7 +28,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: unknown, info: ErrorInfo): void {
     const { message, stack } = describeError(error);
     recordCrash({ message, stack, componentStack: info.componentStack ?? undefined });
-    console.error('[ErrorBoundary]', error);
+    // warn (not error) on purpose: recordCrash above already fed the crash
+    // buffer — logger.error would double-count and skew isCrashLooping().
+    logger.warn('error_boundary_caught', { module: 'ErrorBoundary' }, error);
     this.setState({ looping: isCrashLooping() });
   }
 

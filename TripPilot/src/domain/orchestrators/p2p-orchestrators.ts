@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/utils/logger';
 import {
   appSettingsRepository,
   mailboxQueueRepository,
@@ -131,9 +132,10 @@ export async function deliverManualSplitDebts(input: ManualSplitDeliveryInput): 
         occurredAt: delivery.occurredAt,
         debtId: delivery.debtId,
       });
-    } catch {
+    } catch (err) {
       // Best-effort — the split is already a local pending share; the queued
       // outbox item retries on the next flush. Delivery never blocks the save.
+      logger.warn('split_debt_delivery_failed', { module: 'p2p-orchestrators' }, err);
     }
   }
 }

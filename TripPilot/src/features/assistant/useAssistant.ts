@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { logger } from '@/utils/logger';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase } from '@/domain/dates';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
@@ -560,7 +561,7 @@ export function useAssistant(): UseAssistant {
         if (!summary) return { ok: false, error: 'failed' };
         return { ok: true, plan: outcome.plan, image, intent: receiptPlanToIntent(outcome.plan, summary) };
       } catch (err) {
-        console.error('[assistant] pending image OCR failed', err);
+        logger.error('assistant_pending_image_ocr_failed', { module: 'assistant' }, err);
         return { ok: false, error: 'failed' };
       }
     },

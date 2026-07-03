@@ -6,6 +6,15 @@
  * by the clients (the AES key travels inside the QR code and never reaches
  * this worker). Nothing is persisted beyond the room's lifetime.
  */
+import { logEvent, routeTemplate } from './logger';
+
+/**
+ * DEC-439 (SEC-2): minimal local type for the native Workers rate limiting
+ * binding (GA) — kept local so no @cloudflare/workers-types bump is required.
+ */
+interface RateLimiterBinding {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
 
 export interface Env {
   SYNC_ROOM: DurableObjectNamespace;
@@ -64,6 +73,14 @@ export interface Env {
    * Absent in older deploys → `/img` reports `images_not_configured`.
    */
   MEDIA?: R2Bucket;
+  /**
+   * DEC-439 (SEC-2, 2026-07-03 audit): edge rate limiters (see wrangler.jsonc).
+   * All three are optional — an absent binding fails OPEN (Â-RL-FAIL-OPEN), so
+   * local dev and older deploys keep working with no limit rather than a 500.
+   */
+  RL_AI?: RateLimiterBinding;
+  RL_INGEST?: RateLimiterBinding;
+  RL_SHARE_WRITE?: RateLimiterBinding;
 }
 
 /** No ambiguous chars (0/O, 1/I/L) — codes are sometimes read aloud. */
@@ -87,8 +104,73 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   // DEC-251 (Onda B): X-Install-Id attributes AI token usage to a pseudonymous
   // install. It carries no PII and is never required for the call to succeed.
-  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token, Authorization, X-Install-Id',
+  // DEC-443 (OBS-4): X-Request-Id is the end-to-end correlation id — accepted
+  // from the app and exposed back so the client can log the same id.
+  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token, Authorization, X-Install-Id, X-Request-Id, X-Img-TTL',
+  'Access-Control-Expose-Headers': 'X-Request-Id',
 };
+
+/**
+ * DEC-440 (SEC-4): the `/admin/*` routes are the only ones where CORS `*` is
+ * needlessly broad — they are consumed exclusively by the app's own admin page.
+ * Defense in depth: echo the origin only when allowlisted (browser JS on any
+ * other origin then cannot read the response, token or not).
+ */
+const ADMIN_ALLOWED_ORIGINS = new Set([
+  'https://trippilot.pages.dev',
+  // Vite dev server (local admin dashboard during development).
+  'http://localhost:5173',
+]);
+
+function withAdminCors(res: Response, request: Request): Response {
+  const origin = request.headers.get('Origin') ?? '';
+  const headers = new Headers(res.headers);
+  if (ADMIN_ALLOWED_ORIGINS.has(origin)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+  } else {
+    headers.delete('Access-Control-Allow-Origin');
+  }
+  headers.set('Vary', 'Origin');
+  return new Response(res.body, { status: res.status, headers });
+}
+
+/**
+ * DEC-439 (SEC-2): shared edge rate-limit check. Key preference is the
+ * pseudonymous install id (stable per app install — the recommended stable
+ * identifier) with the connecting IP as fallback for callers without one.
+ * Fails OPEN on any error/absence — throttling must never become an outage.
+ */
+async function edgeRateLimited(
+  limiter: RateLimiterBinding | undefined,
+  request: Request,
+  installId: string,
+): Promise<boolean> {
+  if (!limiter) {
+    logEvent('warn', 'rate_limiter_missing', {});
+    return false;
+  }
+  const key = installId || (request.headers.get('CF-Connecting-IP') ?? 'unknown');
+  try {
+    const { success } = await limiter.limit({ key });
+    return !success;
+  } catch (err) {
+    // Â-RL-FAIL-OPEN: throttling must never become an outage — but the audit's
+    // whole point is that failing open SILENTLY hides real breakage. Log it.
+    logEvent('warn', 'rate_limiter_error', { err });
+    return false;
+  }
+}
+
+/**
+ * 429 body for the AI routes in the SAME shape as the Groq passthrough
+ * (`rateLimitBody`) — `aiUnavailable` + `retryAfterSec` — so the client's
+ * existing cooldown UI (FB-26) handles an edge limit with zero changes.
+ */
+function edgeRateLimitBody(
+  fn: string,
+): { error: string; aiUnavailable: true; retryAfterSec: number; scope: 'minute' } {
+  return { error: `${fn}_rate_limited`, aiUnavailable: true, retryAfterSec: 60, scope: 'minute' };
+}
 
 // DEC-207 — persistent encrypted share channel (KV). One key per share holds
 // the owner's ciphertext statement; a sibling key holds the guest's appended
@@ -904,6 +986,19 @@ async function handleErrorIngest(request: Request, env: Env): Promise<Response> 
 }
 
 /**
+ * DEC-437 (2026-07-03 security audit, SEC-3): constant-time string comparison
+ * for the admin bearer token. A plain `!==` bails on the first differing byte,
+ * which leaks a timing side-channel an attacker could use to guess the token
+ * byte by byte. Mirrors `timingSafeEqualHex` used for the app-lock PIN.
+ */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
  * Admin query routes — read-only, gated by the ADMIN_TOKEN bearer secret. Maps
  * `/admin/<sub>` to the global telemetry DO's `/<sub>` (overview/installs/
  * timeseries/ai-usage/errors). Never exposes anything the DO does not aggregate.
@@ -916,7 +1011,7 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
   }
   const auth = request.headers.get('Authorization') ?? '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!token || token !== env.ADMIN_TOKEN) return json({ error: 'unauthorized' }, 401);
+  if (!token || !safeEqual(token, env.ADMIN_TOKEN)) return json({ error: 'unauthorized' }, 401);
   const sub = url.pathname.slice('/admin'.length) || '/';
   const stub = env.TELEMETRY.get(env.TELEMETRY.idFromName('global'));
   const res = await stub.fetch(`https://t.internal${sub}${url.search}`, { method: request.method });
@@ -927,10 +1022,83 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    // Preflights: never logged, never rate-limited. `/admin` preflights get the
+    // allowlisted-origin treatment (DEC-440) instead of the public wildcard.
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      const preflight = new Response(null, { status: 204, headers: CORS_HEADERS });
+      return url.pathname.startsWith('/admin') ? withAdminCors(preflight, request) : preflight;
     }
 
+    // DEC-441/443 (OBS-1/OBS-4) — request middleware: one structured log per
+    // request (Workers Logs) with an end-to-end correlation id, plus a
+    // last-resort catch so an unhandled throw becomes a clean 500 that still
+    // carries the requestId the app can report.
+    const requestId = readRequestId(request);
+    const installId = readInstallId(request);
+    const route = routeTemplate(url.pathname);
+    const startedAt = Date.now();
+    try {
+      const res = await routeRequest(request, env, ctx, url, installId);
+      logRequest(request.method, route, res.status, requestId, installId, startedAt);
+      return attachRequestId(res, requestId);
+    } catch (err) {
+      logEvent('error', 'request_unhandled', {
+        requestId,
+        installId,
+        method: request.method,
+        route,
+        durationMs: Date.now() - startedAt,
+        err,
+      });
+      return attachRequestId(json({ error: 'internal', requestId }, 500), requestId);
+    }
+  },
+};
+
+/** Accept a sane client-supplied correlation id; otherwise mint one. */
+function readRequestId(request: Request): string {
+  const raw = request.headers.get('X-Request-Id') ?? '';
+  return /^[0-9a-zA-Z-]{8,64}$/.test(raw) ? raw : crypto.randomUUID();
+}
+
+/** Echo the correlation id; tolerate immutable headers (WS upgrades, proxied DO responses). */
+function attachRequestId(res: Response, requestId: string): Response {
+  try {
+    res.headers.set('X-Request-Id', requestId);
+  } catch {
+    // Immutable headers — the id is still in the logs on both sides.
+  }
+  return res;
+}
+
+function logRequest(
+  method: string,
+  route: string,
+  status: number,
+  requestId: string,
+  installId: string,
+  startedAt: number,
+): void {
+  // /health is a high-frequency machine probe — only log it when it failed.
+  if (route === '/health' && status < 400) return;
+  const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
+  logEvent(level, 'request', {
+    requestId,
+    installId,
+    method,
+    route,
+    status,
+    durationMs: Date.now() - startedAt,
+  });
+}
+
+async function routeRequest(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  url: URL,
+  installId: string,
+): Promise<Response> {
     // Â-TRANSPORT / DEC-375 — transport health probe. A minimal Durable Object
     // round-trip (no storage, no socket) so the client can tell three states
     // apart: "offline" (the fetch itself rejects), "server reachable" (2xx) and
@@ -960,10 +1128,19 @@ export default {
       return stub.fetch(request);
     }
 
-    // DEC-251 (Onda B) — the pseudonymous install id attributes AI token spend.
-    // Read once here and thread into the AI handlers; invalid/absent ids are
-    // dropped by readInstallId so accounting stays strictly best-effort.
-    const installId = readInstallId(request);
+    // DEC-439 (SEC-2) — the Groq proxies are the costliest thing an abuser (or
+    // a runaway retry loop) can hit: they burn the shared free-tier quota for
+    // every real user. One shared per-caller limiter guards all four.
+    const aiRoutes: Record<string, string> = {
+      '/ocr': 'ocr',
+      '/unit-extract': 'ocr',
+      '/assistant': 'assistant',
+      '/transcribe': 'transcribe',
+    };
+    const aiFn = request.method === 'POST' ? aiRoutes[url.pathname] : undefined;
+    if (aiFn && (await edgeRateLimited(env.RL_AI, request, installId))) {
+      return json(edgeRateLimitBody(aiFn), 429);
+    }
 
     // DEC-206 (G2) — cloud receipt OCR. Stateless proxy to Groq vision.
     if (request.method === 'POST' && url.pathname === '/ocr') {
@@ -1001,7 +1178,12 @@ export default {
     }
 
     // DEC-207 — persistent encrypted share channel (shared participant link).
+    // DEC-439: WRITES are rate-limited (they cost DO duration/storage); reads
+    // stay unlimited — the live split table polls GETs every few seconds.
     if (url.pathname === '/share' || url.pathname.startsWith('/share/')) {
+      if (request.method !== 'GET' && (await edgeRateLimited(env.RL_SHARE_WRITE, request, installId))) {
+        return json({ error: 'rate_limited', retryAfterSec: 60 }, 429);
+      }
       return handleShare(request, env, url);
     }
 
@@ -1010,34 +1192,48 @@ export default {
     if (mailboxMatch && (request.method === 'POST' || request.method === 'GET')) {
       const actorId = decodeURIComponent(mailboxMatch[1]!);
       if (!ACTOR_ID_RE.test(actorId)) return json({ error: 'bad_actor' }, 400);
+      // DEC-439: only deposits are limited; the owner's drain (GET) stays free.
+      if (request.method === 'POST' && (await edgeRateLimited(env.RL_SHARE_WRITE, request, installId))) {
+        return json({ error: 'rate_limited', retryAfterSec: 60 }, 429);
+      }
       const stub = env.MAILBOX.get(env.MAILBOX.idFromName(actorId));
       return stub.fetch(new Request(`https://mailbox.internal/${request.method === 'POST' ? 'put' : 'drain'}`, request));
     }
 
     // DEC-348 (G2) — access-controlled plaintext image channel on R2 (real
     // content-type; legacy octet-stream served verbatim). DEC-207 unchanged.
+    // DEC-439: uploads/deletes are limited (2 MB writes); GETs stay free.
     if (url.pathname.startsWith('/img/')) {
+      if (request.method !== 'GET' && (await edgeRateLimited(env.RL_SHARE_WRITE, request, installId))) {
+        return json({ error: 'rate_limited', retryAfterSec: 60 }, 429);
+      }
       return handleImg(request, env, url);
     }
 
     // DEC-248 — anonymous usage telemetry ingest (NON-MONETARY; allowlisted).
     if (request.method === 'POST' && url.pathname === '/t') {
+      if (await edgeRateLimited(env.RL_INGEST, request, installId)) {
+        return json({ error: 'rate_limited', retryAfterSec: 60 }, 429);
+      }
       return handleTelemetryIngest(request, env);
     }
 
     // DEC-251 (Onda B) — anonymous error ingest from the client crash buffer.
     if (request.method === 'POST' && url.pathname === '/e') {
+      if (await edgeRateLimited(env.RL_INGEST, request, installId)) {
+        return json({ error: 'rate_limited', retryAfterSec: 60 }, 429);
+      }
       return handleErrorIngest(request, env);
     }
 
     // DEC-248 — read-only admin dashboard query routes (bearer-token gated).
+    // DEC-440: CORS narrowed to the allowlisted dashboard origins.
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
-      return handleAdmin(request, env, url);
+      return withAdminCors(await handleAdmin(request, env, url), request);
     }
 
     return json({ error: 'not_found' }, 404);
-  },
-};
+}
 
 export class SyncRoom {
   constructor(private state: DurableObjectState) {}
