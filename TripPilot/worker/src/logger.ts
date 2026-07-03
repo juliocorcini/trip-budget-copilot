@@ -49,6 +49,7 @@ function describeLogError(err: unknown): { name: string; message: string } {
 export function routeTemplate(pathname: string): string {
   return pathname
     .replace(/^\/share\/[^/]+/, '/share/:id')
+    .replace(/^\/preview\/[^/]+/, '/preview/:id')
     .replace(/^\/mailbox\/[^/]+/, '/mailbox/:id')
     .replace(/^\/img\/[^/]+/, '/img/:id')
     .replace(/^\/rooms\/[^/]+/, '/rooms/:code');

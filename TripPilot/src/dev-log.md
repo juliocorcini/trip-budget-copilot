@@ -13,11 +13,11 @@
 - **Â-WORKER-GUARDS-KEPT**: rate-limit/CORS/logger/headers (DEC-436→444) intocados; rotas novas com logEvent; leituras sem rate limit.
 
 ### CURRENT STATE
-- **Active gate**: G3 CONCLUÍDO (`2.2.2-rc` no ar) — iniciando G4 (worker preview blob + slug).
-- **Deploy G3**: Pages `4ce9e249` (conta e146e88b, ID completo `e146e88b34b2694243b1d74cee8de743` — o prefixo sozinho dá auth error 10000). Apex verde: `/version.json`=2.2.2-rc, `/bundles/2.2.2-rc.zip` 200 (2.645.400 B), `/trippilot.apk` **8.469.341 B** (landmine evitada de novo), sw `trippilot-v82`.
-- **Tests**: **3033 pass / 3033** (305 files; +11 do G3: lente domínio 9 + bloco UI 2). `tsc` app limpo.
-- **Baseline (G0, Node 22.22.3)**: testes **2995 pass / 2995** (301 files); `tsc --noEmit` app **e** worker limpos; `npm run build` verde. DEC-445→451 PROPOSED confirmados no decision-log. Pipeline: Pages conta **e146e88b**, worker `trippilot-sync`; landmine APK: re-rodar `fetch-live-apk` DEPOIS do bundle (APK correto = 8.469.341 B).
-- **Last commit**: G2+G3 commit a seguir.
+- **Active gate**: G4 CONCLUÍDO (worker `a8b934b1` no ar) — iniciando G5 (OG estático + Pages Function).
+- **Deploy G4**: worker `trippilot-sync` versão `a8b934b1-3201-4621-bcce-037bd331c8c4` (conta `e146e88b34b2694243b1d74cee8de743`). Probe produção 100%: create com preview+slugBase → `{id, slug:"churras-do-bruno-v6tp", writeToken}`; `GET /preview/:slug` e `/:id` 200 com shape summary-only (nunca chave/token); `GET /share/:slug` resolve; id cru vivo (Â-OLD-LINKS-LIVE); PUT sem preview apaga o resumo (404) mas slug segue abrindo; DELETE mata preview (404) + slug (400).
+- **Tests**: **3050 pass / 3050** (307 files; +17 do G4: domínio 8 + worker 9). `tsc` app e worker limpos.
+- **Baseline (G0, Node 22.22.3)**: testes **2995 pass / 2995** (301 files); `tsc --noEmit` app **e** worker limpos; `npm run build` verde. DEC-445→451 PROPOSED confirmados no decision-log. Pipeline: Pages conta **e146e88b** (ID completo `e146e88b34b2694243b1d74cee8de743`), worker `trippilot-sync`; landmine APK: re-rodar `fetch-live-apk` DEPOIS do bundle (APK correto = 8.469.341 B).
+- **Last commit**: G4 commit a seguir.
 
 ### Gates
 | Gate | Status | Versão | Notas |
@@ -26,10 +26,18 @@
 | G1 quick wins (D04+D05+D06) | ✅ done | `2.2.1-rc` | Pages `0d4611b8` · DEC-448/449/450 APPROVED |
 | G2 investigação números (D03) | ✅ done | — | sem deploy · §6-A escrito · DEC-447 refinada · 17 testes-evidência |
 | G3 lente + explainers (D03) | ✅ done | `2.2.2-rc` | Pages `4ce9e249` · DEC-447 APPROVED · m4 vazio (G2: zero bug de matemática) |
-| G4 worker preview+slug (D01+D02) | 🔄 | worker | |
-| G5 OG + Pages Function (D01+D02) | ⏳ | `2.2.3-rc` | |
+| G4 worker preview+slug (D01+D02) | ✅ done | worker | worker `a8b934b1` · probe produção 100% · DEC-445/446 PROPOSED até G5 |
+| G5 OG + Pages Function (D01+D02) | 🔄 | `2.2.3-rc` | |
 | G6 debt_move conectado (D07) | ⏳ | `2.3.0-rc` | |
 | G7 brain sync | ⏳ | — | |
+
+### G4 — Worker preview blob + slug legível (done 2026-07-03) — worker deploy — D01+D02 parte 1
+- **m1 (domínio puro)**: `src/domain/sync/share-preview.ts` — `slugifyShareName` (lowercase, sem acento via NFD, `a-z0-9-`, ≤40, sem hífen nas pontas) e `buildSharePreview(input)` → `{v:1, kind, title≤80, description≤200, totalCents, currency, peopleCount, updatedAt, imgId?}` com clamp de chars + shrink até caber em 1 KB (UTF-8) e allowlist estrita de campos (teste negativo: key/writeToken/items passados de contrabando NÃO saem no objeto — Â-PREVIEW-SUMMARY-ONLY). 8 testes.
+- **m2 (worker)**: `worker/src/share-preview.ts` (`sanitizeSharePreview` allowlist-rebuild + cap 1 KB; `randomSlugSuffix` 4 chars sem hex-lookalike; `composeSlug`; `CANONICAL_SHARE_ID_RE` UUID). `index.ts`: POST `/share` aceita `preview?`+`slugBase?` no MESMO body do blob (DO ignora — destructure só blob/revision), grava KV `preview:{id}` `{slug,p}` + `slug:{slug}→id` (colisão → 3 tentativas, TTL 1 ano igual ao share); PUT com preview atualiza + refresca TTL do slug, SEM preview apaga o resumo (kill-switch) mantendo o slug vivo; DELETE (revoke) apaga preview+slug. `GET /preview/:idOrSlug` público (CORS `*`, sem rate limit — leitura, Â-WORKER-GUARDS-KEPT), devolve preview + `responsesCount` do novo endpoint `/summary` do DO (meta sem ciphertext) + `Cache-Control: max-age=60`; 404 sem preview, 410 revogado. `resolveShareAddress`: UUID canônico passa direto (Â-OLD-LINKS-LIVE), slug via KV, hex legado fallback — vale para `/share/:x`, `/responses` e `/ws`. `routeTemplate` ganhou `/preview/:id` (slug fora dos logs). 9 testes.
+- **m3 (client)**: `share-client.ts` — `createShare(blob, revision, extras?)` devolve `slug?`; `putShareStatement(..., preview?)` (omitir = worker apaga). `group-link.ts`/`live-link.ts`: `GroupLiveCreds`/`SplitLiveCreds` ganham `slug?`; publish compõe preview localizado no idioma do dono (`buildSharePreview` + `slugifyShareName(nome)`) com imgId da primeira foto não-E2E; republish re-envia (ou apaga se OFF); `build*Url` usa `slug ?? shareId` — chave SEMPRE no fragmento (Â-KEY-IN-FRAGMENT). `share-link-orchestrators.ts`: `createShareLink`/`refreshShareLink` idem para extratos individuais (`ShareLink.slug` persistido, additive/opcional).
+- **m4 (settings + avisos)**: `appSettings.sharePreviewEnabled` default **ON** (lock do Julio; `undefined` lê como ON, sem migração). Toggle em Settings (`shareLink.preview_setting_*` pt/en/es) com caveat de cache do WhatsApp; OFF → publish sem preview/slug e republish apaga o resumo já publicado. Aviso 1-linha "quem tiver o link vê prévia" nas 3 UIs de share (GroupSplitDetailPage, SplitPage, ShareLinkSheet), só quando ON.
+- **Probe produção** (worker `a8b934b1`): create→`churras-do-bruno-v6tp`; preview por slug e por id 200 (shape exato, zero campos sensíveis); statement por slug e por id cru 200; kill-switch PUT → preview 404/slug vivo; revoke → preview 404 + slug 400. 
+- **5-point**: (1) ACs G4 ✓ (4 milestones + probe). (2) Regressão: id cru provado vivo em produção; guards DEC-436→444 intocados (RL_SHARE_WRITE segue nas escritas, `/preview` é leitura sem RL como statement GET; CORS/logger reusados); zero matemática tocada. (3) Suíte 3050/3050, 0 falhas novas. (4) Fora de escopo: nenhum. (5) dev-log; DEC-445/446 seguem PROPOSED até o G5 provar o crawler real.
 
 ### G3 — PhaseSpendLens + explainers que somam (done 2026-07-03) — `2.2.2-rc` — D03 parte 2
 - **m1 (domínio puro)**: `src/domain/budget/phase-spend-lens.ts` — `buildPhaseSpendLens({fts, transactions, phaseId, poolId})` reconcilia TODAS as leituras de "dinheiro da fase" num objeto só: configurado da verba → − reserva de evento → + gastos de outras verbas atribuídos → = envelope calculado (o ex-"884") → − gasto atribuído → = livre agora (raw). Linhas com sinal (`add`/`subtract`/`total`) que SOMAM exatamente (invariante testada); termos zero são omitidos; `paidNowOtherPhasesCents` e `otherPoolsCents` assinados (refunds ok). Exporta métricas extras para a lista: `tripTotalCents`/`phaseGrossCents`/`otherPhasesGrossCents` (brutos, base `amountCents` — a FLAG bruto-vs-pessoal do G2 fica documentada, sem mudança de base). 9 testes em `phase-spend-lens.test.ts` sobre o fixture do G2 (variantes: instante-hero, pote inflando 947, hotel comendo envelope 752, déficit, refund).

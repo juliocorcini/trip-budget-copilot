@@ -172,6 +172,14 @@ export interface AppSettings {
    * balances or transaction content) to the Worker /t endpoint. Turning it off
    * stops every telemetry network call (non-indexed — no migration). */
   telemetryEnabled: boolean;
+  /** DEC-445 (rich link previews): when on (DEFAULT ON — Julio's product call),
+   * publishing a share also stores a plaintext SUMMARY (title, composed
+   * description, total, people count, one image id — never items/names/keys:
+   * Â-PREVIEW-SUMMARY-ONLY) plus a readable slug, so pasted links render a card.
+   * Kill-switch: OFF publishes without preview/slug and a republish erases the
+   * stored summary. `undefined` on existing installs reads back as ON
+   * (non-indexed — no migration). */
+  sharePreviewEnabled?: boolean;
 }
 
 /**

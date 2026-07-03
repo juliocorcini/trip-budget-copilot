@@ -16,5 +16,6 @@ export * from './inbound-ledger';
 export * from './migration-payload';
 export * from './mirrored';
 export * from './share-link';
+export * from './share-preview';
 export * from './share-response';
 export * from './pair-link';

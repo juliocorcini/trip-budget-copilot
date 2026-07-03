@@ -1342,6 +1342,20 @@ export function SettingsPage() {
         <p className="text-xs text-on-surface-faint mt-2">{t('mailbox.setting_hint')}</p>
       </Section>
 
+      {/* DEC-445: rich link previews — DEFAULT ON (Julio's call), kill-switch
+          here. OFF publishes without preview/slug; a republish erases the stored
+          summary (apps may keep an old card cached for a while). */}
+      <Section title={t('shareLink.preview_setting_title')}>
+        <ToggleRow
+          label={t('shareLink.preview_setting_label')}
+          enabled={settings.sharePreviewEnabled !== false}
+          onChange={() =>
+            updateSetting({ sharePreviewEnabled: settings.sharePreviewEnabled === false })
+          }
+        />
+        <p className="text-xs text-on-surface-faint mt-2">{t('shareLink.preview_setting_hint')}</p>
+      </Section>
+
       {/* DEC-206 (G2): cloud receipt OCR — opt-in. The photo only leaves the
           device after this is on (privacy first; the model does not train on it). */}
       <Section title={t('receiptScan.setting_title')}>

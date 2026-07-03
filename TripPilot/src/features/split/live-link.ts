@@ -12,17 +12,28 @@ import {
   postShareResponse,
   getShareResponses,
   type ShareResponseItem,
+  type SharePublishExtras,
 } from '@/data/sync/share-client';
-import { buildSplitTableUrl } from '@/domain/sync';
+import {
+  buildSplitTableUrl,
+  buildSharePreview,
+  slugifyShareName,
+  type SharePreview,
+} from '@/domain/sync';
+import { formatMoney } from '@/domain/money';
+import i18n from '@/i18n';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import {
   buildSplitSharePayload,
   parseSplitSharePayload,
   parseSplitClaimResponse,
+  itemsSubtotalCents,
+  serviceChargeAmountCents,
   type SplitSharePayload,
   type SplitClaimResponse,
 } from '@/domain/split';
 import type { SplitSession } from '@/domain/split';
+import { isSharePreviewEnabled } from '@/features/group-split/group-link';
 
 /**
  * G2 (live table link) — the client orchestration that wires the pure split
@@ -39,6 +50,8 @@ import type { SplitSession } from '@/domain/split';
 
 export interface SplitLiveCreds {
   shareId: string;
+  /** DEC-446 — readable path slug (absent on legacy/preview-off links). */
+  slug?: string;
   /** AES key (base64url). Client-only; travels solely in the link fragment. */
   key: string;
   writeToken: string;
@@ -52,6 +65,42 @@ async function encodeSession(key: string, session: SplitSession, revision: numbe
   return encryptText(cryptoKey, JSON.stringify(payload));
 }
 
+/* ── preview (DEC-445, Â-PREVIEW-SUMMARY-ONLY) ───────────────────────────── */
+
+/** The whole bill's worth (items + service + adjustments), like the home card. */
+function splitBillTotalCents(session: SplitSession): number {
+  const subtotal = itemsSubtotalCents(session);
+  return (
+    subtotal +
+    serviceChargeAmountCents(session.serviceCharge, subtotal) +
+    session.adjustments.reduce((sum, a) => sum + a.amountCents, 0)
+  );
+}
+
+/** Summary-only preview, composed in the OWNER's language (server never translates). */
+function composeSplitPreview(session: SplitSession): SharePreview {
+  const totalCents = splitBillTotalCents(session);
+  return buildSharePreview({
+    kind: 'split',
+    title: session.name,
+    description: i18n.t('shareLink.preview_split_desc', {
+      total: formatMoney(totalCents, session.currency),
+      count: session.participants.length,
+    }),
+    totalCents,
+    currency: session.currency,
+    peopleCount: session.participants.length,
+  });
+}
+
+async function splitPublishExtras(session: SplitSession): Promise<SharePublishExtras | undefined> {
+  if (!(await isSharePreviewEnabled())) return undefined;
+  return {
+    preview: composeSplitPreview(session),
+    slugBase: slugifyShareName(session.name) || 'split',
+  };
+}
+
 /* ── owner side ──────────────────────────────────────────────────────────── */
 
 /** Publish the live table for the first time → returns the credentials. */
@@ -59,8 +108,14 @@ export async function publishSplitTable(session: SplitSession, revision: number)
   const safeRevision = revision >= 1 ? Math.floor(revision) : 1;
   const key = await generateSessionKey();
   const blob = await encodeSession(key, session, safeRevision);
-  const created = await createShare(blob, safeRevision);
-  return { shareId: created.id, key, writeToken: created.writeToken, revision: safeRevision };
+  const created = await createShare(blob, safeRevision, await splitPublishExtras(session));
+  return {
+    shareId: created.id,
+    ...(created.slug ? { slug: created.slug } : {}),
+    key,
+    writeToken: created.writeToken,
+    revision: safeRevision,
+  };
 }
 
 /** Re-publish the merged/edited session under the same link (owner-authoritative). */
@@ -70,7 +125,9 @@ export async function republishSplitTable(
   revision: number,
 ): Promise<void> {
   const blob = await encodeSession(creds.key, session, revision);
-  await putShareStatement(creds.shareId, creds.writeToken, blob, revision);
+  // Preview refreshed (or erased, when the kill-switch is off) on every republish.
+  const preview = (await isSharePreviewEnabled()) ? composeSplitPreview(session) : undefined;
+  await putShareStatement(creds.shareId, creds.writeToken, blob, revision, preview);
 }
 
 export async function revokeSplitTable(creds: SplitLiveCreds): Promise<void> {
@@ -126,7 +183,8 @@ export function buildSplitTableLink(creds: SplitLiveCreds): string {
   // `https://localhost`, which would produce a dead link. `getShareOrigin()`
   // returns the canonical public origin on native (and the real origin on web),
   // exactly like the `/s/:id` + `/pair` links.
-  return buildSplitTableUrl(getShareOrigin(), creds.shareId, creds.key);
+  // DEC-446 — slug in the path when present; the key stays in the fragment.
+  return buildSplitTableUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key);
 }
 
 /* ── guest side ──────────────────────────────────────────────────────────── */
@@ -205,7 +263,13 @@ export function loadOwnerLive(): SplitLiveCreds | null {
       typeof c.writeToken === 'string' &&
       typeof c.revision === 'number'
     ) {
-      return { shareId: c.shareId, key: c.key, writeToken: c.writeToken, revision: c.revision };
+      return {
+        shareId: c.shareId,
+        ...(typeof c.slug === 'string' ? { slug: c.slug } : {}),
+        key: c.key,
+        writeToken: c.writeToken,
+        revision: c.revision,
+      };
     }
     return null;
   } catch {

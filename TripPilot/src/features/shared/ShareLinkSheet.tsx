@@ -7,8 +7,9 @@ import {
   pullShareResponses,
 } from '@/domain/orchestrators';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync';
-import { shareLinkRepository, settlementRepository } from '@/data/repositories';
+import { shareLinkRepository, settlementRepository, appSettingsRepository } from '@/data/repositories';
 import { createSettlement } from '@/domain/splitting';
+import { buildSharePreview, type SharePreview } from '@/domain/sync';
 import type { StatementPayload } from '@/domain/sync';
 import type { ShareLink } from '@/domain/types/share-link';
 import type { ShareSettleProposal } from '@/domain/sync';
@@ -49,8 +50,18 @@ export function ShareLinkSheet({
   const [loading, setLoading] = useState(true);
   const [proposal, setProposal] = useState<ShareSettleProposal | null>(null);
   const [proposalFrom, setProposalFrom] = useState<string | null>(null);
+  // DEC-445 — the 1-line "who has the link sees a summary" notice (only true
+  // while the Settings kill-switch is on).
+  const [previewOn, setPreviewOn] = useState(true);
   // DEC-207 S7 — live signal for this link (transport only).
   const signalRef = useRef<ShareSignalHandle | null>(null);
+
+  useEffect(() => {
+    void appSettingsRepository
+      .get()
+      .then((s) => setPreviewOn(s?.sharePreviewEnabled !== false))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -60,7 +71,8 @@ export function ShareLinkSheet({
       setLink(existing ?? null);
       if (existing) {
         const { buildShareUrl } = await import('@/domain/sync');
-        setUrl(buildShareUrl(getShareOrigin(), existing.id, existing.key));
+        // DEC-446 — slug in the path when the link has one; key in the fragment.
+        setUrl(buildShareUrl(getShareOrigin(), existing.slug ?? existing.id, existing.key));
       }
       setLoading(false);
     })();
@@ -68,6 +80,20 @@ export function ShareLinkSheet({
       active = false;
     };
   }, [participantId]);
+
+  // DEC-445 — summary-only preview for the pasted-link card, composed here so
+  // it speaks the OWNER's language (the worker never translates).
+  const composeStatementPreview = (statement: StatementPayload): SharePreview =>
+    buildSharePreview({
+      kind: 'statement',
+      title: t('shareLink.preview_statement_title', { name: statement.owner.name }),
+      description: t('shareLink.preview_statement_desc', {
+        amount: formatMoney(Math.abs(statement.netCents), statement.currency),
+      }),
+      totalCents: Math.abs(statement.netCents),
+      currency: statement.currency,
+      peopleCount: 2,
+    });
 
   // DEC-207 S7 — when the guest posts a response, the relay nudges us to pull
   // it live. A short delay absorbs KV read-after-write; the pull stays silent
@@ -98,6 +124,7 @@ export function ShareLinkSheet({
         participantId,
         statement,
         getShareOrigin(),
+        composeStatementPreview(statement),
       );
       setLink(shareLink);
       setUrl(newUrl);
@@ -127,7 +154,7 @@ export function ShareLinkSheet({
     if (!statement) return false;
     setBusy(true);
     try {
-      const updated = await refreshShareLink(link, statement);
+      const updated = await refreshShareLink(link, statement, composeStatementPreview(statement));
       setLink(updated);
       // DEC-207 S7 — tell a connected guest to re-pull the new revision live.
       signalRef.current?.send({ t: 'upd', rev: updated.statementRevision });
@@ -271,6 +298,12 @@ export function ShareLinkSheet({
         <p className="text-[10px] text-on-surface-faint mb-1">{t('shareLink.url_label')}</p>
         <p className="text-xs text-on-surface break-all leading-snug">{url}</p>
       </div>
+
+      {previewOn && (
+        <p className="text-[10px] text-on-surface-faint leading-snug">
+          {t('shareLink.preview_notice')}
+        </p>
+      )}
 
       <button
         onClick={handleShareOrCopy}

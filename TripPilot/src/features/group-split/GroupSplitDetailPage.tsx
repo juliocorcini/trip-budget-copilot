@@ -555,6 +555,10 @@ export function GroupSplitDetailPage() {
               </div>
             )}
             <p className="text-[11px] text-on-surface-faint break-all">{link}</p>
+            {/* DEC-445 — consent awareness: the pasted link renders a summary card. */}
+            <p className="text-[10px] text-on-surface-faint leading-snug">
+              {t('shareLink.preview_notice')}
+            </p>
             <div className="flex gap-2">
               <button
                 onClick={() => link && void shareLink(link)}

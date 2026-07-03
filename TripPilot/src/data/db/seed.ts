@@ -110,6 +110,9 @@ export function createDefaultAppSettings(): AppSettings {
     // (Julio's call). Sends only the owner's name + non-monetary usage counts;
     // never values/items/balances. One-tap opt-out in Settings.
     telemetryEnabled: true,
+    // DEC-445: rich link previews ON by default (Julio's call) — pasted links
+    // show a summary card. Kill-switch in Settings.
+    sharePreviewEnabled: true,
   };
 }
 

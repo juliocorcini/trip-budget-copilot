@@ -9,6 +9,9 @@ import type { SyncMetadata } from './common';
 export interface ShareLink extends SyncMetadata {
   /** The participant whose statement this link exposes. */
   participantId: string;
+  /** DEC-446 — readable path slug (absent on legacy/preview-off links).
+   * Additive + optional → old rows read back `undefined`; non-indexed. */
+  slug?: string | null;
   /** AES-GCM key (base64url) — encrypts the statement; lives in the URL fragment. */
   key: string;
   /** Owner-only write token — gates statement update / revoke / response pull. */

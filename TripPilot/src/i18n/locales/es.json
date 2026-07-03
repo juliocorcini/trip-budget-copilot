@@ -3385,6 +3385,14 @@
     "label": "Comprobante"
   },
   "shareLink": {
+    "preview_notice": "Quien tenga el enlace ve una vista previa con nombre, total y nº de personas (puedes desactivarla en Ajustes).",
+    "preview_group_desc": "Total {{total}} · {{count}} personas — división en grupo en TripPilot",
+    "preview_split_desc": "Cuenta de {{total}} · {{count}} personas — división en vivo en TripPilot",
+    "preview_statement_title": "Cuentas con {{name}}",
+    "preview_statement_desc": "Ajuste de {{amount}} — extracto compartido en TripPilot",
+    "preview_setting_title": "Vista previa de los enlaces",
+    "preview_setting_label": "Mostrar vista previa al compartir",
+    "preview_setting_hint": "Con esto activado, los enlaces de división/extracto muestran nombre, total, nº de personas e imagen al pegarlos (WhatsApp etc.) y ganan una dirección legible. El contenido detallado sigue cifrado. Ojo: las apps pueden mantener una vista previa antigua en caché un tiempo después de desactivarlo.",
     "title": "Compartir con {{name}}",
     "open_action": "Compartir por enlace",
     "intro": "Genera un enlace para {{name}}. Lo abre en el navegador y ve solo lo que dividiste con ella — sin instalar la app ni crear cuenta.",

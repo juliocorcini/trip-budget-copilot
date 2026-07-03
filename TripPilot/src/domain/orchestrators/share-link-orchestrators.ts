@@ -21,6 +21,7 @@ import {
   postShareResponse,
 } from '@/data/sync/share-client';
 import { buildShareUrl } from '@/domain/sync/share-link';
+import { slugifyShareName, type SharePreview } from '@/domain/sync/share-preview';
 import { resolveSelfShareName } from './sync-orchestrators';
 import {
   buildShareResponseBatch,
@@ -62,20 +63,40 @@ export interface CreateShareLinkResult {
   shareLink: ShareLink;
 }
 
-/** Owner: create a brand-new link for a participant's statement. */
+/** DEC-445 kill-switch — default ON; a read failure never blocks publishing. */
+async function sharePreviewAllowed(): Promise<boolean> {
+  try {
+    const settings = await appSettingsRepository.get();
+    return settings?.sharePreviewEnabled !== false;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Owner: create a brand-new link for a participant's statement. The optional
+ * `preview` (composed by the UI in the owner's language — DEC-445) is dropped
+ * here when the Settings kill-switch is off, so callers never re-check it.
+ */
 export async function createShareLink(
   participantId: string,
   statement: StatementPayload,
   origin: string,
+  preview?: SharePreview,
 ): Promise<CreateShareLinkResult> {
   const key = await generateSessionKey();
   const cryptoKey = await importSessionKey(key);
   const blob = await encryptText(cryptoKey, JSON.stringify(statement));
-  const { id, writeToken } = await createShare(blob, 1);
+  const allowed = preview ? await sharePreviewAllowed() : false;
+  const extras = allowed
+    ? { preview, slugBase: slugifyShareName(statement.peerName) || 'statement' }
+    : undefined;
+  const { id, slug, writeToken } = await createShare(blob, 1, extras);
 
   const shareLink: ShareLink = {
     ...createSyncMetadata({ id }),
     participantId,
+    slug: slug ?? null,
     key,
     writeToken,
     statementRevision: 1,
@@ -83,18 +104,26 @@ export async function createShareLink(
     lastPulledAt: null,
   };
   await shareLinkRepository.create(shareLink);
-  return { url: buildShareUrl(origin, id, key), shareLink };
+  return { url: buildShareUrl(origin, slug ?? id, key), shareLink };
 }
 
 /** Owner: re-publish the latest statement to an existing link (revision++). */
 export async function refreshShareLink(
   shareLink: ShareLink,
   statement: StatementPayload,
+  preview?: SharePreview,
 ): Promise<ShareLink> {
   const cryptoKey = await importSessionKey(shareLink.key);
   const blob = await encryptText(cryptoKey, JSON.stringify(statement));
   const nextRevision = shareLink.statementRevision + 1;
-  await putShareStatement(shareLink.id, shareLink.writeToken, blob, nextRevision);
+  const allowed = preview ? await sharePreviewAllowed() : false;
+  await putShareStatement(
+    shareLink.id,
+    shareLink.writeToken,
+    blob,
+    nextRevision,
+    allowed ? preview : undefined,
+  );
   return shareLinkRepository.update({ ...shareLink, statementRevision: nextRevision });
 }
 

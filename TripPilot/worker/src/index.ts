@@ -7,6 +7,15 @@
  * this worker). Nothing is persisted beyond the room's lifetime.
  */
 import { logEvent, routeTemplate } from './logger';
+import {
+  sanitizeSharePreview,
+  randomSlugSuffix,
+  composeSlug,
+  SLUG_BASE_RE,
+  SLUG_RE,
+  CANONICAL_SHARE_ID_RE,
+  type WorkerSharePreview,
+} from './share-preview';
 
 /**
  * DEC-439 (SEC-2): minimal local type for the native Workers rate limiting
@@ -38,7 +47,10 @@ export interface Env {
    */
   SHARE_STORE_DO?: DurableObjectNamespace;
   /**
-   * Legacy KV store (pre-DO). Kept bound for older data only; no longer written.
+   * KV namespace with two lives: (1) legacy pre-DO share data (read-only);
+   * (2) DEC-445/446 — `preview:{id}` summary blobs + `slug:{slug}` → shareId
+   * mappings (both TTL'd like the share). Previews/slugs tolerate KV's eventual
+   * consistency (crawlers and link opens, not live polling).
    */
   SHARE_STORE?: KVNamespace;
   /**
@@ -821,23 +833,197 @@ async function handleShare(request: Request, env: Env, url: URL): Promise<Respon
     return stub.fetch(`https://do${path}`, { method, headers, body: bodyText });
   };
 
+  // DEC-445/446 — `preview` and `slugBase` ride inside the same POST/PUT body
+  // as the ciphertext; the DO ignores them (it destructures blob/revision only).
+  const extras = parseShareExtras(bodyText);
+
   // POST /share — mint the id here, then let its DO initialise + return a token.
   if (method === 'POST' && url.pathname === '/share') {
     const id = crypto.randomUUID();
     const res = await callDo(id, '/init');
     if (!res.ok) return relayDoResponse(res);
     const data = (await res.json()) as Record<string, unknown>;
-    return json({ id, ...data });
+    const slug = await storeShareExtras(env, id, extras);
+    return json({ id, ...(slug ? { slug } : {}), ...data });
   }
 
   const match = url.pathname.match(/^\/share\/([^/]+)(\/responses)?$/);
   if (!match) return json({ error: 'not_found' }, 404);
-  const id = decodeURIComponent(match[1]!);
+  const raw = decodeURIComponent(match[1]!);
   const isResponses = match[2] === '/responses';
-  if (!SHARE_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+  // DEC-446 (Â-OLD-LINKS-LIVE): raw ids resolve exactly as before; a slug is an
+  // ADDITIONAL resolution layer on top.
+  const id = await resolveShareAddress(env, raw);
+  if (!id) return json({ error: 'bad_id' }, 400);
 
   const res = await callDo(id, isResponses ? '/responses' : '/statement');
+  if (res.ok && !isResponses && method === 'PUT') await updateSharePreview(env, id, extras);
+  if (res.ok && !isResponses && method === 'DELETE') await clearShareExtras(env, id);
   return relayDoResponse(res);
+}
+
+interface ShareExtras {
+  preview: WorkerSharePreview | null;
+  /** Raw client value — validated against SLUG_BASE_RE before use. */
+  slugBase: string | null;
+  /** True when the body carried a `preview` field at all (even an invalid one). */
+  previewSent: boolean;
+}
+
+function parseShareExtras(bodyText: string | undefined): ShareExtras {
+  if (!bodyText) return { preview: null, slugBase: null, previewSent: false };
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(bodyText) as Record<string, unknown>;
+  } catch {
+    return { preview: null, slugBase: null, previewSent: false };
+  }
+  const preview = sanitizeSharePreview(body.preview);
+  const previewSent = body.preview !== undefined;
+  if (previewSent && !preview) logEvent('warn', 'share_preview_rejected', {});
+  const slugBase =
+    typeof body.slugBase === 'string' && SLUG_BASE_RE.test(body.slugBase) ? body.slugBase : null;
+  return { preview, slugBase, previewSent };
+}
+
+interface ShareExtrasRecord {
+  slug: string | null;
+  p: WorkerSharePreview | null;
+}
+
+const previewKey = (id: string): string => `preview:${id}`;
+const slugKey = (slug: string): string => `slug:${slug}`;
+
+async function readShareExtras(kv: KVNamespace, id: string): Promise<ShareExtrasRecord | null> {
+  const raw = await kv.get(previewKey(id));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as ShareExtrasRecord;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * DEC-446 — turn `/share/:x` into a share id. Canonical UUID ids (every id the
+ * worker ever minted) pass through untouched — old links stay alive forever.
+ * Anything slug-shaped goes through the KV `slug:` mapping; legacy hex ids
+ * (pre-UUID KV era) keep their old validation as the final fallback.
+ */
+async function resolveShareAddress(env: Env, raw: string): Promise<string | null> {
+  if (CANONICAL_SHARE_ID_RE.test(raw)) return raw;
+  if (env.SHARE_STORE && SLUG_RE.test(raw)) {
+    const mapped = await env.SHARE_STORE.get(slugKey(raw));
+    if (mapped) return mapped;
+  }
+  return SHARE_ID_RE.test(raw) ? raw : null;
+}
+
+/** Create-time extras: reserve a readable slug + store the preview record. */
+async function storeShareExtras(env: Env, id: string, extras: ShareExtras): Promise<string | null> {
+  const kv = env.SHARE_STORE;
+  if (!kv || (!extras.preview && !extras.slugBase)) return null;
+
+  let slug: string | null = null;
+  if (extras.slugBase) {
+    for (let attempt = 0; attempt < 3 && !slug; attempt++) {
+      const candidate = composeSlug(extras.slugBase, randomSlugSuffix());
+      if ((await kv.get(slugKey(candidate))) === null) {
+        await kv.put(slugKey(candidate), id, { expirationTtl: SHARE_TTL_SECONDS });
+        slug = candidate;
+      }
+    }
+    if (!slug) logEvent('warn', 'share_slug_exhausted', {});
+  }
+  if (extras.preview || slug) {
+    const record: ShareExtrasRecord = { slug, p: extras.preview };
+    await kv.put(previewKey(id), JSON.stringify(record), { expirationTtl: SHARE_TTL_SECONDS });
+  }
+  return slug;
+}
+
+/**
+ * Re-publish-time extras: refresh the preview (and the slug's TTL) when the
+ * owner sent one; DROP the stored preview when the owner explicitly published
+ * without it (the Settings kill-switch turned OFF → republish erases the old
+ * summary). The slug mapping survives either way — the link must keep opening.
+ */
+async function updateSharePreview(env: Env, id: string, extras: ShareExtras): Promise<void> {
+  const kv = env.SHARE_STORE;
+  if (!kv) return;
+  const existing = await readShareExtras(kv, id);
+  const slug = existing?.slug ?? null;
+  if (extras.preview) {
+    const record: ShareExtrasRecord = { slug, p: extras.preview };
+    await kv.put(previewKey(id), JSON.stringify(record), { expirationTtl: SHARE_TTL_SECONDS });
+    if (slug) await kv.put(slugKey(slug), id, { expirationTtl: SHARE_TTL_SECONDS });
+    return;
+  }
+  if (existing?.p) {
+    if (slug) {
+      await kv.put(previewKey(id), JSON.stringify({ slug, p: null }), {
+        expirationTtl: SHARE_TTL_SECONDS,
+      });
+    } else {
+      await kv.delete(previewKey(id));
+    }
+  }
+}
+
+/** Revoke-time extras: the preview and the slug die with the share. */
+async function clearShareExtras(env: Env, id: string): Promise<void> {
+  const kv = env.SHARE_STORE;
+  if (!kv) return;
+  const existing = await readShareExtras(kv, id);
+  if (existing?.slug) await kv.delete(slugKey(existing.slug));
+  if (existing) await kv.delete(previewKey(id));
+}
+
+/**
+ * DEC-445 — `GET /preview/:idOrSlug` (public, CORS `*`, NO rate limit — it is a
+ * read, like the statement GET). Returns the stored summary blob plus the live
+ * `responsesCount` (people at the table) read from the DO meta WITHOUT ever
+ * touching the ciphertext. 404 when the share never had a preview (or is gone);
+ * 410 after a revoke that somehow left the record behind.
+ */
+async function handleSharePreviewGet(env: Env, url: URL): Promise<Response> {
+  const kv = env.SHARE_STORE;
+  if (!kv) return json({ error: 'preview_not_configured' }, 503);
+  const match = url.pathname.match(/^\/preview\/([^/]+)$/);
+  if (!match) return json({ error: 'not_found' }, 404);
+  const raw = decodeURIComponent(match[1]!);
+  const id = await resolveShareAddress(env, raw);
+  if (!id) return json({ error: 'not_found' }, 404);
+  const record = await readShareExtras(kv, id);
+  if (!record?.p) return json({ error: 'not_found' }, 404);
+
+  let responsesCount = 0;
+  if (env.SHARE_STORE_DO) {
+    const stub = env.SHARE_STORE_DO.get(env.SHARE_STORE_DO.idFromName(id));
+    const res = await stub.fetch('https://do/summary');
+    if (res.status === 404) return json({ error: 'not_found' }, 404);
+    if (res.ok) {
+      const summary = (await res.json()) as { responses?: number; revoked?: boolean };
+      if (summary.revoked) return json({ error: 'revoked' }, 410);
+      responsesCount = typeof summary.responses === 'number' ? summary.responses : 0;
+    }
+  }
+
+  const body = JSON.stringify({
+    ...record.p,
+    ...(record.slug ? { slug: record.slug } : {}),
+    responsesCount,
+  });
+  return new Response(body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      // Crawlers re-fetch on every paste; 60s keeps "always fresh" in practice
+      // while sparing the DO from a scrape loop.
+      'Cache-Control': 'public, max-age=60',
+      ...CORS_HEADERS,
+    },
+  });
 }
 
 /** Re-emit a ShareStore DO response with the public CORS + no-store headers. */
@@ -1171,10 +1357,19 @@ async function routeRequest(
     const shareWsMatch = url.pathname.match(/^\/share\/([^/]+)\/ws$/);
     if (request.method === 'GET' && shareWsMatch) {
       if (!env.SHARE_SIGNAL) return json({ error: 'realtime_not_configured' }, 426);
-      const id = decodeURIComponent(shareWsMatch[1]!);
-      if (!SHARE_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
+      // DEC-446: a guest that opened a slug link joins the relay by that slug —
+      // resolve it so both sides land in the SAME room (named by the real id).
+      const id = await resolveShareAddress(env, decodeURIComponent(shareWsMatch[1]!));
+      if (!id) return json({ error: 'bad_id' }, 400);
       const stub = env.SHARE_SIGNAL.get(env.SHARE_SIGNAL.idFromName(id));
       return stub.fetch(request);
+    }
+
+    // DEC-445 — public share preview (summary blob + live people count). A pure
+    // READ for crawlers/link cards: CORS `*`, no rate limit (Â-WORKER-GUARDS-KEPT
+    // keeps writes limited; this is the same class as the statement GET).
+    if (request.method === 'GET' && url.pathname.startsWith('/preview/')) {
+      return handleSharePreviewGet(env, url);
     }
 
     // DEC-207 — persistent encrypted share channel (shared participant link).
@@ -1429,7 +1624,22 @@ export class ShareStore {
       if (request.method === 'POST') return this.postResponse(request);
       if (request.method === 'GET') return this.getResponses();
     }
+    // DEC-445 — tiny ciphertext-free meta read for the public preview endpoint.
+    if (request.method === 'GET' && path === '/summary') return this.summary();
     return json({ error: 'not_found' }, 404);
+  }
+
+  /** Meta-only summary (never touches the ciphertext): live people count. */
+  private async summary(): Promise<Response> {
+    const meta = await this.meta();
+    if (!meta) return json({ error: 'not_found' }, 404);
+    const responses = (await this.listResponses()).size;
+    return json({
+      revision: meta.revision,
+      updatedAt: meta.updatedAt,
+      revoked: meta.revoked,
+      responses,
+    });
   }
 
   private async meta(): Promise<ShareStatementMeta | null> {

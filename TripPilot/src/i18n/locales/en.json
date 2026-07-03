@@ -3385,6 +3385,14 @@
     "label": "Proof"
   },
   "shareLink": {
+    "preview_notice": "Anyone with the link sees a preview with name, total and people count (you can turn it off in Settings).",
+    "preview_group_desc": "Total {{total}} · {{count}} people — group split on TripPilot",
+    "preview_split_desc": "Bill of {{total}} · {{count}} people — live split on TripPilot",
+    "preview_statement_title": "Expenses with {{name}}",
+    "preview_statement_desc": "Settling {{amount}} — shared statement on TripPilot",
+    "preview_setting_title": "Link previews",
+    "preview_setting_label": "Show rich preview when sharing",
+    "preview_setting_hint": "When on, split/statement links show name, total, people count and an image when pasted (WhatsApp etc.) and get a readable address. The detailed content stays encrypted. Note: apps may keep an old preview cached for a while after turning this off.",
     "title": "Share with {{name}}",
     "open_action": "Share via link",
     "intro": "Generate a link for {{name}}. They open it in a browser and see only what you split with them — no app install, no account.",

@@ -1,5 +1,6 @@
 import { getSyncWorkerUrl } from './config';
 import { logger } from '@/utils/logger';
+import type { SharePreview } from '@/domain/sync/share-preview';
 
 /**
  * DEC-207 — HTTP client for the worker's persistent share channel. Mirrors
@@ -7,6 +8,11 @@ import { logger } from '@/utils/logger';
  * Origin: *`, so it works from the native WebView too). Every payload is opaque
  * ciphertext — the worker can read nothing. The owner holds a write token that
  * gates statement update / revoke / response pull.
+ *
+ * DEC-445/446: create/put optionally carry a plaintext SUMMARY preview and a
+ * readable slug base alongside the ciphertext (Â-PREVIEW-SUMMARY-ONLY — the
+ * worker re-validates against its own allowlist). The AES key never rides in
+ * either (Â-KEY-IN-FRAGMENT).
  */
 
 const TOKEN_HEADER = 'X-Share-Token';
@@ -15,17 +21,28 @@ function shareUrl(path = ''): string {
   return `${getSyncWorkerUrl()}/share${path}`;
 }
 
+export interface SharePublishExtras {
+  preview?: SharePreview;
+  slugBase?: string;
+}
+
 export interface CreateShareResult {
   id: string;
+  /** Readable path slug reserved by the worker (absent when not requested). */
+  slug?: string;
   writeToken: string;
   expiresAt: number;
 }
 
-export async function createShare(blob: string, revision: number): Promise<CreateShareResult> {
+export async function createShare(
+  blob: string,
+  revision: number,
+  extras?: SharePublishExtras,
+): Promise<CreateShareResult> {
   const res = await fetch(shareUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ blob, revision }),
+    body: JSON.stringify({ blob, revision, ...extras }),
   });
   if (!res.ok) throw new Error(`share_create_${res.status}`);
   return (await res.json()) as CreateShareResult;
@@ -63,11 +80,13 @@ export async function putShareStatement(
   writeToken: string,
   blob: string,
   revision: number,
+  preview?: SharePreview,
 ): Promise<void> {
   const res = await fetch(shareUrl(`/${encodeURIComponent(id)}`), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', [TOKEN_HEADER]: writeToken },
-    body: JSON.stringify({ blob, revision }),
+    // Omitting `preview` tells the worker to drop any stored one (kill-switch).
+    body: JSON.stringify({ blob, revision, ...(preview ? { preview } : {}) }),
   });
   if (!res.ok) throw new Error(`share_put_${res.status}`);
 }

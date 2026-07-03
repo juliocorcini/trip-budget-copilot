@@ -1332,6 +1332,12 @@ function LiveShareSheet({
             {link}
           </p>
         )}
+        {/* DEC-445 — consent awareness: the pasted link renders a summary card. */}
+        {link && (
+          <p className="text-[10px] text-on-surface-faint text-center leading-snug">
+            {t('shareLink.preview_notice')}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => void copy()}

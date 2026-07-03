@@ -3389,6 +3389,14 @@
     "label": "Comprovante"
   },
   "shareLink": {
+    "preview_notice": "Quem tiver o link vê uma prévia com nome, total e nº de pessoas (dá pra desligar nos Ajustes).",
+    "preview_group_desc": "Total {{total}} · {{count}} pessoas — divisão em grupo no TripPilot",
+    "preview_split_desc": "Conta de {{total}} · {{count}} pessoas — divisão ao vivo no TripPilot",
+    "preview_statement_title": "Contas com {{name}}",
+    "preview_statement_desc": "Acerto de {{amount}} — extrato compartilhado no TripPilot",
+    "preview_setting_title": "Prévia dos links",
+    "preview_setting_label": "Mostrar prévia rica ao compartilhar",
+    "preview_setting_hint": "Com isso ligado, links de divisão/extrato mostram nome, total, nº de pessoas e imagem quando colados (WhatsApp etc.) e ganham endereço legível. O conteúdo detalhado continua criptografado. Atenção: apps podem manter uma prévia antiga em cache por um tempo depois de desligar.",
     "title": "Compartilhar com {{name}}",
     "open_action": "Compartilhar por link",
     "intro": "Gere um link para {{name}}. A pessoa abre no navegador e vê só o que você dividiu com ela — sem precisar instalar o app nem criar conta.",

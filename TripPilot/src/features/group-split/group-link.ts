@@ -12,8 +12,17 @@ import {
   postShareResponse,
   getShareResponses,
   type ShareResponseItem,
+  type SharePublishExtras,
 } from '@/data/sync/share-client';
-import { buildGroupSplitUrl } from '@/domain/sync';
+import {
+  buildGroupSplitUrl,
+  buildSharePreview,
+  slugifyShareName,
+  type SharePreview,
+} from '@/domain/sync';
+import { formatMoney } from '@/domain/money';
+import { appSettingsRepository } from '@/data/repositories';
+import i18n from '@/i18n';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import {
   buildGroupSharePayload,
@@ -42,6 +51,8 @@ import type { GroupSplitEvent } from '@/domain/group-split';
 
 export interface GroupLiveCreds {
   shareId: string;
+  /** DEC-446 — readable path slug (absent on legacy/preview-off links). */
+  slug?: string;
   /** AES key (base64url). Client-only; travels solely in the link fragment. */
   key: string;
   writeToken: string;
@@ -55,6 +66,52 @@ async function encodeEvent(key: string, event: GroupSplitEvent, revision: number
   return encryptText(cryptoKey, JSON.stringify(payload));
 }
 
+/* ── preview (DEC-445, Â-PREVIEW-SUMMARY-ONLY) ───────────────────────────── */
+
+/** DEC-445 kill-switch — default ON; a read failure never blocks publishing. */
+export async function isSharePreviewEnabled(): Promise<boolean> {
+  try {
+    const settings = await appSettingsRepository.get();
+    return settings?.sharePreviewEnabled !== false;
+  } catch {
+    return true;
+  }
+}
+
+/** First plaintext (DEC-348) image on any expense — crawlers cannot decrypt E2E refs. */
+function groupPreviewImgId(event: GroupSplitEvent): string | null {
+  for (const expense of event.expenses) {
+    const ref = (expense.imageRefs ?? []).find((r) => !r.key);
+    if (ref) return ref.r2Id;
+  }
+  return null;
+}
+
+/** Summary-only preview, composed in the OWNER's language (server never translates). */
+function composeGroupPreview(event: GroupSplitEvent): SharePreview {
+  const totalCents = event.expenses.reduce((sum, e) => sum + e.amountCents, 0);
+  return buildSharePreview({
+    kind: 'group',
+    title: event.name,
+    description: i18n.t('shareLink.preview_group_desc', {
+      total: formatMoney(totalCents, event.currency),
+      count: event.participants.length,
+    }),
+    totalCents,
+    currency: event.currency,
+    peopleCount: event.participants.length,
+    imgId: groupPreviewImgId(event),
+  });
+}
+
+async function groupPublishExtras(event: GroupSplitEvent): Promise<SharePublishExtras | undefined> {
+  if (!(await isSharePreviewEnabled())) return undefined;
+  return {
+    preview: composeGroupPreview(event),
+    slugBase: slugifyShareName(event.name) || 'group',
+  };
+}
+
 /* ── owner side ──────────────────────────────────────────────────────────── */
 
 /** Publish the group event for the first time → returns the credentials. */
@@ -62,8 +119,14 @@ export async function publishGroupSplit(event: GroupSplitEvent, revision: number
   const safeRevision = revision >= 1 ? Math.floor(revision) : 1;
   const key = await generateSessionKey();
   const blob = await encodeEvent(key, event, safeRevision);
-  const created = await createShare(blob, safeRevision);
-  return { shareId: created.id, key, writeToken: created.writeToken, revision: safeRevision };
+  const created = await createShare(blob, safeRevision, await groupPublishExtras(event));
+  return {
+    shareId: created.id,
+    ...(created.slug ? { slug: created.slug } : {}),
+    key,
+    writeToken: created.writeToken,
+    revision: safeRevision,
+  };
 }
 
 /** Re-publish the edited event under the same link (owner-authoritative). */
@@ -73,7 +136,9 @@ export async function republishGroupSplit(
   revision: number,
 ): Promise<void> {
   const blob = await encodeEvent(creds.key, event, revision);
-  await putShareStatement(creds.shareId, creds.writeToken, blob, revision);
+  // Preview refreshed (or erased, when the kill-switch is off) on every republish.
+  const preview = (await isSharePreviewEnabled()) ? composeGroupPreview(event) : undefined;
+  await putShareStatement(creds.shareId, creds.writeToken, blob, revision, preview);
 }
 
 export async function revokeGroupSplit(creds: GroupLiveCreds): Promise<void> {
@@ -117,7 +182,9 @@ export async function fetchGroupResponses(shareId: string, key: string): Promise
 }
 
 export function buildGroupSplitLink(creds: GroupLiveCreds): string {
-  return buildGroupSplitUrl(getShareOrigin(), creds.shareId, creds.key);
+  // DEC-446 — the slug shortens the PATH; the key stays in the fragment. Old
+  // credentials without a slug keep producing the raw-id link forever.
+  return buildGroupSplitUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key);
 }
 
 /* ── guest side ──────────────────────────────────────────────────────────── */
