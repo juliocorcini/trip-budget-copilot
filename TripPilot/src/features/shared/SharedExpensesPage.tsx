@@ -110,11 +110,14 @@ import {
   dismissInboundP2p,
   shareDebtWithPeer,
   announcePaymentToPeer,
+  sendDebtMoveEnvelopes,
+  applyPendingDebtMove,
   removePerson,
   flushOutbox,
   materializeConnectedParticipant,
   type InboundP2pItem,
 } from '@/domain/orchestrators';
+import { debtMoveTotalCents } from '@/domain/sync/debt-move-payload';
 import { resolveSelfName } from '@/domain/sync/self-name';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
@@ -503,31 +506,70 @@ export function SharedExpensesPage() {
     [participants, peerLinks],
   );
 
-  // DEC-414 (G6): the shares a person can hand off — the debts THEY owe someone else
-  // (payer ≠ them) that are still open (confirmed, unpaid, live) and not P2P-accepted.
+  // DEC-414 (G6) · DEC-451 (D07): the shares a person can hand off — the debts THEY
+  // owe someone else (payer ≠ them) that are still open (confirmed, unpaid, live).
+  // Connected sources are movable too now: the P2P layer propagates the change.
   const movableSharesFor = useCallback(
     (personId: string): ParticipantShare[] => {
       const payerByTx = new Map(transactions.map((tx) => [tx.id, tx.paidByParticipantId]));
-      const connected = !isPersonLocal(personId);
       return shares.filter((s) => {
         if (s.participantId !== personId) return false;
-        if (!isShareReassignable(s, connected)) return false;
+        if (!isShareReassignable(s)) return false;
         const payer = payerByTx.get(s.transactionId) ?? null;
         return payer !== personId; // a real debt owed to someone else, not their own share
       });
     },
-    [shares, transactions, isPersonLocal],
+    [shares, transactions],
+  );
+
+  // DEC-451 (D07): the human label + P2P envelope items for a set of moved shares —
+  // the exact provenance both devices show ("veio de {nome}").
+  const moveItemsFor = useCallback(
+    (moved: ParticipantShare[]) => {
+      const txById = new Map(transactions.map((tx) => [tx.id, tx]));
+      return moved.map((s) => {
+        const tx = txById.get(s.transactionId);
+        const sub = tx ? findSubcategory(tx.subcategoryId) : null;
+        const description = sub
+          ? t(sub.labelKey as never)
+          : (tx?.description ??
+            (tx?.category ? t(`categories.${tx.category}` as never) : t('shared.statement_unnamed')));
+        return {
+          moveItemId: s.id,
+          amountCents: s.shareAmountCents,
+          description: String(description),
+          occurredAt: tx?.date ?? null,
+        };
+      });
+    },
+    [transactions, t],
+  );
+
+  // DEC-451 (D07): mailbox reach of a person — their actorId when we hold a live
+  // peer link WITH a public key (sealing needs it); null means device-local only.
+  const reachableActorIdFor = useCallback(
+    (participantId: string): string | null => {
+      const link = peerLinks.find((l) => l.participantId === participantId && l.deletedAt === null);
+      return link?.publicKey ? link.actorId : null;
+    },
+    [peerLinks],
   );
 
   // DEC-414 (G6): reassign the selected shares from `moveFrom` to the chosen person,
   // then record ONE device-local movement (history + undo). Amounts never change, so
   // the owner's total net is invariant — only the holder moves (Â-DEBT-TRACEABLE).
+  // DEC-451 (D07): when the move touches connected people, propagate a `debt_move`
+  // envelope — the destination device folds it on drain, the source device gets an
+  // informative card. Local-first: the reassignment NEVER waits on the network.
   const handleConfirmMove = async () => {
     if (!trip || !moveFrom || !moveDestId || moveShareIds.size === 0 || movingDebt) return;
     setMovingDebt(true);
     try {
       const toMove = shares.filter((s) => moveShareIds.has(s.id));
-      const reassigned = reassignShares(toMove, moveFrom.id, moveDestId);
+      const fromName = moveFrom.nickname ?? moveFrom.name;
+      const dest = participants.find((p) => p.id === moveDestId);
+      const destNameStr = dest?.nickname ?? dest?.name ?? '';
+      const reassigned = reassignShares(toMove, moveFrom.id, moveDestId, fromName);
       await Promise.all(reassigned.map((s) => participantShareRepository.update(s)));
       const totalCents = toMove.reduce((sum, s) => sum + s.shareAmountCents, 0);
       const movement = createDebtMovement(
@@ -538,6 +580,16 @@ export function SharedExpensesPage() {
         totalCents,
       );
       await debtMovementRepository.create(movement);
+      await sendDebtMoveEnvelopes({
+        moveId: movement.id,
+        direction: 'apply',
+        fromPersonName: fromName,
+        toPersonName: destNameStr,
+        currency: trip.baseCurrency,
+        items: moveItemsFor(toMove),
+        recipientActorId: reachableActorIdFor(moveDestId),
+        sourceActorId: reachableActorIdFor(moveFrom.id),
+      });
       setMoveFrom(null);
       await reload();
     } finally {
@@ -547,6 +599,8 @@ export function SharedExpensesPage() {
 
   // DEC-414 (G6): undo a move — send its shares back to the origin, clear the trail,
   // and tombstone the movement (kept for history, dropped from "active").
+  // DEC-451 (D07): the undo propagates too — a reverse `debt_move` removes the
+  // folded items from the recipient's device and informs the source.
   const handleUndoMove = async (movement: DebtMovement) => {
     if (movingDebt) return;
     setMovingDebt(true);
@@ -555,6 +609,20 @@ export function SharedExpensesPage() {
       const reverted = revertReassignedShares(affected, movement.fromParticipantId);
       await Promise.all(reverted.map((s) => participantShareRepository.update(s)));
       await debtMovementRepository.update({ ...movement, undoneAt: new Date().toISOString() });
+      const fromP = participants.find((p) => p.id === movement.fromParticipantId);
+      const toP = participants.find((p) => p.id === movement.toParticipantId);
+      if (trip) {
+        await sendDebtMoveEnvelopes({
+          moveId: movement.id,
+          direction: 'revert',
+          fromPersonName: fromP?.nickname ?? fromP?.name ?? '',
+          toPersonName: toP?.nickname ?? toP?.name ?? '',
+          currency: trip.baseCurrency,
+          items: moveItemsFor(affected),
+          recipientActorId: reachableActorIdFor(movement.toParticipantId),
+          sourceActorId: reachableActorIdFor(movement.fromParticipantId),
+        });
+      }
       await reload();
     } finally {
       setMovingDebt(false);
@@ -965,6 +1033,33 @@ export function SharedExpensesPage() {
       await dismissInboundP2p(item.itemId);
       showToast(t('p2p.rejected'), 'info');
       await refreshInbox();
+    } finally {
+      setP2pBusy(null);
+    }
+  };
+
+  // DEC-451 (D07) — debt_move cards are informative: dismissing acknowledges,
+  // it never rejects money (the fold already happened in the drain).
+  const handleDismissDebtMove = async (item: InboundP2pItem) => {
+    if (p2pBusy) return;
+    setP2pBusy(item.itemId);
+    try {
+      await dismissInboundP2p(item.itemId);
+      await refreshInbox();
+    } finally {
+      setP2pBusy(null);
+    }
+  };
+
+  // DEC-451 (D07) — a move that arrived before any trip existed stays actionable;
+  // this applies it into the (now-ready) notebook.
+  const handleApplyDebtMove = async (item: InboundP2pItem) => {
+    if (p2pBusy) return;
+    setP2pBusy(item.itemId);
+    try {
+      const ok = await applyPendingDebtMove(item.itemId);
+      showToast(ok ? t('p2p.move_applied_toast') : t('p2p.move_apply_failed'), ok ? 'success' : 'danger');
+      await Promise.all([reload(), refreshInbox()]);
     } finally {
       setP2pBusy(null);
     }
@@ -1420,6 +1515,65 @@ export function SharedExpensesPage() {
                     >
                       {t('p2p.accept')}
                     </button>
+                  </div>
+                </div>
+              );
+            }
+            // DEC-451 (D07) — a debt move that touched this device
+            // (Â-MOVE-VISIBLE-BOTH-SIDES: never silent). Applied/reverted/source
+            // cards are informative (dismiss = OK); a recipient card whose fold
+            // couldn't run yet (no trip at drain time) keeps an "apply" action.
+            if (item.kind === 'debt_move' && item.debtMove) {
+              const move = item.debtMove;
+              const total = formatMoney(debtMoveTotalCents(move), move.currency);
+              const isRevert = move.direction === 'revert';
+              const needsApply = move.role === 'recipient' && !isRevert && !move.appliedAt;
+              const title = isRevert
+                ? t('p2p.move_reverted_label', { name: move.movedByName })
+                : move.role === 'recipient'
+                  ? t('p2p.move_in_label', { name: move.movedByName })
+                  : t('p2p.move_out_label', { name: move.movedByName });
+              const body = isRevert
+                ? move.role === 'recipient'
+                  ? t('p2p.move_reverted_in_body', { from: move.fromPersonName })
+                  : t('p2p.move_reverted_out_body', { to: move.toPersonName })
+                : move.role === 'recipient'
+                  ? needsApply
+                    ? t('p2p.move_in_pending_body', { from: move.fromPersonName })
+                    : t('p2p.move_in_applied_body', { from: move.fromPersonName })
+                  : t('p2p.move_out_body', { to: move.toPersonName });
+              return (
+                <div
+                  key={item.itemId}
+                  className="rounded-2xl p-4 bg-surface-container border border-[var(--border-faint)] flex flex-col gap-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <Icon name="swap_horiz" size={18} className="text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-on-surface truncate">{title}</p>
+                      <p className="text-xs text-on-surface-faint leading-snug">{body}</p>
+                    </div>
+                    <p className="text-sm font-extrabold tabular text-on-surface shrink-0">{total}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDismissDebtMove(item)}
+                      disabled={busy}
+                      className="flex-1 py-2 rounded-xl bg-surface-high text-on-surface-dim text-xs font-semibold btn-press disabled:opacity-40"
+                    >
+                      {t('p2p.move_ack')}
+                    </button>
+                    {needsApply && (
+                      <button
+                        onClick={() => handleApplyDebtMove(item)}
+                        disabled={busy}
+                        className="flex-1 py-2 rounded-xl bg-primary/20 text-primary text-xs font-bold btn-press disabled:opacity-40"
+                      >
+                        {t('p2p.move_apply')}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -2243,12 +2397,12 @@ export function SharedExpensesPage() {
                 </div>
               )}
 
-              {/* DEC-414 (G6) — move THIS person's debt to someone else (local
-                  people only). Reassigns the shares (net invariant), leaving a
-                  "moved from" trail + undo. Shown when they owe me and have an
-                  open, non-P2P share to hand off. */}
+              {/* DEC-414 (G6) · DEC-451 (D07) — move THIS person's debt to someone
+                  else. Connected sources are movable too now (their device gets an
+                  informative debt_move). Reassigns the shares (net invariant),
+                  leaving a "moved from" trail + undo. Shown when they owe me and
+                  have an open share to hand off. */}
               {!statementTarget.isOwner &&
-                isPersonLocal(statementTarget.id) &&
                 statement.netCents < 0 &&
                 movableSharesFor(statementTarget.id).length > 0 && (
                   <button
@@ -2298,18 +2452,26 @@ export function SharedExpensesPage() {
       >
         {moveFrom && (() => {
           const movable = movableSharesFor(moveFrom.id);
-          // DEC-430 (Field v2 D05): split the candidates by why they can/can't take
-          // the debt directly. Local people are eligible destinations; connected
-          // peers get an honest explanation + the accept-first charge path instead
-          // of being silently dropped (Â-DEBT-SYNC-SAFE).
+          // DEC-451 (D07, revises DEC-430): connected people with a reachable
+          // mailbox are DIRECT destinations now — the reassignment applies here
+          // immediately and a `debt_move` folds it on their device (visible on
+          // both sides, Â-MOVE-VISIBLE-BOTH-SIDES). Only key-less peers keep the
+          // charge-only path, still explained instead of silently dropped.
           const statusFor = (p: Participant) =>
             classifyMoveDestination({
               isOwner: p.isOwner,
               isSource: p.id === moveFrom.id,
               isLocal: isPersonLocal(p.id),
+              hasMailboxKey: reachableActorIdFor(p.id) !== null,
             });
-          const destinations = participants.filter((p) => statusFor(p) === 'eligible');
+          const destinations = participants.filter((p) => {
+            const s = statusFor(p);
+            return s === 'eligible' || s === 'connected_movable';
+          });
           const connectedPeers = participants.filter((p) => statusFor(p) === 'connected_peer');
+          const destParticipant = participants.find((p) => p.id === moveDestId) ?? null;
+          const destIsConnected =
+            destParticipant !== null && statusFor(destParticipant) === 'connected_movable';
           const labelForShare = (s: ParticipantShare): string => {
             const tx = transactions.find((x) => x.id === s.transactionId);
             if (!tx) return t('shared.statement_unnamed');
@@ -2413,6 +2575,17 @@ export function SharedExpensesPage() {
                     </span>
                   </div>
 
+                  {/* DEC-451 — the chosen destination is a connected device: say
+                      plainly that their phone receives the items right away. */}
+                  {destIsConnected && (
+                    <p className="text-[11px] text-on-surface-dim leading-snug flex items-start gap-1.5">
+                      <Icon name="devices" size={14} className="text-primary shrink-0 mt-0.5" />
+                      <span>
+                        {t('shared.move_debt_connected_dest_note', { name: destName(moveDestId) })}
+                      </span>
+                    </p>
+                  )}
+
                   {destinations.length > 0 && (
                     <button
                       onClick={handleConfirmMove}
@@ -2426,11 +2599,10 @@ export function SharedExpensesPage() {
                     </button>
                   )}
 
-                  {/* DEC-430 (Field v2 D05 · §7-B): connected peers aren't a DIRECT
-                      destination — moving a mirrored share would desync their device.
-                      Explain honestly and route to the accept-first charge instead of
-                      dropping them silently. Peers we hold no actor for can't be
-                      charged live, so their shortcut is disabled. */}
+                  {/* DEC-451 (revises DEC-430): only peers WITHOUT a reachable
+                      mailbox key land here — we can't fold anything on their device,
+                      so the honest path is still the accept-first charge. Peers we
+                      hold no actor for can't be charged live; shortcut disabled. */}
                   {connectedPeers.length > 0 && (
                     <div className="mt-1 p-3 rounded-xl bg-surface-container">
                       <p className="text-xs font-semibold text-on-surface">

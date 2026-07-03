@@ -20,8 +20,10 @@ import { parseStatementPayload } from '@/domain/sync/statement-payload';
 import { parseMigrationPayload } from '@/domain/sync/migration-payload';
 import { buildConnectPayload, parseConnectPayload } from '@/domain/sync/connect-payload';
 import { parseSharedDebtPayload } from '@/domain/sync/debt-payload';
+import { parseDebtMovePayload } from '@/domain/sync/debt-move-payload';
 import { parsePaymentPayload } from '@/domain/sync/payment-payload';
 import { parseGroupInvitePayload } from '@/domain/sync/group-invite-payload';
+import { applyInboundDebtMove, revertInboundDebtMove } from './debt-move-orchestrators';
 import {
   storeMirroredStatement,
   upsertPeerLinkFromConnect,
@@ -216,7 +218,19 @@ export interface DrainResult {
   payments: number;
   /** DEC-355 (G8) — inbound group invites queued PENDING (accept-first). */
   invites: number;
+  /** DEC-451 (D07) — inbound debt moves handled this drain (applied/reverted/informative). */
+  debtMoves: number;
 }
+
+const EMPTY_DRAIN: DrainResult = {
+  statements: 0,
+  backups: 0,
+  connects: 0,
+  debts: 0,
+  payments: 0,
+  invites: 0,
+  debtMoves: 0,
+};
 
 /**
  * Drains this device's mailbox (when enabled) and routes each opened envelope.
@@ -224,8 +238,7 @@ export interface DrainResult {
  */
 export async function drainMailboxIntoApp(): Promise<DrainResult> {
   const settings = await appSettingsRepository.get();
-  if (!settings.mailboxEnabled)
-    return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0, invites: 0 };
+  if (!settings.mailboxEnabled) return { ...EMPTY_DRAIN };
 
   const me = await getDeviceIdentity();
   let messages;
@@ -235,7 +248,7 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
     // info (dev-only): the drain runs on every app-open/foreground, so being
     // offline here is routine — the next drain retries. Not worth prod noise.
     logger.info('mailbox_drain_failed', { module: 'mailbox-orchestrators' });
-    return { statements: 0, backups: 0, connects: 0, debts: 0, payments: 0, invites: 0 };
+    return { ...EMPTY_DRAIN };
   }
 
   let statements = 0;
@@ -244,6 +257,7 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
   let debts = 0;
   let payments = 0;
   let invites = 0;
+  let debtMoves = 0;
   for (const message of messages) {
     const packed = await openForMe(message.blob);
     if (!packed) continue;
@@ -331,8 +345,47 @@ export async function drainMailboxIntoApp(): Promise<DrainResult> {
       }
       continue;
     }
+
+    // DEC-451 (D07) — a debt move touching me. IMMEDIATE by product decision
+    // (Julio's lock, unlike the accept-first `debt`): the recipient folds/reverts
+    // right here in the drain; a dismissible inbox card records what happened so
+    // nothing is silent (Â-MOVE-VISIBLE-BOTH-SIDES). `role: 'source'` is purely
+    // informative — the items LEFT me on the owner's ledger; my own records are
+    // never auto-mutated. When the fold cannot run yet (no active trip), the
+    // card stays ACTIONABLE (no appliedAt) for a manual apply.
+    if (envelope.kind === 'debt_move') {
+      const move = parseDebtMovePayload(envelope.data);
+      if (move) {
+        let annotated = move;
+        if (move.role === 'recipient' && move.direction === 'apply') {
+          const applied = await applyInboundDebtMove(move, envelope.fromActorId, envelope.fromName);
+          if (applied) annotated = { ...move, appliedAt: new Date().toISOString() };
+        } else if (move.role === 'recipient' && move.direction === 'revert') {
+          await revertInboundDebtMove(move, envelope.fromActorId);
+          annotated = { ...move, revertedAt: new Date().toISOString() };
+        }
+        // A redelivered envelope must not stack duplicate cards (the fold above
+        // is already ref-idempotent) — one card per move+direction.
+        const pendingCards = await mailboxQueueRepository.pendingInbox();
+        const duplicate = pendingCards.some((card) => {
+          if (card.kind !== 'debt_move' || !card.envelope) return false;
+          const queued = parseDebtMovePayload(card.envelope.data);
+          return queued?.moveId === move.moveId && queued.direction === move.direction;
+        });
+        if (!duplicate) {
+          await mailboxQueueRepository.enqueueIn({
+            kind: 'debt_move',
+            fromActorId: envelope.fromActorId,
+            fromName: envelope.fromName,
+            envelope: { ...envelope, data: annotated },
+          });
+        }
+        debtMoves++;
+      }
+      continue;
+    }
   }
-  return { statements, backups, connects, debts, payments, invites };
+  return { statements, backups, connects, debts, payments, invites, debtMoves };
 }
 
 /** The backups drained from the mailbox awaiting the traveler's confirm. */

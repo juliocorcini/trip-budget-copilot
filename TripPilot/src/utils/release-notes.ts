@@ -17,6 +17,48 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.3.0-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'Mover dívida agora funciona também para quem está conectado: o aparelho da pessoa recebe os itens na hora, com a origem marcada ("veio de fulano") — e desfazer no seu aparelho desfaz no dela também.',
+        'Quem teve contas movidas (para você ou saindo de você) vê um aviso claro no Acerto — nada muda em silêncio.',
+        'Se a movimentação chegar antes de você criar a viagem, ela fica guardada com um botão "Aplicar no caderno" — nada se perde.',
+      ],
+      en: [
+        'Moving a debt now works for connected people too: their device receives the items right away, with the origin marked ("came from so-and-so") — and undoing on your device undoes on theirs as well.',
+        'Anyone whose bills were moved (to you or away from you) sees a clear notice in Settle up — nothing changes silently.',
+        'If a move arrives before you create your trip, it is kept with an "Apply to notebook" button — nothing is lost.',
+      ],
+      es: [
+        'Mover una deuda ahora funciona también con personas conectadas: su dispositivo recibe los ítems al instante, con el origen marcado ("vino de fulano") — y deshacer en tu dispositivo lo deshace también en el suyo.',
+        'Quien tuvo cuentas movidas (hacia ti o desde ti) ve un aviso claro en el Ajuste de cuentas — nada cambia en silencio.',
+        'Si el movimiento llega antes de crear tu viaje, se guarda con un botón "Aplicar al cuaderno" — nada se pierde.',
+      ],
+    },
+  },
+  {
+    version: '2.2.3-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'Colar um link do TripPilot no WhatsApp agora mostra um cartão de verdade: nome da divisão, total e nº de pessoas — dá para desligar nos Ajustes ("Prévia nos links").',
+        'Os endereços dos links ficaram legíveis: /g/churras-do-bruno-x7f2 em vez de um código aleatório. Links antigos continuam abrindo para sempre.',
+        'A segurança não mudou: o conteúdo segue criptografado de ponta a ponta — a chave nunca sai do seu link.',
+      ],
+      en: [
+        'Pasting a TripPilot link into WhatsApp now shows a real card: split name, total and people count — you can turn it off in Settings ("Link previews").',
+        'Link addresses became readable: /g/bruno-bbq-x7f2 instead of a random code. Old links keep opening forever.',
+        'Security did not change: content stays end-to-end encrypted — the key never leaves your link.',
+      ],
+      es: [
+        'Pegar un enlace de TripPilot en WhatsApp ahora muestra una tarjeta de verdad: nombre de la división, total y nº de personas — se puede desactivar en Ajustes ("Vista previa en enlaces").',
+        'Las direcciones de los enlaces ahora son legibles: /g/asado-de-bruno-x7f2 en vez de un código aleatorio. Los enlaces antiguos siguen abriendo para siempre.',
+        'La seguridad no cambió: el contenido sigue cifrado de extremo a extremo — la clave nunca sale de tu enlace.',
+      ],
+    },
+  },
+  {
     version: '2.2.2-rc',
     date: '2026-07-03',
     items: {

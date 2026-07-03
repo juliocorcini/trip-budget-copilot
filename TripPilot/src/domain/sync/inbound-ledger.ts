@@ -4,6 +4,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { SharedDebtPayload } from './debt-payload';
 import type { PaymentDirection } from './payment-payload';
+import { externalRefForDebtMoveItem, type DebtMoveItem } from './debt-move-payload';
 
 /**
  * DEC-345 (G7) — accept side, PURE. Materialize an accepted shared debt as a
@@ -55,6 +56,59 @@ export function buildExpenseFromSharedDebt(input: {
 /** The cross-device idempotency key for an accepted shared debt. */
 export function externalRefForDebt(debt: Pick<SharedDebtPayload, 'fromActorId' | 'debtId'>): string {
   return `debt:${debt.fromActorId}:${debt.debtId}`;
+}
+
+/**
+ * DEC-451 (D07) — fold side of a debt MOVE, PURE. Same canonical shape as an
+ * accepted shared debt (the mover's participant is the payer; my single
+ * CONFIRMED share = the owed amount), with the provenance riding on the share:
+ * `reassignedFromName` carries who owed this before (e.g. "Débora"), so my
+ * statement of the mover shows "moved from Débora" exactly like the owner's UI
+ * (Â-MOVE-VISIBLE-BOTH-SIDES). `reassignedFrom` stays null — the origin person
+ * does not exist on MY device; the name is the honest trail. The per-item
+ * `externalRef` makes a re-drain of the same move a no-op.
+ */
+export function buildExpenseFromMovedItem(input: {
+  item: DebtMoveItem;
+  currency: string;
+  fromActorId: string;
+  moveId: string;
+  /** Who owed this item before the move — the display trail. */
+  fromPersonName: string;
+  tripId: string;
+  phaseId: string;
+  budgetPoolId: string;
+  /** The mover's participant on my trip = the payer (creditor). */
+  creditorParticipantId: string;
+  /** Me = the debtor (the single share). */
+  myParticipantId: string;
+}): { transaction: Transaction; shares: ParticipantShare[] } {
+  const transaction = createExpenseTransaction({
+    tripId: input.tripId,
+    phaseId: input.phaseId,
+    budgetPoolId: input.budgetPoolId,
+    // The mover's side paid — my wallet didn't move (DEC-114 truth-table).
+    walletId: null,
+    amountCents: input.item.amountCents,
+    currency: input.currency,
+    category: 'other',
+    description: input.item.description,
+    date: input.item.occurredAt ?? undefined,
+    isShared: true,
+    paidByParticipantId: input.creditorParticipantId,
+    personalCostCents: input.item.amountCents,
+    // A moved-in debt is not my own spending pattern.
+    excludeFromLearning: true,
+    externalRef: externalRefForDebtMoveItem(input.fromActorId, input.moveId, input.item.moveItemId),
+  });
+  const shares = createCustomShares(transaction.id, [
+    { participantId: input.myParticipantId, amountCents: input.item.amountCents },
+  ]).map((s) => ({
+    ...s,
+    confirmationStatus: 'confirmed' as const,
+    reassignedFromName: input.fromPersonName,
+  }));
+  return { transaction, shares };
 }
 
 /**

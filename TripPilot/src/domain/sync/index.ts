@@ -10,6 +10,7 @@ export * from './qr-codec';
 export * from './statement-payload';
 export * from './connect-payload';
 export * from './debt-payload';
+export * from './debt-move-payload';
 export * from './payment-payload';
 export * from './group-invite-payload';
 export * from './inbound-ledger';

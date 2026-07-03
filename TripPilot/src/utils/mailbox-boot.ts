@@ -31,8 +31,17 @@ export async function runMailboxSync(force = false): Promise<void> {
   lastRunAt = now;
   try {
     await flushOutbox();
-    const { statements, backups, connects, debts, payments, invites } = await drainMailboxIntoApp();
-    if (statements > 0 || backups > 0 || connects > 0 || debts > 0 || payments > 0 || invites > 0) {
+    const { statements, backups, connects, debts, payments, invites, debtMoves } =
+      await drainMailboxIntoApp();
+    if (
+      statements > 0 ||
+      backups > 0 ||
+      connects > 0 ||
+      debts > 0 ||
+      payments > 0 ||
+      invites > 0 ||
+      debtMoves > 0
+    ) {
       window.dispatchEvent(new CustomEvent(MAILBOX_DRAINED_EVENT));
     }
     if (statements > 0) {
@@ -58,11 +67,17 @@ export async function runMailboxSync(force = false): Promise<void> {
     if (invites > 0) {
       showToast(i18n.t('mailbox.received_invites', { count: invites }), 'info');
     }
+    // DEC-451 (D07): a debt move already folded/reverted in the drain — the toast
+    // + card announce it (Â-MOVE-VISIBLE-BOTH-SIDES: immediate but never silent).
+    if (debtMoves > 0) {
+      showToast(i18n.t('mailbox.received_debt_moves', { count: debtMoves }), 'info');
+    }
     // DEC-352 (F18, G6): a charge/payment/invite that arrived in real-time (or while
     // backgrounded) also fires a native OS notification so it is felt at once and
     // survives a missed toast. Connect handshakes are silent here (the toast above
     // is enough); only the actionable items escalate to the OS layer.
-    const actionable = debts + payments + invites;
+    // DEC-451: moves escalate too — money changed hands without an accept step.
+    const actionable = debts + payments + invites + debtMoves;
     if (actionable > 0) {
       void showLocalNotification(
         i18n.t('mailbox.native_title'),

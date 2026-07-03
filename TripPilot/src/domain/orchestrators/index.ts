@@ -183,6 +183,7 @@ export {
   deliverManualSplitDebts,
   announcePaymentToPeer,
   sendGroupInvite,
+  sendDebtMoveEnvelopes,
   getInboundP2pItems,
   acceptInboundDebt,
   confirmInboundPayment,
@@ -194,7 +195,13 @@ export type {
   ShareDebtInput,
   AnnouncePaymentInput,
   ShareGroupInviteInput,
+  SendDebtMoveInput,
   InboundP2pItem,
   AcceptDebtTarget,
   ConfirmPaymentTarget,
 } from './p2p-orchestrators';
+export {
+  applyInboundDebtMove,
+  revertInboundDebtMove,
+  applyPendingDebtMove,
+} from './debt-move-orchestrators';

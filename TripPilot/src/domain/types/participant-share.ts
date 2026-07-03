@@ -20,4 +20,11 @@ export interface ParticipantShare extends SyncMetadata {
    * backup passes it through unchanged).
    */
   reassignedFrom?: string | null;
+  /**
+   * DEC-451 (D07): the ORIGINAL debtor's display name, carried with the share so
+   * the "moved from {name}" trail survives devices where that person does not
+   * exist (a moved-in debt on a connected peer) and outlives their later removal
+   * on the owner device. Additive and non-indexed, like `reassignedFrom`.
+   */
+  reassignedFromName?: string | null;
 }

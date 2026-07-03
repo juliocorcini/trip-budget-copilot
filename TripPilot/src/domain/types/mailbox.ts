@@ -8,15 +8,19 @@
 // reverse peerLink — the two-way handshake. DEC-345/346 (G7): `debt` shares an
 // owed amount (accept-first) and `payment` announces a P2P repayment (settle +
 // fund-credit). DEC-355 (G8): `group_invite` carries a group's `/g/` read creds so
-// a linked friend's app shows the group accept-first. All are opaque to the Worker
-// (sealed inside the ciphertext, addressed only by recipient actorId).
+// a linked friend's app shows the group accept-first. DEC-451: `debt_move`
+// propagates an owner's debt reassignment to the connected people it touches —
+// IMMEDIATE on the recipient (Julio's product lock), informative on the source,
+// reverted on undo; never silent (Â-MOVE-VISIBLE-BOTH-SIDES). All are opaque to
+// the Worker (sealed inside the ciphertext, addressed only by recipient actorId).
 export type MailboxPayloadKind =
   | 'statement'
   | 'backup'
   | 'connect'
   | 'debt'
   | 'payment'
-  | 'group_invite';
+  | 'group_invite'
+  | 'debt_move';
 
 /**
  * The plaintext carried inside a sealed mailbox blob. The sender's identity

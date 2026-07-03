@@ -18,6 +18,12 @@ import type { Participant } from '@/domain/types/participant';
  * shares. The keystone is INVARIANCE: the owner's TOTAL pairwise net never moves,
  * only the per-person holder. Julio's case: Débora owes me €12, Bruno €40 → move
  * Débora's €12 to Bruno → Débora zeros, Bruno becomes €52, my total stays €52.
+ *
+ * DEC-451 (D07) extends the move to CONNECTED people: sources are movable too
+ * (their device receives an informative debt_move) and destinations with a
+ * reachable mailbox are direct, movable targets. The name trail
+ * (`reassignedFromName`) travels with the share so provenance survives devices
+ * where the original debtor does not exist.
  */
 const meta = {
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -83,7 +89,7 @@ describe('reassignShares — the money invariant (DEC-414)', () => {
 
     // Move Débora's single share to Bruno.
     const toMove = baselineShares.filter((s) => s.id === 's-deb');
-    const moved = reassignShares(toMove, 'debora', 'bruno');
+    const moved = reassignShares(toMove, 'debora', 'bruno', 'Débora');
     const after = baselineShares.map((s) => moved.find((m) => m.id === s.id) ?? s);
 
     const balances = ownerPairwiseBalances(txs, after, [], OWNER);
@@ -93,17 +99,18 @@ describe('reassignShares — the money invariant (DEC-414)', () => {
     expect(ownerTotalNet(balances)).toBe(baselineTotal);
   });
 
-  it('never touches share amounts (only participantId + reassignedFrom)', () => {
-    const [moved] = reassignShares([baselineShares[1]!], 'debora', 'bruno');
+  it('never touches share amounts (only participantId + reassignedFrom/Name)', () => {
+    const [moved] = reassignShares([baselineShares[1]!], 'debora', 'bruno', 'Débora');
     expect(moved!.shareAmountCents).toBe(1200); // unchanged
     expect(moved!.participantId).toBe('bruno');
     expect(moved!.reassignedFrom).toBe('debora');
+    expect(moved!.reassignedFromName).toBe('Débora'); // DEC-451: name travels with the share
   });
 });
 
 describe('reassignShares — visible attribution (DEC-414)', () => {
   it("Bruno's statement shows the moved item as 'moved from Débora'", () => {
-    const moved = reassignShares([baselineShares[1]!], 'debora', 'bruno');
+    const moved = reassignShares([baselineShares[1]!], 'debora', 'bruno', 'Débora');
     const after = baselineShares.map((s) => moved.find((m) => m.id === s.id) ?? s);
 
     const statement = filterStatementToCounterparty(
@@ -118,11 +125,30 @@ describe('reassignShares — visible attribution (DEC-414)', () => {
     const ownLine = statement.lines.find((l) => l.transactionId === 'tx-bru');
     expect(ownLine!.reassignedFromId).toBeNull();
   });
+
+  it('DEC-451: the trail survives when the source person does not exist locally (recipient device)', () => {
+    // A moved-in share on Bruno's own device: `reassignedFrom` points to an id
+    // his device never had; the carried NAME still renders the provenance.
+    const share = mkShare('s-in', 'tx-deb', 'bruno', 1200, {
+      reassignedFrom: 'unknown-remote-id',
+      reassignedFromName: 'Débora',
+    });
+    const statement = buildParticipantStatement(
+      'bruno',
+      [txDeb],
+      [mkShare('s-o1', 'tx-deb', OWNER, 8800), share],
+      participants.filter((p) => p.id !== 'debora'),
+      [],
+      OWNER,
+    );
+    const line = statement.lines.find((l) => l.transactionId === 'tx-deb');
+    expect(line!.reassignedFromName).toBe('Débora');
+  });
 });
 
 describe('revertReassignedShares — undo (DEC-414)', () => {
   it('returns the debt to Débora and clears the trail, restoring the baseline net', () => {
-    const moved = reassignShares([baselineShares[1]!], 'debora', 'bruno');
+    const moved = reassignShares([baselineShares[1]!], 'debora', 'bruno', 'Débora');
     const after = baselineShares.map((s) => moved.find((m) => m.id === s.id) ?? s);
 
     const reverted = revertReassignedShares(after.filter((s) => s.id === 's-deb'), 'debora');
@@ -134,49 +160,56 @@ describe('revertReassignedShares — undo (DEC-414)', () => {
     const share = restored.find((s) => s.id === 's-deb')!;
     expect(share.participantId).toBe('debora');
     expect(share.reassignedFrom).toBeNull();
+    expect(share.reassignedFromName).toBeNull(); // DEC-451: the name trail clears too
   });
 });
 
-describe('isShareReassignable — only local, open, confirmed debts (DEC-414)', () => {
+describe('isShareReassignable — open, confirmed debts (DEC-414, widened by DEC-451)', () => {
   const base = { deletedAt: null, confirmationStatus: 'confirmed' as const, isPaid: false };
 
-  it('a local confirmed unpaid share is movable', () => {
-    expect(isShareReassignable(base, false)).toBe(true);
-  });
-
-  it('a P2P-connected origin is NOT movable (would break their mirror)', () => {
-    expect(isShareReassignable(base, true)).toBe(false);
+  it('a confirmed unpaid share is movable — connected sources included (DEC-451)', () => {
+    // DEC-430's "connected origin is frozen" rule is superseded: the P2P layer
+    // now propagates the move, so the share itself is movable.
+    expect(isShareReassignable(base)).toBe(true);
   });
 
   it('pending / rejected / paid / deleted shares are never movable', () => {
-    expect(isShareReassignable({ ...base, confirmationStatus: 'pending' }, false)).toBe(false);
-    expect(isShareReassignable({ ...base, confirmationStatus: 'rejected' }, false)).toBe(false);
-    expect(isShareReassignable({ ...base, isPaid: true }, false)).toBe(false);
-    expect(isShareReassignable({ ...base, deletedAt: '2026-01-01T00:00:00.000Z' }, false)).toBe(false);
+    expect(isShareReassignable({ ...base, confirmationStatus: 'pending' })).toBe(false);
+    expect(isShareReassignable({ ...base, confirmationStatus: 'rejected' })).toBe(false);
+    expect(isShareReassignable({ ...base, isPaid: true })).toBe(false);
+    expect(isShareReassignable({ ...base, deletedAt: '2026-01-01T00:00:00.000Z' })).toBe(false);
   });
 });
 
-describe('classifyMoveDestination — connected peers are charged, not moved (DEC-430)', () => {
+describe('classifyMoveDestination — connected with a key is MOVABLE (DEC-451, revises DEC-430)', () => {
   it('a local, non-owner, non-source person is an ELIGIBLE direct destination', () => {
-    expect(classifyMoveDestination({ isOwner: false, isSource: false, isLocal: true })).toBe('eligible');
+    expect(
+      classifyMoveDestination({ isOwner: false, isSource: false, isLocal: true, hasMailboxKey: false }),
+    ).toBe('eligible');
   });
 
-  it('a P2P-connected (non-local) person is a CONNECTED_PEER — not a direct destination', () => {
-    // The "why not eligible": reassigning a mirrored share would desync their device
-    // (Â-DEBT-SYNC-SAFE), so the sheet routes to an accept-first charge instead.
-    expect(classifyMoveDestination({ isOwner: false, isSource: false, isLocal: false })).toBe(
-      'connected_peer',
-    );
+  it('a connected person WITH a reachable mailbox is CONNECTED_MOVABLE (direct move + debt_move fold)', () => {
+    expect(
+      classifyMoveDestination({ isOwner: false, isSource: false, isLocal: false, hasMailboxKey: true }),
+    ).toBe('connected_movable');
+  });
+
+  it('a connected person WITHOUT a key stays CONNECTED_PEER — charge-only path', () => {
+    // We cannot seal an envelope to them, so their device cannot be updated;
+    // the sheet keeps the honest accept-first charge instead.
+    expect(
+      classifyMoveDestination({ isOwner: false, isSource: false, isLocal: false, hasMailboxKey: false }),
+    ).toBe('connected_peer');
   });
 
   it('the owner is never a candidate, regardless of locality', () => {
-    expect(classifyMoveDestination({ isOwner: true, isSource: false, isLocal: true })).toBeNull();
-    expect(classifyMoveDestination({ isOwner: true, isSource: false, isLocal: false })).toBeNull();
+    expect(classifyMoveDestination({ isOwner: true, isSource: false, isLocal: true, hasMailboxKey: false })).toBeNull();
+    expect(classifyMoveDestination({ isOwner: true, isSource: false, isLocal: false, hasMailboxKey: true })).toBeNull();
   });
 
   it('the source person (moving FROM) is never their own destination', () => {
-    expect(classifyMoveDestination({ isOwner: false, isSource: true, isLocal: true })).toBeNull();
-    expect(classifyMoveDestination({ isOwner: false, isSource: true, isLocal: false })).toBeNull();
+    expect(classifyMoveDestination({ isOwner: false, isSource: true, isLocal: true, hasMailboxKey: false })).toBeNull();
+    expect(classifyMoveDestination({ isOwner: false, isSource: true, isLocal: false, hasMailboxKey: true })).toBeNull();
   });
 });
 

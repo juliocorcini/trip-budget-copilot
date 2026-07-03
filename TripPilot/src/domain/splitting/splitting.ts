@@ -727,10 +727,12 @@ export function buildParticipantStatement(
         longitude: tx.longitude,
         placeId: tx.placeId,
         // DEC-414 (G6): the "moved from {name}" trail rides with the line.
+        // DEC-451: fall back to the carried name when the origin person does
+        // not exist on THIS device (moved-in debt) or was removed later.
         reassignedFromId: share.reassignedFrom ?? null,
         reassignedFromName: share.reassignedFrom
-          ? (nameById.get(share.reassignedFrom) ?? null)
-          : null,
+          ? (nameById.get(share.reassignedFrom) ?? share.reassignedFromName ?? null)
+          : (share.reassignedFromName ?? null),
       };
       if (share.participantId === participantId) {
         lines.push({
@@ -920,60 +922,62 @@ export function collectSplitNotifyTargets(
 
 /**
  * DEC-414 (G6 · Â-DEBT-TRACEABLE): a share may be MOVED to another person ONLY
- * when it is a LOCAL, open, confirmed debt whose original debtor is NOT mirrored
- * over P2P. Reassigning an item the counterparty already accepted through the
- * mirror would break their device's copy (the Critic's lock), so those are
- * excluded — they must be settled first. Pending/rejected/paid/deleted shares are
- * never movable (only a live, unpaid debt can travel).
+ * when it is an open, confirmed, unpaid, live debt. DEC-451 dropped the old
+ * "source must not be P2P-connected" block (DEC-430): moving is allowed from
+ * anyone — when the source IS connected, their device receives an informative
+ * `debt_move` instead of being silently desynced (Â-MOVE-VISIBLE-BOTH-SIDES).
  */
 export function isShareReassignable(
   share: Pick<ParticipantShare, 'deletedAt' | 'confirmationStatus' | 'isPaid'>,
-  fromIsP2PConnected: boolean,
 ): boolean {
-  return (
-    share.deletedAt === null &&
-    share.confirmationStatus === 'confirmed' &&
-    !share.isPaid &&
-    !fromIsP2PConnected
-  );
+  return share.deletedAt === null && share.confirmationStatus === 'confirmed' && !share.isPaid;
 }
 
 /**
- * DEC-430 (Field v2 D05): why a person is — or ISN'T — a DIRECT destination when
- * moving a debt. The owner and the source person are never candidates (`null`). A
- * LOCAL person is `eligible`: a device-local reassignment is safe. A P2P-connected
- * peer is `connected_peer`: silently reassigning a share their device already
- * mirrors would desync their balance (Â-DEBT-SYNC-SAFE), so instead of hiding them
- * the UI explains this and offers the accept-first path (a charge they confirm).
+ * DEC-430 (Field v2 D05) → DEC-451 (D07): why a person is — or ISN'T — a DIRECT
+ * destination when moving a debt. The owner and the source person are never
+ * candidates (`null`). A LOCAL person is `eligible` (device-local reassignment).
+ * A P2P-connected peer whose mailbox we can reach is `connected_movable`: the
+ * move applies locally AND a `debt_move` envelope updates their device with
+ * provenance (Julio's lock — instant, never silent). A connected peer we hold
+ * NO key for stays `connected_peer` — we cannot update their device, so the UI
+ * keeps the honest explanation + the accept-first charge path (hide-never-delete).
  * Pure so the sheet and its tests share one source of truth for eligibility.
  */
-export type MoveDestinationStatus = 'eligible' | 'connected_peer';
+export type MoveDestinationStatus = 'eligible' | 'connected_movable' | 'connected_peer';
 
 export function classifyMoveDestination(input: {
   isOwner: boolean;
   isSource: boolean;
   isLocal: boolean;
+  /** True when we hold the peer's public key (their mailbox is reachable). */
+  hasMailboxKey: boolean;
 }): MoveDestinationStatus | null {
   if (input.isOwner || input.isSource) return null;
-  return input.isLocal ? 'eligible' : 'connected_peer';
+  if (input.isLocal) return 'eligible';
+  return input.hasMailboxKey ? 'connected_movable' : 'connected_peer';
 }
 
 /**
  * DEC-414 (G6): the pure reassignment — flip each given share's `participantId` to
  * the recipient and stamp `reassignedFrom` with the origin (for the "moved from
- * {name}" trail and undo). Amounts are NEVER touched, so the owner's TOTAL pairwise
- * net is INVARIANT — only the per-person holder changes. Sync metadata is bumped by
- * the repository on persist (`markUpdated`), so this function stays pure.
+ * {name}" trail and undo). DEC-451 also stamps `reassignedFromName` so the trail
+ * survives the origin person's later removal and travels to connected devices.
+ * Amounts are NEVER touched, so the owner's TOTAL pairwise net is INVARIANT —
+ * only the per-person holder changes. Sync metadata is bumped by the repository
+ * on persist (`markUpdated`), so this function stays pure.
  */
 export function reassignShares(
   shares: ParticipantShare[],
   fromParticipantId: string,
   toParticipantId: string,
+  fromParticipantName: string,
 ): ParticipantShare[] {
   return shares.map((share) => ({
     ...share,
     participantId: toParticipantId,
     reassignedFrom: fromParticipantId,
+    reassignedFromName: fromParticipantName,
   }));
 }
 
@@ -989,6 +993,7 @@ export function revertReassignedShares(
     ...share,
     participantId: fromParticipantId,
     reassignedFrom: null,
+    reassignedFromName: null,
   }));
 }
 

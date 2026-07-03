@@ -21,10 +21,13 @@ import {
   resolvePaymentParties,
   buildGroupInvitePayload,
   parseGroupInvitePayload,
+  buildDebtMovePayload,
+  parseDebtMovePayload,
   type SharedDebtPayload,
   type PaymentPayload,
   type PaymentDirection,
   type GroupInvitePayload,
+  type DebtMovePayload,
 } from '@/domain/sync';
 import type { MailboxPayloadKind } from '@/domain/types/mailbox';
 import { createParticipant, createSettlement } from '@/domain/splitting';
@@ -53,8 +56,8 @@ async function sealAndQueue(
   peerActorId: string,
   peerPublicKey: string,
   peerName: string,
-  kind: Extract<MailboxPayloadKind, 'debt' | 'payment' | 'group_invite'>,
-  data: SharedDebtPayload | PaymentPayload | GroupInvitePayload,
+  kind: Extract<MailboxPayloadKind, 'debt' | 'payment' | 'group_invite' | 'debt_move'>,
+  data: SharedDebtPayload | PaymentPayload | GroupInvitePayload | DebtMovePayload,
 ): Promise<SendToMailboxResult> {
   const me = await getDeviceIdentity();
   const settings = await appSettingsRepository.get();
@@ -210,6 +213,61 @@ export async function announcePaymentToPeer(input: AnnouncePaymentInput): Promis
   return sealAndQueue(input.peerActorId, peer.publicKey, peer.displayName, 'payment', payload);
 }
 
+export interface SendDebtMoveInput {
+  /** Stable move id = the owner's DebtMovement record id (apply/revert correlate). */
+  moveId: string;
+  direction: 'apply' | 'revert';
+  fromPersonName: string;
+  toPersonName: string;
+  currency: string;
+  items: Array<{
+    moveItemId: string;
+    amountCents: number;
+    description: string;
+    occurredAt?: string | null;
+  }>;
+  /** The destination person's actorId when they are connected (gets the fold). */
+  recipientActorId?: string | null;
+  /** The origin person's actorId when they are connected (informative only). */
+  sourceActorId?: string | null;
+}
+
+/**
+ * DEC-451 (D07) — propagate a debt move to every connected device it touches.
+ * The RECIPIENT envelope folds/reverts on their drain; the SOURCE envelope is
+ * informative ("items left you"). Best-effort and NEVER throws: the owner's
+ * local reassignment already happened (Julio's instant lock) and a failed send
+ * stays queued for the next flush. Skips peers with no key silently.
+ */
+export async function sendDebtMoveEnvelopes(input: SendDebtMoveInput): Promise<void> {
+  const settings = await appSettingsRepository.get();
+  const movedByName = await resolveSelfShareName(settings);
+  const targets: Array<{ actorId: string; role: DebtMovePayload['role'] }> = [];
+  if (input.recipientActorId) targets.push({ actorId: input.recipientActorId, role: 'recipient' });
+  if (input.sourceActorId) targets.push({ actorId: input.sourceActorId, role: 'source' });
+
+  for (const target of targets) {
+    try {
+      const peer = await peerLinkRepository.getByActorId(target.actorId);
+      if (!peer?.publicKey) continue;
+      const payload = buildDebtMovePayload({
+        moveId: input.moveId,
+        direction: input.direction,
+        role: target.role,
+        fromPersonName: input.fromPersonName,
+        toPersonName: input.toPersonName,
+        movedByName,
+        currency: input.currency,
+        items: input.items,
+      });
+      await sealAndQueue(target.actorId, peer.publicKey, peer.displayName, 'debt_move', payload);
+    } catch (err) {
+      // The local move stands; the peer catches up on a later send/drain.
+      logger.warn('debt_move_send_failed', { module: 'p2p-orchestrators' }, err);
+    }
+  }
+}
+
 export interface ShareGroupInviteInput {
   peerActorId: string;
   shareId: string;
@@ -238,7 +296,7 @@ export async function sendGroupInvite(input: ShareGroupInviteInput): Promise<Sen
 /** A pending inbound P2P item, parsed for the UI (accept/confirm surface). */
 export interface InboundP2pItem {
   itemId: string;
-  kind: 'debt' | 'payment' | 'group_invite';
+  kind: 'debt' | 'payment' | 'group_invite' | 'debt_move';
   /** G_last (DEC-355) — the sender's actorId, so the UI can key a per-inviter
    *  auto-accept allowlist. Empty only for legacy items drained before it existed. */
   fromActorId: string;
@@ -246,6 +304,8 @@ export interface InboundP2pItem {
   debt?: SharedDebtPayload;
   payment?: PaymentPayload;
   invite?: GroupInvitePayload;
+  /** DEC-451 — a debt move that touched me (applied/informative/actionable card). */
+  debtMove?: DebtMovePayload;
 }
 
 /** Pending inbound debts + payments + group invites awaiting the user's accept/confirm. */
@@ -264,6 +324,9 @@ export async function getInboundP2pItems(): Promise<InboundP2pItem[]> {
     } else if (item.kind === 'group_invite') {
       const invite = parseGroupInvitePayload(item.envelope.data);
       if (invite) out.push({ itemId: item.id, kind: 'group_invite', fromActorId, fromName: item.fromName ?? '', invite });
+    } else if (item.kind === 'debt_move') {
+      const debtMove = parseDebtMovePayload(item.envelope.data);
+      if (debtMove) out.push({ itemId: item.id, kind: 'debt_move', fromActorId, fromName: item.fromName ?? debtMove.movedByName, debtMove });
     }
   }
   return out;
