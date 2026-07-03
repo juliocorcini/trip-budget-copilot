@@ -13,11 +13,12 @@
 - **Â-WORKER-GUARDS-KEPT**: rate-limit/CORS/logger/headers (DEC-436→444) intocados; rotas novas com logEvent; leituras sem rate limit.
 
 ### CURRENT STATE
-- **Active gate**: G4 CONCLUÍDO (worker `a8b934b1` no ar) — iniciando G5 (OG estático + Pages Function).
-- **Deploy G4**: worker `trippilot-sync` versão `a8b934b1-3201-4621-bcce-037bd331c8c4` (conta `e146e88b34b2694243b1d74cee8de743`). Probe produção 100%: create com preview+slugBase → `{id, slug:"churras-do-bruno-v6tp", writeToken}`; `GET /preview/:slug` e `/:id` 200 com shape summary-only (nunca chave/token); `GET /share/:slug` resolve; id cru vivo (Â-OLD-LINKS-LIVE); PUT sem preview apaga o resumo (404) mas slug segue abrindo; DELETE mata preview (404) + slug (400).
-- **Tests**: **3050 pass / 3050** (307 files; +17 do G4: domínio 8 + worker 9). `tsc` app e worker limpos.
-- **Baseline (G0, Node 22.22.3)**: testes **2995 pass / 2995** (301 files); `tsc --noEmit` app **e** worker limpos; `npm run build` verde. DEC-445→451 PROPOSED confirmados no decision-log. Pipeline: Pages conta **e146e88b** (ID completo `e146e88b34b2694243b1d74cee8de743`), worker `trippilot-sync`; landmine APK: re-rodar `fetch-live-apk` DEPOIS do bundle (APK correto = 8.469.341 B).
-- **Last commit**: G4 commit a seguir.
+- **Active gate**: G5 CONCLUÍDO (`2.2.3-rc` no ar) — iniciando G6 (debt_move para conectado, `2.3.0-rc`).
+- **Deploy G5**: Pages `dcbb21aa` (conta `e146e88b34b2694243b1d74cee8de743`) com **Functions bundle + `_routes.json`** (Function SÓ em `/g/*`,`/t/*`,`/s/*`; resto estático grátis). Apex verde: `/version.json`=2.2.3-rc, entry `index-B4DCIWpQ.js` embute 2.2.3-rc (⚠️ `src/utils/app-version.ts` é sync MANUAL — esqueci no 1º deploy, redeploy corrigiu), `/bundles/2.2.3-rc.zip` 200, `/trippilot.apk` 8.469.341 B, sw `trippilot-v83`, `/og/*.png` 200.
+- **Probe crawler (m4)**: `curl -A "WhatsApp/2.23"` e `-A "facebookexternalhit/1.1"` no apex `/g/:slug` e `/g/:id` → og:title="Churras do Bruno", og:description com total+pessoas, og:image card de marca; share SEM preview → card default TripPilot, rota 200 (link nunca quebra); `/` e `/settings` seguem estáticos (`_headers` ativo); rota da Function replica os 6 security headers DEC-436 + `Cache-Control: max-age=60`. **Colar no WhatsApp de verdade: pendente de teste manual do Julio** (smoke §15).
+- **Tests**: **3059 pass / 3059** (308 files; +9 do G5: og-inject). `tsc` app, worker E functions limpos.
+- **Baseline (G0, Node 22.22.3)**: testes **2995 pass / 2995** (301 files); `tsc --noEmit` app **e** worker limpos; `npm run build` verde. Pipeline: Pages conta **e146e88b** (ID completo `e146e88b34b2694243b1d74cee8de743`), worker `trippilot-sync`; landmine APK: re-rodar `fetch-live-apk` DEPOIS do bundle (APK correto = 8.469.341 B).
+- **Last commit**: G5 commit a seguir.
 
 ### Gates
 | Gate | Status | Versão | Notas |
@@ -26,10 +27,18 @@
 | G1 quick wins (D04+D05+D06) | ✅ done | `2.2.1-rc` | Pages `0d4611b8` · DEC-448/449/450 APPROVED |
 | G2 investigação números (D03) | ✅ done | — | sem deploy · §6-A escrito · DEC-447 refinada · 17 testes-evidência |
 | G3 lente + explainers (D03) | ✅ done | `2.2.2-rc` | Pages `4ce9e249` · DEC-447 APPROVED · m4 vazio (G2: zero bug de matemática) |
-| G4 worker preview+slug (D01+D02) | ✅ done | worker | worker `a8b934b1` · probe produção 100% · DEC-445/446 PROPOSED até G5 |
-| G5 OG + Pages Function (D01+D02) | 🔄 | `2.2.3-rc` | |
-| G6 debt_move conectado (D07) | ⏳ | `2.3.0-rc` | |
+| G4 worker preview+slug (D01+D02) | ✅ done | worker | worker `a8b934b1` · probe produção 100% |
+| G5 OG + Pages Function (D01+D02) | ✅ done | `2.2.3-rc` | Pages `dcbb21aa` · crawler probe ✅ · DEC-445/446 APPROVED |
+| G6 debt_move conectado (D07) | 🔄 | `2.3.0-rc` | |
 | G7 brain sync | ⏳ | — | |
+
+### G5 — Superfície OG: estático + Pages Function (done 2026-07-03) — `2.2.3-rc` — D01+D02 parte 2
+- **m1 (OG estático + cards de marca)**: `index.html` ganhou bloco OG/twitter global entre marcadores `<!-- og:begin/end -->` (title/description pt-BR, `og/default.png` 1200×630, twitter summary_large_image). `scripts/make-og-images.mjs` (sharp, one-shot, PNGs commitados) gera `public/og/{default,group,split,statement}.png` — dark `#0F1419`, pin `#C75B39`, wordmark cream, tagline por tipo.
+- **m2 (Pages Function)**: `functions/[[path]].ts` + `functions/og.ts` (puro) + `functions/tsconfig.json`. **Descoberta de routing**: `_redirects` NÃO se aplica a resposta de Function e `_headers` idem → `public/_routes.json` com `include: ["/g/*","/t/*","/s/*"]` (Function só nas rotas de share; resto estático grátis com SPA fallback intacto) e a Function replica os 6 security headers DEC-436 manualmente. Fluxo: `parseShareRoute` (1 segmento, `[A-Za-z0-9_-]{1,64}`) → fetch `GET {worker}/preview/:addr` (timeout 1,5s, AbortController) + shell via `env.ASSETS.fetch('/')` em paralelo → `injectOgTags` troca o bloco marcado (fallback: strip metas soltas + inject antes de `</head>`) → 200 com `Cache-Control: max-age=60`. QUALQUER falha (404/timeout/erro) → shell intocado; try/catch externo → `ASSETS.fetch(request)` (link nunca quebra). Tudo HTML-escaped (title/description vêm do dono); og:image = foto R2 (`{worker}/img/:imgId`, shape validado) ou card por tipo; og:url sem fragmento (Â-KEY-IN-FRAGMENT). Sem UA-sniffing — HTML igual para crawler e humano.
+- **m3 (SPA resolve slug)**: zero mudança — guest pages passam o path param cru para `GET /share/:x`, que resolve slug desde o G4 (verificado: `GroupClaimPage`/`SplitTablePage`/`SharedLinkPage` + `/ws`).
+- **m4 (probe crawler real)**: apex com UA WhatsApp e facebookexternalhit devolve og por share (slug E id cru); sem preview → default card 200; estático intacto. Red-team check do council (Function não interceptar rota SPA) NÃO se materializou — `_routes.json` interceptou certinho. Colar no WhatsApp: manual, fica para o Julio.
+- **9 testes** em `og-inject.test.ts` (route parse, escape anti-XSS, marker swap, fallback sem marker, imgId junk rejeitado, negativo `#k=`/writeToken). `tsc -p functions` no fecho de gate.
+- **5-point**: (1) ACs G5 ✓ (OG estático + Function + probe; degradação testada). (2) Regressão: rotas não-share seguem 100% estáticas (`_headers`/`_redirects` provados no apex); links antigos id cru abrem com OG; worker guards intocados. (3) Suíte 3059/3059, 0 falhas novas. (4) Fora de escopo: fix do `app-version.ts` esquecido (obrigatório pro OTA — documentado como landmine). (5) dev-log + DEC-445/446 APPROVED.
 
 ### G4 — Worker preview blob + slug legível (done 2026-07-03) — worker deploy — D01+D02 parte 1
 - **m1 (domínio puro)**: `src/domain/sync/share-preview.ts` — `slugifyShareName` (lowercase, sem acento via NFD, `a-z0-9-`, ≤40, sem hífen nas pontas) e `buildSharePreview(input)` → `{v:1, kind, title≤80, description≤200, totalCents, currency, peopleCount, updatedAt, imgId?}` com clamp de chars + shrink até caber em 1 KB (UTF-8) e allowlist estrita de campos (teste negativo: key/writeToken/items passados de contrabando NÃO saem no objeto — Â-PREVIEW-SUMMARY-ONLY). 8 testes.

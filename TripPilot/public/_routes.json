@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "DEC-445 (G5): the OG-injection Pages Function runs ONLY on share routes; everything else stays on the free static pipeline (_redirects SPA fallback + _headers).",
+  "include": ["/g/*", "/t/*", "/s/*"],
+  "exclude": []
+}

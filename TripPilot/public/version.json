@@ -1,8 +1,8 @@
 {
-  "version": "2.2.2-rc",
+  "version": "2.2.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.2.2-rc.zip",
-  "notes": "Os números da fase agora se explicam: o detalhe da projeção e a tela de impacto mostram \"de onde vêm esses números\" com linhas que somam — orçamento configurado, reservas, gastos de outras verbas — e a lista de gastos avisa quanto do total vem de outras fases."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.2.3-rc.zip",
+  "notes": "Links que se apresentam: colar um link de divisão ou extrato no WhatsApp agora mostra um cartão com nome, total e nº de pessoas (dá para desligar nos Ajustes), e os endereços ficaram legíveis — o conteúdo continua criptografado de ponta a ponta."
 }

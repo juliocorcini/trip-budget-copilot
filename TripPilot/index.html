@@ -16,6 +16,22 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TripPilot" />
     <title>TripPilot</title>
+    <!-- DEC-445 (G5): global static Open Graph fallback. The markers let the
+         Pages Function swap this whole block for per-share tags on /g|/t|/s
+         routes; every other page keeps the branded default card. -->
+    <!-- og:begin -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TripPilot" />
+    <meta property="og:title" content="TripPilot" />
+    <meta property="og:description" content="Planeje o orçamento da viagem, registre gastos e divida contas — tudo no seu bolso." />
+    <meta property="og:image" content="https://trippilot.pages.dev/og/default.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TripPilot" />
+    <meta name="twitter:description" content="Planeje o orçamento da viagem, registre gastos e divida contas — tudo no seu bolso." />
+    <meta name="twitter:image" content="https://trippilot.pages.dev/og/default.png" />
+    <!-- og:end -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
