@@ -91,6 +91,25 @@ export function resolveSaveLocation(input: SaveLocationInput): SaveLocationField
   };
 }
 
+/**
+ * Field v2.1 (DEC-434): after a background forward-geocode resolves a spend to a
+ * real venue, decide the stored label. A name the TRAVELER verified in "detalhes"
+ * (`placeNameSource:'user'`) is sacred and kept; anything app-derived (an imported
+ * merchant/city label, `'auto'`, or none) is UPGRADED to the resolved OSM venue
+ * name — so a Wise row that read "Burgos" (the city) becomes the actual place.
+ * Pure; the async lookup + persistence stay in the caller (stamp boundary).
+ */
+export function chooseGeocodedLabel(input: {
+  currentLabel: string | null;
+  currentSource: 'auto' | 'user' | null;
+  resolvedLabel: string;
+}): { placeLabel: string; placeNameSource: 'auto' | 'user' } {
+  const userVerified = input.currentSource === 'user' && (input.currentLabel ?? '').trim() !== '';
+  return userVerified
+    ? { placeLabel: input.currentLabel!.trim(), placeNameSource: 'user' }
+    : { placeLabel: input.resolvedLabel, placeNameSource: 'auto' };
+}
+
 export interface LocationDisplayInput {
   latitude: number | null;
   longitude: number | null;

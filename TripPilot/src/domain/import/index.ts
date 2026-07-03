@@ -4,6 +4,7 @@ export {
   classifyWiseRows,
   guessCategory,
   extractCity,
+  extractMerchantName,
   wiseExternalRef,
   WISE_REF_PREFIX,
 } from './wise-import';

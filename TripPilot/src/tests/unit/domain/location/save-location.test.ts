@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveSaveLocation,
   resolveLocationDisplay,
+  chooseGeocodedLabel,
   type TransactionPlaceFields,
   type SaveLocationFix,
 } from '@/domain/location';
@@ -158,5 +159,43 @@ describe('resolveLocationDisplay (DEC-368 / G8 — detail caption + map gate)', 
     });
     expect(d.hasMap).toBe(false);
     expect(d.caption).toEqual({ kind: 'named', name: 'Casa da vó' });
+  });
+});
+
+describe('chooseGeocodedLabel (DEC-434 — upgrade the "local" to the real venue)', () => {
+  it('upgrades an app-derived (auto) city label to the resolved venue name', () => {
+    const r = chooseGeocodedLabel({
+      currentLabel: 'Burgos',
+      currentSource: 'auto',
+      resolvedLabel: 'Confitería Juarreño',
+    });
+    expect(r).toEqual({ placeLabel: 'Confitería Juarreño', placeNameSource: 'auto' });
+  });
+
+  it('upgrades when there was no prior label at all', () => {
+    const r = chooseGeocodedLabel({
+      currentLabel: null,
+      currentSource: null,
+      resolvedLabel: 'Mercadona',
+    });
+    expect(r).toEqual({ placeLabel: 'Mercadona', placeNameSource: 'auto' });
+  });
+
+  it('keeps a name the traveler verified in "detalhes" (never clobbers user intent)', () => {
+    const r = chooseGeocodedLabel({
+      currentLabel: 'Casa da vó',
+      currentSource: 'user',
+      resolvedLabel: 'Some OSM Place',
+    });
+    expect(r).toEqual({ placeLabel: 'Casa da vó', placeNameSource: 'user' });
+  });
+
+  it('treats a blank user label as not-verified and takes the resolved name', () => {
+    const r = chooseGeocodedLabel({
+      currentLabel: '   ',
+      currentSource: 'user',
+      resolvedLabel: 'Real Venue',
+    });
+    expect(r).toEqual({ placeLabel: 'Real Venue', placeNameSource: 'auto' });
   });
 });

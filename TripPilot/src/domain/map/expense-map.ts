@@ -104,12 +104,55 @@ export function buildExpenseMapPoints(transactions: Transaction[]): ExpenseMapPo
 
   // Biggest spend first (then most spends, then a stable geographic tiebreak) so
   // the list and any "top places" read the same way on every render.
-  points.sort(
-    (a, b) =>
-      b.totalCents - a.totalCents ||
-      b.count - a.count ||
-      a.lat - b.lat ||
-      a.lng - b.lng,
-  );
+  points.sort(compareMapPoints);
   return points;
+}
+
+/**
+ * Stable ordering shared by the place list and the cluster aggregator: biggest
+ * spend first, then most spends, then a geographic tiebreak. Keeping it in one
+ * place means a combined cluster reads its spends in the same order as the map.
+ */
+function compareMapPoints(a: ExpenseMapPoint, b: ExpenseMapPoint): number {
+  return b.totalCents - a.totalCents || b.count - a.count || a.lat - b.lat || a.lng - b.lng;
+}
+
+/**
+ * DEC-429 (Field v2 D04) — the PURE cluster aggregator. When the traveler HOLDS a
+ * cluster bubble (long-press), Leaflet hands us that bubble's child markers; this
+ * folds their `ExpenseMapPoint`s into ONE so the exact same paginated sheet can
+ * list every spend under the bubble with a combined total. Kept map/DOM-free so it
+ * is deterministic and unit-testable.
+ *
+ * Honesty rules:
+ *  - the combined coordinate REUSES a real child's coords (the top place), never a
+ *    synthetic midpoint — Â-PLACE-REAL (the map never invents a location);
+ *  - money is a plain SUM of the children's base-currency totals (no re-derivation);
+ *  - `txIds` concatenate in the shared order (child groups are disjoint, so no dupes);
+ *  - a cluster spans multiple places, so it carries no single place `label` (null →
+ *    the sheet shows its neutral fallback title).
+ */
+export function combineMapPoints(points: ExpenseMapPoint[]): ExpenseMapPoint | null {
+  if (points.length === 0) return null;
+  const ordered = [...points].sort(compareMapPoints);
+  if (ordered.length === 1) return ordered[0]!;
+
+  const representative = ordered[0]!;
+  let totalCents = 0;
+  let count = 0;
+  const txIds: string[] = [];
+  for (const point of ordered) {
+    totalCents += point.totalCents;
+    count += point.count;
+    txIds.push(...point.txIds);
+  }
+
+  return {
+    lat: representative.lat,
+    lng: representative.lng,
+    count,
+    totalCents,
+    txIds,
+    label: null,
+  };
 }

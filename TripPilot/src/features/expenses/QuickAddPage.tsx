@@ -24,6 +24,7 @@ import {
   fromCents,
   formatMoney,
   formatAnchorHint,
+  resolveAnchorRate,
   evaluateAmountExpression,
   convertToBaseCents,
   resolveFrozenRate,
@@ -419,21 +420,21 @@ export function QuickAddPage() {
   ]);
   const frozenRate = resolveFrozenRate(settings?.frozenRates ?? null, selectedCurrency, baseCurrency);
   const manualRateValue = parseLocaleNumber(manualRate);
-  const effectiveRate = isForeignCurrency ? manualRateValue : null;
+  // DEC-434: a foreign expense now converts with the AUTO snapshot rate by
+  // default; a value the traveler types is an override that wins. Only when
+  // NEITHER exists (offline + never fetched) do we ask for a manual rate.
+  const effectiveRate = isForeignCurrency ? (manualRateValue ?? frozenRate) : null;
   const needsRate = isForeignCurrency && (effectiveRate === null || effectiveRate <= 0);
   const baseAmountCentsPreview =
     effectiveRate !== null && effectiveRate > 0
       ? convertToBaseCents(amountCentsPreview, effectiveRate)
       : amountCentsPreview;
 
-  // E9 (M9): seed the rate field with the frozen snapshot (editable); the base
-  // currency needs none. Re-seeds only when the chosen currency changes.
+  // DEC-434: the manual field is an OPTIONAL override, so it starts empty (the
+  // auto rate shows as the placeholder) and resets when the currency changes —
+  // there is no fixed rate to confirm before saving anymore.
   useEffect(() => {
-    if (!isForeignCurrency) {
-      setManualRate('');
-      return;
-    }
-    setManualRate(frozenRate !== null ? String(Number(frozenRate.toPrecision(6))) : '');
+    setManualRate('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCurrency, isForeignCurrency]);
 
@@ -484,12 +485,21 @@ export function QuickAddPage() {
     if (!voiceControllerRef.current) setListening(false);
   };
 
-  // DEC-128: mental anchor while typing — "€20 ≈ R$ 124".
+  // DEC-128 + DEC-434: "ver na minha moeda" while typing — "€20 ≈ R$ 124", with
+  // the rate taken from the live FX snapshot (manual only as offline fallback).
   const anchorHint =
     settings && trip && baseAmountCentsPreview > 0
       ? formatAnchorHint(
           baseAmountCentsPreview,
-          { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 },
+          {
+            anchorCurrency: settings.anchorCurrency,
+            anchorRatePer1: resolveAnchorRate({
+              rates: settings.frozenRates ?? null,
+              anchorCurrency: settings.anchorCurrency,
+              baseCurrency: trip.baseCurrency,
+              manualRatePer1: settings.anchorRatePer1,
+            }),
+          },
           trip.baseCurrency,
         )
       : null;
@@ -915,7 +925,8 @@ export function QuickAddPage() {
           </div>
         )}
 
-        {/* E9 (M9): foreign currency — manual/frozen rate + live base conversion. */}
+        {/* E9 (M9) + DEC-434: foreign currency converts with the AUTO snapshot
+            rate by default; this field is an optional manual override. */}
         {isForeignCurrency && (
           <div className="mt-3 bg-surface-high rounded-lg p-3 flex flex-col gap-1">
             <label className="text-[11px] text-on-surface-faint">
@@ -926,12 +937,12 @@ export function QuickAddPage() {
               inputMode="decimal"
               value={manualRate}
               onChange={(e) => setManualRate(e.target.value)}
-              placeholder="0,00"
+              placeholder={frozenRate !== null ? String(Number(frozenRate.toPrecision(6))) : '0,00'}
               className="bg-transparent text-sm font-semibold text-on-surface tabular outline-none w-full"
             />
             {frozenRate !== null && (
               <span className="text-[10px] text-on-surface-faint">
-                {t('expenses.exchange_rate_frozen')}
+                {t('expenses.exchange_rate_auto')}
               </span>
             )}
             {amountCentsPreview > 0 && !needsRate && (

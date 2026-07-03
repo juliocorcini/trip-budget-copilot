@@ -26,6 +26,15 @@ public class MainActivity extends BridgeActivity {
         WebView webView = getBridge().getWebView();
         if (webView != null) {
             webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            // DEC-431: the Android System WebView paints its OWN native scrollbar for
+            // the whole view — a chrome that `::-webkit-scrollbar { display:none }`
+            // can never reach (that CSS only hides scrollbars of scrollable *DOM*
+            // nodes, not the track the WebView itself draws). Because the web layer
+            // is OTA-refreshed, an up-to-date device already runs the hardened CSS,
+            // so a scrollbar that still shows on the APK is this native one. Disable
+            // it at the source; only a fresh build carries this fix.
+            webView.setVerticalScrollBarEnabled(false);
+            webView.setHorizontalScrollBarEnabled(false);
         }
         // B1 (Onda 4): the app may be cold-started by a CSV share/open.
         ShareTargetPlugin.handleIntent(this, getIntent());

@@ -12,13 +12,25 @@ const mapOptionsLog: Array<Record<string, unknown>> = [];
 
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('leaflet', () => {
-  const addable = () => ({ addTo: () => undefined });
+  // Mirror Leaflet's chainable layer API (addTo/bindPopup return `this`) so the
+  // component's `L.marker(...).addTo(map).bindPopup(label)` (DEC-426) works, and
+  // expose `layerGroup` — the satellite surface is now imagery + label overlays
+  // wrapped in a LayerGroup (DEC-426), so `createTileLayer('satellite')` needs it.
+  const addable = () => {
+    const layer = {
+      addTo: () => layer,
+      remove: () => undefined,
+      bindPopup: () => layer,
+    };
+    return layer;
+  };
   return {
     map: (_el: unknown, options: Record<string, unknown>) => {
       mapOptionsLog.push(options);
       return { invalidateSize: () => undefined, remove: () => undefined };
     },
     tileLayer: () => addable(),
+    layerGroup: () => addable(),
     marker: () => addable(),
     divIcon: () => ({}),
   };

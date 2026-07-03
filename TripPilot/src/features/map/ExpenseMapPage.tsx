@@ -10,7 +10,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useAppData } from '@/hooks/useAppData';
-import { buildExpenseMapPoints, type ExpenseMapPoint } from '@/domain/map';
+import { buildExpenseMapPoints, combineMapPoints, type ExpenseMapPoint } from '@/domain/map';
 import { createTileLayer, DEFAULT_MAP_LAYER, type MapLayerKind } from '@/features/location/tile-layers';
 import { formatMoney } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
@@ -82,14 +82,37 @@ export function ExpenseMapPage() {
     tileRef.current = createTileLayer(layerRef.current).addTo(map);
 
     const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48 });
+    const pointByMarker = new WeakMap<L.Marker, ExpenseMapPoint>();
+    const openPoint = (point: ExpenseMapPoint) => {
+      setVisibleCount(PAGE_SIZE);
+      setSelected(point);
+    };
     for (const point of points) {
       const marker = L.marker([point.lat, point.lng], { icon: makePin(), keyboard: false });
-      marker.on('click', () => {
-        setVisibleCount(PAGE_SIZE);
-        setSelected(point);
+      pointByMarker.set(marker, point);
+      marker.on('click', () => openPoint(point));
+      // DEC-429: holding a lone pin opens its place sheet too (mobile fires
+      // `contextmenu` on long-press) — stop the native callout from hijacking it.
+      marker.on('contextmenu', (e) => {
+        L.DomEvent.preventDefault(e.originalEvent);
+        openPoint(point);
       });
       cluster.addLayer(marker);
     }
+    // DEC-429 (Field v2 D04): TAP a cluster keeps the default zoom-to-bounds; HOLD
+    // it (contextmenu / long-press) folds every child spend into one point via the
+    // pure `combineMapPoints` and opens the SAME paginated sheet — "what's inside
+    // this bubble" without having to zoom all the way in.
+    cluster.on('clustercontextmenu', (event) => {
+      const clusterEvent = event as unknown as { layer: L.MarkerCluster; originalEvent?: Event };
+      if (clusterEvent.originalEvent) L.DomEvent.preventDefault(clusterEvent.originalEvent);
+      const childPoints = clusterEvent.layer
+        .getAllChildMarkers()
+        .map((marker) => pointByMarker.get(marker))
+        .filter((point): point is ExpenseMapPoint => point !== undefined);
+      const combined = combineMapPoints(childPoints);
+      if (combined) openPoint(combined);
+    });
     map.addLayer(cluster);
 
     // Frame every point when there is more than one (a single point keeps its

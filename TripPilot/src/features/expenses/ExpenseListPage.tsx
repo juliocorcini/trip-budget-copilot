@@ -397,6 +397,22 @@ export function ExpenseListPage() {
                 {t('expenses.import_statement_short')}
               </span>
             </button>
+            {/* DEC-428 (Field v2 D03): the expenses map was only reachable through the
+                guide search. Surface it as a labelled sibling pill (icon + text, same
+                pattern as Escanear/Importar) → /mapa. A top-bar reorg into a "+" menu
+                is an optional follow-up; Julio asked for icon+text for now. */}
+            <button
+              data-open-map
+              onClick={() => navigate('/mapa')}
+              className="h-9 pl-2.5 pr-3 rounded-full bg-surface-container flex items-center gap-1.5 btn-press shrink-0"
+              aria-label={t('expenses.open_map')}
+              title={t('expenses.open_map')}
+            >
+              <Icon name="map" size={16} className="text-on-surface-dim" />
+              <span className="text-xs font-bold text-on-surface-dim">
+                {t('expenses.open_map_short')}
+              </span>
+            </button>
           </div>
         </div>
 

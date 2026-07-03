@@ -990,39 +990,12 @@ export function DashboardCards({
                         })}
                       </p>
                     )}
-                    {/* DEC-392: the peak-WEIGHTED projection is "today's rhythm" (at
-                        today's pace, how much per day) — relabeled so a weighted number
-                        is never called an "average". Shown only when it differs from
-                        today's free and no check-in reframes today. */}
-                    {!checkInTodayPlan &&
-                      Math.abs(
-                        model.todayBudget.avgDailyUntilEndCents - model.todayBudget.freeTodayCents,
-                      ) > 50 && (
-                        <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
-                          {t('dashboard.today_rhythm', {
-                            amount: formatMoney(
-                              model.todayBudget.avgDailyUntilEndCents,
-                              trip.baseCurrency,
-                            ),
-                          })}
-                        </p>
-                      )}
-                    {/* DEC-392: the HONEST flat average until the phase ends — free ÷
-                        remaining calendar days (the ~€18 the user expects, not the
-                        peak-weighted ~€32). Hidden when it just repeats today's free. */}
-                    {!checkInTodayPlan &&
-                      Math.abs(
-                        model.todayBudget.avgUntilEndFlatCents - model.todayBudget.freeTodayCents,
-                      ) > 50 && (
-                        <p className="text-[11px] font-semibold mt-0.5 text-on-surface-faint">
-                          {t('dashboard.avg_until_end_flat', {
-                            amount: formatMoney(
-                              model.todayBudget.avgUntilEndFlatCents,
-                              trip.baseCurrency,
-                            ),
-                          })}
-                        </p>
-                      )}
+                    {/* DEC-427 (Field v2 §7-A): the headline now carries ONE number —
+                        "Livre para usar hoje" (above). "Ritmo de hoje" (peak-weighted
+                        projection) and "Média até o fim" (flat average) used to compete
+                        here and made the user unsure which one they could spend today.
+                        They moved into the hero breakdown (DashboardSheets) as clearly
+                        labelled PROJECTIONS. Zero math changed — only where they render. */}
                     {/* E08 · DEC-328: a negative day reads honestly — when the
                         cofrinho buffer absorbs today's overspend, say so. The two
                         numbers come straight from the piggy ledger's entry for

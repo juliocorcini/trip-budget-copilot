@@ -105,7 +105,7 @@ import { HelpButton } from '@/components/HelpMode';
 import { showToast, type ToastVariant } from '@/components/Toast';
 import { ProfileForm, type ProfileFormData } from '@/components/ProfileForm';
 import { BarModeView } from '@/features/outing/BarModeView';
-import { formatAnchorHint, type AnchorConfig } from '@/domain/money';
+import { formatAnchorHint, resolveAnchorRate, type AnchorConfig } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { db } from '@/data/db/database';
 // F7/F8 (outing capture): read a note or speak to add an item inside the outing.
@@ -1461,8 +1461,17 @@ export function OutingPage() {
         onRenamePlace={handleRenameOutingPlace}
         onClearPlace={handleClearOutingPlace}
         anchorConfig={
-          settings
-            ? { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 }
+          settings && trip
+            ? {
+                anchorCurrency: settings.anchorCurrency,
+                // DEC-434: live snapshot rate first; manual only as offline fallback.
+                anchorRatePer1: resolveAnchorRate({
+                  rates: settings.frozenRates ?? null,
+                  anchorCurrency: settings.anchorCurrency,
+                  baseCurrency: trip.baseCurrency,
+                  manualRatePer1: settings.anchorRatePer1,
+                }),
+              }
             : null
         }
         barMode={barMode}

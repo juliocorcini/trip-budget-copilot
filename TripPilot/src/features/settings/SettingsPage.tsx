@@ -15,7 +15,7 @@ import {
 } from '@/domain/orchestrators';
 import { generateBackupFilename, downloadFile } from '@/domain/backup';
 import { snapshotDayId } from '@/domain/local-snapshots';
-import { fromCents, toCents, formatAnchorHint, formatMoney } from '@/domain/money';
+import { fromCents, toCents, formatAnchorHint, resolveAnchorRate, anchorRateFromSnapshot, formatMoney } from '@/domain/money';
 import { formatDate } from '@/domain/dates';
 import { restoreLocalSnapshot } from '@/utils/local-snapshot';
 import { clearEmergencySnapshot } from '@/utils/emergency-snapshot';
@@ -608,11 +608,26 @@ export function SettingsPage() {
     .map((c) => fromCents(c).toFixed(2))
     .join(', ');
 
-  // DEC-128: live preview of the anchor ("€100 ≈ R$ 620") with the saved rate.
+  // DEC-128 + DEC-434: live preview of "ver na minha moeda" ("€100 ≈ R$ 620").
   const baseCurrency = trip?.baseCurrency ?? settings.defaultCurrency;
+  // DEC-434: the auto rate from the live snapshot drives the preview; the manual
+  // rate is only the offline fallback (and whether we show the manual field).
+  const anchorAutoRate = anchorRateFromSnapshot(
+    settings.frozenRates ?? null,
+    settings.anchorCurrency,
+    baseCurrency,
+  );
   const anchorPreview = formatAnchorHint(
     10000,
-    { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 },
+    {
+      anchorCurrency: settings.anchorCurrency,
+      anchorRatePer1: resolveAnchorRate({
+        rates: settings.frozenRates ?? null,
+        anchorCurrency: settings.anchorCurrency,
+        baseCurrency,
+        manualRatePer1: settings.anchorRatePer1,
+      }),
+    },
     baseCurrency,
   );
 
@@ -937,7 +952,8 @@ export function SettingsPage() {
 
       <CollapsibleGroup {...groupProps('money')}>
 
-      {/* DEC-128: mental currency anchor — manual offline rate, no network */}
+      {/* DEC-128 + DEC-434: "ver na minha moeda" — the rate is automatic (live
+          snapshot); the manual field remains only as the offline fallback. */}
       <Section title={t('settings.anchor_title')}>
         <p className="text-xs text-on-surface-faint mb-3">{t('settings.anchor_hint')}</p>
         <div className="flex gap-2 flex-wrap">
@@ -967,7 +983,17 @@ export function SettingsPage() {
         </div>
         {settings.anchorCurrency !== null && (
           <>
-            <div className="flex items-center gap-2 mt-3">
+            {anchorAutoRate !== null && settings.frozenRates && (
+              <p className="text-xs font-semibold text-on-surface-dim mt-3">
+                {t('settings.anchor_auto', {
+                  date: new Date(settings.frozenRates.fetchedAt).toLocaleDateString(i18n.language),
+                })}
+              </p>
+            )}
+            <p className="text-[11px] text-on-surface-faint mt-3 mb-1">
+              {t('settings.anchor_manual_fallback')}
+            </p>
+            <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-on-surface-dim whitespace-nowrap">
                 {t('settings.anchor_rate_prefix', { base: baseCurrency })}
               </span>

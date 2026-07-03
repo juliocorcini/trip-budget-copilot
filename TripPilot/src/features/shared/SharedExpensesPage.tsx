@@ -17,6 +17,7 @@ import {
   groupStatementLines,
   resolveShareStage,
   isShareReassignable,
+  classifyMoveDestination,
   reassignShares,
   revertReassignedShares,
   createDebtMovement,
@@ -2297,9 +2298,18 @@ export function SharedExpensesPage() {
       >
         {moveFrom && (() => {
           const movable = movableSharesFor(moveFrom.id);
-          const destinations = participants.filter(
-            (p) => !p.isOwner && p.id !== moveFrom.id && isPersonLocal(p.id),
-          );
+          // DEC-430 (Field v2 D05): split the candidates by why they can/can't take
+          // the debt directly. Local people are eligible destinations; connected
+          // peers get an honest explanation + the accept-first charge path instead
+          // of being silently dropped (Â-DEBT-SYNC-SAFE).
+          const statusFor = (p: Participant) =>
+            classifyMoveDestination({
+              isOwner: p.isOwner,
+              isSource: p.id === moveFrom.id,
+              isLocal: isPersonLocal(p.id),
+            });
+          const destinations = participants.filter((p) => statusFor(p) === 'eligible');
+          const connectedPeers = participants.filter((p) => statusFor(p) === 'connected_peer');
           const labelForShare = (s: ParticipantShare): string => {
             const tx = transactions.find((x) => x.id === s.transactionId);
             if (!tx) return t('shared.statement_unnamed');
@@ -2323,34 +2333,46 @@ export function SharedExpensesPage() {
             const p = destinations.find((x) => x.id === id);
             return p?.nickname ?? p?.name ?? '';
           };
+          // DEC-430: hand the picked items to the EXISTING accept-first charge sheet,
+          // pre-filled with the selected total — we never flip a share the peer's
+          // device mirrors; they confirm the charge on their side (Â-DEBT-SYNC-SAFE).
+          const startCharge = (peer: Participant) => {
+            setMoveFrom(null);
+            setChargeTarget(peer);
+            setChargeAmount(selectedTotal > 0 ? (selectedTotal / 100).toFixed(2) : '');
+            setChargeNote(t('shared.move_debt_charge_note', { name: moveFrom.nickname ?? moveFrom.name }));
+          };
+          const hasAnyDestination = destinations.length > 0 || connectedPeers.length > 0;
           return (
             <div className="flex flex-col gap-3">
               <p className="text-xs text-on-surface-dim">{t('shared.move_debt_help')}</p>
 
-              {destinations.length === 0 ? (
+              {!hasAnyDestination ? (
                 <p className="text-sm text-on-surface-dim">{t('shared.move_debt_no_dest')}</p>
               ) : (
                 <>
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
-                      {t('shared.move_debt_to')}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {destinations.map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => setMoveDestId(p.id)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold btn-press ${
-                            moveDestId === p.id
-                              ? 'bg-primary text-on-surface'
-                              : 'bg-surface-high text-on-surface-dim'
-                          }`}
-                        >
-                          {p.nickname ?? p.name}
-                        </button>
-                      ))}
+                  {destinations.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
+                        {t('shared.move_debt_to')}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {destinations.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => setMoveDestId(p.id)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold btn-press ${
+                              moveDestId === p.id
+                                ? 'bg-primary text-on-surface'
+                                : 'bg-surface-high text-on-surface-dim'
+                            }`}
+                          >
+                            {p.nickname ?? p.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
@@ -2391,16 +2413,48 @@ export function SharedExpensesPage() {
                     </span>
                   </div>
 
-                  <button
-                    onClick={handleConfirmMove}
-                    disabled={!moveDestId || moveShareIds.size === 0 || movingDebt}
-                    className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold text-sm flex items-center justify-center gap-2 btn-press disabled:opacity-50"
-                  >
-                    <Icon name="swap_horiz" size={18} />
-                    {moveDestId
-                      ? t('shared.move_debt_confirm', { name: destName(moveDestId) })
-                      : t('shared.move_debt_pick_dest')}
-                  </button>
+                  {destinations.length > 0 && (
+                    <button
+                      onClick={handleConfirmMove}
+                      disabled={!moveDestId || moveShareIds.size === 0 || movingDebt}
+                      className="w-full py-3 rounded-xl bg-primary text-on-surface font-semibold text-sm flex items-center justify-center gap-2 btn-press disabled:opacity-50"
+                    >
+                      <Icon name="swap_horiz" size={18} />
+                      {moveDestId
+                        ? t('shared.move_debt_confirm', { name: destName(moveDestId) })
+                        : t('shared.move_debt_pick_dest')}
+                    </button>
+                  )}
+
+                  {/* DEC-430 (Field v2 D05 · §7-B): connected peers aren't a DIRECT
+                      destination — moving a mirrored share would desync their device.
+                      Explain honestly and route to the accept-first charge instead of
+                      dropping them silently. Peers we hold no actor for can't be
+                      charged live, so their shortcut is disabled. */}
+                  {connectedPeers.length > 0 && (
+                    <div className="mt-1 p-3 rounded-xl bg-surface-container">
+                      <p className="text-xs font-semibold text-on-surface">
+                        {t('shared.move_debt_connected_title')}
+                      </p>
+                      <p className="text-[11px] text-on-surface-dim mt-1 leading-snug">
+                        {t('shared.move_debt_connected_help')}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {connectedPeers.map((p) => (
+                          <button
+                            key={p.id}
+                            data-charge-connected
+                            disabled={p.linkedActorId === null}
+                            onClick={() => startCharge(p)}
+                            className="px-3 py-1.5 rounded-full text-xs font-semibold btn-press bg-surface-high text-on-surface inline-flex items-center gap-1 disabled:opacity-50"
+                          >
+                            <Icon name="request_quote" size={14} className="text-primary" />
+                            {t('shared.move_debt_charge_cta', { name: p.nickname ?? p.name })}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

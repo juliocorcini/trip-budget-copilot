@@ -16,8 +16,8 @@ android {
         applicationId "com.trippilot.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 22
-        versionName "0.69.0"
+        versionCode 23
+        versionName "0.70.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // DEC-206 (G3): the bundled ML Kit text-recognition model ships native
         // libs per ABI, pushing a universal APK to ~49 MB — over Cloudflare Pages'

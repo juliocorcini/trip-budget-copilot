@@ -939,6 +939,26 @@ export function isShareReassignable(
 }
 
 /**
+ * DEC-430 (Field v2 D05): why a person is — or ISN'T — a DIRECT destination when
+ * moving a debt. The owner and the source person are never candidates (`null`). A
+ * LOCAL person is `eligible`: a device-local reassignment is safe. A P2P-connected
+ * peer is `connected_peer`: silently reassigning a share their device already
+ * mirrors would desync their balance (Â-DEBT-SYNC-SAFE), so instead of hiding them
+ * the UI explains this and offers the accept-first path (a charge they confirm).
+ * Pure so the sheet and its tests share one source of truth for eligibility.
+ */
+export type MoveDestinationStatus = 'eligible' | 'connected_peer';
+
+export function classifyMoveDestination(input: {
+  isOwner: boolean;
+  isSource: boolean;
+  isLocal: boolean;
+}): MoveDestinationStatus | null {
+  if (input.isOwner || input.isSource) return null;
+  return input.isLocal ? 'eligible' : 'connected_peer';
+}
+
+/**
  * DEC-414 (G6): the pure reassignment — flip each given share's `participantId` to
  * the recipient and stamp `reassignedFrom` with the origin (for the "moved from
  * {name}" trail and undo). Amounts are NEVER touched, so the owner's TOTAL pairwise

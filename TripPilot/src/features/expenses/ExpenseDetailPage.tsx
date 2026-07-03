@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
-import { formatMoney, fromCents, toCents, formatAnchorHint, convertToBaseCents } from '@/domain/money';
+import { formatMoney, fromCents, toCents, formatAnchorHint, resolveAnchorRate, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
 import {
   transactionRepository,
@@ -166,11 +166,20 @@ export function ExpenseDetailPage() {
   const occurrence =
     tx.occurrenceId ? (occurrences.find((o) => o.id === tx.occurrenceId) ?? null) : null;
 
-  // DEC-128: mental anchor under the amount ("≈ R$ 124").
+  // DEC-128 + DEC-434: "ver na minha moeda" under the amount ("≈ R$ 124"), rate
+  // from the live snapshot (manual fallback keeps a foreign-currency row working).
   const anchorHint = settings
     ? formatAnchorHint(
         tx.amountCents,
-        { anchorCurrency: settings.anchorCurrency, anchorRatePer1: settings.anchorRatePer1 },
+        {
+          anchorCurrency: settings.anchorCurrency,
+          anchorRatePer1: resolveAnchorRate({
+            rates: settings.frozenRates ?? null,
+            anchorCurrency: settings.anchorCurrency,
+            baseCurrency: tx.currency,
+            manualRatePer1: settings.anchorRatePer1,
+          }),
+        },
         tx.currency,
       )
     : null;

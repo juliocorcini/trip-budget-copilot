@@ -180,6 +180,35 @@ export function extractCity(merchant: string | null): string | null {
     .replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase());
 }
 
+/**
+ * Field v2.1 (DEC-434): the ESTABLISHMENT part of a Wise merchant string — the
+ * merchant WITHOUT the trailing UPPERCASE city token(s) that {@link extractCity}
+ * pulls (e.g. "Confiteria Juarreno BURGOS" → "Confiteria Juarreno"). This is what
+ * belongs in the expense's "local" (placeLabel), so the venue — not the city —
+ * names the spend; the full merchant string still rides in the description.
+ *
+ * Returns null when the merchant is empty or is ONLY a city / all-caps token
+ * (nothing distinct to name), so the caller can fall back to the city label; the
+ * background forward-geocode later upgrades either to the real OSM venue name.
+ */
+export function extractMerchantName(merchant: string | null): string | null {
+  if (merchant === null) return null;
+  const tokens = merchant.trim().split(/\s+/).filter((token) => token.length > 0);
+  if (tokens.length === 0) return null;
+  let cityTokenCount = 0;
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const token = tokens[i]!;
+    // Same trailing "city" heuristic as extractCity: 2+ chars, no lowercase.
+    if (token.length >= 2 && token === token.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(token)) {
+      cityTokenCount++;
+    } else {
+      break;
+    }
+  }
+  const name = tokens.slice(0, tokens.length - cityTokenCount).join(' ').trim();
+  return name === '' ? null : name;
+}
+
 function classifyKind(row: WiseStatementRow): WiseDraftKind {
   // FIELD-14: a TRANSFER with a named counterparty is a person-to-person move
   // (either direction) — never a plain card purchase. Checked first so an

@@ -1,4 +1,4 @@
-import { resolveSaveLocation } from '@/domain/location';
+import { resolveSaveLocation, chooseGeocodedLabel } from '@/domain/location';
 import { transactionRepository } from '@/data/repositories';
 import { notifyAppDataChanged } from '@/hooks/useAppData';
 import { getCurrentFix } from '@/utils/geolocation';
@@ -99,14 +99,21 @@ export async function stampImportedExpenseLocations(
     requested = true;
     const place = await searchPlaceByName(query, null);
     if (!place) continue;
-    const hadLabel = tx.placeLabel !== null && tx.placeLabel.trim() !== '';
+    // DEC-434: put the REAL venue in "local". A user-verified name is kept; an
+    // app-derived one (the imported merchant/city label) is upgraded to the OSM
+    // venue name — so a row that read "Burgos" (the city) becomes the actual place.
+    const label = chooseGeocodedLabel({
+      currentLabel: tx.placeLabel,
+      currentSource: tx.placeNameSource ?? null,
+      resolvedLabel: place.label,
+    });
     await transactionRepository.update({
       ...tx,
       latitude: place.lat,
       longitude: place.lng,
       placeId: place.placeId,
-      placeLabel: hadLabel ? tx.placeLabel : place.label,
-      placeNameSource: hadLabel ? tx.placeNameSource ?? null : 'auto',
+      placeLabel: label.placeLabel,
+      placeNameSource: label.placeNameSource,
     });
     changed = true;
   }

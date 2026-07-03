@@ -11,6 +11,7 @@ import {
   parseLocalDate,
   phaseHasRhythm,
   toLocalIsoDay,
+  type TodayFreeBudgetPiggyCap,
 } from './rhythm';
 
 /**
@@ -50,6 +51,12 @@ export interface PhaseAllowanceDay {
   spentCents: number;
   /** allowance − spent. Can be negative when today is already overspent. */
   freeCents: number;
+  /**
+   * DEC-427 (Field v2): for TODAY, how much the cofrinho cap parked away
+   * (raw share − capped allowance); 0 on every other day and when no cap is
+   * active. The day-detail explainer shows it as "guardado no cofrinho: €X".
+   */
+  piggyParkedCents: number;
   /** Dated reserves (events / dated planned buys) landing on this day. */
   planItems: DayPlanItem[];
   planTotalCents: number;
@@ -99,6 +106,16 @@ export interface BuildPhaseAllowanceMapInput {
    * (held − spent) per remaining day, not the full reserve. Defaults to none.
    */
   transactions?: Transaction[];
+  /**
+   * DEC-427 (Field v2): the SAME cofrinho cap the hero uses
+   * (`calculateTodayFreeBudget`). When present with a positive balance, TODAY's
+   * cell is capped at the day's ideal-base (min only) so "livre no dia" here
+   * equals the Home hero's "livre para usar hoje" — the 5-vs-14 bug was this map
+   * showing the UNcapped share while the hero capped it. Future days stay raw
+   * (a projection). Money-invariant: the total free is untouched; only today's
+   * READING is capped and the difference is exactly what the cofrinho holds.
+   */
+  piggyCap?: TodayFreeBudgetPiggyCap;
 }
 
 /** Effective (remaining) reserve of a planned item; null reserve = track-only. */
@@ -199,6 +216,11 @@ function indexPlanByDay(
 export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): PhaseAllowanceMap {
   const { trueFreeCents, todaySpentCents, phase, todayIso, occurrences, plannedPurchases } = input;
   const transactions = input.transactions ?? [];
+  const piggyCap = input.piggyCap;
+  // DEC-427: mirror `calculateTodayFreeBudget`'s cap gate exactly — only when the
+  // cofrinho actually holds a positive balance and there is an ideal-base ceiling.
+  const capActive =
+    piggyCap !== undefined && piggyCap.balanceCents > 0 && piggyCap.baseDailyIdealCents > 0;
 
   const baseFreeCents = Math.max(0, trueFreeCents + todaySpentCents);
   const effectiveDays = calculateEffectiveSpendingDays(phase, todayIso);
@@ -232,9 +254,17 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
   while (cursor <= end) {
     const dateIso = toLocalIsoDay(cursor);
     const weight = getDaySpendingWeight(phase, dateIso);
-    const allowanceCents =
+    const rawAllowanceCents =
       effectiveDays > 0 ? Math.round((baseFreeCents * weight) / effectiveDays) : 0;
     const isToday = dateIso === todayDay;
+    // DEC-427: cap TODAY at the ideal-base when the cofrinho is holding the parked
+    // leftover — the SAME `min` the hero applies — so the by-day screen matches the
+    // Home. Future days keep the raw projection; the parked difference is surfaced.
+    const allowanceCents =
+      isToday && capActive
+        ? Math.min(rawAllowanceCents, piggyCap!.baseDailyIdealCents)
+        : rawAllowanceCents;
+    const piggyParkedCents = isToday && capActive ? rawAllowanceCents - allowanceCents : 0;
     const spentCents = isToday ? todaySpentCents : 0;
     const planItems = planByDay.get(dateIso) ?? [];
     const planTotalCents = planItems.reduce((acc, i) => acc + i.amountCents, 0);
@@ -250,6 +280,7 @@ export function buildPhaseAllowanceMap(input: BuildPhaseAllowanceMapInput): Phas
       allowanceCents,
       spentCents,
       freeCents,
+      piggyParkedCents,
       planItems,
       planTotalCents,
       dayTotalCents,

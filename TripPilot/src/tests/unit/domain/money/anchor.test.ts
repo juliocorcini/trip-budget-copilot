@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { isAnchorActive, convertToAnchorCents, formatAnchorHint } from '@/domain/money';
+import {
+  isAnchorActive,
+  convertToAnchorCents,
+  formatAnchorHint,
+  anchorRateFromSnapshot,
+  resolveAnchorRate,
+} from '@/domain/money';
+import type { FrozenExchangeRates } from '@/domain/types/common';
 
 // DEC-128: mental currency anchor ("€20 ≈ R$ 124").
 
@@ -56,5 +63,68 @@ describe('formatAnchorHint', () => {
   it('returns null when the anchor is inactive', () => {
     expect(formatAnchorHint(2000, { anchorCurrency: null, anchorRatePer1: null }, 'EUR')).toBeNull();
     expect(formatAnchorHint(2000, { anchorCurrency: 'EUR', anchorRatePer1: 1 }, 'EUR')).toBeNull();
+  });
+});
+
+// DEC-434: the anchor rate now comes from the live FX snapshot (auto), with the
+// manual rate as an offline fallback.
+const EUR_SNAPSHOT: FrozenExchangeRates = {
+  baseCurrency: 'EUR',
+  fetchedAt: '2026-07-01T12:00:00.000Z',
+  // base (EUR) units per 1 unit of X. 1 BRL = 0.16 EUR → 1 EUR = 6.25 BRL.
+  ratesToBase: { BRL: 0.16, USD: 0.92 },
+};
+
+describe('anchorRateFromSnapshot (DEC-434)', () => {
+  it('derives anchor-per-base as the inverse of ratesToBase[anchor]', () => {
+    expect(anchorRateFromSnapshot(EUR_SNAPSHOT, 'BRL', 'EUR')).toBeCloseTo(6.25, 10);
+  });
+
+  it('is case-insensitive on the currency codes', () => {
+    expect(anchorRateFromSnapshot(EUR_SNAPSHOT, 'brl', 'eur')).toBeCloseTo(6.25, 10);
+  });
+
+  it('returns null when the snapshot lacks the anchor currency', () => {
+    expect(anchorRateFromSnapshot(EUR_SNAPSHOT, 'GBP', 'EUR')).toBeNull();
+  });
+
+  it('returns null when the snapshot is anchored to a different base', () => {
+    expect(anchorRateFromSnapshot(EUR_SNAPSHOT, 'BRL', 'USD')).toBeNull();
+  });
+
+  it('returns null for a missing snapshot, no anchor, or anchor === base', () => {
+    expect(anchorRateFromSnapshot(null, 'BRL', 'EUR')).toBeNull();
+    expect(anchorRateFromSnapshot(EUR_SNAPSHOT, null, 'EUR')).toBeNull();
+    expect(anchorRateFromSnapshot(EUR_SNAPSHOT, 'EUR', 'EUR')).toBeNull();
+  });
+});
+
+describe('resolveAnchorRate (DEC-434 — auto first, manual fallback)', () => {
+  it('prefers the live snapshot rate over the stored manual rate', () => {
+    const rate = resolveAnchorRate({
+      rates: EUR_SNAPSHOT,
+      anchorCurrency: 'BRL',
+      baseCurrency: 'EUR',
+      manualRatePer1: 6.2,
+    });
+    expect(rate).toBeCloseTo(6.25, 10);
+  });
+
+  it('falls back to the manual rate when the snapshot cannot cover it (offline)', () => {
+    expect(
+      resolveAnchorRate({ rates: null, anchorCurrency: 'BRL', baseCurrency: 'EUR', manualRatePer1: 6.2 }),
+    ).toBe(6.2);
+    expect(
+      resolveAnchorRate({ rates: EUR_SNAPSHOT, anchorCurrency: 'GBP', baseCurrency: 'EUR', manualRatePer1: 7.1 }),
+    ).toBe(7.1);
+  });
+
+  it('returns null when neither an auto nor a positive manual rate exists', () => {
+    expect(
+      resolveAnchorRate({ rates: null, anchorCurrency: 'BRL', baseCurrency: 'EUR', manualRatePer1: null }),
+    ).toBeNull();
+    expect(
+      resolveAnchorRate({ rates: null, anchorCurrency: 'BRL', baseCurrency: 'EUR', manualRatePer1: 0 }),
+    ).toBeNull();
   });
 });

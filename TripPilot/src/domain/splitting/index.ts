@@ -24,6 +24,7 @@ export {
   isPaidByOwner,
   collectSplitNotifyTargets,
   isShareReassignable,
+  classifyMoveDestination,
   reassignShares,
   revertReassignedShares,
   createDebtMovement,
@@ -43,6 +44,7 @@ export type {
   StatementLineKind,
   ParticipantStatement,
   ShareStage,
+  MoveDestinationStatus,
 } from './splitting';
 export { groupSharedExpenses, groupStatementLines } from './grouping';
 export type { SharedExpenseGroup, StatementLineGroup } from './grouping';

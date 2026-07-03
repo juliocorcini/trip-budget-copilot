@@ -5,6 +5,7 @@ import {
   classifyWiseRows,
   guessCategory,
   extractCity,
+  extractMerchantName,
   wiseExternalRef,
 } from '@/domain/import/wise-import';
 import { commitWiseImport, commitWiseTransfers } from '@/domain/orchestrators';
@@ -152,6 +153,32 @@ describe('extractCity', () => {
   it('returns null when there is no clear city', () => {
     expect(extractCity(null)).toBeNull();
     expect(extractCity('lowercase only')).toBeNull();
+  });
+});
+
+describe('extractMerchantName (DEC-434 — establishment for the "local" field)', () => {
+  it('strips the trailing UPPERCASE city token(s), keeping the venue', () => {
+    expect(extractMerchantName('Confiteria Juarreno BURGOS')).toBe('Confiteria Juarreno');
+    expect(extractMerchantName('Dulcycor VILLATORO')).toBe('Dulcycor');
+    expect(extractMerchantName('Bar Pepe MADRID CENTRO')).toBe('Bar Pepe');
+  });
+
+  it('keeps a mixed-case venue that has no trailing city', () => {
+    expect(extractMerchantName('Starbucks')).toBe('Starbucks');
+    expect(extractMerchantName('Pingo Doce')).toBe('Pingo Doce');
+  });
+
+  it('returns null when the merchant is empty or ONLY a city / all-caps token', () => {
+    expect(extractMerchantName(null)).toBeNull();
+    expect(extractMerchantName('   ')).toBeNull();
+    expect(extractMerchantName('BURGOS')).toBeNull();
+    expect(extractMerchantName('MADRID CENTRO')).toBeNull();
+  });
+
+  it('is the complement of extractCity on a typical merchant', () => {
+    const merchant = 'Confiteria Juarreno BURGOS';
+    expect(extractMerchantName(merchant)).toBe('Confiteria Juarreno');
+    expect(extractCity(merchant)).toBe('Burgos');
   });
 });
 
@@ -330,7 +357,12 @@ describe('commitWiseImport', () => {
 
     const dulcycor = stored.find((t) => t.externalRef === wiseExternalRef('CARD-3927313014'));
     expect(dulcycor?.amountCents).toBe(739);
-    expect(dulcycor?.placeLabel).toBe('Villatoro');
+    // DEC-434: the "local" is the ESTABLISHMENT (merchant minus the city), the
+    // full merchant string still rides in the description, and the derived label
+    // is 'auto' so the background geocode may upgrade it to the real venue name.
+    expect(dulcycor?.placeLabel).toBe('Dulcycor');
+    expect(dulcycor?.description).toBe('Dulcycor VILLATORO');
+    expect(dulcycor?.placeNameSource).toBe('auto');
   });
 
   it('D-BUG-06: commits a credit as income — grows the pool, credits the wallet, deduped', async () => {

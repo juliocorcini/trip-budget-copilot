@@ -251,6 +251,17 @@ export function DayBreakdown({
               amount={`+ ${formatMoney(day.planTotalCents, currency)}`}
             />
           )}
+          {/* DEC-427 (Field v2): today's raw share was capped at the ideal-base
+              because the cofrinho is holding the parked leftover — surface that
+              exact difference so "livre no dia" reads honestly (it now matches the
+              Home hero bit-for-bit). Only today carries a positive parked amount. */}
+          {day.piggyParkedCents > 0 && (
+            <ExplainAmount
+              icon="lock"
+              label={t('dashboard.day_explain_piggy_parked')}
+              amount={formatMoney(day.piggyParkedCents, currency)}
+            />
+          )}
         </div>
       )}
     </div>

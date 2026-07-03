@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildExpenseMapPoints } from '@/domain/map';
+import { buildExpenseMapPoints, combineMapPoints, type ExpenseMapPoint } from '@/domain/map';
 import type { Transaction } from '@/domain/types/transaction';
 
 /**
@@ -129,5 +129,80 @@ describe('buildExpenseMapPoints', () => {
     expect(points).toHaveLength(2);
     const merged = points.find((p) => p.count === 2)!;
     expect(merged.totalCents).toBe(700);
+  });
+});
+
+/**
+ * DEC-429 (Field v2 D04): the pure aggregator behind "HOLD a cluster → list every
+ * spend under it". It must (1) SUM counts + base-currency totals, (2) reuse a REAL
+ * child coordinate (never a synthetic midpoint — Â-PLACE-REAL), and (3) be
+ * deterministic regardless of the (map-driven) order Leaflet hands the children in.
+ */
+function mkPoint(over: Partial<ExpenseMapPoint>): ExpenseMapPoint {
+  return {
+    lat: 0,
+    lng: 0,
+    count: 1,
+    totalCents: 1000,
+    txIds: ['tx'],
+    label: null,
+    ...over,
+  };
+}
+
+describe('combineMapPoints', () => {
+  it('returns null for an empty cluster', () => {
+    expect(combineMapPoints([])).toBeNull();
+  });
+
+  it('returns the single point unchanged when a cluster holds only one place', () => {
+    const only = mkPoint({ lat: 38.7, lng: -9.1, count: 3, totalCents: 4200, txIds: ['a', 'b', 'c'], label: 'Bar do Zé' });
+    expect(combineMapPoints([only])).toEqual(only);
+  });
+
+  it('sums counts + base totals and concatenates txIds across places', () => {
+    const combined = combineMapPoints([
+      mkPoint({ lat: 1, lng: 1, count: 2, totalCents: 3000, txIds: ['x1', 'x2'] }),
+      mkPoint({ lat: 2, lng: 2, count: 1, totalCents: 9000, txIds: ['y1'] }),
+      mkPoint({ lat: 3, lng: 3, count: 3, totalCents: 1500, txIds: ['z1', 'z2', 'z3'] }),
+    ])!;
+    expect(combined.count).toBe(6);
+    expect(combined.totalCents).toBe(13_500);
+    // Shared order = biggest place first, so its spends lead the merged list.
+    expect(combined.txIds).toEqual(['y1', 'x1', 'x2', 'z1', 'z2', 'z3']);
+    // A cluster spans places → no single place name (sheet uses its fallback title).
+    expect(combined.label).toBeNull();
+  });
+
+  it('reuses the TOP place\'s REAL coordinate, never a synthetic midpoint (Â-PLACE-REAL)', () => {
+    const combined = combineMapPoints([
+      mkPoint({ lat: 10, lng: 10, totalCents: 500 }),
+      mkPoint({ lat: 50, lng: 50, totalCents: 9000 }), // biggest → representative
+    ])!;
+    expect(combined.lat).toBe(50);
+    expect(combined.lng).toBe(50);
+    // The average (30,30) would be a place NO spend happened at — must not appear.
+    expect(combined.lat).not.toBe(30);
+  });
+
+  it('is deterministic regardless of the order Leaflet hands the children in', () => {
+    const a = mkPoint({ lat: 1, lng: 1, count: 2, totalCents: 3000, txIds: ['x1', 'x2'] });
+    const b = mkPoint({ lat: 2, lng: 2, count: 1, totalCents: 9000, txIds: ['y1'] });
+    const c = mkPoint({ lat: 3, lng: 3, count: 3, totalCents: 1500, txIds: ['z1', 'z2', 'z3'] });
+    const forward = combineMapPoints([a, b, c])!;
+    const shuffled = combineMapPoints([c, a, b])!;
+    expect(shuffled).toEqual(forward);
+  });
+
+  it('folds real map points (buildExpenseMapPoints → combine) into one honest total', () => {
+    const points = buildExpenseMapPoints([
+      mkTx({ id: 'a', placeId: 'p1', latitude: 38.7, longitude: -9.1, baseCurrencyAmountCents: 1200 }),
+      mkTx({ id: 'b', placeId: 'p1', latitude: 38.7, longitude: -9.1, baseCurrencyAmountCents: 800 }),
+      mkTx({ id: 'c', placeId: 'p2', latitude: 38.8, longitude: -9.2, baseCurrencyAmountCents: 5000 }),
+    ]);
+    const combined = combineMapPoints(points)!;
+    expect(combined.count).toBe(3);
+    expect(combined.totalCents).toBe(7000);
+    expect(combined.txIds).toHaveLength(3);
   });
 });

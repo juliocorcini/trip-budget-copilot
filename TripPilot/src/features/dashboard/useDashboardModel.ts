@@ -577,25 +577,9 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           )
         : todaySpentCents;
 
-    // FIELD-19: per-day allowance map — same start-of-day base/weights as the
-    // hero, projected over every remaining day so "free today" reads as a point
-    // on a distribution, not an absolute. Dated reserves overlay their day.
-    const phaseDayMap =
-      trueFree && activePhase
-        ? buildPhaseAllowanceMap({
-            trueFreeCents: trueFree.trueFreeCents,
-            todaySpentCents: freePoolDropTodayCents,
-            phase: activePhase,
-            todayIso,
-            occurrences: occurrences.filter(
-              (o) => o.phaseId === activePhase.id && o.deletedAt === null,
-            ),
-            plannedPurchases: plannedPurchases.filter(
-              (p) => p.deletedAt === null && (p.phaseId === activePhase.id || p.phaseId === null),
-            ),
-            transactions,
-          })
-        : null;
+    // DEC-427 (Field v2): the per-day allowance map (`phaseDayMap`) is now built
+    // AFTER the cofrinho so it can be fed the SAME cap as the hero — see below,
+    // right after `todayBudget`. (Moved down from here to fix the 5-vs-14 bug.)
 
     // DEC-129: yesterday recap mirrors the hero math (pool-scoped, add-back).
     const recap =
@@ -710,6 +694,19 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // cofrinho and this cap share the SAME ideal series (piggyIdealByDayCents /
     // piggyDailyIdealCents), so the reading stays consistent bit-for-bit; the total
     // free is untouched (Â-MONEY-INVARIANT). Absent buffer → identical to before.
+    // DEC-427 (Field v2): compute the cofrinho cap ONCE and feed it to BOTH the
+    // hero (calculateTodayFreeBudget) and the per-day map (buildPhaseAllowanceMap),
+    // so "livre para usar hoje" on the Home equals "livre no dia" of today on the
+    // by-day screen bit-for-bit. The 5-vs-14 bug was the map using the UNcapped
+    // share while the hero capped it. Same balance + same ideal series here.
+    const todayPiggyCap =
+      piggyBankCents > 0
+        ? {
+            balanceCents: piggyBankCents,
+            baseDailyIdealCents: piggyIdealByDayCents.get(todayIso) ?? piggyDailyIdealCents,
+          }
+        : undefined;
+
     const todayBudget =
       trueFree && activePhase
         ? calculateTodayFreeBudget(
@@ -717,13 +714,31 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             freePoolDropTodayCents,
             activePhase,
             todayIso,
-            piggyBankCents > 0
-              ? {
-                  balanceCents: piggyBankCents,
-                  baseDailyIdealCents: piggyIdealByDayCents.get(todayIso) ?? piggyDailyIdealCents,
-                }
-              : undefined,
+            todayPiggyCap,
           )
+        : null;
+
+    // FIELD-19: per-day allowance map — same start-of-day base/weights as the
+    // hero, projected over every remaining day so "free today" reads as a point
+    // on a distribution, not an absolute. Dated reserves overlay their day.
+    // DEC-427: fed the SAME `todayPiggyCap` as the hero so today's cell matches
+    // the Home hero bit-for-bit (the by-day "livre no dia" == "livre para usar hoje").
+    const phaseDayMap =
+      trueFree && activePhase
+        ? buildPhaseAllowanceMap({
+            trueFreeCents: trueFree.trueFreeCents,
+            todaySpentCents: freePoolDropTodayCents,
+            phase: activePhase,
+            todayIso,
+            occurrences: occurrences.filter(
+              (o) => o.phaseId === activePhase.id && o.deletedAt === null,
+            ),
+            plannedPurchases: plannedPurchases.filter(
+              (p) => p.deletedAt === null && (p.phaseId === activePhase.id || p.phaseId === null),
+            ),
+            transactions,
+            piggyCap: todayPiggyCap,
+          })
         : null;
     const savingsGoal =
       fts && settings?.savingsGoalCents != null

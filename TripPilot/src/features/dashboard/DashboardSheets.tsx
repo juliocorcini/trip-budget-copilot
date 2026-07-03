@@ -405,6 +405,44 @@ export function DashboardSheets({
                 todayIso={model.todayIso}
               />
             )}
+            {/* DEC-427 (Field v2 §7-A): "Ritmo de hoje" and "Média até o fim" left
+                the Home headline (which now shows ONE hero, "Livre para usar hoje")
+                and live here as PROJECTIONS — estimates of pace, never a permission
+                to spend. Same numbers as before, only relocated + relabelled; hidden
+                when they merely repeat today's free (± < €0,50). Zero math. */}
+            {model.todayBudget &&
+              (() => {
+                const tb = model.todayBudget;
+                const showRhythm =
+                  Math.abs(tb.avgDailyUntilEndCents - tb.freeTodayCents) > 50;
+                const showAvg =
+                  Math.abs(tb.avgUntilEndFlatCents - tb.freeTodayCents) > 50;
+                if (!showRhythm && !showAvg) return null;
+                return (
+                  <div className="mt-4 p-3 rounded-xl bg-surface-container">
+                    <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                      {t('dashboard.hero_projections_title')}
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-on-surface-faint mt-1">
+                      {t('dashboard.hero_projections_hint')}
+                    </p>
+                    {showRhythm && (
+                      <p className="text-[12px] font-semibold text-on-surface-dim mt-1.5">
+                        {t('dashboard.today_rhythm', {
+                          amount: formatMoney(tb.avgDailyUntilEndCents, trip.baseCurrency),
+                        })}
+                      </p>
+                    )}
+                    {showAvg && (
+                      <p className="text-[12px] font-semibold text-on-surface-dim mt-0.5">
+                        {t('dashboard.avg_until_end_flat', {
+                          amount: formatMoney(tb.avgUntilEndFlatCents, trip.baseCurrency),
+                        })}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             {/* D13 · DEC-312/313 — "where it comes from" also answers the DAY's
                 money: how the daily slice moves and where a calm day's saving
                 goes. ONE destination (DEC-313): with a cofrinho the saving is

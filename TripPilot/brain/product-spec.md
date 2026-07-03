@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-06-17 (reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207 — the old "NOT in scope" list was contradicting shipped features)
+> Last updated: 2026-07-02 (Field v2.1 `2.1.3-rc`: the expense "local" now shows the **venue, not the city** — DEC-434; exchange rates are **automatic app-wide** with manual as override/offline and the "mental anchor" renamed **"Ver na minha moeda"** — DEC-435; see §"Where & when" + "Multi-currency". Prior 2026-06-17: reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207.)
 
 ## What is TripPilot?
 
@@ -335,12 +335,17 @@ The guarantees the user can rely on, even when the device storage misbehaves:
 
 **Where & when (opt-in location — DEC-157):**
 - Turn on location and each expense can remember **where** it happened — a friendly place name (reverse-geocoded once, then offline) you can always edit by hand.
+- **The place name is the venue, not the city (DEC-434):** the "local" field shows the **establishment** (e.g. "Confitería Juarreño"), kept distinct from the description ("what I bought"). Wise imports derive the venue from the statement (dropping the trailing city token) and a background geocode **upgrades** an app-derived name to the real place name; a name **you typed/verified** is never overwritten.
 - The last place is **sticky** so a string of expenses at the same spot needs no retyping, and your **recent places** come back as one-tap chips (works offline).
 - See **spend by place** and the time of each expense. Location is **off by default**, asked for only when you opt in, and an expense **always saves** even if the GPS or naming fails.
+- **Spends on the map (DEC-416 · DEC-426/428/429):** a full-screen **satellite map** of every spend with a real coordinate, reachable from a labelled **"Mapa"** pill on the Expenses toolbar (and the guide). The satellite surface shows **street/place labels** (Esri imagery + reference overlays) and **tapping a pin reveals the place name**. Spends at the same place group into one point and **cluster by zoom**: **tap a cluster = zoom in**, **hold a cluster = list its spends** (total + paginated list → open any). The map only ever shows **real** coordinates (never invents one) and is **best-effort/offline-safe** — nothing on it blocks. It is the traveler's own and is **never shared**.
 
 **Multi-currency (DEC-158):**
-- Log an expense in a **foreign currency** (e.g. `300 CZK`) while your budget stays in the trip's **base currency**. The app converts with a rate you control and shows **"300 CZK (≈ €12)"** everywhere.
+- Log an expense in a **foreign currency** (e.g. `300 CZK`) while your budget stays in the trip's **base currency**. The app converts and shows **"300 CZK (≈ €12)"** everywhere.
 - The **original amount and currency are kept forever**; only the base value touches your budget and wallets. You can **freeze a rate** per currency (opt-in) so the trip's math doesn't drift with the market.
+- **Rates update automatically (DEC-435):** the app keeps a live reference-rate snapshot fresh in the background (refreshed on open when it's older than ~12h, best-effort/offline-safe), so a foreign expense **converts with the automatic rate by default** — typing a rate is only an **override**, and a manual rate is the **offline fallback**.
+- **"Ver na minha moeda" (See in my currency — DEC-435, renamed from "mental anchor"):** pick a currency you think in and every foreign amount also shows **"≈ R$ …"** in it; that rate now **reads from the automatic snapshot** (manual value kept only for offline).
+- **Converter is ready before you open it (DEC-423 · DEC-435):** the **main currencies** are always offered and pre-loaded, so you can convert **any major → any major with no button press**.
 
 **On-device daily safety net (DEC-159):**
 - The app quietly keeps **rolling daily restore points on the device** (the last several days). If something goes wrong you can **restore to yesterday** in one step — separate from, and on top of, your own JSON backups. These snapshots **never leave the device** and are not part of a backup file.
@@ -410,6 +415,17 @@ app never shows both at once, and never highlights the cofrinho when the money d
 same plain-language rule appears in three places: the cofrinho statement, the day check-in's "Destino
 da economia de hoje", and the hero "De onde vem?" sheet.
 
+**One hero number for the day (Field v2 — DEC-427):** the Home leads with a **single** figure —
+**"Livre para usar hoje"** — and nothing competes with it. The former "Ritmo de hoje" (peak-weighted)
+and "Média até o fim" (flat) move into the hero's **"De onde vem?"** explainer as clearly-labelled
+**projections/estimates**, not headline money; the word **"ritmo"** is reserved for the cofrinho
+mechanic (deposit/cover), never the hero. Critically, the hero and the **per-day allowance map now
+read the same truth**: when the cofrinho already parks leftover, the daily allowance is **capped**
+(`piggyCap`) **for today's cell exactly like the hero** (fixing the old "5 shown here / 14 shown
+there" mismatch), and the parked slice is surfaced inline as **"Guardado no cofrinho"**. This is a
+**display + consistency** change — `baseFree` and every total stay **invariant** (proven by an anchor
+test asserting today's cell equals the hero bit-for-bit).
+
 ## V1 — In Scope With Constraints (reconciled 2026-06-17)
 
 These were once "not in scope" but shipped under explicit, honest constraints (this section
@@ -436,7 +452,7 @@ fulfills the DEC-207 mandate to rewrite the old "no remote database" line):
 - Android widget
 - Remote push with the app CLOSED (needs FCM/Play Services — against the sideload-first posture)
 - Social features / gamification
-- Geographic map visualization (the phase "map" is a per-day calendar, not a geo map — DEC-211 Wave B)
+- ~~Geographic map visualization~~ **SHIPPED** as "Spends on the map" (DEC-416/426/428/429; satellite + labels, cluster tap=zoom / hold=list). The phase "map" remains a separate per-day calendar (DEC-211 Wave B), not a geo map.
 - Subscription/monetization system
 - Kotlin-only native implementation
 

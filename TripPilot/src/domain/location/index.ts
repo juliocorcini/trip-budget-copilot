@@ -14,6 +14,7 @@ export type { Coords, TransactionPlaceFields, RecentPlace, PlaceTotal, PlaceSugg
 export {
   resolveSaveLocation,
   resolveLocationDisplay,
+  chooseGeocodedLabel,
 } from './save-location';
 export type {
   SaveLocationInput,

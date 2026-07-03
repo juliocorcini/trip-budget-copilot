@@ -4,6 +4,7 @@ import {
   buildParticipantStatement,
   filterStatementToCounterparty,
   isShareReassignable,
+  classifyMoveDestination,
   reassignShares,
   revertReassignedShares,
   createDebtMovement,
@@ -152,6 +153,30 @@ describe('isShareReassignable — only local, open, confirmed debts (DEC-414)', 
     expect(isShareReassignable({ ...base, confirmationStatus: 'rejected' }, false)).toBe(false);
     expect(isShareReassignable({ ...base, isPaid: true }, false)).toBe(false);
     expect(isShareReassignable({ ...base, deletedAt: '2026-01-01T00:00:00.000Z' }, false)).toBe(false);
+  });
+});
+
+describe('classifyMoveDestination — connected peers are charged, not moved (DEC-430)', () => {
+  it('a local, non-owner, non-source person is an ELIGIBLE direct destination', () => {
+    expect(classifyMoveDestination({ isOwner: false, isSource: false, isLocal: true })).toBe('eligible');
+  });
+
+  it('a P2P-connected (non-local) person is a CONNECTED_PEER — not a direct destination', () => {
+    // The "why not eligible": reassigning a mirrored share would desync their device
+    // (Â-DEBT-SYNC-SAFE), so the sheet routes to an accept-first charge instead.
+    expect(classifyMoveDestination({ isOwner: false, isSource: false, isLocal: false })).toBe(
+      'connected_peer',
+    );
+  });
+
+  it('the owner is never a candidate, regardless of locality', () => {
+    expect(classifyMoveDestination({ isOwner: true, isSource: false, isLocal: true })).toBeNull();
+    expect(classifyMoveDestination({ isOwner: true, isSource: false, isLocal: false })).toBeNull();
+  });
+
+  it('the source person (moving FROM) is never their own destination', () => {
+    expect(classifyMoveDestination({ isOwner: false, isSource: true, isLocal: true })).toBeNull();
+    expect(classifyMoveDestination({ isOwner: false, isSource: true, isLocal: false })).toBeNull();
   });
 });
 

@@ -560,3 +560,105 @@ describe('buildPhaseAllowanceMap — F20 day total (free + reserved)', () => {
     expect(td?.dayTotalCents).toBe(today.freeTodayCents + 3_000);
   });
 });
+
+// DEC-427 (Field v2): the 5-vs-14 bug — the by-day map showed today's UNcapped
+// share while the Home hero capped it at the ideal-base once the cofrinho held a
+// balance. Feeding the SAME piggyCap makes today's cell match the hero bit-for-bit.
+describe('buildPhaseAllowanceMap — DEC-427 cofrinho cap consistency (Â-MONEY-READING-CONSISTENT)', () => {
+  // Uniform phase 2026-06-08→14; from Thu 06-11 there are 4 effective days, so the
+  // raw share of €90 is round(9000/4) = 2250 — above a €15 ideal-base, so the cap bites.
+  const phase = mkPhase(null, null);
+  const trueFreeCents = 9_000;
+  const todayIso = '2026-06-11';
+  const cap = { balanceCents: 3_000, baseDailyIdealCents: 1_500 };
+
+  it('CHARACTERIZES the bug: without the cap, today diverges from the capped hero', () => {
+    const mapNoCap = buildPhaseAllowanceMap({
+      trueFreeCents,
+      todaySpentCents: 0,
+      phase,
+      todayIso,
+      occurrences: [],
+      plannedPurchases: [],
+    });
+    const heroCapped = calculateTodayFreeBudget(trueFreeCents, 0, phase, todayIso, cap);
+    const todayCell = mapNoCap.days.find((d) => d.isToday);
+    // The raw share (2250) and the capped hero (1500) do NOT match — the reported bug.
+    expect(todayCell?.freeCents).toBe(2_250);
+    expect(heroCapped.freeTodayCents).toBe(1_500);
+    expect(todayCell?.freeCents).not.toBe(heroCapped.freeTodayCents);
+    expect(todayCell?.piggyParkedCents).toBe(0);
+  });
+
+  it('FIX: with the same piggyCap, today equals the hero bit-for-bit and parks the difference', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents,
+      todaySpentCents: 0,
+      phase,
+      todayIso,
+      occurrences: [],
+      plannedPurchases: [],
+      piggyCap: cap,
+    });
+    const hero = calculateTodayFreeBudget(trueFreeCents, 0, phase, todayIso, cap);
+    const todayCell = map.days.find((d) => d.isToday);
+
+    expect(todayCell?.allowanceCents).toBe(hero.todayAllowanceCents); // 1500
+    expect(todayCell?.freeCents).toBe(hero.freeTodayCents); // 1500 == 1500 (was 2250)
+    // The capped-off amount is exactly what the cofrinho holds: raw 2250 − 1500.
+    expect(todayCell?.piggyParkedCents).toBe(750);
+  });
+
+  it('caps ONLY today — future days keep the raw projection', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents,
+      todaySpentCents: 0,
+      phase,
+      todayIso,
+      occurrences: [],
+      plannedPurchases: [],
+      piggyCap: cap,
+    });
+    const future = map.days.find((d) => d.dateIso === '2026-06-12');
+    expect(future?.isToday).toBe(false);
+    expect(future?.allowanceCents).toBe(2_250); // uncapped
+    expect(future?.piggyParkedCents).toBe(0);
+  });
+
+  it('is money-invariant: the base free distributed is untouched by the cap', () => {
+    const withCap = buildPhaseAllowanceMap({
+      trueFreeCents,
+      todaySpentCents: 0,
+      phase,
+      todayIso,
+      occurrences: [],
+      plannedPurchases: [],
+      piggyCap: cap,
+    });
+    const withoutCap = buildPhaseAllowanceMap({
+      trueFreeCents,
+      todaySpentCents: 0,
+      phase,
+      todayIso,
+      occurrences: [],
+      plannedPurchases: [],
+    });
+    // The cap only changes today's READING; the total free base is identical.
+    expect(withCap.baseFreeCents).toBe(withoutCap.baseFreeCents);
+  });
+
+  it('does not cap when the cofrinho balance is zero (identical to pre-DEC-427)', () => {
+    const map = buildPhaseAllowanceMap({
+      trueFreeCents,
+      todaySpentCents: 0,
+      phase,
+      todayIso,
+      occurrences: [],
+      plannedPurchases: [],
+      piggyCap: { balanceCents: 0, baseDailyIdealCents: 1_500 },
+    });
+    const todayCell = map.days.find((d) => d.isToday);
+    expect(todayCell?.allowanceCents).toBe(2_250); // raw, uncapped
+    expect(todayCell?.piggyParkedCents).toBe(0);
+  });
+});

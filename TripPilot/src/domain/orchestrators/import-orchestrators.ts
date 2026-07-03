@@ -3,7 +3,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { Settlement } from '@/domain/types/settlement';
 import type { WiseImportDraft, WiseAllocation } from '@/domain/import';
-import { wiseExternalRef } from '@/domain/import';
+import { wiseExternalRef, extractMerchantName } from '@/domain/import';
 import {
   createExpenseTransaction,
   createIncomeTransaction,
@@ -144,7 +144,11 @@ export async function commitWiseImport(
       category: draft.category,
       description: draft.description,
       date: draft.dateIso,
-      placeLabel: draft.city,
+      // DEC-434: the "local" is the ESTABLISHMENT (merchant minus the trailing
+      // city), falling back to the city only when there's no distinct venue name.
+      // The full merchant string still lives in the description. Marked 'auto' so
+      // the background forward-geocode may upgrade it to the real OSM venue name.
+      placeLabel: extractMerchantName(draft.merchant) ?? draft.city,
       externalRef: draft.externalRef,
       excludeFromLearning: true,
       // F16 bridge: the owner paid the whole card charge, split with the person.
@@ -153,6 +157,9 @@ export async function commitWiseImport(
       // DEC-386 (G3): the event the user tagged this row as part of (if any).
       occurrenceId: input.occurrenceByRowId?.[draft.rowId] ?? null,
     });
+    // DEC-434: app-derived label → the background geocode may upgrade it to the
+    // real venue name (a user only ever "verifies" a place in the manual detail).
+    tx.placeNameSource = 'auto';
 
     if (bridge && input.ownerId) {
       // Owner paid, person owes their slice (custom split). The owner's own
