@@ -687,6 +687,30 @@ export function getAvailablePoolsForPhase(
 }
 
 /**
+ * DEC-452 (field fix 2026-07-03): the phase a POOL unambiguously belongs to —
+ * the single live-linked phase, or null when the pool is global (no links),
+ * unlinked, or shared across 2+ phases (legacy shape). Standalone expenses
+ * assigned to such a pool are stamped with THIS phase, so "the fund's phase"
+ * and "the expense's phase" can never diverge again (the eurotrip-hotel bug:
+ * an expense on a future-phase fund stayed attributed to the active phase,
+ * leaking into the wrong list filter and inflating the lens as "+X de outras
+ * verbas" nobody could trace).
+ */
+export function resolvePoolPhaseId(
+  links: BudgetPoolPhaseLink[],
+  poolId: string | null,
+): string | null {
+  if (!poolId) return null;
+  const phaseIds = new Set(
+    links
+      .filter((l) => l.deletedAt === null && l.budgetPoolId === poolId)
+      .map((l) => l.phaseId),
+  );
+  if (phaseIds.size !== 1) return null;
+  return [...phaseIds][0]!;
+}
+
+/**
  * GATE 1 (DEC canonical budget model): the dashboard hero must reflect the
  * budget of the ACTIVE phase, not a fixed `linkedPools[0]`. This picks the
  * operational (`linked_phases`) pool that funds a given phase:

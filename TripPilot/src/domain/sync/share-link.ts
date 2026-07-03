@@ -26,19 +26,33 @@ export const SPLIT_TABLE_PATH_PREFIX = '/t/';
 export const GROUP_SPLIT_PATH_PREFIX = '/g/';
 const KEY_PARAM = 'k';
 
-export function buildShareUrl(origin: string, shareId: string, key: string): string {
-  const base = origin.replace(/\/+$/, '');
-  return `${base}${SHARE_PATH_PREFIX}${encodeURIComponent(shareId)}#${KEY_PARAM}=${key}`;
+/**
+ * DEC-454 (field fix 2026-07-03): WhatsApp/Facebook cache the link card PER
+ * URL STRING — a share pasted before its photo existed keeps showing the old
+ * card forever, even though the worker preview was republished with the imgId.
+ * Appending `?v=<revision>` (only from revision 2 on, keeping first links
+ * lean) makes an updated share a NEW url to crawlers → fresh scrape, photo
+ * shows. The SPA router, the Pages Function and the worker all address shares
+ * by PATH, so the param is inert everywhere else; old unversioned links keep
+ * working forever (Â-OLD-LINKS-LIVE). The key stays in the fragment.
+ */
+function versionQuery(version?: number): string {
+  return version !== undefined && version >= 2 ? `?v=${Math.floor(version)}` : '';
 }
 
-export function buildSplitTableUrl(origin: string, shareId: string, key: string): string {
+export function buildShareUrl(origin: string, shareId: string, key: string, version?: number): string {
   const base = origin.replace(/\/+$/, '');
-  return `${base}${SPLIT_TABLE_PATH_PREFIX}${encodeURIComponent(shareId)}#${KEY_PARAM}=${key}`;
+  return `${base}${SHARE_PATH_PREFIX}${encodeURIComponent(shareId)}${versionQuery(version)}#${KEY_PARAM}=${key}`;
 }
 
-export function buildGroupSplitUrl(origin: string, shareId: string, key: string): string {
+export function buildSplitTableUrl(origin: string, shareId: string, key: string, version?: number): string {
   const base = origin.replace(/\/+$/, '');
-  return `${base}${GROUP_SPLIT_PATH_PREFIX}${encodeURIComponent(shareId)}#${KEY_PARAM}=${key}`;
+  return `${base}${SPLIT_TABLE_PATH_PREFIX}${encodeURIComponent(shareId)}${versionQuery(version)}#${KEY_PARAM}=${key}`;
+}
+
+export function buildGroupSplitUrl(origin: string, shareId: string, key: string, version?: number): string {
+  const base = origin.replace(/\/+$/, '');
+  return `${base}${GROUP_SPLIT_PATH_PREFIX}${encodeURIComponent(shareId)}${versionQuery(version)}#${KEY_PARAM}=${key}`;
 }
 
 /**

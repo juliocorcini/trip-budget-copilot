@@ -307,7 +307,11 @@ export function ImpactDetailPage() {
           </div>
           {/* DEC-447 (G3): the lines that SUM to the budget above. */}
           {phaseSpendLens && (
-            <PhaseSpendLensBlock lens={phaseSpendLens} currency={trip.baseCurrency} />
+            <PhaseSpendLensBlock
+              lens={phaseSpendLens}
+              currency={trip.baseCurrency}
+              poolNameById={new Map(pools.map((p) => [p.id, p.name]))}
+            />
           )}
         </div>
       )}

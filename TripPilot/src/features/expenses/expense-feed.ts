@@ -10,6 +10,7 @@ import type { Transaction } from '@/domain/types/transaction';
  */
 export type FeedEntry =
   | { kind: 'tx'; date: string; tx: Transaction }
+  /** `totalCents` is in BASE currency (DEC-453) — rollups may mix currencies. */
   | { kind: 'session'; date: string; session: Session; txs: Transaction[]; totalCents: number };
 
 export interface FeedDayGroup {
@@ -47,14 +48,16 @@ export function buildSessionFeed(
       const existing = sessionEntryById.get(session.id);
       if (existing) {
         existing.txs.push(tx);
-        existing.totalCents += tx.amountCents;
+        // DEC-453: aggregate in BASE currency — a rollup mixing currencies must
+        // not add pounds to euros (base === amount on same-currency rows).
+        existing.totalCents += tx.baseCurrencyAmountCents;
       } else {
         const entry = {
           kind: 'session' as const,
           date: tx.date,
           session,
           txs: [tx],
-          totalCents: tx.amountCents,
+          totalCents: tx.baseCurrencyAmountCents,
         };
         sessionEntryById.set(session.id, entry);
         feed.push(entry);
@@ -77,8 +80,14 @@ export function groupFeedByDay(feed: FeedEntry[]): FeedDayGroup[] {
   const groups: FeedDayGroup[] = [];
   for (const entry of feed) {
     const day = localDayOf(entry.date);
+    // DEC-453: day subtotals are labelled in the trip's base currency, so they
+    // must SUM base cents (same-currency rows are unchanged: base === amount).
     const amount =
-      entry.kind === 'tx' ? (entry.tx.type === 'income' ? 0 : entry.tx.amountCents) : entry.totalCents;
+      entry.kind === 'tx'
+        ? entry.tx.type === 'income'
+          ? 0
+          : entry.tx.baseCurrencyAmountCents
+        : entry.totalCents;
     const last = groups[groups.length - 1];
     const group = last && last.day === day ? last : null;
     if (group) {

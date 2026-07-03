@@ -20,15 +20,68 @@ export interface ExpenseFilterState {
   place: string | null;
 }
 
-/** How many scopes are currently narrowing the feed (drives the "Filtros (N)" badge). */
+/**
+ * How many scopes are currently narrowing the feed (drives the "Filtros (N)"
+ * badge). DEC-453 (field fix): the PHASE scope no longer counts here — it is a
+ * first-class selector chip always visible on the filter line, not one of the
+ * collapsible "Filtros" (Julio: "no lugar do botão Todos deveria aparecer a
+ * fase atual", one line, no duplicated chip on a second row).
+ */
 export function countActiveFilters(state: ExpenseFilterState): number {
   const present = [state.category, state.profileId, state.place].filter(Boolean).length;
-  return present + (state.walletNull ? 1 : 0) + (state.phaseId !== 'all' ? 1 : 0);
+  return present + (state.walletNull ? 1 : 0);
 }
 
-/** Whether any scope is active — i.e. the list is not showing everything. */
+/** Whether any collapsible filter is active (the phase selector is separate). */
 export function hasActiveFilter(state: ExpenseFilterState): boolean {
   return countActiveFilters(state) > 0;
+}
+
+/** The scopes that travel between screens (list → map) as URL params. */
+export interface ExpenseScope {
+  phaseId: PhaseScope;
+  category: string | null;
+  profileId: string | null;
+  place: string | null;
+}
+
+/**
+ * DEC-453 (field fix): the ONE scope predicate shared by the expense list and
+ * the expense map — "the map shows the spends the list is showing". The list
+ * adds its local-only concerns on top (walletNull, free-text search).
+ */
+export function matchesExpenseScope(
+  tx: {
+    deletedAt: string | null;
+    phaseId: string | null;
+    category: string | null;
+    activityProfileId: string | null;
+    placeLabel: string | null;
+  },
+  scope: ExpenseScope,
+): boolean {
+  return (
+    tx.deletedAt === null &&
+    (scope.phaseId === 'all' || tx.phaseId === scope.phaseId) &&
+    (!scope.category || tx.category === scope.category) &&
+    (!scope.profileId || tx.activityProfileId === scope.profileId) &&
+    (!scope.place || tx.placeLabel === scope.place)
+  );
+}
+
+/** DEC-453: reads the list's scope out of /mapa's URL params (absent = open). */
+export function readExpenseScopeFromParams(params: URLSearchParams): ExpenseScope {
+  return {
+    phaseId: params.get('phase') ?? 'all',
+    category: params.get('category'),
+    profileId: params.get('profile'),
+    place: params.get('place'),
+  };
+}
+
+/** Whether the scope narrows anything (drives the map's "filtered" pill). */
+export function isExpenseScopeActive(scope: ExpenseScope): boolean {
+  return scope.phaseId !== 'all' || Boolean(scope.category || scope.profileId || scope.place);
 }
 
 export interface PhaseScopeDefaultInput {

@@ -163,6 +163,37 @@ export class TripPilotDB extends Dexie {
     // table → no upgrade() callback; existing data is preserved untouched on open.
     this.version(13).stores(SCHEMA_V13);
 
+    // DEC-452 data heal (same schema): standalone transactions whose fund is
+    // live-linked to exactly ONE phase are re-stamped to that phase. Before the
+    // fix, QuickAdd always stamped "the phase active today", so an expense on a
+    // future-phase fund (the eurotrip hotel) was invisible under its own
+    // phase's filter and surfaced in the lens as untraceable "other funds"
+    // money. Session items are skipped — they follow their outing's phase.
+    this.version(14)
+      .stores(SCHEMA_V13)
+      .upgrade(async (tx) => {
+        const links = (await tx.table('budgetPoolPhaseLinks').toArray()).filter(
+          (link) => link.deletedAt === null,
+        );
+        const phaseIdsByPool = new Map<string, Set<string>>();
+        for (const link of links) {
+          const set = phaseIdsByPool.get(link.budgetPoolId) ?? new Set<string>();
+          set.add(link.phaseId);
+          phaseIdsByPool.set(link.budgetPoolId, set);
+        }
+        // Mirrors resolvePoolPhaseId: only an unambiguous single link counts.
+        const phaseByPool = new Map<string, string>();
+        for (const [poolId, phaseIds] of phaseIdsByPool) {
+          if (phaseIds.size === 1) phaseByPool.set(poolId, [...phaseIds][0]!);
+        }
+        await tx.table('transactions').toCollection().modify((record) => {
+          if (record.deletedAt !== null || record.sessionId !== null) return;
+          if (!record.budgetPoolId) return;
+          const poolPhaseId = phaseByPool.get(record.budgetPoolId);
+          if (poolPhaseId && record.phaseId !== poolPhaseId) record.phaseId = poolPhaseId;
+        });
+      });
+
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {
       tx.table('appSettings').add(createDefaultAppSettings());

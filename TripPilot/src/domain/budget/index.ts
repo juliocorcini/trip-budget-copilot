@@ -21,6 +21,7 @@ export {
   createBudgetPool,
   createBudgetPoolPhaseLink,
   getAvailablePoolsForPhase,
+  resolvePoolPhaseId,
   selectActivePhasePool,
   createEnvelope,
   computePoolTransfer,

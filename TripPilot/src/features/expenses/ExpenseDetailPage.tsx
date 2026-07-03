@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
+import { resolvePoolPhaseId } from '@/domain/budget';
 import { formatMoney, fromCents, toCents, formatAnchorHint, resolveAnchorRate, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
 import {
@@ -64,7 +65,7 @@ export function ExpenseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { trip, pools, wallets, participants, transactions, occurrences, plannedPurchases, settings, loading, reload } =
+  const { trip, pools, links, wallets, participants, transactions, occurrences, plannedPurchases, settings, loading, reload } =
     useAppData();
   // GATE 5 (D10): the wallet field only shows when wallet tracking is active.
   const walletTrackingActive = useWalletTracking();
@@ -238,6 +239,11 @@ export function ExpenseDetailPage() {
         newPersonalCost = newAmountCents;
       }
 
+      // DEC-452: moving the expense to another fund re-stamps its phase to the
+      // fund's linked phase (when unambiguous) — pool and phase never diverge.
+      // Same pool, or a global/unlinked pool: the phase stays as it was.
+      const movedPoolPhaseId =
+        editPoolId !== tx.budgetPoolId ? resolvePoolPhaseId(links, editPoolId) : null;
       const updated = await transactionRepository.update({
         ...tx,
         amountCents: newAmountCents,
@@ -251,6 +257,7 @@ export function ExpenseDetailPage() {
         description: editDescription.trim() || tx.description,
         category: editCategory,
         budgetPoolId: editPoolId,
+        phaseId: movedPoolPhaseId ?? tx.phaseId,
         walletId: editWalletId,
         date: newDate,
         ...placeToTransactionFields(editPlace),

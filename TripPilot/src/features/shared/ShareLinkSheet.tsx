@@ -72,7 +72,15 @@ export function ShareLinkSheet({
       if (existing) {
         const { buildShareUrl } = await import('@/domain/sync');
         // DEC-446 — slug in the path when the link has one; key in the fragment.
-        setUrl(buildShareUrl(getShareOrigin(), existing.slug ?? existing.id, existing.key));
+        // DEC-454 — ?v=<revision> so crawlers re-scrape a refreshed statement.
+        setUrl(
+          buildShareUrl(
+            getShareOrigin(),
+            existing.slug ?? existing.id,
+            existing.key,
+            existing.statementRevision,
+          ),
+        );
       }
       setLoading(false);
     })();

@@ -7,6 +7,7 @@ import {
   createPoolSummary,
   getBudgetHealthStatus,
   getAvailablePoolsForPhase,
+  resolvePoolPhaseId,
   createEnvelope,
   createBudgetPoolPhaseLink,
   calculateLastOutingSavings,
@@ -492,6 +493,43 @@ describe('getAvailablePoolsForPhase (DEC-039/040)', () => {
     expect(result.operational).toHaveLength(0);
     expect(result.otherPhases.map((p) => p.id)).toEqual(['p2']);
     expect(result.autoSelectedPoolId).toBeNull();
+  });
+});
+
+describe('resolvePoolPhaseId (DEC-452 — the fund names its phase)', () => {
+  const mkLink = (id: string, poolId: string, phaseId: string): BudgetPoolPhaseLink => ({
+    ...baseMeta,
+    id,
+    budgetPoolId: poolId,
+    phaseId,
+    futureFloorCents: null,
+  });
+
+  it('a single live link resolves to that phase (the eurotrip fund)', () => {
+    const links = [mkLink('l1', 'pool-eurotrip', 'phase-eurotrip'), mkLink('l2', 'pool-burgos', 'phase-burgos')];
+    expect(resolvePoolPhaseId(links, 'pool-eurotrip')).toBe('phase-eurotrip');
+    expect(resolvePoolPhaseId(links, 'pool-burgos')).toBe('phase-burgos');
+  });
+
+  it('a global pot (no links) resolves to null — the expense keeps its own phase', () => {
+    expect(resolvePoolPhaseId([mkLink('l1', 'pool-1', 'phase-1')], 'pool-tomorrowland')).toBeNull();
+  });
+
+  it('a legacy pool shared across 2+ phases is ambiguous → null', () => {
+    const links = [mkLink('l1', 'pool-1', 'phase-1'), mkLink('l2', 'pool-1', 'phase-2')];
+    expect(resolvePoolPhaseId(links, 'pool-1')).toBeNull();
+  });
+
+  it('soft-deleted links do not count', () => {
+    const links = [
+      { ...mkLink('l1', 'pool-1', 'phase-1'), deletedAt: '2026-01-02T00:00:00.000Z' },
+      mkLink('l2', 'pool-1', 'phase-2'),
+    ];
+    expect(resolvePoolPhaseId(links, 'pool-1')).toBe('phase-2');
+  });
+
+  it('no pool selected → null', () => {
+    expect(resolvePoolPhaseId([mkLink('l1', 'pool-1', 'phase-1')], null)).toBeNull();
   });
 });
 

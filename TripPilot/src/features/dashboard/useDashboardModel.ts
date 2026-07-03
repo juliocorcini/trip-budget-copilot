@@ -953,6 +953,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       receivableCents,
       payableCents,
       participantNameById,
+      // DEC-453: names for the lens' per-fund sub-lines ("de qual verba veio?").
+      poolNameById: new Map(pools.map((p) => [p.id, p.name])),
       owner,
       insights: insightsWithFactual,
       phaseSpendLens,

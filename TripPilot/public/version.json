@@ -1,8 +1,8 @@
 {
-  "version": "2.3.0-rc",
+  "version": "2.3.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.3.0-rc.zip",
-  "notes": "Acerto sem atrito: mover dívida agora funciona com quem está conectado — o aparelho da pessoa recebe os itens na hora, com a origem marcada, e desfazer propaga. Nada muda em silêncio: os dois lados veem um aviso claro."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.3.1-rc.zip",
+  "notes": "Números que batem de verdade: gasto em verba de outra fase agora conta para aquela fase (filtro, mapa e lente concordam — dados antigos corrigidos sozinhos), tela de gastos com seletor de fase + total com escopo nomeado e a linha Sua parte, e o link com foto ganha versão para o WhatsApp mostrar o cartão novo."
 }

@@ -31,7 +31,7 @@ import {
   listSelectableCurrencies,
   parseLocaleNumber,
 } from '@/domain/money';
-import { getAvailablePoolsForPhase, calculateFreeToSpend } from '@/domain/budget';
+import { getAvailablePoolsForPhase, calculateFreeToSpend, resolvePoolPhaseId } from '@/domain/budget';
 import { selectAttributableEvents } from '@/domain/planning';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import {
@@ -566,9 +566,14 @@ export function QuickAddPage() {
     const occurrenceId = attributableEvents.some((e) => e.id === attributedOccurrenceId)
       ? attributedOccurrenceId
       : null;
+    // DEC-452: an expense on a phase-linked fund belongs to THAT phase — the
+    // fund states intent better than "whatever phase is active today" (the
+    // eurotrip-hotel bug: booked during Burgos, funded by the Eurotrip pool,
+    // yet stamped Burgos and unfindable under the Eurotrip filter).
+    const poolPhaseId = resolvePoolPhaseId(links, effectivePoolId);
     const tx = createExpenseTransaction({
       tripId: trip!.id,
-      phaseId: currentPhase!.id,
+      phaseId: poolPhaseId ?? currentPhase!.id,
       budgetPoolId: effectivePoolId,
       walletId: effectiveWalletId,
       amountCents,

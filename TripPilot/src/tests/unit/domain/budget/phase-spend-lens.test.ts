@@ -84,6 +84,35 @@ describe('buildPhaseSpendLens — Julio fixture (detail instant)', () => {
     expect(lens.otherPhasesGrossCents).toBe(futurePhaseHotel.amountCents);
   });
 
+  // DEC-453 (field fix): "+302 de outras verbas" must NAME its sources.
+  it('otherPoolsByPool names each foreign fund and sums exactly to otherPoolsCents', () => {
+    const lens = lensAt(detailInstantTransactions);
+    expect(lens.otherPoolsByPool).toEqual([{ poolId: 'pool-extras', cents: 30200 }]);
+
+    const noFundSpend = makeTx({ id: 'tx-no-fund', amountCents: 1500, budgetPoolId: null });
+    const withNoFund = lensAt([...detailInstantTransactions, noFundSpend]);
+    expect(withNoFund.otherPoolsByPool).toEqual([
+      { poolId: 'pool-extras', cents: 30200 },
+      { poolId: null, cents: 1500 },
+    ]);
+    const subTotal = withNoFund.otherPoolsByPool.reduce((sum, p) => sum + p.cents, 0);
+    expect(subTotal).toBe(withNoFund.otherPoolsCents);
+  });
+
+  // DEC-453: gross sums are BASE-currency — pounds never add to euros raw.
+  it('a foreign-currency spend enters the gross totals at its base value', () => {
+    const foreign = makeTx({
+      id: 'tx-foreign-gbp',
+      amountCents: 10000, // £100
+      currency: 'GBP',
+      baseCurrencyAmountCents: 11700, // €117 at the frozen rate
+      exchangeRate: 1.17,
+    });
+    const lens = lensAt([...detailInstantTransactions, foreign]);
+    expect(lens.tripTotalCents).toBe(73400 + 11700);
+    expect(lens.phaseGrossCents).toBe(60200 + 11700);
+  });
+
   it('the lines SUM: 628 − 46 + 302 = 884, then − 602 = 282', () => {
     const lens = lensAt(detailInstantTransactions);
     const { envelope, free } = sumLines(lens);

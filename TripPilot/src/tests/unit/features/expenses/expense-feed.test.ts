@@ -12,6 +12,9 @@ const tx = (over: Partial<Transaction>): Transaction =>
     sessionId: null,
     date: '2026-06-10T12:00:00.000Z',
     deletedAt: null,
+    // DEC-453: feed aggregations sum BASE cents; same-currency rows have
+    // base === amount (mirrors createExpenseTransaction), so totals are stable.
+    baseCurrencyAmountCents: over.amountCents ?? 1_000,
     ...over,
   }) as unknown as Transaction;
 
@@ -178,5 +181,24 @@ describe('groupFeedByDay (D-BUG-04 invariance)', () => {
       { kind: 'tx', date: '2026-06-09T12:00:00.000Z', tx: tx({ amountCents: 500 }) },
     ]);
     expect(groups).toHaveLength(2);
+  });
+
+  // DEC-453: a £100 spend on a EUR trip subtotals at its € base value — the
+  // day line never adds pounds to euros raw.
+  it('foreign-currency expenses subtotal at their BASE value', () => {
+    const groups = groupFeedByDay([
+      { kind: 'tx', date: '2026-06-10T12:00:00.000Z', tx: tx({ amountCents: 2_000 }) },
+      {
+        kind: 'tx',
+        date: '2026-06-10T13:00:00.000Z',
+        tx: tx({
+          id: 'gbp',
+          amountCents: 10_000,
+          currency: 'GBP',
+          baseCurrencyAmountCents: 11_700,
+        }),
+      },
+    ]);
+    expect(groups[0]?.subtotalCents).toBe(2_000 + 11_700);
   });
 });

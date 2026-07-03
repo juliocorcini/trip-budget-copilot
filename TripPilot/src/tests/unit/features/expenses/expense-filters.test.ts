@@ -2,11 +2,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   countActiveFilters,
   hasActiveFilter,
+  matchesExpenseScope,
+  readExpenseScopeFromParams,
+  isExpenseScopeActive,
   resolvePhaseScopeDefault,
   recallPhaseScope,
   rememberPhaseScope,
   clearPhaseScopeMemory,
   type ExpenseFilterState,
+  type ExpenseScope,
 } from '@/features/expenses/expense-filters';
 
 const state = (over: Partial<ExpenseFilterState> = {}): ExpenseFilterState => ({
@@ -35,9 +39,9 @@ describe('expense-filters (audit 4.4 — grouped/collapsible chips)', () => {
   it('sums every independent scope that is active', () => {
     expect(
       countActiveFilters(
-        state({ phaseId: 'phase-1', category: 'bar', place: 'Mercadona', profileId: 'p1', walletNull: true }),
+        state({ category: 'bar', place: 'Mercadona', profileId: 'p1', walletNull: true }),
       ),
-    ).toBe(5);
+    ).toBe(4);
   });
 
   it('treats an empty string category/place as not filtering', () => {
@@ -45,10 +49,81 @@ describe('expense-filters (audit 4.4 — grouped/collapsible chips)', () => {
     expect(hasActiveFilter(state({ category: '' }))).toBe(false);
   });
 
-  it('DEC-448: a phase scope counts as an active filter; "all" does not', () => {
-    expect(countActiveFilters(state({ phaseId: 'phase-1' }))).toBe(1);
-    expect(hasActiveFilter(state({ phaseId: 'phase-1' }))).toBe(true);
+  it('DEC-453: the phase scope NEVER counts — it is a first-class selector, not a filter', () => {
+    expect(countActiveFilters(state({ phaseId: 'phase-1' }))).toBe(0);
+    expect(hasActiveFilter(state({ phaseId: 'phase-1' }))).toBe(false);
     expect(countActiveFilters(state({ phaseId: 'all' }))).toBe(0);
+    expect(countActiveFilters(state({ phaseId: 'phase-1', category: 'bar' }))).toBe(1);
+  });
+});
+
+describe('matchesExpenseScope (DEC-453 — list and map share ONE predicate)', () => {
+  const tx = (over: Partial<Parameters<typeof matchesExpenseScope>[0]> = {}) => ({
+    deletedAt: null,
+    phaseId: 'phase-1',
+    category: 'bar',
+    activityProfileId: 'prof-1',
+    placeLabel: 'Mercadona',
+    ...over,
+  });
+  const scope = (over: Partial<ExpenseScope> = {}): ExpenseScope => ({
+    phaseId: 'all',
+    category: null,
+    profileId: null,
+    place: null,
+    ...over,
+  });
+
+  it('open scope matches every live transaction', () => {
+    expect(matchesExpenseScope(tx(), scope())).toBe(true);
+  });
+
+  it('never matches a deleted transaction', () => {
+    expect(matchesExpenseScope(tx({ deletedAt: '2026-07-01T00:00:00.000Z' }), scope())).toBe(false);
+  });
+
+  it('phase scope keeps only that phase', () => {
+    expect(matchesExpenseScope(tx(), scope({ phaseId: 'phase-1' }))).toBe(true);
+    expect(matchesExpenseScope(tx({ phaseId: 'phase-2' }), scope({ phaseId: 'phase-1' }))).toBe(false);
+  });
+
+  it('category, profile and place each narrow independently', () => {
+    expect(matchesExpenseScope(tx(), scope({ category: 'bar' }))).toBe(true);
+    expect(matchesExpenseScope(tx(), scope({ category: 'food' }))).toBe(false);
+    expect(matchesExpenseScope(tx(), scope({ profileId: 'prof-1' }))).toBe(true);
+    expect(matchesExpenseScope(tx(), scope({ profileId: 'prof-2' }))).toBe(false);
+    expect(matchesExpenseScope(tx(), scope({ place: 'Mercadona' }))).toBe(true);
+    expect(matchesExpenseScope(tx(), scope({ place: 'Lidl' }))).toBe(false);
+  });
+
+  it('all scopes must match together (AND semantics)', () => {
+    const narrow = scope({ phaseId: 'phase-1', category: 'bar', place: 'Mercadona' });
+    expect(matchesExpenseScope(tx(), narrow)).toBe(true);
+    expect(matchesExpenseScope(tx({ category: 'food' }), narrow)).toBe(false);
+  });
+});
+
+describe('readExpenseScopeFromParams / isExpenseScopeActive (DEC-453 — list → map)', () => {
+  it('no params = open scope (whole trip), inactive', () => {
+    const parsed = readExpenseScopeFromParams(new URLSearchParams());
+    expect(parsed).toEqual({ phaseId: 'all', category: null, profileId: null, place: null });
+    expect(isExpenseScopeActive(parsed)).toBe(false);
+  });
+
+  it('round-trips the params the list writes', () => {
+    const params = new URLSearchParams('phase=phase-9&category=bar&place=Mercadona&profile=p1');
+    const parsed = readExpenseScopeFromParams(params);
+    expect(parsed).toEqual({
+      phaseId: 'phase-9',
+      category: 'bar',
+      profileId: 'p1',
+      place: 'Mercadona',
+    });
+    expect(isExpenseScopeActive(parsed)).toBe(true);
+  });
+
+  it('a lone phase param already marks the scope active', () => {
+    expect(isExpenseScopeActive(readExpenseScopeFromParams(new URLSearchParams('phase=x')))).toBe(true);
   });
 });
 

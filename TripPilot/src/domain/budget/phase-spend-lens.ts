@@ -39,6 +39,14 @@ export interface PhaseSpendLens {
   paidNowOtherPhasesCents: number;
   /** Phase-attributed spends paid from OTHER pools (pots) — what inflates the envelope. */
   otherPoolsCents: number;
+  /**
+   * DEC-453 (field fix): WHERE the `other_pools` money came from, pool by pool
+   * (signed personal-cost cents, biggest first). Sums exactly to
+   * `otherPoolsCents`, so the user can trace "+256 de outras verbas" to the
+   * actual fund instead of hunting through the app. `poolId` null groups
+   * spends that carry no fund at all.
+   */
+  otherPoolsByPool: Array<{ poolId: string | null; cents: number }>;
   /** Gross trip-wide expense total (the list's "Todas" scope). */
   tripTotalCents: number;
   /** Gross expense total of the phase (the list's phase scope). */
@@ -100,18 +108,33 @@ export function buildPhaseSpendLens(input: BuildPhaseSpendLensInput): PhaseSpend
     phaseAttributed.filter((tx) => tx.budgetPoolId === poolId),
   );
   const otherPoolsCents = attributedSpentCents - consumableSpentCents;
+  // DEC-453: name each foreign source. Grouped per pool over the SAME rows the
+  // `other_pools` total counted, so the sub-lines sum to it exactly.
+  const otherPoolTotals = new Map<string | null, number>();
+  for (const tx of phaseAttributed) {
+    if (tx.budgetPoolId === poolId) continue;
+    const cents = calculatePoolSpent([tx]);
+    if (cents === 0) continue;
+    const key = tx.budgetPoolId ?? null;
+    otherPoolTotals.set(key, (otherPoolTotals.get(key) ?? 0) + cents);
+  }
+  const otherPoolsByPool = [...otherPoolTotals.entries()]
+    .map(([id, cents]) => ({ poolId: id, cents }))
+    .sort((a, b) => Math.abs(b.cents) - Math.abs(a.cents));
   // Primary-pool spend that belongs to OTHER phases = pool total spent (already
   // in `fts`) minus the slice attributed to THIS phase. Same personal-cost rule.
   // SIGNED (no clamp): the line arithmetic below must stay exact even in the
   // refund edge where another phase nets negative.
   const paidNowOtherPhasesCents = fts.totalSpentCents - consumableSpentCents;
 
-  // Gross (amountCents) sums mirror the expense LIST scopes exactly (D-BUG-04:
-  // expense-only; income and transfers never enter the list total).
+  // Gross sums mirror the expense LIST scopes exactly (D-BUG-04: expense-only;
+  // income and transfers never enter the list total). DEC-453: in BASE currency
+  // (`baseCurrencyAmountCents`) — a mixed-currency trip must not add pounds to
+  // euros; same-currency rows have base === amount, so nothing else moves.
   const expenses = liveExpenses(transactions);
-  const tripTotalCents = sumCents(expenses.map((tx) => tx.amountCents));
+  const tripTotalCents = sumCents(expenses.map((tx) => tx.baseCurrencyAmountCents));
   const phaseGrossCents = sumCents(
-    expenses.filter((tx) => tx.phaseId === phaseId).map((tx) => tx.amountCents),
+    expenses.filter((tx) => tx.phaseId === phaseId).map((tx) => tx.baseCurrencyAmountCents),
   );
   const otherPhasesGrossCents = tripTotalCents - phaseGrossCents;
 
@@ -167,6 +190,7 @@ export function buildPhaseSpendLens(input: BuildPhaseSpendLensInput): PhaseSpend
     reservedEventCents: fts.eventReservesCents,
     paidNowOtherPhasesCents,
     otherPoolsCents,
+    otherPoolsByPool,
     tripTotalCents,
     phaseGrossCents,
     otherPhasesGrossCents,

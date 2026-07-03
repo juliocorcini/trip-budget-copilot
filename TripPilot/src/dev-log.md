@@ -1,5 +1,22 @@
 # Dev Log — TripPilot Implementation
 
+## Hotfix wave pós-leva (2026-07-03) — `2.3.0-rc` → `2.3.1-rc` — ✅ SHIPPED (DEC-452/453/454 APPROVED)
+
+> Feedback do Julio no device após a mega-leva: 6 problemas + 1 pedido. Tudo numa onda única, sem gates formais.
+
+- **DEC-452 — verba manda na fase**: gasto apontando para verba linkada a UMA fase é carimbado com a fase da verba (não a fase corrente). Novo `resolvePoolPhaseId(links, poolId)` em `domain/budget`; aplicado em QuickAdd (criação), ExpenseDetail (troca de verba na edição) e `moveTransactionsToPoolBatch` (novo param `poolPhaseId`). **Dexie v14** (mesmo schema + upgrade) re-carimba standalone tx mal-atribuídas no boot — pula sessões, deletadas, potes globais e verbas ambíguas (multi-fase legadas). Corrige o bug raiz: "hospedagem eurotrip" criada durante Burgos aparecia no filtro de Burgos e sumia no de Eurotrip. Isso também mata o "+256 de outras verbas" fantasma da lente (era o mesmo hotel mal-carimbado).
+- **DEC-453 — header/filtros/mapa/totais**:
+  - Header de Gastos: ações viram ícones (sem "Gast…"); total sai do header para uma faixa própria "Total gasto · N gastos" com **"Sua parte"** ao lado quando difere do bruto (`transactionBasePersonalCostCents`). Vazamento "expenses.total_scope_current" eliminado (chave não existia; UI redesenhada nem a usa mais).
+  - Filtro de fase vira **seletor de primeira classe** (1 linha): chip com o nome do escopo atual abre BottomSheet (Fase atual ★ / Toda a viagem / cada fase). Sai do painel de filtros; `countActiveFilters` não conta mais fase; "Limpar filtros" preserva o escopo de fase.
+  - **Mapa herda os filtros da lista**: `matchesExpenseScope`/`readExpenseScopeFromParams`/`isExpenseScopeActive` compartilhados em `expense-filters.ts`; botão mapa na lista navega `/mapa?phase=…&cat=…`; pill "Filtros da lista · ver tudo" no mapa.
+  - **Totais em moeda-base**: `ExpenseListPage`, `expense-feed` (subtotais/dia) e `phase-spend-lens` (bruto viagem/fase) agora somam `baseCurrencyAmountCents` (antes misturavam moedas somando `amountCents` — 607 vs 644 explicado: 37 GBP entravam como 37 EUR no bruto).
+  - Lente: `otherPoolsByPool` no `PhaseSpendLens` — cada verba estrangeira vira sub-linha nomeada (`poolNameById` via dashboard model / ImpactDetail).
+- **DEC-454 — OG re-scrape por versão**: `buildShareUrl`/`buildSplitTableUrl`/`buildGroupSplitUrl` ganham `version?` → anexa `?v=N` quando revision ≥2 (rev 1 = URL limpa). WhatsApp trata como URL nova e re-scrapa o preview (foto anexada DEPOIS do 1º share passa a aparecer). Â-KEY-IN-FRAGMENT intacto: `v` vem ANTES do `#k=`, chave nunca em query.
+- **`#k=` não sai da URL** (pedido "encurtar link"): explicado ao Julio no wrap-up — é a chave E2E; sem ela o servidor leria o conteúdo. Compartilhar gasto individual c/ foto: backlog (candidata a DEC futura).
+- **Tests**: **3094 pass / 3094** (311 files; +21: resolvePoolPhaseId 5, scope compartilhado 9, otherPoolsByPool/base-currency 4, versioned URLs 6, migration v14 1 — números aproximados por arquivo). `tsc --noEmit` app limpo. Migration test dedicado `migration-v14.test.ts` (heal re-carimba SÓ o caso inequívoco; sessões/globais/deletadas/ambíguas intactas; invariante de dinheiro preservada).
+- **Deploy**: Pages **`e43d7208`** (conta `e146e88b34b2694243b1d74cee8de743`). Apex verde: `/version.json`=**2.3.1-rc**, entry `index-Dj_t57xF.js` embute 2.3.1-rc, `/bundles/2.3.1-rc.zip` 200 (2.747.660 B), `/trippilot.apk` **8.469.341 B** (fetch-live-apk re-rodado DEPOIS do bundle), sw **trippilot-v85**. **Worker intocado.**
+- **Follow-ups**: teste manual WhatsApp (foto + `?v=`) com Julio; compartilhar gasto individual (feature nova, não iniciada).
+
 ## Mega-leva "Links + Números + Acerto" (2026-07-03) — base `2.2.0-rc` → `2.3.0-rc` — ✅ COMPLETA (DEC-445→451 APPROVED)
 
 > Orquestrador: `brain/documents/2026-07-03-links-numbers-settle-orchestrator.md`. Gates G0→G7: G1 quick wins (filtro de fase D04 + tema onboarding D05 + notificação direcional D06, `2.2.1-rc`) → G2 investigação números (D03, sem deploy) → G3 PhaseSpendLens + explainers (`2.2.2-rc`) → G4 worker preview+slug → G5 OG/Pages Function (`2.2.3-rc`) → G6 debt_move conectado (`2.3.0-rc`) → G7 brain sync.

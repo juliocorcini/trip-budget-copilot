@@ -8,7 +8,7 @@ import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useTabPaging } from '@/hooks/useTabPaging';
 import { activityProfileRepository } from '@/data/repositories/activity-profile-repository';
 import { sessionRepository } from '@/data/repositories/session-repository';
-import { formatMoney, sumCents } from '@/domain/money';
+import { formatMoney, sumCents, transactionBasePersonalCostCents } from '@/domain/money';
 import {
   formatShortDate,
   localDayOf,
@@ -31,7 +31,7 @@ import {
   softDeleteOutingSessionsBatch,
   restoreOutingSessionsBatch,
 } from '@/domain/orchestrators';
-import { selectActivePhasePool, poolNature, poolNatureLabelKey } from '@/domain/budget';
+import { selectActivePhasePool, poolNature, poolNatureLabelKey, resolvePoolPhaseId } from '@/domain/budget';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
@@ -44,6 +44,7 @@ import { buildSessionFeed, groupFeedByDay } from './expense-feed';
 import {
   countActiveFilters,
   hasActiveFilter,
+  matchesExpenseScope,
   resolvePhaseScopeDefault,
   recallPhaseScope,
   rememberPhaseScope,
@@ -108,6 +109,10 @@ export function ExpenseListPage() {
   // one unlabelled row on an already-dense header. They now live behind a labelled,
   // collapsible "Filtros" panel; the active scopes stay visible as a summary row.
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // DEC-453: the phase scope is a first-class selector — a single chip showing
+  // the current scope that opens this picker sheet (Julio: one line, the chip
+  // reads "Fase atual"/"Todas"/{fase} instead of a "Todos" button + second row).
+  const [phaseSheetOpen, setPhaseSheetOpen] = useState(false);
   const scrolled = useScrolled();
   // DEC-118 (R-09): hold to select, tap to add, batch action bar.
   const selection = useMultiSelect();
@@ -187,13 +192,16 @@ export function ExpenseListPage() {
   // The scope filters apply to every feed transaction. D-BUG-04: income carries
   // no category/profile/place, so an active chip naturally excludes it — income
   // only surfaces while browsing or in a description search, exactly as planned.
+  // DEC-453: the shareable portion lives in matchesExpenseScope (the map reuses
+  // it); walletNull and free-text search stay list-only concerns.
   const matchesScope = (tx: Transaction): boolean =>
-    tx.deletedAt === null &&
-    (filterPhaseId === 'all' || tx.phaseId === filterPhaseId) &&
-    (!filterCategory || tx.category === filterCategory) &&
-    (!filterProfileId || tx.activityProfileId === filterProfileId) &&
+    matchesExpenseScope(tx, {
+      phaseId: filterPhaseId,
+      category: filterCategory,
+      profileId: filterProfileId,
+      place: filterPlace,
+    }) &&
     (!filterWalletNull || tx.walletId === null) &&
-    (!filterPlace || tx.placeLabel === filterPlace) &&
     matchesQuery(tx);
 
   const byDateDesc = (a: Transaction, b: Transaction) => b.date.localeCompare(a.date);
@@ -203,14 +211,25 @@ export function ExpenseListPage() {
   // (ÂNCORA 11 invariance: with zero income everything is bit-identical).
   const incomes = transactions.filter((tx) => tx.type === 'income' && matchesScope(tx)).sort(byDateDesc);
 
-  const totalCents = sumCents(expenses.map((tx) => tx.amountCents));
+  // DEC-453: totals SUM base-currency cents (they are labelled in the trip's
+  // base currency; same-currency rows have base === amount, so nothing moves
+  // on a single-currency trip). Both react to EVERY active filter.
+  const totalCents = sumCents(expenses.map((tx) => tx.baseCurrencyAmountCents));
+  // DEC-453: "sua parte" — what the traveler actually bears after splits (their
+  // personal cost), over the SAME filtered feed. Rendered only when a shared
+  // expense makes it differ from the gross total.
+  const yourShareCents = sumCents(expenses.map((tx) => transactionBasePersonalCostCents(tx)));
   // DEC-447 (G3 m3): with the "Todas" scope, name how much of the total comes
   // from OTHER phases (the future-hotel confusion of D03) — computed over the
   // SAME filtered feed, so the line always matches what is on screen.
   const otherPhasesCents =
     filterPhaseId === 'all' && activePhase
       ? totalCents -
-        sumCents(expenses.filter((tx) => tx.phaseId === activePhase.id).map((tx) => tx.amountCents))
+        sumCents(
+          expenses
+            .filter((tx) => tx.phaseId === activePhase.id)
+            .map((tx) => tx.baseCurrencyAmountCents),
+        )
       : 0;
   const unassigned = getUnassignedTransactionCount(transactions);
 
@@ -276,13 +295,34 @@ export function ExpenseListPage() {
   const activeFilterCount = countActiveFilters(filterState);
   const anyFilterActive = hasActiveFilter(filterState);
 
+  // DEC-453: clears the collapsible filters only — the phase scope is a
+  // separate selector with its own chip (clearing it silently surprised users).
   const clearFilters = () => {
-    setPhaseScope('all');
     setFilterCategory(null);
     setFilterProfileId(null);
     setFilterWalletNull(false);
     setFilterPlace(null);
   };
+
+  // DEC-453: the map shows the SAME feed the list is showing — the active
+  // scopes travel as URL params so /mapa mirrors the filters one-to-one.
+  const openMap = () => {
+    const params = new URLSearchParams();
+    if (filterPhaseId !== 'all') params.set('phase', filterPhaseId);
+    if (filterCategory) params.set('category', filterCategory);
+    if (filterPlace) params.set('place', filterPlace);
+    if (filterProfileId) params.set('profile', filterProfileId);
+    const qs = params.toString();
+    navigate(qs ? `/mapa?${qs}` : '/mapa');
+  };
+
+  // The phase selector chip names the current scope exactly as the list total does.
+  const phaseScopeLabel =
+    filterPhaseId === 'all'
+      ? t('expenses.phase_scope_all')
+      : scopedPhase?.id === activePhase?.id
+        ? t('expenses.phase_scope_current')
+        : scopedPhase?.name ?? '';
 
   const finishBatch = async (messageKey: string) => {
     setBatchSheet(null);
@@ -316,7 +356,8 @@ export function ExpenseListPage() {
   };
 
   const handleMovePool = async (poolId: string) => {
-    await moveTransactionsToPoolBatch(selection.selectedIds, poolId);
+    // DEC-452: the batch lands in the fund's phase too (pool ⇒ phase).
+    await moveTransactionsToPoolBatch(selection.selectedIds, poolId, resolvePoolPhaseId(links, poolId));
     await finishBatch('selection.moved_toast');
   };
 
@@ -413,42 +454,11 @@ export function ExpenseListPage() {
     >
       {/* DEC-084 (R-01): header + tabs + filter bar fixed — only the list scrolls */}
       <div className={`page-sticky-header ${scrolled ? 'is-scrolled' : ''} pt-2 pb-2 flex flex-col gap-4`}>
+        {/* DEC-453: the total moved OUT of this row into its own strip below —
+            title + total + 3 labelled pills could never share 360px ("Gast…"). */}
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-heading font-bold text-on-surface truncate min-w-0">{t('expenses.title')}</h1>
           <div className="flex items-center gap-2 shrink-0">
-            {tab === 'expenses' && (
-              <div className="text-right">
-                <p data-expense-total className="text-sm font-semibold tabular text-on-surface">
-                  {formatMoney(totalCents, trip.baseCurrency)}
-                </p>
-                {/* DEC-448 (D04): the header names the scope of the total. */}
-                {phaseScopeAvailable && (
-                  <p data-expense-total-scope className="text-[10px] leading-tight text-on-surface-faint">
-                    {filterPhaseId === 'all'
-                      ? t('expenses.total_scope_all')
-                      : scopedPhase?.id === activePhase?.id
-                        ? t('expenses.total_scope_current')
-                        : scopedPhase?.name ?? ''}
-                  </p>
-                )}
-                {/* DEC-447 (G3 m3): "includes X from other phases" — one tap
-                    back to the current-phase scope (the G1 chip's setter). */}
-                {phaseScopeAvailable && filterPhaseId === 'all' && otherPhasesCents > 0 && activePhase && (
-                  <button
-                    type="button"
-                    data-expense-total-other-phases
-                    onClick={() => setPhaseScope(activePhase.id)}
-                    className="text-[10px] leading-tight font-semibold text-primary btn-press"
-                  >
-                    {t('expenses.total_includes_other', {
-                      amount: formatMoney(otherPhasesCents, trip.baseCurrency),
-                    })}
-                    {' · '}
-                    {t('expenses.total_see_current')}
-                  </button>
-                )}
-              </div>
-            )}
             {/* DEC-206: first AI feature — an accented, labelled entry (indigo
                 "smart" accent), not a hidden grey glyph. */}
             <button
@@ -482,7 +492,7 @@ export function ExpenseListPage() {
                 is an optional follow-up; Julio asked for icon+text for now. */}
             <button
               data-open-map
-              onClick={() => navigate('/mapa')}
+              onClick={openMap}
               className="h-9 pl-2.5 pr-3 rounded-full bg-surface-container flex items-center gap-1.5 btn-press shrink-0"
               aria-label={t('expenses.open_map')}
               title={t('expenses.open_map')}
@@ -547,15 +557,21 @@ export function ExpenseListPage() {
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
           >
-            {/* Audit 4.4: clear-all + a single "Filtros (N)" toggle keep the header
-                short; the full, labelled palette is one tap away. */}
+            {/* DEC-453: ONE line — the phase SELECTOR chip (always names the
+                current scope, tap opens the picker) + the "Filtros (N)" toggle. */}
             <div className="flex items-center gap-2">
-              <FilterChip
-                label={t('expenses.filter_all')}
-                active={!anyFilterActive}
-                onClick={clearFilters}
-              />
-              {(categories.length > 0 || placeTotals.length > 0 || phaseScopeAvailable) && (
+              {phaseScopeAvailable && (
+                <button
+                  data-phase-scope-chip
+                  onClick={() => setPhaseSheetOpen(true)}
+                  className="shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold btn-press transition-colors bg-primary text-on-surface"
+                >
+                  <Icon name="flag" size={12} className="text-on-surface" />
+                  {phaseScopeLabel}
+                  <Icon name="expand_more" size={14} className="text-on-surface" />
+                </button>
+              )}
+              {(categories.length > 0 || placeTotals.length > 0 || anyFilterActive) && (
                 <button
                   onClick={() => setFiltersOpen((o) => !o)}
                   className={`ml-auto shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold btn-press transition-colors ${
@@ -577,22 +593,10 @@ export function ExpenseListPage() {
               )}
             </div>
 
-            {/* Collapsed: a compact, removable summary of what's narrowing the list. */}
+            {/* Collapsed: a compact, removable summary of what's narrowing the list
+                (the phase never repeats here — its selector chip already says it). */}
             {!filtersOpen && anyFilterActive && (
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {/* DEC-448: the phase scope is visible whenever it narrows; tap = back to Todas. */}
-                {filterPhaseId !== 'all' && (
-                  <FilterChip
-                    label={
-                      scopedPhase?.id === activePhase?.id
-                        ? t('expenses.phase_scope_current')
-                        : scopedPhase?.name ?? ''
-                    }
-                    icon="flag"
-                    active
-                    onClick={() => setPhaseScope('all')}
-                  />
-                )}
                 {filterCategory && (
                   <FilterChip label={t(`categories.${filterCategory}` as never)} active onClick={() => setFilterCategory(null)} />
                 )}
@@ -611,34 +615,6 @@ export function ExpenseListPage() {
             {/* Expanded: the same chips, now grouped and labelled by nature. */}
             {filtersOpen && (
               <div className="flex flex-col gap-2">
-                {/* DEC-448 (D04): phase scope — "Fase atual / Todas / {fase}". */}
-                {phaseScopeAvailable && (
-                  <FilterGroup label={t('expenses.filters_group_phase')}>
-                    {activePhase && (
-                      <FilterChip
-                        label={t('expenses.phase_scope_current')}
-                        icon="flag"
-                        active={filterPhaseId === activePhase.id}
-                        onClick={() => setPhaseScope(activePhase.id)}
-                      />
-                    )}
-                    <FilterChip
-                      label={t('expenses.phase_scope_all')}
-                      active={filterPhaseId === 'all'}
-                      onClick={() => setPhaseScope('all')}
-                    />
-                    {sortedPhases
-                      .filter((phase) => phase.id !== activePhase?.id)
-                      .map((phase) => (
-                        <FilterChip
-                          key={phase.id}
-                          label={phase.name}
-                          active={filterPhaseId === phase.id}
-                          onClick={() => setPhaseScope(phase.id)}
-                        />
-                      ))}
-                  </FilterGroup>
-                )}
                 {categories.length > 0 && (
                   <FilterGroup label={t('expenses.filters_group_categories')}>
                     {categories.map((cat) => (
@@ -679,8 +655,61 @@ export function ExpenseListPage() {
                     )}
                   </FilterGroup>
                 )}
+                {anyFilterActive && (
+                  <button
+                    onClick={clearFilters}
+                    className="self-start text-xs font-semibold text-primary btn-press px-1"
+                  >
+                    {t('expenses.filter_clear_all')}
+                  </button>
+                )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* DEC-453: the total strip — scope-named, filter-honest, on its own
+            line (never fighting the title for width again). */}
+        {tab === 'expenses' && (
+          <div className="flex items-baseline justify-between gap-3">
+            <span data-expense-total-scope className="text-[11px] font-semibold text-on-surface-faint">
+              {t('expenses.total_label')}
+              {phaseScopeAvailable && (
+                <>
+                  {' · '}
+                  {filterPhaseId === 'all' ? t('expenses.total_scope_all') : phaseScopeLabel}
+                </>
+              )}
+            </span>
+            <div className="text-right">
+              <p data-expense-total className="text-sm font-semibold tabular text-on-surface leading-tight">
+                {formatMoney(totalCents, trip.baseCurrency)}
+              </p>
+              {/* DEC-453: "sua parte" — the traveler's real cost after splits. */}
+              {yourShareCents !== totalCents && (
+                <p data-expense-total-share className="text-[10px] leading-tight text-on-surface-faint">
+                  {t('expenses.your_share', {
+                    amount: formatMoney(yourShareCents, trip.baseCurrency),
+                  })}
+                </p>
+              )}
+              {/* DEC-447 (G3 m3): "includes X from other phases" — one tap
+                  back to the current-phase scope (the G1 chip's setter). */}
+              {phaseScopeAvailable && filterPhaseId === 'all' && otherPhasesCents > 0 && activePhase && (
+                <button
+                  type="button"
+                  data-expense-total-other-phases
+                  onClick={() => setPhaseScope(activePhase.id)}
+                  className="text-[10px] leading-tight font-semibold text-primary btn-press"
+                >
+                  {t('expenses.total_includes_other', {
+                    amount: formatMoney(otherPhasesCents, trip.baseCurrency),
+                  })}
+                  {' · '}
+                  {t('expenses.total_see_current')}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -959,6 +988,50 @@ export function ExpenseListPage() {
         </div>
       </BottomSheet>
 
+      {/* DEC-453: phase SCOPE picker — the single selector chip opens this. */}
+      <BottomSheet
+        open={phaseSheetOpen}
+        onClose={() => setPhaseSheetOpen(false)}
+        title={t('expenses.phase_scope_title')}
+      >
+        <div className="flex flex-col gap-2">
+          {activePhase && (
+            <PhaseScopeOption
+              label={t('expenses.phase_scope_current')}
+              sublabel={activePhase.name}
+              selected={filterPhaseId === activePhase.id}
+              onClick={() => {
+                setPhaseScope(activePhase.id);
+                setPhaseSheetOpen(false);
+              }}
+            />
+          )}
+          <PhaseScopeOption
+            label={t('expenses.phase_scope_all')}
+            sublabel={t('expenses.total_scope_all')}
+            selected={filterPhaseId === 'all'}
+            onClick={() => {
+              setPhaseScope('all');
+              setPhaseSheetOpen(false);
+            }}
+          />
+          {sortedPhases
+            .filter((phase) => phase.id !== activePhase?.id)
+            .map((phase) => (
+              <PhaseScopeOption
+                key={phase.id}
+                label={phase.name}
+                sublabel={`${formatShortDate(phase.startDate)} – ${formatShortDate(phase.endDate)}`}
+                selected={filterPhaseId === phase.id}
+                onClick={() => {
+                  setPhaseScope(phase.id);
+                  setPhaseSheetOpen(false);
+                }}
+              />
+            ))}
+        </div>
+      </BottomSheet>
+
       {/* Change category of selected expenses */}
       <BottomSheet
         open={batchSheet === 'changeCategory'}
@@ -1234,6 +1307,35 @@ function FilterChip({
     >
       {icon && <Icon name={icon} size={12} className={active ? 'text-on-surface' : 'text-on-surface-faint'} />}
       {label}
+    </button>
+  );
+}
+
+/** DEC-453: one row of the phase-scope picker sheet. */
+function PhaseScopeOption({
+  label,
+  sublabel,
+  selected,
+  onClick,
+}: {
+  label: string;
+  sublabel: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full px-4 py-3 rounded-xl text-left btn-press flex items-center gap-3 ${
+        selected ? 'bg-primary/15 ring-1 ring-primary' : 'bg-surface-high'
+      }`}
+    >
+      <Icon name="flag" size={18} className={selected ? 'text-primary' : 'text-on-surface-dim'} />
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-on-surface truncate">{label}</span>
+        <span className="block text-xs text-on-surface-faint truncate">{sublabel}</span>
+      </span>
+      {selected && <Icon name="check" size={18} className="text-primary" />}
     </button>
   );
 }

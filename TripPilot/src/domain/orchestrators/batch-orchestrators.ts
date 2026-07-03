@@ -41,14 +41,23 @@ export async function restoreTransactionsBatch(transactionIds: string[]): Promis
   });
 }
 
+/**
+ * DEC-452: moving expenses to a fund carries them to the fund's phase too
+ * (pool and phase never diverge — the eurotrip-hotel bug). The caller resolves
+ * the fund's phase via `resolvePoolPhaseId`; `null` (global/shared pool)
+ * leaves each transaction's phase untouched.
+ */
 export async function moveTransactionsToPoolBatch(
   transactionIds: string[],
   budgetPoolId: string,
+  poolPhaseId: string | null,
 ): Promise<void> {
   await db.transaction('rw', [db.transactions], async () => {
     const transactions = await db.transactions.bulkGet(transactionIds);
     const found = transactions.filter((tx) => tx !== undefined);
-    await db.transactions.bulkPut(found.map((tx) => markUpdated({ ...tx, budgetPoolId })));
+    await db.transactions.bulkPut(
+      found.map((tx) => markUpdated({ ...tx, budgetPoolId, phaseId: poolPhaseId ?? tx.phaseId })),
+    );
   });
 }
 

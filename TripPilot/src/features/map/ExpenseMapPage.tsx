@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -10,6 +10,11 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useAppData } from '@/hooks/useAppData';
+import {
+  matchesExpenseScope,
+  readExpenseScopeFromParams,
+  isExpenseScopeActive,
+} from '@/features/expenses/expense-filters';
 import { buildExpenseMapPoints, combineMapPoints, type ExpenseMapPoint } from '@/domain/map';
 import { createTileLayer, DEFAULT_MAP_LAYER, type MapLayerKind } from '@/features/location/tile-layers';
 import { formatMoney } from '@/domain/money';
@@ -44,15 +49,35 @@ function makePin(): L.DivIcon {
 export function ExpenseMapPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, transactions, loading } = useAppData();
+  const { trip, transactions, phases, loading } = useAppData();
   const baseCurrency = trip?.baseCurrency ?? 'EUR';
 
-  const points = useMemo(() => buildExpenseMapPoints(transactions), [transactions]);
+  // DEC-453 (field fix): the map plots the SAME feed the expense list shows —
+  // the list's scopes arrive as URL params and run through the SHARED predicate
+  // (one definition, zero drift). No params = the whole trip, as before.
+  const [searchParams] = useSearchParams();
+  const scope = useMemo(() => readExpenseScopeFromParams(searchParams), [searchParams]);
+  const scopeActive = isExpenseScopeActive(scope);
+  const scopedTransactions = useMemo(
+    () => transactions.filter((tx) => matchesExpenseScope(tx, scope)),
+    [transactions, scope],
+  );
+
+  const points = useMemo(() => buildExpenseMapPoints(scopedTransactions), [scopedTransactions]);
   const txById = useMemo(() => {
     const map = new Map<string, Transaction>();
     for (const tx of transactions) map.set(tx.id, tx);
     return map;
   }, [transactions]);
+
+  // The pill names what is narrowing the map (phase name, category, place).
+  const scopeLabel = [
+    scope.phaseId !== 'all' ? phases.find((p) => p.id === scope.phaseId)?.name ?? null : null,
+    scope.category ? t(`categories.${scope.category}` as never) : null,
+    scope.place,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -167,6 +192,23 @@ export function ExpenseMapPage() {
         </button>
         <h1 className="text-heading font-bold text-on-surface">{t('map.title')}</h1>
       </div>
+
+      {/* DEC-453: the list's scope is visible AND dismissible here — the user
+          always knows why the map is narrowed (or empty) and can widen it. */}
+      {scopeActive && (
+        <div className="px-[var(--page-padding-x)] pb-2">
+          <button
+            type="button"
+            data-map-scope-pill
+            onClick={() => navigate('/mapa', { replace: true })}
+            className="btn-press inline-flex max-w-full items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary"
+          >
+            <Icon name="filter_list" size={14} className="text-primary" />
+            <span className="truncate">{scopeLabel || t('map.scope_filtered')}</span>
+            <span className="shrink-0 text-on-surface-faint">· {t('map.scope_show_all')}</span>
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-on-surface-dim text-sm">

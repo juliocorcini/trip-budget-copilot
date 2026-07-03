@@ -3397,6 +3397,24 @@
 - **Rationale**: Julio, verbatim: "eu poderia sim mover; tem que atualizar no aparelho de quem estou retirando e de quem estou adicionando, deixando tudo claro e com histórico… quando eu mostrar o Bruno, se algo foi movido para ele, mostrar ali e deixar claro de quem era antes". O council recomendava accept-first (Critic: 3 partes sem commit atômico); o Julio travou **instant** — mitigação: nada é silencioso (proveniência+histórico dos 2 lados), o destinatário pode contestar pelos fluxos existentes, e o undo propaga.
 - **Alternatives**: accept-first com auto-revert (rec. do council — rejeitada pelo lock); manter só cobrança/DEC-430 (rejeitado — era o bloqueio que motivou o pedido).
 
+### DEC-452 — Gasto em verba vinculada a UMA fase pertence ÀQUELA fase (pool ⇒ phase, criação/edição/lote + heal v14) [field fix pós-mega-leva]
+- **Date**: 2026-07-03 · **Status**: ✅ APPROVED (hotfix wave `2.3.1-rc`)
+- **Decision**: novo domínio puro `resolvePoolPhaseId(links, poolId)` — a fase inequívoca de uma verba (1 link vivo = a fase; 0 ou 2+ links = null). Aplicado em: QuickAdd (criação: `phaseId = poolPhase ?? faseAtiva`), ExpenseDetail (edição: trocar de verba re-carimba a fase quando a nova verba tem fase única), `moveTransactionsToPoolBatch` (lote: caller resolve e passa a fase da verba). Migração Dexie **v14** (mesma schema) re-carimba gastos standalone já gravados cujo pool aponta para outra fase — itens de saída (sessionId) seguem a saída e NÃO são tocados; deletados intocados; nenhum centavo se move.
+- **Rationale**: bug de campo do Julio — hotel pago HOJE (fase Burgos ativa) na verba "hospedagem eurotrip" ficava carimbado `phaseId=Burgos`: aparecia no filtro "Fase atual" errado, sumia no filtro "Eurotrip", e inflava a lente como "+X de outras verbas" irrastreável. A verba declara a intenção melhor que "a fase ativa no momento do registro".
+- **Alternatives**: filtro por `poolPhase ?? tx.phaseId` só na leitura (rejeitado — conserta um sintoma e deixa o dado errado); perguntar a fase no QuickAdd (rejeitado — nunca bloquear registro de gasto).
+
+### DEC-453 — Números da lista em moeda-base + "sua parte" + fase como SELETOR (não filtro) + mapa espelha os filtros + lente nomeia as verbas-fonte [field fix pós-mega-leva]
+- **Date**: 2026-07-03 · **Status**: ✅ APPROVED (hotfix wave `2.3.1-rc`)
+- **Decision**: (a) TODAS as agregações da lista/feed somam `baseCurrencyAmountCents` (nunca libra+euro cru; same-currency é bit-idêntico); (b) faixa de total própria abaixo dos filtros — "Total gasto · {escopo}" + linha "Sua parte: €X" (custo pessoal pós-divisões) quando difere do bruto; header volta a ser título + 3 pills (fim do "Gast…" truncado); (c) fase vira chip-SELETOR único ("Fase atual/Todas/{fase}" abre sheet) — sai do badge "Filtros (N)" e da linha de resumo; (d) `/mapa` recebe os escopos por URL params e filtra com o MESMO predicado `matchesExpenseScope` da lista (pill "ver tudo" no mapa); (e) `PhaseSpendLens.otherPoolsByPool` decompõe o "+X de outras verbas" por verba nomeada (soma exata ao total da linha).
+- **Rationale**: relatos do Julio — texto técnico vazando ("expenses total scope corrente" era chave i18n faltante), "gastos" truncado, total do topo que "não muda com os filtros" e "é valor de compra, não o gasto real" (744 bruto vs a parte dele), "+256 de outras verbas" sem origem nomeada, mapa ignorando o filtro da lista.
+- **Alternatives**: manter total no header com fonte menor (rejeitado — 360px não comportam título+total+3 pills); converter na hora da exibição com câmbio vivo (rejeitado — `baseCurrencyAmountCents` congela a taxa no registro, determinístico e testável).
+
+### DEC-454 — `?v=<revision>` nos links de share para furar o cache de card do WhatsApp [field fix pós-mega-leva; complementa DEC-445/446]
+- **Date**: 2026-07-03 · **Status**: ✅ APPROVED (hotfix wave `2.3.1-rc`)
+- **Decision**: `buildShareUrl`/`buildSplitTableUrl`/`buildGroupSplitUrl` ganham `version?` — a partir da revision 2 o link compartilhado carrega `?v=N` (path e fragmento intocados; rev 1 fica sem query, link limpo). Crawlers tratam a URL versionada como página nova → re-scrape → a FOTO anexada depois do primeiro paste aparece. SPA router, Pages Function e worker endereçam por PATH, então o param é inerte; links antigos sem `?v=` seguem vivos (Â-OLD-LINKS-LIVE). A chave AES permanece SÓ no fragmento (Â-KEY-IN-FRAGMENT).
+- **Rationale**: teste de campo do Julio — grupo com foto anexada não mostrava a foto no WhatsApp: o preview do worker JÁ carregava o `imgId` (republish ok), mas o WhatsApp cacheia o card por URL e nunca re-scrapeia a mesma string.
+- **Alternatives**: remover o `#k=` para encurtar (rejeitado — quebraria o modelo E2E: a chave no fragmento nunca chega ao servidor; sem ela o worker leria o conteúdo); og:image via redirect randômico (rejeitado — quebra cache legítimo e não resolve o card já cacheado).
+
 ---
 
 *New decisions will be added as the project progresses.*

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildShareUrl, buildSplitTableUrl, parseShareKeyFromHash } from '@/domain/sync';
+import {
+  buildShareUrl,
+  buildSplitTableUrl,
+  buildGroupSplitUrl,
+  parseShareKeyFromHash,
+} from '@/domain/sync';
 
 const SHARE_ID = 'a3d8b216-0aeb-4a7f-84ce-44f5906fbb0f';
 const KEY = 'T1pPjy8CGr5u13zEjRpFYBr2gb1sA1nd';
@@ -37,6 +42,36 @@ describe('buildSplitTableUrl (G2 live table)', () => {
     const url = buildSplitTableUrl('https://x.dev', SHARE_ID, KEY);
     const hash = new URL(url).hash;
     expect(parseShareKeyFromHash(hash)).toBe(KEY);
+  });
+});
+
+describe('?v= crawler cache-bust (DEC-454)', () => {
+  it('revision 1 (or absent) keeps the first link lean — no query at all', () => {
+    expect(buildGroupSplitUrl('https://x.dev', 'jantar-abc12', KEY)).toBe(
+      `https://x.dev/g/jantar-abc12#k=${KEY}`,
+    );
+    expect(buildGroupSplitUrl('https://x.dev', 'jantar-abc12', KEY, 1)).toBe(
+      `https://x.dev/g/jantar-abc12#k=${KEY}`,
+    );
+  });
+
+  it('revision ≥ 2 rides as ?v= BEFORE the fragment (query never carries the key)', () => {
+    const url = buildGroupSplitUrl('https://x.dev', 'jantar-abc12', KEY, 3);
+    expect(url).toBe(`https://x.dev/g/jantar-abc12?v=3#k=${KEY}`);
+    const parsed = new URL(url);
+    expect(parsed.pathname).toBe('/g/jantar-abc12');
+    expect(parsed.searchParams.get('v')).toBe('3');
+    expect(parsed.search.includes(KEY)).toBe(false);
+    expect(parseShareKeyFromHash(parsed.hash)).toBe(KEY);
+  });
+
+  it('applies to /s/ and /t/ links the same way', () => {
+    expect(buildShareUrl('https://x.dev', SHARE_ID, KEY, 5)).toBe(
+      `https://x.dev/s/${SHARE_ID}?v=5#k=${KEY}`,
+    );
+    expect(buildSplitTableUrl('https://x.dev', SHARE_ID, KEY, 2)).toBe(
+      `https://x.dev/t/${SHARE_ID}?v=2#k=${KEY}`,
+    );
   });
 });
 

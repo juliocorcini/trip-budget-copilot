@@ -27,9 +27,12 @@ const LENS_LABEL_KEYS: Record<PhaseSpendLensLineKey, string> = {
 export function PhaseSpendLensBlock({
   lens,
   currency,
+  poolNameById,
 }: {
   lens: PhaseSpendLens;
   currency: string;
+  /** DEC-453: names for the `other_pools` per-fund sub-lines ("de qual verba?"). */
+  poolNameById?: Map<string, string>;
 }) {
   const { t } = useTranslation();
 
@@ -63,16 +66,36 @@ export function PhaseSpendLensBlock({
           const isSubtract = line.kind === 'subtract';
           const isAdd = line.kind === 'add';
           return (
-            <div key={line.key} className="flex items-baseline justify-between gap-3 py-0.5">
-              <span className="text-xs font-semibold text-on-surface-dim">{label}</span>
-              <span
-                className={`text-xs font-bold tabular shrink-0 ${
-                  isSubtract ? 'text-on-surface-faint' : isAdd ? 'text-success' : 'text-on-surface'
-                }`}
-              >
-                {isSubtract ? '− ' : isAdd ? '+ ' : ''}
-                {formatMoney(line.cents, currency)}
-              </span>
+            <div key={line.key} className="flex flex-col">
+              <div className="flex items-baseline justify-between gap-3 py-0.5">
+                <span className="text-xs font-semibold text-on-surface-dim">{label}</span>
+                <span
+                  className={`text-xs font-bold tabular shrink-0 ${
+                    isSubtract ? 'text-on-surface-faint' : isAdd ? 'text-success' : 'text-on-surface'
+                  }`}
+                >
+                  {isSubtract ? '− ' : isAdd ? '+ ' : ''}
+                  {formatMoney(line.cents, currency)}
+                </span>
+              </div>
+              {/* DEC-453: the "+X de outras verbas" line names its sources, so the
+                  user can trace the money to a real fund instead of hunting. */}
+              {line.key === 'other_pools' &&
+                lens.otherPoolsByPool.map((source) => (
+                  <div
+                    key={source.poolId ?? 'none'}
+                    data-lens-other-pool={source.poolId ?? 'none'}
+                    className="flex items-baseline justify-between gap-3 pl-3"
+                  >
+                    <span className="text-[11px] text-on-surface-faint truncate">
+                      {(source.poolId ? poolNameById?.get(source.poolId) : null) ??
+                        t('dashboard.lens_pool_unknown')}
+                    </span>
+                    <span className="text-[11px] font-semibold tabular shrink-0 text-on-surface-faint">
+                      {formatMoney(source.cents, currency)}
+                    </span>
+                  </div>
+                ))}
             </div>
           );
         })}

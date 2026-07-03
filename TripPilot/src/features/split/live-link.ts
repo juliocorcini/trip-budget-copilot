@@ -184,7 +184,8 @@ export function buildSplitTableLink(creds: SplitLiveCreds): string {
   // returns the canonical public origin on native (and the real origin on web),
   // exactly like the `/s/:id` + `/pair` links.
   // DEC-446 — slug in the path when present; the key stays in the fragment.
-  return buildSplitTableUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key);
+  // DEC-454 — ?v=<revision> busts WhatsApp's per-URL card cache on edits.
+  return buildSplitTableUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key, creds.revision);
 }
 
 /* ── guest side ──────────────────────────────────────────────────────────── */

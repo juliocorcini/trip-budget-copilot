@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.3.1-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'Gasto registrado numa verba de outra fase agora conta para AQUELA fase: o filtro por fase, o mapa e a lente de números passam a bater — gastos antigos são corrigidos automaticamente.',
+        'Tela de gastos reorganizada: a fase virou um seletor único ("Fase atual / Todas / …"), o total ganhou uma faixa própria com o escopo nomeado e a linha "Sua parte" mostra o que é realmente seu depois das divisões.',
+        'O mapa passa a mostrar exatamente os gastos filtrados na lista — mesma fase, mesma categoria, mesmo lugar.',
+        'Na explicação "de onde vêm esses números", o valor "de outras verbas" agora lista cada verba de origem.',
+        'Link compartilhado com foto: ao editar a divisão (ex.: anexar foto), o link ganha um marcador de versão para o WhatsApp buscar o cartão novo em vez de mostrar o antigo.',
+      ],
+      en: [
+        'An expense logged on another phase\'s fund now counts toward THAT phase: the phase filter, the map and the numbers lens finally agree — existing expenses are fixed automatically.',
+        'Expenses screen reorganized: the phase became a single selector ("Current phase / All / …"), the total got its own labelled strip and a "Your share" line shows what is really yours after splits.',
+        'The map now shows exactly the expenses filtered in the list — same phase, same category, same place.',
+        'In the "where these numbers come from" breakdown, the "from other funds" value now names each source fund.',
+        'Shared link with photo: editing the split (e.g. attaching a photo) versions the link so WhatsApp fetches the new card instead of showing the old one.',
+      ],
+      es: [
+        'Un gasto registrado en un fondo de otra fase ahora cuenta para ESA fase: el filtro por fase, el mapa y la lente de números por fin coinciden — los gastos existentes se corrigen automáticamente.',
+        'Pantalla de gastos reorganizada: la fase pasó a ser un selector único ("Fase actual / Todas / …"), el total tiene su propia franja con el alcance nombrado y la línea "Tu parte" muestra lo que es realmente tuyo tras las divisiones.',
+        'El mapa ahora muestra exactamente los gastos filtrados en la lista — misma fase, misma categoría, mismo lugar.',
+        'En la explicación "de dónde vienen estos números", el valor "de otros fondos" ahora nombra cada fondo de origen.',
+        'Enlace compartido con foto: al editar la división (p. ej. adjuntar una foto), el enlace se versiona para que WhatsApp busque la tarjeta nueva en vez de mostrar la vieja.',
+      ],
+    },
+  },
+  {
     version: '2.3.0-rc',
     date: '2026-07-03',
     items: {

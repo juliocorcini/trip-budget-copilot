@@ -184,7 +184,9 @@ export async function fetchGroupResponses(shareId: string, key: string): Promise
 export function buildGroupSplitLink(creds: GroupLiveCreds): string {
   // DEC-446 — the slug shortens the PATH; the key stays in the fragment. Old
   // credentials without a slug keep producing the raw-id link forever.
-  return buildGroupSplitUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key);
+  // DEC-454 — the revision rides as ?v= so WhatsApp re-scrapes an edited share
+  // (e.g. a photo attached after the first paste) instead of serving its cache.
+  return buildGroupSplitUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key, creds.revision);
 }
 
 /* ── guest side ──────────────────────────────────────────────────────────── */

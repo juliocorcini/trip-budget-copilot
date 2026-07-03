@@ -258,7 +258,11 @@ export function DashboardSheets({
             reconciliation that explains the derived "orçamento disponível
             calculado" line by line (the lines SUM). */}
         {detailInsight?.kind === 'phase_projection' && model.phaseSpendLens && (
-          <PhaseSpendLensBlock lens={model.phaseSpendLens} currency={trip.baseCurrency} />
+          <PhaseSpendLensBlock
+            lens={model.phaseSpendLens}
+            currency={trip.baseCurrency}
+            poolNameById={model.poolNameById}
+          />
         )}
       </BottomSheet>
 

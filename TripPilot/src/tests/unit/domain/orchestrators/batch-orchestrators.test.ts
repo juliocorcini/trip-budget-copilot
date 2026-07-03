@@ -83,15 +83,29 @@ describe('batch orchestrators', () => {
     expect(shares.find((s) => s.transactionId === tx3.id)!.deletedAt).toBeNull();
   });
 
-  it('moves transactions to another pool with a revision bump', async () => {
+  it('moves transactions to another pool with a revision bump (global pool keeps the phase)', async () => {
     const tx = mkTx(1000);
     await db.transactions.add(tx);
 
-    await moveTransactionsToPoolBatch([tx.id], 'pool-2');
+    await moveTransactionsToPoolBatch([tx.id], 'pool-2', null);
 
     const stored = await db.transactions.get(tx.id);
     expect(stored!.budgetPoolId).toBe('pool-2');
+    expect(stored!.phaseId).toBe('phase-1');
     expect(stored!.revision).toBe(tx.revision + 1);
+  });
+
+  // DEC-452: a phase-linked fund carries the expense to ITS phase — pool and
+  // phase never diverge (the eurotrip-hotel bug).
+  it('moving to a phase-linked pool re-stamps the phase too', async () => {
+    const tx = mkTx(1000);
+    await db.transactions.add(tx);
+
+    await moveTransactionsToPoolBatch([tx.id], 'pool-eurotrip', 'phase-eurotrip');
+
+    const stored = await db.transactions.get(tx.id);
+    expect(stored!.budgetPoolId).toBe('pool-eurotrip');
+    expect(stored!.phaseId).toBe('phase-eurotrip');
   });
 
   // Julio field feedback: phase + fund move TOGETHER, in one batch.
