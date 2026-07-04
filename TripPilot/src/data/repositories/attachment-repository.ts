@@ -25,6 +25,13 @@ class AttachmentRepository {
     return list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
+  /** DEC-460 (diary): images of MANY expenses in one query, oldest first. */
+  async getByTransactionIds(transactionIds: string[]): Promise<Attachment[]> {
+    if (transactionIds.length === 0) return [];
+    const list = await this.table.where('transactionId').anyOf(transactionIds).toArray();
+    return list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
   async getById(id: string): Promise<Attachment | undefined> {
     return this.table.get(id);
   }

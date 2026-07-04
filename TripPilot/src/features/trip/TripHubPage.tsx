@@ -320,6 +320,8 @@ export function TripHubPage() {
     { icon: 'groups', label: t('more.group_divisions'), path: '/groups', badge: groupCount },
     { icon: 'credit_card', label: t('more.wallets'), path: '/wallets' },
     { icon: 'history', label: t('more.outing_history'), path: '/expenses?tab=outings' },
+    // DEC-460: the trip diary — memories view over the same data.
+    { icon: 'auto_stories', label: t('more.diary'), path: '/diary' },
   ];
 
   return (

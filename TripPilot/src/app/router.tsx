@@ -57,6 +57,7 @@ const ComparatorPage = lazyWithRetry(() => import('@/features/comparator/Compara
 // (imported only inside this page) ship in the `/mapa` chunk, not the core bundle.
 const ExpenseMapPage = lazyWithRetry(() => import('@/features/map/ExpenseMapPage').then(m => ({ default: m.ExpenseMapPage })));
 const GroupSplitListPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitListPage').then(m => ({ default: m.GroupSplitListPage })));
+const DiaryPage = lazyWithRetry(() => import('@/features/diary/DiaryPage').then(m => ({ default: m.DiaryPage })));
 const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitDetailPage').then(m => ({ default: m.GroupSplitDetailPage })));
 const GroupClaimPage = lazyWithRetry(() => import('@/features/group-split/GroupClaimPage').then(m => ({ default: m.GroupClaimPage })));
 const ExpenseSharePage = lazyWithRetry(() => import('@/features/expenses/ExpenseSharePage').then(m => ({ default: m.ExpenseSharePage })));
@@ -193,6 +194,8 @@ export const router = createBrowserRouter([
           // C23 (Tricount group split, DEC-297): the group-split home + one event.
           { path: '/groups', element: <LazyRoute><GroupSplitListPage /></LazyRoute> },
           { path: '/groups/:id', element: <LazyRoute><GroupSplitDetailPage /></LazyRoute> },
+          // DEC-460: the trip diary — day-by-day timeline + HTML export.
+          { path: '/diary', element: <LazyRoute><DiaryPage /></LazyRoute> },
         ],
       },
       { path: '/', element: <LazyRoute><BootGate /></LazyRoute> },
