@@ -1,29 +1,38 @@
 /**
  * DEC-207 (Shared Participant Link): pure helpers for the link URL.
  *
- * The link is `${origin}/s/${shareId}#k=${aesKey}`. The path holds the public
- * share id (the worker's address for the ciphertext); the AES key lives ONLY in
- * the URL fragment, which browsers never send to the server — so the worker
- * stores opaque ciphertext it can never read. Anyone with the full link can
- * read the statement; that is the intended capability model (the link IS the
- * secret), exactly like a one-tap "anyone with the link" share.
+ * Original model: `${origin}/s/${shareId}#k=${aesKey}` — the AES key lives in
+ * the URL fragment (never sent to the server), so the worker stores opaque
+ * ciphertext. Anyone with the full link can read the statement; the link IS
+ * the secret, exactly like a one-tap "anyone with the link" share.
+ *
+ * DEC-455 (Julio's verdict, 2026-07-03): outgoing links must be SHORT and
+ * genuinely shareable — the `#k=` tail made them ugly and long. New shares
+ * escrow the AES key on the worker (stored next to the preview), so the
+ * outgoing URL is just `${origin}/s/${slug}`; the guest app resolves the key
+ * from the server when the fragment is absent. Passing `key: null` to a
+ * builder omits the fragment. Old fragment links keep working forever
+ * (Â-OLD-LINKS-LIVE) — the fragment, when present, always wins.
  */
 
 export const SHARE_PATH_PREFIX = '/s/';
 /**
  * Bill-split live table (G2). A SEPARATE prefix from `/s/` so the guest lands on
  * the live claim board (`SplitTablePage`) — a different surface from the
- * persistent statement mirror (`SharedLinkPage`). Same capability model: the
- * AES key lives only in the fragment, so the worker stores opaque ciphertext.
+ * persistent statement mirror (`SharedLinkPage`).
  */
 export const SPLIT_TABLE_PATH_PREFIX = '/t/';
 /**
  * C23 (Tricount group split, DEC-297). A SEPARATE prefix from `/t/` so a guest
  * lands on the group claim board (`GroupClaimPage`) — many expenses/payers, pick
- * your name, see your balance, mark paid. Same capability model: the AES key
- * lives only in the fragment, so the worker stores opaque ciphertext.
+ * your name, see your balance, mark paid.
  */
 export const GROUP_SPLIT_PATH_PREFIX = '/g/';
+/**
+ * DEC-457 — a single shared EXPENSE (photo + details), read-only. The guest
+ * lands on `ExpenseSharePage`; same channel/capability model as the others.
+ */
+export const EXPENSE_SHARE_PATH_PREFIX = '/x/';
 const KEY_PARAM = 'k';
 
 /**
@@ -40,19 +49,37 @@ function versionQuery(version?: number): string {
   return version !== undefined && version >= 2 ? `?v=${Math.floor(version)}` : '';
 }
 
-export function buildShareUrl(origin: string, shareId: string, key: string, version?: number): string {
-  const base = origin.replace(/\/+$/, '');
-  return `${base}${SHARE_PATH_PREFIX}${encodeURIComponent(shareId)}${versionQuery(version)}#${KEY_PARAM}=${key}`;
+/** DEC-455 — `key: null` (server-held) omits the fragment entirely. */
+function keyFragment(key: string | null): string {
+  return key ? `#${KEY_PARAM}=${key}` : '';
 }
 
-export function buildSplitTableUrl(origin: string, shareId: string, key: string, version?: number): string {
+function buildLink(
+  origin: string,
+  prefix: string,
+  shareId: string,
+  key: string | null,
+  version?: number,
+): string {
   const base = origin.replace(/\/+$/, '');
-  return `${base}${SPLIT_TABLE_PATH_PREFIX}${encodeURIComponent(shareId)}${versionQuery(version)}#${KEY_PARAM}=${key}`;
+  return `${base}${prefix}${encodeURIComponent(shareId)}${versionQuery(version)}${keyFragment(key)}`;
 }
 
-export function buildGroupSplitUrl(origin: string, shareId: string, key: string, version?: number): string {
-  const base = origin.replace(/\/+$/, '');
-  return `${base}${GROUP_SPLIT_PATH_PREFIX}${encodeURIComponent(shareId)}${versionQuery(version)}#${KEY_PARAM}=${key}`;
+export function buildShareUrl(origin: string, shareId: string, key: string | null, version?: number): string {
+  return buildLink(origin, SHARE_PATH_PREFIX, shareId, key, version);
+}
+
+export function buildSplitTableUrl(origin: string, shareId: string, key: string | null, version?: number): string {
+  return buildLink(origin, SPLIT_TABLE_PATH_PREFIX, shareId, key, version);
+}
+
+export function buildGroupSplitUrl(origin: string, shareId: string, key: string | null, version?: number): string {
+  return buildLink(origin, GROUP_SPLIT_PATH_PREFIX, shareId, key, version);
+}
+
+/** DEC-457 — link to one shared expense (`/x/:id`). */
+export function buildExpenseShareUrl(origin: string, shareId: string, key: string | null, version?: number): string {
+  return buildLink(origin, EXPENSE_SHARE_PATH_PREFIX, shareId, key, version);
 }
 
 /**

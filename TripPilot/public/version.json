@@ -1,8 +1,8 @@
 {
-  "version": "2.3.1-rc",
+  "version": "2.4.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.3.1-rc.zip",
-  "notes": "Números que batem de verdade: gasto em verba de outra fase agora conta para aquela fase (filtro, mapa e lente concordam — dados antigos corrigidos sozinhos), tela de gastos com seletor de fase + total com escopo nomeado e a linha Sua parte, e o link com foto ganha versão para o WhatsApp mostrar o cartão novo."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.4.0-rc.zip",
+  "notes": "Links de compartilhar curtos de verdade (sem o código gigante no final), compartilhar um gasto individual com fotos direto do detalhe (a foto aparece no cartão do WhatsApp), e o orçamento da fase agora usa só o dinheiro da própria fase — potes globais viram linha informativa."
 }

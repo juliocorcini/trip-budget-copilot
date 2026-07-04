@@ -77,6 +77,8 @@ async function sharePreviewAllowed(): Promise<boolean> {
  * Owner: create a brand-new link for a participant's statement. The optional
  * `preview` (composed by the UI in the owner's language — DEC-445) is dropped
  * here when the Settings kill-switch is off, so callers never re-check it.
+ * DEC-455: the AES key ALWAYS rides to the worker for escrow — when the worker
+ * acks (`keyHeld`), the returned URL drops the `#k=` fragment (short link).
  */
 export async function createShareLink(
   participantId: string,
@@ -88,23 +90,27 @@ export async function createShareLink(
   const cryptoKey = await importSessionKey(key);
   const blob = await encryptText(cryptoKey, JSON.stringify(statement));
   const allowed = preview ? await sharePreviewAllowed() : false;
-  const extras = allowed
-    ? { preview, slugBase: slugifyShareName(statement.peerName) || 'statement' }
-    : undefined;
-  const { id, slug, writeToken } = await createShare(blob, 1, extras);
+  const extras = {
+    ...(allowed
+      ? { preview, slugBase: slugifyShareName(statement.peerName) || 'statement' }
+      : {}),
+    linkKey: key,
+  };
+  const { id, slug, keyHeld, writeToken } = await createShare(blob, 1, extras);
 
   const shareLink: ShareLink = {
     ...createSyncMetadata({ id }),
     participantId,
     slug: slug ?? null,
     key,
+    keyOnServer: keyHeld === true,
     writeToken,
     statementRevision: 1,
     revokedAt: null,
     lastPulledAt: null,
   };
   await shareLinkRepository.create(shareLink);
-  return { url: buildShareUrl(origin, slug ?? id, key), shareLink };
+  return { url: buildShareUrl(origin, slug ?? id, keyHeld === true ? null : key), shareLink };
 }
 
 /** Owner: re-publish the latest statement to an existing link (revision++). */
@@ -117,14 +123,16 @@ export async function refreshShareLink(
   const blob = await encryptText(cryptoKey, JSON.stringify(statement));
   const nextRevision = shareLink.statementRevision + 1;
   const allowed = preview ? await sharePreviewAllowed() : false;
-  await putShareStatement(
-    shareLink.id,
-    shareLink.writeToken,
-    blob,
-    nextRevision,
-    allowed ? preview : undefined,
-  );
-  return shareLinkRepository.update({ ...shareLink, statementRevision: nextRevision });
+  // DEC-455 — linkKey re-escrows on every republish (upgrades legacy links).
+  const result = await putShareStatement(shareLink.id, shareLink.writeToken, blob, nextRevision, {
+    ...(allowed && preview ? { preview } : {}),
+    linkKey: shareLink.key,
+  });
+  return shareLinkRepository.update({
+    ...shareLink,
+    statementRevision: nextRevision,
+    ...(result.keyHeld ? { keyOnServer: true } : {}),
+  });
 }
 
 /** Owner: revoke a link — the guest's future reads return "expired". */
@@ -175,23 +183,29 @@ export type IngestShareResult =
   | { status: 'error' };
 
 /**
- * Guest: open a link — fetch the ciphertext statement, decrypt with the key
- * from the URL fragment, and store it as a mirrored statement tagged with its
- * share origin (so confirm/reject + settle can be pushed back). The guest stays
- * a permanent, signup-less local actor; this just adds to "Compartilhadas
- * comigo".
+ * Guest: open a link — fetch the ciphertext statement, decrypt, and store it
+ * as a mirrored statement tagged with its share origin (so confirm/reject +
+ * settle can be pushed back). DEC-455: `key` may be null (fragment-less short
+ * link) — the escrowed key from the statement GET is used instead; a fragment
+ * key, when present, always wins. The guest stays a permanent, signup-less
+ * local actor; this just adds to "Compartilhadas comigo".
  */
-export async function ingestSharedLink(shareId: string, key: string): Promise<IngestShareResult> {
+export async function ingestSharedLink(
+  shareId: string,
+  key: string | null,
+): Promise<IngestShareResult> {
   const result = await getShareStatement(shareId);
   if (result.status !== 'ok') return result;
 
-  const cryptoKey = await importSessionKey(key);
+  const effectiveKey = key ?? result.key ?? null;
+  if (!effectiveKey) return { status: 'bad_key' };
+  const cryptoKey = await importSessionKey(effectiveKey);
   const plain = await decryptText(cryptoKey, result.blob);
   if (!plain) return { status: 'bad_key' };
   const payload = parseStatementPayload(safeJsonParse(plain));
   if (!payload) return { status: 'bad_key' };
 
-  const statement = await storeMirroredStatement(payload, { shareId, key });
+  const statement = await storeMirroredStatement(payload, { shareId, key: effectiveKey });
   return { status: 'ok', statement };
 }
 

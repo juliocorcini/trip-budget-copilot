@@ -238,7 +238,11 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const phase = resolveActivePhase(phases);
     const pool = pools.find((p) => p.scope === 'linked_phases');
     if (!phase || !pool) return;
-    const phaseTxs = transactions.filter((tx) => tx.phaseId === phase.id && tx.deletedAt === null);
+    // DEC-456: the snapshot's daily average measures PHASE MONEY only (the
+    // phase's fund), matching the projection scope — pot spends stay out.
+    const phaseTxs = transactions.filter(
+      (tx) => tx.phaseId === phase.id && tx.budgetPoolId === pool.id && tx.deletedAt === null,
+    );
     if (phaseTxs.length === 0) return;
 
     const persist = async () => {
@@ -387,6 +391,16 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const phaseTxsForInsights = activePhase
       ? transactions.filter((tx) => tx.phaseId === activePhase.id && tx.deletedAt === null)
       : [];
+    // DEC-456 (field verdict 2026-07-03): PHASE MONEY = the slice of the phase's
+    // attributed transactions paid from the phase's own fund. Every BUDGET number
+    // (envelope, projection, rhythm, burndown, amigo comparisons) uses ONLY this
+    // scope — a global pot ("Tomorrowland") or another fund can never inflate the
+    // phase budget again. Behavioral reads (streaks, danger day, trigger pick)
+    // keep the full attributed set: behavior is behavior regardless of the fund.
+    const phaseMoneyTxs = primaryPool
+      ? phaseTxsForInsights.filter((tx) => tx.budgetPoolId === primaryPool.id)
+      : [];
+    const phaseMoneySpentCents = calculatePoolSpent(phaseMoneyTxs);
     const completedOutingTotalsCents = activePhase
       ? completedSessions
           .filter((s) => s.phaseId === activePhase.id)
@@ -453,7 +467,9 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             todayDate: todayIso,
             phase: activePhase,
             phaseTransactions: phaseTxsForInsights,
-            phaseBudgetCents: fts.freeToSpendCents + calculatePoolSpent(phaseTxsForInsights),
+            // DEC-456: budget + its spent term are PHASE-MONEY-ONLY (pot-free).
+            phaseBudgetCents: fts.freeToSpendCents + phaseMoneySpentCents,
+            phaseMoneySpentCents,
             completedOutingTotalsCents,
             debts,
             ownerId: owner.id,
@@ -778,7 +794,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const amigoForecast = amigoProfile
       ? forecasts.find((f) => f.profileId === amigoProfile.id) ?? null
       : null;
-    const phaseSpentCents = calculatePoolSpent(phaseTxsForInsights);
+    // DEC-456: the amigo's budget comparisons run on phase money only.
+    const phaseSpentCents = phaseMoneySpentCents;
     const amigoV2 =
       activePhase && fts && amigoTriggerTx
         ? buildHonestFriendV2({
@@ -815,7 +832,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // gated on being meaningful (the domain returns [] when there is nothing).
     const amigoTopCategory = (() => {
       const byCategory = new Map<string, number>();
-      for (const tx of phaseTxsForInsights) {
+      // DEC-456: over phase money, so the % shares the denominator of phaseSpent.
+      for (const tx of phaseMoneyTxs) {
         if (tx.type !== 'expense' || !tx.category) continue;
         byCategory.set(
           tx.category,
@@ -876,12 +894,13 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         : null;
 
     // DEC-130 + DEC-136: burn-down uses the same phase envelope as the insights.
+    // DEC-456: actual line + envelope are phase-money-only, matching the budget.
     const burndown =
       fts && activePhase && primaryPool
         ? buildPhaseBurndown({
             phase: activePhase,
             phaseBudgetCents: fts.freeToSpendCents + phaseSpentCents,
-            transactions: phaseTxsForInsights,
+            transactions: phaseMoneyTxs,
             todayIso,
             occurrences: occurrences.filter((o) => o.budgetPoolId === primaryPool.id),
           })

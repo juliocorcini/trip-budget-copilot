@@ -12,8 +12,11 @@ export interface ShareLink extends SyncMetadata {
   /** DEC-446 — readable path slug (absent on legacy/preview-off links).
    * Additive + optional → old rows read back `undefined`; non-indexed. */
   slug?: string | null;
-  /** AES-GCM key (base64url) — encrypts the statement; lives in the URL fragment. */
+  /** AES-GCM key (base64url) — encrypts the statement. */
   key: string;
+  /** DEC-455 — worker escrows the key, so the built link drops `#k=`.
+   * Additive + optional → old rows read back `undefined`; non-indexed. */
+  keyOnServer?: boolean;
   /** Owner-only write token — gates statement update / revoke / response pull. */
   writeToken: string;
   /** Last statement revision pushed to the server (bumped on every update). */

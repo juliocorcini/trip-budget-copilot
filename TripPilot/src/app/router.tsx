@@ -59,6 +59,7 @@ const ExpenseMapPage = lazyWithRetry(() => import('@/features/map/ExpenseMapPage
 const GroupSplitListPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitListPage').then(m => ({ default: m.GroupSplitListPage })));
 const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitDetailPage').then(m => ({ default: m.GroupSplitDetailPage })));
 const GroupClaimPage = lazyWithRetry(() => import('@/features/group-split/GroupClaimPage').then(m => ({ default: m.GroupClaimPage })));
+const ExpenseSharePage = lazyWithRetry(() => import('@/features/expenses/ExpenseSharePage').then(m => ({ default: m.ExpenseSharePage })));
 const InstallPage = lazyWithRetry(() => import('@/features/install/InstallPage').then(m => ({ default: m.InstallPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
@@ -229,6 +230,9 @@ export const router = createBrowserRouter([
       // C23 (Tricount group split, DEC-297): the group guest claim board — pick
       // your name, see your balance, mark paid. Outside BootGate like `/t/`.
       { path: '/g/:id', element: <LazyRoute><GroupClaimPage /></LazyRoute> },
+      // DEC-457: one shared expense (photos + details), read-only — outside
+      // BootGate so anyone with the link can see it, app or not.
+      { path: '/x/:id', element: <LazyRoute><ExpenseSharePage /></LazyRoute> },
       { path: '/shared-with-me', element: <LazyRoute><SharedWithMePage /></LazyRoute> },
       // DEC-248: owner-only usage dashboard. Standalone (outside BootGate + the
       // app shell) and token-gated by the Worker ADMIN_TOKEN — never linked in nav.

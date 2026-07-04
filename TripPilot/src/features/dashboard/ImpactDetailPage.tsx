@@ -9,6 +9,7 @@ import {
   calculatePoolSpent,
   projectReserveStartDate,
   buildPhaseSpendLens,
+  selectActivePhasePool,
 } from '@/domain/budget';
 import { PhaseSpendLensBlock } from './PhaseSpendLensBlock';
 import { filterTransactionsByPool } from '@/domain/transactions';
@@ -42,7 +43,9 @@ export function ImpactDetailPage() {
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
 
   const activePhase = resolveActivePhase(phases);
-  const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+  // DEC-456: the ACTIVE phase's own fund (not a fixed first pool), so every
+  // number below is scoped to the money that actually belongs to this phase.
+  const primaryPool = selectActivePhasePool(pools, links, activePhase?.id ?? null);
 
   useEffect(() => {
     if (!trip || !activePhase || !primaryPool) return;
@@ -90,7 +93,11 @@ export function ImpactDetailPage() {
         )
       : null;
 
-  const phaseSpentCents = calculatePoolSpent(phaseTxs);
+  // DEC-456: budget math is PHASE MONEY only — spends paid from pots or other
+  // funds never enter the envelope, the projection or the reserve date.
+  const phaseSpentCents = primaryPool
+    ? calculatePoolSpent(phaseTxs.filter((tx) => tx.budgetPoolId === primaryPool.id))
+    : 0;
   const phaseBudgetCents = fts ? fts.freeToSpendCents + phaseSpentCents : 0;
 
   // DEC-447 (G3): the reconciliation behind the derived budget shown below —

@@ -14,6 +14,7 @@ import {
   SLUG_BASE_RE,
   SLUG_RE,
   CANONICAL_SHARE_ID_RE,
+  LINK_KEY_RE,
   type WorkerSharePreview,
 } from './share-preview';
 
@@ -835,6 +836,8 @@ async function handleShare(request: Request, env: Env, url: URL): Promise<Respon
 
   // DEC-445/446 — `preview` and `slugBase` ride inside the same POST/PUT body
   // as the ciphertext; the DO ignores them (it destructures blob/revision only).
+  // DEC-455 — `linkKey` (escrowed AES key for short fragment-less links) rides
+  // the same way and is stored ONLY in the extras record, never inside the DO.
   const extras = parseShareExtras(bodyText);
 
   // POST /share — mint the id here, then let its DO initialise + return a token.
@@ -843,8 +846,13 @@ async function handleShare(request: Request, env: Env, url: URL): Promise<Respon
     const res = await callDo(id, '/init');
     if (!res.ok) return relayDoResponse(res);
     const data = (await res.json()) as Record<string, unknown>;
-    const slug = await storeShareExtras(env, id, extras);
-    return json({ id, ...(slug ? { slug } : {}), ...data });
+    const stored = await storeShareExtras(env, id, extras);
+    return json({
+      id,
+      ...(stored.slug ? { slug: stored.slug } : {}),
+      ...(stored.keyHeld ? { keyHeld: true } : {}),
+      ...data,
+    });
   }
 
   const match = url.pathname.match(/^\/share\/([^/]+)(\/responses)?$/);
@@ -857,8 +865,19 @@ async function handleShare(request: Request, env: Env, url: URL): Promise<Respon
   if (!id) return json({ error: 'bad_id' }, 400);
 
   const res = await callDo(id, isResponses ? '/responses' : '/statement');
-  if (res.ok && !isResponses && method === 'PUT') await updateSharePreview(env, id, extras);
+  if (res.ok && !isResponses && method === 'PUT') {
+    const keyHeld = await updateSharePreview(env, id, extras);
+    return relayDoResponse(res, keyHeld ? { keyHeld: true } : undefined);
+  }
   if (res.ok && !isResponses && method === 'DELETE') await clearShareExtras(env, id);
+  if (res.ok && !isResponses && method === 'GET') {
+    // DEC-455 — statement reads carry the escrowed key (when one exists) so a
+    // guest opening a fragment-less link can decrypt. The link (id or slug) is
+    // the read capability; the response is no-store, and the key never appears
+    // in `/preview/` or in any log.
+    const record = env.SHARE_STORE ? await readShareExtras(env.SHARE_STORE, id) : null;
+    return relayDoResponse(res, record?.k ? { key: record.k } : undefined);
+  }
   return relayDoResponse(res);
 }
 
@@ -868,27 +887,34 @@ interface ShareExtras {
   slugBase: string | null;
   /** True when the body carried a `preview` field at all (even an invalid one). */
   previewSent: boolean;
+  /** DEC-455 — AES key the owner asked the worker to hold (short links). */
+  linkKey: string | null;
 }
 
 function parseShareExtras(bodyText: string | undefined): ShareExtras {
-  if (!bodyText) return { preview: null, slugBase: null, previewSent: false };
+  const empty: ShareExtras = { preview: null, slugBase: null, previewSent: false, linkKey: null };
+  if (!bodyText) return empty;
   let body: Record<string, unknown>;
   try {
     body = JSON.parse(bodyText) as Record<string, unknown>;
   } catch {
-    return { preview: null, slugBase: null, previewSent: false };
+    return empty;
   }
   const preview = sanitizeSharePreview(body.preview);
   const previewSent = body.preview !== undefined;
   if (previewSent && !preview) logEvent('warn', 'share_preview_rejected', {});
   const slugBase =
     typeof body.slugBase === 'string' && SLUG_BASE_RE.test(body.slugBase) ? body.slugBase : null;
-  return { preview, slugBase, previewSent };
+  const linkKey =
+    typeof body.linkKey === 'string' && LINK_KEY_RE.test(body.linkKey) ? body.linkKey : null;
+  return { preview, slugBase, previewSent, linkKey };
 }
 
 interface ShareExtrasRecord {
   slug: string | null;
   p: WorkerSharePreview | null;
+  /** DEC-455 — escrowed AES key (returned only by `GET /share/:id`). */
+  k?: string | null;
 }
 
 const previewKey = (id: string): string => `preview:${id}`;
@@ -919,10 +945,16 @@ async function resolveShareAddress(env: Env, raw: string): Promise<string | null
   return SHARE_ID_RE.test(raw) ? raw : null;
 }
 
-/** Create-time extras: reserve a readable slug + store the preview record. */
-async function storeShareExtras(env: Env, id: string, extras: ShareExtras): Promise<string | null> {
+/** Create-time extras: reserve a readable slug + store the preview/key record. */
+async function storeShareExtras(
+  env: Env,
+  id: string,
+  extras: ShareExtras,
+): Promise<{ slug: string | null; keyHeld: boolean }> {
   const kv = env.SHARE_STORE;
-  if (!kv || (!extras.preview && !extras.slugBase)) return null;
+  if (!kv || (!extras.preview && !extras.slugBase && !extras.linkKey)) {
+    return { slug: null, keyHeld: false };
+  }
 
   let slug: string | null = null;
   if (extras.slugBase) {
@@ -935,11 +967,11 @@ async function storeShareExtras(env: Env, id: string, extras: ShareExtras): Prom
     }
     if (!slug) logEvent('warn', 'share_slug_exhausted', {});
   }
-  if (extras.preview || slug) {
-    const record: ShareExtrasRecord = { slug, p: extras.preview };
+  if (extras.preview || slug || extras.linkKey) {
+    const record: ShareExtrasRecord = { slug, p: extras.preview, k: extras.linkKey };
     await kv.put(previewKey(id), JSON.stringify(record), { expirationTtl: SHARE_TTL_SECONDS });
   }
-  return slug;
+  return { slug, keyHeld: Boolean(extras.linkKey) };
 }
 
 /**
@@ -947,27 +979,32 @@ async function storeShareExtras(env: Env, id: string, extras: ShareExtras): Prom
  * owner sent one; DROP the stored preview when the owner explicitly published
  * without it (the Settings kill-switch turned OFF → republish erases the old
  * summary). The slug mapping survives either way — the link must keep opening.
+ * DEC-455: the escrowed key survives every republish; a PUT that carries a
+ * `linkKey` (re)stores it — the upgrade path for links created before escrow.
+ * Returns whether a key is held after this update.
  */
-async function updateSharePreview(env: Env, id: string, extras: ShareExtras): Promise<void> {
+async function updateSharePreview(env: Env, id: string, extras: ShareExtras): Promise<boolean> {
   const kv = env.SHARE_STORE;
-  if (!kv) return;
+  if (!kv) return false;
   const existing = await readShareExtras(kv, id);
   const slug = existing?.slug ?? null;
+  const k = extras.linkKey ?? existing?.k ?? null;
   if (extras.preview) {
-    const record: ShareExtrasRecord = { slug, p: extras.preview };
+    const record: ShareExtrasRecord = { slug, p: extras.preview, k };
     await kv.put(previewKey(id), JSON.stringify(record), { expirationTtl: SHARE_TTL_SECONDS });
     if (slug) await kv.put(slugKey(slug), id, { expirationTtl: SHARE_TTL_SECONDS });
-    return;
+    return Boolean(k);
   }
-  if (existing?.p) {
-    if (slug) {
-      await kv.put(previewKey(id), JSON.stringify({ slug, p: null }), {
+  if (existing?.p || existing?.k || extras.linkKey) {
+    if (slug || k) {
+      await kv.put(previewKey(id), JSON.stringify({ slug, p: null, k }), {
         expirationTtl: SHARE_TTL_SECONDS,
       });
     } else {
       await kv.delete(previewKey(id));
     }
   }
+  return Boolean(k);
 }
 
 /** Revoke-time extras: the preview and the slug die with the share. */
@@ -1026,9 +1063,26 @@ async function handleSharePreviewGet(env: Env, url: URL): Promise<Response> {
   });
 }
 
-/** Re-emit a ShareStore DO response with the public CORS + no-store headers. */
-async function relayDoResponse(res: Response): Promise<Response> {
-  const body = await res.text();
+/**
+ * Re-emit a ShareStore DO response with the public CORS + no-store headers.
+ * DEC-455 — `extraFields` (escrowed `key`, `keyHeld` ack) are merged into a
+ * successful JSON body; a non-object body is relayed untouched.
+ */
+async function relayDoResponse(
+  res: Response,
+  extraFields?: Record<string, unknown>,
+): Promise<Response> {
+  let body = await res.text();
+  if (extraFields && res.ok) {
+    try {
+      const parsed = JSON.parse(body) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        body = JSON.stringify({ ...(parsed as Record<string, unknown>), ...extraFields });
+      }
+    } catch {
+      // Relay as-is — enrichment is best-effort, the payload itself is king.
+    }
+  }
   return new Response(body, {
     status: res.status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS_HEADERS },

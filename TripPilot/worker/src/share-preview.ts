@@ -4,10 +4,14 @@
  * The preview is a plaintext SUMMARY blob the client publishes NEXT TO the E2E
  * ciphertext so crawlers can render a link card. This module is the physical
  * enforcement of Â-PREVIEW-SUMMARY-ONLY: `sanitizeSharePreview` re-builds the
- * object from an ALLOWLIST (anything else — items, names per item, keys,
- * write tokens — cannot survive into storage even if a client sends it) and
- * rejects anything over 1 KB. Slugs shorten the URL PATH only; the AES key
- * stays exclusively in the fragment (Â-KEY-IN-FRAGMENT).
+ * object from an ALLOWLIST (anything else — items, names per item, write
+ * tokens — cannot survive into storage even if a client sends it) and
+ * rejects anything over 1 KB.
+ *
+ * DEC-455: the AES key may now be ESCROWED here (stored in the extras record,
+ * returned only by `GET /share/:id`) so outgoing links can drop the `#k=`
+ * fragment. It still never enters the preview blob (`sanitizeSharePreview`
+ * has no key field), so `/preview/:idOrSlug` and OG cards can never leak it.
  */
 
 export const SHARE_PREVIEW_MAX_BYTES = 1024;
@@ -16,22 +20,34 @@ const DESCRIPTION_MAX = 200;
 
 /** Client-proposed slug base: `a-z0-9-`, sane bounds (≤40 like the client cap). */
 export const SLUG_BASE_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
-/** A full slug (base + `-` + suffix). Bounded so KV keys stay tiny. */
-export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,45}$/;
+/** A full slug (base + `-` + suffix). Bounded so KV keys stay tiny.
+ * Upper bound fits a max base (40) + `-` + the DEC-455 6-char suffix. */
+export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,46}$/;
 /** Canonical share ids are UUIDs (minted by `crypto.randomUUID()`). */
 export const CANONICAL_SHARE_ID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /** Unambiguous, includes non-hex letters (a slug can never look like a raw id). */
 const SLUG_SUFFIX_ALPHABET = '23456789abcdefghjkmnpqrstvwxyz';
-const SLUG_SUFFIX_LENGTH = 4;
+/**
+ * DEC-455: with the key escrowed server-side, the slug is the FULL read
+ * capability — 6 chars over a 30-symbol alphabet (~7×10⁸ combos per base)
+ * instead of the previous 4, so slugs stay short but non-enumerable.
+ */
+const SLUG_SUFFIX_LENGTH = 6;
+
+/**
+ * DEC-455: escrowed AES key shape — base64url session keys (32 bytes → 43
+ * chars). Bounds are generous so future key sizes fit; never logged.
+ */
+export const LINK_KEY_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
 const IMG_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
-const PREVIEW_KINDS = new Set(['group', 'split', 'statement']);
+const PREVIEW_KINDS = new Set(['group', 'split', 'statement', 'expense']);
 
 export interface WorkerSharePreview {
   v: 1;
-  kind: 'group' | 'split' | 'statement';
+  kind: 'group' | 'split' | 'statement' | 'expense';
   title: string;
   description: string;
   totalCents: number;

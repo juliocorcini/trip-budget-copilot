@@ -207,7 +207,18 @@ export function GroupSplitDetailPage() {
     try {
       // DEC-433 — the published mirror carries the owner's repayment methods; the
       // locally persisted event stays clean (methods live in AppSettings, not here).
-      await republishGroupSplit(bumped, withOwnerPaymentMethods(next, ownerMethodsRef.current), bumped.revision);
+      const result = await republishGroupSplit(
+        bumped,
+        withOwnerPaymentMethods(next, ownerMethodsRef.current),
+        bumped.revision,
+      );
+      // DEC-455 — the republish escrowed the key: pre-escrow events upgrade so
+      // their next shared link drops the `#k=` fragment.
+      if (result.keyHeld && !bumped.keyOnServer) {
+        const upgraded: GroupLiveCreds = { ...bumped, keyOnServer: true };
+        applyCreds(upgraded);
+        saveGroupLive(next.id, upgraded);
+      }
     } catch {
       // A transient network failure leaves the link live at the prior revision;
       // the next edit re-publishes. Never block the local edit on the network.

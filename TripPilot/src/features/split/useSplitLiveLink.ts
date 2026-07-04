@@ -198,11 +198,24 @@ export function useSplitLiveLink(
       const nextRevision = revisionRef.current + 1;
       revisionRef.current = nextRevision;
       republishSplitTable(liveCreds, liveSession, nextRevision)
-        .then(() => {
+        .then((result) => {
           lastPublishedRef.current = serialized;
           // Keep the persisted revision in step so a reopen resumes at the right
-          // point instead of replaying a stale one.
-          saveOwnerLive({ ...liveCreds, revision: nextRevision });
+          // point instead of replaying a stale one. DEC-455: a republish also
+          // escrows the key — the ack upgrades pre-escrow tables so their next
+          // shared link drops the `#k=` fragment.
+          const upgraded: SplitLiveCreds = {
+            ...liveCreds,
+            revision: nextRevision,
+            ...(result.keyHeld ? { keyOnServer: true } : {}),
+          };
+          saveOwnerLive(upgraded);
+          if (result.keyHeld && !liveCreds.keyOnServer) {
+            // One-time flip (never on routine republishes — creds identity feeds
+            // the signal effect): re-render so the displayed link shortens.
+            credsRef.current = upgraded;
+            setCreds(upgraded);
+          }
           signalRef.current?.send({ t: 'upd', rev: nextRevision });
         })
         .catch(() => {});

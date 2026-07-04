@@ -26,6 +26,7 @@ const CARDS = {
   group: 'Divisão em grupo — veja sua parte',
   split: 'Divisão ao vivo — a conta na mesa',
   statement: 'Acerto de contas compartilhado',
+  expense: 'Um gasto da viagem — veja o detalhe',
 };
 
 // The app icon (public/icons/icon.svg) internals, scaled 1024 → 300.

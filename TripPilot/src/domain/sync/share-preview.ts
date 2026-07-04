@@ -4,9 +4,10 @@
  * The preview is a deliberately-plaintext SUMMARY blob stored NEXT TO the E2E
  * ciphertext so link crawlers (WhatsApp/OG) can render a card. Hard limits
  * (Â-PREVIEW-SUMMARY-ONLY): title/description/total/currency/people count/
- * updatedAt/one image id — NEVER items, per-item names, the AES key or the
- * write token; serialized size ≤ 1 KB. The AES key stays exclusively in the
- * URL fragment (Â-KEY-IN-FRAGMENT) — the slug shortens the PATH only.
+ * updatedAt/one image id — NEVER items, per-item names or the write token;
+ * serialized size ≤ 1 KB. The slug shortens the PATH. Since DEC-455 the AES
+ * key may be escrowed on the worker (short keyless links); it still never
+ * appears inside the preview blob itself.
  */
 
 export const SHARE_PREVIEW_VERSION = 1 as const;
@@ -15,7 +16,7 @@ export const SHARE_PREVIEW_TITLE_MAX = 80;
 export const SHARE_PREVIEW_DESCRIPTION_MAX = 200;
 export const SHARE_SLUG_BASE_MAX = 40;
 
-export type SharePreviewKind = 'group' | 'split' | 'statement';
+export type SharePreviewKind = 'group' | 'split' | 'statement' | 'expense';
 
 export interface SharePreview {
   v: typeof SHARE_PREVIEW_VERSION;

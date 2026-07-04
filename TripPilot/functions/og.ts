@@ -9,7 +9,7 @@
  * reach the server, and every injected value is HTML-escaped.
  */
 
-export type ShareRouteKind = 'group' | 'split' | 'statement';
+export type ShareRouteKind = 'group' | 'split' | 'statement' | 'expense';
 
 export interface ShareRoute {
   kind: ShareRouteKind;
@@ -28,17 +28,18 @@ const PREFIX_TO_KIND: Record<string, ShareRouteKind> = {
   g: 'group',
   t: 'split',
   s: 'statement',
+  x: 'expense',
 };
 
 /** Slugs (`a-z0-9-`), canonical UUIDs and legacy hex/base64url ids all fit. */
 const ADDRESS_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**
- * `/g/:x`, `/t/:x`, `/s/:x` (single segment) → share route; anything else
- * (deep paths, bad chars) → null so the caller falls through untouched.
+ * `/g/:x`, `/t/:x`, `/s/:x`, `/x/:x` (single segment) → share route; anything
+ * else (deep paths, bad chars) → null so the caller falls through untouched.
  */
 export function parseShareRoute(pathname: string): ShareRoute | null {
-  const match = pathname.match(/^\/([gts])\/([^/]+)$/);
+  const match = pathname.match(/^\/([gtsx])\/([^/]+)$/);
   if (!match) return null;
   let address: string;
   try {
@@ -134,7 +135,12 @@ export function composeShareOgTags(input: ComposeOgInput): string {
     typeof preview.imgId === 'string' && IMG_ID_RE.test(preview.imgId)
       ? `${workerOrigin}/img/${encodeURIComponent(preview.imgId)}`
       : `${origin}/og/${route.kind}.png`;
-  const prefix = route.kind === 'group' ? 'g' : route.kind === 'split' ? 't' : 's';
-  const pageUrl = `${origin}/${prefix}/${encodeURIComponent(route.address)}`;
+  const KIND_TO_PREFIX: Record<ShareRouteKind, string> = {
+    group: 'g',
+    split: 't',
+    statement: 's',
+    expense: 'x',
+  };
+  const pageUrl = `${origin}/${KIND_TO_PREFIX[route.kind]}/${encodeURIComponent(route.address)}`;
   return buildOgTags({ title, description, imageUrl, pageUrl });
 }

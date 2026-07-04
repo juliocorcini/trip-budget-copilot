@@ -82,6 +82,8 @@ export function ExpenseDetailPage() {
   const [splitHistoryOpen, setSplitHistoryOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  // DEC-457: publishing the expense's `/x/` share link (photos upload here).
+  const [sharing, setSharing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // D-IMP-03: link this already-recorded expense to a planned purchase, from the
   // expense side (the reverse of the picker on the Planned Purchases screen).
@@ -294,6 +296,34 @@ export function ExpenseDetailPage() {
         });
       },
     });
+  };
+
+  // DEC-457: share THIS expense as a `/x/` link (photos included). The heavy
+  // transport module is imported on tap so the detail chunk stays lean; the
+  // link is minted once and reused (revision bump) on every re-share.
+  const handleShareExpense = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const [{ publishExpenseShare }, { resolveSelfShareName }, { shareOrCopyLink }] =
+        await Promise.all([
+          import('./expense-share'),
+          import('@/domain/orchestrators'),
+          import('@/utils/native/link-share'),
+        ]);
+      const ownerName = (await resolveSelfShareName(settings ?? undefined).catch(() => '')) || 'TripPilot';
+      const { url } = await publishExpenseShare(tx, ownerName);
+      const outcome = await shareOrCopyLink({
+        url,
+        text: t('expenseShare.message', { description: tx.description, url }),
+      });
+      if (outcome === 'copied') showToast(t('shareLink.copied'), 'success');
+      else if (outcome === 'copy_failed') showToast(t('shareLink.copy_failed'), 'danger');
+    } catch {
+      showToast(t('expenseShare.error'), 'danger');
+    } finally {
+      setSharing(false);
+    }
   };
 
   // DEC-126: single delete goes through the same batch orchestrator (shares
@@ -544,6 +574,20 @@ export function ExpenseDetailPage() {
               </button>
             )
           )}
+
+          {/* DEC-457: send this expense (with photos) as a link anyone opens. */}
+          <button
+            onClick={() => void handleShareExpense()}
+            disabled={sharing}
+            className="w-full py-2.5 rounded-xl bg-surface-container text-on-surface-dim font-semibold text-sm btn-press flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {sharing ? (
+              <span className="w-4 h-4 rounded-full border-2 border-on-surface-dim border-t-transparent animate-spin" />
+            ) : (
+              <Icon name="share" size={18} className="text-on-surface-dim" />
+            )}
+            {sharing ? t('expenseShare.sharing') : t('expenseShare.share_button')}
+          </button>
 
           <div className="flex gap-3">
             <button

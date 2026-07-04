@@ -28,7 +28,7 @@ const SHELL = `<!DOCTYPE html>
 </html>`;
 
 describe('parseShareRoute', () => {
-  it('maps the three share prefixes to their kinds', () => {
+  it('maps the four share prefixes to their kinds', () => {
     expect(parseShareRoute('/g/churras-do-bruno-x7f2')).toEqual({
       kind: 'group',
       address: 'churras-do-bruno-x7f2',
@@ -38,13 +38,19 @@ describe('parseShareRoute', () => {
       address: '50624147-e4b4-49f5-a7be-8bc22128ba46',
     });
     expect(parseShareRoute('/s/abc123')).toEqual({ kind: 'statement', address: 'abc123' });
+    // DEC-457 — a single shared expense.
+    expect(parseShareRoute('/x/jantar-x7k2mp')).toEqual({
+      kind: 'expense',
+      address: 'jantar-x7k2mp',
+    });
   });
 
   it('rejects everything else (other routes, deep paths, junk addresses)', () => {
     expect(parseShareRoute('/')).toBeNull();
     expect(parseShareRoute('/settings')).toBeNull();
     expect(parseShareRoute('/g/a/b')).toBeNull();
-    expect(parseShareRoute('/x/abc')).toBeNull();
+    expect(parseShareRoute('/x/a/b')).toBeNull();
+    expect(parseShareRoute('/q/abc')).toBeNull();
     expect(parseShareRoute('/g/' + 'a'.repeat(65))).toBeNull();
     expect(parseShareRoute('/g/has%20space')).toBeNull();
     expect(parseShareRoute('/g/%ZZ')).toBeNull(); // malformed percent-encoding
@@ -132,5 +138,19 @@ describe('composeShareOgTags', () => {
     const html = injectOgTags(SHELL, tags);
     expect(html).not.toContain('#k=');
     expect(html).not.toContain('writeToken');
+  });
+
+  it('DEC-457 — expense route: /x/ page URL + expense fallback card', () => {
+    const expenseRoute = { kind: 'expense' as const, address: 'jantar-x7k2mp' };
+    const withPhoto = composeShareOgTags({
+      route: expenseRoute,
+      preview: { title: 'Jantar', description: '€ 23,50 · 03/07/2026', imgId: 'AbCd1234_efGh5678' },
+      origin,
+      workerOrigin,
+    });
+    expect(withPhoto).toContain(`content="${origin}/x/jantar-x7k2mp"`);
+    expect(withPhoto).toContain(`${workerOrigin}/img/AbCd1234_efGh5678`);
+    const sparse = composeShareOgTags({ route: expenseRoute, preview: {}, origin, workerOrigin });
+    expect(sparse).toContain(`${origin}/og/expense.png`);
   });
 });

@@ -42,18 +42,22 @@ import { isSharePreviewEnabled } from '@/features/group-split/group-link';
  * boundary (network, WebCrypto, localStorage) with the split feature, so the
  * domain and the React layer both stay free of transport concerns.
  *
- * Capability model (inherited from DEC-207): the AES key never leaves the
- * device except inside the link fragment, so the worker stores opaque
- * ciphertext it can never read. The owner holds a write token that gates
- * re-publish / revoke / pulling guest claims.
+ * Capability model (DEC-207, amended by DEC-455): the worker stores opaque
+ * ciphertext; the owner holds a write token that gates re-publish / revoke /
+ * pulling guest claims. Since DEC-455 the AES key is ESCROWED on the worker at
+ * publish time so the outgoing link can drop the ugly `#k=` fragment — the
+ * link (slug or id) is the read capability either way. Old fragment links
+ * keep working forever (the fragment, when present, wins).
  */
 
 export interface SplitLiveCreds {
   shareId: string;
   /** DEC-446 — readable path slug (absent on legacy/preview-off links). */
   slug?: string;
-  /** AES key (base64url). Client-only; travels solely in the link fragment. */
+  /** AES key (base64url). */
   key: string;
+  /** DEC-455 — worker holds the key too, so the built link drops `#k=`. */
+  keyOnServer?: boolean;
   writeToken: string;
   /** Last published revision; bumped on every owner re-publish. */
   revision: number;
@@ -93,11 +97,17 @@ function composeSplitPreview(session: SplitSession): SharePreview {
   });
 }
 
-async function splitPublishExtras(session: SplitSession): Promise<SharePublishExtras | undefined> {
-  if (!(await isSharePreviewEnabled())) return undefined;
+/** DEC-455 — `linkKey` rides ALWAYS (short links); preview/slug obey the toggle. */
+async function splitPublishExtras(session: SplitSession, key: string): Promise<SharePublishExtras> {
+  const previewOn = await isSharePreviewEnabled();
   return {
-    preview: composeSplitPreview(session),
-    slugBase: slugifyShareName(session.name) || 'split',
+    ...(previewOn
+      ? {
+          preview: composeSplitPreview(session),
+          slugBase: slugifyShareName(session.name) || 'split',
+        }
+      : {}),
+    linkKey: key,
   };
 }
 
@@ -108,26 +118,34 @@ export async function publishSplitTable(session: SplitSession, revision: number)
   const safeRevision = revision >= 1 ? Math.floor(revision) : 1;
   const key = await generateSessionKey();
   const blob = await encodeSession(key, session, safeRevision);
-  const created = await createShare(blob, safeRevision, await splitPublishExtras(session));
+  const created = await createShare(blob, safeRevision, await splitPublishExtras(session, key));
   return {
     shareId: created.id,
     ...(created.slug ? { slug: created.slug } : {}),
     key,
+    // Only trust the worker's explicit ack — an older worker ignores linkKey,
+    // and a fragment-less link against it would be undecryptable.
+    ...(created.keyHeld ? { keyOnServer: true } : {}),
     writeToken: created.writeToken,
     revision: safeRevision,
   };
 }
 
-/** Re-publish the merged/edited session under the same link (owner-authoritative). */
+/**
+ * Re-publish the merged/edited session under the same link (owner-authoritative).
+ * Returns whether the worker now holds the key (DEC-455 upgrade path for tables
+ * created before escrow) — the caller persists `keyOnServer` accordingly.
+ */
 export async function republishSplitTable(
   creds: SplitLiveCreds,
   session: SplitSession,
   revision: number,
-): Promise<void> {
+): Promise<{ keyHeld: boolean }> {
   const blob = await encodeSession(creds.key, session, revision);
   // Preview refreshed (or erased, when the kill-switch is off) on every republish.
-  const preview = (await isSharePreviewEnabled()) ? composeSplitPreview(session) : undefined;
-  await putShareStatement(creds.shareId, creds.writeToken, blob, revision, preview);
+  const extras = await splitPublishExtras(session, creds.key);
+  const result = await putShareStatement(creds.shareId, creds.writeToken, blob, revision, extras);
+  return { keyHeld: result.keyHeld };
 }
 
 export async function revokeSplitTable(creds: SplitLiveCreds): Promise<void> {
@@ -183,9 +201,11 @@ export function buildSplitTableLink(creds: SplitLiveCreds): string {
   // `https://localhost`, which would produce a dead link. `getShareOrigin()`
   // returns the canonical public origin on native (and the real origin on web),
   // exactly like the `/s/:id` + `/pair` links.
-  // DEC-446 — slug in the path when present; the key stays in the fragment.
+  // DEC-446 — slug in the path when present.
   // DEC-454 — ?v=<revision> busts WhatsApp's per-URL card cache on edits.
-  return buildSplitTableUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key, creds.revision);
+  // DEC-455 — when the worker holds the key, the `#k=` fragment is dropped.
+  const fragmentKey = creds.keyOnServer ? null : creds.key;
+  return buildSplitTableUrl(getShareOrigin(), creds.slug ?? creds.shareId, fragmentKey, creds.revision);
 }
 
 /* ── guest side ──────────────────────────────────────────────────────────── */
@@ -193,19 +213,26 @@ export function buildSplitTableLink(creds: SplitLiveCreds): string {
 export type FetchTableStatus = 'revoked' | 'not_found' | 'bad_key' | 'error';
 
 export type FetchTableResult =
-  | { status: 'ok'; payload: SplitSharePayload }
+  | { status: 'ok'; payload: SplitSharePayload; key: string }
   | { status: FetchTableStatus };
 
-/** Fetch + decrypt + validate the live table for a guest. */
-export async function fetchSplitTable(shareId: string, key: string): Promise<FetchTableResult> {
+/**
+ * Fetch + decrypt + validate the live table for a guest. DEC-455: `key` may be
+ * null (fragment-less short link) — the escrowed key returned by the statement
+ * GET is used instead, and the RESOLVED key rides back in the ok result so the
+ * page can post claims / pull responses with it. A fragment key always wins.
+ */
+export async function fetchSplitTable(shareId: string, key: string | null): Promise<FetchTableResult> {
   const res = await getShareStatement(shareId);
   if (res.status === 'revoked') return { status: 'revoked' };
   if (res.status === 'not_found') return { status: 'not_found' };
   if (res.status === 'error') return { status: 'error' };
 
+  const effectiveKey = key ?? res.key ?? null;
+  if (!effectiveKey) return { status: 'bad_key' };
   let cryptoKey: CryptoKey;
   try {
-    cryptoKey = await importSessionKey(key);
+    cryptoKey = await importSessionKey(effectiveKey);
   } catch {
     return { status: 'bad_key' };
   }
@@ -219,7 +246,7 @@ export async function fetchSplitTable(shareId: string, key: string): Promise<Fet
   }
   const payload = parseSplitSharePayload(json);
   if (!payload) return { status: 'error' };
-  return { status: 'ok', payload };
+  return { status: 'ok', payload, key: effectiveKey };
 }
 
 /**
@@ -268,6 +295,7 @@ export function loadOwnerLive(): SplitLiveCreds | null {
         shareId: c.shareId,
         ...(typeof c.slug === 'string' ? { slug: c.slug } : {}),
         key: c.key,
+        ...(c.keyOnServer === true ? { keyOnServer: true } : {}),
         writeToken: c.writeToken,
         revision: c.revision,
       };

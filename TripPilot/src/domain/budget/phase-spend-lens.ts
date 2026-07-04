@@ -4,47 +4,40 @@ import { calculatePoolSpent } from './budget';
 import type { FreeToSpendResult } from './budget';
 
 /**
- * DEC-447 (G2+G3) — the PhaseSpendLens: ONE canonical reconciliation of every
- * "phase money" number the app shows, so the surfaces stop contradicting each
- * other in front of the user.
+ * DEC-447 (G2+G3) + DEC-456 (field verdict 2026-07-03) — the PhaseSpendLens:
+ * ONE canonical reconciliation of every "phase money" number the app shows.
  *
- * The G2 investigation (§6-A of the 2026-07-03 orchestrator + the evidence
- * suite `phase-numbers-investigation.test.ts`) proved the confusion is FOUR
- * scopes without a bridge — none of them a math bug:
+ * DEC-456 changed the MATH SCOPE (with Julio's explicit verdict, satisfying
+ * Â-NUMBERS-EVIDENCE-FIRST): the phase budget arithmetic uses ONLY the phase's
+ * primary fund. Money attributed to the phase but paid from OTHER pools —
+ * global pots like "Tomorrowland", other-phase funds, or no fund at all — no
+ * longer inflates the envelope ("+150 do pote" grew the budget, which read as
+ * nonsense: a pot is trip money, not phase money). Those spends now live in a
+ * separate INFORMATIVE section (`kind: 'info'`) that names each source but
+ * never enters the sums.
  *
- *   - the CONFIGURED number is the pool's total (628 in the report);
- *   - the insight "orçamento da fase" is a DERIVED envelope
- *     `free + attributedSpent` (884) that silently absorbs event reserves and
- *     pot spends attributed to the phase;
- *   - the hero is the consumable free (post-reserves, DEC-427);
- *   - the list total is gross, trip-wide (pre-G1) or phase-scoped (G1).
- *
- * This module makes the bridge explicit: `lines` is a display-ready sequence
- * (same pattern as `buildFreeToSpendBreakdown`, DEC-168) whose arithmetic SUMS
- * exactly — verified by tests against the G2 fixture. Per
- * Â-NUMBERS-EVIDENCE-FIRST it CHANGES no number: every value is derived from
- * the same `FreeToSpendResult` and transactions the screens already use.
+ * The invariant holds: `freeNowRawCents` (the hero free) is untouched —
+ * algebraically, freeRaw + primaryPoolSpend = configured + income − reserves −
+ * paidOtherPhases, exactly, so the lines still SUM with no fudge term.
  */
 
 export interface PhaseSpendLens {
   /** The configured total of the phase's primary pool — the only CONFIGURED number. */
   configuredPhaseBudgetCents: number;
-  /** Personal cost attributed to the phase across ALL pools (the insight "spent"). */
+  /** INFO — personal cost attributed to the phase across ALL pools (the list-ish total). */
   attributedSpentCents: number;
-  /** The slice of `attributedSpentCents` that actually drew from the primary pool. */
+  /** The slice of `attributedSpentCents` paid from the primary pool — the ONLY spend in the math. */
   consumableSpentCents: number;
   /** Event reserves still held against the phase (consumable remainder, DEC-385). */
   reservedEventCents: number;
   /** Primary-pool spends attributed to OTHER phases (e.g. a future-phase hotel paid now). */
   paidNowOtherPhasesCents: number;
-  /** Phase-attributed spends paid from OTHER pools (pots) — what inflates the envelope. */
+  /** INFO — phase-attributed spends paid from OTHER pools (pots/funds). Not in the math (DEC-456). */
   otherPoolsCents: number;
   /**
-   * DEC-453 (field fix): WHERE the `other_pools` money came from, pool by pool
-   * (signed personal-cost cents, biggest first). Sums exactly to
-   * `otherPoolsCents`, so the user can trace "+256 de outras verbas" to the
-   * actual fund instead of hunting through the app. `poolId` null groups
-   * spends that carry no fund at all.
+   * DEC-453 (field fix): WHERE the informative `other_pools` money came from,
+   * pool by pool (signed personal-cost cents, biggest first). Sums exactly to
+   * `otherPoolsCents`. `poolId` null groups spends that carry no fund at all.
    */
   otherPoolsByPool: Array<{ poolId: string | null; cents: number }>;
   /** Gross trip-wide expense total (the list's "Todas" scope). */
@@ -53,11 +46,11 @@ export interface PhaseSpendLens {
   phaseGrossCents: number;
   /** Gross expense total OUTSIDE the phase — the list's "includes X from other phases". */
   otherPhasesGrossCents: number;
-  /** The derived envelope the insight calls "budget": free + attributed spent. */
+  /** The derived envelope: floored free + primary-pool spend (DEC-456 scope). */
   calculatedEnvelopeCents: number;
-  /** Signed free money now (raw, pre-floor) — envelope − attributed, exactly. */
+  /** Signed free money now (raw, pre-floor) — envelope − primary-pool spend, exactly. */
   freeNowRawCents: number;
-  /** Display-ready reconciliation; the lines sum to the envelope and then to free. */
+  /** Display-ready reconciliation; arithmetic lines sum, `info` lines never count. */
   lines: PhaseSpendLensLine[];
 }
 
@@ -71,10 +64,11 @@ export type PhaseSpendLensLineKey =
   | 'paid_other_phases'
   | 'other_pools'
   | 'calculated_envelope'
-  | 'attributed_spent'
+  | 'phase_pool_spent'
   | 'free_now';
 
-export type PhaseSpendLensLineKind = 'base' | 'add' | 'subtract' | 'total';
+/** DEC-456: `info` renders in a separate section and NEVER enters the sums. */
+export type PhaseSpendLensLineKind = 'base' | 'add' | 'subtract' | 'total' | 'info';
 
 export interface PhaseSpendLensLine {
   key: PhaseSpendLensLineKey;
@@ -138,22 +132,24 @@ export function buildPhaseSpendLens(input: BuildPhaseSpendLensInput): PhaseSpend
   );
   const otherPhasesGrossCents = tripTotalCents - phaseGrossCents;
 
-  // The derived envelope the insight labels "budget" — kept IDENTICAL to the
-  // production composition (`useDashboardModel` L455): floored free + attributed.
-  const calculatedEnvelopeCents = fts.freeToSpendCents + attributedSpentCents;
+  // DEC-456: the envelope is PHASE MONEY ONLY — floored free + primary-pool
+  // spend. Other pools no longer inflate it (kept identical to the production
+  // composition in `useDashboardModel`, which feeds the same scope to insights).
+  const calculatedEnvelopeCents = fts.freeToSpendCents + consumableSpentCents;
   // The signed identity uses the RAW free so a deficit is shown, not hidden.
   const freeNowRawCents = fts.freeToSpendRawCents;
   // The LINE arithmetic must always sum, so the envelope line carries the raw
   // (unfloored) sum. It equals `calculatedEnvelopeCents` whenever free ≥ 0 (the
   // normal case); in a deficit it is smaller by exactly the overshoot — honest,
   // instead of silently breaking the addition the block exists to prove.
-  const envelopeLineCents = freeNowRawCents + attributedSpentCents;
+  const envelopeLineCents = freeNowRawCents + consumableSpentCents;
 
-  // Reconciliation, in the exact algebra proven in G2 (§6-A):
+  // Reconciliation, in the DEC-456 algebra:
   //   envelope = configured + income − protected − floor − eventRes − planned
-  //              − paidNowOtherPhases + otherPools
-  //   freeRaw  = envelope − attributed
-  // Zero terms are dropped (noise), totals always stay.
+  //              − paidNowOtherPhases
+  //   freeRaw  = envelope − phasePoolSpent
+  // Zero terms are dropped (noise), totals always stay. Other-pool money is an
+  // `info` line AFTER the sums — visible, named, never counted.
   const lines: PhaseSpendLensLine[] = [
     { key: 'configured_budget', cents: fts.totalBudgetCents, kind: 'base' },
   ];
@@ -174,14 +170,12 @@ export function buildPhaseSpendLens(input: BuildPhaseSpendLensInput): PhaseSpend
   } else if (paidNowOtherPhasesCents < 0) {
     lines.push({ key: 'paid_other_phases', cents: -paidNowOtherPhasesCents, kind: 'add' });
   }
-  if (otherPoolsCents > 0) {
-    lines.push({ key: 'other_pools', cents: otherPoolsCents, kind: 'add' });
-  } else if (otherPoolsCents < 0) {
-    lines.push({ key: 'other_pools', cents: -otherPoolsCents, kind: 'subtract' });
-  }
   lines.push({ key: 'calculated_envelope', cents: envelopeLineCents, kind: 'total' });
-  lines.push({ key: 'attributed_spent', cents: attributedSpentCents, kind: 'subtract' });
+  lines.push({ key: 'phase_pool_spent', cents: consumableSpentCents, kind: 'subtract' });
   lines.push({ key: 'free_now', cents: freeNowRawCents, kind: 'total' });
+  if (otherPoolsCents !== 0) {
+    lines.push({ key: 'other_pools', cents: otherPoolsCents, kind: 'info' });
+  }
 
   return {
     configuredPhaseBudgetCents: fts.totalBudgetCents,

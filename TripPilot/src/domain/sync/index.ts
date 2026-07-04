@@ -8,6 +8,7 @@ export * from './mailbox-envelope';
 export * from './protocol';
 export * from './qr-codec';
 export * from './statement-payload';
+export * from './expense-share-payload';
 export * from './connect-payload';
 export * from './debt-payload';
 export * from './debt-move-payload';

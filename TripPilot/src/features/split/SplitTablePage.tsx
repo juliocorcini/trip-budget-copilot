@@ -70,12 +70,14 @@ function initials(name: string): string {
 }
 
 /**
- * G2 — the guest live table (`/t/:id#k=<key>`). Lives OUTSIDE BootGate so a
- * guest with no trip is never bounced to onboarding. The guest taps the items
- * that are theirs; their claim snapshot is encrypted and posted to the owner,
- * whose device is the single source of truth (owner-reducer). The owner's edits
- * flow back here via `upd` pings + the poll floor, so the table stays live both
- * ways without this device ever holding the financial truth.
+ * G2 — the guest live table (`/t/:id`). Lives OUTSIDE BootGate so a guest with
+ * no trip is never bounced to onboarding. The guest taps the items that are
+ * theirs; their claim snapshot is encrypted and posted to the owner, whose
+ * device is the single source of truth (owner-reducer). The owner's edits flow
+ * back here via `upd` pings + the poll floor, so the table stays live both
+ * ways without this device ever holding the financial truth. The AES key comes
+ * from the `#k=` fragment (legacy links) or, since DEC-455, from the worker's
+ * escrow resolved by the first statement fetch (short links).
  */
 export function SplitTablePage() {
   const { t } = useTranslation();
@@ -86,6 +88,8 @@ export function SplitTablePage() {
   const id = params.id ?? null;
   const key = useMemo(() => parseShareKeyFromHash(location.hash), [location.hash]);
   const actorId = useMemo(() => getGuestActorId(), []);
+  // DEC-455 — key resolved from the worker escrow (fragment-less short links).
+  const resolvedKeyRef = useRef<string | null>(null);
 
   const [load, setLoad] = useState<LoadState>({ kind: 'loading' });
   const [name, setName] = useState(() => getGuestName() ?? '');
@@ -117,17 +121,30 @@ export function SplitTablePage() {
   );
 
   const refetch = useCallback(async () => {
-    if (!id || !key) {
+    if (!id) {
       setLoad({ kind: 'error', status: 'bad_key' });
       return;
     }
     // The bill (statement) and the claims (responses) are two independent server
-    // keys; pull both in one shot so a single round-trip refreshes the whole view.
-    const [res, responses] = await Promise.all([
-      fetchSplitTable(id, key),
-      fetchSplitResponses(id, key).catch(() => [] as SplitClaimResponse[]),
-    ]);
+    // keys; with a known key both are pulled in one parallel shot. On the FIRST
+    // load of a fragment-less link (DEC-455) the key comes from the statement
+    // response itself, so that one time the pulls run sequentially.
+    const knownKey = key ?? resolvedKeyRef.current;
+    const [res, responses] = knownKey
+      ? await Promise.all([
+          fetchSplitTable(id, knownKey),
+          fetchSplitResponses(id, knownKey).catch(() => [] as SplitClaimResponse[]),
+        ])
+      : await (async () => {
+          const first = await fetchSplitTable(id, null);
+          const rest =
+            first.status === 'ok'
+              ? await fetchSplitResponses(id, first.key).catch(() => [] as SplitClaimResponse[])
+              : ([] as SplitClaimResponse[]);
+          return [first, rest] as const;
+        })();
     if (res.status === 'ok') {
+      resolvedKeyRef.current = res.key;
       setAllResponses(responses);
       setLastSyncAt(Date.now());
       if (!seededRef.current) {
@@ -151,6 +168,7 @@ export function SplitTablePage() {
     setLoad({ kind: 'loading' });
     hasPayloadRef.current = false;
     seededRef.current = false;
+    resolvedKeyRef.current = null;
     void refetch();
   }, [refetch]);
 
@@ -188,14 +206,17 @@ export function SplitTablePage() {
 
   // Post the guest snapshot (debounced) on every claim change once named.
   useEffect(() => {
-    if (!isLive || !named || !id || !key) return;
+    if (!isLive || !named || !id) return;
     const timer = setTimeout(() => {
+      // isLive guarantees a successful fetch already resolved the key (DEC-455).
+      const postKey = key ?? resolvedKeyRef.current;
+      if (!postKey) return;
       const response = buildSplitClaimResponse({
         fromActorId: actorId,
         fromName: name,
         claims: [...mine].map((itemId) => ({ itemId, fraction: 1, units: null })),
       });
-      void postSplitClaim(id, key, response)
+      void postSplitClaim(id, postKey, response)
         .then(() => signalRef.current?.send({ t: 'resp' }))
         .catch(() => {});
     }, POST_DEBOUNCE_MS);

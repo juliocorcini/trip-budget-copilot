@@ -104,10 +104,21 @@ export interface BuildInsightsInput {
   /** Local date "YYYY-MM-DD". */
   todayDate: string;
   phase: Phase;
-  /** Non-deleted transactions of the active phase (expenses + adjustments). */
+  /**
+   * Non-deleted transactions of the active phase (expenses + adjustments),
+   * ALL funds — feeds the BEHAVIORAL builders (streaks, danger day, end-of-day).
+   */
   phaseTransactions: Transaction[];
   /** Budget the phase had to work with: current free-to-spend + spent so far. */
   phaseBudgetCents: number;
+  /**
+   * DEC-456: spent term of the BUDGET builders (projection, rhythm, countdown)
+   * — phase money only (the phase's own fund; pots/other funds excluded), the
+   * same scope as `phaseBudgetCents`. When omitted (single-fund callers/tests)
+   * it falls back to the personal cost of `phaseTransactions`, which is
+   * identical whenever every attributed spend came from the phase fund.
+   */
+  phaseMoneySpentCents?: number;
   /** Totals of completed sessions in the phase (one entry per outing). */
   completedOutingTotalsCents: number[];
   /** Debts involving the owner (already netted by calculateDebts). */
@@ -146,8 +157,9 @@ function nextDay(date: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** DEC-456: the budget builders' spent term — phase money only when provided. */
 function phaseSpent(input: BuildInsightsInput): number {
-  return calculatePoolSpent(input.phaseTransactions);
+  return input.phaseMoneySpentCents ?? calculatePoolSpent(input.phaseTransactions);
 }
 
 function daysElapsed(input: BuildInsightsInput): number {

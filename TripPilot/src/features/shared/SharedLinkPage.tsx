@@ -8,10 +8,11 @@ import { Icon } from '@/components/Icon';
 type State = { kind: 'loading' } | { kind: 'error'; result: Exclude<IngestShareResult['status'], 'ok'> };
 
 /**
- * DEC-207 — the link landing route `/s/:id#k=<key>`. Lives OUTSIDE BootGate so a
+ * DEC-207 — the link landing route `/s/:id`. Lives OUTSIDE BootGate so a
  * guest with no trip is never bounced to onboarding. It decrypts the statement
- * (key from the URL fragment, never sent to the server), stores it, then drops
- * the guest on their "Compartilhadas comigo" home. Errors are explained in
+ * and drops the guest on their "Compartilhadas comigo" home. The AES key comes
+ * from the `#k=` fragment (legacy links) or, since DEC-455, from the worker's
+ * escrow when the fragment is absent (short links). Errors are explained in
  * plain language with a retry.
  */
 export function SharedLinkPage() {
@@ -24,11 +25,11 @@ export function SharedLinkPage() {
   const run = async () => {
     setState({ kind: 'loading' });
     const id = params.id;
-    const key = parseShareKeyFromHash(location.hash);
-    if (!id || !key) {
+    if (!id) {
       setState({ kind: 'error', result: 'bad_key' });
       return;
     }
+    const key = parseShareKeyFromHash(location.hash);
     const result = await ingestSharedLink(id, key);
     if (result.status === 'ok') {
       navigate('/shared-with-me', { replace: true });

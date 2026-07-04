@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-07-03 (Links+Números+Acerto `2.3.0-rc`: sharing links present themselves — summary-only preview blob DEFAULT-ON with kill-switch + readable slugs with the AES key always in the fragment + per-share OG via Pages Function — DEC-445/446, §31; phase numbers explain themselves via `PhaseSpendLens` with zero math change — DEC-447, §32; debt moves reach connected devices immediately with provenance on both sides and propagated undo via the new `debt_move` mailbox kind — DEC-451, §33; expense list opens phase-scoped — DEC-448; theme step in onboarding — DEC-449; directional split notification — DEC-450. Prior 2026-07-02: Field v2.1 `2.1.3-rc` venue-not-city + automatic FX — DEC-434/435. Prior 2026-06-17: reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207.)
+> Last updated: 2026-07-03 (wave `2.4.0-rc`: **short links without `#k=`** — the AES key is escrowed on the worker and returned to guests; explicit shareability-over-privacy trade-off locked by Julio — DEC-455, §34; **phase budget uses ONLY the phase's own fund** — global pots/other funds become an informative "outside this math" section in the lens and leave insights/burndown/amigo/Impact — DEC-456, §32 update; **share a single expense with photos** via `/x/:slug` with its own guest page and OG card — DEC-457, §35. Same-day hotfix wave `2.3.1-rc`: pool⇒phase stamping + list/map/total coherence + `?v=` re-scrape — DEC-452/453/454. Prior: Links+Números+Acerto `2.3.0-rc`: sharing links present themselves — summary-only preview blob DEFAULT-ON with kill-switch + readable slugs with the AES key always in the fragment + per-share OG via Pages Function — DEC-445/446, §31; phase numbers explain themselves via `PhaseSpendLens` with zero math change — DEC-447, §32; debt moves reach connected devices immediately with provenance on both sides and propagated undo via the new `debt_move` mailbox kind — DEC-451, §33; expense list opens phase-scoped — DEC-448; theme step in onboarding — DEC-449; directional split notification — DEC-450. Prior 2026-07-02: Field v2.1 `2.1.3-rc` venue-not-city + automatic FX — DEC-434/435. Prior 2026-06-17: reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207.)
 
 ## What is TripPilot?
 
@@ -426,11 +426,15 @@ there" mismatch), and the parked slice is surfaced inline as **"Guardado no cofr
 **display + consistency** change — `baseFree` and every total stay **invariant** (proven by an anchor
 test asserting today's cell equals the hero bit-for-bit).
 
-### 31. Links that present themselves — rich previews + readable slugs (Links+Números+Acerto wave — DEC-445/446, `2.2.3-rc`)
+### 31. Links that present themselves — rich previews + readable slugs (Links+Números+Acerto wave — DEC-445/446, `2.2.3-rc`; key model AMENDED by DEC-455, `2.4.0-rc`)
 
-Sharing links (`/g` group boards, `/t` live splits, `/s` statements) stay **end-to-end encrypted**
-(AES key only in the URL `#fragment` — it never reaches the server), but they now *present themselves*
-when pasted into WhatsApp/social:
+Sharing links (`/g` group boards, `/t` live splits, `/s` statements, `/x` single expenses) *present
+themselves* when pasted into WhatsApp/social. **Key model since DEC-455**: new links go out **short,
+with no `#k=` fragment** — the AES key is escrowed on the worker (KV, next to the ciphertext) and
+returned to guests on `GET /share/:id`; old fragment links keep working forever (fragment wins when
+present). The declared trade-off: new links are no longer E2E-against-the-server — Julio explicitly
+chose shareability over that guarantee. The key still never appears in slugs, previews, logs or
+query strings:
 
 - **Preview blob (DEC-445, DEFAULT-ON with kill-switch)**: on publish, the client stores a plaintext
   **summary-only** blob (≤1KB: title, description, total, currency, people count, updatedAt, imgId —
@@ -438,8 +442,9 @@ when pasted into WhatsApp/social:
   `GET /preview/:idOrSlug` (no rate limit, logged) serves it. Settings → "Prévia nos links" (default
   ON) kills future previews and erases stored ones **without breaking the link**; revoking a share
   erases preview + slug mapping.
-- **Readable slugs (DEC-446)**: new links come out as `/g/churras-do-bruno-x7f2#k=…` — a slugified
-  name + 4-char suffix mapped to the raw id in KV. The slug resolves everywhere (`/share`,
+- **Readable slugs (DEC-446, suffix widened by DEC-455)**: new links come out as
+  `/g/churras-do-bruno-x7f2mp` — a slugified name + 6-char suffix mapped to the raw id in KV
+  (6 chars because the slug is now the full capability). The slug resolves everywhere (`/share`,
   `/responses`, `/ws`, `/preview`); **old raw-id links keep working forever** (the slug is a new
   layer, not a replacement).
 - **OG surface (DEC-445 part 2)**: `index.html` carries a branded static OG block (default card);
@@ -448,15 +453,22 @@ when pasted into WhatsApp/social:
   else a branded card per type). Any failure serves the untouched SPA shell — a link never breaks.
   Crawler-probed (WhatsApp + facebookexternalhit UAs) on the apex.
 
-### 32. Phase numbers that explain themselves — PhaseSpendLens (DEC-447, `2.2.2-rc`)
+### 32. Phase numbers that explain themselves — PhaseSpendLens (DEC-447, `2.2.2-rc`; scope REMADE by DEC-456, `2.4.0-rc`)
 
 A field investigation of the real case (628 configured / 602 projection / 345 impact / 734 spent /
 873–884 heroes) concluded **zero math bugs** — every difference was labeling or scope. The fix is a
 single explaining lens, not new arithmetic (Â-NUMBERS-EVIDENCE-FIRST):
 
-- `PhaseSpendLens` (pure domain) reconciles the phase money canonically:
-  `configured − event reserves − pool spending − cross-phase attributions == remaining` (invariant
-  under test with the real-case fixture).
+- **Scope rule since DEC-456 (the Tomorrowland case): phase budget = the phase's own primary fund
+  ONLY.** `calculated envelope = configured − event reserves`; the subtraction line is the
+  **phase-fund spending only**; "Livre agora" closes with exactly those lines. Money from global
+  pots or other funds attributed to the phase moves to a separate informative section ("Fora desta
+  conta") that explicitly does NOT sum. The same phase-money-only scope feeds the dashboard's
+  budget insights, burndown, honest friend and the Impact page (`phaseMoneyTxs` /
+  `phaseMoneySpentCents`); behavioral insights (occasion counts, categories) still see all phase
+  transactions.
+- `PhaseSpendLens` (pure domain) reconciles the phase money canonically (invariant under test with
+  the real-case fixture).
 - The projection detail ("Como cheguei nisso") and the impact screen show a **"De onde vêm esses
   números"** block whose lines **actually add up** to the number on screen.
 - The label "Orçamento da fase" became **"Orçamento disponível calculado"** — it was never the
@@ -485,15 +497,47 @@ reachable mailbox:
   the apply created and updates the cards. The worker relay is untouched — `debt_move` is opaque
   ciphertext like every mailbox kind.
 
+### 34. Short links — the AES key lives on the server (DEC-455, `2.4.0-rc`)
+
+Every outgoing share link (`/s`, `/t`, `/g`, `/x`) is now **short**:
+`https://…/g/churras-do-bruno-x7f2mp` — no `#k=` fragment. Julio locked this explicitly (twice):
+shareability beats the E2E-against-the-server guarantee for links people actually paste around.
+
+- The client always sends the AES key on publish (`extras.k`); the worker stores it in KV next to
+  the ciphertext and returns it to guests on `GET /share/:id` (`key` field). Content remains
+  encrypted in transit and at rest; what changes is **who holds the key** (the server can now
+  technically read new shares — stated honestly, not hidden).
+- **Both directions stay compatible**: an old link WITH `#k=` opens forever (the fragment takes
+  precedence; shares created before escrow still resolve), and a new short link opens on old
+  content once the key round-trips.
+- Slug suffix went 4 → 6 chars (`SLUG_SUFFIX_LENGTH`) since the slug alone is now the capability.
+  Revoking a share erases ciphertext + preview + slug + escrowed key.
+
+### 35. Share a single expense — with its photos (DEC-457, `2.4.0-rc`)
+
+"Compartilhar gasto" on the expense detail publishes the expense through the same share channel
+(preview + slug + escrow) as everything else:
+
+- **Payload** (`expense-share-payload.ts`, zod v1): who shared, description, category, amount +
+  currency, date, place label, notes, up to 4 photos — **structurally free of** funds, wallets,
+  budgets and participants (the guest sees the expense, never the owner's finances).
+- **Photos travel**: attachments upload as plaintext copies to R2 (the DEC-348 group-image path);
+  the first photo becomes the preview `imgId`, so **the WhatsApp card shows the actual expense
+  photo**. Republishing bumps `?v=` (DEC-454) to force a re-scrape.
+- **Guest page** `/x/:slug` (no app needed): amount, date/time, place, notes, photo grid, friendly
+  error states (revoked / expired / offline). OG injection covers `/x/*` with a branded
+  `og/expense.png` fallback card; the in-app QR scanner recognizes `/x/` links.
+
 ## V1 — In Scope With Constraints (reconciled 2026-06-17)
 
 These were once "not in scope" but shipped under explicit, honest constraints (this section
 fulfills the DEC-207 mandate to rewrite the old "no remote database" line):
 
-- **Minimal portable backend (E2E)** — the shared-link epic stores **ciphertext only** (TTL +
-  revoke) in Cloudflare KV (`SHARE_STORE`); the AES key rides in the link `#fragment` and never
-  reaches the server; portable by design, no vendor lock-in (DEC-207). The DEC-107 signaling
-  Worker still relays opaque bytes for live P2P.
+- **Minimal portable backend** — the shared-link epic stores ciphertext (TTL + revoke) in
+  Cloudflare KV (`SHARE_STORE`); portable by design, no vendor lock-in (DEC-207). **Key model
+  amended by DEC-455 (`2.4.0-rc`)**: the AES key is now escrowed on the worker so links go out
+  short (no `#k=`) — old fragment links keep working; the key still never appears in logs,
+  previews or query strings. The DEC-107 signaling Worker still relays opaque bytes for live P2P.
 - **Receipt import (photo → items → split)** — attach a photo to any expense, read it into items,
   split among chosen people (DEC-206/208). Images are device-local, never in the backup.
 - **AI/LLM (opt-in, no-train provider)** — the receipt reader uses Groq behind the Worker `/ocr`,

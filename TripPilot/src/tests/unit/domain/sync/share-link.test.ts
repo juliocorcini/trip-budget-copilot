@@ -3,6 +3,7 @@ import {
   buildShareUrl,
   buildSplitTableUrl,
   buildGroupSplitUrl,
+  buildExpenseShareUrl,
   parseShareKeyFromHash,
 } from '@/domain/sync';
 
@@ -71,6 +72,39 @@ describe('?v= crawler cache-bust (DEC-454)', () => {
     );
     expect(buildSplitTableUrl('https://x.dev', SHARE_ID, KEY, 2)).toBe(
       `https://x.dev/t/${SHARE_ID}?v=2#k=${KEY}`,
+    );
+  });
+});
+
+describe('DEC-455 — fragment-less short links (key: null)', () => {
+  it('a null key omits the #k= fragment entirely, on every prefix', () => {
+    expect(buildShareUrl('https://x.dev', 'ana-x7k2mp', null)).toBe('https://x.dev/s/ana-x7k2mp');
+    expect(buildSplitTableUrl('https://x.dev', 'jantar-x7k2mp', null)).toBe(
+      'https://x.dev/t/jantar-x7k2mp',
+    );
+    expect(buildGroupSplitUrl('https://x.dev', 'praia-x7k2mp', null)).toBe(
+      'https://x.dev/g/praia-x7k2mp',
+    );
+  });
+
+  it('keyless link + revision ≥ 2 still busts the crawler cache with ?v=', () => {
+    const url = buildGroupSplitUrl('https://x.dev', 'praia-x7k2mp', null, 3);
+    expect(url).toBe('https://x.dev/g/praia-x7k2mp?v=3');
+    expect(new URL(url).hash).toBe('');
+  });
+
+  it('a present key keeps the legacy fragment (old links unchanged)', () => {
+    expect(buildShareUrl('https://x.dev', SHARE_ID, KEY)).toContain(`#k=${KEY}`);
+  });
+});
+
+describe('DEC-457 — /x/ shared expense link', () => {
+  it('uses the /x/ prefix and supports both keyed and keyless forms', () => {
+    expect(buildExpenseShareUrl('https://x.dev', 'jantar-x7k2mp', null)).toBe(
+      'https://x.dev/x/jantar-x7k2mp',
+    );
+    expect(buildExpenseShareUrl('https://x.dev', SHARE_ID, KEY, 2)).toBe(
+      `https://x.dev/x/${SHARE_ID}?v=2#k=${KEY}`,
     );
   });
 });

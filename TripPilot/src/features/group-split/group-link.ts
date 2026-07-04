@@ -53,8 +53,10 @@ export interface GroupLiveCreds {
   shareId: string;
   /** DEC-446 — readable path slug (absent on legacy/preview-off links). */
   slug?: string;
-  /** AES key (base64url). Client-only; travels solely in the link fragment. */
+  /** AES key (base64url). */
   key: string;
+  /** DEC-455 — worker holds the key too, so the built link drops `#k=`. */
+  keyOnServer?: boolean;
   writeToken: string;
   /** Last published revision; bumped on every owner re-publish. */
   revision: number;
@@ -104,11 +106,17 @@ function composeGroupPreview(event: GroupSplitEvent): SharePreview {
   });
 }
 
-async function groupPublishExtras(event: GroupSplitEvent): Promise<SharePublishExtras | undefined> {
-  if (!(await isSharePreviewEnabled())) return undefined;
+/** DEC-455 — `linkKey` rides ALWAYS (short links); preview/slug obey the toggle. */
+async function groupPublishExtras(event: GroupSplitEvent, key: string): Promise<SharePublishExtras> {
+  const previewOn = await isSharePreviewEnabled();
   return {
-    preview: composeGroupPreview(event),
-    slugBase: slugifyShareName(event.name) || 'group',
+    ...(previewOn
+      ? {
+          preview: composeGroupPreview(event),
+          slugBase: slugifyShareName(event.name) || 'group',
+        }
+      : {}),
+    linkKey: key,
   };
 }
 
@@ -119,26 +127,33 @@ export async function publishGroupSplit(event: GroupSplitEvent, revision: number
   const safeRevision = revision >= 1 ? Math.floor(revision) : 1;
   const key = await generateSessionKey();
   const blob = await encodeEvent(key, event, safeRevision);
-  const created = await createShare(blob, safeRevision, await groupPublishExtras(event));
+  const created = await createShare(blob, safeRevision, await groupPublishExtras(event, key));
   return {
     shareId: created.id,
     ...(created.slug ? { slug: created.slug } : {}),
     key,
+    // Only trust the worker's explicit ack — an older worker ignores linkKey.
+    ...(created.keyHeld ? { keyOnServer: true } : {}),
     writeToken: created.writeToken,
     revision: safeRevision,
   };
 }
 
-/** Re-publish the edited event under the same link (owner-authoritative). */
+/**
+ * Re-publish the edited event under the same link (owner-authoritative).
+ * Returns whether the worker now holds the key (DEC-455 upgrade path for
+ * events shared before escrow) — the caller persists `keyOnServer`.
+ */
 export async function republishGroupSplit(
   creds: GroupLiveCreds,
   event: GroupSplitEvent,
   revision: number,
-): Promise<void> {
+): Promise<{ keyHeld: boolean }> {
   const blob = await encodeEvent(creds.key, event, revision);
   // Preview refreshed (or erased, when the kill-switch is off) on every republish.
-  const preview = (await isSharePreviewEnabled()) ? composeGroupPreview(event) : undefined;
-  await putShareStatement(creds.shareId, creds.writeToken, blob, revision, preview);
+  const extras = await groupPublishExtras(event, creds.key);
+  const result = await putShareStatement(creds.shareId, creds.writeToken, blob, revision, extras);
+  return { keyHeld: result.keyHeld };
 }
 
 export async function revokeGroupSplit(creds: GroupLiveCreds): Promise<void> {
@@ -182,11 +197,13 @@ export async function fetchGroupResponses(shareId: string, key: string): Promise
 }
 
 export function buildGroupSplitLink(creds: GroupLiveCreds): string {
-  // DEC-446 — the slug shortens the PATH; the key stays in the fragment. Old
-  // credentials without a slug keep producing the raw-id link forever.
+  // DEC-446 — the slug shortens the PATH. Old credentials without a slug keep
+  // producing the raw-id link forever.
   // DEC-454 — the revision rides as ?v= so WhatsApp re-scrapes an edited share
   // (e.g. a photo attached after the first paste) instead of serving its cache.
-  return buildGroupSplitUrl(getShareOrigin(), creds.slug ?? creds.shareId, creds.key, creds.revision);
+  // DEC-455 — when the worker holds the key, the `#k=` fragment is dropped.
+  const fragmentKey = creds.keyOnServer ? null : creds.key;
+  return buildGroupSplitUrl(getShareOrigin(), creds.slug ?? creds.shareId, fragmentKey, creds.revision);
 }
 
 /* ── guest side ──────────────────────────────────────────────────────────── */
@@ -194,19 +211,26 @@ export function buildGroupSplitLink(creds: GroupLiveCreds): string {
 export type FetchGroupStatus = 'revoked' | 'not_found' | 'bad_key' | 'error';
 
 export type FetchGroupResult =
-  | { status: 'ok'; payload: GroupSharePayload }
+  | { status: 'ok'; payload: GroupSharePayload; key: string }
   | { status: FetchGroupStatus };
 
-/** Fetch + decrypt + validate the live group event for a guest. */
-export async function fetchGroupSplit(shareId: string, key: string): Promise<FetchGroupResult> {
+/**
+ * Fetch + decrypt + validate the live group event for a guest. DEC-455: `key`
+ * may be null (fragment-less short link) — the escrowed key from the statement
+ * GET is used instead, and the RESOLVED key rides back in the ok result so the
+ * page can post claims / pull responses with it. A fragment key always wins.
+ */
+export async function fetchGroupSplit(shareId: string, key: string | null): Promise<FetchGroupResult> {
   const res = await getShareStatement(shareId);
   if (res.status === 'revoked') return { status: 'revoked' };
   if (res.status === 'not_found') return { status: 'not_found' };
   if (res.status === 'error') return { status: 'error' };
 
+  const effectiveKey = key ?? res.key ?? null;
+  if (!effectiveKey) return { status: 'bad_key' };
   let cryptoKey: CryptoKey;
   try {
-    cryptoKey = await importSessionKey(key);
+    cryptoKey = await importSessionKey(effectiveKey);
   } catch {
     return { status: 'bad_key' };
   }
@@ -220,7 +244,7 @@ export async function fetchGroupSplit(shareId: string, key: string): Promise<Fet
   }
   const payload = parseGroupSharePayload(json);
   if (!payload) return { status: 'error' };
-  return { status: 'ok', payload };
+  return { status: 'ok', payload, key: effectiveKey };
 }
 
 /**

@@ -71,13 +71,14 @@ export function ShareLinkSheet({
       setLink(existing ?? null);
       if (existing) {
         const { buildShareUrl } = await import('@/domain/sync');
-        // DEC-446 — slug in the path when the link has one; key in the fragment.
+        // DEC-446 — slug in the path when the link has one.
         // DEC-454 — ?v=<revision> so crawlers re-scrape a refreshed statement.
+        // DEC-455 — key escrowed on the worker → short link without `#k=`.
         setUrl(
           buildShareUrl(
             getShareOrigin(),
             existing.slug ?? existing.id,
-            existing.key,
+            existing.keyOnServer === true ? null : existing.key,
             existing.statementRevision,
           ),
         );
@@ -164,6 +165,17 @@ export function ShareLinkSheet({
     try {
       const updated = await refreshShareLink(link, statement, composeStatementPreview(statement));
       setLink(updated);
+      // DEC-454/455 — the refresh bumps ?v= and may have escrowed the key of a
+      // legacy link (dropping the fragment): rebuild the displayed URL.
+      const { buildShareUrl } = await import('@/domain/sync');
+      setUrl(
+        buildShareUrl(
+          getShareOrigin(),
+          updated.slug ?? updated.id,
+          updated.keyOnServer === true ? null : updated.key,
+          updated.statementRevision,
+        ),
+      );
       // DEC-207 S7 — tell a connected guest to re-pull the new revision live.
       signalRef.current?.send({ t: 'upd', rev: updated.statementRevision });
       if (announce) showToast(t('shareLink.refreshed'), 'success');

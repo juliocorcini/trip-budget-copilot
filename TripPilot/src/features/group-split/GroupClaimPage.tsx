@@ -41,12 +41,14 @@ type LoadState =
   | { kind: 'live'; payload: GroupSharePayload };
 
 /**
- * C23 / DEC-297 — the guest claim board (`/g/:id#k=<key>`). Lives OUTSIDE BootGate
+ * C23 / DEC-297 — the guest claim board (`/g/:id`). Lives OUTSIDE BootGate
  * so a guest with no trip is never bounced to onboarding. The guest picks which
  * name is them, sees what they owe (or get back) and the exact transfer, and can
  * mark their debt paid; the owner's device stays the single source of truth and
  * confirms receipt. The guest's pick + paid flag are encrypted and posted to the
  * owner; the owner's edits/confirmations flow back here via the poll floor.
+ * The AES key comes from the `#k=` fragment (legacy links) or, since DEC-455,
+ * from the worker's escrow resolved by the first statement fetch (short links).
  */
 export function GroupClaimPage() {
   const { t } = useTranslation();
@@ -56,6 +58,8 @@ export function GroupClaimPage() {
   const id = params.id ?? null;
   const key = useMemo(() => parseShareKeyFromHash(location.hash), [location.hash]);
   const actorId = useMemo(() => getGuestActorId(), []);
+  // DEC-455 — key resolved from the worker escrow (fragment-less short links).
+  const resolvedKeyRef = useRef<string | null>(null);
 
   const [load, setLoad] = useState<LoadState>({ kind: 'loading' });
   const [claimedId, setClaimedId] = useState<string | null>(null);
@@ -73,12 +77,13 @@ export function GroupClaimPage() {
   const signalRef = useRef<ShareSignalHandle | null>(null);
 
   const refetch = useCallback(async () => {
-    if (!id || !key) {
+    if (!id) {
       setLoad({ kind: 'error', status: 'bad_key' });
       return;
     }
-    const res = await fetchGroupSplit(id, key);
+    const res = await fetchGroupSplit(id, key ?? resolvedKeyRef.current);
     if (res.status === 'ok') {
+      resolvedKeyRef.current = res.key;
       // Seed my pick + paid flag from the owner's view of my slot (my last posted
       // state), so a returning guest keeps their choice. Also rehydrate my own
       // authored-expense draft (DEC-340) so a reload keeps my pending additions.
@@ -105,7 +110,7 @@ export function GroupClaimPage() {
       // locally (F10/F11). The link key already decrypts all /responses. Best-effort:
       // a failed pull keeps the prior folded view instead of dropping to the bare base.
       try {
-        setResponses(await fetchGroupResponses(id, key));
+        setResponses(await fetchGroupResponses(id, res.key));
       } catch {
         /* keep prior responses */
       }
@@ -121,6 +126,7 @@ export function GroupClaimPage() {
     setLoad({ kind: 'loading' });
     hasPayloadRef.current = false;
     seededRef.current = false;
+    resolvedKeyRef.current = null;
     void refetch();
   }, [refetch]);
 
@@ -148,8 +154,11 @@ export function GroupClaimPage() {
   // carries my paid flag AND my authored expenses (DEC-340) — the owner folds the
   // latest one add-or-retract, so this is the single channel for everything I post.
   useEffect(() => {
-    if (!isLive || !id || !key || !claimedId) return;
+    if (!isLive || !id || !claimedId) return;
     const timer = setTimeout(() => {
+      // isLive guarantees a successful fetch already resolved the key (DEC-455).
+      const postKey = key ?? resolvedKeyRef.current;
+      if (!postKey) return;
       const response = buildGroupClaimResponse({
         fromActorId: actorId,
         fromName: getGuestName() ?? '',
@@ -159,7 +168,7 @@ export function GroupClaimPage() {
         proof: proof?.proof ?? null,
         proofThumb: proof?.thumb ?? null,
       });
-      void postGroupClaim(id, key, response)
+      void postGroupClaim(id, postKey, response)
         .then(() => signalRef.current?.send({ t: 'resp' }))
         .catch(() => {});
     }, POST_DEBOUNCE_MS);

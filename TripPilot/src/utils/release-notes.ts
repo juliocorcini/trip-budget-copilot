@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.4.0-rc',
+    date: '2026-07-03',
+    items: {
+      'pt-BR': [
+        'Links de compartilhar ficaram curtos de verdade: /g/churras-do-bruno-x7f2mp — sem o código gigante no final. Links antigos continuam abrindo normalmente.',
+        'Agora dá para compartilhar um gasto individual: no detalhe do gasto, toque em "Compartilhar gasto" — quem recebe vê valor, data, lugar, notas e as fotos, sem precisar do app.',
+        'Quando o gasto compartilhado tem foto, ela aparece no cartão do WhatsApp.',
+        'O orçamento da fase agora usa só o dinheiro da própria fase: potes globais (ex.: um pote de festival) saem da conta e viram uma linha informativa separada — os números batem com o que você configurou.',
+      ],
+      en: [
+        'Share links are now truly short: /g/bruno-bbq-x7f2mp — no giant code at the end. Old links keep opening normally.',
+        'You can now share a single expense: on the expense detail, tap "Share expense" — the recipient sees amount, date, place, notes and photos, no app needed.',
+        'When the shared expense has a photo, it shows up in the WhatsApp card.',
+        "The phase budget now uses only the phase's own money: global pots (e.g. a festival pot) leave the math and become a separate informative line — the numbers match what you configured.",
+      ],
+      es: [
+        'Los enlaces para compartir ahora son realmente cortos: /g/asado-de-bruno-x7f2mp — sin el código gigante al final. Los enlaces antiguos siguen abriendo normalmente.',
+        'Ahora puedes compartir un gasto individual: en el detalle del gasto, toca "Compartir gasto" — quien lo recibe ve importe, fecha, lugar, notas y fotos, sin necesitar la app.',
+        'Cuando el gasto compartido tiene foto, aparece en la tarjeta de WhatsApp.',
+        'El presupuesto de la fase ahora usa solo el dinero de la propia fase: los botes globales (p. ej. un bote de festival) salen del cálculo y pasan a ser una línea informativa separada — los números coinciden con lo que configuraste.',
+      ],
+    },
+  },
+  {
     version: '2.3.1-rc',
     date: '2026-07-03',
     items: {

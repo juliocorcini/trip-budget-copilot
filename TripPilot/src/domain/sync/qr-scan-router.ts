@@ -26,7 +26,7 @@ const APP_QR_HOSTS = new Set(['trippilot.pages.dev']);
  * open `/sync` (extrato), `/g/` (group), and `/t/` (live split). Kept separate
  * so widening the scanner never changes which intents the native shell claims.
  */
-const APP_QR_ROUTE_PREFIXES = ['/pair', '/sync', '/s/', '/t/', '/g/'] as const;
+const APP_QR_ROUTE_PREFIXES = ['/pair', '/sync', '/s/', '/t/', '/g/', '/x/'] as const;
 
 export type ScannedQr =
   /** A connect/identity payload — the app pairs inline (no navigation). */

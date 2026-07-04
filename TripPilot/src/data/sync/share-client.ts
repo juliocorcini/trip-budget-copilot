@@ -11,8 +11,11 @@ import type { SharePreview } from '@/domain/sync/share-preview';
  *
  * DEC-445/446: create/put optionally carry a plaintext SUMMARY preview and a
  * readable slug base alongside the ciphertext (Â-PREVIEW-SUMMARY-ONLY — the
- * worker re-validates against its own allowlist). The AES key never rides in
- * either (Â-KEY-IN-FRAGMENT).
+ * worker re-validates against its own allowlist).
+ *
+ * DEC-455: create/put may also carry `linkKey` — the AES key the worker holds
+ * in escrow so the outgoing link can drop the `#k=` fragment (short links).
+ * The worker acks with `keyHeld: true`; the statement GET returns the key.
  */
 
 const TOKEN_HEADER = 'X-Share-Token';
@@ -24,12 +27,16 @@ function shareUrl(path = ''): string {
 export interface SharePublishExtras {
   preview?: SharePreview;
   slugBase?: string;
+  /** DEC-455 — AES key for worker escrow (enables fragment-less links). */
+  linkKey?: string;
 }
 
 export interface CreateShareResult {
   id: string;
   /** Readable path slug reserved by the worker (absent when not requested). */
   slug?: string;
+  /** DEC-455 — worker confirmed it holds the AES key (fragment can be dropped). */
+  keyHeld?: boolean;
   writeToken: string;
   expiresAt: number;
 }
@@ -49,7 +56,14 @@ export async function createShare(
 }
 
 export type ShareStatementResult =
-  | { status: 'ok'; blob: string; revision: number; updatedAt: number }
+  | {
+      status: 'ok';
+      blob: string;
+      revision: number;
+      updatedAt: number;
+      /** DEC-455 — escrowed AES key (present when the owner opted into short links). */
+      key?: string;
+    }
   | { status: 'revoked' }
   | { status: 'not_found' }
   | { status: 'error' };
@@ -71,8 +85,24 @@ export async function getShareStatement(id: string): Promise<ShareStatementResul
   if (res.status === 410) return { status: 'revoked' };
   if (res.status === 404) return { status: 'not_found' };
   if (!res.ok) return { status: 'error' };
-  const json = (await res.json()) as { blob: string; revision: number; updatedAt: number };
-  return { status: 'ok', blob: json.blob, revision: json.revision, updatedAt: json.updatedAt };
+  const json = (await res.json()) as {
+    blob: string;
+    revision: number;
+    updatedAt: number;
+    key?: string;
+  };
+  return {
+    status: 'ok',
+    blob: json.blob,
+    revision: json.revision,
+    updatedAt: json.updatedAt,
+    ...(typeof json.key === 'string' && json.key.length > 0 ? { key: json.key } : {}),
+  };
+}
+
+/** DEC-455 — worker's PUT ack; `keyHeld` confirms the escrowed key is stored. */
+export interface PutShareResult {
+  keyHeld: boolean;
 }
 
 export async function putShareStatement(
@@ -80,15 +110,28 @@ export async function putShareStatement(
   writeToken: string,
   blob: string,
   revision: number,
-  preview?: SharePreview,
-): Promise<void> {
+  extras?: SharePublishExtras,
+): Promise<PutShareResult> {
+  const { preview, linkKey } = extras ?? {};
   const res = await fetch(shareUrl(`/${encodeURIComponent(id)}`), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', [TOKEN_HEADER]: writeToken },
     // Omitting `preview` tells the worker to drop any stored one (kill-switch).
-    body: JSON.stringify({ blob, revision, ...(preview ? { preview } : {}) }),
+    // `linkKey` re-escrows the key on every republish (upgrades legacy links).
+    body: JSON.stringify({
+      blob,
+      revision,
+      ...(preview ? { preview } : {}),
+      ...(linkKey ? { linkKey } : {}),
+    }),
   });
   if (!res.ok) throw new Error(`share_put_${res.status}`);
+  try {
+    const json = (await res.json()) as { keyHeld?: boolean };
+    return { keyHeld: json.keyHeld === true };
+  } catch {
+    return { keyHeld: false };
+  }
 }
 
 export async function revokeShare(id: string, writeToken: string): Promise<void> {

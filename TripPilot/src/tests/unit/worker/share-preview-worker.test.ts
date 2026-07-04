@@ -7,6 +7,7 @@ import {
   SLUG_RE,
   CANONICAL_SHARE_ID_RE,
   SHARE_PREVIEW_MAX_BYTES,
+  LINK_KEY_RE,
 } from '../../../../worker/src/share-preview';
 import { routeTemplate } from '../../../../worker/src/logger';
 
@@ -79,6 +80,12 @@ describe('sanitizeSharePreview', () => {
     ).toBeNull();
   });
 
+  it('DEC-457 — accepts the expense kind (a shared single expense)', () => {
+    const out = sanitizeSharePreview({ ...validPreview, kind: 'expense', peopleCount: 0 });
+    expect(out).not.toBeNull();
+    expect(out!.kind).toBe('expense');
+  });
+
   it('clamps title/description length and validates the image id', () => {
     const out = sanitizeSharePreview({
       ...validPreview,
@@ -105,22 +112,32 @@ describe('sanitizeSharePreview', () => {
 });
 
 describe('slug address space (Â-OLD-LINKS-LIVE)', () => {
-  it('slug suffix is never all-hex, so a slug can never be UUID-shaped', () => {
+  it('DEC-455 — suffix is 6 chars (slug = full capability now) and never all-hex', () => {
     for (let i = 0; i < 50; i++) {
       const suffix = randomSlugSuffix();
-      expect(suffix).toMatch(/^[23456789abcdefghjkmnpqrstvwxyz]{4}$/);
+      expect(suffix).toMatch(/^[23456789abcdefghjkmnpqrstvwxyz]{6}$/);
     }
   });
 
   it('composed slugs pass SLUG_RE and raw UUIDs pass CANONICAL_SHARE_ID_RE', () => {
-    const slug = composeSlug('churras-do-bruno', 'x7f2');
-    expect(slug).toBe('churras-do-bruno-x7f2');
+    const slug = composeSlug('churras-do-bruno', 'x7f2mp');
+    expect(slug).toBe('churras-do-bruno-x7f2mp');
     expect(SLUG_RE.test(slug)).toBe(true);
     expect(CANONICAL_SHARE_ID_RE.test(slug)).toBe(false);
     const uuid = '9f2c1c4e-77aa-4bfb-8a3e-52a1c1a2b3c4';
     expect(CANONICAL_SHARE_ID_RE.test(uuid)).toBe(true);
     expect(SLUG_BASE_RE.test('churras-do-bruno')).toBe(true);
     expect(SLUG_BASE_RE.test('Not A Slug!')).toBe(false);
+  });
+});
+
+describe('LINK_KEY_RE (DEC-455 escrowed key shape)', () => {
+  it('accepts base64url session keys and rejects junk', () => {
+    // generateSessionKey → base64url of 32 bytes → 43 chars.
+    expect(LINK_KEY_RE.test('T1pPjy8CGr5u13zEjRpFYBr2gb1sA1ndKcW3vNq8Mf0')).toBe(true);
+    expect(LINK_KEY_RE.test('short')).toBe(false);
+    expect(LINK_KEY_RE.test('has spaces in it definitely not a key')).toBe(false);
+    expect(LINK_KEY_RE.test('a'.repeat(200))).toBe(false);
   });
 });
 
