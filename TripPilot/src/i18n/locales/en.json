@@ -651,6 +651,7 @@
     "pending_p2p": "{{count}} charge(s) from friends arrived",
     "pending_p2p_hint": "Tap to accept or confirm",
     "free_per_day": "Free to spend today: {{amount}}",
+    "widget_free_today": "Free today",
     "peak_day_free": "Today is a peak day — free up to {{amount}}",
     "reserved_events": "Reserved for events",
     "reserved_plan": "Reserved for planner",
@@ -1916,6 +1917,7 @@
     "section_data": "Data",
     "reports": "Reports",
     "outing_history": "Outing history",
+    "diary": "Trip diary",
     "export_csv": "Export to spreadsheet",
     "backup": "Backup and import",
     "section_app": "App",
@@ -3424,6 +3426,26 @@
     "err_network": "No connection right now. Try again in a moment.",
     "retry": "Try again",
     "go_home": "Go to home"
+  },
+  "diary": {
+    "title": "Trip diary",
+    "subtitle": "Your trip retold day by day — spends, places and photos",
+    "export": "Export diary",
+    "export_failed": "Could not export right now. Try again.",
+    "stat_days": "Days",
+    "stat_expenses": "Expenses",
+    "stat_total": "Total",
+    "stat_places": "Places",
+    "day_total": "Day total",
+    "empty_title": "Your diary starts with the first expense",
+    "empty_body": "Every logged expense becomes a line in your trip's story — with place and photo when available.",
+    "made_with": "Made with TripPilot — travel budget in your pocket"
+  },
+  "ogFooter": {
+    "group": "Group split — see your share",
+    "split": "Live split — the bill at the table",
+    "statement": "Shared settle-up",
+    "expense": "A trip expense — see the detail"
   },
   "shareLink": {
     "preview_notice": "Anyone with the link sees a preview with name, total and people count (you can turn it off in Settings).",

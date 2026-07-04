@@ -24,6 +24,7 @@ import { formatMoney } from '@/domain/money';
 import { appSettingsRepository } from '@/data/repositories';
 import i18n from '@/i18n';
 import { getShareOrigin } from '@/utils/native/public-origin';
+import { brandRemotePhotoForOg, ogFooterTagline } from '@/features/shared/og-branded-image';
 import {
   buildGroupSharePayload,
   parseGroupSharePayload,
@@ -89,8 +90,20 @@ function groupPreviewImgId(event: GroupSplitEvent): string | null {
   return null;
 }
 
+/**
+ * DEC-458 — the card photo is a BRANDED variant (photo + TripPilot footer with
+ * the group tagline), composed client-side and uploaded next to the original.
+ * Falls back to the raw photo id on any failure; null when there is no photo.
+ */
+async function groupOgImgId(event: GroupSplitEvent): Promise<string | null> {
+  const rawId = groupPreviewImgId(event);
+  if (!rawId) return null;
+  const branded = await brandRemotePhotoForOg(rawId, ogFooterTagline('group'));
+  return branded ?? rawId;
+}
+
 /** Summary-only preview, composed in the OWNER's language (server never translates). */
-function composeGroupPreview(event: GroupSplitEvent): SharePreview {
+function composeGroupPreview(event: GroupSplitEvent, imgId: string | null): SharePreview {
   const totalCents = event.expenses.reduce((sum, e) => sum + e.amountCents, 0);
   return buildSharePreview({
     kind: 'group',
@@ -102,7 +115,7 @@ function composeGroupPreview(event: GroupSplitEvent): SharePreview {
     totalCents,
     currency: event.currency,
     peopleCount: event.participants.length,
-    imgId: groupPreviewImgId(event),
+    imgId,
   });
 }
 
@@ -112,7 +125,7 @@ async function groupPublishExtras(event: GroupSplitEvent, key: string): Promise<
   return {
     ...(previewOn
       ? {
-          preview: composeGroupPreview(event),
+          preview: composeGroupPreview(event, await groupOgImgId(event)),
           slugBase: slugifyShareName(event.name) || 'group',
         }
       : {}),

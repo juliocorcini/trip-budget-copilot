@@ -651,6 +651,7 @@
     "pending_p2p": "{{count}} cobro(s) de amigos llegaron",
     "pending_p2p_hint": "Toca para aceptar o confirmar",
     "free_per_day": "Libre para usar hoy: {{amount}}",
+    "widget_free_today": "Libre hoy",
     "peak_day_free": "Hoy es día de pico — libre hasta {{amount}}",
     "reserved_events": "Reservado p/ eventos",
     "reserved_plan": "Reservado p/ planificador",
@@ -1916,6 +1917,7 @@
     "section_data": "Datos",
     "reports": "Informes",
     "outing_history": "Historial de salidas",
+    "diary": "Diario del viaje",
     "export_csv": "Exportar a hoja de cálculo",
     "backup": "Copia de seguridad e importación",
     "section_app": "Aplicación",
@@ -3424,6 +3426,26 @@
     "err_network": "Sin conexión ahora. Inténtalo de nuevo en un momento.",
     "retry": "Intentar de nuevo",
     "go_home": "Ir al inicio"
+  },
+  "diary": {
+    "title": "Diario del viaje",
+    "subtitle": "Tu viaje contado día a día — gastos, lugares y fotos",
+    "export": "Exportar diario",
+    "export_failed": "No se pudo exportar ahora. Inténtalo de nuevo.",
+    "stat_days": "Días",
+    "stat_expenses": "Gastos",
+    "stat_total": "Total",
+    "stat_places": "Lugares",
+    "day_total": "Total del día",
+    "empty_title": "Tu diario empieza con el primer gasto",
+    "empty_body": "Cada gasto registrado se vuelve una línea de la historia de tu viaje — con lugar y foto cuando haya.",
+    "made_with": "Hecho con TripPilot — presupuesto de viaje en tu bolsillo"
+  },
+  "ogFooter": {
+    "group": "División en grupo — mira tu parte",
+    "split": "División en vivo — la cuenta en la mesa",
+    "statement": "Ajuste de cuentas compartido",
+    "expense": "Un gasto del viaje — mira el detalle"
   },
   "shareLink": {
     "preview_notice": "Quien tenga el enlace ve una vista previa con nombre, total y nº de personas (puedes desactivarla en Ajustes).",

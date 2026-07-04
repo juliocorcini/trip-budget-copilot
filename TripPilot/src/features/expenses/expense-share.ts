@@ -28,6 +28,7 @@ import { formatDate, localDayOf } from '@/domain/dates';
 import i18n from '@/i18n';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import { isSharePreviewEnabled } from '@/features/group-split/group-link';
+import { uploadBrandedOgVariant, ogFooterTagline } from '@/features/shared/og-branded-image';
 import { logger } from '@/utils/logger';
 import type { Transaction } from '@/domain/types/transaction';
 
@@ -118,13 +119,23 @@ function composeExpensePreview(tx: Transaction, imgId: string | null): SharePrev
 
 /* ── owner side ───────────────────────────────────────────────────────────── */
 
+interface UploadedExpenseImages {
+  images: ExpenseShareImage[];
+  /**
+   * DEC-458 — id of the BRANDED OG variant (first photo + TripPilot footer),
+   * used only as the preview `imgId`. Falls back to the raw first photo.
+   */
+  ogImgId: string | null;
+}
+
 /**
  * Upload the expense's attachments (≤4, oldest first) as plaintext R2 images.
  * Best-effort per photo: one failed upload drops that photo, never the share.
  */
-async function uploadExpenseImages(transactionId: string): Promise<ExpenseShareImage[]> {
+async function uploadExpenseImages(transactionId: string): Promise<UploadedExpenseImages> {
   const attachments = await attachmentRepository.getByTransactionId(transactionId);
   const images: ExpenseShareImage[] = [];
+  let ogImgId: string | null = null;
   for (const att of attachments.slice(0, EXPENSE_SHARE_MAX_IMAGES)) {
     const result = await uploadImage(att.blob, {
       width: att.width,
@@ -138,6 +149,14 @@ async function uploadExpenseImages(transactionId: string): Promise<ExpenseShareI
         w: result.ref.w,
         h: result.ref.h,
       });
+      if (images.length === 1) {
+        const branded = await uploadBrandedOgVariant(
+          result.ref.r2Id,
+          att.blob,
+          ogFooterTagline('expense'),
+        );
+        ogImgId = branded ?? result.ref.r2Id;
+      }
     } else {
       logger.warn('expense_share_image_skipped', {
         module: 'expense-share',
@@ -145,7 +164,7 @@ async function uploadExpenseImages(transactionId: string): Promise<ExpenseShareI
       });
     }
   }
-  return images;
+  return { images, ogImgId };
 }
 
 async function expensePublishExtras(
@@ -179,8 +198,7 @@ export async function publishExpenseShare(
   tx: Transaction,
   ownerName: string,
 ): Promise<PublishExpenseShareResult> {
-  const images = await uploadExpenseImages(tx.id);
-  const imgId = images[0]?.r2Id ?? null;
+  const { images, ogImgId: imgId } = await uploadExpenseImages(tx.id);
   const existing = loadExpenseShare(tx.id);
 
   const payload = buildExpenseSharePayload({ ownerName, transaction: tx, images });
