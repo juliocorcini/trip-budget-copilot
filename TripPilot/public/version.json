@@ -1,7 +1,7 @@
 {
   "version": "2.6.0-rc",
   "requiredNativeVersion": "0.50.0",
-  "latestNativeVersion": "0.56.0",
+  "latestNativeVersion": "0.71.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
   "bundleUrl": "https://trippilot.pages.dev/bundles/2.6.0-rc.zip",
   "notes": "Números que fecham: o planejador volta a valer (planos por fase + \"planejar a partir de agora\"), o livre de hoje não é mais capado pelo depósito provisório do cofrinho, o extrato mostra todos os dias e ganha o botão Resgatar, e o herói explica a conta que bate com o seu extrato do banco."
