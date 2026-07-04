@@ -1,8 +1,8 @@
 {
-  "version": "2.4.0-rc",
+  "version": "2.5.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.4.0-rc.zip",
-  "notes": "Links de compartilhar curtos de verdade (sem o código gigante no final), compartilhar um gasto individual com fotos direto do detalhe (a foto aparece no cartão do WhatsApp), e o orçamento da fase agora usa só o dinheiro da própria fase — potes globais viram linha informativa."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.5.0-rc.zip",
+  "notes": "Cartões do WhatsApp com foto agora levam o rodapé do TripPilot (ícone + descrição do link), novo Diário da viagem — sua viagem contada dia a dia com fotos e export bonito — e widget Android \"Livre hoje\" pronto para o próximo APK."
 }
