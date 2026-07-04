@@ -17,6 +17,60 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.6.0-rc',
+    date: '2026-07-04',
+    items: {
+      'pt-BR': [
+        'O planejador voltou a valer: o plano da fase aparece de verdade na tela Viagem e o "Livre para gastar" desconta o que você planejou.',
+        'Novo "Planejar a partir de agora": o que você já gastou antes não consome o plano novo — planejou 4 bares agora, o contador mostra 4 restantes.',
+        'O "Livre no dia" de hoje não é mais segurado pelo depósito provisório do cofrinho: o dia só entra no cofrinho quando fecha.',
+        'Extrato do cofrinho completo: todos os dias aparecem (mesmo os sem movimento), hoje vem marcado como "simulado", e o ritmo diário agora respeita a janela da sua verba.',
+        'Novo botão "Resgatar" no cofrinho: devolve o guardado para o seu dia a dia, mostrando quanto volta em dias comuns e em dias de pico.',
+        'Toque no "Livre para gastar" e veja "Bate com o seu extrato": saiu da carteira − o que você adiantou pelos outros + sua parte do que pagaram por você, mais as dívidas em aberto.',
+        'Em Gastos, "Sua parte" agora separa o que veio da verba da fase e o que veio de potes.',
+      ],
+      en: [
+        'The planner works again: the phase plan really shows on the Trip screen and "Free to spend" reserves what you planned.',
+        'New "Plan from now on": what you already spent before does not consume the new plan — plan 4 bar nights now and the counter reads 4 remaining.',
+        "Today's daily allowance is no longer held down by the piggy bank's provisional deposit: a day only enters the piggy when it closes.",
+        'Full piggy statement: every day is listed (even flat ones), today is tagged "simulated", and the daily rhythm now follows your fund\'s window.',
+        'New "Withdraw" button on the piggy: returns the saved money to your daily flow, showing how much comes back on common days and peak days.',
+        'Tap "Free to spend" and see "Matches your bank statement": left your wallet − what you fronted for others + your share of what they fronted for you, plus open debts.',
+        'On Expenses, "Your share" now splits what came from the phase fund vs from pots.',
+      ],
+      es: [
+        'El planificador vuelve a funcionar: el plan de la fase aparece de verdad en la pantalla Viaje y el "Libre para gastar" descuenta lo planificado.',
+        'Nuevo "Planificar desde ahora": lo que ya gastaste antes no consume el plan nuevo — planifica 4 bares ahora y el contador muestra 4 restantes.',
+        'El "Libre del día" de hoy ya no queda retenido por el depósito provisional del cofrinho: el día solo entra al cerrar.',
+        'Extracto del cofrinho completo: aparecen todos los días (incluso los sin movimiento), hoy va marcado como "simulado", y el ritmo diario respeta la ventana de tu fondo.',
+        'Nuevo botón "Rescatar" en el cofrinho: devuelve lo guardado a tu día a día, mostrando cuánto vuelve en días comunes y en días pico.',
+        'Toca "Libre para gastar" y mira "Cuadra con tu extracto": salió de tu billetera − lo que adelantaste por otros + tu parte de lo que pagaron por ti, más las deudas pendientes.',
+        'En Gastos, "Tu parte" ahora separa lo que vino del fondo de la fase y lo que vino de botes.',
+      ],
+    },
+  },
+  {
+    version: '2.5.0-rc',
+    date: '2026-07-04',
+    items: {
+      'pt-BR': [
+        'Cartão do WhatsApp com foto agora leva o rodapé do TripPilot: ícone do app + o que o link é ("Divisão em grupo — veja sua parte").',
+        'Novo Diário da viagem: sua viagem contada dia a dia, com totais, lugares e fotos — e export em HTML bonito para guardar ou mandar.',
+        'Widget Android "Livre hoje" + atalho rápido de registrar gasto (ativa no próximo APK).',
+      ],
+      en: [
+        'WhatsApp cards with a photo now carry the TripPilot footer: app icon + what the link is ("Group split — see your share").',
+        'New Trip Diary: your trip told day by day, with totals, places and photos — plus a beautiful HTML export to keep or send.',
+        'Android widget "Free today" + a quick tile to log an expense (activates with the next APK).',
+      ],
+      es: [
+        'Las tarjetas de WhatsApp con foto ahora llevan el pie del TripPilot: icono de la app + qué es el enlace ("División en grupo — mira tu parte").',
+        'Nuevo Diario del viaje: tu viaje contado día a día, con totales, lugares y fotos — y export en HTML bonito para guardar o enviar.',
+        'Widget de Android "Libre hoy" + acceso rápido para registrar un gasto (se activa con el próximo APK).',
+      ],
+    },
+  },
+  {
     version: '2.4.0-rc',
     date: '2026-07-03',
     items: {

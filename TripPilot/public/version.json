@@ -1,8 +1,8 @@
 {
-  "version": "2.5.0-rc",
+  "version": "2.6.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.56.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.5.0-rc.zip",
-  "notes": "Cartões do WhatsApp com foto agora levam o rodapé do TripPilot (ícone + descrição do link), novo Diário da viagem — sua viagem contada dia a dia com fotos e export bonito — e widget Android \"Livre hoje\" pronto para o próximo APK."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.6.0-rc.zip",
+  "notes": "Números que fecham: o planejador volta a valer (planos por fase + \"planejar a partir de agora\"), o livre de hoje não é mais capado pelo depósito provisório do cofrinho, o extrato mostra todos os dias e ganha o botão Resgatar, e o herói explica a conta que bate com o seu extrato do banco."
 }
