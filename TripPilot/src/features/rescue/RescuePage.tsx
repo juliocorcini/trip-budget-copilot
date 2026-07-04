@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase, getDaysRemaining, formatDate } from '@/domain/dates';
-import { calculateFreeToSpend, buildRescuePlan, type RescueOccasionInput } from '@/domain/budget';
+import {
+  calculateFreeToSpend,
+  buildRescuePlan,
+  selectActivePhasePool,
+  type RescueOccasionInput,
+} from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { calculateOccasionForecasts } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
@@ -47,7 +52,8 @@ export function RescuePage() {
   const [planReservedCents, setPlanReservedCents] = useState(0);
 
   const activePhase = resolveActivePhase(phases);
-  const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+  // DEC-462: the ACTIVE phase's own fund (was the trip's first fund).
+  const primaryPool = selectActivePhasePool(pools, links, activePhase?.id ?? null);
 
   // Same loading pattern as the simulator (DEC-116): plan + enabled profiles.
   useEffect(() => {
@@ -56,7 +62,8 @@ export function RescuePage() {
     const load = async () => {
       const [profiles, plan, settings] = await Promise.all([
         activityProfileRepository.getByTripId(trip.id),
-        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, activePhase.id, primaryPool.id),
+        // DEC-462: pool-preferred, per-phase fallback (drifted keys still load).
+        scenarioPlanRepository.getActiveForPhase(trip.id, activePhase.id, primaryPool.id),
         phaseProfileSettingRepository.getByPhaseId(activePhase.id),
       ]);
       const allocations = plan
@@ -71,6 +78,7 @@ export function RescuePage() {
         allocations,
         transactions,
         activePhase.id,
+        plan?.countFromIso ?? null,
       );
       setRemainingOccasions(
         forecasts

@@ -240,3 +240,71 @@ describe('calculateOccasionForecasts', () => {
     expect(forecasts[0]!.remaining).toBe(0);
   });
 });
+
+// DEC-463 (INV-4) — "planejar a partir de agora": occasions BEFORE countFromIso
+// do not consume the plan. Julio's case: 15 bar nights already logged, then he
+// plans 4 MORE — the card must read "4 restantes", not vanish at "15 de 4".
+describe('calculateOccasionForecasts — countFromIso (DEC-463)', () => {
+  const mkBarTx = (id: string, dateIso: string) => ({
+    ...meta,
+    id,
+    tripId: 'trip-1',
+    phaseId: 'ph-1',
+    budgetPoolId: 'pool-1',
+    walletId: null,
+    sessionId: null,
+    type: 'expense' as const,
+    amountCents: 1500,
+    personalCostCents: 1500,
+    currency: 'EUR',
+    baseCurrencyAmountCents: 1500,
+    exchangeRate: null,
+    category: 'bar',
+    subcategoryId: null,
+    placeLabel: null,
+    latitude: null,
+    longitude: null,
+    placeId: null,
+    description: 'test',
+    date: `${dateIso}T20:00:00.000Z`,
+    isShared: false,
+    paidByParticipantId: null,
+    activityProfileId: 'prof-1',
+    isSpecialOccasion: false,
+    excludeFromLearning: false,
+    sourceWalletId: null,
+    targetWalletId: null,
+    settlementId: null,
+    adjustmentReason: null,
+    notes: null,
+  });
+  const allocations: ScenarioAllocationItem[] = [
+    { ...meta, id: 'a1', scenarioPlanId: 'sp1', activityProfileId: 'prof-1', quantity: 4, estimatedUnitCostCents: 1500, isLocked: false, priority: 'planned', notes: null },
+  ];
+
+  it('occasions before the cut date do not consume the plan', () => {
+    const txs = [
+      mkBarTx('old-1', '2026-06-20'),
+      mkBarTx('old-2', '2026-06-25'),
+      mkBarTx('old-3', '2026-07-01'),
+      mkBarTx('new-1', '2026-07-04'),
+    ];
+    const forecasts = calculateOccasionForecasts([baseProfile], allocations, txs, 'ph-1', '2026-07-04');
+    expect(forecasts[0]!.spent).toBe(1);
+    expect(forecasts[0]!.remaining).toBe(3);
+  });
+
+  it('countProfileOccasions honors sinceIso (inclusive on the cut day)', () => {
+    const txs = [mkBarTx('a', '2026-07-03'), mkBarTx('b', '2026-07-04'), mkBarTx('c', '2026-07-05')];
+    expect(countProfileOccasions(txs, 'prof-1', 'ph-1', '2026-07-04')).toBe(2);
+    expect(countProfileOccasions(txs, 'prof-1', 'ph-1', null)).toBe(3);
+  });
+
+  it('null cut keeps the whole-phase count (legacy plans, no migration)', () => {
+    const txs = [mkBarTx('a', '2026-06-20'), mkBarTx('b', '2026-07-04')];
+    const withNull = calculateOccasionForecasts([baseProfile], allocations, txs, 'ph-1', null);
+    const withoutArg = calculateOccasionForecasts([baseProfile], allocations, txs, 'ph-1');
+    expect(withNull[0]!.spent).toBe(2);
+    expect(withoutArg[0]!.spent).toBe(2);
+  });
+});

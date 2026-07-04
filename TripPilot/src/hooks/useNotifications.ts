@@ -3,7 +3,7 @@ import { useAppData } from '@/hooks/useAppData';
 import { sessionRepository } from '@/data/repositories/session-repository';
 import { participantShareRepository } from '@/data/repositories';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
-import { calculateFreeToSpend } from '@/domain/budget';
+import { calculateFreeToSpend, selectActivePhasePool } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { findPendingConfirmationShares } from '@/domain/splitting';
 import { isOccurrenceActiveToday } from '@/domain/planning';
@@ -61,7 +61,8 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
           )
         : [];
 
-      const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+      // DEC-462: the ACTIVE phase's own fund (was the trip's first fund).
+      const primaryPool = selectActivePhasePool(pools, links, activePhase?.id ?? null);
       const fts =
         primaryPool && activePhase
           ? calculateFreeToSpend(

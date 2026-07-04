@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { isOngoing } from '@/domain/spaces/spaces';
 import { useScrolled } from '@/hooks/useScrolled';
-import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
+import { resolveActivePhase, sortPhasesByOrder, localDateString, formatShortDate } from '@/domain/dates';
 import { calculateFreeToSpend, classifyBudgetSignal } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { fromCents, sumCents } from '@/domain/money';
@@ -158,6 +158,9 @@ export function PlannerPage() {
   const [phaseSettings, setPhaseSettings] = useState<PhaseProfileSetting[]>([]);
   const [states, setStates] = useState<Record<string, ProfileState>>({});
   const [activePreset, setActivePreset] = useState<ScenarioPreset>('equilibrado');
+  // DEC-463: "planejar a partir de agora" — the plan's counting window start
+  // (local YYYY-MM-DD). null = whole phase (the historic behavior).
+  const [countFrom, setCountFrom] = useState<string | null>(null);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [ready, setReady] = useState(false);
@@ -174,6 +177,7 @@ export function PlannerPage() {
   const enabledProfilesRef = useRef<ActivityProfile[]>([]);
   const statesRef = useRef<Record<string, ProfileState>>({});
   const presetRef = useRef<ScenarioPreset>('equilibrado');
+  const countFromRef = useRef<string | null>(null);
   const planRef = useRef<ScenarioPlan | null>(null);
   const itemsRef = useRef<Map<string, ScenarioAllocationItem>>(new Map());
   const hydratedRef = useRef(false);
@@ -187,6 +191,7 @@ export function PlannerPage() {
   profilesRef.current = profiles;
   statesRef.current = states;
   presetRef.current = activePreset;
+  countFromRef.current = countFrom;
 
   /* ── phase selection (ISSUE-02: multi-phase support) ── */
 
@@ -254,7 +259,9 @@ export function PlannerPage() {
 
     (async () => {
       const [plan, settings] = await Promise.all([
-        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, selectedPhase.id, phasePool.id),
+        // DEC-462: pool-preferred, per-phase fallback — a plan whose pool key
+        // drifted still hydrates here (and the next persist migrates its key).
+        scenarioPlanRepository.getActiveForPhase(trip.id, selectedPhase.id, phasePool.id),
         phaseProfileSettingRepository.getByPhaseId(selectedPhase.id),
       ]);
       const items = plan
@@ -285,6 +292,7 @@ export function PlannerPage() {
         };
       }
       if (plan) setActivePreset(plan.preset);
+      setCountFrom(plan?.countFromIso ?? null);
       setStates(init);
       hydratedRef.current = true;
       setReady(true);
@@ -302,19 +310,30 @@ export function PlannerPage() {
 
     let plan = planRef.current;
     if (!plan) {
-      plan = createScenarioPlan({
-        tripId: trip.id,
-        phaseId: selectedPhase.id,
-        budgetPoolId: phasePool.id,
-        name: selectedPhase.name,
-        preset: presetRef.current,
-      });
+      plan = {
+        ...createScenarioPlan({
+          tripId: trip.id,
+          phaseId: selectedPhase.id,
+          budgetPoolId: phasePool.id,
+          name: selectedPhase.name,
+          preset: presetRef.current,
+        }),
+        countFromIso: countFromRef.current,
+      };
       await scenarioPlanRepository.create(plan);
       planRef.current = plan;
-    } else if (plan.preset !== presetRef.current) {
+    } else if (
+      plan.preset !== presetRef.current ||
+      (plan.countFromIso ?? null) !== countFromRef.current ||
+      // DEC-462: migrate a drifted pool key to the phase's current fund, so the
+      // (phase, pool) readers converge on this plan again.
+      plan.budgetPoolId !== phasePool.id
+    ) {
       plan = await scenarioPlanRepository.update({
         ...plan,
         preset: presetRef.current,
+        countFromIso: countFromRef.current,
+        budgetPoolId: phasePool.id,
       });
       planRef.current = plan;
     }
@@ -360,7 +379,7 @@ export function PlannerPage() {
       persist();
     }, PERSIST_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [states, activePreset, persist]);
+  }, [states, activePreset, countFrom, persist]);
 
   /* ── budget math ── */
 
@@ -543,6 +562,13 @@ export function PlannerPage() {
       if (!s) return prev;
       return { ...prev, [id]: { ...s, isLocked: !s.isLocked } };
     });
+  }, []);
+
+  // DEC-463: toggle "planejar a partir de agora" — on sets today as the plan's
+  // counting start (past occasions stop consuming it); off counts the whole phase.
+  const toggleCountFrom = useCallback(() => {
+    userEditedRef.current = true; // FB-25: an explicit edit may now persist.
+    setCountFrom((prev) => (prev !== null ? null : localDateString(new Date())));
   }, []);
 
   const applyPreset = useCallback(
@@ -878,6 +904,40 @@ export function PlannerPage() {
         <p className="text-[11px] text-on-surface-faint mt-2 leading-snug">
           {t('planner.summary_hint')}
         </p>
+        {/* DEC-463: plan "a partir de agora" — with 15 bar nights already done,
+            planning 4 MORE must read "4 restantes", not "0 de 4". The toggle
+            sets the plan's counting window to start today. */}
+        <div className="mt-2.5 pt-2.5 flex items-center justify-between gap-2 border-t border-[var(--border-faint)]">
+          <p className="text-[11px] font-semibold text-on-surface-dim flex items-center gap-1 min-w-0">
+            <Icon
+              name="today"
+              size={13}
+              className={countFrom !== null ? 'text-primary shrink-0' : 'text-on-surface-faint shrink-0'}
+            />
+            <span className="truncate">
+              {countFrom !== null
+                ? t('planner.count_from_active', { date: formatShortDate(countFrom) })
+                : t('planner.count_from_whole')}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={toggleCountFrom}
+            className="btn-press shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-bold"
+            style={
+              countFrom !== null
+                ? { background: 'var(--surface-high)', color: 'var(--on-surface-dim)' }
+                : { background: '#C75B3918', color: 'var(--primary)' }
+            }
+          >
+            {countFrom !== null ? t('planner.count_from_reset') : t('planner.count_from_now')}
+          </button>
+        </div>
+        {countFrom !== null && (
+          <p className="text-[10px] text-on-surface-faint mt-1.5 leading-snug">
+            {t('planner.count_from_hint')}
+          </p>
+        )}
       </div>
 
       {/* ── DEC-098 (R-20): over-budget is the FIRST thing on screen —

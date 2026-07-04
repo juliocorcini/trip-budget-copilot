@@ -21,6 +21,7 @@ export function createScenarioPlan(input: CreateScenarioPlanInput): ScenarioPlan
     isActive: true,
     mode: 'manual',
     notes: null,
+    countFromIso: null,
   };
 }
 

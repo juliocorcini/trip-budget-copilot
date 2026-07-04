@@ -3,6 +3,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { ScenarioAllocationItem } from '@/domain/types/scenario';
 import type { ConfidenceLevel } from '@/domain/types/common';
 import { sumCents } from '@/domain/money';
+import { localDayOf } from '@/domain/dates';
 
 export interface ProfileLearningUpdate {
   typicalValueCents: number;
@@ -60,11 +61,16 @@ export interface OccasionForecast {
  * sessionId group into their session (1 session with 9 items = 1 occasion);
  * standalone profile expenses count 1 each. "I plan to go to the bar 5
  * times", not "5 bar items".
+ *
+ * DEC-463: `sinceIso` (YYYY-MM-DD, local day) restricts the count to occasions
+ * ON or AFTER that day — the "planejar a partir de agora" window. Omitted/null
+ * keeps the whole-phase count byte-identical to before.
  */
 export function countProfileOccasions(
   transactions: Transaction[],
   profileId: string,
   phaseId: string,
+  sinceIso: string | null = null,
 ): number {
   const sessionIds = new Set<string>();
   let standalone = 0;
@@ -77,6 +83,7 @@ export function countProfileOccasions(
     ) {
       continue;
     }
+    if (sinceIso !== null && localDayOf(t.date) < sinceIso) continue;
     if (t.sessionId !== null) sessionIds.add(t.sessionId);
     else standalone += 1;
   }
@@ -85,11 +92,14 @@ export function countProfileOccasions(
 
 // GAP-R2-006: forecasts are phase-scoped — allocations come from the phase's
 // active plan and transactions are filtered by phase, so counters never mix phases.
+// DEC-463: `countFromIso` (the plan's "count from" day) flows into the occasion
+// count so a plan made mid-phase only measures what happens from that day on.
 export function calculateOccasionForecasts(
   profiles: ActivityProfile[],
   allocations: ScenarioAllocationItem[],
   transactions: Transaction[],
   phaseId: string,
+  countFromIso: string | null = null,
 ): OccasionForecast[] {
   return profiles
     .filter((p) => p.deletedAt === null)
@@ -100,7 +110,7 @@ export function calculateOccasionForecasts(
       const totalPlanned = allocation?.quantity ?? 0;
 
       // DEC-115 (R-06): sessions count once — never items.
-      const spent = countProfileOccasions(transactions, profile.id, phaseId);
+      const spent = countProfileOccasions(transactions, profile.id, phaseId, countFromIso);
 
       const remaining = Math.max(0, totalPlanned - spent);
       const estimatedRemainingCostCents = remaining * profile.safeValueCents;

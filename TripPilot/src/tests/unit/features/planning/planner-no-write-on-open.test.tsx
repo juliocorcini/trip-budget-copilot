@@ -136,9 +136,11 @@ function renderPlanner() {
 // (a bare `ReturnType<typeof vi.spyOn>` annotation collapses to an unknown-arg
 // signature and fails to type-check on assignment).
 function installRepoSpies() {
-  // reads resolve to "nothing persisted yet" so hydration runs against a clean slate.
+  // reads resolve to "nothing persisted yet" so hydration runs against a clean
+  // slate. DEC-462: the Planner reads through `getActiveForPhase` (pool-drift
+  // tolerant) — the spy follows the read path.
   const planRead = vi
-    .spyOn(scenarioPlanRepository, 'getActiveByPhaseAndPool')
+    .spyOn(scenarioPlanRepository, 'getActiveForPhase')
     .mockResolvedValue(undefined);
   vi.spyOn(phaseProfileSettingRepository, 'getByPhaseId').mockResolvedValue([]);
   vi.spyOn(scenarioAllocationItemRepository, 'getByPlanId').mockResolvedValue([]);

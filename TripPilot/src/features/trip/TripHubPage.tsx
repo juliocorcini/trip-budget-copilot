@@ -86,7 +86,13 @@ export function TripHubPage() {
   // Default to the current phase (most actionable); fall back to "all". Using a
   // derived value (not an effect) keeps it correct even if phases load late.
   const selected: Selection = selectedPhaseId ?? activePhaseId ?? 'all';
-  const primaryPool = pools.find((p) => p.scope === 'linked_phases');
+  // DEC-462: the SELECTED phase's own fund. The old `pools.find(linked_phases)`
+  // grabbed the trip's FIRST fund, so the plan preview below queried a pool the
+  // Planner never wrote to and the "Plano desta fase" read as zeroed.
+  const primaryPool = useMemo(
+    () => selectActivePhasePool(pools, links, selected === 'all' ? activePhaseId : selected),
+    [pools, links, selected, activePhaseId],
+  );
 
   // G1: swipe left/right to page through the phase selector ("Todas" → phases in
   // order). Clamped at the ends (cross-section swipe is a separate experiment).
@@ -148,13 +154,23 @@ export function TripHubPage() {
     let cancelled = false;
     const load = async () => {
       const [plan, settings] = await Promise.all([
-        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, phaseId, primaryPool.id),
+        // DEC-462: pool-preferred with a per-phase fallback, so a drifted pool
+        // key can never hide the phase's plan again.
+        scenarioPlanRepository.getActiveForPhase(trip.id, phaseId, primaryPool.id),
         phaseProfileSettingRepository.getByPhaseId(phaseId),
       ]);
       const allocations = plan ? await scenarioAllocationItemRepository.getByPlanId(plan.id) : [];
       if (cancelled) return;
       const enabled = profiles.filter((p) => isProfileEnabledInPhase(settings, phaseId, p.id));
-      setForecasts(calculateOccasionForecasts(enabled, allocations, transactions, phaseId));
+      setForecasts(
+        calculateOccasionForecasts(
+          enabled,
+          allocations,
+          transactions,
+          phaseId,
+          plan?.countFromIso ?? null,
+        ),
+      );
     };
     load();
     return () => {

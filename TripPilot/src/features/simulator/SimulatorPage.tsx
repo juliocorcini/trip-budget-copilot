@@ -93,7 +93,8 @@ export function SimulatorPage() {
     const load = async () => {
       const [profiles, plan, settings] = await Promise.all([
         activityProfileRepository.getByTripId(trip.id),
-        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, activePhase.id, primaryPool.id),
+        // DEC-462: pool-preferred, per-phase fallback (drifted keys still load).
+        scenarioPlanRepository.getActiveForPhase(trip.id, activePhase.id, primaryPool.id),
         phaseProfileSettingRepository.getByPhaseId(activePhase.id),
       ]);
       const allocations = plan
@@ -108,6 +109,7 @@ export function SimulatorPage() {
         allocations,
         transactions,
         activePhase.id,
+        plan?.countFromIso ?? null,
       );
       setProfileChips(
         enabled.map((profile) => {
