@@ -94,12 +94,15 @@ export {
 } from './motivation';
 export {
   buildPiggyLedger,
+  piggySettledBalanceCents,
   linearDailyIdealCents,
   buildRhythmDailyIdeals,
   buildPiggySpendByDay,
 } from './piggy-ledger';
 export { resolveSavingDestination } from './saving-destination';
 export type { SavingDestination, SavingDestinationInput } from './saving-destination';
+export { buildPersonalReconciliation } from './personal-reconciliation';
+export type { PersonalReconciliation } from './personal-reconciliation';
 export { buildPhaseSpendLens } from './phase-spend-lens';
 export type {
   PhaseSpendLens,

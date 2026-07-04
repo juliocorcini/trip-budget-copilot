@@ -405,6 +405,59 @@ export function DashboardSheets({
                 </div>
               );
             })}
+            {/* DEC-466 (INV-1): the "conta do Julio" — reconcile "Já gasto" with
+                the bank statement: outflow − fronted for others + your share
+                others fronted = personal cost. Plus open debts, so the traveler
+                can rebuild the hero number from their own Wise extract. */}
+            {model.personalRecon &&
+              (model.personalRecon.paidForOthersCents > 0 ||
+                model.personalRecon.sharePaidByOthersCents > 0 ||
+                model.receivableCents > 0 ||
+                model.payableCents > 0) && (
+                <div className="mt-4 p-3 rounded-xl bg-surface-container">
+                  <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+                    {t('dashboard.recon_title')}
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-on-surface-faint mt-1">
+                    {t('dashboard.recon_hint')}
+                  </p>
+                  <ReconRow
+                    label={t('dashboard.recon_outflow')}
+                    cents={model.personalRecon.walletOutflowCents}
+                    currency={trip.baseCurrency}
+                  />
+                  {model.personalRecon.paidForOthersCents > 0 && (
+                    <ReconRow
+                      label={t('dashboard.recon_paid_for_others')}
+                      cents={-model.personalRecon.paidForOthersCents}
+                      currency={trip.baseCurrency}
+                    />
+                  )}
+                  {model.personalRecon.sharePaidByOthersCents > 0 && (
+                    <ReconRow
+                      label={t('dashboard.recon_share_paid_by_others')}
+                      cents={model.personalRecon.sharePaidByOthersCents}
+                      currency={trip.baseCurrency}
+                    />
+                  )}
+                  <div className="flex items-baseline justify-between pt-2 mt-1 border-t border-[var(--border-faint)]">
+                    <span className="text-[12px] font-bold text-on-surface">
+                      {t('dashboard.recon_personal_cost')}
+                    </span>
+                    <span className="text-[12px] font-extrabold tabular text-on-surface">
+                      {formatMoney(model.personalRecon.personalCostCents, trip.baseCurrency)}
+                    </span>
+                  </div>
+                  {(model.receivableCents > 0 || model.payableCents > 0) && (
+                    <p className="text-[11px] font-semibold text-on-surface-dim mt-2">
+                      {t('dashboard.recon_open_debts', {
+                        receivable: formatMoney(model.receivableCents, trip.baseCurrency),
+                        payable: formatMoney(model.payableCents, trip.baseCurrency),
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
             {/* F4 + F20 + F22: the phase map — a 2-tab card (available calendar +
                 spending heatmap) showing "where the daily number sits across the
                 phase" and what each day's free + reserved total adds up to. */}
@@ -700,5 +753,21 @@ export function DashboardSheets({
         )}
       </BottomSheet>
     </>
+  );
+}
+
+// DEC-466: one signed line of the personal reconciliation card.
+function ReconRow({ label, cents, currency }: { label: string; cents: number; currency: string }) {
+  const negative = cents < 0;
+  return (
+    <div className="flex items-baseline justify-between py-0.5 mt-1">
+      <span className="text-[12px] font-semibold text-on-surface-dim">{label}</span>
+      <span
+        className={`text-[12px] font-bold tabular ${negative ? 'text-success' : 'text-on-surface'}`}
+      >
+        {negative ? '\u2212 ' : ''}
+        {formatMoney(Math.abs(cents), currency)}
+      </span>
+    </div>
   );
 }

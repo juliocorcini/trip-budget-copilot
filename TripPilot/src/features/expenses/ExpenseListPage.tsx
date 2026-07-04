@@ -231,6 +231,22 @@ export function ExpenseListPage() {
             .map((tx) => tx.baseCurrencyAmountCents),
         )
       : 0;
+  // DEC-466 (INV-1): under a PHASE scope, split "sua parte" by funding source.
+  // The Home hero counts ONLY the phase's own verba; this feed also includes
+  // spend funded by global/other pots attributed to the phase — naming the two
+  // slices explains why Gastos ≠ hero without either being wrong.
+  const scopePool =
+    filterPhaseId !== 'all' ? selectActivePhasePool(pools, links, filterPhaseId) : null;
+  const shareFromScopePoolCents = scopePool
+    ? sumCents(
+        expenses
+          .filter((tx) => tx.budgetPoolId === scopePool.id)
+          .map((tx) => transactionBasePersonalCostCents(tx)),
+      )
+    : 0;
+  const shareFromOtherPoolsCents = scopePool
+    ? Math.max(0, yourShareCents - shareFromScopePoolCents)
+    : 0;
   const unassigned = getUnassignedTransactionCount(transactions);
 
   // DEC-206 (rollup): a receipt/outing is ONE session holding N transactions.
@@ -690,6 +706,16 @@ export function ExpenseListPage() {
                 <p data-expense-total-share className="text-[10px] leading-tight text-on-surface-faint">
                   {t('expenses.your_share', {
                     amount: formatMoney(yourShareCents, trip.baseCurrency),
+                  })}
+                </p>
+              )}
+              {/* DEC-466 (INV-1): funding split — the verba slice matches the
+                  Home hero; the pots slice names the rest. */}
+              {scopePool && shareFromOtherPoolsCents > 0 && (
+                <p data-expense-total-funding className="text-[10px] leading-tight text-on-surface-faint">
+                  {t('expenses.share_funding_split', {
+                    fund: formatMoney(shareFromScopePoolCents, trip.baseCurrency),
+                    pots: formatMoney(shareFromOtherPoolsCents, trip.baseCurrency),
                   })}
                 </p>
               )}

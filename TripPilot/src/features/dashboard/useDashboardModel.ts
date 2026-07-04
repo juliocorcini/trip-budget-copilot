@@ -22,6 +22,8 @@ import {
   projectTripEndSurplus,
   calculateSavingsGoalProgress,
   buildPiggyLedger,
+  piggySettledBalanceCents,
+  buildPersonalReconciliation,
   linearDailyIdealCents,
   buildRhythmDailyIdeals,
   buildPiggySpendByDay,
@@ -107,6 +109,9 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
   const [allShares, setAllShares] = useState<ParticipantShare[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
+  // DEC-463: the active plan's "count from" day — the memo below needs it so the
+  // plan-reserve money math measures the same window as the occasion counters.
+  const [planCountFromIso, setPlanCountFromIso] = useState<string | null>(null);
   // R5-03: warn when the OS may evict IndexedDB (storage not persistent).
   const [storageNotPersisted, setStorageNotPersisted] = useState(false);
   // DEC-352 (F19, G6): inbound P2P charges/payments awaiting accept/confirm —
@@ -203,40 +208,54 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       return;
     }
     const phase = resolveActivePhase(phases);
-    const pool = pools.find((p) => p.scope === 'linked_phases');
+    // DEC-462: the ACTIVE phase's own fund — `pools.find(linked_phases)` took the
+    // FIRST fund of the trip, so with one fund per phase the plan lookup queried
+    // the wrong pool and the whole plan layer read as empty (the zeroed planner).
+    const pool = selectActivePhasePool(pools, links, phase?.id ?? null);
     if (!phase || !pool) {
       setForecasts([]);
       return;
     }
     const load = async () => {
       const [plan, profileSettings] = await Promise.all([
-        scenarioPlanRepository.getActiveByPhaseAndPool(trip.id, phase.id, pool.id),
+        scenarioPlanRepository.getActiveForPhase(trip.id, phase.id, pool.id),
         phaseProfileSettingRepository.getByPhaseId(phase.id),
       ]);
       if (!plan) {
         setForecasts([]);
+        setPlanCountFromIso(null);
         return;
       }
+      setPlanCountFromIso(plan.countFromIso ?? null);
       const allocations = await scenarioAllocationItemRepository.getByPlanId(plan.id);
       // DEC-074 (FIELD-01): counters only show profiles enabled in this phase.
       const enabledProfiles = profiles.filter((p) =>
         isProfileEnabledInPhase(profileSettings, phase.id, p.id),
       );
       // DEC-076 (FIELD-06): used profiles first, then planned without use.
+      // DEC-463: honor the plan's "count from" date — occasions before it no
+      // longer consume the plan (planning "a partir de agora").
       setForecasts(
         orderForecastsByUsage(
-          calculateOccasionForecasts(enabledProfiles, allocations, transactions, phase.id),
+          calculateOccasionForecasts(
+            enabledProfiles,
+            allocations,
+            transactions,
+            phase.id,
+            plan.countFromIso ?? null,
+          ),
         ),
       );
     };
     load();
-  }, [trip, phases, pools, profiles, transactions]);
+  }, [trip, phases, pools, links, profiles, transactions]);
 
   // DEC-077 (M8.3): persist ONE forecast snapshot per phase per day.
   useEffect(() => {
     if (!trip) return;
     const phase = resolveActivePhase(phases);
-    const pool = pools.find((p) => p.scope === 'linked_phases');
+    // DEC-462: snapshot the ACTIVE phase's own fund (same fix as the forecasts).
+    const pool = selectActivePhasePool(pools, links, phase?.id ?? null);
     if (!phase || !pool) return;
     // DEC-456: the snapshot's daily average measures PHASE MONEY only (the
     // phase's fund), matching the projection scope — pot spends stay out.
@@ -409,6 +428,14 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const debts = owner
       ? calculateDebts(transactions, allShares, participants, settlements, owner.id).debts
       : [];
+    // DEC-466 (INV-1): the "conta do Julio" — reconcile the hero's "Já gasto"
+    // (personal cost on the phase's verba) with the bank-statement view:
+    // outflow − fronted for others + your share others fronted. Same rows as
+    // `phaseMoneySpentCents`, so the total always matches the FTS line.
+    const personalRecon =
+      phaseMoneyTxs.length > 0
+        ? buildPersonalReconciliation(phaseMoneyTxs, owner?.id ?? null)
+        : null;
     // DL-4: home "te devem / você deve" discoverability card — confirmed debts
     // only (real money), derived from the same engine as the /shared hero.
     const ownerDebtSummary = owner ? summarizeOwnerDebts(debts, owner.id) : null;
@@ -427,9 +454,17 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       const forecast = forecasts.find((f) => f.profileId === profile.id);
       if (!forecast) continue;
       const plannedCents = forecast.totalPlanned * profile.typicalValueCents;
+      // DEC-463: measure spend-against-plan over the SAME window the occasion
+      // counters use — a plan counting "from today" is only consumed by spend
+      // from today on, so the hero reserves the full remaining plan.
       const spentCents = sumCents(
         phaseTxsForInsights
-          .filter((tx) => tx.activityProfileId === profile.id && tx.type === 'expense')
+          .filter(
+            (tx) =>
+              tx.activityProfileId === profile.id &&
+              tx.type === 'expense' &&
+              (planCountFromIso === null || localDayOf(tx.date) >= planCountFromIso),
+          )
           .map((tx) => tx.personalCostCents ?? tx.amountCents),
       );
       if (plannedCents > 0) {
@@ -654,15 +689,50 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const tripDaysRemaining = Math.max(0, tripTotalDays - tripDaysElapsed);
     const motivationBudgetCents = fts?.totalBudgetCents ?? 0;
     const motivationSpentCents = fts?.totalSpentCents ?? 0;
+    // DEC-464 (INV-2): the piggy horizon follows the POOL, not the whole trip.
+    // The buffer's budget is the primary pool's, so its days must be the days
+    // that pool funds — the span of its linked phases. Spreading a phase pool
+    // (€628) over every trip day handed most of the ideal to OTHER phases' peak
+    // days and left ~€5,71/day here, so normal days read as overspends and the
+    // statement "lost" them. Legacy single-pool trips: the linked span IS the
+    // trip, so behavior is unchanged (fallback to trip dates when no links).
+    const poolPhaseIds = primaryPool
+      ? new Set(
+          links
+            .filter((l) => l.budgetPoolId === primaryPool.id && l.deletedAt === null)
+            .map((l) => l.phaseId),
+        )
+      : new Set<string>();
+    const poolPhases = phases.filter((p) => poolPhaseIds.has(p.id));
+    const piggyWindow =
+      poolPhases.length > 0
+        ? {
+            startDate: poolPhases.reduce(
+              (min, p) => (p.startDate < min ? p.startDate : min),
+              poolPhases[0]!.startDate,
+            ),
+            endDate: poolPhases.reduce(
+              (max, p) => (p.endDate > max ? p.endDate : max),
+              poolPhases[0]!.endDate,
+            ),
+          }
+        : trip
+          ? { startDate: trip.startDate, endDate: trip.endDate }
+          : null;
+    const piggyTotalDays = piggyWindow ? getTotalDays(piggyWindow.startDate, piggyWindow.endDate) : 0;
+    const piggyDaysElapsed = piggyWindow
+      ? Math.max(0, Math.min(piggyTotalDays, getDayNumber(piggyWindow.startDate)))
+      : 0;
+    const piggyWeightPhases = poolPhases.length > 0 ? poolPhases : phases;
     // FB-08 · DEC-279 (Model B): the displayed cofrinho is the day-ordered buffer
     // balance, derived purely by replaying each day's pool spend against the
-    // constant linear daily ideal. `primaryPoolTxs` is the SAME set that feeds
+    // daily ideal. `primaryPoolTxs` is the SAME set that feeds
     // `fts.totalSpentCents`, so Σ daily spend === totalSpentCents — the balance
     // can never diverge from the numbers shown elsewhere. Hidden (null) for
     // ongoing/no-date spaces where there is no daily ideal.
-    const piggyDailyIdealCents = linearDailyIdealCents(motivationBudgetCents, tripTotalDays);
+    const piggyDailyIdealCents = linearDailyIdealCents(motivationBudgetCents, piggyTotalDays);
     // DEC-393 (G3): the cofrinho measures each day against its REAL pace, not a
-    // flat ideal. Distribute the budget across the trip's days by the rhythm
+    // flat ideal. Distribute the budget across the window's days by the rhythm
     // weight of the phase each day falls in (peak day → larger ideal); days in no
     // phase get the base weight 1.0. Σ ideals == budget, so the buffer still
     // reconciles (C14). NOTE: event-reserve days are NOT yet excluded here — that
@@ -670,12 +740,12 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // path-dependent reconciliation, so it is deferred (the documented L-PIGGY
     // fallback for the unstable part); the rhythm awareness ships now.
     const piggyIdealByDayCents =
-      trip && tripTotalDays > 0
+      piggyWindow && piggyTotalDays > 0
         ? buildRhythmDailyIdeals(
             motivationBudgetCents,
-            Array.from({ length: tripTotalDays }, (_unused, i) => {
-              const dateIso = addDaysIso(trip.startDate, i);
-              const phaseOfDay = phases.find(
+            Array.from({ length: piggyTotalDays }, (_unused, i) => {
+              const dateIso = addDaysIso(piggyWindow.startDate, i);
+              const phaseOfDay = piggyWeightPhases.find(
                 (p) => dateIso >= p.startDate.slice(0, 10) && dateIso <= p.endDate.slice(0, 10),
               );
               return {
@@ -685,24 +755,48 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             }),
           )
         : new Map<string, number>();
+    // DEC-465: manual resgates persisted in settings, replayed by day for the
+    // active trip + pool.
+    const piggyWithdrawalByDay = new Map<string, number>();
+    if (trip && primaryPool) {
+      for (const w of settings?.piggyWithdrawals ?? []) {
+        if (w.tripId !== trip.id || w.poolId !== primaryPool.id) continue;
+        piggyWithdrawalByDay.set(
+          w.dateIso,
+          (piggyWithdrawalByDay.get(w.dateIso) ?? 0) + w.amountCents,
+        );
+      }
+    }
     const piggyLedger =
-      fts && trip && piggyDailyIdealCents > 0
+      fts && piggyWindow && piggyDailyIdealCents > 0
         ? buildPiggyLedger({
-            dailyIdealCents: piggyDailyIdealCents,
+            // Every in-window day has a rhythm entry (weights ≥ 1), so the flat
+            // fallback would only ever hit out-of-window spend days (e.g. a
+            // pre-phase booking) — those must accrue NOTHING, not a free ideal.
+            dailyIdealCents: 0,
             idealByDayCents: piggyIdealByDayCents,
             spendByDay: buildPiggySpendByDay({
               transactions: primaryPoolTxs,
-              startDateIso: trip.startDate,
-              daysElapsed: tripDaysElapsed,
+              startDateIso: piggyWindow.startDate,
+              daysElapsed: piggyDaysElapsed,
             }),
+            withdrawalByDay: piggyWithdrawalByDay,
           })
         : null;
-    const piggyBankCents = piggyLedger?.balanceCents ?? 0;
-    // FB-08 · DEC-279: the most-recent day's signed movement drives the "your
-    // cofrinho just moved" notification in the Amigo Sincero carousel.
+    // DEC-464 (INV-2): the DISPLAYED balance (and the daily cap gate) is the
+    // SETTLED balance — closed days only, today's provisional deposit backed
+    // out. Counting today's own "not spent yet" deposit flipped the cap on in
+    // real time and shrank "livre hoje" from €37 to €14 before breakfast.
+    const piggyBankCents = piggyLedger ? piggySettledBalanceCents(piggyLedger, todayIso) : 0;
+    // FB-08 · DEC-279: the most-recent CLOSED day's signed movement drives the
+    // "your cofrinho just moved" notification. Today's provisional entry is
+    // excluded — it is a simulation until the day closes (DEC-464).
+    const piggyClosedEntries = piggyLedger
+      ? piggyLedger.entries.filter((e) => e.dateIso < todayIso)
+      : [];
     const piggyLastMovementCents =
-      piggyLedger && piggyLedger.entries.length > 0
-        ? piggyLedger.entries[piggyLedger.entries.length - 1]!.deltaCents
+      piggyClosedEntries.length > 0
+        ? piggyClosedEntries[piggyClosedEntries.length - 1]!.deltaCents
         : 0;
 
     // DEC-415 (G4): the daily hero, now cofrinho-aware. When the buffer holds a
@@ -757,6 +851,30 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             piggyCap: todayPiggyCap,
           })
         : null;
+    // DEC-465 (resgate): what taking the parked money back actually DOES — the
+    // daily cap stops holding days at their rhythm ideal, so each day (when it
+    // arrives) reads its full raw share again. Preview per day type so the
+    // sheet can say "dias comuns ~+€A · dias de pico ~+€B".
+    const piggyWithdrawPreview = (() => {
+      if (!piggyLedger || piggyBankCents <= 0 || !phaseDayMap) return null;
+      const idealOf = (iso: string): number =>
+        piggyIdealByDayCents.get(iso) ?? piggyDailyIdealCents;
+      // Raw share = the uncapped allowance (today carries the parked part).
+      const upliftOf = (day: (typeof phaseDayMap.days)[number]): number => {
+        const rawCents = day.allowanceCents + day.piggyParkedCents;
+        return Math.max(0, rawCents - Math.min(rawCents, idealOf(day.dateIso)));
+      };
+      const futureDays = phaseDayMap.days.filter((d) => d.dateIso >= todayIso);
+      const commonDay = futureDays.find((d) => !d.isPeakDay);
+      const peakDay = futureDays.find((d) => d.isPeakDay);
+      return {
+        availableCents: piggyBankCents,
+        commonUpliftCents: commonDay ? upliftOf(commonDay) : 0,
+        peakUpliftCents: peakDay ? upliftOf(peakDay) : 0,
+        hasPeakDay: peakDay !== undefined,
+      };
+    })();
+
     const savingsGoal =
       fts && settings?.savingsGoalCents != null
         ? calculateSavingsGoalProgress({
@@ -971,6 +1089,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       pendingImpactCents,
       receivableCents,
       payableCents,
+      personalRecon,
       participantNameById,
       // DEC-453: names for the lens' per-fund sub-lines ("de qual verba veio?").
       poolNameById: new Map(pools.map((p) => [p.id, p.name])),
@@ -991,6 +1110,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       savingsGoal,
       piggyBankCents,
       piggyLedger,
+      piggyWithdrawPreview,
       valueSuggestion,
       tripPriors,
       amigoV2,
@@ -1025,6 +1145,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     allShares,
     settlements,
     forecasts,
+    planCountFromIso,
     heatmapMonth,
     heatmapDayIso,
   ]);
