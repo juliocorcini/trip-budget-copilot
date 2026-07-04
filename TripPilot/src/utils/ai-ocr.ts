@@ -1,6 +1,6 @@
 import { getSyncWorkerUrl, aiRequestHeaders } from '@/data/sync/config';
 import { logger } from '@/utils/logger';
-import { parseReceiptResponse } from '@/domain/receipt';
+import { parseReceiptResponse, applyBasketDiscountToReceiptPlan } from '@/domain/receipt';
 import { bumpTelemetryCounter } from '@/utils/telemetry-events';
 import { readCooldown } from '@/utils/ai-rate-limit';
 import type { ReceiptPlan } from '@/domain/receipt';
@@ -47,7 +47,10 @@ export async function extractReceiptViaCloud(imageDataUrl: string): Promise<Rece
 
   try {
     const raw: unknown = await response.json();
-    const plan = parseReceiptResponse(raw);
+    // DEC-467: fold classified discounts (basket + item) into the item amounts
+    // deterministically, so EVERY consumer (receipt review, assistant total,
+    // split, group) sees net values that sum to what was actually paid.
+    const { plan } = applyBasketDiscountToReceiptPlan(parseReceiptResponse(raw));
     bumpTelemetryCounter('receiptScans'); // DEC-248: count a successful cloud scan.
     return { ok: true, plan };
   } catch (err) {

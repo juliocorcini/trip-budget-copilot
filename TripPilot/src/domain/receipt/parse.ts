@@ -184,8 +184,11 @@ function parseServiceCharge(value: unknown): ReceiptServiceCharge {
  * E6 — normalise the OCR's non-product money lines. Zero/blank lines are dropped;
  * a discount is forced negative (a credit) regardless of how the model signed it,
  * so the downstream proportional rate-out always treats it as money back.
+ * DEC-467: a discount also carries its scope — whole purchase ('basket', the
+ * default) or one line ('item' + itemIndex) — so the applier knows where to
+ * subtract it. Loyalty/points lines are the prompt's job to keep out entirely.
  */
-function parseAdjustments(value: unknown): ReceiptAdjustment[] {
+function parseAdjustments(value: unknown, itemCount: number): ReceiptAdjustment[] {
   if (!Array.isArray(value)) return [];
   const result: ReceiptAdjustment[] = [];
   for (const entry of value) {
@@ -196,7 +199,22 @@ function parseAdjustments(value: unknown): ReceiptAdjustment[] {
     const kind = coerceAdjustmentKind(raw.kind);
     const magnitudeCents = toCents(Math.abs(amount));
     const amountCents = kind === 'discount' ? -magnitudeCents : toCents(amount);
-    result.push({ kind, label: coerceString(raw.label) ?? kind, amountCents });
+    const adjustment: ReceiptAdjustment = {
+      kind,
+      label: coerceString(raw.label) ?? kind,
+      amountCents,
+    };
+    if (kind === 'discount') {
+      const rawIndex = coerceNumber(raw.itemIndex);
+      const itemIndex =
+        rawIndex !== null && Number.isInteger(rawIndex) && rawIndex >= 0 && rawIndex < itemCount
+          ? rawIndex
+          : null;
+      const scopeText = coerceString(raw.scope)?.toLowerCase();
+      adjustment.scope = scopeText === 'item' && itemIndex !== null ? 'item' : 'basket';
+      adjustment.itemIndex = adjustment.scope === 'item' ? itemIndex : null;
+    }
+    result.push(adjustment);
   }
   return result;
 }
@@ -235,7 +253,7 @@ export function parseReceiptResponse(raw: unknown): ReceiptPlan {
     readTotalCents: readTotal !== null && readTotal > 0 ? toCents(readTotal) : null,
     items,
     serviceCharge: parseServiceCharge(root.serviceCharge),
-    adjustments: parseAdjustments(root.adjustments),
+    adjustments: parseAdjustments(root.adjustments, items.length),
   };
 }
 

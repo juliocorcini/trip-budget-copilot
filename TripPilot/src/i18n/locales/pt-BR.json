@@ -3589,6 +3589,7 @@
     "you": "Você",
     "paid_by_label": "Quem pagou?",
     "match_total": "Ajustar ao total",
+    "basket_discount_applied": "Desconto de {{amount}} na compra toda — distribuído entre os itens proporcionalmente ao preço. Os valores abaixo já são os finais.",
     "split_modes_label": "Dividir esta nota",
     "split_with_label": "Dividir com quem?",
     "split_everyone": "Todos",

@@ -324,7 +324,14 @@ describe('parseReceiptResponse — adjustments (E6)', () => {
     });
     expect(plan.adjustments).toHaveLength(2);
     expect(plan.adjustments[0]).toEqual({ kind: 'couvert', label: 'Couvert', amountCents: 400 });
-    expect(plan.adjustments[1]).toEqual({ kind: 'discount', label: '10% off', amountCents: -200 });
+    // DEC-467: discounts now also carry their scope (basket when unspecified).
+    expect(plan.adjustments[1]).toEqual({
+      kind: 'discount',
+      label: '10% off',
+      amountCents: -200,
+      scope: 'basket',
+      itemIndex: null,
+    });
   });
 
   it('normalises an unknown kind to "other" and labels it from the kind when blank', () => {

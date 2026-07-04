@@ -3585,6 +3585,7 @@
     "you": "Tú",
     "paid_by_label": "¿Quién pagó?",
     "match_total": "Ajustar al total",
+    "basket_discount_applied": "Descuento de {{amount}} en toda la compra — repartido entre los artículos proporcionalmente al precio. Los importes de abajo ya son los finales.",
     "split_modes_label": "Dividir este recibo",
     "split_with_label": "¿Dividir con quién?",
     "split_everyone": "Todos",

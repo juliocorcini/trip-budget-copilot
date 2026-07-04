@@ -3585,6 +3585,7 @@
     "you": "You",
     "paid_by_label": "Who paid?",
     "match_total": "Match to total",
+    "basket_discount_applied": "{{amount}} discount on the whole purchase — spread across the items proportionally to price. The amounts below are already final.",
     "split_modes_label": "Split this receipt",
     "split_with_label": "Split with whom?",
     "split_everyone": "Everyone",

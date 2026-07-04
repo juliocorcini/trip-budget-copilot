@@ -13,3 +13,10 @@ export {
   summarizeReceiptTotal,
   receiptDateToIso,
 } from './parse';
+export type {
+  ApplyBasketDiscountOutcome,
+  BasketDiscountAllocation,
+  BasketDiscountError,
+  BasketDiscountResult,
+} from './basket-discount';
+export { allocateBasketDiscount, applyBasketDiscountToReceiptPlan } from './basket-discount';

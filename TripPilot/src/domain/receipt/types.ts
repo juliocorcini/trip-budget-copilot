@@ -15,6 +15,13 @@ export interface ReceiptDraftItem {
   qty: number;
   /** Line total in cents — the amount registered for this expense. */
   amountCents: number;
+  /**
+   * DEC-467 — audit trail when a basket-level discount was folded into this
+   * line: the printed (pre-discount) line total. Absent when no discount hit it.
+   */
+  grossAmountCents?: number;
+  /** DEC-467 — this line's proportional share of the basket discount (cents ≥ 0). */
+  basketDiscountCents?: number;
   category: string;
   /** Whether this line is kept on commit (user can drop noise lines). */
   include: boolean;
@@ -48,6 +55,14 @@ export interface ReceiptAdjustment {
   label: string;
   /** Cents — negative for a discount (a credit), positive for couvert/other. */
   amountCents: number;
+  /**
+   * DEC-467 — what the discount applies to: the whole purchase ('basket') or a
+   * single line ('item', with `itemIndex` pointing into `items`). Older reads
+   * without the field are treated as 'basket' by the applier.
+   */
+  scope?: 'basket' | 'item';
+  /** Index into `ReceiptPlan.items` when scope === 'item'; null/absent otherwise. */
+  itemIndex?: number | null;
 }
 
 /** The normalised, cents-based receipt ready for review/split/commit. */

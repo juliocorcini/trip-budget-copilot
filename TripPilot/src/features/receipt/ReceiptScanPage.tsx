@@ -136,6 +136,12 @@ export function ReceiptScanPage() {
   );
   const reconciliation = useMemo(() => (plan ? reconcileReceipt(plan, 0) : null), [plan]);
 
+  // DEC-467: total basket discount folded into the lines (0 when none applied).
+  const basketDiscountCents = useMemo(
+    () => (plan ? plan.items.reduce((sum, i) => sum + (i.basketDiscountCents ?? 0), 0) : 0),
+    [plan],
+  );
+
   const allParticipantIds = useMemo(() => participants.map((p) => p.id), [participants]);
   const splittable = participants.length >= 2;
 
@@ -558,6 +564,21 @@ export function ReceiptScanPage() {
             </button>
           )}
 
+          {/* DEC-467: a basket-wide discount was spread proportionally over the items. */}
+          {basketDiscountCents > 0 && (
+            <div
+              className="rounded-xl px-3 py-2.5 flex items-center gap-2"
+              style={{ background: 'rgba(52,199,123,0.10)' }}
+            >
+              <Icon name="sell" size={16} style={{ color: 'var(--success)' }} />
+              <p className="text-[11px] flex-1" style={{ color: 'var(--success)' }}>
+                {t('receiptScan.basket_discount_applied', {
+                  amount: formatMoney(basketDiscountCents, currency),
+                })}
+              </p>
+            </div>
+          )}
+
           {reconciliation && reconciliation.readTotalCents !== null && (
             <div
               className="rounded-xl px-3 py-2.5 flex flex-col gap-2"
@@ -838,8 +859,16 @@ function ItemRow({
           </span>
         </span>
         <span className="flex items-center gap-1.5 shrink-0">
-          <span className="text-sm font-extrabold tabular text-on-surface">
-            {formatMoney(item.amountCents, currency)}
+          <span className="flex flex-col items-end">
+            {/* DEC-467: a basket discount was folded in — show the printed price struck through. */}
+            {item.grossAmountCents !== undefined && item.grossAmountCents > item.amountCents && (
+              <span className="text-[10px] tabular text-on-surface-faint line-through">
+                {formatMoney(item.grossAmountCents, currency)}
+              </span>
+            )}
+            <span className="text-sm font-extrabold tabular text-on-surface">
+              {formatMoney(item.amountCents, currency)}
+            </span>
           </span>
           <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
         </span>
