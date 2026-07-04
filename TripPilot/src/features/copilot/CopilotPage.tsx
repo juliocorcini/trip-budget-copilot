@@ -1088,6 +1088,9 @@ export function CopilotPage() {
         onClose={() => setPiggyOpen(false)}
         ledger={model.piggyLedger}
         currency={currency}
+        todayIso={model.todayIso}
+        settledBalanceCents={model.piggyBankCents}
+        withdrawOffer={null}
       />
     </div>
   );

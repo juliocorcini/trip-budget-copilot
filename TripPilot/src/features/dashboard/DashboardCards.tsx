@@ -74,6 +74,8 @@ interface DashboardCardsProps {
   onSelectCheckIn: (intent: CheckInIntent) => void;
   onOpenHeroBreakdown: () => void;
   onEditSavingsGoal: () => void;
+  /** DEC-465: persist a full piggy resgate (returns the parked money to the flow). */
+  onPiggyWithdraw: (amountCents: number) => void;
 }
 
 // The hero's previous amount is stashed in sessionStorage so it survives the
@@ -133,6 +135,7 @@ export function DashboardCards({
   onSelectCheckIn,
   onOpenHeroBreakdown,
   onEditSavingsGoal,
+  onPiggyWithdraw,
 }: DashboardCardsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -1907,6 +1910,20 @@ export function DashboardCards({
         onClose={() => setPiggyStatementOpen(false)}
         ledger={model.piggyLedger}
         currency={trip.baseCurrency}
+        todayIso={model.todayIso}
+        settledBalanceCents={model.piggyBankCents}
+        withdrawOffer={
+          model.piggyWithdrawPreview
+            ? {
+                ...model.piggyWithdrawPreview,
+                onWithdraw: () => {
+                  hapticSelection();
+                  onPiggyWithdraw(model.piggyWithdrawPreview!.availableCents);
+                  setPiggyStatementOpen(false);
+                },
+              }
+            : null
+        }
       />
     </>
   );

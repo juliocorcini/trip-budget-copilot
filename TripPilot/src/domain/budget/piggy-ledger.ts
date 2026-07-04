@@ -44,12 +44,23 @@ export interface PiggyLedgerEntry {
   idealCents: number;
   spentCents: number;
   kind: PiggyEntryKind;
-  /** Signed balance change this day: +deposit / −withdrawal / 0. */
+  /**
+   * Signed balance change from the day's own FLOW (+deposit / −withdrawal / 0).
+   * A manual withdrawal (resgate) is NOT in this number — it rides
+   * `manualCents`, so the day's spend-vs-ideal story stays readable on days the
+   * user also cashed out.
+   */
   deltaCents: number;
-  /** Running balance AFTER this day (≥ 0). */
+  /** Running balance AFTER this day (≥ 0), manual withdrawal included. */
   balanceCents: number;
   /** Overspend this day the piggy could NOT cover (≥ 0) — eats future days. */
   uncoveredCents: number;
+  /**
+   * DEC-465 (resgate): money the traveler explicitly took back from the piggy
+   * this day (≥ 0). Taken from the balance as it stood at the start of the day
+   * (the previous close), BEFORE the day's own ideal/spend settles.
+   */
+  manualCents: number;
 }
 
 export interface PiggyLedger {
@@ -58,10 +69,12 @@ export interface PiggyLedger {
   balanceCents: number;
   /** Σ of every deposit. */
   totalDepositedCents: number;
-  /** Σ of every withdrawal actually taken from the piggy. */
+  /** Σ of every withdrawal the buffer absorbed covering overspends. */
   totalWithdrawnCents: number;
   /** Σ of overspend the piggy could not cover, across all days. */
   totalUncoveredCents: number;
+  /** DEC-465: Σ of every manual withdrawal (resgate) the traveler took back. */
+  totalManualWithdrawnCents: number;
 }
 
 export interface BuildPiggyLedgerInput {
@@ -81,6 +94,13 @@ export interface BuildPiggyLedgerInput {
   idealByDayCents?: Map<string, number>;
   /** One item per ELAPSED day (zero-spend days included with `spentCents: 0`). */
   spendByDay: PiggyDaySpend[];
+  /**
+   * DEC-465 (resgate): manual withdrawals per ISO day. Each is honored up to
+   * the balance available at the START of that day (previous close) — the
+   * replay can never go negative because of a resgate. Absent → byte-identical
+   * to the pre-DEC-465 ledger.
+   */
+  withdrawalByDay?: Map<string, number>;
 }
 
 export interface RhythmDayWeight {
@@ -146,15 +166,22 @@ export function buildPiggyLedger(input: BuildPiggyLedgerInput): PiggyLedger {
   let totalDepositedCents = 0;
   let totalWithdrawnCents = 0;
   let totalUncoveredCents = 0;
+  let totalManualWithdrawnCents = 0;
 
   for (const day of days) {
+    // DEC-465: a resgate comes out of the morning balance (previous close),
+    // capped so it can never overdraw the piggy.
+    const manualRequested = Math.max(0, Math.round(input.withdrawalByDay?.get(day.dateIso) ?? 0));
+    const manualCents = Math.min(manualRequested, balanceCents);
+    const openingCents = balanceCents - manualCents;
+
     // DEC-393: the day's RHYTHM-aware ideal when present, else the flat fallback.
     const dayIdeal = input.idealByDayCents?.get(day.dateIso);
     const idealCents = Math.max(0, Math.round(dayIdeal ?? fallbackIdealCents));
     const spentCents = Math.max(0, Math.round(day.spentCents));
-    const gross = balanceCents + idealCents - spentCents;
+    const gross = openingCents + idealCents - spentCents;
     const nextBalance = Math.max(0, gross);
-    const deltaCents = nextBalance - balanceCents;
+    const deltaCents = nextBalance - openingCents;
     const uncoveredCents = gross < 0 ? -gross : 0;
 
     const kind: PiggyEntryKind =
@@ -162,6 +189,7 @@ export function buildPiggyLedger(input: BuildPiggyLedgerInput): PiggyLedger {
     if (deltaCents > 0) totalDepositedCents += deltaCents;
     else if (deltaCents < 0) totalWithdrawnCents += -deltaCents;
     totalUncoveredCents += uncoveredCents;
+    totalManualWithdrawnCents += manualCents;
 
     entries.push({
       dateIso: day.dateIso,
@@ -171,6 +199,7 @@ export function buildPiggyLedger(input: BuildPiggyLedgerInput): PiggyLedger {
       deltaCents,
       balanceCents: nextBalance,
       uncoveredCents,
+      manualCents,
     });
     balanceCents = nextBalance;
   }
@@ -181,7 +210,27 @@ export function buildPiggyLedger(input: BuildPiggyLedgerInput): PiggyLedger {
     totalDepositedCents,
     totalWithdrawnCents,
     totalUncoveredCents,
+    totalManualWithdrawnCents,
   };
+}
+
+/**
+ * DEC-464 (INV-2): the SETTLED piggy balance — what actually sits in the piggy
+ * from CLOSED days, with today's provisional deposit/withdrawal backed out but
+ * today's manual resgate (an explicit user action, not a simulation) kept.
+ *
+ * The daily-allowance cap and the displayed cofrinho must use THIS number:
+ * counting today's own provisional deposit made the piggy "swallow" today's
+ * unspent allowance in real time (Julio saw €14 free on a €37 weekend day
+ * simply because he hadn't spent yet).
+ */
+export function piggySettledBalanceCents(ledger: PiggyLedger, todayIso: string): number {
+  const today = ledger.entries.find((e) => e.dateIso === todayIso);
+  if (!today) return ledger.balanceCents;
+  // Balance before today's flow: today's close minus today's own flow delta.
+  // (manualCents already left `balanceCents − deltaCents`, which is exactly the
+  // post-resgate opening — the number we want.)
+  return Math.max(0, today.balanceCents - today.deltaCents);
 }
 
 export interface BuildPiggySpendByDayInput {

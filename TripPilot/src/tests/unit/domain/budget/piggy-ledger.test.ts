@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildPiggyLedger,
+  piggySettledBalanceCents,
   linearDailyIdealCents,
   buildRhythmDailyIdeals,
   buildPiggySpendByDay,
@@ -265,6 +266,81 @@ describe('buildPiggyLedger — INVARIANT: no cent doubled or lost (C14 non-negot
       expect(entry.balanceCents).toBeGreaterThanOrEqual(0);
       prev = entry.balanceCents;
     }
+  });
+});
+
+describe('buildPiggyLedger — DEC-465 manual withdrawals (resgate)', () => {
+  it('a resgate leaves the MORNING balance; the day still settles its own flow', () => {
+    // day1 saves 10k. day2: resgate 4k (from the 10k), zero spend → +10k flow.
+    const ledger = buildPiggyLedger({
+      dailyIdealCents: 10_000,
+      spendByDay: days([0, 0]),
+      withdrawalByDay: new Map([['2026-06-02', 4_000]]),
+    });
+    expect(ledger.entries[1]).toMatchObject({
+      manualCents: 4_000,
+      deltaCents: 10_000, // flow only — the resgate rides manualCents
+      balanceCents: 16_000, // 10k − 4k + 10k
+      kind: 'deposit',
+    });
+    expect(ledger.balanceCents).toBe(16_000);
+    expect(ledger.totalManualWithdrawnCents).toBe(4_000);
+    // C14 with resgates: deposits − flow-withdrawals − manual == balance.
+    expect(
+      ledger.totalDepositedCents - ledger.totalWithdrawnCents - ledger.totalManualWithdrawnCents,
+    ).toBe(ledger.balanceCents);
+  });
+
+  it('a resgate can never overdraw — capped at the opening balance', () => {
+    // day1 saves 2k; day2 requests 50k → only 2k honored, then overspend hits
+    // an empty piggy (uncovered, floor at 0).
+    const ledger = buildPiggyLedger({
+      dailyIdealCents: 10_000,
+      spendByDay: days([8_000, 25_000]),
+      withdrawalByDay: new Map([['2026-06-02', 50_000]]),
+    });
+    expect(ledger.entries[1]).toMatchObject({
+      manualCents: 2_000,
+      balanceCents: 0,
+      uncoveredCents: 15_000, // 0 + 10k − 25k
+    });
+    expect(ledger.totalManualWithdrawnCents).toBe(2_000);
+  });
+
+  it('absent withdrawal map → byte-identical to the pre-DEC-465 ledger', () => {
+    const spend = days([3_000, 12_000, 0]);
+    const a = buildPiggyLedger({ dailyIdealCents: 10_000, spendByDay: spend });
+    const b = buildPiggyLedger({
+      dailyIdealCents: 10_000,
+      spendByDay: spend,
+      withdrawalByDay: new Map(),
+    });
+    expect(b.entries).toEqual(a.entries);
+    expect(b.balanceCents).toBe(a.balanceCents);
+  });
+});
+
+describe('piggySettledBalanceCents — DEC-464 (INV-2: today is provisional)', () => {
+  it("backs out today's provisional deposit (the €37→€14 weekend bug)", () => {
+    // Yesterday closed at 5k; today (no spend yet) provisionally deposits 10k.
+    const ledger = buildPiggyLedger({ dailyIdealCents: 10_000, spendByDay: days([5_000, 0]) });
+    expect(ledger.balanceCents).toBe(15_000); // raw ledger includes today
+    expect(piggySettledBalanceCents(ledger, '2026-06-02')).toBe(5_000); // settled does not
+  });
+
+  it("keeps today's manual resgate (an action, not a simulation)", () => {
+    // Closed balance 10k; today the user takes 4k back → settled reads 6k.
+    const ledger = buildPiggyLedger({
+      dailyIdealCents: 10_000,
+      spendByDay: days([0, 0]),
+      withdrawalByDay: new Map([['2026-06-02', 4_000]]),
+    });
+    expect(piggySettledBalanceCents(ledger, '2026-06-02')).toBe(6_000);
+  });
+
+  it('no entry for today (day not open yet) → the full closed balance', () => {
+    const ledger = buildPiggyLedger({ dailyIdealCents: 10_000, spendByDay: days([5_000]) });
+    expect(piggySettledBalanceCents(ledger, '2026-06-09')).toBe(5_000);
   });
 });
 

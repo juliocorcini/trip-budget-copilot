@@ -211,6 +211,23 @@ export function DashboardPage() {
     setSavingsGoalOpen(false);
   };
 
+  // DEC-465: resgate do cofrinho — append-only withdrawal persisted in settings;
+  // the ledger replays it and the daily cap stops parking that money.
+  const handlePiggyWithdraw = async (amountCents: number) => {
+    if (!trip || !model.primaryPool || amountCents <= 0) return;
+    const withdrawal = {
+      tripId: trip.id,
+      poolId: model.primaryPool.id,
+      dateIso: model.todayIso,
+      amountCents,
+    };
+    await appSettingsRepository.update({
+      piggyWithdrawals: [...(settings?.piggyWithdrawals ?? []), withdrawal],
+    });
+    await reload();
+    showToast(t('dashboard.piggy_withdraw_done'), 'success');
+  };
+
   // M9/M10 (E5): the chosen leftover decision runs through the atomic
   // orchestrator; every path (including dismiss = carry_next) marks the ended
   // phase handled, so the sheet shows exactly once per cycle. ÂNCORA 13.
@@ -657,6 +674,7 @@ export function DashboardPage() {
             onSelectCheckIn={handleSelectCheckIn}
             onOpenHeroBreakdown={() => setHeroBreakdownOpen(true)}
             onEditSavingsGoal={() => setSavingsGoalOpen(true)}
+            onPiggyWithdraw={handlePiggyWithdraw}
           />
 
           {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}

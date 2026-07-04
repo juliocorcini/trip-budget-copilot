@@ -180,6 +180,24 @@ export interface AppSettings {
    * stored summary. `undefined` on existing installs reads back as ON
    * (non-indexed — no migration). */
   sharePreviewEnabled?: boolean;
+  /** DEC-465 (resgate do cofrinho): manual withdrawals the traveler took back
+   * from the piggy buffer. Replayed into the ledger by (trip, pool, day) — the
+   * money returns to the daily flow because the cap stops parking it. Append-
+   * only; `undefined` on existing installs reads back as none (non-indexed —
+   * no migration). */
+  piggyWithdrawals?: PiggyWithdrawal[];
+}
+
+/**
+ * DEC-465: one manual piggy withdrawal (resgate). `dateIso` is the LOCAL day
+ * the traveler took the money back; the ledger honors it up to the balance
+ * available at that day's opening.
+ */
+export interface PiggyWithdrawal {
+  tripId: string;
+  poolId: string;
+  dateIso: string;
+  amountCents: number;
 }
 
 /**
