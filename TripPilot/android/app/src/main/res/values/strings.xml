@@ -4,4 +4,13 @@
     <string name="title_activity_main">TripPilot</string>
     <string name="package_name">com.trippilot.app</string>
     <string name="custom_url_scheme">com.trippilot.app</string>
+
+    <!-- DEC-459 — widget/tile NATIVE DEFAULTS, shown only before the app first
+         pushes localized strings (web side re-pushes on every dashboard load,
+         following the in-app language). Product default locale is pt-BR. -->
+    <string name="widget_label_default">Livre hoje</string>
+    <string name="widget_value_empty">Abra o app</string>
+    <string name="widget_add_default">+</string>
+    <string name="widget_description">Quanto você ainda pode gastar hoje, direto na tela inicial.</string>
+    <string name="tile_quick_add_label">Registrar gasto</string>
 </resources>

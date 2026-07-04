@@ -24,6 +24,10 @@ describe('parseDeepLink (B2 App Links)', () => {
     expect(parseDeepLink('https://trippilot.pages.dev/pair')).toBe('/pair');
   });
 
+  it('routes /quick-add (DEC-459 widget "+" and QS tile)', () => {
+    expect(parseDeepLink('https://trippilot.pages.dev/quick-add')).toBe('/quick-add');
+  });
+
   it('ignores unrelated paths on the app host', () => {
     expect(parseDeepLink('https://trippilot.pages.dev/dashboard')).toBeNull();
     expect(parseDeepLink('https://trippilot.pages.dev/')).toBeNull();

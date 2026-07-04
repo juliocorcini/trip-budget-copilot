@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEC-459 — quick-add pill: app accent (teal) so the action reads as primary. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#2DD4BF" />
+    <corners android:radius="22dp" />
+</shape>

@@ -20,6 +20,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ApkInstallerPlugin.class);
         // B1 (Onda 4 / DEC-215): receive a shared/opened .csv (Wise → TripPilot).
         registerPlugin(ShareTargetPlugin.class);
+        // DEC-459: push "Livre hoje" strings into the home-screen widget.
+        registerPlugin(HomeWidgetPlugin.class);
         super.onCreate(savedInstanceState);
         // FIELD R2 item 13: remove the Android 12+ stretch overscroll glow on the
         // WebView — CSS overscroll-behavior cannot suppress the native edge effect.

@@ -8,6 +8,7 @@ import { formatDate, localDateString } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import { isNativeApp } from '@/utils/native/platform';
+import { updateHomeWidget } from '@/utils/native/home-widget';
 import { shouldShowInstallNudge } from '@/features/install/install-nudge';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -86,6 +87,19 @@ export function DashboardPage() {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams, model.pendingShares]);
+
+  // DEC-459: mirror the daily hero into the Android home widget (native only;
+  // no-op elsewhere). Formatting + labels are pushed from HERE so the widget
+  // always matches the in-app number and language.
+  const widgetFreeCents = model.todayBudget?.freeTodayCents ?? null;
+  useEffect(() => {
+    if (!isNativeApp() || widgetFreeCents === null || !trip) return;
+    void updateHomeWidget({
+      value: formatMoney(widgetFreeCents, trip.baseCurrency),
+      label: t('dashboard.widget_free_today'),
+      addHint: '+',
+    });
+  }, [widgetFreeCents, trip, t]);
 
   const handleResolveShare = async (shareId: string, status: 'confirmed' | 'rejected') => {
     if (!model.owner) return;

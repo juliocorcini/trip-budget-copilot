@@ -14,7 +14,8 @@ const APP_LINK_HOSTS = new Set(['trippilot.pages.dev']);
 
 // Only these prefixes are owned by the app; anything else is ignored so the
 // listener never hijacks an unrelated intent.
-const DEEP_LINK_PREFIXES = ['/pair', '/s/'] as const;
+// DEC-459: /quick-add is fired by the home widget "+" and the QS tile.
+const DEEP_LINK_PREFIXES = ['/pair', '/s/', '/quick-add'] as const;
 
 /**
  * Turns an incoming App Link URL into the in-app target (path + query + hash)
