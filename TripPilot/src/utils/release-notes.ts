@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.6.1-rc',
+    date: '2026-07-04',
+    items: {
+      'pt-BR': [
+        'Nota com desconto na compra toda (cupom, cartão do super) agora fecha a conta: o desconto é distribuído entre os itens proporcionalmente ao preço, centavo a centavo, e os valores finais somam exatamente o que você pagou.',
+        'Na revisão da nota, os itens com desconto mostram o preço original riscado e um aviso explica quanto foi distribuído.',
+        'Pontos, cashback e saldo acumulado de fidelidade nunca entram na conta — benefício para depois não é desconto de hoje.',
+      ],
+      en: [
+        'Receipts with a whole-purchase discount (coupon, store card) now add up: the discount is spread across the items proportionally to price, cent by cent, and the final amounts sum exactly to what you paid.',
+        'On the receipt review, discounted items show the original price struck through and a note explains how much was spread.',
+        'Loyalty points, cashback and accumulated balance never enter the math — a future benefit is not a discount today.',
+      ],
+      es: [
+        'Los tickets con descuento en toda la compra (cupón, tarjeta del súper) ahora cuadran: el descuento se reparte entre los artículos proporcionalmente al precio, céntimo a céntimo, y los importes finales suman exactamente lo que pagaste.',
+        'En la revisión del ticket, los artículos con descuento muestran el precio original tachado y un aviso explica cuánto se repartió.',
+        'Los puntos, el cashback y el saldo acumulado de fidelidad nunca entran en el cálculo — un beneficio futuro no es un descuento de hoy.',
+      ],
+    },
+  },
+  {
     version: '2.6.0-rc',
     date: '2026-07-04',
     items: {
