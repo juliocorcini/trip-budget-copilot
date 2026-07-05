@@ -54,9 +54,13 @@ jobs:
         # (reuseExistingServer is off when CI=true) and sets retries/workers.
         run: npm run test:e2e
       - name: Upload Playwright report
-        if: ${{ !cancelled() }}
+        # Storage guard (2026-07-05, 90% of the 0.5 GB Actions quota): the
+        # report only matters when the suite FAILS — green-run reports were
+        # ~all of the stored bytes. Failure-only + short retention keeps the
+        # debugging value at a fraction of the storage.
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: TripPilot/playwright-report/
-          retention-days: 7
+          retention-days: 3
