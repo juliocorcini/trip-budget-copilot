@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.1-rc',
+    date: '2026-07-05',
+    items: {
+      'pt-BR': [
+        'Widget conversor repensado: agora é primeiro uma CALCULADORA de verdade — o botão 💱 liga/desliga a conversão quando você quiser ver o valor na sua moeda.',
+        'Teclado do widget aparece já a partir de 3 células de altura (novo tamanho padrão 3x3, mais compacto).',
+        'Câmbio do widget sempre no mínimo o do dia: ele se atualiza sozinho quando fica velho e ganhou um botão ↻ para atualizar na hora.',
+        'Widget do cofrinho agora nasce no tamanho certo (2x1): mesma informação, metade do espaço.',
+      ],
+      en: [
+        'Converter widget rethought: it is now a real CALCULATOR first — the 💱 button toggles conversion whenever you want the value in your currency.',
+        'The widget keypad now appears from 3 cells of height (new compact 3x3 default size).',
+        "Widget exchange rate is always at least today's: it refreshes itself when stale and gained a ↻ button for an instant update.",
+        'The piggy bank widget now spawns at the right size (2x1): same information, half the space.',
+      ],
+      es: [
+        'Widget conversor repensado: ahora es primero una CALCULADORA de verdad — el botón 💱 activa/desactiva la conversión cuando quieras ver el valor en tu moneda.',
+        'El teclado del widget aparece desde 3 celdas de altura (nuevo tamaño por defecto 3x3, más compacto).',
+        'El cambio del widget siempre es como mínimo el del día: se actualiza solo cuando envejece y ganó un botón ↻ para actualizar al instante.',
+        'El widget de la alcancía ahora nace en el tamaño correcto (2x1): la misma información, la mitad del espacio.',
+      ],
+    },
+  },
+  {
     version: '2.7.0-rc',
     date: '2026-07-05',
     items: {
