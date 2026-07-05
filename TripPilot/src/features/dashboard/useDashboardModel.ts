@@ -657,6 +657,9 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       forecasts,
       profiles,
       transactions: phaseExpenseTxs,
+      // BUG 2026-07-05: surface pre-plan occasions ("14 antigas") on planned
+      // cards instead of letting history vanish when a plan counts "from now".
+      countFromIso: planCountFromIso,
     });
 
     // DEC-092 (R-10): savings refer to the LAST closed outing.

@@ -1,5 +1,6 @@
 import type { Transaction } from '@/domain/types/transaction';
 import { transactionBasePersonalCostCents, formatMoney } from '@/domain/money';
+import { localDayOf } from '@/domain/dates';
 
 /**
  * DEC-460 — Trip Diary V1: the trip retold as a day-by-day timeline (spends +
@@ -74,11 +75,17 @@ export function buildTripDiary(input: BuildTripDiaryInput): TripDiary {
       notes: tx.notes?.trim() || null,
       createdAt: tx.createdAt,
     };
-    const list = byDay.get(tx.date);
+    // BUG (2026-07-05): tx.date is a full ISO timestamp — grouping by the raw
+    // value made every expense its own "day" and produced keys the UI's
+    // `new Date(`${date}T12:00:00`)` heading could not parse (RangeError →
+    // the whole Diary page crashed). Group by the LOCAL calendar day, the
+    // same projection every other day-view uses (BUG-001/R6-01).
+    const day = localDayOf(tx.date);
+    const list = byDay.get(day);
     if (list) list.push(entry);
-    else byDay.set(tx.date, [entry]);
+    else byDay.set(day, [entry]);
     const photos = photoCounts.get(tx.id) ?? 0;
-    if (photos > 0) dayPhotoCounts.set(tx.date, (dayPhotoCounts.get(tx.date) ?? 0) + photos);
+    if (photos > 0) dayPhotoCounts.set(day, (dayPhotoCounts.get(day) ?? 0) + photos);
   }
 
   const allPlaces = new Set<string>();

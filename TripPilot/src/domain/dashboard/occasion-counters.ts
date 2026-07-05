@@ -18,6 +18,7 @@ import type { OccasionForecast } from '@/domain/forecasting';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { Transaction } from '@/domain/types/transaction';
 import { groupTransactionsByCategory } from '@/domain/transactions';
+import { localDayOf } from '@/domain/dates';
 
 export interface PlannedOccasionCounter {
   kind: 'planned';
@@ -30,8 +31,17 @@ export interface PlannedOccasionCounter {
   category: string;
   /** Occasions still ahead (big number). */
   remaining: number;
-  /** Occasions already done (secondary line). */
+  /** Occasions already done (secondary line) — since the plan's cut date. */
   done: number;
+  /**
+   * BUG 2026-07-05 — occasions of this category/profile BEFORE the plan's
+   * "count from" day (DEC-463). When Julio planned 2 bar nights "from now on",
+   * his 14 logged bar nights stopped consuming the plan (correct) but ALSO
+   * vanished from the home carousel (the bar category was swallowed by the
+   * planned counter). This figure keeps the history visible on the card
+   * ("0 feitas · 14 antigas") instead of pretending it never happened.
+   */
+  beforePlanCount: number;
 }
 
 export interface ActivityOccasionCounter {
@@ -54,12 +64,19 @@ export interface BuildOccasionCountersInput {
   profiles: ActivityProfile[];
   /** Expense transactions of the active phase (caller scopes them). */
   transactions: Transaction[];
+  /**
+   * DEC-463 — the active plan's "count from" day (YYYY-MM-DD) or null.
+   * Occasions before it feed `beforePlanCount` so pre-plan history stays
+   * visible on the card instead of silently disappearing.
+   */
+  countFromIso: string | null;
 }
 
 export function buildOccasionCounters(
   input: BuildOccasionCountersInput,
 ): OccasionCounterItem[] {
-  const { forecasts, profiles, transactions } = input;
+  const { forecasts, profiles, transactions, countFromIso } = input;
+  const expenseTxs = transactions.filter((tx) => tx.type === 'expense');
 
   // 1) Planned metas — forecasts that actually carry a plan. Usage order from
   // the caller is preserved (used profiles first).
@@ -67,14 +84,21 @@ export function buildOccasionCounters(
     .filter((forecast) => forecast.totalPlanned > 0)
     .map((forecast) => {
       const profile = profiles.find((p) => p.id === forecast.profileId);
+      const category = profile?.category ?? 'other';
       return {
         kind: 'planned',
         key: forecast.profileId,
         profileId: forecast.profileId,
         name: forecast.profileName,
-        category: profile?.category ?? 'other',
+        category,
         remaining: forecast.remaining,
         done: forecast.spent,
+        beforePlanCount: countOccasionsBeforePlan(
+          expenseTxs,
+          forecast.profileId,
+          category,
+          countFromIso,
+        ),
       };
     });
 
@@ -83,7 +107,6 @@ export function buildOccasionCounters(
 
   // 2) Activity counters — OCCASION counts (DEC-262/FB-14) for every other
   // category that has expenses. Sorted by count (the busiest categories lead).
-  const expenseTxs = transactions.filter((tx) => tx.type === 'expense');
   const groups = groupTransactionsByCategory(expenseTxs);
   const activity: ActivityOccasionCounter[] = Object.entries(groups)
     .filter(([category, txs]) => !plannedCategories.has(category) && txs.length > 0)
@@ -113,4 +136,25 @@ function countOccasions(txs: Transaction[]): number {
     else standalone += 1;
   }
   return sessionIds.size + standalone;
+}
+
+/**
+ * Occasions that happened BEFORE the plan's cut day, in the meta's scope.
+ * Scope matches by profile id OR — for real categories — by category, because
+ * the pre-plan history (quick-adds, receipts) usually carries only the
+ * category, not the profile id the plan was created with.
+ */
+function countOccasionsBeforePlan(
+  expenseTxs: Transaction[],
+  profileId: string,
+  category: string,
+  countFromIso: string | null,
+): number {
+  if (!countFromIso) return 0;
+  const scoped = expenseTxs.filter((tx) => {
+    const inScope =
+      tx.activityProfileId === profileId || (category !== 'other' && tx.category === category);
+    return inScope && localDayOf(tx.date) < countFromIso;
+  });
+  return countOccasions(scoped);
 }

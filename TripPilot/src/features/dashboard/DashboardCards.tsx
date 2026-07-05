@@ -1187,6 +1187,26 @@ export function DashboardCards({
                 const accent = counterAccent(counter.category);
                 if (counter.kind === 'planned') {
                   const profile = model.profiles.find((p) => p.id === counter.profileId);
+                  // BUG 2026-07-05: pre-plan occasions (before DEC-463's cut
+                  // day) stay visible — "0 feitas · 14 antigas" — so planning
+                  // "from now on" never looks like it erased the history.
+                  const doneSublabel =
+                    counter.beforePlanCount > 0
+                      ? t('dashboard.occasion_done_before', {
+                          count: counter.done,
+                          before: counter.beforePlanCount,
+                        })
+                      : t('dashboard.occasion_done', { count: counter.done });
+                  // BUG 2026-07-05: tapping the card used to filter by profile
+                  // id — but the historic expenses (quick-adds/receipts) carry
+                  // only the CATEGORY, so the list opened empty ("outros bar",
+                  // 0 gastos"). For real categories, filter by category — the
+                  // superset the traveler expects; custom 'other' profiles
+                  // keep the profile filter (their only identity).
+                  const filterTarget =
+                    counter.category !== 'other'
+                      ? `/expenses?category=${counter.category}`
+                      : `/expenses?profile=${counter.profileId}`;
                   return (
                     <div
                       key={counter.key}
@@ -1197,10 +1217,10 @@ export function DashboardCards({
                         icon={profile?.iconName ?? getCategoryIcon(counter.category)}
                         count={counter.remaining}
                         label={t('dashboard.occasion_remaining', { name: counter.name })}
-                        sublabel={t('dashboard.occasion_done', { count: counter.done })}
+                        sublabel={doneSublabel}
                         iconBg={accent.bg}
                         iconColor={accent.color}
-                        onClick={() => navigate(`/expenses?profile=${counter.profileId}`)}
+                        onClick={() => navigate(filterTarget)}
                       />
                     </div>
                   );

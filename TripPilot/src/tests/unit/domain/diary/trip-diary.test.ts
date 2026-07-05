@@ -80,15 +80,43 @@ describe('buildTripDiary (DEC-460)', () => {
     const diary = buildTripDiary({
       trip: TRIP,
       transactions: [
-        mkTx('b', { amountCents: 2000, date: '2026-07-03' }),
-        mkTx('a', { amountCents: 1500, date: '2026-07-01' }),
-        mkTx('c', { amountCents: 500, date: '2026-07-03' }),
+        mkTx('b', { amountCents: 2000, date: '2026-07-03T12:00:00.000Z' }),
+        mkTx('a', { amountCents: 1500, date: '2026-07-01T12:00:00.000Z' }),
+        mkTx('c', { amountCents: 500, date: '2026-07-03T13:00:00.000Z' }),
       ],
     });
     expect(diary.days.map((d) => d.date)).toEqual(['2026-07-01', '2026-07-03']);
     expect(diary.days[1]!.totalCents).toBe(2500);
     expect(diary.totalSpentCents).toBe(4000);
     expect(diary.expenseCount).toBe(3);
+  });
+
+  it('BUG 2026-07-05: real ISO timestamps group into ONE local day with a YYYY-MM-DD key', () => {
+    // Transactions store full ISO timestamps. The diary used to group by the
+    // raw value — every expense became its own "day" with an unparseable key
+    // ("2026-07-03T09:12:00.000Z") that crashed the page heading. Mid-day UTC
+    // times keep the local day stable across test timezones.
+    const diary = buildTripDiary({
+      trip: TRIP,
+      transactions: [
+        mkTx('morning', { amountCents: 700, date: '2026-07-03T09:12:00.000Z' }),
+        mkTx('lunch', { amountCents: 1800, date: '2026-07-03T12:30:45.123Z' }),
+        mkTx('snack', { amountCents: 500, date: '2026-07-03T15:05:00.000Z' }),
+        mkTx('other-day', { amountCents: 1000, date: '2026-07-01T12:00:00.000Z' }),
+      ],
+      photoCountByTransactionId: new Map([
+        ['morning', 1],
+        ['snack', 2],
+      ]),
+    });
+    expect(diary.days.map((d) => d.date)).toEqual(['2026-07-01', '2026-07-03']);
+    // Day keys are plain local days — the UI can always parse `${date}T12:00:00`.
+    for (const day of diary.days) {
+      expect(day.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+    expect(diary.days[1]!.entries).toHaveLength(3);
+    expect(diary.days[1]!.totalCents).toBe(3000);
+    expect(diary.days[1]!.photoCount).toBe(3);
   });
 
   it('orders entries inside a day by creation time', () => {
@@ -168,7 +196,7 @@ describe('renderTripDiaryHtml (DEC-460)', () => {
     transactions: [
       mkTx('t1', {
         amountCents: 1250,
-        date: '2026-07-01',
+        date: '2026-07-01T12:00:00.000Z',
         description: 'Croissant & <espresso>',
         placeLabel: 'Café "Central"',
         notes: 'best morning',
