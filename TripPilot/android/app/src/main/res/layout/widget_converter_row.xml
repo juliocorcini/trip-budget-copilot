@@ -55,4 +55,19 @@
         android:background="@drawable/widget_chip"
         android:maxLines="1"
         android:text="@string/widget_converter_pair_default" />
+
+    <TextView
+        android:id="@+id/conv_fx"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:gravity="center"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textSize="13sp"
+        android:background="@drawable/widget_chip"
+        android:maxLines="1"
+        android:text="💱" />
 </LinearLayout>

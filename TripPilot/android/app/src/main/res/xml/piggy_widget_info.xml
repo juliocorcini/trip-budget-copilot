@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DEC-468 — piggy bank widget. DEFAULT (best) size is 2x2: balance +
-     savings-goal progress. 1x1 keeps just the balance. -->
+<!-- DEC-468/2.7.1 — piggy bank widget. DEFAULT (best) size is the frugal 2x1
+     row (pig + balance): the widget carries little data, so it should not
+     claim a 2x2 block by default. 1x1 keeps just the balance; 2x2+ reveals
+     the savings-goal progress bar. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="110dp"
-    android:minHeight="110dp"
+    android:minHeight="40dp"
     android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
     android:targetCellWidth="2"
-    android:targetCellHeight="2"
+    android:targetCellHeight="1"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
-    android:initialLayout="@layout/widget_piggy"
-    android:previewLayout="@layout/widget_piggy"
+    android:initialLayout="@layout/widget_piggy_row"
+    android:previewLayout="@layout/widget_piggy_row"
     android:widgetCategory="home_screen"
     android:description="@string/widget_piggy_description" />

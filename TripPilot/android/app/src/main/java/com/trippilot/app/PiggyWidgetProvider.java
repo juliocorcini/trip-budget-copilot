@@ -9,10 +9,11 @@ import android.widget.RemoteViews;
 import org.json.JSONObject;
 
 /**
- * DEC-468 — piggy bank widget: the settled cofrinho balance (DEC-464
- * semantics, pushed by the app) plus savings-goal progress. DEFAULT 2x2;
- * 1x1 keeps 🐷 + balance. Tap opens the app (the cofrinho card lives on
- * the dashboard).
+ * DEC-468/2.7.1 — piggy bank widget: the settled cofrinho balance (DEC-464
+ * semantics, pushed by the app). DEFAULT is the space-frugal 2x1 row (field
+ * feedback: the old 2x2 default wasted a cell); 1x1 keeps 🐷 + balance and
+ * 2x2+ adds the savings-goal progress. Tap opens the app (the cofrinho card
+ * lives on the dashboard).
  */
 public class PiggyWidgetProvider extends ResizableWidgetProvider {
 
@@ -20,7 +21,10 @@ public class PiggyWidgetProvider extends ResizableWidgetProvider {
     protected RemoteViews buildSized(Context context, Bundle options) {
         int width = minWidthDp(options);
         int height = minHeightDp(options);
-        boolean mini = (width > 0 && width < 110) || (height > 0 && height < 110);
+        boolean mini = width > 0 && width < 110;
+        // Unknown options render the DEFAULT (row) — the launcher corrects
+        // the bucket right after placement.
+        boolean row = !mini && (height == 0 || height < 110);
 
         JSONObject data = WidgetStore.section(context, "piggy");
         String value = WidgetStore.str(data, "value");
@@ -29,6 +33,18 @@ public class PiggyWidgetProvider extends ResizableWidgetProvider {
 
         if (mini) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_piggy_small);
+            views.setTextViewText(R.id.piggy_value, value);
+            if (open != null) views.setOnClickPendingIntent(R.id.widget_root, open);
+            return views;
+        }
+
+        if (row) {
+            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_piggy_row);
+            String label = WidgetStore.str(data, "label");
+            views.setTextViewText(
+                R.id.piggy_label,
+                label != null ? label : context.getString(R.string.widget_piggy_default)
+            );
             views.setTextViewText(R.id.piggy_value, value);
             if (open != null) views.setOnClickPendingIntent(R.id.widget_root, open);
             return views;

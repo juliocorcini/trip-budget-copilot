@@ -58,6 +58,37 @@
             android:textColor="#F8FAFC"
             android:background="@drawable/widget_chip"
             android:text="@string/widget_converter_to_default" />
+
+        <TextView
+            android:id="@+id/conv_refresh"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#2DD4BF"
+            android:text="↻" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/conv_fx"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:textSize="12sp"
+            android:background="@drawable/widget_chip"
+            android:text="💱" />
     </LinearLayout>
 
     <TextView

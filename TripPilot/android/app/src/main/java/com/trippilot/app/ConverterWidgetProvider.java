@@ -6,34 +6,60 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.format.DateUtils;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.TimeZone;
 
 /**
- * DEC-468 — converter + calculator widget (council: "calculadora com conversão
- * AO VIVO", no separate convert step). The traveler types an expression on the
- * keypad; the big line always shows the CURRENT result converted FROM→TO with
- * the frozen FX snapshot the app pushed (ÂNCORA 10 honesty: the rate stamp is
- * always visible and rates are never fetched natively).
+ * DEC-468/DEC-471 — calculator-FIRST widget with a conversion toggle.
+ *
+ * 2.7.1 field feedback (Julio): "é primeiro uma calculadora mesmo, com o botão
+ * de ativar ou desativar o conversor". Default mode is pure calculator; the 💱
+ * key/chip toggles live FX conversion of the current result. The keypad is
+ * available from 3 cells of height (dense 5x4 grid — the new DEFAULT 3x3) and
+ * roomier at 4+ cells (4x5 grid).
+ *
+ * Rates honesty (DEC-256 + 2.7.1): the shown rate must be AT LEAST today's.
+ * The app pushes its frozen snapshot (with fetchedAtIso); the widget ALSO
+ * fetches the same free daily API natively (open.er-api.com — the exact
+ * source of utils/exchange-rates.ts) whenever the freshest known snapshot is
+ * not from today, and the ↻ button forces a refresh on demand. Whichever
+ * snapshot is fresher wins. This is the ONLY native money math exception
+ * (ÂNCORA 10 amendment): converting typed input offline needs rates on the
+ * device, and stale rates would lie to the traveler.
  *
  * Interaction: every key is a self-targeted broadcast with a unique data URI
- * (extras are ignored in PendingIntent equality — the URI is what keeps keys
- * distinct). State (expression + chosen pair) lives in SharedPreferences.
+ * (extras are ignored in PendingIntent equality — the URI keeps keys
+ * distinct). State (expression + pair + mode) lives in SharedPreferences.
  *
- * Size buckets: mini (1x1: pair + result) → row (Nx1: expression + result +
- * swap) → compact (2x2/3x2: chips + result, no keypad) → full (>=3x3-ish:
- * everything; 3x4 is the DEFAULT and best format).
+ * Size buckets: mini (1x1: result) → row (Nx1: expression + result + toggles)
+ * → compact (2x2: no keypad) → full3 (3x3 DEFAULT: dense keypad) → full
+ * (3x4+: comfy keypad + chips row).
  */
 public class ConverterWidgetProvider extends ResizableWidgetProvider {
 
     private static final String ACTION_KEY = "com.trippilot.app.CONVERTER_KEY";
     private static final int MAX_EXPR_LENGTH = 24;
     private static final char[] OPERATORS = {'+', '-', '×', '÷'};
+
+    private static final String RATES_URL = "https://open.er-api.com/v6/latest/";
+    private static final long AUTO_FETCH_GAP_MS = 30 * 60_000L; // background retry gap
+    private static final long MANUAL_FETCH_GAP_MS = 15_000L;    // ↻ tap-spam guard
+
+    private static final int COLOR_ACCENT = 0xFF2DD4BF;
 
     // ---------------------------------------------------------------- render
 
@@ -44,69 +70,126 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
         boolean unknown = width == 0 && height == 0; // first drop, options not delivered yet
         boolean mini = width > 0 && width < 110;
         boolean row = !mini && height > 0 && height < 110;
-        // Keypad needs ~4 cell-rows to keep keys >=30dp tall (council: no
-        // sub-touch-target keys); the DEFAULT 3x4 qualifies. Unknown options
-        // render the default (full) — the launcher sends real options right
-        // after placement and the bucket self-corrects.
-        boolean full = unknown || (!mini && !row && height >= 230 && width >= 160);
-        // Whatever is left (2x2 / 3x2 / narrow-tall) renders the compact card.
+        // Keypad tiers (Julio 2.7.1: "a calculadora a partir de 3 de altura"):
+        // >=4 cells tall gets the comfy 4-column grid; 3 cells gets the dense
+        // 5-column grid; below that there is no room for >=30dp touch targets.
+        boolean full = !mini && !row && height >= 230 && width >= 160;
+        boolean full3 = !mini && !row && !full && (unknown || (height >= 150 && width >= 160));
+        // Whatever is left (2x2 / narrow-tall) renders the compact card.
 
         SharedPreferences prefs = WidgetStore.prefs(context);
         JSONObject conv = WidgetStore.section(context, "converter");
         String from = currency(prefs.getString(WidgetStore.KEY_CONV_FROM, null), conv, "from", "EUR");
         String to = currency(prefs.getString(WidgetStore.KEY_CONV_TO, null), conv, "to", "BRL");
         String expr = prefs.getString(WidgetStore.KEY_CONV_EXPR, "");
+        boolean fxOn = "on".equals(prefs.getString(WidgetStore.KEY_CONV_MODE, "off"));
 
         Double result = evaluate(expr);
-        Double rate = pairRate(from, to, conv);
+        RatesInfo rates = resolveRates(context, conv);
+        Double rate = fxOn ? pairRate(from, to, rates) : null;
         Double converted = result != null && rate != null ? result * rate : null;
 
         int layout = mini
             ? R.layout.widget_converter_mini
             : row
                 ? R.layout.widget_converter_row
-                : full ? R.layout.widget_converter_full : R.layout.widget_converter_compact;
+                : full
+                    ? R.layout.widget_converter_full
+                    : full3 ? R.layout.widget_converter_full3 : R.layout.widget_converter_compact;
         RemoteViews views = new RemoteViews(context.getPackageName(), layout);
 
         DecimalFormat money = new DecimalFormat("#,##0.00");
-        String convertedText = converted != null
-            ? to + " " + money.format(converted)
-            : rate == null && result != null
-                ? context.getString(R.string.widget_converter_no_rate)
-                : to + " 0";
+        DecimalFormat plain = new DecimalFormat("#,##0.####");
+        String bigLine = fxOn
+            ? (converted != null
+                ? to + " " + money.format(converted)
+                : result != null
+                    ? context.getString(R.string.widget_converter_no_rate)
+                    : to + " 0")
+            : (result != null ? plain.format(result) : "0");
 
         String openPath = openConverterPath(result, from, to);
 
         if (mini) {
-            views.setTextViewText(R.id.conv_pair, from + "→" + to);
-            views.setTextViewText(R.id.conv_result, converted != null ? money.format(converted) : "—");
+            views.setTextViewText(R.id.conv_pair, fxOn ? from + "→" + to : "🧮");
+            views.setTextViewText(
+                R.id.conv_result,
+                fxOn
+                    ? (converted != null ? money.format(converted) : "—")
+                    : (result != null ? plain.format(result) : "0")
+            );
             views.setOnClickPendingIntent(R.id.widget_root, openLink(context, openPath));
             return views;
         }
 
         String exprText = expr.isEmpty() ? "0" : expr;
-        views.setTextViewText(R.id.conv_expr, exprText + eqSuffix(expr, result, from));
-        views.setTextViewText(R.id.conv_result, convertedText);
+        views.setTextViewText(R.id.conv_expr, exprText + eqSuffix(expr, result, from, fxOn, plain));
+        views.setTextViewText(R.id.conv_result, bigLine);
+        bindFxToggle(views, context, fxOn);
 
         if (row) {
-            views.setTextViewText(R.id.conv_swap, from + " ⇄ " + to);
-            views.setOnClickPendingIntent(R.id.conv_swap, keyIntent(context, "swap"));
+            views.setViewVisibility(R.id.conv_swap, fxOn ? android.view.View.VISIBLE : android.view.View.GONE);
+            if (fxOn) {
+                views.setTextViewText(R.id.conv_swap, from + " ⇄ " + to);
+                views.setOnClickPendingIntent(R.id.conv_swap, keyIntent(context, "swap"));
+            }
             views.setOnClickPendingIntent(R.id.widget_root, openLink(context, openPath));
             return views;
         }
 
-        views.setTextViewText(R.id.conv_from_chip, from);
-        views.setTextViewText(R.id.conv_to_chip, to);
-        views.setTextViewText(R.id.conv_stamp, stampText(from, to, rate, conv));
-        views.setOnClickPendingIntent(R.id.conv_from_chip, keyIntent(context, "from"));
-        views.setOnClickPendingIntent(R.id.conv_to_chip, keyIntent(context, "to"));
-        views.setOnClickPendingIntent(R.id.conv_swap, keyIntent(context, "swap"));
+        if (full3) {
+            views.setViewVisibility(R.id.conv_pair_chip, fxOn ? android.view.View.VISIBLE : android.view.View.GONE);
+            if (fxOn) {
+                views.setTextViewText(R.id.conv_pair_chip, from + " ⇄ " + to);
+                views.setOnClickPendingIntent(R.id.conv_pair_chip, keyIntent(context, "swap"));
+            }
+            bindKeypad(views, context);
+            views.setOnClickPendingIntent(R.id.key_open, openLink(context, openPath));
+            views.setOnClickPendingIntent(R.id.conv_result, openLink(context, openPath));
+            return views;
+        }
+
+        // compact + full share the chips/stamp row.
+        int chipVisibility = fxOn ? android.view.View.VISIBLE : android.view.View.GONE;
+        views.setViewVisibility(R.id.conv_from_chip, chipVisibility);
+        views.setViewVisibility(R.id.conv_swap, chipVisibility);
+        views.setViewVisibility(R.id.conv_to_chip, chipVisibility);
+        views.setViewVisibility(R.id.conv_refresh, chipVisibility);
+        if (fxOn) {
+            views.setTextViewText(R.id.conv_from_chip, from);
+            views.setTextViewText(R.id.conv_to_chip, to);
+            views.setOnClickPendingIntent(R.id.conv_from_chip, keyIntent(context, "from"));
+            views.setOnClickPendingIntent(R.id.conv_to_chip, keyIntent(context, "to"));
+            views.setOnClickPendingIntent(R.id.conv_swap, keyIntent(context, "swap"));
+            views.setOnClickPendingIntent(R.id.conv_refresh, keyIntent(context, "refresh"));
+            views.setTextViewText(R.id.conv_stamp, stampText(context, from, to, rate, rates));
+        } else {
+            views.setTextViewText(R.id.conv_stamp, context.getString(R.string.widget_converter_fx_off_hint));
+        }
 
         if (!full) {
             views.setOnClickPendingIntent(R.id.widget_root, openLink(context, openPath));
             return views;
         }
 
+        bindKeypad(views, context);
+        views.setOnClickPendingIntent(R.id.key_open, openLink(context, openPath));
+        views.setOnClickPendingIntent(R.id.conv_result, openLink(context, openPath));
+        return views;
+    }
+
+    /**
+     * The 💱 toggle: wires the tap and paints the BIG LINE by mode — teal
+     * currency result when conversion is live, plain white number when the
+     * widget is a pure calculator (emoji glyphs ignore textColor, so the
+     * state signal lives on the result line, not the key).
+     */
+    private void bindFxToggle(RemoteViews views, Context context, boolean fxOn) {
+        views.setTextColor(R.id.conv_result, fxOn ? COLOR_ACCENT : 0xFFF8FAFC);
+        views.setOnClickPendingIntent(R.id.conv_fx, keyIntent(context, "fx"));
+    }
+
+    private void bindKeypad(RemoteViews views, Context context) {
         String[][] keys = {
             {"7", String.valueOf(R.id.key_7)}, {"8", String.valueOf(R.id.key_8)},
             {"9", String.valueOf(R.id.key_9)}, {"div", String.valueOf(R.id.key_div)},
@@ -121,27 +204,24 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
         for (String[] key : keys) {
             views.setOnClickPendingIntent(Integer.parseInt(key[1]), keyIntent(context, key[0]));
         }
-        views.setOnClickPendingIntent(R.id.key_open, openLink(context, openPath));
-        views.setOnClickPendingIntent(R.id.conv_result, openLink(context, openPath));
-        return views;
     }
 
-    /** "12.5+3 " → " = 15.5 EUR" hint next to the raw expression. */
-    private static String eqSuffix(String expr, Double result, String from) {
-        if (result == null || !hasOperator(expr)) return "";
-        return " = " + new DecimalFormat("#,##0.####").format(result) + " " + from;
+    /** "12.5+3" → " = 15.5 EUR" hint beside the raw expression (FX mode only). */
+    private static String eqSuffix(String expr, Double result, String from, boolean fxOn, DecimalFormat plain) {
+        if (!fxOn || result == null || !hasOperator(expr)) return "";
+        return " = " + plain.format(result) + " " + from;
     }
 
-    private static String stampText(String from, String to, Double rate, JSONObject conv) {
+    private static String stampText(Context context, String from, String to, Double rate, RatesInfo rates) {
         StringBuilder stamp = new StringBuilder();
         if (rate != null) {
             stamp.append("1 ").append(from).append(" = ")
                 .append(new DecimalFormat("#,##0.####").format(rate)).append(' ').append(to);
         }
-        String pushed = WidgetStore.str(conv, "rateStamp");
-        if (pushed != null) {
+        String freshness = rates == null ? null : rates.freshnessLabel(context);
+        if (freshness != null) {
             if (stamp.length() > 0) stamp.append(" · ");
-            stamp.append(pushed);
+            stamp.append(freshness);
         }
         return stamp.toString();
     }
@@ -168,12 +248,33 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        boolean forceFetch = false;
         if (ACTION_KEY.equals(intent.getAction()) && intent.getData() != null) {
-            handleKey(context, intent.getData().getLastPathSegment());
+            String token = intent.getData().getLastPathSegment();
+            if ("refresh".equals(token)) {
+                forceFetch = true;
+            } else {
+                handleKey(context, token);
+            }
             requestRefresh(context, ConverterWidgetProvider.class);
-            return;
+        } else {
+            super.onReceive(context, intent);
         }
-        super.onReceive(context, intent);
+
+        // Keep the rate at least today's (2.7.1): fetch in the background when
+        // the freshest known snapshot is stale — or immediately on ↻. goAsync
+        // keeps the receiver alive for the network round-trip.
+        if (shouldFetch(context, forceFetch)) {
+            final PendingResult pending = goAsync();
+            final Context app = context.getApplicationContext();
+            new Thread(() -> {
+                try {
+                    fetchAndStoreRates(app);
+                } finally {
+                    pending.finish();
+                }
+            }).start();
+        }
     }
 
     private static void handleKey(Context context, String token) {
@@ -197,6 +298,11 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
                 if (result != null) {
                     editor.putString(WidgetStore.KEY_CONV_EXPR, plainNumber(result));
                 }
+                break;
+            }
+            case "fx": {
+                boolean on = "on".equals(prefs.getString(WidgetStore.KEY_CONV_MODE, "off"));
+                editor.putString(WidgetStore.KEY_CONV_MODE, on ? "off" : "on");
                 break;
             }
             case "swap": {
@@ -346,14 +452,154 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
 
     // ------------------------------------------------------------------ FX
 
+    /** The freshest known snapshot: app-pushed vs natively-fetched. */
+    static final class RatesInfo {
+        final String base;
+        final JSONObject ratesToBase;
+        final long fetchedAtMs;
+        final String pushedStamp; // pre-localized "câmbio de 04/07" (app push)
+        final boolean fromNative;
+
+        RatesInfo(String base, JSONObject ratesToBase, long fetchedAtMs, String pushedStamp, boolean fromNative) {
+            this.base = base;
+            this.ratesToBase = ratesToBase;
+            this.fetchedAtMs = fetchedAtMs;
+            this.pushedStamp = pushedStamp;
+            this.fromNative = fromNative;
+        }
+
+        String freshnessLabel(Context context) {
+            if (fetchedAtMs > 0 && DateUtils.isToday(fetchedAtMs)) {
+                return context.getString(R.string.widget_converter_rate_today);
+            }
+            if (fromNative && fetchedAtMs > 0) {
+                String day = new SimpleDateFormat("dd/MM", Locale.getDefault()).format(fetchedAtMs);
+                return context.getString(R.string.widget_converter_rate_of_native, day);
+            }
+            return pushedStamp; // app-localized text, or null when never stamped
+        }
+    }
+
+    /** Picks whichever snapshot (pushed payload vs native fetch) is fresher. */
+    static RatesInfo resolveRates(Context context, JSONObject conv) {
+        RatesInfo pushed = null;
+        if (conv != null) {
+            JSONObject rates = conv.optJSONObject("ratesToBase");
+            String base = WidgetStore.str(conv, "base");
+            if (rates != null && base != null) {
+                pushed = new RatesInfo(
+                    base, rates, parseIsoMs(WidgetStore.str(conv, "fetchedAtIso")),
+                    WidgetStore.str(conv, "rateStamp"), false
+                );
+            }
+        }
+
+        RatesInfo fetched = null;
+        String raw = WidgetStore.prefs(context).getString(WidgetStore.KEY_CONV_RATES, null);
+        if (raw != null) {
+            try {
+                JSONObject stored = new JSONObject(raw);
+                JSONObject rates = stored.optJSONObject("ratesToBase");
+                String base = WidgetStore.str(stored, "base");
+                if (rates != null && base != null) {
+                    fetched = new RatesInfo(base, rates, stored.optLong("fetchedAtMs", 0), null, true);
+                }
+            } catch (Exception ignored) {
+                // Corrupt cache — fall back to the pushed snapshot.
+            }
+        }
+
+        if (pushed == null) return fetched;
+        if (fetched == null) return pushed;
+        return fetched.fetchedAtMs >= pushed.fetchedAtMs ? fetched : pushed;
+    }
+
+    /** Best-effort ISO-8601 → epoch ms (UTC); 0 when absent/unparsable. */
+    private static long parseIsoMs(String iso) {
+        if (iso == null || iso.length() < 19) return 0;
+        try {
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+            format.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return format.parse(iso.substring(0, 19)).getTime();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    static boolean shouldFetch(Context context, boolean force) {
+        SharedPreferences prefs = WidgetStore.prefs(context);
+        long lastAttempt = prefs.getLong(WidgetStore.KEY_CONV_FETCH_AT, 0);
+        long now = System.currentTimeMillis();
+        if (now - lastAttempt < (force ? MANUAL_FETCH_GAP_MS : AUTO_FETCH_GAP_MS)) return false;
+        if (force) return true;
+        RatesInfo rates = resolveRates(context, WidgetStore.section(context, "converter"));
+        return rates == null || rates.fetchedAtMs <= 0 || !DateUtils.isToday(rates.fetchedAtMs);
+    }
+
+    /**
+     * Pulls today's reference rates (same free API and inversion as
+     * utils/exchange-rates.ts) and stores them for the widget only. Any
+     * failure is silent — the last snapshot keeps rendering.
+     */
+    static void fetchAndStoreRates(Context context) {
+        SharedPreferences prefs = WidgetStore.prefs(context);
+        prefs.edit().putLong(WidgetStore.KEY_CONV_FETCH_AT, System.currentTimeMillis()).apply();
+
+        JSONObject conv = WidgetStore.section(context, "converter");
+        String base = conv != null ? WidgetStore.str(conv, "base") : null;
+        if (base == null) {
+            base = currency(prefs.getString(WidgetStore.KEY_CONV_FROM, null), conv, "from", "EUR");
+        }
+
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(RATES_URL + base).openConnection();
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(8000);
+            connection.setRequestProperty("Accept", "application/json");
+            if (connection.getResponseCode() != 200) return;
+
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) body.append(line);
+            }
+            JSONObject data = new JSONObject(body.toString());
+            if (!"success".equals(data.optString("result"))) return;
+            JSONObject perBase = data.optJSONObject("rates");
+            if (perBase == null) return;
+
+            // Invert to base-units-per-1-foreign — the payload convention.
+            JSONObject ratesToBase = new JSONObject();
+            Iterator<String> codes = perBase.keys();
+            while (codes.hasNext()) {
+                String code = codes.next();
+                double value = perBase.optDouble(code, -1);
+                if (!code.equals(base) && value > 0) {
+                    ratesToBase.put(code, 1 / value);
+                }
+            }
+            if (ratesToBase.length() == 0) return;
+
+            JSONObject stored = new JSONObject();
+            stored.put("base", base);
+            stored.put("fetchedAtMs", System.currentTimeMillis());
+            stored.put("ratesToBase", ratesToBase);
+            prefs.edit().putString(WidgetStore.KEY_CONV_RATES, stored.toString()).apply();
+            requestRefresh(context, ConverterWidgetProvider.class);
+        } catch (Exception ignored) {
+            // Offline/timeout/bad payload — keep the previous snapshot.
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
     /** Same convention as domain/money/converter.ts: ratesToBase[X] = base per 1 X. */
-    static Double pairRate(String from, String to, JSONObject conv) {
+    static Double pairRate(String from, String to, RatesInfo rates) {
         if (from.equals(to)) return 1.0;
-        if (conv == null) return null;
-        String base = conv.optString("base", "");
-        JSONObject rates = conv.optJSONObject("ratesToBase");
-        Double basePerFrom = from.equals(base) ? Double.valueOf(1.0) : positive(rates, from);
-        Double basePerTo = to.equals(base) ? Double.valueOf(1.0) : positive(rates, to);
+        if (rates == null) return null;
+        Double basePerFrom = from.equals(rates.base) ? Double.valueOf(1.0) : positive(rates.ratesToBase, from);
+        Double basePerTo = to.equals(rates.base) ? Double.valueOf(1.0) : positive(rates.ratesToBase, to);
         if (basePerFrom == null || basePerTo == null) return null;
         return basePerFrom / basePerTo;
     }

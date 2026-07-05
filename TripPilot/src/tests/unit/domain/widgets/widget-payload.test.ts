@@ -312,6 +312,7 @@ describe('buildWidgetPayload — converter', () => {
       base: 'EUR',
       ratesToBase: { BRL: 0.157, USD: 0.85 },
       rateStamp: 'câmbio de 04/07',
+      fetchedAtIso: '2026-07-04T09:00:00.000Z',
     });
   });
 

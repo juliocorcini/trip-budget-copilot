@@ -15,12 +15,15 @@
     <string name="tile_quick_add_label">Registrar gasto</string>
 
     <!-- DEC-468 — widget suite defaults + picker descriptions. -->
-    <string name="widget_converter_description">Calculadora com conversão de moeda ao vivo — some, multiplique e veja na sua moeda.</string>
+    <string name="widget_converter_description">Calculadora completa — toque em 💱 para converter o resultado na sua moeda com o câmbio do dia.</string>
     <string name="widget_converter_pair_default">⇄</string>
     <string name="widget_converter_swap">⇄</string>
     <string name="widget_converter_from_default">EUR</string>
     <string name="widget_converter_to_default">BRL</string>
     <string name="widget_converter_no_rate">Sem câmbio — toque</string>
+    <string name="widget_converter_fx_off_hint">💱 desligado — toque para converter</string>
+    <string name="widget_converter_rate_today">câmbio de hoje</string>
+    <string name="widget_converter_rate_of_native">câmbio de %s</string>
     <string name="widget_actions_description">Atalhos: registrar gasto, escanear nota, iniciar saída e conversor.</string>
     <string name="widget_action_add_default">Gasto</string>
     <string name="widget_action_scan_default">Nota</string>

@@ -24,6 +24,12 @@ final class WidgetStore {
     static final String KEY_CONV_EXPR = "conv_expr";
     static final String KEY_CONV_FROM = "conv_from";
     static final String KEY_CONV_TO = "conv_to";
+    // Calculator-first (2.7.1): conversion is a TOGGLE; default OFF.
+    static final String KEY_CONV_MODE = "conv_mode"; // "on" | "off"
+    // Native-fetched daily rates (converter widget only — never app money):
+    // {"base","fetchedAtIso","ratesToBase":{...}} + last attempt throttle.
+    static final String KEY_CONV_RATES = "conv_rates_json";
+    static final String KEY_CONV_FETCH_AT = "conv_fetch_attempt_at";
 
     private WidgetStore() {}
 

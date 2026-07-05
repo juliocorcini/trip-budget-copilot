@@ -103,6 +103,12 @@ export interface WidgetPayload {
     ratesToBase: Record<string, number>;
     /** "câmbio de 04/07" — honesty stamp, pre-localized. */
     rateStamp: string;
+    /**
+     * Snapshot timestamp (2.7.1): the widget refreshes rates natively when
+     * the freshest snapshot it knows is not from today, and keeps whichever
+     * (pushed vs fetched) is newer.
+     */
+    fetchedAtIso: string | null;
   } | null;
 }
 
@@ -283,6 +289,7 @@ function buildConverter(input: BuildWidgetPayloadInput): WidgetPayload['converte
     base: rates?.baseCurrency ?? input.baseCurrency,
     ratesToBase: rates?.ratesToBase ?? {},
     rateStamp: input.labels.rateStamp,
+    fetchedAtIso: rates?.fetchedAt ?? null,
   };
 }
 
