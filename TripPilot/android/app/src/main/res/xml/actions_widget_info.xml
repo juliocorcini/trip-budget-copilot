@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEC-468 — quick actions widget. DEFAULT (best) size is 4x1: a thumb row
+     with the four everyday actions. 1x1 collapses to a single quick-add;
+     2x2+ becomes a grid with bigger targets. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_actions_row"
+    android:previewLayout="@layout/widget_actions_row"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_actions_description" />

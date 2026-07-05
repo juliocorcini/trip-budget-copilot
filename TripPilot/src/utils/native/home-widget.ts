@@ -12,11 +12,14 @@ import { isNativeApp } from './platform';
  */
 interface HomeWidgetPlugin {
   update(options: { value: string; label: string; addHint: string }): Promise<void>;
+  /** DEC-468 — full widget-suite payload (single JSON for all 7 widgets). */
+  push(options: { data: string }): Promise<void>;
 }
 
 const HomeWidget = registerPlugin<HomeWidgetPlugin>('HomeWidget');
 
 let lastPushed: string | null = null;
+let lastPayloadPushed: string | null = null;
 
 export interface HomeWidgetState {
   /** Formatted daily free amount, e.g. "€ 23,50" — the Home hero string. */
@@ -41,5 +44,22 @@ export async function updateHomeWidget(state: HomeWidgetState): Promise<void> {
     lastPushed = signature;
   } catch {
     // Older APKs without the plugin (pre-0.71.0) land here; silently skip.
+  }
+}
+
+/**
+ * DEC-468 — push the whole widget-suite payload (already-built JSON string of
+ * `WidgetPayload`). Deduped per session; best-effort: a pre-0.72.0 APK has no
+ * `push` method and lands in the catch (the legacy `update` call above keeps
+ * its "Livre hoje" widget alive).
+ */
+export async function pushWidgetData(payloadJson: string): Promise<void> {
+  if (!isNativeApp()) return;
+  if (payloadJson === lastPayloadPushed) return;
+  try {
+    await HomeWidget.push({ data: payloadJson });
+    lastPayloadPushed = payloadJson;
+  } catch {
+    // Older APKs without the method; silently skip.
   }
 }

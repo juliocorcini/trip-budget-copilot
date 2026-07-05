@@ -5,10 +5,11 @@ import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDate, localDateString } from '@/domain/dates';
-import { formatMoney } from '@/domain/money';
+import { formatMoney, converterCurrencies, MAJOR_CURRENCY_CODES } from '@/domain/money';
+import { buildWidgetPayload } from '@/domain/widgets';
 import { isIosDevice, isStandaloneDisplayMode } from '@/utils/platform';
 import { isNativeApp } from '@/utils/native/platform';
-import { updateHomeWidget } from '@/utils/native/home-widget';
+import { updateHomeWidget, pushWidgetData } from '@/utils/native/home-widget';
 import { shouldShowInstallNudge } from '@/features/install/install-nudge';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -100,6 +101,97 @@ export function DashboardPage() {
       addHint: '+',
     });
   }, [widgetFreeCents, trip, t]);
+
+  // DEC-468: push the FULL widget-suite payload (7 widgets, one JSON). All
+  // numbers come from the model (ÂNCORA 10 — native never re-computes money);
+  // the push itself dedupes, so re-renders are free. The legacy update above
+  // stays for pre-0.72.0 APKs.
+  const { todayBudget, occasionCounters, piggyBankCents, savingsGoal, upcomingEvents, todayIso } = model;
+  const widgetPhase = model.activePhase;
+  const frozenRates = settings?.frozenRates ?? null;
+  const anchorCurrency = settings?.anchorCurrency ?? settings?.defaultCurrency ?? null;
+  useEffect(() => {
+    if (!isNativeApp() || !trip) return;
+    const base = trip.baseCurrency;
+    const currencies = converterCurrencies(frozenRates, [
+      base,
+      ...MAJOR_CURRENCY_CODES,
+      ...(anchorCurrency ? [anchorCurrency.toUpperCase()] : []),
+    ]);
+    const home = anchorCurrency?.toUpperCase() ?? null;
+    const converterTo =
+      home && home !== base && currencies.includes(home)
+        ? home
+        : currencies.find((c) => c !== base) ?? base;
+    const rateStamp = frozenRates
+      ? t('dashboard.widget_rate_of', {
+          date: new Date(frozenRates.fetchedAt).toLocaleDateString(),
+        })
+      : '';
+    const payload = buildWidgetPayload({
+      baseCurrency: base,
+      todayIso,
+      freeToday: todayBudget
+        ? {
+            freeTodayCents: todayBudget.freeTodayCents,
+            todaySpentCents: todayBudget.todaySpentCents,
+          }
+        : null,
+      phase: widgetPhase ? { startDate: widgetPhase.startDate, endDate: widgetPhase.endDate } : null,
+      occasionCounters,
+      piggyBankCents,
+      savingsGoal: savingsGoal
+        ? { goalCents: savingsGoal.goalCents, progressRatio: savingsGoal.progressRatio }
+        : null,
+      upcomingEvents,
+      transactions,
+      frozenRates,
+      converterPair: { from: base, to: converterTo, currencies },
+      labels: {
+        freeToday: t('dashboard.widget_free_today'),
+        addHint: '+',
+        spentToday: (amount) => t('dashboard.widget_spent_today', { amount }),
+        dayOf: (day, total) => t('dashboard.widget_day_of', { day, total }),
+        metas: t('dashboard.widget_metas'),
+        metaDetailPlanned: (done, before) =>
+          before > 0
+            ? t('dashboard.occasion_done_before', { count: done, before })
+            : t('dashboard.occasion_done', { count: done }),
+        metaDetailActivity: t('dashboard.occasion_items'),
+        piggy: t('dashboard.widget_piggy'),
+        piggyGoal: (amount) => t('dashboard.widget_piggy_goal', { amount }),
+        nextEvent: t('dashboard.widget_next_event'),
+        countdown: (days) =>
+          days === 0
+            ? t('dashboard.widget_event_today')
+            : days === 1
+              ? t('dashboard.widget_event_tomorrow')
+              : t('dashboard.widget_event_in_days', { count: days }),
+        eventReserve: (amount) => t('dashboard.widget_event_reserve', { amount }),
+        today: t('dashboard.widget_today'),
+        rateStamp,
+        actionAdd: t('dashboard.widget_action_add'),
+        actionScan: t('dashboard.widget_action_scan'),
+        actionOuting: t('dashboard.widget_action_outing'),
+        actionConvert: t('dashboard.widget_action_convert'),
+        categoryName: (category) => t(`categories.${category}` as never),
+      },
+    });
+    void pushWidgetData(JSON.stringify(payload));
+  }, [
+    trip,
+    todayBudget,
+    widgetPhase,
+    occasionCounters,
+    piggyBankCents,
+    savingsGoal,
+    upcomingEvents,
+    todayIso,
+    transactions,
+    frozenRates,
+    anchorCurrency,
+    t,
+  ]);
 
   const handleResolveShare = async (shareId: string, status: 'confirmed' | 'rejected') => {
     if (!model.owner) return;

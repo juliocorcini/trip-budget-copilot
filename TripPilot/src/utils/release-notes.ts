@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.0-rc',
+    date: '2026-07-05',
+    items: {
+      'pt-BR': [
+        'Diário da viagem corrigido: os gastos agora se agrupam pelo dia certo e a tela não quebra mais ao abrir.',
+        'Cards de metas honestos: planejou "a partir de agora"? O card mostra "0 feitas · 14 antigas" — seu histórico nunca some.',
+        'Tocar num card de meta agora abre a lista certa: os gastos da categoria (os antigos incluídos), não mais um filtro vazio.',
+        'Novos widgets Android (no próximo APK): conversor com CALCULADORA no próprio widget (some tudo e veja ao vivo na sua moeda), atalhos rápidos, metas da fase, cofrinho, próximo evento e gastos de hoje.',
+        'Todos os widgets são redimensionáveis de 1x1 até o tamanho que quiser — cada um tem um formato padrão ideal e se adapta ao espaço.',
+      ],
+      en: [
+        'Trip diary fixed: expenses now group under the right day and the screen no longer crashes on open.',
+        'Honest goal cards: planned "from now on"? The card reads "0 done · 14 older" — your history never vanishes.',
+        'Tapping a goal card now opens the right list: the category expenses (old ones included), not an empty filter.',
+        'New Android widgets (next APK): a converter with a CALCULATOR inside the widget (add everything up and watch it live in your currency), quick actions, phase goals, piggy bank, next event and today\'s spending.',
+        'Every widget resizes from 1x1 up to any size — each has an ideal default format and adapts to the space.',
+      ],
+      es: [
+        'Diario del viaje corregido: los gastos se agrupan en el día correcto y la pantalla ya no se rompe al abrir.',
+        'Tarjetas de metas honestas: ¿planificaste "desde ahora"? La tarjeta muestra "0 hechas · 14 antiguas" — tu historial nunca desaparece.',
+        'Tocar una tarjeta de meta ahora abre la lista correcta: los gastos de la categoría (incluidos los antiguos), no un filtro vacío.',
+        'Nuevos widgets Android (próximo APK): conversor con CALCULADORA en el propio widget (suma todo y míralo en vivo en tu moneda), atajos rápidos, metas de la fase, alcancía, próximo evento y gastos de hoy.',
+        'Todos los widgets se redimensionan desde 1x1 hasta el tamaño que quieras — cada uno tiene un formato ideal por defecto y se adapta al espacio.',
+      ],
+    },
+  },
+  {
     version: '2.6.1-rc',
     date: '2026-07-04',
     items: {

@@ -35,6 +35,12 @@
                 <!-- DEC-459: widget "+" and quick tile deep-link here (setPackage
                      pins the intent to this app, so no chooser ever appears). -->
                 <data android:scheme="https" android:host="trippilot.pages.dev" android:pathPrefix="/quick-add" />
+                <!-- DEC-468: widget-suite tap targets (converter keypad hand-off,
+                     receipt scan, outing start, expense list). -->
+                <data android:scheme="https" android:host="trippilot.pages.dev" android:pathPrefix="/converter" />
+                <data android:scheme="https" android:host="trippilot.pages.dev" android:pathPrefix="/receipt/scan" />
+                <data android:scheme="https" android:host="trippilot.pages.dev" android:pathPrefix="/outings/new" />
+                <data android:scheme="https" android:host="trippilot.pages.dev" android:pathPrefix="/expenses" />
             </intent-filter>
 
             <!-- B1 (Onda 4 / DEC-215): receive a .csv shared from another app
@@ -91,6 +97,80 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/home_widget_info" />
+        </receiver>
+
+        <!-- DEC-468: converter + calculator widget (keypad broadcasts are
+             self-targeted explicit intents — safe with exported=true, which
+             the launcher requires anyway). -->
+        <receiver
+            android:name=".ConverterWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/converter_widget_info" />
+        </receiver>
+
+        <!-- DEC-468: quick actions widget. -->
+        <receiver
+            android:name=".QuickActionsWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/actions_widget_info" />
+        </receiver>
+
+        <!-- DEC-468: metas (occasion counters) widget. -->
+        <receiver
+            android:name=".MetasWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/metas_widget_info" />
+        </receiver>
+
+        <!-- DEC-468: piggy bank widget. -->
+        <receiver
+            android:name=".PiggyWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/piggy_widget_info" />
+        </receiver>
+
+        <!-- DEC-468: next event widget. -->
+        <receiver
+            android:name=".NextEventWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/event_widget_info" />
+        </receiver>
+
+        <!-- DEC-468: "Hoje" (today's spend) widget. -->
+        <receiver
+            android:name=".TodayWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_widget_info" />
         </receiver>
 
         <!-- DEC-459: Quick Settings tile → /quick-add. Permission + exported are

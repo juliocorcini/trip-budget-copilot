@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEC-468 — metas (occasion counters) widget. DEFAULT (best) size is 3x2
+     (three metas). 1x1 shows the top meta; taller sizes reveal up to six. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_metas"
+    android:previewLayout="@layout/widget_metas"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_metas_description" />

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEC-468 — converter+calculator widget. DEFAULT (best) size is 3x4: full
+     keypad + live conversion. Resizable down to 1x1 (pair + last result);
+     buckets: mini (1x1) → row (Nx1) → compact (2x2/3x2) → full (>=3x3). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="250dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="4"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_converter_full"
+    android:previewLayout="@layout/widget_converter_full"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_converter_description" />

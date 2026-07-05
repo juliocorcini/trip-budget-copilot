@@ -13,4 +13,27 @@
     <string name="widget_add_default">+</string>
     <string name="widget_description">Quanto você ainda pode gastar hoje, direto na tela inicial.</string>
     <string name="tile_quick_add_label">Registrar gasto</string>
+
+    <!-- DEC-468 — widget suite defaults + picker descriptions. -->
+    <string name="widget_converter_description">Calculadora com conversão de moeda ao vivo — some, multiplique e veja na sua moeda.</string>
+    <string name="widget_converter_pair_default">⇄</string>
+    <string name="widget_converter_swap">⇄</string>
+    <string name="widget_converter_from_default">EUR</string>
+    <string name="widget_converter_to_default">BRL</string>
+    <string name="widget_converter_no_rate">Sem câmbio — toque</string>
+    <string name="widget_actions_description">Atalhos: registrar gasto, escanear nota, iniciar saída e conversor.</string>
+    <string name="widget_action_add_default">Gasto</string>
+    <string name="widget_action_scan_default">Nota</string>
+    <string name="widget_action_outing_default">Saída</string>
+    <string name="widget_action_convert_default">Conversor</string>
+    <string name="widget_metas_description">Suas metas da fase: quantas saídas ainda cabem no plano.</string>
+    <string name="widget_metas_default">Metas</string>
+    <string name="widget_piggy_description">Seu cofrinho: quanto você já guardou na viagem.</string>
+    <string name="widget_piggy_default">Cofrinho</string>
+    <string name="widget_event_description">Contagem regressiva para o próximo evento planejado.</string>
+    <string name="widget_event_default">Próximo evento</string>
+    <string name="widget_event_none">Sem evento à vista</string>
+    <string name="widget_today_description">Quanto saiu hoje e os últimos gastos.</string>
+    <string name="widget_today_default">Hoje</string>
+    <string name="widget_today_empty">Nada hoje</string>
 </resources>

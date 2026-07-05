@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEC-468 — converter "=" key: teal accent, reads as the primary action. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#2DD4BF" />
+    <corners android:radius="12dp" />
+</shape>

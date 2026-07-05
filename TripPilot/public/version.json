@@ -1,8 +1,8 @@
 {
-  "version": "2.6.1-rc",
+  "version": "2.7.0-rc",
   "requiredNativeVersion": "0.50.0",
-  "latestNativeVersion": "0.71.0",
+  "latestNativeVersion": "0.72.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.6.1-rc.zip",
-  "notes": "Nota com desconto na compra toda agora fecha a conta: o desconto é distribuído entre os itens proporcionalmente ao preço (centavo a centavo) e os valores finais somam exatamente o que você pagou. Pontos e saldo de fidelidade nunca entram na conta."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.0-rc.zip",
+  "notes": "Diário de viagem de volta ao ar e cards de planejamento mostram o histórico (\"14 antigas\") com o filtro certo. Novos widgets de tela inicial no app Android: conversor com calculadora, ações rápidas, metas, cofrinho, próximo evento e gastos de hoje — todos redimensionáveis."
 }

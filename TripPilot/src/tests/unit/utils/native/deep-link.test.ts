@@ -28,6 +28,15 @@ describe('parseDeepLink (B2 App Links)', () => {
     expect(parseDeepLink('https://trippilot.pages.dev/quick-add')).toBe('/quick-add');
   });
 
+  it('routes the DEC-468 widget-suite targets preserving the query', () => {
+    expect(
+      parseDeepLink('https://trippilot.pages.dev/converter?amount=15.5&from=EUR&to=BRL'),
+    ).toBe('/converter?amount=15.5&from=EUR&to=BRL');
+    expect(parseDeepLink('https://trippilot.pages.dev/receipt/scan')).toBe('/receipt/scan');
+    expect(parseDeepLink('https://trippilot.pages.dev/outings/new')).toBe('/outings/new');
+    expect(parseDeepLink('https://trippilot.pages.dev/expenses')).toBe('/expenses');
+  });
+
   it('ignores unrelated paths on the app host', () => {
     expect(parseDeepLink('https://trippilot.pages.dev/dashboard')).toBeNull();
     expect(parseDeepLink('https://trippilot.pages.dev/')).toBeNull();

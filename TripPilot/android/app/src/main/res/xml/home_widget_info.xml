@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DEC-459 — "Livre hoje" widget metadata. updatePeriodMillis=0: the app
-     pushes updates (widget renders last-known value; no polling, no battery
-     cost). 3x1 default footprint, horizontally resizable. -->
+<!-- DEC-459/DEC-468 — "Livre hoje" widget metadata. updatePeriodMillis=0: the
+     app pushes updates (no polling, no battery cost). DEFAULT (best) size is
+     3x1 (targetCell* on API 31+, minWidth/minHeight as the legacy default);
+     freely resizable in every direction down to 1x1 (minResize* 40dp) — the
+     provider swaps layout buckets as the launcher resizes it. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="180dp"
-    android:minHeight="60dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
     android:targetCellWidth="3"
     android:targetCellHeight="1"
-    android:resizeMode="horizontal"
+    android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_free_today"
+    android:previewLayout="@layout/widget_free_today"
     android:widgetCategory="home_screen"
     android:description="@string/widget_description" />

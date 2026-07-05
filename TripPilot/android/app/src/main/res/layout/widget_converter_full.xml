@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEC-468 — converter DEFAULT bucket (3x4, "o melhor formato"): currency
+     chips, live expression + converted result, full calculator keypad.
+     Every key is a self-broadcast PendingIntent; the state machine lives in
+     ConverterWidgetProvider. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/conv_from_chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#F8FAFC"
+            android:background="@drawable/widget_chip"
+            android:text="@string/widget_converter_from_default" />
+
+        <TextView
+            android:id="@+id/conv_swap"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#2DD4BF"
+            android:text="@string/widget_converter_swap" />
+
+        <TextView
+            android:id="@+id/conv_to_chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#F8FAFC"
+            android:background="@drawable/widget_chip"
+            android:text="@string/widget_converter_to_default" />
+
+        <TextView
+            android:id="@+id/conv_stamp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:textSize="8sp"
+            android:textColor="#64748B"
+            android:maxLines="2"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/conv_expr"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="end"
+        android:textSize="15sp"
+        android:textColor="#94A3B8"
+        android:maxLines="1"
+        android:ellipsize="start" />
+
+    <TextView
+        android:id="@+id/conv_result"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:textSize="23sp"
+        android:textStyle="bold"
+        android:textColor="#2DD4BF"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="@string/widget_value_empty" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key_7" style="@style/WidgetKey" android:text="7" />
+            <TextView android:id="@+id/key_8" style="@style/WidgetKey" android:text="8" />
+            <TextView android:id="@+id/key_9" style="@style/WidgetKey" android:text="9" />
+            <TextView android:id="@+id/key_div" style="@style/WidgetKeyOp" android:text="÷" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key_4" style="@style/WidgetKey" android:text="4" />
+            <TextView android:id="@+id/key_5" style="@style/WidgetKey" android:text="5" />
+            <TextView android:id="@+id/key_6" style="@style/WidgetKey" android:text="6" />
+            <TextView android:id="@+id/key_mul" style="@style/WidgetKeyOp" android:text="×" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key_1" style="@style/WidgetKey" android:text="1" />
+            <TextView android:id="@+id/key_2" style="@style/WidgetKey" android:text="2" />
+            <TextView android:id="@+id/key_3" style="@style/WidgetKey" android:text="3" />
+            <TextView android:id="@+id/key_sub" style="@style/WidgetKeyOp" android:text="−" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key_0" style="@style/WidgetKey" android:text="0" />
+            <TextView android:id="@+id/key_dot" style="@style/WidgetKey" android:text="." />
+            <TextView android:id="@+id/key_back" style="@style/WidgetKey" android:text="⌫" />
+            <TextView android:id="@+id/key_add" style="@style/WidgetKeyOp" android:text="+" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key_clear" style="@style/WidgetKeyOp" android:text="C" />
+            <TextView
+                android:id="@+id/key_eq"
+                style="@style/WidgetKey"
+                android:layout_weight="2"
+                android:background="@drawable/widget_key_accent"
+                android:textColor="#0B1220"
+                android:text="=" />
+            <TextView android:id="@+id/key_open" style="@style/WidgetKeyOp" android:text="↗" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

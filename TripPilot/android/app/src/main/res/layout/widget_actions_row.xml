@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEC-468 — quick actions DEFAULT bucket (4x1): thumb row with the four
+     everyday actions. Each cell is emoji + label, one deep link each. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="@drawable/widget_background"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <LinearLayout
+        android:id="@+id/action_add"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_margin="2dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/widget_key">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:text="➕" />
+
+        <TextView
+            android:id="@+id/action_add_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textColor="#94A3B8"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="@string/widget_action_add_default" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/action_scan"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_margin="2dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/widget_key">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:text="🧾" />
+
+        <TextView
+            android:id="@+id/action_scan_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textColor="#94A3B8"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="@string/widget_action_scan_default" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/action_outing"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_margin="2dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/widget_key">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:text="🍻" />
+
+        <TextView
+            android:id="@+id/action_outing_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textColor="#94A3B8"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="@string/widget_action_outing_default" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/action_convert"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_margin="2dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/widget_key">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:text="💱" />
+
+        <TextView
+            android:id="@+id/action_convert_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="9sp"
+            android:textColor="#94A3B8"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="@string/widget_action_convert_default" />
+    </LinearLayout>
+</LinearLayout>
