@@ -1,6 +1,6 @@
 # Orquestrador — Leva "Acerto multi-moeda, Cobrança rica & Planejador coerente"
 
-**Status: ✅ ACTIVE** · Versões: `2.7.3-rc → 2.7.4-rc (G2) → 2.7.5-rc (G3) → 2.7.6-rc (G4)` · Irmãos: `2026-06-24-coherence…`, `2026-06-25-discovery…`, `2026-06-25-field-fixes…`
+**Status: 🏁 CLOSED (2026-07-06)** · Versões efetivas: `2.7.3-rc → 2.7.5-rc (G1+G2+G3 num só OTA, Pages c3e31be1) → 2.7.6-rc (G4, Pages 7337fc50)` · DEC-474..477 APPROVED · Suíte final 3236/3236 · Irmãos: `2026-06-24-coherence…`, `2026-06-25-discovery…`, `2026-06-25-field-fixes…`
 
 ---
 

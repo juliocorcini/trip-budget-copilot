@@ -162,6 +162,149 @@ export function calculateOccasionForecasts(
     .filter((f) => f.totalPlanned > 0 || f.spent > 0);
 }
 
+/* ──────────── DEC-477: the ONE plan-progress ruler (done vs remaining) ──────────── */
+
+/**
+ * DEC-477: minimal allocation shape so the Planner can feed its LIVE stepper
+ * state (not yet persisted) through the same ruler. `ScenarioAllocationItem`
+ * satisfies it structurally.
+ */
+export interface PlanAllocationInput {
+  activityProfileId: string;
+  quantity: number;
+  deletedAt?: string | null;
+}
+
+export interface PlanProgressLine {
+  profileId: string;
+  profileName: string;
+  category: string;
+  typicalValueCents: number;
+  /** Total occasions in the plan (the Planner stepper value). */
+  planned: number;
+  /** Occasions already done inside the plan window (scope + countFrom). */
+  done: number;
+  /** max(0, planned − done) — occasions the plan still expects to happen. */
+  remaining: number;
+  /** planned × typical — the full plan envelope (display only). */
+  plannedCents: number;
+  /** Real money spent in scope/window (personalCost ?? amount). */
+  spentCents: number;
+  /** Money this line already consumed of its envelope (≤ plannedCents). */
+  consumedCents: number;
+  /** plannedCents − consumedCents — money still committed to the future. */
+  reserveCents: number;
+  /** max(0, spent − plannedCents) — the visible overshoot ("estourou +X"). */
+  overspentCents: number;
+  /** Occasions/spend exist but nothing planned ("fora do plano"). */
+  outOfPlan: boolean;
+}
+
+export interface PlanProgress {
+  lines: PlanProgressLine[];
+  /** Σ plannedCents — the full plan envelope. */
+  allocatedCents: number;
+  /** Σ consumedCents — plan already consumed (feeds `calculateTrueFree`). */
+  allocatedSpentCents: number;
+  /** Σ reserveCents = allocated − allocatedSpent — the ONE plan reserve. */
+  reserveCents: number;
+}
+
+/**
+ * DEC-477 (field 2026-07-06, "17 bares viram 255 comendo o resto"): the single
+ * plan-progress ruler shared by Home, Planner, Viagem, Impact and Rescue.
+ *
+ * The reserve is FORWARD-LOOKING: only what the plan still expects to happen
+ * holds money. Per profile, the envelope (`planned × typical`) is consumed by
+ * `max(spent money, done occasions × typical)`, capped at the envelope:
+ *
+ *  - a DONE occasion releases its full slot even when it cost less than
+ *    typical — 17 bars planned with 16 done reserves exactly ONE bar (the old
+ *    money-only clamp kept the cheap past nights "reserved": Julio's −170);
+ *  - money overshoot still zeroes the reserve — "bar €103 of €45" reserves
+ *    nothing more (the excess already left the free pool) and surfaces as
+ *    `overspentCents` instead.
+ *
+ * Same window (`countFromIso`, DEC-463) and same scope
+ * (`matchesProfilePlanScope`, DEC-472) as the occasion counters, so "N
+ * restantes" on the card and the money reserve can never disagree.
+ */
+export function calculatePlanProgress(
+  profiles: ActivityProfile[],
+  allocations: PlanAllocationInput[],
+  transactions: Transaction[],
+  phaseId: string,
+  countFromIso: string | null = null,
+): PlanProgress {
+  const lines: PlanProgressLine[] = [];
+  let allocatedCents = 0;
+  let allocatedSpentCents = 0;
+
+  for (const profile of profiles) {
+    if (profile.deletedAt !== null) continue;
+    const allocation = allocations.find(
+      (a) => a.activityProfileId === profile.id && (a.deletedAt ?? null) === null,
+    );
+    const planned = allocation?.quantity ?? 0;
+    const done = countProfileOccasions(
+      transactions,
+      profile.id,
+      profile.category,
+      phaseId,
+      countFromIso,
+    );
+    const spentCents = sumCents(
+      transactions
+        .filter(
+          (tx) =>
+            tx.phaseId === phaseId &&
+            tx.deletedAt === null &&
+            tx.type === 'expense' &&
+            matchesProfilePlanScope(tx, profile.id, profile.category) &&
+            (countFromIso === null || localDayOf(tx.date) >= countFromIso),
+        )
+        .map((tx) => tx.personalCostCents ?? tx.amountCents),
+    );
+
+    const plannedCents = planned * profile.typicalValueCents;
+    const remaining = Math.max(0, planned - done);
+    const consumedCents = Math.min(
+      plannedCents,
+      Math.max(spentCents, done * profile.typicalValueCents),
+    );
+    const reserveCents = plannedCents - consumedCents;
+
+    if (plannedCents > 0) {
+      allocatedCents += plannedCents;
+      allocatedSpentCents += consumedCents;
+    }
+
+    if (planned <= 0 && done <= 0 && spentCents <= 0) continue;
+    lines.push({
+      profileId: profile.id,
+      profileName: profile.name,
+      category: profile.category,
+      typicalValueCents: profile.typicalValueCents,
+      planned,
+      done,
+      remaining,
+      plannedCents,
+      spentCents,
+      consumedCents,
+      reserveCents,
+      overspentCents: plannedCents > 0 ? Math.max(0, spentCents - plannedCents) : 0,
+      outOfPlan: planned === 0 && (done > 0 || spentCents > 0),
+    });
+  }
+
+  return {
+    lines,
+    allocatedCents,
+    allocatedSpentCents,
+    reserveCents: Math.max(0, allocatedCents - allocatedSpentCents),
+  };
+}
+
 /**
  * DEC-076 (FIELD-06): carousel ordering — profiles with spending in the
  * phase first (desc by usage), then planned-but-unused ones in plan order.

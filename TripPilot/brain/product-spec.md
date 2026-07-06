@@ -84,11 +84,30 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
 - Never change preferences silently — show alternatives, let user choose
 - Two modes: Manual (default — user chooses) + Assisted (app recommends best trade-off)
 - Priority presets: Econômico, Equilibrado, Mais Social, Personalizado
+- **Done vs remaining model (DEC-477)**: the stepper value is the WHOLE plan (done + to do). One
+  pure ruler (`calculatePlanProgress`) feeds Home, Planner, Trip card, Impact and Rescue: per
+  profile, `consumed = min(planned×typical, max(windowed spend, done×typical))` and
+  `reserve = planned×typical − consumed` — a done occasion releases its slot even when it cost
+  less than typical; money overshoot shows as "estourou +€X", never as extra reserve. Planner
+  margin = phase free − reserve (identical to the Home "in the plan" number by construction).
+  Spending with no plan is labeled "fora do plano". Plan edits auto-save (debounced) and are
+  FLUSHED on leave/hide ("salvo ✓" indicator) so every other screen reflects them immediately.
 
 ### 9. Shared Expenses & Debts
 - Participants (local, linkable to accounts later)
 - Split engine with equal/custom division
-- Debt tracking with simplified settlement suggestions
+- **Debts live in their ORIGINAL currency (DEC-474)**: a debt registered in BRL is charged in BRL —
+  never converted. The personal settle-up keeps one bucket per (pair, currency); UI collapses to
+  the plain format when only one currency exists.
+- **Pairwise-faithful settle-up (DEC-475)**: the personal debt graph is built DIRECTLY from
+  confirmed shares minus settlements, netted only within each pair — nobody ever owes someone
+  they never transacted with. Min-transfer simplification exists ONLY inside group splits.
+  People and Resolve read the same source by construction. Opening your own share link never
+  creates a self-mirror (guard + purge).
+- **Payment methods are currency-scoped (DEC-476)**: each method (Pix, Wise, bank…) can declare
+  the currencies it accepts (none = all); charge pages and reminder flows only show methods that
+  match the debt currency. Shared charge links carry item photos (R2) and the owner's payment
+  methods; the "Remind" message always includes the charge link.
 - Future: shared expenses from other users affect budget provisionally (visible)
 
 ### 10. Wallets & Cash

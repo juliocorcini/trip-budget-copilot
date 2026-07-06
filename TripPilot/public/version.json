@@ -1,8 +1,8 @@
 {
-  "version": "2.7.5-rc",
+  "version": "2.7.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.73.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.5-rc.zip",
-  "notes": "Dívidas agora vivem na moeda original (R$380 é cobrado em R$, nunca em €), acerto de contas 100% fiel ao que aconteceu (fim das dívidas fantasma), página de cobrança com foto dos itens e formas de pagamento na moeda certa, e a mensagem de cobrança leva o link junto."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.6-rc.zip",
+  "notes": "Planejador honesto: o que já foi feito solta a reserva (17 bares/16 feitas = 1 reservado), margem do planejador = mesma conta da tela inicial e da Viagem, linhas \"N feitas · M restantes\", tag \"fora do plano\", e editar o plano salva na hora (salvo ✓)."
 }

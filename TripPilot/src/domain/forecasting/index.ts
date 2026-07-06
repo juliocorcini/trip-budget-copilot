@@ -3,6 +3,7 @@ export {
   matchesProfilePlanScope,
   countProfileOccasions,
   calculateOccasionForecasts,
+  calculatePlanProgress,
   orderForecastsByUsage,
   simulateSpend,
   simulateSpendMultiMetric,
@@ -11,6 +12,9 @@ export {
 export type {
   ProfileLearningUpdate,
   OccasionForecast,
+  PlanAllocationInput,
+  PlanProgressLine,
+  PlanProgress,
   SimulatorResult,
   SimulatorRisk,
   SimulatorVerdict,

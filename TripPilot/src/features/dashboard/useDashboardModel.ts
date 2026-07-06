@@ -85,7 +85,7 @@ import { getInboundP2pItems } from '@/domain/orchestrators';
 import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
 import {
   calculateOccasionForecasts,
-  matchesProfilePlanScope,
+  calculatePlanProgress,
   orderForecastsByUsage,
   type OccasionForecast,
 } from '@/domain/forecasting';
@@ -454,44 +454,33 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     const payableCents = ownerDebtSummary?.payableCents ?? 0;
     const receivableByCurrency = ownerDebtSummary?.receivableByCurrency ?? [];
     const payableByCurrency = ownerDebtSummary?.payableByCurrency ?? [];
-    // M4: per-category plan (planned occasions × typical value) vs real spend,
-    // grouped by the profile's category — feeds the "category rhythm" builder.
-    // FIELD-18: the same loop accumulates the phase's scenario allocation
-    // (Σ planned, matching the Planner) and the real spend already made on those
-    // planned profiles (capped per profile so an overspend on one never offsets
-    // another's reserve) — the inputs for the hero's "truly free" number.
+    // DEC-477: the ONE plan-progress ruler — `calculatePlanProgress` replaces
+    // the inline loop so Home, Planner and Viagem read the same reserve. The
+    // forecasts already carry the plan quantities (totalPlanned) for the
+    // enabled profiles, so they double as the allocation input; window
+    // (DEC-463) and scope (DEC-472) live inside the function. Key change: a
+    // DONE occasion releases its full slot even when it cost less than typical
+    // — 17 bars planned/16 done reserves ONE bar, not "255 comendo o resto".
+    const planProgress = activePhase
+      ? calculatePlanProgress(
+          profiles.filter((p) => forecasts.some((f) => f.profileId === p.id)),
+          forecasts.map((f) => ({ activityProfileId: f.profileId, quantity: f.totalPlanned })),
+          transactions,
+          activePhase.id,
+          planCountFromIso,
+        )
+      : null;
+    const allocatedCents = planProgress?.allocatedCents ?? 0;
+    const allocatedSpentCents = planProgress?.allocatedSpentCents ?? 0;
+    // M4: per-category plan vs real spend — feeds the "category rhythm"
+    // builder. Money-based (spentCents), same rows as before.
     const categoryRhythmMap = new Map<string, { plannedCents: number; spentCents: number }>();
-    let allocatedCents = 0;
-    let allocatedSpentCents = 0;
-    for (const profile of profiles) {
-      const forecast = forecasts.find((f) => f.profileId === profile.id);
-      if (!forecast) continue;
-      const plannedCents = forecast.totalPlanned * profile.typicalValueCents;
-      // DEC-463: measure spend-against-plan over the SAME window the occasion
-      // counters use — a plan counting "from today" is only consumed by spend
-      // from today on, so the hero reserves the full remaining plan.
-      // DEC-472: scope matches `matchesProfilePlanScope` (category spends
-      // without a profile id consume the reserve too — Julio's €42 market
-      // receipt used to leave the FREE pool while "2 mercados" stayed intact).
-      const spentCents = sumCents(
-        phaseTxsForInsights
-          .filter(
-            (tx) =>
-              matchesProfilePlanScope(tx, profile.id, profile.category) &&
-              tx.type === 'expense' &&
-              (planCountFromIso === null || localDayOf(tx.date) >= planCountFromIso),
-          )
-          .map((tx) => tx.personalCostCents ?? tx.amountCents),
-      );
-      if (plannedCents > 0) {
-        allocatedCents += plannedCents;
-        allocatedSpentCents += Math.min(spentCents, plannedCents);
-      }
-      if (plannedCents <= 0 && spentCents <= 0) continue;
-      const prev = categoryRhythmMap.get(profile.category) ?? { plannedCents: 0, spentCents: 0 };
-      categoryRhythmMap.set(profile.category, {
-        plannedCents: prev.plannedCents + plannedCents,
-        spentCents: prev.spentCents + spentCents,
+    for (const line of planProgress?.lines ?? []) {
+      if (line.plannedCents <= 0 && line.spentCents <= 0) continue;
+      const prev = categoryRhythmMap.get(line.category) ?? { plannedCents: 0, spentCents: 0 };
+      categoryRhythmMap.set(line.category, {
+        plannedCents: prev.plannedCents + line.plannedCents,
+        spentCents: prev.spentCents + line.spentCents,
       });
     }
     // FIELD-18: phaseFree (the old hero) minus the plan still reserved ahead.

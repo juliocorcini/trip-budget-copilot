@@ -5,8 +5,10 @@ import {
   simulateSpendMultiMetric,
   calculateScenarioCost,
   calculateOccasionForecasts,
+  calculatePlanProgress,
   countProfileOccasions,
 } from '@/domain/forecasting';
+import { calculateTrueFree } from '@/domain/budget';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { ScenarioAllocationItem } from '@/domain/types/scenario';
 
@@ -391,5 +393,204 @@ describe('countProfileOccasions — category scope (DEC-472)', () => {
       mkTx('new', { date: '2026-07-05T12:00:00.000Z' }),
     ];
     expect(countProfileOccasions(txs, 'prof-mkt', 'market', 'ph-1', '2026-07-01')).toBe(1);
+  });
+});
+
+// DEC-477 (field 2026-07-06) — the ONE plan-progress ruler. Julio's review:
+// "17 bares no planejador para aparecer 1 restante… e isso comeu todo o resto"
+// (255 reserved), planner margin −71 vs home −19, "Bar 103 de 45", restaurant
+// showing €106 with zero plan. The reserve must be forward-looking only.
+describe('calculatePlanProgress (DEC-477)', () => {
+  const barProfile477: ActivityProfile = {
+    ...baseProfile,
+    id: 'pf-bar',
+    name: 'Bar',
+    category: 'bar',
+    typicalValueCents: 1_500, // €15/bar
+  };
+  const marketProfile477: ActivityProfile = {
+    ...baseProfile,
+    id: 'pf-mkt',
+    name: 'Mercado',
+    category: 'market',
+    typicalValueCents: 4_000, // €40/market
+  };
+  const restaurantProfile477: ActivityProfile = {
+    ...baseProfile,
+    id: 'pf-rest',
+    name: 'Restaurante',
+    category: 'restaurant',
+    typicalValueCents: 2_000,
+  };
+
+  const alloc = (profileId: string, quantity: number): ScenarioAllocationItem => ({
+    ...meta,
+    id: `al-${profileId}-${quantity}`,
+    scenarioPlanId: 'sp1',
+    activityProfileId: profileId,
+    quantity,
+    estimatedUnitCostCents: 0,
+    isLocked: false,
+    priority: 'planned',
+    notes: null,
+  });
+
+  const mkSpend = (
+    id: string,
+    category: string,
+    amountCents: number,
+    dateIso = '2026-07-05',
+  ) => ({
+    ...meta,
+    id,
+    tripId: 'trip-1',
+    phaseId: 'ph-1',
+    budgetPoolId: 'pool-1',
+    walletId: null,
+    sessionId: null,
+    type: 'expense' as const,
+    amountCents,
+    personalCostCents: amountCents,
+    currency: 'EUR',
+    baseCurrencyAmountCents: amountCents,
+    exchangeRate: null,
+    category,
+    subcategoryId: null,
+    placeLabel: null,
+    latitude: null,
+    longitude: null,
+    placeId: null,
+    description: 'test',
+    date: `${dateIso}T14:00:00.000Z`,
+    isShared: false,
+    paidByParticipantId: null,
+    activityProfileId: null,
+    isSpecialOccasion: false,
+    excludeFromLearning: false,
+    sourceWalletId: null,
+    targetWalletId: null,
+    settlementId: null,
+    adjustmentReason: null,
+    notes: null,
+  });
+
+  it("Julio's 17 bars with 16 done: reserve holds exactly ONE bar slot, never 17", () => {
+    // 16 cheap bar nights (€6 each = €96 total, less than 16×€15=€240 typical).
+    const txs = Array.from({ length: 16 }, (_, i) => mkSpend(`bar-${i}`, 'bar', 600));
+    const progress = calculatePlanProgress([barProfile477], [alloc('pf-bar', 17)], txs, 'ph-1');
+    const bar = progress.lines.find((l) => l.profileId === 'pf-bar')!;
+    expect(bar.planned).toBe(17);
+    expect(bar.done).toBe(16);
+    expect(bar.remaining).toBe(1);
+    // The old money-only clamp reserved 17×15 − 96 = €159. The done-aware
+    // ruler releases the 16 done slots: reserve = 1 remaining × €15.
+    expect(bar.reserveCents).toBe(1_500);
+    expect(progress.reserveCents).toBe(1_500);
+  });
+
+  it('money overshoot zeroes the reserve and surfaces as overspent ("Bar 103 de 45")', () => {
+    // 3 planned × €15 = €45 envelope; €103 already spent in 3 outings.
+    const txs = [
+      mkSpend('b1', 'bar', 4_000),
+      mkSpend('b2', 'bar', 4_000),
+      mkSpend('b3', 'bar', 2_300),
+    ];
+    const progress = calculatePlanProgress([barProfile477], [alloc('pf-bar', 3)], txs, 'ph-1');
+    const bar = progress.lines[0]!;
+    expect(bar.plannedCents).toBe(4_500);
+    expect(bar.spentCents).toBe(10_300);
+    expect(bar.reserveCents).toBe(0);
+    expect(bar.overspentCents).toBe(5_800); // "estourou +58"
+    expect(bar.remaining).toBe(0);
+  });
+
+  it('spend without any plan is labeled out-of-plan and reserves nothing (the €106 restaurant)', () => {
+    const txs = [mkSpend('r1', 'restaurant', 10_600)];
+    const progress = calculatePlanProgress(
+      [restaurantProfile477],
+      [], // zero allocations — no plan for restaurant
+      txs,
+      'ph-1',
+    );
+    const rest = progress.lines[0]!;
+    expect(rest.outOfPlan).toBe(true);
+    expect(rest.plannedCents).toBe(0);
+    expect(rest.spentCents).toBe(10_600);
+    expect(rest.reserveCents).toBe(0);
+    expect(progress.allocatedCents).toBe(0);
+    expect(progress.reserveCents).toBe(0);
+  });
+
+  it('a done occasion cheaper than typical still releases its full slot', () => {
+    // 3 markets planned ×€40; ONE receipt of €42 done → 2 slots reserved (€80),
+    // consumed = max(€42, 1×€40) = €42 (money wins when higher than the slot).
+    const txs = [mkSpend('m1', 'market', 4_200)];
+    const progress = calculatePlanProgress(
+      [marketProfile477],
+      [alloc('pf-mkt', 3)],
+      txs,
+      'ph-1',
+    );
+    const mkt = progress.lines[0]!;
+    expect(mkt.done).toBe(1);
+    expect(mkt.remaining).toBe(2);
+    expect(mkt.consumedCents).toBe(4_200);
+    expect(mkt.reserveCents).toBe(12_000 - 4_200); // €78 still committed
+  });
+
+  it('honors the DEC-463 countFrom window exactly like the occasion counters', () => {
+    const txs = [
+      mkSpend('old', 'bar', 1_500, '2026-06-20'),
+      mkSpend('new', 'bar', 1_500, '2026-07-05'),
+    ];
+    const windowed = calculatePlanProgress(
+      [barProfile477],
+      [alloc('pf-bar', 4)],
+      txs,
+      'ph-1',
+      '2026-07-01',
+    );
+    expect(windowed.lines[0]!.done).toBe(1);
+    expect(windowed.lines[0]!.spentCents).toBe(1_500);
+    const wholePhase = calculatePlanProgress(
+      [barProfile477],
+      [alloc('pf-bar', 4)],
+      txs,
+      'ph-1',
+      null,
+    );
+    expect(wholePhase.lines[0]!.done).toBe(2);
+    expect(wholePhase.lines[0]!.spentCents).toBe(3_000);
+  });
+
+  it('feeds calculateTrueFree: margin == available − reserve (the −71 vs −19 fix)', () => {
+    // Julio-like numbers: phase free €165, plan of 3 bars ×€15, 2 done cheap.
+    const txs = [mkSpend('b1', 'bar', 600), mkSpend('b2', 'bar', 600)];
+    const progress = calculatePlanProgress([barProfile477], [alloc('pf-bar', 3)], txs, 'ph-1');
+    const trueFree = calculateTrueFree(16_500, progress.allocatedCents, progress.allocatedSpentCents);
+    // reserve = 1 remaining × €15 = €15 → planner margin = 165 − 15 = 150.
+    expect(trueFree.planReservedCents).toBe(progress.reserveCents);
+    expect(trueFree.planReservedCents).toBe(1_500);
+    expect(trueFree.trueFreeCents).toBe(15_000);
+    // The OLD planner math would show 165 − 45 (full allocation) = 120 — a
+    // different number from the home. Same function ⇒ same value everywhere.
+  });
+
+  it('aggregates multiple profiles into one honest reserve', () => {
+    const txs = [
+      ...Array.from({ length: 16 }, (_, i) => mkSpend(`bar-${i}`, 'bar', 600)),
+      mkSpend('m1', 'market', 4_200),
+      mkSpend('r1', 'restaurant', 10_600),
+    ];
+    const progress = calculatePlanProgress(
+      [barProfile477, marketProfile477, restaurantProfile477],
+      [alloc('pf-bar', 17), alloc('pf-mkt', 3)],
+      txs,
+      'ph-1',
+    );
+    // bar: 1 remaining ×15 = 1500; market: 12000 − 4200 = 7800; restaurant: 0.
+    expect(progress.reserveCents).toBe(1_500 + 7_800);
+    expect(progress.allocatedCents).toBe(17 * 1_500 + 3 * 4_000);
+    expect(progress.allocatedSpentCents).toBe(progress.allocatedCents - progress.reserveCents);
   });
 });

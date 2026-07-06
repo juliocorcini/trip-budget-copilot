@@ -229,4 +229,57 @@ describe('PlannerPage — no write on open (FB-25 / DEC-274)', () => {
     });
     expect(spies.itemCreate).toHaveBeenCalled();
   });
+
+  // DEC-477 (G4): leaving the page <500ms after an edit used to CANCEL the
+  // debounced save (cleanup cleared the timer) — the tap silently vanished and
+  // the Viagem card kept showing the stale plan. The unmount flush pins it.
+  it('unmounting right after an edit still persists (flush beats the debounce)', async () => {
+    vi.spyOn(activityProfileRepository, 'getByTripId').mockResolvedValue([barProfile]);
+    appDataRef.value = { ...emptyAppData, trip: datedTrip, phases: [phase] };
+
+    const { container, unmount } = renderPlanner();
+    await waitFor(() => expect(spies.planRead).toHaveBeenCalled());
+    await screen.findByText('Bar');
+
+    const incButton = await waitFor(() => {
+      const btn = Array.from(container.querySelectorAll('button')).find(
+        (b) =>
+          b.querySelector('span')?.textContent === 'add' &&
+          b.className.includes('w-8'),
+      );
+      if (!btn) throw new Error('increment button not found');
+      return btn;
+    });
+
+    fireEvent.click(incButton);
+    // leave IMMEDIATELY — well inside the 500ms debounce window.
+    unmount();
+
+    await waitFor(() => expect(spies.planCreate).toHaveBeenCalledTimes(1), {
+      timeout: 2_000,
+    });
+    expect(spies.itemCreate).toHaveBeenCalled();
+
+    // and the flush is a single save — the debounce timer must not double-fire.
+    await act(async () => {
+      await sleep(700);
+    });
+    expect(spies.planCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('unmounting with NO edit still writes nothing (flush respects FB-25)', async () => {
+    vi.spyOn(activityProfileRepository, 'getByTripId').mockResolvedValue([barProfile]);
+    appDataRef.value = { ...emptyAppData, trip: datedTrip, phases: [phase] };
+
+    const { unmount } = renderPlanner();
+    await waitFor(() => expect(spies.planRead).toHaveBeenCalled());
+    await screen.findByText('Bar');
+
+    unmount();
+    await act(async () => {
+      await sleep(300);
+    });
+    expect(spies.planCreate).not.toHaveBeenCalled();
+    expect(spies.itemCreate).not.toHaveBeenCalled();
+  });
 });

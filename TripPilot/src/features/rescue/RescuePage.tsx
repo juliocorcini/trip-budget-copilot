@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
-import { resolveActivePhase, getDaysRemaining, formatDate, localDayOf } from '@/domain/dates';
+import { resolveActivePhase, getDaysRemaining, formatDate } from '@/domain/dates';
 import {
   calculateFreeToSpend,
   buildRescuePlan,
@@ -10,9 +10,9 @@ import {
   type RescueOccasionInput,
 } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
-import { calculateOccasionForecasts, matchesProfilePlanScope } from '@/domain/forecasting';
+import { calculatePlanProgress } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
-import { toCents, fromCents, formatMoney, sumCents } from '@/domain/money';
+import { toCents, fromCents, formatMoney } from '@/domain/money';
 import { getActiveIntlLocale } from '@/domain/locale';
 import { Icon } from '@/components/Icon';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -73,7 +73,10 @@ export function RescuePage() {
       const enabled = profiles.filter((p) =>
         isProfileEnabledInPhase(settings, activePhase.id, p.id),
       );
-      const forecasts = calculateOccasionForecasts(
+      // DEC-477: the same plan-progress ruler as the Home hero — remaining
+      // occasions AND the reserve come from one function, so the rescue math
+      // can never disagree with the hero's "broke" verdict again.
+      const progress = calculatePlanProgress(
         enabled,
         allocations,
         transactions,
@@ -81,41 +84,16 @@ export function RescuePage() {
         plan?.countFromIso ?? null,
       );
       setRemainingOccasions(
-        forecasts
-          .filter((f) => f.remaining > 0)
-          .map((f) => ({
-            profileId: f.profileId,
-            profileName: f.profileName,
-            remaining: f.remaining,
-            typicalValueCents:
-              enabled.find((p) => p.id === f.profileId)?.typicalValueCents ?? 0,
+        progress.lines
+          .filter((l) => l.remaining > 0)
+          .map((l) => ({
+            profileId: l.profileId,
+            profileName: l.profileName,
+            remaining: l.remaining,
+            typicalValueCents: l.typicalValueCents,
           })),
       );
-      // Plan reserve = Σ unspent allocation (planned − min(spent, planned)).
-      // DEC-472: same scope (category adoption) + same DEC-463 window as the
-      // hero's allocatedSpentCents — the rescue reserve must match the hero.
-      const countFromIso = plan?.countFromIso ?? null;
-      setPlanReservedCents(
-        forecasts.reduce((sum, f) => {
-          const profile = enabled.find((p) => p.id === f.profileId);
-          const typical = profile?.typicalValueCents ?? 0;
-          const plannedCents = f.totalPlanned * typical;
-          if (plannedCents <= 0) return sum;
-          const spent = sumCents(
-            transactions
-              .filter(
-                (tx) =>
-                  matchesProfilePlanScope(tx, f.profileId, profile?.category ?? 'other') &&
-                  tx.phaseId === activePhase.id &&
-                  tx.type === 'expense' &&
-                  tx.deletedAt === null &&
-                  (countFromIso === null || localDayOf(tx.date) >= countFromIso),
-              )
-              .map((tx) => tx.personalCostCents ?? tx.amountCents),
-          );
-          return sum + (plannedCents - Math.min(spent, plannedCents));
-        }, 0),
-      );
+      setPlanReservedCents(progress.reserveCents);
     };
     load();
     return () => {

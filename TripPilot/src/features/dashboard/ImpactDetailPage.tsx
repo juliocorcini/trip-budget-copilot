@@ -14,13 +14,9 @@ import {
 import { PhaseSpendLensBlock } from './PhaseSpendLensBlock';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { calculateEffectiveSpendingDays } from '@/domain/phases';
-import {
-  calculateOccasionForecasts,
-  matchesProfilePlanScope,
-  type OccasionForecast,
-} from '@/domain/forecasting';
+import { calculatePlanProgress, type PlanProgress } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
-import { formatMoney, sumCents } from '@/domain/money';
+import { formatMoney } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
 import {
@@ -44,10 +40,9 @@ export function ImpactDetailPage() {
     useAppData();
 
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
-  const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
-  // DEC-472: the plan's "count from" day — the rows below must consume the
-  // reserve over the SAME window as the hero, or the two "broke" verdicts drift.
-  const [planCountFromIso, setPlanCountFromIso] = useState<string | null>(null);
+  // DEC-477: same plan-progress ruler as the Home hero (window + scope + the
+  // done-aware reserve) — the two "broke" verdicts can never drift.
+  const [planProgress, setPlanProgress] = useState<PlanProgress | null>(null);
 
   const activePhase = resolveActivePhase(phases);
   // DEC-456: the ACTIVE phase's own fund (not a fixed first pool), so every
@@ -69,12 +64,11 @@ export function ImpactDetailPage() {
         : [];
       if (cancelled) return;
       setProfiles(profs);
-      setPlanCountFromIso(plan?.countFromIso ?? null);
       const enabled = profs.filter((p) =>
         isProfileEnabledInPhase(settings, activePhase.id, p.id),
       );
-      setForecasts(
-        calculateOccasionForecasts(
+      setPlanProgress(
+        calculatePlanProgress(
           enabled,
           allocations,
           transactions,
@@ -159,39 +153,20 @@ export function ImpactDetailPage() {
     ? projectReserveStartDate(activePhase, todayIso, phaseSpentCents, phaseBudgetCents)
     : null;
 
-  const rows = forecasts.map((forecast) => {
-    const profile = profiles.find((p) => p.id === forecast.profileId);
-    const typical = profile?.typicalValueCents ?? 0;
-    // DEC-472: same scope (category adoption) + same DEC-463 window as the
-    // hero's allocatedSpentCents — the two "broke" verdicts must never drift.
-    const spentCents = sumCents(
-      phaseTxs
-        .filter(
-          (tx) =>
-            matchesProfilePlanScope(tx, forecast.profileId, profile?.category ?? 'other') &&
-            tx.type === 'expense' &&
-            (planCountFromIso === null || localDayOf(tx.date) >= planCountFromIso),
-        )
-        .map((tx) => tx.personalCostCents ?? tx.amountCents),
-    );
+  // DEC-477: rows come straight from the shared plan-progress lines (same
+  // scope, window and done-aware consumption as the Home hero).
+  const rows = (planProgress?.lines ?? []).map((line) => {
+    const profile = profiles.find((p) => p.id === line.profileId);
     return {
-      forecast,
-      icon: profile?.iconName ?? getCategoryIcon(profile?.category ?? 'other'),
-      plannedBudgetCents: forecast.totalPlanned * typical,
-      spentCents,
+      line,
+      icon: profile?.iconName ?? getCategoryIcon(line.category),
     };
   });
 
   // DEC-236: "broke" is the TRUE free (hero) ≤ 0 — pool free minus the plan
   // still reserved — same definition as the Honest Friend card, so the two
-  // never disagree. The plan reserve is the unspent part of each allocation.
-  const planReservedCents = rows.reduce(
-    (sum, r) =>
-      r.plannedBudgetCents > 0
-        ? sum + (r.plannedBudgetCents - Math.min(r.spentCents, r.plannedBudgetCents))
-        : sum,
-    0,
-  );
+  // never disagree. DEC-477: the reserve is the shared ruler's number.
+  const planReservedCents = planProgress?.reserveCents ?? 0;
   const trueFreeRawCents = fts ? fts.freeToSpendRawCents - planReservedCents : 0;
   const phaseBroke = fts ? trueFreeRawCents <= 0 : false;
   const reserveUsedCents = fts ? Math.max(0, -fts.freeToSpendRawCents) : 0;
@@ -260,9 +235,9 @@ export function ImpactDetailPage() {
         {rows.length === 0 && (
           <p className="text-sm text-on-surface-dim py-2">{t('impact.no_plan_data')}</p>
         )}
-        {rows.map(({ forecast, icon, plannedBudgetCents, spentCents }) => (
+        {rows.map(({ line, icon }) => (
           <div
-            key={forecast.profileId}
+            key={line.profileId}
             className="py-2.5 border-b flex items-center gap-3"
             style={{ borderColor: 'var(--border-hairline)' }}
           >
@@ -270,28 +245,28 @@ export function ImpactDetailPage() {
               <Icon name={icon} size={16} className="text-on-surface-dim" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-on-surface truncate">{forecast.profileName}</p>
+              <p className="text-sm font-bold text-on-surface truncate">{line.profileName}</p>
               <p className="text-[11px] font-semibold text-on-surface-faint">
                 {t('impact.occasions_done', {
-                  done: forecast.spent,
-                  planned: forecast.totalPlanned,
+                  done: line.done,
+                  planned: line.planned,
                 })}
               </p>
             </div>
             <div className="text-right">
               <p
                 className={`text-sm font-bold tabular ${
-                  plannedBudgetCents > 0 && spentCents > plannedBudgetCents
+                  line.plannedCents > 0 && line.spentCents > line.plannedCents
                     ? 'text-warning'
                     : 'text-on-surface'
                 }`}
               >
-                {formatMoney(spentCents, trip.baseCurrency)}
+                {formatMoney(line.spentCents, trip.baseCurrency)}
               </p>
-              {plannedBudgetCents > 0 && (
+              {line.plannedCents > 0 && (
                 <p className="text-[11px] font-semibold tabular text-on-surface-faint">
                   {t('impact.of_budget', {
-                    budget: formatMoney(plannedBudgetCents, trip.baseCurrency),
+                    budget: formatMoney(line.plannedCents, trip.baseCurrency),
                   })}
                 </p>
               )}

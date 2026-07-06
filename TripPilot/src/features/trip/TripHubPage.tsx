@@ -15,13 +15,9 @@ import {
   isPotInPhase,
 } from '@/domain/budget';
 import { filterTransactionsByPhase, filterTransactionsByPool } from '@/domain/transactions';
-import {
-  calculateOccasionForecasts,
-  matchesProfilePlanScope,
-  type OccasionForecast,
-} from '@/domain/forecasting';
+import { calculatePlanProgress, type PlanProgress } from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
-import { formatMoney, sumCents } from '@/domain/money';
+import { formatMoney } from '@/domain/money';
 import {
   isPlannedPurchaseOpen,
   plannedPurchaseReservedRemainingCents,
@@ -70,7 +66,8 @@ export function TripHubPage() {
 
   const [selectedPhaseId, setSelectedPhaseId] = useState<Selection | null>(null);
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
-  const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
+  // DEC-477: the same plan-progress ruler as Home/Planner (windowed + scoped).
+  const [planProgress, setPlanProgress] = useState<PlanProgress | null>(null);
   // DEC-360 (G9): the count behind the first-level "Divisões em grupo (N)" tile —
   // discovery of group splits without a second list (the list stays at /groups).
   const [groupCount, setGroupCount] = useState(0);
@@ -151,7 +148,7 @@ export function TripHubPage() {
   // Per-category plan preview for the selected phase (DEC-093 math, reused).
   useEffect(() => {
     if (!trip || !primaryPool || selected === 'all') {
-      setForecasts([]);
+      setPlanProgress(null);
       return;
     }
     const phaseId = selected;
@@ -166,8 +163,12 @@ export function TripHubPage() {
       const allocations = plan ? await scenarioAllocationItemRepository.getByPlanId(plan.id) : [];
       if (cancelled) return;
       const enabled = profiles.filter((p) => isProfileEnabledInPhase(settings, phaseId, p.id));
-      setForecasts(
-        calculateOccasionForecasts(
+      // DEC-477: one ruler — the card reads the SAME windowed/scoped progress
+      // as Home and Planner. This fixes Julio's "Restaurante 106 sem plano"
+      // (out-of-plan spend now labeled) and the stale "45 de bar" after edits
+      // (the Planner flushes on exit; this recomputes on transactions/plan).
+      setPlanProgress(
+        calculatePlanProgress(
           enabled,
           allocations,
           transactions,
@@ -310,31 +311,31 @@ export function TripHubPage() {
     ? openPlanned.filter((purchase) => purchase.phaseId === selectedPhase.id || purchase.phaseId === null)
     : openPlanned;
 
-  const categoryRows = forecasts
-    .map((forecast) => {
-      const profile = profiles.find((p) => p.id === forecast.profileId);
-      const typical = profile?.typicalValueCents ?? 0;
-      // DEC-472: same plan-scope ruler as the forecasts — category spends
-      // without a profile id (receipts/quick-adds) count against the meta.
-      const spentCents = sumCents(
-        (selectedPhase ? filterTransactionsByPhase(transactions, selectedPhase.id) : [])
-          .filter(
-            (tx) =>
-              matchesProfilePlanScope(tx, forecast.profileId, profile?.category ?? 'other') &&
-              tx.type === 'expense',
-          )
-          .map((tx) => tx.personalCostCents ?? tx.amountCents),
-      );
+  // DEC-477: rows come straight from the shared plan-progress lines — same
+  // window (countFrom) and scope as the Planner and the Home metas.
+  const categoryRows = (planProgress?.lines ?? [])
+    .map((line) => {
+      const profile = profiles.find((p) => p.id === line.profileId);
       return {
-        id: forecast.profileId,
-        name: forecast.profileName,
-        icon: profile?.iconName ?? getCategoryIcon(profile?.category ?? 'other'),
-        plannedCents: forecast.totalPlanned * typical,
-        spentCents,
+        id: line.profileId,
+        name: line.profileName,
+        icon: profile?.iconName ?? getCategoryIcon(line.category),
+        plannedCents: line.plannedCents,
+        spentCents: line.spentCents,
+        done: line.done,
+        remaining: line.remaining,
+        outOfPlan: line.outOfPlan,
       };
     })
     .filter((row) => row.plannedCents > 0 || row.spentCents > 0)
     .sort((a, b) => b.plannedCents - a.plannedCents);
+
+  // DEC-477: "livre após o plano" — the phase free minus what the plan still
+  // holds (same trueFree formula as the Home hero).
+  const freeAfterPlanCents =
+    selectedPhase && planProgress
+      ? freeForPhase(selectedPhase.id) - planProgress.reserveCents
+      : null;
 
   const structureItems: StructureItem[] = [
     { icon: 'timeline', label: t('more.edit_phases'), path: '/trip/edit' },
@@ -538,7 +539,24 @@ export function TripHubPage() {
                       <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-surface-high">
                         <Icon name={row.icon} size={15} className="text-on-surface-dim" />
                       </div>
-                      <p className="text-sm text-on-surface flex-1 truncate">{row.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-on-surface truncate">{row.name}</p>
+                        {/* DEC-477: say WHY a number shows — "1 feita · 2
+                            restantes" for planned rows, an explicit tag for
+                            spend with no plan (Julio's €106 restaurant). */}
+                        {row.plannedCents > 0 ? (
+                          <p className="text-[10px] font-semibold text-on-surface-faint tabular">
+                            {t('trip_hub.category_progress', {
+                              done: row.done,
+                              remaining: row.remaining,
+                            })}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] font-semibold text-on-surface-faint">
+                            {t('trip_hub.out_of_plan')}
+                          </p>
+                        )}
+                      </div>
                       <p
                         className={`text-sm font-bold tabular ${
                           row.plannedCents > 0 && row.spentCents > row.plannedCents
@@ -557,6 +575,16 @@ export function TripHubPage() {
                       )}
                     </div>
                   ))}
+                  {/* DEC-477: close the loop the Home opens — "free in phase −
+                      still reserved = free after the plan" (same trueFree). */}
+                  {freeAfterPlanCents !== null && (planProgress?.reserveCents ?? 0) > 0 && (
+                    <p className="text-[11px] font-semibold text-on-surface-dim tabular pt-1">
+                      {t('trip_hub.free_after_plan', {
+                        amount: formatMoney(Math.max(0, freeAfterPlanCents), currency),
+                        reserved: formatMoney(planProgress!.reserveCents, currency),
+                      })}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-on-surface-faint mt-4 pt-4 border-t border-on-surface-mute">

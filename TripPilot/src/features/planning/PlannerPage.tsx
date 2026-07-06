@@ -15,6 +15,7 @@ import {
   listSessionAdditions,
   formatAdditionsList,
 } from '@/domain/planning';
+import { calculatePlanProgress } from '@/domain/forecasting';
 import {
   createCustomActivityProfile,
   isProfileEnabledInPhase,
@@ -27,6 +28,7 @@ import {
   scenarioPlanRepository,
   scenarioAllocationItemRepository,
   phaseProfileSettingRepository,
+  sessionRepository,
 } from '@/data/repositories';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { Icon } from '@/components/Icon';
@@ -40,6 +42,7 @@ import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
 import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
 import type { AllocationPriority, ScenarioPreset } from '@/domain/types/common';
+import type { Session } from '@/domain/types/session';
 
 /* ── types ── */
 
@@ -371,15 +374,54 @@ export function PlannerPage() {
     }
   }, [trip, selectedPhase, phasePool]);
 
+  // DEC-477: "salvando… / salvo ✓" feedback + flush-on-exit. The debounce used
+  // to be cancelled by the unmount cleanup, so edits made <500ms before
+  // leaving the page silently vanished — exactly Julio's "mexo no plano e a
+  // página anterior não atualiza".
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+  const pendingSaveRef = useRef(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runPersist = useCallback(() => {
+    pendingSaveRef.current = false;
+    void persistRef.current().then(() => {
+      setSaveState('saved');
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaveState('idle'), 2000);
+    });
+  }, []);
+
   useEffect(() => {
     // FB-25 (DEC-274): persist only after a real user edit — opening the page
     // (hydration → setStates) must not create a plan or allocations.
     if (!hydratedRef.current || !userEditedRef.current) return;
-    const timer = setTimeout(() => {
-      persist();
-    }, PERSIST_DEBOUNCE_MS);
+    pendingSaveRef.current = true;
+    setSaveState('saving');
+    const timer = setTimeout(runPersist, PERSIST_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [states, activePreset, countFrom, persist]);
+  }, [states, activePreset, countFrom, runPersist]);
+
+  // Flush a pending debounce the moment the page hides or the component
+  // unmounts — leaving the Planner can never lose the last taps again.
+  useEffect(() => {
+    const flushIfPending = () => {
+      if (!pendingSaveRef.current || !userEditedRef.current) return;
+      pendingSaveRef.current = false;
+      void persistRef.current();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushIfPending();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flushIfPending);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flushIfPending);
+      flushIfPending(); // unmount — runs AFTER the debounce cleanup above
+    };
+  }, []);
 
   /* ── budget math ── */
 
@@ -388,6 +430,25 @@ export function PlannerPage() {
       phasePool ? filterTransactionsByPool(transactions, phasePool.id) : [],
     [phasePool, transactions],
   );
+
+  // DEC-477: the home hero feeds `calculateFreeToSpend` the full session set
+  // (DEC-400 event netting). The Planner must eat the SAME available number or
+  // the margins can never match — so it loads the sessions too.
+  const [phaseSessions, setPhaseSessions] = useState<Session[]>([]);
+  useEffect(() => {
+    if (!trip) return;
+    let cancelled = false;
+    Promise.all([
+      sessionRepository.getActive(trip.id),
+      sessionRepository.getCompleted(trip.id),
+    ]).then(([active, completed]) => {
+      if (cancelled) return;
+      setPhaseSessions(active ? [active, ...completed] : completed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trip, transactions]);
 
   const fts = useMemo(
     () =>
@@ -400,12 +461,50 @@ export function PlannerPage() {
             selectedPhase.id,
             occurrences,
             plannedPurchases,
+            phaseSessions,
           )
         : null,
-    [phasePool, selectedPhase, envelopes, poolTxs, links, occurrences, plannedPurchases],
+    [phasePool, selectedPhase, envelopes, poolTxs, links, occurrences, plannedPurchases, phaseSessions],
   );
 
   const availableCents = fts?.freeToSpendCents ?? 0;
+
+  // DEC-477: the ONE plan-progress ruler (same function as Home/Viagem).
+  // Computed LIVE from the stepper state, so every [−]/[+] tap moves the
+  // reserve, the per-line "feitas · restantes" and the margin together.
+  const liveProgress = useMemo(
+    () =>
+      selectedPhase
+        ? calculatePlanProgress(
+            enabledProfiles,
+            enabledProfiles.map((p) => ({
+              activityProfileId: p.id,
+              quantity: states[p.id]?.count ?? 0,
+            })),
+            transactions,
+            selectedPhase.id,
+            countFrom,
+          )
+        : null,
+    [selectedPhase, enabledProfiles, states, transactions, countFrom],
+  );
+
+  const baselineProgress = useMemo(
+    () =>
+      selectedPhase
+        ? calculatePlanProgress(
+            enabledProfiles,
+            enabledProfiles.map((p) => ({
+              activityProfileId: p.id,
+              quantity: states[p.id]?.baselineCount ?? 0,
+            })),
+            transactions,
+            selectedPhase.id,
+            countFrom,
+          )
+        : null,
+    [selectedPhase, enabledProfiles, states, transactions, countFrom],
+  );
 
   const baselineAllocatedCents = useMemo(
     () =>
@@ -427,13 +526,21 @@ export function PlannerPage() {
     [enabledProfiles, states],
   );
 
-  const freeMarginCents = availableCents - baselineAllocatedCents;
-  // DEC-098 (R-19/R-20): the HEADER margin is live — fund − reserves −
-  // CURRENT allocation, recalculated on every [-]/[+] tap, and it goes
-  // negative when over-allocated (never clamped to 0).
-  const liveMarginCents = availableCents - currentAllocatedCents;
+  // DEC-477: what the plan still HOLDS (remaining occasions × typical, money-
+  // aware) — done occasions and spent money no longer count against the margin
+  // (they already left `availableCents`). This is the "−71 vs −19" fix: the
+  // old `available − currentAllocated` subtracted the FULL envelope from a
+  // free number that had already absorbed the spend (double counting).
+  const planReserveCents = liveProgress?.reserveCents ?? 0;
+  const planUsedCents = liveProgress?.allocatedSpentCents ?? 0;
+  const baselineReserveCents = baselineProgress?.reserveCents ?? 0;
+
+  const freeMarginCents = availableCents - baselineReserveCents;
+  // DEC-098 (R-19/R-20): the HEADER margin is live — recalculated on every
+  // [-]/[+] tap, and it goes negative when over-committed (never clamped).
+  const liveMarginCents = availableCents - planReserveCents;
   const extraCostCents = currentAllocatedCents - baselineAllocatedCents;
-  // DEC-112 (R5-07): deficit derives from total over-allocation, not from
+  // DEC-112 (R5-07): deficit derives from total over-commitment, not from
   // session deltas — after re-entering the Planner (baseline == count) the
   // plan can still be over budget and the guidance must persist.
   const deficitCents = Math.max(0, -liveMarginCents);
@@ -445,8 +552,11 @@ export function PlannerPage() {
 
   /* ── over-allocation warning (ISSUE-05) ── */
 
+  // DEC-477: the red warning fires on the RESERVE (what the plan still needs),
+  // not the full envelope — 17 bars with 16 done is €255 allocated but only
+  // one €15 slot ahead, which is not an over-allocation.
   const overAllocationCents = calculateOverAllocationCents(
-    currentAllocatedCents,
+    planReserveCents,
     availableCents,
   );
 
@@ -805,12 +915,27 @@ export function PlannerPage() {
         </div>
         <div className="flex items-center gap-1">
           <HelpButton screenId="planner" />
-          <span
-            className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
-            style={{ background: '#6B8F7118', color: 'var(--success)' }}
-          >
-            {t('planner.mode_manual')}
-          </span>
+          {/* DEC-477: save feedback — edits auto-save (debounced + flushed on
+              exit); the chip tells the traveler the plan is safe to leave. */}
+          {saveState !== 'idle' ? (
+            <span
+              className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
+              style={
+                saveState === 'saved'
+                  ? { background: '#6B8F7118', color: 'var(--success)' }
+                  : { background: 'var(--surface-high)', color: 'var(--on-surface-faint)' }
+              }
+            >
+              {t(saveState === 'saved' ? 'planner.saved' : 'planner.saving')}
+            </span>
+          ) : (
+            <span
+              className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
+              style={{ background: '#6B8F7118', color: 'var(--success)' }}
+            >
+              {t('planner.mode_manual')}
+            </span>
+          )}
         </div>
       </div>
 
@@ -891,6 +1016,16 @@ export function PlannerPage() {
             </p>
           </div>
         </div>
+        {/* DEC-477: split the envelope — what the plan already consumed vs what
+            it still holds. Makes "margem = livre − reservado" auditable and
+            explains why 17 bars with 16 done barely move the margin. */}
+        {(planUsedCents > 0 || planReserveCents > 0) && (
+          <p className="text-[11px] font-semibold text-on-surface-faint mt-1.5 tabular">
+            {t('planner.header_used', { amount: fmtCompact(planUsedCents, currency) })}
+            {' · '}
+            {t('planner.header_reserved', { amount: fmtCompact(planReserveCents, currency) })}
+          </p>
+        )}
         {/* Future floor as informative constraint (DEC-016 / GAP-008) */}
         {(fts?.futureFloorCents ?? 0) > 0 && (
           <p className="text-[11px] font-semibold text-on-surface-faint mt-2 flex items-center gap-1">
@@ -1029,6 +1164,9 @@ export function PlannerPage() {
           // from the global category default.
           const priority = s.priority;
           const isModified = s.count !== s.baselineCount;
+          // DEC-477: live done/remaining/overspent for this profile.
+          const progressLine =
+            liveProgress?.lines.find((l) => l.profileId === profile.id) ?? null;
           const cVar = colorVar(profile.color);
           // Theme-aware tint: custom hex colors get alpha; no color → token (DEC-083).
           const tintBg = profile.color ? `${profile.color}18` : 'var(--highlight-soft)';
@@ -1162,6 +1300,38 @@ export function PlannerPage() {
                   {fmtCompact(total, currency)}
                 </p>
               </div>
+
+              {/* DEC-477: the missing "done vs remaining" read — the stepper is
+                  the TOTAL plan, this line shows how much of it already
+                  happened (same windowed ruler as Home/Viagem). */}
+              {progressLine &&
+                (progressLine.done > 0 ||
+                  progressLine.overspentCents > 0 ||
+                  progressLine.outOfPlan) && (
+                  <p className="flex items-center gap-1.5 flex-wrap mt-2 text-[11px] font-semibold text-on-surface-dim tabular">
+                    <span>
+                      {t('planner.line_progress', {
+                        done: progressLine.done,
+                        remaining: progressLine.remaining,
+                      })}
+                    </span>
+                    {progressLine.overspentCents > 0 && (
+                      <span style={{ color: 'var(--warning)' }}>
+                        {t('planner.line_overspent', {
+                          amount: fmtCompact(progressLine.overspentCents, currency),
+                        })}
+                      </span>
+                    )}
+                    {progressLine.outOfPlan && (
+                      <span
+                        className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                        style={{ background: 'var(--highlight-soft)', color: 'var(--on-surface-dim)' }}
+                      >
+                        {t('planner.out_of_plan')}
+                      </span>
+                    )}
+                  </p>
+                )}
 
               {/* M13: when locked, the dimmed stepper now says WHY (P-1) — and how to
                   undo it — instead of looking like a silently disabled control. */}
@@ -1402,7 +1572,9 @@ export function PlannerPage() {
         )}
       </div>
 
-      {/* DEC-172: margin breakdown — available − allocated = margin (signed). */}
+      {/* DEC-172 + DEC-477: margin breakdown — available − still-reserved =
+          margin (signed). The consumed part of the plan is informative: it
+          already left "available", so it is NOT subtracted again. */}
       <BreakdownSheet
         open={marginBreakdownOpen}
         onClose={() => setMarginBreakdownOpen(false)}
@@ -1410,7 +1582,7 @@ export function PlannerPage() {
         intro={t('planner.margin_breakdown_intro')}
         items={[
           { label: t('planner.bd_available'), cents: availableCents, kind: 'base' },
-          { label: t('planner.allocated'), cents: currentAllocatedCents, kind: 'subtract' },
+          { label: t('planner.bd_reserved'), cents: planReserveCents, kind: 'subtract' },
         ]}
         totalLabel={t('planner.free_margin')}
         totalCents={liveMarginCents}

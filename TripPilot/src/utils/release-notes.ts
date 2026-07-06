@@ -17,6 +17,33 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.6-rc',
+    date: '2026-07-06',
+    items: {
+      'pt-BR': [
+        'Planejador honesto: o que já foi feito solta a reserva — 17 bares planejados com 16 feitas reservam SÓ 1 bar, nunca o plano inteiro.',
+        'Uma régua só: a margem do planejador, o "no plano" da tela inicial e o card da Viagem agora saem da MESMA conta — os números batem em todas as telas.',
+        'Cada categoria do planejador mostra "N feitas · M restantes" e avisa quando estourou (+€X); gasto sem meta ganha a tag "fora do plano".',
+        'Editar o plano e sair salva NA HORA (indicador "salvo ✓") — a Viagem e a tela inicial refletem a mudança imediatamente.',
+        'O card "Plano desta fase" mostra quanto o plano ainda reserva e quanto sobra livre depois dele.',
+      ],
+      en: [
+        'Honest planner: what is already done releases its reserve — 17 bars planned with 16 done reserve ONLY 1 bar, never the whole plan.',
+        'One ruler: the planner margin, the home "in the plan" and the Trip card now come from the SAME math — numbers match on every screen.',
+        'Each planner category shows "N done · M remaining" and flags overshoot (+€X); spending with no goal gets an "outside the plan" tag.',
+        'Editing the plan and leaving saves INSTANTLY ("saved ✓" indicator) — Trip and Home reflect the change immediately.',
+        'The "Plan for this phase" card shows how much the plan still reserves and what is left free after it.',
+      ],
+      es: [
+        'Planificador honesto: lo ya hecho libera su reserva — 17 bares planificados con 16 hechas reservan SOLO 1 bar, nunca el plan entero.',
+        'Una sola regla: el margen del planificador, el "en el plan" del inicio y la tarjeta de Viaje salen de la MISMA cuenta — los números coinciden en todas las pantallas.',
+        'Cada categoría del planificador muestra "N hechas · M restantes" y avisa si se pasó (+€X); el gasto sin meta recibe la etiqueta "fuera del plan".',
+        'Editar el plan y salir guarda AL INSTANTE (indicador "guardado ✓") — Viaje e Inicio reflejan el cambio de inmediato.',
+        'La tarjeta "Plan de esta fase" muestra cuánto reserva aún el plan y cuánto queda libre después de él.',
+      ],
+    },
+  },
+  {
     version: '2.7.5-rc',
     date: '2026-07-06',
     items: {
