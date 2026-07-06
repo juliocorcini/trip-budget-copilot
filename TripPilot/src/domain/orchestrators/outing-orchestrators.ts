@@ -3,6 +3,7 @@ import { endSession, createSessionItem } from '@/domain/outing';
 import { createExpenseTransaction } from '@/domain/transactions';
 import { updateProfileFromTransaction } from '@/domain/forecasting';
 import { isPaidByOwner, resolvePayerExpense } from '@/domain/splitting';
+import { resolveAutoWalletId } from '@/domain/wallets';
 import { createBudgetPool, createEnvelope, computePoolTransfer } from '@/domain/budget';
 import { markUpdated, softDelete } from '@/utils/entity-factory';
 import type { Session } from '@/domain/types/session';
@@ -10,6 +11,16 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
+
+/**
+ * DEC-473: the trip's auto-assignable wallet (explicit default, else the lone
+ * wallet) read straight from the ledger — for orchestrators whose callers don't
+ * carry the wallet list (session quick-adds, rounds).
+ */
+async function resolveTripAutoWalletId(tripId: string): Promise<string | null> {
+  const wallets = await db.wallets.where('tripId').equals(tripId).toArray();
+  return resolveAutoWalletId(wallets);
+}
 
 export interface EndOutingSessionInput {
   session: Session;
@@ -410,7 +421,8 @@ export async function quickAddSessionExpense(
     tripId: input.session.tripId,
     phaseId: input.phaseId,
     budgetPoolId: input.session.budgetPoolId,
-    walletId: null,
+    // DEC-473: quick-adds are the owner's own money — app-wide auto policy.
+    walletId: await resolveTripAutoWalletId(input.session.tripId),
     amountCents: input.amountCents,
     currency: input.currency,
     category: input.profileCategory ?? 'other',
@@ -545,13 +557,16 @@ export async function addRoundExpenses(
 
   const txs: Transaction[] = [];
   const allShares: ParticipantShare[] = [];
+  // DEC-473: resolved once for the whole round (cleared per-drink below when
+  // someone else paid — movesOwnerWallet false).
+  const autoWalletId = await resolveTripAutoWalletId(session.tripId);
 
   for (let i = 0; i < count; i++) {
     const tx = createExpenseTransaction({
       tripId: session.tripId,
       phaseId,
       budgetPoolId: session.budgetPoolId,
-      walletId: null,
+      walletId: autoWalletId,
       amountCents: unitPriceCents,
       currency,
       category: profileCategory ?? 'other',

@@ -5,6 +5,7 @@ import { logger } from '@/utils/logger';
 import { useAppData } from '@/hooks/useAppData';
 import { resolveActivePhase } from '@/domain/dates';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
+import { resolveAutoWallet } from '@/domain/wallets';
 import { deriveRecentPlaces } from '@/domain/location';
 import { evaluateAmountExpression } from '@/domain/money';
 import {
@@ -60,7 +61,11 @@ import type { Participant } from '@/domain/types/participant';
  * speech. We bail instead of sending it (silence makes Whisper hallucinate a
  * stray filler like "E aí" — device-test 2026-06-20).
  */
-const MIN_SPEECH_WAV_BYTES = 12_000;
+// DEC-473 (voice loosening): 12 kB (~0.38 s) also swallowed very short real
+// commands on slow-to-warm mics. 4 kB (~0.13 s) still catches the accidental
+// tap while letting every real utterance through — Whisper's empty transcript
+// handles anything borderline.
+const MIN_SPEECH_WAV_BYTES = 4_000;
 
 /**
  * DEC-246 (AI Quick Entry): the sheet's state machine. It owns the full
@@ -379,7 +384,10 @@ export function useAssistant(): UseAssistant {
       ? getAvailablePoolsForPhase(d.pools, d.links, phaseRow.id)
       : { operational: [], global: [], autoSelectedPoolId: null };
     const selectable = [...available.operational, ...available.global];
-    const defaultWallet = d.wallets.find((w) => w.isDefault);
+    // DEC-473: the app-wide auto policy — explicit default, else the lone
+    // wallet — so AI-created expenses stop landing with walletId null when the
+    // traveler has a single wallet that was never MARKED as default.
+    const defaultWallet = resolveAutoWallet(d.wallets);
     const nonCashDefault =
       d.wallets.find((w) => w.isDefault && w.walletType !== 'cash') ??
       d.wallets.find((w) => w.walletType !== 'cash') ??

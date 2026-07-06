@@ -8,20 +8,24 @@ import {
 import { createExpenseTransaction } from '@/domain/transactions';
 import { resolvePayerExpense } from '@/domain/splitting';
 import { placeToTransactionFields } from '@/domain/location';
-import { receiptDateToIso } from '@/domain/receipt';
+// DEC-473: the ref prefix lives in domain/receipt (shared with the tab classifier).
+import { receiptDateToIso, RECEIPT_REF_PREFIX } from '@/domain/receipt';
 import { softDelete } from '@/utils/entity-factory';
 import type { Transaction } from '@/domain/types/transaction';
 import type { ParticipantShare } from '@/domain/types/participant-share';
 import type { ReceiptDraftItem } from '@/domain/receipt';
 import type { CurrentPlace } from '@/domain/types/common';
 
-/** DEC-206 (G2): receipt-sourced records carry this externalRef prefix. */
-const RECEIPT_REF_PREFIX = 'receipt:';
-
 export interface CommitReceiptInput {
   tripId: string;
   phaseId: string;
   budgetPoolId: string;
+  /**
+   * DEC-473: the wallet every line is charged to. The caller resolves it via
+   * the app-wide policy (`resolveAutoWalletId` / explicit user pick) — null
+   * means the user explicitly chose "no wallet" (or tracking is off).
+   */
+  walletId: string | null;
   /** Owner participant id (the user) — the split/debt anchor (DEC-114). */
   ownerId: string;
   currency: string;
@@ -93,7 +97,7 @@ export async function commitReceipt(input: CommitReceiptInput): Promise<CommitRe
       tripId: input.tripId,
       phaseId: input.phaseId,
       budgetPoolId: input.budgetPoolId,
-      walletId: null,
+      walletId: input.walletId,
       amountCents: item.amountCents,
       currency: input.currency,
       baseCurrencyAmountCents: item.amountCents,

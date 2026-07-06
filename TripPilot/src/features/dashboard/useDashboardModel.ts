@@ -41,6 +41,7 @@ import {
   calculateSpentOnDate,
 } from '@/domain/transactions';
 import { sumCents } from '@/domain/money';
+import { collectReceiptSessionIds } from '@/domain/receipt';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { buildSessionFeed } from '@/features/expenses/expense-feed';
 import { splitMoneyDisplay } from './dashboard-format';
@@ -425,9 +426,12 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       ? phaseTxsForInsights.filter((tx) => tx.budgetPoolId === primaryPool.id)
       : [];
     const phaseMoneySpentCents = calculatePoolSpent(phaseMoneyTxs);
+    // DEC-473: a scanned receipt is a completed session too, but it is a
+    // purchase, not an outing — keep it out of the "custo médio por saída".
+    const receiptSessionIds = collectReceiptSessionIds(transactions);
     const completedOutingTotalsCents = activePhase
       ? completedSessions
-          .filter((s) => s.phaseId === activePhase.id)
+          .filter((s) => s.phaseId === activePhase.id && !receiptSessionIds.has(s.id))
           .map((s) => calculateSessionTotal(transactions.filter((tx) => tx.sessionId === s.id)))
       : [];
     const debts = owner

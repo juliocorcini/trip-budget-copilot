@@ -16,10 +16,22 @@ const FRAME_SIZE = 4096;
  * Peak amplitude below this means the capture carried no real signal (mic muted,
  * or the engine never delivered frames). We return an empty blob so the caller
  * shows "didn't catch that" instead of paying Whisper to hallucinate on silence.
- * Deliberately tiny — even a quiet talker peaks far above this, so real speech is
- * never rejected.
+ *
+ * DEC-473 (voice loosening — Julio device-test 2026-07-05: "alô teste passa,
+ * qualquer outra coisa não"): 0.006 rejected NATURAL-distance speech on devices
+ * whose mic (with suppression on) delivers a very low signal — only loud,
+ * close-to-the-phone test phrases survived. Lowered to reject ONLY a truly dead
+ * capture; quiet-but-real speech now passes and is gain-normalized below.
  */
-export const SILENCE_PEAK = 0.006;
+export const SILENCE_PEAK = 0.0015;
+/**
+ * DEC-473: captures quieter than this peak are linearly amplified before the
+ * WAV encode (Whisper transcribes normalized speech far more reliably than a
+ * near-silent waveform). Cap the gain so residual noise is never blown up into
+ * a fake "signal".
+ */
+export const NORMALIZE_TARGET_PEAK = 0.95;
+const MAX_NORMALIZE_GAIN = 25;
 
 type WindowAudio = typeof window & { webkitAudioContext?: typeof AudioContext };
 
@@ -50,17 +62,27 @@ function acquireContext(): AudioContext {
 }
 
 /**
- * Mono + the usual voice cleanups, but degrade gracefully: some engines/devices
+ * Mono + voice cleanups, but degrade gracefully: some engines/devices
  * (and headless Chromium's fake device) reject the constrained request with
  * NotSupportedError/OverconstrainedError — a plain `audio:true` still yields a
  * usable mic rather than dead-ending the whole capture. getUserMedia is also
  * what triggers the native RECORD_AUDIO prompt on Android (declared in manifest).
+ *
+ * DEC-473 (voice loosening): `autoGainControl: true` asks the engine to boost a
+ * quiet mic at the source, and `noiseSuppression: false` stops aggressive
+ * suppressors from eating sustained natural speech (Whisper is robust to
+ * background noise; it is NOT robust to speech that was suppressed away).
  */
 async function acquireMicStream(): Promise<MediaStream> {
   const media = navigator.mediaDevices;
   try {
     return await media.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: false,
+        autoGainControl: true,
+      },
     });
   } catch (err) {
     const name = err instanceof DOMException ? err.name : '';
@@ -125,10 +147,29 @@ export async function startPcmRecording(): Promise<PcmRecording> {
     const merged = mergeFrames(frames);
     if (peakAmplitude(merged) < SILENCE_PEAK) return new Blob([], { type: 'audio/wav' });
     const samples = downsample(merged, inputRate, TARGET_SAMPLE_RATE);
-    return encodeWav(samples, TARGET_SAMPLE_RATE);
+    // DEC-473: boost quiet-but-real speech to a healthy level before encoding —
+    // this is what turned "works only when I shout 'alô teste' at the phone"
+    // into reliable natural-distance capture.
+    return encodeWav(normalizePeak(samples), TARGET_SAMPLE_RATE);
   };
 
   return { stop };
+}
+
+/**
+ * DEC-473: linear peak normalization — scale the clip so its loudest sample
+ * approaches {@link NORMALIZE_TARGET_PEAK}. Gain is capped (never amplify a
+ * near-silent capture into fake speech) and clips already at a healthy level
+ * pass through untouched. Pure.
+ */
+export function normalizePeak(samples: Float32Array): Float32Array {
+  const peak = peakAmplitude(samples);
+  if (peak <= 0 || peak >= NORMALIZE_TARGET_PEAK) return samples;
+  const gain = Math.min(NORMALIZE_TARGET_PEAK / peak, MAX_NORMALIZE_GAIN);
+  if (gain <= 1) return samples;
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) out[i] = samples[i]! * gain;
+  return out;
 }
 
 export function peakAmplitude(samples: Float32Array): number {

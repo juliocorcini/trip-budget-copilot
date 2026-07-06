@@ -3,6 +3,8 @@ export {
   transactionWalletAmountCents,
   calculateCashReconciliation,
   getDefaultWallet,
+  resolveAutoWallet,
+  resolveAutoWalletId,
   getUnassignedTransactionCount,
   hasWiseImportedTransactions,
   countActiveWallets,

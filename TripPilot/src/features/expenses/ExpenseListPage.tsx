@@ -27,7 +27,11 @@ import {
   moveTransactionsToPoolBatch,
   moveTransactionsToPhaseBatch,
   moveOutingSessionsToPhaseBatch,
+  moveOutingSessionsToPoolBatch,
   changeTransactionsCategoryBatch,
+  changeTransactionsWalletBatch,
+  changeOutingSessionsCategoryBatch,
+  changeOutingSessionsWalletBatch,
   softDeleteOutingSessionsBatch,
   restoreOutingSessionsBatch,
 } from '@/domain/orchestrators';
@@ -40,6 +44,8 @@ import { SelectionBar, type SelectionAction } from '@/components/SelectionBar';
 import { showToast } from '@/components/Toast';
 import { getCategoryIcon } from '@/utils/category-icons';
 import { isSplitCommitTransaction } from '@/domain/split';
+import { collectReceiptSessionIds, isReceiptCommitTransaction } from '@/domain/receipt';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { buildSessionFeed, groupFeedByDay } from './expense-feed';
 import {
   countActiveFilters,
@@ -56,14 +62,17 @@ import type { Session } from '@/domain/types/session';
 import type { Transaction } from '@/domain/types/transaction';
 
 type FilterCategory = string | null;
-type ListTab = 'expenses' | 'outings';
+// DEC-473: "Notas" (scanned receipts) stopped masquerading as Saídas — a
+// receipt is a grocery run, not a night out, and mixing them confused the tab.
+type ListTab = 'expenses' | 'outings' | 'receipts';
 // DEC-197 (N3): tab order — index drives swipe/slide direction (left = forward).
-const TAB_ORDER: readonly ListTab[] = ['expenses', 'outings'];
+const TAB_ORDER: readonly ListTab[] = ['expenses', 'outings', 'receipts'];
 type BatchSheet =
   | 'deleteExpenses'
   | 'movePool'
   | 'changePhase'
   | 'changeCategory'
+  | 'changeWallet'
   | 'deleteOutings'
   | null;
 
@@ -83,7 +92,10 @@ export function ExpenseListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, transactions, pools, wallets, phases, links, loading, reload } = useAppData();
+  const { trip, transactions, pools, wallets, phases, links, participants, loading, reload } = useAppData();
+  // DEC-473 (bulk wallet): batch wallet edits only make sense when the wallet
+  // question exists at all (2+ wallets / Wise import / manual override).
+  const walletTracking = useWalletTracking();
   // FIELD-14: the list can arrive pre-filtered by URL (?profile=<id> / ?category=<cat> / ?place=<label>).
   const [filterCategory, setFilterCategory] = useState<FilterCategory>(searchParams.get('category'));
   const [filterProfileId, setFilterProfileId] = useState<string | null>(searchParams.get('profile'));
@@ -98,7 +110,11 @@ export function ExpenseListPage() {
   );
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   // DEC-079 (FIELD-09): outings ARE grouped expenses — they live in this screen.
-  const [tab, setTabState] = useState<ListTab>(searchParams.get('tab') === 'outings' ? 'outings' : 'expenses');
+  // DEC-473: ?tab= now accepts 'receipts' too (Notas).
+  const tabParam = searchParams.get('tab');
+  const [tab, setTabState] = useState<ListTab>(
+    tabParam === 'outings' || tabParam === 'receipts' ? tabParam : 'expenses',
+  );
   // DEC-206 (rollup): all trip sessions, so the Expenses feed can collapse a
   // receipt/outing's N transactions into ONE row instead of flooding the list.
   const [allSessions, setAllSessions] = useState<Session[]>([]);
@@ -135,11 +151,13 @@ export function ExpenseListPage() {
   const tabPaging = useTabPaging();
   const tabSwipe = useHorizontalSwipe({
     onSwipeLeft: () => {
-      if (tab === 'expenses') changeTab('outings');
+      const next = TAB_ORDER[TAB_ORDER.indexOf(tab) + 1];
+      if (next) changeTab(next);
       else tabPaging.goNextTab();
     },
     onSwipeRight: () => {
-      if (tab === 'outings') changeTab('expenses');
+      const prev = TAB_ORDER[TAB_ORDER.indexOf(tab) - 1];
+      if (prev) changeTab(prev);
       else tabPaging.goPrevTab();
     },
   });
@@ -264,6 +282,14 @@ export function ExpenseListPage() {
   const completedSessions = allSessions
     .filter((s) => s.status === 'completed' && s.endedAt !== null && !splitSessionIds.has(s.id))
     .sort((a, b) => (b.endedAt ?? '').localeCompare(a.endedAt ?? ''));
+  // DEC-473: a scanned note is a session whose items carry the receipt ref —
+  // it lives in the Notas tab now, never among the Saídas (bar mode outings).
+  const receiptSessionIds = collectReceiptSessionIds(transactions);
+  const outingSessions = completedSessions.filter((s) => !receiptSessionIds.has(s.id));
+  const receiptSessions = completedSessions.filter((s) => receiptSessionIds.has(s.id));
+  // Session tabs (Saídas/Notas) share the batch handlers — ids are SESSIONS.
+  const onSessionTab = tab !== 'expenses';
+  const owner = participants.find((p) => p.isOwner) ?? null;
 
   const poolMap = new Map(pools.map((p) => [p.id, p.name]));
   const walletMap = new Map(wallets.map((w) => [w.id, w.name]));
@@ -373,7 +399,13 @@ export function ExpenseListPage() {
 
   const handleMovePool = async (poolId: string) => {
     // DEC-452: the batch lands in the fund's phase too (pool ⇒ phase).
-    await moveTransactionsToPoolBatch(selection.selectedIds, poolId, resolvePoolPhaseId(links, poolId));
+    // DEC-473: on Saídas/Notas the ids are sessions — the whole note cascades.
+    const poolPhaseId = resolvePoolPhaseId(links, poolId);
+    if (onSessionTab) {
+      await moveOutingSessionsToPoolBatch(selection.selectedIds, poolId, poolPhaseId);
+    } else {
+      await moveTransactionsToPoolBatch(selection.selectedIds, poolId, poolPhaseId);
+    }
     await finishBatch('selection.moved_toast');
   };
 
@@ -387,7 +419,7 @@ export function ExpenseListPage() {
       showToast(t('selection.phase_no_pool'), 'warning');
       return;
     }
-    if (tab === 'outings') {
+    if (onSessionTab) {
       await moveOutingSessionsToPhaseBatch(selection.selectedIds, phaseId, pool.id);
     } else {
       await moveTransactionsToPhaseBatch(selection.selectedIds, phaseId, pool.id);
@@ -396,8 +428,23 @@ export function ExpenseListPage() {
   };
 
   const handleChangeCategory = async (category: string) => {
-    await changeTransactionsCategoryBatch(selection.selectedIds, category);
+    if (onSessionTab) {
+      await changeOutingSessionsCategoryBatch(selection.selectedIds, category);
+    } else {
+      await changeTransactionsCategoryBatch(selection.selectedIds, category);
+    }
     await finishBatch('selection.category_toast');
+  };
+
+  // DEC-473 (bulk wallet): `null` is the explicit "no wallet" choice; items paid
+  // by someone else are skipped by the orchestrator (they never held a wallet).
+  const handleChangeWallet = async (walletId: string | null) => {
+    if (onSessionTab) {
+      await changeOutingSessionsWalletBatch(selection.selectedIds, walletId, owner?.id ?? null);
+    } else {
+      await changeTransactionsWalletBatch(selection.selectedIds, walletId, owner?.id ?? null);
+    }
+    await finishBatch('selection.wallet_toast');
   };
 
   const handleDeleteOutings = async () => {
@@ -419,41 +466,44 @@ export function ExpenseListPage() {
         ]
       : [];
 
-  // DEC-118: batch actions per list (data-driven by tab).
-  const selectionActions: SelectionAction[] =
-    tab === 'expenses'
-      ? [
-          {
-            id: 'category',
-            icon: 'category',
-            label: t('selection.action_category'),
-            onAction: () => setBatchSheet('changeCategory'),
-          },
-          {
-            id: 'move',
-            icon: 'account_balance',
-            label: t('selection.action_move_pool'),
-            onAction: () => setBatchSheet('movePool'),
-          },
-          ...phaseAction,
-          {
-            id: 'delete',
-            icon: 'delete',
-            label: t('selection.action_delete'),
-            tone: 'danger',
-            onAction: () => setBatchSheet('deleteExpenses'),
-          },
-        ]
-      : [
-          ...phaseAction,
-          {
-            id: 'delete',
-            icon: 'delete',
-            label: t('selection.action_delete'),
-            tone: 'danger',
-            onAction: () => setBatchSheet('deleteOutings'),
-          },
-        ];
+  // DEC-473 (bulk wallet): only where the wallet question exists at all.
+  const walletAction: SelectionAction[] = walletTracking
+    ? [
+        {
+          id: 'wallet',
+          icon: 'account_balance_wallet',
+          label: t('selection.action_wallet'),
+          onAction: () => setBatchSheet('changeWallet'),
+        },
+      ]
+    : [];
+
+  // DEC-118: batch actions (data-driven by tab). DEC-473: Saídas/Notas now get
+  // the FULL set — category/fund/phase/wallet cascade to every item of the
+  // selected sessions; only the delete handler differs (session vs expense).
+  const selectionActions: SelectionAction[] = [
+    {
+      id: 'category',
+      icon: 'category',
+      label: t('selection.action_category'),
+      onAction: () => setBatchSheet('changeCategory'),
+    },
+    {
+      id: 'move',
+      icon: 'account_balance',
+      label: t('selection.action_move_pool'),
+      onAction: () => setBatchSheet('movePool'),
+    },
+    ...phaseAction,
+    ...walletAction,
+    {
+      id: 'delete',
+      icon: 'delete',
+      label: t('selection.action_delete'),
+      tone: 'danger',
+      onAction: () => setBatchSheet(onSessionTab ? 'deleteOutings' : 'deleteExpenses'),
+    },
+  ];
 
   return (
     <div
@@ -521,7 +571,8 @@ export function ExpenseListPage() {
           </div>
         </div>
 
-        {/* DEC-079: segmented control Expenses | Outings */}
+        {/* DEC-079: segmented control. DEC-473: Gastos | Saídas | Notas — a
+            scanned note no longer masquerades as a "saída". */}
         <div className="flex bg-surface-container rounded-xl p-1">
           <button
             onClick={() => changeTab('expenses')}
@@ -538,6 +589,14 @@ export function ExpenseListPage() {
             }`}
           >
             {t('expenses.tab_outings')}
+          </button>
+          <button
+            onClick={() => changeTab('receipts')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
+              tab === 'receipts' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
+            }`}
+          >
+            {t('expenses.tab_receipts')}
           </button>
         </div>
 
@@ -743,14 +802,18 @@ export function ExpenseListPage() {
         {tab === 'outings' && (
           <p className="text-xs text-on-surface-faint px-1 -mt-1">{t('expenses.outings_explainer')}</p>
         )}
+        {tab === 'receipts' && (
+          <p className="text-xs text-on-surface-faint px-1 -mt-1">{t('expenses.receipts_explainer')}</p>
+        )}
       </div>
 
       {/* DEC-197 (N3): keyed pane — remounts on tab change and slides in from the
           side matching the swipe/tap direction (bidirectional). */}
       <div key={tab} className={paneDirRef.current === 'next' ? 'pane-next' : 'pane-prev'}>
-      {tab === 'outings' ? (
+      {tab === 'outings' || tab === 'receipts' ? (
         <OutingHistoryList
-          sessions={completedSessions}
+          sessions={tab === 'receipts' ? receiptSessions : outingSessions}
+          variant={tab === 'receipts' ? 'receipts' : 'outings'}
           transactions={transactions}
           profiles={profiles}
           currency={trip.baseCurrency}
@@ -933,7 +996,9 @@ export function ExpenseListPage() {
         <div className="flex flex-col gap-3">
           <p className="text-sm text-on-surface-dim">
             {batchSheet === 'deleteOutings'
-              ? t('selection.delete_outings_body', { count: selection.selectedIds.length })
+              ? tab === 'receipts'
+                ? t('selection.delete_receipts_body', { count: selection.selectedIds.length })
+                : t('selection.delete_outings_body', { count: selection.selectedIds.length })
               : t('selection.delete_expenses_body', { count: selection.selectedIds.length })}
           </p>
           <button
@@ -1079,6 +1144,42 @@ export function ExpenseListPage() {
           ))}
         </div>
       </BottomSheet>
+
+      {/* DEC-473: change wallet of selected expenses / whole sessions. */}
+      <BottomSheet
+        open={batchSheet === 'changeWallet'}
+        onClose={() => setBatchSheet(null)}
+        title={t('selection.wallet_title')}
+      >
+        <div className="flex flex-col gap-2">
+          {wallets.map((wallet) => (
+            <button
+              key={wallet.id}
+              onClick={() => handleChangeWallet(wallet.id)}
+              className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+            >
+              <Icon name="account_balance_wallet" size={18} className="text-on-surface-dim" />
+              <span className="flex-1 min-w-0 truncate text-sm font-semibold text-on-surface">
+                {wallet.name}
+              </span>
+              <span className="shrink-0 text-xs text-on-surface-faint">{wallet.currency}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => handleChangeWallet(null)}
+            className="w-full px-4 py-3 rounded-xl bg-surface-high text-left btn-press flex items-center gap-3"
+          >
+            <Icon name="block" size={18} className="text-on-surface-faint" />
+            <span className="flex-1 min-w-0 truncate text-sm font-semibold text-on-surface-dim">
+              {t('selection.wallet_none')}
+            </span>
+          </button>
+          {/* Items paid by someone else never held the owner's wallet — say it. */}
+          <p className="text-xs text-on-surface-faint px-1">
+            {t('selection.wallet_third_party_note')}
+          </p>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
@@ -1087,6 +1188,8 @@ export function ExpenseListPage() {
 
 interface OutingHistoryListProps {
   sessions: Session[];
+  // DEC-473: same list renders Saídas and Notas — only empty state and badge differ.
+  variant: 'outings' | 'receipts';
   transactions: Transaction[];
   profiles: ActivityProfile[];
   currency: string;
@@ -1094,12 +1197,24 @@ interface OutingHistoryListProps {
   selection: MultiSelect;
 }
 
-function OutingHistoryList({ sessions, transactions, profiles, currency, onOpen, selection }: OutingHistoryListProps) {
+function OutingHistoryList({ sessions, variant, transactions, profiles, currency, onOpen, selection }: OutingHistoryListProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isReceipts = variant === 'receipts';
 
   if (sessions.length === 0) {
-    return (
+    return isReceipts ? (
+      <EmptyState
+        icon="receipt_long"
+        title={t('expenses.receipts_empty_title')}
+        body={t('expenses.receipts_empty_body')}
+        cta={{
+          label: t('expenses.receipts_empty_cta'),
+          icon: 'document_scanner',
+          onClick: () => navigate('/receipt/scan'),
+        }}
+      />
+    ) : (
       <EmptyState
         icon="celebration"
         title={t('expenses.outings_empty_title')}
@@ -1117,8 +1232,12 @@ function OutingHistoryList({ sessions, transactions, profiles, currency, onOpen,
         );
         const totalCents = calculateSessionTotal(sessionTxs);
         const profile = profiles.find((p) => p.id === session.activityProfileId) ?? null;
-        const icon = profile?.iconName ?? getCategoryIcon(profile?.category ?? null);
-        const badge = profile?.name ?? t('expenses.outing_one_off');
+        const icon = isReceipts
+          ? 'receipt_long'
+          : profile?.iconName ?? getCategoryIcon(profile?.category ?? null);
+        const badge = isReceipts
+          ? t('expenses.receipt_badge')
+          : profile?.name ?? t('expenses.outing_one_off');
 
         return (
           <button
@@ -1148,8 +1267,13 @@ function OutingHistoryList({ sessions, transactions, profiles, currency, onOpen,
                 <p className="text-sm text-on-surface truncate">{session.name}</p>
                 <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
                   <span>{formatShortDate(localDayOf(session.endedAt ?? session.startedAt))}</span>
-                  <span>·</span>
-                  <span>{formatSessionDuration(session.startedAt, session.endedAt)}</span>
+                  {/* A receipt is an instant, not a stretch — no duration. */}
+                  {!isReceipts && (
+                    <>
+                      <span>·</span>
+                      <span>{formatSessionDuration(session.startedAt, session.endedAt)}</span>
+                    </>
+                  )}
                   <span>·</span>
                   <span>{t('expenses.outing_items', { count: sessionTxs.length })}</span>
                 </div>
@@ -1197,7 +1321,7 @@ function SessionRollupRow({
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const isReceipt = txs.some((tx) => tx.externalRef?.startsWith('receipt:'));
+  const isReceipt = txs.some((tx) => isReceiptCommitTransaction(tx));
   const profile = profiles.find((p) => p.id === session.activityProfileId) ?? null;
   const icon = isReceipt ? 'receipt_long' : (profile?.iconName ?? getCategoryIcon(profile?.category ?? null));
   const badge = isReceipt ? t('expenses.receipt_badge') : (profile?.name ?? t('expenses.outing_one_off'));

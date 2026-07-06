@@ -1,5 +1,7 @@
 import { db } from '@/data/db/database';
 import { markUpdated, softDelete, restoreDeleted } from '@/utils/entity-factory';
+import { isPaidByOwner } from '@/domain/splitting';
+import type { Transaction } from '@/domain/types/transaction';
 
 /**
  * DEC-118 (R-09): batch operations behind the list selection mode.
@@ -73,6 +75,29 @@ export async function changeTransactionsCategoryBatch(
 }
 
 /**
+ * DEC-473 (bulk edit): stamp a wallet on a batch of expenses. DEC-114 guard:
+ * an expense paid by SOMEONE ELSE never moved the owner's money, so it keeps
+ * `walletId: null` no matter what the batch says — same rule as the end-of-
+ * outing review's batch wallet. `walletId: null` = the explicit "no wallet".
+ */
+function stampWallet(tx: Transaction, walletId: string | null, ownerId: string | null): Transaction {
+  if (!isPaidByOwner(tx, ownerId)) return tx;
+  return markUpdated({ ...tx, walletId });
+}
+
+export async function changeTransactionsWalletBatch(
+  transactionIds: string[],
+  walletId: string | null,
+  ownerId: string | null,
+): Promise<void> {
+  await db.transaction('rw', [db.transactions], async () => {
+    const transactions = await db.transactions.bulkGet(transactionIds);
+    const found = transactions.filter((tx): tx is Transaction => tx !== undefined);
+    await db.transactions.bulkPut(found.map((tx) => stampWallet(tx, walletId, ownerId)));
+  });
+}
+
+/**
  * Julio field feedback: move a batch of standalone expenses (e.g. Wise imports)
  * to another phase, carrying the phase's operational pool along. Phase + pool
  * travel TOGETHER (one dedicated pool per phase), so a misfiled import is fixed
@@ -111,6 +136,64 @@ export async function moveOutingSessionsToPhaseBatch(
     await db.transactions.bulkPut(
       transactions.map((tx) => markUpdated({ ...tx, phaseId, budgetPoolId })),
     );
+  });
+}
+
+/**
+ * DEC-473 (bulk edit on Saídas/Notas): move whole sessions to another FUND —
+ * the session and every expense it holds change `budgetPoolId` together, and
+ * when the fund is phase-linked (DEC-452) they land on that phase too. Atomic.
+ */
+export async function moveOutingSessionsToPoolBatch(
+  sessionIds: string[],
+  budgetPoolId: string,
+  poolPhaseId: string | null,
+): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.transactions], async () => {
+    const sessions = await db.sessions.bulkGet(sessionIds);
+    const foundSessions = sessions.filter((s) => s !== undefined);
+    await db.sessions.bulkPut(
+      foundSessions.map((s) =>
+        markUpdated({ ...s, budgetPoolId, phaseId: poolPhaseId ?? s.phaseId }),
+      ),
+    );
+
+    const transactions = await db.transactions.where('sessionId').anyOf(sessionIds).toArray();
+    await db.transactions.bulkPut(
+      transactions.map((tx) =>
+        markUpdated({ ...tx, budgetPoolId, phaseId: poolPhaseId ?? tx.phaseId }),
+      ),
+    );
+  });
+}
+
+/**
+ * DEC-473 (bulk edit on Saídas/Notas): re-categorize whole sessions — every
+ * expense item of every selected session gets the category. Atomic.
+ */
+export async function changeOutingSessionsCategoryBatch(
+  sessionIds: string[],
+  category: string,
+): Promise<void> {
+  await db.transaction('rw', [db.transactions], async () => {
+    const transactions = await db.transactions.where('sessionId').anyOf(sessionIds).toArray();
+    await db.transactions.bulkPut(transactions.map((tx) => markUpdated({ ...tx, category })));
+  });
+}
+
+/**
+ * DEC-473 (bulk edit on Saídas/Notas): stamp a wallet on whole sessions —
+ * every item the OWNER paid gets it (DEC-114: items paid by someone else keep
+ * `walletId: null`, exactly like the end-of-outing batch wallet). Atomic.
+ */
+export async function changeOutingSessionsWalletBatch(
+  sessionIds: string[],
+  walletId: string | null,
+  ownerId: string | null,
+): Promise<void> {
+  await db.transaction('rw', [db.transactions], async () => {
+    const transactions = await db.transactions.where('sessionId').anyOf(sessionIds).toArray();
+    await db.transactions.bulkPut(transactions.map((tx) => stampWallet(tx, walletId, ownerId)));
   });
 }
 

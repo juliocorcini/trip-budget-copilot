@@ -7,7 +7,9 @@ import {
   encodeWav,
   downsample,
   peakAmplitude,
+  normalizePeak,
   SILENCE_PEAK,
+  NORMALIZE_TARGET_PEAK,
   TARGET_SAMPLE_RATE,
 } from '@/utils/audio-recorder';
 
@@ -87,19 +89,50 @@ describe('audio-recorder · downsample', () => {
 });
 
 describe('audio-recorder · silence detection', () => {
-  it('keeps the silence threshold tight enough that real speech is never rejected', () => {
-    expect(SILENCE_PEAK).toBe(0.006);
+  // DEC-473 (voice loosening): 0.006 rejected quiet-but-real speech on weak
+  // mics ("works only for 'alô teste' shouted at the phone"). The gate now only
+  // rejects a truly dead capture; quiet speech passes and is normalized below.
+  it('keeps the silence threshold loose enough that quiet real speech is never rejected', () => {
+    expect(SILENCE_PEAK).toBe(0.0015);
     expect(TARGET_SAMPLE_RATE).toBe(16000);
   });
 
-  it('flags a near-silent capture as below threshold (→ "didn’t catch that")', () => {
-    const quiet = new Float32Array([0.001, -0.003, 0.002, -0.0015]);
-    expect(peakAmplitude(quiet)).toBeLessThan(SILENCE_PEAK);
+  it('flags a truly dead capture as below threshold (→ "didn’t catch that")', () => {
+    const dead = new Float32Array([0.0002, -0.0009, 0.0004, -0.001]);
+    expect(peakAmplitude(dead)).toBeLessThan(SILENCE_PEAK);
+  });
+
+  it('accepts a quiet-but-real capture that the old 0.006 gate rejected', () => {
+    const quietSpeech = new Float32Array([0.001, -0.003, 0.002, -0.0015]);
+    expect(peakAmplitude(quietSpeech)).toBeGreaterThan(SILENCE_PEAK);
   });
 
   it('accepts a normal-volume capture (peak well above threshold)', () => {
     const speech = new Float32Array([0.01, -0.5, 0.2, -0.33]);
     expect(peakAmplitude(speech)).toBeCloseTo(0.5, 5);
     expect(peakAmplitude(speech)).toBeGreaterThan(SILENCE_PEAK);
+  });
+});
+
+describe('audio-recorder · peak normalization (DEC-473)', () => {
+  it('boosts a quiet clip toward the target peak', () => {
+    // Peak 0.05 → needs 19× (inside the 25× cap) to hit the 0.95 target.
+    const quiet = new Float32Array([0.025, -0.05, 0.0125]);
+    const out = normalizePeak(quiet);
+    expect(peakAmplitude(out)).toBeCloseTo(NORMALIZE_TARGET_PEAK, 3);
+    // Relative shape preserved (linear gain): 0.025/0.05 stays 1/2.
+    expect(out[0]! / out[1]!).toBeCloseTo(quiet[0]! / quiet[1]!, 5);
+  });
+
+  it('caps the gain so a near-dead capture is never blown into fake speech', () => {
+    const nearDead = new Float32Array([0.002, -0.001]);
+    const out = normalizePeak(nearDead);
+    // Max gain 25×: 0.002 → 0.05, far from the 0.95 target.
+    expect(peakAmplitude(out)).toBeCloseTo(0.05, 5);
+  });
+
+  it('leaves an already-healthy clip untouched', () => {
+    const healthy = new Float32Array([0.5, -0.96, 0.3]);
+    expect(normalizePeak(healthy)).toBe(healthy);
   });
 });

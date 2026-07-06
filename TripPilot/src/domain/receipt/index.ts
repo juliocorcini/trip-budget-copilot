@@ -20,3 +20,8 @@ export type {
   BasketDiscountResult,
 } from './basket-discount';
 export { allocateBasketDiscount, applyBasketDiscountToReceiptPlan } from './basket-discount';
+export {
+  RECEIPT_REF_PREFIX,
+  isReceiptCommitTransaction,
+  collectReceiptSessionIds,
+} from './classify';

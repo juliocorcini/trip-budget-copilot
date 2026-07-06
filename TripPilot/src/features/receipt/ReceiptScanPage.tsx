@@ -14,6 +14,8 @@ import {
   type ReceiptDraftItem,
 } from '@/domain/receipt';
 import { commitReceipt, undoReceiptCommit } from '@/domain/orchestrators';
+import { resolveAutoWalletId } from '@/domain/wallets';
+import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { attachmentRepository, appSettingsRepository } from '@/data/repositories';
 import { resolveActivePhase, sortPhasesByOrder } from '@/domain/dates';
@@ -61,7 +63,8 @@ const blankItem = (): ReceiptDraftItem => ({
 export function ReceiptScanPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { trip, phases, pools, links, participants, settings, loading, error, retry, reload } = useAppData();
+  const { trip, phases, pools, links, wallets, participants, settings, loading, error, retry, reload } = useAppData();
+  const walletTrackingActive = useWalletTracking();
 
   // CC-IMG (DEC-275): receipt scan now opens the shared take-photo/gallery
   // chooser instead of going straight to the gallery (the camera was unreachable).
@@ -83,6 +86,9 @@ export function ReceiptScanPage() {
   // open only when the AI actually filled something — so the parity is visible
   // at a glance — and stays a quiet, editable disclosure otherwise.
   const [showAiDetails, setShowAiDetails] = useState(false);
+  // DEC-473: the wallet every line will charge. `null` = no explicit pick yet
+  // (auto policy applies); `'none'` = the user explicitly chose "no wallet".
+  const [walletChoice, setWalletChoice] = useState<string | 'none' | null>(null);
 
   // DEC-209: cloud AI (Groq) is the only scan engine — on-device OCR was removed
   // because heuristic text parsing of raw OCR could not match the vision model.
@@ -106,6 +112,14 @@ export function ReceiptScanPage() {
     return resolveActivePhase(phases, ref)?.id ?? null;
   }, [plan?.purchaseDate, phases]);
   const resolvedPhaseId = selectedPhaseId ?? autoPhaseId;
+
+  // DEC-473: wallet the whole note charges — explicit pick wins, else the auto
+  // policy (default wallet / lone wallet). Ambiguous (2+ wallets, no default)
+  // asks: the picker below blocks the confirm until the user decides.
+  const autoWalletId = resolveAutoWalletId(wallets);
+  const effectiveWalletId = walletChoice === 'none' ? null : (walletChoice ?? autoWalletId);
+  const requiresWalletChoice =
+    walletTrackingActive && walletChoice === null && autoWalletId === null && wallets.length > 1;
 
   // D-IMP-05: when the vision model read items but no merchant name, title the
   // note after what it mostly is (dominant category, e.g. "Mercado") instead of
@@ -354,6 +368,7 @@ export function ReceiptScanPage() {
         tripId: trip.id,
         phaseId,
         budgetPoolId: operationalPool.id,
+        walletId: effectiveWalletId,
         ownerId: owner.id,
         currency,
         name: name.trim() || defaultName,
@@ -495,6 +510,42 @@ export function ReceiptScanPage() {
             autoLabel={t('phase_picker.auto_by_date')}
             autoResolvedName={sortedPhases.find((p) => p.id === autoPhaseId)?.name ?? null}
           />
+
+          {/* DEC-473: which wallet the whole note charges. Auto (default/lone
+              wallet) stays silent; ambiguous asks and blocks the confirm. */}
+          {walletTrackingActive && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-on-surface">{t('expenses.wallet')}</label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setWalletChoice('none')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                    walletChoice === 'none'
+                      ? 'bg-warning/20 text-warning ring-1 ring-warning'
+                      : 'bg-surface-high text-on-surface-dim'
+                  }`}
+                >
+                  {t('expenses.wallet_not_set')}
+                </button>
+                {wallets.map((wallet) => (
+                  <button
+                    key={wallet.id}
+                    onClick={() => setWalletChoice(wallet.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                      effectiveWalletId === wallet.id
+                        ? 'bg-primary text-on-surface'
+                        : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {wallet.name}
+                  </button>
+                ))}
+              </div>
+              {requiresWalletChoice && (
+                <p className="text-[10px] text-on-surface-faint">{t('expenses.choose_wallet_hint')}</p>
+              )}
+            </div>
+          )}
 
           {/* FB-10 (DEC-258): the date + place the AI read off the note, editable.
               A quiet disclosure so a manual note isn't cluttered, auto-open when
@@ -765,7 +816,7 @@ export function ReceiptScanPage() {
           <div className="max-w-[430px] mx-auto">
             <button
               onClick={() => void handleCommit()}
-              disabled={busy || included.length === 0}
+              disabled={busy || included.length === 0 || requiresWalletChoice}
               className="w-full py-3.5 rounded-2xl bg-primary text-on-surface font-bold btn-press disabled:opacity-40"
             >
               {busy

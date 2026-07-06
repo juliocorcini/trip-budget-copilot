@@ -28,6 +28,7 @@ import {
   type SplitSession,
 } from '@/domain/split';
 import { commitSplit, undoSplitCommit } from '@/domain/orchestrators';
+import { resolveAutoWalletId } from '@/domain/wallets';
 import { createParticipant } from '@/domain/splitting';
 // B2 (coherence §2.2): reuse a known friend (persisted peerLink) when dividing,
 // instead of re-scanning a QR. Pure view layer over the global peerLinks table.
@@ -94,7 +95,7 @@ export function SplitPage() {
   // FAB "nova divisão" arrives with ?new=1 — open a fresh capture screen even if
   // a live table is still running (it stays resumable from the home card/chip).
   const forceNew = searchParams.get('new') === '1';
-  const { trip, phases, pools, links, participants, settings, loading, error, retry, reload } = useAppData();
+  const { trip, phases, pools, links, wallets, participants, settings, loading, error, retry, reload } = useAppData();
 
   // CC-IMG (DEC-275): shared take-photo/gallery chooser for the receipt scan.
   const receiptChooser = useImageSourceChooser((file) => {
@@ -554,7 +555,8 @@ export function SplitPage() {
         phaseId,
         budgetPoolId: operationalPool.id,
         ownerParticipantId: owner.id,
-        walletId: null,
+        // DEC-473: the owner fronted the bill (they are the payer) — auto policy.
+        walletId: resolveAutoWalletId(wallets),
         participantIdMap,
         exchangeRate: billRate,
         attachmentId,

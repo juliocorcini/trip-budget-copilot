@@ -1,8 +1,8 @@
 {
-  "version": "2.7.2-rc",
+  "version": "2.7.3-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.73.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.2-rc.zip",
-  "notes": "Cards de metas agora batem com a lista (17 feitas = 17 gastos), notas e gastos rápidos consomem o plano da categoria, e o cofrinho ganhou o 'Como funciona' no extrato."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.3-rc.zip",
+  "notes": "Notas escaneadas ganharam aba própria (Gastos | Saídas | Notas), edição em massa completa com carteira, carteira nunca mais indefinida, gasto adiantado para amigo não desconta do seu livre, voz da IA destravada e seletor de moeda no padrão do app."
 }

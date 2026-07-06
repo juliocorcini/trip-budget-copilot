@@ -17,6 +17,36 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.3-rc',
+    date: '2026-07-06',
+    items: {
+      'pt-BR': [
+        'Notas escaneadas ganharam sua própria aba: agora é Gastos | Saídas | Notas — a nota do mercado não aparece mais no meio das saídas.',
+        'Edição em massa completa: segure para selecionar e mude categoria, verba/pote, fase e CARTEIRA — em gastos, saídas e notas (a nota inteira muda de uma vez).',
+        'Carteira nunca mais fica indefinida: gasto por IA, nota escaneada, saída, divisão e compra planejada seguem a regra — uma carteira só? usa ela; várias? o app pergunta antes de salvar.',
+        'Comprou para um amigo? Gasto compartilhado que você pagou sem participar agora custa ZERO para você: não sai do seu livre e a dívida inteira vai para o acerto de contas.',
+        'Voz da IA destravada: fala baixa ou microfone fraco não geram mais "não captou o áudio" — o app amplifica o áudio antes de transcrever.',
+        'Seletor de moeda do registro no padrão do app: principais com bandeira e nome completo, as demais pelo código.',
+      ],
+      en: [
+        'Scanned receipts got their own tab: it is now Expenses | Outings | Receipts — the grocery note no longer shows up among your nights out.',
+        'Full bulk editing: long-press to select and change category, allowance/pot, phase and WALLET — on expenses, outings and receipts (the whole note changes at once).',
+        'No more undefined wallet: AI entries, scanned receipts, outings, splits and planned purchases follow the rule — one wallet? use it; several? the app asks before saving.',
+        "Bought something for a friend? A shared expense you paid without joining now costs YOU zero: it never leaves your free amount and the whole debt lands in the settle-up.",
+        'AI voice unlocked: quiet speech or a weak mic no longer triggers "didn\'t catch that" — the app amplifies the audio before transcribing.',
+        'The expense form currency picker now follows the app standard: majors with flag and full name, the rest by code.',
+      ],
+      es: [
+        'Los recibos escaneados ganaron su propia pestaña: ahora es Gastos | Salidas | Recibos — la nota del mercado ya no aparece entre tus salidas.',
+        'Edición masiva completa: mantén pulsado para seleccionar y cambia categoría, asignación/fondo, fase y BILLETERA — en gastos, salidas y recibos (el recibo entero cambia de una vez).',
+        'La billetera nunca más queda indefinida: gastos por IA, recibos escaneados, salidas, divisiones y compras planeadas siguen la regla — ¿una sola billetera? la usa; ¿varias? la app pregunta antes de guardar.',
+        '¿Compraste para un amigo? Un gasto compartido que pagaste sin participar ahora te cuesta CERO: no sale de tu libre y toda la deuda va al ajuste de cuentas.',
+        'Voz de la IA desbloqueada: hablar bajo o un micrófono débil ya no genera "no capté el audio" — la app amplifica el audio antes de transcribir.',
+        'El selector de moneda del registro sigue el estándar de la app: principales con bandera y nombre completo, las demás por código.',
+      ],
+    },
+  },
+  {
     version: '2.7.2-rc',
     date: '2026-07-06',
     items: {

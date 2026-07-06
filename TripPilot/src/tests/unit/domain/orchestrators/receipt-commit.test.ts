@@ -26,6 +26,8 @@ const mkInput = (items: ReceiptDraftItem[], attachmentId: string | null = null) 
   tripId: 'trip-1',
   phaseId: 'phase-1',
   budgetPoolId: 'pool-1',
+  // DEC-473: the review screen resolves the wallet (auto/explicit) upfront.
+  walletId: 'wallet-1' as string | null,
   ownerId: OWNER,
   currency: 'EUR',
   name: 'Mercadona BURGOS',

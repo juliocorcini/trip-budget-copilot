@@ -105,6 +105,26 @@ export function getDefaultWallet(wallets: Wallet[]): Wallet | null {
   );
 }
 
+/**
+ * DEC-473 — the app-wide wallet auto-assignment policy ("pente fino"): no flow
+ * may persist `walletId: null` silently. The resolution order is:
+ *  1. the explicitly marked default wallet (Settings), when alive;
+ *  2. the ONLY live wallet, when there is exactly one (nothing to ask);
+ *  3. `null` — ambiguous (2+ wallets, none default): the UI must ASK, and only
+ *     an explicit "no wallet" choice by the user may persist null.
+ */
+export function resolveAutoWallet(wallets: Wallet[]): Wallet | null {
+  const explicit = getDefaultWallet(wallets);
+  if (explicit) return explicit;
+  const live = wallets.filter((w) => w.deletedAt === null);
+  return live.length === 1 ? live[0]! : null;
+}
+
+/** Convenience id form of {@link resolveAutoWallet} for transaction stamping. */
+export function resolveAutoWalletId(wallets: Wallet[]): string | null {
+  return resolveAutoWallet(wallets)?.id ?? null;
+}
+
 export function getUnassignedTransactionCount(transactions: Transaction[]): number {
   return transactions.filter(
     (t) =>

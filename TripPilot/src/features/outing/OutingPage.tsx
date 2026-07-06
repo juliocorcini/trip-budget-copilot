@@ -40,6 +40,7 @@ import type {
 } from '@/domain/outing';
 import { ClosingRecapSheet } from './ClosingRecapSheet';
 import { createExpenseTransaction, parseVoiceExpense } from '@/domain/transactions';
+import { resolveAutoWalletId } from '@/domain/wallets';
 import { resolvePayerExpense } from '@/domain/splitting';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { fromCents } from '@/domain/money';
@@ -691,7 +692,8 @@ export function OutingPage() {
       tripId: trip.id,
       phaseId: txPhaseId,
       budgetPoolId: sess.budgetPoolId,
-      walletId: null,
+      // DEC-473: session quick-adds are the owner's own money — auto policy.
+      walletId: resolveAutoWalletId(wallets),
       amountCents,
       currency: trip.baseCurrency,
       category: sessionProfile?.category ?? 'other',
@@ -1050,7 +1052,8 @@ export function OutingPage() {
       tripId: trip.id,
       phaseId: txPhaseId,
       budgetPoolId: sess.budgetPoolId,
-      walletId: null,
+      // DEC-473: auto policy — cleared right below when someone ELSE paid.
+      walletId: resolveAutoWalletId(wallets),
       amountCents: input.amountCents,
       currency: trip.baseCurrency,
       category: sessionProfile?.category ?? 'other',

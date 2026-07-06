@@ -32,6 +32,7 @@ import {
   parseLocaleNumber,
 } from '@/domain/money';
 import { getAvailablePoolsForPhase, calculateFreeToSpend, resolvePoolPhaseId } from '@/domain/budget';
+import { resolveAutoWallet } from '@/domain/wallets';
 import { selectAttributableEvents } from '@/domain/planning';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import {
@@ -54,6 +55,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { compressImageFile, type CompressedImage } from '@/utils/image/compress';
 import { newAttachment } from '@/features/attachments/attachment-utils';
 import { getCategoryIcon } from '@/utils/category-icons';
+import { buildCurrencyOptionLabel } from '@/utils/currency-label';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -121,7 +123,9 @@ export function QuickAddPage() {
   });
   const [description, setDescription] = useState(() => sharedIntake.description);
   const [category, setCategory] = useState(initialCategory);
-  const [walletId, setWalletId] = useState<string | null>(null);
+  // DEC-473: `null` = user hasn't chosen (auto policy applies); `'none'` = the
+  // user EXPLICITLY chose "no wallet" — the only way to persist a null wallet.
+  const [walletChoice, setWalletChoice] = useState<string | 'none' | null>(null);
   const [targetWalletId, setTargetWalletId] = useState<string | null>(null);
   const [poolId, setPoolId] = useState<string>('');
   // GAP-027: optional retroactive date/time (empty = now)
@@ -210,7 +214,11 @@ export function QuickAddPage() {
   // BUG-002 (R6-02): never fall back to phases[0] — resolveActivePhase picks
   // the nearest phase (current, else last past, else first future).
   const currentPhase = resolveActivePhase(phases);
-  const defaultWallet = wallets.find((w) => w.isDefault);
+  // DEC-473: the auto policy — explicit default wins, else the lone wallet.
+  const defaultWallet = resolveAutoWallet(wallets);
+
+  // The user's pick, when it is a real wallet id (never the 'none' sentinel).
+  const chosenWalletId = walletChoice !== null && walletChoice !== 'none' ? walletChoice : null;
 
   // Withdrawal pulls from a non-cash wallet into a cash wallet (Core Rule 3).
   const defaultSourceWallet = isWithdrawal
@@ -218,7 +226,7 @@ export function QuickAddPage() {
        wallets.find((w) => w.walletType !== 'cash') ??
        defaultWallet)
     : defaultWallet;
-  const effectiveSourceWalletId = walletId ?? defaultSourceWallet?.id ?? null;
+  const effectiveSourceWalletId = chosenWalletId ?? defaultSourceWallet?.id ?? null;
 
   const cashWallets = wallets.filter((w) => w.walletType === 'cash');
   const targetCandidates = (isWithdrawal && cashWallets.length > 0 ? cashWallets : wallets).filter(
@@ -231,7 +239,9 @@ export function QuickAddPage() {
         ? targetCandidates[0]!.id
         : null;
 
-  const effectiveWalletId = walletId ?? defaultWallet?.id ?? null;
+  // DEC-473: explicit 'none' → null; a picked wallet → it; otherwise the auto
+  // policy (default wallet / lone wallet), and null only when truly ambiguous.
+  const effectiveWalletId = walletChoice === 'none' ? null : (chosenWalletId ?? defaultWallet?.id ?? null);
 
   // DEC-039/040: only pools linked to the active phase + global pools are
   // selectable; auto-select happens only with exactly one operational pool.
@@ -254,7 +264,12 @@ export function QuickAddPage() {
   // P2: hide the fund picker when there's nothing to choose (0 or 1 pool). When
   // multiple pools force a choice, the details block opens so it's never hidden.
   const requiresFundChoice = !isTransferLike && selectablePools.length > 1 && !effectivePoolId;
-  const detailsOpen = showDetails || requiresFundChoice;
+  // DEC-473: ambiguous wallet (2+ wallets, none default, nothing picked) mirrors
+  // the fund pattern — the details open and save waits for an explicit choice
+  // ("Não definida" included). With one wallet or a marked default, never asks.
+  const requiresWalletChoice =
+    !isTransferLike && walletTrackingActive && walletChoice === null && effectiveWalletId === null && wallets.length > 1;
+  const detailsOpen = showDetails || requiresFundChoice || requiresWalletChoice;
   const selectFund = (id: string) => {
     setPoolId(id);
     setShowDetails(true);
@@ -338,7 +353,9 @@ export function QuickAddPage() {
     }
     if (aiDraft.place) setPlace(aiDraft.place);
     if (aiDraft.poolId) setPoolId(aiDraft.poolId);
-    if (aiDraft.walletId !== undefined) setWalletId(aiDraft.walletId);
+    // DEC-473: only a REAL wallet id from the AI counts as a choice — a null
+    // draft wallet falls through to the auto policy instead of pinning "none".
+    if (typeof aiDraft.walletId === 'string') setWalletChoice(aiDraft.walletId);
     // DEC-397 (G6): pre-select the event the AI draft carried, and mark the
     // attribution touched so the lone-event auto-suggest never overrides it.
     if (aiDraft.occurrenceId) {
@@ -510,6 +527,21 @@ export function QuickAddPage() {
   }, 0);
   const customRemainingCents = amountCentsPreview - customSumCents;
 
+  // DEC-473: a split needs at least one participant and must not be JUST the
+  // owner (that would be a personal expense wearing a split hat). One single
+  // NON-owner participant is a legitimate split: "I fronted it, they owe all".
+  const hasSplitCounterparty =
+    selectedParticipantIds.length >= 2 ||
+    (selectedParticipantIds.length === 1 && selectedParticipantIds[0] !== owner?.id);
+  // DEC-473: fronted preview — the owner paid, a split is on, and the owner is
+  // NOT among the participants: personal cost is 0 and the whole amount is debt.
+  const frontedPreview =
+    !otherPaid &&
+    wantsSplit &&
+    hasSplitCounterparty &&
+    owner !== null &&
+    !selectedParticipantIds.includes(owner.id);
+
   const previewShareCents =
     wantsSplit && selectedParticipantIds.length > 0 && owner && selectedParticipantIds.includes(owner.id)
       ? splitMode === 'equal'
@@ -587,8 +619,14 @@ export function QuickAddPage() {
       ...placeToTransactionFields(place),
     });
 
+    // DEC-473 (perfume case): a split is valid with ANY non-empty participant
+    // set that isn't just the owner — including the owner REMOVED entirely
+    // ("comprei para o Felipe, ele me deve tudo"): personal cost 0, the whole
+    // amount becomes the participants' debt, the owner's free-to-spend is
+    // untouched. The old `length >= 2` guard silently dropped that split and
+    // registered the full amount as a personal expense (no debt, free zeroed).
     const splitActive =
-      canSplit && wantsSplit && selectedParticipantIds.length >= 2 && effectivePaidById !== null;
+      canSplit && wantsSplit && hasSplitCounterparty && effectivePaidById !== null;
     // DEC-114/123: the payer flow applies whenever someone else paid (even
     // without splitting — truth-table row 4) or a split is active.
     const payerFlowActive =
@@ -794,7 +832,9 @@ export function QuickAddPage() {
       return;
     }
     // DEC-053(a): zero/negative budget never blocks — it asks for confirmation.
-    if (selectedPoolFreeToSpendCents !== null && selectedPoolFreeToSpendCents <= 0) {
+    // DEC-473: a fully fronted expense costs ME nothing, so it never trips the
+    // "fund is empty" confirmation — the fund is not being charged.
+    if (!frontedPreview && selectedPoolFreeToSpendCents !== null && selectedPoolFreeToSpendCents <= 0) {
       setShowZeroBudgetConfirm(true);
       return;
     }
@@ -805,7 +845,7 @@ export function QuickAddPage() {
   // M5: after confirming the anomaly, still honor the zero-budget confirmation.
   const confirmAfterAnomaly = async () => {
     setShowAnomalyConfirm(false);
-    if (selectedPoolFreeToSpendCents !== null && selectedPoolFreeToSpendCents <= 0) {
+    if (!frontedPreview && selectedPoolFreeToSpendCents !== null && selectedPoolFreeToSpendCents <= 0) {
       setShowZeroBudgetConfirm(true);
       return;
     }
@@ -843,7 +883,7 @@ export function QuickAddPage() {
       place !== null ||
       pendingImages.length > 0 ||
       (selectablePools.length > 1 && effectivePoolId !== '') ||
-      (walletTrackingActive && walletId !== null));
+      (walletTrackingActive && walletChoice !== null));
 
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 px-5">
@@ -921,9 +961,15 @@ export function QuickAddPage() {
               aria-label={t('expenses.currency_label')}
               className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none flex-1"
             >
+              {/* DEC-473: app-standard rows — majors as flag+code+name, minors
+                  as bare code; the base keeps its "(moeda da viagem)" tag. */}
               {currencyOptions.map((code) => (
                 <option key={code} value={code}>
-                  {code === baseCurrency ? t('expenses.currency_base', { code }) : code}
+                  {code === baseCurrency
+                    ? t('expenses.currency_base', {
+                        code: buildCurrencyOptionLabel(code, i18n.language),
+                      })
+                    : buildCurrencyOptionLabel(code, i18n.language)}
                 </option>
               ))}
             </select>
@@ -1245,15 +1291,18 @@ export function QuickAddPage() {
             )
           )}
 
-          {/* D10: wallet stays progressive — only when tracking is active. */}
+          {/* D10: wallet stays progressive — only when tracking is active.
+              DEC-473: when the choice is ambiguous (2+ wallets, no default) the
+              section opens by itself and save waits for an explicit pick —
+              "Não definida" remains a valid explicit pick. */}
           {walletTrackingActive && (
             <div className="bg-surface-container rounded-xl p-4">
               <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.wallet')}</label>
               <div className="flex gap-2 flex-wrap">
                 <button
-                  onClick={() => setWalletId(null)}
+                  onClick={() => setWalletChoice('none')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
-                    effectiveWalletId === null ? 'bg-warning/20 text-warning ring-1 ring-warning' : 'bg-surface-high text-on-surface-dim'
+                    walletChoice === 'none' ? 'bg-warning/20 text-warning ring-1 ring-warning' : 'bg-surface-high text-on-surface-dim'
                   }`}
                 >
                   {t('expenses.wallet_not_set')}
@@ -1261,7 +1310,7 @@ export function QuickAddPage() {
                 {wallets.map((wallet) => (
                   <button
                     key={wallet.id}
-                    onClick={() => setWalletId(wallet.id)}
+                    onClick={() => setWalletChoice(wallet.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
                       effectiveWalletId === wallet.id ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
                     }`}
@@ -1270,6 +1319,9 @@ export function QuickAddPage() {
                   </button>
                 ))}
               </div>
+              {requiresWalletChoice && (
+                <p className="text-[10px] text-on-surface-faint mt-2">{t('expenses.choose_wallet_hint')}</p>
+              )}
             </div>
           )}
 
@@ -1536,6 +1588,17 @@ export function QuickAddPage() {
                     })}
                   </p>
                 ))}
+
+              {/* DEC-473: fronted split — the owner is out of the participant
+                  set, so this money is 100% the others' debt. Say it BEFORE the
+                  save so "my free-to-spend was zeroed" can never surprise. */}
+              {frontedPreview && amountCentsPreview > 0 && (
+                <p className="text-xs font-semibold text-success">
+                  {t('expenses.fronted_hint', {
+                    amount: formatMoney(amountCentsPreview, selectedCurrency),
+                  })}
+                </p>
+              )}
             </div>
           )}
           </div>
@@ -1562,7 +1625,7 @@ export function QuickAddPage() {
               {wallets.map((wallet) => (
                 <button
                   key={wallet.id}
-                  onClick={() => setWalletId(wallet.id)}
+                  onClick={() => setWalletChoice(wallet.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
                     effectiveSourceWalletId === wallet.id
                       ? 'bg-primary text-on-surface'
@@ -1621,13 +1684,21 @@ export function QuickAddPage() {
 
       {/* R3-J: live consequence of the action — "after this, you'll have X left
           in the fund" — so the user SEES the result before saving (not only an
-          edge-case warning when the fund is already empty). Read-only preview. */}
+          edge-case warning when the fund is already empty). Read-only preview.
+          DEC-473: the fund is charged the PERSONAL cost (DEC-114), so the
+          preview projects the owner's share — a fully fronted expense (owner
+          out of the split) leaves the fund untouched and says so. */}
       {!isTransferLike &&
         selectedPool &&
         selectedPoolFreeToSpendCents !== null &&
         baseAmountCentsPreview > 0 &&
         (() => {
-          const afterCents = selectedPoolFreeToSpendCents - baseAmountCentsPreview;
+          const projectedPersonalBaseCents = frontedPreview
+            ? 0
+            : previewShareCents !== null && amountCentsPreview > 0
+              ? Math.round((baseAmountCentsPreview * previewShareCents) / amountCentsPreview)
+              : baseAmountCentsPreview;
+          const afterCents = selectedPoolFreeToSpendCents - projectedPersonalBaseCents;
           const over = afterCents < 0;
           return (
             <div
@@ -1671,7 +1742,8 @@ export function QuickAddPage() {
             saving ||
             !canSaveTransferLike ||
             needsRate ||
-            (!isTransferLike && !effectivePoolId)
+            (!isTransferLike && !effectivePoolId) ||
+            requiresWalletChoice
           }
           className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
         >

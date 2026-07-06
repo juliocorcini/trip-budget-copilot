@@ -20,6 +20,7 @@ import { Icon } from '@/components/Icon';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { resolveActivePhase } from '@/domain/dates';
 import { createExpenseTransaction } from '@/domain/transactions';
+import { resolveAutoWalletId } from '@/domain/wallets';
 import { registerExpense } from '@/domain/orchestrators/expense-orchestrators';
 import { setAssistantQuickAddDraft } from '@/features/assistant/assistant-quickadd-draft';
 import type { ContextualSimulation } from '@/domain/forecasting';
@@ -258,7 +259,7 @@ export function SplitTablePage() {
   // This route lives under AppDataProvider, so an app user's OWN trip is loaded
   // here even though the guest table sits outside BootGate. A stranger has no
   // trip (`trip === null`) — that is exactly the signal that splits the two flows.
-  const { trip, participants, phases, pools } = useAppData();
+  const { trip, participants, phases, pools, wallets } = useAppData();
   const owner = useMemo(() => participants.find((p) => p.isOwner) ?? null, [participants]);
   const activePhase = useMemo(() => resolveActivePhase(phases), [phases]);
   const primaryPool = useMemo(
@@ -324,7 +325,8 @@ export function SplitTablePage() {
         tripId: trip.id,
         phaseId: selfPlan.phaseId,
         budgetPoolId: selfPlan.budgetPoolId,
-        walletId: null,
+        // DEC-473: my own slice of the table left MY money — auto policy.
+        walletId: resolveAutoWalletId(wallets),
         amountCents: selfPlan.amountCents,
         currency: selfPlan.currency,
         category: selfPlan.category,

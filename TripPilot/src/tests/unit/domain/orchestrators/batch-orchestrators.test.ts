@@ -5,7 +5,11 @@ import {
   moveTransactionsToPoolBatch,
   moveTransactionsToPhaseBatch,
   moveOutingSessionsToPhaseBatch,
+  moveOutingSessionsToPoolBatch,
   changeTransactionsCategoryBatch,
+  changeTransactionsWalletBatch,
+  changeOutingSessionsCategoryBatch,
+  changeOutingSessionsWalletBatch,
   softDeleteOutingSessionsBatch,
   restoreTransactionsBatch,
   restoreOutingSessionsBatch,
@@ -18,7 +22,13 @@ import type { ParticipantShare } from '@/domain/types/participant-share';
 
 // DEC-118 (R-09): batch operations behind the list selection mode.
 
-const mkTx = (amountCents: number, sessionId: string | null = null) =>
+const OWNER_ID = 'owner-1';
+
+const mkTx = (
+  amountCents: number,
+  sessionId: string | null = null,
+  paidByParticipantId: string | null = null,
+) =>
   createExpenseTransaction({
     tripId: 'trip-1',
     phaseId: 'phase-1',
@@ -30,6 +40,7 @@ const mkTx = (amountCents: number, sessionId: string | null = null) =>
     description: 'Item',
     sessionId,
     activityProfileId: null,
+    paidByParticipantId,
   });
 
 const mkShare = (transactionId: string): ParticipantShare => ({
@@ -163,6 +174,92 @@ describe('batch orchestrators', () => {
 
     expect((await db.transactions.get(tx1.id))!.category).toBe('restaurant');
     expect((await db.transactions.get(tx2.id))!.category).toBe('bar');
+  });
+
+  // DEC-473 (bulk wallet): stamp owner-paid expenses; friend-paid never carried
+  // the owner's wallet (DEC-114) and must survive any batch untouched.
+  it('stamps the wallet on owner-paid expenses and skips friend-paid ones', async () => {
+    const ownerPaid = mkTx(1000); // paidByParticipantId null = owner's money
+    const friendPaid = mkTx(2000, null, 'ana');
+    await db.transactions.bulkAdd([ownerPaid, friendPaid]);
+
+    await changeTransactionsWalletBatch([ownerPaid.id, friendPaid.id], 'wallet-wise', OWNER_ID);
+
+    expect((await db.transactions.get(ownerPaid.id))!.walletId).toBe('wallet-wise');
+    const friend = await db.transactions.get(friendPaid.id);
+    expect(friend!.walletId).toBeNull();
+    // Skipped = not even a revision bump (no phantom sync churn).
+    expect(friend!.revision).toBe(friendPaid.revision);
+  });
+
+  it('clears the wallet when the batch chooses the explicit "no wallet"', async () => {
+    const tx = { ...mkTx(1000), walletId: 'wallet-old' };
+    await db.transactions.add(tx);
+
+    await changeTransactionsWalletBatch([tx.id], null, OWNER_ID);
+
+    expect((await db.transactions.get(tx.id))!.walletId).toBeNull();
+  });
+
+  // DEC-473 (bulk edit on Saídas/Notas): fund change cascades to every item.
+  it('moves whole sessions to another fund, carrying a linked phase', async () => {
+    const session = mkSession();
+    await db.sessions.add(session);
+    const tx1 = mkTx(900, session.id);
+    const tx2 = mkTx(1100, session.id);
+    const standalone = mkTx(500);
+    await db.transactions.bulkAdd([tx1, tx2, standalone]);
+
+    await moveOutingSessionsToPoolBatch([session.id], 'pool-2', 'phase-2');
+
+    const moved = await db.sessions.get(session.id);
+    expect(moved!.budgetPoolId).toBe('pool-2');
+    expect(moved!.phaseId).toBe('phase-2');
+    expect((await db.transactions.get(tx1.id))!.budgetPoolId).toBe('pool-2');
+    expect((await db.transactions.get(tx1.id))!.phaseId).toBe('phase-2');
+    expect((await db.transactions.get(tx2.id))!.budgetPoolId).toBe('pool-2');
+    expect((await db.transactions.get(standalone.id))!.budgetPoolId).toBe('pool-1');
+  });
+
+  it('moving sessions to a GLOBAL fund keeps each phase untouched', async () => {
+    const session = mkSession();
+    await db.sessions.add(session);
+    const tx = mkTx(900, session.id);
+    await db.transactions.add(tx);
+
+    await moveOutingSessionsToPoolBatch([session.id], 'pool-global', null);
+
+    expect((await db.sessions.get(session.id))!.phaseId).toBe('phase-1');
+    expect((await db.transactions.get(tx.id))!.phaseId).toBe('phase-1');
+    expect((await db.transactions.get(tx.id))!.budgetPoolId).toBe('pool-global');
+  });
+
+  it('re-categorizes every item of the selected sessions only', async () => {
+    const session = mkSession();
+    await db.sessions.add(session);
+    const tx1 = mkTx(900, session.id);
+    const tx2 = mkTx(1100, session.id);
+    const standalone = mkTx(500);
+    await db.transactions.bulkAdd([tx1, tx2, standalone]);
+
+    await changeOutingSessionsCategoryBatch([session.id], 'market');
+
+    expect((await db.transactions.get(tx1.id))!.category).toBe('market');
+    expect((await db.transactions.get(tx2.id))!.category).toBe('market');
+    expect((await db.transactions.get(standalone.id))!.category).toBe('bar');
+  });
+
+  it('stamps a wallet on session items, honoring the friend-paid guard', async () => {
+    const session = mkSession();
+    await db.sessions.add(session);
+    const mine = mkTx(900, session.id);
+    const friends = mkTx(1100, session.id, 'ana');
+    await db.transactions.bulkAdd([mine, friends]);
+
+    await changeOutingSessionsWalletBatch([session.id], 'wallet-cash', OWNER_ID);
+
+    expect((await db.transactions.get(mine.id))!.walletId).toBe('wallet-cash');
+    expect((await db.transactions.get(friends.id))!.walletId).toBeNull();
   });
 
   it('deletes outings with their items, expenses and shares', async () => {

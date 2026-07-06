@@ -5,6 +5,7 @@ import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { formatMoney } from '@/domain/money';
 import { resolveActivePhase } from '@/domain/dates';
 import { getAvailablePoolsForPhase } from '@/domain/budget';
+import { resolveAutoWalletId } from '@/domain/wallets';
 import {
   isPlannedPurchaseOpen,
   plannedPurchaseReservedRemainingCents,
@@ -292,7 +293,7 @@ export function PlannedPurchasesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trip, phases, pools, links, transactions, plannedPurchases, loading, reload } = useAppData();
+  const { trip, phases, pools, links, wallets, transactions, plannedPurchases, loading, reload } = useAppData();
 
   const [showForm, setShowForm] = useState(searchParams.get('new') === '1');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -458,7 +459,8 @@ export function PlannedPurchasesPage() {
         tripId: trip.id,
         phaseId: currentPhase.id,
         budgetPoolId: buyTarget.budgetPoolId,
-        walletId: null,
+        // DEC-473: a planned purchase is the owner's own money — auto policy.
+        walletId: resolveAutoWalletId(wallets),
         amountCents: cents,
         currency: trip.baseCurrency,
         category: buyTarget.category,
