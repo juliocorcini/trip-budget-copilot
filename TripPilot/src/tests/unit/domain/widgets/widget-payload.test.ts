@@ -81,8 +81,8 @@ const labels: BuildWidgetPayloadInput['labels'] = {
   spentToday: (amount) => `Gasto hoje · ${amount}`,
   dayOf: (day, total) => `Dia ${day} de ${total}`,
   metas: 'Metas',
-  metaDetailPlanned: (done, before) =>
-    before > 0 ? `${done} feitas · ${before} antigas` : `${done} feitas`,
+  // DEC-472: whole-phase done total — same figure as the home card.
+  metaDetailPlanned: (done) => `${done} feitas`,
   metaDetailActivity: 'gastos',
   piggy: 'Cofrinho',
   piggyGoal: (amount) => `Meta: ${amount}`,
@@ -151,7 +151,7 @@ describe('buildWidgetPayload — freeToday', () => {
 });
 
 describe('buildWidgetPayload — metas', () => {
-  it('maps planned counters (with pre-plan history) and activity counters, capped at 6', () => {
+  it('maps planned counters (whole-phase done, DEC-472) and activity counters, capped at 6', () => {
     const counters = [
       {
         kind: 'planned' as const,
@@ -160,8 +160,7 @@ describe('buildWidgetPayload — metas', () => {
         name: 'Bar',
         category: 'bar',
         remaining: 2,
-        done: 0,
-        beforePlanCount: 14,
+        done: 17,
       },
       {
         kind: 'activity' as const,
@@ -182,7 +181,7 @@ describe('buildWidgetPayload — metas', () => {
       emoji: '🍺',
       name: 'Bar',
       count: 2,
-      detail: '0 feitas · 14 antigas',
+      detail: '17 feitas',
     });
     expect(payload.metas!.items[1]).toEqual({
       emoji: '🚌',

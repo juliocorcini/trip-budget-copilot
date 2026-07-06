@@ -82,7 +82,12 @@ import {
 import { findPendingConfirmationShares, calculateDebts, summarizeOwnerDebts } from '@/domain/splitting';
 import { getInboundP2pItems } from '@/domain/orchestrators';
 import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
-import { calculateOccasionForecasts, orderForecastsByUsage, type OccasionForecast } from '@/domain/forecasting';
+import {
+  calculateOccasionForecasts,
+  matchesProfilePlanScope,
+  orderForecastsByUsage,
+  type OccasionForecast,
+} from '@/domain/forecasting';
 import { buildDashboardInsights, extraToInsight, createForecastSnapshot } from '@/domain/insights';
 import { calculateSessionTotal, evaluateOutingSuggestion } from '@/domain/outing';
 import type { Session } from '@/domain/types/session';
@@ -457,11 +462,14 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       // DEC-463: measure spend-against-plan over the SAME window the occasion
       // counters use — a plan counting "from today" is only consumed by spend
       // from today on, so the hero reserves the full remaining plan.
+      // DEC-472: scope matches `matchesProfilePlanScope` (category spends
+      // without a profile id consume the reserve too — Julio's €42 market
+      // receipt used to leave the FREE pool while "2 mercados" stayed intact).
       const spentCents = sumCents(
         phaseTxsForInsights
           .filter(
             (tx) =>
-              tx.activityProfileId === profile.id &&
+              matchesProfilePlanScope(tx, profile.id, profile.category) &&
               tx.type === 'expense' &&
               (planCountFromIso === null || localDayOf(tx.date) >= planCountFromIso),
           )
@@ -653,13 +661,12 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
           (tx) => tx.phaseId === activePhase.id && tx.type === 'expense' && tx.deletedAt === null,
         )
       : [];
+    // DEC-472: the card's "done" is whole-phase (same ruler as the tapped
+    // list) — the plan window only shapes `remaining` inside the forecasts.
     const occasionCounters = buildOccasionCounters({
       forecasts,
       profiles,
       transactions: phaseExpenseTxs,
-      // BUG 2026-07-05: surface pre-plan occasions ("14 antigas") on planned
-      // cards instead of letting history vanish when a plan counts "from now".
-      countFromIso: planCountFromIso,
     });
 
     // DEC-092 (R-10): savings refer to the LAST closed outing.

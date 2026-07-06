@@ -15,7 +15,11 @@ import {
   isPotInPhase,
 } from '@/domain/budget';
 import { filterTransactionsByPhase, filterTransactionsByPool } from '@/domain/transactions';
-import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
+import {
+  calculateOccasionForecasts,
+  matchesProfilePlanScope,
+  type OccasionForecast,
+} from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { formatMoney, sumCents } from '@/domain/money';
 import {
@@ -310,9 +314,15 @@ export function TripHubPage() {
     .map((forecast) => {
       const profile = profiles.find((p) => p.id === forecast.profileId);
       const typical = profile?.typicalValueCents ?? 0;
+      // DEC-472: same plan-scope ruler as the forecasts — category spends
+      // without a profile id (receipts/quick-adds) count against the meta.
       const spentCents = sumCents(
         (selectedPhase ? filterTransactionsByPhase(transactions, selectedPhase.id) : [])
-          .filter((tx) => tx.activityProfileId === forecast.profileId && tx.type === 'expense')
+          .filter(
+            (tx) =>
+              matchesProfilePlanScope(tx, forecast.profileId, profile?.category ?? 'other') &&
+              tx.type === 'expense',
+          )
           .map((tx) => tx.personalCostCents ?? tx.amountCents),
       );
       return {

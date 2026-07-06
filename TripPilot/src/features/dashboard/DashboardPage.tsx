@@ -153,10 +153,8 @@ export function DashboardPage() {
         spentToday: (amount) => t('dashboard.widget_spent_today', { amount }),
         dayOf: (day, total) => t('dashboard.widget_day_of', { day, total }),
         metas: t('dashboard.widget_metas'),
-        metaDetailPlanned: (done, before) =>
-          before > 0
-            ? t('dashboard.occasion_done_before', { count: done, before })
-            : t('dashboard.occasion_done', { count: done }),
+        // DEC-472: whole-phase total — same figure as the home card.
+        metaDetailPlanned: (done) => t('dashboard.occasion_done', { count: done }),
         metaDetailActivity: t('dashboard.occasion_items'),
         piggy: t('dashboard.widget_piggy'),
         piggyGoal: (amount) => t('dashboard.widget_piggy_goal', { amount }),

@@ -14,7 +14,11 @@ import {
 import { PhaseSpendLensBlock } from './PhaseSpendLensBlock';
 import { filterTransactionsByPool } from '@/domain/transactions';
 import { calculateEffectiveSpendingDays } from '@/domain/phases';
-import { calculateOccasionForecasts, type OccasionForecast } from '@/domain/forecasting';
+import {
+  calculateOccasionForecasts,
+  matchesProfilePlanScope,
+  type OccasionForecast,
+} from '@/domain/forecasting';
 import { isProfileEnabledInPhase } from '@/domain/profiles';
 import { formatMoney, sumCents } from '@/domain/money';
 import { getCategoryIcon } from '@/utils/category-icons';
@@ -41,6 +45,9 @@ export function ImpactDetailPage() {
 
   const [profiles, setProfiles] = useState<ActivityProfile[]>([]);
   const [forecasts, setForecasts] = useState<OccasionForecast[]>([]);
+  // DEC-472: the plan's "count from" day — the rows below must consume the
+  // reserve over the SAME window as the hero, or the two "broke" verdicts drift.
+  const [planCountFromIso, setPlanCountFromIso] = useState<string | null>(null);
 
   const activePhase = resolveActivePhase(phases);
   // DEC-456: the ACTIVE phase's own fund (not a fixed first pool), so every
@@ -62,6 +69,7 @@ export function ImpactDetailPage() {
         : [];
       if (cancelled) return;
       setProfiles(profs);
+      setPlanCountFromIso(plan?.countFromIso ?? null);
       const enabled = profs.filter((p) =>
         isProfileEnabledInPhase(settings, activePhase.id, p.id),
       );
@@ -154,9 +162,16 @@ export function ImpactDetailPage() {
   const rows = forecasts.map((forecast) => {
     const profile = profiles.find((p) => p.id === forecast.profileId);
     const typical = profile?.typicalValueCents ?? 0;
+    // DEC-472: same scope (category adoption) + same DEC-463 window as the
+    // hero's allocatedSpentCents — the two "broke" verdicts must never drift.
     const spentCents = sumCents(
       phaseTxs
-        .filter((tx) => tx.activityProfileId === forecast.profileId && tx.type === 'expense')
+        .filter(
+          (tx) =>
+            matchesProfilePlanScope(tx, forecast.profileId, profile?.category ?? 'other') &&
+            tx.type === 'expense' &&
+            (planCountFromIso === null || localDayOf(tx.date) >= planCountFromIso),
+        )
         .map((tx) => tx.personalCostCents ?? tx.amountCents),
     );
     return {

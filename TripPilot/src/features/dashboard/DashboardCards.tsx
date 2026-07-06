@@ -1187,16 +1187,10 @@ export function DashboardCards({
                 const accent = counterAccent(counter.category);
                 if (counter.kind === 'planned') {
                   const profile = model.profiles.find((p) => p.id === counter.profileId);
-                  // BUG 2026-07-05: pre-plan occasions (before DEC-463's cut
-                  // day) stay visible — "0 feitas · 14 antigas" — so planning
-                  // "from now on" never looks like it erased the history.
-                  const doneSublabel =
-                    counter.beforePlanCount > 0
-                      ? t('dashboard.occasion_done_before', {
-                          count: counter.done,
-                          before: counter.beforePlanCount,
-                        })
-                      : t('dashboard.occasion_done', { count: counter.done });
+                  // DEC-472: "feitas" is the WHOLE-PHASE total, same ruler as
+                  // the list the tap opens — 17 bar spends read "17 feitas",
+                  // never "0 feitas" because the plan counts from a later day.
+                  const doneSublabel = t('dashboard.occasion_done', { count: counter.done });
                   // BUG 2026-07-05: tapping the card used to filter by profile
                   // id — but the historic expenses (quick-adds/receipts) carry
                   // only the CATEGORY, so the list opened empty ("outros bar",

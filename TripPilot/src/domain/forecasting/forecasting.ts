@@ -57,6 +57,29 @@ export interface OccasionForecast {
 }
 
 /**
+ * DEC-472 (field 2026-07-06): whether a transaction CONSUMES a profile's plan.
+ * An explicit `activityProfileId` link always wins. Beyond that, a profile with
+ * a REAL category adopts the "orphan" spends of that category (quick-adds and
+ * scanned receipts never carry a profile id — Julio's €42 market receipt left
+ * the free pool while "2 mercados" sat untouched). Guards:
+ *  - category adoption only when the tx has NO explicit profile link (a spend
+ *    tagged to ANOTHER profile is never double-consumed);
+ *  - custom 'other' profiles stay id-only ('other' is too generic to adopt).
+ */
+export function matchesProfilePlanScope(
+  tx: Pick<Transaction, 'activityProfileId' | 'category'>,
+  profileId: string,
+  profileCategory: string,
+): boolean {
+  if (tx.activityProfileId === profileId) return true;
+  return (
+    tx.activityProfileId === null &&
+    profileCategory !== 'other' &&
+    tx.category === profileCategory
+  );
+}
+
+/**
  * DEC-115 (R-06): occasion = OUTING/SESSION, never item. Transactions with a
  * sessionId group into their session (1 session with 9 items = 1 occasion);
  * standalone profile expenses count 1 each. "I plan to go to the bar 5
@@ -65,10 +88,14 @@ export interface OccasionForecast {
  * DEC-463: `sinceIso` (YYYY-MM-DD, local day) restricts the count to occasions
  * ON or AFTER that day — the "planejar a partir de agora" window. Omitted/null
  * keeps the whole-phase count byte-identical to before.
+ *
+ * DEC-472: scope matching goes through `matchesProfilePlanScope`, so category
+ * spends without a profile id (receipts, quick-adds) consume the plan too.
  */
 export function countProfileOccasions(
   transactions: Transaction[],
   profileId: string,
+  profileCategory: string,
   phaseId: string,
   sinceIso: string | null = null,
 ): number {
@@ -76,7 +103,7 @@ export function countProfileOccasions(
   let standalone = 0;
   for (const t of transactions) {
     if (
-      t.activityProfileId !== profileId ||
+      !matchesProfilePlanScope(t, profileId, profileCategory) ||
       t.phaseId !== phaseId ||
       t.type !== 'expense' ||
       t.deletedAt !== null
@@ -109,8 +136,15 @@ export function calculateOccasionForecasts(
       );
       const totalPlanned = allocation?.quantity ?? 0;
 
-      // DEC-115 (R-06): sessions count once — never items.
-      const spent = countProfileOccasions(transactions, profile.id, phaseId, countFromIso);
+      // DEC-115 (R-06): sessions count once — never items. DEC-472: category
+      // spends without a profile id consume the plan (receipts/quick-adds).
+      const spent = countProfileOccasions(
+        transactions,
+        profile.id,
+        profile.category,
+        phaseId,
+        countFromIso,
+      );
 
       const remaining = Math.max(0, totalPlanned - spent);
       const estimatedRemainingCostCents = remaining * profile.safeValueCents;

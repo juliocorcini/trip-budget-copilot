@@ -134,7 +134,8 @@ export interface BuildWidgetPayloadInput {
     spentToday: (amount: string) => string;
     dayOf: (day: number, total: number) => string;
     metas: string;
-    metaDetailPlanned: (done: number, before: number) => string;
+    /** DEC-472: whole-phase done total — same figure as the home card. */
+    metaDetailPlanned: (done: number) => string;
     metaDetailActivity: string;
     piggy: string;
     piggyGoal: (amount: string) => string;
@@ -196,7 +197,7 @@ function buildMetas(input: BuildWidgetPayloadInput): WidgetPayload['metas'] {
         emoji: categoryEmoji(counter.category),
         name: counter.name,
         count: counter.remaining,
-        detail: input.labels.metaDetailPlanned(counter.done, counter.beforePlanCount),
+        detail: input.labels.metaDetailPlanned(counter.done),
       };
     }
     return {

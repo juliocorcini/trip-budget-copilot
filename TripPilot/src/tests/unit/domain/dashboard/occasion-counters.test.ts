@@ -77,12 +77,14 @@ describe('buildOccasionCounters', () => {
     const profiles = [makeProfile('bar', 'bar', 'Bar nights')];
     const forecasts = [makeForecast('bar', 5, 1, 'Bar nights')];
     const transactions = [
+      // DEC-472: done is counted from the phase transactions (category ruler).
+      makeTx({ category: 'bar' }),
       makeTx({ category: 'transport' }),
       makeTx({ category: 'transport' }),
       makeTx({ category: 'attraction' }),
     ];
 
-    const result = buildOccasionCounters({ forecasts, profiles, transactions, countFromIso: null });
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
 
     expect(result[0]).toMatchObject({
       kind: 'planned',
@@ -119,7 +121,7 @@ describe('buildOccasionCounters', () => {
       ...Array.from({ length: 2 }, () => makeTx({ category: 'attraction' })),
     ];
 
-    const result = buildOccasionCounters({ forecasts, profiles, transactions, countFromIso: null });
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
 
     expect(result.map((c) => c.kind)).toEqual([
       'planned',
@@ -152,7 +154,6 @@ describe('buildOccasionCounters', () => {
       forecasts: [],
       profiles: [],
       transactions: [...receipt, ...standalone],
-      countFromIso: null,
     });
 
     expect(result).toEqual([
@@ -168,7 +169,7 @@ describe('buildOccasionCounters', () => {
       makeTx({ category: 'snack', sessionId: 'outing-1' }),
     ];
 
-    const result = buildOccasionCounters({ forecasts: [], profiles: [], transactions: outing, countFromIso: null });
+    const result = buildOccasionCounters({ forecasts: [], profiles: [], transactions: outing });
 
     expect(result).toEqual([
       { kind: 'activity', key: 'category:bar', category: 'bar', occasionCount: 1 },
@@ -182,7 +183,7 @@ describe('buildOccasionCounters', () => {
     // Raw bar items exist, but the bar meta already speaks for the category.
     const transactions = [makeTx({ category: 'bar' }), makeTx({ category: 'bar' })];
 
-    const result = buildOccasionCounters({ forecasts, profiles, transactions, countFromIso: null });
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ kind: 'planned', category: 'bar' });
@@ -194,7 +195,7 @@ describe('buildOccasionCounters', () => {
     const forecasts = [makeForecast('bar', 0, 2, 'Bar nights')];
     const transactions = [makeTx({ category: 'bar' }), makeTx({ category: 'bar' })];
 
-    const result = buildOccasionCounters({ forecasts, profiles, transactions, countFromIso: null });
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
 
     expect(result).toEqual([
       { kind: 'activity', key: 'category:bar', category: 'bar', occasionCount: 2 },
@@ -209,7 +210,7 @@ describe('buildOccasionCounters', () => {
       makeTx({ category: 'market', deletedAt: '2026-06-11T00:00:00.000Z' }),
     ];
 
-    const result = buildOccasionCounters({ forecasts: [], profiles: [], transactions, countFromIso: null });
+    const result = buildOccasionCounters({ forecasts: [], profiles: [], transactions });
 
     expect(result).toEqual([
       { kind: 'activity', key: 'category:market', category: 'market', occasionCount: 1 },
@@ -217,86 +218,74 @@ describe('buildOccasionCounters', () => {
   });
 
   it('returns an empty list when there is nothing to show', () => {
-    expect(buildOccasionCounters({ forecasts: [], profiles: [], transactions: [], countFromIso: null })).toEqual([]);
+    expect(buildOccasionCounters({ forecasts: [], profiles: [], transactions: [] })).toEqual([]);
   });
 });
 
-// BUG 2026-07-05 — Julio planned 2 bar nights "a partir de agora" (DEC-463 cut)
-// and his 14 historic bar occasions VANISHED from the home carousel: the planned
-// meta swallowed the bar category but only reported post-cut usage. The card now
-// carries `beforePlanCount` so history stays visible ("0 feitas · 14 antigas").
-describe('buildOccasionCounters — beforePlanCount (BUG 2026-07-05)', () => {
+// DEC-472 (field 2026-07-06) — the card's "done" is the WHOLE-PHASE total,
+// measured with the SAME ruler as the list the tap opens. Julio's case: 17 bar
+// spends in the phase, plan of 3 counting "from now" → the card read "3
+// restantes · 0 feitas" while the tapped list showed 17 rows. Card == list.
+describe('buildOccasionCounters — done = whole-phase total (DEC-472)', () => {
   const profiles = [makeProfile('bar-prof', 'bar', 'Bar')];
-  const forecasts = [makeForecast('bar-prof', 2, 0, 'Bar')];
+  // Forecast windowed by the plan cut: nothing consumed yet, 3 remaining.
+  const forecasts = [makeForecast('bar-prof', 3, 0, 'Bar')];
 
-  it('counts pre-cut category occasions even without the profile id (quick-adds)', () => {
-    const transactions = [
-      // 14 historic quick-adds: category only, no activityProfileId.
-      ...Array.from({ length: 14 }, (_, i) =>
-        makeTx({
-          category: 'bar',
-          date: `2026-06-${String(10 + i).padStart(2, '0')}T20:00:00.000Z`,
-        }),
-      ),
-      // On/after the cut day → belongs to the plan, not to the history.
+  it("Julio's bar case: 17 phase spends read '17 feitas' even when the plan window says 0", () => {
+    const transactions = Array.from({ length: 17 }, (_, i) =>
       makeTx({
         category: 'bar',
-        activityProfileId: 'bar-prof',
-        date: '2026-07-04T21:00:00.000Z',
+        date: `2026-06-${String(10 + i).padStart(2, '0')}T20:00:00.000Z`,
       }),
-    ];
+    );
 
-    const result = buildOccasionCounters({
-      forecasts,
-      profiles,
-      transactions,
-      countFromIso: '2026-07-04',
-    });
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
 
+    // remaining keeps the plan window (3 left); done is the phase truth (17).
     expect(result[0]).toMatchObject({
       kind: 'planned',
       category: 'bar',
-      beforePlanCount: 14,
+      remaining: 3,
+      done: 17,
     });
     // The bar category is still swallowed by the meta — no duplicate counter.
     expect(result.filter((c) => c.category === 'bar')).toHaveLength(1);
   });
 
-  it('collapses pre-cut sessions into single occasions (DEC-262 semantics)', () => {
+  it('done counts by CATEGORY (the tap filter) — profile-tagged and orphan spends together', () => {
     const transactions = [
-      // One outing with 5 rows + one standalone, all before the cut → 2 occasions.
+      makeTx({ category: 'bar', activityProfileId: 'bar-prof' }),
+      makeTx({ category: 'bar' }),
+      // A bar spend tagged to another profile still shows in the category list.
+      makeTx({ category: 'bar', activityProfileId: 'other-prof' }),
+    ];
+
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
+
+    expect(result[0]).toMatchObject({ kind: 'planned', done: 3 });
+  });
+
+  it('collapses sessions into single occasions (DEC-262 semantics)', () => {
+    const transactions = [
       ...Array.from({ length: 5 }, () =>
         makeTx({ category: 'bar', sessionId: 'outing-old', date: '2026-06-15T22:00:00.000Z' }),
       ),
       makeTx({ category: 'bar', date: '2026-06-20T22:00:00.000Z' }),
     ];
 
-    const result = buildOccasionCounters({
-      forecasts,
-      profiles,
-      transactions,
-      countFromIso: '2026-07-01',
-    });
+    const result = buildOccasionCounters({ forecasts, profiles, transactions });
 
-    expect(result[0]).toMatchObject({ kind: 'planned', beforePlanCount: 2 });
+    expect(result[0]).toMatchObject({ kind: 'planned', done: 2 });
   });
 
-  it('reports zero when the plan has no cut date (legacy whole-phase plans)', () => {
-    const transactions = [makeTx({ category: 'bar', date: '2026-06-15T20:00:00.000Z' })];
-
-    const result = buildOccasionCounters({ forecasts, profiles, transactions, countFromIso: null });
-
-    expect(result[0]).toMatchObject({ kind: 'planned', beforePlanCount: 0 });
-  });
-
-  it("custom 'other' profiles only match by profile id — unrelated 'other' spends stay out", () => {
+  it("custom 'other' profiles count by profile id — same ruler as their ?profile= tap filter", () => {
     const customProfiles = [makeProfile('spa-prof', 'other', 'Spa')];
     const customForecasts = [makeForecast('spa-prof', 3, 0, 'Spa')];
     const transactions = [
-      // Unrelated generic quick-adds in 'other' — NOT spa history.
+      // Unrelated generic quick-adds in 'other' — NOT spa activity.
       makeTx({ category: 'other', date: '2026-06-15T20:00:00.000Z' }),
       makeTx({ category: 'other', date: '2026-06-16T20:00:00.000Z' }),
-      // A pre-cut spend explicitly tagged with the profile → real history.
+      // A spend explicitly tagged with the profile → real spa activity.
       makeTx({
         category: 'other',
         activityProfileId: 'spa-prof',
@@ -308,9 +297,8 @@ describe('buildOccasionCounters — beforePlanCount (BUG 2026-07-05)', () => {
       forecasts: customForecasts,
       profiles: customProfiles,
       transactions,
-      countFromIso: '2026-07-01',
     });
 
-    expect(result[0]).toMatchObject({ kind: 'planned', beforePlanCount: 1 });
+    expect(result[0]).toMatchObject({ kind: 'planned', done: 1 });
   });
 });

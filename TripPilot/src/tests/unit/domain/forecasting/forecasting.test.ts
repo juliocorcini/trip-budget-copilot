@@ -230,7 +230,7 @@ describe('calculateOccasionForecasts', () => {
       mkTx('standalone-2', null),
     ];
 
-    expect(countProfileOccasions(txs, 'prof-1', 'ph-1')).toBe(5);
+    expect(countProfileOccasions(txs, 'prof-1', 'bar', 'ph-1')).toBe(5);
 
     const allocations: ScenarioAllocationItem[] = [
       { ...meta, id: 'a1', scenarioPlanId: 'sp1', activityProfileId: 'prof-1', quantity: 5, estimatedUnitCostCents: 1500, isLocked: false, priority: 'planned', notes: null },
@@ -296,8 +296,8 @@ describe('calculateOccasionForecasts — countFromIso (DEC-463)', () => {
 
   it('countProfileOccasions honors sinceIso (inclusive on the cut day)', () => {
     const txs = [mkBarTx('a', '2026-07-03'), mkBarTx('b', '2026-07-04'), mkBarTx('c', '2026-07-05')];
-    expect(countProfileOccasions(txs, 'prof-1', 'ph-1', '2026-07-04')).toBe(2);
-    expect(countProfileOccasions(txs, 'prof-1', 'ph-1', null)).toBe(3);
+    expect(countProfileOccasions(txs, 'prof-1', 'bar', 'ph-1', '2026-07-04')).toBe(2);
+    expect(countProfileOccasions(txs, 'prof-1', 'bar', 'ph-1', null)).toBe(3);
   });
 
   it('null cut keeps the whole-phase count (legacy plans, no migration)', () => {
@@ -306,5 +306,90 @@ describe('calculateOccasionForecasts — countFromIso (DEC-463)', () => {
     const withoutArg = calculateOccasionForecasts([baseProfile], allocations, txs, 'ph-1');
     expect(withNull[0]!.spent).toBe(2);
     expect(withoutArg[0]!.spent).toBe(2);
+  });
+});
+
+// DEC-472 (field 2026-07-06) — plan consumption by CATEGORY. Julio's €42 market
+// receipt (category only, no activityProfileId — receipts/quick-adds never set
+// one) left the free pool while the "2 mercados" plan sat untouched at "0
+// feitos". Orphan spends of a profile's real category now consume its plan.
+describe('countProfileOccasions — category scope (DEC-472)', () => {
+  const marketProfile: ActivityProfile = {
+    ...baseProfile,
+    id: 'prof-mkt',
+    name: 'Mercado',
+    category: 'market',
+  };
+  const mkTx = (
+    id: string,
+    overrides: { category?: string; activityProfileId?: string | null; sessionId?: string | null; date?: string },
+  ) => ({
+    ...meta,
+    id,
+    tripId: 'trip-1',
+    phaseId: 'ph-1',
+    budgetPoolId: 'pool-1',
+    walletId: null,
+    sessionId: overrides.sessionId ?? null,
+    type: 'expense' as const,
+    amountCents: 4200,
+    personalCostCents: 4200,
+    currency: 'EUR',
+    baseCurrencyAmountCents: 4200,
+    exchangeRate: null,
+    category: overrides.category ?? 'market',
+    subcategoryId: null,
+    placeLabel: null,
+    latitude: null,
+    longitude: null,
+    placeId: null,
+    description: 'test',
+    date: overrides.date ?? '2026-07-05T12:00:00.000Z',
+    isShared: false,
+    paidByParticipantId: null,
+    activityProfileId: overrides.activityProfileId ?? null,
+    isSpecialOccasion: false,
+    excludeFromLearning: false,
+    sourceWalletId: null,
+    targetWalletId: null,
+    settlementId: null,
+    adjustmentReason: null,
+    notes: null,
+  });
+  const marketAllocations: ScenarioAllocationItem[] = [
+    { ...meta, id: 'a-mkt', scenarioPlanId: 'sp1', activityProfileId: 'prof-mkt', quantity: 2, estimatedUnitCostCents: 4000, isLocked: false, priority: 'planned', notes: null },
+  ];
+
+  it("Julio's market receipt: category-only spend consumes the plan (2 planned → 1 remaining)", () => {
+    // Receipt rows share ONE session → a single occasion (DEC-262 intact).
+    const txs = [
+      mkTx('r1', { sessionId: 'receipt-1' }),
+      mkTx('r2', { sessionId: 'receipt-1' }),
+      mkTx('r3', { sessionId: 'receipt-1' }),
+    ];
+    const forecasts = calculateOccasionForecasts([marketProfile], marketAllocations, txs, 'ph-1');
+    expect(forecasts[0]!.spent).toBe(1);
+    expect(forecasts[0]!.remaining).toBe(1);
+  });
+
+  it('a spend explicitly tagged to ANOTHER profile is never adopted by category', () => {
+    const txs = [mkTx('x1', { activityProfileId: 'prof-OTHER' })];
+    expect(countProfileOccasions(txs, 'prof-mkt', 'market', 'ph-1')).toBe(0);
+  });
+
+  it("custom 'other' profiles stay id-only — generic 'other' spends never consume them", () => {
+    const txs = [
+      mkTx('o1', { category: 'other' }),
+      mkTx('o2', { category: 'other', activityProfileId: 'prof-spa' }),
+    ];
+    expect(countProfileOccasions(txs, 'prof-spa', 'other', 'ph-1')).toBe(1);
+  });
+
+  it('category adoption still honors the DEC-463 window (pre-cut orphans stay out)', () => {
+    const txs = [
+      mkTx('old', { date: '2026-06-20T12:00:00.000Z' }),
+      mkTx('new', { date: '2026-07-05T12:00:00.000Z' }),
+    ];
+    expect(countProfileOccasions(txs, 'prof-mkt', 'market', 'ph-1', '2026-07-01')).toBe(1);
   });
 });

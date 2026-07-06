@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.2-rc',
+    date: '2026-07-06',
+    items: {
+      'pt-BR': [
+        'Cards de metas agora batem com a lista: "17 feitas" significa 17 gastos na fase — o mesmo número que você vê ao tocar no card. Nada de "0 feitas" com gastos na lista.',
+        'Compras por nota fiscal e gasto rápido agora CONSOMEM o plano da categoria: comprou mercado com 2 mercados planejados? Vira "1 restante" e o valor sai da reserva do plano, não do seu livre.',
+        'Cofrinho explicado de vez: novo "Como funciona" no extrato — a sobra dos dias entra, o estouro sai primeiro dele (seu valor diário não cai) e ele já faz parte do "livre na fase", não é dinheiro extra.',
+        'Painéis de impacto e resgate agora usam a mesma régua do plano — os números nunca divergem entre telas.',
+      ],
+      en: [
+        'Goal cards now match the list: "17 done" means 17 spends in the phase — the same number you see when tapping the card. No more "0 done" with spends in the list.',
+        'Receipt scans and quick-adds now CONSUME the category plan: bought groceries with 2 markets planned? It reads "1 remaining" and the money leaves the plan reserve, not your free amount.',
+        'Piggy bank explained for good: new "How it works" in the statement — daily leftovers flow in, overshoots drain it first (your daily amount holds steady), and it already lives inside "free this phase" — it is not extra money.',
+        'Impact and rescue panels now use the same plan ruler — numbers never drift between screens.',
+      ],
+      es: [
+        'Las tarjetas de metas ahora coinciden con la lista: "17 hechas" significa 17 gastos en la fase — el mismo número que ves al tocar la tarjeta. Se acabó el "0 hechas" con gastos en la lista.',
+        'Las notas escaneadas y los gastos rápidos ahora CONSUMEN el plan de la categoría: ¿compraste mercado con 2 mercados planeados? Pasa a "1 restante" y el dinero sale de la reserva del plan, no de tu libre.',
+        'Alcancía explicada de una vez: nuevo "Cómo funciona" en el extracto — la sobra de los días entra, el exceso sale primero de ella (tu monto diario se mantiene) y ya vive dentro del "libre en la fase" — no es dinero extra.',
+        'Los paneles de impacto y rescate ahora usan la misma regla del plan — los números nunca divergen entre pantallas.',
+      ],
+    },
+  },
+  {
     version: '2.7.1-rc',
     date: '2026-07-05',
     items: {

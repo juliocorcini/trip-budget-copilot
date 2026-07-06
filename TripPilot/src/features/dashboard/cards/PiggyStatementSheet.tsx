@@ -67,6 +67,34 @@ export function PiggyStatementSheet({
         {t('dashboard.piggy_states_hint')}
       </p>
 
+      {/* DEC-472 (field 2026-07-06): the "how it works" box — answers the two
+          literal field questions: "why did the piggy AND the free drop at the
+          same time?" and "is this extra money?" (it is the same money, two
+          readings). Julio understood the model only after long confusion; this
+          spells it out in his own words. */}
+      <div
+        className="mt-3 p-3 rounded-xl"
+        style={{ background: 'var(--surface-container)', border: '1px solid var(--border-faint)' }}
+      >
+        <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-faint">
+          {t('dashboard.piggy_how_title')}
+        </p>
+        <div className="mt-2 space-y-2">
+          {(['piggy_how_1', 'piggy_how_2', 'piggy_how_3'] as const).map((key, i) => (
+            <div key={key} className="flex items-start gap-2">
+              <Icon
+                name={i === 0 ? 'arrow_downward' : i === 1 ? 'shield' : 'info'}
+                size={14}
+                className={i === 0 ? 'text-success shrink-0 mt-px' : 'text-on-surface-faint shrink-0 mt-px'}
+              />
+              <p className="text-[11px] leading-relaxed text-on-surface-dim">
+                {t(`dashboard.${key}`)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-2 mt-4">
         <StatBox label={t('dashboard.piggy_deposited')} value={money(ledger?.totalDepositedCents ?? 0)} tone="text-success" />
         <StatBox label={t('dashboard.piggy_withdrawn')} value={money(ledger?.totalWithdrawnCents ?? 0)} tone="text-on-surface" />

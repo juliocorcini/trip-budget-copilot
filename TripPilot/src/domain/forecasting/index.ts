@@ -1,5 +1,6 @@
 export {
   updateProfileFromTransaction,
+  matchesProfilePlanScope,
   countProfileOccasions,
   calculateOccasionForecasts,
   orderForecastsByUsage,
