@@ -88,6 +88,7 @@ const ownerStatement: ParticipantStatement = {
       subcategoryId: null,
       occurredAt: '2026-06-09T21:00:00.000Z',
       amountCents: 1850,
+      currency: 'BRL',
       counterpartyId: '77777777-7777-4777-8777-777777777777',
       counterpartyName: 'Julio',
       confirmationStatus: 'pending',
@@ -108,6 +109,7 @@ const ownerStatement: ParticipantStatement = {
       subcategoryId: null,
       occurredAt: '2026-06-09T23:30:00.000Z',
       amountCents: 725,
+      currency: 'BRL',
       counterpartyId: '77777777-7777-4777-8777-777777777777',
       counterpartyName: 'Julio',
       confirmationStatus: 'pending',
@@ -122,6 +124,7 @@ const ownerStatement: ParticipantStatement = {
   ],
   settlements: [],
   netCents: -2575, // guest owes the full 1850 + 725
+  nets: [{ currency: 'BRL', amountCents: -2575 }],
 };
 
 describe('shared-link cycle through real AES-GCM (DEC-207)', () => {

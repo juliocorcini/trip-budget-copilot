@@ -282,6 +282,9 @@ function buildParticipantBalance(input: BuildInsightsInput): DashboardInsight | 
     values: {
       name: owedToMe ? largest.debtorName : largest.creditorName,
       amountCents: largest.amountCents,
+      // DEC-474: the debt's ORIGINAL currency rides along so the card formats
+      // a BRL debt as R$ even on a EUR trip.
+      currency: largest.currency,
       owedToMe: owedToMe ? 1 : 0,
     },
   };

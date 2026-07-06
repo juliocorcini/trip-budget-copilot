@@ -14,6 +14,7 @@ export {
   scaleSharesToTotal,
   calculateParticipantBalances,
   ownerPairwiseBalances,
+  ownerPairwiseBalancesByCurrency,
   findPendingConfirmationShares,
   calculateOwnerPersonalCost,
   buildParticipantStatement,
@@ -33,6 +34,7 @@ export {
 export type {
   DebtEntry,
   DebtSummary,
+  CurrencyBucket,
   OwnerDebtSummary,
   OwnerDebtCounterparty,
   SettlementStanding,

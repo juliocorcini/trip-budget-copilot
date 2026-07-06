@@ -50,6 +50,15 @@ function link(over: Partial<PeerLink> = {}): PeerLink {
 
 const byId = (people: PersonView[]) => new Map(people.map((p) => [p.participantId, p]));
 
+/** DEC-474 — build the per-currency balances map from mono-currency EUR nets. */
+const eurBalances = (entries: [string, number][]) =>
+  new Map(
+    entries.map(([id, amountCents]) => [
+      id,
+      amountCents === 0 ? [] : [{ currency: 'EUR', amountCents }],
+    ]),
+  );
+
 describe('buildPeopleView — status badge (DEC-357)', () => {
   it('marks a name-only participant as noapp', () => {
     const people = buildPeopleView([participant({ id: 'p1', linkedActorId: null })], new Map(), []);
@@ -86,7 +95,7 @@ describe('buildPeopleView — status badge (DEC-357)', () => {
 
 describe('buildPeopleView — money is the unchanged ledger net', () => {
   it('carries the exact signed balance and never lists the owner', () => {
-    const balances = new Map<string, number>([
+    const balances = eurBalances([
       ['owner', 5000],
       ['p1', -1100],
       ['p2', 2300],
@@ -103,7 +112,9 @@ describe('buildPeopleView — money is the unchanged ledger net', () => {
     const map = byId(people);
     expect(map.has('owner')).toBe(false);
     expect(map.get('p1')!.balanceCents).toBe(-1100);
+    expect(map.get('p1')!.balances).toEqual([{ currency: 'EUR', amountCents: -1100 }]);
     expect(map.get('p2')!.balanceCents).toBe(2300);
+    expect(map.get('p2')!.balances).toEqual([{ currency: 'EUR', amountCents: 2300 }]);
   });
 
   it('flags needsAction only for a non-zero balance', () => {
@@ -112,12 +123,35 @@ describe('buildPeopleView — money is the unchanged ledger net', () => {
         participant({ id: 'p1', name: 'Ana' }),
         participant({ id: 'p2', name: 'Beto' }),
       ],
-      new Map([['p1', -1100], ['p2', 0]]),
+      eurBalances([['p1', -1100], ['p2', 0]]),
       [],
     );
     const map = byId(people);
     expect(map.get('p1')!.needsAction).toBe(true);
     expect(map.get('p2')!.needsAction).toBe(false);
+  });
+
+  it('DEC-474: keeps one bucket per currency and never sums across (the perfume case)', () => {
+    const people = buildPeopleView(
+      [participant({ id: 'felipe', name: 'Felipe' })],
+      new Map([
+        [
+          'felipe',
+          [
+            { currency: 'BRL', amountCents: -38000 },
+            { currency: 'EUR', amountCents: 2000 },
+          ],
+        ],
+      ]),
+      [],
+    );
+    const felipe = people[0]!;
+    expect(felipe.balances).toEqual([
+      { currency: 'BRL', amountCents: -38000 },
+      { currency: 'EUR', amountCents: 2000 },
+    ]);
+    // needsAction fires even though a naive cross-currency sum could hide it.
+    expect(felipe.needsAction).toBe(true);
   });
 });
 
@@ -131,7 +165,7 @@ describe('buildPeopleView — priority order', () => {
         participant({ id: 'small', name: 'Bia' }),
         participant({ id: 'big', name: 'Ana' }),
       ],
-      new Map([['small', 500], ['big', -9000]]),
+      eurBalances([['small', 500], ['big', -9000]]),
       [link({ actorId: 'a-con', publicKey: 'pk' }), link({ actorId: 'a-inv', publicKey: null })],
     );
     expect(people.map((p) => p.participantId)).toEqual([
@@ -264,7 +298,7 @@ describe('partitionPeople — full Pessoas page sections (DEC-359)', () => {
         participant({ id: 'inv', name: 'Caio', linkedActorId: 'c-inv' }),
         participant({ id: 'no', name: 'Davi' }),
       ],
-      new Map([['act', -1000]]),
+      eurBalances([['act', -1000]]),
       [link({ actorId: 'a-con', publicKey: 'pk' }), link({ actorId: 'b-con', publicKey: 'pk' }), link({ actorId: 'c-inv', publicKey: null })],
     );
     const part = partitionPeople(people);

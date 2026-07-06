@@ -3,7 +3,7 @@ import { resolveSettlementStanding } from '@/domain/splitting';
 import type { DebtEntry } from '@/domain/splitting';
 
 function debt(debtorId: string, creditorId: string, amountCents: number): DebtEntry {
-  return { debtorId, debtorName: debtorId, creditorId, creditorName: creditorId, amountCents };
+  return { debtorId, debtorName: debtorId, creditorId, creditorName: creditorId, amountCents, currency: 'EUR' };
 }
 
 /**

@@ -450,9 +450,16 @@ export function DashboardSheets({
                   </div>
                   {(model.receivableCents > 0 || model.payableCents > 0) && (
                     <p className="text-[11px] font-semibold text-on-surface-dim mt-2">
+                      {/* DEC-474 — each side lists its per-currency buckets. */}
                       {t('dashboard.recon_open_debts', {
-                        receivable: formatMoney(model.receivableCents, trip.baseCurrency),
-                        payable: formatMoney(model.payableCents, trip.baseCurrency),
+                        receivable:
+                          model.receivableByCurrency
+                            .map((b) => formatMoney(b.amountCents, b.currency))
+                            .join(' · ') || formatMoney(0, trip.baseCurrency),
+                        payable:
+                          model.payableByCurrency
+                            .map((b) => formatMoney(b.amountCents, b.currency))
+                            .join(' · ') || formatMoney(0, trip.baseCurrency),
                       })}
                     </p>
                   )}

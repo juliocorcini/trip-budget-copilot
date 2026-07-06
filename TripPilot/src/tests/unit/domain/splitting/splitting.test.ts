@@ -9,6 +9,7 @@ import {
   scaleSharesToTotal,
   calculateParticipantBalances,
   ownerPairwiseBalances,
+  ownerPairwiseBalancesByCurrency,
   findPendingConfirmationShares,
   calculateOwnerPersonalCost,
   suggestSimplifiedSettlements,
@@ -134,6 +135,260 @@ describe('calculateDebts', () => {
     ];
     const result = calculateDebts([tx], shares, participants, settlements, 'julio');
     expect(result.debts[0]!.amountCents).toBe(1000);
+  });
+});
+
+/* ── DEC-474/475 — multi-currency pairwise settle graph (field review 06/07) ── */
+
+describe('calculateDebts — pairwise-faithful per currency (DEC-474/475)', () => {
+  const OWNER = 'julio';
+  const participants: Participant[] = [
+    { ...meta, id: OWNER, tripId: 'trip-1', name: 'Julio Corsini', nickname: null, isOwner: true, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'felipe', tripId: 'trip-1', name: 'Felipe', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'bruno', tripId: 'trip-1', name: 'Bruno', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+    { ...meta, id: 'debora', tripId: 'trip-1', name: 'Débora', nickname: null, isOwner: false, email: null, linkedUserAccountId: null, linkedActorId: null },
+  ];
+
+  const mkTx = (
+    id: string,
+    payerId: string | null,
+    amountCents: number,
+    currency: string,
+  ): Transaction => ({
+    ...meta, id, tripId: 'trip-1', phaseId: 'ph-1',
+    budgetPoolId: 'pool-1', walletId: null, sessionId: null,
+    type: 'expense', amountCents, personalCostCents: null,
+    currency, baseCurrencyAmountCents: amountCents, exchangeRate: null,
+    category: 'other', subcategoryId: null, placeLabel: null, latitude: null, longitude: null, placeId: null,
+    description: id, date: '2026-07-01T00:00:00.000Z',
+    isShared: true, paidByParticipantId: payerId,
+    activityProfileId: null, isSpecialOccasion: false, excludeFromLearning: false,
+    sourceWalletId: null, targetWalletId: null, settlementId: null, adjustmentReason: null, notes: null,
+  });
+
+  const mkShare = (
+    id: string,
+    txId: string,
+    participantId: string,
+    cents: number,
+    status: ParticipantShare['confirmationStatus'] = 'confirmed',
+  ): ParticipantShare => ({
+    ...meta, id, transactionId: txId, participantId, shareAmountCents: cents,
+    shareType: 'custom', isPaid: false, confirmationStatus: status, notes: null,
+  });
+
+  const mkSettlement = (
+    id: string,
+    debtorId: string,
+    creditorId: string,
+    cents: number,
+    currency: string,
+  ): Settlement => ({
+    ...meta, id, tripId: 'trip-1', debtorParticipantId: debtorId, creditorParticipantId: creditorId,
+    amountCents: cents, currency, settledAt: '2026-07-02T00:00:00.000Z', linkedTransactionId: null, notes: null,
+  });
+
+  it('the perfume: a R$380 debt stays a BRL edge — never charged as EUR', () => {
+    // Julio (EUR trip) fronted a R$380 perfume entirely for Felipe.
+    const tx = mkTx('tx-perfume', OWNER, 38000, 'BRL');
+    const shares = [mkShare('s1', 'tx-perfume', 'felipe', 38000)];
+    const { debts } = calculateDebts([tx], shares, participants, [], OWNER);
+    expect(debts).toHaveLength(1);
+    expect(debts[0]).toMatchObject({
+      debtorId: 'felipe',
+      creditorId: OWNER,
+      amountCents: 38000,
+      currency: 'BRL',
+    });
+  });
+
+  it('never invents an edge: no pair that no share ever created (the "Felipe deve a Bruno 167" bug)', () => {
+    // Felipe owes Julio (Julio fronted) AND Julio owes Bruno (Bruno fronted).
+    // The old greedy allocation rerouted this into a phantom Felipe → Bruno.
+    const txJulioForFelipe = mkTx('tx-jf', OWNER, 21200, 'EUR');
+    const txBrunoForJulio = mkTx('tx-bj', 'bruno', 7500, 'EUR');
+    const shares = [
+      mkShare('s1', 'tx-jf', 'felipe', 21200),
+      mkShare('s2', 'tx-bj', OWNER, 7500),
+    ];
+    const { debts } = calculateDebts(
+      [txJulioForFelipe, txBrunoForJulio],
+      shares,
+      participants,
+      [],
+      OWNER,
+    );
+    expect(debts).toHaveLength(2);
+    expect(debts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ debtorId: 'felipe', creditorId: OWNER, amountCents: 21200 }),
+        expect.objectContaining({ debtorId: OWNER, creditorId: 'bruno', amountCents: 7500 }),
+      ]),
+    );
+    // The phantom pair is structurally impossible now.
+    expect(debts.some((d) => d.debtorId === 'felipe' && d.creditorId === 'bruno')).toBe(false);
+    // Débora never split anything — she appears in NO edge.
+    expect(debts.some((d) => d.debtorId === 'debora' || d.creditorId === 'debora')).toBe(false);
+  });
+
+  it('nets opposite debts of the SAME pair in the SAME currency (A→B 50 · B→A 20 ⇒ A→B 30)', () => {
+    const txA = mkTx('tx-a', OWNER, 5000, 'EUR'); // Felipe owes Julio 50
+    const txB = mkTx('tx-b', 'felipe', 2000, 'EUR'); // Julio owes Felipe 20
+    const shares = [
+      mkShare('s1', 'tx-a', 'felipe', 5000),
+      mkShare('s2', 'tx-b', OWNER, 2000),
+    ];
+    const { debts } = calculateDebts([txA, txB], shares, participants, [], OWNER);
+    expect(debts).toHaveLength(1);
+    expect(debts[0]).toMatchObject({
+      debtorId: 'felipe',
+      creditorId: OWNER,
+      amountCents: 3000,
+      currency: 'EUR',
+    });
+  });
+
+  it('NEVER nets across currencies: a BRL debt and a EUR credit coexist as two edges', () => {
+    const txBrl = mkTx('tx-brl', OWNER, 38000, 'BRL'); // Felipe owes R$380
+    const txEur = mkTx('tx-eur', 'felipe', 2000, 'EUR'); // Julio owes €20
+    const shares = [
+      mkShare('s1', 'tx-brl', 'felipe', 38000),
+      mkShare('s2', 'tx-eur', OWNER, 2000),
+    ];
+    const { debts } = calculateDebts([txBrl, txEur], shares, participants, [], OWNER);
+    expect(debts).toHaveLength(2);
+    expect(debts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ debtorId: 'felipe', creditorId: OWNER, amountCents: 38000, currency: 'BRL' }),
+        expect.objectContaining({ debtorId: OWNER, creditorId: 'felipe', amountCents: 2000, currency: 'EUR' }),
+      ]),
+    );
+  });
+
+  it('a settlement pays down ONLY its own currency bucket', () => {
+    const txBrl = mkTx('tx-brl', OWNER, 38000, 'BRL');
+    const txEur = mkTx('tx-eur', OWNER, 1200, 'EUR');
+    const shares = [
+      mkShare('s1', 'tx-brl', 'felipe', 38000),
+      mkShare('s2', 'tx-eur', 'felipe', 1200),
+    ];
+    const settlements = [mkSettlement('set-1', 'felipe', OWNER, 38000, 'BRL')];
+    const { debts } = calculateDebts([txBrl, txEur], shares, participants, settlements, OWNER);
+    // The BRL edge is settled; the EUR edge is untouched.
+    expect(debts).toHaveLength(1);
+    expect(debts[0]).toMatchObject({ debtorId: 'felipe', creditorId: OWNER, amountCents: 1200, currency: 'EUR' });
+  });
+
+  it('overpaying a pair flips the remainder into a reverse credit (same currency)', () => {
+    const tx = mkTx('tx-1', OWNER, 3000, 'EUR');
+    const shares = [mkShare('s1', 'tx-1', 'felipe', 3000)];
+    const settlements = [mkSettlement('set-1', 'felipe', OWNER, 5000, 'EUR')];
+    const { debts } = calculateDebts([tx], shares, participants, settlements, OWNER);
+    expect(debts).toHaveLength(1);
+    expect(debts[0]).toMatchObject({
+      debtorId: OWNER,
+      creditorId: 'felipe',
+      amountCents: 2000,
+      currency: 'EUR',
+    });
+  });
+
+  it("Julio's field snapshot: Felipe deve R$380, Bruno recebe €75, Débora nada — Resolver == Pessoas", () => {
+    // Exactly what the Pessoas tab (the declared source of truth) showed.
+    const txPerfume = mkTx('tx-perfume', OWNER, 38000, 'BRL');
+    const txBruno = mkTx('tx-bruno', 'bruno', 15000, 'EUR'); // Bruno fronted €150, Julio's half = €75
+    const shares = [
+      mkShare('s1', 'tx-perfume', 'felipe', 38000),
+      mkShare('s2', 'tx-bruno', OWNER, 7500),
+      mkShare('s3', 'tx-bruno', 'bruno', 7500),
+    ];
+    const { debts } = calculateDebts([txPerfume, txBruno], shares, participants, [], OWNER);
+
+    // The settle list (Resolver) must show exactly the two real pairs.
+    expect(debts).toHaveLength(2);
+    expect(debts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ debtorId: 'felipe', creditorId: OWNER, amountCents: 38000, currency: 'BRL' }),
+        expect.objectContaining({ debtorId: OWNER, creditorId: 'bruno', amountCents: 7500, currency: 'EUR' }),
+      ]),
+    );
+
+    // Pessoas (pairwise buckets) reads the SAME numbers by construction.
+    const buckets = ownerPairwiseBalancesByCurrency([txPerfume, txBruno], shares, [], OWNER);
+    expect(buckets.get('felipe')).toEqual([{ currency: 'BRL', amountCents: -38000 }]);
+    expect(buckets.get('bruno')).toEqual([{ currency: 'EUR', amountCents: 7500 }]);
+    expect(buckets.get('debora')).toBeUndefined();
+
+    // And the owner summary buckets agree edge-for-edge.
+    const summary = summarizeOwnerDebts(debts, OWNER);
+    expect(summary.receivableByCurrency).toEqual([{ currency: 'BRL', amountCents: 38000 }]);
+    expect(summary.payableByCurrency).toEqual([{ currency: 'EUR', amountCents: 7500 }]);
+  });
+
+  it('invariance per currency: −Σ pairwise buckets == owner net buckets from the graph', () => {
+    const txs = [
+      mkTx('tx-1', OWNER, 38000, 'BRL'),
+      mkTx('tx-2', 'bruno', 15000, 'EUR'),
+      mkTx('tx-3', OWNER, 4000, 'EUR'),
+    ];
+    const shares = [
+      mkShare('s1', 'tx-1', 'felipe', 38000),
+      mkShare('s2', 'tx-2', OWNER, 7500),
+      mkShare('s3', 'tx-2', 'bruno', 7500),
+      mkShare('s4', 'tx-3', 'debora', 4000),
+    ];
+    const settlements = [mkSettlement('set-1', 'debora', OWNER, 1500, 'EUR')];
+
+    const { debts } = calculateDebts(txs, shares, participants, settlements, OWNER);
+    const summary = summarizeOwnerDebts(debts, OWNER);
+    const pairwise = ownerPairwiseBalancesByCurrency(txs, shares, settlements, OWNER);
+
+    const pairwiseNetByCurrency = new Map<string, number>();
+    for (const buckets of pairwise.values()) {
+      for (const bucket of buckets) {
+        pairwiseNetByCurrency.set(
+          bucket.currency,
+          (pairwiseNetByCurrency.get(bucket.currency) ?? 0) - bucket.amountCents,
+        );
+      }
+    }
+    for (const net of summary.netByCurrency) {
+      expect(pairwiseNetByCurrency.get(net.currency) ?? 0).toBe(net.amountCents);
+    }
+    // Concrete: +R$380 (Felipe) · EUR: −75 (Bruno) + 40 − 15 (Débora) = −50.
+    expect(summary.netByCurrency).toEqual([
+      { currency: 'BRL', amountCents: 38000 },
+      { currency: 'EUR', amountCents: -5000 },
+    ]);
+  });
+
+  it('third-party pairs that REALLY exist stay (registry), still per currency', () => {
+    // Bruno fronted for Débora — a real third-party debt the owner recorded.
+    const tx = mkTx('tx-3p', 'bruno', 9800, 'EUR');
+    const shares = [mkShare('s1', 'tx-3p', 'debora', 4900), mkShare('s2', 'tx-3p', 'bruno', 4900)];
+    const { debts } = calculateDebts([tx], shares, participants, [], OWNER);
+    expect(thirdPartyDebts(debts, OWNER)).toEqual([
+      expect.objectContaining({ debtorId: 'debora', creditorId: 'bruno', amountCents: 4900, currency: 'EUR' }),
+    ]);
+    expect(ownerInvolvedDebts(debts, OWNER)).toHaveLength(0);
+  });
+
+  it('statement lines and nets carry the original currency', () => {
+    const txPerfume = mkTx('tx-perfume', OWNER, 38000, 'BRL');
+    const txBar = mkTx('tx-bar', OWNER, 1200, 'EUR');
+    const shares = [
+      mkShare('s1', 'tx-perfume', 'felipe', 38000),
+      mkShare('s2', 'tx-bar', 'felipe', 1200),
+    ];
+    const statement = buildParticipantStatement('felipe', [txPerfume, txBar], shares, participants, [], OWNER);
+    expect(statement.lines.map((l) => l.currency).sort()).toEqual(['BRL', 'EUR']);
+    expect(statement.nets).toEqual([
+      { currency: 'BRL', amountCents: -38000 },
+      { currency: 'EUR', amountCents: -1200 },
+    ]);
+    // The counterparty slice keeps the buckets too.
+    const sliced = filterStatementToCounterparty(statement, OWNER);
+    expect(sliced.nets).toEqual(statement.nets);
   });
 });
 
@@ -329,12 +584,14 @@ describe('suggestSimplifiedSettlements (GAP-032)', () => {
     debtorId: string,
     creditorId: string,
     amountCents: number,
+    currency = 'EUR',
   ): DebtEntry => ({
     debtorId,
     debtorName: debtorId.toUpperCase(),
     creditorId,
     creditorName: creditorId.toUpperCase(),
     amountCents,
+    currency,
   });
 
   it('collapses a chain A→B→C into a single transfer A→C', () => {
@@ -386,6 +643,22 @@ describe('suggestSimplifiedSettlements (GAP-032)', () => {
     }
     for (const value of netOut.values()) expect(value).toBe(0);
   });
+
+  // DEC-474: simplification never crosses currencies — each currency's
+  // sub-graph is reduced independently.
+  it('simplifies per currency, never mixing buckets', () => {
+    const result = suggestSimplifiedSettlements([
+      debt('a', 'b', 1000, 'EUR'),
+      debt('b', 'c', 1000, 'EUR'),
+      debt('a', 'b', 38000, 'BRL'),
+    ]);
+    const eur = result.filter((d) => d.currency === 'EUR');
+    const brl = result.filter((d) => d.currency === 'BRL');
+    expect(eur).toHaveLength(1);
+    expect(eur[0]).toMatchObject({ debtorId: 'a', creditorId: 'c', amountCents: 1000 });
+    expect(brl).toHaveLength(1);
+    expect(brl[0]).toMatchObject({ debtorId: 'a', creditorId: 'b', amountCents: 38000 });
+  });
 });
 
 describe('thirdPartyDebts / ownerInvolvedDebts (DEC-388 · G6 · S-EGO)', () => {
@@ -399,6 +672,7 @@ describe('thirdPartyDebts / ownerInvolvedDebts (DEC-388 · G6 · S-EGO)', () => 
     creditorId,
     creditorName: creditorId.toUpperCase(),
     amountCents,
+    currency: 'EUR',
   });
 
   const OWNER = 'julio';
@@ -483,8 +757,8 @@ describe('thirdPartyDebts / ownerInvolvedDebts (DEC-388 · G6 · S-EGO)', () => 
 describe('calculateParticipantBalances', () => {
   it('computes net balances from debts', () => {
     const balances = calculateParticipantBalances([
-      { debtorId: 'ana', debtorName: 'Ana', creditorId: 'julio', creditorName: 'Julio', amountCents: 3000 },
-      { debtorId: 'leo', debtorName: 'Leo', creditorId: 'julio', creditorName: 'Julio', amountCents: 1500 },
+      { debtorId: 'ana', debtorName: 'Ana', creditorId: 'julio', creditorName: 'Julio', amountCents: 3000, currency: 'EUR' },
+      { debtorId: 'leo', debtorName: 'Leo', creditorId: 'julio', creditorName: 'Julio', amountCents: 1500, currency: 'EUR' },
     ]);
     expect(balances.get('julio')).toBe(4500);
     expect(balances.get('ana')).toBe(-3000);

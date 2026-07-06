@@ -9,11 +9,15 @@ import {
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync';
 import { shareLinkRepository, settlementRepository, appSettingsRepository } from '@/data/repositories';
 import { createSettlement } from '@/domain/splitting';
-import { buildSharePreview, type SharePreview } from '@/domain/sync';
 import type { StatementPayload } from '@/domain/sync';
 import type { ShareLink } from '@/domain/types/share-link';
 import type { ShareSettleProposal } from '@/domain/sync';
 import { formatMoney } from '@/domain/money';
+import {
+  enrichStatementImages,
+  composeStatementPreview,
+  shareLinkUrlOf,
+} from './statement-share';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import { shareOrCopyLink } from '@/utils/native/link-share';
 import { Icon } from '@/components/Icon';
@@ -69,40 +73,14 @@ export function ShareLinkSheet({
       const existing = await shareLinkRepository.getActiveByParticipantId(participantId);
       if (!active) return;
       setLink(existing ?? null);
-      if (existing) {
-        const { buildShareUrl } = await import('@/domain/sync');
-        // DEC-446 — slug in the path when the link has one.
-        // DEC-454 — ?v=<revision> so crawlers re-scrape a refreshed statement.
-        // DEC-455 — key escrowed on the worker → short link without `#k=`.
-        setUrl(
-          buildShareUrl(
-            getShareOrigin(),
-            existing.slug ?? existing.id,
-            existing.keyOnServer === true ? null : existing.key,
-            existing.statementRevision,
-          ),
-        );
-      }
+      // DEC-446 slug · DEC-454 ?v= · DEC-455 escrowed key — one canonical builder.
+      if (existing) setUrl(shareLinkUrlOf(existing));
       setLoading(false);
     })();
     return () => {
       active = false;
     };
   }, [participantId]);
-
-  // DEC-445 — summary-only preview for the pasted-link card, composed here so
-  // it speaks the OWNER's language (the worker never translates).
-  const composeStatementPreview = (statement: StatementPayload): SharePreview =>
-    buildSharePreview({
-      kind: 'statement',
-      title: t('shareLink.preview_statement_title', { name: statement.owner.name }),
-      description: t('shareLink.preview_statement_desc', {
-        amount: formatMoney(Math.abs(statement.netCents), statement.currency),
-      }),
-      totalCents: Math.abs(statement.netCents),
-      currency: statement.currency,
-      peopleCount: 2,
-    });
 
   // DEC-207 S7 — when the guest posts a response, the relay nudges us to pull
   // it live. A short delay absorbs KV read-after-write; the pull stays silent
@@ -129,11 +107,13 @@ export function ShareLinkSheet({
     if (!statement || busy) return;
     setBusy(true);
     try {
+      // DEC-476 — item photos ride the link payload (uploaded/cached here).
+      const enriched = await enrichStatementImages(statement);
       const { url: newUrl, shareLink } = await createShareLink(
         participantId,
-        statement,
+        enriched,
         getShareOrigin(),
-        composeStatementPreview(statement),
+        composeStatementPreview(enriched),
       );
       setLink(shareLink);
       setUrl(newUrl);
@@ -163,19 +143,13 @@ export function ShareLinkSheet({
     if (!statement) return false;
     setBusy(true);
     try {
-      const updated = await refreshShareLink(link, statement, composeStatementPreview(statement));
+      // DEC-476 — keep the published payload's item photos current.
+      const enriched = await enrichStatementImages(statement);
+      const updated = await refreshShareLink(link, enriched, composeStatementPreview(enriched));
       setLink(updated);
       // DEC-454/455 — the refresh bumps ?v= and may have escrowed the key of a
       // legacy link (dropping the fragment): rebuild the displayed URL.
-      const { buildShareUrl } = await import('@/domain/sync');
-      setUrl(
-        buildShareUrl(
-          getShareOrigin(),
-          updated.slug ?? updated.id,
-          updated.keyOnServer === true ? null : updated.key,
-          updated.statementRevision,
-        ),
-      );
+      setUrl(shareLinkUrlOf(updated));
       // DEC-207 S7 — tell a connected guest to re-pull the new revision live.
       signalRef.current?.send({ t: 'upd', rev: updated.statementRevision });
       if (announce) showToast(t('shareLink.refreshed'), 'success');

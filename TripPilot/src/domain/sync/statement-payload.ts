@@ -8,6 +8,8 @@ import {
   filterStatementToCounterparty,
   type ParticipantStatement,
 } from '@/domain/splitting';
+import { imageRefSchema } from '@/domain/media';
+import type { SharedPaymentMethod } from '@/domain/payment';
 import type { ActorIdentity } from './identity';
 
 /**
@@ -38,6 +40,38 @@ export const statementLineSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   placeId: z.string().nullable().optional(),
+  /**
+   * DEC-474: the line's ORIGINAL currency (the currency the expense was
+   * registered in — a R$380 perfume line is BRL even on a EUR trip). Additive +
+   * optional: older payloads read back `undefined` → display falls back to the
+   * payload's headline `currency`.
+   */
+  currency: z.string().length(3).optional(),
+  /**
+   * DEC-476: the item's photo (first attachment of the expense), uploaded as a
+   * plaintext R2 object (DEC-348 model) at share time so the guest page shows
+   * the actual item. Additive + optional — QR/live payloads and photo-less
+   * items read back `undefined`.
+   */
+  image: imageRefSchema.optional(),
+});
+
+/**
+ * DEC-476 — one "how to pay me" method riding a charge payload: kind + label +
+ * value + optional currency scope. Redacted (no ids, enabled only) — exactly
+ * what the reminder message prints.
+ */
+export const sharedPaymentMethodSchema = z.object({
+  kind: z.enum(['pix', 'wise', 'bank', 'other']),
+  label: z.string().max(60),
+  value: z.string().min(1).max(200),
+  currencies: z.array(z.string().length(3)).optional(),
+});
+
+/** DEC-474 — one per-currency amount of a statement net (signed cents). */
+export const statementNetBucketSchema = z.object({
+  currency: z.string().length(3),
+  amountCents: z.number().int(),
 });
 
 /**
@@ -55,6 +89,8 @@ export const statementSettlementSchema = z.object({
   amountCents: z.number().int().positive(),
   settledAt: z.string(),
   note: z.string().nullable(),
+  /** DEC-474: the settlement's own currency. Additive + optional. */
+  currency: z.string().length(3).optional(),
 });
 
 /**
@@ -69,6 +105,8 @@ export const statementThirdPartyGroupSchema = z.object({
   counterpartyName: z.string(),
   netCents: z.number().int(),
   lines: z.array(statementLineSchema),
+  /** DEC-474: per-currency nets of the group (confirmed lines). Additive. */
+  nets: z.array(statementNetBucketSchema).optional(),
 });
 
 export const statementPayloadSchema = z.object({
@@ -96,6 +134,18 @@ export const statementPayloadSchema = z.object({
    * read back `undefined`; no migration.
    */
   thirdParty: z.array(statementThirdPartyGroupSchema).optional(),
+  /**
+   * DEC-474: the headline net PER CURRENCY (signed, recipient's point of view —
+   * negative = the recipient owes). The display truth: `netCents` sums across
+   * currencies and stays only as a zero-check / legacy fallback. Additive +
+   * optional; older payloads read back `undefined`.
+   */
+  nets: z.array(statementNetBucketSchema).optional(),
+  /**
+   * DEC-476: how the owner can be paid — shown to the guest on the charge page,
+   * filtered to the currencies they owe. Additive + optional.
+   */
+  paymentMethods: z.array(sharedPaymentMethodSchema).optional(),
 });
 
 export type StatementPayloadLine = z.infer<typeof statementLineSchema>;
@@ -114,6 +164,11 @@ export interface BuildStatementPayloadInput {
   statement: ParticipantStatement;
   shares: ParticipantShare[];
   currency: string;
+  /**
+   * DEC-476 — the owner's share-safe payment methods to ride along (already
+   * redacted via `toSharedPaymentMethods`). Omitted → none ride (QR budget).
+   */
+  paymentMethods?: SharedPaymentMethod[];
 }
 
 /** Index live shares by `${transactionId}:${participantId}` for share-id lookup. */
@@ -155,6 +210,8 @@ function toPayloadLine(
     latitude: line.latitude,
     longitude: line.longitude,
     placeId: line.placeId,
+    // DEC-474: the line's ORIGINAL currency rides to the recipient.
+    currency: line.currency,
   };
 }
 
@@ -173,6 +230,8 @@ function toPayloadSettlement(
     amountCents: settlement.amountCents,
     settledAt: settlement.settledAt,
     note: settlement.notes,
+    // DEC-474: a settlement is denominated in its own currency.
+    currency: settlement.currency,
   };
 }
 
@@ -200,6 +259,12 @@ export function buildStatementPayload(input: BuildStatementPayloadInput): Statem
     netCents: statement.netCents,
     generatedAt: new Date().toISOString(),
     lines,
+    // DEC-474: the per-currency headline — the recipient's display truth.
+    ...(statement.nets.length > 0 ? { nets: statement.nets } : {}),
+    // DEC-476: "how to pay me" rides the charge so the guest sees it in place.
+    ...(input.paymentMethods && input.paymentMethods.length > 0
+      ? { paymentMethods: input.paymentMethods }
+      : {}),
   };
   return settlements.length > 0 ? { ...payload, settlements } : payload;
 }
@@ -236,10 +301,26 @@ export function buildThirdPartyStatementGroups(
 
   const groups: StatementThirdPartyGroup[] = [];
   for (const [counterpartyId, group] of grouped) {
-    const netCents = group.lines
-      .filter((l) => l.confirmationStatus === 'confirmed')
-      .reduce((sum, l) => sum + (l.kind === 'owes' ? -l.amountCents : l.amountCents), 0);
-    groups.push({ counterpartyId, counterpartyName: group.name, netCents, lines: group.lines });
+    // DEC-474: net per currency (confirmed lines); scalar kept as zero-check.
+    const netsByCurrency = new Map<string, number>();
+    let netCents = 0;
+    for (const l of group.lines) {
+      if (l.confirmationStatus !== 'confirmed') continue;
+      const signed = l.kind === 'owes' ? -l.amountCents : l.amountCents;
+      netCents += signed;
+      if (l.currency) netsByCurrency.set(l.currency, (netsByCurrency.get(l.currency) ?? 0) + signed);
+    }
+    const nets = [...netsByCurrency.entries()]
+      .filter(([, cents]) => cents !== 0)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cur, cents]) => ({ currency: cur, amountCents: cents }));
+    groups.push({
+      counterpartyId,
+      counterpartyName: group.name,
+      netCents,
+      lines: group.lines,
+      ...(nets.length > 0 ? { nets } : {}),
+    });
   }
 
   return groups.sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents));
@@ -260,6 +341,11 @@ export interface BuildParticipantSharePayloadInput {
    * for QR to keep the single-frame budget. Defaults to false.
    */
   includeThirdParty?: boolean;
+  /**
+   * DEC-476 — share-safe payment methods to ride the payload (link / live
+   * transfer). Omitted for QR to keep the single-frame budget.
+   */
+  paymentMethods?: SharedPaymentMethod[];
 }
 
 /**
@@ -288,6 +374,7 @@ export function buildParticipantSharePayload(
     statement: ownerSlice,
     shares: input.shares,
     currency: input.currency,
+    ...(input.paymentMethods ? { paymentMethods: input.paymentMethods } : {}),
   });
 
   if (!input.includeThirdParty) return payload;

@@ -42,6 +42,8 @@ export function buildMirroredStatement(
         counterpartyName: group.counterpartyName,
         netCents: group.netCents,
         lines: group.lines.map((line) => ({ ...line })),
+        // DEC-474 — per-currency group nets ride along when present.
+        nets: group.nets ?? null,
       }))
     : null;
 
@@ -53,9 +55,13 @@ export function buildMirroredStatement(
     receivedAt: new Date().toISOString(),
     currency: payload.currency,
     netCents: payload.netCents,
+    // DEC-474 — the per-currency headline is the guest's display truth.
+    nets: payload.nets ?? null,
     lines,
     settlements,
     thirdParty,
+    // DEC-476 — "how to pay me" is the owner's latest truth, never merged.
+    paymentMethods: payload.paymentMethods ?? null,
     pendingResponses: preservedResponses,
     updatedAt: new Date().toISOString(),
     revision: existing ? existing.revision + 1 : 1,

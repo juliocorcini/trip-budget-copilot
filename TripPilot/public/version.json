@@ -1,8 +1,8 @@
 {
-  "version": "2.7.3-rc",
+  "version": "2.7.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.73.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.3-rc.zip",
-  "notes": "Notas escaneadas ganharam aba própria (Gastos | Saídas | Notas), edição em massa completa com carteira, carteira nunca mais indefinida, gasto adiantado para amigo não desconta do seu livre, voz da IA destravada e seletor de moeda no padrão do app."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.5-rc.zip",
+  "notes": "Dívidas agora vivem na moeda original (R$380 é cobrado em R$, nunca em €), acerto de contas 100% fiel ao que aconteceu (fim das dívidas fantasma), página de cobrança com foto dos itens e formas de pagamento na moeda certa, e a mensagem de cobrança leva o link junto."
 }

@@ -180,6 +180,8 @@ export type IngestShareResult =
   | { status: 'revoked' }
   | { status: 'not_found' }
   | { status: 'bad_key' }
+  /** G2 (field 06/07): the opener IS the link's owner — never mirrored back. */
+  | { status: 'own_link' }
   | { status: 'error' };
 
 /**
@@ -204,6 +206,13 @@ export async function ingestSharedLink(
   if (!plain) return { status: 'bad_key' };
   const payload = parseStatementPayload(safeJsonParse(plain));
   if (!payload) return { status: 'bad_key' };
+
+  // G2 guard (field 06/07): the owner tapping their OWN link (to test it or
+  // from the reminder message) must never import their statement as if a
+  // friend had sent it — that's how "Júlio Corsini te deve 53 EUR" appeared
+  // in "Recebido de amigos". Detected by actor identity, not URL, so it also
+  // catches re-pulls of an already-stored self mirror.
+  if (payload.owner.actorId === getInstallationId()) return { status: 'own_link' };
 
   const statement = await storeMirroredStatement(payload, { shareId, key: effectiveKey });
   return { status: 'ok', statement };
@@ -248,10 +257,22 @@ export async function answerAndPushShareLine(
 export async function proposeSettlement(statementId: string): Promise<GuestActionResult | null> {
   const statement = await mirroredStatementRepository.getById(statementId);
   if (!statement || !statement.share) return null;
-  if (statement.netCents >= 0) return { statement, pushed: false }; // nothing owed
+  // DEC-474 — the claim is made in the DEBT's own currency. With per-currency
+  // nets, the owed bucket wins (largest when more than one); legacy statements
+  // fall back to the scalar headline. A guest owing nothing proposes nothing.
+  const owedBuckets = (statement.nets ?? []).filter((b) => b.amountCents < 0);
+  const legacyOwed =
+    statement.netCents < 0
+      ? [{ currency: statement.currency, amountCents: statement.netCents }]
+      : [];
+  const buckets = owedBuckets.length > 0 ? owedBuckets : statement.nets ? [] : legacyOwed;
+  if (buckets.length === 0) return { statement, pushed: false }; // nothing owed
+  const largest = buckets.reduce((max, b) =>
+    Math.abs(b.amountCents) > Math.abs(max.amountCents) ? b : max,
+  );
   const settle: ShareSettleProposal = {
-    amountCents: Math.abs(statement.netCents),
-    currency: statement.currency,
+    amountCents: Math.abs(largest.amountCents),
+    currency: largest.currency,
     note: null,
   };
   const pushed = await pushGuestResponses(statement, settle);

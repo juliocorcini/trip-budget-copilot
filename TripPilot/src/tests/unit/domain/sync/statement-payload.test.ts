@@ -318,6 +318,73 @@ describe('buildParticipantSharePayload reconciles settlements + place (DEC-402 �
   });
 });
 
+// DEC-476 — the charge page: "how to pay me" and item photos ride the payload.
+describe('charge payload extras (DEC-476 — payment methods + item photo)', () => {
+  const ownerActor = { actorId: createSyncMetadata().sourceDeviceId, displayName: 'Julio' };
+
+  it('carries the redacted payment methods and round-trips through the schema', () => {
+    const { julio, debora, transactions, shares } = buildFixture();
+    const payload = buildParticipantSharePayload({
+      owner: ownerActor,
+      ownerParticipantId: julio.id,
+      participant: debora,
+      transactions,
+      shares,
+      participants: [julio, debora],
+      settlements: [],
+      currency: 'EUR',
+      includeThirdParty: true,
+      paymentMethods: [
+        { kind: 'pix', label: 'CPF', value: '123', currencies: ['BRL'] },
+        { kind: 'wise', label: '', value: '@julio' },
+      ],
+    });
+
+    expect(payload.paymentMethods).toEqual([
+      { kind: 'pix', label: 'CPF', value: '123', currencies: ['BRL'] },
+      { kind: 'wise', label: '', value: '@julio' },
+    ]);
+    expect(parseStatementPayload(JSON.parse(JSON.stringify(payload)))).toEqual(payload);
+  });
+
+  it('omits the field entirely when none are passed (QR path / older shape)', () => {
+    const { julio, debora, transactions, shares } = buildFixture();
+    const payload = buildParticipantSharePayload({
+      owner: ownerActor,
+      ownerParticipantId: julio.id,
+      participant: debora,
+      transactions,
+      shares,
+      participants: [julio, debora],
+      settlements: [],
+      currency: 'EUR',
+    });
+    expect(payload.paymentMethods).toBeUndefined();
+  });
+
+  it('a line with an item photo (ImageRef) validates and round-trips', () => {
+    const { julio, debora, transactions, shares } = buildFixture();
+    const statement = buildParticipantStatement(debora.id, transactions, shares, [julio, debora], [], julio.id);
+    const payload = buildStatementPayload({
+      owner: ownerActor,
+      participant: debora,
+      statement,
+      shares,
+      currency: 'EUR',
+    });
+    // The share-time enrichment step attaches the ref (plaintext R2, DEC-348).
+    const withImage = {
+      ...payload,
+      lines: payload.lines.map((l, i) =>
+        i === 0 ? { ...l, image: { r2Id: 'img-1', mime: 'image/jpeg', w: 800, h: 600 } } : l,
+      ),
+    };
+    const parsed = parseStatementPayload(JSON.parse(JSON.stringify(withImage)));
+    expect(parsed).toEqual(withImage);
+    expect(parsed!.lines[0]!.image).toEqual({ r2Id: 'img-1', mime: 'image/jpeg', w: 800, h: 600 });
+  });
+});
+
 describe('buildThirdPartyStatementGroups (DEC-399)', () => {
   it('groups non-owner lines by counterparty with a confirmed-only net', () => {
     const { julio, bruno, debora, transactions, shares } = buildLeakFixture();

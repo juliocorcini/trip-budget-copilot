@@ -993,14 +993,15 @@ export function CopilotPage() {
                 <Icon name="group" className="text-warning shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-on-surface">
+                    {/* DEC-474 — a debt reads in its ORIGINAL currency. */}
                     {debts[0]!.creditorId === model.owner.id
                       ? t('copilot.debts_owed_to_me', {
                           name: debts[0]!.debtorName,
-                          amount: formatMoney(debts[0]!.amountCents, currency),
+                          amount: formatMoney(debts[0]!.amountCents, debts[0]!.currency),
                         })
                       : t('copilot.debts_i_owe', {
                           name: debts[0]!.creditorName,
-                          amount: formatMoney(debts[0]!.amountCents, currency),
+                          amount: formatMoney(debts[0]!.amountCents, debts[0]!.currency),
                         })}
                   </p>
                   {debts.length > 1 && (

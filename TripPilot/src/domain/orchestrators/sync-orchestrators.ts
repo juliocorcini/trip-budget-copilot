@@ -227,6 +227,19 @@ export async function storeMirroredStatement(
   return statement;
 }
 
+/**
+ * G2 guard (field 06/07): remove mirrored statements whose "peer" is THIS
+ * device — the residue of the owner having opened their own share link before
+ * the ingest guard existed ("Júlio Corsini te deve 53 EUR" under Recebido de
+ * amigos). Runs on section load; returns how many were purged.
+ */
+export async function purgeSelfMirroredStatements(selfActorId: string): Promise<number> {
+  const all = await mirroredStatementRepository.getAll();
+  const own = all.filter((s) => s.peerActorId === selfActorId);
+  for (const statement of own) await mirroredStatementRepository.delete(statement.id);
+  return own.length;
+}
+
 /** Mirror side: confirm/reject a pending line (queued until next session). */
 export async function answerMirroredStatementLine(
   statementId: string,

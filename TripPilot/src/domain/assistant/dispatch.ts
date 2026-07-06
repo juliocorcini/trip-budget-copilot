@@ -265,11 +265,23 @@ async function executeSettle(op: Extract<ExecOp, { kind: 'settle' }>, ctx: Dispa
 
   const debtorId = op.direction === 'i_owe' ? ctx.ownerId : op.personId;
   const creditorId = op.direction === 'i_owe' ? op.personId : ctx.ownerId;
-  const debt = summary.debts.find((d) => d.debtorId === debtorId && d.creditorId === creditorId);
+  // DEC-474: a pair can hold one edge PER currency. Prefer the edge in the
+  // op's currency; otherwise settle the largest open edge. The settlement is
+  // ALWAYS recorded in the DEBT's own currency (a R$380 debt is paid in BRL),
+  // so it pays down the right bucket instead of opening a reverse edge.
+  const pairDebts = summary.debts.filter(
+    (d) => d.debtorId === debtorId && d.creditorId === creditorId,
+  );
+  const debt =
+    pairDebts.find((d) => d.currency === op.currency) ??
+    pairDebts.reduce<(typeof pairDebts)[number] | null>(
+      (max, d) => (max === null || d.amountCents > max.amountCents ? d : max),
+      null,
+    );
   if (!debt) throw new AssistantDispatchError('no_debt');
 
   const amountCents = op.amountCents ? Math.min(op.amountCents, debt.amountCents) : debt.amountCents;
-  const settlement = createSettlement(op.tripId, debtorId, creditorId, amountCents, op.currency);
+  const settlement = createSettlement(op.tripId, debtorId, creditorId, amountCents, debt.currency);
   await settlementRepository.create(settlement);
   notifyAppDataChanged();
 

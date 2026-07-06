@@ -123,8 +123,8 @@ describe('buildDashboardInsights (DEC-077 — FIELD-07)', () => {
 
   it('participant balance picks the largest owner debt ("Mira te deve €12")', () => {
     const debts: DebtEntry[] = [
-      { debtorId: 'mira', debtorName: 'Mira', creditorId: OWNER_ID, creditorName: 'Julio', amountCents: 1200 },
-      { debtorId: OWNER_ID, debtorName: 'Julio', creditorId: 'ana', creditorName: 'Ana', amountCents: 500 },
+      { debtorId: 'mira', debtorName: 'Mira', creditorId: OWNER_ID, creditorName: 'Julio', amountCents: 1200, currency: 'EUR' },
+      { debtorId: OWNER_ID, debtorName: 'Julio', creditorId: 'ana', creditorName: 'Ana', amountCents: 500, currency: 'EUR' },
     ];
     const insights = buildDashboardInsights(baseInput({ debts }));
     const balance = insights.find((i) => i.kind === 'participant_balance')!;
@@ -158,7 +158,7 @@ describe('buildDashboardInsights (DEC-077 — FIELD-07)', () => {
     // letting projection + rhythm + avg + balance + next all surface together.
     const txs = [mkTx(2000, '2026-06-01'), mkTx(2000, '2026-06-03'), mkTx(2000, '2026-06-05')];
     const debts: DebtEntry[] = [
-      { debtorId: 'mira', debtorName: 'Mira', creditorId: OWNER_ID, creditorName: 'Julio', amountCents: 1200 },
+      { debtorId: 'mira', debtorName: 'Mira', creditorId: OWNER_ID, creditorName: 'Julio', amountCents: 1200, currency: 'EUR' },
     ];
     const occurrence = createPlannedOccurrence({
       tripId: 'trip-1',

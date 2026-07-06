@@ -1,5 +1,6 @@
 import type { PeerLink } from '@/domain/types/peer-link';
 import type { Participant } from '@/domain/types/participant';
+import type { CurrencyBucket } from '@/domain/splitting';
 
 /**
  * G9 · DEC-357 — the ONE "Pessoas" view-model.
@@ -28,8 +29,13 @@ export interface PersonView {
   linkedActorId: string | null;
   /** Capability badge: live-chargeable / paired-but-unreachable / name-only. */
   status: PersonStatus;
-  /** Signed net cents — `> 0` they receive, `< 0` they owe (unchanged ledger). */
+  /**
+   * Signed net cents summed ACROSS currencies — kept for sorting and as a
+   * zero-check. For display always read `balances` (DEC-474: never mix).
+   */
   balanceCents: number;
+  /** DEC-474 — the signed per-currency nets (`> 0` they receive, `< 0` they owe). */
+  balances: CurrencyBucket[];
   /** True when there is an open balance to resolve (the owner is never listed). */
   needsAction: boolean;
   /** 1–2 char avatar initials. */
@@ -85,7 +91,7 @@ function isBetterRow(candidate: PersonView, current: PersonView): boolean {
  */
 export function buildPeopleView(
   participants: Participant[],
-  balances: Map<string, number>,
+  balancesByCurrency: Map<string, CurrencyBucket[]>,
   peerLinks: PeerLink[],
 ): PersonView[] {
   const keyedActors = new Set<string>();
@@ -110,7 +116,9 @@ export function buildPeopleView(
   }
 
   const toView = (p: Participant): PersonView => {
-    const balanceCents = balances.get(p.id) ?? 0;
+    const buckets = balancesByCurrency.get(p.id) ?? [];
+    // Cross-currency sum: sorting weight + zero-check only, never displayed.
+    const balanceCents = buckets.reduce((sum, b) => sum + b.amountCents, 0);
     return {
       participantId: p.id,
       name: p.nickname ?? p.name,
@@ -119,7 +127,8 @@ export function buildPeopleView(
       linkedActorId: p.linkedActorId,
       status: deriveStatus(p.linkedActorId),
       balanceCents,
-      needsAction: balanceCents !== 0,
+      balances: buckets,
+      needsAction: buckets.some((b) => b.amountCents !== 0),
       initials: initialsOf(p.nickname ?? p.name),
       needsParticipant: false,
     };
@@ -163,6 +172,7 @@ export function buildPeopleView(
       linkedActorId: link.actorId,
       status: 'connected',
       balanceCents: 0,
+      balances: [],
       needsAction: false,
       initials: initialsOf(link.displayName),
       needsParticipant: true,

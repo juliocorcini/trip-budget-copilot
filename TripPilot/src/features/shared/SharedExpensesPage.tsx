@@ -9,7 +9,7 @@ import {
   ownerInvolvedDebts,
   createSettlement,
   createParticipant,
-  ownerPairwiseBalances,
+  ownerPairwiseBalancesByCurrency,
   resolveSettlementStanding,
   buildParticipantStatement,
   filterStatementToCounterparty,
@@ -29,6 +29,7 @@ import type {
   StatementLine,
   SharedExpenseGroup,
   StatementLineGroup,
+  CurrencyBucket,
 } from '@/domain/splitting';
 import { findSubcategory } from '@/domain/outing';
 import {
@@ -127,7 +128,8 @@ import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
 import { MirroredStatementsSection } from './MirroredStatementsSection';
 import { ShareLinkSheet } from './ShareLinkSheet';
 import { useRemindMessage } from '@/features/shared/useRemindMessage';
-import { enabledPaymentMethods } from '@/domain/payment';
+import { ensureShareLinkUrl } from '@/features/shared/statement-share';
+import { enabledPaymentMethods, toSharedPaymentMethods } from '@/domain/payment';
 import { ProofAttachField, ProofThumb, type AttachedProof } from '@/features/payment-proof/PaymentProof';
 
 /** DEC-206: how many rows show before a "ver mais (N)" toggle reveals the rest. */
@@ -180,39 +182,45 @@ const PERSON_BADGE_KEY: Record<PersonView['status'], string> = {
 function PersonRow({
   person,
   t,
-  currency,
   awaitingCents,
   onTap,
 }: {
   person: PersonView;
   t: Translate;
-  currency: string;
   /** DEC-377 — sum of this person's delivered-but-unaccepted slices, display-only. */
   awaitingCents: number;
   onTap: () => void;
 }) {
+  // DEC-474 — one part per currency bucket, each in its OWN currency ("Deve
+  // R$ 380,00 · Recebe € 20,00"). Amounts are never converted or summed.
+  const openBuckets = person.balances.filter((b) => b.amountCents !== 0);
   const money = person.needsParticipant
     ? // DEC-376 — a freshly connected friend not yet in this trip: there is nothing
       // to settle, so the subline is the action ("tap to charge or split"), not a
       // fake "R$ 0,00" balance.
       { text: t('shared.people_new_connection'), cls: 'text-primary' }
-    : person.balanceCents < 0
+    : openBuckets.length > 0
       ? {
-          text: t('shared.balance_owes', { amount: formatMoney(Math.abs(person.balanceCents), currency) }),
-          cls: 'text-error',
+          text: openBuckets
+            .map((b) =>
+              b.amountCents < 0
+                ? t('shared.balance_owes', { amount: formatMoney(Math.abs(b.amountCents), b.currency) })
+                : t('shared.balance_owed', { amount: formatMoney(b.amountCents, b.currency) }),
+            )
+            .join(' · '),
+          cls: openBuckets.every((b) => b.amountCents < 0)
+            ? 'text-error'
+            : openBuckets.every((b) => b.amountCents > 0)
+              ? 'text-success'
+              : 'text-warning',
         }
-      : person.balanceCents > 0
-        ? {
-            text: t('shared.balance_owed', { amount: formatMoney(person.balanceCents, currency) }),
-            cls: 'text-success',
-          }
-        : awaitingCents > 0
-          ? // DEC-377 (Â-HONEST) — a connected friend with a delivered slice they
-            // haven't accepted yet is NOT "em dia": the debt only counts on accept
-            // (arithmetic invariant), so the sender honestly reads "aguardando
-            // aceitar" instead of a misleading zero.
-            { text: t('settle_state.awaiting_acceptance'), cls: 'text-warning' }
-          : { text: t('shared.balance_zero'), cls: 'text-on-surface-faint' };
+      : awaitingCents > 0
+        ? // DEC-377 (Â-HONEST) — a connected friend with a delivered slice they
+          // haven't accepted yet is NOT "em dia": the debt only counts on accept
+          // (arithmetic invariant), so the sender honestly reads "aguardando
+          // aceitar" instead of a misleading zero.
+          { text: t('settle_state.awaiting_acceptance'), cls: 'text-warning' }
+        : { text: t('shared.balance_zero'), cls: 'text-on-surface-faint' };
   return (
     <button
       onClick={onTap}
@@ -698,30 +706,45 @@ export function SharedExpensesPage() {
     // ("negative = the peer owes me") so we can't send a backwards debt: a peer I
     // actually owe resolves to 'none', preserving the settlement math (accept-first).
     // DEC-375: read the real key off the peerLink instead of hardcoding true.
-    const decision = resolveSettlementDelivery({
-      hasPublicKey: Boolean(link.publicKey),
-      statementNetCents: statement.netCents,
-    });
-    if (decision.channel !== 'debt') {
+    // DEC-474: one debt PER CURRENCY bucket — a peer owing €12 and R$380 receives
+    // two debts, each in its original currency, never a mixed sum.
+    const owedDeliveries = statement.nets
+      .map((bucket) => ({
+        currency: bucket.currency,
+        decision: resolveSettlementDelivery({
+          hasPublicKey: Boolean(link.publicKey),
+          statementNetCents: bucket.amountCents,
+        }),
+      }))
+      .filter((d) => d.decision.channel === 'debt');
+    if (owedDeliveries.length === 0) {
       showToast(t('p2p.settle_nothing'), 'info');
       return;
     }
     setMailboxSending(true);
     try {
-      const result = await shareDebtWithPeer({
-        peerActorId: participant.linkedActorId,
-        amountCents: decision.debtAmountCents,
-        currency: trip.baseCurrency,
-        // Provenance ("de onde veio"): the trip name rides in the debt description so
-        // the recipient's inbox + folded expense record where the settlement came from.
-        description: `${t('p2p.settle_debt_desc')} · ${trip.name}`,
-      });
-      setSendTarget(null);
       const name = participant.nickname ?? participant.name;
-      if (result.delivered) {
+      let allDelivered = true;
+      let failureReason: DeliveryReason | null = null;
+      for (const delivery of owedDeliveries) {
+        const result = await shareDebtWithPeer({
+          peerActorId: participant.linkedActorId,
+          amountCents: delivery.decision.debtAmountCents,
+          currency: delivery.currency,
+          // Provenance ("de onde veio"): the trip name rides in the debt description so
+          // the recipient's inbox + folded expense record where the settlement came from.
+          description: `${t('p2p.settle_debt_desc')} · ${trip.name}`,
+        });
+        if (!result.delivered) {
+          allDelivered = false;
+          failureReason = result.reason;
+        }
+      }
+      setSendTarget(null);
+      if (allDelivered) {
         showToast(t('p2p.settle_sent', { name }), 'success');
-      } else {
-        showSendFailure(result.reason, () => void retrySend(), name);
+      } else if (failureReason) {
+        showSendFailure(failureReason, () => void retrySend(), name);
       }
     } catch {
       showToast(t('p2p.send_failed'), 'danger');
@@ -821,6 +844,11 @@ export function SharedExpensesPage() {
   ) => {
     const owner = participants.find((p) => p.isOwner);
     if (!owner || !trip) return null;
+    // DEC-476 — "how to pay me" rides the big payloads (link/live). The QR path
+    // (no opts) skips it to preserve the single-frame budget.
+    const sharedMethods = opts?.includeThirdParty
+      ? toSharedPaymentMethods(settings?.paymentMethods ?? [])
+      : [];
     return buildParticipantSharePayload({
       owner: { actorId: getInstallationId(), displayName: owner.name },
       ownerParticipantId: owner.id,
@@ -831,6 +859,7 @@ export function SharedExpensesPage() {
       settlements,
       currency: trip.baseCurrency,
       includeThirdParty: opts?.includeThirdParty ?? false,
+      ...(sharedMethods.length > 0 ? { paymentMethods: sharedMethods } : {}),
     });
   };
 
@@ -849,12 +878,14 @@ export function SharedExpensesPage() {
   const handleConfirmSettle = async () => {
     if (!trip || !settleTarget || settleAmountCents === null) return;
     const amountCents = Math.min(settleAmountCents, settleTarget.amountCents);
+    // DEC-474 — a settlement pays the debt in the DEBT's own currency, so it
+    // hits the right (pair, currency) bucket (a R$380 debt is paid in BRL).
     const settlement = createSettlement(
       trip.id,
       settleTarget.debtorId,
       settleTarget.creditorId,
       amountCents,
-      trip.baseCurrency,
+      settleTarget.currency,
       settleMethod,
     );
     await settlementRepository.create(settlement);
@@ -868,11 +899,22 @@ export function SharedExpensesPage() {
   // Uses the OS share sheet, falling back to the clipboard so it is never lost.
   const handleRemind = async (debt: DebtEntry) => {
     if (!trip) return;
-    const amount = formatMoney(debt.amountCents, trip.baseCurrency);
+    // DEC-474 — the reminder charges the debt's ORIGINAL currency.
+    const amount = formatMoney(debt.amountCents, debt.currency);
+    // DEC-476 — the message carries the charge-page link (reuses the debtor's
+    // active share link or mints one now, photos + methods included).
+    const debtor = participants.find((p) => p.id === debt.debtorId);
+    const chargeUrl = debtor
+      ? await ensureShareLinkUrl(debtor.id, () =>
+          buildStatementForParticipant(debtor, { includeThirdParty: true }),
+        )
+      : null;
     const message = buildRemindMessage({
       name: debt.debtorName,
       amount,
       tripName: trip.name,
+      currency: debt.currency,
+      chargeUrl,
     });
     const outcome = await shareOrCopyText(message, t('shared.remind_share_title'));
     if (outcome === 'copied') showToast(t('shared.remind_copied'), 'success');
@@ -1243,13 +1285,13 @@ export function SharedExpensesPage() {
   // DEC-394 (G4 · S-EGO-PEOPLE): the people list balances are the FAITHFUL
   // owner↔person pairwise nets (read from confirmed shares + settlements), not the
   // min-transfer graph — which could route the owner's debt through a third party
-  // and so show the wrong person's number ("Bruno recebe 122"). The owner's TOTAL
-  // is unchanged (−Σ == summarizeOwnerDebts net); only per-person attribution
-  // becomes honest. Third-party-only people read 0 here (they live in the registry).
+  // and so show the wrong person's number ("Bruno recebe 122"). DEC-474: nets are
+  // now PER CURRENCY (the R$380 perfume is a BRL bucket, never "€380"). Third-
+  // party-only people read empty here (they live in the registry).
   const balances =
     debtSummary && ownerParticipant
-      ? ownerPairwiseBalances(transactions, shares, settlements, ownerParticipant.id)
-      : new Map<string, number>();
+      ? ownerPairwiseBalancesByCurrency(transactions, shares, settlements, ownerParticipant.id)
+      : new Map<string, CurrencyBucket[]>();
   // G9 · DEC-357 — the ONE unified people list (status badge + ledger balance,
   // deduped), driving the z3 preview and the full Pessoas page. `participantById`
   // maps a row back to its Participant for the statement / charge / pay sheets.
@@ -1608,7 +1650,8 @@ export function SharedExpensesPage() {
 
       {/* DL-3: settle-up hero — opens with the answer ("quem me deve e quanto").
           Pure derivation of calculateDebts via summarizeOwnerDebts (confirmed
-          debts only); connected-pending sits in its own group below. */}
+          debts only); connected-pending sits in its own group below. DEC-474:
+          each currency renders its OWN amount — €75 and R$380 never sum. */}
       {ownerSummary &&
         (ownerSummary.receivableCents > 0 || ownerSummary.payableCents > 0 ? (
           <div className="order-[10] rounded-2xl p-4 bg-surface-container">
@@ -1617,29 +1660,59 @@ export function SharedExpensesPage() {
                 <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
                   {t('shared.summary_receivable')}
                 </p>
-                <p className="text-2xl font-extrabold tabular text-success leading-tight mt-0.5">
-                  {formatMoney(ownerSummary.receivableCents, trip.baseCurrency)}
-                </p>
+                {ownerSummary.receivableByCurrency.length === 0 ? (
+                  <p className="text-2xl font-extrabold tabular text-success leading-tight mt-0.5">
+                    {formatMoney(0, trip.baseCurrency)}
+                  </p>
+                ) : (
+                  ownerSummary.receivableByCurrency.map((bucket) => (
+                    <p
+                      key={bucket.currency}
+                      className={`font-extrabold tabular text-success leading-tight mt-0.5 ${
+                        ownerSummary.receivableByCurrency.length > 1 ? 'text-lg' : 'text-2xl'
+                      }`}
+                    >
+                      {formatMoney(bucket.amountCents, bucket.currency)}
+                    </p>
+                  ))
+                )}
               </div>
               <div>
                 <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
                   {t('shared.summary_payable')}
                 </p>
-                <p className="text-2xl font-extrabold tabular text-error leading-tight mt-0.5">
-                  {formatMoney(ownerSummary.payableCents, trip.baseCurrency)}
-                </p>
+                {ownerSummary.payableByCurrency.length === 0 ? (
+                  <p className="text-2xl font-extrabold tabular text-error leading-tight mt-0.5">
+                    {formatMoney(0, trip.baseCurrency)}
+                  </p>
+                ) : (
+                  ownerSummary.payableByCurrency.map((bucket) => (
+                    <p
+                      key={bucket.currency}
+                      className={`font-extrabold tabular text-error leading-tight mt-0.5 ${
+                        ownerSummary.payableByCurrency.length > 1 ? 'text-lg' : 'text-2xl'
+                      }`}
+                    >
+                      {formatMoney(bucket.amountCents, bucket.currency)}
+                    </p>
+                  ))
+                )}
               </div>
             </div>
-            {ownerSummary.netCents !== 0 && (
-              <p className="text-xs font-semibold mt-3 pt-3 border-t border-[var(--border-faint)] text-on-surface-dim">
-                {ownerSummary.netCents > 0
-                  ? t('shared.summary_net_positive', {
-                      amount: formatMoney(ownerSummary.netCents, trip.baseCurrency),
-                    })
-                  : t('shared.summary_net_negative', {
-                      amount: formatMoney(Math.abs(ownerSummary.netCents), trip.baseCurrency),
-                    })}
-              </p>
+            {ownerSummary.netByCurrency.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-[var(--border-faint)] flex flex-col gap-0.5">
+                {ownerSummary.netByCurrency.map((bucket) => (
+                  <p key={bucket.currency} className="text-xs font-semibold text-on-surface-dim">
+                    {bucket.amountCents > 0
+                      ? t('shared.summary_net_positive', {
+                          amount: formatMoney(bucket.amountCents, bucket.currency),
+                        })
+                      : t('shared.summary_net_negative', {
+                          amount: formatMoney(Math.abs(bucket.amountCents), bucket.currency),
+                        })}
+                  </p>
+                ))}
+              </div>
             )}
           </div>
         ) : settlementStanding?.allSettled ? (
@@ -1692,7 +1765,6 @@ export function SharedExpensesPage() {
               key={person.participantId || `actor:${person.linkedActorId}`}
               person={person}
               t={t}
-              currency={trip.baseCurrency}
               awaitingCents={awaitingByParticipant.get(person.participantId) ?? 0}
               onTap={() => void handlePersonTap(person)}
             />
@@ -1833,10 +1905,20 @@ export function SharedExpensesPage() {
               {t('shared.awaiting_title', { count: awaitingShares.length })}
             </p>
             <p className="text-sm font-extrabold tabular text-warning">
-              {formatMoney(
-                awaitingShares.reduce((sum, s) => sum + s.shareAmountCents, 0),
-                trip.baseCurrency,
-              )}
+              {/* DEC-474 — awaiting slices sum per ORIGINAL currency, never mixed. */}
+              {(() => {
+                const byCurrency = new Map<string, number>();
+                for (const s of awaitingShares) {
+                  const cur =
+                    transactions.find((x) => x.id === s.transactionId)?.currency ??
+                    trip.baseCurrency;
+                  byCurrency.set(cur, (byCurrency.get(cur) ?? 0) + s.shareAmountCents);
+                }
+                return [...byCurrency.entries()]
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([cur, cents]) => formatMoney(cents, cur))
+                  .join(' · ');
+              })()}
             </p>
           </div>
           <p className="text-[11px] text-on-surface-faint leading-snug mt-1.5">
@@ -1941,7 +2023,8 @@ export function SharedExpensesPage() {
                       {debt.debtorName} → {debt.creditorName}
                     </p>
                     <p className="text-sm font-semibold text-on-surface tabular">
-                      {formatMoney(debt.amountCents, trip.baseCurrency)}
+                      {/* DEC-474 — a debt is charged in its ORIGINAL currency. */}
+                      {formatMoney(debt.amountCents, debt.currency)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -2007,7 +2090,7 @@ export function SharedExpensesPage() {
                       {debt.debtorName} → {debt.creditorName}
                     </p>
                     <p className="text-sm font-semibold text-on-surface tabular shrink-0">
-                      {formatMoney(debt.amountCents, trip.baseCurrency)}
+                      {formatMoney(debt.amountCents, debt.currency)}
                     </p>
                   </div>
                 </div>
@@ -2029,12 +2112,12 @@ export function SharedExpensesPage() {
               {t('shared.settle_confirm_body', {
                 debtor: settleTarget.debtorName,
                 creditor: settleTarget.creditorName,
-                amount: formatMoney(settleTarget.amountCents, trip.baseCurrency),
+                amount: formatMoney(settleTarget.amountCents, settleTarget.currency),
               })}
             </p>
             <div>
               <label className="text-xs text-on-surface-faint mb-1 block">
-                {t('shared.settle_amount_label')}
+                {t('shared.settle_amount_label', { currency: settleTarget.currency })}
               </label>
               <input
                 type="number"
@@ -2048,7 +2131,7 @@ export function SharedExpensesPage() {
               {settleAmountCents !== null && settleAmountCents < settleTarget.amountCents && (
                 <p className="text-[10px] text-on-surface-faint mt-1">
                   {t('shared.settle_partial_hint', {
-                    remaining: formatMoney(settleTarget.amountCents - settleAmountCents, trip.baseCurrency),
+                    remaining: formatMoney(settleTarget.amountCents - settleAmountCents, settleTarget.currency),
                   })}
                 </p>
               )}
@@ -2141,27 +2224,34 @@ export function SharedExpensesPage() {
                   (i.kind === 'debt' || i.kind === 'payment'),
               )
             : [];
+          // DEC-474 — the header shows one net line PER CURRENCY (never mixed).
+          const openNets = statement.nets.filter((b) => b.amountCents !== 0);
           return (
             <div className="flex flex-col gap-3">
-              <p
-                className={`text-lg font-extrabold tabular ${
-                  statement.netCents < 0
-                    ? 'text-error'
-                    : statement.netCents > 0
-                      ? 'text-success'
-                      : 'text-on-surface-dim'
-                }`}
-              >
-                {statement.netCents < 0
-                  ? t('shared.balance_owes', {
-                      amount: formatMoney(Math.abs(statement.netCents), trip.baseCurrency),
-                    })
-                  : statement.netCents > 0
-                    ? t('shared.balance_owed', {
-                        amount: formatMoney(statement.netCents, trip.baseCurrency),
-                      })
-                    : t('shared.balance_zero')}
-              </p>
+              {openNets.length === 0 ? (
+                <p className="text-lg font-extrabold tabular text-on-surface-dim">
+                  {t('shared.balance_zero')}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  {openNets.map((bucket) => (
+                    <p
+                      key={bucket.currency}
+                      className={`text-lg font-extrabold tabular ${
+                        bucket.amountCents < 0 ? 'text-error' : 'text-success'
+                      }`}
+                    >
+                      {bucket.amountCents < 0
+                        ? t('shared.balance_owes', {
+                            amount: formatMoney(Math.abs(bucket.amountCents), bucket.currency),
+                          })
+                        : t('shared.balance_owed', {
+                            amount: formatMoney(bucket.amountCents, bucket.currency),
+                          })}
+                    </p>
+                  ))}
+                </div>
+              )}
 
               {pendingFromPerson.length > 0 && (
                 <div className="flex flex-col gap-1.5">
@@ -2225,7 +2315,6 @@ export function SharedExpensesPage() {
                         sessionName={
                           group.sessionId ? (sessionNameById[group.sessionId] ?? null) : null
                         }
-                        currency={trip.baseCurrency}
                         lineLabel={lineLabel}
                         t={t}
                       />
@@ -2403,7 +2492,7 @@ export function SharedExpensesPage() {
                   leaving a "moved from" trail + undo. Shown when they owe me and
                   have an open share to hand off. */}
               {!statementTarget.isOwner &&
-                statement.netCents < 0 &&
+                statement.nets.some((b) => b.amountCents < 0) &&
                 movableSharesFor(statementTarget.id).length > 0 && (
                   <button
                     onClick={() => {
@@ -2481,9 +2570,25 @@ export function SharedExpensesPage() {
             if (tx.category) return t(`categories.${tx.category}` as never);
             return t('shared.statement_unnamed');
           };
-          const selectedTotal = movable
-            .filter((s) => moveShareIds.has(s.id))
-            .reduce((sum, s) => sum + s.shareAmountCents, 0);
+          // DEC-474 — a share is denominated in ITS transaction's currency.
+          const currencyForShare = (s: ParticipantShare): string =>
+            transactions.find((x) => x.id === s.transactionId)?.currency ?? trip.baseCurrency;
+          const selectedShares = movable.filter((s) => moveShareIds.has(s.id));
+          const selectedTotal = selectedShares.reduce((sum, s) => sum + s.shareAmountCents, 0);
+          const selectedCurrencies = [...new Set(selectedShares.map(currencyForShare))];
+          const selectedTotalLabel =
+            selectedCurrencies.length === 1
+              ? formatMoney(selectedTotal, selectedCurrencies[0]!)
+              : selectedCurrencies
+                  .map((cur) =>
+                    formatMoney(
+                      selectedShares
+                        .filter((s) => currencyForShare(s) === cur)
+                        .reduce((sum, s) => sum + s.shareAmountCents, 0),
+                      cur,
+                    ),
+                  )
+                  .join(' · ');
           const toggle = (id: string) =>
             setMoveShareIds((prev) => {
               const next = new Set(prev);
@@ -2560,7 +2665,7 @@ export function SharedExpensesPage() {
                               </span>
                             </div>
                             <span className="text-xs font-bold tabular text-on-surface shrink-0">
-                              {formatMoney(s.shareAmountCents, trip.baseCurrency)}
+                              {formatMoney(s.shareAmountCents, currencyForShare(s))}
                             </span>
                           </button>
                         );
@@ -2571,7 +2676,7 @@ export function SharedExpensesPage() {
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-xs text-on-surface-dim">{t('shared.move_debt_total')}</span>
                     <span className="text-sm font-extrabold tabular text-on-surface">
-                      {formatMoney(selectedTotal, trip.baseCurrency)}
+                      {selectedTotalLabel}
                     </span>
                   </div>
 
@@ -3302,7 +3407,6 @@ export function SharedExpensesPage() {
                           <PersonRow
                             person={person}
                             t={t}
-                            currency={trip.baseCurrency}
                             awaitingCents={awaitingByParticipant.get(person.participantId) ?? 0}
                             onTap={() => void handlePersonTap(person)}
                           />
@@ -3558,18 +3662,17 @@ function SharedExpenseRow({
 /**
  * DEC-206: a row in a participant's itemized statement. A standalone line keeps
  * the original layout; a receipt session collapses into one expandable event that
- * shows the net for that event and, on tap, each underlying line.
+ * shows the net for that event and, on tap, each underlying line. DEC-474: every
+ * amount renders in the line/group's ORIGINAL currency.
  */
 function StatementGroupRow({
   group,
   sessionName,
-  currency,
   lineLabel,
   t,
 }: {
   group: StatementLineGroup;
   sessionName: string | null;
-  currency: string;
   lineLabel: (line: StatementLine) => string;
   t: Translate;
 }) {
@@ -3587,7 +3690,7 @@ function StatementGroupRow({
             }`}
           >
             {line.kind === 'owes' ? '−' : '+'}
-            {formatMoney(line.amountCents, currency)}
+            {formatMoney(line.amountCents, line.currency)}
           </p>
         </div>
         <div className="flex items-center justify-between gap-2 mt-1">
@@ -3635,7 +3738,7 @@ function StatementGroupRow({
           className={`text-xs font-bold tabular shrink-0 ${owesThem ? 'text-error' : 'text-success'}`}
         >
           {owesThem ? '−' : '+'}
-          {formatMoney(Math.abs(group.netCents), currency)}
+          {formatMoney(Math.abs(group.netCents), group.currency)}
         </p>
         <Icon name={open ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint shrink-0" />
       </button>
@@ -3655,7 +3758,7 @@ function StatementGroupRow({
                 }`}
               >
                 {line.kind === 'owes' ? '−' : '+'}
-                {formatMoney(line.amountCents, currency)}
+                {formatMoney(line.amountCents, line.currency)}
               </span>
             </div>
           ))}

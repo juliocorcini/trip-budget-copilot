@@ -5,9 +5,15 @@ import {
   resolvePaymentLabel,
   paymentMethodLine,
   buildPaymentInstructions,
+  buildPaymentInstructionsForCurrency,
+  paymentMethodAppliesTo,
+  paymentMethodsForCurrencies,
+  sharedPaymentMethodsForCurrencies,
+  toSharedPaymentMethods,
   addPaymentMethod,
   removePaymentMethod,
   togglePaymentMethod,
+  togglePaymentMethodCurrency,
   updatePaymentMethod,
   movePaymentMethod,
   type PaymentMethod,
@@ -129,5 +135,88 @@ describe('mutation helpers (pure)', () => {
     expect(movePaymentMethod(list, 'c', 'up').map((m) => m.id)).toEqual(['a', 'c', 'b']);
     expect(movePaymentMethod(list, 'a', 'up').map((m) => m.id)).toEqual(['a', 'b', 'c']);
     expect(movePaymentMethod(list, 'c', 'down').map((m) => m.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+// DEC-476 — currency scoping: a Pix key only takes BRL, an IBAN only EUR; a
+// method with NO scope keeps working for every currency (back-compat).
+describe('currency scoping (DEC-476)', () => {
+  const pixBRL = method({ id: 'pix', kind: 'pix', label: 'Pix', value: 'cpf', currencies: ['BRL'] });
+  const ibanEUR = method({ id: 'iban', kind: 'bank', label: 'IBAN', value: 'DE89…', currencies: ['EUR'] });
+  const wiseAll = method({ id: 'wise', kind: 'wise', label: '', value: '@me' }); // unscoped
+
+  it('paymentMethodAppliesTo: unscoped matches everything; scoped matches only its list', () => {
+    expect(paymentMethodAppliesTo(wiseAll, 'BRL')).toBe(true);
+    expect(paymentMethodAppliesTo(wiseAll, 'JPY')).toBe(true);
+    expect(paymentMethodAppliesTo(pixBRL, 'BRL')).toBe(true);
+    expect(paymentMethodAppliesTo(pixBRL, 'EUR')).toBe(false);
+    expect(paymentMethodAppliesTo(method({ currencies: [] }), 'EUR')).toBe(true); // empty = all
+  });
+
+  it('paymentMethodsForCurrencies: a BRL charge gets Pix + Wise, never the EUR-only IBAN', () => {
+    const forBRL = paymentMethodsForCurrencies([pixBRL, ibanEUR, wiseAll], ['BRL']);
+    expect(forBRL.map((m) => m.id)).toEqual(['pix', 'wise']);
+  });
+
+  it('paymentMethodsForCurrencies: multi-currency debt unions the applicable methods', () => {
+    const forBoth = paymentMethodsForCurrencies([pixBRL, ibanEUR, wiseAll], ['BRL', 'EUR']);
+    expect(forBoth.map((m) => m.id)).toEqual(['pix', 'iban', 'wise']);
+  });
+
+  it('paymentMethodsForCurrencies: empty filter = all usable methods (legacy paths)', () => {
+    expect(paymentMethodsForCurrencies([pixBRL, ibanEUR, wiseAll], []).map((m) => m.id)).toEqual([
+      'pix',
+      'iban',
+      'wise',
+    ]);
+  });
+
+  it('buildPaymentInstructionsForCurrency drops non-matching methods and tags scoped ones', () => {
+    const text = buildPaymentInstructionsForCurrency([pixBRL, ibanEUR, wiseAll], 'BRL', {
+      header: 'Pode pagar por:',
+      kindLabels,
+    });
+    expect(text).toBe('Pode pagar por:\n• Pix (BRL): cpf\n• Wise: @me');
+  });
+
+  it('buildPaymentInstructionsForCurrency returns null when nothing can receive it', () => {
+    expect(
+      buildPaymentInstructionsForCurrency([pixBRL], 'EUR', { header: 'h', kindLabels }),
+    ).toBeNull();
+  });
+
+  it('togglePaymentMethodCurrency adds, removes, and returns to "all" when emptied', () => {
+    const list = [method({ id: 'a' })];
+    const scoped = togglePaymentMethodCurrency(list, 'a', 'BRL');
+    expect(scoped[0]!.currencies).toEqual(['BRL']);
+    const both = togglePaymentMethodCurrency(scoped, 'a', 'EUR');
+    expect(both[0]!.currencies).toEqual(['BRL', 'EUR']);
+    const back = togglePaymentMethodCurrency(togglePaymentMethodCurrency(both, 'a', 'BRL'), 'a', 'EUR');
+    expect(back[0]!.currencies).toEqual([]); // empty = all currencies again
+  });
+
+  it('toSharedPaymentMethods redacts ids/disabled and keeps the currency scope', () => {
+    const shared = toSharedPaymentMethods([
+      pixBRL,
+      method({ id: 'off', enabled: false, value: 'x' }),
+      wiseAll,
+    ]);
+    expect(shared).toEqual([
+      { kind: 'pix', label: 'Pix', value: 'cpf', currencies: ['BRL'] },
+      { kind: 'wise', label: '', value: '@me' },
+    ]);
+  });
+
+  it('sharedPaymentMethodsForCurrencies filters the guest view by owed currencies', () => {
+    const shared = toSharedPaymentMethods([pixBRL, ibanEUR, wiseAll]);
+    expect(sharedPaymentMethodsForCurrencies(shared, ['EUR']).map((m) => m.kind)).toEqual([
+      'bank',
+      'wise',
+    ]);
+    expect(sharedPaymentMethodsForCurrencies(shared, []).map((m) => m.kind)).toEqual([
+      'pix',
+      'bank',
+      'wise',
+    ]);
   });
 });

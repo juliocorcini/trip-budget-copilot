@@ -54,7 +54,8 @@ export function SplitShareNudgeSheet({
     if (cents === undefined || cents <= 0 || !currency) return;
     const name = participant.nickname ?? participant.name;
     const amount = formatMoney(cents, currency);
-    const message = buildRemindMessage({ name, amount, tripName });
+    // DEC-476 — only payment methods that can receive this currency ride along.
+    const message = buildRemindMessage({ name, amount, tripName, currency });
     const outcome = await shareOrCopyText(message, t('shared.remind_share_title'));
     if (outcome === 'copied') showToast(t('shared.remind_copied'), 'success');
     else if (outcome === 'copy_failed') showToast(t('sync.link_copy_failed'), 'danger');

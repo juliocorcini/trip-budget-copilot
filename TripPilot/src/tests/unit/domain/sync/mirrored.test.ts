@@ -127,6 +127,34 @@ describe('mirrored statement lifecycle (DEC-106 mirror side)', () => {
     expect(statement.settlements).toBeNull();
   });
 
+  it('mirrors payment methods and item photos for the charge page (DEC-476)', () => {
+    const base = payload([line(SHARE_A, 38000, 'confirmed')], -38000);
+    const incoming: StatementPayload = {
+      ...base,
+      lines: [
+        { ...base.lines[0]!, currency: 'BRL', image: { r2Id: 'img-9', mime: 'image/jpeg', w: 800, h: 600 } },
+      ],
+      nets: [{ currency: 'BRL', amountCents: -38000 }],
+      paymentMethods: [
+        { kind: 'pix', label: 'CPF', value: '123', currencies: ['BRL'] },
+        { kind: 'wise', label: '', value: '@julio' },
+      ],
+    };
+
+    const statement = buildMirroredStatement(incoming, null);
+
+    expect(statement.lines[0]!.image).toEqual({ r2Id: 'img-9', mime: 'image/jpeg', w: 800, h: 600 });
+    expect(statement.paymentMethods).toEqual([
+      { kind: 'pix', label: 'CPF', value: '123', currencies: ['BRL'] },
+      { kind: 'wise', label: '', value: '@julio' },
+    ]);
+  });
+
+  it('reads back null payment methods for an older payload without the field', () => {
+    const statement = buildMirroredStatement(payload([line(SHARE_A, 1250, 'pending')], -1250), null);
+    expect(statement.paymentMethods).toBeNull();
+  });
+
   it('clears only acked responses after a flush', () => {
     let statement = buildMirroredStatement(
       payload([line(SHARE_A, 1250, 'pending'), line(SHARE_B, 800, 'pending')], -2050),

@@ -5,15 +5,17 @@ import { appSettingsRepository } from '@/data/repositories';
 import {
   PAYMENT_METHOD_KINDS,
   PAYMENT_METHOD_ICONS,
-  addPaymentMethod,
+  createPaymentMethod,
   removePaymentMethod,
   togglePaymentMethod,
+  togglePaymentMethodCurrency,
   updatePaymentMethod,
   movePaymentMethod,
   buildPaymentInstructions,
   type PaymentMethod,
   type PaymentMethodKind,
 } from '@/domain/payment';
+import { MAJOR_CURRENCY_CODES, currencyFlag } from '@/domain/money';
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/Toast';
 
@@ -31,6 +33,8 @@ export function PaymentMethodsPage() {
   const [newKind, setNewKind] = useState<PaymentMethodKind>('pix');
   const [newLabel, setNewLabel] = useState('');
   const [newValue, setNewValue] = useState('');
+  // DEC-476 — currency scope of the method being added (empty = all currencies).
+  const [newCurrencies, setNewCurrencies] = useState<string[]>([]);
 
   useEffect(() => {
     void appSettingsRepository.get().then((s) => setMethods(s.paymentMethods));
@@ -56,10 +60,14 @@ export function PaymentMethodsPage() {
       showToast(t('payment.value_required'), 'warning');
       return;
     }
-    await persist(addPaymentMethod(methods, newKind, newLabel, newValue));
+    // DEC-476 — the chosen currency scope is saved with the new method.
+    const method = createPaymentMethod(newKind, newLabel, newValue);
+    const scoped = newCurrencies.length > 0 ? { ...method, currencies: newCurrencies } : method;
+    await persist([...methods, scoped]);
     setNewLabel('');
     setNewValue('');
     setNewKind('pix');
+    setNewCurrencies([]);
     showToast(t('payment.added'), 'success');
   };
 
@@ -118,6 +126,15 @@ export function PaymentMethodsPage() {
           placeholder={t('payment.label_placeholder', { kind: kindLabel(newKind) })}
           aria-label={t('payment.label_label')}
           className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2.5 outline-none w-full"
+        />
+        {/* DEC-476 — which currencies this method can receive (empty = all). */}
+        <CurrencyScopeChips
+          selected={newCurrencies}
+          onToggle={(code) =>
+            setNewCurrencies((cur) =>
+              cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code],
+            )
+          }
         />
         <button
           onClick={handleAdd}
@@ -203,6 +220,13 @@ export function PaymentMethodsPage() {
                 aria-label={t('payment.label_label')}
                 className="bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2 outline-none w-full"
               />
+              {/* DEC-476 — per-method currency scope (empty = all currencies). */}
+              <CurrencyScopeChips
+                selected={method.currencies ?? []}
+                onToggle={(code) =>
+                  persist(togglePaymentMethodCurrency(methods, method.id, code))
+                }
+              />
             </div>
           ))}
         </div>
@@ -215,6 +239,46 @@ export function PaymentMethodsPage() {
           <p className="text-sm text-on-surface whitespace-pre-line">{preview}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * DEC-476 — the currency scope picker of one payment method: a chip per major
+ * currency; none selected = the method works for every currency. Charges filter
+ * by this scope (a BRL charge only offers BRL-capable methods).
+ */
+function CurrencyScopeChips({
+  selected,
+  onToggle,
+}: {
+  selected: string[];
+  onToggle: (code: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div data-payment-currencies>
+      <p className="text-[10px] text-on-surface-faint mb-1">
+        {selected.length === 0
+          ? t('payment.currencies_all')
+          : t('payment.currencies_some', { list: selected.join(', ') })}
+      </p>
+      <div className="flex gap-1.5 flex-wrap">
+        {MAJOR_CURRENCY_CODES.map((code) => {
+          const active = selected.includes(code);
+          return (
+            <button
+              key={code}
+              onClick={() => onToggle(code)}
+              className={`px-2 py-1 rounded-lg text-[10px] font-semibold btn-press ${
+                active ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+              }`}
+            >
+              {currencyFlag(code)} {code}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

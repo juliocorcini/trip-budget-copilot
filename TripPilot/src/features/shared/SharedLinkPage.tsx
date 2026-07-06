@@ -56,6 +56,8 @@ export function SharedLinkPage() {
     revoked: t('shareLink.err_revoked'),
     not_found: t('shareLink.err_not_found'),
     bad_key: t('shareLink.err_bad_key'),
+    // G2 guard — the owner opened their own link: explain instead of mirroring.
+    own_link: t('shareLink.err_own_link'),
     error: t('shareLink.err_network'),
   };
   const canRetry = state.result === 'error';

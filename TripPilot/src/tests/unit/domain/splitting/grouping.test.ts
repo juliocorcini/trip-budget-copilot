@@ -72,6 +72,7 @@ const mkLine = (
   subcategoryId: null,
   occurredAt: date,
   amountCents,
+  currency: 'EUR',
   counterpartyId: 'bruno',
   counterpartyName: 'Bruno',
   confirmationStatus: 'confirmed',

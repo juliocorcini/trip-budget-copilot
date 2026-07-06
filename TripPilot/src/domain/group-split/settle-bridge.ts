@@ -33,6 +33,8 @@ export function groupSplitToDebts(event: GroupSplitEvent, tripBaseCurrency: stri
       creditorId: to.linkedParticipantId,
       creditorName: to.name,
       amountCents: transfer.amountCents,
+      // The guard above ensures event.currency === tripBaseCurrency.
+      currency: event.currency,
     });
   }
   return out;

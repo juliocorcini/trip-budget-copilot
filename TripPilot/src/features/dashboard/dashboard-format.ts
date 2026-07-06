@@ -105,7 +105,8 @@ export function formatInsightText(
         v.owedToMe ? 'dashboard.insight_balance_owed' : 'dashboard.insight_balance_owing',
         {
           name: v.name as string,
-          amount: formatMoney(v.amountCents as number, currency),
+          // DEC-474: format in the debt's ORIGINAL currency when it rides along.
+          amount: formatMoney(v.amountCents as number, (v.currency as string) || currency),
         },
       );
     case 'next_event':

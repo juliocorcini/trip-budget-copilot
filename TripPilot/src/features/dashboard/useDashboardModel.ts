@@ -447,9 +447,13 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         : null;
     // DL-4: home "te devem / você deve" discoverability card — confirmed debts
     // only (real money), derived from the same engine as the /shared hero.
+    // DEC-474: the per-currency buckets are the display truth; the scalars stay
+    // as zero-checks (card visibility) and for mono-currency voice lines.
     const ownerDebtSummary = owner ? summarizeOwnerDebts(debts, owner.id) : null;
     const receivableCents = ownerDebtSummary?.receivableCents ?? 0;
     const payableCents = ownerDebtSummary?.payableCents ?? 0;
+    const receivableByCurrency = ownerDebtSummary?.receivableByCurrency ?? [];
+    const payableByCurrency = ownerDebtSummary?.payableByCurrency ?? [];
     // M4: per-category plan (planned occasions × typical value) vs real spend,
     // grouped by the profile's category — feeds the "category rhythm" builder.
     // FIELD-18: the same loop accumulates the phase's scenario allocation
@@ -1103,6 +1107,8 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       pendingImpactCents,
       receivableCents,
       payableCents,
+      receivableByCurrency,
+      payableByCurrency,
       personalRecon,
       participantNameById,
       // DEC-453: names for the lens' per-fund sub-lines ("de qual verba veio?").

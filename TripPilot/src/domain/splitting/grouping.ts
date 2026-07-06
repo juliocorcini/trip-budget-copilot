@@ -92,6 +92,12 @@ export interface StatementLineGroup {
   isOwedCents: number;
   /** Signed net for the group: is_owed − owes. */
   netCents: number;
+  /**
+   * DEC-474: the group's display currency — the lines' shared ORIGINAL
+   * currency (a session/receipt is registered in one currency; same first-item
+   * convention as `SharedExpenseGroup.currency`).
+   */
+  currency: string;
   /** The other side (payer for `owes`, debtor for `is_owed`) of the first line. */
   counterpartyName: string;
   /** Most recent line date (ISO), used to sort. */
@@ -109,6 +115,7 @@ function singleLineGroup(line: StatementLine): StatementLineGroup {
     owesCents: owes,
     isOwedCents: isOwed,
     netCents: isOwed - owes,
+    currency: line.currency,
     counterpartyName: line.counterpartyName,
     occurredAt: line.occurredAt,
   };
@@ -149,6 +156,7 @@ export function groupStatementLines(lines: StatementLine[]): StatementLineGroup[
       owesCents,
       isOwedCents,
       netCents: isOwedCents - owesCents,
+      currency: list[0]!.currency,
       counterpartyName: list[0]!.counterpartyName,
       occurredAt,
     });

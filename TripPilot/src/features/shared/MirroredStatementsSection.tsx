@@ -8,10 +8,18 @@ import {
   answerAndPushShareLine,
   proposeSettlement,
   refreshSharedLink,
+  purgeSelfMirroredStatements,
 } from '@/domain/orchestrators';
+import { getInstallationId } from '@/utils/entity-factory';
 import { formatMoney } from '@/domain/money';
 import { formatShortDate } from '@/domain/dates';
 import { findSubcategory } from '@/domain/outing';
+import {
+  sharedPaymentMethodsForCurrencies,
+  PAYMENT_METHOD_ICONS,
+  type SharedPaymentMethod,
+} from '@/domain/payment';
+import { GroupImage, ImageLightbox } from '@/features/group-split/GroupImage';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
@@ -36,10 +44,15 @@ export function MirroredStatementsSection() {
   const [statements, setStatements] = useState<MirroredStatement[]>([]);
   const [target, setTarget] = useState<MirroredStatement | null>(null);
   const [busy, setBusy] = useState(false);
+  // DEC-476 — full-screen viewer for an item's photo (resolved URL).
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   // DEC-207 S7 — one live signal per share-origin statement (keyed by shareId).
   const signalsRef = useRef<Map<string, ShareSignalHandle>>(new Map());
 
   const load = async () => {
+    // G2 guard — drop any self-mirror residue (owner once opened his own link)
+    // before rendering, so "you owe yourself" can never show up here.
+    await purgeSelfMirroredStatements(getInstallationId());
     const all = await mirroredStatementRepository.getAll();
     setStatements(all.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)));
   };
@@ -204,8 +217,60 @@ export function MirroredStatementsSection() {
     return { text: t('sync.net_settled'), tone: 'text-on-surface-faint' };
   };
 
+  // DEC-474 — when per-currency nets ride the payload they are the display
+  // truth: one part per currency, never converted ("você deve R$ 380,00 ·
+  // te deve € 12,00"). Older statements fall back to the scalar headline.
+  const netBuckets = (
+    nets: { currency: string; amountCents: number }[] | null | undefined,
+  ): { text: string; tone: string } | null => {
+    const open = (nets ?? []).filter((b) => b.amountCents !== 0);
+    if (open.length === 0) return null;
+    return {
+      text: open
+        .map((b) =>
+          b.amountCents < 0
+            ? t('sync.net_you_owe', { amount: formatMoney(Math.abs(b.amountCents), b.currency) })
+            : t('sync.net_owes_you', { amount: formatMoney(b.amountCents, b.currency) }),
+        )
+        .join(' · '),
+      tone: open.every((b) => b.amountCents < 0)
+        ? 'text-error'
+        : open.every((b) => b.amountCents > 0)
+          ? 'text-success'
+          : 'text-warning',
+    };
+  };
+
   const netLabel = (statement: MirroredStatement): { text: string; tone: string } =>
-    netText(statement.netCents, statement.currency);
+    netBuckets(statement.nets) ?? netText(statement.netCents, statement.currency);
+
+  // DEC-476 — the currencies the guest still OWES (negative buckets; scalar
+  // fallback for older statements). Drives which payment methods are shown.
+  const owedCurrencies = (statement: MirroredStatement): string[] => {
+    if (statement.nets && statement.nets.length > 0) {
+      return statement.nets.filter((b) => b.amountCents < 0).map((b) => b.currency);
+    }
+    return statement.netCents < 0 ? [statement.currency] : [];
+  };
+
+  // DEC-476 — "how to pay {owner}": only when the guest owes something, only
+  // the methods that can receive an owed currency.
+  const payMethods = (statement: MirroredStatement): SharedPaymentMethod[] => {
+    const methods = statement.paymentMethods ?? [];
+    if (methods.length === 0) return [];
+    const owed = owedCurrencies(statement);
+    if (owed.length === 0) return [];
+    return sharedPaymentMethodsForCurrencies(methods, owed);
+  };
+
+  const copyMethodValue = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast(t('payment.value_copied'), 'success');
+    } catch {
+      showToast(t('sync.link_copy_failed'), 'danger');
+    }
+  };
 
   const lineLabel = (line: MirroredStatement['lines'][number]): string => {
     const sub = findSubcategory(line.subcategoryId);
@@ -277,7 +342,8 @@ export function MirroredStatementsSection() {
                       }`}
                     >
                       {line.kind === 'owes' ? '−' : '+'}
-                      {formatMoney(line.amountCents, target.currency)}
+                      {/* DEC-474 — the line's ORIGINAL currency wins. */}
+                      {formatMoney(line.amountCents, line.currency ?? target.currency)}
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-1">
@@ -293,6 +359,15 @@ export function MirroredStatementsSection() {
                       {t(`shared.status_${line.confirmationStatus}` as never)}
                     </span>
                   </div>
+                  {/* DEC-476 — the item's photo (tap to zoom/download). */}
+                  {line.image && (
+                    <GroupImage
+                      imageRef={line.image}
+                      alt={lineLabel(line)}
+                      className="mt-1.5 h-16 w-16 rounded-lg"
+                      onOpen={(url) => setLightboxUrl(url)}
+                    />
+                  )}
                   {/* DEC-402 — each item's place/detail (map on demand). */}
                   <MirroredLinePlace line={line} />
                   {line.confirmationStatus === 'pending' && (
@@ -340,7 +415,7 @@ export function MirroredStatementsSection() {
                         }`}
                       >
                         {s.kind === 'paid' ? '+' : '−'}
-                        {formatMoney(s.amountCents, target.currency)}
+                        {formatMoney(s.amountCents, s.currency ?? target.currency)}
                       </p>
                     </div>
                   ))}
@@ -350,6 +425,46 @@ export function MirroredStatementsSection() {
 
             {target.pendingResponses.length > 0 && (
               <p className="text-[10px] text-on-surface-faint">{t('sync.responses_queued')}</p>
+            )}
+
+            {/* DEC-476 — how to pay the owner, filtered to the currencies the
+                guest owes (a BRL debt shows the Pix key, not a EUR-only IBAN). */}
+            {payMethods(target).length > 0 && (
+              <div className="bg-surface-high rounded-xl p-3">
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-faint mb-1.5">
+                  {t('shareLink.pay_methods_title', { name: target.peerName })}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {payMethods(target).map((method, index) => (
+                    <div key={`${method.kind}-${index}`} className="flex items-center gap-2">
+                      <Icon
+                        name={PAYMENT_METHOD_ICONS[method.kind]}
+                        size={16}
+                        className="text-primary shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-on-surface-faint truncate">
+                          {method.label.trim() !== ''
+                            ? method.label
+                            : t(`payment.kind_${method.kind}` as never)}
+                          {(method.currencies ?? []).length > 0 &&
+                            ` · ${(method.currencies ?? []).join(', ')}`}
+                        </p>
+                        <p className="text-xs text-on-surface break-all leading-snug">
+                          {method.value}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => void copyMethodValue(method.value)}
+                        className="btn-press w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container shrink-0"
+                        aria-label={t('payment.copy_value')}
+                      >
+                        <Icon name="content_copy" size={14} className="text-on-surface-dim" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* DEC-399 — debts the owner recorded with OTHER people: display-only,
@@ -368,7 +483,8 @@ export function MirroredStatementsSection() {
                     {t('sync.third_party_hint', { name: target.peerName })}
                   </p>
                   {target.thirdParty.map((group) => {
-                    const groupNet = netText(group.netCents, target.currency);
+                    const groupNet =
+                      netBuckets(group.nets) ?? netText(group.netCents, target.currency);
                     return (
                       <div key={group.counterpartyId} className="bg-surface-high rounded-xl px-3 py-2.5">
                         <div className="flex items-center justify-between gap-2">
@@ -394,7 +510,7 @@ export function MirroredStatementsSection() {
                                 }`}
                               >
                                 {line.kind === 'owes' ? '−' : '+'}
-                                {formatMoney(line.amountCents, target.currency)}
+                                {formatMoney(line.amountCents, line.currency ?? target.currency)}
                               </p>
                             </div>
                           ))}
@@ -409,7 +525,10 @@ export function MirroredStatementsSection() {
             {/* DEC-207 — link-origin actions: declare "I paid" + re-pull updates */}
             {target.share && (
               <div className="flex flex-col gap-2 pt-1">
-                {target.netCents < 0 && (
+                {/* DEC-474 — owed when ANY currency bucket is negative. */}
+                {(target.nets
+                  ? target.nets.some((b) => b.amountCents < 0)
+                  : target.netCents < 0) && (
                   <button
                     onClick={handleSettle}
                     disabled={busy}
@@ -432,6 +551,9 @@ export function MirroredStatementsSection() {
           </div>
         )}
       </BottomSheet>
+
+      {/* DEC-476 — item photo viewer (zoom + download). */}
+      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
     </div>
   );
 }

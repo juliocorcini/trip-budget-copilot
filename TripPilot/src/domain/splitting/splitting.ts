@@ -13,10 +13,22 @@ export interface DebtEntry {
   creditorId: string;
   creditorName: string;
   amountCents: number;
+  /**
+   * DEC-474 (Â-MOEDA-ORIGINAL): the ORIGINAL currency of the debt — the currency
+   * of the transaction that created it (R$380 perfume stays a BRL debt, never
+   * "€380"). Debts are NEVER converted between currencies; a pair with debts in
+   * two currencies holds two independent edges, one per currency.
+   */
+  currency: string;
 }
 
 export interface DebtSummary {
   debts: DebtEntry[];
+  /**
+   * Sum of every edge's cents ACROSS currencies. Only meaningful as a
+   * zero-check ("is anything outstanding?") or when the data is mono-currency;
+   * for display always group by `DebtEntry.currency`.
+   */
   totalDebtCents: number;
 }
 
@@ -245,6 +257,44 @@ export function isPaidByOwner(
   );
 }
 
+/**
+ * DEC-474/475 — a per-currency amount bucket. `amountCents` is positive in
+ * receivable/payable breakdowns and SIGNED in net contexts (negative = owes),
+ * always in the bucket's own `currency` — never converted.
+ */
+export interface CurrencyBucket {
+  currency: string;
+  amountCents: number;
+}
+
+/** Fold `(currency, cents)` pairs into sorted non-zero buckets. */
+function toCurrencyBuckets(entries: Iterable<[string, number]>): CurrencyBucket[] {
+  const buckets: CurrencyBucket[] = [];
+  for (const [currency, amountCents] of entries) {
+    if (amountCents !== 0) buckets.push({ currency, amountCents });
+  }
+  return buckets.sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
+/**
+ * DEC-475 (Â-PAIRWISE-FIEL) + DEC-474 (Â-MOEDA-ORIGINAL): the settle graph is
+ * read STRAIGHT from confirmed shares + settlements, netted per (pair, currency).
+ *
+ * The old implementation pooled everyone into node balances and re-allocated
+ * them greedily (min-transfer) — which ROUTED money through third parties and
+ * invented edges no share ever created ("Felipe owes Bruno 167" when Felipe
+ * never split anything with Bruno) and summed cents of DIFFERENT currencies
+ * (the R$380 perfume charged as €380). Now:
+ *
+ *  - an edge exists ONLY between a sharer and the payer who fronted for them
+ *    (or between settlement parties) — nobody ever owes someone they never
+ *    owed (Splitwise's hard rule);
+ *  - opposite debts of the SAME pair in the SAME currency net against each
+ *    other (A→B 50 minus B→A 20 = A→B 30);
+ *  - currencies NEVER mix: a pair with debts in EUR and BRL holds two edges;
+ *  - a settlement pays down its pair's bucket in the settlement's OWN
+ *    currency; overpaying flips the remainder into a reverse credit.
+ */
 export function calculateDebts(
   transactions: Transaction[],
   shares: ParticipantShare[],
@@ -252,8 +302,14 @@ export function calculateDebts(
   settlements: Settlement[],
   ownerId: string,
 ): DebtSummary {
-  const balances = new Map<string, number>();
-  participants.forEach((p) => balances.set(p.id, 0));
+  // Signed net per `${lowId}|${highId}|${currency}`: > 0 ⇒ low owes high.
+  const pairNets = new Map<string, number>();
+  const addOwes = (debtorId: string, creditorId: string, currency: string, cents: number) => {
+    if (debtorId === creditorId || cents === 0) return;
+    const [low, high] = debtorId < creditorId ? [debtorId, creditorId] : [creditorId, debtorId];
+    const key = `${low}|${high}|${currency}`;
+    pairNets.set(key, (pairNets.get(key) ?? 0) + (debtorId === low ? cents : -cents));
+  };
 
   const sharedTxs = transactions.filter(
     (t) => t.isShared && t.type === 'expense' && t.deletedAt === null,
@@ -263,62 +319,53 @@ export function calculateDebts(
     const payerId = tx.paidByParticipantId ?? ownerId;
     // DEC-071: only confirmed shares consolidate into debts. Pending shares
     // wait for confirmation; rejected shares return to the payer's own cost.
-    const txShares = shares.filter(
-      (s) =>
-        s.transactionId === tx.id &&
-        s.deletedAt === null &&
-        s.confirmationStatus === 'confirmed',
-    );
-
-    for (const share of txShares) {
-      if (share.participantId !== payerId) {
-        const current = balances.get(share.participantId) ?? 0;
-        balances.set(share.participantId, current - share.shareAmountCents);
-
-        const payerCurrent = balances.get(payerId) ?? 0;
-        balances.set(payerId, payerCurrent + share.shareAmountCents);
-      }
+    // Shares are stored in the transaction's ORIGINAL currency (they sum to
+    // `tx.amountCents`), so the edge is born in `tx.currency`.
+    for (const share of shares) {
+      if (share.transactionId !== tx.id) continue;
+      if (share.deletedAt !== null || share.confirmationStatus !== 'confirmed') continue;
+      if (share.participantId === payerId) continue;
+      addOwes(share.participantId, payerId, tx.currency, share.shareAmountCents);
     }
   }
 
-  for (const settlement of settlements.filter((s) => s.deletedAt === null)) {
-    const debtorBal = balances.get(settlement.debtorParticipantId) ?? 0;
-    balances.set(settlement.debtorParticipantId, debtorBal + settlement.amountCents);
-
-    const creditorBal = balances.get(settlement.creditorParticipantId) ?? 0;
-    balances.set(settlement.creditorParticipantId, creditorBal - settlement.amountCents);
+  // A settlement debtor→creditor is a reverse edge on that pair's bucket of the
+  // settlement's own currency (paying shrinks the debt; overpaying flips it).
+  for (const settlement of settlements) {
+    if (settlement.deletedAt !== null) continue;
+    addOwes(
+      settlement.creditorParticipantId,
+      settlement.debtorParticipantId,
+      settlement.currency,
+      settlement.amountCents,
+    );
   }
 
   const participantMap = new Map(participants.map((p) => [p.id, p]));
+  const nameOf = (id: string) => participantMap.get(id)?.name ?? id;
   const debts: DebtEntry[] = [];
 
-  // BUG-003 (R6-03): allocate against MUTABLE remaining credits so no creditor
-  // is ever assigned more than their net balance across multiple debtors.
-  const creditors = [...balances.entries()]
-    .filter(([, b]) => b > 0)
-    .sort((a, b) => b[1] - a[1])
-    .map(([id, b]) => ({ id, remainingCents: b }));
-
-  for (const [pid, balance] of balances) {
-    if (balance >= 0) continue;
-
-    let remaining = Math.abs(balance);
-    for (const creditor of creditors) {
-      if (remaining <= 0) break;
-      const amount = Math.min(remaining, creditor.remainingCents);
-      if (amount > 0) {
-        debts.push({
-          debtorId: pid,
-          debtorName: participantMap.get(pid)?.name ?? pid,
-          creditorId: creditor.id,
-          creditorName: participantMap.get(creditor.id)?.name ?? creditor.id,
-          amountCents: amount,
-        });
-        remaining -= amount;
-        creditor.remainingCents -= amount;
-      }
-    }
+  for (const [key, net] of pairNets) {
+    if (net === 0) continue;
+    const [low, high, currency] = key.split('|') as [string, string, string];
+    const debtorId = net > 0 ? low : high;
+    const creditorId = net > 0 ? high : low;
+    debts.push({
+      debtorId,
+      debtorName: nameOf(debtorId),
+      creditorId,
+      creditorName: nameOf(creditorId),
+      amountCents: Math.abs(net),
+      currency,
+    });
   }
+
+  debts.sort(
+    (a, b) =>
+      a.debtorName.localeCompare(b.debtorName) ||
+      a.creditorName.localeCompare(b.creditorName) ||
+      a.currency.localeCompare(b.currency),
+  );
 
   return {
     debts,
@@ -327,19 +374,25 @@ export function calculateDebts(
 }
 
 /** G2 (DEC-241 · DL-3): one side of the owner's settle-up — a counterparty
- * and how much sits between them. */
+ * and how much sits between them (one entry per person AND currency, DEC-474). */
 export interface OwnerDebtCounterparty {
   participantId: string;
   name: string;
   amountCents: number;
+  currency: string;
 }
 
 /**
- * G2 (DEC-241 · DL-3/DL-4): the owner-centric reading of the simplified debt
- * graph from `calculateDebts` — how much is owed TO the owner (receivable),
- * how much the owner owes (payable), the net, and the per-person breakdown for
- * each side (sorted by amount desc). Pure derivation, no new state: it drives
- * the "Acerto de contas" summary hero and the home "te devem / você deve" card.
+ * G2 (DEC-241 · DL-3/DL-4): the owner-centric reading of the settle graph from
+ * `calculateDebts` — how much is owed TO the owner (receivable), how much the
+ * owner owes (payable), and the per-person breakdown for each side (sorted by
+ * amount desc). Pure derivation, no new state: it drives the "Acerto de contas"
+ * summary hero and the home "te devem / você deve" card.
+ *
+ * DEC-474: the `*ByCurrency` buckets are the display-grade truth (amounts are
+ * never converted or mixed). The scalar `receivableCents`/`payableCents`/
+ * `netCents` sum ACROSS currencies — meaningful as zero-checks and exact when
+ * the data is mono-currency (the overwhelmingly common case).
  */
 export interface OwnerDebtSummary {
   receivableCents: number;
@@ -347,6 +400,12 @@ export interface OwnerDebtSummary {
   netCents: number;
   receivableFrom: OwnerDebtCounterparty[];
   payableTo: OwnerDebtCounterparty[];
+  /** Positive amounts owed to the owner, one bucket per currency. */
+  receivableByCurrency: CurrencyBucket[];
+  /** Positive amounts the owner owes, one bucket per currency. */
+  payableByCurrency: CurrencyBucket[];
+  /** Signed receivable − payable per currency (never converted). */
+  netByCurrency: CurrencyBucket[];
 }
 
 export function summarizeOwnerDebts(
@@ -355,6 +414,9 @@ export function summarizeOwnerDebts(
 ): OwnerDebtSummary {
   const receivableFrom: OwnerDebtCounterparty[] = [];
   const payableTo: OwnerDebtCounterparty[] = [];
+  const receivableByCur = new Map<string, number>();
+  const payableByCur = new Map<string, number>();
+  const netByCur = new Map<string, number>();
   let receivableCents = 0;
   let payableCents = 0;
 
@@ -362,17 +424,23 @@ export function summarizeOwnerDebts(
     if (debt.amountCents <= 0) continue;
     if (debt.creditorId === ownerId) {
       receivableCents += debt.amountCents;
+      receivableByCur.set(debt.currency, (receivableByCur.get(debt.currency) ?? 0) + debt.amountCents);
+      netByCur.set(debt.currency, (netByCur.get(debt.currency) ?? 0) + debt.amountCents);
       receivableFrom.push({
         participantId: debt.debtorId,
         name: debt.debtorName,
         amountCents: debt.amountCents,
+        currency: debt.currency,
       });
     } else if (debt.debtorId === ownerId) {
       payableCents += debt.amountCents;
+      payableByCur.set(debt.currency, (payableByCur.get(debt.currency) ?? 0) + debt.amountCents);
+      netByCur.set(debt.currency, (netByCur.get(debt.currency) ?? 0) - debt.amountCents);
       payableTo.push({
         participantId: debt.creditorId,
         name: debt.creditorName,
         amountCents: debt.amountCents,
+        currency: debt.currency,
       });
     }
   }
@@ -386,6 +454,9 @@ export function summarizeOwnerDebts(
     netCents: receivableCents - payableCents,
     receivableFrom,
     payableTo,
+    receivableByCurrency: toCurrencyBuckets(receivableByCur),
+    payableByCurrency: toCurrencyBuckets(payableByCur),
+    netByCurrency: toCurrencyBuckets(netByCur),
   };
 }
 
@@ -443,6 +514,9 @@ export function resolveSettlementStanding(
   sharedExpenseCount: number,
   settlementCount: number,
 ): SettlementStanding {
+  // DEC-474: edges are per-currency and every amount is positive, so this
+  // cross-currency sum stays a correct ZERO-check (`allSettled` ⇔ every bucket
+  // of every currency is settled). Never display it as one amount.
   const outstandingCents = debts.reduce(
     (sum, debt) => sum + (debt.amountCents > 0 ? debt.amountCents : 0),
     0,
@@ -483,8 +557,27 @@ export function createSettlement(
  * Reduce a set of pairwise debts to the minimum number of transfers (GAP-032).
  * Computes the net balance per participant, then greedily matches the largest
  * debtor with the largest creditor until every balance is zero.
+ *
+ * DEC-475 (Â-PAIRWISE-FIEL): this rerouting is an OPT-IN optimization for the
+ * closed group-split feature ONLY — the personal settle-up never uses it
+ * (`calculateDebts` is already pairwise-faithful). DEC-474: currencies never
+ * mix — simplification runs independently inside each currency.
  */
 export function suggestSimplifiedSettlements(debts: DebtEntry[]): DebtEntry[] {
+  const byCurrency = new Map<string, DebtEntry[]>();
+  for (const debt of debts) {
+    const list = byCurrency.get(debt.currency);
+    if (list) list.push(debt);
+    else byCurrency.set(debt.currency, [debt]);
+  }
+  const result: DebtEntry[] = [];
+  for (const [currency, group] of byCurrency) {
+    result.push(...simplifyOneCurrency(group, currency));
+  }
+  return result;
+}
+
+function simplifyOneCurrency(debts: readonly DebtEntry[], currency: string): DebtEntry[] {
   const balances = new Map<string, { name: string; cents: number }>();
   const ensure = (id: string, name: string) => {
     if (!balances.has(id)) balances.set(id, { name, cents: 0 });
@@ -519,6 +612,7 @@ export function suggestSimplifiedSettlements(debts: DebtEntry[]): DebtEntry[] {
       creditorId: creditor.id,
       creditorName: creditor.name,
       amountCents: amount,
+      currency,
     });
     debtor.cents -= amount;
     creditor.cents -= amount;
@@ -646,6 +740,11 @@ export interface StatementLine {
   occurredAt: string;
   /** The participant's slice of this expense (always positive). */
   amountCents: number;
+  /**
+   * DEC-474 (Â-MOEDA-ORIGINAL): the transaction's ORIGINAL currency —
+   * `amountCents` is in THIS currency and is never converted.
+   */
+  currency: string;
   /** The other side of the line: payer (owes) or debtor (is_owed). */
   counterpartyId: string;
   counterpartyName: string;
@@ -675,8 +774,14 @@ export interface ParticipantStatement {
   lines: StatementLine[];
   /** Settlements involving the participant, applied to the net. */
   settlements: Settlement[];
-  /** Net balance from CONFIRMED lines + settlements: negative = owes. */
+  /**
+   * Net balance from CONFIRMED lines + settlements: negative = owes.
+   * DEC-474: sums ACROSS currencies — a zero-check, exact only when the
+   * statement is mono-currency. Display reads `nets` instead.
+   */
   netCents: number;
+  /** DEC-474: signed net per currency (negative = owes), never converted. */
+  nets: CurrencyBucket[];
 }
 
 /**
@@ -719,6 +824,9 @@ export function buildParticipantStatement(
         subcategoryId: tx.subcategoryId,
         occurredAt: tx.date,
         amountCents: share.shareAmountCents,
+        // DEC-474: the share is a slice of the transaction total, so it lives
+        // in the transaction's ORIGINAL currency.
+        currency: tx.currency,
         confirmationStatus: share.confirmationStatus,
         isPaid: share.isPaid,
         // DEC-402 (G3): expense location rides with the line (display-only).
@@ -760,23 +868,45 @@ export function buildParticipantStatement(
       (s.debtorParticipantId === participantId || s.creditorParticipantId === participantId),
   );
 
-  const confirmedNet = sumCents(
-    lines
-      .filter((l) => l.confirmationStatus === 'confirmed')
-      .map((l) => (l.kind === 'owes' ? -l.amountCents : l.amountCents)),
-  );
-  const settlementNet = sumCents(
-    ownSettlements.map((s) =>
-      s.debtorParticipantId === participantId ? s.amountCents : -s.amountCents,
-    ),
-  );
+  const nets = statementNets(participantId, lines, ownSettlements);
 
   return {
     participantId,
     lines,
     settlements: ownSettlements,
-    netCents: confirmedNet + settlementNet,
+    netCents: sumCents(nets.map((n) => n.amountCents)),
+    nets,
   };
+}
+
+/**
+ * DEC-474: the statement's signed net PER CURRENCY — confirmed lines in the
+ * line's own currency, settlements in the settlement's own currency. Negative =
+ * the participant owes. Shared by `buildParticipantStatement` and
+ * `filterStatementToCounterparty` so both stay bucket-consistent.
+ */
+function statementNets(
+  participantId: string,
+  lines: readonly StatementLine[],
+  settlements: readonly Settlement[],
+): CurrencyBucket[] {
+  const byCurrency = new Map<string, number>();
+  const add = (currency: string, cents: number) =>
+    byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + cents);
+
+  for (const line of lines) {
+    if (line.confirmationStatus !== 'confirmed') continue;
+    add(line.currency, line.kind === 'owes' ? -line.amountCents : line.amountCents);
+  }
+  for (const settlement of settlements) {
+    add(
+      settlement.currency,
+      settlement.debtorParticipantId === participantId
+        ? settlement.amountCents
+        : -settlement.amountCents,
+    );
+  }
+  return toCurrencyBuckets(byCurrency);
 }
 
 /**
@@ -796,21 +926,13 @@ export function filterStatementToCounterparty(
     (s) =>
       s.debtorParticipantId === counterpartyId || s.creditorParticipantId === counterpartyId,
   );
-  const confirmedNet = sumCents(
-    lines
-      .filter((l) => l.confirmationStatus === 'confirmed')
-      .map((l) => (l.kind === 'owes' ? -l.amountCents : l.amountCents)),
-  );
-  const settlementNet = sumCents(
-    settlements.map((s) =>
-      s.debtorParticipantId === statement.participantId ? s.amountCents : -s.amountCents,
-    ),
-  );
+  const nets = statementNets(statement.participantId, lines, settlements);
   return {
     participantId: statement.participantId,
     lines,
     settlements,
-    netCents: confirmedNet + settlementNet,
+    netCents: sumCents(nets.map((n) => n.amountCents)),
+    nets,
   };
 }
 
@@ -846,8 +968,37 @@ export function ownerPairwiseBalances(
   settlements: Settlement[],
   ownerId: string,
 ): Map<string, number> {
+  // DEC-474: derived from the per-currency truth. Summing the buckets keeps
+  // this a zero-check / mono-currency read; display consumers use ByCurrency.
+  const byCurrency = ownerPairwiseBalancesByCurrency(transactions, shares, settlements, ownerId);
   const balances = new Map<string, number>();
-  const add = (pid: string, cents: number) => balances.set(pid, (balances.get(pid) ?? 0) + cents);
+  for (const [pid, buckets] of byCurrency) {
+    balances.set(pid, sumCents(buckets.map((b) => b.amountCents)));
+  }
+  return balances;
+}
+
+/**
+ * DEC-474 (Â-MOEDA-ORIGINAL): `ownerPairwiseBalances` with the currency truth
+ * kept intact — per person, one SIGNED bucket per currency (same sign
+ * convention: `> 0` the person receives, `< 0` they owe the owner). Shares
+ * contribute in their transaction's original currency; settlements in their
+ * own `currency`. Amounts are never converted. People whose every bucket
+ * netted to zero still appear with an empty bucket list (they had activity),
+ * exactly like the legacy map kept them at 0.
+ */
+export function ownerPairwiseBalancesByCurrency(
+  transactions: Transaction[],
+  shares: ParticipantShare[],
+  settlements: Settlement[],
+  ownerId: string,
+): Map<string, CurrencyBucket[]> {
+  const perPerson = new Map<string, Map<string, number>>();
+  const add = (pid: string, currency: string, cents: number) => {
+    const buckets = perPerson.get(pid) ?? new Map<string, number>();
+    buckets.set(currency, (buckets.get(currency) ?? 0) + cents);
+    perPerson.set(pid, buckets);
+  };
 
   const sharedTxs = transactions.filter(
     (t) => t.isShared && t.type === 'expense' && t.deletedAt === null,
@@ -864,10 +1015,10 @@ export function ownerPairwiseBalances(
       if (share.participantId === payerId) continue;
       if (payerId === ownerId && share.participantId !== ownerId) {
         // The sharer owes the owner → from the person's view, they owe.
-        add(share.participantId, -share.shareAmountCents);
+        add(share.participantId, tx.currency, -share.shareAmountCents);
       } else if (share.participantId === ownerId && payerId !== ownerId) {
         // The owner owes the payer → from the person's view, they receive.
-        add(payerId, share.shareAmountCents);
+        add(payerId, tx.currency, share.shareAmountCents);
       }
       // else: a debt between two non-owners — outside the owner's pairwise view.
     }
@@ -877,17 +1028,21 @@ export function ownerPairwiseBalances(
     if (settlement.deletedAt !== null) continue;
     if (settlement.creditorParticipantId === ownerId && settlement.debtorParticipantId !== ownerId) {
       // The person paid the owner → their debt shrinks (balance rises).
-      add(settlement.debtorParticipantId, settlement.amountCents);
+      add(settlement.debtorParticipantId, settlement.currency, settlement.amountCents);
     } else if (
       settlement.debtorParticipantId === ownerId &&
       settlement.creditorParticipantId !== ownerId
     ) {
       // The owner paid the person → what they are owed shrinks (balance falls).
-      add(settlement.creditorParticipantId, -settlement.amountCents);
+      add(settlement.creditorParticipantId, settlement.currency, -settlement.amountCents);
     }
   }
 
-  return balances;
+  const result = new Map<string, CurrencyBucket[]>();
+  for (const [pid, buckets] of perPerson) {
+    result.set(pid, toCurrencyBuckets(buckets));
+  }
+  return result;
 }
 
 /**
@@ -1000,16 +1155,18 @@ export function revertReassignedShares(
 /**
  * DEC-418 (G7 · Â-PERSON-HIDE-NEVER-BREAK) — can this person be removed without
  * orphaning a debt? Only when they are FULLY out of the debt graph: their
- * owner-pairwise net is exactly 0 AND they appear in no open debt edge (owner OR
- * third-party). Hiding anyone still owing/owed would corrupt the ledger, so the UI
- * blocks removal and asks to settle first. Pure — reused by the remove flow + tests.
+ * owner-pairwise net is exactly 0 in EVERY currency (DEC-474) AND they appear in
+ * no open debt edge (owner OR third-party). Hiding anyone still owing/owed would
+ * corrupt the ledger, so the UI blocks removal and asks to settle first. Pure —
+ * reused by the remove flow + tests.
  */
 export function isParticipantSettled(
   participantId: string,
-  ownerPairwise: Map<string, number>,
+  ownerPairwiseByCurrency: Map<string, CurrencyBucket[]>,
   debts: DebtEntry[],
 ): boolean {
-  if ((ownerPairwise.get(participantId) ?? 0) !== 0) return false;
+  const buckets = ownerPairwiseByCurrency.get(participantId) ?? [];
+  if (buckets.some((b) => b.amountCents !== 0)) return false;
   return !debts.some(
     (d) =>
       (d.debtorId === participantId || d.creditorId === participantId) && d.amountCents !== 0,

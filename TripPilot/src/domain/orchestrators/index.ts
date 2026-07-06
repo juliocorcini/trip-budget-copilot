@@ -92,6 +92,7 @@ export {
   upsertPeerLinkFromConnect,
   resolveSelfShareName,
   storeMirroredStatement,
+  purgeSelfMirroredStatements,
   answerMirroredStatementLine,
   markResponsesSent,
   applyPeerResponses,

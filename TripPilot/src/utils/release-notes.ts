@@ -17,6 +17,36 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.5-rc',
+    date: '2026-07-06',
+    items: {
+      'pt-BR': [
+        'Dívida na moeda original: o que você registrou em reais é cobrado em reais — R$380 nunca mais vira €380. Cada moeda tem seu próprio saldo, sem conversão.',
+        'Fim das dívidas fantasma: o acerto de contas agora mostra SÓ dívidas que existem de verdade, par a par — ninguém passa a dever para quem nunca deveu. Pessoas e Resolver batem sempre.',
+        'Abrir o próprio link de cobrança não cria mais um espelho "você deve a você mesmo".',
+        'Página de cobrança rica: quem recebe seu link vê a foto dos itens e um bloco "como pagar" com suas formas de pagamento — filtradas pela moeda da dívida.',
+        'Formas de pagamento por moeda: marque em quais moedas cada chave (Pix, Wise, banco…) funciona; quem deve em euros só vê como pagar em euros.',
+        'A mensagem de "Lembrar" agora leva junto o link da cobrança — a pessoa abre e vê tudo na hora.',
+      ],
+      en: [
+        'Debts in their original currency: what you logged in reais is charged in reais — R$380 never turns into €380 again. Each currency keeps its own balance, no conversion.',
+        'No more phantom debts: settle-up now shows ONLY debts that really exist, pair by pair — nobody starts owing someone they never owed. People and Resolve always match.',
+        'Opening your own charge link no longer creates a "you owe yourself" mirror.',
+        'Richer charge page: whoever opens your link sees item photos and a "how to pay" block with your payment methods — filtered by the debt currency.',
+        'Payment methods per currency: mark which currencies each key (Pix, Wise, bank…) accepts; someone owing euros only sees how to pay in euros.',
+        'The "Remind" message now carries the charge link — the person opens it and sees everything right away.',
+      ],
+      es: [
+        'Deudas en la moneda original: lo que registraste en reales se cobra en reales — R$380 nunca más se convierte en €380. Cada moneda tiene su propio saldo, sin conversión.',
+        'Se acabaron las deudas fantasma: el ajuste de cuentas ahora muestra SOLO deudas que existen de verdad, par a par — nadie pasa a deber a quien nunca debió. Personas y Resolver siempre coinciden.',
+        'Abrir tu propio enlace de cobro ya no crea un espejo "te debes a ti mismo".',
+        'Página de cobro enriquecida: quien abre tu enlace ve la foto de los ítems y un bloque "cómo pagar" con tus formas de pago — filtradas por la moneda de la deuda.',
+        'Formas de pago por moneda: marca en qué monedas funciona cada clave (Pix, Wise, banco…); quien debe en euros solo ve cómo pagar en euros.',
+        'El mensaje de "Recordar" ahora lleva el enlace del cobro — la persona lo abre y ve todo al instante.',
+      ],
+    },
+  },
+  {
     version: '2.7.3-rc',
     date: '2026-07-06',
     items: {

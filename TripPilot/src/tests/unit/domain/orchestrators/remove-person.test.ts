@@ -108,30 +108,38 @@ describe('removePerson (DEC-418)', () => {
   });
 });
 
-describe('isParticipantSettled (DEC-418 — balance=0 guard)', () => {
+describe('isParticipantSettled (DEC-418 — balance=0 guard, DEC-474 per currency)', () => {
   const noDebts: DebtEntry[] = [];
   const mkDebt = (debtorId: string, creditorId: string, amountCents: number): DebtEntry => ({
-    debtorId, debtorName: debtorId, creditorId, creditorName: creditorId, amountCents,
+    debtorId, debtorName: debtorId, creditorId, creditorName: creditorId, amountCents, currency: 'EUR',
   });
+  const buckets = (id: string, entries: [string, number][]) =>
+    new Map([[id, entries.map(([currency, amountCents]) => ({ currency, amountCents }))]]);
 
   it('is TRUE when the owner-pairwise net is 0 and no debt edge touches them', () => {
-    expect(isParticipantSettled('debora', new Map([['debora', 0]]), noDebts)).toBe(true);
+    expect(isParticipantSettled('debora', buckets('debora', []), noDebts)).toBe(true);
     expect(isParticipantSettled('debora', new Map(), noDebts)).toBe(true); // absent → 0
   });
 
   it('is FALSE when they still owe / are owed by the owner', () => {
-    expect(isParticipantSettled('debora', new Map([['debora', -1200]]), noDebts)).toBe(false);
-    expect(isParticipantSettled('debora', new Map([['debora', 800]]), noDebts)).toBe(false);
+    expect(isParticipantSettled('debora', buckets('debora', [['EUR', -1200]]), noDebts)).toBe(false);
+    expect(isParticipantSettled('debora', buckets('debora', [['EUR', 800]]), noDebts)).toBe(false);
+  });
+
+  it('is FALSE when ANY currency bucket is still open (DEC-474 — a BRL debt blocks removal)', () => {
+    expect(
+      isParticipantSettled('debora', buckets('debora', [['EUR', 0], ['BRL', -38000]]), noDebts),
+    ).toBe(false);
   });
 
   it('is FALSE when a third-party debt still involves them (never orphan it)', () => {
     const debts = [mkDebt('debora', 'bruno', 5000)]; // Débora owes Bruno — owner not involved
-    expect(isParticipantSettled('debora', new Map([['debora', 0]]), debts)).toBe(false);
-    expect(isParticipantSettled('bruno', new Map([['bruno', 0]]), debts)).toBe(false);
+    expect(isParticipantSettled('debora', buckets('debora', []), debts)).toBe(false);
+    expect(isParticipantSettled('bruno', buckets('bruno', []), debts)).toBe(false);
   });
 
   it('ignores zero-amount edges (fully settled)', () => {
     const debts = [mkDebt('debora', 'bruno', 0)];
-    expect(isParticipantSettled('debora', new Map([['debora', 0]]), debts)).toBe(true);
+    expect(isParticipantSettled('debora', buckets('debora', []), debts)).toBe(true);
   });
 });

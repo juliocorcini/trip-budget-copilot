@@ -8,6 +8,7 @@ function debt(
   debtorId: string,
   creditorId: string,
   amountCents: number,
+  currency = 'EUR',
 ): DebtEntry {
   return {
     debtorId,
@@ -15,6 +16,7 @@ function debt(
     creditorId,
     creditorName: creditorId,
     amountCents,
+    currency,
   };
 }
 
@@ -96,6 +98,45 @@ describe('summarizeOwnerDebts (G2 · DL-3)', () => {
       netCents: 0,
       receivableFrom: [],
       payableTo: [],
+      receivableByCurrency: [],
+      payableByCurrency: [],
+      netByCurrency: [],
     });
+  });
+
+  // DEC-474 (Â-MOEDA-ORIGINAL): buckets never mix currencies.
+  it('keeps BRL and EUR receivables in separate buckets (perfume R$380 + bar €12)', () => {
+    const debts = [
+      debt('felipe', OWNER, 38000, 'BRL'), // the perfume — registered in reais
+      debt('felipe', OWNER, 1200, 'EUR'),
+    ];
+
+    const summary = summarizeOwnerDebts(debts, OWNER);
+
+    expect(summary.receivableByCurrency).toEqual([
+      { currency: 'BRL', amountCents: 38000 },
+      { currency: 'EUR', amountCents: 1200 },
+    ]);
+    expect(summary.payableByCurrency).toEqual([]);
+    expect(summary.netByCurrency).toEqual([
+      { currency: 'BRL', amountCents: 38000 },
+      { currency: 'EUR', amountCents: 1200 },
+    ]);
+    // The same person appears once PER currency in the breakdown.
+    expect(summary.receivableFrom).toHaveLength(2);
+    expect(summary.receivableFrom.map((c) => c.currency).sort()).toEqual(['BRL', 'EUR']);
+  });
+
+  it('nets per currency independently — a EUR payable never offsets a BRL receivable', () => {
+    const debts = [debt('felipe', OWNER, 38000, 'BRL'), debt(OWNER, 'felipe', 2000, 'EUR')];
+
+    const summary = summarizeOwnerDebts(debts, OWNER);
+
+    expect(summary.netByCurrency).toEqual([
+      { currency: 'BRL', amountCents: 38000 },
+      { currency: 'EUR', amountCents: -2000 },
+    ]);
+    expect(summary.receivableByCurrency).toEqual([{ currency: 'BRL', amountCents: 38000 }]);
+    expect(summary.payableByCurrency).toEqual([{ currency: 'EUR', amountCents: 2000 }]);
   });
 });

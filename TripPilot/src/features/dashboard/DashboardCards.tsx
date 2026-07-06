@@ -1434,17 +1434,44 @@ export function DashboardCards({
                 <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
                   {t('shared.summary_receivable')}
                 </p>
-                <p className="text-xl font-extrabold tabular text-success leading-tight mt-0.5">
-                  {formatMoney(model.receivableCents, trip.baseCurrency)}
-                </p>
+                {/* DEC-474 — one line per currency, never a mixed sum. */}
+                {model.receivableByCurrency.length === 0 ? (
+                  <p className="text-xl font-extrabold tabular text-success leading-tight mt-0.5">
+                    {formatMoney(0, trip.baseCurrency)}
+                  </p>
+                ) : (
+                  model.receivableByCurrency.map((bucket) => (
+                    <p
+                      key={bucket.currency}
+                      className={`font-extrabold tabular text-success leading-tight mt-0.5 ${
+                        model.receivableByCurrency.length > 1 ? 'text-base' : 'text-xl'
+                      }`}
+                    >
+                      {formatMoney(bucket.amountCents, bucket.currency)}
+                    </p>
+                  ))
+                )}
               </div>
               <div>
                 <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-on-surface-faint">
                   {t('shared.summary_payable')}
                 </p>
-                <p className="text-xl font-extrabold tabular text-error leading-tight mt-0.5">
-                  {formatMoney(model.payableCents, trip.baseCurrency)}
-                </p>
+                {model.payableByCurrency.length === 0 ? (
+                  <p className="text-xl font-extrabold tabular text-error leading-tight mt-0.5">
+                    {formatMoney(0, trip.baseCurrency)}
+                  </p>
+                ) : (
+                  model.payableByCurrency.map((bucket) => (
+                    <p
+                      key={bucket.currency}
+                      className={`font-extrabold tabular text-error leading-tight mt-0.5 ${
+                        model.payableByCurrency.length > 1 ? 'text-base' : 'text-xl'
+                      }`}
+                    >
+                      {formatMoney(bucket.amountCents, bucket.currency)}
+                    </p>
+                  ))
+                )}
               </div>
             </div>
           </button>

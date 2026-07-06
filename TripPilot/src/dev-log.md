@@ -1,5 +1,12 @@
 # Dev Log — TripPilot Implementation
 
+## Wave "Acerto multi-moeda + Cobrança rica + Planejador coerente" (2026-07-06) — `2.7.3-rc` → `2.7.6-rc` (web/OTA; APK segue 0.73.0) — 🔨 IN PROGRESS
+
+> Orquestrador: `brain/documents/2026-07-06-settle-currency-charge-planner-orchestrator.md` (ACTIVE, lock dispensado). Review de campo 06/07 parte 3: perfume R$380 cobrado como €380; "Felipe deve a Bruno 167" fantasma; "Julio Corsini te deve 53" (self-link); Pessoas ≠ Resolver; planner com margem −71 vs home −19 (dupla contagem), edits sumindo ao sair, card Viagem "Bar 103 de 45 / Restaurante 106 sem plano"; link de cobrança sem foto/formas de pagamento/URL na mensagem; `expenses.fronted_hint` cru (chave faltou na DEC-473). DECs: 474 (moeda original), 475 (pairwise-fiel + guard self), 476 (cobrança rica + métodos por moeda), 477 (plano feito-vs-restante, régua única) — PROPOSED.
+
+- **CURRENT STATE**: G0 fechado; executando G1 (domínio multi-moeda pairwise + fronted_hint). Baseline G0: **3196 pass / 3198** local (2 fails `split-live-loop` = WebCrypto/Node baseline, verdes no CI Node 22), `tsc --noEmit` limpo, `build` verde (entry 497 KB).
+- **G0 (baseline) — ✅**: suíte/tsc/build rodados e verdes; DEC-474..477 PROPOSED no decision-log; orquestrador ACTIVE salvo.
+
 ## Wave "Notas na aba certa + carteira sempre definida + bulk completo + voz solta" (2026-07-06) — `2.7.2-rc` → `2.7.3-rc` (web/OTA only; APK segue 0.73.0) — ✅ SHIPPED (DEC-473 APPROVED)
 
 > Segundo review de campo do dia (áudio + texto): (1) perfume pro Felipe — "eu paguei, ele vai me pagar… zerou o meu livre para usar nessa fase… e no acerto de contas 'nenhum gasto compartilhado com essa pessoa' — está bem errado"; (2) "nenhum lugar do app deve salvar nada com carteira não definida a não ser que o user explicitamente escolha"; (3) "estranho eu adicionar uma nota e ela aparecer na parte de saídas… um tab para saídas, um para notas e um para gastos?"; (4) "segurar um gasto só deixa mudar o fundo — poderia mudar categoria, fase e carteira… inclusive falta carteira nos gastos"; (5) voz: "alô teste funciona, qualquer outra coisa não — o bloqueio está muito ativo"; (6) "o padrão de moeda é: principais com nome e país, menos principais só o código". Conselho inline (fronted UX + tabs + política de carteira) ratificou as 6 frentes.

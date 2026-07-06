@@ -1,4 +1,6 @@
 import type { SyncMetadata } from './common';
+import type { ImageRef } from '@/domain/media';
+import type { SharedPaymentMethod } from '@/domain/payment';
 
 /**
  * DEC-106 (owner/mirror): a read-only snapshot of "what I owe / am owed"
@@ -27,6 +29,23 @@ export interface MirroredLine {
   latitude?: number | null;
   longitude?: number | null;
   placeId?: string | null;
+  /**
+   * DEC-474: the line's ORIGINAL currency. Optional + additive — older mirrored
+   * statements read back `undefined` → display falls back to the headline
+   * `currency`.
+   */
+  currency?: string | null;
+  /**
+   * DEC-476: the item's photo (plaintext R2 ref, DEC-348 model) so the guest
+   * sees the actual item being charged. Optional + additive.
+   */
+  image?: ImageRef | null;
+}
+
+/** DEC-474 — one per-currency amount of a mirrored net (signed cents). */
+export interface MirroredNetBucket {
+  currency: string;
+  amountCents: number;
 }
 
 /**
@@ -42,6 +61,8 @@ export interface MirroredSettlement {
   amountCents: number;
   settledAt: string;
   note: string | null;
+  /** DEC-474: the settlement's own currency. Optional + additive. */
+  currency?: string | null;
 }
 
 export interface MirroredResponse {
@@ -60,6 +81,8 @@ export interface MirroredThirdPartyGroup {
   counterpartyName: string;
   netCents: number;
   lines: MirroredLine[];
+  /** DEC-474: the group's per-currency nets. Optional + additive. */
+  nets?: MirroredNetBucket[] | null;
 }
 
 export interface MirroredStatement extends SyncMetadata {
@@ -68,6 +91,12 @@ export interface MirroredStatement extends SyncMetadata {
   receivedAt: string;
   currency: string;
   netCents: number;
+  /**
+   * DEC-474: the headline net PER CURRENCY (signed, guest's point of view).
+   * Optional + additive — when present it is the display truth and `netCents`
+   * stays a zero-check; older statements read back `undefined`.
+   */
+  nets?: MirroredNetBucket[] | null;
   lines: MirroredLine[];
   /**
    * DEC-402 (G3): payments mirrored as lines so the statement reconciles to
@@ -88,4 +117,9 @@ export interface MirroredStatement extends SyncMetadata {
    * Optional + additive; QR/older statements read back `undefined`.
    */
   thirdParty?: MirroredThirdPartyGroup[] | null;
+  /**
+   * DEC-476: how the owner can be paid (redacted, enabled-only), shown to the
+   * guest filtered to the currencies they owe. Optional + additive.
+   */
+  paymentMethods?: SharedPaymentMethod[] | null;
 }
