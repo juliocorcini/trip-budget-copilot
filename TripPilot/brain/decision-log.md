@@ -3564,4 +3564,48 @@
 
 ---
 
+### DEC-478 — FOUT prevenido: font-display:block nos ícones Material Symbols [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.8-rc` web/OTA — Pages auto-build a partir de `66c517a`)
+- **Decision**: os ícones Material Symbols Outlined (carregados como web font via Google Fonts CDN) apareciam como texto legível antes da fonte carregar (FOUT — Flash of Unstyled Text), dando aspecto de "página quebrada". Duas mudanças: (1) o `<link>` do Google Fonts em `index.html` recebe `&display=block` na query string, instruindo o CDN a servir `font-display: block`; (2) regra local `.material-symbols-outlined { font-display: block; }` em `tokens.css` como fallback para garantir que, mesmo com cache invalidado ou CSS inline, os ícones fiquem invisíveis (não renderizados como texto) até a fonte carregar.
+- **Rationale**: review verbatim: "muitas vezes quando eu entro no aplicativo, os ícones aparecem primeiro como um texto… a página parece toda quebrada". `font-display: block` oculta o glifo até a fonte carregar (período de bloqueio infinito, swap imediato ao carregar), eliminando o flash sem alterar performance percebida (ícones são pequenos e carregam rápido).
+- **Alternatives**: preload da fonte (`<link rel="preload">`) — complementar mas não resolve o flash em redes lentas; trocar Material Symbols por SVG inline (rejeitado — reescrita massiva sem benefício proporcional); usar `font-display: swap` (rejeitado — swap MOSTRA o texto fallback, que é exatamente o bug).
+
+### DEC-479 — Label "Organizador" no board de guest (group-split claim) [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.8-rc`)
+- **Decision**: na página de claim do group-split (guest acessando pelo link), o dono do grupo aparecia com a tag "Você" (`group_split.owner_tag`), confundindo o guest que NÃO é o dono. Nova chave i18n `group_claim.organizer_tag` ("Organizador" / "Organizer" / "Organizador") usada exclusivamente na `GroupClaimPage.tsx`, separando o contexto de owner-view (`group_split.owner_tag` = "Você") do guest-view (`group_claim.organizer_tag` = "Organizador").
+- **Rationale**: review verbatim: "o dono não deveria parecer você porque é outra pessoa que tá vendo, então deveria parecer criador".
+- **Alternatives**: usar "Criador" (rejeitado — "Organizador" é mais neutro e standard em apps de divisão); desabilitar seleção do dono com tooltip (adiado — o label resolve o principal).
+
+### DEC-480 — Saldos refletem pagamento confirmado no painel de pagamentos [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.8-rc`)
+- **Decision**: o painel "Pagamentos" em `GroupSplitDetailPage` mostrava o saldo bruto (ex.: "Bia deve €63") mesmo após o pagamento ser confirmado. Agora, quando `b.netCents < 0` e `isGroupObligationClosed(b.paymentStatus)` retorna true (status `confirmed`), o painel exibe "Confirmado" com tom de sucesso em vez do valor devido.
+- **Rationale**: review verbatim: "aqui no pagamento já devia atualizar também falando que a Bia já pagou".
+- **Alternatives**: remover a linha do painel quando paga (rejeitado — perde o histórico visual); mostrar "€0" (rejeitado — não comunica que houve pagamento).
+
+### DEC-481 — Imagem OG preserva aspect ratio da foto do usuário [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.8-rc`)
+- **Decision**: a composição OG (`composeOgImageWithFooter` em `og-footer.ts`) antes forçava todas as imagens para 1200×630 (recortando via `computeCoverCrop`). Agora o canvas é calculado dinamicamente: largura fixa `OG_IMAGE_WIDTH` (1200), altura = proporção original da foto + altura do footer, com cap em `MAX_PHOTO_HEIGHT` (1800) para fotos extremamente verticais. Fotos que excedem o cap ainda usam `computeCoverCrop`; as demais são desenhadas "contain" preservando a proporção original. O retorno da função muda de `Blob` para `OgComposeResult { blob, width, height }`, propagado para `uploadImage` em `og-branded-image.ts`.
+- **Rationale**: review verbatim: "quando eu mandei uma imagem 16:9 ela aparecia completa… agora você definiu um tamanho padrão e recortou tudo… quero manter a proporção da imagem que eu mandei".
+- **Alternatives**: sempre contain sem cap (rejeitado — foto vertical 9:16 geraria canvas de 1200×2133, preview gigante no WhatsApp); usar `<meta og:image:width/height>` dinâmicos sem mudar o canvas (rejeitado — a imagem real seria cortada pelo CDN ou pelo WhatsApp).
+
+### DEC-482 — Editar gasto com opções de divisão (split) [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.8-rc`)
+- **Decision**: o formulário de edição de gasto em `ExpenseDetailPage` não oferecia opções de divisão (isShared, participantes, modo de split). Agora o formulário de edição reutiliza a mesma UI do QuickAdd: toggle de divisão, seletor de participantes, modo de split (equal/custom), e campos de valores customizados. Na gravação: se a configuração de split muda, as shares existentes são deletadas e recriadas via `resolvePayerExpense`; se o split é desativado, as shares são removidas; se só o valor total muda com split ativo, as shares existentes são escaladas proporcionalmente via `scaleSharesToTotal`.
+- **Rationale**: review verbatim: "quando eu clico em editar aparece as opções, mas não aparece pra eu dividir com outras pessoas… eu quero colocar um gasto que eu esqueci de colocar pra dividir".
+- **Alternatives**: redirecionar para o QuickAdd com dados pré-preenchidos (rejeitado — experiência fragmentada, perderia o contexto do gasto); permitir apenas ativar split mas não editar participantes (rejeitado — incompleto; se permite editar, deve ser completo).
+
+### DEC-483 — Atalho de registro de entrada ao confirmar pagamento de group-split [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.8-rc`)
+- **Decision**: quando o dono do grupo confirma um pagamento recebido (`handleSetPayment` com `status === 'confirmed'` e `receiverIsOwner === true`), o app abre um BottomSheet oferecendo registrar automaticamente o valor como transação de entrada (income). O sheet mostra o valor, permite selecionar a verba/pool de destino (pré-selecionando a primeira da fase ativa), e oferece "Salvar" ou "Pular". A transação é criada via `createIncomeTransaction` e registrada via `registerIncome`.
+- **Rationale**: review verbatim: "se eu confirmei que a pessoa me pagou, já tem que fazer uma entrada, um registro, né… esses 63 euros vai entrar em uma verba chamada hospedagem eurotripe… eu acho que já seria bom já ter um atalho assim".
+- **Alternatives**: criar automaticamente sem perguntar (rejeitado — o Julio precisa escolher a verba de destino); colocar na tela de confirmação em vez de BottomSheet (rejeitado — o sheet é não-intrusivo e permite pular).
+
+### DEC-484 — Deploy SEMPRE com bump de versão e release notes [padrão de processo, 08/07]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED
+- **Decision**: TODO deploy (web OTA, worker, APK) OBRIGATORIAMENTE requer: (1) bump de versão em `app-version.ts`, `package.json` e `version.json` (nunca reusar uma versão já deployada); (2) atualização de `release-notes.ts` com entrada para a nova versão (i18n pt-BR/en/es); (3) atualização do `notes` em `version.json` com resumo das mudanças. Regra formalizada em `.cursor/rules/deploy-checklist.mdc`. Emenda à DEC-470: o checklist de deploy agora é mais explícito e inclui release notes como requisito obrigatório. Motivação: o deploy 2.7.7-rc foi feito sem bump de versão para as novas mudanças e sem release notes, impedindo que o app detectasse a atualização e que o usuário soubesse o que mudou.
+- **Rationale**: pedido direto do Julio: "todo deploy tem que ter bump de versão… e também fazer o texto de o que mudou, os últimos deploys ficaram sem… anotar como regra que temos sempre que fazer isso".
+- **Alternatives**: nenhuma — é uma regra de processo, não uma escolha técnica.
+
+---
+
 *New decisions will be added as the project progresses.*
