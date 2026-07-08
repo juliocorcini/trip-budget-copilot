@@ -58,10 +58,13 @@ Common APK-required changes:
 1. `tsc --noEmit` — zero errors
 2. `npm run build` — success
 3. `npm run test` — no NEW failures (pre-existing are documented)
-4. `git add -A && git commit`
-5. `git push origin master` — triggers Cloudflare Pages auto-build
+4. **Create OTA bundle**: `mkdir -p dist/bundles && cd dist && zip -r bundles/<VERSION>.zip . -x "bundles/*" -x "trippilot.apk"`
+   The bundle URL in `version.json` points here — without it, the native app cannot OTA-update.
+5. `npx wrangler pages deploy dist --project-name trippilot` — deploys web + bundle + APK
 6. Verify live: `curl https://trippilot.pages.dev/version.json` shows new version
-7. Worker (if changed): `cd worker && npx wrangler deploy`
+7. Verify bundle: `curl -sI https://trippilot.pages.dev/bundles/<VERSION>.zip | grep content-type` — must be `application/zip`, NOT `text/html`
+8. `git add -A && git commit && git push origin master`
+9. Worker (if changed): `cd worker && npx wrangler deploy`
 
 ### APK deploy (when native version was bumped)
 8. `npx cap sync android` — sync web assets + plugins to Android project
