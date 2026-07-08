@@ -74,11 +74,25 @@ export async function hasNotificationPermission(): Promise<boolean> {
   return cachedPermission === 'granted';
 }
 
-/** Boot-time setup: caches the current notification permission. */
+export const ALERT_CHANNEL_ID = 'trippilot_alerts';
+
+/** Boot-time setup: caches the current notification permission and creates channels. */
 export async function initNativeNotifications(): Promise<void> {
   const holder = await loadPlugin();
   if (!holder) return;
   void refreshNotificationPermission();
+  try {
+    await holder.plugin.createChannel({
+      id: ALERT_CHANNEL_ID,
+      name: 'Payments & alerts',
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+      sound: 'default',
+    });
+  } catch {
+    // Channel creation is best-effort.
+  }
 }
 
 /**
@@ -101,6 +115,7 @@ export async function showLocalNotification(title: string, body: string): Promis
         title,
         body,
         smallIcon: 'ic_notification',
+        channelId: ALERT_CHANNEL_ID,
       }],
     });
   } catch {

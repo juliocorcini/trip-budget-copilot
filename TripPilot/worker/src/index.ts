@@ -1472,7 +1472,18 @@ async function sendFcmPush(
     const serviceAccount = JSON.parse(env.FCM_SERVICE_ACCOUNT);
     const fcm = new FCM(serviceAccount);
     await fcm.sendToToken(
-      { notification: { title, body } },
+      {
+        notification: { title, body },
+        android: {
+          notification: {
+            channel_id: 'trippilot_alerts',
+            default_vibrate_timings: true,
+            default_sound: true,
+            notification_priority: 'PRIORITY_HIGH' as any,
+          },
+          priority: 'high' as any,
+        },
+      },
       fcmToken,
     );
     return true;

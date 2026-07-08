@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.3-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Notificações de alta prioridade: pagamentos e alertas agora vibram e mostram preview no topo da tela.',
+        'Canal de notificação dedicado para ações importantes (pagamentos, cobranças).',
+      ],
+      en: [
+        'High-priority notifications: payments and alerts now vibrate and show a heads-up preview.',
+        'Dedicated notification channel for important actions (payments, charges).',
+      ],
+      es: [
+        'Notificaciones de alta prioridad: pagos y alertas ahora vibran y muestran vista previa en la parte superior.',
+        'Canal de notificación dedicado para acciones importantes (pagos, cobros).',
+      ],
+    },
+  },
+  {
     version: '2.8.2-rc',
     date: '2026-07-08',
     items: {
