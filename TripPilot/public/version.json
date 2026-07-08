@@ -1,8 +1,8 @@
 {
-  "version": "2.8.0-rc",
+  "version": "2.8.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.74.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.8.0-rc.zip",
-  "notes": "Web Push VAPID: notificações push chegam mesmo com o app fechado (navegador precisa estar aberto). O organizador de grupos recebe push quando um participante marca como pago. Inclui subscription automática no boot e notificação nativa no service worker."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.8.1-rc.zip",
+  "notes": "FCM Push: infraestrutura para notificações push via Firebase Cloud Messaging no app nativo. Funciona mesmo com app completamente fechado (precisa de Google Play Services). Requer google-services.json e service account para ativar."
 }

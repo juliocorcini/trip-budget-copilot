@@ -7,6 +7,7 @@
  * this worker). Nothing is persisted beyond the room's lifetime.
  */
 import { logEvent, routeTemplate } from './logger';
+import { FCM } from 'fcm-cloudflare-workers';
 import {
   sanitizeSharePreview,
   randomSlugSuffix,
@@ -106,6 +107,11 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   /** VAPID subject (mailto: or https: URL for the push service). */
   VAPID_SUBJECT?: string;
+  /**
+   * FCM service account JSON (stringified). Used by fcm-cloudflare-workers
+   * to authenticate with the FCM HTTP v1 API. Worker secret.
+   */
+  FCM_SERVICE_ACCOUNT?: string;
 }
 
 /** No ambiguous chars (0/O, 1/I/L) — codes are sometimes read aloud. */
@@ -1438,6 +1444,43 @@ async function handlePushWatch(request: Request, env: Env): Promise<Response> {
   return json({ ok: true });
 }
 
+interface FcmRegisterBody {
+  installId: string;
+  fcmToken: string;
+}
+
+async function handleFcmRegister(request: Request, env: Env): Promise<Response> {
+  if (!env.PUSH_SUBS) return json({ error: 'push_not_configured' }, 501);
+  const body = await request.json<FcmRegisterBody>().catch(() => null);
+  if (!body?.installId || !body?.fcmToken) return json({ error: 'bad_request' }, 400);
+  await env.PUSH_SUBS.put(
+    `fcm:${body.installId}`,
+    body.fcmToken,
+    { expirationTtl: PUSH_SUB_TTL_SECONDS },
+  );
+  return json({ ok: true });
+}
+
+async function sendFcmPush(
+  fcmToken: string,
+  title: string,
+  body: string,
+  env: Env,
+): Promise<boolean> {
+  if (!env.FCM_SERVICE_ACCOUNT) return false;
+  try {
+    const serviceAccount = JSON.parse(env.FCM_SERVICE_ACCOUNT);
+    const fcm = new FCM(serviceAccount);
+    await fcm.sendToToken(
+      { notification: { title, body } },
+      fcmToken,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function handlePushSend(request: Request, env: Env): Promise<Response> {
   if (!env.PUSH_SUBS) return json({ error: 'push_not_configured' }, 501);
   const body = await request.json<PushSendBody>().catch(() => null);
@@ -1698,6 +1741,9 @@ async function routeRequest(
     }
     if (url.pathname === '/push/watch' && request.method === 'POST') {
       return handlePushWatch(request, env);
+    }
+    if (url.pathname === '/push/register-fcm' && request.method === 'POST') {
+      return handleFcmRegister(request, env);
     }
     if (url.pathname === '/push/send' && request.method === 'POST') {
       return handlePushSend(request, env);
@@ -2076,10 +2122,23 @@ export class ShareStore {
     const watchRaw = await PUSH_SUBS.get(`watch:${shareId}`);
     if (!watchRaw) return;
     const watch = JSON.parse(watchRaw) as { installId: string; groupName: string };
+
+    // Try FCM first (native app, survives full process kill).
+    const fcmToken = await PUSH_SUBS.get(`fcm:${watch.installId}`);
+    if (fcmToken) {
+      const title = 'TripPilot';
+      const body = watch.groupName
+        ? `New activity in "${watch.groupName}"`
+        : 'New activity in your group split';
+      await sendFcmPush(fcmToken, title, body, this.env);
+    }
+
+    // Also try Web Push VAPID (PWA, browser open).
     const subRaw = await PUSH_SUBS.get(`sub:${watch.installId}`);
-    if (!subRaw) return;
-    const subscription = JSON.parse(subRaw);
-    await sendWebPushTickle(subscription, this.env);
+    if (subRaw) {
+      const subscription = JSON.parse(subRaw);
+      await sendWebPushTickle(subscription, this.env);
+    }
   }
 
   private async getResponses(): Promise<Response> {

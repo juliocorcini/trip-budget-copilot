@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.1-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'FCM Push: infraestrutura para notificações push nativas via Firebase Cloud Messaging.',
+        'Funciona com o app completamente fechado (precisa de Google Play Services no dispositivo).',
+        'Worker envia push via FCM + Web Push VAPID em paralelo para máxima cobertura.',
+      ],
+      en: [
+        'FCM Push: infrastructure for native push notifications via Firebase Cloud Messaging.',
+        'Works with the app completely closed (requires Google Play Services on the device).',
+        'Worker sends push via FCM + Web Push VAPID in parallel for maximum coverage.',
+      ],
+      es: [
+        'FCM Push: infraestructura para notificaciones push nativas via Firebase Cloud Messaging.',
+        'Funciona con la app completamente cerrada (requiere Google Play Services en el dispositivo).',
+        'Worker envía push via FCM + Web Push VAPID en paralelo para máxima cobertura.',
+      ],
+    },
+  },
+  {
     version: '2.8.0-rc',
     date: '2026-07-08',
     items: {

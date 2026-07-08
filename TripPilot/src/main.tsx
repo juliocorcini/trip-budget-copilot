@@ -20,6 +20,7 @@ import { initNativeShell } from './utils/native';
 import { registerMailboxSync } from './utils/mailbox-boot';
 import { registerGroupSplitSync } from './utils/group-split-boot';
 import { registerPushSubscription } from './utils/push-subscription';
+import { registerFcmPush } from './utils/native/push-notifications';
 import { registerLiveUpdate } from './utils/live-update-boot';
 import i18n from './i18n';
 import './styles/globals.css';
@@ -75,6 +76,10 @@ registerGroupSplitSync();
 // Web Push VAPID: register the browser's push subscription with the worker
 // so it can send push notifications even when the app tab is closed.
 void registerPushSubscription();
+
+// FCM push for native app — registers the device token so the Worker can
+// send push notifications even when the app process is completely dead.
+void registerFcmPush();
 
 // FIELD item 20 (G8b): on a native cold start, confirm the running OTA bundle is
 // healthy and pull a newer web bundle from Pages when one is published (no-op on

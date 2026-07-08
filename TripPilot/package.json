@@ -1,7 +1,7 @@
 {
   "name": "trippilot",
   "private": true,
-  "version": "2.8.0-rc",
+  "version": "2.8.1-rc",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,12 +25,14 @@
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/local-notifications": "^8.2.0",
+    "@capacitor/push-notifications": "^8.1.1",
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@capgo/capacitor-updater": "^8.49.3",
     "date-fns": "^4.1.0",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
+    "fcm-cloudflare-workers": "^2.0.1",
     "fflate": "^0.8.3",
     "i18next": "^24.2.2",
     "jsqr": "^1.4.0",
