@@ -570,6 +570,20 @@ export function GroupSplitDetailPage() {
   };
 
   const handleDeleteEvent = async () => {
+    const hasActivity = event.expenses.length > 0 ||
+      event.participants.some((p) => p.paymentStatus !== 'unpaid' && p.id !== event.ownerParticipantId);
+    const message = hasActivity
+      ? t('group_split.delete_confirm_active', {
+          expenses: event.expenses.length,
+          total: formatMoney(total, event.currency),
+        })
+      : t('group_split.delete_confirm');
+    if (!window.confirm(message)) return;
+    const c = credsRef.current;
+    if (c) {
+      try { await revokeGroupSplit(c); } catch { /* already gone — fine */ }
+      clearGroupLive(event.id);
+    }
     await deleteGroupSplit(event.id);
     showToast(t('group_split.deleted'), 'success');
     navigate('/groups', { replace: true });

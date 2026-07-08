@@ -390,11 +390,7 @@ export function GroupSplitListPage() {
           <p className="text-sm text-on-surface-dim">{t('group_split.empty')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {records.map((r) => (
-            <GroupRow key={r.id} record={r} onOpen={() => navigate(`/groups/${r.id}`)} />
-          ))}
-        </div>
+        <GroupRecordsList records={records} navigate={navigate} />
       )}
 
       {/* F24/DEC-355 — groups I joined via an invite (read-only guest board). Tapping
@@ -423,6 +419,50 @@ export function GroupSplitListPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function GroupRecordsList({
+  records,
+  navigate,
+}: {
+  records: GroupSplitRecord[];
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const { t } = useTranslation();
+  const [showSettled, setShowSettled] = useState(false);
+  const active = records.filter((r) => r.event.status !== 'settled');
+  const settled = records.filter((r) => r.event.status === 'settled');
+
+  return (
+    <>
+      {active.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {active.map((r) => (
+            <GroupRow key={r.id} record={r} onOpen={() => navigate(`/groups/${r.id}`)} />
+          ))}
+        </div>
+      )}
+      {settled.length > 0 && (
+        <div className="flex flex-col gap-2 mt-1">
+          <button
+            onClick={() => setShowSettled((v) => !v)}
+            className="flex items-center gap-1.5 py-1 text-xs font-semibold text-on-surface-faint btn-press"
+          >
+            <Icon name={showSettled ? 'expand_less' : 'expand_more'} size={16} className="text-on-surface-faint" />
+            {t('group_split.settled_section', { count: settled.length })}
+          </button>
+          {showSettled && settled.map((r) => (
+            <GroupRow key={r.id} record={r} onOpen={() => navigate(`/groups/${r.id}`)} />
+          ))}
+        </div>
+      )}
+      {active.length === 0 && settled.length > 0 && !showSettled && (
+        <div className="bg-surface-container rounded-xl p-5 text-center">
+          <p className="text-sm text-on-surface-dim">{t('group_split.all_settled')}</p>
+        </div>
+      )}
+    </>
   );
 }
 

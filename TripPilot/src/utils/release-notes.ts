@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.2-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Link do grupo revogado automaticamente ao excluir (fix link leak).',
+        'Grupos concluídos movem para seção colapsada na lista.',
+        'Confirmação proporcional: grupos com movimentação pedem confirmação detalhada.',
+      ],
+      en: [
+        'Group link automatically revoked on delete (fix link leak).',
+        'Settled groups move to a collapsible section in the list.',
+        'Proportional confirmation: groups with activity show a detailed prompt.',
+      ],
+      es: [
+        'Link del grupo revocado automáticamente al eliminar (fix link leak).',
+        'Grupos concluidos se mueven a una sección colapsable.',
+        'Confirmación proporcional: grupos con actividad muestran un aviso detallado.',
+      ],
+    },
+  },
+  {
     version: '2.9.1-rc',
     date: '2026-07-08',
     items: {
