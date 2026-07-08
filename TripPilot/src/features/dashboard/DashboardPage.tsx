@@ -41,7 +41,7 @@ import {
 import { buildTripTemplate } from '@/domain/templates';
 import { showToast } from '@/components/Toast';
 import { createDailyCheckIn } from '@/domain/check-in';
-import type { DashboardInsight } from '@/domain/insights';
+import type { DashboardInsight, AppNotification } from '@/domain/insights';
 import type { CheckInIntent } from '@/domain/types/common';
 import { shouldOfferModeReveal, MODE_REVEAL_MIN_EXPENSES } from '@/domain/app-mode';
 import { isOngoing } from '@/domain/spaces/spaces';
@@ -56,6 +56,24 @@ import { HomeAlertsCarousel, type HomeAlertSlide } from './HomeAlertsCarousel';
 import { selectHomeAlertIds, type HomeAlertId } from './home-alerts';
 import { ActiveSplitHomeCard } from '@/features/split/ActiveSplitHomeCard';
 import { SpaceSwitcherChip } from '@/features/spaces/SpaceSwitcherChip';
+
+type TFn = (key: string, options?: Record<string, string | number>) => string;
+
+function notificationToastText(n: AppNotification, t: TFn, currency: string): string {
+  const v = n.values;
+  switch (n.kind) {
+    case 'pending_p2p':
+      return t('notifications.pending_p2p', { count: v.count as number });
+    case 'pending_group_payment':
+      return t('notifications.pending_group_payment', v as Record<string, string>);
+    case 'phase_over_budget':
+      return t('notifications.phase_over_budget', {
+        amount: formatMoney(v.overCents as number, currency),
+      });
+    default:
+      return t(`notifications.${n.kind}`, v as Record<string, string>);
+  }
+}
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -89,22 +107,30 @@ export function DashboardPage() {
     }
   }, [searchParams, setSearchParams, model.pendingShares]);
 
-  const gpToastFiredRef = useRef(false);
+  const actionToastFiredRef = useRef(new Set<string>());
   useEffect(() => {
-    const gpNotifs = notifications.filter((n) => n.kind === 'pending_group_payment');
-    if (gpNotifs.length === 0 || gpToastFiredRef.current) return;
-    gpToastFiredRef.current = true;
-    const first = gpNotifs[0]!;
-    const msg =
-      gpNotifs.length === 1
-        ? t('notifications.pending_group_payment', first.values as Record<string, string>)
-        : t('notifications.pending_group_payment_multi', { count: gpNotifs.length });
-    showToast(msg, 'warning', {
-      actionLabel: t('common.see'),
-      onTap: () => navigate(first.destination),
-      durationMs: 6000,
-    });
-  }, [notifications, t, navigate]);
+    const actionKinds: Set<string> = new Set([
+      'pending_p2p',
+      'pending_group_payment',
+      'phase_over_budget',
+    ]);
+    const actionNotifs = notifications.filter(
+      (n) => actionKinds.has(n.kind) && !actionToastFiredRef.current.has(n.id),
+    );
+    if (actionNotifs.length === 0) return;
+    for (const n of actionNotifs) actionToastFiredRef.current.add(n.id);
+    const first = actionNotifs[0]!;
+    const toastVariant = first.tone === 'error' ? 'danger' as const : 'warning' as const;
+    showToast(
+      notificationToastText(first, t, trip?.baseCurrency ?? 'EUR'),
+      toastVariant,
+      {
+        actionLabel: t('common.see'),
+        onTap: () => navigate(first.destination),
+        durationMs: 6000,
+      },
+    );
+  }, [notifications, t, navigate, trip?.baseCurrency]);
 
   // DEC-459: mirror the daily hero into the Android home widget (native only;
   // no-op elsewhere). Formatting + labels are pushed from HERE so the widget
