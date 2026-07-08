@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.1-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Métodos de pagamento filtrados pela moeda do grupo (PIX não aparece em EUR).',
+        'Re-contestação funcional: owner pode contestar múltiplas vezes sem que o poller anule.',
+        'contestedAt timestamp impede que claims antigos sobrescrevam a contestação.',
+      ],
+      en: [
+        'Payment methods filtered by group currency (PIX hidden for EUR groups).',
+        'Re-contest works: owner can contest multiple times without the poller overriding.',
+        'contestedAt timestamp prevents stale claims from overwriting contests.',
+      ],
+      es: [
+        'Métodos de pago filtrados por moneda del grupo (PIX oculto en grupos EUR).',
+        'Re-contestación funcional: el organizador puede contestar múltiples veces.',
+        'contestedAt timestamp impide que claims antiguos sobrescriban la contestación.',
+      ],
+    },
+  },
+  {
     version: '2.9.0-rc',
     date: '2026-07-08',
     items: {

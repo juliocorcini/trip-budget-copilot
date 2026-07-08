@@ -179,17 +179,27 @@ export function reduceGroupClaims(event: GroupSplitEvent, batches: GroupClaimRes
       // The owner slot is never claimable through /responses.
       if (p.kind === 'owner') return p;
       // Owner DECISIONS: `confirmed` and `cancelled` are terminal (only the owner
-      // can lift them). `contested` allows the guest to re-assert `marked` — so the
-      // owner sees the re-mark and can confirm or contest again.
+      // can lift them). `contested` allows the guest to re-assert `marked` — but
+      // ONLY when the claim is newer than the contest (so the poller's stale
+      // `markedPaid: true` from the OLD claim doesn't immediately undo the contest).
+      const isNewRemarkAfterContest =
+        p.paymentStatus === 'contested' &&
+        batch.markedPaid &&
+        !!p.contestedAt &&
+        batch.at > p.contestedAt;
       const nextStatus =
         p.paymentStatus === 'confirmed' || p.paymentStatus === 'cancelled'
           ? p.paymentStatus
-          : batch.markedPaid
+          : isNewRemarkAfterContest
             ? 'marked'
             : p.paymentStatus === 'contested'
               ? 'contested'
-              : 'unpaid';
-      return { ...p, claimedByActorId: batch.fromActorId, paymentStatus: nextStatus };
+              : batch.markedPaid
+                ? 'marked'
+                : 'unpaid';
+      const nextPatch: Partial<typeof p> = { claimedByActorId: batch.fromActorId, paymentStatus: nextStatus };
+      if (nextStatus === 'marked' && isNewRemarkAfterContest) nextPatch.contestedAt = undefined;
+      return { ...p, ...nextPatch };
     });
 
     const actor = batch.fromActorId;

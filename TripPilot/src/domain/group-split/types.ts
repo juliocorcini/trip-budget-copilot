@@ -51,6 +51,13 @@ export interface GroupParticipant {
   /** Net settlement stage for this person across the whole event. */
   paymentStatus: GroupPaymentStatus;
   /**
+   * ISO timestamp of the owner's latest contest. Used by {@link reduceGroupClaims}
+   * to distinguish a guest's OLD mark (pre-contest, should stay contested) from a
+   * NEW re-mark (post-contest, should become marked). Absent until the owner first
+   * contests this participant.
+   */
+  contestedAt?: string;
+  /**
    * DEC-433 (Field v2) — this person's published repayment methods (Pix/Wise/bank/
    * free-text) so a debtor on the `/g/` board can see HOW to pay this creditor and
    * copy the key. Only the OWNER's ENABLED methods are stamped (from AppSettings) at

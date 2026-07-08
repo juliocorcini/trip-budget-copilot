@@ -1,8 +1,8 @@
 {
-  "version": "2.9.0-rc",
+  "version": "2.9.1-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.0-rc.zip",
-  "notes": "Contestação completa: guest pode re-marcar como pago e owner vê a mudança."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.1-rc.zip",
+  "notes": "Filtro de métodos de pagamento por moeda + re-contestação funcional."
 }

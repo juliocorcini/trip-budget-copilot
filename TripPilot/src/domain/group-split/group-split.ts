@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { splitEqually, sumCents } from '@/domain/money';
-import { enabledPaymentMethods, type PaymentMethod } from '@/domain/payment';
+import { enabledPaymentMethods, paymentMethodAppliesTo, type PaymentMethod } from '@/domain/payment';
 import type { ImageRef } from '@/domain/media';
 import { isGroupObligationClosed } from './group-payment-status';
 import type {
@@ -189,7 +189,9 @@ export function withOwnerPaymentMethods(
   event: GroupSplitEvent,
   methods: PaymentMethod[],
 ): GroupSplitEvent {
-  const usable = enabledPaymentMethods(methods);
+  const usable = enabledPaymentMethods(methods).filter(
+    (m) => paymentMethodAppliesTo(m, event.currency),
+  );
   return {
     ...event,
     participants: event.participants.map((p) => {
@@ -234,9 +236,16 @@ export function setParticipantPayment(
 ): GroupSplitEvent {
   return {
     ...event,
-    participants: event.participants.map((p) =>
-      p.id === participantId ? { ...p, paymentStatus } : p,
-    ),
+    participants: event.participants.map((p) => {
+      if (p.id !== participantId) return p;
+      const patch: Partial<GroupParticipant> = { paymentStatus };
+      if (paymentStatus === 'contested') {
+        patch.contestedAt = new Date().toISOString();
+      } else {
+        patch.contestedAt = undefined;
+      }
+      return { ...p, ...patch };
+    }),
   };
 }
 
