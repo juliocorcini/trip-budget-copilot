@@ -1974,6 +1974,23 @@ export class ShareSignal {
  *   resp:<respId>   → JSON ShareResponseItem (one per guest, overwrite-in-place)
  * A sliding alarm wipes everything after the TTL; revoke keeps a short tombstone.
  */
+function buildPushBody(fromName?: string, action?: string, groupName?: string): string {
+  const who = fromName || 'Alguém';
+  const where = groupName ? ` em "${groupName}"` : '';
+  switch (action) {
+    case 'marked_paid':
+      return `${who} marcou como pago${where} — confirme o recebimento.`;
+    case 'expense_added':
+      return `${who} adicionou uma despesa${where}.`;
+    case 'expense_removed':
+      return `${who} removeu uma despesa${where}.`;
+    case 'joined':
+      return `${who} entrou no grupo${where}.`;
+    default:
+      return `${who} interagiu${where}.`;
+  }
+}
+
 export class ShareStore {
   constructor(private state: DurableObjectState, private env: Env) {}
 
@@ -2121,7 +2138,7 @@ export class ShareStore {
     const meta = await this.meta();
     if (!meta) return json({ error: 'not_found' }, 404);
     if (meta.revoked) return json({ error: 'revoked' }, 410);
-    let body: { id?: unknown; blob?: unknown };
+    let body: { id?: unknown; blob?: unknown; fromName?: unknown; action?: unknown };
     try {
       body = (await request.json()) as typeof body;
     } catch {
@@ -2153,12 +2170,18 @@ export class ShareStore {
     await this.state.storage.setAlarm(Date.now() + SHARE_TTL_SECONDS * 1000);
 
     const shareId = request.headers.get('X-Share-Id') ?? '';
-    this.notifyOwnerViaPush(shareId).catch(() => {});
+    const fromName = typeof body.fromName === 'string' ? body.fromName.slice(0, 60) : undefined;
+    const action = typeof body.action === 'string' ? body.action : undefined;
+    this.notifyOwnerViaPush(shareId, fromName, action).catch(() => {});
 
     return json({ ok: true });
   }
 
-  private async notifyOwnerViaPush(shareId: string): Promise<void> {
+  private async notifyOwnerViaPush(
+    shareId: string,
+    fromName?: string,
+    action?: string,
+  ): Promise<void> {
     const DEBOUNCE_MS = 10_000;
     const lastPush = await this.state.storage.get<number>('lastPushAt');
     if (lastPush && Date.now() - lastPush < DEBOUNCE_MS) return;
@@ -2186,10 +2209,8 @@ export class ShareStore {
     console.info('[push] fcmToken?', !!fcmToken);
 
     if (fcmToken) {
-      const title = 'TripPilot';
-      const body = watch.groupName
-        ? `New activity in "${watch.groupName}"`
-        : 'New activity in your group split';
+      const title = watch.groupName || 'TripPilot';
+      const body = buildPushBody(fromName, action, watch.groupName);
       const ok = await sendFcmPush(fcmToken, title, body, this.env, deepLink);
       console.info('[push] fcm result:', ok);
     }

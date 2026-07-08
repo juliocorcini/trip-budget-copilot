@@ -145,11 +145,21 @@ export async function revokeShare(id: string, writeToken: string): Promise<void>
   }
 }
 
-export async function postShareResponse(id: string, responseId: string, blob: string): Promise<void> {
+export interface ShareResponseHint {
+  fromName?: string;
+  action?: 'marked_paid' | 'expense_added' | 'expense_removed' | 'joined';
+}
+
+export async function postShareResponse(
+  id: string,
+  responseId: string,
+  blob: string,
+  hint?: ShareResponseHint,
+): Promise<void> {
   const res = await fetch(shareUrl(`/${encodeURIComponent(id)}/responses`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: responseId, blob }),
+    body: JSON.stringify({ id: responseId, blob, ...hint }),
   });
   if (!res.ok) throw new Error(`share_response_${res.status}`);
 }

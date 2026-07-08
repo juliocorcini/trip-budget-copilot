@@ -268,7 +268,11 @@ export async function fetchGroupSplit(shareId: string, key: string | null): Prom
 export async function postGroupClaim(shareId: string, key: string, response: GroupClaimResponse): Promise<void> {
   const cryptoKey = await importSessionKey(key);
   const blob = await encryptText(cryptoKey, JSON.stringify(response));
-  await postShareResponse(shareId, response.fromActorId, blob);
+  const action = response.markedPaid ? 'marked_paid' as const : undefined;
+  await postShareResponse(shareId, response.fromActorId, blob, {
+    fromName: response.fromName,
+    action,
+  });
 }
 
 /* ── owner live-link persistence (per event, survive an accidental close) ──── */

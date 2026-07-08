@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.3-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Notificações push específicas: "Rick marcou como pago" em vez de "Nova atividade".',
+        'Guest envia nome e ação como metadata plaintext no POST de claim.',
+      ],
+      en: [
+        'Specific push notifications: "Rick marked as paid" instead of "New activity".',
+        'Guest sends name and action as plaintext metadata in claim POST.',
+      ],
+      es: [
+        'Notificaciones push específicas: "Rick marcó como pagado" en vez de "Nueva actividad".',
+        'Guest envía nombre y acción como metadata plaintext en POST de claim.',
+      ],
+    },
+  },
+  {
     version: '2.9.2-rc',
     date: '2026-07-08',
     items: {
