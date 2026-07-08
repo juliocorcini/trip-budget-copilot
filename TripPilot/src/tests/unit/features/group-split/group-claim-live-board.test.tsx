@@ -69,6 +69,20 @@ vi.mock('@/data/sync/share-signal', () => ({
   connectShareSignal: () => ({ send: () => {}, close: () => {} }),
 }));
 
+vi.mock('@/hooks/useAppData', () => ({
+  useAppData: () => ({
+    trip: null,
+    pools: [],
+    links: [],
+    phases: [],
+    reload: () => {},
+  }),
+}));
+
+vi.mock('@/data/repositories', () => ({
+  transactionRepository: { create: vi.fn(async () => undefined) },
+}));
+
 import { GroupClaimPage } from '@/features/group-split/GroupClaimPage';
 
 function renderBoard() {

@@ -2998,7 +2998,8 @@
     "undo": "Undo",
     "undo_done": "Undone",
     "dismiss": "Discard",
-    "total": "Total"
+    "total": "Total",
+    "see": "See"
   },
   "group_split": {
     "title": "Group split",
@@ -3160,6 +3161,12 @@
     "add_expense_hint": "Add a bill you know — it shows up for the whole group automatically.",
     "expense_desc_ph": "Description (e.g. Taxi)",
     "who_paid": "Who paid",
+    "expense_prompt_title": "Register as expense?",
+    "expense_prompt_body": "You paid {{amount}} to {{name}}. Do you want to register this as an expense in your app?",
+    "expense_prompt_fund": "Register in fund:",
+    "expense_prompt_save": "Register expense",
+    "expense_prompt_skip": "Skip",
+    "expense_from_payment": "Payment: {{name}}",
     "pending": "Sending…",
     "your_tag": "you",
     "remove": "Remove",
@@ -3196,7 +3203,9 @@
     "event_today": "Today: {{name}} — tap to start",
     "backup_due": "Backup overdue — tap to export your data",
     "long_outing": "The outing \"{{name}}\" has been active for {{hours}}h — forgot to end it?",
-    "phase_over_budget": "The phase went over budget by {{amount}}"
+    "phase_over_budget": "The phase went over budget by {{amount}}",
+    "pending_group_payment": "{{participantName}} marked as paid in \"{{groupName}}\" — confirm receipt",
+    "pending_group_payment_multi": "{{count}} group payments awaiting your confirmation"
   },
   "impact": {
     "title": "Full impact",

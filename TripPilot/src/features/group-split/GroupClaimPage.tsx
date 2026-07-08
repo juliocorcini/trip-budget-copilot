@@ -18,6 +18,8 @@ import { formatMoney, toCents } from '@/domain/money';
 import { PAYMENT_METHOD_ICONS, resolvePaymentLabel, type PaymentMethod } from '@/domain/payment';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
+import { showToast } from '@/components/Toast';
 import type { ImageRef } from '@/domain/media';
 import { GroupImage, ImageLightbox } from './GroupImage';
 import {
@@ -31,6 +33,11 @@ import {
 } from './group-link';
 import { getGuestActorId, getGuestName, setGuestName } from '@/features/split/live-link';
 import { ProofAttachField, ProofThumb, type AttachedProof } from '@/features/payment-proof/PaymentProof';
+import { useAppData } from '@/hooks/useAppData';
+import { createExpenseTransaction } from '@/domain/transactions';
+import { resolveActivePhase } from '@/domain/dates';
+import { getAvailablePoolsForPhase } from '@/domain/budget';
+import { transactionRepository } from '@/data/repositories';
 
 const POLL_FLOOR_MS = 6000;
 const POST_DEBOUNCE_MS = 500;
@@ -75,6 +82,21 @@ export function GroupClaimPage() {
   const seededRef = useRef(false);
   const hasPayloadRef = useRef(false);
   const signalRef = useRef<ShareSignalHandle | null>(null);
+
+  const { trip, pools, links, phases, reload: reloadApp } = useAppData();
+  const activePhase = useMemo(() => resolveActivePhase(phases), [phases]);
+  const expensePools = useMemo(() => {
+    if (!activePhase) return [];
+    const avail = getAvailablePoolsForPhase(pools, links, activePhase.id);
+    return [...avail.operational, ...avail.global, ...avail.otherPhases];
+  }, [activePhase, pools, links]);
+
+  const [expensePrompt, setExpensePrompt] = useState<{
+    ownerName: string;
+    amountCents: number;
+  } | null>(null);
+  const [expensePoolId, setExpensePoolId] = useState<string | null>(null);
+  const [expenseSaving, setExpenseSaving] = useState(false);
 
   const refetch = useCallback(async () => {
     if (!id) {
@@ -234,34 +256,141 @@ export function GroupClaimPage() {
   // confirmed slots still win inside the fold.
   const liveEvent = foldEventForViewer(load.payload.event, responses);
 
-  return (
-    <ClaimBoard
-      event={liveEvent}
-      actorId={actorId}
-      claimedId={claimedId}
-      markedPaid={markedPaid}
-      myExpenses={myExpenses}
-      proof={proof}
-      onChangeProof={setProof}
-      onPick={(pid) => {
-        setClaimedId(pid);
-        setMarkedPaid(false);
+  const handleTogglePaid = () => {
+    setMarkedPaid((v) => {
+      if (v) {
         setProof(null);
-      }}
-      onChangeName={() => {
-        setClaimedId(null);
-        setProof(null);
-      }}
-      onTogglePaid={() =>
-        setMarkedPaid((v) => {
-          if (v) setProof(null);
-          return !v;
-        })
+        return false;
       }
-      onSaveName={(name) => setGuestName(name)}
-      onAddExpense={addExpense}
-      onRemoveExpense={removeExpense}
-    />
+      if (trip && claimedId) {
+        const balances = computeGroupBalances(liveEvent);
+        const myBal = balances.find((b) => b.participantId === claimedId);
+        if (myBal && myBal.netCents < 0) {
+          const transfers = computeGroupTransfers(liveEvent);
+          const myTransfers = transfers.filter((tr) => tr.fromParticipantId === claimedId);
+          const totalOwed = myTransfers.reduce((s, tr) => s + tr.amountCents, 0);
+          const ownerName = liveEvent.participants.find(
+            (p) => p.id === liveEvent.ownerParticipantId,
+          )?.name ?? liveEvent.name;
+          if (totalOwed > 0) {
+            setExpensePrompt({ ownerName, amountCents: totalOwed });
+          }
+        }
+      }
+      return true;
+    });
+  };
+
+  const handleSaveExpense = async () => {
+    if (!expensePrompt || !trip || !activePhase || expenseSaving) return;
+    const targetPoolId = expensePoolId ?? expensePools[0]?.id;
+    if (!targetPoolId) return;
+    setExpenseSaving(true);
+    try {
+      const tx = createExpenseTransaction({
+        tripId: trip.id,
+        phaseId: activePhase.id,
+        budgetPoolId: targetPoolId,
+        walletId: null,
+        amountCents: expensePrompt.amountCents,
+        currency: liveEvent.currency,
+        description: t('group_claim.expense_from_payment', { name: liveEvent.name }),
+        category: 'other',
+      });
+      await transactionRepository.create(tx);
+      showToast(
+        t('expenses.edited_toast'),
+        'success',
+      );
+      setExpensePrompt(null);
+      setExpensePoolId(null);
+      await reloadApp();
+    } finally {
+      setExpenseSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <ClaimBoard
+        event={liveEvent}
+        actorId={actorId}
+        claimedId={claimedId}
+        markedPaid={markedPaid}
+        myExpenses={myExpenses}
+        proof={proof}
+        onChangeProof={setProof}
+        onPick={(pid) => {
+          setClaimedId(pid);
+          setMarkedPaid(false);
+          setProof(null);
+        }}
+        onChangeName={() => {
+          setClaimedId(null);
+          setProof(null);
+        }}
+        onTogglePaid={handleTogglePaid}
+        onSaveName={(name) => setGuestName(name)}
+        onAddExpense={addExpense}
+        onRemoveExpense={removeExpense}
+      />
+
+      <BottomSheet
+        open={expensePrompt !== null}
+        onClose={() => { setExpensePrompt(null); setExpensePoolId(null); }}
+        title={t('group_claim.expense_prompt_title')}
+      >
+        {expensePrompt && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-on-surface-dim">
+              {t('group_claim.expense_prompt_body', {
+                amount: formatMoney(expensePrompt.amountCents, liveEvent.currency),
+                name: expensePrompt.ownerName,
+              })}
+            </p>
+
+            {expensePools.length > 0 && (
+              <div>
+                <label className="text-xs text-on-surface-faint mb-2 block">
+                  {t('group_claim.expense_prompt_fund')}
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {expensePools.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setExpensePoolId(p.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                        (expensePoolId ?? expensePools[0]?.id) === p.id
+                          ? 'bg-primary text-on-surface'
+                          : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setExpensePrompt(null); setExpensePoolId(null); }}
+                className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim font-medium btn-press"
+              >
+                {t('group_claim.expense_prompt_skip')}
+              </button>
+              <button
+                onClick={handleSaveExpense}
+                disabled={expenseSaving || expensePools.length === 0}
+                className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
+              >
+                {expenseSaving ? t('common.loading') : t('group_claim.expense_prompt_save')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+    </>
   );
 }
 

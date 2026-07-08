@@ -1,8 +1,8 @@
 {
-  "version": "2.7.9-rc",
+  "version": "2.7.10-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.74.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.9-rc.zip",
-  "notes": "Editar gasto: opção completa de 'quem pagou' + 'pagou tudo/dividimos' agora disponível na edição (replicando o QuickAdd). Lógica DEC-123/114/473 completa."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.10-rc.zip",
+  "notes": "Notificações de pagamento de grupo: alerta no menu de notificações + toast automático no dashboard quando alguém marca como pago. Payer: quem paga via link pode registrar como gasto no app. Footer OG dinâmico + suporte 9:16."
 }

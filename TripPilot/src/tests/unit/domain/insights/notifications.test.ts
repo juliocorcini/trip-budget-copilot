@@ -22,6 +22,7 @@ function baseInput(overrides: Partial<BuildNotificationsInput> = {}): BuildNotif
     nowMs: NOW_MS,
     phaseSpentCents: 0,
     phaseBudgetCents: 100_000,
+    pendingGroupPayments: [],
     ...overrides,
   };
 }
@@ -156,5 +157,27 @@ describe('buildNotifications (DEC-090 / R-08)', () => {
       }),
     );
     expect(list).toHaveLength(3);
+  });
+
+  it('pending group payment → action notification pointing to group-split detail', () => {
+    const list = buildNotifications(
+      baseInput({
+        pendingGroupPayments: [
+          { groupName: 'Eurotrip', participantName: 'Bia', groupId: 'g-1' },
+          { groupName: 'Eurotrip', participantName: 'Bruno', groupId: 'g-1' },
+        ],
+      }),
+    );
+    const gpNotifs = list.filter((n) => n.kind === 'pending_group_payment');
+    expect(gpNotifs).toHaveLength(2);
+    expect(gpNotifs[0]!.tone).toBe('warning');
+    expect(gpNotifs[0]!.values.participantName).toBe('Bia');
+    expect(gpNotifs[0]!.values.groupName).toBe('Eurotrip');
+    expect(gpNotifs[0]!.destination).toBe('/groups/g-1');
+  });
+
+  it('empty pendingGroupPayments → no group payment notifications', () => {
+    const list = buildNotifications(baseInput({ pendingGroupPayments: [] }));
+    expect(list.filter((n) => n.kind === 'pending_group_payment')).toHaveLength(0);
   });
 });

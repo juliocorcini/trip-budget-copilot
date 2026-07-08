@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAppData } from '@/hooks/useAppData';
 import { sessionRepository } from '@/data/repositories/session-repository';
-import { participantShareRepository } from '@/data/repositories';
+import { participantShareRepository, groupSplitRepository } from '@/data/repositories';
 import { resolveActivePhase, localDateString } from '@/domain/dates';
 import { calculateFreeToSpend, selectActivePhasePool } from '@/domain/budget';
 import { filterTransactionsByPool } from '@/domain/transactions';
@@ -32,10 +32,11 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
         .filter((tx) => tx.isShared && tx.deletedAt === null)
         .map((tx) => tx.id);
 
-      const [activeSession, shares, inboundP2p] = await Promise.all([
+      const [activeSession, shares, inboundP2p, groupSplits] = await Promise.all([
         sessionRepository.getActive(trip.id),
         owner ? participantShareRepository.getAllForTrip(sharedTxIds) : Promise.resolve([]),
         getInboundP2pItems(),
+        groupSplitRepository.listEvents(trip.id),
       ]);
       if (cancelled) return;
 
@@ -82,6 +83,20 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
           fts.eventReservesCents
         : 0;
 
+      const pendingGroupPayments: Array<{ groupName: string; participantName: string; groupId: string }> = [];
+      for (const gs of groupSplits) {
+        if (gs.status === 'settled') continue;
+        for (const p of gs.event.participants) {
+          if (p.paymentStatus === 'marked') {
+            pendingGroupPayments.push({
+              groupName: gs.event.name,
+              participantName: p.name,
+              groupId: gs.event.id,
+            });
+          }
+        }
+      }
+
       setNotifications(
         buildNotifications({
           inboundP2pCount: inboundP2p.length,
@@ -97,6 +112,7 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
           nowMs: Date.now(),
           phaseSpentCents: fts?.totalSpentCents ?? 0,
           phaseBudgetCents,
+          pendingGroupPayments,
         }),
       );
       setReady(true);

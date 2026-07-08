@@ -17,12 +17,25 @@
 
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
-const MAX_PHOTO_HEIGHT = 1800;
-const FOOTER_HEIGHT = 96;
+const MAX_PHOTO_HEIGHT = 2133;
+const BASE_FOOTER_HEIGHT = 110;
 const ACCENT_BAR_HEIGHT = 4;
-const ICON_SIZE = 56;
-const PADDING_X = 40;
 const JPEG_QUALITY = 0.85;
+
+function resolveFooterMetrics(photoHeight: number) {
+  const footerHeight = Math.max(BASE_FOOTER_HEIGHT, Math.round(photoHeight * 0.065));
+  const scale = footerHeight / BASE_FOOTER_HEIGHT;
+  return {
+    footerHeight,
+    iconSize: Math.round(64 * scale),
+    paddingX: Math.round(44 * scale),
+    iconRadius: Math.round(16 * scale),
+    brandFontSize: Math.round(36 * scale),
+    taglineFontSize: Math.round(30 * scale),
+    textGap: Math.round(24 * scale),
+    taglineGap: Math.round(18 * scale),
+  };
+}
 
 const COLORS = {
   footer: 'rgba(15, 20, 25, 0.94)',
@@ -81,20 +94,25 @@ function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: 
 }
 
 /** Draw the app icon rounded; a load failure just skips it (text shifts left). */
-async function drawIcon(ctx: CanvasRenderingContext2D, x: number, y: number): Promise<boolean> {
+async function drawIcon(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  iconSize: number,
+  iconRadius: number,
+): Promise<boolean> {
   try {
     const icon = await loadImage('/icons/icon-192.png');
     ctx.save();
-    const r = 14;
     ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + ICON_SIZE, y, x + ICON_SIZE, y + ICON_SIZE, r);
-    ctx.arcTo(x + ICON_SIZE, y + ICON_SIZE, x, y + ICON_SIZE, r);
-    ctx.arcTo(x, y + ICON_SIZE, x, y, r);
-    ctx.arcTo(x, y, x + ICON_SIZE, y, r);
+    ctx.moveTo(x + iconRadius, y);
+    ctx.arcTo(x + iconSize, y, x + iconSize, y + iconSize, iconRadius);
+    ctx.arcTo(x + iconSize, y + iconSize, x, y + iconSize, iconRadius);
+    ctx.arcTo(x, y + iconSize, x, y, iconRadius);
+    ctx.arcTo(x, y, x + iconSize, y, iconRadius);
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(icon, x, y, ICON_SIZE, ICON_SIZE);
+    ctx.drawImage(icon, x, y, iconSize, iconSize);
     ctx.restore();
     return true;
   } catch {
@@ -131,7 +149,8 @@ export async function composeOgImageWithFooter(
       Math.round(OG_IMAGE_WIDTH * (srcH / srcW)),
       MAX_PHOTO_HEIGHT,
     );
-    const canvasHeight = photoHeight + FOOTER_HEIGHT;
+    const fm = resolveFooterMetrics(photoHeight);
+    const canvasHeight = photoHeight + fm.footerHeight;
 
     const canvas = document.createElement('canvas');
     canvas.width = OG_IMAGE_WIDTH;
@@ -149,26 +168,26 @@ export async function composeOgImageWithFooter(
 
     const footerTop = photoHeight;
     ctx.fillStyle = COLORS.footer;
-    ctx.fillRect(0, footerTop, OG_IMAGE_WIDTH, FOOTER_HEIGHT);
+    ctx.fillRect(0, footerTop, OG_IMAGE_WIDTH, fm.footerHeight);
     ctx.fillStyle = COLORS.accent;
     ctx.fillRect(0, footerTop, OG_IMAGE_WIDTH, ACCENT_BAR_HEIGHT);
 
-    const iconY = footerTop + (FOOTER_HEIGHT - ICON_SIZE + ACCENT_BAR_HEIGHT) / 2;
-    const hasIcon = await drawIcon(ctx, PADDING_X, iconY);
-    const textX = hasIcon ? PADDING_X + ICON_SIZE + 24 : PADDING_X;
-    const textY = footerTop + ACCENT_BAR_HEIGHT + (FOOTER_HEIGHT - ACCENT_BAR_HEIGHT) / 2;
+    const iconY = footerTop + (fm.footerHeight - fm.iconSize + ACCENT_BAR_HEIGHT) / 2;
+    const hasIcon = await drawIcon(ctx, fm.paddingX, iconY, fm.iconSize, fm.iconRadius);
+    const textX = hasIcon ? fm.paddingX + fm.iconSize + fm.textGap : fm.paddingX;
+    const textY = footerTop + ACCENT_BAR_HEIGHT + (fm.footerHeight - ACCENT_BAR_HEIGHT) / 2;
 
     ctx.textBaseline = 'middle';
     ctx.fillStyle = COLORS.brand;
-    ctx.font = `700 32px ${FONT}`;
+    ctx.font = `700 ${fm.brandFontSize}px ${FONT}`;
     const brand = 'TripPilot';
     ctx.fillText(brand, textX, textY);
     const brandWidth = ctx.measureText(brand).width;
 
     ctx.fillStyle = COLORS.tagline;
-    ctx.font = `400 28px ${FONT}`;
-    const taglineX = textX + brandWidth + 18;
-    const maxTagline = OG_IMAGE_WIDTH - PADDING_X - taglineX;
+    ctx.font = `400 ${fm.taglineFontSize}px ${FONT}`;
+    const taglineX = textX + brandWidth + fm.taglineGap;
+    const maxTagline = OG_IMAGE_WIDTH - fm.paddingX - taglineX;
     if (maxTagline > 40) {
       ctx.fillText(truncateToWidth(ctx, `· ${tagline}`, maxTagline), taglineX, textY);
     }

@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.10-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Notificações de pagamento de grupo: quando alguém marca como pago em uma divisão, você recebe um aviso no menu de notificações e um toast no dashboard para confirmar.',
+        'Quem paga via link pode registrar como gasto: ao marcar que pagou, o app pergunta se quer adicionar esse valor como gasto pessoal.',
+        'Footer OG dinâmico: logo e texto no rodapé das imagens compartilhadas agora escalam proporcionalmente para melhor legibilidade.',
+        'Suporte a imagens 9:16: imagens mais altas (até 9:16) são suportadas no compartilhamento sem corte.',
+      ],
+      en: [
+        'Group payment notifications: when someone marks as paid in a group split, you get an alert in the notifications menu and a dashboard toast to confirm.',
+        'Payer can register as expense: when marking as paid via link, the app asks if you want to add this amount as a personal expense.',
+        'Dynamic OG footer: logo and text on shared image footers now scale proportionally for better readability.',
+        '9:16 image support: taller images (up to 9:16) are now supported in sharing without cropping.',
+      ],
+      es: [
+        'Notificaciones de pago de grupo: cuando alguien marca como pagado en una división, recibes un aviso en el menú de notificaciones y un toast en el dashboard para confirmar.',
+        'Quien paga por enlace puede registrar como gasto: al marcar que pagó, la app pregunta si quiere agregar este valor como gasto personal.',
+        'Footer OG dinámico: logo y texto en el pie de las imágenes compartidas ahora escalan proporcionalmente para mejor legibilidad.',
+        'Soporte de imágenes 9:16: imágenes más altas (hasta 9:16) son soportadas en el compartir sin recorte.',
+      ],
+    },
+  },
+  {
     version: '2.7.9-rc',
     date: '2026-07-08',
     items: {

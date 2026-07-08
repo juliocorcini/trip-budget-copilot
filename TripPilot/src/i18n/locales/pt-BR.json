@@ -3002,7 +3002,8 @@
     "undo": "Desfazer",
     "undo_done": "Desfeito",
     "dismiss": "Descartar",
-    "total": "Total"
+    "total": "Total",
+    "see": "Ver"
   },
   "group_split": {
     "title": "Divisão em grupo",
@@ -3164,6 +3165,12 @@
     "add_expense_hint": "Registre uma conta — ela aparece para todo o grupo automaticamente.",
     "expense_desc_ph": "Descrição (ex.: Táxi)",
     "who_paid": "Quem pagou",
+    "expense_prompt_title": "Registrar como gasto?",
+    "expense_prompt_body": "Você pagou {{amount}} para {{name}}. Quer registrar esse valor como gasto no seu app?",
+    "expense_prompt_fund": "Registrar na verba:",
+    "expense_prompt_save": "Registrar gasto",
+    "expense_prompt_skip": "Pular",
+    "expense_from_payment": "Pagamento: {{name}}",
     "pending": "Enviando…",
     "your_tag": "você",
     "remove": "Remover",
@@ -3200,7 +3207,9 @@
     "event_today": "Hoje: {{name}} — toque para iniciar",
     "backup_due": "Backup atrasado — toque para exportar seus dados",
     "long_outing": "A saída \"{{name}}\" está ativa há {{hours}}h — esqueceu de encerrar?",
-    "phase_over_budget": "A fase estourou o orçamento em {{amount}}"
+    "phase_over_budget": "A fase estourou o orçamento em {{amount}}",
+    "pending_group_payment": "{{participantName}} marcou como pago em \"{{groupName}}\" — confirme o recebimento",
+    "pending_group_payment_multi": "{{count}} pagamentos de grupo aguardando sua confirmação"
   },
   "impact": {
     "title": "Impacto completo",

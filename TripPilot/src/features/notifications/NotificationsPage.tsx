@@ -11,6 +11,7 @@ import type { AppNotification, AppNotificationKind } from '@/domain/insights';
 const NOTIFICATION_ICONS: Record<AppNotificationKind, string> = {
   pending_p2p: 'payments',
   pending_share: 'group',
+  pending_group_payment: 'check_circle',
   event_today: 'celebration',
   backup_due: 'cloud_upload',
   long_outing: 'schedule',
@@ -30,6 +31,7 @@ type NotificationGroup = 'action' | 'today' | 'reminders';
 
 const NOTIFICATION_GROUP: Record<AppNotificationKind, NotificationGroup> = {
   pending_p2p: 'action',
+  pending_group_payment: 'action',
   // DEC-450 (D06): waiting on a PEER's acceptance is informative, not "needs
   // you" — the owner has nothing to confirm on what they registered themselves.
   pending_share: 'reminders',
@@ -71,6 +73,11 @@ function notificationText(
       return t('notifications.long_outing', {
         name: v.name as string,
         hours: v.hours as number,
+      });
+    case 'pending_group_payment':
+      return t('notifications.pending_group_payment', {
+        participantName: v.participantName as string,
+        groupName: v.groupName as string,
       });
     case 'phase_over_budget':
       return t('notifications.phase_over_budget', {

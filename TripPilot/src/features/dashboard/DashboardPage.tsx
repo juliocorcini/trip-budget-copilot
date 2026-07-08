@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -88,6 +88,23 @@ export function DashboardPage() {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams, model.pendingShares]);
+
+  const gpToastFiredRef = useRef(false);
+  useEffect(() => {
+    const gpNotifs = notifications.filter((n) => n.kind === 'pending_group_payment');
+    if (gpNotifs.length === 0 || gpToastFiredRef.current) return;
+    gpToastFiredRef.current = true;
+    const first = gpNotifs[0]!;
+    const msg =
+      gpNotifs.length === 1
+        ? t('notifications.pending_group_payment', first.values as Record<string, string>)
+        : t('notifications.pending_group_payment_multi', { count: gpNotifs.length });
+    showToast(msg, 'warning', {
+      actionLabel: t('common.see'),
+      onTap: () => navigate(first.destination),
+      durationMs: 6000,
+    });
+  }, [notifications, t, navigate]);
 
   // DEC-459: mirror the daily hero into the Android home widget (native only;
   // no-op elsewhere). Formatting + labels are pushed from HERE so the widget

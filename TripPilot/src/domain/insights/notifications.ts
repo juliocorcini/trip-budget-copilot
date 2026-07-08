@@ -9,6 +9,7 @@ import type { PlannedOccurrence } from '@/domain/types/planned-occurrence';
 export type AppNotificationKind =
   | 'pending_p2p'
   | 'pending_share'
+  | 'pending_group_payment'
   | 'event_today'
   | 'backup_due'
   | 'long_outing'
@@ -51,6 +52,8 @@ export interface BuildNotificationsInput {
   /** Active-phase spending vs its budget. */
   phaseSpentCents: number;
   phaseBudgetCents: number;
+  /** Group splits with payments awaiting owner confirmation. */
+  pendingGroupPayments: Array<{ groupName: string; participantName: string; groupId: string }>;
 }
 
 export function buildNotifications(input: BuildNotificationsInput): AppNotification[] {
@@ -118,6 +121,16 @@ export function buildNotifications(input: BuildNotificationsInput): AppNotificat
         destination: '/outings/active',
       });
     }
+  }
+
+  for (const pg of input.pendingGroupPayments) {
+    notifications.push({
+      id: `pending_group_payment:${pg.groupId}:${pg.participantName}`,
+      kind: 'pending_group_payment',
+      tone: 'warning',
+      values: { groupName: pg.groupName, participantName: pg.participantName },
+      destination: `/groups/${pg.groupId}`,
+    });
   }
 
   if (input.phaseBudgetCents > 0 && input.phaseSpentCents > input.phaseBudgetCents) {
