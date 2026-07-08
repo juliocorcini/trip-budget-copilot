@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.0-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Web Push: notificações push chegam mesmo com o app fechado (navegador precisa estar aberto).',
+        'Organizador de grupo recebe push nativo quando participante marca como pago.',
+        'Subscription automática: o app registra no boot sem ação do usuário (após permissão).',
+      ],
+      en: [
+        'Web Push: push notifications arrive even with the app closed (browser must be running).',
+        'Group organizer receives native push when a participant marks as paid.',
+        'Automatic subscription: the app registers on boot without user action (after permission).',
+      ],
+      es: [
+        'Web Push: notificaciones push llegan incluso con la app cerrada (navegador debe estar abierto).',
+        'Organizador de grupo recibe push nativo cuando participante marca como pagado.',
+        'Suscripción automática: la app registra al iniciar sin acción del usuario (tras permiso).',
+      ],
+    },
+  },
+  {
     version: '2.7.11-rc',
     date: '2026-07-08',
     items: {

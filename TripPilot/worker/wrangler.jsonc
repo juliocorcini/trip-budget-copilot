@@ -72,6 +72,10 @@
     {
       "binding": "SHARE_STORE",
       "id": "2807b56d02c04ce385fa3bc5bf6565bf"
+    },
+    {
+      "binding": "PUSH_SUBS",
+      "id": "18e0c0be69714a43be0c70b14a5265ea"
     }
   ],
   // DEC-348 (G2, this wave — REVERSES DEC-342/343 image E2E): R2 bucket for

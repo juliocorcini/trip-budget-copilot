@@ -19,6 +19,7 @@ import { recordCrash, describeError } from './utils/crash-log';
 import { initNativeShell } from './utils/native';
 import { registerMailboxSync } from './utils/mailbox-boot';
 import { registerGroupSplitSync } from './utils/group-split-boot';
+import { registerPushSubscription } from './utils/push-subscription';
 import { registerLiveUpdate } from './utils/live-update-boot';
 import i18n from './i18n';
 import './styles/globals.css';
@@ -70,6 +71,10 @@ registerMailboxSync();
 // Group-split watcher: subscribe to WebSocket signals for all open group-splits
 // so the owner gets local notifications + toast when a guest marks as paid.
 registerGroupSplitSync();
+
+// Web Push VAPID: register the browser's push subscription with the worker
+// so it can send push notifications even when the app tab is closed.
+void registerPushSubscription();
 
 // FIELD item 20 (G8b): on a native cold start, confirm the running OTA bundle is
 // healthy and pull a newer web bundle from Pages when one is published (no-op on

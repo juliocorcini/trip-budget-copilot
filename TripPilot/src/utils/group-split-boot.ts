@@ -3,6 +3,8 @@ import { loadGroupLive, pullGroupClaims } from '@/features/group-split/group-lin
 import { reduceGroupClaims } from '@/domain/group-split';
 import { persistGroupSplit } from '@/domain/orchestrators/group-split-orchestrators';
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-signal';
+import { getSyncWorkerUrl } from '@/data/sync/config';
+import { getInstallationId } from '@/utils/entity-factory';
 import { showLocalNotification } from '@/utils/native/notifications';
 import { showToast } from '@/components/Toast';
 import i18n from '@/i18n';
@@ -70,10 +72,25 @@ async function pollGroupAndNotify(eventId: string): Promise<void> {
   }
 }
 
-function subscribeToGroup(eventId: string, shareId: string): void {
+function subscribeToGroup(eventId: string, shareId: string, groupName: string): void {
   if (handles.has(shareId)) return;
   const handle = connectShareSignal(shareId, () => void pollGroupAndNotify(eventId));
   handles.set(shareId, handle);
+
+  registerPushWatch(shareId, groupName);
+}
+
+function registerPushWatch(shareId: string, groupName: string): void {
+  const workerUrl = getSyncWorkerUrl();
+  fetch(`${workerUrl}/push/watch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      installId: getInstallationId(),
+      shareId,
+      groupName,
+    }),
+  }).catch(() => {});
 }
 
 async function refreshAllGroupSplits(): Promise<void> {
@@ -82,7 +99,7 @@ async function refreshAllGroupSplits(): Promise<void> {
     if (record.status === 'settled') continue;
     const creds = loadGroupLive(record.event.id);
     if (!creds) continue;
-    subscribeToGroup(record.event.id, creds.shareId);
+    subscribeToGroup(record.event.id, creds.shareId, record.event.name);
     await pollGroupAndNotify(record.event.id);
   }
 }

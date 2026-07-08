@@ -94,6 +94,18 @@ export interface Env {
   RL_AI?: RateLimiterBinding;
   RL_INGEST?: RateLimiterBinding;
   RL_SHARE_WRITE?: RateLimiterBinding;
+  /**
+   * Web Push VAPID: KV namespace storing push subscriptions keyed by installId.
+   * Each entry is a JSON PushSubscription. Absent in older deploys → /push
+   * routes report `push_not_configured`.
+   */
+  PUSH_SUBS?: KVNamespace;
+  /** VAPID private key (base64url). Worker secret. */
+  VAPID_PRIVATE_KEY?: string;
+  /** VAPID public key (base64url). Same as the client's applicationServerKey. */
+  VAPID_PUBLIC_KEY?: string;
+  /** VAPID subject (mailto: or https: URL for the push service). */
+  VAPID_SUBJECT?: string;
 }
 
 /** No ambiguous chars (0/O, 1/I/L) — codes are sometimes read aloud. */
@@ -1261,6 +1273,202 @@ async function handleAdmin(request: Request, env: Env, url: URL): Promise<Respon
   return relayDoResponse(res);
 }
 
+// ---------------------------------------------------------------------------
+// Web Push VAPID — subscribe and send
+// ---------------------------------------------------------------------------
+
+const PUSH_SUB_TTL_SECONDS = 90 * 24 * 60 * 60; // 90 days
+
+interface PushSubscribeBody {
+  installId: string;
+  subscription: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  };
+}
+
+async function handlePushSubscribe(request: Request, env: Env): Promise<Response> {
+  if (!env.PUSH_SUBS) return json({ error: 'push_not_configured' }, 501);
+  const body = await request.json<PushSubscribeBody>().catch(() => null);
+  if (!body?.installId || !body?.subscription?.endpoint || !body?.subscription?.keys) {
+    return json({ error: 'bad_request' }, 400);
+  }
+  await env.PUSH_SUBS.put(
+    `sub:${body.installId}`,
+    JSON.stringify(body.subscription),
+    { expirationTtl: PUSH_SUB_TTL_SECONDS },
+  );
+  return json({ ok: true });
+}
+
+interface PushSendBody {
+  installIds: string[];
+  title: string;
+  body: string;
+  url?: string;
+  tag?: string;
+}
+
+function base64urlEncode(data: ArrayBuffer): string {
+  const bytes = new Uint8Array(data);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64urlDecode(str: string): Uint8Array {
+  const padding = '='.repeat((4 - (str.length % 4)) % 4);
+  const base64 = (str + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+/**
+ * Derive the public key (x, y) from the VAPID public key (65-byte uncompressed
+ * point) so the private JWK can be constructed from the 32-byte private scalar.
+ */
+function deriveXYFromPublicKey(publicKeyBase64url: string): { x: string; y: string } {
+  const raw = base64urlDecode(publicKeyBase64url);
+  // Uncompressed EC point: 0x04 || x (32 bytes) || y (32 bytes)
+  return {
+    x: base64urlEncode(raw.slice(1, 33).buffer),
+    y: base64urlEncode(raw.slice(33, 65).buffer),
+  };
+}
+
+async function createVapidJwt(
+  audience: string,
+  subject: string,
+  privateKeyBase64: string,
+  publicKeyBase64: string,
+): Promise<string> {
+  const header = base64urlEncode(new TextEncoder().encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })).buffer as ArrayBuffer);
+  const now = Math.floor(Date.now() / 1000);
+  const payload = base64urlEncode(
+    new TextEncoder().encode(JSON.stringify({ aud: audience, exp: now + 3600, sub: subject })).buffer as ArrayBuffer,
+  );
+  const unsigned = `${header}.${payload}`;
+
+  const { x, y } = deriveXYFromPublicKey(publicKeyBase64);
+  const key = await crypto.subtle.importKey(
+    'jwk',
+    { kty: 'EC', crv: 'P-256', d: privateKeyBase64, x, y },
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign'],
+  );
+
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    key,
+    new TextEncoder().encode(unsigned),
+  );
+
+  // Convert DER signature to raw r||s (64 bytes) for JWT ES256.
+  const sigBytes = new Uint8Array(signature);
+  let r: Uint8Array;
+  let s: Uint8Array;
+  if (sigBytes.length === 64) {
+    r = sigBytes.slice(0, 32);
+    s = sigBytes.slice(32, 64);
+  } else {
+    const rLen = sigBytes[3]!;
+    r = sigBytes.slice(4, 4 + rLen);
+    if (r.length > 32) r = r.slice(r.length - 32);
+    const sOff = 4 + rLen;
+    const sLen = sigBytes[sOff + 1]!;
+    s = sigBytes.slice(sOff + 2, sOff + 2 + sLen);
+    if (s.length > 32) s = s.slice(s.length - 32);
+  }
+  const rawSig = new Uint8Array(64);
+  const padR = new Uint8Array(32);
+  padR.set(r, 32 - r.length);
+  rawSig.set(padR, 0);
+  const padS = new Uint8Array(32);
+  padS.set(s, 32 - s.length);
+  rawSig.set(padS, 32);
+
+  return `${unsigned}.${base64urlEncode(rawSig.buffer)}`;
+}
+
+/**
+ * Send a tickle push (no payload) using VAPID auth. The browser's SW receives
+ * a push event with no data and can then fetch pending notifications from the
+ * app or show a generic alert. This avoids implementing the full RFC 8291
+ * (aes128gcm content encryption) while still waking the browser.
+ */
+async function sendWebPushTickle(
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+  env: Env,
+): Promise<boolean> {
+  if (!env.VAPID_PRIVATE_KEY || !env.VAPID_PUBLIC_KEY || !env.VAPID_SUBJECT) return false;
+
+  const audience = new URL(subscription.endpoint).origin;
+  const jwt = await createVapidJwt(audience, env.VAPID_SUBJECT, env.VAPID_PRIVATE_KEY, env.VAPID_PUBLIC_KEY);
+
+  const res = await fetch(subscription.endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': `vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY}`,
+      'Content-Length': '0',
+      'TTL': '86400',
+    },
+  });
+
+  return res.ok || res.status === 201;
+}
+
+interface PushWatchBody {
+  installId: string;
+  shareId: string;
+  groupName: string;
+}
+
+async function handlePushWatch(request: Request, env: Env): Promise<Response> {
+  if (!env.PUSH_SUBS) return json({ error: 'push_not_configured' }, 501);
+  const body = await request.json<PushWatchBody>().catch(() => null);
+  if (!body?.installId || !body?.shareId) return json({ error: 'bad_request' }, 400);
+  await env.PUSH_SUBS.put(
+    `watch:${body.shareId}`,
+    JSON.stringify({ installId: body.installId, groupName: body.groupName ?? '' }),
+    { expirationTtl: PUSH_SUB_TTL_SECONDS },
+  );
+  return json({ ok: true });
+}
+
+async function handlePushSend(request: Request, env: Env): Promise<Response> {
+  if (!env.PUSH_SUBS) return json({ error: 'push_not_configured' }, 501);
+  const body = await request.json<PushSendBody>().catch(() => null);
+  if (!body?.installIds?.length || !body?.title) {
+    return json({ error: 'bad_request' }, 400);
+  }
+
+  const payload = JSON.stringify({
+    title: body.title,
+    body: body.body ?? '',
+    url: body.url ?? '/dashboard',
+    tag: body.tag ?? 'trippilot-push',
+  });
+
+  let sent = 0;
+  let failed = 0;
+  for (const installId of body.installIds) {
+    const raw = await env.PUSH_SUBS.get(`sub:${installId}`);
+    if (!raw) { failed++; continue; }
+    try {
+      const subscription = JSON.parse(raw);
+      const ok = await sendWebPushTickle(subscription, env);
+      if (ok) sent++; else failed++;
+    } catch {
+      failed++;
+    }
+  }
+
+  return json({ sent, failed });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -1484,6 +1692,17 @@ async function routeRequest(
       return withAdminCors(await handleAdmin(request, env, url), request);
     }
 
+    // Web Push VAPID — subscribe + send routes.
+    if (url.pathname === '/push/subscribe' && request.method === 'POST') {
+      return handlePushSubscribe(request, env);
+    }
+    if (url.pathname === '/push/watch' && request.method === 'POST') {
+      return handlePushWatch(request, env);
+    }
+    if (url.pathname === '/push/send' && request.method === 'POST') {
+      return handlePushSend(request, env);
+    }
+
     return json({ error: 'not_found' }, 404);
 }
 
@@ -1667,7 +1886,7 @@ export class ShareSignal {
  * A sliding alarm wipes everything after the TTL; revoke keeps a short tombstone.
  */
 export class ShareStore {
-  constructor(private state: DurableObjectState) {}
+  constructor(private state: DurableObjectState, private env: Env) {}
 
   async fetch(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
@@ -1843,7 +2062,24 @@ export class ShareStore {
     const item: ShareResponseItem = { id: respId, blob, at: Date.now() };
     await this.state.storage.put(key, JSON.stringify(item));
     await this.state.storage.setAlarm(Date.now() + SHARE_TTL_SECONDS * 1000);
+
+    // Best-effort: notify the share owner via Web Push that a new response arrived.
+    this.notifyOwnerViaPush().catch(() => {});
+
     return json({ ok: true });
+  }
+
+  private async notifyOwnerViaPush(): Promise<void> {
+    const { PUSH_SUBS } = this.env;
+    if (!PUSH_SUBS) return;
+    const shareId = this.state.id.toString();
+    const watchRaw = await PUSH_SUBS.get(`watch:${shareId}`);
+    if (!watchRaw) return;
+    const watch = JSON.parse(watchRaw) as { installId: string; groupName: string };
+    const subRaw = await PUSH_SUBS.get(`sub:${watch.installId}`);
+    if (!subRaw) return;
+    const subscription = JSON.parse(subRaw);
+    await sendWebPushTickle(subscription, this.env);
   }
 
   private async getResponses(): Promise<Response> {

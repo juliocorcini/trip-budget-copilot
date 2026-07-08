@@ -524,6 +524,40 @@ async function handleSplitAction(event) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Web Push VAPID handler. The worker sends a push with a JSON body carrying
+// { title, body, url, tag }. The SW shows a native notification and taps
+// deep-link into the relevant screen.
+// ---------------------------------------------------------------------------
+
+self.addEventListener('push', (event) => {
+  var title = 'TripPilot';
+  var body = 'You have pending actions';
+  var url = '/dashboard';
+  var tag = 'trippilot-push';
+
+  if (event.data) {
+    try {
+      var payload = event.data.json();
+      title = payload.title || title;
+      body = payload.body || body;
+      url = payload.url || url;
+      tag = payload.tag || tag;
+    } catch {
+      // Malformed JSON — use defaults.
+    }
+  }
+
+  var options = {
+    body: body,
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: tag,
+    data: { url: url },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
 self.addEventListener('notificationclick', (event) => {
   if (
     event.notification.tag === OUTING_TAG ||
@@ -534,5 +568,9 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(handleCheckInAction(event));
   } else if (event.notification.tag === SPLIT_TAG) {
     event.waitUntil(handleSplitAction(event));
+  } else {
+    const data = event.notification.data || {};
+    event.notification.close();
+    event.waitUntil(focusOrOpen(data.url || '/dashboard'));
   }
 });
