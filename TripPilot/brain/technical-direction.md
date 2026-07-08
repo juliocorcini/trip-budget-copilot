@@ -162,9 +162,17 @@ holds plaintext user data:
   Play Store optional/future — B5 2026-06-17).
 - Native local notifications with **no-open quick-add** value buttons; runtime permissions for
   GPS/notifications/camera; CSS safe-areas; hardware back-button; softened haptics.
+- **Push Notifications (3-layer strategy, DEC-485→488)**:
+  - **Layer 1**: App-level WebSocket (`group-split-boot.ts`) → toast + local notif when app is open.
+  - **Layer 2**: Web Push VAPID (`push-subscription.ts` + `sw.js` push handler) → native notif when
+    app tab is closed but browser is running (PWA/web). Worker tickle push (no payload encryption).
+  - **Layer 3**: FCM (`@capacitor/push-notifications` + `fcm-cloudflare-workers`) → native notif even
+    when app+browser are fully closed. Requires Google Play Services. Firebase project `trippilot-a1b43`.
+  - Worker routes: `/push/subscribe` (VAPID subs), `/push/watch` (shareId→installId), `/push/register-fcm`
+    (FCM tokens). KV namespace `PUSH_SUBS`. `ShareStore` DO fires both FCM + VAPID on guest response.
 - **Capgo** self-hosted **OTA**: web-only releases reach installed APKs without a new APK; an
-  in-app self-update flow exists for full APK bumps. Web/OTA version (0.64.0) runs ahead of the
-  latest packaged APK (0.56.0; minimum required 0.50.0) by design.
+  in-app self-update flow exists for full APK bumps. Web/OTA version (2.8.1-rc) runs ahead of the
+  latest packaged APK (0.74.0; minimum required 0.50.0) by design.
 
 ## Future Expansion Path
 

@@ -3606,6 +3606,30 @@
 - **Rationale**: pedido direto do Julio: "todo deploy tem que ter bump de versão… e também fazer o texto de o que mudou, os últimos deploys ficaram sem… anotar como regra que temos sempre que fazer isso".
 - **Alternatives**: nenhuma — é uma regra de processo, não uma escolha técnica.
 
+### DEC-485 — Notificações genéricas acionáveis (toast + notification center + local notif) [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.11-rc`)
+- **Decision**: toda ação que requer atenção do usuário (pagamento pendente de group-split, cobrança P2P, verba estourada) gera: (1) entrada derivada no menu de notificações (via `buildNotifications`), (2) toast na Dashboard quando a notificação aparece pela primeira vez (mecanismo genérico com `actionToastFiredRef`), (3) notificação local nativa (Android) quando o evento é detectado fora da página de origem. O `useNotifications` agora escuta tanto `MAILBOX_DRAINED_EVENT` quanto `GROUP_SPLIT_CHANGED_EVENT` para re-derivar notificações em tempo real.
+- **Rationale**: review verbatim: "não fui avisado em momento algum que eu precisava dar um input… isso precisa funcionar, precisa avisar… não só para essa função mas pra todas as outras".
+- **Alternatives**: notificação fixa só na página de grupo (rejeitado — Julio não via a notificação se não estivesse na página); apenas badge sem toast (rejeitado — badge é ignorável sem indicação ativa).
+
+### DEC-486 — App-level WebSocket listener para group-split (group-split-boot.ts) [review de campo 08/07, bilage 3]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.7.11-rc`)
+- **Decision**: criação de `src/utils/group-split-boot.ts` — módulo que ao boot (3s delay) e ao retorno de visibilidade enumera todos os group-splits ativos do owner, conecta um WebSocket (`ShareSignal`) para cada um, e quando detecta mudança (novo claim/pagamento), faz `pollGroupAndNotify`: busca claims → `reduceGroupClaims` → persiste → dispara toast + local notif + `GROUP_SPLIT_CHANGED_EVENT`. Registrado no `main.tsx` ao lado do `registerMailboxSync`.
+- **Rationale**: antes, o listener era page-scoped (`GroupSplitDetailPage`). Se o owner não estivesse na página, nunca recebia a notificação em tempo real.
+- **Alternatives**: polling periódico sem WebSocket (rejeitado — desperdiça bateria e bandwidth); event bus em vez de custom DOM events (rejeitado — DOM CustomEvents são leves e suficientes para o caso single-tab).
+
+### DEC-487 — Web Push VAPID (Nível 2): notificações com app fechado, browser aberto [08/07]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.8.0-rc`)
+- **Decision**: implementação do Web Push Protocol com VAPID (Voluntary Application Server Identification) para enviar push notifications ao browser mesmo quando o app (aba) está fechado mas o browser está rodando. Componentes: (1) Par de chaves VAPID gerado e armazenado como secrets no Worker; (2) handler `push` no `sw.js` que mostra notificação nativa; (3) `push-subscription.ts` no client que pede permissão e registra a subscription no Worker via `POST /push/subscribe`; (4) Worker salva subscriptions em KV (`sub:{installId}`); (5) ao receber response no `ShareStore`, o DO faz `sendWebPushTickle` (push sem payload, que acorda o SW que mostra notificação genérica); (6) `POST /push/watch` permite o owner mapear um shareId ao seu installId para push direcionado. Abordagem "tickle" (sem content encryption RFC 8291) escolhida por simplicidade — a maioria dos push services aceita push sem payload.
+- **Rationale**: pedido do Julio para notificar em todas as situações. Nível 2 não precisa de Firebase/Google Play Services, funciona em qualquer browser moderno que suporte Service Workers.
+- **Alternatives**: implementação completa de RFC 8291 (aes128gcm content encryption) para enviar payload no push (rejeitado por agora — complexidade alta para CF Workers, tickle genérico é suficiente; pode ser adicionado futuramente); apenas polling background (rejeitado — não funciona com aba fechada); OneSignal/Pushwoosh (rejeitado — dependência externa desnecessária para o escopo).
+
+### DEC-488 — FCM Push (Nível 3): notificações com app + browser fechados [08/07]
+- **Date**: 2026-07-08 · **Status**: ✅ APPROVED/SHIPPED (wave `2.8.1-rc`)
+- **Decision**: infraestrutura para Firebase Cloud Messaging no app nativo Android. Componentes: (1) `@capacitor/push-notifications` plugin instalado e sincronizado; (2) `push-notifications.ts` no client que registra FCM token no boot via `POST /push/register-fcm`; (3) Worker salva tokens em KV (`fcm:{installId}`); (4) biblioteca `fcm-cloudflare-workers` instalada no Worker para enviar via FCM HTTP v1 API; (5) `ShareStore.notifyOwnerViaPush()` agora tenta FCM primeiro e depois Web Push VAPID em paralelo; (6) Firebase project `trippilot-a1b43` criado, `google-services.json` colocado em `android/app/`, `FCM_SERVICE_ACCOUNT` secret configurado no Worker. FCM NÃO requer Play Store mas requer Google Play Services no dispositivo.
+- **Rationale**: Web Push VAPID não funciona com browser completamente fechado. FCM é o único mecanismo que atinge o dispositivo Android em estado deep-sleep/killed.
+- **Alternatives**: APNs para iOS (futuro, quando/se houver versão iOS); HUAWEI Push (desnecessário para o público-alvo); polling com AlarmManager (rejeitado — impreciso e consome bateria).
+
 ---
 
 *New decisions will be added as the project progresses.*
