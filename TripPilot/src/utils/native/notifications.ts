@@ -76,7 +76,7 @@ export async function hasNotificationPermission(): Promise<boolean> {
 
 export const ALERT_CHANNEL_ID = 'trippilot_alerts';
 
-/** Boot-time setup: caches the current notification permission and creates channels. */
+/** Boot-time setup: caches the current notification permission, creates channels, and listens for taps. */
 export async function initNativeNotifications(): Promise<void> {
   const holder = await loadPlugin();
   if (!holder) return;
@@ -93,6 +93,61 @@ export async function initNativeNotifications(): Promise<void> {
   } catch {
     // Channel creation is best-effort.
   }
+  holder.plugin.addListener(
+    'localNotificationActionPerformed',
+    (action) => {
+      const deepLink = action.notification.extra?.deepLink as string | undefined;
+      if (deepLink) {
+        window.location.assign(deepLink);
+      }
+    },
+  );
+}
+
+const ONGOING_GROUP_SPLIT_ID = 778_802;
+
+/**
+ * Show a persistent (ongoing) notification that cannot be swiped away.
+ * Used for pending group-split payments that require owner action.
+ * Re-calling with different text updates the notification in place.
+ */
+export async function showOngoingGroupSplitNotification(
+  title: string,
+  body: string,
+  deepLink?: string,
+): Promise<void> {
+  const holder = await loadPlugin();
+  if (!holder) return;
+  if (cachedPermission !== 'granted') {
+    const updated = await refreshNotificationPermission();
+    if (updated !== 'granted') return;
+  }
+  try {
+    await holder.plugin.schedule({
+      notifications: [{
+        id: ONGOING_GROUP_SPLIT_ID,
+        title,
+        body,
+        smallIcon: 'ic_notification',
+        channelId: ALERT_CHANNEL_ID,
+        ongoing: true,
+        autoCancel: false,
+        extra: deepLink ? { deepLink } : undefined,
+      }],
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+export async function cancelOngoingGroupSplitNotification(): Promise<void> {
+  const holder = await loadPlugin();
+  if (!holder) return;
+  try {
+    await holder.plugin.cancel({ notifications: [{ id: ONGOING_GROUP_SPLIT_ID }] });
+  } catch {
+    // best-effort
+  }
 }
 
 /**
@@ -100,8 +155,14 @@ export async function initNativeNotifications(): Promise<void> {
  * a charge while the app was backgrounded). Native + granted-permission only;
  * a no-op on the web and fully best-effort (never throws). Android notification
  * ids must fit a 32-bit int.
+ *
+ * @param deepLink — optional in-app route (e.g. `/groups/abc`) to navigate to on tap.
  */
-export async function showLocalNotification(title: string, body: string): Promise<void> {
+export async function showLocalNotification(
+  title: string,
+  body: string,
+  deepLink?: string,
+): Promise<void> {
   const holder = await loadPlugin();
   if (!holder) return;
   if (cachedPermission !== 'granted') {
@@ -116,6 +177,7 @@ export async function showLocalNotification(title: string, body: string): Promis
         body,
         smallIcon: 'ic_notification',
         channelId: ALERT_CHANNEL_ID,
+        extra: deepLink ? { deepLink } : undefined,
       }],
     });
   } catch {

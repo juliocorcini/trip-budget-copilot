@@ -50,6 +50,14 @@ export async function registerFcmPush(): Promise<void> {
       logger.error('fcm_registration_error', { module: 'push' }, err);
     });
 
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      const deepLink =
+        action.notification.data?.deepLink as string | undefined;
+      if (deepLink) {
+        window.location.assign(deepLink);
+      }
+    });
+
     await PushNotifications.register();
   } catch (err) {
     logger.error('fcm_setup_failed', { module: 'push' }, err);

@@ -3205,7 +3205,9 @@
     "long_outing": "The outing \"{{name}}\" has been active for {{hours}}h — forgot to end it?",
     "phase_over_budget": "The phase went over budget by {{amount}}",
     "pending_group_payment": "{{participantName}} marked as paid in \"{{groupName}}\" — confirm receipt",
-    "pending_group_payment_multi": "{{count}} group payments awaiting your confirmation"
+    "pending_group_payment_multi": "{{count}} group payments awaiting your confirmation",
+    "pending_group_payment_ongoing": "{{count}} payment(s) awaiting confirmation in \"{{groupName}}\"",
+    "pending_group_payment_ongoing_multi": "{{count}} payments awaiting confirmation across {{groups}} groups"
   },
   "impact": {
     "title": "Full impact",

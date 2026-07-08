@@ -1430,6 +1430,7 @@ interface PushWatchBody {
   installId: string;
   shareId: string;
   groupName: string;
+  eventId?: string;
 }
 
 async function handlePushWatch(request: Request, env: Env): Promise<Response> {
@@ -1438,7 +1439,11 @@ async function handlePushWatch(request: Request, env: Env): Promise<Response> {
   if (!body?.installId || !body?.shareId) return json({ error: 'bad_request' }, 400);
   await env.PUSH_SUBS.put(
     `watch:${body.shareId}`,
-    JSON.stringify({ installId: body.installId, groupName: body.groupName ?? '' }),
+    JSON.stringify({
+      installId: body.installId,
+      groupName: body.groupName ?? '',
+      eventId: body.eventId ?? '',
+    }),
     { expirationTtl: PUSH_SUB_TTL_SECONDS },
   );
   return json({ ok: true });
@@ -1466,6 +1471,7 @@ async function sendFcmPush(
   title: string,
   body: string,
   env: Env,
+  deepLink?: string,
 ): Promise<boolean> {
   if (!env.FCM_SERVICE_ACCOUNT) return false;
   try {
@@ -1474,6 +1480,7 @@ async function sendFcmPush(
     await fcm.sendToToken(
       {
         notification: { title, body },
+        data: deepLink ? { deepLink } : undefined,
         android: {
           notification: {
             channel_id: 'trippilot_alerts',
@@ -2132,7 +2139,12 @@ export class ShareStore {
     const shareId = this.state.id.toString();
     const watchRaw = await PUSH_SUBS.get(`watch:${shareId}`);
     if (!watchRaw) return;
-    const watch = JSON.parse(watchRaw) as { installId: string; groupName: string };
+    const watch = JSON.parse(watchRaw) as {
+      installId: string;
+      groupName: string;
+      eventId?: string;
+    };
+    const deepLink = watch.eventId ? `/groups/${watch.eventId}` : '/dashboard';
 
     // Try FCM first (native app, survives full process kill).
     const fcmToken = await PUSH_SUBS.get(`fcm:${watch.installId}`);
@@ -2141,7 +2153,7 @@ export class ShareStore {
       const body = watch.groupName
         ? `New activity in "${watch.groupName}"`
         : 'New activity in your group split';
-      await sendFcmPush(fcmToken, title, body, this.env);
+      await sendFcmPush(fcmToken, title, body, this.env, deepLink);
     }
 
     // Also try Web Push VAPID (PWA, browser open).

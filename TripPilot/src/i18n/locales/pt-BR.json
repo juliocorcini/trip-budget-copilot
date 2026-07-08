@@ -3209,7 +3209,9 @@
     "long_outing": "A saída \"{{name}}\" está ativa há {{hours}}h — esqueceu de encerrar?",
     "phase_over_budget": "A fase estourou o orçamento em {{amount}}",
     "pending_group_payment": "{{participantName}} marcou como pago em \"{{groupName}}\" — confirme o recebimento",
-    "pending_group_payment_multi": "{{count}} pagamentos de grupo aguardando sua confirmação"
+    "pending_group_payment_multi": "{{count}} pagamentos de grupo aguardando sua confirmação",
+    "pending_group_payment_ongoing": "{{count}} pagamento(s) aguardando confirmação em \"{{groupName}}\"",
+    "pending_group_payment_ongoing_multi": "{{count}} pagamentos aguardando confirmação em {{groups}} grupos"
   },
   "impact": {
     "title": "Impacto completo",

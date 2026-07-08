@@ -5,7 +5,11 @@ import { persistGroupSplit } from '@/domain/orchestrators/group-split-orchestrat
 import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-signal';
 import { getSyncWorkerUrl } from '@/data/sync/config';
 import { getInstallationId } from '@/utils/entity-factory';
-import { showLocalNotification } from '@/utils/native/notifications';
+import {
+  showLocalNotification,
+  showOngoingGroupSplitNotification,
+  cancelOngoingGroupSplitNotification,
+} from '@/utils/native/notifications';
 import { showToast } from '@/components/Toast';
 import i18n from '@/i18n';
 
@@ -53,13 +57,16 @@ async function pollGroupAndNotify(eventId: string): Promise<void> {
           participantName: p.name,
           groupName: next.name,
         });
+        const groupRoute = `/groups/${eventId}`;
         showToast(msg, 'warning', {
           durationMs: 6000,
           actionLabel: i18n.t('common.see'),
+          onTap: () => window.location.assign(groupRoute),
         });
         void showLocalNotification(
           i18n.t('group_split.title'),
           msg,
+          groupRoute,
         );
       }
     }
@@ -77,10 +84,10 @@ function subscribeToGroup(eventId: string, shareId: string, groupName: string): 
   const handle = connectShareSignal(shareId, () => void pollGroupAndNotify(eventId));
   handles.set(shareId, handle);
 
-  registerPushWatch(shareId, groupName);
+  registerPushWatch(shareId, groupName, eventId);
 }
 
-function registerPushWatch(shareId: string, groupName: string): void {
+function registerPushWatch(shareId: string, groupName: string, eventId: string): void {
   const workerUrl = getSyncWorkerUrl();
   fetch(`${workerUrl}/push/watch`, {
     method: 'POST',
@@ -89,6 +96,7 @@ function registerPushWatch(shareId: string, groupName: string): void {
       installId: getInstallationId(),
       shareId,
       groupName,
+      eventId,
     }),
   }).catch(() => {});
 }
@@ -102,6 +110,44 @@ async function refreshAllGroupSplits(): Promise<void> {
     subscribeToGroup(record.event.id, creds.shareId, record.event.name);
     await pollGroupAndNotify(record.event.id);
   }
+  await syncOngoingNotification();
+}
+
+async function syncOngoingNotification(): Promise<void> {
+  const records = await groupSplitRepository.listEvents();
+  const pending: { name: string; eventId: string; count: number }[] = [];
+
+  for (const r of records) {
+    if (r.status === 'settled') continue;
+    const markedCount = r.event.participants.filter(
+      (p) => p.paymentStatus === 'marked',
+    ).length;
+    if (markedCount > 0) {
+      pending.push({ name: r.event.name, eventId: r.event.id, count: markedCount });
+    }
+  }
+
+  if (pending.length === 0) {
+    void cancelOngoingGroupSplitNotification();
+    return;
+  }
+
+  const totalPending = pending.reduce((sum, p) => sum + p.count, 0);
+  const first = pending[0]!;
+  const title = i18n.t('group_split.title');
+  const body =
+    pending.length === 1
+      ? i18n.t('notifications.pending_group_payment_ongoing', {
+          count: totalPending,
+          groupName: first.name,
+        })
+      : i18n.t('notifications.pending_group_payment_ongoing_multi', {
+          count: totalPending,
+          groups: pending.length,
+        });
+  const deepLink = pending.length === 1 ? `/groups/${first.eventId}` : '/dashboard';
+
+  void showOngoingGroupSplitNotification(title, body, deepLink);
 }
 
 export function registerGroupSplitSync(): void {
@@ -111,6 +157,7 @@ export function registerGroupSplitSync(): void {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void refreshAllGroupSplits();
   });
+  window.addEventListener(GROUP_SPLIT_CHANGED_EVENT, () => void syncOngoingNotification());
 }
 
 export function teardownGroupSplitSync(): void {

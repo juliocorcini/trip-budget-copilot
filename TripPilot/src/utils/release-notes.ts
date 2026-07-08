@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.4-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Deep link nas notificações: tocar em uma notificação leva direto ao conteúdo relevante.',
+        'Notificação persistente para pagamentos de grupo pendentes — não pode ser removida até a confirmação.',
+      ],
+      en: [
+        'Notification deep links: tapping a notification navigates directly to the relevant content.',
+        'Persistent notification for pending group payments — cannot be dismissed until confirmed.',
+      ],
+      es: [
+        'Deep link en notificaciones: tocar una notificación navega directo al contenido relevante.',
+        'Notificación persistente para pagos de grupo pendientes — no se puede descartar hasta confirmar.',
+      ],
+    },
+  },
+  {
     version: '2.8.3-rc',
     date: '2026-07-08',
     items: {

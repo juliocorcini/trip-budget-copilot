@@ -82,6 +82,7 @@ export async function runMailboxSync(force = false): Promise<void> {
       void showLocalNotification(
         i18n.t('mailbox.native_title'),
         i18n.t('mailbox.native_body', { count: actionable }),
+        '/shared',
       );
     }
   } catch {
