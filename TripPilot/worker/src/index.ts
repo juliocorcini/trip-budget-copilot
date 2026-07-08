@@ -850,7 +850,10 @@ async function handleShare(request: Request, env: Env, url: URL): Promise<Respon
 
   const callDo = (id: string, path: string): Promise<Response> => {
     const stub = ns.get(ns.idFromName(id));
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Share-Id': id,
+    };
     if (token) headers['X-Share-Token'] = token;
     return stub.fetch(`https://do${path}`, { method, headers, body: bodyText });
   };
@@ -2127,16 +2130,15 @@ export class ShareStore {
     await this.state.storage.put(key, JSON.stringify(item));
     await this.state.storage.setAlarm(Date.now() + SHARE_TTL_SECONDS * 1000);
 
-    // Best-effort: notify the share owner via Web Push that a new response arrived.
-    this.notifyOwnerViaPush().catch(() => {});
+    const shareId = request.headers.get('X-Share-Id') ?? '';
+    this.notifyOwnerViaPush(shareId).catch(() => {});
 
     return json({ ok: true });
   }
 
-  private async notifyOwnerViaPush(): Promise<void> {
+  private async notifyOwnerViaPush(shareId: string): Promise<void> {
     const { PUSH_SUBS } = this.env;
-    if (!PUSH_SUBS) return;
-    const shareId = this.state.id.toString();
+    if (!PUSH_SUBS || !shareId) return;
     const watchRaw = await PUSH_SUBS.get(`watch:${shareId}`);
     if (!watchRaw) return;
     const watch = JSON.parse(watchRaw) as {

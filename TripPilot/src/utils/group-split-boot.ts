@@ -6,7 +6,6 @@ import { connectShareSignal, type ShareSignalHandle } from '@/data/sync/share-si
 import { getSyncWorkerUrl } from '@/data/sync/config';
 import { getInstallationId } from '@/utils/entity-factory';
 import {
-  showLocalNotification,
   showOngoingGroupSplitNotification,
   cancelOngoingGroupSplitNotification,
 } from '@/utils/native/notifications';
@@ -29,6 +28,7 @@ const handles = new Map<string, ShareSignalHandle>();
 let booted = false;
 
 const notifiedPaymentKeys = new Set<string>();
+let lastOngoingBody = '';
 
 async function pollGroupAndNotify(eventId: string): Promise<void> {
   const creds = loadGroupLive(eventId);
@@ -47,31 +47,31 @@ async function pollGroupAndNotify(eventId: string): Promise<void> {
       await persistGroupSplit(next);
     }
 
-    for (const p of next.participants) {
-      if (p.paymentStatus === 'marked') {
+    if (changed) {
+      const newMarked = next.participants.filter((p) => {
+        if (p.paymentStatus !== 'marked') return false;
         const key = `${eventId}:${p.id}`;
-        if (notifiedPaymentKeys.has(key)) continue;
+        if (notifiedPaymentKeys.has(key)) return false;
         notifiedPaymentKeys.add(key);
-
-        const msg = i18n.t('notifications.pending_group_payment', {
-          participantName: p.name,
-          groupName: next.name,
-        });
+        return true;
+      });
+      if (newMarked.length > 0) {
         const groupRoute = `/groups/${eventId}`;
+        const msg =
+          newMarked.length === 1
+            ? i18n.t('notifications.pending_group_payment', {
+                participantName: newMarked[0]!.name,
+                groupName: next.name,
+              })
+            : i18n.t('notifications.pending_group_payment_multi', {
+                count: newMarked.length,
+              });
         showToast(msg, 'warning', {
           durationMs: 6000,
           actionLabel: i18n.t('common.see'),
           onTap: () => window.location.assign(groupRoute),
         });
-        void showLocalNotification(
-          i18n.t('group_split.title'),
-          msg,
-          groupRoute,
-        );
       }
-    }
-
-    if (changed) {
       window.dispatchEvent(new CustomEvent(GROUP_SPLIT_CHANGED_EVENT));
     }
   } catch {
@@ -128,7 +128,10 @@ async function syncOngoingNotification(): Promise<void> {
   }
 
   if (pending.length === 0) {
-    void cancelOngoingGroupSplitNotification();
+    if (lastOngoingBody !== '') {
+      lastOngoingBody = '';
+      void cancelOngoingGroupSplitNotification();
+    }
     return;
   }
 
@@ -145,8 +148,11 @@ async function syncOngoingNotification(): Promise<void> {
           count: totalPending,
           groups: pending.length,
         });
-  const deepLink = pending.length === 1 ? `/groups/${first.eventId}` : '/dashboard';
 
+  if (body === lastOngoingBody) return;
+  lastOngoingBody = body;
+
+  const deepLink = pending.length === 1 ? `/groups/${first.eventId}` : '/dashboard';
   void showOngoingGroupSplitNotification(title, body, deepLink);
 }
 
@@ -170,5 +176,6 @@ export function teardownGroupSplitSync(): void {
   for (const h of handles.values()) h.close();
   handles.clear();
   notifiedPaymentKeys.clear();
+  lastOngoingBody = '';
   booted = false;
 }

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.7-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Push FCM corrigido: notificações chegam com app fechado (bug de ID no worker).',
+        'Notificação única resumida — sem duplicação (1 ongoing com contagem total).',
+        'Sem re-fire de notificação ao navegar para página da divisão em grupo.',
+      ],
+      en: [
+        'FCM push fixed: notifications arrive with app closed (worker ID mismatch bug).',
+        'Single summary notification — no duplication (1 ongoing with total count).',
+        'No notification re-fire when navigating to group split page.',
+      ],
+      es: [
+        'Push FCM corregido: notificaciones llegan con app cerrada (bug de ID en worker).',
+        'Notificación única resumida — sin duplicación (1 ongoing con conteo total).',
+        'Sin re-fire de notificación al navegar a página de división de grupo.',
+      ],
+    },
+  },
+  {
     version: '2.8.6-rc',
     date: '2026-07-08',
     items: {
