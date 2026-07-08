@@ -17,6 +17,45 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.9-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Contestação: ao re-marcar como pago, botão atualiza para "aguardando confirmação".',
+        'FCM: debounce elimina notificações duplicadas.',
+        'FCM: fix construtor da lib (serviceAccount wrapper).',
+      ],
+      en: [
+        'Contestation: re-marking as paid updates button to "awaiting confirmation".',
+        'FCM: debounce eliminates duplicate notifications.',
+        'FCM: lib constructor fix (serviceAccount wrapper).',
+      ],
+      es: [
+        'Contestación: al re-marcar como pagado, botón actualiza a "esperando confirmación".',
+        'FCM: debounce elimina notificaciones duplicadas.',
+        'FCM: fix constructor de la lib (serviceAccount wrapper).',
+      ],
+    },
+  },
+  {
+    version: '2.8.8-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Botão "marcar como pago" não reverte mais após marcar.',
+        'Diagnóstico FCM: logging detalhado para push com app fechado.',
+      ],
+      en: [
+        '"Mark as paid" button no longer reverts after marking.',
+        'FCM diagnostics: detailed logging for push with app closed.',
+      ],
+      es: [
+        'Botón "marcar como pagado" ya no revierte después de marcar.',
+        'Diagnóstico FCM: logging detallado para push con app cerrada.',
+      ],
+    },
+  },
+  {
     version: '2.8.7-rc',
     date: '2026-07-08',
     items: {

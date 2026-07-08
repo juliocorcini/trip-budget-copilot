@@ -72,6 +72,7 @@ export function GroupClaimPage() {
   const [load, setLoad] = useState<LoadState>({ kind: 'loading' });
   const [claimedId, setClaimedId] = useState<string | null>(null);
   const [markedPaid, setMarkedPaid] = useState(false);
+  const [contestSeen, setContestSeen] = useState(false);
   // DEC-363 (Item D) — an OPTIONAL proof the guest attaches with their mark-paid;
   // it rides the claim response and the owner folds it onto the timeline.
   const [proof, setProof] = useState<AttachedProof | null>(null);
@@ -137,12 +138,17 @@ export function GroupClaimPage() {
       } catch {
         /* keep prior responses */
       }
-      // Keep the local `markedPaid` in sync with owner-driven transitions
-      // that override the guest's optimistic mark (contested, cancelled, unpaid).
       if (seededRef.current) {
         const mine = res.payload.event.participants.find((p) => p.claimedByActorId === actorId);
-        if (mine && (mine.paymentStatus === 'contested' || mine.paymentStatus === 'cancelled' || mine.paymentStatus === 'unpaid')) {
+        if (mine?.paymentStatus === 'cancelled') {
           setMarkedPaid(false);
+        }
+        if (mine?.paymentStatus === 'contested' && !contestSeen) {
+          setContestSeen(true);
+          setMarkedPaid(false);
+        }
+        if (mine && mine.paymentStatus !== 'contested') {
+          setContestSeen(false);
         }
       }
       hasPayloadRef.current = true;
@@ -448,18 +454,15 @@ function ClaimBoard({
     (tr) => tr.fromParticipantId === claimedId || tr.toParticipantId === claimedId,
   );
 
-  // The owner's truth trumps the local optimistic flag for terminal states.
   const serverStatus = claimed?.paymentStatus ?? 'unpaid';
   const myStatus: GroupPaymentStatus =
     serverStatus === 'confirmed'
       ? 'confirmed'
-      : serverStatus === 'contested'
-        ? 'contested'
-        : serverStatus === 'cancelled'
-          ? 'cancelled'
-          : markedPaid
-            ? 'marked'
-            : serverStatus;
+      : serverStatus === 'cancelled'
+        ? 'cancelled'
+        : markedPaid
+          ? 'marked'
+          : serverStatus;
 
   const iOwe = (myBalance?.netCents ?? 0) < 0;
 

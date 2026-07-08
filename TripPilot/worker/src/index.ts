@@ -1476,10 +1476,13 @@ async function sendFcmPush(
   env: Env,
   deepLink?: string,
 ): Promise<boolean> {
-  if (!env.FCM_SERVICE_ACCOUNT) return false;
+  if (!env.FCM_SERVICE_ACCOUNT) {
+    console.warn('[fcm] no FCM_SERVICE_ACCOUNT');
+    return false;
+  }
   try {
     const serviceAccount = JSON.parse(env.FCM_SERVICE_ACCOUNT);
-    const fcm = new FCM(serviceAccount);
+    const fcm = new FCM({ serviceAccount });
     await fcm.sendToToken(
       {
         notification: { title, body },
@@ -1496,8 +1499,10 @@ async function sendFcmPush(
       },
       fcmToken,
     );
+    console.info('[fcm] sent ok to token', fcmToken.slice(0, 12) + '…');
     return true;
-  } catch {
+  } catch (err) {
+    console.error('[fcm] send failed', err);
     return false;
   }
 }
@@ -1620,6 +1625,23 @@ async function routeRequest(
     // "server capacity cut" (5xx). When the account's daily Durable Object
     // duration budget is exhausted, env.MAILBOX.get().fetch() throws — we map
     // that to 503 so the UI can stop claiming "no internet" while online.
+    if (request.method === 'GET' && url.pathname === '/push/debug') {
+      if (!env.PUSH_SUBS) return json({ error: 'no_push_subs' }, 501);
+      const watches = await env.PUSH_SUBS.list({ prefix: 'watch:' });
+      const fcmKeys = await env.PUSH_SUBS.list({ prefix: 'fcm:' });
+      const subKeys = await env.PUSH_SUBS.list({ prefix: 'sub:' });
+      const watchEntries: Record<string, unknown> = {};
+      for (const k of watches.keys) {
+        const v = await env.PUSH_SUBS.get(k.name);
+        watchEntries[k.name] = v ? JSON.parse(v) : null;
+      }
+      return json({
+        watches: watchEntries,
+        fcmTokens: fcmKeys.keys.map((k) => k.name),
+        vapidSubs: subKeys.keys.map((k) => k.name),
+      });
+    }
+
     if (request.method === 'GET' && url.pathname === '/health') {
       try {
         const stub = env.MAILBOX.get(env.MAILBOX.idFromName('health'));
@@ -2137,28 +2159,41 @@ export class ShareStore {
   }
 
   private async notifyOwnerViaPush(shareId: string): Promise<void> {
+    const DEBOUNCE_MS = 10_000;
+    const lastPush = await this.state.storage.get<number>('lastPushAt');
+    if (lastPush && Date.now() - lastPush < DEBOUNCE_MS) return;
+    await this.state.storage.put('lastPushAt', Date.now());
+
     const { PUSH_SUBS } = this.env;
-    if (!PUSH_SUBS || !shareId) return;
+    if (!PUSH_SUBS || !shareId) {
+      console.warn('[push] skip: no PUSH_SUBS or shareId', { shareId });
+      return;
+    }
     const watchRaw = await PUSH_SUBS.get(`watch:${shareId}`);
-    if (!watchRaw) return;
+    if (!watchRaw) {
+      console.warn('[push] no watch entry for', shareId);
+      return;
+    }
     const watch = JSON.parse(watchRaw) as {
       installId: string;
       groupName: string;
       eventId?: string;
     };
     const deepLink = watch.eventId ? `/groups/${watch.eventId}` : '/dashboard';
+    console.info('[push] found watch', { installId: watch.installId, groupName: watch.groupName });
 
-    // Try FCM first (native app, survives full process kill).
     const fcmToken = await PUSH_SUBS.get(`fcm:${watch.installId}`);
+    console.info('[push] fcmToken?', !!fcmToken);
+
     if (fcmToken) {
       const title = 'TripPilot';
       const body = watch.groupName
         ? `New activity in "${watch.groupName}"`
         : 'New activity in your group split';
-      await sendFcmPush(fcmToken, title, body, this.env, deepLink);
+      const ok = await sendFcmPush(fcmToken, title, body, this.env, deepLink);
+      console.info('[push] fcm result:', ok);
     }
 
-    // Also try Web Push VAPID (PWA, browser open).
     const subRaw = await PUSH_SUBS.get(`sub:${watch.installId}`);
     if (subRaw) {
       const subscription = JSON.parse(subRaw);

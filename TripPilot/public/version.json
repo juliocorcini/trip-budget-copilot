@@ -1,8 +1,8 @@
 {
-  "version": "2.8.7-rc",
+  "version": "2.8.9-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.8.7-rc.zip",
-  "notes": "FCM push com app fechado corrigido. Notificação única resumida (sem duplicação). Sem re-fire ao navegar."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.8.9-rc.zip",
+  "notes": "Contestação: re-marcar como pago atualiza UI. FCM sem duplicação (debounce 10s)."
 }

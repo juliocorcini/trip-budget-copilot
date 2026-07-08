@@ -50,6 +50,14 @@ export async function registerFcmPush(): Promise<void> {
       logger.error('fcm_registration_error', { module: 'push' }, err);
     });
 
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      logger.info('fcm_foreground_received', {
+        module: 'push',
+        title: notification.title,
+        body: notification.body,
+      });
+    });
+
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       const deepLink =
         action.notification.data?.deepLink as string | undefined;
@@ -59,6 +67,7 @@ export async function registerFcmPush(): Promise<void> {
     });
 
     await PushNotifications.register();
+    logger.info('fcm_register_called', { module: 'push' });
   } catch (err) {
     logger.error('fcm_setup_failed', { module: 'push' }, err);
   }
