@@ -1,8 +1,8 @@
 {
-  "version": "2.7.8-rc",
+  "version": "2.7.9-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.74.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.8-rc.zip",
-  "notes": "Review Bilage 3: FOUT ícones prevenido, label Organizador no guest board, saldos refletem pagamentos confirmados, imagem OG preserva aspect ratio, editar gasto com divisão, atalho de entrada após confirmação."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.9-rc.zip",
+  "notes": "Editar gasto: opção completa de 'quem pagou' + 'pagou tudo/dividimos' agora disponível na edição (replicando o QuickAdd). Lógica DEC-123/114/473 completa."
 }

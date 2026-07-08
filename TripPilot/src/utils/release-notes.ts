@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.9-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Editar gasto com "quem pagou": agora ao editar um gasto, você pode selecionar quem pagou e escolher se pagou tudo ou se dividiu — todas as opções do QuickAdd disponíveis na edição.',
+      ],
+      en: [
+        'Edit expense with "who paid": when editing an expense, you can now select who paid and choose full payment or split — all QuickAdd options available in edit.',
+      ],
+      es: [
+        'Editar gasto con "quién pagó": al editar un gasto, ahora puedes seleccionar quién pagó y elegir pago completo o dividido — todas las opciones de QuickAdd disponibles en edición.',
+      ],
+    },
+  },
+  {
     version: '2.7.8-rc',
     date: '2026-07-08',
     items: {

@@ -99,6 +99,8 @@ export function ExpenseDetailPage() {
   const [editSplitMode, setEditSplitMode] = useState<ShareType>('equal');
   const [editSelectedParticipantIds, setEditSelectedParticipantIds] = useState<string[]>([]);
   const [editCustomAmounts, setEditCustomAmounts] = useState<Record<string, string>>({});
+  const [editPaidById, setEditPaidById] = useState<string | null>(null);
+  const [editOtherPaidSplit, setEditOtherPaidSplit] = useState(false);
   // D-BUG-08: the place is edited with the shared <PlaceField> (rename, use my
   // location, nearby, find online, recents) instead of a bare text input.
   const [editPlace, setEditPlace] = useState<CurrentPlace | null>(null);
@@ -223,6 +225,9 @@ export function ExpenseDetailPage() {
     setEditSelectedParticipantIds(shares.map((s) => s.participantId));
     setEditSplitMode('equal');
     setEditCustomAmounts({});
+    setEditPaidById(tx.paidByParticipantId ?? owner?.id ?? null);
+    const txOtherPaid = owner !== null && tx.paidByParticipantId !== null && tx.paidByParticipantId !== owner.id;
+    setEditOtherPaidSplit(txOtherPaid && tx.isShared && shares.length > 1);
     setEditing(true);
   };
 
@@ -230,6 +235,13 @@ export function ExpenseDetailPage() {
     setEditSelectedParticipantIds((prev) =>
       prev.includes(pid) ? prev.filter((x) => x !== pid) : [...prev, pid],
     );
+  };
+
+  const editSelectPayer = (id: string) => {
+    setEditPaidById(id);
+    if (owner && id !== owner.id && editSelectedParticipantIds.length < 2) {
+      setEditSelectedParticipantIds([owner.id, id]);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -242,13 +254,27 @@ export function ExpenseDetailPage() {
       let newPersonalCost = tx.personalCostCents;
       let newShares = shares;
       let newIsShared = tx.isShared;
+      let newPaidById = tx.paidByParticipantId;
 
-      const splitChanged =
+      const effectivePaidById = editPaidById ?? owner?.id ?? null;
+      const editOtherPaid = owner !== null && effectivePaidById !== null && effectivePaidById !== owner.id;
+      const editWantsSplit = editOtherPaid ? editOtherPaidSplit : editIsShared;
+
+      const hasSplitCounterparty =
+        editSelectedParticipantIds.length >= 2 ||
+        (editSelectedParticipantIds.length === 1 && editSelectedParticipantIds[0] !== owner?.id);
+      const splitActive = editWantsSplit && hasSplitCounterparty && effectivePaidById !== null;
+      const payerFlowActive = owner !== null && effectivePaidById !== null && (editOtherPaid || splitActive);
+
+      const payerChanged = effectivePaidById !== tx.paidByParticipantId;
+      const splitConfigChanged =
         editIsShared !== tx.isShared ||
-        (editIsShared && editSelectedParticipantIds.sort().join() !== shares.map((s) => s.participantId).sort().join());
+        editOtherPaidSplit !== (tx.isShared && shares.length > 1 && tx.paidByParticipantId !== owner?.id) ||
+        payerChanged ||
+        (editWantsSplit && [...editSelectedParticipantIds].sort().join() !== shares.map((s) => s.participantId).sort().join());
       const amountChanged = newAmountCents !== tx.amountCents;
 
-      if (splitChanged && editIsShared && owner) {
+      if (payerFlowActive && (splitConfigChanged || amountChanged)) {
         if (shares.length > 0) {
           await Promise.all(shares.map((s) => participantShareRepository.delete(s.id)));
         }
@@ -258,13 +284,12 @@ export function ExpenseDetailPage() {
             return [pid, Number.isNaN(value) ? 0 : Math.round(value * 100)];
           }),
         );
-        const payerId = tx.paidByParticipantId ?? owner.id;
         const resolution = resolvePayerExpense({
           transactionId: tx.id,
           amountCents: newAmountCents,
-          ownerId: owner.id,
-          payerId,
-          didSplit: true,
+          ownerId: owner!.id,
+          payerId: effectivePaidById!,
+          didSplit: splitActive,
           participantIds: editSelectedParticipantIds,
           shareType: editSplitMode,
           customAmountsCents,
@@ -275,26 +300,32 @@ export function ExpenseDetailPage() {
         newShares = resolution.shares;
         newPersonalCost = resolution.personalCostCents;
         newIsShared = resolution.isShared;
+        newPaidById = effectivePaidById;
+        if (!resolution.movesOwnerWallet) {
+          setEditWalletId(null);
+        }
         await Promise.all(newShares.map((s) => participantShareRepository.create(s)));
-      } else if (splitChanged && !editIsShared) {
+      } else if (splitConfigChanged && !editWantsSplit && !editOtherPaid) {
         if (shares.length > 0) {
           await Promise.all(shares.map((s) => participantShareRepository.delete(s.id)));
         }
         newShares = [];
         newPersonalCost = newAmountCents;
         newIsShared = false;
-      } else if (!splitChanged && newIsShared && shares.length > 0 && amountChanged) {
+        newPaidById = owner?.id ?? null;
+      } else if (!splitConfigChanged && newIsShared && shares.length > 0 && amountChanged) {
         newShares = scaleSharesToTotal(shares, newAmountCents);
         await Promise.all(newShares.map((s) => participantShareRepository.update(s)));
         newPersonalCost = owner
           ? calculateOwnerPersonalCost({ ...tx, amountCents: newAmountCents }, newShares, owner.id)
           : null;
-      } else if (!newIsShared) {
+      } else if (!editWantsSplit && !editOtherPaid) {
         newPersonalCost = newAmountCents;
       }
 
       const movedPoolPhaseId =
         editPoolId !== tx.budgetPoolId ? resolvePoolPhaseId(links, editPoolId) : null;
+      const finalWalletId = editOtherPaid ? null : editWalletId;
       const updated = await transactionRepository.update({
         ...tx,
         amountCents: newAmountCents,
@@ -304,11 +335,12 @@ export function ExpenseDetailPage() {
             : newAmountCents,
         personalCostCents: newPersonalCost,
         isShared: newIsShared,
+        paidByParticipantId: newPaidById,
         description: editDescription.trim() || tx.description,
         category: editCategory,
         budgetPoolId: editPoolId,
         phaseId: movedPoolPhaseId ?? tx.phaseId,
-        walletId: editWalletId,
+        walletId: finalWalletId,
         date: newDate,
         ...placeToTransactionFields(editPlace),
         placeNameSource: editPlace ? 'user' : null,
@@ -722,27 +754,120 @@ export function ExpenseDetailPage() {
             locationFeaturesEnabled={!!settings?.locationCaptureEnabled}
           />
 
-          <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
-            <button
-              onClick={() => setEditIsShared((v) => !v)}
-              className="w-full flex items-center justify-between btn-press"
-            >
-              <span className="text-sm text-on-surface font-medium flex items-center gap-2">
-                <Icon name="group" size={18} className="text-on-surface-dim" />
-                {t('expenses.shared_toggle')}
-              </span>
-              <span
-                className="w-10 h-6 rounded-full relative transition-colors"
-                style={{ background: editIsShared ? 'var(--primary)' : 'var(--surface-high)' }}
-              >
-                <span
-                  className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-[left]"
-                  style={{ left: editIsShared ? '18px' : '2px' }}
-                />
-              </span>
-            </button>
+          {participants.length > 1 && (() => {
+            const effectiveEditPaidById = editPaidById ?? owner?.id ?? null;
+            const editOtherPaid = owner !== null && effectiveEditPaidById !== null && effectiveEditPaidById !== owner.id;
+            const editWantsSplit = editOtherPaid ? editOtherPaidSplit : editIsShared;
+            const editPayerName = (() => {
+              const p = participants.find((pp) => pp.id === effectiveEditPaidById);
+              return p ? (p.nickname ?? p.name) : '';
+            })();
+            const amountCentsPreview = (() => {
+              const v = parseFloat(editAmount.replace(',', '.'));
+              return Number.isNaN(v) || v <= 0 ? 0 : toCents(v);
+            })();
+            const editHasSplitCounterparty =
+              editSelectedParticipantIds.length >= 2 ||
+              (editSelectedParticipantIds.length === 1 && editSelectedParticipantIds[0] !== owner?.id);
+            const editFrontedPreview =
+              !editOtherPaid &&
+              editWantsSplit &&
+              editHasSplitCounterparty &&
+              owner !== null &&
+              !editSelectedParticipantIds.includes(owner.id);
 
-            {editIsShared && (
+            return (
+          <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-4">
+            <div>
+              <label className="text-xs text-on-surface-faint mb-2 block">
+                {t('expenses.who_paid')}
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {participants.map((p) => {
+                  const connected = p.linkedActorId !== null;
+                  const label = p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => editSelectPayer(p.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press inline-flex items-center gap-1.5 ${
+                        effectiveEditPaidById === p.id
+                          ? 'bg-primary text-on-surface'
+                          : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {connected && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
+                      )}
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {editOtherPaid && (
+              <div>
+                <label className="text-xs text-on-surface-faint mb-2 block">
+                  {t('expenses.split_mode')}
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditOtherPaidSplit(false)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                      !editOtherPaidSplit ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {t('expenses.other_paid_full')}
+                  </button>
+                  <button
+                    onClick={() => setEditOtherPaidSplit(true)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                      editOtherPaidSplit ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                    }`}
+                  >
+                    {t('expenses.other_paid_split')}
+                  </button>
+                </div>
+                {!editOtherPaidSplit && amountCentsPreview > 0 && (
+                  <p className="text-xs font-semibold text-warning mt-2">
+                    {t('expenses.debt_full_hint', {
+                      amount: formatMoney(amountCentsPreview, tx.currency),
+                      name: editPayerName,
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!editOtherPaid && (
+              <button
+                onClick={() => setEditIsShared((v) => {
+                  const next = !v;
+                  if (next && editSelectedParticipantIds.length === 0 && owner) {
+                    setEditSelectedParticipantIds([owner.id]);
+                  }
+                  return next;
+                })}
+                className="w-full flex items-center justify-between btn-press"
+              >
+                <span className="text-sm text-on-surface font-medium flex items-center gap-2">
+                  <Icon name="group" size={18} className="text-on-surface-dim" />
+                  {t('expenses.shared_toggle')}
+                </span>
+                <span
+                  className="w-10 h-6 rounded-full relative transition-colors"
+                  style={{ background: editIsShared ? 'var(--primary)' : 'var(--surface-high)' }}
+                >
+                  <span
+                    className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-[left]"
+                    style={{ left: editIsShared ? '18px' : '2px' }}
+                  />
+                </span>
+              </button>
+            )}
+
+            {(editWantsSplit || editOtherPaidSplit) && (
               <>
                 <div>
                   <label className="text-xs text-on-surface-faint mb-2 block">
@@ -750,17 +875,21 @@ export function ExpenseDetailPage() {
                   </label>
                   <div className="flex gap-2 flex-wrap">
                     {participants.map((p) => {
+                      const connected = p.linkedActorId !== null;
                       const label = p.nickname ?? p.name;
                       return (
                         <button
                           key={p.id}
                           onClick={() => editToggleParticipant(p.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press inline-flex items-center gap-1.5 ${
                             editSelectedParticipantIds.includes(p.id)
                               ? 'bg-primary text-on-surface'
                               : 'bg-surface-high text-on-surface-dim'
                           }`}
                         >
+                          {connected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
+                          )}
                           {p.isOwner ? t('shared.owner_tag') : label}
                         </button>
                       );
@@ -819,9 +948,32 @@ export function ExpenseDetailPage() {
                       ))}
                   </div>
                 )}
+
+                {editOtherPaid && editOtherPaidSplit && amountCentsPreview > 0 && editSelectedParticipantIds.includes(owner?.id ?? '') && (() => {
+                  const shareCount = editSelectedParticipantIds.length;
+                  const previewShare = shareCount > 0 ? Math.round(amountCentsPreview / shareCount) : 0;
+                  return (
+                    <p className="text-xs font-semibold text-warning">
+                      {t('expenses.debt_share_hint', {
+                        amount: formatMoney(previewShare, tx.currency),
+                        name: editPayerName,
+                      })}
+                    </p>
+                  );
+                })()}
+
+                {editFrontedPreview && amountCentsPreview > 0 && (
+                  <p className="text-xs font-semibold text-success">
+                    {t('expenses.fronted_hint', {
+                      amount: formatMoney(amountCentsPreview, tx.currency),
+                    })}
+                  </p>
+                )}
               </>
             )}
           </div>
+            );
+          })()}
 
           <div className="bg-surface-container rounded-xl p-4">
             <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>
