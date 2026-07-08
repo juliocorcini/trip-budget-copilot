@@ -540,7 +540,12 @@ function ClaimBoard({
             </div>
 
             <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-1">
-              {myBalance && myBalance.netCents < 0 ? (
+              {myStatus === 'confirmed' ? (
+                <div className="flex items-center gap-2">
+                  <Icon name="check_circle" size={20} className="text-success" />
+                  <p className="text-base font-bold text-success">{t('group_claim.confirmed')}</p>
+                </div>
+              ) : myBalance && myBalance.netCents < 0 ? (
                 <p className="text-base font-bold text-on-surface">
                   {t('group_split.owes', { amount: formatMoney(-myBalance.netCents, event.currency) })}
                 </p>
@@ -551,7 +556,7 @@ function ClaimBoard({
               ) : (
                 <p className="text-base font-bold text-on-surface-dim">{t('group_split.even')}</p>
               )}
-              {myBalance && (
+              {myStatus !== 'confirmed' && myBalance && (
                 <p className="text-[11px] text-on-surface-faint">
                   {t('group_claim.paid_share', {
                     paid: formatMoney(myBalance.paidCents, event.currency),
