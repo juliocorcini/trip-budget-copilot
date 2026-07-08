@@ -57,7 +57,7 @@ public class LiveOutingPlugin extends Plugin {
         ensureChannel(ctx);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(ctx, CHANNEL_ID)
-                .setSmallIcon(ctx.getApplicationInfo().icon)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setColor(color)

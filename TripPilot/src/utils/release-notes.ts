@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.2-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Ícone de notificação correto: todas as notificações agora mostram o pin TripPilot.',
+        'Cor accent terracota nas notificações da barra do Android.',
+      ],
+      en: [
+        'Correct notification icon: all notifications now show the TripPilot pin.',
+        'Terracotta accent color on Android notification bar.',
+      ],
+      es: [
+        'Icono de notificación correcto: todas las notificaciones ahora muestran el pin TripPilot.',
+        'Color accent terracota en las notificaciones de la barra de Android.',
+      ],
+    },
+  },
+  {
     version: '2.8.1-rc',
     date: '2026-07-08',
     items: {

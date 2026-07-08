@@ -9,6 +9,15 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- Default notification icon for FCM + Capacitor LocalNotifications.
+             Must be a white-on-transparent drawable (Android status bar requirement). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
+
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"

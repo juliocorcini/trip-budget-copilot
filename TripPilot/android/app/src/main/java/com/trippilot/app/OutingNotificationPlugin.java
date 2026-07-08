@@ -195,7 +195,7 @@ public class OutingNotificationPlugin extends Plugin {
         String body = buildBody(prefs, total);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(ctx, CHANNEL_ID)
-                .setSmallIcon(ctx.getApplicationInfo().icon)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(body))

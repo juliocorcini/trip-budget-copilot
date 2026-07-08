@@ -40,8 +40,7 @@ export async function showSplitNotifier(input: { title: string; body: string }):
           id: SPLIT_NOTIFICATION_ID,
           title: input.title,
           body: input.body,
-          // Persistent while the division is live: not swipe-dismissable and not
-          // cleared by a tap (the tap deep-links into the table instead).
+          smallIcon: 'ic_notification',
           ongoing: true,
           autoCancel: false,
         },

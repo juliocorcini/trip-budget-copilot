@@ -96,7 +96,12 @@ export async function showLocalNotification(title: string, body: string): Promis
   }
   try {
     await holder.plugin.schedule({
-      notifications: [{ id: Date.now() % 2_000_000_000, title, body }],
+      notifications: [{
+        id: Date.now() % 2_000_000_000,
+        title,
+        body,
+        smallIcon: 'ic_notification',
+      }],
     });
   } catch {
     // best-effort — a failed notification must never disrupt the drain

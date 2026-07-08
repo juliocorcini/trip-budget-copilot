@@ -4,7 +4,7 @@ Every deploy to production MUST include ALL of these steps. No exceptions.
 
 ## Before commit
 
-1. **Version bump** — increment the version in ALL three places:
+1. **Web version bump** — increment the version in ALL three places:
    - `TripPilot/package.json` (`version` field)
    - `TripPilot/src/utils/app-version.ts` (`APP_VERSION`)
    - `TripPilot/public/version.json` (`version` + `bundleUrl`)
@@ -17,14 +17,44 @@ Every deploy to production MUST include ALL of these steps. No exceptions.
 
 3. **version.json notes** — update `notes` field with a short summary of changes
 
+## APK version bump (when native changes exist)
+
+If the deploy includes ANY change that affects the Android APK — new Capacitor plugins,
+`AndroidManifest.xml` changes, Gradle config changes, native dependencies (`google-services.json`,
+Firebase, new permissions), or any reason the user needs a new APK — you MUST ALSO:
+
+4. **Bump native version** in `TripPilot/android/app/build.gradle`:
+   - `versionCode` — increment by 1 (integer)
+   - `versionName` — increment patch (e.g. `"0.75.0"` → `"0.76.0"`)
+
+5. **Update `latestNativeVersion`** in `TripPilot/public/version.json`:
+   - Set to the NEW `versionName` from step 4
+   - This is what triggers the "New version available" toast on the installed APK
+
+### How to detect if APK bump is needed
+
+Ask yourself: "Does the user need to install a new APK for this change to work?"
+- YES → bump native version (steps 4-5) + full APK rebuild (steps in deploy sequence)
+- NO (web-only change) → skip steps 4-5, OTA handles it automatically
+
+Common APK-required changes:
+- New Capacitor plugin added/updated (`@capacitor/*`)
+- `capacitor.config.ts` changes
+- `AndroidManifest.xml` or Gradle changes
+- New native permissions
+- Firebase / Google Services config changes
+- Any file under `TripPilot/android/` modified
+
 ## Version numbering
 
-- Format: `MAJOR.MINOR.PATCH-rc` (e.g. `2.7.8-rc`)
+- **Web**: `MAJOR.MINOR.PATCH-rc` (e.g. `2.8.1-rc`)
+- **Native**: `X.Y.Z` (e.g. `0.75.0`) with integer `versionCode`
 - Every deploy gets its OWN version — never ship two different sets of changes under the same version
 - If a previous session already bumped to X.Y.Z-rc, bump to X.Y.(Z+1)-rc
 
 ## Deploy sequence
 
+### Web deploy (every deploy)
 1. `tsc --noEmit` — zero errors
 2. `npm run build` — success
 3. `npm run test` — no NEW failures (pre-existing are documented)
@@ -32,3 +62,17 @@ Every deploy to production MUST include ALL of these steps. No exceptions.
 5. `git push origin master` — triggers Cloudflare Pages auto-build
 6. Verify live: `curl https://trippilot.pages.dev/version.json` shows new version
 7. Worker (if changed): `cd worker && npx wrangler deploy`
+
+### APK deploy (when native version was bumped)
+8. `npx cap sync android` — sync web assets + plugins to Android project
+9. `cd android && ./gradlew assembleRelease` — build unsigned APK
+10. Sign APK with the **WSL debug keystore** (cert `c9d309c5`, same as installed):
+    `zipalign -f 4 <unsigned>.apk trippilot.apk && apksigner sign --ks /home/julio/.android/debug.keystore --ks-pass pass:android trippilot.apk`
+    **CRITICAL**: do NOT use the Windows keystore (`/mnt/c/Users/julio/.android/debug.keystore`) — it has a DIFFERENT cert and Android will refuse the upgrade.
+11. Copy to dist: `cp trippilot.apk ../../dist/trippilot.apk`
+12. Deploy dist with APK: `npx wrangler pages deploy dist --project-name trippilot`
+13. Verify: `curl -sI https://trippilot.pages.dev/trippilot.apk | grep content-length` — size matches new APK
+
+### Post-deploy verification
+- Open app on phone — if native version was bumped, "New version available" toast should appear
+- If web-only, OTA should auto-apply within ~30s of opening the app
