@@ -862,23 +862,30 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
     // daily cap stops holding days at their rhythm ideal, so each day (when it
     // arrives) reads its full raw share again. Preview per day type so the
     // sheet can say "dias comuns ~+€A · dias de pico ~+€B".
+    // FIELD 2026-07-07: the uplift is the piggy balance distributed across
+    // remaining days proportional to their rhythm weight, so the preview never
+    // shows €0,00 when there IS money to withdraw.
     const piggyWithdrawPreview = (() => {
       if (!piggyLedger || piggyBankCents <= 0 || !phaseDayMap) return null;
+      const futureDays = phaseDayMap.days.filter((d) => d.dateIso >= todayIso);
+      if (futureDays.length === 0) return null;
+      const commonDays = futureDays.filter((d) => !d.isPeakDay);
+      const peakDays = futureDays.filter((d) => d.isPeakDay);
       const idealOf = (iso: string): number =>
         piggyIdealByDayCents.get(iso) ?? piggyDailyIdealCents;
-      // Raw share = the uncapped allowance (today carries the parked part).
-      const upliftOf = (day: (typeof phaseDayMap.days)[number]): number => {
-        const rawCents = day.allowanceCents + day.piggyParkedCents;
-        return Math.max(0, rawCents - Math.min(rawCents, idealOf(day.dateIso)));
+      const totalWeight = futureDays.reduce((sum, d) => sum + idealOf(d.dateIso), 0);
+      const upliftForType = (days: typeof futureDays): number => {
+        if (days.length === 0 || totalWeight <= 0) return 0;
+        const typeWeight = days.reduce((sum, d) => sum + idealOf(d.dateIso), 0);
+        const avgWeight = typeWeight / days.length;
+        return Math.round((piggyBankCents * avgWeight) / totalWeight);
       };
-      const futureDays = phaseDayMap.days.filter((d) => d.dateIso >= todayIso);
-      const commonDay = futureDays.find((d) => !d.isPeakDay);
-      const peakDay = futureDays.find((d) => d.isPeakDay);
+      const uniformUplift = Math.round(piggyBankCents / futureDays.length);
       return {
         availableCents: piggyBankCents,
-        commonUpliftCents: commonDay ? upliftOf(commonDay) : 0,
-        peakUpliftCents: peakDay ? upliftOf(peakDay) : 0,
-        hasPeakDay: peakDay !== undefined,
+        commonUpliftCents: commonDays.length > 0 ? upliftForType(commonDays) : uniformUplift,
+        peakUpliftCents: peakDays.length > 0 ? upliftForType(peakDays) : uniformUplift,
+        hasPeakDay: peakDays.length > 0,
       };
     })();
 

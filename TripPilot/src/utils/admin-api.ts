@@ -199,6 +199,30 @@ export function fetchGovernance(token: string): Promise<AdminGovernance> {
   return adminGet<AdminGovernance>(token, '/admin/ai-governance');
 }
 
+export interface AdminGhostSignal {
+  installId: string;
+  sources: string[];
+  aiTokens: number;
+  aiCalls: number;
+  aiFns: { fn: string; tokens: number; runs: number }[];
+  errorCount: number;
+  errorMessages: string[];
+  heartbeatDays: string[];
+  platforms: string[];
+  versions: string[];
+  firstSeen: number | null;
+  lastSeen: number | null;
+}
+
+export interface AdminGhostSignalsResult {
+  signals: AdminGhostSignal[];
+  total: number;
+}
+
+export function fetchGhostSignals(token: string): Promise<AdminGhostSignalsResult> {
+  return adminGet<AdminGhostSignalsResult>(token, '/admin/ghost-signals');
+}
+
 export async function deleteInstall(token: string, installId: string): Promise<void> {
   const res = await fetch(
     `${getSyncWorkerUrl()}/admin/install?id=${encodeURIComponent(installId)}`,

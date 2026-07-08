@@ -371,7 +371,7 @@ function ClaimBoard({
                   </div>
                   <span className="text-sm text-on-surface flex-1 truncate">{p.name}</span>
                   {isOwner ? (
-                    <span className="text-[10px] text-on-surface-faint">{t('group_split.owner_tag')}</span>
+                    <span className="text-[10px] text-on-surface-faint">{t('group_claim.organizer_tag')}</span>
                   ) : takenByOther ? (
                     <span className="text-[10px] text-on-surface-faint">{t('group_claim.taken')}</span>
                   ) : null}

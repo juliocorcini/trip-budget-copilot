@@ -46,6 +46,23 @@
             android:ellipsize="start" />
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/conv_pick_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <TextView android:id="@+id/conv_pick_0" style="@style/WidgetPickChip" android:textSize="9sp" android:paddingTop="3dp" android:paddingBottom="3dp" />
+        <TextView android:id="@+id/conv_pick_1" style="@style/WidgetPickChip" android:textSize="9sp" android:paddingTop="3dp" android:paddingBottom="3dp" />
+        <TextView android:id="@+id/conv_pick_2" style="@style/WidgetPickChip" android:textSize="9sp" android:paddingTop="3dp" android:paddingBottom="3dp" />
+        <TextView android:id="@+id/conv_pick_3" style="@style/WidgetPickChip" android:textSize="9sp" android:paddingTop="3dp" android:paddingBottom="3dp" />
+        <TextView android:id="@+id/conv_pick_4" style="@style/WidgetPickChip" android:textSize="9sp" android:paddingTop="3dp" android:paddingBottom="3dp" />
+        <TextView android:id="@+id/conv_pick_5" style="@style/WidgetPickChip" android:textSize="9sp" android:paddingTop="3dp" android:paddingBottom="3dp" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/conv_result"
         android:layout_width="match_parent"

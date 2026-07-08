@@ -2577,7 +2577,9 @@
     "no_rate_hint": "Sem cotação pra esse par. Use uma taxa manual.",
     "manual_rate": "Usar taxa manual",
     "manual_rate_label": "1 {{from}} em {{to}}",
-    "manual_rate_placeholder": "ex.: 5,40"
+    "manual_rate_placeholder": "ex.: 5,40",
+    "search_currency": "Buscar moeda…",
+    "no_results": "Nenhuma moeda encontrada"
   },
   "comparator": {
     "title": "Custo-benefício",
@@ -3104,6 +3106,12 @@
     "pay_status_contested": "Contestado",
     "pay_status_cancelled": "Cancelado",
     "settled_count": "{{settled}} de {{total}} acertados",
+    "income_from_payment": "Pagamento de {{name}}",
+    "income_prompt_title": "Registrar como entrada?",
+    "income_prompt_body": "{{name}} pagou {{amount}}. Quer registrar na sua verba?",
+    "income_prompt_fund": "Verba destino",
+    "income_prompt_save": "Registrar entrada",
+    "income_prompt_skip": "Agora não",
     "history_title": "Histórico",
     "history_see_all": "Ver tudo ({{count}})",
     "activity_expense_added": "{{actor}} adicionou \"{{detail}}\" ({{amount}})",
@@ -3133,6 +3141,7 @@
     "kicker": "Divisão em grupo",
     "who_are_you": "Qual é você?",
     "taken": "já entrou",
+    "organizer_tag": "Organizador",
     "pick_hint": "Toque no seu nome para ver o que você deve e marcar como pago.",
     "you_are": "Você é {{name}}",
     "change": "Trocar",

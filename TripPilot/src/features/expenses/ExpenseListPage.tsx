@@ -66,7 +66,7 @@ type FilterCategory = string | null;
 // receipt is a grocery run, not a night out, and mixing them confused the tab.
 type ListTab = 'expenses' | 'outings' | 'receipts';
 // DEC-197 (N3): tab order — index drives swipe/slide direction (left = forward).
-const TAB_ORDER: readonly ListTab[] = ['expenses', 'outings', 'receipts'];
+const TAB_ORDER: readonly ListTab[] = ['expenses', 'receipts', 'outings'];
 type BatchSheet =
   | 'deleteExpenses'
   | 'movePool'
@@ -583,20 +583,20 @@ export function ExpenseListPage() {
             {t('expenses.tab_expenses')}
           </button>
           <button
-            onClick={() => changeTab('outings')}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
-              tab === 'outings' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
-            }`}
-          >
-            {t('expenses.tab_outings')}
-          </button>
-          <button
             onClick={() => changeTab('receipts')}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
               tab === 'receipts' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
             }`}
           >
             {t('expenses.tab_receipts')}
+          </button>
+          <button
+            onClick={() => changeTab('outings')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold btn-press transition-colors ${
+              tab === 'outings' ? 'bg-primary text-on-surface' : 'text-on-surface-dim'
+            }`}
+          >
+            {t('expenses.tab_outings')}
           </button>
         </div>
 
@@ -882,7 +882,7 @@ export function ExpenseListPage() {
                 </span>
               </div>
               {group.entries.map((entry) => {
-                if (entry.kind === 'session') {
+                  if (entry.kind === 'session') {
                   return (
                     <SessionRollupRow
                       key={entry.session.id}
@@ -893,6 +893,7 @@ export function ExpenseListPage() {
                       profiles={profiles}
                       filterCategory={filterCategory}
                       onOpen={() => navigate(`/outings/${entry.session.id}/review`)}
+                      selection={selection}
                     />
                   );
                 }
@@ -1308,17 +1309,16 @@ function SessionRollupRow({
   profiles,
   filterCategory,
   onOpen,
+  selection,
 }: {
   session: Session;
   txs: Transaction[];
   totalCents: number;
   currency: string;
   profiles: ActivityProfile[];
-  // C01 / DEC-296: when a category filter is active the row is a PARTIAL view of
-  // the outing (only the matching items); the count reads "N itens nesta
-  // categoria" and `totalCents` is the filtered subtotal. Tap opens the full one.
   filterCategory?: string | null;
   onOpen: () => void;
+  selection?: MultiSelect;
 }) {
   const { t } = useTranslation();
   const isReceipt = txs.some((tx) => isReceiptCommitTransaction(tx));
@@ -1326,21 +1326,34 @@ function SessionRollupRow({
   const icon = isReceipt ? 'receipt_long' : (profile?.iconName ?? getCategoryIcon(profile?.category ?? null));
   const badge = isReceipt ? t('expenses.receipt_badge') : (profile?.name ?? t('expenses.outing_one_off'));
   const when = session.endedAt ?? session.startedAt ?? txs[0]?.date ?? '';
+  const selected = selection?.isSelected(session.id) ?? false;
 
   return (
     <button
-      onClick={onOpen}
-      className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full"
+      onClick={() => selection ? selection.handleTap(session.id, onOpen) : onOpen()}
+      {...(selection ? selection.getLongPressHandlers(session.id) : {})}
+      className={`bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between btn-press text-left w-full ${
+        selected ? 'ring-1 ring-primary' : ''
+      }`}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="w-9 h-9 rounded-xl bg-surface-high flex items-center justify-center shrink-0 relative">
-          <Icon name={icon} size={18} className="text-on-surface-dim" />
-          {isReceipt && (
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-              <Icon name="auto_awesome" size={9} className="text-on-surface" />
-            </span>
-          )}
-        </div>
+        {selection?.active ? (
+          <Icon
+            name={selected ? 'check_circle' : 'radio_button_unchecked'}
+            size={18}
+            filled={selected}
+            className={`shrink-0 ${selected ? 'text-primary' : 'text-on-surface-faint'}`}
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-xl bg-surface-high flex items-center justify-center shrink-0 relative">
+            <Icon name={icon} size={18} className="text-on-surface-dim" />
+            {isReceipt && (
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                <Icon name="auto_awesome" size={9} className="text-on-surface" />
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-sm text-on-surface truncate">{session.name}</p>
           <div className="flex gap-2 text-xs text-on-surface-faint mt-0.5">
@@ -1363,7 +1376,9 @@ function SessionRollupRow({
       </div>
       <div className="text-right ml-3 flex items-center gap-2 shrink-0">
         <p className="text-sm font-semibold tabular text-on-surface">{formatMoney(totalCents, currency)}</p>
-        <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+        {!(selection?.active) && (
+          <Icon name="chevron_right" size={16} className="text-on-surface-faint" />
+        )}
       </div>
     </button>
   );

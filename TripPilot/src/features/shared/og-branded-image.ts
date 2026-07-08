@@ -1,5 +1,5 @@
 import { uploadImage } from '@/data/sync/media-link';
-import { composeOgImageWithFooter, OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT } from '@/utils/image/og-footer';
+import { composeOgImageWithFooter } from '@/utils/image/og-footer';
 import { getSyncWorkerUrl } from '@/data/sync/config';
 import i18n from '@/i18n';
 import { logger } from '@/utils/logger';
@@ -61,9 +61,9 @@ export async function uploadBrandedOgVariant(
   if (cached) return cached;
   const composed = await composeOgImageWithFooter(photo, tagline);
   if (!composed) return null;
-  const result = await uploadImage(composed, {
-    width: OG_IMAGE_WIDTH,
-    height: OG_IMAGE_HEIGHT,
+  const result = await uploadImage(composed.blob, {
+    width: composed.width,
+    height: composed.height,
     mimeType: 'image/jpeg',
   });
   if (!result.ok) {

@@ -2573,7 +2573,9 @@
     "no_rate_hint": "No rate for this pair. Use a manual rate.",
     "manual_rate": "Use a manual rate",
     "manual_rate_label": "1 {{from}} in {{to}}",
-    "manual_rate_placeholder": "e.g. 5.40"
+    "manual_rate_placeholder": "e.g. 5.40",
+    "search_currency": "Search currency…",
+    "no_results": "No currencies found"
   },
   "comparator": {
     "title": "Cost-benefit",
@@ -3100,6 +3102,12 @@
     "pay_status_contested": "Contested",
     "pay_status_cancelled": "Cancelled",
     "settled_count": "{{settled}} of {{total}} settled",
+    "income_from_payment": "Payment from {{name}}",
+    "income_prompt_title": "Register as income?",
+    "income_prompt_body": "{{name}} paid {{amount}}. Register in your fund?",
+    "income_prompt_fund": "Target fund",
+    "income_prompt_save": "Register income",
+    "income_prompt_skip": "Not now",
     "history_title": "History",
     "history_see_all": "See all ({{count}})",
     "activity_expense_added": "{{actor}} added \"{{detail}}\" ({{amount}})",
@@ -3129,6 +3137,7 @@
     "kicker": "Group split",
     "who_are_you": "Which one are you?",
     "taken": "joined",
+    "organizer_tag": "Organizer",
     "pick_hint": "Tap your name to see what you owe and mark it paid.",
     "you_are": "You are {{name}}",
     "change": "Change",

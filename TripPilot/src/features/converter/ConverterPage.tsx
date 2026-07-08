@@ -20,6 +20,7 @@ import { fetchExchangeRates } from '@/utils/exchange-rates';
 import { isOnline } from '@/utils/places';
 import { appSettingsRepository } from '@/data/repositories';
 import { Icon } from '@/components/Icon';
+import { BottomSheet } from '@/components/BottomSheet';
 import { OfflineSeal } from '@/components/OfflineSeal';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { DataErrorScreen } from '@/components/DataErrorScreen';
@@ -46,6 +47,8 @@ export function ConverterPage() {
   const [manualMode, setManualMode] = useState(false);
   const [manualRate, setManualRate] = useState('');
   const [fetching, setFetching] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<'from' | 'to' | null>(null);
+  const [pickerQuery, setPickerQuery] = useState('');
   const initedRef = useRef(false);
   const autoRefreshedRef = useRef(false);
 
@@ -173,30 +176,29 @@ export function ConverterPage() {
     }
   }, [i18n.language]);
 
-  const currencyLabel = (code: string): string => {
+  const currencyChipLabel = (code: string): string => {
     const flag = currencyFlag(code);
-    let name = '';
-    try {
-      name = currencyNames?.of(code) ?? '';
-    } catch {
-      name = '';
-    }
-    const namePart = name && name.toUpperCase() !== code ? ` · ${name}` : '';
-    return `${flag ? `${flag} ` : ''}${code}${namePart}`;
+    return `${flag ? `${flag} ` : ''}${code}`;
   };
 
-  const currencyOption = (code: string) => (
-    <option key={code} value={code}>
-      {currencyLabel(code)}
-    </option>
-  );
+  const filteredCurrencies = pickerQuery.trim()
+    ? currencies.filter((c) => {
+        const q = pickerQuery.trim().toLowerCase();
+        if (c.toLowerCase().includes(q)) return true;
+        try {
+          const name = currencyNames?.of(c) ?? '';
+          if (name.toLowerCase().includes(q)) return true;
+        } catch { /* ignore */ }
+        return false;
+      })
+    : currencies;
 
-  // min-w-0 + w-full: a flex item defaults to min-width:auto, and a native
-  // <select> is intrinsically as wide as its longest option — with localized
-  // currency names (DEC-423) that pushed the row past the 430px viewport.
-  // min-w-0 lets the item shrink below its content width (DEC-438).
-  const selectClass =
-    'flex-1 min-w-0 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-surface-container text-on-surface outline-none appearance-none text-center';
+  const handlePickCurrency = (code: string) => {
+    if (pickerTarget === 'from') setFrom(code);
+    else if (pickerTarget === 'to') setTo(code);
+    setPickerTarget(null);
+    setPickerQuery('');
+  };
 
   return (
     <div className="max-w-[430px] mx-auto flex flex-col gap-4 pb-4 pt-2 min-h-screen px-[var(--page-padding-x)]">
@@ -225,9 +227,13 @@ export function ConverterPage() {
         <div className="flex items-end gap-2">
           <div className="flex flex-1 min-w-0 flex-col gap-1.5">
             <label className="text-[11px] font-semibold text-on-surface-faint">{t('converter.from_label')}</label>
-            <select value={from} onChange={(e) => setFrom(e.target.value)} className={selectClass}>
-              {currencies.map(currencyOption)}
-            </select>
+            <button
+              onClick={() => { setPickerTarget('from'); setPickerQuery(''); }}
+              className="flex-1 min-w-0 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-surface-container text-on-surface text-center btn-press flex items-center justify-center gap-1.5"
+            >
+              <span className="truncate">{currencyChipLabel(from)}</span>
+              <Icon name="expand_more" size={16} className="text-on-surface-faint shrink-0" />
+            </button>
           </div>
           <button
             onClick={swap}
@@ -239,9 +245,13 @@ export function ConverterPage() {
           </button>
           <div className="flex flex-1 min-w-0 flex-col gap-1.5">
             <label className="text-[11px] font-semibold text-on-surface-faint">{t('converter.to_label')}</label>
-            <select value={to} onChange={(e) => setTo(e.target.value)} className={selectClass}>
-              {currencies.map(currencyOption)}
-            </select>
+            <button
+              onClick={() => { setPickerTarget('to'); setPickerQuery(''); }}
+              className="flex-1 min-w-0 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-surface-container text-on-surface text-center btn-press flex items-center justify-center gap-1.5"
+            >
+              <span className="truncate">{currencyChipLabel(to)}</span>
+              <Icon name="expand_more" size={16} className="text-on-surface-faint shrink-0" />
+            </button>
           </div>
         </div>
       </div>
@@ -306,6 +316,58 @@ export function ConverterPage() {
           </div>
         )}
       </div>
+
+      <BottomSheet
+        open={pickerTarget !== null}
+        onClose={() => { setPickerTarget(null); setPickerQuery(''); }}
+        title={pickerTarget === 'from' ? t('converter.from_label') : t('converter.to_label')}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <Icon
+              name="search"
+              size={16}
+              className="text-on-surface-faint absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            />
+            <input
+              type="search"
+              value={pickerQuery}
+              onChange={(e) => setPickerQuery(e.target.value)}
+              placeholder={t('converter.search_currency')}
+              autoFocus
+              className="w-full bg-surface-high rounded-xl pl-9 pr-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-faint outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-1 max-h-[50vh] overflow-y-auto no-scrollbar" data-no-sheet-drag>
+            {filteredCurrencies.map((code) => {
+              const selected = code === (pickerTarget === 'from' ? from : to);
+              return (
+                <button
+                  key={code}
+                  onClick={() => handlePickCurrency(code)}
+                  className={`w-full px-3 py-2.5 rounded-xl text-left btn-press flex items-center gap-3 ${
+                    selected ? 'bg-primary/15 ring-1 ring-primary' : 'bg-surface-high'
+                  }`}
+                >
+                  <span className="text-lg shrink-0 w-7 text-center">{currencyFlag(code) || '💱'}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-on-surface">{code}</span>
+                    <span className="block text-xs text-on-surface-faint truncate">
+                      {(() => { try { return currencyNames?.of(code) ?? ''; } catch { return ''; } })()}
+                    </span>
+                  </span>
+                  {selected && <Icon name="check" size={18} className="text-primary shrink-0" />}
+                </button>
+              );
+            })}
+            {filteredCurrencies.length === 0 && (
+              <p className="text-sm text-on-surface-faint text-center py-4">
+                {t('converter.no_results')}
+              </p>
+            )}
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }

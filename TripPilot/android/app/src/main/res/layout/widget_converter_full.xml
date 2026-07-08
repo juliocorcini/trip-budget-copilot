@@ -85,6 +85,23 @@
             android:ellipsize="end" />
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/conv_pick_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <TextView android:id="@+id/conv_pick_0" style="@style/WidgetPickChip" />
+        <TextView android:id="@+id/conv_pick_1" style="@style/WidgetPickChip" />
+        <TextView android:id="@+id/conv_pick_2" style="@style/WidgetPickChip" />
+        <TextView android:id="@+id/conv_pick_3" style="@style/WidgetPickChip" />
+        <TextView android:id="@+id/conv_pick_4" style="@style/WidgetPickChip" />
+        <TextView android:id="@+id/conv_pick_5" style="@style/WidgetPickChip" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/conv_expr"
         android:layout_width="match_parent"

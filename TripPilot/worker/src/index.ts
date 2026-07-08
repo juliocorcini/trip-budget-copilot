@@ -2141,9 +2141,133 @@ export class TelemetryStore {
     if (request.method === 'GET' && path === '/ai-governance') return this.aiGovernance();
     if (request.method === 'POST' && path === '/error') return this.ingestError(request);
     if (request.method === 'GET' && path === '/errors') return this.errorsList(url);
+    if (request.method === 'GET' && path === '/ghost-signals') return this.ghostSignals();
     if (request.method === 'DELETE' && path === '/install') return this.deleteInstall(url);
     if (request.method === 'DELETE' && path === '/installs') return this.deleteAllInstalls();
     return json({ error: 'not_found' }, 404);
+  }
+
+  /**
+   * Ghost signals — installIds present in heartbeats, ai_usage, or error_seen
+   * but NOT in the installs table. These are "phantom" devices whose heartbeat
+   * record was deleted or never created.
+   */
+  private ghostSignals(): Response {
+    const ghosts: Record<
+      string,
+      {
+        installId: string;
+        sources: string[];
+        aiTokens: number;
+        aiCalls: number;
+        aiFns: { fn: string; tokens: number; runs: number }[];
+        errorCount: number;
+        errorMessages: string[];
+        heartbeatDays: string[];
+        platforms: string[];
+        versions: string[];
+        firstSeen: number | null;
+        lastSeen: number | null;
+      }
+    > = {};
+
+    const ensure = (id: string) => {
+      if (!ghosts[id]) {
+        ghosts[id] = {
+          installId: id,
+          sources: [],
+          aiTokens: 0,
+          aiCalls: 0,
+          aiFns: [],
+          errorCount: 0,
+          errorMessages: [],
+          heartbeatDays: [],
+          platforms: [],
+          versions: [],
+          firstSeen: null,
+          lastSeen: null,
+        };
+      }
+      return ghosts[id];
+    };
+
+    const aiOrphans = this.sql
+      .exec(
+        `SELECT a.install_id, a.fn, SUM(a.tokens) AS tokens, SUM(a.runs) AS runs,
+                MIN(a.day) AS first_day, MAX(a.day) AS last_day
+         FROM ai_usage a
+         LEFT JOIN installs i ON i.install_id = a.install_id
+         WHERE i.install_id IS NULL
+         GROUP BY a.install_id, a.fn
+         ORDER BY tokens DESC`,
+      )
+      .toArray();
+    for (const r of aiOrphans) {
+      const g = ensure(String(r.install_id));
+      if (!g.sources.includes('ai_usage')) g.sources.push('ai_usage');
+      const tokens = num(r.tokens);
+      const runs = num(r.runs);
+      g.aiTokens += tokens;
+      g.aiCalls += runs;
+      g.aiFns.push({ fn: String(r.fn), tokens, runs });
+      const fd = new Date(String(r.first_day)).getTime();
+      const ld = new Date(String(r.last_day)).getTime();
+      if (g.firstSeen === null || fd < g.firstSeen) g.firstSeen = fd;
+      if (g.lastSeen === null || ld > g.lastSeen) g.lastSeen = ld;
+    }
+
+    const errOrphans = this.sql
+      .exec(
+        `SELECT s.install_id, e.message, e.count, e.last_seen, e.platform, e.app_version
+         FROM error_seen s
+         JOIN errors e ON e.msg_hash = s.msg_hash
+         LEFT JOIN installs i ON i.install_id = s.install_id
+         WHERE i.install_id IS NULL
+         ORDER BY e.last_seen DESC`,
+      )
+      .toArray();
+    for (const r of errOrphans) {
+      const g = ensure(String(r.install_id));
+      if (!g.sources.includes('error_seen')) g.sources.push('error_seen');
+      g.errorCount += num(r.count);
+      const msg = String(r.message);
+      if (!g.errorMessages.includes(msg)) g.errorMessages.push(msg);
+      const p = r.platform ? String(r.platform) : null;
+      if (p && !g.platforms.includes(p)) g.platforms.push(p);
+      const v = r.app_version ? String(r.app_version) : null;
+      if (v && !g.versions.includes(v)) g.versions.push(v);
+      const ls = num(r.last_seen);
+      if (g.lastSeen === null || ls > g.lastSeen) g.lastSeen = ls;
+    }
+
+    const hbOrphans = this.sql
+      .exec(
+        `SELECT h.install_id, h.day, h.platform, h.app_version
+         FROM heartbeats h
+         LEFT JOIN installs i ON i.install_id = h.install_id
+         WHERE i.install_id IS NULL
+         ORDER BY h.day DESC`,
+      )
+      .toArray();
+    for (const r of hbOrphans) {
+      const g = ensure(String(r.install_id));
+      if (!g.sources.includes('heartbeats')) g.sources.push('heartbeats');
+      const day = String(r.day);
+      if (!g.heartbeatDays.includes(day)) g.heartbeatDays.push(day);
+      const p = r.platform ? String(r.platform) : null;
+      if (p && !g.platforms.includes(p)) g.platforms.push(p);
+      const v = r.app_version ? String(r.app_version) : null;
+      if (v && !g.versions.includes(v)) g.versions.push(v);
+      const ts = new Date(day).getTime();
+      if (g.firstSeen === null || ts < g.firstSeen) g.firstSeen = ts;
+      if (g.lastSeen === null || ts > g.lastSeen) g.lastSeen = ts;
+    }
+
+    const signals = Object.values(ghosts)
+      .filter((g) => !isSystemInstallId(g.installId))
+      .sort((a, b) => (b.lastSeen ?? 0) - (a.lastSeen ?? 0));
+
+    return json({ signals, total: signals.length });
   }
 
   /** Wipe every install + heartbeat + AI/error ledger (admin "reset"). Used to

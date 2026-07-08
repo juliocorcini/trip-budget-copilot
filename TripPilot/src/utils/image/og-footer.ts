@@ -4,10 +4,11 @@
  * When a share has a real photo, the WhatsApp/OG card shows THE PHOTO — but
  * Julio wants the brand strip that the no-photo cards carry ("TripPilot ·
  * Divisão em grupo — veja sua parte") to survive. So the client composes a
- * dedicated 1200×630 OG variant: the photo cover-fitted, plus a footer bar
- * with the app icon, the brand name and the per-kind tagline. The variant is
- * uploaded NEXT TO the original photo (the guest page keeps showing the clean
- * original); only the preview `imgId` points at the composed one.
+ * branded OG variant: the photo fitted to OG_IMAGE_WIDTH preserving its
+ * original aspect ratio, plus a footer bar with the app icon, the brand name
+ * and the per-kind tagline. The variant is uploaded NEXT TO the original photo
+ * (the guest page keeps showing the clean original); only the preview `imgId`
+ * points at the composed one.
  *
  * Everything here is best-effort: any failure (no canvas, icon missing, encode
  * error) returns null and the caller falls back to the raw photo id — a share
@@ -16,6 +17,7 @@
 
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
+const MAX_PHOTO_HEIGHT = 1800;
 const FOOTER_HEIGHT = 96;
 const ACCENT_BAR_HEIGHT = 4;
 const ICON_SIZE = 56;
@@ -100,14 +102,22 @@ async function drawIcon(ctx: CanvasRenderingContext2D, x: number, y: number): Pr
   }
 }
 
+export interface OgComposeResult {
+  blob: Blob;
+  width: number;
+  height: number;
+}
+
 /**
- * Compose the 1200×630 OG variant: photo cover-fit + branded footer with the
- * localized tagline. Returns null on ANY failure (caller falls back).
+ * Compose the branded OG variant: photo fitted to 1200px wide preserving its
+ * original aspect ratio, plus a branded footer strip. Returns the blob AND the
+ * actual canvas dimensions (height varies per photo). Returns null on ANY
+ * failure (caller falls back to the raw photo).
  */
 export async function composeOgImageWithFooter(
   photo: Blob,
   tagline: string,
-): Promise<Blob | null> {
+): Promise<OgComposeResult | null> {
   if (typeof document === 'undefined') return null;
   let objectUrl: string | null = null;
   try {
@@ -115,28 +125,29 @@ export async function composeOgImageWithFooter(
     const img = await loadImage(objectUrl);
     const srcW = img.naturalWidth || img.width;
     const srcH = img.naturalHeight || img.height;
-    const crop = computeCoverCrop(srcW, srcH, OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT);
-    if (!crop) return null;
+    if (srcW <= 0 || srcH <= 0) return null;
+
+    const photoHeight = Math.min(
+      Math.round(OG_IMAGE_WIDTH * (srcH / srcW)),
+      MAX_PHOTO_HEIGHT,
+    );
+    const canvasHeight = photoHeight + FOOTER_HEIGHT;
 
     const canvas = document.createElement('canvas');
     canvas.width = OG_IMAGE_WIDTH;
-    canvas.height = OG_IMAGE_HEIGHT;
+    canvas.height = canvasHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    ctx.drawImage(
-      img,
-      crop.sx,
-      crop.sy,
-      crop.sw,
-      crop.sh,
-      0,
-      0,
-      OG_IMAGE_WIDTH,
-      OG_IMAGE_HEIGHT,
-    );
+    if (photoHeight < Math.round(OG_IMAGE_WIDTH * (srcH / srcW))) {
+      const crop = computeCoverCrop(srcW, srcH, OG_IMAGE_WIDTH, photoHeight);
+      if (!crop) return null;
+      ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, OG_IMAGE_WIDTH, photoHeight);
+    } else {
+      ctx.drawImage(img, 0, 0, OG_IMAGE_WIDTH, photoHeight);
+    }
 
-    const footerTop = OG_IMAGE_HEIGHT - FOOTER_HEIGHT;
+    const footerTop = photoHeight;
     ctx.fillStyle = COLORS.footer;
     ctx.fillRect(0, footerTop, OG_IMAGE_WIDTH, FOOTER_HEIGHT);
     ctx.fillStyle = COLORS.accent;
@@ -162,9 +173,11 @@ export async function composeOgImageWithFooter(
       ctx.fillText(truncateToWidth(ctx, `· ${tagline}`, maxTagline), taglineX, textY);
     }
 
-    return await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', JPEG_QUALITY);
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY);
     });
+    if (!blob) return null;
+    return { blob, width: OG_IMAGE_WIDTH, height: canvasHeight };
   } catch {
     return null;
   } finally {

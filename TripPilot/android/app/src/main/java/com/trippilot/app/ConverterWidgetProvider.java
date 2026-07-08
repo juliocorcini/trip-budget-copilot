@@ -60,6 +60,12 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
     private static final long MANUAL_FETCH_GAP_MS = 15_000L;    // ↻ tap-spam guard
 
     private static final int COLOR_ACCENT = 0xFF2DD4BF;
+    private static final int COLOR_CHIP_BG = 0xFF1E293B;
+    private static final int COLOR_TEXT_DIM = 0xFF94A3B8;
+    private static final int[] PICK_IDS = {
+        R.id.conv_pick_0, R.id.conv_pick_1, R.id.conv_pick_2,
+        R.id.conv_pick_3, R.id.conv_pick_4, R.id.conv_pick_5,
+    };
 
     // ---------------------------------------------------------------- render
 
@@ -67,15 +73,11 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
     protected RemoteViews buildSized(Context context, Bundle options) {
         int width = minWidthDp(options);
         int height = minHeightDp(options);
-        boolean unknown = width == 0 && height == 0; // first drop, options not delivered yet
+        boolean unknown = width == 0 && height == 0;
         boolean mini = width > 0 && width < 110;
         boolean row = !mini && height > 0 && height < 110;
-        // Keypad tiers (Julio 2.7.1: "a calculadora a partir de 3 de altura"):
-        // >=4 cells tall gets the comfy 4-column grid; 3 cells gets the dense
-        // 5-column grid; below that there is no room for >=30dp touch targets.
         boolean full = !mini && !row && height >= 230 && width >= 160;
         boolean full3 = !mini && !row && !full && (unknown || (height >= 150 && width >= 160));
-        // Whatever is left (2x2 / narrow-tall) renders the compact card.
 
         SharedPreferences prefs = WidgetStore.prefs(context);
         JSONObject conv = WidgetStore.section(context, "converter");
@@ -83,6 +85,7 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
         String to = currency(prefs.getString(WidgetStore.KEY_CONV_TO, null), conv, "to", "BRL");
         String expr = prefs.getString(WidgetStore.KEY_CONV_EXPR, "");
         boolean fxOn = "on".equals(prefs.getString(WidgetStore.KEY_CONV_MODE, "off"));
+        String picking = prefs.getString(WidgetStore.KEY_CONV_PICKING, null);
 
         Double result = evaluate(expr);
         RatesInfo rates = resolveRates(context, conv);
@@ -140,8 +143,14 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
         if (full3) {
             views.setViewVisibility(R.id.conv_pair_chip, fxOn ? android.view.View.VISIBLE : android.view.View.GONE);
             if (fxOn) {
-                views.setTextViewText(R.id.conv_pair_chip, from + " ⇄ " + to);
-                views.setOnClickPendingIntent(R.id.conv_pair_chip, keyIntent(context, "swap"));
+                boolean pickingFull3 = picking != null;
+                views.setTextViewText(R.id.conv_pair_chip,
+                    pickingFull3 ? ("▾ " + from + " ⇄ " + to) : (from + " ⇄ " + to));
+                views.setOnClickPendingIntent(R.id.conv_pair_chip, keyIntent(context,
+                    pickingFull3 ? "close_pick" : "open_pick_from"));
+                bindPickerRow(views, context, conv, picking, from, to);
+            } else {
+                views.setViewVisibility(R.id.conv_pick_row, android.view.View.GONE);
             }
             bindKeypad(views, context);
             views.setOnClickPendingIntent(R.id.key_open, openLink(context, openPath));
@@ -156,15 +165,19 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
         views.setViewVisibility(R.id.conv_to_chip, chipVisibility);
         views.setViewVisibility(R.id.conv_refresh, chipVisibility);
         if (fxOn) {
-            views.setTextViewText(R.id.conv_from_chip, from);
-            views.setTextViewText(R.id.conv_to_chip, to);
+            boolean pickingFrom = "from".equals(picking);
+            boolean pickingTo = "to".equals(picking);
+            views.setTextViewText(R.id.conv_from_chip, from + (pickingFrom ? " ▾" : ""));
+            views.setTextViewText(R.id.conv_to_chip, to + (pickingTo ? " ▾" : ""));
             views.setOnClickPendingIntent(R.id.conv_from_chip, keyIntent(context, "from"));
             views.setOnClickPendingIntent(R.id.conv_to_chip, keyIntent(context, "to"));
             views.setOnClickPendingIntent(R.id.conv_swap, keyIntent(context, "swap"));
             views.setOnClickPendingIntent(R.id.conv_refresh, keyIntent(context, "refresh"));
             views.setTextViewText(R.id.conv_stamp, stampText(context, from, to, rate, rates));
+            bindPickerRow(views, context, conv, picking, from, to);
         } else {
             views.setTextViewText(R.id.conv_stamp, context.getString(R.string.widget_converter_fx_off_hint));
+            views.setViewVisibility(R.id.conv_pick_row, android.view.View.GONE);
         }
 
         if (!full) {
@@ -203,6 +216,38 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
         };
         for (String[] key : keys) {
             views.setOnClickPendingIntent(Integer.parseInt(key[1]), keyIntent(context, key[0]));
+        }
+    }
+
+    /**
+     * Populates the currency picker row: shows 6 chips from the currencies
+     * array, highlighting the currently active one. Hidden when no picking
+     * target is active.
+     */
+    private void bindPickerRow(RemoteViews views, Context context, JSONObject conv,
+                               String picking, String from, String to) {
+        boolean active = "from".equals(picking) || "to".equals(picking);
+        views.setViewVisibility(R.id.conv_pick_row,
+            active ? android.view.View.VISIBLE : android.view.View.GONE);
+        if (!active) return;
+
+        String selected = "from".equals(picking) ? from : to;
+        JSONArray list = conv != null ? conv.optJSONArray("currencies") : null;
+        int count = list != null ? Math.min(list.length(), PICK_IDS.length) : 0;
+
+        for (int i = 0; i < PICK_IDS.length; i++) {
+            if (i < count) {
+                String code = list.optString(i, "");
+                boolean isSel = code.equals(selected);
+                views.setViewVisibility(PICK_IDS[i], android.view.View.VISIBLE);
+                views.setTextViewText(PICK_IDS[i], code);
+                views.setTextColor(PICK_IDS[i], isSel ? 0xFF0B1220 : 0xFFF8FAFC);
+                views.setInt(PICK_IDS[i], "setBackgroundResource",
+                    isSel ? R.drawable.widget_chip_active : R.drawable.widget_chip);
+                views.setOnClickPendingIntent(PICK_IDS[i], keyIntent(context, "pick_" + i));
+            } else {
+                views.setViewVisibility(PICK_IDS[i], android.view.View.GONE);
+            }
         }
     }
 
@@ -310,13 +355,45 @@ public class ConverterWidgetProvider extends ResizableWidgetProvider {
                 String to = currency(prefs.getString(WidgetStore.KEY_CONV_TO, null), conv, "to", "BRL");
                 editor.putString(WidgetStore.KEY_CONV_FROM, to);
                 editor.putString(WidgetStore.KEY_CONV_TO, from);
+                editor.putString(WidgetStore.KEY_CONV_PICKING, null);
                 break;
             }
             case "from":
             case "to": {
-                String prefKey = token.equals("from") ? WidgetStore.KEY_CONV_FROM : WidgetStore.KEY_CONV_TO;
-                String current = currency(prefs.getString(prefKey, null), conv, token, token.equals("from") ? "EUR" : "BRL");
-                editor.putString(prefKey, nextCurrency(conv, current));
+                String currentPicking = prefs.getString(WidgetStore.KEY_CONV_PICKING, null);
+                if (token.equals(currentPicking)) {
+                    editor.putString(WidgetStore.KEY_CONV_PICKING, null);
+                } else {
+                    editor.putString(WidgetStore.KEY_CONV_PICKING, token);
+                }
+                break;
+            }
+            case "open_pick_from": {
+                String cur = prefs.getString(WidgetStore.KEY_CONV_PICKING, null);
+                editor.putString(WidgetStore.KEY_CONV_PICKING,
+                    "from".equals(cur) ? "to" : cur == null ? "from" : null);
+                break;
+            }
+            case "close_pick": {
+                editor.putString(WidgetStore.KEY_CONV_PICKING, null);
+                break;
+            }
+            case "pick_0": case "pick_1": case "pick_2":
+            case "pick_3": case "pick_4": case "pick_5": {
+                String pickTarget = prefs.getString(WidgetStore.KEY_CONV_PICKING, null);
+                if (pickTarget != null) {
+                    int idx = token.charAt(token.length() - 1) - '0';
+                    JSONArray list = conv != null ? conv.optJSONArray("currencies") : null;
+                    if (list != null && idx < list.length()) {
+                        String code = list.optString(idx, null);
+                        if (code != null) {
+                            String prefKey = "from".equals(pickTarget)
+                                ? WidgetStore.KEY_CONV_FROM : WidgetStore.KEY_CONV_TO;
+                            editor.putString(prefKey, code);
+                        }
+                    }
+                    editor.putString(WidgetStore.KEY_CONV_PICKING, null);
+                }
                 break;
             }
             default:

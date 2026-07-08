@@ -26,6 +26,8 @@ final class WidgetStore {
     static final String KEY_CONV_TO = "conv_to";
     // Calculator-first (2.7.1): conversion is a TOGGLE; default OFF.
     static final String KEY_CONV_MODE = "conv_mode"; // "on" | "off"
+    // 2.7.7: currency picker state — "from" | "to" | null (closed).
+    static final String KEY_CONV_PICKING = "conv_picking";
     // Native-fetched daily rates (converter widget only — never app money):
     // {"base","fetchedAtIso","ratesToBase":{...}} + last attempt throttle.
     static final String KEY_CONV_RATES = "conv_rates_json";

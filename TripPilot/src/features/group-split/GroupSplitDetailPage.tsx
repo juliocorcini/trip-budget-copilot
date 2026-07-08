@@ -4,7 +4,11 @@ import { useNavigate, useParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { useScrolled } from '@/hooks/useScrolled';
 import { groupSplitRepository } from '@/data/repositories';
-import { persistGroupSplit, deleteGroupSplit } from '@/domain/orchestrators';
+import { persistGroupSplit, deleteGroupSplit, registerIncome } from '@/domain/orchestrators';
+import { createIncomeTransaction } from '@/domain/transactions';
+import { resolveActivePhase } from '@/domain/dates';
+import { getAvailablePoolsForPhase } from '@/domain/budget';
+import { BottomSheet } from '@/components/BottomSheet';
 import {
   addExpense,
   addParticipant,
@@ -13,6 +17,7 @@ import {
   canRemoveParticipant,
   computeGroupBalances,
   computeGroupTransfers,
+  isGroupObligationClosed,
   createGroupParticipant,
   includeParticipantInWholeGroupExpenses,
   groupActivityTimeline,
@@ -126,7 +131,7 @@ export function GroupSplitDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { settings, trip, participants } = useAppData();
+  const { settings, trip, phases, pools, links, participants } = useAppData();
   const scrolled = useScrolled();
   const photoEnabled = settings?.cloudReceiptOcrEnabled ?? false;
   const aiTextEnabled = settings?.aiQuickEntryEnabled ?? false;
@@ -152,6 +157,12 @@ export function GroupSplitDetailPage() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   // Tracks a lightbox URL WE created (a local blob) so we revoke only our own.
   const lightboxOwnedRef = useRef<string | null>(null);
+  const [incomePrompt, setIncomePrompt] = useState<{
+    participantName: string;
+    amountCents: number;
+  } | null>(null);
+  const [incomePoolId, setIncomePoolId] = useState<string | null>(null);
+  const [incomeSaving, setIncomeSaving] = useState(false);
 
   const openLightbox = useCallback((url: string, owned: boolean) => {
     lightboxOwnedRef.current = owned ? url : null;
@@ -317,6 +328,40 @@ export function GroupSplitDetailPage() {
   const expenseDays = useMemo(() => (event ? groupExpensesByDay(event.expenses) : []), [event]);
   const total = event ? groupTotalCents(event) : 0;
   const netByPid = useMemo(() => new Map(balances.map((b) => [b.participantId, b.netCents])), [balances]);
+  const activePhase = useMemo(() => resolveActivePhase(phases), [phases]);
+  const incomePools = useMemo(() => {
+    if (!activePhase) return [];
+    const avail = getAvailablePoolsForPhase(pools, links, activePhase.id);
+    return [...avail.operational, ...avail.global, ...avail.otherPhases];
+  }, [activePhase, pools, links]);
+
+  const handleSaveIncome = async () => {
+    if (!incomePrompt || !trip || !activePhase || incomeSaving) return;
+    const targetPoolId = incomePoolId ?? incomePools[0]?.id;
+    if (!targetPoolId) return;
+    setIncomeSaving(true);
+    try {
+      const tx = createIncomeTransaction({
+        tripId: trip.id,
+        phaseId: activePhase.id,
+        budgetPoolId: targetPoolId,
+        walletId: null,
+        amountCents: incomePrompt.amountCents,
+        currency: event!.currency,
+        description: t('group_split.income_from_payment', { name: incomePrompt.participantName }),
+      });
+      await registerIncome(tx);
+      showToast(
+        t('income.saved_toast', { amount: formatMoney(incomePrompt.amountCents, event!.currency) }),
+        'success',
+      );
+      setIncomePrompt(null);
+      setIncomePoolId(null);
+    } finally {
+      setIncomeSaving(false);
+    }
+  };
+
   const link = creds ? buildGroupSplitLink(creds) : null;
   const isTripLinked = !!event && !!trip && event.tripId === trip.id;
   // Trip teammates not yet in this event (offered as quick linked-add chips).
@@ -496,6 +541,9 @@ export function GroupSplitDetailPage() {
       const receiverIsOwner = creditorIds.length > 0 && creditorIds.every((cid) => cid === event.ownerParticipantId);
       if (receiverIsOwner) {
         next = appendGroupActivity(next, { kind: 'payment_confirmed', actorName: ownerName, subjectName: subject.name, amountCents });
+        if (amountCents && amountCents > 0 && trip) {
+          setIncomePrompt({ participantName: subject.name, amountCents });
+        }
       } else {
         const creditorName = debtorTransfers.find((tr) => tr.toParticipantId !== event.ownerParticipantId)?.toName;
         // `detail` carries the prior-state token (display-only); rendered as a
@@ -811,22 +859,30 @@ export function GroupSplitDetailPage() {
 
           {openPanel === 'balances' && (
             <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-2.5">
-              {balances.map((b) => (
-                <div key={b.participantId} className="flex items-center justify-between">
-                  <span className="text-sm text-on-surface truncate">{b.name}</span>
-                  <span
-                    className={`text-sm font-semibold tabular ${
-                      b.netCents > 0 ? 'text-success' : b.netCents < 0 ? 'text-on-surface' : 'text-on-surface-faint'
-                    }`}
-                  >
-                    {b.netCents > 0
-                      ? t('group_split.gets_back', { amount: formatMoney(b.netCents, event.currency) })
-                      : b.netCents < 0
-                        ? t('group_split.owes', { amount: formatMoney(-b.netCents, event.currency) })
-                        : t('group_split.even')}
-                  </span>
-                </div>
-              ))}
+              {balances.map((b) => {
+                const settled = b.netCents < 0 && isGroupObligationClosed(b.paymentStatus);
+                return (
+                  <div key={b.participantId} className="flex items-center justify-between">
+                    <span className="text-sm text-on-surface truncate">{b.name}</span>
+                    <span
+                      className={`text-sm font-semibold tabular ${
+                        settled ? 'text-success'
+                          : b.netCents > 0 ? 'text-success'
+                          : b.netCents < 0 ? 'text-on-surface'
+                          : 'text-on-surface-faint'
+                      }`}
+                    >
+                      {settled
+                        ? t('group_split.pay_status_confirmed')
+                        : b.netCents > 0
+                          ? t('group_split.gets_back', { amount: formatMoney(b.netCents, event.currency) })
+                          : b.netCents < 0
+                            ? t('group_split.owes', { amount: formatMoney(-b.netCents, event.currency) })
+                            : t('group_split.even')}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -945,6 +1001,62 @@ export function GroupSplitDetailPage() {
       )}
 
       {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={closeLightbox} />}
+
+      <BottomSheet
+        open={!!incomePrompt}
+        onClose={() => { setIncomePrompt(null); setIncomePoolId(null); }}
+        title={t('group_split.income_prompt_title')}
+      >
+        {incomePrompt && (
+          <div className="flex flex-col gap-4 pb-2">
+            <p className="text-sm text-on-surface-dim">
+              {t('group_split.income_prompt_body', {
+                name: incomePrompt.participantName,
+                amount: formatMoney(incomePrompt.amountCents, event.currency),
+              })}
+            </p>
+
+            {incomePools.length > 0 && (
+              <div>
+                <label className="text-xs text-on-surface-faint mb-2 block">
+                  {t('group_split.income_prompt_fund')}
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {incomePools.map((pool) => (
+                    <button
+                      key={pool.id}
+                      onClick={() => setIncomePoolId(pool.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                        (incomePoolId ?? incomePools[0]?.id) === pool.id
+                          ? 'bg-primary text-on-surface'
+                          : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {pool.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setIncomePrompt(null); setIncomePoolId(null); }}
+                className="flex-1 py-3 rounded-xl bg-surface-high text-on-surface-dim font-medium btn-press"
+              >
+                {t('group_split.income_prompt_skip')}
+              </button>
+              <button
+                onClick={handleSaveIncome}
+                disabled={incomeSaving || incomePools.length === 0}
+                className="flex-1 py-3 rounded-xl bg-primary text-on-surface font-medium btn-press disabled:opacity-40"
+              >
+                {incomeSaving ? t('common.loading') : t('group_split.income_prompt_save')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }

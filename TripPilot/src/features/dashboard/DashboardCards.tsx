@@ -29,6 +29,10 @@ import {
   isOutingSuggestionDismissed,
   dismissOutingSuggestion,
 } from '@/utils/outing-suggestion-dismissal';
+import {
+  isCheckInDismissedToday,
+  dismissCheckInToday,
+} from '@/utils/checkin-dismissal';
 import { AnimatedMoney } from '@/components/AnimatedMoney';
 import {
   CHECK_IN_INTENT_CATALOG,
@@ -144,7 +148,10 @@ export function DashboardCards({
   const [carouselPage, setCarouselPage] = useState(0);
   // FIELD R2 item 8 (F8): the check-in fused under the hero is compact — once a
   // mode is chosen it collapses to a single chip; tapping it re-opens the picker.
+  // FIELD 2026-07-07: if the user dismissed the picker today (closed without
+  // choosing), it stays closed until the next day — no forced re-opening.
   const [checkInExpanded, setCheckInExpanded] = useState(false);
+  const checkInDismissed = isCheckInDismissedToday(trip.id, model.todayIso);
   // C2: the "open an Outing?" nudge is dismissible for the rest of the day.
   const [outingNudgeDismissed, setOutingNudgeDismissed] = useState(() =>
     isOutingSuggestionDismissed(trip.id, model.todayIso),
@@ -253,7 +260,7 @@ export function DashboardCards({
   // compact chip. Before a mode is chosen there is nothing to summarise, so the
   // picker shows open; once chosen it collapses to a one-line chip the traveler
   // can tap to expand again (accordion). Read-only framing stays (ÂNCORA 12).
-  const isCheckInExpanded = !effectiveCheckInIntent || checkInExpanded;
+  const isCheckInExpanded = checkInExpanded || (!effectiveCheckInIntent && !checkInDismissed);
   const checkInActiveOption = effectiveCheckInIntent
     ? (CHECK_IN_INTENT_CATALOG.find((o) => o.intent === effectiveCheckInIntent) ?? null)
     : null;
@@ -1117,7 +1124,14 @@ export function DashboardCards({
                 <div className="flex items-center gap-2">
                   <AskToSpendShortcut prefillCents={displayFreeTodayCents} />
                   <button
-                    onClick={() => setCheckInExpanded((v) => !v)}
+                    onClick={() => {
+                      setCheckInExpanded((v) => {
+                        if (v && !effectiveCheckInIntent) {
+                          dismissCheckInToday(trip.id, model.todayIso);
+                        }
+                        return !v;
+                      });
+                    }}
                     aria-expanded={isCheckInExpanded}
                     aria-label={t('dashboard.checkin_title')}
                     className="flex-1 min-w-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full btn-press"

@@ -945,10 +945,27 @@ export function QuickAddPage() {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0,00"
+            maxLength={60}
             className="bg-transparent text-display font-bold text-on-surface tabular outline-none w-full"
             autoFocus
           />
         </div>
+        {/* M1: when the user typed an expression (not a plain number), show a
+            live preview of the evaluated result with a tap-to-collapse button
+            so they can fold the expression into its result and keep going. */}
+        {amount.length > 0 && /[+\-*/xX×÷]/.test(amount) && evaluatedAmount !== null && (
+          <button
+            type="button"
+            onClick={() => setAmount(String(evaluatedAmount))}
+            className="mt-1.5 flex items-center gap-1.5 btn-press"
+          >
+            <span className="text-xs text-on-surface-faint">= </span>
+            <span className="text-sm font-bold tabular text-primary">
+              {formatMoney(toCents(evaluatedAmount), selectedCurrency)}
+            </span>
+            <Icon name="check_circle" size={14} className="text-primary" />
+          </button>
+        )}
 
         {/* E9 (M8): pick the expense currency — only when a foreign option exists
             (from a wallet or a frozen-rate snapshot); default is the trip base. */}

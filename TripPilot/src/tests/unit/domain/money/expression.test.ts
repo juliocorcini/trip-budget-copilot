@@ -85,4 +85,18 @@ describe('evaluateAmountExpression', () => {
   it('returns null on division by zero instead of Infinity', () => {
     expect(evaluateAmountExpression('10/0')).toBeNull();
   });
+
+  it('accepts x, X, and × as multiplication aliases', () => {
+    expect(evaluateAmountExpression('6x5')).toBe(30);
+    expect(evaluateAmountExpression('6X5')).toBe(30);
+    expect(evaluateAmountExpression('6×5')).toBe(30);
+  });
+
+  it('accepts ÷ as a division alias', () => {
+    expect(evaluateAmountExpression('10÷2')).toBe(5);
+  });
+
+  it('respects PEMDAS with x aliases: 6x5+5+3x6-3+6+3+6+65x90 = 5915', () => {
+    expect(evaluateAmountExpression('6x5+5+3x6-3+6+3+6+65x90')).toBe(5915);
+  });
 });

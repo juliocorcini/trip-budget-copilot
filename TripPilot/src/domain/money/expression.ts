@@ -10,7 +10,7 @@
 
 type Token = { type: 'num'; value: number } | { type: 'op'; op: '+' | '-' | '*' | '/' };
 
-const ALLOWED_RE = /^[0-9+\-*/.,\s]+$/;
+const ALLOWED_RE = /^[0-9+\-*/.,\sxX×÷]+$/;
 
 /** Parses a single locale-formatted number token ("1.234,56", "5,5", "12"). */
 export function parseLocaleNumber(token: string): number | null {
@@ -58,6 +58,12 @@ function tokenize(input: string): Token[] | null {
     } else if (ch === '+' || ch === '-' || ch === '*' || ch === '/') {
       if (!flush()) return null;
       tokens.push({ type: 'op', op: ch });
+    } else if (ch === 'x' || ch === 'X' || ch === '×') {
+      if (!flush()) return null;
+      tokens.push({ type: 'op', op: '*' });
+    } else if (ch === '÷') {
+      if (!flush()) return null;
+      tokens.push({ type: 'op', op: '/' });
     } else if (/[0-9.,]/.test(ch)) {
       numberBuffer += ch;
     } else {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { useAppData, notifyAppDataChanged } from '@/hooks/useAppData';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
-import { calculateOwnerPersonalCost, scaleSharesToTotal } from '@/domain/splitting';
+import { calculateOwnerPersonalCost, scaleSharesToTotal, resolvePayerExpense } from '@/domain/splitting';
 import { resolvePoolPhaseId } from '@/domain/budget';
 import { formatMoney, fromCents, toCents, formatAnchorHint, resolveAnchorRate, convertToBaseCents } from '@/domain/money';
 import { formatDate, localDayOf, localClockTime, moveToLocalDay } from '@/domain/dates';
@@ -37,7 +37,7 @@ import type { Transaction } from '@/domain/types/transaction';
 import type { Session } from '@/domain/types/session';
 import type { PlannedPurchase } from '@/domain/types/planned-purchase';
 import type { ParticipantShare } from '@/domain/types/participant-share';
-import type { CurrentPlace } from '@/domain/types/common';
+import type { CurrentPlace, ShareType } from '@/domain/types/common';
 
 // DEC-368 (G8): the Leaflet map is code-split — it only downloads when a detail
 // screen with coordinates is actually opened. DEC-398 (G7): the field renders a
@@ -95,6 +95,10 @@ export function ExpenseDetailPage() {
   const [editPoolId, setEditPoolId] = useState<string | null>(null);
   const [editWalletId, setEditWalletId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState('');
+  const [editIsShared, setEditIsShared] = useState(false);
+  const [editSplitMode, setEditSplitMode] = useState<ShareType>('equal');
+  const [editSelectedParticipantIds, setEditSelectedParticipantIds] = useState<string[]>([]);
+  const [editCustomAmounts, setEditCustomAmounts] = useState<Record<string, string>>({});
   // D-BUG-08: the place is edited with the shared <PlaceField> (rename, use my
   // location, nearby, find online, recents) instead of a bare text input.
   const [editPlace, setEditPlace] = useState<CurrentPlace | null>(null);
@@ -215,7 +219,17 @@ export function ExpenseDetailPage() {
         ? { label: tx.placeLabel, lat: tx.latitude, lng: tx.longitude, placeId: tx.placeId }
         : null,
     );
+    setEditIsShared(tx.isShared);
+    setEditSelectedParticipantIds(shares.map((s) => s.participantId));
+    setEditSplitMode('equal');
+    setEditCustomAmounts({});
     setEditing(true);
+  };
+
+  const editToggleParticipant = (pid: string) => {
+    setEditSelectedParticipantIds((prev) =>
+      prev.includes(pid) ? prev.filter((x) => x !== pid) : [...prev, pid],
+    );
   };
 
   const handleSaveEdit = async () => {
@@ -224,38 +238,72 @@ export function ExpenseDetailPage() {
     setSaving(true);
     try {
       const newAmountCents = toCents(parsed);
-      // BUG-001 (R6-01): keep the local wall-clock time on the chosen local day.
       const newDate = moveToLocalDay(tx.date, editDate);
       let newPersonalCost = tx.personalCostCents;
       let newShares = shares;
+      let newIsShared = tx.isShared;
 
-      if (tx.isShared && shares.length > 0 && newAmountCents !== tx.amountCents) {
+      const splitChanged =
+        editIsShared !== tx.isShared ||
+        (editIsShared && editSelectedParticipantIds.sort().join() !== shares.map((s) => s.participantId).sort().join());
+      const amountChanged = newAmountCents !== tx.amountCents;
+
+      if (splitChanged && editIsShared && owner) {
+        if (shares.length > 0) {
+          await Promise.all(shares.map((s) => participantShareRepository.delete(s.id)));
+        }
+        const customAmountsCents = Object.fromEntries(
+          Object.entries(editCustomAmounts).map(([pid, v]) => {
+            const value = parseFloat(v.replace(',', '.'));
+            return [pid, Number.isNaN(value) ? 0 : Math.round(value * 100)];
+          }),
+        );
+        const payerId = tx.paidByParticipantId ?? owner.id;
+        const resolution = resolvePayerExpense({
+          transactionId: tx.id,
+          amountCents: newAmountCents,
+          ownerId: owner.id,
+          payerId,
+          didSplit: true,
+          participantIds: editSelectedParticipantIds,
+          shareType: editSplitMode,
+          customAmountsCents,
+          connectedParticipantIds: participants
+            .filter((p) => p.linkedActorId !== null)
+            .map((p) => p.id),
+        });
+        newShares = resolution.shares;
+        newPersonalCost = resolution.personalCostCents;
+        newIsShared = resolution.isShared;
+        await Promise.all(newShares.map((s) => participantShareRepository.create(s)));
+      } else if (splitChanged && !editIsShared) {
+        if (shares.length > 0) {
+          await Promise.all(shares.map((s) => participantShareRepository.delete(s.id)));
+        }
+        newShares = [];
+        newPersonalCost = newAmountCents;
+        newIsShared = false;
+      } else if (!splitChanged && newIsShared && shares.length > 0 && amountChanged) {
         newShares = scaleSharesToTotal(shares, newAmountCents);
         await Promise.all(newShares.map((s) => participantShareRepository.update(s)));
-        // BUG-004 (R6-04, DEC-071): rejected shares return to the payer —
-        // the owner's cost is NOT simply their own share.
         newPersonalCost = owner
           ? calculateOwnerPersonalCost({ ...tx, amountCents: newAmountCents }, newShares, owner.id)
           : null;
-      } else if (!tx.isShared) {
+      } else if (!newIsShared) {
         newPersonalCost = newAmountCents;
       }
 
-      // DEC-452: moving the expense to another fund re-stamps its phase to the
-      // fund's linked phase (when unambiguous) — pool and phase never diverge.
-      // Same pool, or a global/unlinked pool: the phase stays as it was.
       const movedPoolPhaseId =
         editPoolId !== tx.budgetPoolId ? resolvePoolPhaseId(links, editPoolId) : null;
       const updated = await transactionRepository.update({
         ...tx,
         amountCents: newAmountCents,
-        // E9 (M9): re-derive the base value with the frozen rate (foreign), else
-        // it equals the amount (same-currency). The currency/rate stay fixed.
         baseCurrencyAmountCents:
           tx.exchangeRate !== null
             ? convertToBaseCents(newAmountCents, tx.exchangeRate)
             : newAmountCents,
         personalCostCents: newPersonalCost,
+        isShared: newIsShared,
         description: editDescription.trim() || tx.description,
         category: editCategory,
         budgetPoolId: editPoolId,
@@ -263,15 +311,11 @@ export function ExpenseDetailPage() {
         walletId: editWalletId,
         date: newDate,
         ...placeToTransactionFields(editPlace),
-        // DEC-367 (G8): a place picked in "detalhes" is traveler-confirmed, so it
-        // drops any earlier PROBABLE flag (no more "provavelmente").
         placeNameSource: editPlace ? 'user' : null,
       });
       setTx(updated);
       setShares(newShares);
       setEditing(false);
-      // Editing used to close silently — confirm the change like every other
-      // mutation (the success toast carries the haptic, N8).
       showToast(t('expenses.edited_toast'), 'success');
       await reload();
     } finally {
@@ -677,6 +721,107 @@ export function ExpenseDetailPage() {
             autoCapture={false}
             locationFeaturesEnabled={!!settings?.locationCaptureEnabled}
           />
+
+          <div className="bg-surface-container rounded-xl p-4 flex flex-col gap-3">
+            <button
+              onClick={() => setEditIsShared((v) => !v)}
+              className="w-full flex items-center justify-between btn-press"
+            >
+              <span className="text-sm text-on-surface font-medium flex items-center gap-2">
+                <Icon name="group" size={18} className="text-on-surface-dim" />
+                {t('expenses.shared_toggle')}
+              </span>
+              <span
+                className="w-10 h-6 rounded-full relative transition-colors"
+                style={{ background: editIsShared ? 'var(--primary)' : 'var(--surface-high)' }}
+              >
+                <span
+                  className="absolute top-0.5 w-5 h-5 rounded-full bg-on-surface transition-[left]"
+                  style={{ left: editIsShared ? '18px' : '2px' }}
+                />
+              </span>
+            </button>
+
+            {editIsShared && (
+              <>
+                <div>
+                  <label className="text-xs text-on-surface-faint mb-2 block">
+                    {t('expenses.participants_label')}
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {participants.map((p) => {
+                      const label = p.nickname ?? p.name;
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => editToggleParticipant(p.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-press ${
+                            editSelectedParticipantIds.includes(p.id)
+                              ? 'bg-primary text-on-surface'
+                              : 'bg-surface-high text-on-surface-dim'
+                          }`}
+                        >
+                          {p.isOwner ? t('shared.owner_tag') : label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-on-surface-faint mb-2 block">
+                    {t('expenses.split_mode')}
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditSplitMode('equal')}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                        editSplitMode === 'equal' ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {t('expenses.split_equal')}
+                    </button>
+                    <button
+                      onClick={() => setEditSplitMode('custom')}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium btn-press ${
+                        editSplitMode === 'custom' ? 'bg-primary text-on-surface' : 'bg-surface-high text-on-surface-dim'
+                      }`}
+                    >
+                      {t('expenses.split_custom')}
+                    </button>
+                  </div>
+                </div>
+
+                {editSplitMode === 'custom' && (
+                  <div className="flex flex-col gap-2">
+                    {participants
+                      .filter((p) => editSelectedParticipantIds.includes(p.id))
+                      .map((p) => (
+                        <div key={p.id} className="flex items-center gap-2">
+                          <span className="text-xs text-on-surface-dim flex-1 truncate">
+                            {p.isOwner ? t('shared.owner_tag') : (p.nickname ?? p.name)}
+                          </span>
+                          <div className="flex items-baseline gap-1 bg-surface-high rounded-lg px-3 py-1.5 w-28">
+                            <span className="text-on-surface-faint text-xs">{tx.currency}</span>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              value={editCustomAmounts[p.id] ?? ''}
+                              onChange={(e) =>
+                                setEditCustomAmounts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                              }
+                              placeholder="0,00"
+                              className="bg-transparent text-xs text-on-surface tabular outline-none w-full"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
           <div className="bg-surface-container rounded-xl p-4">
             <label className="text-xs text-on-surface-faint mb-2 block">{t('expenses.fund')}</label>

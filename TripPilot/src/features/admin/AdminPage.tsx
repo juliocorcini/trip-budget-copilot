@@ -4,6 +4,7 @@ import {
   deleteInstall,
   fetchAiUsage,
   fetchErrors,
+  fetchGhostSignals,
   fetchGovernance,
   fetchInstallDetail,
   fetchInstallErrors,
@@ -12,6 +13,8 @@ import {
   type AdminAiUsageResult,
   type AdminError,
   type AdminErrorsResult,
+  type AdminGhostSignal,
+  type AdminGhostSignalsResult,
   type AdminGovernance,
   type AdminInstall,
   type AdminInstallDetail,
@@ -167,6 +170,7 @@ export function AdminPage() {
   const [aiUsage, setAiUsage] = useState<AdminAiUsageResult | null>(null);
   const [governance, setGovernance] = useState<AdminGovernance | null>(null);
   const [errors, setErrors] = useState<AdminErrorsResult | null>(null);
+  const [ghosts, setGhosts] = useState<AdminGhostSignalsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -178,18 +182,20 @@ export function AdminPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [ov, list, ai, gov, errs] = await Promise.all([
+      const [ov, list, ai, gov, errs, gs] = await Promise.all([
         fetchOverview(activeToken),
         fetchInstalls(activeToken, 500),
         fetchAiUsage(activeToken, 30),
         fetchGovernance(activeToken),
         fetchErrors(activeToken, 100),
+        fetchGhostSignals(activeToken),
       ]);
       setOverview(ov);
       setInstalls(list.installs);
       setAiUsage(ai);
       setGovernance(gov);
       setErrors(errs);
+      setGhosts(gs);
     } catch (err) {
       if (err instanceof AdminAuthError) {
         safeLocalStorage.remove(TOKEN_KEY);
@@ -221,6 +227,7 @@ export function AdminPage() {
     setAiUsage(null);
     setGovernance(null);
     setErrors(null);
+    setGhosts(null);
   };
 
   const handleDelete = async (install: AdminInstall) => {
@@ -411,6 +418,8 @@ export function AdminPage() {
             </Section>
 
             {errors ? <ErrorsSection result={errors} /> : null}
+
+            {ghosts && ghosts.total > 0 ? <GhostSignalsSection result={ghosts} /> : null}
 
             <p className="text-[10px] text-on-surface-faint text-center pb-6">
               Dados anônimos de uso. Nunca capturamos valores nem o conteúdo dos gastos.
@@ -746,6 +755,168 @@ function ErrorRow({ error }: { error: AdminError }) {
         <span title={fullDate(error.lastSeen)}>{relativeTime(error.lastSeen)}</span>
       </div>
     </li>
+  );
+}
+
+function GhostSignalsSection({ result }: { result: AdminGhostSignalsResult }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  return (
+    <Section title={`Sinais fantasma (${result.total})`}>
+      <p className="text-[11px] text-on-surface-faint -mt-1">
+        Dispositivos com vestígios em heartbeats, IA ou erros mas SEM registro na tabela de usuários.
+        Dados com menor certeza — podem ser dispositivos deletados, testes, ou instalações que nunca
+        completaram o primeiro heartbeat.
+      </p>
+      {result.signals.length === 0 ? (
+        <p className="text-xs text-on-surface-dim">Nenhum sinal fantasma encontrado.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {result.signals.map((g) => (
+            <GhostCard
+              key={g.installId}
+              ghost={g}
+              expanded={expanded === g.installId}
+              onToggle={() => setExpanded((prev) => (prev === g.installId ? null : g.installId))}
+            />
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function GhostCard({
+  ghost,
+  expanded,
+  onToggle,
+}: {
+  ghost: AdminGhostSignal;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const sourceLabels: Record<string, string> = {
+    ai_usage: 'IA',
+    error_seen: 'Erros',
+    heartbeats: 'Heartbeats',
+  };
+  return (
+    <div className="bg-surface rounded-xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full btn-press px-3 py-2.5 flex items-center justify-between gap-2 text-left"
+      >
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-xs font-mono text-warning font-semibold truncate">
+            {ghost.installId.slice(0, 12)}…
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {ghost.sources.map((s) => (
+              <span
+                key={s}
+                className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/15 text-warning font-medium"
+              >
+                {sourceLabels[s] ?? s}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          {ghost.aiTokens > 0 ? (
+            <span className="text-[10px] text-on-surface-dim tabular-nums">
+              {compactNumber(ghost.aiTokens)} tok · {ghost.aiCalls}×
+            </span>
+          ) : null}
+          {ghost.lastSeen ? (
+            <span className="text-[10px] text-on-surface-faint">{relativeTime(ghost.lastSeen)}</span>
+          ) : null}
+          <span className="text-[10px] text-on-surface-faint">{expanded ? '▲' : '▼'}</span>
+        </div>
+      </button>
+
+      {expanded ? (
+        <div className="px-3 pb-3 flex flex-col gap-2 border-t border-surface-high/60">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-2">
+            {ghost.platforms.length > 0 ? (
+              <GhostMeta label="Plataformas" value={ghost.platforms.join(', ')} />
+            ) : null}
+            {ghost.versions.length > 0 ? (
+              <GhostMeta label="Versões" value={ghost.versions.join(', ')} />
+            ) : null}
+            {ghost.firstSeen ? (
+              <GhostMeta label="Primeiro sinal" value={fullDate(ghost.firstSeen)} />
+            ) : null}
+            {ghost.lastSeen ? (
+              <GhostMeta label="Último sinal" value={fullDate(ghost.lastSeen)} />
+            ) : null}
+            {ghost.heartbeatDays.length > 0 ? (
+              <GhostMeta label="Dias ativos" value={String(ghost.heartbeatDays.length)} />
+            ) : null}
+            {ghost.errorCount > 0 ? (
+              <GhostMeta label="Erros totais" value={String(ghost.errorCount)} />
+            ) : null}
+          </div>
+
+          {ghost.aiFns.length > 0 ? (
+            <div>
+              <h4 className="text-[10px] font-semibold text-on-surface-faint uppercase tracking-wide mb-1">
+                IA por função
+              </h4>
+              {ghost.aiFns.map((f) => (
+                <div key={f.fn} className="flex items-baseline justify-between gap-2 text-xs py-0.5">
+                  <span className="text-on-surface-dim">{AI_FN_LABELS[f.fn] ?? f.fn}</span>
+                  <span className="text-on-surface font-semibold tabular-nums">
+                    {f.tokens.toLocaleString('pt-BR')} tok · {f.runs}×
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {ghost.errorMessages.length > 0 ? (
+            <div>
+              <h4 className="text-[10px] font-semibold text-on-surface-faint uppercase tracking-wide mb-1">
+                Erros
+              </h4>
+              {ghost.errorMessages.slice(0, 5).map((msg, i) => (
+                <p key={i} className="text-[11px] text-on-surface-dim break-words py-0.5">
+                  • {msg}
+                </p>
+              ))}
+              {ghost.errorMessages.length > 5 ? (
+                <p className="text-[10px] text-on-surface-faint">
+                  +{ghost.errorMessages.length - 5} erros adicionais
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {ghost.heartbeatDays.length > 0 ? (
+            <div>
+              <h4 className="text-[10px] font-semibold text-on-surface-faint uppercase tracking-wide mb-1">
+                Heartbeat days
+              </h4>
+              <p className="text-[11px] text-on-surface-dim break-words">
+                {ghost.heartbeatDays.slice(0, 10).join(', ')}
+                {ghost.heartbeatDays.length > 10 ? ` (+${ghost.heartbeatDays.length - 10})` : ''}
+              </p>
+            </div>
+          ) : null}
+
+          <p className="text-[9px] text-on-surface-faint mt-1">
+            ID completo: {ghost.installId}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function GhostMeta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="text-[11px] text-on-surface-faint">{label}</span>
+      <span className="text-[11px] text-on-surface-dim font-medium text-right">{value}</span>
+    </div>
   );
 }
 
