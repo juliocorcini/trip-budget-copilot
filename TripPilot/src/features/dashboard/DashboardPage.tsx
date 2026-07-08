@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -59,6 +59,8 @@ import { SpaceSwitcherChip } from '@/features/spaces/SpaceSwitcherChip';
 
 type TFn = (key: string, options?: Record<string, string | number>) => string;
 
+const sessionToastedIds = new Set<string>();
+
 function notificationToastText(n: AppNotification, t: TFn, currency: string): string {
   const v = n.values;
   switch (n.kind) {
@@ -107,7 +109,6 @@ export function DashboardPage() {
     }
   }, [searchParams, setSearchParams, model.pendingShares]);
 
-  const actionToastFiredRef = useRef(new Set<string>());
   useEffect(() => {
     const actionKinds: Set<string> = new Set([
       'pending_p2p',
@@ -115,10 +116,10 @@ export function DashboardPage() {
       'phase_over_budget',
     ]);
     const actionNotifs = notifications.filter(
-      (n) => actionKinds.has(n.kind) && !actionToastFiredRef.current.has(n.id),
+      (n) => actionKinds.has(n.kind) && !sessionToastedIds.has(n.id),
     );
     if (actionNotifs.length === 0) return;
-    for (const n of actionNotifs) actionToastFiredRef.current.add(n.id);
+    for (const n of actionNotifs) sessionToastedIds.add(n.id);
     const first = actionNotifs[0]!;
     const toastVariant = first.tone === 'error' ? 'danger' as const : 'warning' as const;
     showToast(

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.6-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Toast de alerta mostra apenas 1x por abertura do app, não a cada volta ao painel.',
+        'Correção do deploy: bundle OTA e deploy via Wrangler Pages.',
+      ],
+      en: [
+        'Alert toast shows only once per app open, not on every dashboard visit.',
+        'Deploy fix: OTA bundle and Wrangler Pages deployment.',
+      ],
+      es: [
+        'Toast de alerta se muestra solo 1x por apertura de la app, no en cada visita al panel.',
+        'Corrección de deploy: bundle OTA y deploy vía Wrangler Pages.',
+      ],
+    },
+  },
+  {
     version: '2.8.5-rc',
     date: '2026-07-08',
     items: {
