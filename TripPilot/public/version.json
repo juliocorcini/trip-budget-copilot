@@ -1,7 +1,7 @@
 {
   "version": "2.8.7-rc",
   "requiredNativeVersion": "0.50.0",
-  "latestNativeVersion": "0.76.0",
+  "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
   "bundleUrl": "https://trippilot.pages.dev/bundles/2.8.7-rc.zip",
   "notes": "FCM push com app fechado corrigido. Notificação única resumida (sem duplicação). Sem re-fire ao navegar."
