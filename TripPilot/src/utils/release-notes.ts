@@ -17,6 +17,72 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.8-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Ícones carregam sem "flash": antes aparecia um texto estranho enquanto a fonte carregava — agora o ícone aparece direto.',
+        'Divisão em grupo (guest): o dono do grupo aparece como "Organizador" (não mais "você" — que confundia quem não era o dono).',
+        'Pagamentos confirmados refletem nos saldos: quando alguém paga e você confirma, o painel de saldos mostra "Confirmado" (e não mais "deve €X").',
+        'Imagem no WhatsApp mantém proporção: fotos compartilhadas por link não são mais cortadas para um tamanho fixo — a proporção original é preservada.',
+        'Editar gasto com divisão: ao editar um gasto, agora aparece a opção de dividir com outras pessoas (antes faltava).',
+        'Atalho de entrada: ao confirmar um pagamento recebido, o app pergunta se quer registrar como entrada na sua verba — com um toque.',
+      ],
+      en: [
+        'Icons load without "flash": previously text appeared briefly before icons loaded — now icons show directly.',
+        'Group split (guest): the group owner shows as "Organizer" (no longer "you" — which confused non-owners).',
+        'Confirmed payments reflect in balances: when someone pays and you confirm, the balance panel shows "Confirmed" (not "owes €X").',
+        'WhatsApp image keeps aspect ratio: shared photos are no longer cropped to a fixed size — original proportions are preserved.',
+        'Edit expense with split: editing an expense now shows the option to split with others (previously missing).',
+        'Income shortcut: when confirming a received payment, the app asks if you want to register it as income in your fund — one tap.',
+      ],
+      es: [
+        'Íconos cargan sin "flash": antes aparecía un texto extraño mientras la fuente cargaba — ahora el ícono aparece directo.',
+        'División en grupo (invitado): el dueño del grupo aparece como "Organizador" (ya no "tú" — que confundía a quien no era el dueño).',
+        'Pagos confirmados se reflejan en saldos: cuando alguien paga y confirmas, el panel de saldos muestra "Confirmado" (no "debe €X").',
+        'Imagen en WhatsApp mantiene proporción: las fotos compartidas por enlace ya no se recortan a un tamaño fijo — la proporción original se preserva.',
+        'Editar gasto con división: al editar un gasto, ahora aparece la opción de dividir con otras personas (antes faltaba).',
+        'Atajo de ingreso: al confirmar un pago recibido, la app pregunta si quieres registrarlo como ingreso en tu fondo — un toque.',
+      ],
+    },
+  },
+  {
+    version: '2.7.7-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Conversor com dropdown: o conversor agora usa dropdown para selecionar moedas, mais rápido que o teclado.',
+        'Calculadora respeita PEMDAS: expressões como "2+3×4" agora dão o resultado correto (14, não 20).',
+        'Gastos em abas: a tela de gastos agora tem abas (Gastos, Notas de compra, Saídas) para navegar mais rápido.',
+        'Seleção em lote: segure pressionado um gasto para selecionar vários e fazer ações em lote.',
+        'Check-in dispensável: não precisa mais fazer check-in obrigatório ao abrir o app.',
+        'Cofrinho melhorado: o cofrinho (piggy) ganhou melhorias visuais e de usabilidade.',
+        'Widget do conversor com estilo ativo: o chip selecionado no widget nativo agora tem destaque visual.',
+        'Limite de input: campos numéricos respeitam limites razoáveis.',
+      ],
+      en: [
+        'Converter with dropdown: the converter now uses dropdown for currency selection, faster than keyboard.',
+        'Calculator respects PEMDAS: expressions like "2+3×4" now give the correct result (14, not 20).',
+        'Expenses in tabs: the expenses screen now has tabs (Expenses, Receipts, Outings) for faster navigation.',
+        'Batch selection: long-press an expense to select multiple and perform batch actions.',
+        'Dismissible check-in: mandatory check-in on app open is no longer required.',
+        'Piggy bank improved: the piggy bank got visual and usability improvements.',
+        'Converter widget active style: the selected chip in the native widget now has visual highlight.',
+        'Input limit: numeric fields respect reasonable limits.',
+      ],
+      es: [
+        'Conversor con dropdown: el conversor ahora usa dropdown para seleccionar monedas, más rápido que el teclado.',
+        'Calculadora respeta PEMDAS: expresiones como "2+3×4" ahora dan el resultado correcto (14, no 20).',
+        'Gastos en pestañas: la pantalla de gastos ahora tiene pestañas (Gastos, Notas, Salidas) para navegar más rápido.',
+        'Selección en lote: mantén presionado un gasto para seleccionar varios y realizar acciones en lote.',
+        'Check-in dispensable: ya no es necesario hacer check-in obligatorio al abrir la app.',
+        'Alcancía mejorada: la alcancía recibió mejoras visuales y de usabilidad.',
+        'Widget del conversor con estilo activo: el chip seleccionado en el widget nativo ahora tiene destaque visual.',
+        'Límite de input: los campos numéricos respetan límites razonables.',
+      ],
+    },
+  },
+  {
     version: '2.7.6-rc',
     date: '2026-07-06',
     items: {

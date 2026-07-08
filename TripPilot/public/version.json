@@ -1,8 +1,8 @@
 {
-  "version": "2.7.7-rc",
+  "version": "2.7.8-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.74.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.7-rc.zip",
-  "notes": "Correções: z-index imagens, tabs Gastos|Notas|Saídas, long-press batch, check-in não obrigatório, cofrinho uplift, conversor dropdown, calculadora x/× PEMDAS, limite input. Review Bilage 3: FOUT ícones prevenido, label 'Organizador' no board de guest, saldos refletem pagamentos confirmados, imagem OG preserva aspect ratio, editar gasto com divisão, atalho de entrada após confirmação."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.8-rc.zip",
+  "notes": "Review Bilage 3: FOUT ícones prevenido, label Organizador no guest board, saldos refletem pagamentos confirmados, imagem OG preserva aspect ratio, editar gasto com divisão, atalho de entrada após confirmação."
 }

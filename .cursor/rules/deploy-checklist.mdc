@@ -1,0 +1,34 @@
+# Deploy Checklist (MANDATORY)
+
+Every deploy to production MUST include ALL of these steps. No exceptions.
+
+## Before commit
+
+1. **Version bump** — increment the version in ALL three places:
+   - `TripPilot/package.json` (`version` field)
+   - `TripPilot/src/utils/app-version.ts` (`APP_VERSION`)
+   - `TripPilot/public/version.json` (`version` + `bundleUrl`)
+
+2. **Release notes** — add an entry to `TripPilot/src/utils/release-notes.ts`:
+   - Add a new object at the TOP of `RELEASE_NOTES` array (newest first)
+   - Include `version`, `date`, and `items` in all 3 languages (pt-BR, en, es)
+   - Write user-facing copy (what they notice, not technical internals)
+   - The test `release-notes.test.tsx` WILL FAIL if the current APP_VERSION has no entry
+
+3. **version.json notes** — update `notes` field with a short summary of changes
+
+## Version numbering
+
+- Format: `MAJOR.MINOR.PATCH-rc` (e.g. `2.7.8-rc`)
+- Every deploy gets its OWN version — never ship two different sets of changes under the same version
+- If a previous session already bumped to X.Y.Z-rc, bump to X.Y.(Z+1)-rc
+
+## Deploy sequence
+
+1. `tsc --noEmit` — zero errors
+2. `npm run build` — success
+3. `npm run test` — no NEW failures (pre-existing are documented)
+4. `git add -A && git commit`
+5. `git push origin master` — triggers Cloudflare Pages auto-build
+6. Verify live: `curl https://trippilot.pages.dev/version.json` shows new version
+7. Worker (if changed): `cd worker && npx wrangler deploy`
