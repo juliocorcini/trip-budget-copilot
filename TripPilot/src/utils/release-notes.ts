@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.0-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Contestação completa: guest pode re-marcar como pago e o owner vê no app.',
+        'Claim reducer: status "contested" não é mais terminal — guest pode re-afirmar.',
+        'Fix closure stale: contestSeen usa useRef em vez de useState.',
+      ],
+      en: [
+        'Full contestation flow: guest can re-mark as paid and owner sees the update.',
+        'Claim reducer: "contested" status is no longer terminal — guest can re-assert.',
+        'Fix stale closure: contestSeen uses useRef instead of useState.',
+      ],
+      es: [
+        'Flujo de contestación completo: guest puede re-marcar como pagado y owner lo ve.',
+        'Reducer de claims: estado "contested" ya no es terminal — guest puede re-afirmar.',
+        'Fix closure stale: contestSeen usa useRef en vez de useState.',
+      ],
+    },
+  },
+  {
     version: '2.8.9-rc',
     date: '2026-07-08',
     items: {

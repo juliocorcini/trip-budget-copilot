@@ -72,7 +72,7 @@ export function GroupClaimPage() {
   const [load, setLoad] = useState<LoadState>({ kind: 'loading' });
   const [claimedId, setClaimedId] = useState<string | null>(null);
   const [markedPaid, setMarkedPaid] = useState(false);
-  const [contestSeen, setContestSeen] = useState(false);
+  const contestSeenRef = useRef(false);
   // DEC-363 (Item D) — an OPTIONAL proof the guest attaches with their mark-paid;
   // it rides the claim response and the owner folds it onto the timeline.
   const [proof, setProof] = useState<AttachedProof | null>(null);
@@ -143,12 +143,12 @@ export function GroupClaimPage() {
         if (mine?.paymentStatus === 'cancelled') {
           setMarkedPaid(false);
         }
-        if (mine?.paymentStatus === 'contested' && !contestSeen) {
-          setContestSeen(true);
+        if (mine?.paymentStatus === 'contested' && !contestSeenRef.current) {
+          contestSeenRef.current = true;
           setMarkedPaid(false);
         }
         if (mine && mine.paymentStatus !== 'contested') {
-          setContestSeen(false);
+          contestSeenRef.current = false;
         }
       }
       hasPayloadRef.current = true;
