@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.7.11-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Notificações de grupo em tempo real: o organizador recebe notificação nativa e toast quando alguém marca como pago, mesmo fora da página do grupo.',
+        'Ao voltar ao app: todas as divisões são verificadas e pagamentos pendentes geram aviso imediato.',
+        'Menu de notificações atualiza automaticamente quando um sinal de pagamento chega via WebSocket.',
+      ],
+      en: [
+        'Real-time group notifications: the organizer gets a native notification and toast when someone marks as paid, even outside the group page.',
+        'On app resume: all group splits are checked and pending payments trigger an immediate alert.',
+        'Notification menu auto-refreshes when a payment signal arrives via WebSocket.',
+      ],
+      es: [
+        'Notificaciones de grupo en tiempo real: el organizador recibe notificación nativa y toast cuando alguien marca como pagado, incluso fuera de la página del grupo.',
+        'Al volver a la app: todas las divisiones se verifican y pagos pendientes generan aviso inmediato.',
+        'Menú de notificaciones se actualiza automáticamente cuando llega una señal de pago por WebSocket.',
+      ],
+    },
+  },
+  {
     version: '2.7.10-rc',
     date: '2026-07-08',
     items: {

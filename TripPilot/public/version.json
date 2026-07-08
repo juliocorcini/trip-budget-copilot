@@ -1,8 +1,8 @@
 {
-  "version": "2.7.10-rc",
+  "version": "2.7.11-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.74.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.10-rc.zip",
-  "notes": "Notificações de pagamento de grupo: alerta no menu de notificações + toast automático no dashboard quando alguém marca como pago. Payer: quem paga via link pode registrar como gasto no app. Footer OG dinâmico + suporte 9:16."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.7.11-rc.zip",
+  "notes": "Notificações de grupo em tempo real: o organizador agora recebe notificação nativa + toast quando alguém marca como pago, mesmo sem estar na página do grupo. Avisos chegam ao voltar ao app e via WebSocket."
 }
