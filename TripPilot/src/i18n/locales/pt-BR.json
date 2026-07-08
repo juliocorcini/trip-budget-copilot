@@ -3156,6 +3156,8 @@
     "awaiting": "Marcado como pago · aguardando confirmação",
     "undo_paid": "Desfazer",
     "confirmed": "Pagamento confirmado",
+    "contested": "Pagamento contestado pelo organizador — envie um novo comprovante ou entre em contato.",
+    "remark_paid": "Marcar como pago novamente",
     "made_with": "Feito com o TripPilot",
     "revoked": "Este link foi encerrado pelo organizador.",
     "not_found": "Grupo não encontrado. Confira o link.",

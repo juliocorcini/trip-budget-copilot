@@ -160,6 +160,12 @@ export function registerGroupSplitSync(): void {
   window.addEventListener(GROUP_SPLIT_CHANGED_EVENT, () => void syncOngoingNotification());
 }
 
+/** Send a "statement updated" signal so connected guests refresh immediately. */
+export function signalGroupSplitUpdate(shareId: string): void {
+  const handle = handles.get(shareId);
+  if (handle) handle.send({ t: 'upd' });
+}
+
 export function teardownGroupSplitSync(): void {
   for (const h of handles.values()) h.close();
   handles.clear();

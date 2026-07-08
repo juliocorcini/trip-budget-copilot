@@ -10,6 +10,7 @@ import {
   groupExpenseImages,
   type GroupClaimExpense,
   type GroupClaimResponse,
+  type GroupPaymentStatus,
   type GroupSharePayload,
   type GroupSplitEvent,
 } from '@/domain/group-split';
@@ -135,6 +136,14 @@ export function GroupClaimPage() {
         setResponses(await fetchGroupResponses(id, res.key));
       } catch {
         /* keep prior responses */
+      }
+      // Keep the local `markedPaid` in sync with owner-driven transitions
+      // that override the guest's optimistic mark (contested, cancelled, unpaid).
+      if (seededRef.current) {
+        const mine = res.payload.event.participants.find((p) => p.claimedByActorId === actorId);
+        if (mine && (mine.paymentStatus === 'contested' || mine.paymentStatus === 'cancelled' || mine.paymentStatus === 'unpaid')) {
+          setMarkedPaid(false);
+        }
       }
       hasPayloadRef.current = true;
       setLoad({ kind: 'live', payload: res.payload });
@@ -439,13 +448,18 @@ function ClaimBoard({
     (tr) => tr.fromParticipantId === claimedId || tr.toParticipantId === claimedId,
   );
 
-  // Optimistic: my own mark shows instantly even before the owner re-publishes.
-  const myStatus =
-    claimed?.paymentStatus === 'confirmed'
+  // The owner's truth trumps the local optimistic flag for terminal states.
+  const serverStatus = claimed?.paymentStatus ?? 'unpaid';
+  const myStatus: GroupPaymentStatus =
+    serverStatus === 'confirmed'
       ? 'confirmed'
-      : markedPaid
-        ? 'marked'
-        : (claimed?.paymentStatus ?? 'unpaid');
+      : serverStatus === 'contested'
+        ? 'contested'
+        : serverStatus === 'cancelled'
+          ? 'cancelled'
+          : markedPaid
+            ? 'marked'
+            : serverStatus;
 
   const iOwe = (myBalance?.netCents ?? 0) < 0;
 
@@ -588,6 +602,20 @@ function ClaimBoard({
                     <Icon name="check_circle" size={18} className="text-success" />
                     {t('group_claim.confirmed')}
                   </div>
+                ) : myStatus === 'contested' ? (
+                  <>
+                    <div className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-error/15 text-error font-semibold text-sm text-center">
+                      <Icon name="report" size={18} className="text-error shrink-0" />
+                      <span className="break-words">{t('group_claim.contested')}</span>
+                    </div>
+                    <ProofAttachField value={proof} onChange={onChangeProof} />
+                    <button
+                      onClick={onTogglePaid}
+                      className="py-3 rounded-xl bg-primary text-on-surface font-semibold btn-press"
+                    >
+                      {t('group_claim.remark_paid')}
+                    </button>
+                  </>
                 ) : myStatus === 'marked' ? (
                   <>
                     <div className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-surface-high text-on-surface font-semibold text-sm text-center">

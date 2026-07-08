@@ -3152,6 +3152,8 @@
     "awaiting": "Marked as paid · awaiting confirmation",
     "undo_paid": "Undo",
     "confirmed": "Payment confirmed",
+    "contested": "Payment contested by organizer — send a new proof or get in touch.",
+    "remark_paid": "Mark as paid again",
     "made_with": "Made with TripPilot",
     "revoked": "This link was closed by the organizer.",
     "not_found": "Group not found. Check the link.",

@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.8.5-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Fluxo completo de contestação: guest vê pagamento contestado em tempo real e pode re-enviar comprovante.',
+        'Owner envia signal em tempo real quando contesta, confirma ou altera status de pagamento.',
+      ],
+      en: [
+        'Full contest flow: guest sees contested payment in real time and can resend proof.',
+        'Owner sends real-time signal when contesting, confirming, or changing payment status.',
+      ],
+      es: [
+        'Flujo completo de contestación: invitado ve pago contestado en tiempo real y puede reenviar comprobante.',
+        'Organizador envía señal en tiempo real al contestar, confirmar o cambiar estado de pago.',
+      ],
+    },
+  },
+  {
     version: '2.8.4-rc',
     date: '2026-07-08',
     items: {

@@ -56,6 +56,7 @@ import {
   type GroupLiveCreds,
 } from './group-link';
 import type { GroupActivity, GroupExpense, GroupSplitEvent, GroupPaymentStatus } from '@/domain/group-split';
+import { signalGroupSplitUpdate } from '@/utils/group-split-boot';
 import { ProofThumb } from '@/features/payment-proof/PaymentProof';
 
 const POLL_FLOOR_MS = 6000;
@@ -230,6 +231,7 @@ export function GroupSplitDetailPage() {
         applyCreds(upgraded);
         saveGroupLive(next.id, upgraded);
       }
+      signalGroupSplitUpdate(bumped.shareId);
     } catch {
       // A transient network failure leaves the link live at the prior revision;
       // the next edit re-publishes. Never block the local edit on the network.
