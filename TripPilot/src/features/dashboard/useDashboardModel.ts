@@ -982,6 +982,9 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       }
       return { key, cents };
     })();
+    const profileTypicals = profiles
+      .filter((p) => p.typicalValueCents > 0)
+      .map((p) => ({ name: p.name, typicalCents: p.typicalValueCents }));
     const amigoExtras =
       activePhase && fts
         ? buildHonestFriendExtras({
@@ -995,6 +998,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             piggyBalanceCents: piggyBankCents,
             baseDailyIdealCents: piggyDailyIdealCents,
             piggyLastMovementCents,
+            profileTypicals,
           })
         : [];
 

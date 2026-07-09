@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TripPilot — Seu copiloto de orçamento de viagem</title>
+  <meta name="description" content="TripPilot te diz se você pode gastar agora sem estragar o resto da viagem. Simulador em tempo real, modo bar, divisão de grupo. Grátis, offline, sem cadastro." />
+
+  <meta property="og:title" content="TripPilot — Sabe se pode pedir a próxima cerveja?" />
+  <meta property="og:description" content="O app que responde em tempo real se aquele gasto cabe no orçamento da viagem. Grátis, offline, sem cadastro." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/icons/og-card.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: '#0F1419',
+            'surface-container': '#1A2028',
+            'surface-high': '#242C36',
+            primary: '#C75B39',
+            'primary-dim': 'rgba(199,91,57,0.5)',
+            'on-surface': '#EDE8E0',
+            'on-surface-dim': 'rgba(237,232,224,0.7)',
+            'on-surface-faint': 'rgba(237,232,224,0.55)',
+            'on-surface-mute': 'rgba(237,232,224,0.21)',
+            success: '#6B8F71',
+            warning: '#D4A843',
+            error: '#E04848',
+          },
+          fontFamily: {
+            display: ['Manrope', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Manrope', system-ui, sans-serif;
+      background-color: #0F1419;
+      color: #EDE8E0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .fade-up {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+    }
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .glow-primary {
+      box-shadow: 0 0 80px rgba(199, 91, 57, 0.15), 0 0 160px rgba(199, 91, 57, 0.05);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #C75B39 0%, #D4A843 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .card-glass {
+      background: rgba(26, 32, 40, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(237, 232, 224, 0.06);
+    }
+
+    .hero-gradient {
+      background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(199, 91, 57, 0.12) 0%, transparent 100%);
+    }
+
+    .section-divider {
+      background: linear-gradient(90deg, transparent, rgba(199, 91, 57, 0.2), transparent);
+      height: 1px;
+    }
+
+    .traffic-light .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .phone-mockup {
+      background: #1A2028;
+      border-radius: 36px;
+      border: 3px solid #242C36;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(237, 232, 224, 0.05);
+      overflow: hidden;
+    }
+
+    .alert-bar {
+      animation: pulse-soft 2s ease-in-out infinite;
+    }
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .hero-headline { font-size: 2rem; line-height: 1.1; }
+    }
+    @media (min-width: 641px) {
+      .hero-headline { font-size: 3.2rem; line-height: 1.05; }
+    }
+    @media (min-width: 1024px) {
+      .hero-headline { font-size: 3.8rem; }
+    }
+  </style>
+</head>
+<body class="overflow-x-hidden">
+
+  <!-- ============ NAV ============ -->
+  <nav class="fixed top-0 inset-x-0 z-50 transition-all duration-300" id="navbar">
+    <div class="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center font-bold text-surface text-sm">TP</div>
+        <span class="font-bold text-lg text-on-surface tracking-tight">TripPilot</span>
+      </a>
+      <div class="hidden md:flex items-center gap-8 text-sm text-on-surface-dim">
+        <a href="#simulator" class="hover:text-on-surface transition-colors">Simulador</a>
+        <a href="#outing" class="hover:text-on-surface transition-colors">Modo Saída</a>
+        <a href="#split" class="hover:text-on-surface transition-colors">Divisão</a>
+        <a href="#features" class="hover:text-on-surface transition-colors">Features</a>
+      </div>
+      <a href="/welcome" class="bg-primary hover:bg-primary/90 text-surface font-semibold text-sm px-5 py-2.5 rounded-xl transition-all hover:scale-[1.02]">
+        Começar grátis
+      </a>
+    </div>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero-gradient min-h-screen flex items-center pt-20 pb-16 relative">
+    <div class="max-w-6xl mx-auto px-5 w-full">
+      <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+        <div class="fade-up">
+          <div class="inline-flex items-center gap-2 bg-surface-container/80 rounded-full px-4 py-1.5 mb-6 text-xs font-semibold tracking-wider uppercase text-on-surface-dim border border-on-surface-mute">
+            <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+            Grátis · Offline · Sem cadastro
+          </div>
+
+          <h1 class="hero-headline font-extrabold tracking-tight text-on-surface mb-6">
+            Sabe se pode pedir
+            <span class="gradient-text">a próxima cerveja</span>
+            sem estragar a viagem?
+          </h1>
+
+          <p class="text-on-surface-dim text-lg md:text-xl leading-relaxed mb-8 max-w-lg">
+            TripPilot responde em tempo real. Não é um tracker que mostra o que você já gastou — é o amigo sincero que diz se pode gastar <em>agora</em>.
+          </p>
+
+          <div class="flex flex-col sm:flex-row gap-3">
+            <a href="/welcome" class="bg-primary hover:bg-primary/90 text-surface font-bold text-base px-8 py-4 rounded-2xl transition-all hover:scale-[1.02] text-center glow-primary">
+              Viaje sem surpresas — começar grátis
+            </a>
+            <a href="/welcome" class="bg-surface-container hover:bg-surface-high text-on-surface font-semibold text-base px-8 py-4 rounded-2xl transition-all border border-on-surface-mute text-center">
+              Experimentar no navegador
+            </a>
+          </div>
+        </div>
+
+        <!-- Phone mockup -->
+        <div class="fade-up flex justify-center lg:justify-end" style="transition-delay: 0.15s;">
+          <div class="phone-mockup w-[280px] sm:w-[300px]">
+            <div class="bg-surface p-4 pt-10">
+              <!-- Status bar mockup -->
+              <div class="flex items-center justify-between text-[10px] text-on-surface-faint mb-6 px-1">
+                <span>Espanha · Burgos</span>
+                <span>23:14</span>
+              </div>
+              <!-- Hero number -->
+              <div class="text-center mb-6">
+                <p class="text-on-surface-dim text-xs mb-1 tracking-wider uppercase font-semibold">Livre para gastar hoje</p>
+                <p class="text-5xl font-extrabold tracking-tight font-mono text-on-surface">€47</p>
+                <p class="text-success text-xs mt-1.5 font-medium">No plano — tranquilo</p>
+              </div>
+              <!-- Mini cards -->
+              <div class="grid grid-cols-3 gap-2 mb-4">
+                <div class="bg-surface-container rounded-xl p-2.5 text-center">
+                  <p class="text-xs text-on-surface-dim">Bar</p>
+                  <p class="text-lg font-bold font-mono">3</p>
+                  <p class="text-[10px] text-on-surface-faint">noites</p>
+                </div>
+                <div class="bg-surface-container rounded-xl p-2.5 text-center">
+                  <p class="text-xs text-on-surface-dim">Mercado</p>
+                  <p class="text-lg font-bold font-mono">5</p>
+                  <p class="text-[10px] text-on-surface-faint">idas</p>
+                </div>
+                <div class="bg-surface-container rounded-xl p-2.5 text-center">
+                  <p class="text-xs text-on-surface-dim">Passeio</p>
+                  <p class="text-lg font-bold font-mono">1</p>
+                  <p class="text-[10px] text-on-surface-faint">ainda</p>
+                </div>
+              </div>
+              <!-- Insight -->
+              <div class="bg-surface-container rounded-xl p-3 border border-on-surface-mute">
+                <p class="text-xs text-on-surface-dim leading-relaxed">
+                  <span class="text-success font-semibold">Cofrinho:</span> Você guardou €24 — equivale a 73% de uma noite no bar!
+                </p>
+              </div>
+              <!-- Nav mockup -->
+              <div class="flex justify-around mt-5 pt-3 border-t border-on-surface-mute">
+                <span class="text-primary text-[10px] font-semibold">Home</span>
+                <span class="text-on-surface-faint text-[10px]">Gastos</span>
+                <span class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-surface text-lg -mt-5">+</span>
+                <span class="text-on-surface-faint text-[10px]">Plano</span>
+                <span class="text-on-surface-faint text-[10px]">Mais</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PROBLEM ============ -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-4xl mx-auto px-5">
+      <div class="fade-up text-center">
+        <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-6">
+          Você já terminou uma viagem assim?
+        </h2>
+        <blockquote class="text-xl md:text-2xl text-on-surface-dim italic leading-relaxed max-w-2xl mx-auto mb-8">
+          "Gastei demais e só percebi no último dia."
+        </blockquote>
+        <p class="text-on-surface-dim text-lg leading-relaxed max-w-2xl mx-auto">
+          A maioria dos viajantes gasta mais do que planejou. Não por falta de vontade — por falta de informação <strong class="text-on-surface">no momento certo</strong>. Planilhas mostram o passado. O TripPilot mostra o futuro.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ SIMULATOR ============ -->
+  <section id="simulator" class="py-20 md:py-28">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div class="fade-up">
+          <p class="text-primary text-sm font-bold tracking-wider uppercase mb-3">Simulador "Posso Gastar?"</p>
+          <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-6">
+            Descubra o impacto <em>antes</em> de pagar
+          </h2>
+          <p class="text-on-surface-dim text-lg leading-relaxed mb-6">
+            Está no restaurante, vê o prato de €28. Quer pedir mas não sabe se pode.
+            Abre o TripPilot, digita o valor. Em 1 segundo:
+          </p>
+          <div class="space-y-4">
+            <div class="flex items-start gap-3">
+              <span class="dot mt-1.5" style="background: #6B8F71;"></span>
+              <div>
+                <p class="font-semibold text-on-surface">Verde — Tranquilo</p>
+                <p class="text-on-surface-dim text-sm">Cabe no orçamento sem afetar nada</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="dot mt-1.5" style="background: #D4A843;"></span>
+              <div>
+                <p class="font-semibold text-on-surface">Amarelo — Atenção</p>
+                <p class="text-on-surface-dim text-sm">Cabe, mas reduz uma noite no bar ou uma ida ao mercado</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="dot mt-1.5" style="background: #E04848;"></span>
+              <div>
+                <p class="font-semibold text-on-surface">Vermelho — Para</p>
+                <p class="text-on-surface-dim text-sm">Entra na reserva de segurança. Melhor não.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulator mockup -->
+        <div class="fade-up flex justify-center" style="transition-delay: 0.1s;">
+          <div class="card-glass rounded-3xl p-6 w-full max-w-sm">
+            <p class="text-sm text-on-surface-dim mb-3 font-semibold">Posso gastar?</p>
+            <div class="bg-surface rounded-2xl p-5 mb-4">
+              <p class="text-on-surface-faint text-xs mb-1">Valor</p>
+              <p class="text-4xl font-extrabold font-mono tracking-tight">€28<span class="text-on-surface-faint text-lg">,00</span></p>
+            </div>
+            <div class="bg-success/10 border border-success/15 rounded-2xl p-4 mb-4">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="dot" style="background: #6B8F71;"></span>
+                <p class="text-success font-bold text-sm">Tranquilo — pode gastar</p>
+              </div>
+              <p class="text-on-surface-dim text-xs leading-relaxed">
+                Ainda sobram €47 hoje. Isso não afeta as 3 noites de bar restantes.
+              </p>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between text-on-surface-dim">
+                <span>Livre hoje (depois)</span>
+                <span class="font-mono font-semibold text-on-surface">€19</span>
+              </div>
+              <div class="flex justify-between text-on-surface-dim">
+                <span>Noites no bar restantes</span>
+                <span class="font-mono font-semibold text-on-surface">3</span>
+              </div>
+              <div class="flex justify-between text-on-surface-dim">
+                <span>Reserva protegida</span>
+                <span class="font-mono font-semibold text-success">Intacta</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ OUTING MODE ============ -->
+  <section id="outing" class="py-20 md:py-28 relative">
+    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0F14] to-transparent opacity-50"></div>
+    <div class="max-w-6xl mx-auto px-5 relative z-10">
+      <div class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+
+        <!-- Outing mockup -->
+        <div class="fade-up flex justify-center order-2 lg:order-1">
+          <div class="phone-mockup w-[280px] sm:w-[300px]">
+            <div class="bg-[#0A0F14] p-4 pt-10">
+              <div class="flex items-center justify-between mb-5">
+                <span class="text-on-surface-faint text-xs">← Voltar</span>
+                <span class="text-on-surface-dim text-xs font-semibold">Saída ativa</span>
+                <span class="text-error text-xs font-semibold alert-bar">● REC</span>
+              </div>
+              <!-- Outing total -->
+              <div class="text-center mb-5">
+                <p class="text-on-surface-faint text-xs mb-1">Gasto pessoal</p>
+                <p class="text-5xl font-extrabold font-mono tracking-tight text-on-surface">€28</p>
+              </div>
+              <!-- Progress bar -->
+              <div class="mb-4">
+                <div class="flex justify-between text-[10px] text-on-surface-faint mb-1">
+                  <span>Meta €35</span>
+                  <span>Teto €50</span>
+                  <span>Máx €65</span>
+                </div>
+                <div class="h-3 rounded-full bg-surface-container overflow-hidden">
+                  <div class="h-full rounded-full bg-gradient-to-r from-success via-warning to-error" style="width: 56%"></div>
+                </div>
+              </div>
+              <!-- Alert -->
+              <div class="bg-success/10 border border-success/15 rounded-xl p-3 mb-4 text-center">
+                <p class="text-success text-xs font-semibold">Mais uma cerveja de €7 ainda cabe no teto seguro.</p>
+              </div>
+              <!-- Quick add buttons -->
+              <div class="grid grid-cols-3 gap-2 mb-3">
+                <button class="bg-surface-container hover:bg-surface-high rounded-xl py-3 text-center font-mono font-semibold text-sm transition-colors">+€3</button>
+                <button class="bg-surface-container hover:bg-surface-high rounded-xl py-3 text-center font-mono font-semibold text-sm transition-colors">+€5</button>
+                <button class="bg-primary/20 border border-primary/30 rounded-xl py-3 text-center font-mono font-semibold text-sm text-primary">+€7</button>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <button class="bg-surface-container rounded-xl py-3 text-center font-mono font-semibold text-sm">+€10</button>
+                <button class="bg-surface-container rounded-xl py-3 text-center font-mono font-semibold text-sm">+€15</button>
+                <button class="bg-surface-container rounded-xl py-3 text-center font-mono text-sm text-on-surface-dim">Outro</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fade-up order-1 lg:order-2" style="transition-delay: 0.1s;">
+          <p class="text-primary text-sm font-bold tracking-wider uppercase mb-3">Modo Saída</p>
+          <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-6">
+            23h no bar.<br/>O app que vai junto.
+          </h2>
+          <p class="text-on-surface-dim text-lg leading-relaxed mb-6">
+            Inicie uma saída e registre cada drink com um toque.
+            O TripPilot mostra em tempo real:
+          </p>
+          <ul class="space-y-3 text-on-surface-dim mb-8">
+            <li class="flex items-start gap-3">
+              <span class="text-primary mt-0.5">→</span>
+              <span>Quanto você já gastou esta noite</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-primary mt-0.5">→</span>
+              <span>Quantos drinks ainda cabem no orçamento</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-primary mt-0.5">→</span>
+              <span>Alertas progressivos — não alarmes irritantes</span>
+            </li>
+          </ul>
+          <div class="card-glass rounded-2xl p-4">
+            <p class="text-sm leading-relaxed">
+              <span class="text-success font-semibold">E quando você economiza?</span>
+              <br/>
+              <span class="text-on-surface-dim italic">"Você guardou o suficiente para uma noite extra. Aproveita!"</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ OCCASIONS ============ -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="fade-up text-center mb-14">
+        <p class="text-primary text-sm font-bold tracking-wider uppercase mb-3">Previsão por Ocasiões</p>
+        <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-4">
+          Não pense em euros por dia.<br/>
+          Pense em <span class="gradient-text">noites no bar</span>.
+        </h2>
+        <p class="text-on-surface-dim text-lg max-w-2xl mx-auto leading-relaxed">
+          O TripPilot aprende quanto custa cada tipo de saída e te conta o que importa: "ainda cabem 3 noites no bar, 5 idas ao mercado e 1 passeio."
+        </p>
+      </div>
+
+      <div class="fade-up grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto" style="transition-delay: 0.1s;">
+        <div class="card-glass rounded-2xl p-5 text-center">
+          <p class="text-3xl mb-1">🍺</p>
+          <p class="text-3xl font-extrabold font-mono">3</p>
+          <p class="text-on-surface-dim text-sm">noites no bar</p>
+          <p class="text-on-surface-faint text-xs mt-1">~€35/noite</p>
+        </div>
+        <div class="card-glass rounded-2xl p-5 text-center">
+          <p class="text-3xl mb-1">🛒</p>
+          <p class="text-3xl font-extrabold font-mono">5</p>
+          <p class="text-on-surface-dim text-sm">idas ao mercado</p>
+          <p class="text-on-surface-faint text-xs mt-1">~€18/ida</p>
+        </div>
+        <div class="card-glass rounded-2xl p-5 text-center">
+          <p class="text-3xl mb-1">🍽️</p>
+          <p class="text-3xl font-extrabold font-mono">2</p>
+          <p class="text-on-surface-dim text-sm">restaurantes</p>
+          <p class="text-on-surface-faint text-xs mt-1">~€22/refeição</p>
+        </div>
+        <div class="card-glass rounded-2xl p-5 text-center">
+          <p class="text-3xl mb-1">🏛️</p>
+          <p class="text-3xl font-extrabold font-mono">1</p>
+          <p class="text-on-surface-dim text-sm">passeio</p>
+          <p class="text-on-surface-faint text-xs mt-1">~€15/passeio</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ GROUP SPLIT ============ -->
+  <section id="split" class="py-20 md:py-28">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div class="fade-up">
+          <p class="text-primary text-sm font-bold tracking-wider uppercase mb-3">Divisão de Grupo</p>
+          <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-6">
+            Chega de<br/>
+            <span class="gradient-text">"depois a gente acerta"</span>
+          </h2>
+          <p class="text-on-surface-dim text-lg leading-relaxed mb-6">
+            Crie um grupo, adicione as pessoas, lance os gastos.
+            O TripPilot calcula quem deve quanto e gera um
+            <strong class="text-on-surface">link público</strong> — qualquer pessoa abre, vê sua parte
+            e marca como pago. Sem instalar nada.
+          </p>
+          <div class="card-glass rounded-2xl p-4 mb-4">
+            <p class="text-sm text-on-surface-dim leading-relaxed">
+              <span class="text-primary font-semibold">E o melhor:</span>
+              aqui a divisão faz parte do seu orçamento. O app sabe que aquele €15 do jantar compartilhado já saiu do seu "livre para gastar".
+            </p>
+          </div>
+        </div>
+
+        <!-- Split mockup -->
+        <div class="fade-up flex justify-center" style="transition-delay: 0.1s;">
+          <div class="card-glass rounded-3xl p-6 w-full max-w-sm">
+            <div class="flex items-center justify-between mb-5">
+              <p class="font-bold">Eurotrip Apartamento</p>
+              <span class="bg-primary/15 text-primary text-xs font-semibold px-2.5 py-1 rounded-full">4 pessoas</span>
+            </div>
+            <div class="space-y-3 mb-5">
+              <div class="flex items-center justify-between bg-surface/50 rounded-xl p-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">J</div>
+                  <div>
+                    <p class="text-sm font-semibold">Julio</p>
+                    <p class="text-[10px] text-on-surface-faint">Organizador</p>
+                  </div>
+                </div>
+                <p class="font-mono font-semibold text-success text-sm">+€42</p>
+              </div>
+              <div class="flex items-center justify-between bg-surface/50 rounded-xl p-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center text-xs font-bold text-warning">M</div>
+                  <div>
+                    <p class="text-sm font-semibold">Marina</p>
+                    <p class="text-[10px] text-on-surface-faint">Deve a Julio</p>
+                  </div>
+                </div>
+                <p class="font-mono font-semibold text-error text-sm">-€18</p>
+              </div>
+              <div class="flex items-center justify-between bg-surface/50 rounded-xl p-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-[#6366F1]/20 flex items-center justify-center text-xs font-bold text-[#6366F1]">P</div>
+                  <div>
+                    <p class="text-sm font-semibold">Pedro</p>
+                    <p class="text-[10px] text-success font-semibold">Pagou ✓</p>
+                  </div>
+                </div>
+                <p class="font-mono font-semibold text-on-surface-faint text-sm line-through">-€12</p>
+              </div>
+            </div>
+            <button class="w-full bg-primary/15 text-primary font-semibold text-sm py-3 rounded-xl hover:bg-primary/25 transition-colors">
+              Enviar link de cobrança
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ FEATURES GRID ============ -->
+  <section id="features" class="py-20 md:py-28">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="fade-up text-center mb-14">
+        <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-4">
+          Tudo que você precisa. Nada que você não pediu.
+        </h2>
+        <p class="text-on-surface-dim text-lg max-w-2xl mx-auto">
+          Sem bloatware. Cada feature resolve uma dor real de viajante.
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start">
+          <div class="feature-icon bg-[#6366F1]/15 text-[#6366F1]">💱</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Multi-moeda</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Gaste em CZK, veja em EUR. Conversão automática com taxa ao vivo.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.05s;">
+          <div class="feature-icon bg-success/15 text-success">📡</div>
+          <div>
+            <p class="font-bold text-sm mb-1">100% offline</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Funciona no avião, na serra, sem Wi-Fi. Sempre disponível.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.1s;">
+          <div class="feature-icon bg-primary/15 text-primary">🗺️</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Mapa de gastos</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Veja no mapa satélite onde cada centavo foi. Clusters por lugar.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.15s;">
+          <div class="feature-icon bg-[#6366F1]/15 text-[#818CF8]">📸</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Recibo com IA</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Fotografe o recibo. O app lê e preenche os itens sozinho.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.2s;">
+          <div class="feature-icon bg-warning/15 text-warning">🐷</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Cofrinho inteligente</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Gastou menos hoje? A diferença fica guardada para os dias difíceis.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.25s;">
+          <div class="feature-icon bg-success/15 text-success">📊</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Planejador de cenários</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Mais noites no bar ou mais passeios? Ajuste e veja o impacto na hora.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.3s;">
+          <div class="feature-icon bg-primary/15 text-primary">📥</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Import Wise</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Importe seu extrato CSV. O app organiza, geocodifica e deduplica.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.35s;">
+          <div class="feature-icon bg-error/15 text-error">🔒</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Sem cadastro</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Sem login. Sem email. Sem analytics. Seus dados, seu aparelho.</p>
+          </div>
+        </div>
+
+        <div class="fade-up card-glass rounded-2xl p-5 flex gap-4 items-start" style="transition-delay:0.4s;">
+          <div class="feature-icon bg-[#6366F1]/15 text-[#818CF8]">💾</div>
+          <div>
+            <p class="font-bold text-sm mb-1">Backup seguro</p>
+            <p class="text-on-surface-dim text-xs leading-relaxed">Exporte tudo em JSON. Restaure em outro celular. Nada na nuvem.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ PRIVACY ============ -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-4xl mx-auto px-5">
+      <div class="fade-up text-center">
+        <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-6">
+          Zero dados coletados. <span class="gradient-text">Sério.</span>
+        </h2>
+        <div class="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto mt-10">
+          <div class="card-glass rounded-2xl p-5 text-left">
+            <p class="text-2xl mb-2">🚫</p>
+            <p class="font-bold text-sm mb-1">Sem login</p>
+            <p class="text-on-surface-dim text-xs">Nenhuma conta necessária. Abriu, usou.</p>
+          </div>
+          <div class="card-glass rounded-2xl p-5 text-left">
+            <p class="text-2xl mb-2">🔐</p>
+            <p class="font-bold text-sm mb-1">Sem nuvem</p>
+            <p class="text-on-surface-dim text-xs">Tudo no seu celular. Backup é manual, por você.</p>
+          </div>
+          <div class="card-glass rounded-2xl p-5 text-left">
+            <p class="text-2xl mb-2">👁️‍🗨️</p>
+            <p class="font-bold text-sm mb-1">Sem analytics</p>
+            <p class="text-on-surface-dim text-xs">Não rastreamos nada. Nem cliques, nem gastos.</p>
+          </div>
+          <div class="card-glass rounded-2xl p-5 text-left">
+            <p class="text-2xl mb-2">🔗</p>
+            <p class="font-bold text-sm mb-1">Links criptografados</p>
+            <p class="text-on-surface-dim text-xs">Os links que você compartilha são criptografados. O servidor vê ciphertext.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ HONEST FRIEND ============ -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-4xl mx-auto px-5">
+      <div class="fade-up text-center">
+        <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-6">
+          O único app de finanças que também manda
+          <span class="gradient-text">gastar</span>
+        </h2>
+        <p class="text-on-surface-dim text-lg max-w-2xl mx-auto leading-relaxed mb-10">
+          Apps de finanças são associados a restrição. O TripPilot é diferente: quando você economiza, ele incentiva. Porque viagem é para aproveitar — com inteligência.
+        </p>
+        <div class="max-w-lg mx-auto space-y-4">
+          <div class="card-glass rounded-2xl p-4 text-left flex items-start gap-3">
+            <span class="text-error text-xl mt-0.5">✋</span>
+            <p class="text-sm text-on-surface-dim leading-relaxed">
+              <span class="text-error font-semibold">"Para aí."</span> Mais um drink e você entra na reserva. Água agora, bar amanhã.
+            </p>
+          </div>
+          <div class="card-glass rounded-2xl p-4 text-left flex items-start gap-3">
+            <span class="text-success text-xl mt-0.5">🎉</span>
+            <p class="text-sm text-on-surface-dim leading-relaxed">
+              <span class="text-success font-semibold">"Manda ver!"</span> Você guardou €24 nos últimos dias — suficiente para uma noite extra no bar. Aproveita!
+            </p>
+          </div>
+          <div class="card-glass rounded-2xl p-4 text-left flex items-start gap-3">
+            <span class="text-warning text-xl mt-0.5">💡</span>
+            <p class="text-sm text-on-surface-dim leading-relaxed">
+              <span class="text-warning font-semibold">"Troca inteligente:"</span> Uma noite a menos no bar = 2 idas a mais ao mercado. Vale a pena?
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ ONLY TRIPPILOT ============ -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-5xl mx-auto px-5">
+      <div class="fade-up text-center mb-12">
+        <h2 class="text-2xl md:text-4xl font-extrabold tracking-tight mb-4">
+          5 coisas que nenhum app de viagem faz
+        </h2>
+        <p class="text-on-surface-dim text-lg max-w-2xl mx-auto">
+          Pesquisamos os apps mais populares de orçamento e divisão de viagem. Nenhum tem essas features.
+        </p>
+      </div>
+
+      <div class="fade-up grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto" style="transition-delay:0.1s;">
+        <div class="card-glass rounded-2xl p-6 border-l-4 border-primary">
+          <p class="text-3xl mb-3">🎯</p>
+          <p class="font-bold mb-2">Simulador "Posso gastar?"</p>
+          <p class="text-on-surface-dim text-sm leading-relaxed">
+            Digite o valor antes de pagar e veja o impacto no orçamento, nas noites no bar e na reserva. Nenhum outro app faz isso.
+          </p>
+        </div>
+        <div class="card-glass rounded-2xl p-6 border-l-4 border-primary">
+          <p class="text-3xl mb-3">🍺</p>
+          <p class="font-bold mb-2">Modo saída com alertas</p>
+          <p class="text-on-surface-dim text-sm leading-relaxed">
+            Controle em tempo real no bar. Registre cada drink com 1 toque e receba alertas progressivos conforme se aproxima do limite.
+          </p>
+        </div>
+        <div class="card-glass rounded-2xl p-6 border-l-4 border-primary">
+          <p class="text-3xl mb-3">📊</p>
+          <p class="font-bold mb-2">Previsão por ocasiões</p>
+          <p class="text-on-surface-dim text-sm leading-relaxed">
+            Não pensa em "€/dia" — pensa em "3 noites no bar, 5 mercados, 1 passeio". Aprende com seus gastos reais.
+          </p>
+        </div>
+        <div class="card-glass rounded-2xl p-6 border-l-4 border-primary">
+          <p class="text-3xl mb-3">⚖️</p>
+          <p class="font-bold mb-2">Planejador de cenários</p>
+          <p class="text-on-surface-dim text-sm leading-relaxed">
+            Mais noites no bar ou mais passeios? Ajuste com [-] e [+] e veja o impacto na hora. Escolha consciente.
+          </p>
+        </div>
+        <div class="card-glass rounded-2xl p-6 border-l-4 border-primary sm:col-span-2 lg:col-span-1">
+          <p class="text-3xl mb-3">🗺️</p>
+          <p class="font-bold mb-2">Mapa de gastos (satélite)</p>
+          <p class="text-on-surface-dim text-sm leading-relaxed">
+            Veja no mapa satélite onde cada centavo foi. Clusters por lugar, com nome do estabelecimento.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-4xl mx-auto"></div>
+
+  <!-- ============ CTA FINAL ============ -->
+  <section id="download" class="py-24 md:py-32 relative">
+    <div class="absolute inset-0 hero-gradient"></div>
+    <div class="max-w-4xl mx-auto px-5 relative z-10">
+      <div class="fade-up text-center">
+        <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-6">
+          A próxima viagem não precisa acabar com
+          <span class="gradient-text">"gastei demais"</span>
+        </h2>
+        <p class="text-on-surface-dim text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
+          Grátis. Sem cadastro. Sem anúncios.
+          Instale e comece em 2 minutos.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="/welcome" class="bg-primary hover:bg-primary/90 text-surface font-bold text-lg px-10 py-5 rounded-2xl transition-all hover:scale-[1.02] glow-primary">
+            Viaje sem surpresas — começar grátis
+          </a>
+          <a href="/welcome" class="bg-surface-container hover:bg-surface-high text-on-surface font-semibold text-lg px-10 py-5 rounded-2xl transition-all border border-on-surface-mute">
+            Experimentar no navegador
+          </a>
+        </div>
+        <p class="text-on-surface-faint text-xs mt-6">
+          Funciona em qualquer celular com navegador. Android, iPhone, tablet, computador.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="py-10 border-t border-on-surface-mute">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-surface text-xs">TP</div>
+          <span class="font-bold text-on-surface">TripPilot</span>
+          <span class="text-on-surface-faint text-xs">— Seu copiloto de orçamento de viagem</span>
+        </div>
+        <p class="text-on-surface-faint text-xs">
+          Feito por viajantes, para viajantes. Dados no seu aparelho. Sempre grátis.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============ SCRIPTS ============ -->
+  <script>
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.fade-up').forEach((el) => observer.observe(el));
+
+    const navbar = document.getElementById('navbar');
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+      const currentScroll = window.scrollY;
+      if (currentScroll > 60) {
+        navbar.style.background = 'rgba(15, 20, 25, 0.85)';
+        navbar.style.backdropFilter = 'blur(16px)';
+        navbar.style.borderBottom = '1px solid rgba(237, 232, 224, 0.06)';
+      } else {
+        navbar.style.background = 'transparent';
+        navbar.style.backdropFilter = 'none';
+        navbar.style.borderBottom = 'none';
+      }
+      lastScroll = currentScroll;
+    });
+  </script>
+</body>
+</html>

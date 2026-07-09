@@ -2,7 +2,7 @@
   "name": "TripPilot",
   "short_name": "TripPilot",
   "description": "Seu copiloto de orçamento de viagem",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0F1419",
   "theme_color": "#0F1419",

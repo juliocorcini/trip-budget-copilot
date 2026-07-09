@@ -17,7 +17,11 @@ export type HonestFriendExtra =
   // FB-08 · DEC-279: the cofrinho moved on the latest day — a timely, tappable
   // notification ("+X saved / −X covered, balance now Y"). Deep-links to the
   // statement. Positive delta = deposit (saved); negative = withdrawal (covered).
-  | { id: 'piggy_movement'; tone: HonestFriendTone; deltaCents: number; balanceCents: number };
+  | { id: 'piggy_movement'; tone: HonestFriendTone; deltaCents: number; balanceCents: number }
+  // 2026-07-09 marketing P0: the cofrinho buffer has accumulated enough for at
+  // least one typical occasion — the friend ENCOURAGES spending (the differentiator
+  // no other finance app has). Only fires when a known profile provides a reference.
+  | { id: 'can_afford_more'; tone: HonestFriendTone; profileName: string; occasionCount: number; piggyBalanceCents: number };
 
 export interface HonestFriendExtrasInput {
   /** Cents spent in the phase so far (personal cost). */
@@ -50,6 +54,12 @@ export interface HonestFriendExtrasInput {
    * `piggy_movement` slide. Optional → callers without the ledger show nothing.
    */
   piggyLastMovementCents?: number;
+  /**
+   * 2026-07-09 (marketing P0): profiles with their typical occasion cost, so the
+   * friend can say "your piggy covers N bar nights!". Optional → pre-existing
+   * callers produce no `can_afford_more` slide and change nothing.
+   */
+  profileTypicals?: ReadonlyArray<{ name: string; typicalCents: number }>;
 }
 
 /**
@@ -120,6 +130,31 @@ export function buildHonestFriendExtras(input: HonestFriendExtrasInput): HonestF
     extras.push({ id: 'receivable', tone: 'positive', amountCents: input.receivableCents });
   }
 
+  // 2026-07-09 (marketing P0): "the only finance app that also tells you to
+  // SPEND". When the piggy buffer covers at least one typical occasion, the
+  // friend proactively encourages the user — the emotional differentiator that
+  // no competitor has. Uses the profile with the largest typical value that fits
+  // (the most exciting one the user can afford), so "you can afford a bar night"
+  // wins over "you can afford a market run" when both fit.
+  const piggyBalance = Math.max(0, Math.round(input.piggyBalanceCents ?? 0));
+  const profiles = input.profileTypicals ?? [];
+  if (piggyBalance > 0 && profiles.length > 0) {
+    const affordable = profiles
+      .filter((p) => p.typicalCents > 0 && piggyBalance >= p.typicalCents)
+      .sort((a, b) => b.typicalCents - a.typicalCents);
+    if (affordable.length > 0) {
+      const best = affordable[0]!;
+      const count = Math.floor(piggyBalance / best.typicalCents);
+      extras.push({
+        id: 'can_afford_more',
+        tone: 'positive',
+        profileName: best.name,
+        occasionCount: count,
+        piggyBalanceCents: piggyBalance,
+      });
+    }
+  }
+
   return extras;
 }
 
@@ -139,10 +174,15 @@ const HOME_AMIGO_EXTRA_INSIGHT_OVERLAP: Record<HonestFriendExtra['id'], readonly
   daily_left: ['end_of_day'],
   top_category: ['category_rhythm'],
   receivable: ['participant_balance'],
-  // The cofrinho movement is unique to the piggy — never a carousel insight, so
-  // it is always kept (it is timely and deep-links to the statement).
   piggy_movement: [],
+  can_afford_more: [],
 };
+
+/** Extras that are emotional/voice messages — they live ONLY on the Amigo card
+ *  and must never be relocated to the insights carousel as factual reads. */
+const VOICE_ONLY_EXTRA_IDS: ReadonlySet<HonestFriendExtra['id']> = new Set([
+  'can_afford_more',
+]);
 
 export function filterHomeAmigoExtras(
   extras: readonly HonestFriendExtra[],
@@ -150,6 +190,7 @@ export function filterHomeAmigoExtras(
 ): HonestFriendExtra[] {
   const covered = new Set(coveredInsightKinds);
   return extras.filter((extra) => {
+    if (VOICE_ONLY_EXTRA_IDS.has(extra.id)) return false;
     const overlap = HOME_AMIGO_EXTRA_INSIGHT_OVERLAP[extra.id];
     return !overlap.some((kind) => covered.has(kind));
   });

@@ -1403,7 +1403,7 @@ export function DashboardCards({
               voice={resolveHonestFriendVoice(settings.honestFriendVoice)}
               daySeed={model.dayNum ?? 0}
               onOpenVoiceSettings={() => navigate('/settings?section=amigo')}
-              hideOnPlan
+              hideOnPlan={false}
             />
           </>
         );

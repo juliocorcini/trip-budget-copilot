@@ -616,6 +616,8 @@
     "amigo_extra_piggy_in": "Seu cofrinho rendeu {{amount}} — agora tem {{balance}} guardado.",
     "amigo_extra_piggy_out": "Seu cofrinho cobriu {{amount}} do excesso — restam {{balance}}.",
     "amigo_extra_piggy_cta": "Ver extrato do cofrinho",
+    "amigo_extra_can_afford_one": "Manda ver! Seu cofrinho tem {{balance}} — dá pra {{count}} {{profile}} tranquilo. Aproveita!",
+    "amigo_extra_can_afford_many": "Manda ver! Seu cofrinho tem {{balance}} — dá pra {{count}} idas de {{profile}} tranquilo. Aproveita!",
     "amigo_voice_reveal": "Não curtiu o tom? Posso falar de outro jeito.",
     "amigo_voice_reveal_cta": "Escolher a voz do Amigo Sincero",
     "amigo_voice": {

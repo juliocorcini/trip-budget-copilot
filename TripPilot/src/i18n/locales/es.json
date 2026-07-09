@@ -612,6 +612,8 @@
     "amigo_extra_piggy_in": "Tu cofrinho ganó {{amount}} — ahora tienes {{balance}} guardado.",
     "amigo_extra_piggy_out": "Tu cofrinho cubrió {{amount}} del exceso — quedan {{balance}}.",
     "amigo_extra_piggy_cta": "Ver extracto del cofrinho",
+    "amigo_extra_can_afford_one": "¡Dale! Tu cofrinho tiene {{balance}} — te alcanza para {{count}} {{profile}} tranquilo. ¡Disfruta!",
+    "amigo_extra_can_afford_many": "¡Dale! Tu cofrinho tiene {{balance}} — te alcanza para {{count}} salidas de {{profile}}. ¡Disfruta!",
     "amigo_voice_reveal": "¿No te gusta el tono? Puedo decirlo de otra forma.",
     "amigo_voice_reveal_cta": "Elegir la voz del Amigo Sincero",
     "amigo_voice": {

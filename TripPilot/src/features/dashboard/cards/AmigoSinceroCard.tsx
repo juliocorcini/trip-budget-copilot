@@ -64,6 +64,7 @@ const EXTRA_ICON: Record<HonestFriendExtra['id'], string> = {
   top_category: 'leaderboard',
   receivable: 'call_received',
   piggy_movement: 'savings',
+  can_afford_more: 'celebration',
 };
 
 // FIELD R2 item 21 (F21): tint + accent + icon per tone — same data-driven shape
@@ -466,6 +467,22 @@ function renderExtra(
           </button>
         )}
       </>
+    );
+  }
+
+  if (extra.id === 'can_afford_more') {
+    const key =
+      extra.occasionCount === 1
+        ? 'dashboard.amigo_extra_can_afford_one'
+        : 'dashboard.amigo_extra_can_afford_many';
+    return (
+      <p className="text-[13px] mt-1 leading-snug font-semibold text-on-surface">
+        {t(key, {
+          balance: formatMoney(extra.piggyBalanceCents, currency),
+          count: extra.occasionCount,
+          profile: extra.profileName.toLowerCase(),
+        })}
+      </p>
     );
   }
 

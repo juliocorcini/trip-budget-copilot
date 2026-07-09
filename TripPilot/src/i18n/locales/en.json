@@ -612,6 +612,8 @@
     "amigo_extra_piggy_in": "Your cofrinho earned {{amount}} — {{balance}} saved now.",
     "amigo_extra_piggy_out": "Your cofrinho covered {{amount}} of the overspend — {{balance}} left.",
     "amigo_extra_piggy_cta": "See cofrinho statement",
+    "amigo_extra_can_afford_one": "Go for it! Your cofrinho has {{balance}} — enough for {{count}} {{profile}}. Enjoy!",
+    "amigo_extra_can_afford_many": "Go for it! Your cofrinho has {{balance}} — enough for {{count}} {{profile}} outings. Enjoy!",
     "amigo_voice_reveal": "Not into this tone? I can say it differently.",
     "amigo_voice_reveal_cta": "Choose the Amigo Sincero voice",
     "amigo_voice": {
