@@ -234,26 +234,27 @@ const SHARE_STMT_CHUNK_BYTES = 120_000; // DO value cap is 128 KiB; chunk the st
 // The id is the read capability (an unguessable UUID handed out only inside the
 // E2E share payload), matching how the share link's id IS its read capability.
 const IMG_ID_RE = /^[0-9a-fA-F-]{8,64}$/;
-// Allowed stored content-types: real images + legacy ciphertext (octet-stream).
-const IMG_ALLOWED_CT = new Set([
+// Image content-types (used for fallback: unknown image uploads default to jpeg).
+const IMG_IMAGE_CT = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
-  'application/octet-stream',
 ]);
-// Client compresses to a few hundred KB; 2.1 MB is the hard per-object ceiling.
+// Size caps: images capped at 2.1 MB (compressed photos), files at 10 MB (PDFs, docs).
 const IMG_MAX_BYTES = 2_100_000;
+const FILE_MAX_BYTES = 10_000_000;
 const IMG_DEFAULT_TTL_MS = 90 * 24 * 60 * 60 * 1000; // matches the share statement TTL
 const IMG_MAX_TTL_MS = 180 * 24 * 60 * 60 * 1000; // bound any client-supplied TTL
 const IMG_CACHE_IMMUTABLE = 'public, max-age=31536000, immutable'; // the bytes for an id never change
 
 /**
- * DEC-348 (G2) — R2 image channel. Sub-routes under /img/:id:
- *   PUT    /img/:id   store an image; keeps its real Content-Type; optional X-Img-TTL (sec)
- *   GET    /img/:id   serve the image with its real Content-Type (TTL-enforced; 404 once expired)
+ * DEC-348 (G2) — R2 media channel. Sub-routes under /img/:id:
+ *   PUT    /img/:id   store media (image or file); keeps its real Content-Type; optional X-Img-TTL (sec)
+ *   GET    /img/:id   serve with its real Content-Type (TTL-enforced; 404 once expired)
  *   DELETE /img/:id   owner/guest drops it (revoke / hide-cleanup)
- * The route only ever holds images; secrecy is the unguessable id + TTL + revoke.
+ * Secrecy is the unguessable id + TTL + revoke. File uploads use X-File-Upload: true
+ * header to opt into the higher 10 MB cap; images stay at 2.1 MB.
  */
 async function handleImg(request: Request, env: Env, url: URL): Promise<Response> {
   if (!env.MEDIA) return json({ error: 'images_not_configured' }, 503);
@@ -264,12 +265,15 @@ async function handleImg(request: Request, env: Env, url: URL): Promise<Response
 
   if (request.method === 'PUT') {
     const body = await request.arrayBuffer();
-    if (body.byteLength === 0) return json({ error: 'empty_image' }, 400);
-    if (body.byteLength > IMG_MAX_BYTES) return json({ error: 'too_large' }, 413);
-    // Keep the real content-type so GET can serve a viewable/downloadable image;
-    // an unknown type falls back to jpeg (the client always sends jpeg).
+    if (body.byteLength === 0) return json({ error: 'empty_body' }, 400);
+    const isFileUpload = request.headers.get('X-File-Upload') === 'true';
+    const maxBytes = isFileUpload ? FILE_MAX_BYTES : IMG_MAX_BYTES;
+    if (body.byteLength > maxBytes) return json({ error: 'too_large' }, 413);
     const rawCt = (request.headers.get('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase();
-    const contentType = IMG_ALLOWED_CT.has(rawCt) ? rawCt : 'image/jpeg';
+    // Images: whitelist known types, fallback to jpeg. Files: keep the real type.
+    const contentType = isFileUpload
+      ? (rawCt || 'application/octet-stream')
+      : (IMG_IMAGE_CT.has(rawCt) || rawCt === 'application/octet-stream' ? rawCt : 'image/jpeg');
     const ttlMs = clampImgTtlMs(request.headers.get('X-Img-TTL'));
     const expiresAt = Date.now() + ttlMs;
     await env.MEDIA.put(id, body, {
@@ -290,10 +294,14 @@ async function handleImg(request: Request, env: Env, url: URL): Promise<Response
     }
     const headers = new Headers(CORS_HEADERS);
     object.writeHttpMetadata(headers);
-    // Serve the stored real content-type (legacy objects → octet-stream verbatim).
-    headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
+    const ct = object.httpMetadata?.contentType || 'application/octet-stream';
+    headers.set('Content-Type', ct);
     headers.set('Cache-Control', IMG_CACHE_IMMUTABLE);
     headers.set('Content-Length', String(object.size));
+    // Non-image types: trigger browser download instead of inline display.
+    if (!ct.startsWith('image/')) {
+      headers.set('Content-Disposition', 'attachment');
+    }
     return new Response(object.body, { status: 200, headers });
   }
 

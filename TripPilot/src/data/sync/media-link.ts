@@ -127,7 +127,7 @@ export async function uploadFile(
   try {
     const res = await fetch(imgUrl(r2Id), {
       method: 'PUT',
-      headers: { 'Content-Type': mime, 'X-Img-TTL': String(IMG_TTL_SECONDS) },
+      headers: { 'Content-Type': mime, 'X-Img-TTL': String(IMG_TTL_SECONDS), 'X-File-Upload': 'true' },
       body: file,
     });
     if (!res.ok) {
