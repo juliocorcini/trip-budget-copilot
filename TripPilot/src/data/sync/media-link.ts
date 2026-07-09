@@ -1,6 +1,6 @@
 import { getSyncWorkerUrl } from './config';
 import { importSessionKey, decryptBytes } from './crypto';
-import { checkImageBytes, type ImageRef } from '@/domain/media';
+import { checkFileBytes, checkImageBytes, type FileRef, type ImageRef } from '@/domain/media';
 import { logger } from '@/utils/logger';
 
 /**
@@ -96,5 +96,65 @@ export async function deleteSharedImage(ref: ImageRef): Promise<void> {
     await fetch(imgUrl(ref.r2Id), { method: 'DELETE' });
   } catch {
     // Best-effort: a transient failure leaves an orphan the TTL eventually reaps.
+  }
+}
+
+/* ── File attachments (PDF, docs — same R2 endpoint) ─────────────────────── */
+
+export type UploadFileResult =
+  | { ok: true; ref: FileRef }
+  | { ok: false; reason: 'empty' | 'too_large' | 'network' };
+
+/** The public, direct URL of a plaintext file (used for download links). */
+export function fileUrl(ref: FileRef): string {
+  return imgUrl(ref.r2Id);
+}
+
+/**
+ * Upload an arbitrary file to R2 and return its {@link FileRef}. Uses the same
+ * `/img/:id` endpoint as images (the Worker doesn't discriminate content-type).
+ * Cap: 10 MB. Called on attach so the ref persists on the expense immediately.
+ */
+export async function uploadFile(
+  file: File,
+  description?: string,
+): Promise<UploadFileResult> {
+  const cap = checkFileBytes(file.size);
+  if (!cap.ok) return { ok: false, reason: cap.reason };
+
+  const mime = file.type || 'application/octet-stream';
+  const r2Id = crypto.randomUUID();
+  try {
+    const res = await fetch(imgUrl(r2Id), {
+      method: 'PUT',
+      headers: { 'Content-Type': mime, 'X-Img-TTL': String(IMG_TTL_SECONDS) },
+      body: file,
+    });
+    if (!res.ok) {
+      logger.warn('file_upload_rejected', { module: 'media-link', status: res.status });
+      return { ok: false, reason: 'network' };
+    }
+  } catch (err) {
+    logger.warn('file_upload_failed', { module: 'media-link' }, err);
+    return { ok: false, reason: 'network' };
+  }
+  return {
+    ok: true,
+    ref: {
+      r2Id,
+      mime,
+      name: file.name,
+      description: description || undefined,
+      byteSize: file.size,
+    },
+  };
+}
+
+/** Best-effort delete of a shared file. */
+export async function deleteSharedFile(ref: FileRef): Promise<void> {
+  try {
+    await fetch(imgUrl(ref.r2Id), { method: 'DELETE' });
+  } catch {
+    // TTL reaps orphans.
   }
 }

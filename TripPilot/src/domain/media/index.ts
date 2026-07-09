@@ -6,3 +6,12 @@ export {
   type ImageRef,
   type ImageCapVerdict,
 } from './image-ref';
+
+export {
+  checkFileBytes,
+  fileRefSchema,
+  formatFileSize,
+  FILE_MAX_BYTES,
+  type FileRef,
+  type FileCapVerdict,
+} from './file-ref';

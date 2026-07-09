@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { imageRefSchema } from '@/domain/media';
+import { fileRefSchema, imageRefSchema } from '@/domain/media';
 import type { GroupSplitEvent } from './types';
 
 /**
@@ -98,6 +98,8 @@ const groupExpenseSchema = z.object({
   // reference(s) so every member + the `/g/` guest can view/download the receipt.
   imageRef: imageRefSchema.optional(),
   imageRefs: z.array(imageRefSchema).optional(),
+  // File attachments (PDFs, docs) — same R2 model, carries name + description.
+  fileRefs: z.array(fileRefSchema).optional(),
 });
 
 const groupSplitEventSchema = z.object({
@@ -124,7 +126,9 @@ export const groupSharePayloadSchema = z.object({
   generatedAt: z.string(),
 });
 
-export type GroupSharePayload = z.infer<typeof groupSharePayloadSchema>;
+export type GroupSharePayload = Omit<z.infer<typeof groupSharePayloadSchema>, 'event'> & {
+  event: GroupSplitEvent;
+};
 
 /**
  * Build the publishable payload from an event. The event is taken as-is (it is
@@ -142,5 +146,5 @@ export function buildGroupSharePayload(event: GroupSplitEvent, revision: number)
 
 export function parseGroupSharePayload(raw: unknown): GroupSharePayload | null {
   const result = groupSharePayloadSchema.safeParse(raw);
-  return result.success ? result.data : null;
+  return result.success ? (result.data as GroupSharePayload) : null;
 }

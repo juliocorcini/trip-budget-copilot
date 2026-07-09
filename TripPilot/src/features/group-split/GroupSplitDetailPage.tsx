@@ -43,7 +43,8 @@ import { QrCodeDisplay } from '@/components/QrCodeDisplay';
 import { shareOrCopyLink } from '@/utils/native/link-share';
 import { GroupExpenseEditor } from './GroupExpenseEditor';
 import { GroupImage, ImageLightbox } from './GroupImage';
-import { deleteSharedImage } from '@/data/sync/media-link';
+import { deleteSharedFile, deleteSharedImage, fileUrl } from '@/data/sync/media-link';
+import { formatFileSize } from '@/domain/media';
 import {
   publishGroupSplit,
   republishGroupSplit,
@@ -545,19 +546,22 @@ export function GroupSplitDetailPage() {
     } catch {
       // Already gone server-side — fall through and clear locally regardless.
     }
-    // DEC-343/348 — revoking the link deletes the shared image blobs (best-effort)
-    // and strips their now-orphaned refs so the gallery never renders a broken image.
+    // DEC-343/348 — revoking the link deletes the shared image + file blobs
+    // (best-effort) and strips their now-orphaned refs.
     const refs = event.expenses.flatMap((e) => groupExpenseImages(e));
     for (const ref of refs) void deleteSharedImage(ref);
+    const fRefs = event.expenses.flatMap((e) => e.fileRefs ?? []);
+    for (const ref of fRefs) void deleteSharedFile(ref);
     const stripped: GroupSplitEvent =
-      refs.length > 0
+      refs.length > 0 || fRefs.length > 0
         ? {
             ...event,
             expenses: event.expenses.map((e) => {
-              if (!e.imageRef && !e.imageRefs) return e;
+              if (!e.imageRef && !e.imageRefs && !e.fileRefs) return e;
               const copy = { ...e };
               delete copy.imageRef;
               delete copy.imageRefs;
+              delete copy.fileRefs;
               return copy;
             }),
           }
@@ -771,6 +775,9 @@ export function GroupSplitDetailPage() {
                           {groupExpenseImages(exp).length > 0 && (
                             <Icon name="photo" size={15} className="text-on-surface-faint shrink-0" />
                           )}
+                          {!!exp.fileRefs && exp.fileRefs.length > 0 && (
+                            <Icon name="attach_file" size={15} className="text-on-surface-faint shrink-0" />
+                          )}
                         </p>
                         <p className="text-[11px] text-on-surface-faint">
                           {t('group_split.paid_by', { name: nameById.get(exp.paidByParticipantId) ?? '?' })}
@@ -812,6 +819,37 @@ export function GroupSplitDetailPage() {
                 onOpen={(url) => openLightbox(url, false)}
               />
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Files — PDF/docs attached to expenses, viewable + downloadable. */}
+      {event.expenses.some((e) => e.fileRefs && e.fileRefs.length > 0) && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-bold text-on-surface px-1">{t('group_split.files_title')}</h2>
+          <div className="flex flex-col gap-1.5">
+            {event.expenses
+              .filter((e) => e.fileRefs && e.fileRefs.length > 0)
+              .flatMap((e) => (e.fileRefs ?? []).map((ref) => ({ exp: e, ref })))
+              .map(({ exp, ref }) => (
+                <a
+                  key={ref.r2Id}
+                  href={fileUrl(ref)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download={ref.name}
+                  className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-3 btn-press"
+                >
+                  <Icon name="description" size={20} className="text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-on-surface truncate">{ref.description || ref.name}</p>
+                    <p className="text-[11px] text-on-surface-faint">
+                      {exp.description} · {formatFileSize(ref.byteSize)}
+                    </p>
+                  </div>
+                  <Icon name="download" size={18} className="text-primary shrink-0" />
+                </a>
+              ))}
           </div>
         </section>
       )}

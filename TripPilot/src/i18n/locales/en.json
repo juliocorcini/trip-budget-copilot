@@ -3151,7 +3151,12 @@
     "photo_too_large": "Image too large (max 2 MB)",
     "photo_pending_hint": "It uploads when you share the group",
     "photos_title": "Photos",
-    "image_download": "Download"
+    "image_download": "Download",
+    "files_title": "Files",
+    "attach_file": "Attach file",
+    "file_too_large": "File too large (max 10 MB)",
+    "file_upload_failed": "File upload failed",
+    "file_added": "File attached"
   },
   "group_claim": {
     "kicker": "Group split",

@@ -15,7 +15,7 @@
  * as a denormalized number.
  */
 
-import type { ImageRef } from '@/domain/media';
+import type { FileRef, ImageRef } from '@/domain/media';
 import type { PaymentMethod } from '@/domain/payment';
 
 export type GroupParticipantKind = 'owner' | 'manual' | 'connected';
@@ -142,6 +142,13 @@ export interface GroupExpense {
    * payload, so every member + the `/g/` web guest can view/download it.
    */
   imageRefs?: ImageRef[];
+  /**
+   * File attachments (PDF, documents, etc.) for this expense, stored on R2 with
+   * the same access-controlled model as images. Participants can download these
+   * from both the owner detail page and the `/g/` guest board. Additive; absent
+   * on pre-existing rows. Each ref carries a name + optional description.
+   */
+  fileRefs?: FileRef[];
 }
 
 export type GroupSplitStatus = 'open' | 'settled';

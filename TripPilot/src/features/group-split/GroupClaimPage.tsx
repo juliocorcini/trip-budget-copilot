@@ -21,7 +21,8 @@ import { getShareOrigin } from '@/utils/native/public-origin';
 import { Icon } from '@/components/Icon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
-import type { ImageRef } from '@/domain/media';
+import { formatFileSize, type FileRef, type ImageRef } from '@/domain/media';
+import { fileUrl } from '@/data/sync/media-link';
 import { GroupImage, ImageLightbox } from './GroupImage';
 import {
   fetchGroupSplit,
@@ -682,6 +683,7 @@ function ClaimBoard({
                   currency={event.currency}
                   items={exp.items}
                   imageRefs={groupExpenseImages(exp)}
+                  fileRefs={exp.fileRefs}
                   onOpenImage={setLightboxUrl}
                   mine={exp.authoredByActorId === actorId}
                   onRemove={exp.authoredByActorId === actorId ? () => onRemoveExpense(exp.id) : undefined}
@@ -738,6 +740,7 @@ function ClaimExpenseRow({
   currency,
   items,
   imageRefs,
+  fileRefs,
   onOpenImage,
   mine,
   pending,
@@ -750,6 +753,7 @@ function ClaimExpenseRow({
   currency: string;
   items?: { id: string; description: string; amountCents: number; qty: number }[];
   imageRefs?: ImageRef[];
+  fileRefs?: FileRef[];
   onOpenImage?: (url: string) => void;
   mine?: boolean;
   pending?: boolean;
@@ -821,6 +825,27 @@ function ClaimExpenseRow({
               </span>
               <span className="tabular shrink-0 ml-2">{formatMoney(it.amountCents, currency)}</span>
             </div>
+          ))}
+        </div>
+      )}
+      {fileRefs && fileRefs.length > 0 && (
+        <div className="flex flex-col gap-1.5 mt-1">
+          {fileRefs.map((ref) => (
+            <a
+              key={ref.r2Id}
+              href={fileUrl(ref)}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={ref.name}
+              className="flex items-center gap-2 bg-surface-high rounded-lg px-3 py-2 btn-press"
+            >
+              <Icon name="description" size={16} className="text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-on-surface truncate">{ref.description || ref.name}</p>
+                <p className="text-[10px] text-on-surface-faint">{formatFileSize(ref.byteSize)}</p>
+              </div>
+              <Icon name="download" size={16} className="text-primary shrink-0" />
+            </a>
           ))}
         </div>
       )}

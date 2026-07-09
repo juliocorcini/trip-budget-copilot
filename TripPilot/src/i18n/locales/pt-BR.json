@@ -3155,7 +3155,12 @@
     "photo_too_large": "Imagem muito grande (máx. 2 MB)",
     "photo_pending_hint": "Ela sobe quando você compartilhar o grupo",
     "photos_title": "Fotos",
-    "image_download": "Baixar"
+    "image_download": "Baixar",
+    "files_title": "Arquivos",
+    "attach_file": "Anexar arquivo",
+    "file_too_large": "Arquivo muito grande (máx. 10 MB)",
+    "file_upload_failed": "Falha ao enviar arquivo",
+    "file_added": "Arquivo anexado"
   },
   "group_claim": {
     "kicker": "Divisão em grupo",

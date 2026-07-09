@@ -6,9 +6,9 @@ import { useImageSourceChooser } from '@/components/ImageSourceChooser';
 import { showToast } from '@/components/Toast';
 import { formatMoney, toCents, fromCents } from '@/domain/money';
 import { buildGroupExpense, expenseShares, groupExpenseImages, validateGroupExpense } from '@/domain/group-split';
-import { checkImageBytes, type ImageRef } from '@/domain/media';
+import { checkImageBytes, formatFileSize, type FileRef, type ImageRef } from '@/domain/media';
 import { compressImageFile } from '@/utils/image/compress';
-import { uploadImage, deleteSharedImage, imageUrl } from '@/data/sync/media-link';
+import { deleteSharedFile, deleteSharedImage, imageUrl, uploadFile, uploadImage } from '@/data/sync/media-link';
 import { useDecryptedImage } from './GroupImage';
 import { scanReceiptForGroup, scanReceiptItemsForGroup, parseTextForGroup, type GroupAiError } from './group-ai';
 import type {
@@ -98,6 +98,13 @@ export function GroupExpenseEditor({
   const photoChooser = useImageSourceChooser((file) => {
     void handleAttachPhoto(file);
   });
+  // File attachments (PDF, docs) — same lifecycle as image refs.
+  const [fileRefs, setFileRefs] = useState<FileRef[]>(() => expense?.fileRefs ?? []);
+  const [fileBusy, setFileBusy] = useState(false);
+  const addedFileRefsRef = useRef<FileRef[]>([]);
+  const removedExistingFileRefsRef = useRef<FileRef[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [shareIds, setShareIds] = useState<Set<string>>(
     () => new Set(expense ? expense.participantIds : event.participants.map((p) => p.id)),
   );
@@ -196,6 +203,35 @@ export function GroupExpenseEditor({
       void deleteSharedImage(ref);
     } else {
       removedExistingRefsRef.current.push(ref);
+    }
+  };
+
+  const handleAttachFile = async (file: File) => {
+    setFileBusy(true);
+    try {
+      const result = await uploadFile(file);
+      if (!result.ok) {
+        showToast(t(result.reason === 'too_large' ? 'group_split.file_too_large' : 'group_split.file_upload_failed'), 'danger');
+        return;
+      }
+      addedFileRefsRef.current.push(result.ref);
+      setFileRefs((prev) => [...prev, result.ref]);
+      showToast(t('group_split.file_added'), 'success');
+    } catch {
+      showToast(t('group_split.file_upload_failed'), 'danger');
+    } finally {
+      setFileBusy(false);
+    }
+  };
+
+  const handleRemoveFile = (ref: FileRef) => {
+    setFileRefs((prev) => prev.filter((r) => r.r2Id !== ref.r2Id));
+    const addedAt = addedFileRefsRef.current.findIndex((r) => r.r2Id === ref.r2Id);
+    if (addedAt >= 0) {
+      addedFileRefsRef.current.splice(addedAt, 1);
+      void deleteSharedFile(ref);
+    } else {
+      removedExistingFileRefsRef.current.push(ref);
     }
   };
 
@@ -309,9 +345,12 @@ export function GroupExpenseEditor({
     // ref the user kept is already in `imageRefs`, read back via groupExpenseImages).
     delete finalExpense.imageRef;
     if (imageRefs.length > 0) finalExpense.imageRefs = imageRefs;
+    if (fileRefs.length > 0) finalExpense.fileRefs = fileRefs;
     // Saving commits removals: delete the pre-existing blobs the user dropped.
     for (const ref of removedExistingRefsRef.current) void deleteSharedImage(ref);
     removedExistingRefsRef.current = [];
+    for (const ref of removedExistingFileRefsRef.current) void deleteSharedFile(ref);
+    removedExistingFileRefsRef.current = [];
     savedRef.current = true;
     onSave(finalExpense);
   };
@@ -321,6 +360,8 @@ export function GroupExpenseEditor({
     if (!savedRef.current) {
       for (const ref of addedRefsRef.current) void deleteSharedImage(ref);
       addedRefsRef.current = [];
+      for (const ref of addedFileRefsRef.current) void deleteSharedFile(ref);
+      addedFileRefsRef.current = [];
     }
     onClose();
   };
@@ -538,6 +579,55 @@ export function GroupExpenseEditor({
           >
             <Icon name="add_a_photo" size={18} className="text-primary" />
             {photoBusy ? t('group_split.ai_thinking') : t('group_split.add_photo')}
+          </button>
+        </div>
+
+        {/* File attachments (PDF, documents) — uploaded on attach, same R2 model. */}
+        <div className="bg-surface-high rounded-xl p-3 flex flex-col gap-2">
+          <span className="text-xs text-on-surface-faint">{t('group_split.files_title')}</span>
+          {fileRefs.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              {fileRefs.map((ref) => (
+                <div key={ref.r2Id} className="flex items-center gap-2 bg-surface-container rounded-lg px-3 py-2">
+                  <Icon name="description" size={18} className="text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-on-surface truncate">{ref.name}</p>
+                    {ref.description && (
+                      <p className="text-[11px] text-on-surface-faint truncate">{ref.description}</p>
+                    )}
+                    <p className="text-[10px] text-on-surface-faint">{formatFileSize(ref.byteSize)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFile(ref)}
+                    className="btn-press p-1 rounded-full bg-error/15"
+                    aria-label={t('common.delete')}
+                  >
+                    <Icon name="close" size={14} className="text-error" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="*/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleAttachFile(file);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            disabled={fileBusy}
+            onClick={() => fileInputRef.current?.click()}
+            className="py-2.5 rounded-xl bg-surface-container text-on-surface text-sm font-semibold btn-press flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            <Icon name="attach_file" size={18} className="text-primary" />
+            {fileBusy ? t('group_split.ai_thinking') : t('group_split.attach_file')}
           </button>
         </div>
 
