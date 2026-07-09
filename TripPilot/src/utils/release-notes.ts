@@ -17,6 +17,45 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.11-rc',
+    date: '2026-07-09',
+    items: {
+      'pt-BR': [
+        'Divisão de grupo: agora você pode anexar arquivos (PDF, documentos) às despesas.',
+        'Participantes podem ver e baixar os arquivos diretamente do link de divisão.',
+        'Cada arquivo suporta até 10 MB e aceita uma descrição opcional.',
+      ],
+      en: [
+        'Group split: you can now attach files (PDF, documents) to expenses.',
+        'Participants can view and download files directly from the split link.',
+        'Each file supports up to 10 MB with an optional description.',
+      ],
+      es: [
+        'División grupal: ahora puedes adjuntar archivos (PDF, documentos) a los gastos.',
+        'Los participantes pueden ver y descargar archivos directamente desde el enlace.',
+        'Cada archivo soporta hasta 10 MB con una descripción opcional.',
+      ],
+    },
+  },
+  {
+    version: '2.9.9-rc',
+    date: '2026-07-09',
+    items: {
+      'pt-BR': [
+        'Amigo Sincero mais preciso: mensagem "Manda ver!" agora só aparece quando sobra colchão real.',
+        'Nova mensagem informativa quando o cofrinho está saudável mas não há margem extra segura.',
+      ],
+      en: [
+        'Honest Friend more accurate: "Go spend!" message now only appears with real safety margin.',
+        'New informational message when piggy bank is healthy but no extra safe margin.',
+      ],
+      es: [
+        'Amigo Sincero más preciso: mensaje "¡Dale!" ahora solo aparece con margen de seguridad real.',
+        'Nuevo mensaje informativo cuando la alcancía está sana pero sin margen extra seguro.',
+      ],
+    },
+  },
+  {
     version: '2.9.8-rc',
     date: '2026-07-09',
     items: {
