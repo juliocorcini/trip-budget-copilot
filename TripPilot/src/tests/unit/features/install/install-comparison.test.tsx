@@ -35,8 +35,9 @@ describe('InstallComparison — platform-aware columns (DEC-364 A2/A3/A4)', () =
   it('never renders the OTA "updates" row for any audience (A4)', () => {
     render(<InstallComparison audience="android" />);
     expect(screen.queryByText('Atualização automática')).not.toBeInTheDocument();
-    // The four kept capabilities still render.
+    // The five kept capabilities still render.
     expect(screen.getByText('Notificações')).toBeInTheDocument();
+    expect(screen.getByText('Widgets na tela inicial')).toBeInTheDocument();
     expect(screen.getByText('Dados protegidos')).toBeInTheDocument();
   });
 });

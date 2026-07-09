@@ -51,6 +51,7 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
   { id: 'home_icon', app: 'yes', pwa: 'yes', web: 'no' },
   { id: 'offline', app: 'yes', pwa: 'yes', web: 'partial' },
   { id: 'notifications', app: 'yes', pwa: 'partial', web: 'no' },
+  { id: 'widgets', app: 'yes', pwa: 'no', web: 'no' },
   { id: 'durability', app: 'yes', pwa: 'yes', web: 'no' },
 ];
 
