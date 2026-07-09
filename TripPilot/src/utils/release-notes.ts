@@ -17,7 +17,22 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: '2.9.14-rc',
+    version: '2.9.16-rc',
+    date: '2026-07-09',
+    items: {
+      'pt-BR': [
+        'Controle de visibilidade de arquivos agora usa botões lado a lado para ficar mais claro.',
+      ],
+      en: [
+        'File visibility toggle now uses a clear segmented control instead of a small chip.',
+      ],
+      es: [
+        'El control de visibilidad de archivos ahora usa botones lado a lado para mayor claridad.',
+      ],
+    },
+  },
+  {
+    version: '2.9.15-rc',
     date: '2026-07-09',
     items: {
       'pt-BR': [
