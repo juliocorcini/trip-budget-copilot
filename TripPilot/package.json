@@ -1,7 +1,7 @@
 {
   "name": "trippilot",
   "private": true,
-  "version": "2.9.14-rc",
+  "version": "2.9.16-rc",
   "type": "module",
   "scripts": {
     "dev": "vite",
