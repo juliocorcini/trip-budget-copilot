@@ -56,6 +56,7 @@ import { HomeAlertsCarousel, type HomeAlertSlide } from './HomeAlertsCarousel';
 import { selectHomeAlertIds, type HomeAlertId } from './home-alerts';
 import { ActiveSplitHomeCard } from '@/features/split/ActiveSplitHomeCard';
 import { SpaceSwitcherChip } from '@/features/spaces/SpaceSwitcherChip';
+import { ApkBanner } from './ApkBanner';
 
 type TFn = (key: string, options?: Record<string, string | number>) => string;
 
@@ -664,6 +665,8 @@ export function DashboardPage() {
           location-default disclosure now share a SINGLE rotating slot instead of
           stacking three banners on the first glance. See home-alerts.ts. */}
       <HomeAlertsCarousel slides={alertSlides} />
+
+      <ApkBanner />
 
       {/* HEADER — DEC-084 (R-01): fixed at the top, content scrolls beneath.
           DEC-251: a Dia a dia has no day counter — it shows the space name with

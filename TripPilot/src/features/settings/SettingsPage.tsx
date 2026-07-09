@@ -47,6 +47,7 @@ import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { AdvancedTripView } from '@/features/settings/AdvancedTripView';
 import { APP_VERSION } from '@/utils/app-version';
+import { installAudience, APK_URL } from '@/features/install/install-content';
 import type { AlertTone, AppMode, ThemePreference } from '@/domain/types/common';
 
 const LANGUAGE_OPTIONS = [
@@ -1573,6 +1574,21 @@ export function SettingsPage() {
               <p className="text-xs text-on-surface-dim mt-0.5">{t('settings.install_app_hint')}</p>
             </div>
           </button>
+        )}
+        {!isNativeApp() && installAudience() === 'android' && (
+          <a
+            href={APK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 p-3 rounded-xl btn-press text-left mb-3"
+            style={{ background: 'var(--primary)' }}
+          >
+            <Icon name="download" size={20} className="text-on-surface" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-on-surface">{t('about.install_apk')}</p>
+              <p className="text-xs text-on-surface/80 mt-0.5">{t('about.install_apk_hint')}</p>
+            </div>
+          </a>
         )}
         {/* Item A (DEC-362): the unified, shareable install flow (App × PWA × Web
             comparison + per-platform CTAs). Always reachable, even when the

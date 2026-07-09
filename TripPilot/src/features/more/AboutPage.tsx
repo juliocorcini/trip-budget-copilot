@@ -5,6 +5,8 @@ import { Icon } from '@/components/Icon';
 import { APP_VERSION } from '@/utils/app-version';
 import { findReleaseNote, getPreviousReleaseNotes, getReleaseNoteItems } from '@/utils/release-notes';
 import { collectDiagnostics } from '@/utils/diagnostics';
+import { isNativeApp } from '@/utils/native/platform';
+import { installAudience, APK_URL } from '@/features/install/install-content';
 
 // DEC-059 (GAP-023, decision D-D): dedicated About entry — no Reports in D1/D2.
 export function AboutPage() {
@@ -99,6 +101,21 @@ export function AboutPage() {
             </div>
           )}
         </div>
+      )}
+
+      {!isNativeApp() && installAudience() === 'android' && (
+        <a
+          href={APK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-primary rounded-xl px-4 py-3 flex items-center gap-3 btn-press text-left"
+        >
+          <Icon name="download" size={20} className="text-on-surface" />
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-bold text-on-surface">{t('about.install_apk')}</span>
+            <p className="text-[11px] text-on-surface/80 mt-0.5">{t('about.install_apk_hint')}</p>
+          </div>
+        </a>
       )}
 
       <button

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.8-rc',
+    date: '2026-07-09',
+    items: {
+      'pt-BR': [
+        'Homepage simplificada: um CTA claro em vez de botões duplicados.',
+        'Botão "Baixar APK" na Sobre e Configurações para quem está no navegador Android.',
+        'Banner no início oferecendo instalação do app (dispensável).',
+      ],
+      en: [
+        'Simplified homepage: one clear CTA instead of duplicate buttons.',
+        'Download APK button in About and Settings for Android web users.',
+        'Home banner offering app install (dismissible).',
+      ],
+      es: [
+        'Homepage simplificada: un CTA claro en lugar de botones duplicados.',
+        'Botón "Descargar APK" en Acerca de y Configuración para usuarios Android web.',
+        'Banner en inicio ofreciendo instalación de la app (descartable).',
+      ],
+    },
+  },
+  {
     version: '2.9.6-rc',
     date: '2026-07-08',
     items: {

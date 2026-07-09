@@ -893,6 +893,11 @@
     "location_notice_ack": "Got it",
     "location_notice_settings": "Settings",
     "hidden_cards_entry": "{{count}} hidden card(s) · Configure home screen",
+    "apk_banner_title": "Install the Android app",
+    "apk_banner_body": "Home icon, notifications, and full offline support.",
+    "apk_banner_cta": "Download APK",
+    "apk_banner_dismiss": "Not now",
+    "apk_banner_never": "Don't show again",
     "simple_free_today": "Free today",
     "simple_no_budget": "Start by logging",
     "simple_no_budget_hint": "Once you log your first expense, I'll show how much is free for today.",
@@ -1998,7 +2003,9 @@
     "whats_new": "What's new in this version",
     "previous_versions": "Previous versions",
     "backup_link": "Backup and data export",
-    "local_first": "Your data lives only on this device. Back up regularly so you never lose anything."
+    "local_first": "Your data lives only on this device. Back up regularly so you never lose anything.",
+    "install_apk": "Install Android app",
+    "install_apk_hint": "Get the icon, notifications, and full offline."
   },
   "map": {
     "title": "Spends on the map",

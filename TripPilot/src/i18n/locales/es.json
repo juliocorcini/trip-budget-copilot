@@ -893,6 +893,11 @@
     "location_notice_ack": "Entendido",
     "location_notice_settings": "Ajustes",
     "hidden_cards_entry": "{{count}} card(s) oculto(s) · Configurar pantalla de inicio",
+    "apk_banner_title": "Instala la app Android",
+    "apk_banner_body": "Ícono en inicio, notificaciones y offline completo.",
+    "apk_banner_cta": "Descargar APK",
+    "apk_banner_dismiss": "Ahora no",
+    "apk_banner_never": "No volver a mostrar",
     "simple_free_today": "Libre hoy",
     "simple_no_budget": "Empieza registrando",
     "simple_no_budget_hint": "En cuanto registres el primer gasto, te muestro cuánto queda para hoy.",
@@ -1998,7 +2003,9 @@
     "whats_new": "Novedades de esta versión",
     "previous_versions": "Versiones anteriores",
     "backup_link": "Copia de seguridad y exportación de datos",
-    "local_first": "Tus datos viven solo en este dispositivo. Haz copias regulares para no perder nada."
+    "local_first": "Tus datos viven solo en este dispositivo. Haz copias regulares para no perder nada.",
+    "install_apk": "Instalar app Android",
+    "install_apk_hint": "Ícono, notificaciones y offline completo."
   },
   "map": {
     "title": "Gastos en el mapa",
