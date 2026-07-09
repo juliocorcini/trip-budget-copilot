@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.6-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Correção: despesas de convidado já existentes agora aparecem retroativamente no histórico.',
+      ],
+      en: [
+        'Fix: pre-existing guest expenses now retroactively appear in activity history.',
+      ],
+      es: [
+        'Corrección: gastos de invitado preexistentes ahora aparecen retroactivamente en el historial.',
+      ],
+    },
+  },
+  {
     version: '2.9.5-rc',
     date: '2026-07-08',
     items: {
