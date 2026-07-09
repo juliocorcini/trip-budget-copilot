@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.14-rc',
+    date: '2026-07-09',
+    items: {
+      'pt-BR': [
+        'Arquivos anexados na divisão em grupo agora podem ser "visíveis para todos" ou "só após pagamento".',
+        'Participantes veem um teaser borrado com cadeado até confirmarem o pagamento.',
+      ],
+      en: [
+        'Attached files in group splits can now be "visible to all" or "only after payment".',
+        'Participants see a blurred teaser with a lock icon until their payment is confirmed.',
+      ],
+      es: [
+        'Archivos adjuntos en divisiones de grupo ahora pueden ser "visibles para todos" o "solo tras pago".',
+        'Los participantes ven un teaser borroso con candado hasta confirmar el pago.',
+      ],
+    },
+  },
+  {
     version: '2.9.13-rc',
     date: '2026-07-09',
     items: {
