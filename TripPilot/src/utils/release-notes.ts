@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.12-rc',
+    date: '2026-07-09',
+    items: {
+      'pt-BR': [
+        'Tabela de comparação atualizada: agora mostra que o App (APK) tem Widgets na tela inicial.',
+        'Deploy só passa se tiver release notes — mais consistência nas atualizações.',
+      ],
+      en: [
+        'Updated comparison table: now shows App (APK) has home-screen Widgets.',
+        'Deploy gate requires release notes — more consistent updates.',
+      ],
+      es: [
+        'Tabla de comparación actualizada: ahora muestra que la App (APK) tiene Widgets en pantalla.',
+        'El deploy requiere notas de versión — actualizaciones más consistentes.',
+      ],
+    },
+  },
+  {
     version: '2.9.11-rc',
     date: '2026-07-09',
     items: {
