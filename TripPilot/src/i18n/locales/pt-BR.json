@@ -3161,7 +3161,9 @@
     "attach_file": "Anexar arquivo",
     "file_too_large": "Arquivo muito grande (máx. 10 MB)",
     "file_upload_failed": "Falha ao enviar arquivo",
-    "file_added": "Arquivo anexado"
+    "file_added": "Arquivo anexado",
+    "file_public": "Visível para todos",
+    "file_after_payment": "Só após pagamento"
   },
   "group_claim": {
     "kicker": "Divisão em grupo",
@@ -3202,7 +3204,8 @@
     "your_tag": "você",
     "remove": "Remover",
     "get_app_title": "Crie e divida as suas próprias viagens",
-    "get_app_cta": "Baixe o TripPilot"
+    "get_app_cta": "Baixe o TripPilot",
+    "file_pay_to_download": "Pague para baixar"
   },
   "profile_presets": {
     "restaurants": "Restaurantes",

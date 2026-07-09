@@ -3157,7 +3157,9 @@
     "attach_file": "Attach file",
     "file_too_large": "File too large (max 10 MB)",
     "file_upload_failed": "File upload failed",
-    "file_added": "File attached"
+    "file_added": "File attached",
+    "file_public": "Visible to all",
+    "file_after_payment": "Only after payment"
   },
   "group_claim": {
     "kicker": "Group split",
@@ -3198,7 +3200,8 @@
     "your_tag": "you",
     "remove": "Remove",
     "get_app_title": "Plan and split your own trips",
-    "get_app_cta": "Get TripPilot"
+    "get_app_cta": "Get TripPilot",
+    "file_pay_to_download": "Pay to download"
   },
   "profile_presets": {
     "restaurants": "Restaurants",

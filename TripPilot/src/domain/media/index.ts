@@ -14,4 +14,5 @@ export {
   FILE_MAX_BYTES,
   type FileRef,
   type FileCapVerdict,
+  type FileVisibility,
 } from './file-ref';

@@ -235,6 +235,16 @@ export function GroupExpenseEditor({
     }
   };
 
+  const toggleFileVisibility = (ref: FileRef) => {
+    setFileRefs((prev) =>
+      prev.map((r) =>
+        r.r2Id === ref.r2Id
+          ? { ...r, visibility: r.visibility === 'after_payment' ? 'public' : 'after_payment' }
+          : r,
+      ),
+    );
+  };
+
   const handleScanFull = async (file: File) => {
     setAiBusy(true);
     const outcome = await scanReceiptForGroup(file);
@@ -588,22 +598,38 @@ export function GroupExpenseEditor({
           {fileRefs.length > 0 && (
             <div className="flex flex-col gap-1.5">
               {fileRefs.map((ref) => (
-                <div key={ref.r2Id} className="flex items-center gap-2 bg-surface-container rounded-lg px-3 py-2">
-                  <Icon name="description" size={18} className="text-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-on-surface truncate">{ref.name}</p>
-                    {ref.description && (
-                      <p className="text-[11px] text-on-surface-faint truncate">{ref.description}</p>
-                    )}
-                    <p className="text-[10px] text-on-surface-faint">{formatFileSize(ref.byteSize)}</p>
+                <div key={ref.r2Id} className="flex flex-col gap-1 bg-surface-container rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Icon name="description" size={18} className="text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-on-surface truncate">{ref.name}</p>
+                      {ref.description && (
+                        <p className="text-[11px] text-on-surface-faint truncate">{ref.description}</p>
+                      )}
+                      <p className="text-[10px] text-on-surface-faint">{formatFileSize(ref.byteSize)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(ref)}
+                      className="btn-press p-1 rounded-full bg-error/15"
+                      aria-label={t('common.delete')}
+                    >
+                      <Icon name="close" size={14} className="text-error" />
+                    </button>
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleRemoveFile(ref)}
-                    className="btn-press p-1 rounded-full bg-error/15"
-                    aria-label={t('common.delete')}
+                    onClick={() => toggleFileVisibility(ref)}
+                    className="self-start flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium btn-press bg-surface-high"
                   >
-                    <Icon name="close" size={14} className="text-error" />
+                    <Icon
+                      name={ref.visibility === 'after_payment' ? 'lock' : 'public'}
+                      size={12}
+                      className={ref.visibility === 'after_payment' ? 'text-warning' : 'text-on-surface-faint'}
+                    />
+                    <span className={ref.visibility === 'after_payment' ? 'text-warning' : 'text-on-surface-faint'}>
+                      {t(ref.visibility === 'after_payment' ? 'group_split.file_after_payment' : 'group_split.file_public')}
+                    </span>
                   </button>
                 </div>
               ))}

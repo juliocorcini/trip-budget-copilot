@@ -10,6 +10,8 @@ import { z } from 'zod';
  * serves the blob with the declared `mime` content-type, enabling direct
  * download from both the owner's detail page and the `/g/` guest board.
  */
+export type FileVisibility = 'public' | 'after_payment';
+
 export interface FileRef {
   r2Id: string;
   mime: string;
@@ -19,6 +21,8 @@ export interface FileRef {
   description?: string;
   /** File size in bytes — used for display ("1.2 MB") and cap validation. */
   byteSize: number;
+  /** Who can download: everyone immediately, or only after confirming payment. Default: public. */
+  visibility?: FileVisibility;
 }
 
 /** 10 MB cap for general file uploads (PDFs typically 1–3 MB). */
@@ -38,6 +42,7 @@ export const fileRefSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   byteSize: z.number().int().nonnegative(),
+  visibility: z.enum(['public', 'after_payment']).optional(),
 });
 
 /** Format byte size for display (e.g. "1.2 MB", "340 KB"). */

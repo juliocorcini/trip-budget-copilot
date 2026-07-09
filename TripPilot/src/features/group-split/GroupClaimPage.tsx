@@ -684,6 +684,7 @@ function ClaimBoard({
                   items={exp.items}
                   imageRefs={groupExpenseImages(exp)}
                   fileRefs={exp.fileRefs}
+                  paymentConfirmed={myStatus === 'confirmed'}
                   onOpenImage={setLightboxUrl}
                   mine={exp.authoredByActorId === actorId}
                   onRemove={exp.authoredByActorId === actorId ? () => onRemoveExpense(exp.id) : undefined}
@@ -741,6 +742,7 @@ function ClaimExpenseRow({
   items,
   imageRefs,
   fileRefs,
+  paymentConfirmed,
   onOpenImage,
   mine,
   pending,
@@ -754,6 +756,7 @@ function ClaimExpenseRow({
   items?: { id: string; description: string; amountCents: number; qty: number }[];
   imageRefs?: ImageRef[];
   fileRefs?: FileRef[];
+  paymentConfirmed?: boolean;
   onOpenImage?: (url: string) => void;
   mine?: boolean;
   pending?: boolean;
@@ -830,23 +833,42 @@ function ClaimExpenseRow({
       )}
       {fileRefs && fileRefs.length > 0 && (
         <div className="flex flex-col gap-1.5 mt-1">
-          {fileRefs.map((ref) => (
-            <a
-              key={ref.r2Id}
-              href={fileUrl(ref)}
-              target="_blank"
-              rel="noopener noreferrer"
-              download={ref.name}
-              className="flex items-center gap-2 bg-surface-high rounded-lg px-3 py-2 btn-press"
-            >
-              <Icon name="description" size={16} className="text-primary shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-on-surface truncate">{ref.description || ref.name}</p>
-                <p className="text-[10px] text-on-surface-faint">{formatFileSize(ref.byteSize)}</p>
-              </div>
-              <Icon name="download" size={16} className="text-primary shrink-0" />
-            </a>
-          ))}
+          {fileRefs.map((ref) => {
+            const locked = ref.visibility === 'after_payment' && !paymentConfirmed;
+            if (locked) {
+              return (
+                <div
+                  key={ref.r2Id}
+                  className="flex items-center gap-2 bg-surface-high rounded-lg px-3 py-2 opacity-60 select-none"
+                >
+                  <Icon name="lock" size={16} className="text-warning shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-on-surface truncate blur-[3px]">
+                      {ref.description || ref.name}
+                    </p>
+                    <p className="text-[10px] text-warning">{t('group_claim.file_pay_to_download')}</p>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <a
+                key={ref.r2Id}
+                href={fileUrl(ref)}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={ref.name}
+                className="flex items-center gap-2 bg-surface-high rounded-lg px-3 py-2 btn-press"
+              >
+                <Icon name="description" size={16} className="text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-on-surface truncate">{ref.description || ref.name}</p>
+                  <p className="text-[10px] text-on-surface-faint">{formatFileSize(ref.byteSize)}</p>
+                </div>
+                <Icon name="download" size={16} className="text-primary shrink-0" />
+              </a>
+            );
+          })}
         </div>
       )}
     </div>

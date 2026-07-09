@@ -3157,7 +3157,9 @@
     "attach_file": "Adjuntar archivo",
     "file_too_large": "Archivo demasiado grande (máx. 10 MB)",
     "file_upload_failed": "Error al subir archivo",
-    "file_added": "Archivo adjuntado"
+    "file_added": "Archivo adjuntado",
+    "file_public": "Visible para todos",
+    "file_after_payment": "Solo tras pago"
   },
   "group_claim": {
     "kicker": "División en grupo",
@@ -3198,7 +3200,8 @@
     "your_tag": "tú",
     "remove": "Quitar",
     "get_app_title": "Planea y divide tus propios viajes",
-    "get_app_cta": "Descarga TripPilot"
+    "get_app_cta": "Descarga TripPilot",
+    "file_pay_to_download": "Pague para descargar"
   },
   "profile_presets": {
     "restaurants": "Restaurantes",
