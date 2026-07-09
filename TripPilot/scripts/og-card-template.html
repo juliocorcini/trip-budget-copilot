@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1200">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1200px;
+      height: 630px;
+      font-family: 'Manrope', system-ui, sans-serif;
+      background: #0F1419;
+      color: #EDE8E0;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .left {
+      flex: 1;
+      padding: 60px 0 60px 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+    .logo-mark {
+      width: 52px; height: 52px;
+      background: #C75B39;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 22px;
+      color: #EDE8E0;
+      letter-spacing: -0.5px;
+    }
+    .logo-text {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .headline {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      max-width: 520px;
+      margin-bottom: 24px;
+    }
+    .headline em {
+      font-style: normal;
+      color: #C75B39;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: rgba(237, 232, 224, 0.6);
+      font-weight: 500;
+      max-width: 440px;
+      line-height: 1.5;
+    }
+
+    .badges {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+    }
+    .badge {
+      background: rgba(237, 232, 224, 0.08);
+      border: 1px solid rgba(237, 232, 224, 0.1);
+      border-radius: 20px;
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(237, 232, 224, 0.7);
+    }
+
+    .right {
+      width: 440px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .phone {
+      width: 260px;
+      background: #1A2028;
+      border-radius: 32px;
+      border: 2px solid rgba(237, 232, 224, 0.08);
+      padding: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(237,232,224,0.04);
+      transform: rotate(-3deg) translateY(-10px);
+    }
+
+    .phone-header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .phone-city {
+      font-size: 13px;
+      color: rgba(237, 232, 224, 0.5);
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .phone-time {
+      font-size: 11px;
+      color: rgba(237, 232, 224, 0.35);
+    }
+
+    .phone-free {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .phone-free-label {
+      font-size: 12px;
+      color: rgba(237, 232, 224, 0.5);
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .phone-free-amount {
+      font-size: 48px;
+      font-weight: 800;
+      color: #6B8F71;
+      letter-spacing: -2px;
+    }
+    .phone-free-status {
+      font-size: 11px;
+      color: #6B8F71;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .phone-occasions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .occasion {
+      flex: 1;
+      background: rgba(237, 232, 224, 0.04);
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
+    }
+    .occasion-icon {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+    .occasion-count {
+      font-size: 20px;
+      font-weight: 800;
+      color: #EDE8E0;
+    }
+    .occasion-label {
+      font-size: 9px;
+      color: rgba(237, 232, 224, 0.45);
+      font-weight: 500;
+    }
+
+    .piggy-toast {
+      margin-top: 12px;
+      background: rgba(107, 143, 113, 0.12);
+      border: 1px solid rgba(107, 143, 113, 0.2);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .piggy-icon { font-size: 18px; }
+    .piggy-text {
+      font-size: 10px;
+      color: rgba(237, 232, 224, 0.65);
+      line-height: 1.4;
+    }
+    .piggy-text strong {
+      color: #6B8F71;
+    }
+
+    .glow {
+      position: absolute;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(199, 91, 57, 0.15) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="left">
+    <div class="logo-row">
+      <div class="logo-mark">TP</div>
+      <div class="logo-text">TripPilot</div>
+    </div>
+    <div class="headline">
+      Sabe se pode pedir a próxima cerveja <em>sem estragar</em> a viagem?
+    </div>
+    <div class="subtitle">
+      O app que responde em tempo real se aquele gasto cabe no orçamento da viagem.
+    </div>
+    <div class="badges">
+      <div class="badge">Grátis</div>
+      <div class="badge">Offline</div>
+      <div class="badge">Sem cadastro</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="glow"></div>
+    <div class="phone">
+      <div class="phone-header">
+        <div class="phone-city">Espanha · Burgos</div>
+        <div class="phone-time">23:14</div>
+      </div>
+      <div class="phone-free">
+        <div class="phone-free-label">Livre para gastar hoje</div>
+        <div class="phone-free-amount">€47</div>
+        <div class="phone-free-status">No plano — tranquilo</div>
+      </div>
+      <div class="phone-occasions">
+        <div class="occasion">
+          <div class="occasion-icon">🍺</div>
+          <div class="occasion-count">3</div>
+          <div class="occasion-label">noites</div>
+        </div>
+        <div class="occasion">
+          <div class="occasion-icon">🛒</div>
+          <div class="occasion-count">5</div>
+          <div class="occasion-label">mercado</div>
+        </div>
+        <div class="occasion">
+          <div class="occasion-icon">🏛️</div>
+          <div class="occasion-count">1</div>
+          <div class="occasion-label">passeio</div>
+        </div>
+      </div>
+      <div class="piggy-toast">
+        <span class="piggy-icon">🐷</span>
+        <span class="piggy-text">Guardou <strong>€24</strong> — 73% de uma noite no bar!</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

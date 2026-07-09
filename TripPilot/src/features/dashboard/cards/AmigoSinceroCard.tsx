@@ -401,6 +401,11 @@ function renderVerdict(
             planned: amigo.plannedQuantity,
           })}
         {amigo.kind === 'no_plan' && t('dashboard.amigo_no_plan', { percent: amigo.impactPercent })}
+        {amigo.kind === 'proactive_check_in' &&
+          t(`dashboard.amigo_proactive_${amigo.reason}` as never, {
+            free: formatMoney(amigo.dailyFreeCents, currency),
+            piggy: formatMoney(amigo.piggyBalanceCents, currency),
+          })}
       </p>
       {amigo.kind === 'over_budget' && (
         <p className="text-xs font-bold mt-1.5" style={{ color }}>

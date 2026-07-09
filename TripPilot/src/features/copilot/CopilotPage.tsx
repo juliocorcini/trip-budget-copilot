@@ -16,7 +16,7 @@ import { getCategoryIcon } from '@/utils/category-icons';
 import { formatMoney, sumCents } from '@/domain/money';
 import { sortPhasesByOrder, getTotalDays, localDateString, addDaysIso, formatDate } from '@/domain/dates';
 import { shiftMonth } from '@/domain/dashboard';
-import { calculatePoolSpent, classifyBudgetSignal } from '@/domain/budget';
+import { calculatePoolSpent, classifyBudgetSignal, selectVoiceOnlyExtras } from '@/domain/budget';
 import { filterTransactionsByPhase } from '@/domain/transactions';
 import { calculateDebts } from '@/domain/splitting';
 import { calculateSessionTotal } from '@/domain/outing';
@@ -553,11 +553,7 @@ export function CopilotPage() {
           {model.amigoV2.kind !== 'none' && (
             <AmigoSinceroCard
               amigo={model.amigoV2}
-              // D06 · DEC-317: voice only. The Copiloto already surfaces every
-              // factual read through its dedicated sections (piggy section,
-              // category bars, projection/trend/runway, debts), so the friend's
-              // card carries no objective data — only the opinionated verdict.
-              extras={[]}
+              extras={selectVoiceOnlyExtras(model.amigoExtras)}
               currency={currency}
               onSeeImpact={() => navigate('/impact')}
               onSimulate={() => navigate('/simulator')}

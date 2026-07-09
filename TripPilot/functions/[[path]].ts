@@ -79,9 +79,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 };
 
-/** SPA shell via the static pipeline (`/` serves index.html directly). */
+/** SPA shell — fetch `/_app.html` (a build-time copy of `index.html`).
+ *  Cloudflare Pages 308-redirects `/index.html` → `/`, and `_redirects`
+ *  rewrites `/` → `landing.html`, so neither path gives us the SPA shell.
+ *  `_app.html` bypasses the built-in normalization entirely. */
 async function fetchSpaShell(env: Env, origin: string): Promise<string | null> {
-  const res = await env.ASSETS.fetch(new Request(`${origin}/`));
+  const res = await env.ASSETS.fetch(new Request(`${origin}/_app.html`));
   if (!res.ok) return null;
   return res.text();
 }

@@ -15,6 +15,7 @@ import {
   createPoolSummary,
   calculateLastOutingSavings,
   buildHonestFriendV2,
+  buildProactiveAmigo,
   selectAmigoTrigger,
   buildHonestFriendExtras,
   filterHomeAmigoExtras,
@@ -947,9 +948,6 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
               : 0,
             recentSpendCents: amigoTriggerTx.personalCostCents ?? amigoTriggerTx.amountCents,
             freeToSpendCents: fts.freeToSpendCents,
-            // DEC-236: TRUE free (hero) = pool raw − plan reserved; pool raw is the
-            // signed pre-floor free. `allocatedCents − allocatedSpentCents` is the
-            // very plan reserve `calculateTrueFree` uses, so this stays consistent.
             trueFreeRawCents: fts.freeToSpendRawCents - Math.max(0, allocatedCents - allocatedSpentCents),
             poolFreeRawCents: fts.freeToSpendRawCents,
             phaseSpentCents,
@@ -957,7 +955,14 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             todayDate: todayIso,
             phase: activePhase,
           })
-        : ({ kind: 'none' } as const);
+        : activePhase && fts
+          ? buildProactiveAmigo({
+              todayFreeCents: todayBudget?.freeTodayCents ?? 0,
+              piggyBalanceCents: piggyBankCents,
+              piggyLastDeltaCents: piggyLastMovementCents,
+              noSpendToday: todaySpentCents <= 0,
+            })
+          : ({ kind: 'none' } as const);
 
     // DEC-093 follow-up (device-test 2026-06-20): the Amigo Sincero carousel —
     // extra honest reads so it is never "stuck" on one verdict. Cheap, pure, and

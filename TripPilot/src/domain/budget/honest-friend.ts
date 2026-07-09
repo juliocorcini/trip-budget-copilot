@@ -112,6 +112,18 @@ export type HonestFriendV2 =
       kind: 'no_plan';
       /** Honest fallback: % of the phase free margin this spend consumed. */
       impactPercent: number;
+    }
+  | {
+      /**
+       * 2026-07-09 (marketing P1): the friend speaks PROACTIVELY when there is
+       * no recent spend to react to. Fulfills the marketing promise of a travel
+       * companion that is always present — not just a critic that shows up when
+       * you overspend. The reason selects the best message for the context.
+       */
+      kind: 'proactive_check_in';
+      reason: 'no_spend_today' | 'piggy_grew' | 'on_rhythm';
+      dailyFreeCents: number;
+      piggyBalanceCents: number;
     };
 
 /**
@@ -133,14 +145,11 @@ export type HonestFriendTone = 'positive' | 'steady' | 'caution' | 'alert' | 'ne
 export function getHonestFriendTone(amigo: HonestFriendV2): HonestFriendTone {
   switch (amigo.kind) {
     case 'over_budget':
-      // DEC-236: out of free money is the loudest honest signal.
       return 'alert';
     case 'on_plan':
+    case 'proactive_check_in':
       return 'positive';
     case 'over_pace':
-      // D-BUG-11: the slack covers the overflow, but the card still tells the
-      // user "only N of the M left fit" — a green light contradicts that copy.
-      // `steady` keeps it reassuring without pretending everything is on plan.
       if (amigo.overflowFitsPhase) return 'steady';
       return amigo.reserveStartDate !== null ? 'alert' : 'caution';
     case 'over_plan':
@@ -238,6 +247,38 @@ export function projectReserveStartDate(
 
   const date = addDays(todayDate, daysUntil);
   return date > phase.endDate ? null : date;
+}
+
+/**
+ * 2026-07-09 (marketing P1): when no expense triggers the reactive friend,
+ * this pure builder produces a PROACTIVE verdict so the card is never empty.
+ * Priority: piggy grew yesterday > no spend today (quiet day) > general rhythm.
+ */
+export interface ProactiveAmigoInput {
+  todayFreeCents: number;
+  piggyBalanceCents: number;
+  /** Yesterday's piggy delta (> 0 = deposit, the cofrinho grew). */
+  piggyLastDeltaCents: number;
+  /** True when no expenses were logged today. */
+  noSpendToday: boolean;
+}
+
+export function buildProactiveAmigo(input: ProactiveAmigoInput): HonestFriendV2 {
+  const base = {
+    kind: 'proactive_check_in' as const,
+    dailyFreeCents: Math.max(0, input.todayFreeCents),
+    piggyBalanceCents: Math.max(0, input.piggyBalanceCents),
+  };
+
+  if (input.piggyLastDeltaCents > 0 && input.piggyBalanceCents > 0) {
+    return { ...base, reason: 'piggy_grew' };
+  }
+
+  if (input.noSpendToday) {
+    return { ...base, reason: 'no_spend_today' };
+  }
+
+  return { ...base, reason: 'on_rhythm' };
 }
 
 export function buildHonestFriendV2(input: HonestFriendV2Input): HonestFriendV2 {

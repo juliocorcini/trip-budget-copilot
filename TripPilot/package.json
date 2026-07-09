@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "npm run build && node scripts/fetch-live-apk.mjs && node scripts/make-ota-bundle.mjs",
+    "build:pages": "npm run build && cp dist/index.html dist/_app.html && node scripts/fetch-live-apk.mjs && node scripts/make-ota-bundle.mjs",
     "preview": "vite preview",
     "preview:staging": "vite build --mode staging --outDir dist-staging && vite preview --outDir dist-staging",
     "test": "vitest run",

@@ -49,6 +49,7 @@ export type {
 } from './event-budget';
 export {
   buildHonestFriendV2,
+  buildProactiveAmigo,
   projectReserveStartDate,
   evaluateBorrowFromTomorrow,
   getHonestFriendTone,
@@ -57,12 +58,14 @@ export {
 export type {
   HonestFriendV2,
   HonestFriendV2Input,
+  ProactiveAmigoInput,
   BorrowFromTomorrow,
   HonestFriendTone,
 } from './honest-friend';
 export {
   buildHonestFriendExtras,
   filterHomeAmigoExtras,
+  selectVoiceOnlyExtras,
   RHYTHM_EXTRA_IDS,
 } from './honest-friend-extras';
 export type { HonestFriendExtra, HonestFriendExtrasInput } from './honest-friend-extras';

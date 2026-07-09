@@ -180,9 +180,18 @@ const HOME_AMIGO_EXTRA_INSIGHT_OVERLAP: Record<HonestFriendExtra['id'], readonly
 
 /** Extras that are emotional/voice messages — they live ONLY on the Amigo card
  *  and must never be relocated to the insights carousel as factual reads. */
-const VOICE_ONLY_EXTRA_IDS: ReadonlySet<HonestFriendExtra['id']> = new Set([
+export const VOICE_ONLY_EXTRA_IDS: ReadonlySet<HonestFriendExtra['id']> = new Set([
   'can_afford_more',
 ]);
+
+/** Returns only the voice-only extras that should stay on the Amigo card even
+ *  when the Home operates in "voice only" mode (DEC-317). Factual extras move
+ *  to the insights carousel; emotional ones remain on the card. */
+export function selectVoiceOnlyExtras(
+  extras: readonly HonestFriendExtra[],
+): HonestFriendExtra[] {
+  return extras.filter((extra) => VOICE_ONLY_EXTRA_IDS.has(extra.id));
+}
 
 export function filterHomeAmigoExtras(
   extras: readonly HonestFriendExtra[],
