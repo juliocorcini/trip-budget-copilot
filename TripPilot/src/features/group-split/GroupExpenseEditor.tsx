@@ -617,20 +617,32 @@ export function GroupExpenseEditor({
                       <Icon name="close" size={14} className="text-error" />
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleFileVisibility(ref)}
-                    className="self-start flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium btn-press bg-surface-high"
-                  >
-                    <Icon
-                      name={ref.visibility === 'after_payment' ? 'lock' : 'public'}
-                      size={12}
-                      className={ref.visibility === 'after_payment' ? 'text-warning' : 'text-on-surface-faint'}
-                    />
-                    <span className={ref.visibility === 'after_payment' ? 'text-warning' : 'text-on-surface-faint'}>
-                      {t(ref.visibility === 'after_payment' ? 'group_split.file_after_payment' : 'group_split.file_public')}
-                    </span>
-                  </button>
+                  <div className="flex rounded-lg overflow-hidden border border-outline/20 self-start">
+                    <button
+                      type="button"
+                      onClick={() => ref.visibility === 'after_payment' && toggleFileVisibility(ref)}
+                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium btn-press transition-colors ${
+                        ref.visibility !== 'after_payment'
+                          ? 'bg-primary/15 text-primary'
+                          : 'bg-transparent text-on-surface-faint'
+                      }`}
+                    >
+                      <Icon name="public" size={13} />
+                      {t('group_split.file_public')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => ref.visibility !== 'after_payment' && toggleFileVisibility(ref)}
+                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium btn-press transition-colors ${
+                        ref.visibility === 'after_payment'
+                          ? 'bg-warning/15 text-warning'
+                          : 'bg-transparent text-on-surface-faint'
+                      }`}
+                    >
+                      <Icon name="lock" size={13} />
+                      {t('group_split.file_after_payment')}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
