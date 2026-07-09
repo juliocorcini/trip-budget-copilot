@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.5-rc',
+    date: '2026-07-08',
+    items: {
+      'pt-BR': [
+        'Despesas adicionadas por convidados agora aparecem no histórico de atividade do grupo.',
+        'Badge de alerta quando o saldo muda após a confirmação de pagamento.',
+      ],
+      en: [
+        'Guest-added expenses now appear in the group activity history.',
+        'Warning badge when balance changes after payment confirmation.',
+      ],
+      es: [
+        'Los gastos añadidos por invitados ahora aparecen en el historial de actividad del grupo.',
+        'Insignia de alerta cuando el saldo cambia después de la confirmación de pago.',
+      ],
+    },
+  },
+  {
     version: '2.9.3-rc',
     date: '2026-07-08',
     items: {

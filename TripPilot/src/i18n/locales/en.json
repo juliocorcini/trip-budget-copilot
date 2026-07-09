@@ -3127,6 +3127,8 @@
     "activity_payment_contested": "{{actor}} contested {{subject}}'s payment",
     "activity_payment_cancelled": "{{actor}} cancelled {{subject}}'s mark",
     "activity_participant_joined": "{{actor}} joined via the link",
+    "stale_confirmation": "Balance changed since confirmation",
+    "balance_changed": "Balance changed",
     "activity_share_revoked": "{{actor}} revoked the invite link",
     "add_from_trip": "Add from trip",
     "trip_settle_note": "Payments confirmed here flow into the trip settle-up.",

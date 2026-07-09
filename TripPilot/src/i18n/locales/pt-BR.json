@@ -3131,6 +3131,8 @@
     "activity_payment_contested": "{{actor}} contestou o pagamento de {{subject}}",
     "activity_payment_cancelled": "{{actor}} cancelou a marcação de {{subject}}",
     "activity_participant_joined": "{{actor}} entrou pelo link",
+    "stale_confirmation": "Saldo mudou desde a confirmação",
+    "balance_changed": "Saldo alterado",
     "activity_share_revoked": "{{actor}} revogou o link de convite",
     "add_from_trip": "Adicionar da viagem",
     "trip_settle_note": "Pagamentos confirmados aqui entram no acerto da viagem.",

@@ -51,6 +51,12 @@ export interface GroupParticipant {
   /** Net settlement stage for this person across the whole event. */
   paymentStatus: GroupPaymentStatus;
   /**
+   * The participant's netCents at the moment the owner confirmed their payment.
+   * Used to detect stale confirmations: if the balance changes after confirming
+   * (e.g. a new expense was added), the UI shows a warning badge.
+   */
+  confirmedNetCents?: number;
+  /**
    * ISO timestamp of the owner's latest contest. Used by {@link reduceGroupClaims}
    * to distinguish a guest's OLD mark (pre-contest, should stay contested) from a
    * NEW re-mark (post-contest, should become marked). Absent until the owner first

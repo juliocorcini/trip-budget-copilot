@@ -265,7 +265,10 @@ export function GroupSplitDetailPage() {
           // so the receipt lands in the timeline. Idempotent: the saved 'marked'
           // status stops the next tick from re-logging (same converging guard).
           const priorStatus = new Map(current.participants.map((p) => [p.id, p.paymentStatus]));
+          const priorExpenseIds = new Set(current.expenses.map((e) => e.id));
+          const nextExpenseIds = new Set(next.expenses.map((e) => e.id));
           const nextTransfers = computeGroupTransfers(next);
+          const nameById = new Map(next.participants.map((p) => [p.id, p.name]));
           let logged = next;
           for (const p of next.participants) {
             if ((priorClaimed.get(p.id) ?? null) === null && p.claimedByActorId !== null) {
@@ -291,6 +294,28 @@ export function GroupSplitDetailPage() {
                 amountCents: owed,
                 proof: claim?.proof,
                 proofThumb: claim?.proofThumb,
+              });
+            }
+          }
+          for (const exp of next.expenses) {
+            if (!priorExpenseIds.has(exp.id) && exp.authoredByActorId) {
+              const authorName = (exp.createdByParticipantId && nameById.get(exp.createdByParticipantId)) || exp.authoredByActorId;
+              logged = appendGroupActivity(logged, {
+                kind: 'expense_added',
+                actorName: authorName,
+                detail: exp.description,
+                amountCents: exp.amountCents,
+              });
+            }
+          }
+          for (const exp of current.expenses) {
+            if (!nextExpenseIds.has(exp.id) && exp.authoredByActorId) {
+              const authorName = (exp.createdByParticipantId && nameById.get(exp.createdByParticipantId)) || exp.authoredByActorId;
+              logged = appendGroupActivity(logged, {
+                kind: 'expense_removed',
+                actorName: authorName,
+                detail: exp.description,
+                amountCents: exp.amountCents,
               });
             }
           }
@@ -536,6 +561,15 @@ export function GroupSplitDetailPage() {
     // organizer override records what it overrode (a richer audit trail).
     const prevStatus: GroupPaymentStatus = subject.paymentStatus ?? 'unpaid';
     let next = setParticipantPayment(event, participantId, status);
+    if (status === 'confirmed') {
+      const currentNet = netByPid.get(participantId) ?? 0;
+      next = {
+        ...next,
+        participants: next.participants.map((p) =>
+          p.id === participantId ? { ...p, confirmedNetCents: currentNet } : p,
+        ),
+      };
+    }
     const debtorTransfers = transfers.filter((tr) => tr.fromParticipantId === participantId);
     const amountCents = debtorTransfers.reduce((s, tr) => s + tr.amountCents, 0) || undefined;
     if (status === 'confirmed') {
@@ -790,7 +824,14 @@ export function GroupSplitDetailPage() {
                         size={32}
                       />
                     )}
-                    {isDebtor && <PaymentControl status={p.paymentStatus} onSet={(s) => handleSetPayment(p.id, s)} t={t} />}
+                    {isDebtor && (
+                      <PaymentControl
+                        status={p.paymentStatus}
+                        stale={p.paymentStatus === 'confirmed' && p.confirmedNetCents !== undefined && p.confirmedNetCents !== (netByPid.get(p.id) ?? 0)}
+                        onSet={(s) => handleSetPayment(p.id, s)}
+                        t={t}
+                      />
+                    )}
                     <button
                       onClick={() => handleRemovePerson(p.id)}
                       className="btn-press p-1"
@@ -1086,22 +1127,35 @@ export function GroupSplitDetailPage() {
  */
 function PaymentControl({
   status,
+  stale,
   onSet,
   t,
 }: {
   status: GroupPaymentStatus;
+  stale?: boolean;
   onSet: (status: GroupPaymentStatus) => void;
   t: (key: string) => string;
 }) {
   if (status === 'confirmed') {
     return (
-      <button
-        onClick={() => onSet('unpaid')}
-        className="flex items-center gap-1 text-[11px] font-semibold text-success px-2 py-1 rounded-lg bg-success/15 btn-press"
-      >
-        <Icon name="check_circle" size={14} className="text-success" />
-        {t('group_split.received')}
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onSet('unpaid')}
+          className="flex items-center gap-1 text-[11px] font-semibold text-success px-2 py-1 rounded-lg bg-success/15 btn-press"
+        >
+          <Icon name="check_circle" size={14} className="text-success" />
+          {t('group_split.received')}
+        </button>
+        {stale && (
+          <span
+            className="text-[10px] font-semibold text-warning px-1.5 py-0.5 rounded bg-warning/15"
+            title={t('group_split.stale_confirmation')}
+          >
+            <Icon name="warning" size={12} className="text-warning inline -mt-0.5 mr-0.5" />
+            {t('group_split.balance_changed')}
+          </span>
+        )}
+      </div>
     );
   }
   if (status === 'marked') {
