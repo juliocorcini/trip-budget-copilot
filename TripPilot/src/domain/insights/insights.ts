@@ -557,7 +557,8 @@ export function extraToInsight(extra: HonestFriendExtra): DashboardInsight {
         values: { amountCents: extra.amountCents },
       };
     case 'can_afford_more':
-      // Voice-only extra — never relocated to insights (filtered upstream by
+    case 'piggy_healthy':
+      // Voice-only extras — never relocated to insights (filtered upstream by
       // VOICE_ONLY_EXTRA_IDS). This branch satisfies exhaustive checking.
       return {
         kind: 'receivable',

@@ -19,9 +19,13 @@ export type HonestFriendExtra =
   // statement. Positive delta = deposit (saved); negative = withdrawal (covered).
   | { id: 'piggy_movement'; tone: HonestFriendTone; deltaCents: number; balanceCents: number }
   // 2026-07-09 marketing P0: the cofrinho buffer has accumulated enough for at
-  // least one typical occasion — the friend ENCOURAGES spending (the differentiator
-  // no other finance app has). Only fires when a known profile provides a reference.
-  | { id: 'can_afford_more'; tone: HonestFriendTone; profileName: string; occasionCount: number; piggyBalanceCents: number };
+  // least one typical occasion AND passes the safety margin — the friend
+  // ENCOURAGES spending. Fires only when spending one occasion still leaves
+  // meaningful buffer (≥ 1.5× typical, or ≥ 1× AND phase survives without piggy).
+  | { id: 'can_afford_more'; tone: HonestFriendTone; profileName: string; occasionCount: number; piggyBalanceCents: number }
+  // 2026-07-09: informational variant — the piggy has balance but doesn't pass
+  // the safety gates for "go spend it". Celebrates the saving without the CTA.
+  | { id: 'piggy_healthy'; tone: HonestFriendTone; piggyBalanceCents: number };
 
 export interface HonestFriendExtrasInput {
   /** Cents spent in the phase so far (personal cost). */
@@ -130,29 +134,48 @@ export function buildHonestFriendExtras(input: HonestFriendExtrasInput): HonestF
     extras.push({ id: 'receivable', tone: 'positive', amountCents: input.receivableCents });
   }
 
-  // 2026-07-09 (marketing P0): "the only finance app that also tells you to
-  // SPEND". When the piggy buffer covers at least one typical occasion, the
-  // friend proactively encourages the user — the emotional differentiator that
-  // no competitor has. Uses the profile with the largest typical value that fits
-  // (the most exciting one the user can afford), so "you can afford a bar night"
-  // wins over "you can afford a market run" when both fit.
+  // 2026-07-09 (marketing P0 + safety fix): "the only finance app that also
+  // tells you to SPEND" — but ONLY when spending won't destroy the safety
+  // buffer. Two-layer model:
+  //   Layer 1 (can_afford_more): piggy ≥ 1.5× typical OR (piggy ≥ 1× typical
+  //     AND the phase survives 2 days without the piggy). Encouraging "go spend!"
+  //   Layer 2 (piggy_healthy): piggy has balance but doesn't pass safety gates.
+  //     Celebrates the saving without inciting consumption.
   const piggyBalance = Math.max(0, Math.round(input.piggyBalanceCents ?? 0));
   const profiles = input.profileTypicals ?? [];
+  const baseDailyIdeal = Math.max(0, Math.round(input.baseDailyIdealCents ?? 0));
+
   if (piggyBalance > 0 && profiles.length > 0) {
     const affordable = profiles
       .filter((p) => p.typicalCents > 0 && piggyBalance >= p.typicalCents)
       .sort((a, b) => b.typicalCents - a.typicalCents);
+
     if (affordable.length > 0) {
       const best = affordable[0]!;
-      const count = Math.floor(piggyBalance / best.typicalCents);
-      extras.push({
-        id: 'can_afford_more',
-        tone: 'positive',
-        profileName: best.name,
-        occasionCount: count,
-        piggyBalanceCents: piggyBalance,
-      });
+      const remainsAfterOne = piggyBalance - best.typicalCents;
+      const phaseWithoutPiggy = input.freeToSpendCents - piggyBalance;
+
+      const safeToEncourage =
+        remainsAfterOne >= Math.round(best.typicalCents * 0.5) ||
+        (piggyBalance >= best.typicalCents && phaseWithoutPiggy >= baseDailyIdeal * 2);
+
+      if (safeToEncourage) {
+        const safeCount = Math.floor(remainsAfterOne / best.typicalCents) + 1;
+        extras.push({
+          id: 'can_afford_more',
+          tone: 'positive',
+          profileName: best.name,
+          occasionCount: safeCount,
+          piggyBalanceCents: piggyBalance,
+        });
+      } else {
+        extras.push({ id: 'piggy_healthy', tone: 'positive', piggyBalanceCents: piggyBalance });
+      }
+    } else {
+      extras.push({ id: 'piggy_healthy', tone: 'positive', piggyBalanceCents: piggyBalance });
     }
+  } else if (piggyBalance > 0) {
+    extras.push({ id: 'piggy_healthy', tone: 'positive', piggyBalanceCents: piggyBalance });
   }
 
   return extras;
@@ -176,12 +199,14 @@ const HOME_AMIGO_EXTRA_INSIGHT_OVERLAP: Record<HonestFriendExtra['id'], readonly
   receivable: ['participant_balance'],
   piggy_movement: [],
   can_afford_more: [],
+  piggy_healthy: [],
 };
 
 /** Extras that are emotional/voice messages — they live ONLY on the Amigo card
  *  and must never be relocated to the insights carousel as factual reads. */
 export const VOICE_ONLY_EXTRA_IDS: ReadonlySet<HonestFriendExtra['id']> = new Set([
   'can_afford_more',
+  'piggy_healthy',
 ]);
 
 /** Returns only the voice-only extras that should stay on the Amigo card even

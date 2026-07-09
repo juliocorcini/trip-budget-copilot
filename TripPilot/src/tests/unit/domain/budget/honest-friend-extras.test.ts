@@ -169,4 +169,115 @@ describe('buildHonestFriendExtras', () => {
       'receivable',
     ]);
   });
+
+  describe('can_afford_more vs piggy_healthy (safety margin)', () => {
+    it('fires can_afford_more when piggy >= 1.5× typical (buffer remains after 1 occasion)', () => {
+      const extras = buildHonestFriendExtras({
+        ...base,
+        freeToSpendCents: 20000,
+        piggyBalanceCents: 6000,
+        baseDailyIdealCents: 2000,
+        profileTypicals: [{ name: 'Mercado', typicalCents: 4000 }],
+      });
+      const slide = extras.find((e) => e.id === 'can_afford_more');
+      expect(slide).toBeDefined();
+      expect(slide).toMatchObject({
+        id: 'can_afford_more',
+        tone: 'positive',
+        profileName: 'Mercado',
+        occasionCount: 1,
+        piggyBalanceCents: 6000,
+      });
+    });
+
+    it('fires piggy_healthy when piggy covers 1 occasion but not 1.5× (no safety margin)', () => {
+      // piggy = 4500, typical = 4000. After 1 occasion: 500 remaining.
+      // 500 < 4000 * 0.5 = 2000 → NOT safe. AND freeToSpend - piggy = 500 < 2 * 2000 = 4000 → NOT safe.
+      const extras = buildHonestFriendExtras({
+        ...base,
+        freeToSpendCents: 5000,
+        piggyBalanceCents: 4500,
+        baseDailyIdealCents: 2000,
+        profileTypicals: [{ name: 'Mercado', typicalCents: 4000 }],
+      });
+      expect(extras.find((e) => e.id === 'can_afford_more')).toBeUndefined();
+      expect(extras.find((e) => e.id === 'piggy_healthy')).toMatchObject({
+        id: 'piggy_healthy',
+        tone: 'positive',
+        piggyBalanceCents: 4500,
+      });
+    });
+
+    it('fires can_afford_more when piggy = 1× typical but phase survives 2 days without it', () => {
+      // piggy = 4000, typical = 4000. After 1: 0 remaining. 0 < 2000 → fails 1.5× gate.
+      // BUT freeToSpend - piggy = 16000 - 4000 = 12000 >= 2 * 2000 = 4000 → phase survives.
+      const extras = buildHonestFriendExtras({
+        ...base,
+        freeToSpendCents: 16000,
+        piggyBalanceCents: 4000,
+        baseDailyIdealCents: 2000,
+        profileTypicals: [{ name: 'Bar', typicalCents: 4000 }],
+      });
+      const slide = extras.find((e) => e.id === 'can_afford_more');
+      expect(slide).toBeDefined();
+      expect(slide).toMatchObject({ profileName: 'Bar', occasionCount: 1 });
+    });
+
+    it('fires piggy_healthy when piggy has balance but no profile covers it', () => {
+      const extras = buildHonestFriendExtras({
+        ...base,
+        freeToSpendCents: 10000,
+        piggyBalanceCents: 3000,
+        baseDailyIdealCents: 2000,
+        profileTypicals: [{ name: 'Bar', typicalCents: 5000 }],
+      });
+      expect(extras.find((e) => e.id === 'can_afford_more')).toBeUndefined();
+      expect(extras.find((e) => e.id === 'piggy_healthy')).toMatchObject({
+        piggyBalanceCents: 3000,
+      });
+    });
+
+    it('fires piggy_healthy when piggy has balance but no profiles provided', () => {
+      const extras = buildHonestFriendExtras({
+        ...base,
+        freeToSpendCents: 10000,
+        piggyBalanceCents: 5000,
+      });
+      expect(extras.find((e) => e.id === 'piggy_healthy')).toMatchObject({
+        piggyBalanceCents: 5000,
+      });
+    });
+
+    it('does not fire any piggy slide when balance is 0', () => {
+      const extras = buildHonestFriendExtras({
+        ...base,
+        freeToSpendCents: 10000,
+        piggyBalanceCents: 0,
+        profileTypicals: [{ name: 'Bar', typicalCents: 3000 }],
+      });
+      expect(extras.find((e) => e.id === 'can_afford_more')).toBeUndefined();
+      expect(extras.find((e) => e.id === 'piggy_healthy')).toBeUndefined();
+    });
+
+    it('picks the most expensive affordable profile (maximize excitement)', () => {
+      // piggy = 15000, Bar = 5000 (affordable, 1.5× = 7500 ≤ 15000 ✓), Mercado = 3000
+      const extras = buildHonestFriendExtras({
+        ...base,
+        freeToSpendCents: 30000,
+        piggyBalanceCents: 15000,
+        baseDailyIdealCents: 3000,
+        profileTypicals: [
+          { name: 'Mercado', typicalCents: 3000 },
+          { name: 'Bar', typicalCents: 5000 },
+        ],
+      });
+      const slide = extras.find((e) => e.id === 'can_afford_more');
+      expect(slide).toBeDefined();
+      if (slide && slide.id === 'can_afford_more') {
+        expect(slide.profileName).toBe('Bar');
+        // 15000 - 5000 = 10000 remaining → 10000/5000 = 2 more → total 3
+        expect(slide.occasionCount).toBe(3);
+      }
+    });
+  });
 });

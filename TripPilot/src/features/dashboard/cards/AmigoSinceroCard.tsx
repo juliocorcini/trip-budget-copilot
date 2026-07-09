@@ -65,6 +65,7 @@ const EXTRA_ICON: Record<HonestFriendExtra['id'], string> = {
   receivable: 'call_received',
   piggy_movement: 'savings',
   can_afford_more: 'celebration',
+  piggy_healthy: 'savings',
 };
 
 // FIELD R2 item 21 (F21): tint + accent + icon per tone — same data-driven shape
@@ -486,6 +487,16 @@ function renderExtra(
           balance: formatMoney(extra.piggyBalanceCents, currency),
           count: extra.occasionCount,
           profile: extra.profileName.toLowerCase(),
+        })}
+      </p>
+    );
+  }
+
+  if (extra.id === 'piggy_healthy') {
+    return (
+      <p className="text-[13px] mt-1 leading-snug font-semibold text-on-surface">
+        {t('dashboard.amigo_extra_piggy_healthy', {
+          balance: formatMoney(extra.piggyBalanceCents, currency),
         })}
       </p>
     );
