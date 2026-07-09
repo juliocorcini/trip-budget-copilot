@@ -1,8 +1,19 @@
 # Deploy Checklist (MANDATORY)
 
-Every deploy to production MUST include ALL of these steps. No exceptions.
+Every deploy to production MUST use the deploy script: `TripPilot/scripts/deploy.sh`.
+NEVER deploy manually with individual wrangler/build commands. The script handles
+version bump, type check, build, OTA bundle, and production verification automatically.
 
-## Before commit
+## Standard deploy commands
+
+```bash
+cd TripPilot
+bash scripts/deploy.sh              # pages only (default, auto-bumps patch)
+bash scripts/deploy.sh all          # pages + worker + apk
+bash scripts/deploy.sh --dry-run    # preview what would happen
+```
+
+## Before running the script
 
 1. **Web version bump** — increment the version in ALL three places:
    - `TripPilot/package.json` (`version` field)
