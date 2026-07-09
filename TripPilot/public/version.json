@@ -1,8 +1,8 @@
 {
-  "version": "2.9.12-rc",
+  "version": "2.9.13-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.12-rc.zip",
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.13-rc.zip",
   "notes": "Amigo Sincero P0: on_plan visível + can_afford_more + landing page"
 }

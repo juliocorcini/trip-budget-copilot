@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.13-rc',
+    date: '2026-07-09',
+    items: {
+      'pt-BR': [
+        'Correção: arquivos anexados (PDF, documentos) agora baixam corretamente em vez de mostrar ícone quebrado.',
+      ],
+      en: [
+        'Fix: attached files (PDF, documents) now download correctly instead of showing broken icon.',
+      ],
+      es: [
+        'Corrección: archivos adjuntos (PDF, documentos) ahora se descargan correctamente.',
+      ],
+    },
+  },
+  {
     version: '2.9.12-rc',
     date: '2026-07-09',
     items: {
