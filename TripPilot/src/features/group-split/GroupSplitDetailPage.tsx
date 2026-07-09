@@ -256,6 +256,8 @@ export function GroupSplitDetailPage() {
         const changed =
           JSON.stringify(next.participants) !== JSON.stringify(current.participants) ||
           JSON.stringify(next.expenses) !== JSON.stringify(current.expenses);
+        const nameById = new Map(next.participants.map((p) => [p.id, p.name]));
+        let logged = next;
         if (changed) {
           // DEC-354 — log participants who newly claimed a slot via the link this
           // tick (null → actorId, once). The change-guard above keeps it converging.
@@ -268,8 +270,6 @@ export function GroupSplitDetailPage() {
           const priorExpenseIds = new Set(current.expenses.map((e) => e.id));
           const nextExpenseIds = new Set(next.expenses.map((e) => e.id));
           const nextTransfers = computeGroupTransfers(next);
-          const nameById = new Map(next.participants.map((p) => [p.id, p.name]));
-          let logged = next;
           for (const p of next.participants) {
             if ((priorClaimed.get(p.id) ?? null) === null && p.claimedByActorId !== null) {
               logged = appendGroupActivity(logged, {
@@ -319,6 +319,29 @@ export function GroupSplitDetailPage() {
               });
             }
           }
+        }
+        // Backfill: guest-authored expenses folded BEFORE the activity logging
+        // code existed won't be caught by the diff above (already in `current`).
+        // Runs on every tick but is idempotent — once logged, the Set prevents dupes.
+        const loggedDescs = new Set(
+          (logged.activity ?? [])
+            .filter((a) => a.kind === 'expense_added')
+            .map((a) => a.detail),
+        );
+        let backfilled = false;
+        for (const exp of logged.expenses) {
+          if (exp.authoredByActorId && !loggedDescs.has(exp.description)) {
+            const authorName = (exp.createdByParticipantId && nameById.get(exp.createdByParticipantId)) || exp.authoredByActorId;
+            logged = appendGroupActivity(logged, {
+              kind: 'expense_added',
+              actorName: authorName,
+              detail: exp.description,
+              amountCents: exp.amountCents,
+            });
+            backfilled = true;
+          }
+        }
+        if (changed || backfilled) {
           await save(logged);
         }
       } catch {

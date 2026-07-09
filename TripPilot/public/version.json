@@ -1,8 +1,8 @@
 {
-  "version": "2.9.5-rc",
+  "version": "2.9.6-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.5-rc.zip",
-  "notes": "Despesas de guest no histórico + badge de saldo alterado após confirmação."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.6-rc.zip",
+  "notes": "Backfill: despesas de guest pré-existentes agora aparecem no histórico."
 }
