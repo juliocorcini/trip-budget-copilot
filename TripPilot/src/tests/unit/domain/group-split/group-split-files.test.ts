@@ -7,7 +7,6 @@ import {
   createGroupSplitEvent,
   foldEventForViewer,
   parseGroupSharePayload,
-  addExpense,
 } from '@/domain/group-split';
 import type { GroupExpense, GroupSplitEvent } from '@/domain/group-split';
 import type { FileRef } from '@/domain/media';
