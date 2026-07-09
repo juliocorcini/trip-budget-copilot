@@ -137,7 +137,7 @@ const CORS_HEADERS: Record<string, string> = {
   // install. It carries no PII and is never required for the call to succeed.
   // DEC-443 (OBS-4): X-Request-Id is the end-to-end correlation id — accepted
   // from the app and exposed back so the client can log the same id.
-  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token, Authorization, X-Install-Id, X-Request-Id, X-Img-TTL',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Share-Token, Authorization, X-Install-Id, X-Request-Id, X-Img-TTL, X-File-Upload',
   'Access-Control-Expose-Headers': 'X-Request-Id',
 };
 

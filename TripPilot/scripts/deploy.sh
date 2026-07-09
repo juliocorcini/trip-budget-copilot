@@ -211,6 +211,52 @@ if [[ "$LIVE_VERSION" == "$TARGET_VERSION" && "$FORCE" == false ]]; then
   exit 1
 fi
 
+# ── Release notes gate (BEFORE bump — no leftover version drift on failure) ───
+
+echo ""
+echo "=== Checking release notes ==="
+HAS_RELEASE_NOTE=$(node -e "
+  const fs = require('fs');
+  const src = fs.readFileSync('src/utils/release-notes.ts', 'utf8');
+  const hasEntry = src.includes(\"version: '$TARGET_VERSION'\");
+  process.stdout.write(hasEntry ? 'yes' : 'no');
+")
+
+if [[ "$HAS_RELEASE_NOTE" == "no" ]]; then
+  echo ""
+  echo "╔═══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCKED: No release notes for v$TARGET_VERSION"
+  echo "╠═══════════════════════════════════════════════════════════════╣"
+  echo "║                                                               ║"
+  echo "║  Every deploy MUST have a release notes entry so users see    ║"
+  echo "║  what changed in the About screen.                            ║"
+  echo "║                                                               ║"
+  echo "║  File: src/utils/release-notes.ts                             ║"
+  echo "║                                                               ║"
+  echo "║  Add an entry at the TOP of the RELEASE_NOTES array:          ║"
+  echo "║                                                               ║"
+  echo "║    {                                                          ║"
+  echo "║      version: '$TARGET_VERSION',                              ║"
+  echo "║      date: '$(date +%Y-%m-%d)',                               ║"
+  echo "║      items: {                                                 ║"
+  echo "║        'pt-BR': ['Descrição da mudança em português'],        ║"
+  echo "║        en: ['Change description in English'],                 ║"
+  echo "║        es: ['Descripción del cambio en español'],             ║"
+  echo "║      },                                                       ║"
+  echo "║    },                                                         ║"
+  echo "║                                                               ║"
+  echo "║  Guidelines:                                                  ║"
+  echo "║    • Write from the USER perspective (what they see/gain)     ║"
+  echo "║    • Keep each item to 1 line, max 3-5 items                  ║"
+  echo "║    • No technical jargon — plain language                     ║"
+  echo "║    • Include ALL 3 languages (pt-BR, en, es)                  ║"
+  echo "║                                                               ║"
+  echo "║  After adding, re-run: ./scripts/deploy.sh ${TARGETS[*]}      ║"
+  echo "╚═══════════════════════════════════════════════════════════════╝"
+  exit 1
+fi
+echo "  ✓ Release notes found for v$TARGET_VERSION"
+
 if [[ "$DRY_RUN" == true ]]; then
   echo ""
   echo "[DRY RUN] Would deploy v$TARGET_VERSION to: ${TARGETS[*]}"
@@ -278,52 +324,6 @@ if [[ "$TARGET_VERSION" != "$CURRENT_PKG_VERSION" || "$VERSION_MISMATCH" == true
   fi
   echo "  ✓ All version files synchronized"
 fi
-
-# ── Release notes gate ────────────────────────────────────────────────────────
-
-echo ""
-echo "=== Checking release notes ==="
-HAS_RELEASE_NOTE=$(node -e "
-  const fs = require('fs');
-  const src = fs.readFileSync('src/utils/release-notes.ts', 'utf8');
-  const hasEntry = src.includes(\"version: '$TARGET_VERSION'\");
-  process.stdout.write(hasEntry ? 'yes' : 'no');
-")
-
-if [[ "$HAS_RELEASE_NOTE" == "no" ]]; then
-  echo ""
-  echo "╔═══════════════════════════════════════════════════════════════╗"
-  echo "║  BLOCKED: No release notes for v$TARGET_VERSION"
-  echo "╠═══════════════════════════════════════════════════════════════╣"
-  echo "║                                                               ║"
-  echo "║  Every deploy MUST have a release notes entry so users see    ║"
-  echo "║  what changed in the About screen.                            ║"
-  echo "║                                                               ║"
-  echo "║  File: src/utils/release-notes.ts                             ║"
-  echo "║                                                               ║"
-  echo "║  Add an entry at the TOP of the RELEASE_NOTES array:          ║"
-  echo "║                                                               ║"
-  echo "║    {                                                          ║"
-  echo "║      version: '$TARGET_VERSION',                              ║"
-  echo "║      date: '$(date +%Y-%m-%d)',                               ║"
-  echo "║      items: {                                                 ║"
-  echo "║        'pt-BR': ['Descrição da mudança em português'],        ║"
-  echo "║        en: ['Change description in English'],                 ║"
-  echo "║        es: ['Descripción del cambio en español'],             ║"
-  echo "║      },                                                       ║"
-  echo "║    },                                                         ║"
-  echo "║                                                               ║"
-  echo "║  Guidelines:                                                  ║"
-  echo "║    • Write from the USER perspective (what they see/gain)     ║"
-  echo "║    • Keep each item to 1 line, max 3-5 items                  ║"
-  echo "║    • No technical jargon — plain language                     ║"
-  echo "║    • Include ALL 3 languages (pt-BR, en, es)                  ║"
-  echo "║                                                               ║"
-  echo "║  After adding, re-run: ./scripts/deploy.sh ${TARGETS[*]}      ║"
-  echo "╚═══════════════════════════════════════════════════════════════╝"
-  exit 1
-fi
-echo "  ✓ Release notes found for v$TARGET_VERSION"
 
 # ── Type check (pre-deploy gate) ─────────────────────────────────────────────
 
