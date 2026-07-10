@@ -7,6 +7,7 @@ import type { DebtEntry } from '@/domain/splitting';
 import { calculateEffectiveSpendingDays } from '@/domain/phases';
 import { calculatePoolSpent } from '@/domain/budget';
 import type { HonestFriendExtra, HonestFriendTone } from '@/domain/budget';
+import { computeSwapInsight, type SwapAllocation } from '@/domain/planning';
 import { getTotalDays, localDayOf } from '@/domain/dates';
 import { createSyncMetadata } from '@/utils/entity-factory';
 
@@ -37,6 +38,8 @@ export type DashboardInsightKind =
   | 'avg_outing_cost'
   | 'participant_balance'
   | 'next_event'
+  // G3 / DEC-490: "1 bar night less = 3 market trips more. Adjust?"
+  | 'swap_possible'
   // D06 · DEC-317: factual reads relocated out of the Amigo Sincero card. They
   // are NOT produced by `buildDashboardInsights` (no auto-builder) — the caller
   // converts surviving Amigo extras into these via `extraToInsight`, de-duped
@@ -65,6 +68,7 @@ export const INSIGHT_PRIORITY: Record<DashboardInsightKind, number> = {
   phase_countdown: 55,
   participant_balance: 50,
   next_event: 40,
+  swap_possible: 32,
   avg_outing_cost: 30,
   no_spend_streak: 20,
   // D06 · DEC-317: relocated factual reads. The timely cofrinho movement ranks
@@ -132,6 +136,9 @@ export interface BuildInsightsInput {
   nowHour: number;
   /** M11: the upcoming phase for the between-phases countdown, or null. */
   nextPhase: NextPhaseInfo | null;
+  /** G3 / DEC-490: plan allocations for the swap insight. Optional for callers
+   *  predating G3 — omitting produces no swap_possible card. */
+  swapAllocations?: SwapAllocation[];
 }
 
 /** M4: a category's planned budget and actual spend within the phase. */
@@ -462,6 +469,26 @@ function buildPhaseCountdown(input: BuildInsightsInput): DashboardInsight | null
   };
 }
 
+/** G3 / DEC-490: "1 bar night less = 3 market trips more. Adjust?" */
+function buildSwapPossible(input: BuildInsightsInput): DashboardInsight | null {
+  if (!input.swapAllocations || input.swapAllocations.length < 2) return null;
+  const swap = computeSwapInsight(input.swapAllocations);
+  if (!swap) return null;
+
+  return {
+    kind: 'swap_possible',
+    tone: 'neutral',
+    priority: INSIGHT_PRIORITY.swap_possible,
+    values: {
+      fromName: swap.from.name,
+      fromIcon: swap.from.icon,
+      toName: swap.to.name,
+      toIcon: swap.to.icon,
+      gain: swap.gain,
+    },
+  };
+}
+
 const INSIGHT_BUILDERS: Array<(input: BuildInsightsInput) => DashboardInsight | null> = [
   buildEndOfDay,
   buildPhaseProjection,
@@ -469,6 +496,7 @@ const INSIGHT_BUILDERS: Array<(input: BuildInsightsInput) => DashboardInsight | 
   buildCategoryRhythm,
   buildPhaseCountdown,
   buildRhythmCompare,
+  buildSwapPossible,
   buildNoSpendStreak,
   buildAvgOutingCost,
   buildParticipantBalance,

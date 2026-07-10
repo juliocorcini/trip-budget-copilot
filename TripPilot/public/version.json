@@ -1,8 +1,8 @@
 {
-  "version": "2.9.18-rc",
+  "version": "2.9.19-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.18-rc.zip",
-  "notes": "G2: Smart onboarding — activity chip selection generates auto-plan"
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.19-rc.zip",
+  "notes": "G3: Swap insight card — '1 bar less = 3 markets more. Adjust?'"
 }

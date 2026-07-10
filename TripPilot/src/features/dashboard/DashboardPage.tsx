@@ -550,6 +550,10 @@ export function DashboardPage() {
       case 'phase_countdown':
         navigate('/viagem');
         return;
+      // G3 / DEC-490: swap insight routes to the Planner.
+      case 'swap_possible':
+        navigate('/planner');
+        return;
       default:
         setDetailInsight(insight);
     }

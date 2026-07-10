@@ -121,6 +121,46 @@ export function buildAutoPlan(input: BuildAutoPlanInput): BuildAutoPlanOutput {
   };
 }
 
+// ── G3 / DEC-490: "Troca Inteligente" swap insight ──────────────────────
+
+export interface SwapAllocation {
+  name: string;
+  icon: string;
+  typicalCostCents: number;
+  remaining: number;
+}
+
+export interface SwapInsight {
+  from: { name: string; icon: string; typicalCostCents: number };
+  to: { name: string; icon: string; typicalCostCents: number };
+  gain: number;
+}
+
+export function computeSwapInsight(
+  allocations: SwapAllocation[],
+  remainingThreshold = 2,
+): SwapInsight | null {
+  const eligible = allocations.filter(
+    (a) => a.remaining >= remainingThreshold && a.typicalCostCents > 0,
+  );
+  if (eligible.length < 2) return null;
+
+  const sorted = [...eligible].sort((a, b) => b.typicalCostCents - a.typicalCostCents);
+  const from = sorted[0]!;
+  const to = sorted[sorted.length - 1]!;
+
+  if (from.typicalCostCents <= to.typicalCostCents) return null;
+
+  const gain = Math.floor(from.typicalCostCents / to.typicalCostCents);
+  if (gain < 2) return null;
+
+  return {
+    from: { name: from.name, icon: from.icon, typicalCostCents: from.typicalCostCents },
+    to: { name: to.name, icon: to.icon, typicalCostCents: to.typicalCostCents },
+    gain,
+  };
+}
+
 /** R5-06: one entry per category the user ADDED to in this session. */
 export interface SessionAddition {
   profileId: string;

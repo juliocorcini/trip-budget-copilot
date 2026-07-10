@@ -84,6 +84,7 @@ export const INSIGHT_ICONS: Record<DashboardInsight['kind'], string> = {
   phase_countdown: 'flight_takeoff',
   rhythm_compare: 'speed',
   no_spend_streak: 'emoji_events',
+  swap_possible: 'swap_horiz',
   avg_outing_cost: 'local_bar',
   participant_balance: 'group',
   next_event: 'event',
@@ -193,6 +194,12 @@ export function formatInsightText(
     case 'receivable':
       return t('dashboard.insight_receivable', {
         amount: formatMoney(v.amountCents as number, currency),
+      });
+    case 'swap_possible':
+      return t('dashboard.insight_swap_possible', {
+        from: v.fromName as string,
+        gain: v.gain as number,
+        to: v.toName as string,
       });
   }
 }

@@ -755,6 +755,7 @@
     "insight_daily_left": "Restam {{perDay}} por dia nos próximos {{days}} dias da fase",
     "insight_top_category": "Maior gasto: {{category}} — {{amount}} ({{percent}}% do total)",
     "insight_receivable": "Você tem {{amount}} a receber de outras pessoas",
+    "insight_swap_possible": "💡 1 {{from}} a menos = {{gain}} {{to}} a mais. Ajustar?",
     "leftover_title": "Sobra de fase",
     "leftover_body": "Você economizou na {{phase}}. O que quer fazer com o que sobrou?",
     "leftover_carry": "Levar para {{phase}}",

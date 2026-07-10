@@ -502,6 +502,19 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
         }
       : null;
 
+    // G3 / DEC-490: derive swap allocations from planProgress lines.
+    const swapAllocations = (planProgress?.lines ?? [])
+      .filter((l) => l.remaining > 0 && l.typicalValueCents > 0)
+      .map((l) => {
+        const prof = profiles.find((p) => p.id === l.profileId);
+        return {
+          name: l.profileName,
+          icon: prof?.iconName ?? 'category',
+          typicalCostCents: l.typicalValueCents,
+          remaining: l.remaining,
+        };
+      });
+
     const insights =
       activePhase && fts && owner
         ? buildDashboardInsights({
@@ -518,6 +531,7 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
             categoryRhythm,
             nowHour: new Date().getHours(),
             nextPhase: nextPhaseForCountdown,
+            swapAllocations,
           })
         : [];
 

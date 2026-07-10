@@ -751,6 +751,7 @@
     "insight_daily_left": "{{perDay}} per day left for the next {{days}} days of the phase",
     "insight_top_category": "Top spend: {{category}} — {{amount}} ({{percent}}% of total)",
     "insight_receivable": "You have {{amount}} to receive from others",
+    "insight_swap_possible": "💡 1 less {{from}} = {{gain}} more {{to}}. Adjust?",
     "leftover_title": "Phase leftover",
     "leftover_body": "You saved money on {{phase}}. What do you want to do with it?",
     "leftover_carry": "Carry into {{phase}}",

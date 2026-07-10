@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.19-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Novo insight "Troca Inteligente" no carousel — mostra quantas atividades baratas cabem se você cortar uma cara.',
+      ],
+      en: [
+        'New "Smart Swap" insight in the carousel — shows how many cheap activities fit if you cut an expensive one.',
+      ],
+      es: [
+        'Nuevo insight "Intercambio Inteligente" en el carrusel — muestra cuántas actividades baratas caben si recortas una cara.',
+      ],
+    },
+  },
+  {
     version: '2.9.18-rc',
     date: '2026-07-10',
     items: {

@@ -5,6 +5,7 @@ export {
   listSessionAdditions,
   formatAdditionsList,
   buildAutoPlan,
+  computeSwapInsight,
 } from './planning';
 export type {
   CreateScenarioPlanInput,
@@ -13,6 +14,8 @@ export type {
   BuildAutoPlanInput,
   BuildAutoPlanOutput,
   AutoPlanAllocation,
+  SwapAllocation,
+  SwapInsight,
 } from './planning';
 export {
   createPlannedOccurrence,
