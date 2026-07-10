@@ -1,6 +1,6 @@
 # Dev Log — TripPilot Implementation
 
-## Wave "AI Planning & Marketing Gaps" (2026-07-10) — `2.9.16-rc` → `2.10.x-rc` — 🔧 IN PROGRESS
+## Wave "AI Planning & Marketing Gaps" (2026-07-10) — `2.9.16-rc` → `2.10.2-rc` — ✅ SHIPPED
 
 > Orquestrador: `brain/documents/2026-07-10-ai-planning-wave-orchestrator.md` (ACTIVE)
 > Spec: `docs/reports/2026-07-10-ai-powered-planning-spec.md`
@@ -22,6 +22,10 @@
 | G5 | UI AI Copilot (Fase 2 frontend) | 2.10.0-rc | ✅ |
 | G6 | Mid-trip re-plan (P2) | 2.10.1-rc | ✅ |
 | G7 | Tom coloquial (P2) | 2.10.2-rc | ✅ |
+
+- **CURRENT STATE**: wave COMPLETA. Full suite **325 files / 3335 tests** (0 failures), `tsc --noEmit` limpo, builds verdes. Deploys: G1 `2.9.17-rc`, G2 `2.9.18-rc`, G3 `2.9.19-rc`, G4 `2.9.20-rc`, G5 `2.10.0-rc`, G6 `2.10.1-rc`, G7 `2.10.2-rc` — Pages + Worker deployed a cada gate.
+- **G7 (tom coloquial)**: Revisão de ~45 strings i18n em 3 idiomas (pt-BR, en, es). Insights do dashboard, alertas do Amigo Sincero (outing mode), streaks, suggest-outing, over-target/ceiling/max status, next-drink warnings — tudo com tom caloroso, direto e anti-culpa. Marketing-aligned: "Para aí", "Manda ver!", "Troca inteligente", emojis contextuais. Release note criada.
+- **DoD §12**: ALL TRUE. DEC-489→497 APPROVED. Brain atualizado. Handoff completo.
 
 ---
 
