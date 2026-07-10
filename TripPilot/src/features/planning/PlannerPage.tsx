@@ -1718,23 +1718,32 @@ export function PlannerPage() {
         </div>
       </BottomSheet>
 
-      {/* G5 (M5.4): "Assisted mode" — copilot CTA + flow */}
-      {plannerMode === 'assisted' && !copilotStarted && selectedPhase && phasePool && (
-        <div className="mt-4 p-4 rounded-2xl bg-surface-container text-center">
-          <Icon name="auto_awesome" size={28} className="text-primary mx-auto mb-2" />
-          <p className="text-sm font-bold text-on-surface mb-1">
-            {t('planner_copilot.generate_with_copilot')}
-          </p>
-          <button
-            onClick={() => setCopilotStarted(true)}
-            className="btn-press mt-3 px-5 py-3 rounded-xl text-sm font-bold"
-            style={{ background: 'var(--primary)', color: 'var(--surface)' }}
-          >
-            <Icon name="auto_awesome" size={16} className="inline-block mr-1 align-text-bottom" />
-            {t('planner_copilot.generate_with_copilot')}
-          </button>
-        </div>
-      )}
+      {/* G5 (M5.4) + G6 (M6.3): "Assisted mode" — copilot CTA; when mid-trip
+          with existing spend, the label reads "Replanejar com IA" and the flow
+          passes current_spending + inherited spending_style (DEC-493). */}
+      {plannerMode === 'assisted' && !copilotStarted && selectedPhase && phasePool && (() => {
+        const hasMidTripSpend = (liveProgress?.lines ?? []).some((l) => l.done > 0);
+        const label = hasMidTripSpend
+          ? t('planner_copilot.replan_with_ai')
+          : t('planner_copilot.generate_with_copilot');
+        return (
+          <div className="mt-4 p-4 rounded-2xl bg-surface-container text-center">
+            <Icon name="auto_awesome" size={28} className="text-primary mx-auto mb-2" />
+            <p className="text-sm font-bold text-on-surface mb-1">{label}</p>
+            {hasMidTripSpend && (
+              <p className="text-xs text-on-surface-dim mb-2">{t('planner_copilot.replan_desc')}</p>
+            )}
+            <button
+              onClick={() => setCopilotStarted(true)}
+              className="btn-press mt-2 px-5 py-3 rounded-xl text-sm font-bold"
+              style={{ background: 'var(--primary)', color: 'var(--surface)' }}
+            >
+              <Icon name="auto_awesome" size={16} className="inline-block mr-1 align-text-bottom" />
+              {label}
+            </button>
+          </div>
+        );
+      })()}
 
       {copilotStarted && selectedPhase && phasePool && trip && (
         <PlanCopilotFlow
@@ -1752,6 +1761,16 @@ export function PlannerPage() {
             reserveCents: 0,
             currency,
             profiles: enabledProfiles,
+            currentSpending: liveProgress?.lines
+              .filter((l) => l.done > 0)
+              .map((l) => ({
+                profile_id: l.profileId,
+                category: enabledProfiles.find((p) => p.id === l.profileId)?.category ?? 'other',
+                occasions_done: l.done,
+                avg_cost_cents: l.done > 0 ? Math.round(l.spentCents / l.done) : 0,
+                total_spent_cents: l.spentCents,
+              })),
+            spendingStyle: activePreset,
           }}
           hasSeenDisclosure={false}
           onPlanCreated={() => {

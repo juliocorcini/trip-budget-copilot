@@ -453,7 +453,12 @@ async function handlePlanCopilotAnalyze(
     return json(rateLimitedPayload('plan_copilot_analyze'), 429);
   }
 
-  let body: { destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number; currency?: string; language?: string; selected_activities?: string[] };
+  let body: {
+    destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number;
+    currency?: string; language?: string; selected_activities?: string[];
+    current_spending?: Array<{ profile_id: string; category: string; occasions_done: number; avg_cost_cents: number; total_spent_cents: number }>;
+    spending_style?: string;
+  };
   try { body = await request.json(); } catch { return json({ error: 'invalid_json' }, 400); }
 
   const { destination, duration_days, budget_cents, currency } = body;
@@ -462,11 +467,16 @@ async function handlePlanCopilotAnalyze(
   }
 
   const freeBudget = budget_cents - (body.reserve_cents ?? 0);
+  const spendingLines = (body.current_spending ?? []).map((s) =>
+    `  ${s.category}: ${s.occasions_done} done, avg ${s.avg_cost_cents}c, total ${s.total_spent_cents}c`,
+  );
   const userMessage = [
     `Destination: ${destination}`, `Duration: ${duration_days} days`,
     `Total budget: ${budget_cents} cents (${currency})`, `Free to spend: ${freeBudget} cents`,
     `Currency: ${currency}`, `Language: ${body.language ?? 'pt-BR'}`,
     body.selected_activities?.length ? `Selected activities: ${body.selected_activities.join(', ')}` : '',
+    body.spending_style ? `Previous spending style: ${body.spending_style}` : '',
+    spendingLines.length > 0 ? `Current spending (mid-trip re-plan):\n${spendingLines.join('\n')}` : '',
   ].filter(Boolean).join('\n');
 
   const controller = new AbortController();
@@ -518,7 +528,11 @@ async function handlePlanCopilotGenerate(
     return json(rateLimitedPayload('plan_copilot_generate'), 429);
   }
 
-  let body: { destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number; currency?: string; language?: string; answers?: Record<string, unknown>; selected_activities?: string[] };
+  let body: {
+    destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number;
+    currency?: string; language?: string; answers?: Record<string, unknown>; selected_activities?: string[];
+    current_spending?: Array<{ profile_id: string; category: string; occasions_done: number; avg_cost_cents: number; total_spent_cents: number }>;
+  };
   try { body = await request.json(); } catch { return json({ error: 'invalid_json' }, 400); }
 
   const { destination, duration_days, budget_cents, currency, answers } = body;
@@ -527,12 +541,16 @@ async function handlePlanCopilotGenerate(
   }
 
   const freeBudget = budget_cents - (body.reserve_cents ?? 0);
+  const genSpendingLines = (body.current_spending ?? []).map((s) =>
+    `  ${s.category}: ${s.occasions_done} done, avg ${s.avg_cost_cents}c, total ${s.total_spent_cents}c`,
+  );
   const userMessage = [
     `Destination: ${destination}`, `Duration: ${duration_days} days`,
     `Total budget: ${budget_cents} cents (${currency})`, `Free to spend: ${freeBudget} cents`,
     `Currency: ${currency}`, `Language: ${body.language ?? 'pt-BR'}`,
     `User answers: ${JSON.stringify(answers)}`,
     body.selected_activities?.length ? `Selected activities: ${body.selected_activities.join(', ')}` : '',
+    genSpendingLines.length > 0 ? `Current spending (mid-trip re-plan):\n${genSpendingLines.join('\n')}` : '',
   ].filter(Boolean).join('\n');
 
   const controller = new AbortController();

@@ -16,7 +16,7 @@ import { PlanCopilotDisclosure } from './PlanCopilotDisclosure';
 import { PlanCopilotQuestions } from './PlanCopilotQuestions';
 import { PlanCopilotResult } from './PlanCopilotResult';
 import { PlanCopilotLoading } from './PlanCopilotLoading';
-import type { AnalyzeQuestion, GenerateResult } from '@/utils/ai-plan-copilot';
+import type { AnalyzeQuestion, GenerateResult, CurrentSpending } from '@/utils/ai-plan-copilot';
 import type { EnrichedPlanActivity } from '@/domain/plan-copilot';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
 
@@ -39,6 +39,8 @@ interface TripContext {
   currency: string;
   selectedActivities?: string[];
   profiles: ActivityProfile[];
+  currentSpending?: CurrentSpending[];
+  spendingStyle?: string;
 }
 
 interface Props {
@@ -126,6 +128,8 @@ export function PlanCopilotFlow({ tripContext, hasSeenDisclosure, onPlanCreated 
       currency: tripContext.currency,
       language: i18n.language,
       selected_activities: tripContext.selectedActivities,
+      current_spending: tripContext.currentSpending,
+      spending_style: tripContext.spendingStyle,
     });
 
     if (!outcome.ok) {
@@ -152,6 +156,7 @@ export function PlanCopilotFlow({ tripContext, hasSeenDisclosure, onPlanCreated 
       language: i18n.language,
       selected_activities: tripContext.selectedActivities,
       answers,
+      current_spending: tripContext.currentSpending,
     });
 
     if (!outcome.ok) {

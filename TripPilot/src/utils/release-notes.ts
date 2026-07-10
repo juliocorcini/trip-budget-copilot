@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.1-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Replanejar com IA mid-trip: o copiloto considera o que já foi gasto para ajustar o plano restante. Herda o spending_style do plano original.',
+      ],
+      en: [
+        'Mid-trip AI re-plan: the copilot considers what was already spent to adjust the remaining plan. Inherits spending_style from the original plan.',
+      ],
+      es: [
+        'Replanificación IA mid-trip: el copiloto considera lo ya gastado para ajustar el plan restante. Hereda el spending_style del plan original.',
+      ],
+    },
+  },
+  {
     version: '2.10.0-rc',
     date: '2026-07-10',
     items: {

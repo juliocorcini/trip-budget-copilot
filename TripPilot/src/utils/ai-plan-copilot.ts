@@ -10,6 +10,14 @@ export type PlanCopilotError =
   | 'timeout'
   | 'failed';
 
+export interface CurrentSpending {
+  profile_id: string;
+  category: string;
+  occasions_done: number;
+  avg_cost_cents: number;
+  total_spent_cents: number;
+}
+
 export interface AnalyzeInput {
   destination: string;
   duration_days: number;
@@ -18,6 +26,8 @@ export interface AnalyzeInput {
   currency: string;
   language: string;
   selected_activities?: string[];
+  current_spending?: CurrentSpending[];
+  spending_style?: string;
 }
 
 export interface AnalyzeQuestion {
@@ -35,6 +45,7 @@ export interface AnalyzeResult {
 
 export interface GenerateInput extends AnalyzeInput {
   answers: Record<string, string>;
+  current_spending?: CurrentSpending[];
 }
 
 export interface GenerateActivity {

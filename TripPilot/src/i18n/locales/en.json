@@ -4027,6 +4027,8 @@
   "planner_copilot": {
     "mode_manual": "Manual",
     "mode_assisted": "Assisted",
-    "generate_with_copilot": "Generate plan with copilot"
+    "generate_with_copilot": "Generate plan with copilot",
+    "replan_with_ai": "Re-plan with AI",
+    "replan_desc": "The copilot considers what was already spent to adjust the remaining plan."
   }
 }
