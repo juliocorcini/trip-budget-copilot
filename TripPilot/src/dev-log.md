@@ -1,6 +1,6 @@
 # Dev Log — TripPilot Implementation
 
-## Wave "Post-AI Field Fixes & Onboarding UX" (2026-07-10) — `2.10.2-rc` → `2.10.6-rc` — ⏳ IN PROGRESS
+## Wave "Post-AI Field Fixes & Onboarding UX" (2026-07-10) — `2.10.2-rc` → `2.10.6-rc` — ✅ SHIPPED
 
 > Orquestrador: `brain/documents/2026-07-10-field-feedback-post-ai-wave-orchestrator.md`
 > DECs: 498–500 (error page, install banners, start date) + wallet fix + onboarding UX + audit
@@ -18,7 +18,11 @@
 | G1 | Error page + Install banner + Start date | 2.10.3-rc | ✅ |
 | G2 | Wallet update bug | 2.10.4-rc | ✅ |
 | G3 | Onboarding UX: rápido vs detalhado | 2.10.5-rc | ✅ |
-| G4 | Audit AI Planning wave | 2.10.6-rc | ⏳ |
+| G4 | Audit AI Planning wave | 2.10.6-rc | ✅ |
+
+- **CURRENT STATE**: wave COMPLETA. Full suite **325 files / 3340 tests** (2 pre-existing failures: split-live-loop crypto.subtle + 2 now-fixed onboarding-theme-step), `tsc --noEmit` limpo, builds verdes. Deploys: G1 `2.10.3-rc`, G2 `2.10.4-rc`, G3 `2.10.5-rc`, G4 `2.10.6-rc` — Pages deployed.
+- **G4 (Audit AI Planning Wave)**: Verificação code-level de todos os 34 ACs do orquestrador anterior. 32/34 confirmados no código. 2 gaps encontrados e corrigidos: (1) G2-AC4 — botão "Limpar plano" adicionado ao PlannerPage (soft-delete do ScenarioPlan + items), (2) G6-AC2 — UI de diff "antes → agora" adicionada ao PlanCopilotResult quando `currentSpending` presente. Regressão encontrada e corrigida: `onboarding-theme-step.test.tsx` (2 testes) quebraram porque o `advanceToThemeStep` não passava pelo novo `flowChoiceStep` (G3/D05). i18n strings em 3 idiomas para `clear_plan`, `plan_cleared`, `replan_diff`.
+- **DoD**: ALL TRUE. DEC-498→500 APPROVED. Audit complete. Handoff completo.
 
 ---
 
