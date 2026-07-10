@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.18-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Onboarding agora pergunta quais atividades você quer — e gera um plano automático com base no seu orçamento.',
+      ],
+      en: [
+        'Onboarding now asks which activities you want — and generates an automatic plan based on your budget.',
+      ],
+      es: [
+        'El onboarding ahora pregunta qué actividades quieres — y genera un plan automático basado en tu presupuesto.',
+      ],
+    },
+  },
+  {
     version: '2.9.17-rc',
     date: '2026-07-10',
     items: {

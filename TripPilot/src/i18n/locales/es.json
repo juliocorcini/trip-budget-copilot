@@ -2374,7 +2374,10 @@
     "mode_complete_desc": "Todo a mano: planner, actividades, simulador y salidas.",
     "phase_details_hint": "La primera fase comienza con las fechas del viaje — ajústala si cubre solo una parte.",
     "phase_start_date": "Inicio de la fase",
-    "phase_end_date": "Fin de la fase"
+    "phase_end_date": "Fin de la fase",
+    "activities_title": "¿Qué tendrá esta fase?",
+    "activities_subtitle": "Toca las actividades que combinan con tu viaje. Esto genera un plan automático.",
+    "activities_hint": "Opcional — sáltalo si prefieres armar el plan manualmente después."
   },
   "trip_presets": {
     "urban": "Urbana",

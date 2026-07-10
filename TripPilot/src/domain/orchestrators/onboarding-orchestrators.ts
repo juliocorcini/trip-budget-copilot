@@ -7,6 +7,7 @@ import type { Envelope } from '@/domain/types/envelope';
 import type { Participant } from '@/domain/types/participant';
 import type { Wallet } from '@/domain/types/wallet';
 import type { ActivityProfile } from '@/domain/types/activity-profile';
+import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
 
 export interface CreateTripFromOnboardingInput {
   trip: Trip;
@@ -17,6 +18,9 @@ export interface CreateTripFromOnboardingInput {
   owner: Participant;
   wallets: Wallet[];
   profiles: ActivityProfile[];
+  /** G2 / DEC-491: optional auto-generated plan from activity chip selection. */
+  autoPlan?: ScenarioPlan | null;
+  autoAllocations?: ScenarioAllocationItem[];
 }
 
 /**
@@ -41,6 +45,8 @@ export async function createTripFromOnboarding(
       db.participants,
       db.wallets,
       db.activityProfiles,
+      db.scenarioPlans,
+      db.scenarioAllocationItems,
     ],
     async () => {
       await db.trips.add(input.trip);
@@ -51,6 +57,10 @@ export async function createTripFromOnboarding(
       await db.participants.add(input.owner);
       await db.wallets.bulkAdd(input.wallets);
       if (input.profiles.length > 0) await db.activityProfiles.bulkAdd(input.profiles);
+      if (input.autoPlan) await db.scenarioPlans.add(input.autoPlan);
+      if (input.autoAllocations && input.autoAllocations.length > 0) {
+        await db.scenarioAllocationItems.bulkAdd(input.autoAllocations);
+      }
     },
   );
 }

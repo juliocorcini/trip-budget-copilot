@@ -2374,7 +2374,10 @@
     "mode_complete_desc": "Everything at hand: planner, activities, simulator and outings.",
     "phase_details_hint": "The first phase starts with the trip dates — adjust if it covers only part of the trip.",
     "phase_start_date": "Phase start",
-    "phase_end_date": "Phase end"
+    "phase_end_date": "Phase end",
+    "activities_title": "What will this phase include?",
+    "activities_subtitle": "Tap the activities that match your trip. This generates an automatic plan.",
+    "activities_hint": "Optional — skip to build your plan manually later."
   },
   "trip_presets": {
     "urban": "Urban",

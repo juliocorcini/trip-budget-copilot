@@ -1,8 +1,8 @@
 {
-  "version": "2.9.17-rc",
+  "version": "2.9.18-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.17-rc.zip",
-  "notes": "G1: Occasion counter sublabel shows typical cost per occasion (~€35/night)"
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.18-rc.zip",
+  "notes": "G2: Smart onboarding — activity chip selection generates auto-plan"
 }

@@ -4,8 +4,16 @@ export {
   calculateOverAllocationCents,
   listSessionAdditions,
   formatAdditionsList,
+  buildAutoPlan,
 } from './planning';
-export type { CreateScenarioPlanInput, CreateAllocationItemInput, SessionAddition } from './planning';
+export type {
+  CreateScenarioPlanInput,
+  CreateAllocationItemInput,
+  SessionAddition,
+  BuildAutoPlanInput,
+  BuildAutoPlanOutput,
+  AutoPlanAllocation,
+} from './planning';
 export {
   createPlannedOccurrence,
   isOccurrenceActiveToday,

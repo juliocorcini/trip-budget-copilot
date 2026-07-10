@@ -15,7 +15,7 @@
 | Gate | Scope | Version | Status |
 |------|-------|---------|--------|
 | G0 | Setup & baseline | 2.9.16-rc | ✅ |
-| G1 | Sublabel → typical cost | 2.9.17-rc | 🔧 |
+| G1 | Sublabel → typical cost | 2.9.17-rc | ✅ |
 | G2 | Smart Onboarding (Fase 1, sem IA) | 2.9.18-rc | ⏳ |
 | G3 | Troca Inteligente insight | 2.9.19-rc | ⏳ |
 | G4 | Worker endpoints + lookup table | 2.9.20-rc | ⏳ |

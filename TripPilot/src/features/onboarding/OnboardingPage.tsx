@@ -14,11 +14,13 @@ import {
   TRIP_PRESETS,
   findTripPreset,
   applyTripPreset,
+  ACTIVITY_PROFILE_PRESETS,
 } from '@/domain/profiles';
 import { toCents } from '@/domain/money';
 import { localDateString } from '@/domain/dates';
 import { instantiateTemplate } from '@/domain/templates';
 import { createTripFromOnboarding, createTripFromTemplate } from '@/domain/orchestrators';
+import { buildAutoPlan, createScenarioPlan, createAllocationItem } from '@/domain/planning';
 import { appSettingsRepository } from '@/data/repositories';
 import { requestPersistentStorage } from '@/utils/pwa';
 import { showToast } from '@/components/Toast';
@@ -74,6 +76,9 @@ export function OnboardingPage() {
   // DEC-449 (D05): theme chosen during onboarding — pre-selected on System,
   // skippable (Próximo confirms), persisted in the same finishing write.
   const [themeChoice, setThemeChoice] = useState<ThemePreference>('system');
+  // G2 / DEC-491: activity chips for auto-plan generation. Preset IDs
+  // (not profile IDs — profiles are created at finish time).
+  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>([]);
 
   // M16: the quick path defaults everything but amount + end date, and the
   // chosen trip preset (if any) supplies rhythm/peak/reserve.
@@ -180,9 +185,63 @@ export function OnboardingPage() {
           profiles,
         });
       } else {
+        const profiles = createDefaultActivityProfiles(entities.trip.id);
+
+        // G2 / DEC-491: when the user selected activity chips, generate an
+        // auto-plan (Fase 1, balanced, no AI) so counters appear immediately.
+        let autoPlan = null;
+        let autoAllocations: import('@/domain/types/scenario').ScenarioAllocationItem[] = [];
+
+        if (selectedPresetIds.length > 0) {
+          const selectedProfileIds = selectedPresetIds
+            .map((presetId) => {
+              const preset = ACTIVITY_PROFILE_PRESETS.find((p) => p.id === presetId);
+              const profile = preset
+                ? profiles.find((pr) => pr.category === preset.category)
+                : undefined;
+              return profile?.id;
+            })
+            .filter((id): id is string => id != null);
+
+          if (selectedProfileIds.length > 0) {
+            const reserveCents = toCents(parseFloat(protectedReserve) || 0);
+            const totalCents = toCents(parseFloat(totalAmount) || 0);
+            const freeToSpend = Math.max(0, totalCents - reserveCents);
+
+            const result = buildAutoPlan({
+              selectedProfileIds,
+              profiles,
+              freeToSpendCents: freeToSpend,
+            });
+
+            if (result.allocations.length > 0) {
+              const plan = createScenarioPlan({
+                tripId: entities.trip.id,
+                phaseId: entities.phase.id,
+                budgetPoolId: entities.pool.id,
+                name: 'Auto',
+                preset: 'equilibrado',
+              });
+              autoPlan = plan;
+              autoAllocations = result.allocations.map((a) =>
+                createAllocationItem({
+                  scenarioPlanId: plan.id,
+                  activityProfileId: a.activityProfileId,
+                  quantity: a.quantity,
+                  estimatedUnitCostCents: a.estimatedUnitCostCents,
+                  isLocked: false,
+                  priority: 'planned',
+                }),
+              );
+            }
+          }
+        }
+
         await createTripFromOnboarding({
           ...entities,
-          profiles: createDefaultActivityProfiles(entities.trip.id),
+          profiles,
+          autoPlan,
+          autoAllocations,
         });
       }
     } catch (err) {
@@ -561,11 +620,51 @@ export function OnboardingPage() {
     </StepCard>
   );
 
+  // G2 / DEC-491: activity chip selection step — "O que vai ter nessa fase?"
+  const togglePreset = (presetId: string) => {
+    setSelectedPresetIds((prev) =>
+      prev.includes(presetId) ? prev.filter((id) => id !== presetId) : [...prev, presetId],
+    );
+  };
+
+  const activityStep = (
+    <StepCard key="activities">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('onboarding.activities_title')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.activities_subtitle')}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {ACTIVITY_PROFILE_PRESETS.map((preset) => {
+          const selected = selectedPresetIds.includes(preset.id);
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => togglePreset(preset.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium btn-press ${
+                selected
+                  ? 'bg-primary text-on-surface ring-1 ring-primary'
+                  : 'bg-surface-container text-on-surface-dim'
+              }`}
+              aria-pressed={selected}
+            >
+              <Icon name={preset.iconName} size={16} className={selected ? 'text-on-surface' : 'text-on-surface-dim'} />
+              {t(`profile_presets.${preset.id}` as never)}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-on-surface-faint px-1 leading-snug">
+        {t('onboarding.activities_hint')}
+      </p>
+    </StepCard>
+  );
+
   // DEC-290: ongoing replaces the trip steps with the single Dia a dia step.
   const baseSteps = isOngoing ? [ongoingStep] : flow === 'quick' ? [quickStep] : detailedSteps;
-  // DEC-252: identity first, then the flow's own steps, then theme (DEC-449),
-  // then the mode chooser closes.
-  const steps = [identityStep, ...baseSteps, themeStep, modeStep];
+  // DEC-252: identity first, then the flow's own steps, then activity chips
+  // (G2), then theme (DEC-449), then the mode chooser closes.
+  const steps = [identityStep, ...baseSteps, activityStep, themeStep, modeStep];
   const isModeStep = step === steps.length - 1;
 
   // Per-step validators run PARALLEL to `steps` (data-driven — the index math

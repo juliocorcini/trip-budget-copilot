@@ -57,6 +57,9 @@ function advanceToThemeStep(container: HTMLElement) {
   fireEvent.change(endDate, { target: { value: '2026-08-01' } });
   fireEvent.click(screen.getByText('Próximo'));
 
+  // G2: activity chips step — skip it.
+  fireEvent.click(screen.getByText('Próximo'));
+
   // Now on the theme step.
   expect(screen.getByText('Claro ou escuro?')).toBeInTheDocument();
 }
