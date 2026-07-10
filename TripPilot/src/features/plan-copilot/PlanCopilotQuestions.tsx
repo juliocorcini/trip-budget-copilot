@@ -63,12 +63,13 @@ export function PlanCopilotQuestions({
             )}
             <div className="flex flex-wrap gap-2">
               {q.options.map((opt) => {
-                const selected = answers[q.id] === opt.id;
+                const optId = String(opt.id);
+                const selected = answers[q.id] === optId;
                 return (
                   <button
-                    key={opt.id}
+                    key={optId}
                     type="button"
-                    onClick={() => selectOption(q.id, opt.id)}
+                    onClick={() => selectOption(q.id, optId)}
                     className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium btn-press min-h-[44px] ${
                       selected
                         ? 'bg-primary text-on-surface ring-1 ring-primary'

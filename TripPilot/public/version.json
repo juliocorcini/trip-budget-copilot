@@ -1,8 +1,8 @@
 {
-  "version": "2.10.6-rc",
+  "version": "2.10.7-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.6-rc.zip",
-  "notes": "G4: AI Planning Wave audit — fixed onboarding test regression, added Clear Plan button (G2-AC4), added mid-trip re-plan diff UI (G6-AC2)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.7-rc.zip",
+  "notes": "P0 fixes: AI Copilot chips are now clickable (coerce AI option IDs to string). NaN totals fixed (aligned GenerateResult interface with Worker computed nested structure)."
 }

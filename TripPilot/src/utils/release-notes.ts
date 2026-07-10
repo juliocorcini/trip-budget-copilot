@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.7-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Correção crítica: chips de opção no questionário da IA agora são clicáveis e mostram seleção visual.',
+        'Correção do NaN nos totais do resultado: interface alinhada com a resposta do Worker (computed nested).',
+        'Fallback defensivo: se computed vier undefined, mostra €0 em vez de €NaN.',
+      ],
+      en: [
+        'Critical fix: option chips in AI questionnaire are now clickable and show visual selection.',
+        'Fixed NaN in result totals: aligned GenerateResult interface with Worker computed nested response.',
+        'Defensive fallback: if computed is undefined, shows €0 instead of €NaN.',
+      ],
+      es: [
+        'Corrección crítica: chips de opción en el cuestionario de IA ahora son clicables y muestran selección visual.',
+        'Corrección de NaN en totales del resultado: interfaz alineada con la respuesta del Worker (computed anidado).',
+        'Fallback defensivo: si computed es undefined, muestra €0 en vez de €NaN.',
+      ],
+    },
+  },
+  {
     version: '2.10.6-rc',
     date: '2026-07-10',
     items: {

@@ -61,12 +61,14 @@ export interface GenerateResult {
     activities: GenerateActivity[];
     free_budget_cents: number;
   };
+  computed: {
+    total_planned_cents: number;
+    margin_cents: number;
+    margin_percent: number;
+  };
   context_used: Record<string, unknown>;
   insights: string[];
   confidence: string;
-  total_planned_cents: number;
-  margin_cents: number;
-  margin_percent: number;
 }
 
 export type AnalyzeOutcome =

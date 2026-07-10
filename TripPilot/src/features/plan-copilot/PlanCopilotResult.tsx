@@ -213,7 +213,7 @@ export function PlanCopilotResult({
           <div className="grid grid-cols-3 gap-2">
             <div className="text-center">
               <p className="text-[10px] text-on-surface-faint">{t('copilot_result.total_planned')}</p>
-              <p className="text-sm font-extrabold tabular text-on-surface">{fmtEuro(result.total_planned_cents, currency)}</p>
+              <p className="text-sm font-extrabold tabular text-on-surface">{fmtEuro(result.computed?.total_planned_cents ?? 0, currency)}</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-on-surface-faint">{t('copilot_result.free')}</p>
@@ -222,7 +222,7 @@ export function PlanCopilotResult({
             <div className="text-center">
               <p className="text-[10px] text-on-surface-faint">{t('copilot_result.margin')}</p>
               <p className="text-sm font-extrabold tabular text-success">
-                {fmtEuro(result.margin_cents, currency)} ({result.margin_percent}%)
+                {fmtEuro(result.computed?.margin_cents ?? 0, currency)} ({result.computed?.margin_percent ?? 0}%)
               </p>
             </div>
           </div>

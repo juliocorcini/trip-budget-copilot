@@ -3706,6 +3706,30 @@
 - **Rationale**: without a start date, users are confused about when their trip budget period begins; the silent default of "today" is not visible to the user.
 - **Alternatives**: keep implicit today (rejected — user feedback says it's confusing).
 
+### DEC-501 — Coerce AI option IDs to string in chip comparison [AI copilot field bugs 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: all comparisons of `opt.id` from AI responses use `String(opt.id)` in `PlanCopilotQuestions.tsx`. The `selectOption` callback already stores `String(optionId)`, but the visual selected check `answers[q.id] === opt.id` uses strict equality — fails when AI returns numeric IDs. Fix: `answers[q.id] === String(opt.id)`.
+- **Rationale**: ÂNCORA-COPILOT-1 — the client must defensively validate all AI responses. JSON parse does not enforce TypeScript types; a numeric `id` from the AI is valid JSON but breaks strict string comparisons.
+- **Alternatives**: force string IDs in the Worker response (rejected — doesn't protect against AI model changes).
+
+### DEC-502 — Flatten computed fields from Worker GenerateResult [AI copilot field bugs 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: align `GenerateResult` interface to match Worker response: `computed: { total_planned_cents, margin_cents, margin_percent }` nested object. UI reads from `result.computed?.total_planned_cents ?? 0` with defensive fallback.
+- **Rationale**: Worker calculates totals server-side (ÂNCORA-AI-1) and nests them under `computed`. The original interface expected them at root level → `undefined` → `NaN`.
+- **Alternatives**: flatten in the Worker response (rejected — nested structure is more explicit and documents that these are server-computed values).
+
+### DEC-503 — Use user-selected spending_style, not AI context_used [AI copilot field bugs 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: the Result header shows spending_style from user's `answers['spending_style']`, not from `context_used.spending_style`. The `context_used` is informational but not authoritative.
+- **Rationale**: the AI may ignore or misinterpret the user's style choice. The user's own selection is the source of truth for display.
+- **Alternatives**: trust context_used (rejected — AI has shown it doesn't always honor the selection).
+
+### DEC-504 — Whitelist AI questions to app-supported features [AI copilot field bugs 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: prompt instructs AI to only ask about: spending_style, priority_categories, meal_preference, transport_style, nightlife_frequency, trip_pace, and ONE destination-specific question. Questions about insurance, equipment, artistic/sport interests are explicitly forbidden. Client-side: options with "specify"/"especificar" labels auto-open text input field.
+- **Rationale**: ÂNCORA-COPILOT-2 — questions that don't map to app features are noise. They confuse users and produce answers the app cannot act on.
+- **Alternatives**: let AI ask anything (rejected — user feedback confirms irrelevant questions reduce trust).
+
 ---
 
 *New decisions will be added as the project progresses.*

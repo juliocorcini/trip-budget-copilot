@@ -2736,3 +2736,27 @@ Copiloto expansion (G8): `brain/documents/copilot-expansion-2026-06-15.md`
 - No PWA icon images generated (need actual PNG files in /icons/)
 - Capacitor not installed as dep (requires `npx cap init` at build time)
 - E2E Playwright tests not written (future iteration)
+
+---
+
+# Wave: AI Copilot Field Bugs (2026-07-10)
+
+**Orchestrator:** `brain/documents/2026-07-10-ai-copilot-field-bugs-orchestrator.md`
+**Baseline:** 2.10.6-rc · Tests 324 passed / 1 file failed (split-live-loop, pre-existing) · Build OK · tsc OK
+
+## Current State
+- **Active gate:** G0
+- **Last milestone:** M0.3 (setup complete)
+- **Tests:** 3338 passed / 2 failed (baseline)
+- **Build:** OK
+- **Risks:** none
+- **Scope:** on-track
+
+## Gates
+
+| Gate | Scope | Version | Status |
+|------|-------|---------|--------|
+| G0 | Setup & Baseline | 2.10.6-rc | ⏳ |
+| G1 | P0: Chips + NaN | 2.10.7-rc | ⏳ |
+| G2 | P1: Língua + Style + Especificar | 2.10.8-rc | ⏳ |
+| G3 | UX: Planner + Prompt Quality | 2.10.9-rc | ⏳ |
