@@ -17,6 +17,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.6-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Auditoria completa da wave de IA: todos os 34 critérios de aceitação verificados no código.',
+        'Novo botão "Limpar plano" no planejador para remover o plano de ocasiões de uma fase.',
+        'Replanejamento mid-trip agora mostra comparação "antes → agora" com o gasto real.',
+        'Correção do teste de onboarding que regrediu com a nova escolha Rápido/Detalhado.',
+      ],
+      en: [
+        'Full AI wave audit: all 34 acceptance criteria verified in code.',
+        'New "Clear plan" button in planner to remove the scenario plan from a phase.',
+        'Mid-trip re-plan now shows a "before → after" comparison with actual spending.',
+        'Fixed onboarding test regression caused by new Quick/Detailed choice step.',
+      ],
+      es: [
+        'Auditoría completa de la ola de IA: los 34 criterios de aceptación verificados en código.',
+        'Nuevo botón "Limpiar plan" en el planificador para eliminar el plan de una fase.',
+        'Replanificación mid-trip ahora muestra comparación "antes → ahora" con el gasto real.',
+        'Corrección del test de onboarding que regresó con la nueva elección Rápido/Detallado.',
+      ],
+    },
+  },
+  {
     version: '2.10.5-rc',
     date: '2026-07-10',
     items: {

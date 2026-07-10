@@ -5,13 +5,14 @@ import { Icon } from '@/components/Icon';
 import { fromCents } from '@/domain/money';
 import { enrichActivity, getEnrichmentData } from '@/domain/plan-copilot';
 import type { DestinationCluster, SpendingLevel, ActivityType, EnrichedPlanActivity } from '@/domain/plan-copilot';
-import type { GenerateResult } from '@/utils/ai-plan-copilot';
+import type { GenerateResult, CurrentSpending } from '@/utils/ai-plan-copilot';
 
 interface Props {
   open: boolean;
   result: GenerateResult;
   cluster: DestinationCluster;
   currency: string;
+  currentSpending?: CurrentSpending[];
   onUsePlan: (enriched: EnrichedPlanActivity[]) => void;
   onAdjust: (enriched: EnrichedPlanActivity[]) => void;
   onRedo: () => void;
@@ -39,7 +40,7 @@ function fmtEuro(cents: number, currency: string): string {
 }
 
 export function PlanCopilotResult({
-  open, result, cluster, currency, onUsePlan, onAdjust, onRedo, onClose,
+  open, result, cluster, currency, currentSpending, onUsePlan, onAdjust, onRedo, onClose,
 }: Props) {
   const { t } = useTranslation();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
@@ -71,6 +72,35 @@ export function PlanCopilotResult({
             📍 {contextUsed?.destination ?? ''} · {contextUsed?.duration ?? ''} · {fmtEuro(result.plan.free_budget_cents, currency)} {t('copilot_result.free_label')}
           </p>
         </div>
+
+        {/* G6-AC2: mid-trip diff when re-planning with existing spending data. */}
+        {currentSpending && currentSpending.length > 0 && (
+          <div className="p-3 rounded-xl bg-surface-high">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-faint mb-2">
+              📊 {t('copilot_result.replan_diff')}
+            </p>
+            {currentSpending.map((s) => {
+              const newActivity = enriched.find((a) => a.type === s.category);
+              if (!newActivity) return null;
+              const prevTotal = s.total_spent_cents;
+              const newQty = newActivity.suggested_quantity;
+              const newUnitCost = newActivity.typical_cost_cents;
+              return (
+                <div key={s.category} className="flex items-center justify-between py-1.5">
+                  <div className="flex items-center gap-2">
+                    <Icon name={ACTIVITY_ICONS[s.category] ?? 'category'} size={14} className="text-on-surface-dim" />
+                    <span className="text-xs font-medium text-on-surface">{t(`copilot_result.type_${s.category}` as never)}</span>
+                  </div>
+                  <div className="text-right text-xs tabular">
+                    <span className="text-on-surface-faint">{s.occasions_done}× {fmtEuro(s.avg_cost_cents, currency)} ({fmtEuro(prevTotal, currency)})</span>
+                    <span className="text-on-surface-faint mx-1">→</span>
+                    <span className="text-on-surface font-bold">{newQty}× {fmtEuro(newUnitCost, currency)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Activity cards */}
         {enriched.map((activity, idx) => {

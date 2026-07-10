@@ -794,6 +794,20 @@ export function PlannerPage() {
     [menuProfile],
   );
 
+  // G2-AC4: soft-delete the entire plan and its allocations for this phase.
+  const handleClearPlan = useCallback(async () => {
+    const plan = planRef.current;
+    if (!plan) return;
+    const items = await scenarioAllocationItemRepository.getByPlanId(plan.id);
+    for (const item of items) await scenarioAllocationItemRepository.delete(item.id);
+    await scenarioPlanRepository.delete(plan.id);
+    planRef.current = null;
+    setStates({});
+    itemsRef.current.clear();
+    userEditedRef.current = false;
+    showToast(t('planner.plan_cleared'), 'success');
+  }, [t]);
+
   /* ── custom category creation (ISSUE-06) ── */
 
   const handleAddCategory = useCallback(
@@ -1390,6 +1404,19 @@ export function PlannerPage() {
           </button>
         )}
       </div>
+
+      {/* G2-AC4: discreet button to soft-delete the entire scenario plan. */}
+      {planRef.current && (
+        <button
+          type="button"
+          onClick={handleClearPlan}
+          className="btn-press mt-3 mx-auto flex items-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium"
+          style={{ color: 'var(--on-surface-faint)' }}
+        >
+          <Icon name="delete_sweep" size={14} className="text-on-surface-faint" />
+          {t('planner.clear_plan')}
+        </button>
+      )}
 
       {/* ── DEFICIT + RECOMMENDATION ── */}
       {/* DEC-112 (R5-07): the block renders for ANY deficit — the session

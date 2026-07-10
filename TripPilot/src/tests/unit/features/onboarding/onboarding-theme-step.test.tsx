@@ -43,16 +43,20 @@ function renderOnboarding() {
   );
 }
 
-/** Walk identity + quick steps, land on the theme step. */
+/** Walk identity + flow choice + quick steps, land on the theme step. */
 function advanceToThemeStep(container: HTMLElement) {
   // Identity: the name gates Próximo.
   const nameInput = container.querySelector('input[type="text"]') as HTMLInputElement;
   fireEvent.change(nameInput, { target: { value: 'Julio' } });
   fireEvent.click(screen.getByText('Próximo'));
 
-  // Quick step: amount + end date gate Próximo.
+  // G3 (D05): flow choice step — pick "Rápido" to unlock Próximo.
+  fireEvent.click(screen.getByText('Rápido'));
+  fireEvent.click(screen.getByText('Próximo'));
+
+  // Quick step: amount + start date + end date gate Próximo.
   const amount = container.querySelector('input[type="number"]') as HTMLInputElement;
-  const endDate = container.querySelector('input[type="date"]') as HTMLInputElement;
+  const endDate = container.querySelectorAll('input[type="date"]')[1] as HTMLInputElement;
   fireEvent.change(amount, { target: { value: '1000' } });
   fireEvent.change(endDate, { target: { value: '2026-08-01' } });
   fireEvent.click(screen.getByText('Próximo'));

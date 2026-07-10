@@ -255,6 +255,7 @@ export function PlanCopilotFlow({ tripContext, hasSeenDisclosure, onPlanCreated 
           result={generateResult}
           cluster={cluster}
           currency={tripContext.currency}
+          currentSpending={tripContext.currentSpending}
           onUsePlan={handleUsePlan}
           onAdjust={handleAdjust}
           onRedo={handleRedo}
