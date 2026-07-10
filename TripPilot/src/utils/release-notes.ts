@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.11-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Nível de gasto da IA normalizado: "moderate" → equilibrado, "economy" → econômico, etc.',
+        'Preço mínimo realista aplicado pelo servidor (restaurante ≥ €8, bar ≥ €15, etc.).',
+        'Seção de comparação mostra todas as categorias, mesmo sem plano novo para aquela atividade.',
+      ],
+      en: [
+        'AI spending level normalized: "moderate" → balanced, "economy" → budget, etc.',
+        'Realistic minimum price floor enforced server-side (restaurant ≥ €8, bar ≥ €15, etc.).',
+        'Comparison section shows all categories, even without new plan for that activity.',
+      ],
+      es: [
+        'Nivel de gasto de la IA normalizado: "moderate" → equilibrado, "economy" → económico, etc.',
+        'Precio mínimo realista aplicado por el servidor (restaurante ≥ €8, bar ≥ €15, etc.).',
+        'Sección de comparación muestra todas las categorías, incluso sin plan nuevo para esa actividad.',
+      ],
+    },
+  },
+  {
     version: '2.10.10-rc',
     date: '2026-07-10',
     items: {

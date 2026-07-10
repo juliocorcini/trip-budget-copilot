@@ -1,8 +1,8 @@
 {
-  "version": "2.10.10-rc",
+  "version": "2.10.11-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.10-rc.zip",
-  "notes": "Activity cards now expand with reasoning details. Scroll flicker fixed. Priority categories now support multi-select."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.11-rc.zip",
+  "notes": "AI spending level normalized (moderate→balanced, economy→budget). Minimum price floor enforced. Comparison section shows all categories."
 }

@@ -82,10 +82,7 @@ export function PlanCopilotResult({
             </p>
             {currentSpending.map((s) => {
               const newActivity = enriched.find((a) => a.type === s.category);
-              if (!newActivity) return null;
               const prevTotal = s.total_spent_cents;
-              const newQty = newActivity.suggested_quantity;
-              const newUnitCost = newActivity.typical_cost_cents;
               return (
                 <div key={s.category} className="flex items-center justify-between py-1.5">
                   <div className="flex items-center gap-2">
@@ -95,7 +92,10 @@ export function PlanCopilotResult({
                   <div className="text-right text-xs tabular">
                     <span className="text-on-surface-faint">{s.occasions_done}× {fmtEuro(s.avg_cost_cents, currency)} ({fmtEuro(prevTotal, currency)})</span>
                     <span className="text-on-surface-faint mx-1">→</span>
-                    <span className="text-on-surface font-bold">{newQty}× {fmtEuro(newUnitCost, currency)}</span>
+                    {newActivity
+                      ? <span className="text-on-surface font-bold">{newActivity.suggested_quantity}× {fmtEuro(newActivity.typical_cost_cents, currency)}</span>
+                      : <span className="text-on-surface-faint">—</span>
+                    }
                   </div>
                 </div>
               );

@@ -596,13 +596,27 @@ async function handlePlanCopilotGenerate(
     return json({ error: 'plan_copilot_invalid_plan' }, 502);
   }
 
-  // ÂNCORA-AI-1 + ÂNCORA-AI-2: server-side validation.
-  const validActivities = activities.filter((a) => {
-    const cost = a.typical_cost_cents;
-    const qty = a.suggested_quantity;
-    return typeof cost === 'number' && Number.isInteger(cost) && cost > 0
-      && typeof qty === 'number' && Number.isInteger(qty) && qty > 0;
-  });
+  // Minimum realistic costs (cents) per activity type — prevents AI from
+  // outputting impossibly low prices (e.g. restaurant €5 in Europe).
+  const MIN_COST_CENTS: Record<string, number> = {
+    bar: 1500, market: 500, restaurant: 800, outing: 1000, transport: 200,
+  };
+
+  // ÂNCORA-AI-1 + ÂNCORA-AI-2: server-side validation + cost floor.
+  const validActivities = activities
+    .filter((a) => {
+      const cost = a.typical_cost_cents;
+      const qty = a.suggested_quantity;
+      return typeof cost === 'number' && Number.isInteger(cost) && cost > 0
+        && typeof qty === 'number' && Number.isInteger(qty) && qty > 0;
+    })
+    .map((a) => {
+      const floor = MIN_COST_CENTS[a.type ?? ''] ?? 0;
+      if ((a.typical_cost_cents ?? 0) < floor) {
+        return { ...a, typical_cost_cents: floor };
+      }
+      return a;
+    });
 
   if (validActivities.length === 0) {
     return json({ error: 'plan_copilot_all_activities_rejected' }, 502);

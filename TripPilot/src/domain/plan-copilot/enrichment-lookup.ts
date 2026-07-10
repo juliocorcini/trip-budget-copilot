@@ -238,26 +238,40 @@ const ENRICHMENT_TABLE: Record<DestinationCluster, ClusterTable> = {
   latin_america: LATIN_AMERICA,
 };
 
+const SPENDING_LEVEL_ALIASES: Record<string, SpendingLevel> = {
+  budget: 'budget', economy: 'budget', cheap: 'budget', limited: 'budget', low: 'budget',
+  balanced: 'balanced', moderate: 'balanced', medium: 'balanced', standard: 'balanced', mid: 'balanced',
+  comfortable: 'comfortable', comfort: 'comfortable', good: 'comfortable',
+  flexible: 'flexible', premium: 'flexible', luxury: 'flexible', high: 'flexible',
+};
+
+export function normalizeSpendingLevel(raw: string): SpendingLevel {
+  return SPENDING_LEVEL_ALIASES[raw.toLowerCase()] ?? 'balanced';
+}
+
 export function getEnrichmentData(
   cluster: DestinationCluster,
   type: string,
   level: string,
 ): EnrichmentData | null {
+  const normalized = normalizeSpendingLevel(level);
   const clusterData = ENRICHMENT_TABLE[cluster];
   if (!clusterData) return null;
   const typeData = clusterData[type as ActivityType];
   if (!typeData) return null;
-  return typeData[level as SpendingLevel] ?? null;
+  return typeData[normalized] ?? null;
 }
 
 export function enrichActivity(
   activity: AIPlanActivity,
   cluster: DestinationCluster,
 ): EnrichedPlanActivity {
-  const data = getEnrichmentData(cluster, activity.type, activity.spending_level);
+  const normalizedLevel = normalizeSpendingLevel(activity.spending_level);
+  const normalizedActivity = { ...activity, spending_level: normalizedLevel };
+  const data = getEnrichmentData(cluster, activity.type, normalizedLevel);
   if (!data) {
     return {
-      ...activity,
+      ...normalizedActivity,
       expected_min_cost_cents: activity.typical_cost_cents,
       expected_max_cost_cents: activity.typical_cost_cents,
       cost_scope: 'per_unit',
@@ -266,5 +280,5 @@ export function enrichActivity(
       assumption: '',
     };
   }
-  return { ...activity, ...data };
+  return { ...normalizedActivity, ...data };
 }
