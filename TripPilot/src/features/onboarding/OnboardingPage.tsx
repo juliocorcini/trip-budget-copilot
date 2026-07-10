@@ -56,7 +56,7 @@ export function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [tripName, setTripName] = useState('');
   const [phaseName, setPhaseName] = useState('');
-  const [startDate, setStartDate] = useState('');
+  const [startDate, setStartDate] = useState(() => localDateString(new Date()));
   const [endDate, setEndDate] = useState('');
   const [currency, setCurrency] = useState('EUR');
   const [totalAmount, setTotalAmount] = useState('');
@@ -403,6 +403,7 @@ export function OnboardingPage() {
         <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.quick_subtitle')}</p>
       </div>
       <Field label={t('onboarding.amount')} type="number" value={totalAmount} onChange={setTotalAmount} placeholder="0.00" autoFocus />
+      <Field label={t('onboarding.start_date')} type="date" value={startDate} onChange={setStartDate} />
       <Field label={t('onboarding.end_date')} type="date" value={endDate} onChange={setEndDate} />
       <Field label={t('onboarding.trip_name')} value={tripName} onChange={setTripName} placeholder={t('onboarding.default_trip_name')} />
       <CurrencySelect label={t('onboarding.currency')} value={currency} onChange={setCurrency} />
@@ -721,7 +722,7 @@ export function OnboardingPage() {
   const baseValidators: Array<() => boolean> = isOngoing
     ? [() => true]
     : flow === 'quick'
-      ? [() => Boolean(totalAmount && endDate)]
+      ? [() => Boolean(totalAmount && startDate && endDate && startDate <= endDate)]
       : [
           () => Boolean(tripName && startDate && endDate),
           () => phaseDatesValid,

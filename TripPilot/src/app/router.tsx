@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AppShell } from './AppShell';
 import { RootLayout } from './RootLayout';
 import { ModeGuard } from '@/components/ModeGuard';
+import { RouteErrorPage } from '@/components/RouteErrorPage';
 import { lazyWithRetry } from '@/utils/lazy-with-retry';
 import { hardReloadApp } from '@/data/db/db-recovery';
 
@@ -135,6 +136,7 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         element: <AppShell />,

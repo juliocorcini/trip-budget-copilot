@@ -56,4 +56,22 @@ describe('shouldShowInstallNudge (Item A, DEC-362)', () => {
     const storage = memStorage({ 'tp.install.nudge': '{not valid json' });
     expect(shouldShowInstallNudge({ ...WEB, storage })).toBe(true);
   });
+
+  it('never shows on Android — ApkBanner takes priority (DEC-499)', () => {
+    expect(
+      shouldShowInstallNudge({ ...WEB, storage: memStorage(), audience: 'android' }),
+    ).toBe(false);
+  });
+
+  it('shows on iOS when not installed (DEC-499)', () => {
+    expect(
+      shouldShowInstallNudge({ ...WEB, storage: memStorage(), audience: 'ios' }),
+    ).toBe(true);
+  });
+
+  it('shows on desktop when not installed (DEC-499)', () => {
+    expect(
+      shouldShowInstallNudge({ ...WEB, storage: memStorage(), audience: 'desktop' }),
+    ).toBe(true);
+  });
 });

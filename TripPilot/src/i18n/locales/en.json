@@ -2921,7 +2921,14 @@
     "boundary_persistent_title": "The app keeps running into problems",
     "boundary_persistent_message": "We detected several crashes in a row. Clear the cache and reload, or export your data as an emergency backup.",
     "boundary_clear_cache": "Clear cache and reload",
-    "boundary_export": "Export data"
+    "boundary_export": "Export data",
+    "route_error_title": "This page ran into a problem",
+    "route_error_message": "Your data is safe. Reload or go back to the home screen.",
+    "route_copy_error": "Copy error",
+    "route_copied": "Copied!",
+    "route_show_details": "Show error details",
+    "route_hide_details": "Hide details",
+    "route_go_home": "Back to home"
   },
   "mode_guard": {
     "title": "Advanced feature",

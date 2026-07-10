@@ -2925,7 +2925,14 @@
     "boundary_persistent_title": "O app está com problemas persistentes",
     "boundary_persistent_message": "Detectamos várias falhas seguidas. Limpe o cache e recarregue, ou exporte seus dados como backup de emergência.",
     "boundary_clear_cache": "Limpar cache e recarregar",
-    "boundary_export": "Exportar dados"
+    "boundary_export": "Exportar dados",
+    "route_error_title": "Essa página deu problema",
+    "route_error_message": "Seus dados estão seguros. Recarregue ou volte ao início.",
+    "route_copy_error": "Copiar erro",
+    "route_copied": "Copiado!",
+    "route_show_details": "Ver detalhes do erro",
+    "route_hide_details": "Esconder detalhes",
+    "route_go_home": "Voltar ao início"
   },
   "mode_guard": {
     "title": "Recurso avançado",

@@ -8,6 +8,7 @@
  */
 import { isStandaloneDisplayMode } from '@/utils/platform';
 import { isNativeApp } from '@/utils/native/platform';
+import { installAudience } from '@/features/install/install-content';
 
 const STORAGE_KEY = 'tp.install.nudge';
 export const NUDGE_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -40,6 +41,8 @@ export interface NudgeContext {
   storage?: Storage;
   standalone?: boolean;
   native?: boolean;
+  /** Override for testing — when 'android', the nudge defers to ApkBanner. */
+  audience?: ReturnType<typeof installAudience>;
 }
 
 /** Whether the install nudge banner should be shown right now. */
@@ -47,6 +50,8 @@ export function shouldShowInstallNudge(ctx: NudgeContext = {}): boolean {
   const standalone = ctx.standalone ?? isStandaloneDisplayMode();
   const native = ctx.native ?? isNativeApp();
   if (standalone || native) return false;
+  const aud = ctx.audience ?? installAudience();
+  if (aud === 'android') return false;
   const storage = ctx.storage ?? localStorage;
   const state = readState(storage);
   if (state.never) return false;

@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.3-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Página de erro bonita: erros de rota agora mostram uma tela amigável com detalhes copiáveis, botão de recarregar e voltar ao início.',
+        'Instalação sem conflito: no Android, só o banner APK aparece. No iOS/desktop, só o banner PWA.',
+        'Data inicial no onboarding simples: pré-preenchida com hoje, sempre visível.',
+      ],
+      en: [
+        'Beautiful error page: route errors now show a friendly screen with copyable details, reload and go-home buttons.',
+        'No more conflicting install banners: on Android, only the APK banner shows. On iOS/desktop, only the PWA banner.',
+        'Start date in simple onboarding: pre-filled with today, always visible.',
+      ],
+      es: [
+        'Página de error bonita: los errores de ruta ahora muestran una pantalla amigable con detalles copiables, botón de recargar y volver al inicio.',
+        'Instalación sin conflicto: en Android, solo el banner APK aparece. En iOS/desktop, solo el banner PWA.',
+        'Fecha inicial en onboarding simple: pre-rellenada con hoy, siempre visible.',
+      ],
+    },
+  },
+  {
     version: '2.10.2-rc',
     date: '2026-07-10',
     items: {
