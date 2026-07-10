@@ -1705,6 +1705,7 @@
     "bd_total": "Total",
     "bd_spent": "Gasto até agora",
     "bd_available": "Disponível",
+    "show_transactions": "Ver {{count}} transações",
     "delete_fund": "Apagar",
     "delete_confirm_title": "Apagar?",
     "delete_confirm_body": "\"{{name}}\" será apagado. Esta ação pode ser desfeita restaurando um backup.",

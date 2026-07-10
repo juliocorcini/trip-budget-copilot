@@ -1701,6 +1701,7 @@
     "bd_total": "Total",
     "bd_spent": "Spent so far",
     "bd_available": "Available",
+    "show_transactions": "See {{count}} transactions",
     "delete_fund": "Delete",
     "delete_confirm_title": "Delete?",
     "delete_confirm_body": "\"{{name}}\" will be deleted. This can be undone by restoring a backup.",

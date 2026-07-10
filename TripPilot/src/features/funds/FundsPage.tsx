@@ -48,6 +48,7 @@ export function FundsPage() {
   const [envelopeDrafts, setEnvelopeDrafts] = useState<Record<string, string>>({});
   const [newEnvelopeName, setNewEnvelopeName] = useState('');
   const [newEnvelopeAmount, setNewEnvelopeAmount] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // DEC-080 (FIELD-11): edit name/value + delete with reassignment.
   const [editPoolName, setEditPoolName] = useState('');
@@ -291,10 +292,10 @@ export function FundsPage() {
                 </p>
               </button>
 
-              {isExpanded && (
+              {isExpanded && (() => {
+                const poolTransactions = filterTransactionsByPool(transactions, pool.id);
+                return (
                 <div className="mt-4 pt-4 flex flex-col gap-4" style={{ borderTop: '1px solid var(--surface-container-high)' }}>
-                  {/* DEC-172: "where this balance comes from" — total − spent = available,
-                      surfaced inline so the green figure above is never a mystery. */}
                   <div>
                     <p className="text-xs font-semibold text-on-surface-dim mb-2">
                       {t('funds.breakdown_heading')}
@@ -308,6 +309,25 @@ export function FundsPage() {
                       totalCents={summary.remainingCents}
                       currency={pool.currency}
                     />
+                    {poolTransactions.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-[11px] font-semibold text-primary cursor-pointer btn-press">
+                          {t('funds.show_transactions', { count: poolTransactions.length })}
+                        </summary>
+                        <div className="mt-2 flex flex-col gap-1 max-h-48 overflow-y-auto">
+                          {poolTransactions.map((tx) => (
+                            <div key={tx.id} className="flex items-center justify-between py-1 px-1">
+                              <span className="text-[11px] text-on-surface-dim truncate flex-1">
+                                {tx.description || tx.category || '—'}
+                              </span>
+                              <span className="text-[11px] font-semibold tabular text-on-surface ml-2 shrink-0">
+                                {formatMoney(tx.amountCents, pool.currency)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </div>
 
                   {/* Edit name/value + delete (DEC-080 / FIELD-11) */}
@@ -353,19 +373,28 @@ export function FundsPage() {
                     </div>
                   </div>
 
-                  {/* C19: essential (balance + edit) reads first; the power-user
-                      config — per-phase reserves and envelopes — sits under a
-                      clearly secondary "Advanced" divider. Nothing is hidden,
-                      only demoted (ÂNCORA 9). */}
-                  <div className="pt-1">
-                    <p className="text-[10px] font-bold text-on-surface-faint uppercase tracking-wider">
-                      {t('funds.advanced_section')}
-                    </p>
-                    <p className="text-[11px] text-on-surface-faint leading-snug mt-0.5">
-                      {t('funds.advanced_hint')}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen((v) => !v)}
+                    className="pt-1 w-full text-left flex items-center justify-between btn-press"
+                  >
+                    <div>
+                      <p className="text-[10px] font-bold text-on-surface-faint uppercase tracking-wider">
+                        {t('funds.advanced_section')}
+                      </p>
+                      <p className="text-[11px] text-on-surface-faint leading-snug mt-0.5">
+                        {t('funds.advanced_hint')}
+                      </p>
+                    </div>
+                    <Icon
+                      name="expand_more"
+                      size={16}
+                      className="text-on-surface-faint shrink-0 transition-transform"
+                      style={advancedOpen ? { transform: 'rotate(180deg)' } : undefined}
+                    />
+                  </button>
 
+                  {advancedOpen && (<>
                   {/* Future floors per phase (DEC-016 / GAP-008) */}
                   {poolLinks.length > 0 && (
                     <div>
@@ -538,8 +567,10 @@ export function FundsPage() {
                       </button>
                     </div>
                   </div>
+                  </>)}
                 </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}

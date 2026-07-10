@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.11.0-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Nova seção "Ver transações" nas verbas — mostra de onde vem cada gasto.',
+        'Seção "Avançado" (reservas por fase, envelopes) agora colapsada por default.',
+        'Botão de excluir verba sempre visível ao expandir.',
+      ],
+      en: [
+        'New "See transactions" section in pools — shows where each expense comes from.',
+        'Advanced section (per-phase reserves, envelopes) now collapsed by default.',
+        'Delete pool button always visible when expanded.',
+      ],
+      es: [
+        'Nueva sección "Ver transacciones" en fondos — muestra de dónde viene cada gasto.',
+        'Sección "Avanzado" (reservas por fase, sobres) ahora colapsada por defecto.',
+        'Botón de eliminar fondo siempre visible al expandir.',
+      ],
+    },
+  },
+  {
     version: '2.10.11-rc',
     date: '2026-07-10',
     items: {

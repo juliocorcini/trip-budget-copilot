@@ -1701,6 +1701,7 @@
     "bd_total": "Total",
     "bd_spent": "Gastado hasta ahora",
     "bd_available": "Disponible",
+    "show_transactions": "Ver {{count}} transacciones",
     "delete_fund": "Eliminar",
     "delete_confirm_title": "¿Eliminar?",
     "delete_confirm_body": "\"{{name}}\" será eliminado. Se puede deshacer restaurando una copia de seguridad.",
