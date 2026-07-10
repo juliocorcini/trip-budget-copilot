@@ -1,8 +1,8 @@
 {
-  "version": "2.10.4-rc",
+  "version": "2.10.5-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.4-rc.zip",
-  "notes": "G2: Wallet update fix — user's explicit wallet choice is now saved. Warning excludes other-paid expenses."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.5-rc.zip",
+  "notes": "G3: Onboarding UX — explicit Quick vs Detailed choice step after identity. Removed hidden customize button."
 }

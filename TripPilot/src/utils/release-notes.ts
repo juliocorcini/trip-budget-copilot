@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.5-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Onboarding com escolha clara: logo no início, escolha "Rápido" (só o essencial) ou "Detalhado" (configura tudo agora). Sem botão escondido.',
+      ],
+      en: [
+        'Onboarding with a clear choice: right at the start, pick "Quick" (just the essentials) or "Detailed" (set up everything now). No more hidden button.',
+      ],
+      es: [
+        'Onboarding con elección clara: al inicio, elige "Rápido" (solo lo esencial) o "Detallado" (configura todo ahora). Sin botón escondido.',
+      ],
+    },
+  },
+  {
     version: '2.10.4-rc',
     date: '2026-07-10',
     items: {

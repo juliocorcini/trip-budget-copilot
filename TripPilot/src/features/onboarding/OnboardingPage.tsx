@@ -47,8 +47,7 @@ export function OnboardingPage() {
   // R5-04: keep the footer buttons above the on-screen keyboard (iOS overlay).
   const keyboardInset = useKeyboardInset();
 
-  // M16: default to the 1-question path; "personalizar" switches to detailed.
-  const [flow, setFlow] = useState<OnboardingFlow>('quick');
+  const [flow, setFlow] = useState<OnboardingFlow | 'undecided'>(isOngoing ? 'quick' : 'undecided');
   const [presetId, setPresetId] = useState<TripPresetId | null>(null);
   // M23: id of the chosen prior-trip template (null = start from defaults).
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -395,7 +394,41 @@ export function OnboardingPage() {
     </StepCard>,
   ];
 
-  // M16: the 1-question path — amount + "until when", everything else defaulted.
+  const flowChoiceStep = (
+    <StepCard key="flow-choice">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('onboarding.flow_choice_title')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('onboarding.flow_choice_subtitle')}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => setFlow('quick')}
+        className={`p-4 rounded-xl flex items-start gap-3 text-left btn-press ring-1 ${
+          flow === 'quick' ? 'ring-primary bg-primary/5' : 'ring-transparent bg-surface-container'
+        }`}
+      >
+        <Icon name="bolt" size={22} className={flow === 'quick' ? 'text-primary' : 'text-on-surface-dim'} />
+        <div>
+          <p className="text-sm font-semibold text-on-surface">{t('onboarding.flow_quick_title')}</p>
+          <p className="text-xs text-on-surface-dim mt-0.5">{t('onboarding.flow_quick_desc')}</p>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={() => setFlow('detailed')}
+        className={`p-4 rounded-xl flex items-start gap-3 text-left btn-press ring-1 ${
+          flow === 'detailed' ? 'ring-primary bg-primary/5' : 'ring-transparent bg-surface-container'
+        }`}
+      >
+        <Icon name="tune" size={22} className={flow === 'detailed' ? 'text-primary' : 'text-on-surface-dim'} />
+        <div>
+          <p className="text-sm font-semibold text-on-surface">{t('onboarding.flow_detailed_title')}</p>
+          <p className="text-xs text-on-surface-dim mt-0.5">{t('onboarding.flow_detailed_desc')}</p>
+        </div>
+      </button>
+    </StepCard>
+  );
+
   const quickStep = (
     <StepCard key="quick">
       <div className="px-1">
@@ -476,13 +509,6 @@ export function OnboardingPage() {
           <p className="text-[10px] text-on-surface-faint mt-2">{t('onboarding.trip_type_hint')}</p>
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => { setFlow('detailed'); setStep(0); }}
-        className="text-xs font-medium text-primary btn-press py-1 px-1 self-start"
-      >
-        {t('onboarding.customize_detailed')}
-      </button>
     </StepCard>
   );
 
@@ -705,23 +731,21 @@ export function OnboardingPage() {
     </StepCard>
   );
 
-  // DEC-290: ongoing replaces the trip steps with the single Dia a dia step.
-  const baseSteps = isOngoing ? [ongoingStep] : flow === 'quick' ? [quickStep] : detailedSteps;
-  // DEC-252: identity first, then the flow's own steps, then activity chips
-  // (G2), then copilot offer (G5, online only), then theme (DEC-449), then the mode chooser closes.
+  const flowChoiceArray = isOngoing ? [] : [flowChoiceStep];
+  const effectiveFlow = flow === 'undecided' ? 'quick' : flow;
+  const baseSteps = isOngoing ? [ongoingStep] : effectiveFlow === 'quick' ? [quickStep] : detailedSteps;
   const showCopilotOffer = isOnline && selectedPresetIds.length > 0 && !isOngoing;
-  const steps = [identityStep, ...baseSteps, activityStep, ...(showCopilotOffer ? [copilotOfferStep] : []), themeStep, modeStep];
+  const steps = [identityStep, ...flowChoiceArray, ...baseSteps, activityStep, ...(showCopilotOffer ? [copilotOfferStep] : []), themeStep, modeStep];
   const isModeStep = step === steps.length - 1;
 
   // Per-step validators run PARALLEL to `steps` (data-driven — the index math
   // stays correct now that the identity step shifts everything by one). The
   // identity step requires a non-empty name; everything else mirrors before.
   const nameValid = ownerName.trim().length > 0;
-  // DEC-290: the Dia a dia step has no required fields (name defaults, the
-  // monthly cap is optional) — the only gate stays the identity name.
+  const flowChoiceValidator = isOngoing ? [] : [() => flow !== 'undecided'];
   const baseValidators: Array<() => boolean> = isOngoing
     ? [() => true]
-    : flow === 'quick'
+    : effectiveFlow === 'quick'
       ? [() => Boolean(totalAmount && startDate && endDate && startDate <= endDate)]
       : [
           () => Boolean(tripName && startDate && endDate),
@@ -729,9 +753,8 @@ export function OnboardingPage() {
           () => Boolean(totalAmount),
           () => true,
         ];
-  // Identity gate + the flow's own gates + activity (always valid) + copilot offer (always valid) + theme (always valid) + mode.
   const copilotOfferValidator = showCopilotOffer ? [() => copilotChoice !== 'undecided'] : [];
-  const validators: Array<() => boolean> = [() => nameValid, ...baseValidators, () => true, ...copilotOfferValidator, () => true, () => true];
+  const validators: Array<() => boolean> = [() => nameValid, ...flowChoiceValidator, ...baseValidators, () => true, ...copilotOfferValidator, () => true, () => true];
   const canNext = (validators[step] ?? (() => true))();
 
   return (
