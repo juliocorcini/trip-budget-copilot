@@ -43,6 +43,7 @@ import type { PhaseProfileSetting } from '@/domain/types/phase-profile-setting';
 import type { ScenarioPlan, ScenarioAllocationItem } from '@/domain/types/scenario';
 import type { AllocationPriority, ScenarioPreset } from '@/domain/types/common';
 import type { Session } from '@/domain/types/session';
+import { PlanCopilotFlow } from '@/features/plan-copilot/PlanCopilotFlow';
 
 /* ── types ── */
 
@@ -175,6 +176,8 @@ export function PlannerPage() {
   const [marginBreakdownOpen, setMarginBreakdownOpen] = useState(false);
   // M13: one-tap legend explaining the priority tags + the lock affordance.
   const [legendOpen, setLegendOpen] = useState(false);
+  const [plannerMode, setPlannerMode] = useState<'manual' | 'assisted'>('manual');
+  const [copilotStarted, setCopilotStarted] = useState(false);
 
   const profilesRef = useRef<ActivityProfile[]>([]);
   const enabledProfilesRef = useRef<ActivityProfile[]>([]);
@@ -929,12 +932,30 @@ export function PlannerPage() {
               {t(saveState === 'saved' ? 'planner.saved' : 'planner.saving')}
             </span>
           ) : (
-            <span
-              className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
-              style={{ background: '#6B8F7118', color: 'var(--success)' }}
-            >
-              {t('planner.mode_manual')}
-            </span>
+            <div className="flex items-center bg-surface-high rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setPlannerMode('manual')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${
+                  plannerMode === 'manual'
+                    ? 'bg-surface-container text-on-surface'
+                    : 'text-on-surface-faint'
+                }`}
+              >
+                {t('planner_copilot.mode_manual')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlannerMode('assisted')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${
+                  plannerMode === 'assisted'
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-on-surface-faint'
+                }`}
+              >
+                {t('planner_copilot.mode_assisted')}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1696,6 +1717,49 @@ export function PlannerPage() {
           </div>
         </div>
       </BottomSheet>
+
+      {/* G5 (M5.4): "Assisted mode" — copilot CTA + flow */}
+      {plannerMode === 'assisted' && !copilotStarted && selectedPhase && phasePool && (
+        <div className="mt-4 p-4 rounded-2xl bg-surface-container text-center">
+          <Icon name="auto_awesome" size={28} className="text-primary mx-auto mb-2" />
+          <p className="text-sm font-bold text-on-surface mb-1">
+            {t('planner_copilot.generate_with_copilot')}
+          </p>
+          <button
+            onClick={() => setCopilotStarted(true)}
+            className="btn-press mt-3 px-5 py-3 rounded-xl text-sm font-bold"
+            style={{ background: 'var(--primary)', color: 'var(--surface)' }}
+          >
+            <Icon name="auto_awesome" size={16} className="inline-block mr-1 align-text-bottom" />
+            {t('planner_copilot.generate_with_copilot')}
+          </button>
+        </div>
+      )}
+
+      {copilotStarted && selectedPhase && phasePool && trip && (
+        <PlanCopilotFlow
+          tripContext={{
+            tripId: trip.id,
+            phaseId: selectedPhase.id,
+            poolId: phasePool.id,
+            destination: trip.name,
+            durationDays: (() => {
+              const start = new Date(selectedPhase.startDate);
+              const end = new Date(selectedPhase.endDate);
+              return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+            })(),
+            budgetCents: phasePool.totalAmountCents,
+            reserveCents: 0,
+            currency,
+            profiles: enabledProfiles,
+          }}
+          hasSeenDisclosure={false}
+          onPlanCreated={() => {
+            setCopilotStarted(false);
+            setPlannerMode('manual');
+          }}
+        />
+      )}
     </div>
   );
 }

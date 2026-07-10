@@ -3966,5 +3966,71 @@
     "shared_toast": "Compartilhado",
     "downloaded_toast": "Imagem salva",
     "failed_toast": "Não foi possível gerar a imagem"
+  },
+  "copilot_disclosure": {
+    "title": "Como o copiloto funciona",
+    "body": "Para criar um plano personalizado, enviaremos informações da sua viagem (destino, datas, orçamento e respostas) para nosso servidor, que usa inteligência artificial para sugerir um plano com preços locais.",
+    "check_no_personal": "Nenhum dado pessoal é enviado (nome, email, etc.)",
+    "check_no_storage": "Os dados não ficam armazenados no servidor",
+    "check_no_training": "O provedor de IA não treina com seus dados",
+    "check_same_receipt": "Funciona como o leitor de recibos do app",
+    "manual_note": "Não quer usar? O plano manual funciona perfeitamente sem internet.",
+    "accept": "Entendi, continuar",
+    "decline": "Prefiro manual"
+  },
+  "copilot_questions": {
+    "title": "Monte seu plano",
+    "context_label": "Já sabemos",
+    "other": "Outro",
+    "other_placeholder": "Descreva...",
+    "generate": "Gerar meu plano",
+    "prefer_manual": "Prefiro manual"
+  },
+  "copilot_result": {
+    "title": "Seu plano de orçamento",
+    "your_style": "Seu estilo de viagem",
+    "free_label": "livres",
+    "style_budget": "Econômico",
+    "style_balanced": "Equilibrado",
+    "style_comfortable": "Confortável",
+    "style_flexible": "Flexível",
+    "range": "Faixa esperada",
+    "how_we_got_here": "Como chegamos nesse valor?",
+    "includes": "Este valor considera:",
+    "not_included": "Normalmente NÃO cobre:",
+    "other_styles": "Outros estilos nesta cidade:",
+    "current": "atual",
+    "summary": "Resumo (calculado pelo app)",
+    "total_planned": "Total planejado",
+    "free": "Livres",
+    "margin": "Margem",
+    "margin_note": "Para imprevistos, compras e surpresas",
+    "tips": "Dicas",
+    "style_warning": "Os valores consideram o estilo selecionado. Escolhas mais caras podem aumentar o gasto real.",
+    "use_plan": "Usar este plano",
+    "adjust_in_planner": "Ajustar no planejador",
+    "redo": "Refazer com outras preferências",
+    "type_bar": "Noite em bar",
+    "type_market": "Compra de mercado",
+    "type_restaurant": "Restaurante",
+    "type_outing": "Passeio / atração",
+    "type_transport": "Transporte diário"
+  },
+  "copilot_loading": {
+    "analyzing": "Analisando sua viagem...",
+    "generating": "Gerando seu plano...",
+    "hint": "Estamos cruzando dados de preços locais com suas preferências."
+  },
+  "copilot_flow": {
+    "fallback_toast": "Sem conexão — criamos um plano básico automático",
+    "plan_created": "Plano criado com sucesso!",
+    "copilot_offer": "Quer que o copiloto monte seu plano?",
+    "copilot_yes": "Sim, montar com IA",
+    "copilot_no": "Prefiro manual"
+  },
+  "planner_copilot": {
+    "mode_manual": "Manual",
+    "mode_assisted": "Assistido",
+    "generate_with_copilot": "Gerar plano com copiloto"
   }
 }

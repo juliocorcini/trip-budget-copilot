@@ -180,6 +180,11 @@ export interface AppSettings {
    * stored summary. `undefined` on existing installs reads back as ON
    * (non-indexed — no migration). */
   sharePreviewEnabled?: boolean;
+  /** G5 (DEC-492): true once the traveler has seen the AI copilot privacy
+   * disclosure. The modal appears once before the first /plan-copilot call;
+   * afterward it never shows again. `undefined` on existing installs reads back
+   * as unseen (non-indexed — no migration). */
+  hasSeenPlanCopilotDisclosure?: boolean;
   /** DEC-465 (resgate do cofrinho): manual withdrawals the traveler took back
    * from the piggy buffer. Replayed into the ledger by (trip, pool, day) — the
    * money returns to the daily flow because the cap stops parking it. Append-

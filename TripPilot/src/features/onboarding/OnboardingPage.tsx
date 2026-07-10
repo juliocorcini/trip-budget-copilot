@@ -660,11 +660,52 @@ export function OnboardingPage() {
     </StepCard>
   );
 
+  // G5 (M5.5): after activity selection, offer the copilot when online.
+  const [copilotChoice, setCopilotChoice] = useState<'undecided' | 'copilot' | 'manual'>('undecided');
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : false;
+
+  const copilotOfferStep = (
+    <StepCard key="copilot-offer">
+      <div className="px-1">
+        <h2 className="text-heading font-bold text-on-surface">{t('copilot_flow.copilot_offer')}</h2>
+        <p className="text-xs text-on-surface-dim mt-1">{t('copilot_loading.hint')}</p>
+      </div>
+      <div className="flex flex-col gap-3 mt-2">
+        <button
+          type="button"
+          onClick={() => setCopilotChoice('copilot')}
+          className={`p-4 rounded-xl flex items-start gap-3 text-left btn-press ring-1 ${
+            copilotChoice === 'copilot' ? 'ring-primary bg-primary/5' : 'ring-transparent bg-surface-container'
+          }`}
+        >
+          <Icon name="auto_awesome" size={22} className={copilotChoice === 'copilot' ? 'text-primary' : 'text-on-surface-dim'} />
+          <div>
+            <p className="text-sm font-semibold text-on-surface">{t('copilot_flow.copilot_yes')}</p>
+            <p className="text-xs text-on-surface-dim mt-0.5">{t('copilot_loading.hint')}</p>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setCopilotChoice('manual')}
+          className={`p-4 rounded-xl flex items-start gap-3 text-left btn-press ring-1 ${
+            copilotChoice === 'manual' ? 'ring-primary bg-primary/5' : 'ring-transparent bg-surface-container'
+          }`}
+        >
+          <Icon name="tune" size={22} className={copilotChoice === 'manual' ? 'text-primary' : 'text-on-surface-dim'} />
+          <div>
+            <p className="text-sm font-semibold text-on-surface">{t('copilot_flow.copilot_no')}</p>
+          </div>
+        </button>
+      </div>
+    </StepCard>
+  );
+
   // DEC-290: ongoing replaces the trip steps with the single Dia a dia step.
   const baseSteps = isOngoing ? [ongoingStep] : flow === 'quick' ? [quickStep] : detailedSteps;
   // DEC-252: identity first, then the flow's own steps, then activity chips
-  // (G2), then theme (DEC-449), then the mode chooser closes.
-  const steps = [identityStep, ...baseSteps, activityStep, themeStep, modeStep];
+  // (G2), then copilot offer (G5, online only), then theme (DEC-449), then the mode chooser closes.
+  const showCopilotOffer = isOnline && selectedPresetIds.length > 0 && !isOngoing;
+  const steps = [identityStep, ...baseSteps, activityStep, ...(showCopilotOffer ? [copilotOfferStep] : []), themeStep, modeStep];
   const isModeStep = step === steps.length - 1;
 
   // Per-step validators run PARALLEL to `steps` (data-driven — the index math
@@ -683,8 +724,9 @@ export function OnboardingPage() {
           () => Boolean(totalAmount),
           () => true,
         ];
-  // Identity gate + the flow's own gates + theme (always valid — skippable) + mode.
-  const validators: Array<() => boolean> = [() => nameValid, ...baseValidators, () => true, () => true];
+  // Identity gate + the flow's own gates + activity (always valid) + copilot offer (always valid) + theme (always valid) + mode.
+  const copilotOfferValidator = showCopilotOffer ? [() => copilotChoice !== 'undecided'] : [];
+  const validators: Array<() => boolean> = [() => nameValid, ...baseValidators, () => true, ...copilotOfferValidator, () => true, () => true];
   const canNext = (validators[step] ?? (() => true))();
 
   return (

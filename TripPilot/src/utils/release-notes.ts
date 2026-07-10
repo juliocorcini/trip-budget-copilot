@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.0-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Copiloto de planejamento completo: privacidade, perguntas, resultado com disclosure progressivo, toggle manual/assistido no Planejador e integração no onboarding.',
+      ],
+      en: [
+        'Full planning copilot: privacy disclosure, questions, result with progressive disclosure, manual/assisted toggle in Planner, and onboarding integration.',
+      ],
+      es: [
+        'Copiloto de planificación completo: privacidad, preguntas, resultado con disclosure progresivo, toggle manual/asistido en Planificador e integración en onboarding.',
+      ],
+    },
+  },
+  {
     version: '2.9.20-rc',
     date: '2026-07-10',
     items: {

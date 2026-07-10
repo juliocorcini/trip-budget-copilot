@@ -3962,5 +3962,71 @@
     "shared_toast": "Shared",
     "downloaded_toast": "Image saved",
     "failed_toast": "Could not generate the image"
+  },
+  "copilot_disclosure": {
+    "title": "How the copilot works",
+    "body": "To create a personalized plan, we'll send your trip info (destination, dates, budget and your answers) to our server, which uses AI to suggest a plan with local prices.",
+    "check_no_personal": "No personal data is sent (name, email, etc.)",
+    "check_no_storage": "Data is not stored on the server",
+    "check_no_training": "The AI provider does not train on your data",
+    "check_same_receipt": "Works like the app's receipt reader",
+    "manual_note": "Don't want to use it? The manual plan works perfectly offline.",
+    "accept": "Got it, continue",
+    "decline": "Prefer manual"
+  },
+  "copilot_questions": {
+    "title": "Build your plan",
+    "context_label": "We already know",
+    "other": "Other",
+    "other_placeholder": "Describe...",
+    "generate": "Generate my plan",
+    "prefer_manual": "Prefer manual"
+  },
+  "copilot_result": {
+    "title": "Your budget plan",
+    "your_style": "Your travel style",
+    "free_label": "free",
+    "style_budget": "Budget",
+    "style_balanced": "Balanced",
+    "style_comfortable": "Comfortable",
+    "style_flexible": "Flexible",
+    "range": "Expected range",
+    "how_we_got_here": "How we got this value?",
+    "includes": "This value includes:",
+    "not_included": "Usually NOT included:",
+    "other_styles": "Other styles in this city:",
+    "current": "current",
+    "summary": "Summary (calculated by the app)",
+    "total_planned": "Total planned",
+    "free": "Free",
+    "margin": "Margin",
+    "margin_note": "For surprises, shopping and unexpected expenses",
+    "tips": "Tips",
+    "style_warning": "Values reflect the selected style. Pricier choices may increase actual spending.",
+    "use_plan": "Use this plan",
+    "adjust_in_planner": "Adjust in planner",
+    "redo": "Redo with different preferences",
+    "type_bar": "Night out at bar",
+    "type_market": "Grocery shopping",
+    "type_restaurant": "Restaurant",
+    "type_outing": "Outing / attraction",
+    "type_transport": "Daily transport"
+  },
+  "copilot_loading": {
+    "analyzing": "Analyzing your trip...",
+    "generating": "Generating your plan...",
+    "hint": "We're cross-referencing local prices with your preferences."
+  },
+  "copilot_flow": {
+    "fallback_toast": "No connection — we created a basic auto plan",
+    "plan_created": "Plan created successfully!",
+    "copilot_offer": "Want the copilot to build your plan?",
+    "copilot_yes": "Yes, build with AI",
+    "copilot_no": "Prefer manual"
+  },
+  "planner_copilot": {
+    "mode_manual": "Manual",
+    "mode_assisted": "Assisted",
+    "generate_with_copilot": "Generate plan with copilot"
   }
 }

@@ -1,8 +1,8 @@
 {
-  "version": "2.9.20-rc",
+  "version": "2.10.0-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.20-rc.zip",
-  "notes": "G4: AI Copilot Worker endpoints + enrichment lookup table (6 clusters × 5 types × 4 levels)"
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.0-rc.zip",
+  "notes": "G5: AI Copilot full UI — privacy disclosure, questions, result with progressive disclosure, planner toggle, onboarding integration"
 }
