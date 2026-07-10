@@ -1,8 +1,8 @@
 {
-  "version": "2.9.19-rc",
+  "version": "2.9.20-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.19-rc.zip",
-  "notes": "G3: Swap insight card — '1 bar less = 3 markets more. Adjust?'"
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.9.20-rc.zip",
+  "notes": "G4: AI Copilot Worker endpoints + enrichment lookup table (6 clusters × 5 types × 4 levels)"
 }

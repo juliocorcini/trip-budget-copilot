@@ -394,6 +394,215 @@ const UNIT_EXTRACT_PROMPT = [
   'Never invent numbers; any field not clearly readable = null; if nothing is readable, return all nulls with confidence 0. Numbers are plain dot-decimals with no symbols.',
 ].join('\n');
 
+// ── G4 / DEC-492: AI Plan Copilot handlers ─────────────────────────────
+
+const PLAN_COPILOT_MODEL = 'llama-3.3-70b-versatile';
+const PLAN_COPILOT_TIMEOUT_MS = 15_000;
+
+const ANALYZE_SYSTEM_PROMPT = [
+  'You are a travel budget planning copilot. The user is setting up a trip and wants an AI-assisted spending plan.',
+  'Return ONLY a JSON object (no markdown, no prose).',
+  'You will receive their trip details and must return:',
+  '1. A summary of what you understood',
+  '2. What you already know about the destination (local prices, tips)',
+  '3. QUESTIONS you need answered to create an accurate plan',
+  '',
+  'MANDATORY QUESTIONS (always include as FIRST two):',
+  '1. "spending_style" with 4 options: budget/balanced/comfortable/flexible, default=balanced',
+  '2. "priority_categories" (optional multi_choice, max 2): food/nightlife/outings/transport_comfort/shopping/distribute_equally',
+  '',
+  'RULES: Max 5 questions for trips ≤7 days, max 6 for longer. Each has id, text, why, type (single_choice/multi_choice), options (id+label+emoji), allow_custom:true.',
+  'Options in the user language. Never ask about what the user already told you.',
+  '',
+  'Return: { "understood": { "summary":"...", "destination_recognized":bool, "destination_details":"..." }, "questions": [...], "already_known": ["..."] }',
+].join('\n');
+
+const GENERATE_SYSTEM_PROMPT = [
+  'You are a travel budget planning copilot. Generate a complete spending plan from trip details + user answers.',
+  'Return ONLY a JSON object (no markdown, no prose).',
+  '',
+  'ACTIVITY TYPES (cost = FULL occasion):',
+  '- bar: full night out (3-5 drinks, snack, cover). NOT 1 beer.',
+  '- market: full grocery trip (1-2 days food). NOT street food.',
+  '- restaurant: full meal (main+drink+maybe dessert). NOT just a plate.',
+  '- outing: day activity (museum+transport, or tour). NOT a single ticket.',
+  '- transport: FULL DAY getting around (metro/bus/tram). NOT single ticket.',
+  '',
+  'RULES:',
+  '- Costs MUST reflect real local prices (2025-2026)',
+  '- NEVER output typical_cost_cents=0 or suggested_quantity=0',
+  '- spending_level MUST match spending_style (unless priority_categories override)',
+  '- Do NOT compute totals — server does arithmetic',
+  '- Do NOT include accommodation/flights',
+  '- Leave 15-25% margin (be CONSERVATIVE)',
+  '- Costs in CENTS (integer)',
+  '',
+  'BUDGET vs STYLE CONFLICT: if budget cannot support style, set confidence="low", add insight, lower non-priority categories first.',
+  '',
+  'Return: { "plan": { "activities": [{ "type":"...", "spending_level":"...", "suggested_quantity":N, "typical_cost_cents":N, "reasoning":"..." }], "free_budget_cents":N }, "context_used":{...}, "insights":["..."], "confidence":"low|medium|medium-high|high" }',
+].join('\n');
+
+async function handlePlanCopilotAnalyze(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'plan_copilot_not_configured' }, 503);
+  if (await edgeRateLimited(env.RL_AI, request, installId)) {
+    return json(rateLimitedPayload('plan_copilot_analyze'), 429);
+  }
+
+  let body: { destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number; currency?: string; language?: string; selected_activities?: string[] };
+  try { body = await request.json(); } catch { return json({ error: 'invalid_json' }, 400); }
+
+  const { destination, duration_days, budget_cents, currency } = body;
+  if (!destination || !duration_days || !budget_cents || !currency) {
+    return json({ error: 'missing_required_fields' }, 400);
+  }
+
+  const freeBudget = budget_cents - (body.reserve_cents ?? 0);
+  const userMessage = [
+    `Destination: ${destination}`, `Duration: ${duration_days} days`,
+    `Total budget: ${budget_cents} cents (${currency})`, `Free to spend: ${freeBudget} cents`,
+    `Currency: ${currency}`, `Language: ${body.language ?? 'pt-BR'}`,
+    body.selected_activities?.length ? `Selected activities: ${body.selected_activities.join(', ')}` : '',
+  ].filter(Boolean).join('\n');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAN_COPILOT_TIMEOUT_MS);
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: PLAN_COPILOT_MODEL, temperature: 0.3,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: ANALYZE_SYSTEM_PROMPT }, { role: 'user', content: userMessage }],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === 'AbortError') return json({ error: 'plan_copilot_timeout' }, 503);
+    logEvent('error', 'plan_copilot_analyze_fetch', { err });
+    return json({ error: 'plan_copilot_upstream_error' }, 502);
+  }
+  clearTimeout(timeout);
+
+  if (!upstream.ok) {
+    logEvent('warn', 'plan_copilot_analyze_upstream', { status: upstream.status });
+    return json({ error: 'plan_copilot_upstream_error', status: upstream.status }, 502);
+  }
+
+  let result: unknown;
+  try {
+    const data = (await upstream.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const raw = data?.choices?.[0]?.message?.content;
+    if (!raw) return json({ error: 'plan_copilot_empty_response' }, 502);
+    result = JSON.parse(raw);
+  } catch { return json({ error: 'plan_copilot_parse_error' }, 502); }
+
+  return json(result, 200);
+}
+
+async function handlePlanCopilotGenerate(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'plan_copilot_not_configured' }, 503);
+  if (await edgeRateLimited(env.RL_AI, request, installId)) {
+    return json(rateLimitedPayload('plan_copilot_generate'), 429);
+  }
+
+  let body: { destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number; currency?: string; language?: string; answers?: Record<string, unknown>; selected_activities?: string[] };
+  try { body = await request.json(); } catch { return json({ error: 'invalid_json' }, 400); }
+
+  const { destination, duration_days, budget_cents, currency, answers } = body;
+  if (!destination || !duration_days || !budget_cents || !currency || !answers) {
+    return json({ error: 'missing_required_fields' }, 400);
+  }
+
+  const freeBudget = budget_cents - (body.reserve_cents ?? 0);
+  const userMessage = [
+    `Destination: ${destination}`, `Duration: ${duration_days} days`,
+    `Total budget: ${budget_cents} cents (${currency})`, `Free to spend: ${freeBudget} cents`,
+    `Currency: ${currency}`, `Language: ${body.language ?? 'pt-BR'}`,
+    `User answers: ${JSON.stringify(answers)}`,
+    body.selected_activities?.length ? `Selected activities: ${body.selected_activities.join(', ')}` : '',
+  ].filter(Boolean).join('\n');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PLAN_COPILOT_TIMEOUT_MS);
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: PLAN_COPILOT_MODEL, temperature: 0.3,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: GENERATE_SYSTEM_PROMPT }, { role: 'user', content: userMessage }],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === 'AbortError') return json({ error: 'plan_copilot_timeout' }, 503);
+    logEvent('error', 'plan_copilot_generate_fetch', { err });
+    return json({ error: 'plan_copilot_upstream_error' }, 502);
+  }
+  clearTimeout(timeout);
+
+  if (!upstream.ok) {
+    logEvent('warn', 'plan_copilot_generate_upstream', { status: upstream.status });
+    return json({ error: 'plan_copilot_upstream_error', status: upstream.status }, 502);
+  }
+
+  let parsed: { plan?: { activities?: Array<{ type?: string; spending_level?: string; suggested_quantity?: number; typical_cost_cents?: number; reasoning?: string }>; free_budget_cents?: number }; context_used?: unknown; insights?: string[]; confidence?: string };
+  try {
+    const data = (await upstream.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const raw = data?.choices?.[0]?.message?.content;
+    if (!raw) return json({ error: 'plan_copilot_empty_response' }, 502);
+    parsed = JSON.parse(raw);
+  } catch { return json({ error: 'plan_copilot_parse_error' }, 502); }
+
+  const activities = parsed?.plan?.activities;
+  if (!Array.isArray(activities) || activities.length === 0) {
+    return json({ error: 'plan_copilot_invalid_plan' }, 502);
+  }
+
+  // ÂNCORA-AI-1 + ÂNCORA-AI-2: server-side validation.
+  const validActivities = activities.filter((a) => {
+    const cost = a.typical_cost_cents;
+    const qty = a.suggested_quantity;
+    return typeof cost === 'number' && Number.isInteger(cost) && cost > 0
+      && typeof qty === 'number' && Number.isInteger(qty) && qty > 0;
+  });
+
+  if (validActivities.length === 0) {
+    return json({ error: 'plan_copilot_all_activities_rejected' }, 502);
+  }
+
+  // ÂNCORA-AI-1: Worker calculates totals deterministically.
+  const totalPlannedCents = validActivities.reduce(
+    (total, a) => total + (a.suggested_quantity ?? 0) * (a.typical_cost_cents ?? 0), 0,
+  );
+  const marginCents = freeBudget - totalPlannedCents;
+  const marginPercent = freeBudget > 0 ? Math.round((marginCents / freeBudget) * 100) : 0;
+
+  return json({
+    plan: { activities: validActivities, free_budget_cents: freeBudget },
+    computed: { total_planned_cents: totalPlannedCents, margin_cents: marginCents, margin_percent: marginPercent },
+    context_used: parsed.context_used ?? null,
+    insights: parsed.insights ?? [],
+    confidence: parsed.confidence ?? 'medium',
+  }, 200);
+}
+
 // DEC-246 (AI Quick Entry) — natural-language router. The client posts the typed
 // text plus a tiny, low-sensitivity context pack (names/labels only, no ids, no
 // amounts, no history); the model returns a JSON {"actions":[...]} list of typed
@@ -1696,6 +1905,14 @@ async function routeRequest(
     // the client sends several in parallel. Stateless proxy to Groq vision.
     if (request.method === 'POST' && url.pathname === '/unit-extract') {
       return handleUnitExtract(request, env, ctx, installId);
+    }
+
+    // G4 / DEC-492 — AI plan copilot: analyze (questions) and generate (plan).
+    if (request.method === 'POST' && url.pathname === '/plan-copilot/analyze') {
+      return handlePlanCopilotAnalyze(request, env, ctx, installId);
+    }
+    if (request.method === 'POST' && url.pathname === '/plan-copilot/generate') {
+      return handlePlanCopilotGenerate(request, env, ctx, installId);
     }
 
     // DEC-246 — AI quick-entry router. Stateless proxy to Groq JSON mode.

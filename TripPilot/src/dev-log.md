@@ -18,7 +18,7 @@
 | G1 | Sublabel → typical cost | 2.9.17-rc | ✅ |
 | G2 | Smart Onboarding (Fase 1, sem IA) | 2.9.18-rc | ✅ |
 | G3 | Troca Inteligente insight | 2.9.19-rc | ✅ |
-| G4 | Worker endpoints + lookup table | 2.9.20-rc | ⏳ |
+| G4 | Worker endpoints + lookup table | 2.9.20-rc | ✅ |
 | G5 | UI AI Copilot (Fase 2 frontend) | 2.10.0-rc | ⏳ |
 | G6 | Mid-trip re-plan (P2) | 2.10.1-rc | ⏳ |
 | G7 | Tom coloquial (P2) | 2.10.2-rc | ⏳ |

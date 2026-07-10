@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.20-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Backend do copiloto de planejamento: 2 endpoints IA + tabela de enriquecimento com preços reais de 6 regiões do mundo.',
+      ],
+      en: [
+        'Planning copilot backend: 2 AI endpoints + enrichment table with real prices from 6 world regions.',
+      ],
+      es: [
+        'Backend del copiloto de planificación: 2 endpoints IA + tabla de enriquecimiento con precios reales de 6 regiones del mundo.',
+      ],
+    },
+  },
+  {
     version: '2.9.19-rc',
     date: '2026-07-10',
     items: {
