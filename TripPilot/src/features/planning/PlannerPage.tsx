@@ -1053,10 +1053,7 @@ export function PlannerPage() {
             </p>
           </div>
         </div>
-        <div
-          className="transition-[max-height,opacity] duration-300 overflow-hidden"
-          style={scrolled ? { maxHeight: 0, opacity: 0 } : { maxHeight: '500px', opacity: 1 }}
-        >
+        <div className={scrolled ? 'h-0 overflow-hidden opacity-0' : ''}>
         {(planUsedCents > 0 || planReserveCents > 0) && (
           <p className="text-[11px] font-semibold text-on-surface-faint mt-1.5 tabular">
             {t('planner.header_used', { amount: fmtCompact(planUsedCents, currency) })}

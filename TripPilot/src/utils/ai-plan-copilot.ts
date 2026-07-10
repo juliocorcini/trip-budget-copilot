@@ -34,6 +34,7 @@ export interface AnalyzeQuestion {
   id: string;
   text: string;
   why: string;
+  type?: 'single_choice' | 'multi_choice';
   options: Array<{ id: string; label: string; emoji?: string }>;
   allow_other?: boolean;
 }

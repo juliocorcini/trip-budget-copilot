@@ -148,8 +148,7 @@ export function PlanCopilotResult({
                 )}
               </button>
 
-              {/* Expanded detail */}
-              {isExpanded && enrichData && (
+              {isExpanded && (
                 <div className="mx-1 mt-1 p-3 rounded-xl bg-surface-high flex flex-col gap-2.5">
                   <p className="text-xs font-bold text-on-surface">
                     {t('copilot_result.how_we_got_here')}
@@ -158,7 +157,7 @@ export function PlanCopilotResult({
                     {activity.reasoning}
                   </p>
 
-                  {enrichData.includes.length > 0 && (
+                  {enrichData && enrichData.includes.length > 0 && (
                     <div>
                       <p className="text-[11px] font-bold text-success mb-1">
                         ✅ {t('copilot_result.includes')}
@@ -169,7 +168,7 @@ export function PlanCopilotResult({
                     </div>
                   )}
 
-                  {enrichData.usually_not_included.length > 0 && (
+                  {enrichData && enrichData.usually_not_included.length > 0 && (
                     <div>
                       <p className="text-[11px] font-bold text-warning mb-1">
                         ⚠️ {t('copilot_result.not_included')}
@@ -180,7 +179,6 @@ export function PlanCopilotResult({
                     </div>
                   )}
 
-                  {/* Alternative spending levels */}
                   <div className="pt-2 border-t border-[var(--border-faint)]">
                     <p className="text-[11px] font-bold text-on-surface-faint mb-1.5">
                       {t('copilot_result.other_styles')}

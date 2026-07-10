@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.10-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Cartões de atividade agora expandem mostrando raciocínio da IA e detalhes (mesmo sem dados de enrichment).',
+        'Correção do flicker no header do planejador ao rolar — detalhes escondem instantaneamente.',
+        'Categorias prioritárias agora suportam multi-seleção (ex: comida + vida noturna).',
+      ],
+      en: [
+        'Activity cards now expand showing AI reasoning and details (even without enrichment data).',
+        'Fixed planner header scroll flicker — details hide instantly.',
+        'Priority categories now support multi-select (e.g., food + nightlife).',
+      ],
+      es: [
+        'Tarjetas de actividad ahora se expanden mostrando el razonamiento de la IA y detalles.',
+        'Corrección del parpadeo del encabezado del planificador al desplazar.',
+        'Categorías prioritarias ahora soportan selección múltiple (ej: comida + vida nocturna).',
+      ],
+    },
+  },
+  {
     version: '2.10.9-rc',
     date: '2026-07-10',
     items: {

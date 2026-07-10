@@ -36,6 +36,17 @@ export function PlanCopilotQuestions({
     setAnswers((prev) => ({ ...prev, [questionId]: String(optionId) }));
   }, []);
 
+  const toggleMultiOption = useCallback((questionId: string, optionId: string) => {
+    setAnswers((prev) => {
+      const current = prev[questionId] ?? '';
+      const parts = current ? current.split(',') : [];
+      const idx = parts.indexOf(optionId);
+      if (idx >= 0) parts.splice(idx, 1);
+      else parts.push(optionId);
+      return { ...prev, [questionId]: parts.join(',') };
+    });
+  }, []);
+
   const handleOtherChange = useCallback((questionId: string, text: string) => {
     setOtherTexts((prev) => ({ ...prev, [questionId]: text }));
     setAnswers((prev) => ({ ...prev, [questionId]: `other:${text}` }));
@@ -71,16 +82,21 @@ export function PlanCopilotQuestions({
               {q.options.map((opt) => {
                 const optId = String(opt.id);
                 const specifyOpt = isSpecifyOption(opt);
+                const isMulti = q.type === 'multi_choice';
                 const selected = specifyOpt
                   ? String(answers[q.id] ?? '').startsWith('other:')
-                  : answers[q.id] === optId;
+                  : isMulti
+                    ? (answers[q.id] ?? '').split(',').includes(optId)
+                    : answers[q.id] === optId;
                 return (
                   <button
                     key={optId}
                     type="button"
                     onClick={() => specifyOpt
                       ? selectOption(q.id, `other:${otherTexts[q.id] ?? ''}`)
-                      : selectOption(q.id, optId)
+                      : isMulti
+                        ? toggleMultiOption(q.id, optId)
+                        : selectOption(q.id, optId)
                     }
                     className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium btn-press min-h-[44px] ${
                       selected
