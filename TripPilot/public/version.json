@@ -1,8 +1,8 @@
 {
-  "version": "2.10.7-rc",
+  "version": "2.10.8-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.7-rc.zip",
-  "notes": "P0 fixes: AI Copilot chips are now clickable (coerce AI option IDs to string). NaN totals fixed (aligned GenerateResult interface with Worker computed nested structure)."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.8-rc.zip",
+  "notes": "AI Copilot: insights and questions now respect app language. Spending style shows user's choice. Options like 'Sim, especificar' auto-open text input."
 }

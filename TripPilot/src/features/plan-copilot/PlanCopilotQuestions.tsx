@@ -4,6 +4,12 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { Icon } from '@/components/Icon';
 import type { AnalyzeQuestion } from '@/utils/ai-plan-copilot';
 
+const SPECIFY_PATTERNS = /especificar|specify|custom|yes_specify/i;
+
+function isSpecifyOption(opt: { id: string | number; label: string }): boolean {
+  return SPECIFY_PATTERNS.test(String(opt.id)) || SPECIFY_PATTERNS.test(opt.label);
+}
+
 interface Props {
   open: boolean;
   questions: AnalyzeQuestion[];
@@ -64,12 +70,18 @@ export function PlanCopilotQuestions({
             <div className="flex flex-wrap gap-2">
               {q.options.map((opt) => {
                 const optId = String(opt.id);
-                const selected = answers[q.id] === optId;
+                const specifyOpt = isSpecifyOption(opt);
+                const selected = specifyOpt
+                  ? String(answers[q.id] ?? '').startsWith('other:')
+                  : answers[q.id] === optId;
                 return (
                   <button
                     key={optId}
                     type="button"
-                    onClick={() => selectOption(q.id, optId)}
+                    onClick={() => specifyOpt
+                      ? selectOption(q.id, `other:${otherTexts[q.id] ?? ''}`)
+                      : selectOption(q.id, optId)
+                    }
                     className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium btn-press min-h-[44px] ${
                       selected
                         ? 'bg-primary text-on-surface ring-1 ring-primary'
@@ -82,7 +94,7 @@ export function PlanCopilotQuestions({
                   </button>
                 );
               })}
-              {q.allow_other !== false && (() => {
+              {q.allow_other !== false && !q.options.some(isSpecifyOption) && (() => {
                 const isOther = String(answers[q.id] ?? '').startsWith('other:');
                 return (
                   <button

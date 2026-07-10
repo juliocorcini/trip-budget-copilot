@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.8-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'IA Copilot agora responde no idioma do app (dicas, raciocínio, perguntas).',
+        'Estilo de viagem no resultado mostra a escolha do usuário, não o que a IA interpretou.',
+        'Opções como "Sim, especificar" agora abrem automaticamente o campo de texto.',
+      ],
+      en: [
+        'AI Copilot now responds in the app language (tips, reasoning, questions).',
+        'Spending style in result shows user\'s choice, not AI\'s interpretation.',
+        'Options like "Yes, specify" now auto-open the text input field.',
+      ],
+      es: [
+        'IA Copilot ahora responde en el idioma de la app (consejos, razonamiento, preguntas).',
+        'Estilo de viaje en el resultado muestra la elección del usuario, no la interpretación de la IA.',
+        'Opciones como "Sí, especificar" ahora abren automáticamente el campo de texto.',
+      ],
+    },
+  },
+  {
     version: '2.10.7-rc',
     date: '2026-07-10',
     items: {

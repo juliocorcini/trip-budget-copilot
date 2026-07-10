@@ -13,6 +13,7 @@ interface Props {
   cluster: DestinationCluster;
   currency: string;
   currentSpending?: CurrentSpending[];
+  userAnswers?: Record<string, string>;
   onUsePlan: (enriched: EnrichedPlanActivity[]) => void;
   onAdjust: (enriched: EnrichedPlanActivity[]) => void;
   onRedo: () => void;
@@ -40,7 +41,7 @@ function fmtEuro(cents: number, currency: string): string {
 }
 
 export function PlanCopilotResult({
-  open, result, cluster, currency, currentSpending, onUsePlan, onAdjust, onRedo, onClose,
+  open, result, cluster, currency, currentSpending, userAnswers, onUsePlan, onAdjust, onRedo, onClose,
 }: Props) {
   const { t } = useTranslation();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
@@ -54,7 +55,7 @@ export function PlanCopilotResult({
   const handleAdjust = useCallback(() => onAdjust(enriched), [enriched, onAdjust]);
 
   const contextUsed = result.context_used as Record<string, string>;
-  const spendingStyle = contextUsed?.spending_style ?? 'balanced';
+  const spendingStyle = userAnswers?.['spending_style'] ?? contextUsed?.spending_style ?? 'balanced';
 
   return (
     <BottomSheet open={open} onClose={onClose} title={t('copilot_result.title')}>
