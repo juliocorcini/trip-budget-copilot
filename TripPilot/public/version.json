@@ -1,8 +1,8 @@
 {
-  "version": "2.10.1-rc",
+  "version": "2.10.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.1-rc.zip",
-  "notes": "G6: Mid-trip re-plan — Worker accepts current_spending, Planner passes real spend data, 'Replanejar com IA' button, spending_style inheritance"
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.2-rc.zip",
+  "notes": "G7: Tom coloquial — insights, Amigo Sincero, streaks e feedback com tom caloroso, direto e anti-culpa em pt-BR/en/es"
 }

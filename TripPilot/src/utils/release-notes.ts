@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.2-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Tom coloquial: insights, Amigo Sincero e feedbacks agora falam como um amigo — caloroso, direto e sem culpa.',
+      ],
+      en: [
+        'Colloquial tone: insights, Honest Friend and feedback now speak like a friend — warm, direct and guilt-free.',
+      ],
+      es: [
+        'Tono coloquial: insights, Amigo Sincero y feedback ahora hablan como un amigo — cálido, directo y sin culpa.',
+      ],
+    },
+  },
+  {
     version: '2.10.1-rc',
     date: '2026-07-10',
     items: {
