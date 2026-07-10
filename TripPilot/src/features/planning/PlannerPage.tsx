@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
 import { isOngoing } from '@/domain/spaces/spaces';
 import { useScrolled } from '@/hooks/useScrolled';
@@ -176,8 +176,10 @@ export function PlannerPage() {
   const [marginBreakdownOpen, setMarginBreakdownOpen] = useState(false);
   // M13: one-tap legend explaining the priority tags + the lock affordance.
   const [legendOpen, setLegendOpen] = useState(false);
-  const [plannerMode, setPlannerMode] = useState<'manual' | 'assisted'>('manual');
-  const [copilotStarted, setCopilotStarted] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const copilotAutoStart = searchParams.get('copilot') === '1';
+  const [plannerMode, setPlannerMode] = useState<'manual' | 'assisted'>(copilotAutoStart ? 'assisted' : 'manual');
+  const [copilotStarted, setCopilotStarted] = useState(copilotAutoStart);
 
   const profilesRef = useRef<ActivityProfile[]>([]);
   const enabledProfilesRef = useRef<ActivityProfile[]>([]);
@@ -1776,6 +1778,10 @@ export function PlannerPage() {
           onPlanCreated={() => {
             setCopilotStarted(false);
             setPlannerMode('manual');
+            if (searchParams.has('copilot')) {
+              searchParams.delete('copilot');
+              setSearchParams(searchParams, { replace: true });
+            }
           }}
         />
       )}

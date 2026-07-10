@@ -270,7 +270,11 @@ export function OnboardingPage() {
     requestPersistentStorage();
 
     await reload();
-    navigate('/dashboard');
+    if (copilotChoice === 'copilot') {
+      navigate('/planner?copilot=1');
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   const togglePeakDay = (day: number) => {

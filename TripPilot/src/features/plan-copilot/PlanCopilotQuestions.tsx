@@ -26,8 +26,8 @@ export function PlanCopilotQuestions({
   });
   const [otherTexts, setOtherTexts] = useState<Record<string, string>>({});
 
-  const selectOption = useCallback((questionId: string, optionId: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+  const selectOption = useCallback((questionId: string, optionId: string | number) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: String(optionId) }));
   }, []);
 
   const handleOtherChange = useCallback((questionId: string, text: string) => {
@@ -81,23 +81,26 @@ export function PlanCopilotQuestions({
                   </button>
                 );
               })}
-              {q.allow_other !== false && (
-                <button
-                  type="button"
-                  onClick={() => selectOption(q.id, `other:${otherTexts[q.id] ?? ''}`)}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium btn-press min-h-[44px] ${
-                    answers[q.id]?.startsWith('other:')
-                      ? 'bg-primary text-on-surface ring-1 ring-primary'
-                      : 'bg-surface-container text-on-surface-dim'
-                  }`}
-                  aria-pressed={answers[q.id]?.startsWith('other:')}
-                >
-                  <span className="text-base">💬</span>
-                  {t('copilot_questions.other')}
-                </button>
-              )}
+              {q.allow_other !== false && (() => {
+                const isOther = String(answers[q.id] ?? '').startsWith('other:');
+                return (
+                  <button
+                    type="button"
+                    onClick={() => selectOption(q.id, `other:${otherTexts[q.id] ?? ''}`)}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium btn-press min-h-[44px] ${
+                      isOther
+                        ? 'bg-primary text-on-surface ring-1 ring-primary'
+                        : 'bg-surface-container text-on-surface-dim'
+                    }`}
+                    aria-pressed={isOther}
+                  >
+                    <span className="text-base">💬</span>
+                    {t('copilot_questions.other')}
+                  </button>
+                );
+              })()}
             </div>
-            {answers[q.id]?.startsWith('other:') && (
+            {String(answers[q.id] ?? '').startsWith('other:') && (
               <input
                 type="text"
                 value={otherTexts[q.id] ?? ''}
