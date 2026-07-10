@@ -1,5 +1,27 @@
 # Dev Log — TripPilot Implementation
 
+## Wave "Post-AI Field Fixes & Onboarding UX" (2026-07-10) — `2.10.2-rc` → `2.10.6-rc` — ⏳ IN PROGRESS
+
+> Orquestrador: `brain/documents/2026-07-10-field-feedback-post-ai-wave-orchestrator.md`
+> DECs: 498–500 (error page, install banners, start date) + wallet fix + onboarding UX + audit
+> Hotfixes pré-wave: `startsWith` crash, copilot redirect, deploy apex fix
+
+### Baseline (G0)
+- Tests: 325 files / 3335 passed / 0 failed
+- Build: OK (9.51s)
+- tsc --noEmit: 0 errors
+- Version: 2.10.2-rc
+
+| Gate | Scope | Version | Status |
+|------|-------|---------|--------|
+| G0 | Setup & baseline | 2.10.2-rc | ✅ |
+| G1 | Error page + Install banner + Start date | 2.10.3-rc | ⏳ |
+| G2 | Wallet update bug | 2.10.4-rc | ⏳ |
+| G3 | Onboarding UX: rápido vs detalhado | 2.10.5-rc | ⏳ |
+| G4 | Audit AI Planning wave | 2.10.6-rc | ⏳ |
+
+---
+
 ## Wave "AI Planning & Marketing Gaps" (2026-07-10) — `2.9.16-rc` → `2.10.2-rc` — ✅ SHIPPED
 
 > Orquestrador: `brain/documents/2026-07-10-ai-planning-wave-orchestrator.md` (ACTIVE)
