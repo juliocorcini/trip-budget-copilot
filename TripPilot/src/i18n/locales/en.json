@@ -4045,6 +4045,7 @@
     "mode_assisted": "Assisted",
     "generate_with_copilot": "Generate plan with copilot",
     "replan_with_ai": "Re-plan with AI",
-    "replan_desc": "The copilot considers what was already spent to adjust the remaining plan."
+    "replan_desc": "The copilot considers what was already spent to adjust the remaining plan.",
+    "redo_with_ai": "Redo with AI"
   }
 }

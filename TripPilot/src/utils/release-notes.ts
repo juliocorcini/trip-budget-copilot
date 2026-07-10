@@ -17,6 +17,27 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.9-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Novo botão "Refazer com IA" sempre visível quando o plano existe — sem precisar clicar em Assistido.',
+        'Detalhes do orçamento (usado/reservado) escondem ao rolar para baixo — header mais limpo.',
+        'Perguntas da IA limitadas ao que o app suporta (sem seguro de viagem, equipamentos, etc.).',
+      ],
+      en: [
+        'New "Redo with AI" button always visible when plan exists — no need to switch to Assisted mode.',
+        'Budget details (used/reserved) hide on scroll — cleaner header.',
+        'AI questions limited to budget-relevant topics (no insurance, equipment, etc.).',
+      ],
+      es: [
+        'Nuevo botón "Rehacer con IA" siempre visible cuando el plan existe — sin necesidad de cambiar a Asistido.',
+        'Detalles del presupuesto (usado/reservado) se ocultan al desplazar — encabezado más limpio.',
+        'Preguntas de la IA limitadas a temas relevantes para el presupuesto (sin seguros, equipos, etc.).',
+      ],
+    },
+  },
+  {
     version: '2.10.8-rc',
     date: '2026-07-10',
     items: {

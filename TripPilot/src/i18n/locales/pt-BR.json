@@ -4049,6 +4049,7 @@
     "mode_assisted": "Assistido",
     "generate_with_copilot": "Gerar plano com copiloto",
     "replan_with_ai": "Replanejar com IA",
-    "replan_desc": "O copiloto considera o que já foi gasto para ajustar o plano restante."
+    "replan_desc": "O copiloto considera o que já foi gasto para ajustar o plano restante.",
+    "redo_with_ai": "Refazer com IA"
   }
 }

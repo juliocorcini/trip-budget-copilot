@@ -1,8 +1,8 @@
 {
-  "version": "2.10.8-rc",
+  "version": "2.10.9-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.8-rc.zip",
-  "notes": "AI Copilot: insights and questions now respect app language. Spending style shows user's choice. Options like 'Sim, especificar' auto-open text input."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.10.9-rc.zip",
+  "notes": "Planner: 'Redo with AI' button always visible when plan exists. Budget summary details hide on scroll. AI questions limited to budget-relevant topics."
 }

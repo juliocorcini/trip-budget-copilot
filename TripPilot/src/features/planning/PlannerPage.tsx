@@ -1053,9 +1053,10 @@ export function PlannerPage() {
             </p>
           </div>
         </div>
-        {/* DEC-477: split the envelope — what the plan already consumed vs what
-            it still holds. Makes "margem = livre − reservado" auditable and
-            explains why 17 bars with 16 done barely move the margin. */}
+        <div
+          className="transition-[max-height,opacity] duration-300 overflow-hidden"
+          style={scrolled ? { maxHeight: 0, opacity: 0 } : { maxHeight: '500px', opacity: 1 }}
+        >
         {(planUsedCents > 0 || planReserveCents > 0) && (
           <p className="text-[11px] font-semibold text-on-surface-faint mt-1.5 tabular">
             {t('planner.header_used', { amount: fmtCompact(planUsedCents, currency) })}
@@ -1063,7 +1064,6 @@ export function PlannerPage() {
             {t('planner.header_reserved', { amount: fmtCompact(planReserveCents, currency) })}
           </p>
         )}
-        {/* Future floor as informative constraint (DEC-016 / GAP-008) */}
         {(fts?.futureFloorCents ?? 0) > 0 && (
           <p className="text-[11px] font-semibold text-on-surface-faint mt-2 flex items-center gap-1">
             <Icon name="lock" size={12} className="text-on-surface-faint" />
@@ -1072,13 +1072,9 @@ export function PlannerPage() {
             })}
           </p>
         )}
-        {/* Audit 4.9 (P2): name the two numbers in one plain line. */}
         <p className="text-[11px] text-on-surface-faint mt-2 leading-snug">
           {t('planner.summary_hint')}
         </p>
-        {/* DEC-463: plan "a partir de agora" — with 15 bar nights already done,
-            planning 4 MORE must read "4 restantes", not "0 de 4". The toggle
-            sets the plan's counting window to start today. */}
         <div className="mt-2.5 pt-2.5 flex items-center justify-between gap-2 border-t border-[var(--border-faint)]">
           <p className="text-[11px] font-semibold text-on-surface-dim flex items-center gap-1 min-w-0">
             <Icon
@@ -1110,6 +1106,7 @@ export function PlannerPage() {
             {t('planner.count_from_hint')}
           </p>
         )}
+        </div>
       </div>
 
       {/* ── DEC-098 (R-20): over-budget is the FIRST thing on screen —
@@ -1405,17 +1402,27 @@ export function PlannerPage() {
         )}
       </div>
 
-      {/* G2-AC4: discreet button to soft-delete the entire scenario plan. */}
       {planRef.current && (
-        <button
-          type="button"
-          onClick={handleClearPlan}
-          className="btn-press mt-3 mx-auto flex items-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium"
-          style={{ color: 'var(--on-surface-faint)' }}
-        >
-          <Icon name="delete_sweep" size={14} className="text-on-surface-faint" />
-          {t('planner.clear_plan')}
-        </button>
+        <div className="mt-3 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => { setPlannerMode('assisted'); setCopilotStarted(true); }}
+            className="btn-press flex items-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium"
+            style={{ color: 'var(--primary)' }}
+          >
+            <Icon name="auto_awesome" size={14} className="text-primary" />
+            {t('planner_copilot.redo_with_ai')}
+          </button>
+          <button
+            type="button"
+            onClick={handleClearPlan}
+            className="btn-press flex items-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium"
+            style={{ color: 'var(--on-surface-faint)' }}
+          >
+            <Icon name="delete_sweep" size={14} className="text-on-surface-faint" />
+            {t('planner.clear_plan')}
+          </button>
+        </div>
       )}
 
       {/* ── DEFICIT + RECOMMENDATION ── */}
@@ -1750,7 +1757,7 @@ export function PlannerPage() {
       {/* G5 (M5.4) + G6 (M6.3): "Assisted mode" — copilot CTA; when mid-trip
           with existing spend, the label reads "Replanejar com IA" and the flow
           passes current_spending + inherited spending_style (DEC-493). */}
-      {plannerMode === 'assisted' && !copilotStarted && selectedPhase && phasePool && (() => {
+      {plannerMode === 'assisted' && !copilotStarted && selectedPhase && phasePool && trip && (() => {
         const hasMidTripSpend = (liveProgress?.lines ?? []).some((l) => l.done > 0);
         const label = hasMidTripSpend
           ? t('planner_copilot.replan_with_ai')

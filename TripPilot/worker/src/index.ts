@@ -412,6 +412,7 @@ const ANALYZE_SYSTEM_PROMPT = [
   '2. "priority_categories" (optional multi_choice, max 2): food/nightlife/outings/transport_comfort/shopping/distribute_equally',
   '',
   'RULES: Max 5 questions for trips ≤7 days, max 6 for longer. Each has id, text, why, type (single_choice/multi_choice), options (id+label+emoji), allow_custom:true.',
+  'QUESTION SCOPE: Beyond spending_style and priority_categories, you may ask about: meal_preference, transport_style, nightlife_frequency, trip_pace, and ONE destination-specific question. Do NOT ask about: insurance, equipment purchases, artistic/sport interests, or anything the budget app does not model. Keep questions actionable for budget allocation.',
   'IMPORTANT: ALL text fields (text, why, labels, summary, destination_details, already_known) MUST be in the language specified by the user (see "Language" field). This is MANDATORY — never output English when the user language is different.',
   'Options in the user language. Never ask about what the user already told you.',
   '',

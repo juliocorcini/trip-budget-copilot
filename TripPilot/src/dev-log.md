@@ -2745,9 +2745,9 @@ Copiloto expansion (G8): `brain/documents/copilot-expansion-2026-06-15.md`
 **Baseline:** 2.10.6-rc · Tests 324 passed / 1 file failed (split-live-loop, pre-existing) · Build OK · tsc OK
 
 ## Current State
-- **Active gate:** G0
-- **Last milestone:** M0.3 (setup complete)
-- **Tests:** 3338 passed / 2 failed (baseline)
+- **Active gate:** G3 (shipping)
+- **Last milestone:** G3 deploy
+- **Tests:** 3338 passed / 2 failed (baseline split-live-loop)
 - **Build:** OK
 - **Risks:** none
 - **Scope:** on-track
@@ -2756,7 +2756,21 @@ Copiloto expansion (G8): `brain/documents/copilot-expansion-2026-06-15.md`
 
 | Gate | Scope | Version | Status |
 |------|-------|---------|--------|
-| G0 | Setup & Baseline | 2.10.6-rc | ⏳ |
-| G1 | P0: Chips + NaN | 2.10.7-rc | ⏳ |
-| G2 | P1: Língua + Style + Especificar | 2.10.8-rc | ⏳ |
-| G3 | UX: Planner + Prompt Quality | 2.10.9-rc | ⏳ |
+| G0 | Setup & Baseline | 2.10.6-rc | ✅ |
+| G1 | P0: Chips + NaN | 2.10.7-rc | ✅ |
+| G2 | P1: Língua + Style + Especificar | 2.10.8-rc | ✅ |
+| G3 | UX: Planner + Prompt Quality | 2.10.9-rc | ✅ |
+
+## G1 — P0 Fixes (2.10.7-rc)
+- D01: Coerced `opt.id` to `String(opt.id)` in `PlanCopilotQuestions.tsx` chip comparison
+- D02: Aligned `GenerateResult` interface with Worker `computed` nested shape; defensive `?? 0` fallbacks
+
+## G2 — P1 Fixes (2.10.8-rc)
+- D03+D06: Added mandatory language instruction to both `ANALYZE_SYSTEM_PROMPT` and `GENERATE_SYSTEM_PROMPT`
+- D04: Passed `userAnswers` to `PlanCopilotResult`, spending style now reads from user's choice
+- D08: Options matching "especificar"/"specify" auto-route to "other:" flow with text input
+
+## G3 — UX Polish (2.10.9-rc)
+- D05: "Refazer com IA" button next to "Limpar plano", always visible when plan exists
+- D07: Whitelist in ANALYZE prompt limiting questions to budget-relevant topics
+- D09: Budget summary details collapse (max-height transition) when scrolled
