@@ -142,6 +142,23 @@ describe('getUnassignedTransactionCount', () => {
     ];
     expect(getUnassignedTransactionCount(txs)).toBe(2);
   });
+
+  it('excludes other-paid expenses when ownerId is given (DEC-499)', () => {
+    const txs: Transaction[] = [
+      mkTx('t1', 1000, null),
+      { ...mkTx('t2', 2000, null), paidByParticipantId: 'other-person' },
+      mkTx('t3', 500, null),
+    ];
+    expect(getUnassignedTransactionCount(txs, 'owner-1')).toBe(2);
+  });
+
+  it('includes own expenses without wallet when ownerId is given', () => {
+    const txs: Transaction[] = [
+      { ...mkTx('t1', 1000, null), paidByParticipantId: 'owner-1' },
+      { ...mkTx('t2', 2000, null), paidByParticipantId: null },
+    ];
+    expect(getUnassignedTransactionCount(txs, 'owner-1')).toBe(2);
+  });
 });
 
 // ── GATE 5 (D10) — progressive wallet tracking ──

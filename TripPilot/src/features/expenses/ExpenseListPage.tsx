@@ -265,7 +265,8 @@ export function ExpenseListPage() {
   const shareFromOtherPoolsCents = scopePool
     ? Math.max(0, yourShareCents - shareFromScopePoolCents)
     : 0;
-  const unassigned = getUnassignedTransactionCount(transactions);
+  const ownerParticipant = participants.find((p) => p.isOwner) ?? null;
+  const unassigned = getUnassignedTransactionCount(transactions, ownerParticipant?.id);
 
   // DEC-206 (rollup): a receipt/outing is ONE session holding N transactions.
   // Derive the session lookup + the completed-history list from the single load.
@@ -289,7 +290,7 @@ export function ExpenseListPage() {
   const receiptSessions = completedSessions.filter((s) => receiptSessionIds.has(s.id));
   // Session tabs (Saídas/Notas) share the batch handlers — ids are SESSIONS.
   const onSessionTab = tab !== 'expenses';
-  const owner = participants.find((p) => p.isOwner) ?? null;
+  const owner = ownerParticipant;
 
   const poolMap = new Map(pools.map((p) => [p.id, p.name]));
   const walletMap = new Map(wallets.map((w) => [w.id, w.name]));

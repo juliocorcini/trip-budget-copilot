@@ -125,12 +125,18 @@ export function resolveAutoWalletId(wallets: Wallet[]): string | null {
   return resolveAutoWallet(wallets)?.id ?? null;
 }
 
-export function getUnassignedTransactionCount(transactions: Transaction[]): number {
+export function getUnassignedTransactionCount(
+  transactions: Transaction[],
+  ownerId?: string | null,
+): number {
   return transactions.filter(
     (t) =>
       t.deletedAt === null &&
       t.walletId === null &&
-      t.type === 'expense',
+      t.type === 'expense' &&
+      (ownerId == null ||
+        t.paidByParticipantId === null ||
+        t.paidByParticipantId === ownerId),
   ).length;
 }
 

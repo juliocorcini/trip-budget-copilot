@@ -17,6 +17,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.10.4-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Carteira que salva de verdade: ao editar um gasto, a carteira escolhida agora é sempre persistida.',
+        'Aviso de "sem carteira" não mostra mais gastos pagos por outra pessoa (que não podem ter carteira).',
+      ],
+      en: [
+        'Wallet that actually saves: when editing an expense, the chosen wallet is now always persisted.',
+        '"No wallet" warning no longer shows expenses paid by someone else (which can\'t have a wallet).',
+      ],
+      es: [
+        'Billetera que guarda de verdad: al editar un gasto, la billetera elegida ahora siempre se persiste.',
+        'Aviso de "sin billetera" ya no muestra gastos pagados por otra persona (que no pueden tener billetera).',
+      ],
+    },
+  },
+  {
     version: '2.10.3-rc',
     date: '2026-07-10',
     items: {

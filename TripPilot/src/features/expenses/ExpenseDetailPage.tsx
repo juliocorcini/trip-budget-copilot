@@ -325,7 +325,7 @@ export function ExpenseDetailPage() {
 
       const movedPoolPhaseId =
         editPoolId !== tx.budgetPoolId ? resolvePoolPhaseId(links, editPoolId) : null;
-      const finalWalletId = editOtherPaid ? null : editWalletId;
+      const finalWalletId = editWalletId;
       const updated = await transactionRepository.update({
         ...tx,
         amountCents: newAmountCents,

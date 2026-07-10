@@ -15,7 +15,7 @@
 | Gate | Scope | Version | Status |
 |------|-------|---------|--------|
 | G0 | Setup & baseline | 2.10.2-rc | ✅ |
-| G1 | Error page + Install banner + Start date | 2.10.3-rc | ⏳ |
+| G1 | Error page + Install banner + Start date | 2.10.3-rc | ✅ |
 | G2 | Wallet update bug | 2.10.4-rc | ⏳ |
 | G3 | Onboarding UX: rápido vs detalhado | 2.10.5-rc | ⏳ |
 | G4 | Audit AI Planning wave | 2.10.6-rc | ⏳ |
