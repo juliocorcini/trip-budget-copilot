@@ -55,6 +55,7 @@ import { PiggyStatementSheet } from '@/features/dashboard/cards/PiggyStatementSh
 import { capHomeInsights } from '@/features/dashboard/home-insights';
 import {
   counterAccent,
+  formatTypicalCostSublabel,
   splitMoneyDisplay,
   INSIGHT_ICONS,
   formatInsightText,
@@ -1202,10 +1203,16 @@ export function DashboardCards({
                 const accent = counterAccent(counter.category);
                 if (counter.kind === 'planned') {
                   const profile = model.profiles.find((p) => p.id === counter.profileId);
-                  // DEC-472: "feitas" is the WHOLE-PHASE total, same ruler as
-                  // the list the tap opens — 17 bar spends read "17 feitas",
-                  // never "0 feitas" because the plan counts from a later day.
-                  const doneSublabel = t('dashboard.occasion_done', { count: counter.done });
+                  // G1 / DEC-489: sublabel shows typical cost ("~€35/noite")
+                  // instead of backward-looking "X feitas". Fallback to done
+                  // count only when the profile has no typical cost.
+                  const sublabelText =
+                    formatTypicalCostSublabel(
+                      profile?.typicalValueCents ?? 0,
+                      trip.baseCurrency,
+                      counter.category,
+                      t as (key: string) => string,
+                    ) ?? t('dashboard.occasion_done', { count: counter.done });
                   // BUG 2026-07-05: tapping the card used to filter by profile
                   // id — but the historic expenses (quick-adds/receipts) carry
                   // only the CATEGORY, so the list opened empty ("outros bar",
@@ -1226,7 +1233,7 @@ export function DashboardCards({
                         icon={profile?.iconName ?? getCategoryIcon(counter.category)}
                         count={counter.remaining}
                         label={t('dashboard.occasion_remaining', { name: counter.name })}
-                        sublabel={doneSublabel}
+                        sublabel={sublabelText}
                         iconBg={accent.bg}
                         iconColor={accent.color}
                         onClick={() => navigate(filterTarget)}

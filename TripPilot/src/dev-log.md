@@ -1,5 +1,30 @@
 # Dev Log — TripPilot Implementation
 
+## Wave "AI Planning & Marketing Gaps" (2026-07-10) — `2.9.16-rc` → `2.10.x-rc` — 🔧 IN PROGRESS
+
+> Orquestrador: `brain/documents/2026-07-10-ai-planning-wave-orchestrator.md` (ACTIVE)
+> Spec: `docs/reports/2026-07-10-ai-powered-planning-spec.md`
+> DECs: 489–497 (sublabel, swap insight, smart onboarding, AI copilot, mid-trip re-plan, lookup table, spending_style, budget limits, progressive disclosure)
+
+### Baseline (G0)
+- Tests: 3279 passed, 2 failed (pre-existing: split-live-loop.test.ts crypto.subtle unavailable in vitest)
+- Build: OK (38.14s)
+- tsc --noEmit: 0 errors
+- Version: 2.9.16-rc
+
+| Gate | Scope | Version | Status |
+|------|-------|---------|--------|
+| G0 | Setup & baseline | 2.9.16-rc | ✅ |
+| G1 | Sublabel → typical cost | 2.9.17-rc | 🔧 |
+| G2 | Smart Onboarding (Fase 1, sem IA) | 2.9.18-rc | ⏳ |
+| G3 | Troca Inteligente insight | 2.9.19-rc | ⏳ |
+| G4 | Worker endpoints + lookup table | 2.9.20-rc | ⏳ |
+| G5 | UI AI Copilot (Fase 2 frontend) | 2.10.0-rc | ⏳ |
+| G6 | Mid-trip re-plan (P2) | 2.10.1-rc | ⏳ |
+| G7 | Tom coloquial (P2) | 2.10.2-rc | ⏳ |
+
+---
+
 ## Wave "Acerto multi-moeda + Cobrança rica + Planejador coerente" (2026-07-06) — `2.7.3-rc` → `2.7.5-rc` (G1+G2+G3) → `2.7.6-rc` (G4) (web/OTA; APK segue 0.73.0) — ✅ SHIPPED (DEC-474..477 APPROVED)
 
 > Orquestrador: `brain/documents/2026-07-06-settle-currency-charge-planner-orchestrator.md` (CLOSED). Review de campo 06/07 parte 3: perfume R$380 cobrado como €380; "Felipe deve a Bruno 167" fantasma; "Julio Corsini te deve 53" (self-link); Pessoas ≠ Resolver; planner com margem −71 vs home −19 (dupla contagem), edits sumindo ao sair, card Viagem "Bar 103 de 45 / Restaurante 106 sem plano"; link de cobrança sem foto/formas de pagamento/URL na mensagem; `expenses.fronted_hint` cru (chave faltou na DEC-473). DECs: 474 (moeda original), 475 (pairwise-fiel + guard self), 476 (cobrança rica + métodos por moeda), 477 (plano feito-vs-restante, régua única) — todas APPROVED/SHIPPED.

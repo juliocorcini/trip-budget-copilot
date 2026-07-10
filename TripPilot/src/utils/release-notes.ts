@@ -17,6 +17,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.9.17-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Os contadores de ocasião agora mostram o custo típico (~€35/noite) em vez de "X feitas".',
+      ],
+      en: [
+        'Occasion counters now show the typical cost (~€35/night) instead of "X done".',
+      ],
+      es: [
+        'Los contadores de ocasión ahora muestran el costo típico (~€35/noche) en vez de "X hechas".',
+      ],
+    },
+  },
+  {
     version: '2.9.16-rc',
     date: '2026-07-09',
     items: {

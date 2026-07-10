@@ -1,6 +1,6 @@
 # TripPilot — Product Specification
 
-> Last updated: 2026-07-03 (wave `2.4.0-rc`: **short links without `#k=`** — the AES key is escrowed on the worker and returned to guests; explicit shareability-over-privacy trade-off locked by Julio — DEC-455, §34; **phase budget uses ONLY the phase's own fund** — global pots/other funds become an informative "outside this math" section in the lens and leave insights/burndown/amigo/Impact — DEC-456, §32 update; **share a single expense with photos** via `/x/:slug` with its own guest page and OG card — DEC-457, §35. Same-day hotfix wave `2.3.1-rc`: pool⇒phase stamping + list/map/total coherence + `?v=` re-scrape — DEC-452/453/454. Prior: Links+Números+Acerto `2.3.0-rc`: sharing links present themselves — summary-only preview blob DEFAULT-ON with kill-switch + readable slugs with the AES key always in the fragment + per-share OG via Pages Function — DEC-445/446, §31; phase numbers explain themselves via `PhaseSpendLens` with zero math change — DEC-447, §32; debt moves reach connected devices immediately with provenance on both sides and propagated undo via the new `debt_move` mailbox kind — DEC-451, §33; expense list opens phase-scoped — DEC-448; theme step in onboarding — DEC-449; directional split notification — DEC-450. Prior 2026-07-02: Field v2.1 `2.1.3-rc` venue-not-city + automatic FX — DEC-434/435. Prior 2026-06-17: reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207.)
+> Last updated: 2026-07-10 (**Marketing audit + AI Copilot Planning spec** — DEC-489/490/491/492/493, §36: **occasion counter sublabel = typical cost** ("~€35/noite" not "3 feitas") — DEC-489, §4 update; **intelligent swap insight card** (deterministic trade-off suggestion in dashboard) — DEC-490; **smart onboarding** (activity chips → auto-plan with offline defaults) — DEC-491; **AI Copilot Planning** (bi-directional Groq flow: AI asks → user answers → AI generates justified plan with destination pricing) — DEC-492, §8 update + §36; **mid-trip AI re-planning** with actual spending data — DEC-493. See `docs/reports/2026-07-10-marketing-vs-reality-audit.md` and `docs/reports/2026-07-10-ai-powered-planning-spec.md`. Prior 2026-07-03: wave `2.4.0-rc` — DEC-455/456/457, §34/§32/§35. Prior 2026-07-02: Field v2.1 `2.1.3-rc` — DEC-434/435. Prior 2026-06-17: reconciled with the native arc, the receipt epic DEC-206, and the shared-link epic DEC-207.)
 
 ## What is TripPilot?
 
@@ -51,6 +51,7 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
 - Safe estimate calculation (P75 percentile after enough data)
 - Confidence levels: low/medium/high
 - Contextual dashboard: "4 bar nights left, 5 markets covered, 1 outing available"
+- **Occasion counter sublabel = typical cost (DEC-489)**: the Home carousel shows `"~€35/noite"` (per-occasion typical cost) as the sublabel — NOT a done count. Falls back to `"X feitas"` only when no typical is known. Matches the marketing promise of thinking in "noites no bar, ~€35/noite".
 - Savings equivalence messaging: "You saved €24 = 73% of a bar night"
 - Special occasion marking (doesn't affect learning averages)
 
@@ -82,7 +83,7 @@ Existing financial apps look backward ("you spent €42 yesterday"). TripPilot l
 - Trade-off suggestions when budget doesn't fit (deterministic scoring, not AI)
 - Lock/unlock items (essentials locked by default)
 - Never change preferences silently — show alternatives, let user choose
-- Two modes: Manual (default — user chooses) + Assisted (app recommends best trade-off)
+- **Three modes**: Manual (default — user chooses) + Assisted (deterministic trade-off recommendations) + **AI Copilot (DEC-492)** — bi-directional AI flow: AI analyzes destination → asks structured questions → generates a justified plan with local price intelligence. See §36.
 - Priority presets: Econômico, Equilibrado, Mais Social, Personalizado
 - **Done vs remaining model (DEC-477)**: the stepper value is the WHOLE plan (done + to do). One
   pure ruler (`calculatePlanProgress`) feeds Home, Planner, Trip card, Impact and Rescue: per
@@ -546,6 +547,51 @@ shareability beats the E2E-against-the-server guarantee for links people actuall
 - **Guest page** `/x/:slug` (no app needed): amount, date/time, place, notes, photo grid, friendly
   error states (revoked / expired / offline). OG injection covers `/x/*` with a branded
   `og/expense.png` fallback card; the in-app QR scanner recognizes `/x/` links.
+
+### 36. AI Copilot Planning — bi-directional plan generation (DEC-489/490/491/492/493, marketing audit + AI planning spec 10/07)
+
+Three-phase rollout that makes the planning experience progressively smarter, from offline
+defaults to AI-driven destination-aware planning:
+
+**Immediate fixes (no AI):**
+- **Occasion counter sublabel = typical cost (DEC-489)**: `"~€35/noite"` replaces `"3 feitas"` in
+  the Home carousel — the user thinks in cost-per-occasion, not done count.
+- **Intelligent Swap insight (DEC-490)**: deterministic insight card in the dashboard: `"💡 1 noite
+  a menos no bar = 2 idas a mais ao mercado"` — pure math (`floor(typicalA / typicalB)`), no AI.
+
+**Phase 1 — Smart Onboarding (DEC-491, offline, no AI):**
+- New onboarding step: activity chips (bar, mercado, restaurante, passeio, transporte, festival).
+- Selecting activities auto-generates a `ScenarioPlan` with conservative hardcoded defaults
+  (e.g. bar: 2/week × €30, mercado: 4/week × €15).
+- Immediately visible in the Planner as a starting point; user can adjust manually.
+- Skip = no auto-plan (current behavior). Works 100% offline.
+
+**Phase 2 — AI Copilot (DEC-492, Groq via Worker):**
+- Two Worker endpoints:
+  - `POST /plan-copilot/analyze` — receives trip context → returns destination knowledge + structured
+    multiple-choice questions (each with a `why` field explaining relevance).
+  - `POST /plan-copilot/generate` — receives context + answers → returns a complete `ScenarioPlan`
+    with per-activity reasoning, local price references, and "what I considered" summary.
+- **UX flow**: "Modo Assistido" toggle in Planner (and optionally onboarding) → consent modal →
+  AI shows what it knows about the destination → asks 3-6 questions via chips + free text →
+  user answers → AI generates justified plan → user reviews reasoning → accepts/adjusts/redoes.
+- **Privacy**: explicit consent on first use (same posture as DEC-209 receipt OCR). No personal
+  data sent — only destination, dates, budget, activities, and answers. No storage, no training.
+- **Fallback**: if AI unavailable → uses DEC-491 defaults + "AI indisponível" toast.
+- Reuses `GROQ_API_KEY` and rate-limit `RL_AI` (DEC-439).
+
+**Phase 3 — Mid-trip Re-planning (DEC-493, Groq via Worker):**
+- Same flow as Phase 2 but with extra context: actual spending per profile, days elapsed/remaining,
+  piggy bank balance, learned typicals from real data.
+- AI asks fewer, more targeted questions ("Your bar nights averaged €42 vs €30 planned — keep or cut?").
+- Generated plan covers REMAINING period only; consumed occasions preserved.
+- Planner shows "Replanejar com IA" button when mid-trip.
+
+**Integration points:**
+- `buildOccasionCounters` (§4) reads `typicalValueCents` for sublabel (DEC-489).
+- `buildInsights` (insights.ts) includes swap suggestions (DEC-490).
+- `PlannerPage` toggle: Manual / Assistido / AI Copilot (§8 updated).
+- Onboarding flow: activity selection step (DEC-491) + optional AI step (DEC-492).
 
 ## V1 — In Scope With Constraints (reconciled 2026-06-17)
 

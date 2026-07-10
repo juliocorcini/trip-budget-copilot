@@ -43,6 +43,38 @@ export function counterAccent(category: string | null | undefined): { color: str
   return COUNTER_ACCENTS[category ?? 'other'] ?? COUNTER_ACCENTS.other!;
 }
 
+// G1 / DEC-489: category → i18n unit key for the typical-cost sublabel.
+const CATEGORY_UNIT_KEY: Record<string, string> = {
+  bar: 'dashboard.unit_night',
+  nightlife: 'dashboard.unit_night',
+  accommodation: 'dashboard.unit_night',
+  market: 'dashboard.unit_trip',
+  shopping: 'dashboard.unit_trip',
+  restaurant: 'dashboard.unit_meal',
+  cafe: 'dashboard.unit_visit',
+  tours: 'dashboard.unit_outing',
+  museums: 'dashboard.unit_visit',
+  transport: 'dashboard.unit_day',
+  beach: 'dashboard.unit_day',
+  festival: 'dashboard.unit_day',
+  sports: 'dashboard.unit_visit',
+};
+
+export function categoryUnitKey(category: string): string {
+  return CATEGORY_UNIT_KEY[category] ?? 'dashboard.unit_each';
+}
+
+export function formatTypicalCostSublabel(
+  typicalValueCents: number,
+  currency: string,
+  category: string,
+  t: TranslateFn,
+): string | null {
+  if (typicalValueCents <= 0) return null;
+  const unit = t(categoryUnitKey(category));
+  return `~${formatMoney(typicalValueCents, currency)}/${unit}`;
+}
+
 // DEC-077: icon per insight kind (data-driven).
 export const INSIGHT_ICONS: Record<DashboardInsight['kind'], string> = {
   end_of_day: 'edit_note',
