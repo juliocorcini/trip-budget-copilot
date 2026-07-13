@@ -43,6 +43,7 @@ import {
   deliverManualSplitDebts,
 } from '@/domain/orchestrators';
 import { requestPersistentStorage } from '@/utils/pwa';
+import { useItineraryDayContext } from '@/features/itinerary/useItineraryDayContext';
 import {
   isSpeechRecognitionSupported,
   startVoiceCapture,
@@ -96,6 +97,7 @@ export function QuickAddPage() {
   // GATE 5 (D10): hide the "de onde saiu?" wallet question for a single-source
   // traveler — the expense silently lands on the default wallet.
   const walletTrackingActive = useWalletTracking();
+  const itineraryCtx = useItineraryDayContext(trip?.id);
 
   const initialCategory = searchParams.get('cat') ?? 'other';
   const txType = searchParams.get('type') ?? 'expense';
@@ -935,6 +937,20 @@ export function QuickAddPage() {
         </div>
       )}
 
+      {itineraryCtx.budgetPremise && (
+        <div className="bg-primary/5 rounded-xl p-3 flex items-start gap-2">
+          <span className="text-sm shrink-0">💡</span>
+          <div className="min-w-0">
+            <p className="text-xs text-on-surface-dim leading-relaxed">{itineraryCtx.budgetPremise}</p>
+            {itineraryCtx.dailyBudgetCents !== null && itineraryCtx.dailyBudgetCurrency && (
+              <p className="text-[11px] text-primary font-medium mt-1">
+                {t('itinerary.budget_hint')}: {formatMoney(itineraryCtx.dailyBudgetCents, itineraryCtx.dailyBudgetCurrency)}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="bg-surface-container rounded-2xl p-5">
         <label className="text-xs text-on-surface-faint mb-1 block">{t('expenses.amount')}</label>
         <div className="flex items-baseline gap-1">
@@ -1493,6 +1509,35 @@ export function QuickAddPage() {
 
           {wantsSplit && (
             <div className="flex flex-col gap-3">
+              {/* Companion suggestion from itinerary */}
+              {itineraryCtx.companions.length > 0 && selectedParticipantIds.length === 0 && (
+                <div className="bg-primary/5 rounded-xl p-3">
+                  <p className="text-[11px] text-primary font-medium mb-2">
+                    👥 {t('itinerary.companions_today')}
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {itineraryCtx.companions.map((name) => {
+                      const match = participants.find(
+                        (p) => (p.nickname ?? p.name).toLowerCase() === name.toLowerCase(),
+                      );
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => {
+                            if (match) {
+                              toggleParticipant(match.id);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium btn-press bg-primary/15 text-primary"
+                        >
+                          {name}{!match && <span className="ml-1 opacity-60">?</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs text-on-surface-faint mb-2 block">
                   {t('expenses.participants_label')}

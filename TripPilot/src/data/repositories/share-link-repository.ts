@@ -16,6 +16,13 @@ class ShareLinkRepository extends BaseRepository<ShareLink> {
       .toArray();
     return links[0];
   }
+
+  /** All active (non-revoked, non-deleted) share links across every participant. */
+  async getAllActive(): Promise<ShareLink[]> {
+    return this.table
+      .filter((link) => link.deletedAt === null && link.revokedAt === null)
+      .toArray();
+  }
 }
 
 export const shareLinkRepository = new ShareLinkRepository();

@@ -316,14 +316,22 @@ export function FundsPage() {
                         </summary>
                         <div className="mt-2 flex flex-col gap-1 max-h-48 overflow-y-auto">
                           {poolTransactions.map((tx) => (
-                            <div key={tx.id} className="flex items-center justify-between py-1 px-1">
+                            <button
+                              key={tx.id}
+                              type="button"
+                              onClick={() => navigate(`/expenses/${tx.id}`)}
+                              className="flex items-center justify-between py-1.5 px-1 rounded-lg btn-press hover:bg-surface-high w-full text-left"
+                            >
                               <span className="text-[11px] text-on-surface-dim truncate flex-1">
                                 {tx.description || tx.category || '—'}
                               </span>
-                              <span className="text-[11px] font-semibold tabular text-on-surface ml-2 shrink-0">
-                                {formatMoney(tx.amountCents, pool.currency)}
-                              </span>
-                            </div>
+                              <div className="flex items-center gap-1 ml-2 shrink-0">
+                                <span className="text-[11px] font-semibold tabular text-on-surface">
+                                  {formatMoney(tx.amountCents, pool.currency)}
+                                </span>
+                                <Icon name="chevron_right" size={12} className="text-on-surface-faint" />
+                              </div>
+                            </button>
                           ))}
                         </div>
                       </details>

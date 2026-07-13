@@ -287,6 +287,23 @@ export function SettingsPage() {
     await syncActiveOutingNotification();
   };
 
+  const transportReminderActive =
+    (settings.transportReminderEnabled ?? false) && notifPermission === 'granted';
+
+  const handleToggleTransportReminder = async () => {
+    if (transportReminderActive) {
+      await updateSetting({ transportReminderEnabled: false });
+      return;
+    }
+    if (!settings.transportReminderEnabled) {
+      await updateSetting({ transportReminderEnabled: true });
+    }
+    if (notifPermission !== 'granted') {
+      const permission = await requestOutingNotificationPermission();
+      setNotifPermission(permission);
+    }
+  };
+
   const handleLanguageChange = async (lang: string) => {
     await i18n.changeLanguage(lang);
     await updateSetting({ language: lang });
@@ -938,6 +955,44 @@ export function SettingsPage() {
           </>
         )}
       </Section>
+
+      {/* P14: transport departure reminder — opt-in (ÂNCORA-POL-3) */}
+      {notifPermission !== 'unsupported' && (
+        <Section title={t('settings.transport_reminder')}>
+          <ToggleRow
+            label={t('settings.transport_reminder')}
+            enabled={transportReminderActive}
+            onChange={handleToggleTransportReminder}
+          />
+          <p className="text-xs text-on-surface-faint mt-2">
+            {t('settings.transport_reminder_hint')}
+          </p>
+          {transportReminderActive && (
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs text-on-surface-dim">
+                {t('settings.transport_reminder_lead')}
+              </span>
+              <select
+                value={settings.transportReminderMinutes ?? 60}
+                onChange={(e) =>
+                  updateSetting({ transportReminderMinutes: Number(e.target.value) })
+                }
+                aria-label={t('settings.transport_reminder_lead')}
+                className="bg-surface-high text-on-surface text-xs rounded-lg px-2 py-1 outline-none"
+              >
+                <option value={30}>{t('settings.transport_reminder_30')}</option>
+                <option value={60}>{t('settings.transport_reminder_60')}</option>
+                <option value={120}>{t('settings.transport_reminder_120')}</option>
+              </select>
+            </div>
+          )}
+          {notifPermission === 'denied' && (
+            <p className="text-xs mt-2" style={{ color: 'var(--error)' }}>
+              {t('settings.outing_notification_blocked')}
+            </p>
+          )}
+        </Section>
+      )}
 
       {/* E8 (M2): opt-in location capture — privacy first, 100% on-device */}
       <Section title={t('settings.location_title')}>

@@ -167,6 +167,8 @@ export {
   refreshShareLink,
   revokeShareLink,
   pullShareResponses,
+  pullAllShareResponses,
+  republishShareLinkFromDb,
   ingestSharedLink,
   answerAndPushShareLine,
   proposeSettlement,
@@ -175,6 +177,7 @@ export {
 export type {
   CreateShareLinkResult,
   PullShareResponsesResult,
+  PullAllShareResponsesResult,
   IngestShareResult,
 } from './share-link-orchestrators';
 export {

@@ -59,6 +59,10 @@ const ComparatorPage = lazyWithRetry(() => import('@/features/comparator/Compara
 const ExpenseMapPage = lazyWithRetry(() => import('@/features/map/ExpenseMapPage').then(m => ({ default: m.ExpenseMapPage })));
 const GroupSplitListPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitListPage').then(m => ({ default: m.GroupSplitListPage })));
 const DiaryPage = lazyWithRetry(() => import('@/features/diary/DiaryPage').then(m => ({ default: m.DiaryPage })));
+const ItineraryPage = lazyWithRetry(() => import('@/features/itinerary/ItineraryPage').then(m => ({ default: m.ItineraryPage })));
+const ItineraryCopilotFlow = lazyWithRetry(() => import('@/features/itinerary/ItineraryCopilotFlow').then(m => ({ default: m.ItineraryCopilotFlow })));
+const BookingChecklistPage = lazyWithRetry(() => import('@/features/itinerary/BookingChecklistPage').then(m => ({ default: m.BookingChecklistPage })));
+const ItineraryMapPage = lazyWithRetry(() => import('@/features/itinerary/ItineraryMapPage').then(m => ({ default: m.ItineraryMapPage })));
 const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/GroupSplitDetailPage').then(m => ({ default: m.GroupSplitDetailPage })));
 const GroupClaimPage = lazyWithRetry(() => import('@/features/group-split/GroupClaimPage').then(m => ({ default: m.GroupClaimPage })));
 const ExpenseSharePage = lazyWithRetry(() => import('@/features/expenses/ExpenseSharePage').then(m => ({ default: m.ExpenseSharePage })));
@@ -198,6 +202,11 @@ export const router = createBrowserRouter([
           { path: '/groups/:id', element: <LazyRoute><GroupSplitDetailPage /></LazyRoute> },
           // DEC-460: the trip diary — day-by-day timeline + HTML export.
           { path: '/diary', element: <LazyRoute><DiaryPage /></LazyRoute> },
+          // DEC-505: itinerary — agenda view + AI copilot creation flow.
+          { path: '/itinerary', element: <LazyRoute><ItineraryPage /></LazyRoute> },
+          { path: '/itinerary/create', element: <LazyRoute><ItineraryCopilotFlow /></LazyRoute> },
+          { path: '/itinerary/checklist', element: <LazyRoute><BookingChecklistPage /></LazyRoute> },
+          { path: '/itinerary/map', element: <LazyRoute><ItineraryMapPage /></LazyRoute> },
         ],
       },
       { path: '/', element: <LazyRoute><BootGate /></LazyRoute> },

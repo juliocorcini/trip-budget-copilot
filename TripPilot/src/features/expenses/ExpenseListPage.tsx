@@ -47,6 +47,7 @@ import { isSplitCommitTransaction } from '@/domain/split';
 import { collectReceiptSessionIds, isReceiptCommitTransaction } from '@/domain/receipt';
 import { useWalletTracking } from '@/hooks/useWalletTracking';
 import { buildSessionFeed, groupFeedByDay } from './expense-feed';
+import { useExpenseLegCity } from '@/features/itinerary/useExpenseLegMapping';
 import {
   countActiveFilters,
   hasActiveFilter,
@@ -93,6 +94,7 @@ export function ExpenseListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { trip, transactions, pools, wallets, phases, links, participants, loading, reload } = useAppData();
+  const getLegCity = useExpenseLegCity(trip?.id);
   // DEC-473 (bulk wallet): batch wallet edits only make sense when the wallet
   // question exists at all (2+ wallets / Wise import / manual override).
   const walletTracking = useWalletTracking();
@@ -962,6 +964,17 @@ export function ExpenseListPage() {
                   {tx.walletId && (
                     <p className="text-xs text-on-surface-faint">{walletMap.get(tx.walletId) ?? ''}</p>
                   )}
+                  {(() => {
+                    const city = getLegCity(localDayOf(tx.date));
+                    return city ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/itinerary?date=${localDayOf(tx.date)}`); }}
+                        className="text-[10px] text-primary font-medium mt-0.5 btn-press"
+                      >
+                        📍 {city}
+                      </button>
+                    ) : null;
+                  })()}
                 </div>
                 {!selection.active && (
                   <Icon name="chevron_right" size={16} className="text-on-surface-faint" />

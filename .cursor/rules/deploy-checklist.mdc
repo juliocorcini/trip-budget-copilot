@@ -1,92 +1,79 @@
-# Deploy Checklist (MANDATORY)
+---
+description: "MANDATORY deploy rules — always use TripPilot/scripts/deploy.sh, never manual wrangler commands"
+alwaysApply: true
+---
 
-Every deploy to production MUST use the deploy script: `TripPilot/scripts/deploy.sh`.
-NEVER deploy manually with individual wrangler/build commands. The script handles
-version bump, type check, build, OTA bundle, and production verification automatically.
+# Deploy Rules (CRITICAL — ALWAYS ENFORCED)
 
-## Standard deploy commands
+## ABSOLUTE RULE: Use the deploy script. No exceptions.
+
+**ALWAYS** run `bash scripts/deploy.sh` from `TripPilot/`.
+**NEVER** run `npx wrangler pages deploy` or `npm run build` manually for deployment.
+
+The deploy script handles EVERYTHING:
+- Auto-bumps version in ALL 4 files (package.json, app-version.ts, version.json, sw.js)
+- Type-checks, builds, creates OTA bundle
+- Deploys to Cloudflare Pages on the correct branch (`master`)
+- Verifies production is serving the new version
+- Verifies OTA bundle is downloadable
+
+Manual deployment WILL break things because the app has 4 version files + a service worker cache name that must ALL be updated atomically. Missing any one = users don't receive the update.
+
+## Deploy commands
 
 ```bash
 cd TripPilot
 bash scripts/deploy.sh              # pages only (default, auto-bumps patch)
 bash scripts/deploy.sh all          # pages + worker + apk
+bash scripts/deploy.sh pages worker # pages + worker
 bash scripts/deploy.sh --dry-run    # preview what would happen
+bash scripts/deploy.sh --skip-tests # skip tsc --noEmit (use sparingly)
 ```
 
-## Before running the script
+## Before running the script — only ONE thing is needed
 
-1. **Web version bump** — increment the version in ALL three places:
-   - `TripPilot/package.json` (`version` field)
-   - `TripPilot/src/utils/app-version.ts` (`APP_VERSION`)
-   - `TripPilot/public/version.json` (`version` + `bundleUrl`)
+**Release notes** — the script will block if missing. Add an entry to `TripPilot/src/utils/release-notes.ts`:
+1. Run `bash scripts/deploy.sh --dry-run` to see the target version
+2. Add a new entry at the TOP of the `RELEASE_NOTES` array for that version
+3. Include `version`, `date` (YYYY-MM-DD), and `items` in all 3 languages (pt-BR, en, es)
+4. Write from the USER perspective (what they see/gain, not technical internals)
+5. Re-run `bash scripts/deploy.sh`
 
-2. **Release notes** — add an entry to `TripPilot/src/utils/release-notes.ts`:
-   - Add a new object at the TOP of `RELEASE_NOTES` array (newest first)
-   - Include `version`, `date`, and `items` in all 3 languages (pt-BR, en, es)
-   - Write user-facing copy (what they notice, not technical internals)
-   - The test `release-notes.test.tsx` WILL FAIL if the current APP_VERSION has no entry
+You do NOT need to manually bump versions — the script does it automatically.
 
-3. **version.json notes** — update `notes` field with a short summary of changes
+## Environment requirements
 
-## APK version bump (when native changes exist)
+- Node.js ≥ 22 (script auto-switches via nvm)
+- Cloudflare account: `e146e88b34b2694243b1d74cee8de743` (Juliojcmedeiros)
+- Production branch: `master`
+- Production URL: `https://trippilot.pages.dev`
 
-If the deploy includes ANY change that affects the Android APK — new Capacitor plugins,
-`AndroidManifest.xml` changes, Gradle config changes, native dependencies (`google-services.json`,
-Firebase, new permissions), or any reason the user needs a new APK — you MUST ALSO:
+## Version files (managed by the script — DO NOT bump manually)
 
-4. **Bump native version** in `TripPilot/android/app/build.gradle`:
-   - `versionCode` — increment by 1 (integer)
-   - `versionName` — increment patch (e.g. `"0.75.0"` → `"0.76.0"`)
+| File | Field | Purpose |
+|------|-------|---------|
+| `package.json` | `version` | npm/build version |
+| `src/utils/app-version.ts` | `APP_VERSION` | In-app display version |
+| `public/version.json` | `version` + `bundleUrl` | OTA update detection |
+| `public/sw.js` | `CACHE_NAME` number | Forces service worker cache bust |
 
-5. **Update `latestNativeVersion`** in `TripPilot/public/version.json`:
-   - Set to the NEW `versionName` from step 4
-   - This is what triggers the "New version available" toast on the installed APK
+## APK deploy (when native changes exist)
 
-### How to detect if APK bump is needed
+Use `bash scripts/deploy.sh apk` or `bash scripts/deploy.sh all`.
+The script handles native version bumps, cap sync, and Gradle build.
 
-Ask yourself: "Does the user need to install a new APK for this change to work?"
-- YES → bump native version (steps 4-5) + full APK rebuild (steps in deploy sequence)
-- NO (web-only change) → skip steps 4-5, OTA handles it automatically
+APK bump needed when: new Capacitor plugins, AndroidManifest changes, Gradle changes,
+new permissions, Firebase config changes, any `TripPilot/android/` modification.
 
-Common APK-required changes:
-- New Capacitor plugin added/updated (`@capacitor/*`)
-- `capacitor.config.ts` changes
-- `AndroidManifest.xml` or Gradle changes
-- New native permissions
-- Firebase / Google Services config changes
-- Any file under `TripPilot/android/` modified
+## Post-deploy
 
-## Version numbering
+- Users receive the update on next page load (service worker detects new cache version)
+- Native apps receive OTA within ~30s of cold start
+- Verify on phone: Settings → About should show new version
 
-- **Web**: `MAJOR.MINOR.PATCH-rc` (e.g. `2.8.1-rc`)
-- **Native**: `X.Y.Z` (e.g. `0.75.0`) with integer `versionCode`
-- Every deploy gets its OWN version — never ship two different sets of changes under the same version
-- If a previous session already bumped to X.Y.Z-rc, bump to X.Y.(Z+1)-rc
+## Forbidden actions
 
-## Deploy sequence
-
-### Web deploy (every deploy)
-1. `tsc --noEmit` — zero errors
-2. `npm run build` — success
-3. `npm run test` — no NEW failures (pre-existing are documented)
-4. **Create OTA bundle**: `mkdir -p dist/bundles && cd dist && zip -r bundles/<VERSION>.zip . -x "bundles/*" -x "trippilot.apk"`
-   The bundle URL in `version.json` points here — without it, the native app cannot OTA-update.
-5. `npx wrangler pages deploy dist --project-name trippilot` — deploys web + bundle + APK
-6. Verify live: `curl https://trippilot.pages.dev/version.json` shows new version
-7. Verify bundle: `curl -sI https://trippilot.pages.dev/bundles/<VERSION>.zip | grep content-type` — must be `application/zip`, NOT `text/html`
-8. `git add -A && git commit && git push origin master`
-9. Worker (if changed): `cd worker && npx wrangler deploy`
-
-### APK deploy (when native version was bumped)
-8. `npx cap sync android` — sync web assets + plugins to Android project
-9. `cd android && ./gradlew assembleRelease` — build unsigned APK
-10. Sign APK with the **WSL debug keystore** (cert `c9d309c5`, same as installed):
-    `zipalign -f 4 <unsigned>.apk trippilot.apk && apksigner sign --ks /home/julio/.android/debug.keystore --ks-pass pass:android trippilot.apk`
-    **CRITICAL**: do NOT use the Windows keystore (`/mnt/c/Users/julio/.android/debug.keystore`) — it has a DIFFERENT cert and Android will refuse the upgrade.
-11. Copy to dist: `cp trippilot.apk ../../dist/trippilot.apk`
-12. Deploy dist with APK: `npx wrangler pages deploy dist --project-name trippilot`
-13. Verify: `curl -sI https://trippilot.pages.dev/trippilot.apk | grep content-length` — size matches new APK
-
-### Post-deploy verification
-- Open app on phone — if native version was bumped, "New version available" toast should appear
-- If web-only, OTA should auto-apply within ~30s of opening the app
+- `npx wrangler pages deploy` outside the script
+- Manual `npm run build` for deployment purposes
+- Editing version files individually without the script
+- Deploying without release notes

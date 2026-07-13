@@ -1,8 +1,8 @@
 {
-  "version": "2.11.0-rc",
+  "version": "2.13.2-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.11.0-rc.zip",
-  "notes": "Pool transparency: transaction breakdown, collapsible Advanced section. Delete pool button always visible."
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.13.2-rc.zip",
+  "notes": "Itinerary Polish G1: guided conversation flow, color-coded days, progress bar, vertical timeline, swipe navigation."
 }

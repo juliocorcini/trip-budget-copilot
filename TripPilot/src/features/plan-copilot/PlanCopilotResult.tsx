@@ -70,7 +70,7 @@ export function PlanCopilotResult({
             <span className="text-sm font-bold text-on-surface capitalize">{t(`copilot_result.style_${spendingStyle}` as never)}</span>
           </div>
           <p className="text-xs text-on-surface-faint mt-1.5">
-            📍 {contextUsed?.destination ?? ''} · {contextUsed?.duration ?? ''} · {fmtEuro(result.plan.free_budget_cents, currency)} {t('copilot_result.free_label')}
+            📍 {contextUsed?.destination ?? ''} · {contextUsed?.duration ?? ''} · {fmtEuro(result.plan.free_budget_cents, currency)} {currentSpending && currentSpending.length > 0 ? t('copilot_result.remaining_label') : t('copilot_result.free_label')}
           </p>
         </div>
 
@@ -215,12 +215,12 @@ export function PlanCopilotResult({
               <p className="text-sm font-extrabold tabular text-on-surface">{fmtEuro(result.computed?.total_planned_cents ?? 0, currency)}</p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-on-surface-faint">{t('copilot_result.free')}</p>
+              <p className="text-[10px] text-on-surface-faint">{currentSpending && currentSpending.length > 0 ? t('copilot_result.remaining') : t('copilot_result.free')}</p>
               <p className="text-sm font-extrabold tabular text-on-surface">{fmtEuro(result.plan.free_budget_cents, currency)}</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-on-surface-faint">{t('copilot_result.margin')}</p>
-              <p className="text-sm font-extrabold tabular text-success">
+              <p className={`text-sm font-extrabold tabular ${(result.computed?.margin_cents ?? 0) >= 0 ? 'text-success' : 'text-error'}`}>
                 {fmtEuro(result.computed?.margin_cents ?? 0, currency)} ({result.computed?.margin_percent ?? 0}%)
               </p>
             </div>

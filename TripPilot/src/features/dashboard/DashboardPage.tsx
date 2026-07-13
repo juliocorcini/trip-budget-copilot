@@ -47,6 +47,7 @@ import { shouldOfferModeReveal, MODE_REVEAL_MIN_EXPENSES } from '@/domain/app-mo
 import { isOngoing } from '@/domain/spaces/spaces';
 import { useDashboardModel } from './useDashboardModel';
 import { DashboardCards } from './DashboardCards';
+import { ItineraryContextCard } from '@/features/itinerary/ItineraryContextCard';
 import { DashboardSheets } from './DashboardSheets';
 import { SimpleHome } from './SimpleHome';
 import { OngoingHome } from './OngoingHome';
@@ -817,6 +818,9 @@ export function DashboardPage() {
             onEditSavingsGoal={() => setSavingsGoalOpen(true)}
             onPiggyWithdraw={handlePiggyWithdraw}
           />
+
+          {/* DEC-505: Itinerary context card — returns null when no legs (ÂNCORA-ITIN-2) */}
+          <ItineraryContextCard tripId={trip.id} baseCurrency={trip.baseCurrency} transactions={transactions} />
 
           {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}
           {hiddenCardCount > 0 && (

@@ -2,6 +2,11 @@ import {
   shareLinkRepository,
   mirroredStatementRepository,
   appSettingsRepository,
+  transactionRepository,
+  participantShareRepository,
+  participantRepository,
+  settlementRepository,
+  tripRepository,
 } from '@/data/repositories';
 import { db } from '@/data/db/database';
 import { logger } from '@/utils/logger';
@@ -30,8 +35,13 @@ import {
   type ShareResponseBatch,
   type ShareSettleProposal,
 } from '@/domain/sync/share-response';
-import { parseStatementPayload, type StatementPayload } from '@/domain/sync/statement-payload';
-import { answerMirroredLine, clearSentResponses } from '@/domain/sync/mirrored';
+import {
+  buildParticipantSharePayload,
+  parseStatementPayload,
+  type StatementPayload,
+} from '@/domain/sync/statement-payload';
+import { toSharedPaymentMethods } from '@/domain/payment';
+import { answerMirroredLine, clearSentResponses, recalculateMirroredNet } from '@/domain/sync/mirrored';
 import { applyPeerResponses, storeMirroredStatement } from './sync-orchestrators';
 import type { ShareLink } from '@/domain/types/share-link';
 import type { MirroredStatement } from '@/domain/types/mirrored-statement';
@@ -215,6 +225,24 @@ export async function ingestSharedLink(
   if (payload.owner.actorId === getInstallationId()) return { status: 'own_link' };
 
   const statement = await storeMirroredStatement(payload, { shareId, key: effectiveKey });
+
+  // After re-building the mirrored statement, `buildMirroredStatement` may have
+  // restored locally-confirmed lines that the owner's stale payload still showed
+  // as 'pending'. Those restored confirmations re-populate `pendingResponses`.
+  // Re-push them now so the owner's next pull picks them up (idempotent — the DO
+  // stores by response id, so a duplicate is just an overwrite).
+  if (statement.pendingResponses.length > 0 && statement.share) {
+    const pushed = await pushGuestResponses(statement, null);
+    if (pushed) {
+      const cleared = clearSentResponses(
+        statement,
+        statement.pendingResponses.map((r) => r.shareId),
+      );
+      await db.mirroredStatements.put(cleared);
+      return { status: 'ok', statement: cleared };
+    }
+  }
+
   return { status: 'ok', statement };
 }
 
@@ -237,7 +265,8 @@ export async function answerAndPushShareLine(
 ): Promise<GuestActionResult | null> {
   const statement = await mirroredStatementRepository.getById(statementId);
   if (!statement) return null;
-  const updated = answerMirroredLine(statement, shareId, status);
+  const answered = answerMirroredLine(statement, shareId, status);
+  const updated = recalculateMirroredNet(answered);
   await db.mirroredStatements.put(updated);
   if (!updated.share) return { statement: updated, pushed: false };
 
@@ -313,4 +342,100 @@ async function pushGuestResponses(
 export async function refreshSharedLink(statement: MirroredStatement): Promise<IngestShareResult> {
   if (!statement.share) return { status: 'error' };
   return ingestSharedLink(statement.share.shareId, statement.share.key);
+}
+
+// ---------------------------------------------------------------------------
+// Owner side — auto-republish after confirmations
+// ---------------------------------------------------------------------------
+
+/**
+ * Owner: rebuild and re-publish the statement for a participant whose shares
+ * just changed (after pulling guest responses). The guest then sees updated
+ * net numbers on their next refresh/signal. Best-effort — a failure is
+ * swallowed and logged; the guest just sees the old snapshot until the owner
+ * manually refreshes.
+ */
+export async function republishShareLinkFromDb(link: ShareLink): Promise<void> {
+  const participant = await participantRepository.getById(link.participantId);
+  if (!participant) return;
+
+  const settings = await appSettingsRepository.get();
+  const tripId = settings?.activeTrip;
+  if (!tripId) return;
+  const trip = await tripRepository.getById(tripId);
+  if (!trip) return;
+
+  const owner = (await participantRepository.getByTripId(tripId)).find((p) => p.isOwner);
+  if (!owner) return;
+
+  const [transactions, shares, participants, settlements] = await Promise.all([
+    transactionRepository.getByTripId(tripId),
+    participantShareRepository.getAllIncludingDeleted(),
+    participantRepository.getByTripId(tripId),
+    settlementRepository.getByTripId(tripId),
+  ]);
+
+  const sharedMethods = toSharedPaymentMethods(settings?.paymentMethods ?? []);
+  const statement = buildParticipantSharePayload({
+    owner: { actorId: getInstallationId(), displayName: owner.name },
+    ownerParticipantId: owner.id,
+    participant,
+    transactions,
+    shares,
+    participants,
+    settlements,
+    currency: trip.baseCurrency,
+    includeThirdParty: true,
+    ...(sharedMethods.length > 0 ? { paymentMethods: sharedMethods } : {}),
+  });
+
+  await refreshShareLink(link, statement);
+}
+
+// ---------------------------------------------------------------------------
+// Owner side — bulk pull (boot / foreground)
+// ---------------------------------------------------------------------------
+
+export interface PullAllShareResponsesResult {
+  totalApplied: number;
+  linksWithChanges: string[];
+}
+
+/**
+ * Owner: pull guest responses for EVERY active share link. Called by the boot
+ * module on app start and on every foreground return, so confirmations that
+ * arrived while the owner was away (or whose WebSocket signal was missed) are
+ * applied before the user sees stale "pending" badges.
+ *
+ * When confirmations are applied, the statement is automatically re-published
+ * so the guest sees updated net numbers on their next refresh.
+ */
+export async function pullAllShareResponses(): Promise<PullAllShareResponsesResult> {
+  const links = await shareLinkRepository.getAllActive();
+  let totalApplied = 0;
+  const linksWithChanges: string[] = [];
+
+  for (const link of links) {
+    try {
+      const result = await pullShareResponses(link);
+      if (result.appliedLines > 0) {
+        totalApplied += result.appliedLines;
+        linksWithChanges.push(link.id);
+      }
+    } catch (err) {
+      logger.warn('pull_all_share_responses_failed', { shareId: link.id, module: 'share-link-orchestrators' }, err);
+    }
+  }
+
+  for (const changedId of linksWithChanges) {
+    const freshLink = await shareLinkRepository.getById(changedId);
+    if (!freshLink || freshLink.revokedAt) continue;
+    try {
+      await republishShareLinkFromDb(freshLink);
+    } catch (err) {
+      logger.warn('auto_republish_failed', { shareId: changedId, module: 'share-link-orchestrators' }, err);
+    }
+  }
+
+  return { totalApplied, linksWithChanges };
 }

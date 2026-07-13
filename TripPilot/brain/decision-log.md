@@ -3730,6 +3730,30 @@
 - **Rationale**: ÂNCORA-COPILOT-2 — questions that don't map to app features are noise. They confuse users and produce answers the app cannot act on.
 - **Alternatives**: let AI ask anything (rejected — user feedback confirms irrelevant questions reduce trust).
 
+### DEC-505 — ItineraryLeg as a new entity replacing sub-destinations [itinerary copilot 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: Create a dedicated `ItineraryLeg` entity (new Dexie table, schema V14) that represents one stop in the trip itinerary (city, dates, transport, accommodation, budget premise). This REPLACES the never-used `PlannedOccurrence kind:'sub_destination'`. Old sub-destination rows are not deleted but new code ignores them.
+- **Rationale**: Sub-destinations were specced in DEC-072 but never used in production. The ItineraryLeg is richer (transport details, times, booking status, companions, day type, prepaid flag) and purpose-built for the eurotrip use case.
+- **Alternatives**: extend PlannedOccurrence with new fields (rejected — too many optional fields on a table used by other features; clean separation is safer).
+
+### DEC-506 — Itinerary Copilot is SEPARATE from Plan Copilot (DEC-492) [itinerary copilot 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: The Itinerary Copilot (builds the route: cities, transport, accommodation) is a distinct AI flow from the Plan Copilot (DEC-492, builds the budget plan). Separate Worker endpoints (`/itinerary-copilot/build` and `/refine`), separate UI flows, separate data output. They can link (itinerary suggests phases for the budget copilot) but never merge.
+- **Rationale**: Two different problems (logistics vs budget) with different output schemas. Merging would over-complicate both prompts and make errors harder to debug.
+- **Alternatives**: single unified flow (rejected — complex prompt, conflated outputs, harder to test).
+
+### DEC-507 — Itinerary suggests phases, user confirms with 1 tap [itinerary copilot 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: After the AI builds the itinerary, it also generates `suggestedPhases` (2-4 groups by geographic proximity). The UI shows these as a preview with a "Create these phases" button. Tapping creates Phase + BudgetPool per suggestion. Never creates silently.
+- **Rationale**: Users who just built their itinerary don't want to manually re-create phases. But auto-creating without consent would conflict with existing phases or surprise the user.
+- **Alternatives**: auto-create (rejected — can conflict with existing data); suggest but don't pre-fill (rejected — too much friction).
+
+### DEC-508 — Prepaid costs in itinerary are informative only [itinerary copilot 10/07]
+- **Date**: 2026-07-10 · **Status**: ✅ PROPOSED
+- **Decision**: Transport and accommodation costs marked as `isPrepaid: true` in ItineraryLeg are informational — they appear in the itinerary view and trip summary but do NOT create Transaction records and do NOT affect "livre hoje", cofrinho, or phase budget calculations.
+- **Rationale**: These costs were paid before the trip started. They should be visible in the "total cost" context but not pressure the daily allowance. The user already knows they paid; the app shouldn't double-count.
+- **Alternatives**: create read-only transactions (rejected — adds noise to expense list and complicates budget math); ignore completely (rejected — total trip cost would be inaccurate).
+
 ---
 
 *New decisions will be added as the project progresses.*

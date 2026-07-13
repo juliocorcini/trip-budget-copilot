@@ -17,6 +17,234 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.13.2-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': ['Correção de cache: resolvido erro ao abrir o itinerário em dispositivos com versão anterior cacheada.'],
+      en: ['Cache fix: resolved error opening itinerary on devices with stale cached version.'],
+      es: ['Corrección de caché: resuelto error al abrir el itinerario en dispositivos con versión anterior en caché.'],
+    },
+  },
+  {
+    version: '2.13.1-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': ['Corrigido erro ao abrir a página do itinerário.'],
+      en: ['Fixed crash when opening the itinerary page.'],
+      es: ['Corregido error al abrir la página del itinerario.'],
+    },
+  },
+  {
+    version: '2.13.0-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': [
+        'Lembrete de transporte: receba uma notificação antes de cada transporte do itinerário.',
+        'Compartilhar itinerário: envie seu roteiro formatado para WhatsApp ou qualquer app.',
+        'Configure a antecedência do lembrete (30min, 1h ou 2h) nas Configurações.',
+      ],
+      en: [
+        'Transport reminder: get notified before each itinerary transport departure.',
+        'Share itinerary: send your formatted itinerary to WhatsApp or any app.',
+        'Configure reminder lead time (30min, 1h or 2h) in Settings.',
+      ],
+      es: [
+        'Recordatorio de transporte: recibe una notificación antes de cada transporte.',
+        'Compartir itinerario: envía tu itinerario formateado a WhatsApp u otra app.',
+        'Configura la anticipación del recordatorio (30min, 1h o 2h) en Ajustes.',
+      ],
+    },
+  },
+  {
+    version: '2.12.8-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': [
+        'Confirmações do link compartilhado agora persistem mesmo ao reabrir o link.',
+        'O app do dono agora puxa confirmações antes de republicar o extrato.',
+        'Poll periódico garante sincronização mesmo com WebSocket instável.',
+      ],
+      en: [
+        'Shared link confirmations now persist even when reopening the link.',
+        'The owner app now pulls confirmations before republishing the statement.',
+        'Periodic polling ensures sync even with unstable WebSocket.',
+      ],
+      es: [
+        'Las confirmaciones del enlace compartido ahora persisten al reabrir el enlace.',
+        'La app del dueño ahora descarga confirmaciones antes de republicar el extracto.',
+        'Un sondeo periódico garantiza la sincronización incluso con WebSocket inestable.',
+      ],
+    },
+  },
+  {
+    version: '2.12.7-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': [
+        'Confirmações do link compartilhado agora aparecem no seu app automaticamente.',
+        'O valor que você deve atualiza em tempo real quando o outro confirma.',
+        'Quem recebe o link já vê o saldo atualizado ao confirmar um gasto.',
+      ],
+      en: [
+        'Shared link confirmations now appear in your app automatically.',
+        'The amount you owe updates in real time when the other person confirms.',
+        'Link recipients see the updated balance immediately after confirming.',
+      ],
+      es: [
+        'Las confirmaciones del enlace compartido ahora aparecen automáticamente en tu app.',
+        'El monto que debes se actualiza en tiempo real cuando el otro confirma.',
+        'Quien recibe el enlace ya ve el saldo actualizado al confirmar un gasto.',
+      ],
+    },
+  },
+  {
+    version: '2.12.5-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Redesign completo do Itinerário — cards coloridos por tipo, menu de ações, visual moderno.',
+        'Adicionar etapas com IA mesmo depois de já ter o itinerário criado.',
+        'Editar e remover etapas direto pela agenda — menu ⋮ em cada card.',
+        'Botão flutuante "+" para adicionar (manual ou com IA) sempre visível.',
+        'Empty state renovado com ícones e opções claras.',
+      ],
+      en: [
+        'Full itinerary redesign — colored cards by day type, action menus, modern layout.',
+        'Add legs with AI even after the itinerary already exists.',
+        'Edit and remove legs directly from the agenda — ⋮ menu on each card.',
+        'Floating "+" button to add (manual or AI) always visible.',
+        'Refreshed empty state with clear icons and options.',
+      ],
+      es: [
+        'Rediseño completo del Itinerario — tarjetas coloridas por tipo, menú de acciones, visual moderno.',
+        'Agregar etapas con IA incluso después de tener el itinerario creado.',
+        'Editar y eliminar etapas directo desde la agenda — menú ⋮ en cada tarjeta.',
+        'Botón flotante "+" para agregar (manual o con IA) siempre visible.',
+        'Estado vacío renovado con íconos y opciones claras.',
+      ],
+    },
+  },
+  {
+    version: '2.12.4-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Card do itinerário no Início agora expande: toque para ver a agenda do dia + barra de orçamento.',
+        'Checklist de reservas — veja o que falta comprar, agrupado por status.',
+        'Badge de cidade nos gastos — toque para ir direto ao dia no itinerário.',
+      ],
+      en: [
+        'Itinerary card on Home now expands: tap to see day agenda + budget bar.',
+        'Booking checklist — see what\'s left to buy, grouped by status.',
+        'City badge on expenses — tap to jump to the day in the itinerary.',
+      ],
+      es: [
+        'Tarjeta del itinerario en Inicio ahora se expande: toca para ver la agenda + barra de presupuesto.',
+        'Checklist de reservas — ve lo que falta comprar, agrupado por estado.',
+        'Badge de ciudad en los gastos — toca para ir al día en el itinerario.',
+      ],
+    },
+  },
+  {
+    version: '2.12.3-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Dica de orçamento no registro de gasto — mostra a premissa do dia do itinerário.',
+        'Companheiros de hoje sugeridos na divisão de gasto.',
+        'Barra de gasto vs planejado por trecho na agenda.',
+        'Notas pessoais editáveis por dia — dicas, lembretes, checklist.',
+      ],
+      en: [
+        'Budget tip in expense registration — shows the day\'s budget premise from itinerary.',
+        'Today\'s companions suggested in expense splitting.',
+        'Spent vs planned progress bar per leg in the agenda.',
+        'Editable personal notes per day — tips, reminders, checklist.',
+      ],
+      es: [
+        'Consejo de presupuesto al registrar gasto — muestra la premisa del día del itinerario.',
+        'Compañeros de hoy sugeridos en la división de gastos.',
+        'Barra de gasto vs planificado por tramo en la agenda.',
+        'Notas personales editables por día — consejos, recordatorios, checklist.',
+      ],
+    },
+  },
+  {
+    version: '2.12.2-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Itinerário passo a passo: a IA agora faz perguntas guiadas para montar o roteiro.',
+        'Cores por tipo de dia: trânsito (azul), festival (roxo), dia cheio (verde), descanso (cinza), bate-volta (amarelo).',
+        'Barra de progresso da viagem no topo do itinerário.',
+        'Nova timeline vertical com nós coloridos — mais bonita e legível.',
+        'Deslize entre dias com swipe lateral na agenda.',
+      ],
+      en: [
+        'Step-by-step itinerary: AI now asks guided questions to build your route.',
+        'Day type color coding: transit (blue), festival (purple), full (green), rest (gray), day trip (amber).',
+        'Trip progress bar at the top of the itinerary.',
+        'New vertical timeline with colored nodes — more beautiful and readable.',
+        'Swipe between days with lateral gesture on the agenda.',
+      ],
+      es: [
+        'Itinerario paso a paso: la IA ahora hace preguntas guiadas para armar tu ruta.',
+        'Colores por tipo de día: tránsito (azul), festival (púrpura), día completo (verde), descanso (gris), excursión (amarillo).',
+        'Barra de progreso del viaje en la parte superior del itinerario.',
+        'Nueva línea de tiempo vertical con nodos de colores — más linda y legible.',
+        'Desliza entre días con gesto lateral en la agenda.',
+      ],
+    },
+  },
+  {
+    version: '2.12.0-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'Itinerary Copilot: monte o roteiro da viagem com a IA — cidades, transportes, hospedagem.',
+        'Card de contexto no Home mostra onde você está e o próximo transporte.',
+        'Agenda do dia com timeline cronológica, dica de orçamento e companheiros.',
+        'CRUD manual: crie, edite e exclua etapas sem precisar da IA.',
+        'Sugestão automática de fases baseada no itinerário — confirme com 1 tap.',
+      ],
+      en: [
+        'Itinerary Copilot: plan your trip route with AI — cities, transport, accommodation.',
+        'Home context card shows where you are and the next transport.',
+        'Daily agenda with chronological timeline, budget tips, and companions.',
+        'Manual CRUD: create, edit, and delete legs without AI.',
+        'Automatic phase suggestion based on itinerary — confirm with 1 tap.',
+      ],
+      es: [
+        'Itinerary Copilot: planifica la ruta del viaje con IA — ciudades, transporte, alojamiento.',
+        'Tarjeta de contexto en Home muestra dónde estás y el próximo transporte.',
+        'Agenda del día con línea de tiempo, consejos de presupuesto y compañeros.',
+        'CRUD manual: crea, edita y elimina etapas sin necesidad de IA.',
+        'Sugerencia automática de fases basada en el itinerario — confirma con 1 toque.',
+      ],
+    },
+  },
+  {
+    version: '2.11.3-rc',
+    date: '2026-07-10',
+    items: {
+      'pt-BR': [
+        'AI Copilot: mid-trip replan agora usa budget e dias restantes — plano nunca excede o budget.',
+        'Resultado AI: mostra "restantes" no mid-trip e margem fica vermelha quando negativa.',
+        'Transações na verba agora são clicáveis — toque para ver, editar ou excluir.',
+      ],
+      en: [
+        'AI Copilot: mid-trip replan now uses remaining budget and days — plan never exceeds budget.',
+        'AI result: shows "remaining" in mid-trip and margin turns red when negative.',
+        'Pool transactions are now clickable — tap to view, edit, or delete.',
+      ],
+      es: [
+        'AI Copilot: replanificación mid-trip ahora usa presupuesto y días restantes — plan nunca excede el presupuesto.',
+        'Resultado AI: muestra "restantes" en mid-trip y margen se pone rojo cuando es negativo.',
+        'Las transacciones del fondo ahora son clicables — toca para ver, editar o eliminar.',
+      ],
+    },
+  },
+  {
     version: '2.11.0-rc',
     date: '2026-07-10',
     items: {

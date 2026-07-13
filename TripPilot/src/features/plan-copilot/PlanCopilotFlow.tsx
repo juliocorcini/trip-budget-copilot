@@ -34,7 +34,9 @@ interface TripContext {
   poolId: string;
   destination: string;
   durationDays: number;
+  remainingDays?: number;
   budgetCents: number;
+  totalBudgetCents?: number;
   reserveCents: number;
   currency: string;
   selectedActivities?: string[];
@@ -120,10 +122,15 @@ export function PlanCopilotFlow({ tripContext, hasSeenDisclosure, onPlanCreated 
   }, []);
 
   async function runAnalyze() {
+    const isMidTrip = (tripContext.currentSpending ?? []).length > 0;
     const outcome = await analyzeTrip({
       destination: tripContext.destination,
-      duration_days: tripContext.durationDays,
+      duration_days: isMidTrip && tripContext.remainingDays
+        ? tripContext.remainingDays
+        : tripContext.durationDays,
+      remaining_days: tripContext.remainingDays,
       budget_cents: tripContext.budgetCents,
+      total_budget_cents: tripContext.totalBudgetCents,
       reserve_cents: tripContext.reserveCents,
       currency: tripContext.currency,
       language: i18n.language,
@@ -147,10 +154,15 @@ export function PlanCopilotFlow({ tripContext, hasSeenDisclosure, onPlanCreated 
     answersRef.current = answers;
     setStage('generating');
 
+    const isMidTrip = (tripContext.currentSpending ?? []).length > 0;
     const outcome = await generatePlan({
       destination: tripContext.destination,
-      duration_days: tripContext.durationDays,
+      duration_days: isMidTrip && tripContext.remainingDays
+        ? tripContext.remainingDays
+        : tripContext.durationDays,
+      remaining_days: tripContext.remainingDays,
       budget_cents: tripContext.budgetCents,
+      total_budget_cents: tripContext.totalBudgetCents,
       reserve_cents: tripContext.reserveCents,
       currency: tripContext.currency,
       language: i18n.language,

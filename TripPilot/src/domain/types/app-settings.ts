@@ -185,6 +185,12 @@ export interface AppSettings {
    * afterward it never shows again. `undefined` on existing installs reads back
    * as unseen (non-indexed — no migration). */
   hasSeenPlanCopilotDisclosure?: boolean;
+  /** P14 (transport reminders): opt-in push notification before each departure.
+   * Default false — the feature activates when the user turns it on in Settings
+   * (ÂNCORA-POL-3: first toggle requests notification permission). */
+  transportReminderEnabled?: boolean;
+  /** P14: lead time in minutes before departure. Default 60 (1 hour). */
+  transportReminderMinutes?: number;
   /** DEC-465 (resgate do cofrinho): manual withdrawals the traveler took back
    * from the piggy buffer. Replayed into the ledger by (trip, pool, day) — the
    * money returns to the daily flow because the cap stops parking it. Append-

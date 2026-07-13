@@ -26,3 +26,4 @@ export { shareLinkRepository } from './share-link-repository';
 export { splitRepository } from './split-repository';
 export { groupSplitRepository } from './group-split-repository';
 export { debtMovementRepository } from './debt-movement-repository';
+export { itineraryLegRepository } from './itinerary-leg-repository';

@@ -1790,7 +1790,13 @@ export function PlannerPage() {
               const end = new Date(selectedPhase.endDate);
               return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
             })(),
-            budgetCents: phasePool.totalAmountCents,
+            remainingDays: (() => {
+              const now = new Date();
+              const end = new Date(selectedPhase.endDate);
+              return Math.max(1, Math.round((end.getTime() - now.getTime()) / 86400000) + 1);
+            })(),
+            budgetCents: availableCents > 0 ? availableCents : phasePool.totalAmountCents,
+            totalBudgetCents: phasePool.totalAmountCents,
             reserveCents: 0,
             currency,
             profiles: enabledProfiles,

@@ -21,7 +21,9 @@ export interface CurrentSpending {
 export interface AnalyzeInput {
   destination: string;
   duration_days: number;
+  remaining_days?: number;
   budget_cents: number;
+  total_budget_cents?: number;
   reserve_cents: number;
   currency: string;
   language: string;

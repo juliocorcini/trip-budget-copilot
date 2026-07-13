@@ -439,6 +439,15 @@ const GENERATE_SYSTEM_PROMPT = [
   '- Leave 15-25% margin (be CONSERVATIVE)',
   '- Costs in CENTS (integer)',
   '',
+  'MID-TRIP RE-PLAN (when "Current spending" data is present):',
+  '- The "Free to spend" is the REMAINING budget. The total plan MUST NOT exceed this value.',
+  '- "Duration" is the REMAINING days, not the full trip.',
+  '- Use the user\'s ACTUAL averages: if they spent avg 600c per restaurant in 18 visits, plan ~600c per restaurant, NOT higher.',
+  '- Scale quantities to remaining days: if user did 3 market trips in 35 days (~1/week), plan ~1 market trip per remaining week, NOT 10.',
+  '- NEVER suggest more total quantity than remaining_days for any category (you cannot go to 10 restaurants in 5 days with a tight budget).',
+  '- Prioritize essentials (market > transport > restaurant > outing > bar) when budget is tight.',
+  '- If the budget cannot cover all categories, DROP non-priority ones to 0 and set confidence="low".',
+  '',
   'IMPORTANT: ALL text fields (reasoning, insights) MUST be in the language specified by the user (see "Language" field). This is MANDATORY — never output English when the user language is different.',
   'BUDGET vs STYLE CONFLICT: if budget cannot support style, set confidence="low", add insight, lower non-priority categories first.',
   '',
@@ -457,7 +466,8 @@ async function handlePlanCopilotAnalyze(
   }
 
   let body: {
-    destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number;
+    destination?: string; duration_days?: number; remaining_days?: number; budget_cents?: number;
+    total_budget_cents?: number; reserve_cents?: number;
     currency?: string; language?: string; selected_activities?: string[];
     current_spending?: Array<{ profile_id: string; category: string; occasions_done: number; avg_cost_cents: number; total_spent_cents: number }>;
     spending_style?: string;
@@ -470,16 +480,28 @@ async function handlePlanCopilotAnalyze(
   }
 
   const freeBudget = budget_cents - (body.reserve_cents ?? 0);
+  const isMidTrip = (body.current_spending ?? []).length > 0;
   const spendingLines = (body.current_spending ?? []).map((s) =>
     `  ${s.category}: ${s.occasions_done} done, avg ${s.avg_cost_cents}c, total ${s.total_spent_cents}c`,
   );
   const userMessage = [
-    `Destination: ${destination}`, `Duration: ${duration_days} days`,
-    `Total budget: ${budget_cents} cents (${currency})`, `Free to spend: ${freeBudget} cents`,
+    `Destination: ${destination}`,
+    isMidTrip
+      ? `Remaining days: ${duration_days} days (this is a MID-TRIP re-plan)`
+      : `Duration: ${duration_days} days`,
+    isMidTrip && body.total_budget_cents
+      ? `Original phase budget: ${body.total_budget_cents} cents (${currency})`
+      : '',
+    isMidTrip
+      ? `REMAINING budget: ${freeBudget} cents (${currency})`
+      : `Total budget: ${budget_cents} cents (${currency})`,
+    !isMidTrip ? `Free to spend: ${freeBudget} cents` : '',
     `Currency: ${currency}`, `Language: ${body.language ?? 'pt-BR'}`,
     body.selected_activities?.length ? `Selected activities: ${body.selected_activities.join(', ')}` : '',
     body.spending_style ? `Previous spending style: ${body.spending_style}` : '',
-    spendingLines.length > 0 ? `Current spending (mid-trip re-plan):\n${spendingLines.join('\n')}` : '',
+    spendingLines.length > 0
+      ? `Current spending (mid-trip re-plan — use these averages):\n${spendingLines.join('\n')}`
+      : '',
   ].filter(Boolean).join('\n');
 
   const controller = new AbortController();
@@ -532,7 +554,8 @@ async function handlePlanCopilotGenerate(
   }
 
   let body: {
-    destination?: string; duration_days?: number; budget_cents?: number; reserve_cents?: number;
+    destination?: string; duration_days?: number; remaining_days?: number; budget_cents?: number;
+    total_budget_cents?: number; reserve_cents?: number;
     currency?: string; language?: string; answers?: Record<string, unknown>; selected_activities?: string[];
     current_spending?: Array<{ profile_id: string; category: string; occasions_done: number; avg_cost_cents: number; total_spent_cents: number }>;
   };
@@ -544,16 +567,28 @@ async function handlePlanCopilotGenerate(
   }
 
   const freeBudget = budget_cents - (body.reserve_cents ?? 0);
+  const isMidTrip = (body.current_spending ?? []).length > 0;
   const genSpendingLines = (body.current_spending ?? []).map((s) =>
     `  ${s.category}: ${s.occasions_done} done, avg ${s.avg_cost_cents}c, total ${s.total_spent_cents}c`,
   );
   const userMessage = [
-    `Destination: ${destination}`, `Duration: ${duration_days} days`,
-    `Total budget: ${budget_cents} cents (${currency})`, `Free to spend: ${freeBudget} cents`,
+    `Destination: ${destination}`,
+    isMidTrip
+      ? `Remaining days: ${duration_days} days (this is a MID-TRIP re-plan — plan ONLY for these remaining days)`
+      : `Duration: ${duration_days} days`,
+    isMidTrip && body.total_budget_cents
+      ? `Original phase budget: ${body.total_budget_cents} cents (${currency})`
+      : '',
+    isMidTrip
+      ? `REMAINING budget (do NOT exceed): ${freeBudget} cents (${currency})`
+      : `Total budget: ${budget_cents} cents (${currency})`,
+    !isMidTrip ? `Free to spend: ${freeBudget} cents` : '',
     `Currency: ${currency}`, `Language: ${body.language ?? 'pt-BR'}`,
     `User answers: ${JSON.stringify(answers)}`,
     body.selected_activities?.length ? `Selected activities: ${body.selected_activities.join(', ')}` : '',
-    genSpendingLines.length > 0 ? `Current spending (mid-trip re-plan):\n${genSpendingLines.join('\n')}` : '',
+    genSpendingLines.length > 0
+      ? `Current spending (mid-trip re-plan — use these averages as baseline for pricing):\n${genSpendingLines.join('\n')}`
+      : '',
   ].filter(Boolean).join('\n');
 
   const controller = new AbortController();
@@ -622,20 +657,274 @@ async function handlePlanCopilotGenerate(
     return json({ error: 'plan_copilot_all_activities_rejected' }, 502);
   }
 
+  // ÂNCORA-AI-3: if AI plan exceeds budget, scale down quantities proportionally.
+  let rawTotal = validActivities.reduce(
+    (total, a) => total + (a.suggested_quantity ?? 0) * (a.typical_cost_cents ?? 0), 0,
+  );
+  const budgetCeiling = Math.round(freeBudget * 0.85);
+  if (rawTotal > freeBudget && freeBudget > 0) {
+    const scaleFactor = budgetCeiling / rawTotal;
+    for (const a of validActivities) {
+      const newQty = Math.max(1, Math.round((a.suggested_quantity ?? 1) * scaleFactor));
+      (a as { suggested_quantity: number }).suggested_quantity = newQty;
+    }
+    rawTotal = validActivities.reduce(
+      (total, a) => total + (a.suggested_quantity ?? 0) * (a.typical_cost_cents ?? 0), 0,
+    );
+    if (rawTotal > freeBudget) {
+      const sortedByPriority = [...validActivities].sort((x, y) => {
+        const priority: Record<string, number> = { market: 1, transport: 2, restaurant: 3, outing: 4, bar: 5 };
+        return (priority[y.type ?? ''] ?? 3) - (priority[x.type ?? ''] ?? 3);
+      });
+      while (rawTotal > freeBudget && sortedByPriority.length > 0) {
+        const lowest = sortedByPriority[0]!;
+        const cost = (lowest.suggested_quantity ?? 1) * (lowest.typical_cost_cents ?? 0);
+        if ((lowest.suggested_quantity ?? 1) > 1) {
+          (lowest as { suggested_quantity: number }).suggested_quantity -= 1;
+          rawTotal -= (lowest.typical_cost_cents ?? 0);
+        } else {
+          const idx = validActivities.indexOf(lowest);
+          if (idx >= 0) validActivities.splice(idx, 1);
+          rawTotal -= cost;
+          sortedByPriority.shift();
+        }
+      }
+    }
+  }
+
   // ÂNCORA-AI-1: Worker calculates totals deterministically.
   const totalPlannedCents = validActivities.reduce(
     (total, a) => total + (a.suggested_quantity ?? 0) * (a.typical_cost_cents ?? 0), 0,
   );
   const marginCents = freeBudget - totalPlannedCents;
   const marginPercent = freeBudget > 0 ? Math.round((marginCents / freeBudget) * 100) : 0;
+  const wasOverBudget = rawTotal !== totalPlannedCents || (parsed.confidence === 'medium' && marginCents < 0);
 
   return json({
     plan: { activities: validActivities, free_budget_cents: freeBudget },
     computed: { total_planned_cents: totalPlannedCents, margin_cents: marginCents, margin_percent: marginPercent },
     context_used: parsed.context_used ?? null,
     insights: parsed.insights ?? [],
-    confidence: parsed.confidence ?? 'medium',
+    confidence: wasOverBudget ? 'low' : (parsed.confidence ?? 'medium'),
   }, 200);
+}
+
+// ── DEC-505: Itinerary Copilot handlers ─────────────────────────────────
+
+const ITINERARY_MODEL = 'llama-3.3-70b-versatile';
+const ITINERARY_TIMEOUT_MS = 20_000;
+
+const ITINERARY_BUILD_SYSTEM_PROMPT = [
+  'You are a travel itinerary assistant. Your job is to parse the user\'s trip information into structured itinerary legs.',
+  '',
+  'RULES:',
+  '1. Output MUST be valid JSON matching the schema below.',
+  '2. NEVER invent data not mentioned by the user (no made-up times, prices, or places).',
+  '3. If information is missing, set the field to null.',
+  '4. All text fields (budgetPremise, highlights, notes) MUST be in the language specified.',
+  '5. Costs: extract the amount as integer cents and the currency code. "€34.40" → costCents: 3440, costCurrency: "EUR". "R$120" → costCents: 12000, costCurrency: "BRL".',
+  '6. Dates: ISO format "YYYY-MM-DD". Times: "HH:MM" 24h format.',
+  '7. Order legs chronologically by arrivalDate.',
+  '8. For bookingStatus: "comprado"/"purchased"/"bought" → "purchased". "reservado"/"booked"/"reserved" → "booked". "cotado"/"priced" → "priced". Otherwise → "estimated".',
+  '9. isPrepaid: true only if the user explicitly says it was already paid/purchased.',
+  '10. dayType: "full" for normal days, "transit" for travel-heavy days, "festival" for event days, "rest" for rest days, "day_trip" for same-day round trips.',
+  '11. suggestedPhases: group legs into 2-4 phases by geographic/temporal proximity.',
+  '',
+  'OUTPUT SCHEMA:',
+  '{',
+  '  "legs": [{',
+  '    "order": number,',
+  '    "cityName": string,',
+  '    "countryCode": string | null,',
+  '    "arrivalDate": "YYYY-MM-DD",',
+  '    "arrivalTime": "HH:MM" | null,',
+  '    "departureDate": "YYYY-MM-DD",',
+  '    "departureTime": "HH:MM" | null,',
+  '    "arrivalTransport": { "type": "flight"|"train"|"bus"|"car"|"ferry"|"walk"|"other", "company": string|null, "route": string|null, "bookingStatus": string, "costCents": number|null, "costCurrency": string|null, "isPrepaid": boolean, "reference": string|null, "notes": string|null } | null,',
+  '    "accommodation": { "name": string, "type": "hotel"|"hostel"|"apartment"|"friend"|"airbnb"|"camping"|"other", "bookingStatus": string, "costCents": number|null, "costCurrency": string|null, "isPrepaid": boolean, "nights": number, "reference": string|null, "notes": string|null } | null,',
+  '    "dailyBudgetCents": number | null,',
+  '    "dailyBudgetCurrency": string | null,',
+  '    "budgetPremise": string | null,',
+  '    "companions": string[],',
+  '    "dayType": "full"|"transit"|"festival"|"rest"|"day_trip",',
+  '    "highlights": string[],',
+  '  }],',
+  '  "suggestedPhases": [{ "name": string, "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" }],',
+  '  "summary": string',
+  '}',
+].join('\n');
+
+const ITINERARY_REFINE_SYSTEM_PROMPT = [
+  'You are a travel itinerary assistant. The user has an existing itinerary (array of legs) and wants to make adjustments.',
+  '',
+  'RULES:',
+  '1. Output MUST be valid JSON matching the schema below.',
+  '2. Apply the user\'s refinement to the existing legs. Keep all unmentioned data intact.',
+  '3. NEVER invent data not requested by the user.',
+  '4. If the user adds a new city, insert a new leg in chronological order and adjust subsequent orders.',
+  '5. If the user changes accommodation or transport, update only the mentioned fields.',
+  '6. Return the COMPLETE updated legs array (not just changes).',
+  '7. The "changes" array should list what was modified in natural language.',
+  '',
+  'OUTPUT SCHEMA:',
+  '{',
+  '  "legs": [... same schema as build ...],',
+  '  "changes": ["description of change 1", "description of change 2", ...]',
+  '}',
+].join('\n');
+
+async function handleItineraryCopilotBuild(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'itinerary_copilot_not_configured' }, 503);
+  if (await edgeRateLimited(env.RL_AI, request, installId)) {
+    return json(rateLimitedPayload('itinerary_copilot_build'), 429);
+  }
+
+  let body: {
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    baseCurrency?: string;
+    language?: string;
+    userInput?: string;
+  };
+  try { body = await request.json(); } catch { return json({ error: 'invalid_json' }, 400); }
+
+  const { userInput, language } = body;
+  if (!userInput || userInput.trim().length < 5) {
+    return json({ error: 'missing_user_input' }, 400);
+  }
+
+  const userMessage = [
+    body.tripName ? `Trip: ${body.tripName}` : '',
+    body.startDate ? `Start: ${body.startDate}` : '',
+    body.endDate ? `End: ${body.endDate}` : '',
+    body.baseCurrency ? `Base currency: ${body.baseCurrency}` : '',
+    `Language for text fields: ${language ?? 'pt-BR'}`,
+    '',
+    'User input:',
+    userInput,
+  ].filter(Boolean).join('\n');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ITINERARY_TIMEOUT_MS);
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: ITINERARY_MODEL, temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: ITINERARY_BUILD_SYSTEM_PROMPT },
+          { role: 'user', content: userMessage },
+        ],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === 'AbortError') return json({ error: 'itinerary_copilot_timeout' }, 503);
+    logEvent('error', 'itinerary_copilot_build_fetch', { err });
+    return json({ error: 'itinerary_copilot_upstream_error' }, 502);
+  }
+  clearTimeout(timeout);
+
+  if (!upstream.ok) {
+    logEvent('warn', 'itinerary_copilot_build_upstream', { status: upstream.status });
+    return json({ error: 'itinerary_copilot_upstream_error', status: upstream.status }, 502);
+  }
+
+  let result: unknown;
+  try {
+    const data = (await upstream.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const raw = data?.choices?.[0]?.message?.content;
+    if (!raw) return json({ error: 'itinerary_copilot_empty_response' }, 502);
+    result = JSON.parse(raw);
+  } catch { return json({ error: 'itinerary_copilot_parse_error' }, 502); }
+
+  return json(result, 200);
+}
+
+async function handleItineraryCopilotRefine(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  installId: string,
+): Promise<Response> {
+  if (!env.GROQ_API_KEY) return json({ error: 'itinerary_copilot_not_configured' }, 503);
+  if (await edgeRateLimited(env.RL_AI, request, installId)) {
+    return json(rateLimitedPayload('itinerary_copilot_refine'), 429);
+  }
+
+  let body: {
+    currentLegs?: unknown[];
+    refinement?: string;
+    language?: string;
+  };
+  try { body = await request.json(); } catch { return json({ error: 'invalid_json' }, 400); }
+
+  if (!body.refinement || body.refinement.trim().length < 3) {
+    return json({ error: 'missing_refinement' }, 400);
+  }
+  if (!Array.isArray(body.currentLegs) || body.currentLegs.length === 0) {
+    return json({ error: 'missing_current_legs' }, 400);
+  }
+
+  const userMessage = [
+    `Language for text fields: ${body.language ?? 'pt-BR'}`,
+    '',
+    'Current itinerary:',
+    JSON.stringify(body.currentLegs, null, 2),
+    '',
+    'Refinement requested:',
+    body.refinement,
+  ].join('\n');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ITINERARY_TIMEOUT_MS);
+  let upstream: Response;
+  try {
+    upstream = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: ITINERARY_MODEL, temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: ITINERARY_REFINE_SYSTEM_PROMPT },
+          { role: 'user', content: userMessage },
+        ],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === 'AbortError') return json({ error: 'itinerary_copilot_timeout' }, 503);
+    logEvent('error', 'itinerary_copilot_refine_fetch', { err });
+    return json({ error: 'itinerary_copilot_upstream_error' }, 502);
+  }
+  clearTimeout(timeout);
+
+  if (!upstream.ok) {
+    logEvent('warn', 'itinerary_copilot_refine_upstream', { status: upstream.status });
+    return json({ error: 'itinerary_copilot_upstream_error', status: upstream.status }, 502);
+  }
+
+  let result: unknown;
+  try {
+    const data = (await upstream.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const raw = data?.choices?.[0]?.message?.content;
+    if (!raw) return json({ error: 'itinerary_copilot_empty_response' }, 502);
+    result = JSON.parse(raw);
+  } catch { return json({ error: 'itinerary_copilot_parse_error' }, 502); }
+
+  return json(result, 200);
 }
 
 // DEC-246 (AI Quick Entry) — natural-language router. The client posts the typed
@@ -1948,6 +2237,14 @@ async function routeRequest(
     }
     if (request.method === 'POST' && url.pathname === '/plan-copilot/generate') {
       return handlePlanCopilotGenerate(request, env, ctx, installId);
+    }
+
+    // DEC-505 — Itinerary Copilot: build (parse text → legs) and refine (adjust).
+    if (request.method === 'POST' && url.pathname === '/itinerary-copilot/build') {
+      return handleItineraryCopilotBuild(request, env, ctx, installId);
+    }
+    if (request.method === 'POST' && url.pathname === '/itinerary-copilot/refine') {
+      return handleItineraryCopilotRefine(request, env, ctx, installId);
     }
 
     // DEC-246 — AI quick-entry router. Stateless proxy to Groq JSON mode.

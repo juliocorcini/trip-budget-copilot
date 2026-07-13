@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -148,4 +148,15 @@ export const SCHEMA_V12: Record<string, string> = {
 export const SCHEMA_V13: Record<string, string> = {
   ...SCHEMA_V12,
   debtMovements: 'id, tripId, deletedAt',
+};
+
+// V14 (DEC-505 — Itinerary Copilot): a brand-new table for ItineraryLeg (trip
+// logistics — cities, transports, accommodation, timeline). Brand-new table → no
+// upgrade() callback; Dexie creates it on open and leaves every existing table/row
+// untouched. BACKED UP (the rich itinerary is user data). Indexed by tripId (a
+// trip's legs), order (chronological sorting), arrivalDate (day queries), and
+// linkedPhaseId (phase linkage).
+export const SCHEMA_V14: Record<string, string> = {
+  ...SCHEMA_V13,
+  itineraryLegs: 'id, tripId, order, arrivalDate, linkedPhaseId',
 };

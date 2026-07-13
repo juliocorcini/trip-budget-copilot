@@ -167,17 +167,27 @@ export function ShareLinkSheet({
     void publishLatest(true);
   };
 
-  // EPIC B — "split with a connected user → it just sends". Opening a
-  // participant's sheet that already has a link (e.g. arriving from the
-  // post-split "compartilhar com {name}" nudge) silently re-publishes the
-  // latest statement and signals the peer, so the new split reaches their
-  // device with no manual "Atualizar" tap. Once per mount; the sheet remounts
-  // per participant. No link yet → nothing to push (owner generates first).
+  // EPIC B — opening a participant's sheet that already has a link first PULLS
+  // guest responses (so any confirmation the guest sent is applied to our local
+  // shares), THEN re-publishes the updated statement. This ensures the published
+  // payload carries the guest's confirmed statuses instead of stale 'pending'.
   const autoPushedRef = useRef(false);
   useEffect(() => {
     if (!link || autoPushedRef.current) return;
     autoPushedRef.current = true;
-    void publishLatest(false);
+    void (async () => {
+      try {
+        const result = await pullShareResponses(link);
+        if (result.settle) {
+          setProposal(result.settle);
+          setProposalFrom(result.fromName);
+        }
+        if (result.appliedLines > 0) onReconciled();
+      } catch {
+        // Pull failed — proceed with publish anyway (stale is better than nothing).
+      }
+      await publishLatest(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [link?.id]);
 

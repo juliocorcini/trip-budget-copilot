@@ -52,8 +52,10 @@ describe('getEnrichmentData', () => {
     expect(getEnrichmentData('expensive_european', 'festival', 'balanced')).toBeNull();
   });
 
-  it('returns null for unknown spending level', () => {
-    expect(getEnrichmentData('expensive_european', 'bar', 'ultra')).toBeNull();
+  it('normalizes unknown spending level to balanced', () => {
+    const result = getEnrichmentData('expensive_european', 'bar', 'ultra');
+    expect(result).not.toBeNull();
+    expect(result!.expected_min_cost_cents).toBe(4000);
   });
 
   it('covers all 6 clusters with bar/balanced', () => {

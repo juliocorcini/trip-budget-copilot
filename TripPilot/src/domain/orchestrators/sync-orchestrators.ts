@@ -17,6 +17,7 @@ import {
   buildMirroredStatement,
   answerMirroredLine,
   clearSentResponses,
+  recalculateMirroredNet,
 } from '@/domain/sync/mirrored';
 import { createParticipant } from '@/domain/splitting';
 import { planRemoveConnection } from '@/domain/connections/connections';
@@ -218,8 +219,14 @@ export async function storeMirroredStatement(
 ): Promise<MirroredStatement> {
   const existing = (await mirroredStatementRepository.getByPeerActorId(payload.owner.actorId)) ?? null;
   const built = buildMirroredStatement(payload, existing);
+  // When buildMirroredStatement preserved guest-side confirmations that the
+  // payload still had as 'pending', the headline net from the payload is stale.
+  // Recalculate so the displayed balance matches the preserved line statuses.
+  const recalculated = built.pendingResponses.length > 0
+    ? recalculateMirroredNet(built)
+    : built;
   const statement: MirroredStatement = {
-    ...built,
+    ...recalculated,
     share: share ?? existing?.share ?? null,
   };
   await db.mirroredStatements.put(statement);
