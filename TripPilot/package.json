@@ -1,7 +1,8 @@
 {
   "name": "trippilot",
   "private": true,
-  "version": "2.13.2-rc",
+  "license": "Elastic-2.0",
+  "version": "2.13.13-rc",
   "type": "module",
   "scripts": {
     "dev": "vite",

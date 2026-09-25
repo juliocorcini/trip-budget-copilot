@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/license-ELv2-blue" alt="Elastic License 2.0" />
   <img src="https://img.shields.io/badge/version-2.13-teal" alt="Version" />
   <img src="https://img.shields.io/badge/tests-3%2C241%2B%20passing-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/TypeScript-strict-blue" alt="TypeScript Strict" />
@@ -312,6 +313,14 @@ This project demonstrates:
 - **Production-grade engineering** — 3,241+ automated tests, integer arithmetic for money, E2E encryption, invariant-driven development
 - **Real-world AI integration** — LLM-powered features (text/voice entry, receipt scanning, planning) with privacy controls and graceful degradation
 - **Shipping discipline** — 582 commits, field-tested across real European trips, continuously deployed with OTA updates
+
+---
+
+## License
+
+This project is source-available under the [Elastic License 2.0 (ELv2)](LICENSE.txt).
+
+You can **view, fork, study, and learn** from the code. You **cannot** offer it as a hosted/managed service to third parties. See the full license for details.
 
 ---
 
