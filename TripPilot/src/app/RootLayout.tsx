@@ -5,6 +5,7 @@ import { useLiveSettings } from '@/hooks/useLiveSettings';
 import { AppDataProvider } from '@/app/AppDataProvider';
 import { AppLockGate } from '@/app/AppLockGate';
 import { AssistantSheet } from '@/features/assistant/AssistantSheet';
+import { InAppNotificationOverlay } from '@/components/InAppNotificationOverlay';
 import { isNativeApp, applyNativeStatusBar } from '@/utils/native';
 import { initDeepLinks } from '@/utils/native/deep-link';
 import { hasPendingSharedCsv, setSharedCsvNavHandler } from '@/utils/native/share-target';
@@ -205,6 +206,7 @@ export function RootLayout() {
             outside the AppShell. Portaled + self-hidden until opened; it returns
             null when there is no active space, so guest boards never mount it. */}
         <AssistantSheet />
+        <InAppNotificationOverlay />
       </AppLockGate>
     </AppDataProvider>
   );

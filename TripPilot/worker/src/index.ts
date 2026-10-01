@@ -354,7 +354,7 @@ function randomToken(): string {
 // DEC-206 (G2): cloud receipt OCR. The client posts a single receipt image and
 // gets back STRUCTURED line items. The image is forwarded to Groq's vision model
 // and the response is relayed verbatim — nothing is persisted or logged here.
-const OCR_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const OCR_MODEL = 'qwen/qwen3.6-27b';
 const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // A data URL holds ~1.37 chars per source byte; ~9 MB of base64 ≈ a 6.5 MB image.
 // The client downscales receipts far below this, so the cap is a pure abuse guard.

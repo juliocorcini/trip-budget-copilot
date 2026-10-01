@@ -43,15 +43,14 @@ A full-stack, production-grade travel budget app — from database schema to AI 
 
 | Metric | Value |
 |--------|-------|
-| TypeScript source files | 946 |
-| Lines of code | ~177,000 |
-| React components | 181 |
-| Domain modules | 53 |
-| Feature modules | 46 |
-| Automated tests | 3,241+ passing |
-| Test files / lines | 414 files · ~50,000 lines |
+| TypeScript source files | 612 (+ 334 test files) |
+| Lines of code | ~126,000 (+ ~51,000 test lines) |
+| React components (.tsx) | 157 |
+| Domain modules (pure TS) | 52 |
+| Feature modules (UI + hooks) | 45 |
+| Automated tests (`it()` blocks) | ~3,400 |
 | i18n keys per language | ~4,300 (pt-BR, en, es) |
-| Commits | 582 |
+| Commits | 580+ |
 | Cloudflare Worker | ~3,900 lines (Durable Objects, KV, R2) |
 
 ---
@@ -137,7 +136,7 @@ Two phones connect without accounts or a central database:
 │       │                                                   │
 │  ┌────▼──────────────────────────────────────────────┐   │
 │  │              Domain Layer (pure TS)                │   │
-│  │  53 modules · zero React imports · cents-based    │   │
+│  │  52 modules · zero React imports · cents-based    │   │
 │  │  budget/ forecasting/ splitting/ sync/ assistant/  │   │
 │  │  outing/ planning/ insights/ group-split/ ...     │   │
 │  └────┬──────────────────────────────────────────────┘   │
@@ -164,8 +163,8 @@ Two phones connect without accounts or a central database:
 ### Design Principles
 
 - **Local-first** — all data in IndexedDB, works 100% offline
-- **Domain purity** — financial logic is pure TypeScript; no React, no I/O, fully testable
-- **Orchestrator pattern** — engines coordinate smaller functions; orchestrators never contain heavy logic
+- **Domain purity** — financial logic is pure TypeScript with zero React imports, fully testable
+- **Orchestrator pattern** — engines coordinate smaller focused functions; orchestrators never contain heavy logic
 - **Integer money** — `€12.34 = 1234 cents`, eliminating floating-point errors across the entire stack
 - **E2E encryption** — shared data is AES-GCM ciphertext; the server stores what it can't read
 - **Invariant testing** — critical financial paths have mathematical proof tests (e.g., the hero number on Home equals the per-day allowance map by construction)
@@ -195,7 +194,7 @@ Two phones connect without accounts or a central database:
 
 ## Testing
 
-**3,241+ tests** across 414 test files, covering:
+**~3,400 tests** across 334 test files (~51K lines), covering:
 
 - **Domain logic** — budget calculations, split algorithms, settlement engines, multi-currency conversions, forecast models, piggy bank ledger, debt resolution
 - **Financial invariants** — mathematical proof tests ensuring numbers are consistent across surfaces (e.g., the Home hero amount equals the per-day allowance map bit-for-bit)
@@ -204,7 +203,7 @@ Two phones connect without accounts or a central database:
 - **E2E flows** — Playwright tests for critical user paths: trip creation, expense logging, backup/restore, share link lifecycle
 
 ```
-npm run test          # 3,241+ unit/integration tests (Vitest)
+npm run test          # ~3,400 unit/integration tests (Vitest)
 npx playwright test   # E2E browser tests
 ```
 
@@ -216,7 +215,7 @@ npx playwright test   # E2E browser tests
 TripPilot/
 ├── src/
 │   ├── app/                  # Routes, providers, layouts
-│   ├── domain/               # Pure business logic (53 modules, zero React)
+│   ├── domain/               # Pure business logic (52 modules, zero React)
 │   │   ├── budget/           # Budget engine, phase spend lens, allowance map
 │   │   ├── forecasting/      # Occasion-based prediction, safe estimates
 │   │   ├── splitting/        # Split engine, settlement, minimum transfers
@@ -227,7 +226,7 @@ TripPilot/
 │   │   ├── insights/         # Dashboard insights, copilot, honest friend
 │   │   ├── planning/         # Scenario planner, trade-off engine
 │   │   ├── shopping/         # Unit-price comparator, AI extraction
-│   │   └── ...               # 42 more domain modules
+│   │   └── ...               # 41 more domain modules
 │   ├── features/             # Feature modules (46 — UI + hooks)
 │   │   ├── dashboard/        # Home screen, cards, hero number
 │   │   ├── outing/           # Active outing mode UI
@@ -237,11 +236,11 @@ TripPilot/
 │   │   ├── planning/         # Interactive scenario planner
 │   │   ├── simulator/        # "Can I Spend?" impact preview
 │   │   ├── map/              # Satellite expense map
-│   │   └── ...               # 38 more feature modules
+│   │   └── ...               # 36 more feature modules
 │   ├── data/                 # Persistence (Dexie DB, repositories, sync transport)
 │   ├── components/           # Shared UI components
 │   ├── i18n/                 # Translations (pt-BR, en, es)
-│   └── tests/                # 414 test files, ~50K lines
+│   └── tests/                # 334 test files, ~51K lines
 ├── worker/                   # Cloudflare Worker (signaling, AI proxy, shares, push)
 ├── android/                  # Capacitor Android shell + 7 widgets
 ├── functions/                # Cloudflare Pages Functions (OG preview injection)
@@ -272,7 +271,7 @@ All of this works **offline**. The AI features gracefully degrade to manual entr
 | Decision | What & Why |
 |----------|-----------|
 | **Cents-based arithmetic** | All money is integer cents. No floating-point errors, ever. `€12.34 = 1234`. The sum of split shares always equals the expense total (Largest Remainder method for rounding). |
-| **Pure domain layer** | 53 modules with zero React imports. Every financial calculation is a pure function: input → output, fully testable without DOM or mocks. |
+| **Pure domain layer** | 52 modules with zero React imports. Every financial calculation is a pure function: input → output, fully testable without DOM or mocks. |
 | **E2E encryption by default** | Shared links use AES-GCM. The Cloudflare Worker stores ciphertext it cannot read. The key travels in the URL fragment (never sent to the server) or is escrowed for short-link UX. |
 | **Orchestrator pattern** | Complex operations (expense registration, outing close, debt settlement) are coordinated by orchestrator functions that call smaller, focused units. No business logic in React components. |
 | **Invariant-driven development** | Critical financial paths are verified by mathematical invariant tests. For example: the daily "free to spend" hero on Home must equal the per-day allowance map by construction — a test asserts bit-for-bit equality using real trip fixture data. |
@@ -303,16 +302,46 @@ The app is deployed and actively used at **[trippilot.pages.dev](https://trippil
 
 ---
 
+## AI-Assisted Development
+
+This project was built with AI as a core part of the engineering workflow — not as a shortcut, but as a **force multiplier** for a solo developer building a production-grade app.
+
+### What AI does in this project
+
+| Role | How AI is used | What stays human |
+|------|---------------|-----------------|
+| **Implementation** | Cursor (Claude) writes code from detailed specs, following project rules and patterns | Architecture decisions, domain modeling, acceptance criteria |
+| **Testing** | AI generates test files from real requirements, with concrete financial assertions | Test strategy, fixture design (real trip data), invariant selection |
+| **Code review** | Multi-perspective AI review (correctness, performance, security, maintainability) | Final approval, merge decisions, risk assessment |
+| **Documentation** | AI drafts specs, decision records, and orchestrator documents | Product decisions, trade-off resolution, prioritization |
+| **Debugging** | AI traces root causes across the full stack from error reports | Field testing on real devices, reproducing edge cases |
+
+### The engineering system behind it
+
+The repo includes a **structured AI orchestration layer** (`.cursor/rules/` and `.agents/`) that makes AI assistance consistent and reliable:
+
+- **Project rules** — always-on constraints the AI follows: code style, deployment checklist, testing standards, scope control
+- **Specialist agents** — named roles (backend, frontend, database, security, test creator, debugger) with focused expertise and domain context
+- **Implementation orchestrator** — a documented method (`/orchestrator`) for shipping changes as self-contained "waves" with gates, tests, and deploy checkpoints
+- **Council system** — multi-perspective analysis for architectural decisions (4 independent viewpoints with red-team pass)
+- **Brain as source of truth** — a knowledge base (`TripPilot/brain/`) with 490+ documented decisions, so the AI never contradicts prior choices
+
+### Why this matters
+
+AI-assisted development at this scale requires **engineering discipline**, not just prompting. The AI produces good code because the system around it — specs, rules, invariants, review gates — makes bad code hard to ship. The result is that a single developer can maintain a 126K-line codebase with ~3,400 tests, 52 domain modules, and continuous production deploys.
+
+---
+
 ## About Me
 
 I'm **Julio Corcini** — a full-stack developer who built this entire application solo: product design, architecture, domain modeling, frontend, backend, native Android integration, AI features, encryption, deployment, and testing.
 
 This project demonstrates:
 - **Full-stack ownership** — from IndexedDB schema design to Cloudflare Durable Objects to Android home screen widgets
-- **Domain-driven design** — pure business logic separated from infrastructure, with 53 focused domain modules
-- **Production-grade engineering** — 3,241+ automated tests, integer arithmetic for money, E2E encryption, invariant-driven development
+- **Domain-driven design** — pure business logic separated from infrastructure, with 52 focused domain modules
+- **Production-grade engineering** — ~3,400 automated tests, integer arithmetic for money, E2E encryption, invariant-driven development
 - **Real-world AI integration** — LLM-powered features (text/voice entry, receipt scanning, planning) with privacy controls and graceful degradation
-- **Shipping discipline** — 582 commits, field-tested across real European trips, continuously deployed with OTA updates
+- **Shipping discipline** — 580+ commits, field-tested across real European trips, continuously deployed with OTA updates
 
 ---
 

@@ -937,17 +937,44 @@ export function QuickAddPage() {
         </div>
       )}
 
-      {itineraryCtx.budgetPremise && (
-        <div className="bg-primary/5 rounded-xl p-3 flex items-start gap-2">
-          <span className="text-sm shrink-0">💡</span>
-          <div className="min-w-0">
-            <p className="text-xs text-on-surface-dim leading-relaxed">{itineraryCtx.budgetPremise}</p>
-            {itineraryCtx.dailyBudgetCents !== null && itineraryCtx.dailyBudgetCurrency && (
-              <p className="text-[11px] text-primary font-medium mt-1">
-                {t('itinerary.budget_hint')}: {formatMoney(itineraryCtx.dailyBudgetCents, itineraryCtx.dailyBudgetCurrency)}
-              </p>
-            )}
+      {itineraryCtx.currentLeg && (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl"
+          style={{
+            background: 'color-mix(in srgb, var(--primary) 6%, var(--surface-container))',
+            border: '1px solid color-mix(in srgb, var(--primary) 15%, transparent)',
+          }}
+        >
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--primary) 15%, transparent)' }}
+          >
+            <Icon name="location_on" size={18} filled style={{ color: 'var(--primary)' }} />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate" style={{ color: 'var(--on-surface)' }}>
+              {itineraryCtx.currentLeg.cityName}
+            </p>
+            <p
+              className="font-mono text-[10px] uppercase tracking-[0.1em] mt-0.5"
+              style={{ color: 'var(--on-surface-dim)' }}
+            >
+              {t('itinerary.context_card_day', { current: itineraryCtx.currentLeg.order, total: '—' })}
+              {itineraryCtx.dailyBudgetCents !== null && itineraryCtx.dailyBudgetCurrency && (
+                <> · {t('itinerary.budget_daily_label')}: {formatMoney(itineraryCtx.dailyBudgetCents, itineraryCtx.dailyBudgetCurrency)}</>
+              )}
+            </p>
+          </div>
+          {itineraryCtx.budgetPremise && (
+            <div
+              className="px-2 py-1 rounded-lg shrink-0"
+              style={{
+                background: 'color-mix(in srgb, var(--ai) 12%, transparent)',
+              }}
+            >
+              <Icon name="auto_awesome" size={14} filled style={{ color: 'var(--ai)' }} />
+            </div>
+          )}
         </div>
       )}
 
@@ -1512,8 +1539,9 @@ export function QuickAddPage() {
               {/* Companion suggestion from itinerary */}
               {itineraryCtx.companions.length > 0 && selectedParticipantIds.length === 0 && (
                 <div className="bg-primary/5 rounded-xl p-3">
-                  <p className="text-[11px] text-primary font-medium mb-2">
-                    👥 {t('itinerary.companions_today')}
+                  <p className="text-[11px] text-primary font-medium mb-2 flex items-center gap-1">
+                    <Icon name="group" size={14} style={{ color: 'var(--primary)' }} />
+                    {t('itinerary.companions_today')}
                   </p>
                   <div className="flex gap-2 flex-wrap">
                     {itineraryCtx.companions.map((name) => {

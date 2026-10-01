@@ -45,6 +45,14 @@ blob-report/
 # Temporary
 tmp/
 temp/
+.git-commit-msg.tmp
+
+# Personal trip data / backup scripts (never in public repo)
+trippilot-*.json
+build-*-backup.cjs
+
+# Root-level lock files (the real one is in TripPilot/)
+/package-lock.json
 
 # UX polish screenshots + tooling (analysis only, never committed)
 .ux-shots/
@@ -53,3 +61,6 @@ TripPilot/scripts/ux-*.mjs
 # Firebase credentials (secrets)
 **/google-services.json
 **/firebase-adminsdk*.json
+
+# Wrangler local cache (contains geolocation metadata)
+**/.wrangler/cache/

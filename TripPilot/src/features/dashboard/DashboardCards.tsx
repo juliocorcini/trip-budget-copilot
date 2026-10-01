@@ -82,6 +82,8 @@ interface DashboardCardsProps {
   onEditSavingsGoal: () => void;
   /** DEC-465: persist a full piggy resgate (returns the parked money to the flow). */
   onPiggyWithdraw: (amountCents: number) => void;
+  /** Slot rendered immediately after the hero card (below hero + ask-to-spend + check-in). */
+  renderAfterHero?: ReactNode;
 }
 
 // The hero's previous amount is stashed in sessionStorage so it survives the
@@ -142,6 +144,7 @@ export function DashboardCards({
   onOpenHeroBreakdown,
   onEditSavingsGoal,
   onPiggyWithdraw,
+  renderAfterHero,
 }: DashboardCardsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -1940,27 +1943,31 @@ export function DashboardCards({
 
   // DEC-119 (R-10): configurable home screen — order + visibility.
   // FIELD item 16: paired rows render two compact tiles side by side.
+  const heroIdx = rows.findIndex((r) => r.kind === 'full' && r.id === 'hero');
   return (
     <>
-      {rows.map((row) =>
-        row.kind === 'full' ? (
-          getDashboardCard(row.id).fixed ? (
-            <div key={row.id}>{renderDashboardCard(row.id)}</div>
-          ) : (
-            <div key={row.id} {...getCardLongPress(row.id)}>
-              {renderDashboardCard(row.id)}
-            </div>
-          )
-        ) : (
-          <div key={row.ids.join('+')} className="flex gap-3 mt-4 items-stretch">
-            {row.ids.map((id) => (
-              <div key={id} className="flex-1 min-w-0" {...getCardLongPress(id)}>
-                {renderCompactCard(id)}
+      {rows.map((row, idx) => (
+        <div key={row.kind === 'full' ? row.id : row.ids.join('+')}>
+          {row.kind === 'full' ? (
+            getDashboardCard(row.id).fixed ? (
+              <div>{renderDashboardCard(row.id)}</div>
+            ) : (
+              <div {...getCardLongPress(row.id)}>
+                {renderDashboardCard(row.id)}
               </div>
-            ))}
-          </div>
-        ),
-      )}
+            )
+          ) : (
+            <div className="flex gap-3 mt-4 items-stretch">
+              {row.ids.map((id) => (
+                <div key={id} className="flex-1 min-w-0" {...getCardLongPress(id)}>
+                  {renderCompactCard(id)}
+                </div>
+              ))}
+            </div>
+          )}
+          {idx === heroIdx && renderAfterHero}
+        </div>
+      ))}
       {/* FB-08 · DEC-279: mounted once here so the cofrinho statement is reachable
           from BOTH the piggy card and the Amigo Sincero movement insight. */}
       <PiggyStatementSheet

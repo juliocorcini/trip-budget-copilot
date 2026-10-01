@@ -451,3 +451,20 @@ a.bg-primary,
   border: 2px solid #fff;
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.18);
 }
+
+/* Skeleton loading shimmer (SkeletonLoader component) */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-container-high) 25%,
+    color-mix(in srgb, var(--on-surface) 8%, var(--surface-container-high)) 37%,
+    var(--surface-container-high) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}

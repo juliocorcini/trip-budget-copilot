@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 export const SCHEMA_V1: Record<string, string> = {
   trips: 'id, name, baseCurrency, status, startDate, endDate, deletedAt',
@@ -159,4 +159,15 @@ export const SCHEMA_V13: Record<string, string> = {
 export const SCHEMA_V14: Record<string, string> = {
   ...SCHEMA_V13,
   itineraryLegs: 'id, tripId, order, arrivalDate, linkedPhaseId',
+};
+
+// V15 (Capture Stack — Pilha de Captura): a device-local inbox for quick photo
+// captures (receipts, price tags). The traveler snaps a photo in ONE tap and
+// processes it later via OCR. Brand-new table → no upgrade() callback; Dexie
+// creates it on open and leaves every existing table/row untouched. LOCAL-only:
+// it never participates in BackupData (not in BACKUP_TABLE_KEYS). Indexed by
+// tripId (a trip's captures), status (filter pending/done), and createdAt (sort).
+export const SCHEMA_V15: Record<string, string> = {
+  ...SCHEMA_V14,
+  captureInbox: 'id, tripId, status, createdAt',
 };

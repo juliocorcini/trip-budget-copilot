@@ -14,6 +14,7 @@ import {
   SCHEMA_V12,
   SCHEMA_V13,
   SCHEMA_V14,
+  SCHEMA_V15,
 } from './schema';
 import { createDefaultAppSettings, createCurrentDevice } from './seed';
 import { recordCrash } from '@/utils/crash-log';
@@ -48,6 +49,7 @@ import type { SplitRecord } from '@/domain/types/split-record';
 import type { GroupSplitRecord } from '@/domain/types/group-split-record';
 import type { DebtMovement } from '@/domain/types/debt-movement';
 import type { ItineraryLeg } from '@/domain/types/itinerary-leg';
+import type { CaptureItem } from '@/domain/types/capture-item';
 
 export class TripPilotDB extends Dexie {
   trips!: EntityTable<Trip, 'id'>;
@@ -83,6 +85,7 @@ export class TripPilotDB extends Dexie {
   groupSplitEvents!: EntityTable<GroupSplitRecord, 'id'>;
   debtMovements!: EntityTable<DebtMovement, 'id'>;
   itineraryLegs!: EntityTable<ItineraryLeg, 'id'>;
+  captureInbox!: EntityTable<CaptureItem, 'id'>;
 
   constructor(name: string = 'TripPilotDB') {
     super(name);
@@ -200,6 +203,10 @@ export class TripPilotDB extends Dexie {
     // DEC-505 (Itinerary Copilot): new itineraryLegs table. New table → no
     // upgrade() callback; existing data is preserved untouched on open.
     this.version(15).stores(SCHEMA_V14);
+
+    // Capture Stack (Pilha de Captura): new captureInbox table. New table → no
+    // upgrade() callback; existing data is preserved untouched on open.
+    this.version(16).stores(SCHEMA_V15);
 
     // GAP-031: seed settings + current device on first open (fresh DBs only).
     this.on('populate', (tx) => {

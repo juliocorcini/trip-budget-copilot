@@ -10,28 +10,101 @@ import { EmptyState } from '@/components/EmptyState';
 import { showToast } from '@/components/Toast';
 import type { ItineraryLeg, BookingStatus } from '@/domain/types/itinerary-leg';
 
-const TRANSPORT_EMOJI: Record<string, string> = {
-  flight: '✈️', train: '🚂', bus: '🚌', car: '🚗', ferry: '⛴️', walk: '🚶', other: '🚐',
+const TRANSPORT_ICON: Record<string, string> = {
+  flight: 'flight', train: 'train', bus: 'directions_bus',
+  car: 'directions_car', ferry: 'directions_boat', walk: 'directions_walk', other: 'commute',
 };
 
 interface ChecklistItem {
   legId: string;
   type: 'transport' | 'accommodation';
   label: string;
-  detail: string;
+  ref: string;
+  iconName: string;
   costCents: number | null;
   costCurrency: string | null;
   bookingStatus: BookingStatus;
   date: string;
 }
 
-const STATUS_ORDER: BookingStatus[] = ['priced', 'estimated', 'booked', 'none'];
-const STATUS_CONFIG: Record<BookingStatus, { color: string; icon: string; labelKey: string }> = {
-  priced: { color: 'text-amber-600 dark:text-amber-400', icon: 'sell', labelKey: 'itinerary.checklist_priced' },
-  estimated: { color: 'text-orange-600 dark:text-orange-400', icon: 'help_outline', labelKey: 'itinerary.checklist_estimated' },
-  booked: { color: 'text-green-600 dark:text-green-400', icon: 'bookmark', labelKey: 'itinerary.checklist_booked' },
-  none: { color: 'text-on-surface-faint', icon: 'radio_button_unchecked', labelKey: 'itinerary.checklist_none' },
-  purchased: { color: 'text-primary', icon: 'check_circle', labelKey: 'itinerary.checklist_purchased' },
+const STATUS_ORDER: BookingStatus[] = ['booked', 'priced', 'estimated', 'none'];
+
+interface StatusStyle {
+  dotColor: string;
+  dotGlow: string;
+  labelKey: string;
+  descKey: string;
+  cardBg: string;
+  cardBorder: string;
+  actionBg: string;
+  actionText: string;
+  actionIcon: string;
+  actionLabelKey: string;
+  cardOpacity?: string;
+}
+
+const STATUS_STYLES: Record<BookingStatus, StatusStyle> = {
+  booked: {
+    dotColor: 'var(--warning)',
+    dotGlow: 'color-mix(in srgb, var(--warning) 40%, transparent)',
+    labelKey: 'itinerary.checklist_booked',
+    descKey: 'itinerary.checklist_booked_desc',
+    cardBg: 'var(--surface-container)',
+    cardBorder: '1px solid var(--border-subtle)',
+    actionBg: 'var(--surface-container-highest)',
+    actionText: 'var(--on-surface)',
+    actionIcon: 'check_circle',
+    actionLabelKey: 'itinerary.checklist_mark_purchased',
+  },
+  priced: {
+    dotColor: 'var(--success)',
+    dotGlow: 'color-mix(in srgb, var(--success) 40%, transparent)',
+    labelKey: 'itinerary.checklist_priced',
+    descKey: 'itinerary.checklist_priced_desc',
+    cardBg: 'var(--surface-container)',
+    cardBorder: '1px solid var(--border-subtle)',
+    actionBg: 'var(--primary)',
+    actionText: '#fff',
+    actionIcon: 'shopping_cart',
+    actionLabelKey: 'itinerary.checklist_record_purchase',
+  },
+  estimated: {
+    dotColor: 'var(--ai)',
+    dotGlow: 'color-mix(in srgb, var(--ai) 40%, transparent)',
+    labelKey: 'itinerary.checklist_estimated',
+    descKey: 'itinerary.checklist_estimated_desc',
+    cardBg: 'var(--surface-container-low)',
+    cardBorder: '1px dashed var(--on-surface-faint)',
+    actionBg: 'var(--surface-container)',
+    actionText: 'var(--on-surface)',
+    actionIcon: 'edit',
+    actionLabelKey: 'itinerary.checklist_finalize',
+  },
+  none: {
+    dotColor: 'var(--on-surface-faint)',
+    dotGlow: 'transparent',
+    labelKey: 'itinerary.checklist_none',
+    descKey: 'itinerary.checklist_none_desc',
+    cardBg: 'var(--surface-container-lowest)',
+    cardBorder: '1px solid var(--surface-container-high)',
+    actionBg: 'var(--surface-container)',
+    actionText: 'var(--on-surface)',
+    actionIcon: 'add',
+    actionLabelKey: 'itinerary.checklist_update_details',
+    cardOpacity: '0.85',
+  },
+  purchased: {
+    dotColor: 'var(--primary)',
+    dotGlow: 'transparent',
+    labelKey: 'itinerary.checklist_purchased',
+    descKey: '',
+    cardBg: 'var(--surface-container)',
+    cardBorder: '1px solid var(--border-subtle)',
+    actionBg: 'var(--primary)',
+    actionText: '#fff',
+    actionIcon: 'check_circle',
+    actionLabelKey: 'itinerary.checklist_mark_purchased',
+  },
 };
 
 function buildChecklist(legs: ItineraryLeg[]): ChecklistItem[] {
@@ -40,13 +113,14 @@ function buildChecklist(legs: ItineraryLeg[]): ChecklistItem[] {
 
   for (const leg of sorted) {
     if (leg.arrivalTransport && leg.arrivalTransport.bookingStatus !== 'purchased') {
-      const emoji = TRANSPORT_EMOJI[leg.arrivalTransport.type] ?? '🚐';
       const prevLeg = sorted.find((l) => l.order === leg.order - 1);
+      const iconName = TRANSPORT_ICON[leg.arrivalTransport.type] ?? 'commute';
       items.push({
         legId: leg.id,
         type: 'transport',
-        label: `${emoji} ${prevLeg?.cityName ?? '?'} → ${leg.cityName}`,
-        detail: leg.arrivalTransport.company ?? leg.arrivalTransport.route ?? '',
+        label: `${prevLeg?.cityName ?? '?'} → ${leg.cityName}`,
+        ref: leg.arrivalTransport.company ?? leg.arrivalTransport.route ?? '',
+        iconName,
         costCents: leg.arrivalTransport.costCents,
         costCurrency: leg.arrivalTransport.costCurrency,
         bookingStatus: leg.arrivalTransport.bookingStatus,
@@ -58,8 +132,9 @@ function buildChecklist(legs: ItineraryLeg[]): ChecklistItem[] {
       items.push({
         legId: leg.id,
         type: 'accommodation',
-        label: `🏠 ${leg.accommodation.name} (${leg.cityName})`,
-        detail: `${leg.accommodation.nights} ${leg.accommodation.nights === 1 ? 'night' : 'nights'}`,
+        label: leg.accommodation.name,
+        ref: leg.cityName,
+        iconName: 'bed',
         costCents: leg.accommodation.costCents,
         costCurrency: leg.accommodation.costCurrency,
         bookingStatus: leg.accommodation.bookingStatus,
@@ -69,6 +144,11 @@ function buildChecklist(legs: ItineraryLeg[]): ChecklistItem[] {
   }
 
   return items;
+}
+
+function formatChecklistDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export function BookingChecklistPage() {
@@ -125,12 +205,28 @@ export function BookingChecklistPage() {
   if (!trip) return null;
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
-      <div className="flex items-center gap-3 pt-2">
+    <div className="flex flex-col pb-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 pt-2 mb-6">
         <button onClick={() => navigate(-1)} className="btn-press p-1">
-          <Icon name="arrow_back" size={20} className="text-on-surface" />
+          <Icon name="arrow_back" size={20} style={{ color: 'var(--on-surface)' }} />
         </button>
-        <h1 className="text-heading font-bold text-on-surface">{t('itinerary.checklist_title')}</h1>
+      </div>
+
+      {/* Large title + subtitle */}
+      <div className="mb-8">
+        <h1
+          className="text-3xl font-extrabold tracking-tight mb-2"
+          style={{ color: 'var(--on-surface)' }}
+        >
+          {t('itinerary.checklist_title')}
+        </h1>
+        <p
+          className="text-base leading-relaxed"
+          style={{ color: 'var(--on-surface-dim)' }}
+        >
+          {t('itinerary.checklist_subtitle')}
+        </p>
       </div>
 
       {checklist.length === 0 ? (
@@ -140,43 +236,130 @@ export function BookingChecklistPage() {
           body={t('itinerary.checklist_empty_body')}
         />
       ) : (
-        STATUS_ORDER.filter((status) => grouped[status].length > 0).map((status) => (
-          <div key={status} className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 px-1 pb-1">
-              <Icon name={STATUS_CONFIG[status].icon} size={16} className={STATUS_CONFIG[status].color} />
-              <span className={`text-xs font-bold uppercase tracking-wider ${STATUS_CONFIG[status].color}`}>
-                {t(STATUS_CONFIG[status].labelKey as never)} ({grouped[status].length})
-              </span>
-            </div>
-            {grouped[status].map((item, idx) => (
-              <div
-                key={`${item.legId}-${item.type}-${idx}`}
-                className="bg-surface-container rounded-xl px-4 py-3 flex items-center justify-between"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-on-surface truncate">{item.label}</p>
-                  {item.detail && (
-                    <p className="text-xs text-on-surface-faint mt-0.5 truncate">{item.detail}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 ml-3 shrink-0">
-                  {item.costCents !== null && item.costCurrency && (
-                    <span className="text-xs font-semibold tabular text-on-surface-dim">
-                      {formatMoney(item.costCents, item.costCurrency)}
+        <div className="flex flex-col gap-8">
+          {STATUS_ORDER.filter((status) => grouped[status].length > 0).map((status) => {
+            const style = STATUS_STYLES[status];
+            return (
+              <section key={status}>
+                {/* Section header with dot + name + description */}
+                <header className="flex items-center gap-3 mb-4">
+                  <div
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{
+                      background: style.dotColor,
+                      boxShadow: `0 0 10px ${style.dotGlow}`,
+                    }}
+                  />
+                  <h3 className="text-lg font-semibold flex-1" style={{ color: 'var(--on-surface)' }}>
+                    {t(style.labelKey as never)}
+                    <span
+                      className="text-sm font-normal ml-2"
+                      style={{ color: 'var(--on-surface-dim)' }}
+                    >
+                      {t(style.descKey as never)}
                     </span>
-                  )}
-                  <button
-                    onClick={() => markAsPurchased(item)}
-                    className="p-1.5 rounded-lg bg-primary/10 btn-press"
-                    title={t('itinerary.checklist_mark_purchased')}
-                  >
-                    <Icon name="check" size={16} className="text-primary" />
-                  </button>
+                  </h3>
+                </header>
+
+                {/* Cards */}
+                <div className="flex flex-col gap-3">
+                  {grouped[status].map((item, idx) => (
+                    <article
+                      key={`${item.legId}-${item.type}-${idx}`}
+                      className="rounded-xl p-4 flex flex-col gap-3"
+                      style={{
+                        background: style.cardBg,
+                        border: style.cardBorder,
+                        opacity: style.cardOpacity ?? '1',
+                      }}
+                    >
+                      {/* Top row: icon + name/ref + price */}
+                      <div className="flex justify-between items-start">
+                        <div className="flex gap-3 items-center min-w-0">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                            style={{
+                              background: 'var(--surface-container-high)',
+                              border: '1px solid var(--border-subtle)',
+                            }}
+                          >
+                            <Icon
+                              name={item.iconName}
+                              size={20}
+                              style={{ color: 'var(--on-surface-dim)' }}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <h4
+                              className="text-base font-bold truncate"
+                              style={{ color: 'var(--on-surface)' }}
+                            >
+                              {item.label}
+                            </h4>
+                            {item.ref && (
+                              <p
+                                className="font-mono text-[10px] uppercase tracking-[0.1em] truncate"
+                                style={{ color: 'var(--on-surface-dim)' }}
+                              >
+                                {item.ref}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {item.costCents !== null && item.costCurrency && (
+                          <span
+                            className="text-lg font-semibold tabular shrink-0 ml-2"
+                            style={{
+                              color: status === 'estimated'
+                                ? 'var(--on-surface-dim)'
+                                : 'var(--on-surface)',
+                            }}
+                          >
+                            {status === 'estimated' ? '~' : ''}
+                            {formatMoney(item.costCents, item.costCurrency)}
+                          </span>
+                        )}
+                        {(item.costCents === null || !item.costCurrency) && (
+                          <span
+                            className="text-lg font-semibold tabular shrink-0 ml-2"
+                            style={{ color: 'var(--on-surface-dim)' }}
+                          >
+                            --
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Date row */}
+                      <div className="flex items-center gap-2">
+                        <Icon name="calendar_month" size={14} style={{ color: 'var(--on-surface-dim)' }} />
+                        <span
+                          className="text-sm"
+                          style={{ color: 'var(--on-surface-dim)' }}
+                        >
+                          {formatChecklistDate(item.date)}
+                        </span>
+                      </div>
+
+                      {/* Action button */}
+                      <button
+                        onClick={() => markAsPurchased(item)}
+                        className="btn-press w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-[background-color] duration-200"
+                        style={{
+                          background: style.actionBg,
+                          color: style.actionText,
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <Icon name={style.actionIcon} size={18} style={{ color: style.actionText }} />
+                        {t(style.actionLabelKey as never)}
+                      </button>
+                    </article>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        ))
+              </section>
+            );
+          })}
+        </div>
       )}
     </div>
   );

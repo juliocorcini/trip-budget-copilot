@@ -67,6 +67,7 @@ const GroupSplitDetailPage = lazyWithRetry(() => import('@/features/group-split/
 const GroupClaimPage = lazyWithRetry(() => import('@/features/group-split/GroupClaimPage').then(m => ({ default: m.GroupClaimPage })));
 const ExpenseSharePage = lazyWithRetry(() => import('@/features/expenses/ExpenseSharePage').then(m => ({ default: m.ExpenseSharePage })));
 const InstallPage = lazyWithRetry(() => import('@/features/install/InstallPage').then(m => ({ default: m.InstallPage })));
+const CaptureInboxPage = lazyWithRetry(() => import('@/features/capture/CaptureInboxPage').then(m => ({ default: m.CaptureInboxPage })));
 
 // DEC-170: a hung dynamic import (a chunk that never resolves AND never
 // rejects — the 2021 WebKit fetch/IDB stall, or a dead network) would leave the
@@ -207,6 +208,7 @@ export const router = createBrowserRouter([
           { path: '/itinerary/create', element: <LazyRoute><ItineraryCopilotFlow /></LazyRoute> },
           { path: '/itinerary/checklist', element: <LazyRoute><BookingChecklistPage /></LazyRoute> },
           { path: '/itinerary/map', element: <LazyRoute><ItineraryMapPage /></LazyRoute> },
+          { path: '/capture', element: <LazyRoute><CaptureInboxPage /></LazyRoute> },
         ],
       },
       { path: '/', element: <LazyRoute><BootGate /></LazyRoute> },

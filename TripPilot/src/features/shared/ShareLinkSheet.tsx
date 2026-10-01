@@ -163,8 +163,22 @@ export function ShareLinkSheet({
   };
 
   const handleRefresh = () => {
-    if (busy) return;
-    void publishLatest(true);
+    if (busy || !link) return;
+    setBusy(true);
+    void (async () => {
+      try {
+        const result = await pullShareResponses(link);
+        if (result.settle) {
+          setProposal(result.settle);
+          setProposalFrom(result.fromName);
+        }
+        if (result.appliedLines > 0) onReconciled();
+      } catch {
+        // Pull failed — proceed with publish anyway.
+      }
+      await publishLatest(true);
+      setBusy(false);
+    })();
   };
 
   // EPIC B — opening a participant's sheet that already has a link first PULLS

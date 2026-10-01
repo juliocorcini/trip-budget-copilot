@@ -959,31 +959,85 @@ export function SettingsPage() {
       {/* P14: transport departure reminder — opt-in (ÂNCORA-POL-3) */}
       {notifPermission !== 'unsupported' && (
         <Section title={t('settings.transport_reminder')}>
-          <ToggleRow
-            label={t('settings.transport_reminder')}
-            enabled={transportReminderActive}
-            onChange={handleToggleTransportReminder}
-          />
-          <p className="text-xs text-on-surface-faint mt-2">
-            {t('settings.transport_reminder_hint')}
-          </p>
-          {transportReminderActive && (
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-on-surface-dim">
-                {t('settings.transport_reminder_lead')}
-              </span>
-              <select
-                value={settings.transportReminderMinutes ?? 60}
-                onChange={(e) =>
-                  updateSetting({ transportReminderMinutes: Number(e.target.value) })
-                }
-                aria-label={t('settings.transport_reminder_lead')}
-                className="bg-surface-high text-on-surface text-xs rounded-lg px-2 py-1 outline-none"
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border-subtle)',
+                }}
               >
-                <option value={30}>{t('settings.transport_reminder_30')}</option>
-                <option value={60}>{t('settings.transport_reminder_60')}</option>
-                <option value={120}>{t('settings.transport_reminder_120')}</option>
-              </select>
+                <Icon name="directions_bus" size={22} style={{ color: 'var(--primary)' }} />
+              </div>
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--on-surface)' }}>
+                  {t('settings.transport_reminder')}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--on-surface-dim)' }}>
+                  {t('settings.transport_reminder_hint')}
+                </p>
+              </div>
+            </div>
+            <button
+              role="switch"
+              aria-pressed={transportReminderActive}
+              onClick={handleToggleTransportReminder}
+              className="relative w-12 h-6 rounded-full"
+              style={{
+                background: transportReminderActive ? 'var(--primary)' : 'var(--surface-container-high)',
+                transition: 'background 0.2s ease',
+              }}
+            >
+              <div
+                className="absolute w-5 h-5 rounded-full top-0.5 shadow-sm"
+                style={{
+                  background: 'var(--on-surface)',
+                  left: transportReminderActive ? '26px' : '2px',
+                  transition: 'left 0.2s ease',
+                }}
+              />
+            </button>
+          </div>
+          {transportReminderActive && (
+            <div
+              className="mt-4 pt-4"
+              style={{ borderTop: '1px solid var(--border-subtle)' }}
+            >
+              <p className="text-xs mb-3" style={{ color: 'var(--on-surface-dim)' }}>
+                {t('settings.transport_reminder_lead')}
+              </p>
+              <div
+                className="flex p-1 rounded-lg"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                {[
+                  { value: 30, label: t('settings.transport_reminder_30') },
+                  { value: 60, label: t('settings.transport_reminder_60') },
+                  { value: 120, label: t('settings.transport_reminder_120') },
+                ].map((opt) => {
+                  const isActive = (settings.transportReminderMinutes ?? 60) === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      className="flex-1 py-2 rounded-md text-xs text-center"
+                      style={{
+                        background: isActive ? 'var(--surface-container-high)' : 'transparent',
+                        color: isActive ? 'var(--on-surface)' : 'var(--on-surface-dim)',
+                        boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
+                        fontWeight: isActive ? 600 : 400,
+                        transition: 'background 0.2s ease, color 0.2s ease',
+                      }}
+                      onClick={() => updateSetting({ transportReminderMinutes: opt.value })}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
           {notifPermission === 'denied' && (

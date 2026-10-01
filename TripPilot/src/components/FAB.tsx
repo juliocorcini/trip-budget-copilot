@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Icon } from './Icon';
 import { useAppData } from '@/hooks/useAppData';
 import { visibleInMode, type ModeAware } from '@/domain/app-mode';
@@ -8,6 +9,7 @@ import { hapticSelection } from '@/utils/haptics';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import { isOngoing } from '@/domain/spaces/spaces';
 import { openAssistant } from '@/features/assistant/assistant-bus';
+import { db } from '@/data/db/database';
 
 /**
  * The FAB keeps ALL its actions (ÂNCORA 9 — hide, never delete) and the visual
@@ -158,10 +160,15 @@ export function FABMenu({ isOpen, onClose, onDivide }: FABMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { settings, trip } = useAppData();
-  // DEC-194: keep the menu mounted through its exit so it visibly closes.
   const { mounted, state } = useAnimatedPresence(isOpen, 180);
-  // GATE 18: only the low-value "Outros registros" group collapses at rest.
   const [otherOpen, setOtherOpen] = useState(false);
+
+  const tripId = trip?.id ?? '';
+  const pendingCaptures = useLiveQuery(
+    () => (tripId ? db.captureInbox.where({ tripId, status: 'pending' }).count() : Promise.resolve(0)),
+    [tripId],
+  );
+
 
   if (!mounted) return null;
   const closing = state === 'closing';
@@ -439,6 +446,39 @@ export function FABMenu({ isOpen, onClose, onDivide }: FABMenuProps) {
               ) : (
                 renderSplitBill('wide')
               )}
+
+              {/* Capture Stack: single entry point to capture inbox (has its own camera button). */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction('/capture');
+                }}
+                className="btn-press w-full p-3.5 rounded-2xl flex items-center gap-3 text-left relative"
+                style={{ background: '#7C5E3A18', border: '1px solid #7C5E3A28' }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative"
+                  style={{ background: '#7C5E3A22' }}
+                >
+                  <Icon name="add_a_photo" size={20} className="text-primary" />
+                  {(pendingCaptures ?? 0) > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                      style={{ background: 'var(--danger)' }}
+                    >
+                      {pendingCaptures}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-on-surface leading-tight">
+                    {t('fab.capture')}
+                  </p>
+                  <p className="text-[10px] font-semibold text-on-surface-dim leading-snug line-clamp-1 mt-0.5">
+                    {t('fab.capture_desc')}
+                  </p>
+                </div>
+                <Icon name="arrow_forward" size={18} className="text-primary shrink-0" />
+              </button>
 
               {/* DEC-201 (N7): the orange hero — the base of the sheet, in the thumb
                   zone (closest to the "+"). */}

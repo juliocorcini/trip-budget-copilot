@@ -9,7 +9,7 @@ import * as L from 'leaflet';
  * `{z}/{y}/{x}` (row before column) — NOT the `{z}/{x}/{y}` of OSM/XYZ. Getting
  * that axis order wrong yields shuffled/blank tiles, so it is asserted by a test.
  */
-export type MapLayerKind = 'satellite' | 'street';
+export type MapLayerKind = 'satellite' | 'street' | 'dark';
 
 interface TileConfig {
   url: string;
@@ -51,9 +51,19 @@ export const STREET_TILES: TileConfig = {
   },
 };
 
+export const DARK_TILES: TileConfig = {
+  url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  options: {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
+  },
+};
+
 export const TILE_CONFIG: Record<MapLayerKind, TileConfig> = {
   satellite: SATELLITE_TILES,
   street: STREET_TILES,
+  dark: DARK_TILES,
 };
 
 /** The surface shown by default across every map in the app (DEC-422 default a). */
@@ -74,6 +84,6 @@ export function createTileLayer(kind: MapLayerKind): L.Layer {
       ...SATELLITE_REFERENCE_TILES.map((t) => L.tileLayer(t.url, t.options)),
     ]);
   }
-  const { url, options } = STREET_TILES;
-  return L.tileLayer(url, options);
+  const config = kind === 'dark' ? DARK_TILES : STREET_TILES;
+  return L.tileLayer(config.url, config.options);
 }

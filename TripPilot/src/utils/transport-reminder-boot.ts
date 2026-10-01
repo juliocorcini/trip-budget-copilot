@@ -3,17 +3,18 @@ import { itineraryLegRepository } from '@/data/repositories/itinerary-leg-reposi
 import { getSchedulableTransports, type SchedulableTransport } from '@/domain/itinerary/itinerary-domain';
 import { isNativeApp } from '@/utils/native/platform';
 import { logger } from '@/utils/logger';
+import { showInAppNotification } from '@/components/InAppNotificationOverlay';
 import i18n from '@/i18n';
 
 const DEFAULT_LEAD_MINUTES = 60;
-const TRANSPORT_LABEL: Record<string, string> = {
-  flight: '✈️',
-  train: '🚂',
-  bus: '🚌',
-  car: '🚗',
-  ferry: '⛴️',
-  walk: '🚶',
-  other: '🚀',
+const TRANSPORT_ICON: Record<string, string> = {
+  flight: 'flight_takeoff',
+  train: 'train',
+  bus: 'directions_bus',
+  car: 'directions_car',
+  ferry: 'directions_boat',
+  walk: 'directions_walk',
+  other: 'commute',
 };
 
 let booted = false;
@@ -25,14 +26,22 @@ function clearTimers(): void {
 }
 
 async function fireNotification(transport: SchedulableTransport, leadMinutes: number): Promise<void> {
-  const emoji = TRANSPORT_LABEL[transport.transportType] ?? '🚀';
+  const icon = TRANSPORT_ICON[transport.transportType] ?? 'commute';
   const title = i18n.t('itinerary.transport_reminder_title');
   const body = i18n.t('itinerary.transport_reminder_body', {
-    emoji,
     destination: transport.destination,
     time: transport.time,
     minutes: leadMinutes,
   });
+
+  if (document.visibilityState === 'visible') {
+    showInAppNotification({
+      id: `${transport.legId}:${transport.departureIso}`,
+      icon,
+      title,
+      body,
+    });
+  }
 
   if (isNativeApp()) {
     try {

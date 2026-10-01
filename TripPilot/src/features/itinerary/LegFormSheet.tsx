@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BottomSheet } from '@/components/BottomSheet';
+import { Icon } from '@/components/Icon';
 import { createSyncMetadata } from '@/utils/entity-factory';
 import type {
   ItineraryLeg,
@@ -11,8 +12,16 @@ import type {
 } from '@/domain/types/itinerary-leg';
 
 const TRANSPORT_TYPES: TransportType[] = ['flight', 'train', 'bus', 'car', 'ferry', 'walk', 'other'];
+const TRANSPORT_TYPE_ICONS: Record<TransportType, string> = {
+  flight: 'flight', train: 'train', bus: 'directions_bus',
+  car: 'directions_car', ferry: 'directions_boat', walk: 'directions_walk', other: 'commute',
+};
 const ACCOMMODATION_TYPES: AccommodationType[] = ['hotel', 'hostel', 'apartment', 'friend', 'airbnb', 'camping', 'other'];
 const DAY_TYPES: DayType[] = ['full', 'transit', 'festival', 'rest', 'day_trip'];
+const DAY_TYPE_ICONS: Record<DayType, string> = {
+  full: 'directions_run', transit: 'flight_takeoff', festival: 'celebration',
+  rest: 'weekend', day_trip: 'hiking',
+};
 const BOOKING_STATUSES: BookingStatus[] = ['purchased', 'booked', 'priced', 'estimated', 'none'];
 
 interface Props {
@@ -25,9 +34,15 @@ interface Props {
   existing?: ItineraryLeg | null;
 }
 
-const INPUT_CLASS = 'bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2.5 outline-none w-full';
-const LABEL_CLASS = 'text-xs font-semibold text-on-surface-dim mb-1';
-const SELECT_CLASS = 'bg-surface-high text-on-surface text-sm rounded-lg px-3 py-2.5 outline-none w-full appearance-none';
+const INPUT_STYLE: React.CSSProperties = {
+  background: 'var(--surface-container-high)',
+  color: 'var(--on-surface)',
+  border: '1px solid var(--on-surface-faint)',
+};
+const INPUT_CLASS = 'text-sm rounded-lg px-3 py-3 outline-none w-full transition-[border-color] duration-200 focus:border-[var(--primary)]';
+const LABEL_CLASS = 'block font-mono text-[10px] uppercase tracking-[0.15em] mb-1';
+const LABEL_STYLE: React.CSSProperties = { color: 'var(--on-surface-dim)' };
+const SELECT_CLASS = 'text-sm rounded-lg px-3 py-3 outline-none w-full appearance-none transition-[border-color] duration-200 focus:border-[var(--primary)]';
 
 export function LegFormSheet({ open, onClose, onSave, onDelete, tripId, nextOrder, existing }: Props) {
   const { t } = useTranslation();
@@ -193,159 +208,375 @@ export function LegFormSheet({ open, onClose, onSave, onDelete, tripId, nextOrde
 
   return (
     <BottomSheet open={open} onClose={onClose} title={existing ? t('itinerary.edit_leg') : t('itinerary.add_leg')}>
-      <div className="flex flex-col gap-4 pb-2" data-no-sheet-drag>
-        {/* City + Country */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className={LABEL_CLASS}>{t('itinerary.field_city')} *</label>
-            <input
-              type="text"
-              value={cityName}
-              onChange={(e) => setCityName(e.target.value)}
-              placeholder="Roma"
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div className="w-20">
-            <label className={LABEL_CLASS}>{t('itinerary.field_country')}</label>
-            <input
-              type="text"
-              value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value.toUpperCase().slice(0, 2))}
-              placeholder="IT"
-              maxLength={2}
-              className={INPUT_CLASS}
-            />
-          </div>
+      <div className="flex flex-col gap-0 pb-24" data-no-sheet-drag>
+        {/* Header */}
+        <div className="mb-6">
+          <h1
+            className="text-xl font-bold"
+            style={{ color: 'var(--on-surface)' }}
+          >
+            {existing ? t('itinerary.edit_leg') : t('itinerary.add_leg')}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--on-surface-dim)' }}>
+            {t('itinerary.leg_form_subtitle')}
+          </p>
         </div>
 
-        {/* Dates */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className={LABEL_CLASS}>{t('itinerary.field_arrival')} *</label>
-            <input type="date" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} className={INPUT_CLASS} />
-          </div>
-          <div className="flex-1">
-            <label className={LABEL_CLASS}>{t('itinerary.field_departure')} *</label>
-            <input type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} className={INPUT_CLASS} />
-          </div>
-        </div>
-
-        {/* Times */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className={LABEL_CLASS}>{t('itinerary.field_arrival_time')}</label>
-            <input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)} className={INPUT_CLASS} />
-          </div>
-          <div className="flex-1">
-            <label className={LABEL_CLASS}>{t('itinerary.field_departure_time')}</label>
-            <input type="time" value={departureTime} onChange={(e) => setDepartureTime(e.target.value)} className={INPUT_CLASS} />
-          </div>
-        </div>
-
-        {/* Day type */}
-        <div>
-          <label className={LABEL_CLASS}>{t('itinerary.field_day_type')}</label>
-          <select value={dayType} onChange={(e) => setDayType(e.target.value as DayType)} className={SELECT_CLASS}>
-            {DAY_TYPES.map((dt) => (
-              <option key={dt} value={dt}>{t(`itinerary.day_type_${dt}` as never)}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Companions */}
-        <div>
-          <label className={LABEL_CLASS}>{t('itinerary.field_companions')}</label>
-          <input
-            type="text"
-            value={companions}
-            onChange={(e) => setCompanions(e.target.value)}
-            placeholder={t('itinerary.field_companions_hint')}
-            className={INPUT_CLASS}
-          />
-        </div>
-
-        {/* Transport toggle */}
-        <button
-          onClick={() => setHasTransport(!hasTransport)}
-          className="flex items-center gap-2 py-2 text-sm font-semibold text-primary btn-press"
+        {/* ═══ BASIC INFO SECTION ═══ */}
+        <section
+          className="rounded-xl p-4 mb-4 flex flex-col gap-4"
+          style={{ background: 'var(--surface-container)', border: '1px solid var(--border-subtle)' }}
         >
-          {hasTransport ? '▼' : '▶'} 🚂 {t('itinerary.transport')}
-        </button>
-        {hasTransport && (
-          <div className="flex flex-col gap-3 pl-2 border-l-2" style={{ borderColor: 'var(--border-faint)' }}>
-            <select value={transportType} onChange={(e) => setTransportType(e.target.value as TransportType)} className={SELECT_CLASS}>
-              {TRANSPORT_TYPES.map((tt) => (
-                <option key={tt} value={tt}>{tt}</option>
+          <div className="flex items-center gap-2 mb-1">
+            <Icon name="location_on" size={20} filled style={{ color: 'var(--primary)' }} />
+            <h2 className="text-base font-semibold" style={{ color: 'var(--on-surface)' }}>
+              {t('itinerary.section_basic_info')}
+            </h2>
+          </div>
+
+          {/* City + Country */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_city')} *</label>
+              <input
+                type="text"
+                value={cityName}
+                onChange={(e) => setCityName(e.target.value)}
+                placeholder="Roma"
+                className={INPUT_CLASS}
+                style={INPUT_STYLE}
+              />
+            </div>
+            <div className="w-20">
+              <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_country')}</label>
+              <input
+                type="text"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value.toUpperCase().slice(0, 2))}
+                placeholder="IT"
+                maxLength={2}
+                className={INPUT_CLASS}
+                style={INPUT_STYLE}
+              />
+            </div>
+          </div>
+
+          {/* Dates side-by-side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_arrival')} *</label>
+              <input type="date" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} className={INPUT_CLASS} style={INPUT_STYLE} />
+            </div>
+            <div>
+              <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_departure')} *</label>
+              <input type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} className={INPUT_CLASS} style={INPUT_STYLE} />
+            </div>
+          </div>
+
+          {/* Times side-by-side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_arrival_time')}</label>
+              <input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)} className={INPUT_CLASS} style={INPUT_STYLE} />
+            </div>
+            <div>
+              <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_departure_time')}</label>
+              <input type="time" value={departureTime} onChange={(e) => setDepartureTime(e.target.value)} className={INPUT_CLASS} style={INPUT_STYLE} />
+            </div>
+          </div>
+
+          {/* Day type as chip selector */}
+          <div>
+            <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_day_type')}</label>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {DAY_TYPES.map((dt) => (
+                <button
+                  key={dt}
+                  type="button"
+                  onClick={() => setDayType(dt)}
+                  className="btn-press flex items-center gap-1.5 px-3 py-2 rounded-full whitespace-nowrap transition-[background-color,border-color,color] duration-200"
+                  style={{
+                    border: dayType === dt
+                      ? '1px solid var(--primary)'
+                      : '1px solid var(--on-surface-faint)',
+                    background: dayType === dt
+                      ? 'color-mix(in srgb, var(--primary) 15%, transparent)'
+                      : 'transparent',
+                    color: dayType === dt
+                      ? 'var(--primary)'
+                      : 'var(--on-surface-dim)',
+                  }}
+                >
+                  <Icon name={DAY_TYPE_ICONS[dt]} size={16} style={{ color: dayType === dt ? 'var(--primary)' : 'var(--on-surface-dim)' }} />
+                  <span className="font-mono text-[10px] uppercase tracking-wider">
+                    {t(`itinerary.day_type_${dt}` as never)}
+                  </span>
+                </button>
               ))}
-            </select>
-            <input type="text" value={transportCompany} onChange={(e) => setTransportCompany(e.target.value)} placeholder={t('itinerary.field_company')} className={INPUT_CLASS} />
-            <input type="text" value={transportRoute} onChange={(e) => setTransportRoute(e.target.value)} placeholder={t('itinerary.field_route')} className={INPUT_CLASS} />
-            <div className="flex gap-2">
-              <input type="number" inputMode="decimal" step="0.01" value={transportCost} onChange={(e) => setTransportCost(e.target.value)} placeholder={t('itinerary.field_cost')} className={`${INPUT_CLASS} flex-1`} />
-              <input type="text" value={transportCurrency} onChange={(e) => setTransportCurrency(e.target.value.toUpperCase())} className={`${INPUT_CLASS} w-16`} maxLength={3} />
-            </div>
-            <div className="flex gap-4">
-              <select value={transportBooking} onChange={(e) => setTransportBooking(e.target.value as BookingStatus)} className={`${SELECT_CLASS} flex-1`}>
-                {BOOKING_STATUSES.map((bs) => <option key={bs} value={bs}>{bs}</option>)}
-              </select>
-              <label className="flex items-center gap-1.5 text-xs text-on-surface-dim">
-                <input type="checkbox" checked={transportPrepaid} onChange={(e) => setTransportPrepaid(e.target.checked)} />
-                {t('itinerary.prepaid')}
-              </label>
             </div>
           </div>
-        )}
 
-        {/* Accommodation toggle */}
-        <button
-          onClick={() => setHasAccommodation(!hasAccommodation)}
-          className="flex items-center gap-2 py-2 text-sm font-semibold text-primary btn-press"
+          {/* Companions */}
+          <div>
+            <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_companions')}</label>
+            <input
+              type="text"
+              value={companions}
+              onChange={(e) => setCompanions(e.target.value)}
+              placeholder={t('itinerary.field_companions_hint')}
+              className={INPUT_CLASS}
+              style={INPUT_STYLE}
+            />
+          </div>
+        </section>
+
+        {/* ═══ TRANSPORT SECTION ═══ */}
+        <section
+          className="rounded-xl p-4 mb-4 flex flex-col gap-4"
+          style={{ background: 'var(--surface-container)', border: '1px solid var(--border-subtle)' }}
         >
-          {hasAccommodation ? '▼' : '▶'} 🏠 {t('itinerary.field_accommodation')}
-        </button>
-        {hasAccommodation && (
-          <div className="flex flex-col gap-3 pl-2 border-l-2" style={{ borderColor: 'var(--border-faint)' }}>
-            <input type="text" value={accommodationName} onChange={(e) => setAccommodationName(e.target.value)} placeholder={t('itinerary.field_accommodation_name')} className={INPUT_CLASS} />
-            <select value={accommodationType} onChange={(e) => setAccommodationType(e.target.value as AccommodationType)} className={SELECT_CLASS}>
-              {ACCOMMODATION_TYPES.map((at) => <option key={at} value={at}>{at}</option>)}
-            </select>
-            <div className="flex gap-2">
-              <input type="number" inputMode="decimal" step="0.01" value={accommodationCost} onChange={(e) => setAccommodationCost(e.target.value)} placeholder={t('itinerary.field_cost')} className={`${INPUT_CLASS} flex-1`} />
-              <input type="text" value={accommodationCurrency} onChange={(e) => setAccommodationCurrency(e.target.value.toUpperCase())} className={`${INPUT_CLASS} w-16`} maxLength={3} />
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Icon name="flight_takeoff" size={20} filled style={{ color: 'var(--ai)' }} />
+              <h2 className="text-base font-semibold" style={{ color: 'var(--on-surface)' }}>
+                {t('itinerary.transport')}
+              </h2>
             </div>
-            <div className="flex gap-2">
-              <input type="number" inputMode="numeric" value={accommodationNights} onChange={(e) => setAccommodationNights(e.target.value)} placeholder={t('itinerary.nights')} className={`${INPUT_CLASS} w-20`} min={1} />
-              <span className="self-center text-xs text-on-surface-dim">{t('itinerary.nights')}</span>
-            </div>
-            <div className="flex gap-4">
-              <select value={accommodationBooking} onChange={(e) => setAccommodationBooking(e.target.value as BookingStatus)} className={`${SELECT_CLASS} flex-1`}>
-                {BOOKING_STATUSES.map((bs) => <option key={bs} value={bs}>{bs}</option>)}
-              </select>
-              <label className="flex items-center gap-1.5 text-xs text-on-surface-dim">
-                <input type="checkbox" checked={accommodationPrepaid} onChange={(e) => setAccommodationPrepaid(e.target.checked)} />
-                {t('itinerary.prepaid')}
-              </label>
-            </div>
+            <button
+              type="button"
+              onClick={() => setHasTransport(!hasTransport)}
+              className="btn-press relative w-10 h-5 rounded-full transition-[background-color] duration-200"
+              style={{
+                background: hasTransport ? 'var(--success)' : 'var(--surface-container-high)',
+              }}
+              role="switch"
+              aria-checked={hasTransport}
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full transition-[left] duration-200"
+                style={{
+                  background: 'var(--on-surface)',
+                  left: hasTransport ? '22px' : '2px',
+                }}
+              />
+            </button>
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex gap-2 mt-2">
+          {hasTransport && (
+            <div className="flex flex-col gap-4">
+              {/* Transport type as icon grid */}
+              <div>
+                <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_transport_mode')}</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {TRANSPORT_TYPES.filter((tt) => tt !== 'other').map((tt) => (
+                    <button
+                      key={tt}
+                      type="button"
+                      onClick={() => setTransportType(tt)}
+                      className="btn-press flex flex-col items-center justify-center p-2.5 rounded-lg transition-[border-color,background-color] duration-200"
+                      style={{
+                        border: transportType === tt
+                          ? '1px solid var(--ai)'
+                          : '1px solid var(--on-surface-faint)',
+                        background: transportType === tt
+                          ? 'color-mix(in srgb, var(--ai) 12%, transparent)'
+                          : 'transparent',
+                        color: transportType === tt ? 'var(--ai)' : 'var(--on-surface-dim)',
+                      }}
+                    >
+                      <Icon name={TRANSPORT_TYPE_ICONS[tt]} size={20} style={{ color: transportType === tt ? 'var(--ai)' : 'var(--on-surface-dim)' }} />
+                      <span className="font-mono text-[9px] uppercase mt-1">{tt}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Company + Route */}
+              <div>
+                <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_company')}</label>
+                <input type="text" value={transportCompany} onChange={(e) => setTransportCompany(e.target.value)} placeholder={t('itinerary.field_company')} className={INPUT_CLASS} style={INPUT_STYLE} />
+              </div>
+              <div>
+                <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_route')}</label>
+                <input type="text" value={transportRoute} onChange={(e) => setTransportRoute(e.target.value)} placeholder={t('itinerary.field_route')} className={`${INPUT_CLASS} font-mono uppercase`} style={INPUT_STYLE} />
+              </div>
+
+              {/* Cost */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_cost')}</label>
+                  <input type="number" inputMode="decimal" step="0.01" value={transportCost} onChange={(e) => setTransportCost(e.target.value)} placeholder="0.00" className={INPUT_CLASS} style={INPUT_STYLE} />
+                </div>
+                <div className="w-16">
+                  <label className={LABEL_CLASS} style={LABEL_STYLE}>&nbsp;</label>
+                  <input type="text" value={transportCurrency} onChange={(e) => setTransportCurrency(e.target.value.toUpperCase())} className={`${INPUT_CLASS} font-mono`} style={INPUT_STYLE} maxLength={3} />
+                </div>
+              </div>
+
+              {/* Booking status + prepaid */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.checklist_title')}</label>
+                  <select value={transportBooking} onChange={(e) => setTransportBooking(e.target.value as BookingStatus)} className={SELECT_CLASS} style={INPUT_STYLE}>
+                    {BOOKING_STATUSES.map((bs) => <option key={bs} value={bs}>{bs}</option>)}
+                  </select>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs self-end pb-3 shrink-0" style={{ color: 'var(--on-surface-dim)' }}>
+                  <input type="checkbox" checked={transportPrepaid} onChange={(e) => setTransportPrepaid(e.target.checked)} />
+                  {t('itinerary.prepaid')}
+                </label>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ═══ ACCOMMODATION SECTION ═══ */}
+        <section
+          className="rounded-xl p-4 mb-4 flex flex-col gap-4"
+          style={{ background: 'var(--surface-container)', border: '1px solid var(--border-subtle)' }}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Icon name="hotel" size={20} filled style={{ color: 'var(--warning)' }} />
+              <h2 className="text-base font-semibold" style={{ color: 'var(--on-surface)' }}>
+                {t('itinerary.field_accommodation')}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setHasAccommodation(!hasAccommodation)}
+              className="btn-press relative w-10 h-5 rounded-full transition-[background-color] duration-200"
+              style={{
+                background: hasAccommodation ? 'var(--success)' : 'var(--surface-container-high)',
+              }}
+              role="switch"
+              aria-checked={hasAccommodation}
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full transition-[left] duration-200"
+                style={{
+                  background: 'var(--on-surface)',
+                  left: hasAccommodation ? '22px' : '2px',
+                }}
+              />
+            </button>
+          </div>
+
+          {hasAccommodation && (
+            <div className="flex flex-col gap-4">
+              {/* Accommodation type chips */}
+              <div>
+                <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_accommodation_type')}</label>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {ACCOMMODATION_TYPES.filter((at) => ['hotel', 'hostel', 'apartment', 'airbnb'].includes(at)).map((at) => (
+                    <button
+                      key={at}
+                      type="button"
+                      onClick={() => setAccommodationType(at)}
+                      className="btn-press flex items-center gap-1.5 px-3 py-2 rounded-full whitespace-nowrap transition-[border-color,background-color] duration-200"
+                      style={{
+                        border: accommodationType === at
+                          ? '1px solid var(--warning)'
+                          : '1px solid var(--on-surface-faint)',
+                        background: accommodationType === at
+                          ? 'color-mix(in srgb, var(--warning) 12%, transparent)'
+                          : 'transparent',
+                        color: accommodationType === at
+                          ? 'var(--warning)'
+                          : 'var(--on-surface-dim)',
+                      }}
+                    >
+                      <span className="font-mono text-[10px] uppercase tracking-wider">{at}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div>
+                <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_accommodation_name')}</label>
+                <input type="text" value={accommodationName} onChange={(e) => setAccommodationName(e.target.value)} placeholder={t('itinerary.field_accommodation_name')} className={INPUT_CLASS} style={INPUT_STYLE} />
+              </div>
+
+              {/* Cost + Currency */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.field_cost')}</label>
+                  <input type="number" inputMode="decimal" step="0.01" value={accommodationCost} onChange={(e) => setAccommodationCost(e.target.value)} placeholder="0.00" className={INPUT_CLASS} style={INPUT_STYLE} />
+                </div>
+                <div className="w-16">
+                  <label className={LABEL_CLASS} style={LABEL_STYLE}>&nbsp;</label>
+                  <input type="text" value={accommodationCurrency} onChange={(e) => setAccommodationCurrency(e.target.value.toUpperCase())} className={`${INPUT_CLASS} font-mono`} style={INPUT_STYLE} maxLength={3} />
+                </div>
+              </div>
+
+              {/* Nights */}
+              <div className="flex items-center gap-3">
+                <div className="w-20">
+                  <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.nights')}</label>
+                  <input type="number" inputMode="numeric" value={accommodationNights} onChange={(e) => setAccommodationNights(e.target.value)} className={INPUT_CLASS} style={INPUT_STYLE} min={1} />
+                </div>
+                <span className="text-xs self-end pb-3" style={{ color: 'var(--on-surface-dim)' }}>{t('itinerary.nights')}</span>
+              </div>
+
+              {/* Booking + prepaid */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className={LABEL_CLASS} style={LABEL_STYLE}>{t('itinerary.checklist_title')}</label>
+                  <select value={accommodationBooking} onChange={(e) => setAccommodationBooking(e.target.value as BookingStatus)} className={SELECT_CLASS} style={INPUT_STYLE}>
+                    {BOOKING_STATUSES.map((bs) => <option key={bs} value={bs}>{bs}</option>)}
+                  </select>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs self-end pb-3 shrink-0" style={{ color: 'var(--on-surface-dim)' }}>
+                  <input type="checkbox" checked={accommodationPrepaid} onChange={(e) => setAccommodationPrepaid(e.target.checked)} />
+                  {t('itinerary.prepaid')}
+                </label>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* ═══ STICKY FOOTER (3 buttons) ═══ */}
+      <div
+        className="sticky bottom-0 left-0 right-0 p-4 flex items-center justify-between z-20"
+        style={{
+          background: 'var(--surface-container-high)',
+          borderTop: '1px solid var(--border-subtle)',
+        }}
+      >
+        <div>
           {existing && onDelete && (
             <button
               onClick={() => { onDelete(); onClose(); }}
-              className="py-3 px-4 rounded-xl text-sm font-semibold btn-press"
-              style={{ background: 'var(--danger)', color: 'var(--surface)' }}
+              className="btn-press px-4 py-3 rounded-xl font-mono text-[11px] uppercase tracking-[0.1em] font-medium flex items-center gap-2 transition-[background-color] duration-200"
+              style={{
+                border: '1px solid color-mix(in srgb, var(--error) 30%, transparent)',
+                color: 'var(--error)',
+                background: 'transparent',
+              }}
             >
+              <Icon name="delete" size={16} style={{ color: 'var(--error)' }} />
               {t('common.delete')}
             </button>
           )}
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="btn-press px-5 py-3 rounded-xl font-mono text-[11px] uppercase tracking-[0.1em] transition-[color] duration-200"
+            style={{ color: 'var(--on-surface-dim)' }}
+          >
+            {t('common.cancel')}
+          </button>
           <button
             onClick={handleSave}
             disabled={!isValid}
-            className="flex-1 py-3 rounded-xl text-sm font-semibold btn-press disabled:opacity-40"
-            style={{ background: 'var(--primary)', color: 'var(--surface)' }}
+            className="btn-press px-6 py-3 rounded-xl font-mono text-[11px] uppercase tracking-[0.1em] font-bold disabled:opacity-40 transition-[background-color] duration-200"
+            style={{
+              background: 'var(--primary)',
+              color: '#fff',
+            }}
           >
             {t('common.save')}
           </button>

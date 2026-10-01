@@ -12,6 +12,7 @@ import { buildNotifications, type AppNotification } from '@/domain/insights';
 import { getInboundP2pItems } from '@/domain/orchestrators';
 import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
 import { GROUP_SPLIT_CHANGED_EVENT } from '@/utils/group-split-boot';
+import { SHARE_LINK_RECONCILED_EVENT } from '@/utils/share-link-boot';
 
 /**
  * DEC-090 (R-08): derived notifications shared by the bell badge (Dashboard)
@@ -125,11 +126,13 @@ export function useNotifications(): { notifications: AppNotification[]; ready: b
     const onDrained = () => void load();
     window.addEventListener(MAILBOX_DRAINED_EVENT, onDrained);
     window.addEventListener(GROUP_SPLIT_CHANGED_EVENT, onDrained);
+    window.addEventListener(SHARE_LINK_RECONCILED_EVENT, onDrained);
 
     return () => {
       cancelled = true;
       window.removeEventListener(MAILBOX_DRAINED_EVENT, onDrained);
       window.removeEventListener(GROUP_SPLIT_CHANGED_EVENT, onDrained);
+      window.removeEventListener(SHARE_LINK_RECONCILED_EVENT, onDrained);
     };
   }, [trip, phases, pools, links, envelopes, transactions, participants, occurrences, plannedPurchases, settings]);
 

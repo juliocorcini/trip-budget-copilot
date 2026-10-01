@@ -1,8 +1,8 @@
 {
-  "version": "2.13.2-rc",
+  "version": "2.13.13-rc",
   "requiredNativeVersion": "0.50.0",
   "latestNativeVersion": "0.77.0",
   "apkUrl": "https://trippilot.pages.dev/trippilot.apk",
-  "bundleUrl": "https://trippilot.pages.dev/bundles/2.13.2-rc.zip",
+  "bundleUrl": "https://trippilot.pages.dev/bundles/2.13.13-rc.zip",
   "notes": "Itinerary Polish G1: guided conversation flow, color-coded days, progress bar, vertical timeline, swipe navigation."
 }

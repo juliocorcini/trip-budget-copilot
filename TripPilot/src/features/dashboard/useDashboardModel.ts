@@ -84,6 +84,7 @@ import {
 import { findPendingConfirmationShares, calculateDebts, summarizeOwnerDebts } from '@/domain/splitting';
 import { getInboundP2pItems } from '@/domain/orchestrators';
 import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
+import { SHARE_LINK_RECONCILED_EVENT } from '@/utils/share-link-boot';
 import {
   calculateOccasionForecasts,
   calculatePlanProgress,
@@ -186,6 +187,10 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
   }, [trip, transactions]);
 
   // DEC-071 (FIELD-03): pending = third-party shares awaiting confirmation.
+  // Listens to SHARE_LINK_RECONCILED_EVENT so the UI refreshes when a guest
+  // confirms items via the shared link (the pull updates participantShares in
+  // IndexedDB but the effect's deps — trip/transactions/participants — don't
+  // change, so without this listener the stale count persists).
   useEffect(() => {
     if (!trip) return;
     const owner = participants.find((p) => p.isOwner);
@@ -206,6 +211,11 @@ export function useDashboardModel(appData: AppData, heatmapMonth: string, heatma
       setPendingShares(findPendingConfirmationShares(transactions, shares, owner.id));
     };
     load();
+    const onReconciled = () => void load();
+    window.addEventListener(SHARE_LINK_RECONCILED_EVENT, onReconciled);
+    return () => {
+      window.removeEventListener(SHARE_LINK_RECONCILED_EVENT, onReconciled);
+    };
   }, [trip, transactions, participants]);
 
   // GAP-020 (DEC-006/043): counters show the forecast ("X remaining").

@@ -122,6 +122,7 @@ import { debtMoveTotalCents } from '@/domain/sync/debt-move-payload';
 import { resolveSelfName } from '@/domain/sync/self-name';
 import { waitForResponses, getDevicePublicKeyB64 } from '@/data/sync';
 import { MAILBOX_DRAINED_EVENT } from '@/utils/mailbox-boot';
+import { SHARE_LINK_RECONCILED_EVENT } from '@/utils/share-link-boot';
 import { getShareOrigin } from '@/utils/native/public-origin';
 import { shareOrCopyLink, shareOrCopyText } from '@/utils/native/link-share';
 import { SyncTransferFlow } from '@/features/sync/SyncTransferFlow';
@@ -336,6 +337,11 @@ export function SharedExpensesPage() {
       }
     };
     load();
+    const onReconciled = () => void load();
+    window.addEventListener(SHARE_LINK_RECONCILED_EVENT, onReconciled);
+    return () => {
+      window.removeEventListener(SHARE_LINK_RECONCILED_EVENT, onReconciled);
+    };
   }, [trip, transactions, participants]);
 
   // GAP-032: settle goes through a confirmation sheet with optional partial amount.

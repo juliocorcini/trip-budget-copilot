@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAppData } from '@/hooks/useAppData';
@@ -48,6 +48,10 @@ import { isOngoing } from '@/domain/spaces/spaces';
 import { useDashboardModel } from './useDashboardModel';
 import { DashboardCards } from './DashboardCards';
 import { ItineraryContextCard } from '@/features/itinerary/ItineraryContextCard';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/data/db/database';
+import { getCurrentLeg } from '@/domain/itinerary/itinerary-domain';
+import type { ItineraryLeg } from '@/domain/types/itinerary-leg';
 import { DashboardSheets } from './DashboardSheets';
 import { SimpleHome } from './SimpleHome';
 import { OngoingHome } from './OngoingHome';
@@ -102,6 +106,17 @@ export function DashboardPage() {
   // so the home no longer drives heatmap month/day state — the model still gets
   // the current month for the derivations the home cards reuse.
   const model = useDashboardModel(appData, localDateString(new Date()).slice(0, 7), null);
+
+  const today = localDateString(new Date());
+  const itineraryLegs = useLiveQuery(
+    () => (trip ? db.itineraryLegs.where('tripId').equals(trip.id).toArray() : []),
+    [trip?.id],
+    [] as ItineraryLeg[],
+  );
+  const hasActiveLeg = useMemo(
+    () => getCurrentLeg(itineraryLegs, today) !== null,
+    [itineraryLegs, today],
+  );
 
   // DEC-090 (R-08): the notifications center deep-links into the confirm sheet.
   useEffect(() => {
@@ -817,10 +832,17 @@ export function DashboardPage() {
             onOpenHeroBreakdown={() => setHeroBreakdownOpen(true)}
             onEditSavingsGoal={() => setSavingsGoalOpen(true)}
             onPiggyWithdraw={handlePiggyWithdraw}
+            renderAfterHero={
+              hasActiveLeg
+                ? <ItineraryContextCard tripId={trip.id} baseCurrency={trip.baseCurrency} transactions={transactions} />
+                : undefined
+            }
           />
 
-          {/* DEC-505: Itinerary context card — returns null when no legs (ÂNCORA-ITIN-2) */}
-          <ItineraryContextCard tripId={trip.id} baseCurrency={trip.baseCurrency} transactions={transactions} />
+          {/* Itinerary card: below all cards when not on an active travel day */}
+          {!hasActiveLeg && (
+            <ItineraryContextCard tripId={trip.id} baseCurrency={trip.baseCurrency} transactions={transactions} />
+          )}
 
           {/* DEC-119 (R-10): thin edge-to-edge entry when cards are hidden */}
           {hiddenCardCount > 0 && (

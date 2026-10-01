@@ -17,6 +17,243 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '2.13.13-rc',
+    date: '2026-07-14',
+    items: {
+      'pt-BR': [
+        'Motor de leitura de recibos atualizado para modelo de IA mais recente — leitura mais precisa e rápida.',
+      ],
+      en: [
+        'Receipt scanning engine upgraded to latest AI model — more accurate and faster reads.',
+      ],
+      es: [
+        'Motor de lectura de recibos actualizado al modelo de IA más reciente — lectura más precisa y rápida.',
+      ],
+    },
+  },
+  {
+    version: '2.13.12-rc',
+    date: '2026-07-14',
+    items: {
+      'pt-BR': [
+        'Card do itinerário agora começa colapsado — mostra só a cidade e próximo transporte; toque para expandir.',
+        'Confirmações feitas pelo link compartilhado agora atualizam instantaneamente no app do dono.',
+        'Botões "Capturar" e "Caixa de entrada" unificados em um só para liberar espaço no menu.',
+        'Corrigido texto "ITINERARY.ACCOMMODATI" aparecendo no dashboard.',
+      ],
+      en: [
+        'Itinerary card now starts collapsed — shows only city and next transport; tap to expand.',
+        'Confirmations made via shared link now instantly update in the owner\'s app.',
+        'Merged "Capture" and "Inbox" buttons into one to save space in the menu.',
+        'Fixed raw "ITINERARY.ACCOMMODATI" text showing on dashboard.',
+      ],
+      es: [
+        'Tarjeta de itinerario ahora inicia colapsada — muestra solo ciudad y próximo transporte; toca para expandir.',
+        'Confirmaciones hechas por el enlace compartido ahora se actualizan instantáneamente en la app del dueño.',
+        'Botones "Capturar" y "Bandeja de entrada" unificados en uno solo para liberar espacio en el menú.',
+        'Corregido texto "ITINERARY.ACCOMMODATI" que aparecía en el dashboard.',
+      ],
+    },
+  },
+  {
+    version: '2.13.11-rc',
+    date: '2026-07-14',
+    items: {
+      'pt-BR': [
+        'Corrigido erro que impedia a tela de itinerário de abrir.',
+      ],
+      en: [
+        'Fixed error that prevented the itinerary screen from opening.',
+      ],
+      es: [
+        'Corregido error que impedía que la pantalla de itinerario se abriera.',
+      ],
+    },
+  },
+  {
+    version: '2.13.10-rc',
+    date: '2026-07-14',
+    items: {
+      'pt-BR': [
+        'Pilha de Captura: tire uma foto rápida de recibos e processe depois com IA.',
+        'Novo botão "Capturar" no menu rápido — um toque e a foto vai para a caixa de entrada.',
+        'Caixa de entrada com todas as fotos pendentes, prontas para processamento OCR.',
+        'Badge vermelho mostra quantas fotos estão esperando para serem processadas.',
+      ],
+      en: [
+        'Capture Stack: snap a quick photo of receipts and process later with AI.',
+        'New "Capture" button in the quick menu — one tap and the photo goes to the inbox.',
+        'Inbox with all pending photos, ready for OCR processing.',
+        'Red badge shows how many photos are waiting to be processed.',
+      ],
+      es: [
+        'Pila de Captura: toma una foto rápida de recibos y procesa después con IA.',
+        'Nuevo botón "Capturar" en el menú rápido — un toque y la foto va a la bandeja.',
+        'Bandeja con todas las fotos pendientes, listas para procesamiento OCR.',
+        'Badge rojo muestra cuántas fotos están esperando ser procesadas.',
+      ],
+    },
+  },
+  {
+    version: '2.13.9-rc',
+    date: '2026-07-14',
+    items: {
+      'pt-BR': [
+        'Mapa de rota redesenhado: agora mostra mapa no topo e lista de cidades abaixo, sem conflitar com gestos.',
+        'Criar itinerário com IA agora pergunta se quer criar do zero ou adicionar ao existente antes de escolher o método.',
+        'Card de itinerário no dashboard sempre mostra agenda e orçamento do dia.',
+        'Countdown visual mostrando tempo até o próximo transporte.',
+        'Notas pessoais com visual mais limpo e elegante.',
+      ],
+      en: [
+        'Redesigned route map: now shows map on top with city list below, no gesture conflicts.',
+        'Creating itinerary with AI now asks whether to start fresh or add to existing before choosing the method.',
+        'Dashboard itinerary card always shows agenda and daily budget.',
+        'Visual countdown showing time until next transport.',
+        'Personal notes with cleaner and more elegant design.',
+      ],
+      es: [
+        'Mapa de ruta rediseñado: ahora muestra el mapa arriba y la lista de ciudades abajo, sin conflictos de gestos.',
+        'Crear itinerario con IA ahora pregunta si quieres empezar desde cero o agregar al existente.',
+        'Tarjeta de itinerario en el dashboard siempre muestra agenda y presupuesto del día.',
+        'Cuenta regresiva visual mostrando tiempo hasta el próximo transporte.',
+        'Notas personales con diseño más limpio y elegante.',
+      ],
+    },
+  },
+  {
+    version: '2.13.8-rc',
+    date: '2026-07-14',
+    items: {
+      'pt-BR': [
+        'Cards de agenda agora mostram companhia, rota, referência de reserva e custo do transporte.',
+        'Badges de status de reserva: Comprado, Reservado, Cotado ou Estimado com cores e ícones.',
+        'Notificações de transporte agora aparecem como banner no topo, sem bloquear a tela.',
+        'Contexto da cidade atual redesenhado no registro de gastos.',
+      ],
+      en: [
+        'Agenda cards now show transport company, route, booking reference and cost.',
+        'Booking status badges: Purchased, Booked, Priced or Estimated with colors and icons.',
+        'Transport reminders now appear as a top banner without blocking the screen.',
+        'Current city context redesigned in the expense registration screen.',
+      ],
+      es: [
+        'Tarjetas de agenda ahora muestran compañía, ruta, referencia de reserva y costo del transporte.',
+        'Badges de estado de reserva: Comprado, Reservado, Cotizado o Estimado con colores e íconos.',
+        'Notificaciones de transporte ahora aparecen como banner superior sin bloquear la pantalla.',
+        'Contexto de la ciudad actual rediseñado en el registro de gastos.',
+      ],
+    },
+  },
+  {
+    version: '2.13.7-rc',
+    date: '2026-07-14',
+    items: {
+      'pt-BR': [
+        'Card de itinerário no painel agora aparece acima dos gastos somente quando você está em dia de viagem.',
+        'Indicador visual de trânsito: quando o dia passa por mais de uma cidade, as cidades aparecem conectadas no card.',
+      ],
+      en: [
+        'Itinerary card on the dashboard is now prominent only when you have an active travel day.',
+        'Transit visual indicator: when a day covers multiple cities, they appear connected on the card.',
+      ],
+      es: [
+        'Tarjeta de itinerario en el panel ahora aparece arriba de los gastos solo cuando estás en un día de viaje.',
+        'Indicador visual de tránsito: cuando el día pasa por más de una ciudad, las ciudades aparecen conectadas en la tarjeta.',
+      ],
+    },
+  },
+  {
+    version: '2.13.6-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': [
+        'Nova timeline multi-cidade no itinerário: navegue entre cidades com nós conectados e veja onde você está.',
+      ],
+      en: [
+        'New multi-city timeline in itinerary: navigate between cities with connected nodes and see where you are.',
+      ],
+      es: [
+        'Nueva línea de tiempo multi-ciudad en el itinerario: navega entre ciudades con nodos conectados.',
+      ],
+    },
+  },
+  {
+    version: '2.13.5-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': [
+        'Mapa do itinerário agora ocupa a tela toda, com cards flutuantes das cidades na parte inferior.',
+        'Criação de itinerário com IA agora oferece opção de começar do zero ou adicionar a um existente.',
+        'Card de itinerário no dashboard expandido por padrão e posicionado com mais destaque.',
+        'Notas pessoais com layout renovado e botão de edição mais claro.',
+      ],
+      en: [
+        'Itinerary map now fills the screen with floating city cards at the bottom.',
+        'AI itinerary creation now offers choice to start fresh or add to existing.',
+        'Dashboard itinerary card expanded by default and positioned more prominently.',
+        'Personal notes with refreshed layout and clearer edit button.',
+      ],
+      es: [
+        'El mapa del itinerario ahora ocupa toda la pantalla con tarjetas flotantes de ciudades.',
+        'La creación de itinerario con IA ahora ofrece opción de empezar de cero o agregar al existente.',
+        'Tarjeta de itinerario en el dashboard expandida por defecto y posicionada con más destaque.',
+        'Notas personales con diseño renovado y botón de edición más claro.',
+      ],
+    },
+  },
+  {
+    version: '2.13.4-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': [
+        'Redesign visual completo do itinerário: mapa com vista dividida, cards de cidades e tiles escuros.',
+        'Novo lembrete de transporte com controle segmentado e notificação visual no app.',
+        'Badge de contexto mostrando dia, cidade e orçamento na tela de despesas.',
+        'Badge LIVE pulsante em eventos da agenda acontecendo agora.',
+      ],
+      en: [
+        'Full itinerary visual redesign: split-view map with city cards and dark tiles.',
+        'New transport reminder with segmented control and in-app visual notification.',
+        'Context badge showing day, city, and budget on expense entry screen.',
+        'Pulsating LIVE badge on agenda events happening right now.',
+      ],
+      es: [
+        'Rediseño visual completo del itinerario: mapa dividido con tarjetas y tiles oscuros.',
+        'Nuevo recordatorio de transporte con control segmentado y notificación visual.',
+        'Badge de contexto mostrando día, ciudad y presupuesto en pantalla de gastos.',
+        'Badge LIVE pulsante en eventos de la agenda sucediendo ahora.',
+      ],
+    },
+  },
+  {
+    version: '2.13.3-rc',
+    date: '2026-07-13',
+    items: {
+      'pt-BR': [
+        'Redesign visual completo do itinerário: mapa com vista dividida, cards de cidades, e tiles escuros.',
+        'Configurações de lembrete de transporte com controle segmentado e novo visual.',
+        'Badge de contexto do itinerário na tela de adicionar despesa mostrando dia, cidade e orçamento.',
+        'Notificações de transporte agora aparecem no app com overlay visual quando em primeiro plano.',
+        'Badge LIVE pulsante em eventos da agenda que estão acontecendo agora.',
+      ],
+      en: [
+        'Full itinerary visual redesign: split-view map with city cards and dark tiles.',
+        'Transport reminder settings with segmented control and refreshed design.',
+        'Itinerary context badge on expense entry showing current day, city, and budget.',
+        'Transport notifications now show as in-app overlay when the app is in the foreground.',
+        'Pulsating LIVE badge on agenda events happening right now.',
+      ],
+      es: [
+        'Rediseño visual completo del itinerario: mapa dividido con tarjetas de ciudades y tiles oscuros.',
+        'Configuración de recordatorio de transporte con control segmentado y nuevo diseño.',
+        'Badge de contexto del itinerario al agregar gastos mostrando día, ciudad y presupuesto.',
+        'Notificaciones de transporte ahora aparecen como overlay en la app cuando está en primer plano.',
+        'Badge LIVE pulsante en eventos de la agenda que están sucediendo ahora.',
+      ],
+    },
+  },
+  {
     version: '2.13.2-rc',
     date: '2026-07-13',
     items: {
